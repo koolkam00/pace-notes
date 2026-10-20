@@ -115,8 +115,8 @@ export default function MethodsDefinitions() {
         {kinds.map((kind) => <div key={kind}><dt><EvidenceTag kind={kind} link={false} /></dt><dd>{kind === 'data' ? dataText : EVIDENCE_TEXT[kind].replace('{finishes}', toolFinishes)}</dd></div>)}
       </dl>}>
       {kinds.map((kind) => <p key={kind}><strong>{EVIDENCE_LABEL[kind]}.</strong> {kind === 'data' ? 'Every share is an observed share of complete finishes, not a forecast for any one runner.' : kind === 'research' ? 'Shown as ranges, each method on its own, and kept apart from Pace Notes results.' : 'Kept apart from the data.'} Used by the {and(shown.filter((tool) => tool.evidence.includes(kind)).map((tool) => tool.title.toLowerCase()))}.</p>)}
-      <p>Plain calculations from your own inputs carry no badge: even-pace splits, mile rows, pace charts, unit conversion and targets. They come straight from what you type and are not observations.</p>
-      <p>The race report and the course pages use the same badges. On the race report, Published research marks the published sustained-slowdown definition. A plan is worked out from your own goal; the Pace Notes data beside it describes past finishes and never picks a pace.</p>
+      <p>Plain calculations from your own inputs carry no badge: even-pace splits and mile rows, pace charts, unit conversion and targets. They come straight from what you type and are not observations.</p>
+      <p>The race report and the course pages use the same badges. On the race report, Published research marks the published sustained-slowdown definition. A plan is worked out from your own goal. Where a course has a <a href="#tools-course-shape">course shape</a>, the band spreads that goal over the course as the finishes that made it did, so it carries the Pace Notes data badge; it describes past finishes and is not a prediction or a pick.</p>
     </Definition>
 
     <Definition id="percentiles" term="Percentiles and ranges"

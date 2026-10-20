@@ -36,6 +36,9 @@
 @media (max-width: 359.98px) {
   .plan-card-mats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--s-4); }
 }
+/* While a course's shape loads, the card's figures wait, dimmed (only opacity moves), until the shape replaces them. */
+.plan-headline .tool-reading-figure, .plan-headline .plan-card-mats { transition: opacity var(--d-quick); }
+.plan-headline.is-pending .tool-reading-figure, .plan-headline.is-pending .plan-card-mats { opacity: .45; }
 @media (min-width: 900px) {
   .plan-headline { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-6); }
   .plan-card-mats { grid-template-columns: repeat(2, auto); gap: var(--s-4) var(--s-6); padding: 0 0 0 var(--s-6); border-top: 0; border-left: 1px solid var(--rule); }
@@ -82,6 +85,8 @@
   .plan-root .pace-band-strip { border-color: var(--accent); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .plan-root .tool-panel { padding: 0; border: 0; background: none; }
   .plan-band > header { display: none; }
+  /* The "All numbers" fold is a screen control: the plan prints its own mat table (plan-print-mats), the strips none. */
+  .plan-band details.values { display: none !important; }
 
   /* The plan: the header, the strips, the mat table and the source line, in that order. */
   .plan-print-head { order: 1; display: grid; gap: .08cm; padding-bottom: .2cm; border-bottom: 1.5pt solid var(--night); font-size: 9pt; color: var(--night); }

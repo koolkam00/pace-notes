@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { useUnits } from '@/components/UnitsProvider';
+import BandChoice from '@/components/tools/BandChoice';
 import PaceBandStrip, { type RouteProfile } from '@/components/tools/PaceBandStrip';
 import MatLines, { aheadText } from '@/components/tools/MatLines';
 import { Choice, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
@@ -11,6 +12,7 @@ import KeypadHint from '@/components/KeypadHint';
 import Values from '@/components/ui/Values';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
+import { bandChoice, bandMode, bandRows, noShapeLine, shapeFor, shapePaces, type BandMode } from '@/lib/tools/course-shape';
 import { MARATHON_KM, perUnit, splitTable, watchTarget, type SplitInterval } from '@/lib/tools/pace';
 import { CHECKPOINTS, PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell as Cell } from '@/lib/tools/pace-band-data';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
@@ -33,7 +35,8 @@ const COMMIT_MS = 400;
 /** After this pause, an unreadable or out-of-range goal is flagged even before the field loses focus. */
 const PAUSE_MS = 900;
 const EMPTY_GOAL = 'Type a goal, such as 3:30.';
-const DEFAULTS = { goal: '4:00', course: 'all', g: 'all', split: '', watch: '0', print: 'strip', back: '0' };
+/** `pace=even` keeps the visitor's even-pace choice; course shape, the default where the course has one, stays out. */
+const DEFAULTS = { goal: '4:00', course: 'all', g: 'all', split: '', watch: '0', print: 'strip', back: '0', pace: '' };
 
 type Gender = 'all' | 'men' | 'women';
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'women', label: 'Women' }, { value: 'men', label: 'Men' }];
@@ -168,15 +171,28 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
   const ok: ObservedOk | null = shown.state === 'ok' ? shown : null;
   const fresh: ObservedOk | null = observed.state === 'ok' ? observed : null;
 
+  // The band (owner decision, October 20, 2026): on a course whose group (this recorded gender) publishes the goal, the
+  // course shape (lib/tools/course-shape.ts) unless the visitor chose even pace; on all courses, or with too few finishes,
+  // even pace. While a new group loads, the last shape of the same course stays, dimmed; a course's first shape keeps the
+  // choice in its place and the band dimmed until it arrives.
+  const shapeFrom = fresh ?? (stale && stale.place === place ? stale : null);
+  const shape = goal === null || !shapeFrom ? null : shapeFor(course, shapeFrom.all, goal);
+  const shapeLoading = !fresh && course !== 'all' && observed.state === 'loading';
+  const mode: BandMode = bandMode(shape, q.pace);
+  const shaped = mode === 'course' ? shape : null;
+  // Dimmed while the shape is on its way: a course's first, or the last one of this course while another group loads.
+  const pending = (!shaped && shapeLoading && q.pace !== 'even') || (Boolean(shaped) && !fresh);
+  const bandState = shape || shapeLoading ? 'choice' as const
+    : course !== 'all' && observed.state === 'unavailable' && (scope || known) ? 'none' as const : 'off' as const;
   const pKm = goal === null ? null : goal / MARATHON_KM;
-  const rows = useMemo(() => (goal === null ? [] : splitTable(goal, MARATHON_KM, interval)), [goal, interval]);
+  const rows = useMemo(() => (goal === null ? [] : bandRows(goal, interval, shaped)), [goal, interval, shaped]);
   const profile = profiles.find((p) => p.slug === course) ?? null;
   const showBack = q.back === '1' && profile !== null;
   // Results from untouched example inputs: nothing in the link, nothing changed yet.
   const isExample = ready && fromUrl.size === 0 && !changed.any;
   // The field holds text that is not a goal while the results still show the last good one.
   const held = fieldProblem !== null && goal !== null;
-  const busy = Boolean(stale) || held;
+  const busy = Boolean(stale) || held || pending;
   const gap20 = ok && ok.held && ok.slow ? ok.held.e50[3] - ok.slow.e50[3] : null;
 
   // One always-mounted, visually hidden status line: a short summary, debounced while typing. The first settled result is not announced.
@@ -185,7 +201,8 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
   const summary = goal === null || pKm === null ? 'No band yet. Type a goal from 1:30 to 8:00.' : observed.state === 'loading' ? null : [
     notice,
     held ? `${fieldProblem} The results below still show ${fmtGoal(goal)}.` : '',
-    `${fmtGoal(goal)} goal: even pace ${fmtPace(pKm, units)}.`,
+    shaped ? `${fmtGoal(goal)} goal ${where}${genderWord ? `, ${genderWord}` : ''}: course shape, ${fmtPace(shapePaces(shaped).to20, units)} to 20K and ${fmtPace(shapePaces(shaped).from30, units)} from 30K.`
+      : `${fmtGoal(goal)} goal: even pace ${fmtPace(pKm, units)}.`,
     fresh && freshGap !== null ? `Pace Notes data: at the 20 km mat, finishes with a sustained slowdown were a median ${formatDuration(Math.abs(freshGap))} ${freshGap >= 0 ? 'earlier' : 'later'} than those without one.` : '',
     fresh && fresh.all.sd !== undefined ? `${pct(fresh.all.sd)} of ${count(fresh.all.n)} finishes in the window had a sustained slowdown.` : '',
     observed.state === 'unavailable' ? `Observed finishes: ${observed.title}` : '',
@@ -259,8 +276,9 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
               {/* The answer is the band itself (critic round 3): the wristband to print opens the page, its one Print
                   button under it and the print options folded below, never a second card repeating the planner's pace. */}
               <PrintPanel goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
-                kicker={`${isExample ? 'Example · ' : ''}${fmtGoal(goal)} · ${place} · ${formatDuration(perUnit(pKm, units))}/${units} even${overrun ? ` · watch ${fmtPace(watchTarget(pKm, overrun), units)}` : ''}`} busy={busy}
+                kicker={`${isExample ? 'Example · ' : ''}${fmtGoal(goal)} · ${place}${shaped ? `${genderWord ? ` · ${genderWord}` : ''} · course shape` : ` · ${formatDuration(perUnit(pKm, units))}/${units} even`}${overrun ? ` · watch ${fmtPace(watchTarget(pKm, overrun), units)}` : ''}`} busy={busy}
                 observed={fresh} profile={profile} showBack={showBack} onBack={(v) => setQ({ back: v ? '1' : '0' })} onPrint={printAs} waiting={held}
+                shape={shaped} dim={pending}
                 controls={<>
                   <div className="tool-field">
                     <span className="tool-label" id="pace-band-rows">Rows</span>
@@ -272,7 +290,8 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
                   </div>
                 </>}
                 optionsOpen={Boolean(q.split) || overrun !== 0}
-                values={<Values id="pace-band-rows-values" caption={`Every marker on the band: even-pace elapsed time for ${fmtGoal(goal)}`} count={rows.length}><Wristband rows={rows} goal={goal} pKm={pKm} units={units} overrun={overrun} /></Values>} />
+                values={<Values id="pace-band-rows-values" caption={shaped ? `Every marker on the band: the course shape beside even pace for ${fmtGoal(goal)}` : `Every marker on the band: even-pace elapsed time for ${fmtGoal(goal)}`} count={rows.length}>
+                  <Wristband rows={rows} goal={goal} pKm={pKm} units={units} overrun={overrun} even={shaped ? splitTable(goal, MARATHON_KM, interval) : null} /></Values>} />
             </>
           )}
         </div>
@@ -297,6 +316,7 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
             <span className="tool-label" id="pace-band-gender">Recorded gender</span>
             <div role="group" aria-labelledby="pace-band-gender" className="ph-no-capture"><Choice label="Recorded gender" value={gender} onChange={(v) => setQ({ g: v })} options={GENDER_OPTIONS} small /></div>
           </div>
+          {goal !== null ? <BandChoice id="pace-band-choice" state={bandState} mode={pending ? 'course' : mode} onChange={(m) => setQ({ pace: bandChoice(m) })} line={noShapeLine(where, genderWord)} /> : null}
         </form>
 
         <div className="tool-results">
@@ -353,7 +373,7 @@ export default function PaceBand({ indexSha, profiles, unpublished, how }: {
               </section>
 
               <div className="print-only pace-band-print-notes">
-                <p>Pace Notes pace band · splithappens.run/tools/pace-band</p>
+                <p>{shaped ? 'Course shape from Pace Notes data' : 'Pace Notes pace band'} · splithappens.run/tools/pace-band</p>
               </div>
 
               {/* No next-step row: the chapter's next card follows, the page's one way forward (section 00, cut 4). */}
@@ -445,13 +465,16 @@ function GoalField({ seconds, raw, onChange, onStep, onEdit, onProblem }: {
   );
 }
 
-/** Every marker on the band, as a table: even-pace elapsed time, calculated from the goal alone. */
-function Wristband({ rows, goal, pKm, units, overrun }: { rows: ReturnType<typeof splitTable>; goal: number; pKm: number; units: UnitSystem; overrun: number }) {
+/**
+ * Every marker on the band, as a table: even-pace elapsed time, calculated from the goal alone; with the course shape
+ * (`even` then holds the even-pace rows), each marker's course-shape time beside its even-pace time.
+ */
+function Wristband({ rows, goal, pKm, units, overrun, even = null }: { rows: ReturnType<typeof splitTable>; goal: number; pKm: number; units: UnitSystem; overrun: number; even?: ReturnType<typeof splitTable> | null }) {
   return (
     <table className="table pace-band-wrist">
-      <thead><tr><th scope="col">Marker</th><th scope="col">Elapsed</th></tr></thead>
+      <thead><tr><th scope="col">Marker</th>{even ? <><th scope="col">Course shape</th><th scope="col">Even pace</th></> : <th scope="col">Elapsed</th>}</tr></thead>
       <tbody>
-        {rows.map((r) => {
+        {rows.map((r, i) => {
           const kind = r.finish ? 'is-finish' : r.mat ? 'is-mat' : r.halfway ? 'is-half' : '';
           const label = r.finish ? 'Finish' : r.halfway ? `Half · ${units === 'mi' ? '13.1 mi' : '21.1 km'}` : r.mat ? matLabel(r.km)
             : Math.abs(r.km / KM_PER_MILE - Math.round(r.km / KM_PER_MILE)) < 1e-6 ? `Mile ${Math.round(r.km / KM_PER_MILE)}` : `Km ${Math.round(r.km)}`;
@@ -459,11 +482,12 @@ function Wristband({ rows, goal, pKm, units, overrun }: { rows: ReturnType<typeo
             <tr key={r.km} className={kind || undefined}>
               <th scope="row">{label}</th>
               <td>{formatDuration(r.elapsed)}</td>
+              {even ? <td>{formatDuration(even[i].elapsed)}</td> : null}
             </tr>
           );
         })}
       </tbody>
-      <caption className="sr-only">Exact even-pace elapsed times for {fmtGoal(goal)}{overrun ? `; a watch reading ${pct(overrun, 1)} long shows ${fmtPace(watchTarget(pKm, overrun), units)}` : ''}</caption>
+      <caption className="sr-only">{even ? `Course-shape elapsed times for ${fmtGoal(goal)} (Pace Notes data), beside exact even-pace times` : `Exact even-pace elapsed times for ${fmtGoal(goal)}`}{overrun ? `; a watch reading ${pct(overrun, 1)} long shows ${fmtPace(watchTarget(pKm, overrun), units)}` : ''}</caption>
     </table>
   );
 }
@@ -506,7 +530,7 @@ function ObservedTable({ cells, units }: { cells: ObservedOk; units: UnitSystem 
  * strips themselves for @media print), the one Print button, and the print options folded under it: rows, a watch that
  * reads long, the back strip, the full page and the band as a table.
  */
-function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, kicker, busy, observed, profile, showBack, onBack, onPrint, waiting, controls, values, optionsOpen = false }: {
+function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, kicker, busy, observed, profile, showBack, onBack, onPrint, waiting, controls, values, optionsOpen = false, shape, dim }: {
   goal: number; pKm: number; units: UnitSystem; rows: ReturnType<typeof splitTable>; interval: SplitInterval; overrun: number; place: string; genderWord: string;
   kicker: string; busy: boolean;
   observed: ObservedOk | null; profile: RouteProfile | null; showBack: boolean; onBack: (v: boolean) => void; onPrint: (mode: 'strip' | 'page') => void;
@@ -514,14 +538,17 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
   waiting: boolean; controls: ReactNode; values: ReactNode;
   /** Open the print options on arrival: a link set one of them. */
   optionsOpen?: boolean;
+  /** The course shape's nine times, or null for even pace; `dim` while a course's shape loads. */
+  shape: number[] | null; dim: boolean;
 }) {
   return (
     <section className="pace-band-print-panel" id="pace-band-band" aria-labelledby="pace-band-print-title" aria-busy={busy || undefined}>
-      {/* No badge: the strips on screen are the visitor's own even-pace times (the finishes below carry the data badge, and
-          the printed strip names its source). */}
+      {/* The course shape carries the Pace Notes data badge; even pace none, the visitor's own times (the finishes below
+          carry the data badge, and the printed strip names its source either way). */}
+      {shape ? <EvidenceTag kind="data" className="no-print" /> : null}
       <p className="tool-reading-kicker pace-band-kicker" id="pace-band-print-title">{kicker}</p>
       <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
-        observed={observed} profile={profile} showBack={showBack} waiting={waiting} />
+        observed={observed} profile={profile} showBack={showBack} waiting={waiting || dim} shape={shape} />
       <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('strip')}>Print wristband strips</button>} />
       {waiting ? <p className="tool-note" id="pace-band-print-held">Fix the goal below to print. The preview still shows {fmtGoal(goal)}.</p> : null}
       {/* One control for the beat: the print options fold into one disclosure (rows, a watch that reads long, the back,

@@ -11,7 +11,7 @@ import { COURSE_GOAL_FILE, goalShare, screenedReason } from '@/lib/tools/plan';
 
 export const metadata = pageMetadata({
   title: 'Marathon Race Planner: Goal Pace by Course | Pace Notes',
-  description: 'Plan a marathon goal on your course: even-pace splits for every mat, how finishes at that pace held up there, and a pace band to print.',
+  description: 'Plan a marathon goal on your course: splits for every mat in the course’s shape, how finishes at that pace held up there, and a pace band to print.',
   path: '/tools/plan',
 });
 

@@ -44,7 +44,7 @@ export function MarathonHandoffs({ label, seconds, to = ['plan', 'band', 'pacing
   // The pace band shows observed mat times for goals from 2:30 to 6:30, and an even-pace band alone outside them.
   const observed = minutes >= 150 && minutes <= 390;
   const rows: Record<HandoffTarget, () => { href: string; title: string; text: string } | null> = {
-    plan: () => { const href = planHref(undefined, minutes); return href ? { href, title: 'Plan this goal', text: `Pick your course: even pace for ${time}, and how that pace held up there.` } : null; },
+    plan: () => { const href = planHref(undefined, minutes); return href ? { href, title: 'Plan this goal', text: `Pick your course: splits for ${time}, and how that pace held up there.` } : null; },
     band: () => { const href = paceBandGoalHref(minutes); return href ? { href, title: 'Turn this into a pace band', text: observed ? `Even splits for ${time}, beside the mat times of finishes that just beat it.` : `Even splits for ${time}, ready to print.` } : null; },
     pacing: () => { const href = pacingPatternHref(minutes); return href ? { href, title: 'See how finishers near this time paced', text: `Pace through each section for finishes near ${time}.` } : null; },
   };

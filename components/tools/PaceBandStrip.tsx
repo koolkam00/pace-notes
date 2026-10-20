@@ -1,6 +1,7 @@
 'use client';
 
 import { perUnit, watchTarget, type SplitInterval, type SplitRow } from '@/lib/tools/pace';
+import { shapeCaption } from '@/lib/tools/course-shape';
 import { CHECKPOINTS, fmtGoal, fmtPace } from '@/lib/tools/pace-band-data';
 import { formatDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, elevationLabel, type UnitSystem } from '@/lib/units';
@@ -14,32 +15,37 @@ export interface StripObserved { held: { n: number; e50: number[] } | null; lo: 
 
 /**
  * The cut-out wristband strips, for the screen preview and for @media print (styles in app/styles/pages/tools/pace-band-strip.css):
- * the mat strip with each mat's even-pace time and the held-pace median, the mile or km split strips, and the optional
- * route elevation strip for the back. The preview is scaled to fit its column on every screen, in CSS alone (em measures
- * sized from the column, pace-band-strip.css), so it never scrolls, clips or shifts when the script runs. It prints at
- * full size.
+ * the mat strip with each mat's time on the band and, at even pace, the held-pace median, the mile or km split strips, and
+ * the optional route elevation strip for the back. With `shape` (lib/tools/course-shape.ts) the band is the course shape:
+ * its nine timing points on the mat strip and `rows` built from them (bandRows), no "H" line (the band itself is the
+ * observed shape), and captions that name it and its source. The preview is scaled to fit its column on every screen, in
+ * CSS alone (em measures sized from the column, pace-band-strip.css), so it never scrolls, clips or shifts when the script
+ * runs. It prints at full size.
  */
-export default function PaceBandStrip({ goal, pKm, units, rows, interval, overrun, place, genderWord, observed, profile, showBack, waiting }: {
+export default function PaceBandStrip({ goal, pKm, units, rows, interval, overrun, place, genderWord, observed, profile, showBack, waiting, shape = null }: {
   goal: number; pKm: number; units: UnitSystem; rows: SplitRow[]; interval: SplitInterval; overrun: number; place: string; genderWord: string;
   observed: StripObserved | null; profile: RouteProfile | null; showBack: boolean;
-  /** The goal field holds text that is not a goal: the preview is dimmed. */
+  /** The goal field holds text that is not a goal (or the course shape is still loading): the preview is dimmed. */
   waiting: boolean;
+  /** The course shape's nine elapsed times (courseShape), or null for even pace. */
+  shape?: number[] | null;
 }) {
-  const held = observed?.held ?? null;
+  const held = shape ? null : observed?.held ?? null;
   // Split strips repeat every mile or km, plus halfway; the mat strip carries the 5 km mats and the finish.
   const isWhole = (v: number) => Math.abs(v - Math.round(v)) < 1e-6;
   const splitCells = interval === '5k' ? [] : rows.filter((r) => !r.finish && (r.halfway || isWhole(interval === 'mi' ? r.km / KM_PER_MILE : r.km)));
   const perStrip = splitCells.length ? Math.ceil(splitCells.length / Math.ceil(splitCells.length / 12)) : 0;
   const strips: (typeof splitCells)[] = [];
   for (let i = 0; i < splitCells.length; i += perStrip) strips.push(splitCells.slice(i, i + perStrip));
-  const caption = held && observed
+  const caption = shape ? shapeCaption(place, genderWord)
+    : held && observed
     ? `H = held-pace median of ${count(held.n)} finishes ${formatDuration(observed.lo, true)}–${formatDuration(observed.hi, true)}, ${observed.place}${observed.genderWord ? `, ${observed.genderWord}` : ''} (Pace Notes data). Big numbers: even pace.`
     : 'Even-pace times.';
   return (
     <>
       <div className={`pace-band-sheet-wrap${waiting ? ' pace-band-held-dim' : ''}`}>
         <div className="pace-band-sheet">
-          <p className="pace-band-sheet-head">Pace Notes · pace band · {fmtGoal(goal)} goal · {place}{genderWord ? ` · ${genderWord}` : ''} · cut along the dashed lines</p>
+          <p className="pace-band-sheet-head">Pace Notes · pace band · {fmtGoal(goal)} goal · {place}{genderWord ? ` · ${genderWord}` : ''}{shape ? ' · course shape' : ''} · cut along the dashed lines</p>
           <div className="pace-band-strip is-mats">
             <div className="pace-band-cell is-lead">
               <span className="k">Goal</span>
@@ -49,7 +55,7 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
             {CHECKPOINTS.map((km, i) => (
               <div key={km} className={`pace-band-cell${i === 8 ? ' is-finish' : ''}`}>
                 <span className="k">{i === 8 ? 'Finish' : `${km}K`} <small>{i === 8 ? '26.2mi' : `${(km / KM_PER_MILE).toFixed(1)}mi`}</small></span>
-                <b>{formatDuration(i === 8 ? goal : pKm * km)}</b>
+                <b>{formatDuration(shape ? shape[i] : i === 8 ? goal : pKm * km)}</b>
                 <span className="h">{held ? `H ${formatDuration(held.e50[i])}` : ' '}</span>
               </div>
             ))}
@@ -63,7 +69,7 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
                   <b>{formatDuration(r.elapsed)}</b>
                 </div>
               ))}
-              <p className="pace-band-strip-caption">Even pace {fmtGoal(goal)} · {interval === 'mi' ? 'each mile' : 'each km'} · strip {s + 1} of {strips.length}</p>
+              <p className="pace-band-strip-caption">{shape ? 'Course shape' : 'Even pace'} {fmtGoal(goal)} · {interval === 'mi' ? 'each mile' : 'each km'} · strip {s + 1} of {strips.length}</p>
             </div>
           ))}
           {showBack && profile ? <ElevationStrip profile={profile} units={units} /> : null}

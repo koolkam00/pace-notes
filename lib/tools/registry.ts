@@ -51,8 +51,8 @@ export const EVIDENCE_TEXT: Record<ToolEvidence, string> = {
 export const TOOLS: ToolDefinition[] = [
   { slug: 'plan', title: 'Plan your race', heading: 'Marathon race planner', short: 'Splits and a pace band for your course and goal', group: 'race', evidence: ['data'], accent: '#1D3FD8', file: 'tools/course-goal.json',
     dek: 'Pick a course and a goal: your splits, your pace band, and how that pace held up there.' },
-  { slug: 'pace-band', title: 'Pace band', heading: 'Marathon pace band', short: 'An even-pace wristband to print', group: 'race', evidence: ['data'], accent: '#FF5B2E', file: 'tools/pace-band.json',
-    dek: 'An even-pace wristband to print, beside the mat times of finishes that made your goal.' },
+  { slug: 'pace-band', title: 'Pace band', heading: 'Marathon pace band', short: 'A wristband to print for your course and goal', group: 'race', evidence: ['data'], accent: '#FF5B2E', file: 'tools/pace-band.json',
+    dek: 'A wristband to print in the course’s shape or at even pace, beside the mat times of finishes that made your goal.' },
   { slug: 'course-chooser', title: 'Course chooser', short: 'How your goal pace held up on every course', group: 'race', evidence: ['data'], accent: '#0FA3A3', file: 'tools/course-goal.json',
     dek: 'How finishes on your goal pace held up on every course.' },
   { slug: 'predictor', title: 'Finish-time predictor', heading: 'Marathon time predictor', short: 'A marathon range from a recent race', group: 'race', evidence: ['data', 'research'], accent: '#7A4DFF', file: 'tools/projector.json',

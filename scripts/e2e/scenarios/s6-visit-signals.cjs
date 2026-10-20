@@ -349,6 +349,31 @@ async function planner(h) {
   h.check('planner: the copied link opens the same course, goal and units, and carries nothing else', link && link.pathname === '/tools/plan' && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'berlin'], ['goal', '3:30'], ['units', 'mi']]), copied);
 }
 
+// The planner's Splits choice (October 20, 2026): on a course with a shape the band opens in course shape; pressing Even
+// pace is the page's one edit (no event of its own), and the copied link then carries pace=even beside the course and goal.
+async function plannerSplits(h) {
+  const run = await h.run('planner splits', { ...PHONE });
+  await run.context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: SITE });
+  const page = await run.newPage();
+  await page.goto(SITE + '/tools/plan?course=berlin&goal=3:30', { waitUntil: 'load' });
+  await page.waitForSelector('.band-choice .seg-btn[aria-pressed="true"]', { timeout: 20000 });
+  await page.waitForTimeout(600);
+  const before = await page.evaluate(() => document.querySelector('.band-choice .seg-btn[aria-pressed="true"]')?.textContent);
+  await page.locator('.band-choice .seg-btn', { hasText: 'Even pace' }).click();
+  await page.waitForTimeout(400);
+  const figure = await page.evaluate(() => document.querySelector('.plan-headline .tool-reading-figure')?.textContent ?? '');
+  await page.locator('#plan-band .share-bar button:has-text("Copy link")').click();
+  await page.waitForTimeout(500);
+  const copied = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+  await run.close();
+  const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
+  h.check('planner: a course with a shape opens in course shape, and Even pace shows even pace', before === 'Course shape' && /even pace/.test(figure), { before, figure });
+  h.check('planner: the Splits choice is one edit, then Copy link a copied link', JSON.stringify(used) === '["/tools/plan:edit","/tools/plan:copy_link"]', used);
+  let link = null;
+  try { link = new URL(copied); } catch { /* checked below */ }
+  h.check('planner: the copied link keeps even pace (pace=even) with the course, goal and units', link && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'berlin'], ['goal', '3:30'], ['pace', 'even'], ['units', 'mi']]), copied);
+}
+
 // The race report on /report: its section is seen once; a failed image is site_error export, once (twice pressed), and
 // then Save image is one report_exported image; a cancelled share sends nothing and a share that goes through one
 // report_exported share;
@@ -566,6 +591,7 @@ module.exports = {
       { name: 'tool signals and errors', weight: 16, run: using },
       { name: 'tool edits', weight: 8, run: toolEdits },
       { name: 'planner sections, print and copy link', weight: 8, run: planner },
+      { name: 'planner splits choice', weight: 6, run: plannerSplits },
       { name: 'race report exports', weight: 8, run: raceReport },
       { name: 'back-forward cache', weight: 16, run: restored },
       { name: 'experiment before first paint', weight: 14, run: paintOrder },

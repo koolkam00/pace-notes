@@ -8,7 +8,7 @@ import { courseSlug } from '@/lib/tools/links';
 
 export const metadata = pageMetadata({
   title: 'Printable Marathon Pace Band for Any Goal | Pace Notes',
-  description: 'Print a free even-pace marathon wristband for any goal time, by mile, km or 5 km mat, beside what finishes at that goal ran at each mat on your course.',
+  description: 'Print a free marathon wristband for any goal time, in your course’s shape or at even pace, by mile, km or 5 km mat, beside what finishes at that goal ran.',
   path: '/tools/pace-band',
 });
 

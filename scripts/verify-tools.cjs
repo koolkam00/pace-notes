@@ -254,7 +254,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
   // One row, the first target the time fits (section 00: one link forward per page; critic round 3, October 18, 2026).
   assert.deepEqual(hrefs(handoffs(237)), ['/tools/plan?goal=3:57']); ok();
-  assert.match(handoffs(237), /Plan this goal[\s\S]*Pick your course: even pace for 3:57/); ok();
+  assert.match(handoffs(237), /Plan this goal[\s\S]*Pick your course: splits for 3:57/); ok();
   assert.deepEqual(hrefs(handoffs(237, 0, ['band', 'pacing'])), ['/tools/pace-band?goal=3:57']); ok();
   assert.match(handoffs(237, 0, ['band']), /Turn this into a pace band[\s\S]*mat times of finishes that just beat it/); ok();
   assert.match(handoffs(140, 0, ['band']), /Even splits for 2:20, ready to print/, 'Outside 2:30–6:30 the pace band has no observed mat times'); ok();
@@ -263,7 +263,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   // A time with seconds opens the page at the minute at or below it, and the row names that minute, with no parenthetical.
   assert.deepEqual(hrefs(handoffs(251, 41)), ['/tools/plan?goal=4:11']); ok();
   assert.deepEqual(hrefs(handoffs(251, 41, ['band'])), ['/tools/pace-band?goal=4:11']); ok();
-  assert.match(handoffs(251, 41), /Pick your course: even pace for 4:11, and how/); ok();
+  assert.match(handoffs(251, 41), /Pick your course: splits for 4:11, and how/); ok();
   assert.doesNotMatch(handoffs(251, 41) + handoffs(251, 41, ['band']), /minute at or below|4:11:41/, 'The rows name the minute they open at, with no parenthetical'); ok();
   assert.doesNotMatch(handoffs(237), /<button|your chance|arithmetic/i, 'Links only (never counted as a tool edit), in the site\'s words'); ok();
   // Each tool hands on the whole minute at or below its time, the way every tool reads 4:11:41 as 4:11.
@@ -428,8 +428,156 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.doesNotMatch(html, /aria-label="Next step"|\/tools\/weather-match\?goal=|\/tools\/projector\?target=/, 'No next-step row before the finish card'); ok();
   assert.doesNotMatch(html, /your chance|the wall|arithmetic|adjusted/i); ok();
   const planSource = sourceOf('components/tools/RacePlan.tsx');
-  assert.match(planSource, /useQueryState\(DEFAULTS\)/); assert.match(planSource, /const DEFAULTS = \{ course: 'all', goal: '4:00' \};/, 'The planner keeps exactly course and goal in its address'); checks += 2;
+  assert.match(planSource, /useQueryState\(DEFAULTS\)/); assert.match(planSource, /const DEFAULTS = \{ course: 'all', goal: '4:00', pace: '' \};/, 'The planner keeps exactly course, goal and the band\'s even-pace choice in its address'); checks += 2;
+  // On all courses (the example) the band is even pace and no Course shape | Even pace choice is offered.
+  assert.doesNotMatch(html, /band-choice|Course shape/, 'All courses: no course shape and no choice'); ok();
   assert.doesNotMatch(planSource, /trackAnalytics|posthog/i, 'The planner sends no event of its own'); ok();
+}
+
+// ---- the course-shape band (lib/tools/course-shape.ts; owner decision, October 20, 2026): the pace band and the planner
+// print the course's observed shape wherever its pace-band group publishes the goal. For every course shard and every
+// published whole-minute goal (and the same goal with seconds): the band ends exactly on the goal, rises strictly, equals
+// e50 × goal ÷ e50[finish] at the nine timing points, and holds each segment's pace evenly between them in the mile and
+// km rows; a missing cell, and all courses pooled, give even pace; the default is the shape and only even pace is written
+// to the address; both pages share the function, the control and the wording.
+{
+  const shapeLib = require('../lib/tools/course-shape.ts');
+  const band = require('../lib/tools/pace-band-data.ts');
+  const POINTS = [5, 10, 15, 20, 25, 30, 35, 40, 42.195];
+  const sourceOf = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+  // The rule on a fixed cell, recomputed here.
+  const fake = { e50: [1500, 3010, 4530, 6060, 7620, 9230, 10900, 12620, 13400] };
+  const fakeShape = shapeLib.courseShape(fake, 14430);
+  assert.deepEqual(fakeShape.map((t) => Math.round(t * 1000) / 1000), fake.e50.map((v, i) => (i === 8 ? 14430 : Math.round(((v * 14430) / 13400) * 1000) / 1000)), 'The shape is each median times goal ÷ the median finish'); ok();
+  assert.equal(fakeShape[8], 14430, 'The shape ends exactly on the goal, seconds kept'); ok();
+  for (const bad of [null, undefined, { e50: fake.e50.slice(0, 8) }, { e50: [...fake.e50.slice(0, 4), 6000, ...fake.e50.slice(5)] }, { e50: [...fake.e50.slice(0, 8), NaN] }]) {
+    assert.equal(shapeLib.courseShape(bad, 14400), null, 'No shape without nine finite, rising medians'); ok();
+  }
+  assert.equal(shapeLib.shapeFor('all', fake, 14400), null, 'All courses pooled: no course to shape it'); ok();
+  assert.deepEqual(shapeLib.shapeFor('boston', fake, 14400), shapeLib.courseShape(fake, 14400)); ok();
+  // The default and the override: course shape wherever a shape exists, even pace where the visitor chose it or there is
+  // none; the default stays out of the address and only `pace=even` is written.
+  assert.deepEqual(['', 'course', 'even', 'x'].map((c) => shapeLib.bandMode(fakeShape, c)), ['course', 'course', 'even', 'course']); ok();
+  assert.deepEqual(['', 'even'].map((c) => shapeLib.bandMode(null, c)), ['even', 'even'], 'No shape: even pace, and no choice to make'); ok();
+  assert.deepEqual([shapeLib.bandChoice('course'), shapeLib.bandChoice('even'), shapeLib.BAND_PARAM], ['', 'even', 'pace']); ok();
+  assert.deepEqual(shapeLib.BAND_OPTIONS.map((o) => o.label), ['Course shape', 'Even pace']); assert.equal(shapeLib.BAND_LABEL, 'Splits'); checks += 2;
+  assert.equal(shapeLib.noShapeLine('in Singapore'), 'Too few finishes at this goal in Singapore for a course shape.'); ok();
+  assert.equal(shapeLib.shapeCaption('Boston', 'women'), 'Course shape · finishes that made the goal in Boston, women · Pace Notes data'); ok();
+  // shapePaces: the pace through 20K and from 30K to the finish, from the timing points alone.
+  near(shapeLib.shapePaces(fakeShape).to20, fakeShape[3] / 20, 1e-12, 'Pace through 20K'); near(shapeLib.shapePaces(fakeShape).from30, (14430 - fakeShape[5]) / 12.195, 1e-12, 'Pace from 30K'); checks += 2;
+  // Even pace is unchanged: bandRows without a shape is the even-pace split table itself.
+  for (const interval of ['mi', 'km', '5k']) { assert.deepEqual(shapeLib.bandRows(14400, interval, null), pace.splitTable(14400, 42.195, interval), `${interval}: even pace unchanged`); ok(); }
+
+  /** Every check of one shaped band against its cell, recomputed here without the library's interpolation. */
+  let steps = 0;
+  const checkBand = (where, cell, goal) => {
+    const shape = shapeLib.courseShape(cell, goal);
+    assert.ok(shape && shape.length === 9, `${where}: a shape`);
+    assert.equal(shape[8], goal, `${where}: ends exactly on the goal`);
+    for (let i = 0; i < 9; i++) {
+      assert.ok(shape[i] > (i ? shape[i - 1] : 0), `${where}: rises strictly at ${POINTS[i]} km`);
+      near(shape[i], (cell.e50[i] * goal) / cell.e50[8], 1e-6, `${where}: e50 × goal ÷ e50[finish] at ${POINTS[i]} km`);
+    }
+    const bounds = [0, ...POINTS], times = [0, ...shape];
+    for (const interval of ['mi', 'km']) {
+      const rows = shapeLib.bandRows(goal, interval, shape);
+      const even = pace.splitTable(goal, 42.195, interval);
+      assert.deepEqual(rows.map((r) => [r.km, r.mat, r.halfway, r.finish]), even.map((r) => [r.km, r.mat, r.halfway, r.finish]), `${where} ${interval}: the even-pace markers`);
+      let previous = { km: 0, elapsed: 0 };
+      for (const r of rows) {
+        const j = bounds.findIndex((b) => b >= r.km - 1e-9);
+        const point = Math.abs(bounds[j] - r.km) < 1e-9;
+        const expected = point ? times[j] : times[j - 1] + ((times[j] - times[j - 1]) * (r.km - bounds[j - 1])) / (bounds[j] - bounds[j - 1]);
+        if (point) assert.equal(r.elapsed, expected, `${where} ${interval} ${r.km}: the timing point itself`);
+        else near(r.elapsed, expected, 1e-6, `${where} ${interval} ${r.km}: even within its segment`);
+        assert.ok(r.elapsed > previous.elapsed, `${where} ${interval} ${r.km}: rises strictly`);
+        near(r.split, r.elapsed - previous.elapsed, 1e-9, `${where} ${interval} ${r.km}: split`);
+        // Inside one segment (the step starts at or after the segment's first timing point, or the start), every step
+        // runs at that segment's pace.
+        if (previous.km >= bounds[j - 1] - 1e-9) {
+          near((r.elapsed - previous.elapsed) / (r.km - previous.km), (times[j] - times[j - 1]) / (bounds[j] - bounds[j - 1]), 1e-9, `${where} ${interval} ${r.km}: the segment's pace`);
+          steps += 1;
+        }
+        previous = r;
+      }
+      assert.equal(rows[rows.length - 1].elapsed, goal, `${where} ${interval}: the last row is the goal`);
+    }
+  };
+
+  const dir = path.join(__dirname, '..', 'public/data/insights');
+  const file = (name) => JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+  if (fs.existsSync(path.join(dir, band.PACE_BAND_INDEX))) {
+    const index = file(band.PACE_BAND_INDEX);
+    let shards = 0, cells = 0;
+    for (const scope of index.scopes.filter((s) => s.slug !== 'all')) {
+      for (const gender of ['all', 'men', 'women']) {
+        const shardPath = band.paceBandShardPath(scope.slug, gender);
+        if (!index.shards[shardPath]) continue;
+        const group = file(shardPath).groups.all;
+        for (const g of group.g) {
+          const cell = band.cellOf(group, g);
+          assert.ok(cell.n >= 100, `${shardPath} ${g}: a published cell has 100 finishes`);
+          checkBand(`${shardPath} ${g}`, cell, g * 60);
+          checkBand(`${shardPath} ${g}:30`, cell, g * 60 + 30);
+          cells += 1;
+        }
+        // The fallback: a goal the group does not publish has no cell, no shape, and even pace.
+        const missing = [149, ...Array.from({ length: 241 }, (_, k) => 150 + k)].filter((m) => !group.g.includes(m));
+        for (const m of missing) {
+          assert.equal(band.cellOf(group, m), null);
+          const shape = shapeLib.shapeFor(scope.slug, band.cellOf(group, m), m * 60);
+          assert.equal(shape, null, `${shardPath} ${m}: no shape`); assert.equal(shapeLib.bandMode(shape, ''), 'even');
+        }
+        shards += 1;
+      }
+    }
+    assert.ok(shards >= 75 && cells > 10000 && steps > cells * 2 * 60, `Every course shard checked (${shards} shards, ${cells} goals, ${steps} steps)`); checks += shards;
+    // The named fallback: Singapore publishes 4:00 but not 3:30, and All courses never takes a shape.
+    const singapore = file(band.paceBandShardPath('singapore', 'all')).groups.all;
+    assert.ok(shapeLib.shapeFor('singapore', band.cellOf(singapore, 240), 14400) && shapeLib.shapeFor('singapore', band.cellOf(singapore, 210), 12600) === null, 'Singapore: a shape at 4:00, even pace at 3:30'); ok();
+    const allCourses = file(band.paceBandShardPath('all', 'all')).groups.all;
+    assert.ok(band.cellOf(allCourses, 240) && shapeLib.shapeFor('all', band.cellOf(allCourses, 240), 14400) === null, 'All courses: even pace, though its group has a cell'); ok();
+    // Boston 4:00, the planner's capture: the shape is the course's, and the card's two paces come from its timing points.
+    const boston = band.cellOf(file(band.paceBandShardPath('boston', 'all')).groups.all, 240);
+    const bostonShape = shapeLib.courseShape(boston, 14400);
+    assert.equal(time.formatDuration(bostonShape[3]), time.formatDuration((boston.e50[3] * 14400) / boston.e50[8]), 'Boston 4:00 at 20K'); ok();
+    assert.ok(shapeLib.shapePaces(bostonShape).to20 < 14400 / 42.195 && shapeLib.shapePaces(bostonShape).from30 > 14400 / 42.195, 'Boston 4:00: quicker than even through 20K, slower from 30K'); ok();
+  }
+
+  // The strips: in course shape the big numbers are the shape, there is no "H" line, and the caption names the shape and
+  // its source; even pace keeps today's strip with its "H" line.
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const PaceBandStrip = require('../components/tools/PaceBandStrip.tsx').default;
+  const held = { n: 4321, e50: fake.e50 };
+  const strip = (shape) => renderToStaticMarkup(React.createElement(PaceBandStrip, { goal: 14430, pKm: 14430 / 42.195, units: 'mi', rows: shapeLib.bandRows(14430, 'mi', shape), interval: 'mi', overrun: 0,
+    place: 'Boston', genderWord: '', observed: { held, lo: 14100, hi: 14399, place: 'Boston', genderWord: '' }, profile: null, showBack: false, waiting: false, shape }));
+  const courseHtml = strip(fakeShape), evenHtml = strip(null);
+  assert.doesNotMatch(courseHtml, /class="h">H /, 'Course shape: no "H" line'); assert.match(evenHtml, /class="h">H 25:00</, 'Even pace keeps its "H" line'); checks += 2;
+  assert.match(courseHtml, /Course shape · finishes that made the goal in Boston · Pace Notes data/); assert.match(evenHtml, /H = held-pace median of 4,321 finishes 3:55:00–3:59:59, Boston \(Pace Notes data\)\. Big numbers: even pace\./); checks += 2;
+  const mats = (html) => [...html.matchAll(/<span class="k">(?:\d+K|Finish) <small>[^<]*<\/small><\/span><b>([^<]+)<\/b>/g)].map((m) => m[1]);
+  assert.deepEqual(mats(courseHtml), fakeShape.map((t) => time.formatDuration(t)), 'Course shape: the mat strip is the shape'); ok();
+  assert.deepEqual(mats(evenHtml), POINTS.map((km, i) => time.formatDuration(i === 8 ? 14430 : (14430 / 42.195) * km)), 'Even pace: the mat strip is even pace'); ok();
+  assert.match(courseHtml, /Course shape 4:00:30 · each mile · strip 1 of 3/); assert.match(evenHtml, /Even pace 4:00:30 · each mile · strip 1 of 3/); assert.match(courseHtml, /· course shape · cut along the dashed lines/); checks += 3;
+
+  // One rule, one control, one wording on both pages.
+  const planSource = sourceOf('components/tools/RacePlan.tsx'), bandSource = sourceOf('components/tools/PaceBand.tsx');
+  for (const [name, source] of [['RacePlan', planSource], ['PaceBand', bandSource]]) {
+    assert.match(source, /import BandChoice from '@\/components\/tools\/BandChoice';/, `${name} uses the one control`);
+    assert.match(source, /<BandChoice id="[\w-]+" state=\{bandState\} mode=\{pending \? 'course' : mode\} onChange=\{\(m\) => setQ\(\{ pace: bandChoice\(m\) \}\)\} line=\{noShapeLine\(where/, `${name}: the control writes only even pace to the address`);
+    assert.match(source, /const mode(?:: BandMode)? = bandMode\(shape, q\.pace\);/, `${name}: one rule for the default and the override`);
+    assert.match(source, /bandRows\(goal, [^,]+, shaped\)/, `${name}: the rows come from the shape`);
+    assert.match(source, /shape=\{shaped\}/, `${name}: the strips print the band in its mode`);
+    assert.match(source, /\{shaped \? 'Course shape from Pace Notes data' : /, `${name}: a printed course shape names Pace Notes data`);
+    checks += 6;
+  }
+  assert.match(planSource, /shapeFor\(isAll \? 'all' : course\?\.slug \?\? 'all', all, goal\)/, 'The planner shapes only a chosen course, from its all-genders group'); ok();
+  assert.match(bandSource, /shapeFor\(course, shapeFrom\.all, goal\)/, 'The pace band shapes from the course and recorded gender on screen'); ok();
+  assert.match(sourceOf('components/tools/BandChoice.tsx'), /<Choice label=\{BAND_LABEL\} value=\{mode\} onChange=\{onChange\} options=\{BAND_OPTIONS\} small \/>/, 'The control is the site\'s segmented Choice'); ok();
+  for (const file of ['lib/tools/course-shape.ts', 'components/tools/BandChoice.tsx']) {
+    const text = sourceOf(file).replace(/^\s*(?:\/\/|\/\*\*?|\*).*$/gm, '');
+    assert.doesNotMatch(text, /\bshould\b|your chance|arithmetic|to make \d|predict/i, `${file}: no advice, chance, prediction or causal wording`); ok();
+  }
 }
 
 // ---- goal-page sentences (lib/tools/goal-facts.ts): built only from a goal's pace-band values; checked on fixed inputs
@@ -812,4 +960,4 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
   checks += 8 + otherTools.length;
 }
 
-console.log(`Tool libraries passed ${checks} checks: time parsing and keypad input (the dot key types a colon in race-time fields; every time reader takes dots and commas), pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);
+console.log(`Tool libraries passed ${checks} checks: time parsing and keypad input (the dot key types a colon in race-time fields; every time reader takes dots and commas), pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), the course-shape band on every course shard and published goal (its rule, rows, fallback, default and strips), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);
