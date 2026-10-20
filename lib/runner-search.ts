@@ -38,6 +38,24 @@ const integer = (value: unknown): value is number => Number.isSafeInteger(value)
 export function normalizeRunnerName(value: string): string {
   return value.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
 }
+/**
+ * A recorded name as the search rows and the record's heading show it (the record's own details keep the recorded
+ * spelling): "Last, First" as "First Last", brackets around a name part dropped, a word recorded all in capitals or all
+ * in lower case in title case (a lower-case particle after the first word, "van der", stays), and a country code in brackets as a quiet suffix: "(Smith), Clara (GBR)" reads
+ * "Clara Smith · GBR", "suozzo, Brian (USA)" "Brian Suozzo · USA", "Aaron SMITH" "Aaron Smith".
+ */
+export function displayName(name: string): string {
+  const code = /\s*\(([A-Z]{2,3})\)$/.exec(name);
+  const parts = (code ? name.slice(0, code.index) : name).replace(/[()]/g, '').split(',').map(part => part.trim()).filter(Boolean);
+  const cased = (parts.length === 2 ? `${parts[1]} ${parts[0]}` : parts.join(', ')).replace(/\s+/g, ' ')
+    .replace(/[\p{L}\p{M}'’-]+/gu, (word, at: number) => /\p{Lu}/u.test(word) && /\p{Ll}/u.test(word) || at && /^(?:da|de|del|der|den|di|do|dos|du|la|le|van|von)$/.test(word) ? word
+      : word.toLocaleLowerCase('en-US').replace(/(^|['’-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toLocaleUpperCase('en-US')));
+  // A token of digits alone in a name field (a bib or ID typed into the first name: "1728207887 Martin") is not shown,
+  // so a result row and its sort read by the name (round 6); a record's own details keep the recorded spelling.
+  const named = cased.split(' ').filter((word) => !/^\d+[,.]?$/.test(word)).join(' ').replace(/^,\s*|,\s*$/g, '').trim();
+  const shown = named || cased;
+  return code ? `${shown} · ${code[1]}` : shown;
+}
 export function runnerNameMatches(name: string, query: string): boolean {
   const words = normalizeRunnerName(name).split(' ');
   const tokens = normalizeRunnerName(query).split(' ').filter(Boolean);
@@ -109,7 +127,9 @@ export async function searchRunnerNames(query: string, manifest: RunnerManifest,
       row[3] > row[4] || typeof row[5] !== 'string') throw problem();
     if (runnerNameMatches(row[0], query) && !matches.has(row[1])) matches.set(row[1], row);
   }
-  return [...matches.values()].sort((a, b) => a[0].localeCompare(b[0]) || a[3] - b[3] || a[1] - b[1]);
+  // In the order the rows read: by the shown name, without its punctuation ("(Smith), Clara" sorts as "clara smith").
+  const key = new Map([...matches.values()].map(row => [row[1], normalizeRunnerName(displayName(row[0]))]));
+  return [...matches.values()].sort((a, b) => key.get(a[1])!.localeCompare(key.get(b[1])!) || a[3] - b[3] || a[1] - b[1]);
 }
 
 export function validateRunnerProfile(value: unknown, manifest: RunnerManifest): RunnerProfile {

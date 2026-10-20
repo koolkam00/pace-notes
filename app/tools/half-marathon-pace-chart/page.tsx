@@ -1,7 +1,7 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import PaceChartTable from '@/components/tools/PaceChartTable';
-import { ToolNext } from '@/components/tools/ToolShell';
-import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
+import { ToolEnd, ToolPageHeader } from '@/components/tools/ToolShell';
+import { pageMetadata } from '@/lib/seo';
 import { HALF_CHART, MARATHON_CHART, goalLabel } from '@/lib/tools/pace-chart';
 
 const first = goalLabel(HALF_CHART.goals[0]);
@@ -16,37 +16,19 @@ export const metadata = pageMetadata({
   path: '/tools/half-marathon-pace-chart',
 });
 
-const ACCENT = '#2F5BFF';
-
 export default function HalfMarathonPaceChartPage() {
   return (
-    <div className="container tool-page goal-chart-page" style={{ ['--tool' as string]: ACCENT }}>
-      <header className="tool-header">
-        <p className="eyebrow"><Link href="/tools">Runner tools</Link> · Pace charts</p>
-        <h1 className="tool-title">Half marathon pace chart</h1>
-        <p className="tool-dek">
-          Pace per mile and per kilometre for every half-marathon goal from {first} to {last}, with the time at {pointList}.
-        </p>
-        <p className="print-only goal-chart-print-note">Pace Notes half marathon pace chart. Even pace for each goal, not recorded splits. splithappens.run/tools/half-marathon-pace-chart</p>
-        <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Runner tools', '/tools'], ['Half marathon pace chart']])} />
-      </header>
+    <div className="tool-page goal-chart-page">
+      <ToolPageHeader path="/tools/half-marathon-pace-chart" title="Half marathon pace chart" trail={[['Reference'], ['Half marathon pace chart']]}
+        dek={<>Every goal from {first} to {last}: the pace per mile and per km, and the time at {pointList} at an even pace.</>}>
+        <p className="print-only goal-chart-print-note">Pace Notes half marathon pace chart. Even pace for each goal. splithappens.run/tools/half-marathon-pace-chart</p>
+      </ToolPageHeader>
 
-      <section className="goal-chart-intro no-print" aria-label="Using the chart">
-        <div>
-          <h2>How to use it</h2>
-          <p>Find your goal row. Its <b>Splits</b> link opens the <Link href="/tools/pace-calculator">pace calculator</Link> for that goal, with splits every 400 m, quarter mile, kilometre or mile.</p>
-        </div>
-        <div>
-          <h2>Running a marathon?</h2>
-          <p>The <Link href="/tools/marathon-pace-chart">marathon pace chart</Link> covers goals from {marathonRange}, with every 5 km mat and halfway.</p>
-        </div>
-      </section>
+      <PaceChartTable race="half" />
 
-      <div className="goal-chart-stack">
-        <PaceChartTable race="half" />
-      </div>
+      <p className="tool-note goal-chart-other no-print">Running a marathon? The <Link href="/tools/marathon-pace-chart">marathon pace chart</Link> covers {marathonRange}.</p>
 
-      <ToolNext current="" />
+      <ToolEnd path="/tools/half-marathon-pace-chart" how="/methodology#tools-pace-charts" />
     </div>
   );
 }

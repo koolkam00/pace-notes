@@ -5,4 +5,10 @@ export const WEATHER_QUESTIONS: WeatherDefinition[] = [
   { id: 'warming', slug: 'warming-and-pacing', shortTitle: 'When the race gets warmer', title: 'What happens when the race gets warmer?', description: 'See how a rising temperature relates to holding pace later in the race.', purpose: 'The temperature at the start is only part of the day. Compare how much conditions warm during the first four hours with pacing later in the race.' },
   { id: 'wind', slug: 'wind-and-pacing', shortTitle: 'Wind and holding pace', title: 'How do windy and calm races compare?', description: 'Understand what typical wind differences can tell us about late-race slowing.', purpose: 'Wind can change the feel of a race. Here, we ask a narrower question: whether typical differences in start-hour wind speed line up with more slowing later.' },
 ];
-export const weatherHref = (item: WeatherDefinition) => '/analyses/' + item.slug;
+/** Where a weather question is answered: its tab of race-day weather (the old /analyses/<slug> addresses forward there,
+ * lib/seo-routes.ts movedTo). A question without a tab of its own opens the first, start temperature. */
+export const WEATHER_TABS: Readonly<Record<string, string>> = { warming: 'warming', wind: 'wind' };
+export const weatherHref = (item: WeatherDefinition) => `/analyses/race-day-weather#${WEATHER_TABS[item.id] ?? 'temperature'}`;
+/** Each tab's search title, also the browser tab's title while that tab is open (a sentence-long finding was too long
+ * for a browser tab, round 6). The old /analyses/<slug> stubs carry the same title. */
+export const WEATHER_TAB_TITLES: Readonly<Record<'warming' | 'wind', string>> = { warming: 'Marathon Pacing When the Temperature Rises', wind: 'Wind and Marathon Pacing: Windy vs Calm Races' };

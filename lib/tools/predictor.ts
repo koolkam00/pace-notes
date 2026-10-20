@@ -7,6 +7,9 @@
  */
 import { HALF_KM, MARATHON_KM } from './pace';
 
+/** The predictor's example race, which /tools also reads for the predictor's row: a 1:55 half marathon. */
+export const PREDICTOR_EXAMPLE = { key: 'half', seconds: 6900 } as const;
+
 export const RIEGEL_B = 1.06;
 export const REALISTIC_B = { low: 1.09, median: 1.13, high: 1.15 } as const;
 export const TANDA_RANGE_S = [167 * 60, 216 * 60] as const;

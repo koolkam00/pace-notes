@@ -13,7 +13,9 @@ import { trackFailure } from '@/lib/analytics';
 import { useUnits } from './UnitsProvider';
 import type { QuestionLineChartProps } from './QuestionLineChart';
 
-const COLORS = ['#2346E6', '#FF5B2E', '#66625A'];
+// Series colours from the redesign's ink ramp (the tokens' light values: --ink, --ink-3, --mark-quiet): orange is kept for
+// the reading and blue is retired. Recharts takes them as attributes, where CSS variables do not resolve.
+const COLORS = ['#15171C', '#66625A', '#857F73'];
 
 // Recharts only ever draws in the browser (the server HTML held an empty box), so its chunk loads after hydration
 // instead of with the page. The placeholder fills the fixed-height .chart box, so nothing shifts when the chart arrives.

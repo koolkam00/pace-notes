@@ -1,52 +1,33 @@
-'use client';
-
-import { useEffect, useMemo, useState } from 'react';
-import RaceReplay, { type ReplayEdition } from '@/components/viz/RaceReplay';
-import { loadInsight, type ReplayRows } from '@/lib/insights';
+import ReplayStage from '@/components/viz/ReplayStage.client';
 import type { ReplayChoice } from '@/lib/insights-server';
+import { defaultReplaySlug, stageChoices } from '@/lib/viz/replay';
+import type { UnitsAware } from '@/lib/nuggets/types';
 
 export type { ReplayChoice };
 
-export default function HeroReplay({ choices, initial }: { choices: ReplayChoice[]; initial: string }) {
-  const [slug, setSlug] = useState(initial);
-  const [variant, setVariant] = useState<'track' | 'route'>('track');
-  const [edition, setEdition] = useState<ReplayEdition | null>(null);
-  const [error, setError] = useState('');
-  const choice = choices.find((c) => c.slug === slug) ?? choices[0];
-  // Until the rows arrive the replay is drawn empty at its full size, so the page below it does not move when they do.
-  const waiting = useMemo<ReplayEdition>(() => ({ city: choice.city, year: choice.year, finishes: choice.finishes, sample: choice.sample, rows: [], route: choice.route }), [choice]);
-  const loaded = edition && edition.city === choice.city && edition.year === choice.year ? edition : null;
-
-  useEffect(() => {
-    let live = true;
-    setError('');
-    loadInsight<ReplayRows>(choice.file, choice.version)
-      .then((rows) => { if (live) setEdition({ city: rows.city, year: rows.year, finishes: rows.finishes, sample: rows.sample, rows: rows.rows, route: choice.route }); })
-      .catch(() => { if (live) setError('The replay could not be loaded. Refresh to try again.'); });
-    return () => { live = false; };
-  }, [choice]);
-
-  return (
-    <div className="hero-replay">
-      <div className="hero-replay-bar">
-        <div className="segmented" role="group" aria-label="Choose a race to replay">
-          {choices.map((c) => (
-            <button key={c.slug} type="button" aria-pressed={c.slug === slug} onClick={() => setSlug(c.slug)}>
-              {c.city === 'New York' ? 'New York City' : c.city} {c.year}
-            </button>
-          ))}
-        </div>
-        {choice.route ? (
-          <div className="segmented" role="group" aria-label="Replay layout">
-            <button type="button" aria-pressed={variant === 'track'} onClick={() => setVariant('track')}>Straight course</button>
-            <button type="button" aria-pressed={variant === 'route'} onClick={() => setVariant('route')}>On the route</button>
-          </div>
-        ) : null}
-      </div>
-      <RaceReplay
-        key={choice.slug + variant} edition={loaded ?? waiting} variant={variant} height={variant === 'route' ? 520 : 420}
-        status={loaded ? undefined : { message: error || `Loading ${choice.sample.toLocaleString('en-US')} finishes from ${choice.city} ${choice.year}…`, loading: !error }}
-      />
-    </div>
-  );
+/**
+ * A race replay on a page (the redesign spec, sections 3.6 and 7.1). A server component: it draws each edition's poster
+ * and moment at build and hands them to the stage, whose canvas code loads only here. With no `initial`, the replay
+ * opens on the edition the data picks (the replay.first nugget's argmax), never on a city named in code.
+ *
+ * `band` is the compact home-page band (no picker). `picker` shows the race chips (default: when there is more than one
+ * race), `layout` the "The field | On the route" toggle (default: on, where the edition has a route) and `moment` the
+ * flag frame's sentence: each edition's own (true), none (false), or one given in both units for a page that replays a
+ * single edition (the home band's).
+ */
+export default function HeroReplay({ choices, initial, band = false, picker, layout = true, moment = true, mark }: {
+  choices: ReplayChoice[]; initial?: string; band?: boolean; picker?: boolean; layout?: boolean;
+  /** The point the moment names, marked on the opening edition's field at its flag frame (the home band). */
+  mark?: { km: number; label: { mi: string; km: string } };
+  /** The flag frame's sentence under the field; off where the page's own headline already says it, 'others': only for
+   *  an edition the reader picks (the page's own edition is its headline's, so its sentence would repeat it), or
+   *  'exact': every edition's own, its share in figures (the H1 above says it in words). */
+  moment?: boolean | 'others' | 'exact' | UnitsAware<string>;
+}) {
+  if (!choices.length) return null;
+  const all = stageChoices(choices, { exact: moment === 'exact' });
+  const start = initial && all.some((c) => c.slug === initial) ? initial : defaultReplaySlug(all)!;
+  const stage = all.map((c) => (moment === true || moment === 'exact' || (moment === 'others' && c.slug !== start) ? c : { ...c, moment: moment === 'others' ? '' : moment || '' }))
+    .map((c) => (mark && c.slug === start ? { ...c, mark } : c));
+  return <ReplayStage choices={stage} initial={start} band={band} picker={picker ?? (!band && stage.length > 1)} layout={layout && !band} />;
 }

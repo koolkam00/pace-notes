@@ -1,107 +1,122 @@
 import type { Kick } from '@/lib/insights';
-import { count, mss } from '@/lib/viz/format';
-import { BankAndPay, BreakRiver, GenderKick, Magnet, StateFlow, TwinRunners, WarningLight } from '../KickStory';
-import { StorySection } from '../StoryShell';
-import { Checkpoint, Distance, Section } from '../Units';
-import { StoryData } from '../StoryData';
-import { shareInWords } from '@/lib/stories';
-import { UnitLink as Link } from '@/components/UnitsProvider';
+import { readInsight } from '@/lib/insights-server';
+import { STORIES } from '@/lib/stories';
+import { getNugget } from '@/lib/nuggets';
+import { sectionName } from '@/lib/nuggets/stories';
+import { hm, pct } from '@/lib/nuggets/format';
+import LineProfile from '@/components/viz/LineProfile';
+import DotGrid from '@/components/viz/DotGrid';
+import Values from '@/components/ui/Values';
+import Columns from '@/components/viz/Columns';
+import Ruler from '@/components/viz/Ruler';
+import { Beat, Moved, Say, StoryHero, StoryPage, rich } from '../StoryPage';
 
-const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
-
-/** Start of a section label in km ("35–40" gives 35), for ordering break sections. */
-const sectionStart = (section: string) => Number.parseFloat(section);
+const PATH = '/stories/final-kick';
+const minutes = (s: number) => `${Math.round(s / 60)} min`;
 
 /**
- * The break pattern across 5–20 km pace bands, read from the data: the bands that never reach a break before the first one that does,
- * and the run of bands from there in which the break comes no later as the early pace gets slower. Each limit is the band label's
- * upper marathon time ("2:30–3:00" or "Under 3:00" gives 3:00), or null when the data do not show that part of the pattern.
+ * After 30K (the redesign spec, section 7.7, under section 00), retitled from its lead finding: finishes on the same
+ * pace through 20K, apart at the finish, then in race order the warning sign at 25–30K, no second wind, and the last
+ * 2.2K. The fast-start bank moved to /analyses/starting-pace and the next-race recurrence to
+ * /analyses/finding-improvement: their old anchors hold a line that shows only when a link lands there. The break and
+ * the women-and-men kick are cut.
  */
-function breakPattern(bands: Kick['breaks']['bands']) {
-  const first = bands.findIndex((b) => b.break_section);
-  if (first < 0) return { neverUnder: null, earlierUpTo: null };
-  let last = first;
-  while (last + 1 < bands.length && bands[last + 1].break_section && sectionStart(bands[last + 1].break_section!) <= sectionStart(bands[last].break_section!)) last += 1;
-  const upper = (label: string) => (/^(?:[^–]+–|Under )(\d+:\d{2})$/.exec(label)?.[1] ?? null);
-  const earlier = sectionStart(bands[last].break_section!) < sectionStart(bands[first].break_section!);
-  return {
-    neverUnder: first > 0 ? upper(bands[first - 1].label) : null,
-    earlierUpTo: earlier && last < bands.length - 1 ? upper(bands[last].label) : null,
-  };
-}
+export default function KickBody() {
+  const data = readInsight<Kick>('kick.json');
+  const story = STORIES.find((s) => s.slug === 'final-kick')!;
+  const twins = getNugget('kick.twins'), bands = getNugget('kick.bands'), warning = getNugget('kick.warning'), stay = getNugget('kick.stay'), magnet = getNugget('kick.magnet');
 
-export default function KickBody({ data }: { data: Kick }) {
-  const k = data.kick;
-  const earlier = data.magnet.slice(0, -1).map((r) => r.all);
-  const rec = data.recovery;
-  const stay = rec.stay;
-  const brk = data.breaks.all.sections;
-  const at30 = brk[6];
-  const warn = data.warning.find((w) => w.after === '25–30')!;
-  const warnHigh = warn.rows.find((r) => r.label === '15–20% slower');
-  const warnLow = warn.rows.find((r) => r.label === 'Faster');
-  const fast = data.bank.bands.find((b) => b.label === 'More than 10% faster');
-  const best = data.bank.curve.reduce((b, r) => (r.finish_s < b.finish_s ? r : b), data.bank.curve[0]);
-  const twin = data.cost.bands.find((b) => b.lo_min === 225) ?? data.cost.bands[0];
-  const st = data.cost.stratified;
-  const allWomen = data.gender_kick.every((r) => r.women > r.men);
-  const exceptions = data.gender_kick.filter((r) => r.women <= r.men).map((r) => r.label);
-  const rc = data.recurrence;
-  const firstGk = data.gender_kick.find((r) => r.label === '3:30–4:00');
-  const pattern = breakPattern(data.breaks.bands);
+  // Same pace through 20K: how many minutes later each pace band's finishes with a sustained slowdown came in, as one
+  // line over the pace through 20K (a finish-time equivalent), the gap washed down to zero.
+  const cost = data.cost.bands.filter((b) => b.slowdown_n >= 100 && b.other_n >= 100);
+  const width = cost.length > 1 ? cost[1].lo_min - cost[0].lo_min : 15;
+  const cx = cost.map((b) => b.lo_min + width / 2);
+  const gap = cost.map((b) => (b.slowdown_finish_s - b.other_finish_s) / 60);
+  const gTop = Math.max(10, Math.ceil(Math.max(...gap) / 10) * 10);
+  const lowAt = gap.indexOf(Math.min(...gap)), highAt = gap.indexOf(Math.max(...gap));
+
+  // The warning sign: the middle section the data reports, by how much slower it ran than early pace.
+  const w = data.warning[Math.floor(data.warning.length / 2)];
+  const wTop = Math.ceil(Math.max(...w.rows.map((r) => r.later)) * 10) / 10;
+
+  // The last stretch: the share running each section faster than the one before, for finishes with a sustained
+  // slowdown (the H2's share): the final section, and the band of every section before it (every section in the table).
+  const final = data.magnet[data.magnet.length - 1];
+  const before = data.magnet.slice(0, -1);
+  const s = data.recovery.stay[0];
+
   return (
-    <StoryData value={{ kick: data }}>
-      <StorySection id="magnet" kicker="01 · The finish-line magnet" title={<>{shareInWords(k.share)} finishes <em>speed up</em> for the last <Distance km={2.195} />.</>}
-        dek={<>{pct(k.share, 1)} of {count(k.n)} finishes ran the final <Distance km={2.195} /> faster than their <Section i={7} />. In each earlier 5 km section after <Checkpoint km={20} />, only {pct(Math.min(...earlier))} to {pct(Math.max(...earlier))} beat the section before.
-          Even among finishes with a <Link href="/methodology#sustained-slowdown">sustained slowdown</Link>, {pct(k.slowdown_share)} found a final kick.</>}>
-        <Magnet />
-      </StorySection>
+    <StoryPage path={PATH} numbers={[
+      <Values key="twins" bare id="fk-twins" caption="Median finish by pace through 20K, with and without a sustained slowdown"
+        columns={[{ key: 'p', label: 'Pace through 20K' }, { key: 'a', label: 'Without' }, { key: 'b', label: 'With' }, { key: 'g', label: 'Apart' }]}
+        rows={cost.map((b) => [b.label, hm(b.other_finish_s / 60), hm(b.slowdown_finish_s / 60), minutes(b.slowdown_finish_s - b.other_finish_s)])} />,
+      <Values key="warning" bare id="fk-warning" caption={`Pace at ${sectionName(w.after)} against the 5–20K pace, and the share that went on to a sustained slowdown`}
+        columns={[{ key: 'p', label: `Pace at ${sectionName(w.after)}` }, { key: 's', label: 'Went on to one' }]}
+        rows={w.rows.map((r) => [r.label, pct(r.later)])} />,
+      <Values key="states" bare id="fk-states" caption={`Finishes at sustained-slowdown pace over ${sectionName(s.source)}, over ${sectionName(s.target)}`}
+        columns={[{ key: 'a', label: `Over ${sectionName(s.target)}` }, { key: 's', label: 'Share of those finishes' }]}
+        rows={[['Stayed that slow', pct(s.stay)], ['Did not', pct(1 - s.stay)]]} reading={0} />,
+      <Values key="magnet" bare id="fk-magnet" caption="Ran the section faster than the one before"
+        columns={[{ key: 's', label: 'Section' }, { key: 'd', label: 'With a sustained slowdown' }, { key: 'a', label: 'All finishes' }]}
+        rows={data.magnet.map((m) => [sectionName(m.section), pct(m.slowdown), pct(m.all)])} reading={data.magnet.length - 1} />,
+    ]}>
+      {/* One beat: the H1 says the finding with its minutes, once; the dek names the comparison, the same pace through
+          20K, and carries the term's one link to its definition; the chart under it draws the gap at every pace, its two
+          ends labelled on the line and the H1's pooled minutes as an ink reference across it, so the opener says one
+          number once (round 6: an H2 restated the range under an H1 whose 20 the chart never drew). */}
+      <StoryHero path={PATH} title={story.heading ?? story.title} stacked
+        dek={twins.guard ? rich('Against finishes with no sustained slowdown, from the same pace through 20K.', { term: true }) : undefined}
+        fallback={!twins.guard} sentence={twins.guard ? undefined : <Say nugget={twins} term />}
+        instrument={(
+          <LineProfile x={cx} xDomain={[cost[0].lo_min, cost[cost.length - 1].lo_min + width]} yDomain={[0, gTop]}
+            layers={[{ id: 'gap', label: 'Minutes later', series: [{ id: 'gap', values: gap }], band: { lo: gap.map(() => 0), hi: gap },
+              labels: [
+                // The range's two ends, each on a point on the line: the low end under its point (the H1's line runs
+                // just above it), the high end over its own.
+                { x: cx[lowAt], y: gap[lowAt], text: `+${Math.round(gap[lowAt])} min`, tone: 'ink', priority: 3, prefer: 'below', gap: 10 },
+                { x: cx[highAt], y: gap[highAt], text: `+${Math.round(gap[highAt])} min`, tone: 'ink', priority: 3, prefer: 'above' },
+              ],
+              points: [{ x: cx[lowAt], y: gap[lowAt], kind: 'compare' }, { x: cx[highAt], y: gap[highAt], kind: 'compare' }] }]}
+            // The H1's minutes (every pace together, matched on race, recorded gender and pace through 20K) as one ink
+            // line across the bands, so the number the H1 names is drawn where the reader's eye already is.
+            refs={twins.guard ? [{ value: Number(twins.values.median_gap_s) / 60, label: `All paces · +${Math.round(Number(twins.values.median_gap_s) / 60)} min` }] : []}
+            xTicks={[180, 240, 300, 360].filter((v) => v > cost[0].lo_min && v < cost[cost.length - 1].lo_min + width).map((v) => ({ value: v, label: `${hm(v)} pace` }))}
+            // No gridline: the labels on the line give its ends, and the area stands on the zero line.
+            yTicks={[]}
+            axisTitle={{ start: 'Pace through 20K, as a finish time' }}
+            label={`Minutes later at the finish after a sustained slowdown, for each pace through 20K: ${Math.round(Number(bands.values.low_s) / 60)} to ${Math.round(Number(bands.values.high_s) / 60)} minutes, ${Math.round(Number(twins.values.median_gap_s) / 60)} across every pace.`} />
+        )}>
+        {/* The gap at every pace was a beat of its own (#twins); links to it land on the opener, which now draws it. */}
+        <span id="twins" className="beat-alias" aria-hidden="true" />
+      </StoryHero>
 
-      <StorySection id="states" kicker="02 · No second wind" title={<>After a sustained slowdown, <em>{rec.share_any < 0.2 ? 'few finishes' : rec.share_any < 0.5 ? 'most finishes do not' : 'many finishes'}</em> get back to their early pace.</>}
-        dek={<>Once a 5 km section was 25% or more slower than the runner&apos;s 5–20 km pace, the next 5 km was still 25% or more slower {pct(stay[0].stay)} of the time from <Section i={5} /> and {pct(stay[1].stay)} from <Section i={6} />.
-          Of the {count(rec.room_n)} finishes whose sustained slowdown ended in time to leave a full 5 km section, {pct(rec.share_full_section_room, 1)} ran one back within 10% of their early pace. Only {pct(k.slowdown_final_below_baseline, 1)} of all finishes with a sustained slowdown ran the final section faster than their early pace, against {pct(k.other_final_below_baseline)} of the rest.</>}>
-        <StateFlow />
-        <p className="story-aside">Recorded women with a sustained slowdown got back within 10% of their early pace at some later point {pct(rec.women_any)} of the time; men {pct(rec.men_any)}.</p>
-      </StorySection>
+      <Beat id="warning" track="chapter-1" label="The warning sign" title={warning}>
+        <Columns max={wTop} items={w.rows.map((r, i) => ({ id: r.label, label: r.label.replace(/ slower$/, '').replace(/% /, '%'), value: r.later, display: pct(r.later), tone: i === w.rows.length - 1 ? 'signal' : 'ink' }))}
+          label={`How often each pace at ${sectionName(w.after)}, against the 5–20K pace, was followed by a sustained slowdown: from ${pct(w.rows[0].later)} to ${pct(w.rows[w.rows.length - 1].later)}.`}
+          caption={`Pace at ${sectionName(w.after)} against the 5–20K pace`} />
+      </Beat>
 
-      <StorySection id="break" kicker="03 · The break" title={<>At <Section i={6} />, most of the field is <em>more than 10% off</em> its early pace.</>}
-        dek={<>Through <Checkpoint km={15} /> almost everyone runs close to their own 5–20 km pace. By <Section i={6} />, {pct(at30.over10, 1)} of finishes are more than 10% slower than it, and the middle half of the field is spread {((at30.p75 - at30.p25) / (brk[0].p75 - brk[0].p25)).toFixed(1)} times wider than over <Section i={0} />.{pattern.earlierUpTo ? <> Up to a {pattern.earlierUpTo} marathon pace, the slower the early pace, the earlier the break</> : null}{pattern.neverUnder ? <>{pattern.earlierUpTo ? '; p' : ' P'}aces under {pattern.neverUnder} never reach it</> : null}{pattern.earlierUpTo || pattern.neverUnder ? '.' : null}</>}>
-        <BreakRiver />
-      </StorySection>
+      <Beat id="states" track="chapter-2" label="No second wind" title={stay} aliases={['break']}
+        dek={stay.guard ? `Finishes at sustained-slowdown pace over ${sectionName(s.source)}.` : undefined}>
+        {/* Staying slow is drawn in ink, never the accent (slower is never orange); the H2 gives the share. Ten by ten
+            across the column on a phone; one wide band of 25 by 4 from 900 px, so it spans the measure. */}
+        <DotGrid lit={s.stay * 100} compare className="is-band" label={`Of 100 finishes at sustained-slowdown pace over ${sectionName(s.source)}, ${Math.round(s.stay * 100)} stayed that slow over ${sectionName(s.target)}.`}
+          caption={<span className="dot-grid-key"><span><i className="is-ink" />Stayed that slow</span><span><i />Did not</span></span>} />
+      </Beat>
 
-      <StorySection id="warning" kicker="04 · The warning light" title={<>A slow <Section i={5} /> <em>is a warning</em>.</>}
-        dek={warnHigh && warnLow ? <>Among finishes with no sustained slowdown by <Checkpoint km={30} />, those whose <Section i={5} /> was already 15–20% slower than their early pace went on to have one {pct(warnHigh.later)} of the time. Those who ran it faster than their early pace: {pct(warnLow.later, 1)}.</> : undefined}>
-        <WarningLight />
-      </StorySection>
+      {/* A scale, not a second set of columns (round 5: two near-identical bar charts on one page): the last stretch's
+          share as the one orange dot, against the band every 5K before it held. */}
+      <Beat id="magnet" track="chapter-3" label="The last stretch" title={magnet} aliases={['women-men']}
+        // The group, then what the band is: how often each 5K before ran faster than the 5K before it.
+        dek={magnet.guard ? `Finishes with a sustained slowdown. In each 5K before, only ${pct(Math.min(...before.map((m) => m.slowdown)))} to ${pct(Math.max(...before.map((m) => m.slowdown)))} were faster than the 5K before it.` : undefined}>
+        <Ruler min={0} max={1} ticks={[0, 0.25, 0.5, 0.75, 1].map((v) => ({ value: v, label: pct(v) }))}
+          band={{ lo: Math.min(...before.map((m) => m.slowdown)), hi: Math.max(...before.map((m) => m.slowdown)), label: 'Each 5K before' }}
+          marks={[{ value: final.slowdown, kind: 'reading', label: `${sectionName(final.section)} ${pct(final.slowdown)}` }]}
+          label={`Of finishes with a sustained slowdown, ${pct(final.slowdown)} ran ${sectionName(final.section)} faster than the section before, against ${pct(Math.min(...before.map((m) => m.slowdown)))} to ${pct(Math.max(...before.map((m) => m.slowdown)))} in each 5K from ${sectionName(before[0].section)} on.`} />
+      </Beat>
 
-      <StorySection id="bank" kicker="05 · Bank and pay" title={<>Time banked early <em>went with more time lost later</em>.</>}
-        dek={fast ? <>Compared with finishes in the same race at the same 5–20 km pace, those who ran the first 5 km more than 10% faster than that pace banked {mss(Math.abs(fast.open_s))}, then spent {mss(fast.after20_s)} more after <Checkpoint km={20} /> and finished {mss(fast.finish_s)} behind on average.
-          They had a sustained slowdown {pct(fast.slowdown, 1)} of the time, against {pct(fast.expected, 1)} for their race and pace. The best average finish went with a first 5 km {best.lo}–{best.lo + 1}% slower than the 5–20 km pace.</> : undefined}>
-        <BankAndPay />
-      </StorySection>
-
-      <StorySection id="twins" kicker="06 · Twin runners" title={<>Same pace to <Checkpoint km={20} />, <em>{Math.round((twin.slowdown_finish_s - twin.other_finish_s) / 60)} minutes apart</em> at the finish.</>}
-        dek={<>Finishes with a {twin.label} marathon pace over 5–20 km reached <Checkpoint km={20} /> in the same median time, with or without a sustained slowdown. Their median finishes were {mss(twin.slowdown_finish_s - twin.other_finish_s)} apart.
-          Within the same race, recorded gender and early pace, the typical gap is {Math.round(st.median_gap_s / 60)} minutes.</>}>
-        <TwinRunners />
-      </StorySection>
-
-      <StorySection id="women-men" kicker="07 · Women and men" title={<>Women <em>out-kick</em> men at {allWomen ? 'every pace' : exceptions.length === 1 && exceptions[0] === 'Under 2:30' ? 'all but the fastest pace' : 'most paces'}.</>}
-        dek={firstGk ? <>At a 3:30–4:00 pace over 5–20 km, {pct(firstGk.women, 1)} of recorded women&apos;s finishes sped up over the final section, against {pct(firstGk.men, 1)} of men&apos;s, even though women had slowed less by <Section i={7} /> ({pct(firstGk.women_35_40, 1)} against {pct(firstGk.men_35_40, 1)} slower than their early pace).{exceptions.length ? <> The exception{exceptions.length > 1 ? 's are the' : ' is the'} {exceptions.map((x) => x.toLowerCase()).join(', ')} band{exceptions.length > 1 ? 's' : ''}, where few recorded women run.</> : null}</> : undefined}>
-        <GenderKick />
-      </StorySection>
-
-      {rc.after_slowdown && rc.after_none ? (
-        <StorySection id="follows" kicker="08 · The next linked race" title={<>A sustained slowdown <em>tends to come back</em>.</>}
-          dek={<>After a sustained slowdown, the next linked race had one {pct(rc.after_slowdown.observed)} of the time. After a race without one, {pct(rc.after_none.observed)} did.</>}>
-          <div className="bibs">
-            <div className="bib"><span className="bib-tag">After a sustained slowdown</span><span className="bib-number">{pct(rc.after_slowdown.observed)}</span><span className="bib-text">of next races had one too, against {pct(rc.after_slowdown.expected)} typical for that race and pace.</span></div>
-            <div className="bib"><span className="bib-tag">After a race without one</span><span className="bib-number">{pct(rc.after_none.observed)}</span><span className="bib-text">against {pct(rc.after_none.expected)} typical.</span></div>
-            {rc.after_slowdown_other_course ? <div className="bib"><span className="bib-tag">On a different course</span><span className="bib-number">{pct(rc.after_slowdown_other_course.observed)}</span><span className="bib-text">after a sustained slowdown, against {pct(rc.after_slowdown_other_course.expected)} typical.</span></div> : null}
-          </div>
-        </StorySection>
-      ) : null}
-
-    </StoryData>
+      <Moved id="bank" href="/analyses/starting-pace">Fast starts and what followed are now on Starting pace.</Moved>
+      <Moved id="follows" href="/analyses/finding-improvement">The next race after a sustained slowdown is now on Where runners improve.</Moved>
+    </StoryPage>
   );
 }

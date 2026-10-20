@@ -1,12 +1,10 @@
 'use client';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ComponentType, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { UnitSwitch } from './UnitsProvider';
-import SiteNav from './SiteNav';
+import { UnitLink, UnitSwitch } from './UnitsProvider';
+import MenuSheet, { WIDE, type MenuMode } from './MenuSheet';
 import { usePrefersReducedMotion } from './art/useTicker';
 
-/** The phone header (globals.css): one row, the links behind a Menu button, out of the way while the reader scrolls down. */
-const COMPACT = '(max-width: 720px)';
 /** Scroll this far (px) in one direction before the header moves, so a finger resting on the page does not flicker it. */
 const SLACK = 6;
 
@@ -15,44 +13,50 @@ function keyboardFocus(element: Element) {
   try { return element.matches(':focus-visible'); } catch { return true; }
 }
 
+const GLYPH = (
+  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+    <path d="M2.5 5.5h11M2.5 10.5h11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
 /**
- * `brand` (the Pace Notes link and the credit) and `menuIcon` come from the root layout, a server component, so their
- * markup is not part of every page's JavaScript.
+ * The site header (the redesign spec, section 2.4): the brand, the units switch and, under 1180 px, the Menu button that
+ * opens the menu sheet; from 1180 px the five links inline and a Chapters button for the chapters drawer (MenuSheet).
+ * Under 1180 px it slides away while the reader scrolls down and returns as soon as they scroll up; on a reading page the
+ * reading bar takes its place meanwhile. It stays while a menu is open, while it holds keyboard focus, near the top and
+ * under reduced motion, and moves only by transform (header.css), so nothing below it shifts.
+ *
+ * `brand` (the Pace Notes link and, under it at every width, the quiet "by Andrew Kam" credit) and `chapters` (the chapter list) come from the root layout, a server
+ * component, so their markup is not part of every page's JavaScript.
  */
-export default function SiteHeader({ brand, menuIcon }: { brand: ReactNode; menuIcon: ReactNode }) {
+export default function SiteHeader({ brand, chapters }: { brand: ReactNode; chapters: ReactNode }) {
   const header = useRef<HTMLElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<MenuMode>(null);
+  const close = useCallback(() => setOpen(null), []);
   const path = usePathname();
   const still = usePrefersReducedMotion();
+  // The reading bar's code loads only on a page that has one (a root with data-reading), once the page is interactive.
+  const [ReadingBar, setReadingBar] = useState<ComponentType | null>(null);
 
-  useEffect(() => { setOpen(false); }, [path]);
+  useEffect(() => { setOpen(null); }, [path]);
+  useEffect(() => {
+    if (!ReadingBar && document.querySelector('main[data-reading], main [data-reading]')) import('./ReadingBar.client').then((m) => setReadingBar(() => m.default)).catch(() => {});
+  }, [path, ReadingBar]);
 
-  // The menu closes with Escape (focus goes back to its button), a tap outside the header, or when the page widens past it.
+  // A menu opened at one width closes when the page crosses 1180 px (the other menu belongs to the other width).
   useEffect(() => {
     if (!open) return;
-    const compact = window.matchMedia(COMPACT);
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); toggle.current?.focus(); } };
-    const onPointer = (event: PointerEvent) => { if (!header.current?.contains(event.target as Node)) setOpen(false); };
-    const onWiden = () => { if (!compact.matches) setOpen(false); };
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('pointerdown', onPointer);
-    compact.addEventListener?.('change', onWiden);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('pointerdown', onPointer);
-      compact.removeEventListener?.('change', onWiden);
-    };
+    const wide = window.matchMedia(WIDE);
+    const onChange = () => setOpen(null);
+    wide.addEventListener?.('change', onChange);
+    return () => wide.removeEventListener?.('change', onChange);
   }, [open]);
 
-  // On phones the header slides away while the reader scrolls down and comes back as soon as they scroll up. It stays
-  // while its menu is open, while it holds keyboard focus, near the top of the page, and always under reduced motion.
-  // It only moves with transform (globals.css), so nothing below it shifts.
   useEffect(() => {
     const el = header.current;
     if (!el) return;
     if (still) { el.removeAttribute('data-hidden'); return; }
-    const compact = window.matchMedia(COMPACT);
+    const wide = window.matchMedia(WIDE);
     let last = Math.max(0, window.scrollY);
     let frame = 0;
     const update = () => {
@@ -61,7 +65,7 @@ export default function SiteHeader({ brand, menuIcon }: { brand: ReactNode; menu
       if (Math.abs(y - last) < SLACK) return;
       const active = document.activeElement;
       const held = el.hasAttribute('data-open') || (active !== null && el.contains(active) && keyboardFocus(active));
-      el.toggleAttribute('data-hidden', compact.matches && y > last && y > el.offsetHeight && !held);
+      el.toggleAttribute('data-hidden', !wide.matches && y > last && y > el.offsetHeight && !held);
       last = y;
     };
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
@@ -76,18 +80,27 @@ export default function SiteHeader({ brand, menuIcon }: { brand: ReactNode; menu
     };
   }, [still]);
 
+  const opener = (mode: Exclude<MenuMode, null>, id: string, className: string, label: string) => (
+    <button type="button" className={className} data-sheet-open={id} aria-haspopup="dialog" aria-expanded={open === mode} aria-controls={id} onClick={() => setOpen(open === mode ? null : mode)}>
+      <span className="nav-toggle-label">{label}</span>{GLYPH}
+    </button>
+  );
+
   return (
-    <header ref={header} className="site-header" data-open={open || undefined}>
+    <header ref={header} className="site-header" data-open={open ? '' : undefined}>
       <div className="container header-inner">
         {brand}
         <div className="header-controls">
-          <button ref={toggle} type="button" className="nav-toggle" aria-expanded={open} aria-controls="site-menu" onClick={() => setOpen(!open)}>
-            {menuIcon}
-          </button>
-          <SiteNav id="site-menu" onFollow={() => setOpen(false)} />
+          <MenuSheet open={open} onClose={close} chapters={chapters} />
           <UnitSwitch />
+          {opener('menu', 'site-sheet', 'nav-toggle', 'Menu')}
+          {opener('chapters', 'site-chapters', 'chapters-toggle', 'Chapters')}
+          {/* Without JavaScript the Menu and Chapters buttons cannot open (app/layout.tsx's noscript style hides them):
+              this plain link to the contents takes the Menu's place on a phone. */}
+          <UnitLink className="nav-fallback" href="/research">Contents</UnitLink>
         </div>
       </div>
+      {ReadingBar && !still ? <ReadingBar /> : null}
     </header>
   );
 }

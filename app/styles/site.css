@@ -1,0 +1,40 @@
+/* Site-wide CSS, in cascade order (the redesign spec, section 6.1): fonts, tokens, base, layout, the components
+   (alphabetical), the site-wide page sheets (home, the contents hubs, the info pages and the moved addresses' stub, which
+   sits under several routes). The legacy rules split from the old globals.css and story.css were deleted in WP9 (October 18,
+   2026); what plain elements still needed from them lives in base.css.
+   app/layout.tsx imports this one file rather than each sheet: every separately imported sheet costs the layout's
+   JavaScript an empty module on every page. Section sheets are imported by their own route layouts and pages. */
+@import './fonts.css';
+@import './tokens.css';
+@import './base.css';
+@import './layout.css';
+@import './components/badge.css';
+@import './components/button.css';
+@import './components/chapter-list.css';
+@import './components/chart-frame.css';
+@import './components/chips.css';
+@import './components/dot-grid.css';
+@import './components/feedback.css';
+@import './components/footer.css';
+@import './components/forms.css';
+@import './components/guess.css';
+@import './components/header.css';
+@import './components/marker.css';
+@import './components/menu.css';
+@import './components/next-card.css';
+@import './components/reading-bar.css';
+@import './components/reading.css';
+@import './components/receipt.css';
+@import './components/replay.css';
+@import './components/ruler.css';
+@import './components/scrolly.css';
+@import './components/scrubber.css';
+@import './components/segmented.css';
+@import './components/share.css';
+@import './components/sheet.css';
+@import './components/table.css';
+@import './components/values.css';
+@import './pages/home.css';
+@import './pages/research.css';
+@import './pages/info.css';
+@import './pages/moved.css';

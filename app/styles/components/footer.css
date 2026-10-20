@@ -1,0 +1,45 @@
+/* The footer (components/SiteFooter.tsx; the redesign spec, sections 2.8 and 00): the brand line, one row of links and
+   the Motion switch, in under half a phone screen. */
+
+.site-footer { margin-top: var(--s-8); border-top: 1px solid var(--rule); color: var(--ink-2); }
+.site-footer-inner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-5); padding: var(--s-5) 0 calc(var(--s-6) + env(safe-area-inset-bottom)); }
+.site-footer-brand { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s-3); margin: 0; }
+.site-footer-home { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: 1.25rem; letter-spacing: -.015em; text-decoration: none; }
+.site-footer-home:hover { color: var(--ink); text-decoration: none; }
+.site-footer-brand span { font-family: var(--sans); font-size: var(--t-small); color: var(--ink-3); }
+/* One row on a phone (round 6): the four links at 14 px with a 12 px gap fit a 358 px column, each at least 44 px wide
+   ("About" is 40 px of text); from 600 px 15 px and the usual 24 px. */
+.site-footer-links { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 0 var(--s-3); }
+.site-footer-links a { display: inline-flex; align-items: center; gap: 4px; min-width: 44px; min-height: 44px; color: var(--ink-2); font-family: var(--sans); font-size: .875rem; font-weight: 500; text-decoration: none; }
+@media (min-width: 600px) {
+  .site-footer-links { gap: 0 var(--s-5); }
+  .site-footer-links a { font-size: .9375rem; }
+}
+.site-footer-links a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; }
+/* One way to a page's methods per screen (round 6): where the closing row carries the page's own "How we know"
+   (ChapterEnd, a reference tool's ToolEnd), the footer's link to /methodology steps aside, so the two never sit on one
+   phone screen. Without :has() both show, which loses nothing. */
+@supports selector(:has(a)) {
+  body:has(.chapter-how) .site-footer-links a[href="/methodology"] { display: none; }
+}
+
+/* The Motion switch: role="switch", 44 px tall; on is an ink track with the knob at the right. */
+.motion-toggle {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-left: 0; padding: 0 2px;
+  border: 0; border-radius: var(--r-pill); background: transparent; box-shadow: none; color: var(--ink-2);
+  font-family: var(--sans); font-size: .9375rem; font-weight: 500; line-height: 1;
+}
+.motion-toggle:hover { border-color: transparent; color: var(--ink); }
+.motion-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.motion-toggle-track { position: relative; flex: none; width: 36px; height: 22px; border-radius: var(--r-pill); background: var(--rule-strong); transition: background-color var(--d-toggle) var(--ease-out); }
+.motion-toggle-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--paper-raised); box-shadow: var(--shadow-raise); transition: transform var(--d-toggle) var(--spring); }
+.motion-toggle[aria-checked='true'] .motion-toggle-track { background: var(--ink); }
+.motion-toggle[aria-checked='true'] .motion-toggle-track::after { transform: translateX(14px); }
+
+@media (min-width: 900px) {
+  .site-footer-brand { flex: 0 1 auto; margin-right: var(--s-5); }
+  .motion-toggle { margin-left: auto; }
+}
+@media print {
+  .site-footer { display: none; }
+}

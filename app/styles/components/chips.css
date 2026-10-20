@@ -1,0 +1,45 @@
+/* Chips (components/ui/Chips.client.tsx): for more than 5 options or a wrapping set. 44 px pills with a 1 px
+   --rule-strong edge; the selected chip is ink with paper text. A row that overflows scrolls sideways with a 24 px edge
+   fade on the side that has more, and snaps 24 px in, so a chip scrolled past still peeks under the fade on that side;
+   it is never clipped without a cue. */
+
+.chips { position: relative; max-width: 100%; }
+.chips-row {
+  display: flex; gap: 8px; margin: -3px; padding: 3px; list-style: none;
+  overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 24px; scrollbar-width: none; overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.chips-row::-webkit-scrollbar { display: none; }
+.chips.is-wrap .chips-row { flex-wrap: wrap; overflow: visible; }
+.chips[data-more='end'] .chips-row { -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+.chips[data-more='start'] .chips-row { -webkit-mask-image: linear-gradient(to left, var(--ink) calc(100% - 24px), transparent); mask-image: linear-gradient(to left, var(--ink) calc(100% - 24px), transparent); }
+.chips[data-more='both'] .chips-row { -webkit-mask-image: linear-gradient(to right, transparent, var(--ink) 24px, var(--ink) calc(100% - 24px), transparent); mask-image: linear-gradient(to right, transparent, var(--ink) 24px, var(--ink) calc(100% - 24px), transparent); }
+
+.chip {
+  flex: none; scroll-snap-align: start;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 44px; min-height: 44px; padding: 0 16px; margin: 0;
+  border: 1px solid var(--rule-strong); border-radius: var(--r-pill);
+  background: transparent; color: var(--ink); box-shadow: none;
+  font-family: var(--sans); font-size: .9375rem; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums;
+  white-space: nowrap; cursor: pointer;
+  transition: background-color var(--d-quick) var(--ease-out), border-color var(--d-quick) var(--ease-out), color var(--d-quick) var(--ease-out), transform var(--d-release) var(--spring);
+  -webkit-tap-highlight-color: transparent;
+}
+.chip:hover, .chip.is-hover { border-color: var(--ink); }
+.chip[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: var(--paper); font-weight: 600; }
+.chip:active:not(:disabled), .chip.is-pressed { transform: scaleX(1.06); transition-duration: var(--d-press); }
+.chip:focus-visible, .chip.is-focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.chip:disabled, .chip[aria-disabled='true'] { color: var(--ink-3); opacity: .6; cursor: not-allowed; }
+.chip:disabled:hover { border-color: var(--rule-strong); }
+
+/* On night: a --night-3 edge; the selected chip is night-ink with night text (the night scope remaps --ink and --paper). */
+/* At 200% zoom a long chip label wraps rather than push past the page edge. */
+.chip { max-width: 100%; }
+@media (max-width: 299.98px) {
+  .chips.is-wrap .chip { white-space: normal; text-align: center; line-height: 1.2; padding-block: 6px; }
+}
+
+.night .chip { border-color: var(--night-3); }
+.night .chip:hover { border-color: var(--night-ink-2); }
+.night .chip[aria-pressed='true'] { border-color: var(--ink); }

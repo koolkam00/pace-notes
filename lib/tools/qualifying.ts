@@ -112,7 +112,7 @@ export const STANDARDS: Standard[] = [
   {
     key: 'boston', race: 'Boston Marathon', edition: '2028 (132nd, April 17, 2028)', ageRule: 'race-day', ageDate: '2028-04-17',
     comparison: 'at-or-under', comparisonStated: false, windowStart: '2026-09-19', windowNote: 'Times from September 19, 2026 through the end of registration week in September 2027 count for the 2028 race.',
-    applications: { note: 'Registration week for the 2028 race is in September 2027; the B.A.A. will announce its dates after the 2027 race. (Registration for the 2027 race ran September 14–18, 2026.) Accepted runners are those fastest relative to their standard.' },
+    applications: { note: 'Registration week for the 2028 race is in September 2027, its dates announced after the 2027 race. Accepted runners are those fastest relative to their standard.' },
     entry: 'Meeting the standard lets you apply. Acceptance depends on the cut-off (and, for 2027, a random selection of about 1,000 qualifiers who missed it).',
     randomSelection: { year: 2027, drawn: 1000 },
     bands: majorBands([[18, 34, hm(2, 55), hm(3, 25)], [35, 39, hm(3, 0), hm(3, 30)], [40, 44, hm(3, 5), hm(3, 35)], [45, 49, hm(3, 15), hm(3, 45)],

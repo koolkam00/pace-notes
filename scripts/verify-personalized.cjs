@@ -113,27 +113,9 @@ assert.equal(checkpointResult(cp, p, 35, 129 * 60, null), null);
 assert.equal(checkpointResult(cp, { ...p, goal: 360 }, 30, 129 * 60, null), null, 'Legacy checkpoint CDFs do not cover six-hour targets');
 assert.equal(checkpointResult({ city: 'New York', rows: [{ ...cpRow, ...expanded }] }, { ...p, goal: 360 }, 30, 129 * 60, null).row.cdf_min, 90);
 
-// The guide shows its questions and answers; coverage, sources and method notes live on /methodology.
-{
-  const Module = require('node:module');
-  require.extensions['.tsx'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
-  }).outputText, filename);
-  const resolveFilename = Module._resolveFilename;
-  Module._resolveFilename = function (request, ...args) {
-    return resolveFilename.call(this, request.startsWith('@/') ? path.join(process.cwd(), request.slice(2)) : request, ...args);
-  };
-  const React = require('react');
-  const { renderToStaticMarkup } = require('react-dom/server');
-  const UnitsProvider = require('../components/UnitsProvider.tsx').default;
-  const PersonalizedGuide = require('../components/PersonalizedGuide.tsx').default;
-  const html = renderToStaticMarkup(React.createElement(UnitsProvider, null, React.createElement(PersonalizedGuide, { summary })));
-  for (const label of ['Marathon', 'Target time', 'Age group', 'Gender', 'Previous marathon (h:mm)', 'Update my comparisons']) assert.ok(html.includes(label), `The guide keeps its ${label} control`);
-  assert.ok(!html.includes('pack_meta.json') && !html.includes('Coverage and calculation details'), 'No coverage or calculation link inside the guide');
-  assert.doesNotMatch(html, /eligible finishes|Targets are comparison thresholds|declared goals|15-minute band|Each answer identifies its actual comparison group|supplied course profiles/, 'Coverage and method notes are on /methodology');
-  const source = fs.readFileSync('components/PersonalizedGuide.tsx', 'utf8');
-  assert.doesNotMatch(source, /<summary>Methodology<\/summary>|Full personalized methodology|calibrated personal prediction|Non-finishers and missing-split records|Fewer than 100 complete finishes/, 'Per-answer methodology and caveats are on /methodology');
-}
+// The guide's page (components/PersonalizedGuide.tsx) was removed with /research/personalized in the October 2026 redesign
+// (spec, section 7.16): its questions are the analyses now. The checks above keep the published data honest, because the
+// analyses, the planner and the nuggets read the same files.
 
 (async () => {
   const source = summary.cities.find(c => c.city === 'New York');

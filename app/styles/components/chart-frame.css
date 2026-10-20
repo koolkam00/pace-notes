@@ -1,0 +1,280 @@
+/* The chart frame and the marks every form shares (components/viz; the redesign spec, sections 3.5 and 3.6).
+   A chart is figure.viz.viz-frame: .viz keeps it out of session replay and draws its SVG as a block that may paint past
+   its box (a label at the plot's edge), .viz-frame scopes the frame's rules. Marks are drawn in plot fractions (SVG percentages
+   and a stretched 1000-unit path space), so text keeps its pixel size at every width; labels that stop fitting at
+   200% zoom hide by width class through the container queries at the end. Ticks and chart text are 12 px or more. */
+
+.viz svg { display: block; overflow: visible; }
+
+.viz-frame {
+  --plot-h: 200px;
+  --plot-h-md: 260px;
+  --type: currentColor;
+  --type-night: currentColor;
+  container-type: inline-size;
+  position: relative;
+  margin: 0;
+  max-width: var(--measure-figure);
+  color: var(--ink);
+}
+
+/* ---------- Lens, readout ---------- */
+.viz-frame .viz-lens { margin-bottom: var(--s-4); }
+/* A lens wider than a zoomed-in screen scrolls sideways rather than widening the page. */
+.viz-frame .viz-lens-control { display: block; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+.viz-frame .viz-lens-control::-webkit-scrollbar { display: none; }
+.viz-frame .readout {
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start; gap: var(--s-3) var(--s-6);
+  min-height: 64px; padding-bottom: var(--s-3); margin-bottom: var(--figure-gap); border-bottom: 1px solid var(--rule);
+}
+.viz-frame .readout-main { display: grid; gap: 4px; min-width: 0; }
+.viz-frame .readout-key { font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.viz-frame .readout-value { font-size: var(--t-readout); font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.viz-frame .readout-value.is-signal { color: var(--signal-ink); }
+.viz-frame .readout-side { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); min-width: 0; margin: 0; }
+.viz-frame .readout-side div { display: grid; gap: 4px; }
+.viz-frame .readout-side dt { font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); white-space: nowrap; }
+.viz-frame .readout-side dd { margin: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+/* On a zoomed-in screen a long side label or value ("+1.2 min per °F") wraps rather than widening the page. */
+@container (max-width: 239.98px) { .viz-frame .readout-side dt, .viz-frame .readout-value { white-space: normal; } }
+
+/* ---------- The plot ---------- */
+.viz-frame .viz-plot { position: relative; height: var(--plot-h); }
+.viz-frame .viz-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.viz-frame .viz-paths { overflow: visible; }
+.viz-frame .viz-paths * { vector-effect: non-scaling-stroke; }
+
+/* Lines and areas */
+.viz-frame .l-ink { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.viz-frame .l-ink2 { fill: none; stroke: var(--ink-2); stroke-width: 1.25; stroke-linejoin: round; }
+.viz-frame .l-quiet { fill: none; stroke: var(--mark-quiet); stroke-width: 1.5; stroke-linejoin: round; }
+.viz-frame .l-signal { fill: none; stroke: var(--signal); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.viz-frame .l-dash { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 4 4; }
+.viz-frame .l-type { fill: none; stroke: var(--type); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.viz-frame .a-silhouette { fill: var(--fill-quiet); }
+.viz-frame .a-edge { fill: none; stroke: var(--mark-quiet); stroke-width: 1.5; stroke-linejoin: round; }
+.viz-frame .a-band { fill: var(--ink); opacity: .1; }
+.viz-frame .a-wash { fill: var(--ink); opacity: .028; }
+.viz-frame .a-signal { fill: var(--signal-wash); }
+/* A bracket on the span a sentence names (LineProfile's `bracket`). */
+.viz-frame .bracket-line { fill: var(--signal); }
+
+/* Marks drawn as shapes */
+.viz-frame .m-quiet { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1.5; }
+.viz-frame .m-context { fill: var(--mark-quiet); }
+.viz-frame .m-ink { fill: var(--ink); }
+.viz-frame .m-signal { fill: var(--signal); }
+.viz-frame .histo-tower { stroke: var(--paper); stroke-width: 0; }
+.viz-frame .histo-tower.m-ink { stroke: var(--ink); stroke-width: 1.5; }
+.viz-frame .histo-tower.m-signal { stroke: var(--signal); stroke-width: 1.5; }
+.viz-frame .scrub.is-away .histo-tower.m-signal.is-reading { stroke: var(--ink); }
+.viz-frame .m-hollow { fill: var(--paper); stroke: var(--mark-quiet); stroke-width: 1.5; }
+.viz-frame .m-hollow-ink { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
+.viz-frame .m-ring { fill: none; stroke: var(--signal); stroke-width: 2; }
+.viz-frame .m-type { fill: var(--type); }
+.viz-frame circle.m-context, .viz-frame circle.m-ink, .viz-frame circle.m-signal { stroke: var(--paper); stroke-width: 2; }
+
+/* Hairlines */
+.viz-frame .grid-line { fill: var(--rule); }
+.viz-frame .base-line { fill: var(--rule-strong); }
+.viz-frame .ref-line { stroke: var(--ink); stroke-width: 1; }
+.viz-frame .ref-line.is-dashed { stroke: var(--ink-3); stroke-dasharray: 4 4; }
+.viz-frame .leader { fill: var(--ink-3); }
+.viz-frame .tick-mark { fill: var(--rule-strong); }
+
+/* Text: ticks 12 px, direct labels 14 px (secondary 13), each with a halo of the surface */
+.viz-frame .tick { font-family: var(--sans); font-size: 12px; font-weight: 500; letter-spacing: .01em; font-variant-numeric: tabular-nums; fill: var(--ink-3); }
+.viz-frame .grid-label { paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.viz-frame .viz-label {
+  font-family: var(--sans); font-size: 14px; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; fill: var(--ink);
+  paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round;
+}
+.viz-frame .viz-label.is-sm { font-size: 13px; }
+.viz-frame .viz-label.is-signal { fill: var(--signal-ink); }
+.viz-frame .viz-label.is-quiet { fill: var(--ink-3); font-weight: 500; }
+/* A year with no edition in the data, at the foot of a year strip or edition line: a faint tick, read out when scrubbed. */
+.viz-frame .gap-tick { fill: var(--rule-strong); }
+/* A label that had to sit on a reference line breaks the line under it. */
+.viz-frame .viz-label.is-knockout { stroke-width: 8px; }
+
+/* ---------- Axis ---------- */
+.viz-frame .viz-axis { position: relative; }
+.viz-frame .viz-axis-svg { display: block; width: 100%; height: 24px; overflow: visible; }
+.viz-frame .viz-axis-title { display: flex; justify-content: space-between; gap: var(--s-4); margin-top: 2px; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+
+/* ---------- Key, caption, states ---------- */
+.viz-frame .viz-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-4) 0 0; padding: 0; list-style: none; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+/* Each swatch centres on its label's first line, so a label that wraps keeps its swatch beside its opening words. */
+.viz-frame .viz-key li { display: inline-flex; align-items: flex-start; gap: 8px; margin: 0; }
+.viz-frame .viz-key-mark { flex: none; display: inline-block; width: 10px; height: 10px; margin-top: calc((1.4em - 10px) / 2); border-radius: 50%; background: var(--ink); }
+.viz-frame .viz-key-mark.is-signal { background: var(--signal); }
+.viz-frame .viz-key-mark.is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
+.viz-frame .viz-key-mark.is-ring { background: none; box-shadow: inset 0 0 0 2px var(--signal); }
+.viz-frame .viz-key-mark.is-hollow { background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
+.viz-frame .viz-key-mark.is-square { border-radius: 2px; }
+.viz-frame .viz-key-mark.is-line, .viz-frame .viz-key-mark.is-dash { width: 18px; height: 2px; margin-top: calc((1.4em - 2px) / 2); border-radius: 1px; }
+.viz-frame .viz-key-mark.is-dash { height: 0; background: none; border-top: 1px dashed var(--ink-3); }
+.viz-frame .viz-key-mark.is-band { width: 18px; height: 10px; border-radius: 2px; background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
+.viz-frame .viz-key-mark.is-band.is-signal { background: var(--signal-wash); box-shadow: inset 0 0 0 1px var(--signal); }
+.viz-frame .viz-key-mark.is-band.is-quiet { background: var(--paper-sunk); box-shadow: none; }
+.viz-frame .viz-caption { margin-top: var(--s-3); font-size: var(--t-small); color: var(--ink-2); }
+.viz-frame .viz-status { display: grid; place-items: center; min-height: var(--plot-h); padding: var(--s-5); border-block: 1px solid var(--rule); font-size: var(--t-small); color: var(--ink-2); text-align: center; }
+.viz-frame .viz-status a { margin-left: 6px; font-weight: 600; text-decoration: underline; }
+
+/* ---------- Layers a lens switches: the chosen one shows, the rest fade ---------- */
+.viz-frame [data-layer] { transition: opacity var(--d-toggle) var(--ease-out); }
+.viz-frame [data-layer].is-off { opacity: 0; pointer-events: none; }
+.viz-frame .readout[data-layer], .viz-frame .viz-key[data-layer] { transition: none; }
+.viz-frame .readout[data-layer].is-off, .viz-frame .viz-key[data-layer].is-off { display: none; }
+
+/* ---------- Night and dark: the pacing types take their night set ---------- */
+.night .viz-frame .l-type, [data-theme="dark"] .viz-frame .l-type { stroke: var(--type-night); }
+.night .viz-frame .m-type, [data-theme="dark"] .viz-frame .m-type { fill: var(--type-night); }
+/* The dark theme by the system setting: the same rules (a selector cannot test the media query). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .viz-frame .l-type { stroke: var(--type-night); }
+  :root:not([data-theme="light"]) .viz-frame .m-type { fill: var(--type-night); }
+  :root:not([data-theme="light"]) .type-glyph path { stroke: var(--type-night); }
+}
+
+@media (min-width: 900px) {
+  .viz-frame .viz-plot { height: var(--plot-h-md); }
+  /* The readout's keys read beside its 28 px value, not as a caption under a desktop headline (round 6). */
+  .viz-frame .readout-key, .viz-frame .readout-side dt { font-size: .9375rem; }
+}
+
+/* ---------- Labels hide below the width they fit (200% zoom); they stay in Values ---------- */
+.viz-frame .w-never { display: none; }
+@container (max-width: 719.98px) { .viz-frame .w720 { display: none; } }
+/* Marks placed for the taller plot a 900 px screen draws (DotStrip's named labels) hide below it. */
+@media (max-width: 899.98px) { .viz-frame .md-only { display: none; } }
+@container (max-width: 599.98px) { .viz-frame .w600 { display: none; } }
+@container (max-width: 479.98px) { .viz-frame .w480 { display: none; } }
+@container (max-width: 419.98px) { .viz-frame .w420 { display: none; } }
+@container (max-width: 359.98px) { .viz-frame .w360 { display: none; } }
+@container (max-width: 319.98px) { .viz-frame .w320 { display: none; } }
+@container (max-width: 287.98px) { .viz-frame .w288 { display: none; } }
+@container (max-width: 239.98px) { .viz-frame .w240 { display: none; } }
+@container (max-width: 199.98px) { .viz-frame .w200 { display: none; } }
+@container (max-width: 159.98px) { .viz-frame .w160 { display: none; } }
+
+@media (forced-colors: active) {
+  .viz-frame .m-signal, .viz-frame .l-signal { outline: 2px solid CanvasText; }
+  .viz-frame .viz-label { fill: CanvasText; stroke: Canvas; }
+}
+
+/* ---------- The pacing-type glyph, next to a type's name anywhere on a page ---------- */
+.type-glyph { --type: currentColor; --type-night: currentColor; flex: none; display: inline-block; vertical-align: middle; overflow: visible; }
+.type-glyph path { fill: none; stroke: var(--type); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.night .type-glyph path, [data-theme="dark"] .type-glyph path { stroke: var(--type-night); }
+
+/* ---------- Ten-second bins: the columns spring to the chosen mark (data-k), only transform animates ---------- */
+
+/* ---------- Dumbbell rows: label | track | value, 44 px each ---------- */
+.viz-frame.dumbbell .dumbbell-rows, .viz-frame.dumbbell .dumbbell-axis { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr) 4.5rem; column-gap: var(--s-3); }
+.viz-frame.dumbbell .dumbbell-rows { margin: 0; padding: 0; list-style: none; }
+.viz-frame.dumbbell .dumbbell-rows li { display: contents; }
+.viz-frame.dumbbell .dumbbell-label { align-self: center; min-width: 0; font-size: var(--t-small); font-weight: 500; line-height: 1.25; color: var(--ink-2); }
+.viz-frame.dumbbell .is-highlight .dumbbell-label { font-weight: 600; color: var(--ink); }
+.viz-frame.dumbbell .dumbbell-track { display: block; width: 100%; height: 44px; overflow: visible; }
+.viz-frame.dumbbell .dumbbell-gap { fill: var(--rule-strong); }
+.viz-frame.dumbbell .dumbbell-gap.is-signal { fill: var(--signal); }
+.viz-frame.dumbbell .dumbbell-value { align-self: center; font-size: var(--t-small); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; color: var(--ink); }
+.viz-frame.dumbbell .dumbbell-axis { margin-top: 2px; }
+/* Bare: no value column; a fixed label column (the same in the rows and the axis, so the ticks line up with the track)
+   and the track the rest (Values holds the numbers). */
+.viz-frame.dumbbell.is-bare .dumbbell-rows, .viz-frame.dumbbell.is-bare .dumbbell-axis { grid-template-columns: 7.5rem minmax(0, 1fr); }
+/* A narrow figure gives each label its own line, so the track keeps its width. */
+@container (max-width: 299.98px) {
+  .viz-frame.dumbbell.is-bare .dumbbell-rows, .viz-frame.dumbbell.is-bare .dumbbell-axis { grid-template-columns: minmax(0, 1fr); }
+  .viz-frame.dumbbell .dumbbell-rows, .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 1fr) 4rem; }
+  .viz-frame.dumbbell .dumbbell-label { grid-column: 1 / -1; padding-top: var(--s-2); }
+  .viz-frame.dumbbell .dumbbell-axis > span:first-child { display: none; }
+}
+
+/* ---------- Share bar: an HTML bar, exact proportions, 2 px gaps ---------- */
+.viz-frame.share-bar .share-bar-track { display: flex; gap: 2px; height: 28px; }
+.viz-frame.share-bar .share-bar-seg { display: flex; align-items: center; justify-content: center; min-width: 2px; flex-basis: 0; border-radius: 3px; overflow: hidden; transition: flex-grow var(--d-toggle) var(--spring); }
+.viz-frame.share-bar .share-bar-in { padding: 0 6px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.viz-frame.share-bar .is-signal { background: var(--signal); color: var(--night); }
+.viz-frame.share-bar .share-bar-callout { position: relative; height: 28px; }
+.viz-frame.share-bar .share-bar-callout-text { position: absolute; top: 0; font-size: 14px; font-weight: 600; line-height: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--signal-ink); }
+.viz-frame.share-bar .share-bar-leader { position: absolute; top: 20px; bottom: 0; width: 1px; margin-left: -0.5px; background: var(--signal-ink); }
+.viz-frame.share-bar .is-quiet { background: var(--fill-quiet); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); color: var(--ink); }
+/* Ordinal 1 is under 3:1 on both grounds: it keeps a 1 px quiet edge, as the quiet fill does. */
+.viz-frame.share-bar .is-ord-1 { background: var(--ordinal-1); box-shadow: inset 0 0 0 1px var(--mark-quiet); color: var(--ink); }
+.viz-frame.share-bar .is-ord-2 { background: var(--ordinal-2); }
+.viz-frame.share-bar .is-ord-3 { background: var(--ordinal-3); color: var(--paper); }
+.viz-frame.share-bar .is-ord-4 { background: var(--ordinal-4); color: var(--paper); }
+.viz-frame.share-bar .share-bar-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-3) 0 0; padding: 0; list-style: none; font-size: var(--t-small); color: var(--ink-2); }
+.viz-frame.share-bar .share-bar-key li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.viz-frame.share-bar .share-bar-key b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.viz-frame.share-bar .share-bar-swatch { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+/* Labels under: a thin data bar, each segment named under its own end (the first at the left, the last at the right). */
+.viz-frame.share-bar.is-under .share-bar-track { height: 12px; }
+.viz-frame.share-bar.is-under .share-bar-seg { border-radius: 2px; }
+.viz-frame.share-bar.is-under .is-quiet { background: var(--mark-quiet); box-shadow: none; }
+.viz-frame.share-bar .share-bar-under { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px var(--s-4); margin: 8px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.viz-frame.share-bar .share-bar-under b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* ---------- Waffle: square tiles at any width ---------- */
+.viz-frame.waffle { --ratio: 2.78; --cols: 25; }
+/* Lit tiles in --mark-lit: on a dark page a field of 249 near-white squares would outshine the one orange tile. */
+.viz-frame.waffle .m-ink { fill: var(--mark-lit); }
+.viz-frame.waffle .viz-key-mark.is-square:not(.is-quiet):not(.is-signal) { background: var(--mark-lit); }
+/* A one-line readout (Waffle `line`): the picked square in words, set as a quiet sentence, no big value under it. */
+.viz-frame.waffle.is-line .readout { min-height: calc(2 * 1.45 * var(--t-small) + var(--s-3)); }
+.viz-frame.waffle.is-line .readout-key { font-size: var(--t-small); font-weight: 500; line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+.viz-frame.waffle.is-line .readout-value { display: none; }
+.viz-frame.waffle .viz-plot { height: auto; aspect-ratio: var(--ratio); width: 100%; max-width: calc(var(--cols) * 14px); margin-inline: auto; }
+@supports not (aspect-ratio: 1) {
+  .viz-frame.waffle .viz-plot { height: 0; padding-top: 36%; }
+  .viz-frame.waffle .viz-svg { position: absolute; inset: 0; }
+}
+
+/* ---------- Effect band: a null result is grey ---------- */
+.viz-frame .effect-null-band { fill: var(--ink); opacity: .06; }
+
+/* ---------- Elevation and pace blocks ---------- */
+/* A block is as wide as its section, with a floor (24 px, or a ninth of the row at 200% zoom) the 5 km blocks give up
+   for the 2.2 km last one, so its number always fits inside it. */
+.viz-frame .pace-blocks { container: pace-row / inline-size; display: flex; gap: 2px; margin-top: 6px; }
+.viz-frame .pace-block { container: pace-block / inline-size; display: flex; align-items: center; justify-content: center; flex-basis: 0; min-width: min(24px, calc((100% - 16px) / 9)); height: 28px; border-radius: 3px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.viz-frame .pace-block { background: var(--bg); }
+.viz-frame .pace-block.is-on-paper { color: var(--night-ink); }
+.viz-frame .pace-block.is-on-ink { color: var(--night); }
+/* Dark mode: the blocks take the dark theme's own ramp (--bg-dark, lib/viz/format.ts PACE_RAMP_DARK), its even middle
+   close to the surface with a hairline edge, light ink on every step (round 5: the light ramp's cream "0" was the
+   brightest mark on the night page). */
+[data-theme="dark"] .viz-frame .pace-block { background: var(--bg-dark, var(--bg)); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule); }
+[data-theme="dark"] .viz-frame .pace-block.is-focus { box-shadow: inset 0 0 0 2px var(--ink); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .viz-frame .pace-block { background: var(--bg-dark, var(--bg)); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule); }
+  :root:not([data-theme="light"]) .viz-frame .pace-block.is-focus { box-shadow: inset 0 0 0 2px var(--ink); }
+}
+.viz-frame .pace-block.is-focus { box-shadow: inset 0 0 0 2px var(--ink); }
+/* A four-character value ("+10%") steps down to 12 px, so it never fills its block edge to edge on a phone. */
+.viz-frame .pace-block.is-long { font-size: 12px; }
+/* Every block keeps its number: by the block's own width (and the number's length, n1 to n3 characters), a block too
+   narrow for the % drops it (the readout says it), and the number may run a couple of px into the gaps either side, on
+   the block's own colour (so light text never lands on paper); it goes only where it would cross a neighbour's (200%
+   zoom). */
+.viz-frame .pace-val { padding: 0 1px; border-radius: 3px; background: inherit; }
+/* Where the last block is too narrow for a "%" (a row under 560 px), no block has one, so every number reads in one
+   unit (the readout gives it with its %). */
+@container pace-row (max-width: 559.98px) { .viz-frame .pace-pct { display: none; } }
+@container pace-block (max-width: 23.98px) { .viz-frame .pace-val.n1 .pace-pct { display: none; } }
+@container pace-block (max-width: 31.98px) { .viz-frame .pace-val.n2 { font-size: 12px; } .viz-frame .pace-val.n2 .pace-pct { display: none; } }
+@container pace-block (max-width: 37.98px) { .viz-frame .pace-val.n3 .pace-pct { display: none; } }
+/* The floor leaves a 5 km block about 15 px at 200% zoom: a two-figure value drops its knockout padding to fit. */
+@container pace-block (max-width: 17.98px) { .viz-frame .pace-val.n2 { padding: 0; letter-spacing: -.03em; } }
+@container pace-block (max-width: 11.98px) { .viz-frame .pace-val.n2 { display: none; } }
+@container pace-block (max-width: 16.98px) { .viz-frame .pace-val.n3 { display: none; } }
+@container pace-block (max-width: 5.98px) { .viz-frame .pace-val.n1 { display: none; } }
+
+/* ---------- Slope lines ---------- */
+
+/* ---------- Ghost race: two runners on one line, the clock under the thumb ---------- */
+
+/* ---------- Columns (components/viz/Columns.tsx): a column's square foot takes its fill, never its edge ---------- */
+.viz-frame .column-foot { stroke: none; }

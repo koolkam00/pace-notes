@@ -1,19 +1,32 @@
-/** The runner tools, in the order a marathoner meets them: plan, race day, afterwards, qualifying. */
+/**
+ * The runner tools, in the order a marathoner meets them. /tools lists them in two groups: the tools for a race (plan,
+ * race day, afterwards) and the reference tools (pace and qualifying lookups), one line each.
+ */
 
 /** Kinds of evidence that carry a badge. Plain calculations from the visitor's own inputs carry none. */
 export type ToolEvidence = 'data' | 'research' | 'official';
-export type ToolGroup = 'Plan' | 'Race day' | 'Afterwards' | 'Qualify';
+/** The /tools group: a tool for one race, or a reference lookup. */
+export type ToolGroup = 'race' | 'reference';
 
 export interface ToolDefinition {
   slug: string;
-  /** Short name for cards, navigation and breadcrumbs. */
+  /** The tool's one name: its H1, its row on /tools, the navigation, the chapters and the breadcrumbs. */
   title: string;
-  /** The page's H1 when it should say more than the short title. */
+  /**
+   * The search phrase ("Marathon race planner"): the tool's social card only. The page's <title> and description carry it
+   * too, from the page's own metadata; the H1 is the title, the name every link to the tool uses.
+   */
   heading?: string;
+  /** The tool's line on /tools: what it does, in plain words, with no number (each tool's first screen has its reading). */
   short: string;
+  /** The one-line purpose under the H1. */
   dek: string;
   group: ToolGroup;
   evidence: ToolEvidence[];
+  /**
+   * The tool's share-card accent (scripts/build-og-images.cjs, public/og/tools/<slug>.png). No page draws a per-tool hue
+   * (the redesign spec, section 7.14); changing a value redraws that card.
+   */
   accent: string;
   /** The index file in public/data/insights that must be in the verified manifest, if any. */
   file?: string;
@@ -25,32 +38,35 @@ export const EVIDENCE_LABEL: Record<ToolEvidence, string> = {
   official: 'Official standards',
 };
 
-/** What each kind of evidence is, for the methodology page (/methodology#evidence); the tools show only the badge. */
+/**
+ * What each kind of evidence is, for the methodology page (/methodology#evidence); the tools show only the badge.
+ * `{finishes}` is the tool cohort, filled from the published data where the text is shown (never typed here).
+ */
 export const EVIDENCE_TEXT: Record<ToolEvidence, string> = {
-  data: 'Observed from 3.71 million screened marathon finishes with all nine 5 km checkpoints. Descriptive, never a personal probability.',
+  data: 'Observed from {finishes} screened marathon finishes: the eligible finishes, less the editions with start delays or shifted mats. Descriptive, never a personal probability.',
   research: 'Published models and studies, cited. Not fitted to Pace Notes data.',
   official: 'Transcribed from official race pages, with the date they were checked.',
 };
 
 export const TOOLS: ToolDefinition[] = [
-  { slug: 'plan', title: 'Race planner', heading: 'Marathon race planner', short: 'Course, goal and pace band', group: 'Plan', evidence: ['data'], accent: '#1D3FD8', file: 'tools/course-goal.json',
-    dek: 'Choose your course and goal. See your even-pace splits, how finishes at that pace held up on that course, and the pace band to print, with the next steps before and after race day.' },
-  { slug: 'pace-calculator', title: 'Pace calculator', heading: 'Running pace calculator', short: 'Pace, time and splits', group: 'Plan', evidence: [], accent: '#2F5BFF',
-    dek: 'Solve any two of pace, time and distance. Splits every 400 m, quarter mile, kilometre, mile or timing mat, a printable pace chart, and what your watch will say if it reads long.' },
-  { slug: 'predictor', title: 'Finish-time predictor', heading: 'Marathon time predictor', short: 'From a recent race', group: 'Plan', evidence: ['research', 'data'], accent: '#7A4DFF', file: 'tools/projector.json',
-    dek: 'A marathon range from a recent race. The classic formulas tend to run fast for recreational runners; see the wider typical range and how finishes on that pace at 20 km ended.' },
-  { slug: 'pace-band', title: 'Pace band', heading: 'Marathon pace band', short: 'Wristband for your goal', group: 'Plan', evidence: ['data'], accent: '#FF5B2E', file: 'tools/pace-band.json',
-    dek: 'A printable even-pace band, next to what finishes that actually hit your goal on your course ran at every 5 km mat, split by whether they held pace.' },
-  { slug: 'course-chooser', title: 'Course chooser', short: 'Your goal pace, every course', group: 'Plan', evidence: ['data'], accent: '#0FA3A3', file: 'tools/course-goal.json',
-    dek: 'How finishes at your goal pace held up on each course, side by side with race month, morning temperatures and route profile.' },
-  { slug: 'weather-match', title: 'Weather match', short: 'Mornings like your forecast', group: 'Plan', evidence: ['data', 'research'], accent: '#F4B23E', file: 'tools/weather-match.json',
-    dek: 'Past marathons that started at your forecast temperature, and how finishes at your pace held up there, beside published heat guidance.' },
-  { slug: 'projector', title: 'Race-day projector', heading: 'Marathon race-day projector', short: 'Finish range from any 5 km mat', group: 'Race day', evidence: ['data'], accent: '#E2416B', file: 'tools/projector.json',
-    dek: 'Type a time from the tracker at any 5 km mat. See the finish range and when to expect the runner at the next mats, from what similar finishes actually ran.' },
-  { slug: 'split-check', title: 'Split check', heading: 'Marathon split check', short: 'Read your race afterwards', group: 'Afterwards', evidence: ['data', 'research'], accent: '#17A673', file: 'tools/pace-band.json',
-    dek: 'Paste your nine mat times. See your section paces, whether you had a sustained slowdown, your pacing type and how you compare with finishes at your time.' },
-  { slug: 'qualifying', title: 'Qualifying checker', heading: 'Marathon qualifying times checker', short: 'Boston, NYC, London and more', group: 'Qualify', evidence: ['official'], accent: '#15171C',
-    dek: 'Check a time against Boston (with the downhill index and every past cut-off), New York, London, Chicago, Berlin and Sydney, each with its own age rule.' },
+  { slug: 'plan', title: 'Plan your race', heading: 'Marathon race planner', short: 'Splits and a pace band for your course and goal', group: 'race', evidence: ['data'], accent: '#1D3FD8', file: 'tools/course-goal.json',
+    dek: 'Pick a course and a goal: your splits, your pace band, and how that pace held up there.' },
+  { slug: 'pace-band', title: 'Pace band', heading: 'Marathon pace band', short: 'An even-pace wristband to print', group: 'race', evidence: ['data'], accent: '#FF5B2E', file: 'tools/pace-band.json',
+    dek: 'An even-pace wristband to print, beside the mat times of finishes that made your goal.' },
+  { slug: 'course-chooser', title: 'Course chooser', short: 'How your goal pace held up on every course', group: 'race', evidence: ['data'], accent: '#0FA3A3', file: 'tools/course-goal.json',
+    dek: 'How finishes on your goal pace held up on every course.' },
+  { slug: 'predictor', title: 'Finish-time predictor', heading: 'Marathon time predictor', short: 'A marathon range from a recent race', group: 'race', evidence: ['data', 'research'], accent: '#7A4DFF', file: 'tools/projector.json',
+    dek: 'A marathon range from a recent race, and where finishes on that pace ended.' },
+  { slug: 'weather-match', title: 'Weather match', short: 'Past race mornings like your forecast', group: 'race', evidence: ['data', 'research'], accent: '#F4B23E', file: 'tools/weather-match.json',
+    dek: 'Past race mornings like your forecast, and how finishes at your pace held up.' },
+  { slug: 'projector', title: 'Race-day projector', heading: 'Marathon race-day projector', short: 'A finish range from a tracker time at any mat', group: 'race', evidence: ['data'], accent: '#E2416B', file: 'tools/projector.json',
+    dek: 'A tracker time from any mat, and where finishes on the same pace ended.' },
+  { slug: 'split-check', title: 'Split check', heading: 'Marathon split check', short: 'Your race afterwards, read 5K by 5K', group: 'race', evidence: ['data'], accent: '#17A673', file: 'tools/pace-band.json',
+    dek: 'Your nine mat times, read section by section, beside finishes at your time.' },
+  { slug: 'pace-calculator', title: 'Pace calculator', heading: 'Running pace calculator', short: 'Pace, time and distance, with splits', group: 'reference', evidence: [], accent: '#2F5BFF',
+    dek: 'Any two of pace, time and distance give the third, with splits to the mat.' },
+  { slug: 'qualifying', title: 'Qualifying checker', heading: 'Marathon qualifying times checker', short: 'Your time against Boston, London and more', group: 'reference', evidence: ['official'], accent: '#15171C',
+    dek: 'Your time against each race’s standard for your age.' },
 ];
 
 export const toolHref = (tool: ToolDefinition | string) => `/tools/${typeof tool === 'string' ? tool : tool.slug}`;

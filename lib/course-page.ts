@@ -1,35 +1,31 @@
 /**
  * Everything a course page (/courses/<slug>) prints, read at build time from published files only: the story summaries
- * (courses.json, archetypes.json, course-geometry.json, replay.json), the course chooser's rows (tools/course-goal.json),
- * the tools' and analyses' scopes (the course comparison's from its all-finisher file), the duplicate-edition screen, the
- * course-profile pack's source policy and, for each edition's race date, scheduled start (with the weather record's own
- * verification flag and source) and the supplied route's 5 km sections, the checksum-verified runner-context shards,
- * whose manifest must be the exact one the story data was built from. Every field is printed as published; nothing is re-derived from the records. `scripts/verify-courses.cjs` recounts
- * each figure from the files on its own and checks the built pages (docs/SEO.md, "Course pages").
+ * (courses.json, archetypes.json, course-geometry.json), the course chooser's rows (tools/course-goal.json), the tools'
+ * and analyses' scopes (the course comparison's from its all-finisher file), the duplicate-edition screen and, for each
+ * edition's race date, scheduled start and the supplied route's 5 km sections, the checksum-verified runner-context
+ * shards, whose manifest must be the exact one the story data was built from. Every field is printed as published;
+ * nothing is re-derived from the records. The page's sentences are nuggets (lib/nuggets/courses.ts) built from this
+ * model. `scripts/verify-courses.cjs` recounts each figure from the files on its own and checks the built pages
+ * (docs/SEO.md, "Course pages").
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { createHash } from 'node:crypto';
 import release from '@/analysis/release.json';
-import { ALL_FINISHER_DEFAULT, allFinisherGroups, allFinisherRow, type AllFinisherEvidence } from './all-finisher-context';
-import { getAllFinisherContextStart } from './all-finisher-context-server';
-import { getCourseNames, getIndividualCourseAnswer } from './course-data';
-import { copyEditionSentence, copyEditions, isCopyEdition, type CopyEdition } from './duplicate-editions';
+import { getCourseNames } from './course-data';
+import { copyEditions, isCopyEdition } from './duplicate-editions';
 import type { Archetypes, CourseGeometry, Courses, CourseSummary, InsightsManifest, WeatherEdition } from './insights';
 import { getInsightsManifest, readInsight } from './insights-server';
-import { getPersonalSummary } from './personalized-data';
 import { validateContextManifest, type ContextManifest } from './runner-context';
 import type { RunnerManifest } from './runner-search';
-import type { CourseContext, CourseGoal, CourseGoalRow, PaceBandIndex, ProjectorIndex, WeatherMatch } from './tools/data';
+import type { CourseContext, CourseGoal, CourseGoalRow, PaceBandIndex } from './tools/data';
 import { courseSlug } from './tools/links';
 import { courseGoalReason, screenedReason, tooFewEditions } from './tools/plan';
 import { qualifyingKeyForCity } from './tools/qualifying';
 
 /** The five goals a course page tabulates (whole minutes): the goal pages' 3:00 to 5:00. */
 export const COURSE_GOALS = [180, 210, 240, 270, 300] as const;
-/** The matched-pace band the page compares across courses: 5:00–5:30 per km through 20 km, as before. */
-export const MATCHED_BAND_LO_S = 300;
 export const MAX_TITLE = 60;
 export const MAX_DESCRIPTION = 155;
 export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -44,6 +40,14 @@ export function clock(seconds: number): string {
   const s = Math.round(seconds);
   return `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
+/**
+ * A finish time to the minute, floored as a race clock reads it (14376 s, 3:59:36 → "3:59"): a median a few seconds under
+ * a round time never states the wrong side of it.
+ */
+export function finishMinute(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+}
 /** A duration under an hour: 565 → "9:25". */
 export function minutes(seconds: number): string {
   const s = Math.round(seconds);
@@ -53,20 +57,6 @@ export function minutes(seconds: number): string {
 export const goalText = (goal: number) => `${Math.floor(goal / 60)}:${String(goal % 60).padStart(2, '0')}`;
 /** A race date as the edition table prints it (the year has its own column): "2018-04-16" → "Apr 16". */
 export const shortDate = (iso: string) => `${MONTHS[Number(iso.slice(5, 7)) - 1].slice(0, 3)} ${Number(iso.slice(8, 10))}`;
-/** "2018, 2019 and 2022–2026": runs of three or more years collapsed, the last item joined with "and". */
-export function yearList(years: number[]): string {
-  const sorted = [...new Set(years)].sort((a, b) => a - b);
-  const runs: string[] = [];
-  for (let i = 0; i < sorted.length; i += 1) {
-    let j = i;
-    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j += 1;
-    if (j - i >= 2) runs.push(`${sorted[i]}–${sorted[j]}`);
-    else runs.push(...sorted.slice(i, j + 1).map(String));
-    i = j;
-  }
-  return runs.length > 1 ? `${runs.slice(0, -1).join(', ')} and ${runs[runs.length - 1]}` : runs.join('');
-}
-
 /**
  * The coolest-against-warmest pairing, only when the two editions' start temperatures are at least the screen's minimum
  * gap apart (weather.pairs.min_gap_c, 5 °C): closer editions are no real contrast, and the pairing would invite a causal
@@ -75,32 +65,6 @@ export function yearList(years: number[]): string {
 export function hotCoolShown<T extends { hot: { temp: number }; cool: { temp: number } }>(entry: T | undefined | null, minGap: number): T | null {
   if (!entry || !Number.isFinite(minGap)) return null;
   return Math.round((entry.hot.temp - entry.cool.temp) * 10) / 10 >= minGap ? entry : null;
-}
-
-/** The editions with the lowest and the highest median finish (the first of any tie), or null without editions. */
-export function medianRange<T extends { year: number; median_s: number }>(rows: T[]): { lo: T; hi: T } | null {
-  if (!rows.length) return null;
-  return {
-    lo: rows.reduce((a, b) => (b.median_s < a.median_s ? b : a)),
-    hi: rows.reduce((a, b) => (b.median_s > a.median_s ? b : a)),
-  };
-}
-
-/** The courses either side of a course in the alphabetical list, wrapping at the ends; none for a list of one. */
-export function alphabeticalNeighbours(names: string[], city: string): string[] {
-  const i = names.indexOf(city);
-  if (i < 0 || names.length < 2) return [];
-  const before = names[(i - 1 + names.length) % names.length];
-  const after = names[(i + 1) % names.length];
-  return before === after ? [before] : [before, after];
-}
-
-/** For each month a course is run in, the other courses run in that month (alphabetical). Months with none are left out. */
-export function sameMonthCourses(months: Map<string, number[]>, city: string): { month: number; cities: string[] }[] {
-  return (months.get(city) ?? []).map((month) => ({
-    month,
-    cities: [...months].filter(([other, list]) => other !== city && list.includes(month)).map(([other]) => other).sort((a, b) => a.localeCompare(b)),
-  })).filter((m) => m.cities.length);
 }
 
 /** Search title: "{race}: Elevation, Pacing and Finish Times", or "… Pacing and Finish Times by Year" without a route; the brand when it fits. */
@@ -123,19 +87,6 @@ export function courseDescription(race: string, total: { finishes: number; editi
 }
 
 /**
- * The line under the finish-times table for a copy edition: D2's `copyEditionSentence()`, whose evidence comes only from
- * the screen's counts, with its ending replaced. That ending describes the runner search ("shown as recorded times only,
- * without pacing, peer or weather comparisons"); this page prints no figure for a copy and counts it only in the pooled
- * pace profile.
- */
-export function courseCopySentence(entry: CopyEdition): string {
-  const sentence = copyEditionSentence(entry);
-  const end = sentence.lastIndexOf(', so ');
-  if (end < 0) throw new Error('copyEditionSentence() no longer ends in ", so …": update courseCopySentence().');
-  return `${sentence.slice(0, end)}, so this page counts them only in the pooled pace profile.`;
-}
-
-/**
  * The editions whose finishes make up a course total: every edition with a row, plus the editions under 100 finishes that
  * the total also counts (Amsterdam 2023's 14). Their finishes must add up to the total exactly, or this throws and the
  * build stops: a page never says the total came from editions that do not account for it.
@@ -147,11 +98,6 @@ export function countedEditions(city: string, total: number, rows: { year: numbe
   if (new Set(years).size !== years.length) throw new Error(`${city}: an edition is counted twice.`);
   return { editions: years.length, years };
 }
-
-/** The plain words for a source-policy category. */
-export const EXCLUSION_LABEL: Record<string, string> = {
-  invalid_split_grid: 'Invalid split grid', incomplete_ingestion: 'Incomplete ingestion', unreconciled_hold: 'Held pending reconciliation', selected_field: 'Selected field only',
-};
 
 // ---------- Runner-context shards: race dates, scheduled starts and 5 km sections ----------
 
@@ -228,71 +174,74 @@ export function editionContexts(): Map<string, EditionContext> {
   return found;
 }
 
-/** The race months of a course, from the race dates of its editions in the story data. */
-function raceMonths(courses: Courses, city: string): number[] {
-  const all = editionContexts();
-  const months = courses.years.cells.filter((c) => c.city === city).map((c) => all.get(editionKey(city, c.year))?.date).filter((d): d is string => !!d).map((d) => Number(d.slice(5, 7)));
-  return [...new Set(months)].sort((a, b) => a - b);
-}
-
 // ---------- The page model ----------
 
 export type EditionRow = { year: number; n: number; median_s: number; slowdown: number; temp: number | null; date: string | null };
 export type WeatherRow = WeatherEdition & { start: string | null };
-export type GoalLine = { goal: number; row: CourseGoalRow | null; reason: string | null };
-type Matched = Courses['matched'][number];
+/** A goal's row on this course, and the share that made it across the other courses with rows (`every`, pooled by finishes; this course left out). */
+export type GoalLine = { goal: number; row: CourseGoalRow | null; reason: string | null; every: GoalPooled | null };
+export type GoalPooled = { under: number; n: number; courses: number };
+
+/** The fewest finishes a pooled goal group needs before a page compares a course with it. */
+export const POOLED_MIN_N = 100;
+
+/**
+ * The finishes on a goal's pace at 20K pooled over a set of courses (the course chooser's rows for courses with enough
+ * editions, each row's finishes under the goal recovered from its share and count): a course page passes the other
+ * courses, so it sets its own row against the share that made the goal elsewhere. Null below 100 finishes.
+ */
+export function pooledGoal(rows: Pick<CourseGoalRow, 'city' | 'goal' | 'n' | 'under'>[], goal: number, cities: Set<string>): GoalPooled | null {
+  const kept = rows.filter((r) => r.goal === goal && cities.has(r.city));
+  const n = kept.reduce((a, r) => a + r.n, 0);
+  if (n < POOLED_MIN_N) return null;
+  const under = kept.reduce((a, r) => a + Math.round(r.under * r.n), 0);
+  return { under: under / n, n, courses: kept.length };
+}
 type HotCool = Courses['weather']['hot_cool'][number];
-type Slope = Courses['weather']['per_course_slopes'][number];
-type ShapeScreen = { year: number; finishes: number };
+/** One course on the strip of every course: its sustained-slowdown share from courses.json, as its own page prints it. */
+export type FieldCourse = { city: string; slug: string; display: string; slowdown: number; editions: number; finishes: number };
+/** A course whose pacing fingerprint sits near this one's: its curve (each section against its own average) for the sparkline. */
+export type ShapeNeighbour = FieldCourse & { curve: number[]; distance: number };
 
 export type CoursePageData = {
   city: string; slug: string; race: string; display: string;
   summary: CourseSummary;
+  /** The 5 km sections as the story data names them ("0–5" … "40–42.2"), the order of every per-section field. */
+  sections: string[];
   geometry: CourseGeometry | null;
   /** The course chooser's context for this course: the supplied route's section sums and the downhill-opening flag. */
   context: CourseContext | null;
   editions: EditionRow[];
-  copies: CopyEdition[];
   /**
    * The editions whose finishes make up `summary.finishes` (`countedEditions`), which a sentence printing the total names.
    * `summary.editions` and `summary.years` are the editions with a row, over which the medians and shares are averaged.
    */
   counted: { editions: number; years: number[] };
-  /** Finishes counted in the course total from editions with fewer than 100 finishes, which have no row (null when none). */
-  small: { years: number[]; finishes: number } | null;
   terrain: TerrainSection[] | null;
   weather: WeatherRow[];
-  weatherMissing: { year: number; reason: string }[];
-  /** True when a printed race date or scheduled start comes from a weather record that says it was not independently verified. */
-  datesUnverified: boolean;
-  /** The weather rows' source, when they all name the same one. */
-  weatherSource: { name: string; url: string } | null;
   hotCool: HotCool | null;
-  minGapC: number;
-  slope: Slope | null;
   types: { finishes: number; editions: number; shares: number[] } | null;
-  archetypes: { name: string; slug: string; share: number }[];
-  /** Editions whose first split includes start delays: out of the shape statistics, still in the pooled profile. */
-  startOffset: (ShapeScreen & { median_gap_points: number })[];
-  /** Editions the tools also leave out because the mat grid was shifted. */
-  grid: (ShapeScreen & { reason: string })[];
+  archetypes: { name: string; slug: string; share: number; profile: number[] }[];
+  /**
+   * Each pacing type's share across the other courses with 5K splits (this one left out, their shares pooled by
+   * finishes), the set a course is compared with (critic round 4: a pool that held the course itself understated every
+   * gap); `courses` counts them. Null without a mix of its own.
+   */
+  typesElsewhere: { shares: number[]; courses: number } | null;
   goals: GoalLine[];
   /** Why the course has no goal rows at all (every edition screened out), else null. */
   goalsScreened: string | null;
-  goalMethod: { tolerance: number; minEditionFinishes: number; minEditions: number } | null;
-  matched: Matched | null;
-  exclusions: { year: number; category: string; reason: string }[];
-  profileN: number | null;
-  /**
-   * Where each linked tool and analysis publishes this course: `analyses` is the personalized summary's course list,
-   * `compare` the course comparison's own all-finisher row for the course (it needs three qualifying editions), and
-   * `hills` the hills-and-pacing analysis, which needs the supplied route.
-   */
-  scopes: { band: boolean; projector: boolean; weather: boolean; plan: boolean; analyses: boolean; compare: boolean; hills: boolean };
+  /** Whether the pace band (and so the split check's course preset) publishes this course. */
+  band: boolean;
   qualifyingKey: string | null;
-  months: number[];
-  neighbours: string[];
-  sameMonth: { month: number; cities: string[] }[];
+  /** The one height scale every course page draws its elevation on: the largest relief of any course page's route, rounded up to 50 m. */
+  relief: number;
+  /** Every course, for the strip on each page (the same courses.json share each course page leads with). */
+  field: FieldCourse[];
+  /** The courses whose fingerprints sit nearest this one's (five or more editions), nearest first; empty without a shape. */
+  shapedLike: ShapeNeighbour[];
+  /** Every course's pace by section against its own average (for the rows' sparklines), where it has a shape. */
+  allCurves: { city: string; curve: number[] }[];
 };
 
 /** Read one optional insight file; null when it is not in this build. */
@@ -300,30 +249,53 @@ function optional<T>(name: string): T | null {
   return getInsightsManifest().files[name] ? readInsight<T>(name) : null;
 }
 
-/** The course's own race name from the data: the supplied route's race, else the course summary's, else the city plus " Marathon". */
+/** A sponsor's name a route file puts before the race's own ("PZU Warsaw Marathon"): every page names the race plainly. */
+export const SPONSOR_PREFIX = /^PZU\s+/;
+/**
+ * The course's own race name from the data: the supplied route's race, else the course summary's, else the city plus
+ * " Marathon", without a sponsor's name in front, as every other course is titled ("Berlin Marathon", not "BMW …").
+ */
 export function raceName(city: string, geometry?: CourseGeometry | null, summary?: { race?: string } | null): string {
-  return geometry?.race || summary?.race || `${city} Marathon`;
+  return (geometry?.race || summary?.race || `${city} Marathon`).replace(SPONSOR_PREFIX, '');
+}
+
+/** How a page names a city in prose: New York's race is the New York City Marathon. */
+export const displayCity = (city: string) => (city === 'New York' ? 'New York City' : city);
+
+/** The fewest editions a course needs before its fingerprint is compared with another's ("Shaped like …"). */
+export const SHAPE_MIN_EDITIONS = 5;
+
+/**
+ * The courses whose fingerprints (each section's pace against its own average, minus the typical course's) sit nearest
+ * a course's, by Euclidean distance over the nine sections; only courses with a shape and five or more editions, nearest
+ * first, the first `limit`. Empty when the course has no shape of its own.
+ */
+export function nearestShapes<T extends { city: string; editions: number; deviation?: number[] }>(courses: T[], city: string, limit = 3): (T & { distance: number })[] {
+  const self = courses.find((c) => c.city === city);
+  if (!self?.deviation || self.deviation.length !== 9) return [];
+  return courses
+    .filter((c) => c.city !== city && c.deviation?.length === 9 && c.editions >= SHAPE_MIN_EDITIONS)
+    .map((c) => ({ ...c, distance: Math.sqrt(c.deviation!.reduce((sum, d, i) => sum + (d - self.deviation![i]) ** 2, 0)) }))
+    .sort((a, b) => a.distance - b.distance || a.city.localeCompare(b.city))
+    .slice(0, limit);
+}
+
+/** The shared elevation scale: the largest relief (highest point less lowest) of the routes given, rounded up to 50 m. */
+export function sharedRelief(routes: { min_m: number; max_m: number }[]): number {
+  const most = Math.max(0, ...routes.map((g) => g.max_m - g.min_m));
+  return Math.max(50, Math.ceil(most / 50) * 50);
 }
 
 /**
- * The courses the course comparison (/analyses/course-comparison?race=<city>) has a result for: the all-finisher file's
- * default row for the course (all ages, genders and early paces) holds a course group. The file is checked against the
- * adopted release and the runner records first, as the analysis page checks it.
+ * The editions a page never names as a range end: those the reviewed source policy for the adopted release holds or
+ * excludes (the course-profile pack's copy of analysis/source_quality.py's list), and the duplicate-edition screen's
+ * copies. Keys are "city|year".
  */
-function comparisonCities(names: string[]): Set<string> {
-  getAllFinisherContextStart();
-  const { rows } = JSON.parse(fs.readFileSync(path.join(DATA(), 'all-finisher-context/evidence.json'), 'utf8')) as AllFinisherEvidence;
-  return new Set(names.filter((city) => {
-    const row = allFinisherRow(rows, { ...ALL_FINISHER_DEFAULT, city });
-    return !!row && allFinisherGroups(row, 'courses', ALL_FINISHER_DEFAULT.opening).length > 0;
-  }));
-}
-
-/** The course-profile pack's source policy (the reviewed release's edition exclusions), bound to the adopted release. */
-function sourcePolicy(): { city: string; year: number; category: string; reason: string }[] {
+export function heldEditions(): Set<string> {
   const meta = JSON.parse(fs.readFileSync(path.join(DATA(), 'packs/ext_course_pacing_profiles/pack_meta.json'), 'utf8'));
   if (meta.source_quality?.release_tag !== release.tag || !Array.isArray(meta.source_quality.editions)) throw new Error('The course-profile source policy must be for the adopted release.');
-  return meta.source_quality.editions;
+  const held = (meta.source_quality.editions as { city: string; year: number }[]).map((e) => editionKey(e.city, e.year));
+  return new Set([...held, ...copyEditions().map((c) => editionKey(c.city, c.year))]);
 }
 
 let pages: Map<string, CoursePageData> | undefined;
@@ -337,26 +309,29 @@ export function coursePages(): Map<string, CoursePageData> {
   const archetypes = readInsight<Archetypes>('archetypes.json');
   const goal = optional<CourseGoal>('tools/course-goal.json');
   const band = optional<PaceBandIndex>('tools/pace-band.json');
-  const projector = optional<ProjectorIndex>('tools/projector.json');
-  const weatherMatch = optional<WeatherMatch>('tools/weather-match.json');
-  const analysisCities = new Set((getPersonalSummary()?.cities ?? []).map((c) => c.city));
-  const compareCities = comparisonCities(names);
-  const policy = sourcePolicy();
-  const copies = copyEditions();
   const all = editionContexts();
   const bandSlugs = new Set((band?.scopes ?? []).map((s) => s.slug));
-  const projectorSlugs = new Set((projector?.scopes ?? []).map((s) => s.slug));
-  const weatherSlugs = new Set((weatherMatch?.editions ?? []).map((e) => courseSlug(e.city)));
-  // The planner offers every course in the course-goal file, every course whose editions it screened out, and every pace band scope.
-  const planCities = new Set([...(goal?.courses ?? []).map((c) => c.city), ...[...(goal?.screens?.start_offset ?? []), ...(goal?.screens?.grid ?? [])].map((e) => e.city),
-    ...(band?.scopes ?? []).flatMap((s) => (s.city ? [s.city] : []))]);
-  const months = new Map(names.map((city) => [city, raceMonths(courses, city)]));
+  const routes = geometry.filter((g) => names.includes(g.city));
+  const relief = sharedRelief(routes);
+  const field: FieldCourse[] = courses.courses.filter((c) => names.includes(c.city))
+    .map((c) => ({ city: c.city, slug: courseSlug(c.city), display: displayCity(c.city), slowdown: c.slowdown, editions: c.editions, finishes: c.finishes }));
+  const allCurves = courses.courses.filter((c) => names.includes(c.city) && c.curve?.length === 9).map((c) => ({ city: c.city, curve: c.curve! }));
+  // The courses whose goal rows a page shows (enough editions), whose rows pool into every course's share per goal.
+  const goalCities = new Set((goal?.courses ?? []).filter((c) => names.includes(c.city) && c.editions >= (goal?.min_editions ?? Infinity)).map((c) => c.city));
+  // Each course is set against the others: its own rows are left out of the pool it is compared with.
+  const pooledFor = (city: string) => new Map<number, GoalPooled | null>(COURSE_GOALS.map((g) => [g, goal ? pooledGoal(goal.rows, g, new Set([...goalCities].filter((c) => c !== city))) : null]));
+  /** The other courses' pacing-type shares, pooled by finishes. */
+  const typesElsewhere = (city: string) => {
+    const others = archetypes.courses.filter((c) => c.city !== city);
+    const n = others.reduce((a, c) => a + c.finishes, 0);
+    return n ? { shares: archetypes.archetypes.map((_, i) => others.reduce((a, c) => a + c.shares[i] * c.finishes, 0) / n), courses: others.length } : null;
+  };
   const built = new Map<string, CoursePageData>();
   for (const city of names) {
     const summary = courses.courses.find((c) => c.city === city);
     if (!summary) throw new Error(`courses.json has no summary for ${city}.`);
     const slug = courseSlug(city);
-    const route = geometry.find((g) => g.city === city) ?? null;
+    const route = routes.find((g) => g.city === city) ?? null;
     const cells = courses.years.cells.filter((c) => c.city === city).sort((a, b) => a.year - b.year);
     const editions = cells.map((c) => ({ year: c.year, n: c.n, median_s: c.median_s, slowdown: c.slowdown, temp: c.temp, date: all.get(editionKey(city, c.year))?.date ?? null }));
     const listed = new Set(cells.map((c) => c.year));
@@ -364,54 +339,37 @@ export function coursePages(): Map<string, CoursePageData> {
     const smallEditions = [...all].filter(([key, ctx]) => key.startsWith(`${city}|`) && ctx.eligible > 0 && !listed.has(Number(key.split('|')[1])))
       .map(([key, ctx]) => ({ year: Number(key.split('|')[1]), n: ctx.eligible })).sort((a, b) => a.year - b.year);
     const counted = countedEditions(city, summary.finishes, cells, smallEditions);
-    const small = smallEditions.length ? { years: smallEditions.map((e) => e.year), finishes: smallEditions.reduce((sum, e) => sum + e.n, 0) } : null;
     const terrains = cells.map((c) => all.get(editionKey(city, c.year))?.terrain).filter((t): t is TerrainSection[] => !!t);
     // Every edition of a city has the same supplied current route; show its sections only when the shards agree.
-    const terrain = terrains.length && terrains.every((t) => JSON.stringify(t) === JSON.stringify(terrains[0])) ? terrains[0] : null;
+    const terrain = route && terrains.length && terrains.every((t) => JSON.stringify(t) === JSON.stringify(terrains[0])) ? terrains[0] : null;
     const weather = courses.weather.editions.filter((e) => e.city === city).sort((a, b) => a.year - b.year)
       .map((e) => ({ ...e, start: all.get(editionKey(city, e.year))?.start ?? null }));
-    const dated = [...cells.map((c) => c.year), ...weather.map((w) => w.year)].map((year) => all.get(editionKey(city, year))).filter((ctx) => ctx && (ctx.date || ctx.start));
-    const sources = [...new Map(weather.map((w) => all.get(editionKey(city, w.year))?.source).filter((x): x is { name: string; url: string } => !!x).map((x) => [x.url, x])).values()];
     const types = archetypes.courses.find((c) => c.city === city) ?? null;
     const context = goal?.courses.find((c) => c.city === city) ?? null;
     // Too few editions for any goal: one sentence instead of five rows saying the same thing.
     const fewEditions = goal && context && context.editions < goal.min_editions ? tooFewEditions(context.editions, goal.min_editions) : null;
+    const pooled = pooledFor(city);
     const goals: GoalLine[] = goal && context && !fewEditions ? COURSE_GOALS.map((g) => {
       const row = goal.rows.find((r) => r.city === city && r.goal === g) ?? null;
-      if (row) return { goal: g, row, reason: null };
+      const every = pooled.get(g) ?? null;
+      if (row) return { goal: g, row, reason: null, every };
       const gap = goal.unavailable.find((u) => u.city === city && u.goal === g);
-      return { goal: g, row: null, reason: gap ? courseGoalReason(gap.reason, goal.min_editions) : 'No row is published for this goal.' };
+      return { goal: g, row: null, reason: gap ? courseGoalReason(gap.reason, goal.min_editions) : 'No row is published for this goal.', every };
     }) : [];
-    const matched = courses.matched.find((b) => b.lo_s === MATCHED_BAND_LO_S) ?? null;
+    const near = nearestShapes(courses.courses.filter((c) => names.includes(c.city)), city);
     built.set(slug, {
-      city, slug, race: raceName(city, route, summary), display: city === 'New York' ? 'New York City' : city,
-      summary, counted, geometry: route, context, editions,
-      copies: copies.filter((c) => c.city === city),
-      small, terrain, weather,
-      weatherMissing: courses.weather.excluded.filter((e) => e.city === city).map(({ year, reason }) => ({ year, reason })),
-      datesUnverified: dated.some((ctx) => ctx?.startVerified === false),
-      weatherSource: sources.length === 1 ? sources[0] : null,
+      city, slug, race: raceName(city, route, summary), display: displayCity(city),
+      summary, sections: courses.sections, counted, geometry: route, context, editions, terrain, weather,
       hotCool: hotCoolShown(courses.weather.hot_cool.find((h) => h.city === city), courses.weather.pairs.min_gap_c),
-      minGapC: courses.weather.pairs.min_gap_c,
-      slope: courses.weather.per_course_slopes.find((s) => s.city === city) ?? null,
       types: types ? { finishes: types.finishes, editions: types.editions, shares: types.shares } : null,
-      archetypes: archetypes.archetypes.map(({ name, slug: s, share }) => ({ name, slug: s, share })),
-      startOffset: courses.shape_cohort.start_offset_editions.filter((e) => e.city === city).map(({ year, finishes, median_gap_points }) => ({ year, finishes, median_gap_points })),
-      grid: (goal?.screens?.grid ?? []).filter((e) => e.city === city).map((e) => ({ year: e.year, finishes: e.finishes ?? 0, reason: e.reason ?? '' })),
+      archetypes: archetypes.archetypes.map(({ name, slug: s, share, profile }) => ({ name, slug: s, share, profile })),
+      typesElsewhere: types ? typesElsewhere(city) : null,
       goals,
       goalsScreened: goal && !context ? screenedReason(city, goal.screens) : fewEditions,
-      goalMethod: goal ? { tolerance: goal.tolerance, minEditionFinishes: goal.min_edition_finishes, minEditions: goal.min_editions } : null,
-      matched: matched && matched.courses.some((c) => c.city === city) ? matched : null,
-      exclusions: policy.filter((e) => e.city === city).map(({ year, category, reason }) => ({ year, category, reason })).sort((a, b) => a.year - b.year),
-      profileN: getIndividualCourseAnswer(city)?.dataset?.n ?? null,
-      scopes: {
-        band: bandSlugs.has(slug), projector: projectorSlugs.has(slug), weather: weatherSlugs.has(slug), plan: planCities.has(city), analyses: analysisCities.has(city),
-        compare: compareCities.has(city), hills: analysisCities.has(city) && !!route,
-      },
+      band: bandSlugs.has(slug),
       qualifyingKey: qualifyingKeyForCity(city),
-      months: months.get(city) ?? [],
-      neighbours: alphabeticalNeighbours(names, city),
-      sameMonth: sameMonthCourses(months, city),
+      relief, field, allCurves,
+      shapedLike: near.map((c) => ({ city: c.city, slug: courseSlug(c.city), display: displayCity(c.city), slowdown: c.slowdown, editions: c.editions, finishes: c.finishes, curve: c.curve ?? [], distance: c.distance })),
     });
   }
   pages = built;
@@ -419,3 +377,17 @@ export function coursePages(): Map<string, CoursePageData> {
 }
 
 export const coursePage = (slug: string): CoursePageData | null => coursePages().get(slug) ?? null;
+
+/**
+ * A route's climb and descent as every course surface prints them: the sums of its nine supplied 5 km sections (the
+ * runner-context shards; the course chooser's totals and the runner view's), rounded to 0.1 m, so the whole route never
+ * climbs less than one of its 5Ks and a course reads the same climb on its page, on /courses, in the course chooser and
+ * in a runner's race report. The drawn profile (course-geometry.json) keeps the shape and the shared height scale; its
+ * own total stands in only where a route has no agreed sections (`key` "geo").
+ */
+export function routeClimb(page: Pick<CoursePageData, 'terrain' | 'geometry'>): { gain_m: number; loss_m: number; key: 'route' | 'geo' } | null {
+  const t = page.terrain;
+  const tenth = (v: number) => Math.round(v * 10) / 10;
+  if (t && t.length === 9) return { gain_m: tenth(t.reduce((a, x) => a + x.gain_m, 0)), loss_m: tenth(t.reduce((a, x) => a + x.loss_m, 0)), key: 'route' };
+  return page.geometry ? { gain_m: page.geometry.gain_m, loss_m: page.geometry.loss_m, key: 'geo' } : null;
+}

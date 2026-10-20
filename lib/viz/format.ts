@@ -1,4 +1,4 @@
-import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
+import { matLabel, sectionLabel as matSection, type UnitSystem } from '@/lib/units';
 
 /** h:mm:ss for an elapsed duration in seconds. */
 export function hms(seconds: number): string {
@@ -46,32 +46,53 @@ export function compact(value: number): string {
   return value.toLocaleString('en-US');
 }
 
-/** Checkpoint label in the selected units; source checkpoints stay metric. */
-export function checkpointLabel(km: number, units: UnitSystem): string {
-  if (km >= 42.19) return 'Finish';
-  if (units === 'km') return `${km} km`;
-  return `${(km / KM_PER_MILE).toFixed(1)} mi`;
+/**
+ * A checkpoint's name: the mat, the same in both unit modes (owner decision 4): 30 → "30K", 42.195 → "Finish". The
+ * units argument stays so every caller keeps its signature; it no longer changes the label.
+ */
+export function checkpointLabel(km: number, _units?: UnitSystem): string {
+  return matLabel(km);
 }
 
 export const SECTION_BOUNDS: readonly [number, number][] = [
   [0, 5], [5, 10], [10, 15], [15, 20], [20, 25], [25, 30], [30, 35], [35, 40], [40, 42.195],
 ];
 
-export function sectionLabel(index: number, units: UnitSystem): string {
-  const [a, b] = SECTION_BOUNDS[index];
-  if (units === 'km') return `${a}–${b === 42.195 ? '42.2' : b} km`;
-  return `${(a / KM_PER_MILE).toFixed(1)}–${(b / KM_PER_MILE).toFixed(1)} mi`;
+/** A recorded section by index (0 = 0–5K … 8 = 40K–finish), named by its mats in both unit modes. */
+export function sectionLabel(index: number, _units?: UnitSystem): string {
+  const bounds = SECTION_BOUNDS[index];
+  return bounds ? matSection(bounds[0], bounds[1]) : '—';
 }
 
-/** Seven-step diverging scale for pace relative to a runner's own reference (negative = faster). */
-export const PACE_RAMP = ['#1D3FD8', '#4F79F7', '#9DB6FB', '#EFE8DA', '#FFB48A', '#FF6A3D', '#C8202F'] as const;
+/**
+ * Seven-step diverging scale for pace relative to a runner's own reference (negative = faster), for heatmaps only.
+ * Faster runs to blue, slower through rose to a deep crimson, so a slow block never reads as the signal orange
+ * (principle 3): every warm stop sits at OKLab ΔE ≥ 15 from --signal and --night-signal, and every colour on the warm
+ * half at ≥ 14 (verify-css checks both). Each stop carries ink or paper text at 4.5:1 or better (`paceText`).
+ */
+export const PACE_RAMP = ['#1D3FD8', '#4F79F7', '#9DB6FB', '#EFE8DA', '#EDA6C1', '#C65F9E', '#8F1449'] as const;
 
-/** Continuous diverging colour for a relative pace change in percent. */
-export function paceColour(relativePct: number, span = 12): string {
-  const stops = PACE_RAMP.map((hex) => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]);
+/**
+ * The same scale for the dark theme (round 4: blending the light ramp into the dark surface turned the inner steps to
+ * one muddy slate): its own seven stops from a deep blue through the dark surface (#20252E, an even section) to a
+ * crimson, every step a distinct colour on #1F242D (OKLab ΔE ≥ 15 between the five legend steps), light ink on every
+ * colour at 4.5:1 or better, the warm stops off the signal like the light ramp's (verify-css checks both ramps).
+ */
+export const PACE_RAMP_DARK = ['#3D5CE0', '#2E47A6', '#26335F', '#20252E', '#4B2742', '#83305E', '#B23A73'] as const;
+
+/** Continuous diverging colour for a relative pace change in percent (`ramp`: the dark theme's own stops). */
+export function paceColour(relativePct: number, span = 12, ramp: readonly string[] = PACE_RAMP): string {
+  const stops = ramp.map((hex) => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]);
   const u = Math.max(0, Math.min(1, (relativePct / span + 1) / 2)) * (stops.length - 1);
   const i = Math.min(stops.length - 2, Math.floor(u));
   const f = u - i;
   const c = stops[i].map((v, k) => Math.round(v + f * (stops[i + 1][k] - v)));
   return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+/** The text colour that reads best on a `paceColour` block: ink on the light middle, paper on the dark ends. */
+export function paceText(rgb: string): 'ink' | 'paper' {
+  const [r, g, b] = (rgb.match(/\d+/g) ?? ['0', '0', '0']).map((v) => { const c = Number(v) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+  const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return (l + 0.05) / 0.0619 >= 0.92 / (l + 0.05) ? 'ink' : 'paper';
 }

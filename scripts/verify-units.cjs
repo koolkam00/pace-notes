@@ -13,7 +13,7 @@ Module._resolveFilename = function (request, ...args) {
 };
 const {
   DEFAULT_UNITS, KM_PER_MILE, METRES_PER_FOOT, distanceValue, distanceLabel,
-  paceValue, paceLabel, elevationValue, elevationLabel, unitText,
+  paceValue, paceLabel, elevationValue, elevationLabel, unitText, matLabel, sectionLabel: matSection, distance, MARATHON_KM,
 } = require(path.join(__dirname, '../lib/units.ts'));
 const { paceTicks } = require(path.join(__dirname, '../lib/pace-ticks.ts'));
 
@@ -45,6 +45,29 @@ assert.equal(elevationValue(100, 'km'), 100);
 assert.equal(elevationLabel(100, 'mi'), '328.1 ft');
 assert.equal(elevationLabel(-10, 'mi'), '-32.8 ft');
 assert.equal(elevationLabel(100, 'km'), '100 m');
+
+// Mats are named the same in both unit modes (owner decision 4, spec section 3.10): 5K … 40K and Finish, sections
+// "0–5K" … "35–40K" and "40K–finish". Other distances in prose take one decimal in miles, never two.
+assert.equal(MARATHON_KM, 42.195);
+assert.deepEqual([0, 5, 10, 20, 21.0975, 30, 35, 40, 42.195, 42.2].map(matLabel), ['Start', '5K', '10K', '20K', '21.1K', '30K', '35K', '40K', 'Finish', 'Finish']);
+assert.equal(matLabel(NaN), '—');
+assert.deepEqual([[0, 5], [5, 10], [20, 25], [35, 40], [40, 42.195], [0, 42.195], [5, 20]].map(([a, b]) => matSection(a, b)),
+  ['0–5K', '5–10K', '20–25K', '35–40K', '40K–finish', 'Start–finish', '5–20K']);
+assert.equal(distance(42.195, 'mi'), '26.2 mi');
+assert.equal(distance(42.195, 'km'), '42.2 km');
+assert.equal(distance(2.195, 'mi'), '1.4 mi', 'The last 2.195 km reads 1.4 mi in prose');
+assert.equal(distance(5, 'mi'), '3.1 mi');
+assert.equal(distance(5, 'km'), '5 km');
+assert.equal(distance(NaN, 'mi'), '—');
+for (const km of [0.5, 1, 2.195, 5, 12.195, 21.0975, 42.195]) assert.doesNotMatch(distance(km, 'mi'), /\.\d\d/, 'Prose miles never take two decimals');
+{
+  const viz = require('../lib/viz/format.ts');
+  for (const units of ['mi', 'km']) {
+    assert.deepEqual([5, 10, 20, 30, 40, 42.195].map((km) => viz.checkpointLabel(km, units)), ['5K', '10K', '20K', '30K', '40K', 'Finish'], `${units}: checkpoints are mats`);
+    assert.deepEqual(viz.SECTION_BOUNDS.map((_, i) => viz.sectionLabel(i, units)), ['0–5K', '5–10K', '10–15K', '15–20K', '20–25K', '25–30K', '30–35K', '35–40K', '40K–finish'], `${units}: sections are named by their mats`);
+  }
+  assert.equal(viz.sectionLabel(9), '—');
+}
 
 // Pace axes: a round minutes:seconds grid in the units shown, never a kilometre grid converted to miles (which read
 // 8:15, 8:48, 9:21/mi on the pacing-pattern chart). Ticks are seconds per displayed unit; the domain is first to last.
@@ -311,14 +334,14 @@ const { getAnalysisStart } = require('../lib/analysis-server.ts');
 const profileSpec = getAnalysisStart().answers.find(answer => answer.id === 'profile').charts[0];
 const sourceProfile = JSON.stringify(profileSpec);
 const profileHtml = render(profileSpec);
-assert.match(profileHtml, /0–3\.11 mi/);
-assert.match(profileHtml, /24\.85–26\.22 mi/);
+// Sections are named by their mats in both modes (WP3, the redesign spec, section 3.10): "0–5K" … "40K–finish".
+assert.match(profileHtml, /0–5K/);
+assert.match(profileHtml, /40K–finish/);
 assert.match(profileHtml, /per mile/);
 for (const row of profileSpec.rows) {
   assert.ok(profileHtml.includes(paceLabel(row.value * 60, 'mi')), 'Every real profile median must use the converted source pace');
-  assert.ok(profileHtml.includes(distanceLabel(Number(row.label), 'mi')), 'Every original section endpoint must remain identifiable');
 }
-assert.match(render(profileSpec, 'km'), /40–42\.195 km/);
+assert.match(render(profileSpec, 'km'), /40K–finish/);
 assert.equal(JSON.stringify(profileSpec), sourceProfile, 'Rendering both modes must preserve all source values');
 // The real pacing-pattern chart's axis in both units: every value covered, every label on its own grid.
 const profilePaces = profileSpec.rows.flatMap(row => profileSpec.series.map(series => row[series.key] * 60));
@@ -332,18 +355,22 @@ for (const [units, ending] of [['mi', /:(?:00|15|30|45)$/], ['km', /:(?:00|15|30
 const chartSource = name => fs.readFileSync(path.join(__dirname, '../components', name), 'utf8');
 assert.match(chartSource('QuestionViz.tsx'), /paceTicks\(Math\.min\(\.\.\.allValues\) \* 60, Math\.max\(\.\.\.allValues\) \* 60, selectedUnits\)/);
 assert.match(chartSource('QuestionLineChart.tsx'), /<YAxis [^>]*ticks=\{paceTicks\}[^>]*domain=\{paceTicks \? \[paceTicks\[0\], paceTicks\[paceTicks\.length - 1\]\]/);
-assert.match(chartSource('RunnerContext.tsx'), /<YAxis [^>]*domain=\{paceAxis \? paceAxis\.domain : \['auto', 'auto'\]\} ticks=\{paceAxis\?\.ticks\}/);
+// The runner view's pace chart (LineProfile, no Recharts since the October 18, 2026 redesign) takes the same ticks: its
+// domain and every gridline come from paceTicks, labelled with paceLabel.
+assert.match(chartSource('RunnerContext.tsx'), /const axis = paceTicks\([^;]*, units, 6\);\n\s*const grid = axis \? \[\.\.\.new Set\(\[axis\.ticks\[0\][^;]*axis\.ticks\[axis\.ticks\.length - 1\]\]\)\] : \[\];/);
+assert.match(chartSource('RunnerContext.tsx'), /<LineProfile [^>]*yDomain=\{axis \? axis\.domain : undefined\}[\s\S]*?yTicks=\{grid\.map\(v => \(\{ value: v, label: clear\(v\) \? tick\(v\) : '' \}\)\)\}/);
 
 // The header's units switch works on every page that shows text changing with the units (lib/unit-preference.ts), and
 // the server render stops (so the build stops) when such text is on a page where the switch is inert.
 {
   const { unitSwitchShown } = require('../lib/unit-preference.ts');
-  for (const page of ['/', '/about', '/slowdown', '/htw', '/research', '/your-race', '/analyses', '/analyses/pacing-pattern', '/runners', '/packs', '/packs/smyth_htw',
-    '/courses', '/courses/boston', '/stories', '/stories/final-kick', '/tools', '/tools/plan', '/tools/qualifying/boston', '/finish-times']) assert.ok(unitSwitchShown(page), `The units switch works on ${page}`);
-  for (const page of ['/research/personalized', '/methodology', '/privacy', '/request-analysis', '/_not-found', '/toolsx', '/research-notes']) assert.equal(unitSwitchShown(page), false, `${page} keeps the inert placeholder`);
+  for (const page of ['/', '/about', '/slowdown', '/research', '/methodology', '/analyses', '/analyses/pacing-pattern', '/runners',
+    '/courses', '/courses/boston', '/stories', '/stories/final-kick', '/tools', '/tools/plan', '/tools/qualifying/boston', '/finish-times', '/privacy', '/request-analysis']) assert.ok(unitSwitchShown(page), `The units switch works on ${page}`);
+  // The moved addresses' stubs (lib/seo-routes.ts movedTo) show no text that changes with the units.
+  for (const page of ['/research/personalized', '/htw', '/your-race', '/packs', '/packs/smyth_htw', '/packs/r01_banking_time', '/_not-found', '/toolsx', '/research-notes', '/methodology-notes']) assert.equal(unitSwitchShown(page), false, `${page} keeps the inert placeholder`);
   // A second copy of the provider whose next/navigation reports a chosen page, as the static export's render does.
   const providerFile = require.resolve('../components/UnitsProvider.tsx');
-  let pathname = '/privacy';
+  let pathname = '/htw';
   const realLoad = Module._load;
   const cached = require.cache[providerFile];
   delete require.cache[providerFile];
@@ -355,15 +382,24 @@ assert.match(chartSource('RunnerContext.tsx'), /<YAxis [^>]*domain=\{paceAxis \?
   try { units = require(providerFile); } finally { Module._load = realLoad; require.cache[providerFile] = cached; }
   const page = (...children) => renderToStaticMarkup(React.createElement(units.default, null, ...children));
   const e = React.createElement;
-  const inert = /\/privacy shows text that changes with the units, but the header's units switch is inert there/;
+  const inert = /\/htw shows text that changes with the units, but the header's units switch is inert there/;
   assert.throws(() => page(e(units.UnitText, null, 'From the first 5 km to the finish.')), inert, 'Converted prose on an inert page stops the build');
   assert.throws(() => page(e(units.MarathonDistance)), inert);
   assert.throws(() => page(e(function Chart() { return `${units.useUnits().units} axis`; })), inert, 'So does any figure that reads the units');
   assert.equal(page(e(units.UnitText, null, 'Methods and sources.')), 'Methods and sources.', 'Prose with no kilometre figure is the same in both units and may go anywhere');
   assert.match(page(e(units.UnitSwitch), e(units.UnitLink, { href: '/tools' }, 'Tools')), /^<div class="unit-switch unit-switch-placeholder" aria-hidden="true">.*<a href="\/tools">Tools<\/a>$/, 'Links and the placeholder render on every page');
+  const storyUnits = require('../components/story/Units.tsx');
+  assert.equal(page(e(storyUnits.Checkpoint, { km: 30 }), ' ', e(storyUnits.Section, { i: 8 })), '30K 40K–finish', 'Mat names read the same everywhere, so they may go on any page');
   pathname = '/research';
   assert.equal(page(e(units.UnitText, null, 'From the first 5 km to the finish.')), 'From the first 3.11 mi to the finish.');
   assert.match(page(e(units.UnitSwitch)), /^<div class="unit-switch" role="group" aria-label="Distance and pace units">/, '/research has the working switch');
 }
 
-console.log('Verified display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples, real profile sections and round pace-axis ticks in both units, the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4), and the working units switch on every page whose text changes with the units (the build stops otherwise).');
+// A per-degree effect follows the reader's degree (the redesign spec, section 3.10): perDegree converts a per-°C value.
+{
+  const { perDegree } = require('../lib/nuggets/format.ts');
+  assert.equal(perDegree(1.8, 'mi'), 1);
+  assert.equal(perDegree(1.8, 'km'), 1.8);
+}
+
+console.log('Verified mat names (5K … 40K, Finish; 0–5K … 40K–finish) in both units, one-decimal prose miles, display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples, real profile sections and round pace-axis ticks in both units, the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4), and the working units switch on every page whose text changes with the units (the build stops otherwise); per-degree effects follow the reader\'s degree.');

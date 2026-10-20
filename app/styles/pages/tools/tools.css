@@ -1,0 +1,388 @@
+/* The runner tools (WP4; the redesign spec, sections 3.5 "Tool workspace", 4.4 and 7.13-7.14, under section 00).
+   Imported by app/tools/layout.tsx for every /tools page; each tool's own sheet sits beside this one in pages/tools/.
+   A tool page is its opener (crumbs, H1, one line, badges), the workspace (the inputs as an instrument panel, then the
+   result on one night card, one Pace Notes data nugget and the outputs) and the closing stack. Whitespace and hairlines
+   divide the parts, never boxes: the night card is the one filled surface. No per-tool hue anywhere. */
+
+/* ---------- The page ---------- */
+.tool-page { min-width: 0; padding-bottom: var(--s-7); }
+.tool-page h1, .tool-page h2, .tool-page h3 { font-variation-settings: normal; }
+.tool-page ul, .tool-page ol { padding-left: 0; }
+.tool-page li + li { margin-top: 0; }
+.tool-page p + p { margin-top: 0; }
+
+.tool-header { display: grid; gap: var(--s-3); max-width: 44rem; padding: var(--s-4) 0 var(--s-6); }
+.tool-crumbs { margin: 0; flex-wrap: wrap; color: var(--ink-3); }
+/* The crumb row sits 8 px above the H1, as a Reading's does (the header's 12 px gap less 4 px), so the tools' H1 lands
+   where every chapter template's does (round 5 merge). A hidden crumb row takes its margin with it. */
+.tool-header > .tool-crumbs { margin-bottom: calc(var(--s-2) - var(--s-3)); }
+.tool-crumbs .crumb-chapter { min-height: 44px; }
+/* "Tools · Reference · …": the dots at a word space, as inside a chapter crumb. */
+.tool-crumbs.is-plain { gap: 0 .3em; }
+.tool-title { margin: 0; font-family: var(--serif); font-optical-sizing: auto; font-weight: 440; color: var(--ink); max-width: 18ch; }
+.tool-dek { margin: 0; max-width: 34rem; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+
+/* "Sustained slowdown" linked to its definition on /methodology. Inside running text it is an inline link; as a label
+   on its own (a ledger key) it takes the 44 px hit area through padding. */
+/* Inter's tabular figures widen the hyphen ("non - binary"): words on charts, in table headers and on segmented options
+   take proportional figures (each option has a column of its own, so nothing needs to line up); readouts, inputs and
+   table cells keep tabular ones. */
+.tool-page .viz-frame :is(.viz-label, .tick), .tool-page :is(.table, .tool-table) thead th, .tool-page .seg-btn { font-variant-numeric: normal; }
+.term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: var(--ink-3); text-underline-offset: .18em; }
+.term-link:hover { text-decoration-style: solid; }
+/* A 44 px target that never moves its label off the cell's baseline: inline, with the height in vertical padding (which
+   does not change the line box), so "Sustained slowdown" sits level with its neighbour's label. */
+.tool-stat-label .term-link, .tool-ledger dt .term-link, .tool-cells dt .term-link { display: inline; padding-block: 14px; }
+
+/* ---------- The workspace: the answer, the inputs, then the rest of the result ---------- */
+/* The analyses' grammar (answer, then Make it yours): the night card for the example comes first, the inputs that make it
+   the visitor's own follow it, then everything else the result holds. Both result parts are .tool-results, left out of
+   session replays. From 900 px the inputs are the sticky left column and the card heads the right one, as before. */
+.tool-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
+.tool-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); min-width: 0; }
+.tool-results > * { margin: 0; min-width: 0; }
+.tool-answer:empty { display: none; }
+
+/* The instrument panel: labelled cells on paper, divided by whitespace, a hairline above. */
+.tool-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); align-content: start; margin: 0; padding: var(--s-4) 0 0; border-top: 1px solid var(--rule); min-width: 0; }
+.tool-inputs > * { grid-column: 1 / -1; margin: 0; min-width: 0; }
+.tool-inputs > .is-half { grid-column: auto; }
+.tool-inputs > h2 { font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+
+/* ---------- Fields ---------- */
+.tool-field { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; min-width: 0; }
+.tool-field > label, .tool-label { font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.tool-page .tool-field input:not([type='checkbox']):not([type='radio']):not([type='range']), .tool-page .tool-field select, .tool-page .tool-inputs textarea {
+  width: 100%; max-width: 100%; min-height: 52px; padding: 0 14px;
+  /* background-color, never the shorthand: a select keeps its chevron (the background images it already has). */
+  border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background-color: var(--paper-raised); color: var(--ink); box-shadow: none;
+  font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; line-height: 1.3; font-variant-numeric: tabular-nums; letter-spacing: 0;
+}
+.tool-page .tool-inputs textarea { padding: 12px 14px; min-height: 120px; }
+.tool-page .tool-field select { padding-right: 40px; background-position: calc(100% - 20px) 52%, calc(100% - 15px) 52%; }
+.tool-page .tool-field input:hover, .tool-page .tool-field select:hover { border-color: var(--ink-3); }
+.tool-page .tool-field input:focus, .tool-page .tool-field select:focus, .tool-page .tool-inputs textarea:focus { border-color: var(--rule-strong); box-shadow: none; outline: 2px solid var(--focus); outline-offset: 2px; }
+.tool-page .tool-field input::placeholder, .tool-page .tool-inputs textarea::placeholder { color: var(--ink-3); opacity: 1; }
+/* The cell's value: the time a runner types, large and calm. */
+.tool-page .tool-field.is-large input { min-height: 60px; font-size: 1.5rem; font-weight: 600; letter-spacing: -.01em; }
+/* A value worked out from the other fields (the pace calculator's third box) looks like every other box, so it reads as
+   one to type in: the night card above it reads the value (round 6: a filled box read as disabled). */
+.tool-page .tool-field input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
+.tool-field-hint { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.tool-field-hint.is-error { color: var(--signal-ink); font-weight: 600; }
+.tool-check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: var(--t-small); color: var(--ink-2); line-height: 1.35; cursor: pointer; }
+.tool-check input { flex: none; width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--ink); }
+
+/* A choice of 2 to 5 options: the site's segmented control, filling its cell. */
+/* It may shrink inside a row and scroll sideways in its own track (a phone at 200% text); each option is at least 44 px. */
+.tool-choice.seg { display: grid; width: 100%; min-width: 0; }
+.tool-choice.is-small .seg-btn { min-width: 44px; padding: 0 10px; }
+.tool-choice .seg-label { display: inline-block; min-width: 24px; text-align: center; }
+/* Presets (common goals, distances): chips, never clipped; they wrap. */
+.tool-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.tool-page .tool-presets button { min-width: 44px; min-height: 44px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill); background: transparent; color: var(--ink);
+  font-size: .9375rem; font-weight: 500; font-variant-numeric: tabular-nums; box-shadow: none; transition: background-color var(--d-quick) var(--ease-out), border-color var(--d-quick) var(--ease-out), color var(--d-quick) var(--ease-out); }
+.tool-page .tool-presets button:hover { border-color: var(--ink); }
+.tool-page .tool-presets button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: var(--paper); font-weight: 600; }
+.tool-page .tool-presets button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* − / + around a value: 44 px buttons beside the field. */
+.tool-stepper { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; }
+.tool-page .tool-stepper > button { width: 44px; min-height: 44px; height: 44px; padding: 0; border: 1px solid var(--rule-strong); border-radius: 50%; background: transparent; color: var(--ink);
+  font-size: 1.25rem; font-weight: 500; line-height: 1; box-shadow: none; }
+.tool-page .tool-stepper > button:hover { border-color: var(--ink); }
+.tool-page .tool-stepper > button:active { transform: scale(.94); }
+.tool-stepper-value { min-width: 0; text-align: center; }
+/* The goal control every goal tool shares (plan, pace band, course chooser, weather match): the label above, − field +
+   level on one row, the hint below. */
+.tool-goal .tool-stepper { grid-template-columns: 44px minmax(0, 1fr) 44px; grid-template-areas: 'label label label' 'minus input plus' 'hint hint hint'; gap: 6px 8px; }
+.tool-goal .tool-stepper-value, .tool-goal .tool-field { display: contents; }
+.tool-goal .tool-stepper > button:first-child { grid-area: minus; align-self: center; }
+.tool-goal .tool-stepper > button:last-child { grid-area: plus; align-self: center; }
+.tool-goal label { grid-area: label; justify-self: start; }
+.tool-goal input { grid-area: input; min-width: 0; text-align: center; }
+.tool-goal .tool-field-hint, .tool-goal .keypad-hint.is-block { grid-area: hint; text-align: left; }
+.tool-page .tool-goal .tool-stepper > button[aria-disabled='true'] { opacity: .4; cursor: not-allowed; }
+
+/* ---------- The result: one night card ---------- */
+.tool-reading { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); margin: 0; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); min-width: 0; box-shadow: var(--night-edge); }
+.tool-reading > * { margin: 0; min-width: 0; }
+.tool-reading-head { display: grid; gap: 6px; }
+/* The card's foot: its badge at the left and Copy link at the right (ReadingFoot); the button's 44 px reaches into the
+   card's padding, so the row keeps the badge's height. */
+.tool-reading-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-width: 0; }
+.tool-reading-foot.is-copy-only { justify-content: flex-end; }
+.tool-copy { flex: none; margin: -12px -6px -12px 0; }
+.tool-page .tool-copy-button { min-height: 44px; padding: 0 6px; border: 0; border-radius: var(--r-xs); background: none; box-shadow: none; color: var(--ink-2);
+  font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.2; white-space: nowrap; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: 4px; }
+.tool-page .tool-copy-button:hover { color: var(--ink); text-decoration-color: currentColor; }
+.tool-page .tool-copy-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* A card's headline when the figure is not its point (the split check's race): one sentence in the serif. */
+.tool-reading-title { margin: 0; font-family: var(--serif); font-optical-sizing: auto; font-size: var(--t-sentence); font-weight: 440; line-height: 1.2; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+.tool-reading-kicker { margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); text-wrap: balance; }
+.tool-reading-figure { margin: 0; font-family: var(--figure); font-size: var(--t-figure-l); font-weight: 660; line-height: .95; letter-spacing: -.03em; color: var(--ink); font-variant-numeric: proportional-nums; overflow-wrap: anywhere; }
+.tool-reading-figure small { display: block; margin-top: 8px; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; line-height: 1.3; letter-spacing: 0; color: var(--ink-2); }
+.tool-reading-sub { margin: 0; font-size: .9375rem; line-height: 1.45; color: var(--ink-2); }
+.tool-reading .evidence-badge { color: var(--ink-2); }
+/* The ledger: label left, value right, a hairline between rows. */
+.tool-ledger { display: grid; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.tool-ledger > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px var(--s-4); padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.tool-ledger > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.tool-ledger dt { font-size: .9375rem; font-weight: 500; line-height: 1.3; color: var(--ink-2); }
+.tool-ledger dd { margin: 0; font-family: var(--sans); font-size: 1.375rem; font-weight: 600; line-height: 1.1; letter-spacing: -.015em; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; white-space: nowrap; }
+.tool-ledger dd.is-signal { color: var(--signal); }
+.tool-ledger .tool-ledger-note { grid-column: 1 / -1; font-size: var(--t-label); font-weight: 400; line-height: 1.35; color: var(--ink-3); text-align: left; white-space: normal; }
+/* Cells: two or three equal columns divided by hairlines. */
+.tool-cells { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); margin: 0; padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.tool-cells > div { min-width: 0; }
+.tool-cells dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.tool-cells dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.5rem; font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.tool-cells dd small { display: block; margin-top: 4px; font-size: var(--t-label); font-weight: 400; letter-spacing: 0; line-height: 1.35; color: var(--ink-3); }
+
+/* The mats as a lap list: nine rows, the finish ruled off. */
+.tool-laps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 var(--s-4); margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.tool-laps li { display: grid; align-content: start; gap: 2px; margin: 0; padding: 10px 0; border-bottom: 1px solid var(--rule); min-width: 0; }
+.tool-laps li:nth-last-child(-n + 3) { border-bottom: 0; }
+.tool-laps li > span { font-size: var(--t-label); font-weight: 500; line-height: 1.25; color: var(--ink-3); }
+.tool-laps li > span small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.tool-laps b { font-size: 1.0625rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--ink); }
+.tool-laps .is-finish b { font-weight: 700; }
+
+/* ---------- Beats under the result ---------- */
+.tool-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); margin: 0; padding: var(--s-5) 0 0; border-top: 1px solid var(--rule); min-width: 0; }
+.tool-panel > * { margin: 0; min-width: 0; }
+.tool-panel-head { display: grid; gap: var(--s-2); }
+.tool-panel-head .evidence-badge { justify-self: start; }
+.tool-panel-title { margin: 0; max-width: 30ch; font-family: var(--serif); font-optical-sizing: auto; font-size: var(--t-sentence); font-weight: 440; line-height: 1.22; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+.tool-panel-title em { font-style: italic; color: var(--signal-ink); }
+.tool-panel-meta { margin: 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
+.tool-note { margin: 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
+.tool-note strong { color: var(--ink-2); font-weight: 600; }
+.tool-note a, .tool-panel-meta a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: .18em; }
+.tool-note a:hover, .tool-panel-meta a:hover { text-decoration-color: var(--ink); }
+.tool-state { margin: 0; padding: var(--s-4) 0; font-size: .9375rem; line-height: 1.5; color: var(--ink-3); }
+.tool-state.is-error { color: var(--signal-ink); }
+.tool-empty { margin: 0; padding: var(--s-4) 0; font-size: .9375rem; line-height: 1.55; color: var(--ink-2); }
+
+/* The one Pace Notes data nugget a tool carries: its badge, the sentence, a small instrument. */
+.tool-nugget { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); margin: 0; }
+.tool-nugget-text { margin: 0; max-width: 30ch; font-family: var(--serif); font-optical-sizing: auto; font-size: var(--t-sentence); font-weight: 440; line-height: 1.25; letter-spacing: -.01em; color: var(--ink); text-wrap: pretty; }
+.tool-nugget-text em { font-style: italic; color: inherit; } /* ink, as every H2's: one accent per screen (round 3) */
+.tool-nugget .evidence-badge { justify-self: start; }
+
+/* The lead (DataLead, round 6): the chapter's Pace Notes data reading, first on the page, on paper: the badge, the
+   figure, one line of what it counts, then the instrument. */
+.tool-lead { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); margin: 0; min-width: 0; }
+.tool-lead > * { margin: 0; min-width: 0; }
+.tool-lead .evidence-badge { justify-self: start; }
+.tool-lead-title { display: grid; justify-items: start; gap: var(--s-2); margin: 0; font: inherit; }
+.tool-lead-title .big-number { margin-left: -.04em; }
+.tool-lead-line { max-width: 30ch; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; line-height: 1.4; letter-spacing: 0; color: var(--ink-2); text-wrap: pretty; }
+
+/* ---------- Example ---------- */
+.tool-example { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.tool-example-tag { font-size: var(--t-kicker); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+
+/* ---------- Tables ---------- */
+.tool-table-wrap { position: relative; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.tool-table-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tool-table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.tool-table th, .tool-table td { height: 44px; padding: 6px 10px; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: middle; white-space: nowrap; }
+.tool-table th:first-child, .tool-table td:first-child { padding-left: 0; text-align: left; }
+.tool-table th:last-child, .tool-table td:last-child { padding-right: 0; }
+.tool-table thead th { height: auto; padding-top: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.3; letter-spacing: 0; text-transform: none; color: var(--ink-3); vertical-align: bottom; border-bottom-color: var(--rule-strong); }
+.tool-table tbody th { font-size: .875rem; font-weight: 600; color: var(--ink); }
+.tool-table td { color: var(--ink-2); font-weight: 400; }
+.tool-table tfoot th, .tool-table tfoot td { font-size: var(--t-label); color: var(--ink-3); border-bottom: 0; }
+.tool-table tr.is-mat td, .tool-table tr.is-mat th { color: var(--ink); font-weight: 600; }
+.tool-table tr.is-key td, .tool-table tr.is-key th { color: var(--ink); font-weight: 600; }
+.tool-table tr.is-finish td, .tool-table tr.is-finish th { border-top: 1.5px solid var(--ink); color: var(--ink); font-weight: 600; }
+.tool-table .is-plus { color: var(--signal-ink); }
+.tool-table .is-minus { color: var(--ink); }
+.tool-table caption { caption-side: bottom; padding-top: var(--s-2); text-align: left; font-size: var(--t-label); line-height: 1.45; color: var(--ink-3); }
+.tool-table small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+
+/* ---------- Range bar (predictor, projector) ---------- */
+
+/* ---------- Copy link, print ---------- */
+.tool-share { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin: 0; }
+/* A secondary action in the row set as an underlined text button ("Print full page"), 44 px tall. */
+.tool-page .tool-text-button { min-height: 44px; padding: 0 2px; border: 0; border-radius: var(--r-xs); background: none; box-shadow: none; color: var(--ink); font: inherit; font-size: var(--t-small); font-weight: 600;
+  text-decoration: underline; text-decoration-color: var(--rule-strong); text-underline-offset: 4px; cursor: pointer; }
+.tool-page .tool-text-button:hover { text-decoration-color: currentColor; }
+.tool-page .tool-text-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- Handoffs: one row per next step ---------- */
+.tool-handoffs { display: grid; gap: var(--s-2); margin: 0; }
+.tool-handoffs-label { margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.tool-handoffs ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.tool-handoffs li { margin: 0; border-bottom: 1px solid var(--rule); }
+.tool-handoffs li > a { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-4); min-height: 52px; padding: 12px 0; color: var(--ink); text-decoration: none; }
+.tool-handoffs li > a:hover { text-decoration: none; }
+.tool-handoffs li > a:hover b { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: .2em; }
+.tool-handoffs li > a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.tool-handoff-text { display: grid; gap: 2px; min-width: 0; }
+.tool-handoffs b { font-size: 1rem; font-weight: 600; line-height: 1.3; }
+.tool-handoff-text > span { font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
+.tool-handoffs .arrow-icon { width: 18px; height: 18px; color: var(--ink); transition: transform var(--d-release) var(--spring); }
+.tool-handoffs li > a:hover .arrow-icon { transform: translateX(3px); }
+
+/* ---------- Disclosures inside a tool (Values-style) ---------- */
+.tool-more { border-top: 1px solid var(--rule); }
+.tool-more > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); min-height: 48px; padding: 0; list-style: none; cursor: pointer; font-size: .9375rem; font-weight: 600; color: var(--ink); }
+.tool-more > summary::-webkit-details-marker { display: none; }
+.tool-more > summary::marker { content: ''; }
+.tool-more > summary::after { content: '+'; flex: none; width: 22px; font-size: 1.25rem; font-weight: 400; line-height: 1; text-align: center; color: var(--ink); }
+.tool-more[open] > summary::after { content: '−'; }
+.tool-more > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.tool-more-body { display: grid; gap: var(--s-4); padding-bottom: var(--s-5); }
+.tool-more-body > * { margin: 0; }
+
+/* ---------- The goal bar (phones) ---------- */
+.tool-goalbar { display: none; }
+@media (max-width: 899.98px) {
+  /* Fixed, so it takes no room in the page while hidden (release: as a sticky element it kept about 64 px above the
+     closing stack); it shows only between the inputs and the closing stack (GoalBar), so it never covers either. */
+  .tool-goalbar {
+    position: fixed; left: 0; right: 0; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 30;
+    display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px;
+    width: min(calc(100% - 2 * var(--gutter)), 320px); margin: 0 auto; padding: 2px; border-radius: var(--r-pill);
+    background: var(--paper); color: var(--ink); box-shadow: var(--shadow-sheet);
+    opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity var(--d-quick) var(--ease-out), transform var(--d-toggle) var(--spring-soft);
+  }
+  .tool-goalbar[data-shown] { opacity: 1; transform: none; pointer-events: auto; }
+  /* While a table is open, the bar steps away, so it never sits over the rows being read. */
+  @supports selector(:has(a)) {
+    .tool-results:has(details.values[open]) .tool-goalbar[data-shown] { opacity: 0; transform: translateY(12px); pointer-events: none; }
+  }
+  .tool-page .tool-goalbar > button { width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: var(--paper-raised); color: var(--ink); font-size: 1.25rem; line-height: 1; box-shadow: none; }
+  .tool-page .tool-goalbar > button[aria-disabled='true'] { opacity: .4; }
+  .tool-goalbar-value { display: flex; align-items: baseline; justify-content: center; gap: 10px; min-width: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tool-goalbar-value b { font-family: var(--figure); font-size: 1.375rem; font-weight: 660; letter-spacing: -.02em; }
+  .tool-goalbar-value span { font-size: var(--t-small); color: var(--ink-2); }
+}
+
+/* ---------- Print: tools print their result panels only ---------- */
+.print-only { display: none; }
+@media print {
+  .site-header, .site-footer, .skip-link, .tool-inputs, .tool-share, .no-print, .chapter-end, .tool-goalbar { display: none !important; }
+  .print-only { display: block; }
+  .tool-workspace { grid-template-columns: 1fr; }
+  .tool-page svg[viewBox] { max-width: 100%; height: auto; }
+  .tool-panel, .tool-reading { break-inside: avoid; }
+  .tool-reading { --paper: var(--card); --ink: var(--night); --ink-2: var(--night); --ink-3: var(--night-3); --rule: var(--line); --signal: var(--night); box-shadow: inset 0 0 0 1px var(--night); }
+  .tool-header { padding: 0 0 .6rem; }
+  .tool-title { font-size: 1.8rem; }
+  .tool-dek, .tool-crumbs { display: none; }
+}
+
+/* ---------- Widths ---------- */
+/* Phones: the opener and the gaps tighten so the night card starts on the first screen. */
+@media (max-width: 599.98px) {
+  .tool-header { padding-bottom: var(--s-4); }
+  .tool-workspace { gap: var(--s-5); }
+}
+@media (max-width: 359.98px) {
+  .tool-inputs > .is-half { grid-column: 1 / -1; }
+  .tool-reading { padding-inline: 16px; }
+  .tool-laps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tool-laps li:nth-last-child(-n + 3) { border-bottom: 1px solid var(--rule); }
+  .tool-laps li:nth-last-child(-n + 1) { border-bottom: 0; }
+  .tool-cells { grid-template-columns: minmax(0, 1fr); }
+  .tool-ledger > div { grid-template-columns: minmax(0, 1fr); }
+  .tool-ledger dd { text-align: left; }
+}
+@media (max-width: 299.98px) {
+  .tool-reading { padding-inline: 14px; }
+  .tool-reading-figure { font-size: 2.5rem; }
+  .tool-page .tool-field.is-large input { font-size: 1.25rem; }
+  .tool-page .tool-stepper { grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 4px; }
+}
+@media (min-width: 600px) {
+  .tool-reading { padding: 24px; }
+}
+@media (min-width: 900px) {
+  .tool-header { padding: var(--s-6) 0 var(--s-7); }
+  /* The second row takes whatever height the inputs need beyond the card (a flexible track), so the card and the rest
+     of the result stay one gap apart. A workspace without an answer slot places its results in the first free cell. */
+  .tool-workspace { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); grid-template-rows: auto 1fr; gap: var(--s-7); }
+  .tool-workspace > .tool-inputs { grid-column: 1; grid-row: 1 / span 2; }
+  .tool-workspace > .tool-answer { grid-column: 2; grid-row: 1; }
+  .tool-workspace > .tool-answer ~ .tool-results { grid-column: 2; grid-row: 2; }
+  /* Sticky beside the results; never taller than the window, so keyboard focus can always be scrolled into view. */
+  .tool-inputs { position: sticky; top: calc(var(--header-h) + 24px); max-height: calc(100vh - var(--header-h) - 48px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-bottom: var(--s-2);
+    /* A scroll cue: a soft edge at the bottom while more of the panel is below, covered once it is scrolled to the end. */
+    background: linear-gradient(transparent, var(--paper) 70%) center bottom / 100% 32px no-repeat local, linear-gradient(transparent, var(--rule-strong)) center bottom / 100% 10px no-repeat scroll; }
+  .tool-results { gap: var(--s-7); }
+  /* The closing stack sits under the results column, so it lines up with what it follows (the columns are 5fr and 7fr). */
+  @supports selector(:has(a)) {
+    .tool-page:has(.tool-workspace) > .chapter-end { max-width: none; margin-left: calc((100% - var(--s-7)) * 5 / 12 + var(--s-7)); }
+    /* Where the content above the closing stack runs the full width (the course chooser's list, the qualifying checker's
+       race list), the stack starts at the same left edge, so the page keeps one axis. */
+    .tool-page:has(.course-chooser) > .chapter-end, .tool-page:has(.qrace-more) > .chapter-end { max-width: var(--measure-figure); margin-left: 0; }
+  }
+}
+
+/* ---------- /tools: one list, one line per tool ---------- */
+/* The hub opens where /stories and /analyses open (their page's top padding): no crumbs above the H1. */
+.tools-index .tool-header { padding-top: var(--s-6); padding-bottom: var(--s-5); }
+.tools-group { margin: 0; padding-top: var(--s-6); }
+.tools-group-title { margin: 0 0 var(--s-3); font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.tools-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); max-width: var(--measure-figure); }
+.tools-list > li { margin: 0; border-bottom: 1px solid var(--rule); }
+.tools-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px var(--s-4); min-height: 72px; padding: 14px 0; color: var(--ink); text-decoration: none; }
+.tools-row:hover { text-decoration: none; }
+.tools-row:hover b { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: .2em; }
+.tools-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.tools-row .arrow-icon { grid-column: 2; grid-row: 1; width: 18px; height: 18px; transition: transform var(--d-release) var(--spring); }
+.tools-row:hover .arrow-icon { transform: translateX(3px); }
+.tools-row-text { display: grid; gap: 2px; min-width: 0; }
+.tools-row-text b { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
+.tools-row-text > span { font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
+.tools-goals { display: grid; gap: var(--s-2); padding: 14px 0 10px; }
+.tools-goal-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tools-goal-links li { margin: 0; }
+.tools-goal-links a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill); color: var(--ink); font-size: .9375rem; font-weight: 500; font-variant-numeric: tabular-nums; text-decoration: none; }
+.tools-goal-links a:hover { border-color: var(--ink); text-decoration: none; }
+/* A chip is its own affordance: never underlined as well, whatever link rule the page's copy sets. */
+.tool-page .tools-goal-links a, .tool-page .tools-goal-links a:hover { text-decoration: none; }
+.tools-goal-links a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (min-width: 900px) {
+  .tools-index .tool-header { padding-top: var(--s-8); }
+  .tools-goals { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+}
+
+/* ---------- Lines along the course (components/tools/MatLines.tsx) ---------- */
+.mat-lines { position: relative; margin: 0; min-width: 0; }
+.mat-lines svg { display: block; overflow: visible; }
+/* Beats the legacy .viz text rule (mono, 11 px) that WP9 deletes. */
+.mat-lines svg text { font-family: var(--sans); font-size: 12px; font-weight: 500; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mat-lines-grid line { stroke: var(--rule); stroke-width: 1; }
+.mat-lines-zero { stroke: var(--ink); stroke-width: 1; }
+.mat-lines svg .mat-lines-zero-label { font-weight: 600; fill: var(--ink-2); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.mat-lines-line path { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.mat-lines-line circle { stroke: var(--paper); stroke-width: 2; }
+.mat-lines-line.is-ink path { stroke: var(--ink); }
+.mat-lines-line.is-ink circle { fill: var(--ink); }
+.mat-lines-line.is-signal path { stroke: var(--signal); }
+.mat-lines-line.is-signal circle { fill: var(--signal); }
+.mat-lines-line.is-quiet path { stroke: var(--mark-quiet); }
+.mat-lines-line.is-quiet circle { fill: var(--mark-quiet); }
+.mat-lines svg .mat-lines-name { font-size: 13px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.mat-lines svg .mat-lines-name.is-signal { fill: var(--signal-ink); }
+.mat-lines svg .mat-lines-name.is-quiet { fill: var(--ink-3); }
+/* Where a name has no room on the chart, every line is named here instead (MatLines). */
+.mat-lines-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-3) 0 0; padding: 0; list-style: none; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.mat-lines-key li { display: inline-flex; align-items: center; gap: 8px; }
+.mat-lines-key-mark { flex: none; width: 16px; height: 2px; border-radius: 1px; background: var(--ink); }
+.mat-lines-key-mark.is-signal { background: var(--signal); }
+.mat-lines-key-mark.is-quiet { background: var(--mark-quiet); }
+/* The gap the sentence names, bracketed at its mat. */
+.mat-lines-bracket path { fill: none; stroke: var(--signal); stroke-width: 2; stroke-linejoin: round; }
+.mat-lines svg .mat-lines-bracket text { font-size: 14px; font-weight: 600; fill: var(--signal-ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+
+/* The bracket under a finish-time histogram, named in a gap in its line. */
+.tool-page .range-bracket line { stroke: var(--ink-2); stroke-width: 1.5; }
+.tool-page svg .range-bracket text { font-family: var(--sans); font-size: 12px; font-weight: 500; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
+

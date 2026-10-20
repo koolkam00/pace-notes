@@ -1,54 +1,88 @@
-import { UnitLink as Link } from '@/components/UnitsProvider';
-import { ElevationProfile } from '@/components/story/CourseArt';
-import { Elevation, Section } from '@/components/story/Units';
-import type { CoursePageData } from '@/lib/course-page';
-import { CourseSection, CourseTable, Fact } from './Fact';
-import { NetElevation } from './CourseUnits';
+import { Elevation } from '@/components/story/Units';
+import ElevationPace from '@/components/viz/ElevationPace';
+import { getNugget } from '@/lib/nuggets';
+import { profileUnderWater } from '@/lib/nuggets/courses';
+import { sectionLabel } from '@/lib/nuggets/format';
+import { routeClimb, type CoursePageData } from '@/lib/course-page';
+import { getCityData, terrainSections } from '@/lib/analysis-server';
+import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';
+import { hm } from '@/lib/nuggets/format';
+import { signedWhole, terrainReading } from '@/lib/terrain-reading';
+import type { UnitSystem } from '@/lib/units';
+import { SECTION_BOUNDS } from '@/lib/viz/format';
+import ByUnits from '@/components/ui/ByUnits.client';
+import { CourseSection, Fact, Said } from './Fact';
+
+const climbText = (m: number, units: UnitSystem) => (units === 'mi' ? `${Math.round(m / 0.3048).toLocaleString('en-US')} ft` : `${Math.round(m).toLocaleString('en-US')} m`);
 
 /**
- * "Elevation profile": the route and its climb, as two totals where the course chooser publishes the section sum (not
- * Prague, all of whose editions it screens out), then the nine 5 km sections. Only for courses with a route.
+ * Whether a course shows #elevation: a supplied route whose profile does not read the water under a bridge (New York and
+ * Dubai: a profile that misstates the climbs is not drawn, and no climb is printed from it), with a climb the heading can
+ * name (course.climb: a 5K that climbs 30 m or more). On a flat course the beat would only say no 5K climbs much and
+ * invite reading the late fade every course has as a hill (critic round 4); the hero already gives the route's climb,
+ * and "All numbers" each 5K's.
+ */
+export function elevationShown(page: CoursePageData): boolean {
+  if (!page.geometry || profileUnderWater(page)) return false;
+  return getNugget('course.climb', { city: page.city }).guard;
+}
+
+/** Each 5K's pace near the example finish against the same 5K on every course combined (the hills page's reading), or null. */
+function againstEvery(city: string) {
+  try {
+    return terrainSections(getCityData(city));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * "#elevation" (only for a route with a climb): the route's profile on the one height scale every course page shares,
+ * the plot only as tall as this course's relief on it, with nine 5K blocks under it, never merged: each 5K's pace near
+ * 4:00 against the same 5K on every course combined, the hills page's reading (lib/terrain-reading.ts), so the course
+ * page and /analyses/hills-and-pacing tell one story and the late fade every course has is not read as this course's
+ * hill. The climb the heading names is washed (two neighbouring climbs named as one stretch wash both), and the readout
+ * opens on its 5K: the one the hills reading names where it is in the stretch, else the bigger climb. Scrub along the
+ * course: the readout leads with the section's climb and gives its pace against every course beside it. Under it the
+ * route's two totals, up and down (the sums of the same sections, so the whole never climbs less than a part).
  */
 export default function CourseElevation({ page }: { page: CoursePageData }) {
-  const { geometry: g, context, terrain, city, race, scopes } = page;
-  if (!g) return null;
-  const sums = context && context.gain_m !== null && context.loss_m !== null && context.net_m !== null ? { gain: context.gain_m, loss: context.loss_m, net: context.net_m } : null;
+  const { city, display, geometry: g, terrain, relief } = page;
+  if (!g || !elevationShown(page)) return null;
+  const n = getNugget('course.climb', { city });
+  // The route's totals are its sections' sums, the same climbs the readout gives one 5K at a time.
+  const climb = routeClimb(page);
+  const from = Number(n.values.section), to = Number(n.values.section_to);
+  const every = againstEvery(city);
+  const vs = every?.map((x) => x.vs) ?? null;
+  const reading = every ? terrainReading(every.map((x) => x.gain), every.map((x) => x.vs)) : null;
+  // The 5K the readout opens on: the hills reading's, inside the washed stretch; else the stretch's bigger climb.
+  const bigger = terrain && to > from && terrain[to].gain_m > terrain[from].gain_m ? to : from;
+  const opens = reading && reading.i >= from && reading.i <= to ? reading.i : bigger;
+  const km = g.elevation_m.map((_, i) => Math.min(g.distance_km, i * g.elevation_step_km));
+  const goal = hm(EXAMPLE_PROFILE.goal);
+  const sectionsFor = (units: UnitSystem) => SECTION_BOUNDS.map(([a, b], i) => ({
+    label: sectionLabel(a, b), startKm: a, endKm: b, pct: vs ? vs[i] : 0,
+    display: vs ? signedWhole(vs[i]) : terrain ? climbText(terrain[i].loss_m, units) : '—',
+    climb: terrain ? climbText(terrain[i].gain_m, units) : '—',
+  }));
+  const chart = (units: UnitSystem) => (
+    <ElevationPace km={km} metres={g.elevation_m} relief={relief} fit lead="climb" focus={from} focusTo={to} initial={opens}
+      readoutKeys={vs ? ['Climbing', `Against every course near ${goal}`] : ['Climbing', 'Descent']}
+      sections={sectionsFor(units)}
+      label={`${display}: elevation on the height scale every course shares${vs ? `, with each 5K's pace near ${goal} against the same 5K on every course` : ''}`} height={120} heightMd={190} />
+  );
   return (
-    <CourseSection id="elevation" track="chapter-3" kicker="Elevation" title="Elevation profile"
-      dek={<>Where the {race} climbs and descends, from start to finish.</>}>
-      <div className="viz-card course-elevation-card">
-        <div className="viz-head"><div><p className="viz-title">{city} elevation profile</p><p className="viz-sub">Start to finish</p></div></div>
-        <ElevationProfile course={g} height={190} />
-      </div>
-      <dl className="course-totals">
-        <div>
-          <dt>Whole route</dt>
-          <dd>Climbs <Fact k="geo.gain" v={g.gain_m}><Elevation metres={g.gain_m} /></Fact>, descends <Fact k="geo.loss" v={g.loss_m}><Elevation metres={g.loss_m} /></Fact></dd>
-        </div>
-        {sums ? (
+    <CourseSection id="elevation" track="chapter-3" beat="Elevation" title={<Said nugget={n} />}>
+      <div className={vs ? undefined : 'course-elevation-plain'}><ByUnits mi={chart('mi')} km={chart('km')} /></div>
+      {climb ? (
+        <dl className="course-totals">
           <div>
-            <dt>Sum of the 5 km sections</dt>
-            <dd>Climbs <Fact k="cg.gain" v={sums.gain}><Elevation metres={sums.gain} /></Fact>, descends <Fact k="cg.loss" v={sums.loss}><Elevation metres={sums.loss} /></Fact>, net <Fact k="cg.net" v={sums.net}><NetElevation metres={sums.net} /></Fact></dd>
+            <dt>Whole route</dt>
+            <dd>Climbs <Fact k={`${climb.key}.gain`} v={climb.gain_m}><Elevation metres={climb.gain_m} /></Fact>, descends <Fact k={`${climb.key}.loss`} v={climb.loss_m}><Elevation metres={climb.loss_m} /></Fact></dd>
           </div>
-        ) : null}
-      </dl>
-      {terrain ? (
-        <CourseTable id="elevation-caption" caption="Climb, descent and net change in each 5 km section">
-          <thead><tr><th scope="col">Section</th><th scope="col">Climb</th><th scope="col">Descent</th><th scope="col">Net</th></tr></thead>
-          <tbody>
-            {terrain.map((t, i) => (
-              <tr key={i}>
-                <th scope="row"><Section i={i} /></th>
-                <td><Fact k={`t.gain@${i}`} v={t.gain_m}><Elevation metres={t.gain_m} /></Fact></td>
-                <td><Fact k={`t.loss@${i}`} v={t.loss_m}><Elevation metres={t.loss_m} /></Fact></td>
-                <td><Fact k={`t.net@${i}`} v={t.net_m}><NetElevation metres={t.net_m} /></Fact></td>
-              </tr>
-            ))}
-          </tbody>
-        </CourseTable>
+        </dl>
       ) : null}
-      {context?.downhill_opening ? <p className="course-note">The course opens downhill{terrain ? <>: <Fact k="t.net@0" v={terrain[0].net_m}><NetElevation metres={terrain[0].net_m} /></Fact> net over <Section i={0} /></> : null}.</p> : null}
-      {scopes.hills ? <p className="course-note"><Link href={`/analyses/hills-and-pacing?race=${encodeURIComponent(city)}`}>Hills and pacing on this route</Link>: the section paces of finishes near a time beside this profile.</p> : null}
     </CourseSection>
   );
 }

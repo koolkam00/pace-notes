@@ -5,7 +5,6 @@
  */
 import type { PaceBandIndex, PaceBandShard } from './tools/data';
 import { cellOf } from './tools/pace-band-data';
-import type { SplitReading } from './tools/splits';
 import { reportHref } from './tools/links';
 import { runnerHandoffHref } from './analytics-policy';
 
@@ -18,60 +17,12 @@ export interface OpeningBand { id: string; label: string; lower: number | null; 
 /** The cohort the pacing types were fitted on (the pacing-types story's), so their shares carry their own denominator. */
 export interface TypeCohort { n: number; editions: number | null; keeps: string[] }
 
-/* ---------- Percentages that never round across a threshold ---------- */
+/* ---------- Percentages, tones and the verdict: lib/report-verdict.ts (light, for the runner view) ---------- */
 
-const EPS = 1e-12;
-/** A section at least 25% slower than the 5–20 km pace, as the published definition counts it. */
-export const qualifies = (frac: number) => frac + EPS >= 0.25;
-/**
- * |frac| as a percentage with `digits` decimals, never rounded across the 25% threshold: a section 24.99% slower shows as
- * 24.99, not 25.0 (more decimals first, then truncation), and a qualifying one never shows below 25.
- */
-export function pctNum(frac: number, digits: number): string {
-  const p = Math.abs(frac) * 100;
-  if (frac > 0 && !qualifies(frac)) {
-    for (let d = digits; d <= 2; d += 1) {
-      const text = p.toFixed(d);
-      if (Number(text) < 25) return text;
-    }
-    return '24.99';
-  }
-  if (frac > 0 && p < 25) return (25).toFixed(digits);
-  return p.toFixed(digits);
-}
-/** "27%"; more decimals when rounding would hide which side of 25% a value is on, or round a real change to 0%. */
-export function pctAbs(frac: number): string {
-  const p = Math.abs(frac) * 100;
-  if (Math.round(p) === 0 && p >= 0.05) return `${p.toFixed(1)}%`;
-  return `${pctNum(frac, 0)}%`;
-}
-/** "+27.3%" / "−4.1%", threshold-safe like pctNum. */
-export function pctSigned(frac: number, digits = 1): string {
-  if (!Number.isFinite(frac)) return '—';
-  const text = pctNum(frac, digits);
-  return `${Number(text) === 0 ? '' : frac > 0 ? '+' : '−'}${text}%`;
-}
-/** The opening as a percentage: whole numbers, with decimals near the 2, 5 and 10% edges of the opening groups. */
-export function openingPct(frac: number): string {
-  const p = Math.abs(frac) * 100;
-  const r = Math.round(p);
-  if (![2, 5, 10].includes(r) || p === r) return pctAbs(frac);
-  const one = p.toFixed(1);
-  return `${Number(one) === r ? p.toFixed(2) : one}%`;
-}
+export { qualifies, pctNum, pctAbs, pctSigned, openingPct, timesVerdict, toneOf } from './report-verdict';
+export type { Tone, TimesVerdict } from './report-verdict';
+import type { Tone } from './report-verdict';
 
-/* ---------- Section tones (the split check's bar colours) ---------- */
-
-export type Tone = 'quick' | 'even' | 'slow' | 'qualify';
-/** Bar category: a qualifying section is a 5 km section after 20 km at least 25% slower, or the final 2.195 km extending one. */
-export function toneOf(r: SplitReading, i: number): Tone {
-  const v = r.vsBaseline[i];
-  if (i >= 4 && i <= 7 && qualifies(v)) return 'qualify';
-  if (i === 8 && qualifies(v) && qualifies(r.vsBaseline[7])) return 'qualify';
-  if (v <= -0.02) return 'quick';
-  if (v < 0.02) return 'even';
-  return 'slow';
-}
 export const TONE: Record<Tone, { fill: string; stroke: string; label: string }> = {
   quick: { fill: '#9DB6FB', stroke: '#2346E6', label: 'Quicker than 5–20 km pace' },
   even: { fill: '#DCD3C2', stroke: '#66625A', label: 'Within 2%' },

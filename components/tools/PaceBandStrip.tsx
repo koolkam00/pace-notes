@@ -1,7 +1,5 @@
 'use client';
 
-import { useRef } from 'react';
-import { useWidth } from '@/components/viz/useSize';
 import { perUnit, watchTarget, type SplitInterval, type SplitRow } from '@/lib/tools/pace';
 import { CHECKPOINTS, fmtGoal, fmtPace } from '@/lib/tools/pace-band-data';
 import { formatDuration } from '@/lib/tools/time';
@@ -15,9 +13,11 @@ export interface RouteProfile { slug: string; city: string; race: string; km: nu
 export interface StripObserved { held: { n: number; e50: number[] } | null; lo: number; hi: number; place: string; genderWord: string }
 
 /**
- * The cut-out wristband strips, for the screen preview and for @media print (styles in app/tools/pace-band/pace-band.css):
+ * The cut-out wristband strips, for the screen preview and for @media print (styles in app/styles/pages/tools/pace-band-strip.css):
  * the mat strip with each mat's even-pace time and the held-pace median, the mile or km split strips, and the optional
- * route elevation strip for the back. The preview is scaled to fit the screen; it prints at full size.
+ * route elevation strip for the back. The preview is scaled to fit its column on every screen, in CSS alone (em measures
+ * sized from the column, pace-band-strip.css), so it never scrolls, clips or shifts when the script runs. It prints at
+ * full size.
  */
 export default function PaceBandStrip({ goal, pKm, units, rows, interval, overrun, place, genderWord, observed, profile, showBack, waiting }: {
   goal: number; pKm: number; units: UnitSystem; rows: SplitRow[]; interval: SplitInterval; overrun: number; place: string; genderWord: string;
@@ -26,10 +26,6 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
   waiting: boolean;
 }) {
   const held = observed?.held ?? null;
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const wrapWidth = useWidth(wrapRef, 760);
-  const SHEET_PX = (18.4 + 0.9) * (96 / 2.54);
-  const zoom = Math.min(1, Math.max(0.3, (wrapWidth - 30) / SHEET_PX));
   // Split strips repeat every mile or km, plus halfway; the mat strip carries the 5 km mats and the finish.
   const isWhole = (v: number) => Math.abs(v - Math.round(v)) < 1e-6;
   const splitCells = interval === '5k' ? [] : rows.filter((r) => !r.finish && (r.halfway || isWhole(interval === 'mi' ? r.km / KM_PER_MILE : r.km)));
@@ -41,8 +37,8 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
     : 'Even-pace times.';
   return (
     <>
-      <div className={`pace-band-sheet-wrap${waiting ? ' pace-band-held-dim' : ''}`} ref={wrapRef}>
-        <div className="pace-band-sheet" style={{ zoom }}>
+      <div className={`pace-band-sheet-wrap${waiting ? ' pace-band-held-dim' : ''}`}>
+        <div className="pace-band-sheet">
           <p className="pace-band-sheet-head">Pace Notes · pace band · {fmtGoal(goal)} goal · {place}{genderWord ? ` · ${genderWord}` : ''} · cut along the dashed lines</p>
           <div className="pace-band-strip is-mats">
             <div className="pace-band-cell is-lead">
@@ -73,7 +69,6 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
           {showBack && profile ? <ElevationStrip profile={profile} units={units} /> : null}
         </div>
       </div>
-      {zoom < 0.98 ? <p className="tool-note no-print">Preview scaled to fit your screen. It prints at full size: about {units === 'mi' ? '7¼ in' : '18.4 cm'} long and {units === 'mi' ? '1 in' : '2.5 cm'} wide per strip.</p> : null}
     </>
   );
 }
@@ -101,12 +96,12 @@ function ElevationStrip({ profile, units }: { profile: RouteProfile; units: Unit
     <div className="pace-band-strip is-back">
       <svg viewBox={`0 0 ${W} ${H + 12}`} preserveAspectRatio="none" role="img"
         aria-label={`Route elevation for ${profile.city}, from ${elevationLabel(profile.min, units)} to ${elevationLabel(profile.max, units)}, drawn on a fixed ${scale} vertical scale.`}>
-        <path d={fill} fill="#D9D2C3" stroke="none" />
-        <polyline points={coords.join(' ')} fill="none" stroke="#15171C" strokeWidth={1} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path d={fill} fill="var(--strip-rule)" stroke="none" />
+        <polyline points={coords.join(' ')} fill="none" stroke="var(--strip-ink)" strokeWidth={1} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {[5, 10, 15, 20, 25, 30, 35, 40].filter((km) => km < profile.km).map((km) => (
           <g key={km}>
-            <line x1={x(km)} x2={x(km)} y1={top} y2={H} stroke="#15171C" strokeWidth={0.6} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
-            <text x={x(km)} y={H + 10} textAnchor="middle" fontSize="8.5" fontFamily="var(--mono)">{km}K</text>
+            <line x1={x(km)} x2={x(km)} y1={top} y2={H} stroke="var(--strip-ink)" strokeWidth={0.6} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
+            <text x={x(km)} y={H + 10} textAnchor="middle" fontSize="8.5" fontFamily="var(--sans)">{km}K</text>
           </g>
         ))}
       </svg>

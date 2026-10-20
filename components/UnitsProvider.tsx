@@ -67,11 +67,11 @@ export default function UnitsProvider({ children }: { children: ReactNode }) {
 export function UnitSwitch() {
   const { units, setUnits } = useContext(UnitsContext);
   const path = usePathname();
-  if (!unitSwitchShown(path)) return <div className="unit-switch unit-switch-placeholder" aria-hidden="true"><button type="button" tabIndex={-1}>Miles</button><button type="button" tabIndex={-1}>Kilometres</button></div>;
+  if (!unitSwitchShown(path)) return <div className="unit-switch unit-switch-placeholder" aria-hidden="true"><button type="button" tabIndex={-1}>Miles</button><button type="button" tabIndex={-1}>Kilometers</button></div>;
   // Phones show the short forms; the full names stay as the buttons' accessible names.
   return <div className="unit-switch" role="group" aria-label="Distance and pace units">
     <button type="button" aria-pressed={units === 'mi'} onClick={() => setUnits('mi')}><span className="unit-name">Miles</span><span className="unit-short" aria-hidden="true">mi</span></button>
-    <button type="button" aria-pressed={units === 'km'} onClick={() => setUnits('km')}><span className="unit-name">Kilometres</span><span className="unit-short" aria-hidden="true">km</span></button>
+    <button type="button" aria-pressed={units === 'km'} onClick={() => setUnits('km')}><span className="unit-name">Kilometers</span><span className="unit-short" aria-hidden="true">km</span></button>
   </div>;
 }
 
@@ -82,9 +82,10 @@ export function UnitText({ children }: { children: string }) {
   return <>{unitText(children, context.units)}</>;
 }
 
+/** "26.2 miles" or "42.2 km" (one decimal, as every prose distance), the number and its unit held together. */
 export function MarathonDistance() {
   const { units } = useUnits();
-  return <>{units === 'mi' ? '26.2 miles' : '42.195 km'}</>;
+  return <>{units === 'mi' ? '26.2\u00a0miles' : '42.2\u00a0km'}</>;
 }
 
 /**

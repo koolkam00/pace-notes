@@ -1,10 +1,12 @@
 'use strict';
-// S3: the runner journey. A recorded page, then the runner search (never recorded), a profile, its links into an
-// analysis and the split check (runner handoff pages: never recorded, also after a filter change, a reload or an
-// onward link that keeps a query), then the site's navigation, which ends the handoff, and Back and Forward through
-// the history. I5 checks every rrweb event against the page open when it was recorded; the runner's name, record IDs,
+// S3: the runner journey. A recorded page, then the runner search (never recorded), a profile, an analysis opened
+// with the profile's handoff marker and the race's goal (the profile links only to the split check since October 18,
+// 2026), and the profile's split check link (runner handoff pages: never recorded, also after a filter change, a reload
+// or an onward link that keeps a query), then the site's navigation, which ends the handoff, and Back and Forward
+// through the history. I5 checks every rrweb event against the page open when it was recorded; the runner's name, record IDs,
 // times and the values in the handoff links are searched for in all PostHog traffic. Its race report is opened too:
-// Save image (the download intercepted), Share (navigator.share stubbed), Copy link (exactly s, course and via) and a
+// Save image (the download intercepted), Share (navigator.share stubbed) and Copy link (exactly s, course and via), all in
+// the share sheet the report's Share button opens, and a
 // print of one page, then the copied link in a second tab, where /report shows the times' blocks only. It runs with the
 // project's URL blocklist in the mock (as deployed) and without it (the site's own rules alone). A third visitor opens a
 // real profile with copy-edition records (lib/duplicate-editions.ts) and checks they reach no summary, comparison, link
@@ -80,10 +82,11 @@ async function copyEditionJourney(h) {
   h.check('the name finds one record group', await page.locator('.runner-match').count() === 1);
   await page.locator('.runner-match').first().click();
   await page.waitForSelector('.runner-profile', { timeout: 30000 });
-  const labels = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, item.querySelector('.runner-eligible, .runner-ineligible')?.textContent])));
-  const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'Recorded times only']), [`${city} ${source}`, 'Pacing analysis available']]);
-  h.check('each copy record says "Recorded times only"; the field it repeats has pacing analysis', JSON.stringify(labels, Object.keys(expected).sort()) === JSON.stringify(expected, Object.keys(expected).sort()), labels);
-  const reasons = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, [...item.querySelectorAll('label small')].map(small => small.textContent).filter(text => text.startsWith('This edition’s records') || text.includes('largely repeat')).length])));
+  const labels = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, item.querySelector('.runner-ineligible')?.textContent ?? 'none'])));
+  // Only the exception carries a tag: the field a copy repeats has its pacing analysis and says nothing more.
+  const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'Recorded times only']), [`${city} ${source}`, 'none']]);
+  h.check('each copy record says "Recorded times only"; the field it repeats carries no tag', JSON.stringify(labels, Object.keys(expected).sort()) === JSON.stringify(expected, Object.keys(expected).sort()), labels);
+  const reasons = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, [...item.querySelectorAll('label small, .runner-raw p')].map(small => small.textContent).filter(text => text.startsWith('This edition’s records') || text.includes('largely repeat')).length])));
   const because = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 0]), [`${city} ${source}`, 0]]);
   h.check('no record in the profile explains the copy editions (that is /methodology\'s)', JSON.stringify(reasons, Object.keys(because).sort()) === JSON.stringify(because, Object.keys(because).sort()), reasons);
   const boxes = page.locator('.runner-races input[type="checkbox"]');
@@ -97,19 +100,20 @@ async function copyEditionJourney(h) {
     const eligible = [...(analysis?.querySelectorAll('table') || [])].find(table => table.caption?.textContent === 'All eligible races you selected');
     return {
       heading: analysis?.querySelector('h2')?.textContent, rows: eligible ? eligible.tBodies[0].rows.length : null,
-      count: analysis?.querySelector('.runner-numbers > div:nth-child(3)')?.innerText.split('\n').join(' · '),
+      card: !!analysis?.querySelector('.runner-numbers'),
       focus: [...(context?.querySelector('select')?.options || [])].map(option => option.textContent.split(' · ')[0]),
       multi: !!context?.querySelector('.rc-multi'), split: [...(context?.querySelectorAll('a') || [])].filter(a => a.textContent.includes('split check')).length,
       text: document.body.innerText, contextText: context?.innerText || '',
     };
   });
-  h.check('one eligible race: the heading, the count with its year and one table row', view.heading === 'One race. A closer look.' && view.rows === 1 && view.count === `1 · Eligible selected finish · ${source}`, { heading: view.heading, rows: view.rows, count: view.count });
+  h.check('one eligible race: one heading, the race and its finish, and no summary card or one-row table', (view.heading ?? '').startsWith(`${city} ${source}, `) && view.rows === null && !view.card, { heading: view.heading, rows: view.rows, card: view.card });
   for (const copy of copies) {
     const sentence = `${city} ${copy.year}'s records largely repeat the ${city} ${source} field (${copy.identical_nine_time_twins.toLocaleString('en-US')} of its ${copy.eligible_removed.toLocaleString('en-US')} finishes`;
     h.check(`${city} ${copy.year}: its copy sentence is not on /runners`, view.text.split(sentence).length - 1 === 0 && !view.text.includes('largely repeat'), view.text.split(sentence).length - 1);
     h.check(`${city} ${copy.year}: not in the race context view`, !view.contextText.includes(`${city} ${copy.year}`));
   }
-  h.check('one focus option, no side-by-side comparison and one split-check link', JSON.stringify(view.focus) === JSON.stringify([`${city} ${source}`]) && !view.multi && view.split === 1, { focus: view.focus, multi: view.multi, split: view.split });
+  // Since round 4 (October 19, 2026) the view's one way on is the race report; the split check is in its share sheet.
+  h.check('one focus option, no side-by-side comparison and no split-check link in the view', JSON.stringify(view.focus) === JSON.stringify([`${city} ${source}`]) && !view.multi && view.split === 0, { focus: view.focus, multi: view.multi, split: view.split });
   // One race report button, for the field the copies repeat; with the copies alone selected, none.
   const reports = await page.evaluate(() => ({ buttons: [...document.querySelectorAll('.rc-report button')].filter(b => b.textContent.includes('Make a race report')).length, title: document.querySelector('.rc-report h3')?.textContent || '' }));
   h.check('one race report button, for the eligible race only', reports.buttons === 1 && reports.title.startsWith(`${city} ${source}`) && !copies.some(copy => reports.title.includes(String(copy.year))), reports);
@@ -135,17 +139,24 @@ async function copyEditionJourney(h) {
  * then the copied link in a second tab, which shows the blocks read from the times and nothing from the record.
  */
 async function raceReport(h, run, page, step) {
-  const out = { link: null, year: null };
+  const out = { link: null, year: null, onward: null };
   await step('race report', async () => {
     await page.locator('.rc-report button', { hasText: 'Make a race report' }).click();
-    await page.waitForSelector('.rc-report .race-report-record dl, .rc-report .race-report-record .tool-state', { timeout: 30000 });
+    // The edition's lines print with the report (on screen the tabs above say them): attached, not shown.
+    await page.waitForSelector('.rc-report .race-report-record dl, .rc-report .race-report-record .tool-state', { timeout: 30000, state: 'attached' });
     await page.waitForSelector('.rc-report .race-report-table, .rc-report .race-report-block p strong', { timeout: 30000 }).catch(() => {});
     h.check('the report, opened by a press, takes focus at its title', await page.evaluate(() => document.activeElement?.classList.contains('race-report-title') ?? false));
   });
   const race = await page.locator('.rc-report .race-report-race').textContent().catch(() => '');
   out.year = (/\b(?:19|20)\d\d\b/.exec(race || '') || [])[0] || null;
   await step('save image', async () => {
-    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.locator('.rc-report .race-report-actions button', { hasText: 'Save image' }).click()]);
+    // Save image, Share and Copy link sit in the share sheet that the report's Share button opens.
+    await page.locator('.rc-report .race-report-actions .race-report-share-open').click();
+    await page.waitForSelector('.rc-report .race-report-sheet.is-open [data-report-save]', { timeout: 15000 });
+    await page.waitForTimeout(700);
+    // The sheet's split-check link (the view's only one since round 4) carries the record's times: harvested here.
+    out.onward = await page.locator('.rc-report .race-report-sheet a', { hasText: 'split check' }).first().getAttribute('href').catch(() => null);
+    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.locator('.rc-report .race-report-sheet [data-report-save]').click()]);
     const bytes = fs.readFileSync(await download.path());
     h.check('Save image downloads a 1080 × 1350 PNG named without the race', download.suggestedFilename() === REPORT_IMAGE_NAME && bytes.readUInt32BE(0) === 0x89504E47 && bytes.readUInt32BE(16) === 1080 && bytes.readUInt32BE(20) === 1350,
       { name: download.suggestedFilename(), width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) });
@@ -156,7 +167,7 @@ async function raceReport(h, run, page, step) {
       Object.defineProperty(navigator, 'canShare', { configurable: true, value: data => Boolean(data && data.files && data.files.length) });
       Object.defineProperty(navigator, 'share', { configurable: true, value: async data => { window.__e2eShared.push({ files: (data.files || []).map(f => [f.name, f.type, f.size > 0]), url: data.url || null }); } });
     });
-    await page.locator('.rc-report .race-report-actions button', { hasText: 'Share' }).click();
+    await page.locator('.rc-report .race-report-sheet .race-report-share-native').click();
     await waitFor(() => page.evaluate(() => window.__e2eShared.length > 0), 15000, 200);
     const shared = await page.evaluate(() => window.__e2eShared);
     h.check('Share hands the share sheet the image file, and no link', JSON.stringify(shared) === JSON.stringify([{ files: [[REPORT_IMAGE_NAME, 'image/png', true]], url: null }]), shared);
@@ -164,8 +175,11 @@ async function raceReport(h, run, page, step) {
   await step('copy link', async () => {
     // The browser's clipboard is shared by the jobs running at once, so the copied text is caught in the page instead.
     await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.__e2eCopied = text; } } }); });
-    await page.locator('.rc-report .race-report-actions button', { hasText: 'Copy link' }).click();
+    await page.locator('.rc-report .race-report-sheet button', { hasText: 'Copy link' }).click();
     await page.waitForTimeout(400);
+    // Close the sheet (Escape), as a reader would before printing.
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(700);
     out.link = await page.evaluate(() => window.__e2eCopied || '');
     const url = new URL(out.link);
     h.check('the copied link is /report with exactly s, course and via=runner', url.origin === SITE && url.pathname === '/report' && JSON.stringify([...url.searchParams.keys()]) === '["s","course","via"]'
@@ -216,11 +230,20 @@ async function journey(h, blocklist) {
     await page.click('.runner-selection-actions .button-primary');
     await page.waitForSelector('.runner-context', { timeout: 30000 });
     await page.waitForTimeout(1500);
+    // A viewed selection folds to one quiet row (October 19, 2026); Edit opens its chips again, whose remove buttons
+    // name each record, so the harvest finds every record ID the page holds, as it did before the fold.
+    if (await page.locator('.runner-edit').count()) { await page.click('.runner-edit'); await page.waitForTimeout(300); }
   };
   const harvest = () => page.evaluate(() => {
     const text = ['#runner-profile', '.runner-selection', '.runner-context'].map(s => document.querySelector(s)?.innerText || '').join('\n');
-    const names = [...document.querySelectorAll('.runner-match strong')].map(n => n.textContent.trim()).filter(Boolean).slice(0, 3);
-    const ids = [...new Set([...text.matchAll(/record (\d{3,})/gi)].map(m => m[1]))];
+    // The results fold to one row once a match is opened (round 5), so the opened group's own heading names it too.
+    const names = [...document.querySelectorAll('.runner-match strong, #runner-profile-title')].map(n => n.textContent.trim()).filter(Boolean).slice(0, 3);
+    // Record IDs no longer show in the view's visible copy (October 18, 2026): they are in each record's closed
+    // disclosure, the selection's remove buttons (opened with Edit) and, where two races would read the same, a select
+    // option.
+    const held = ['#runner-profile', '.runner-selection', '.runner-context'].map(s => document.querySelector(s)?.textContent || '').join('\n')
+      + '\n' + [...document.querySelectorAll('.runner-selection [aria-label]')].map(e => e.getAttribute('aria-label')).join('\n');
+    const ids = [...new Set([...held.matchAll(/record (\d{3,})/gi)].map(m => m[1]))];
     const times = [...new Set([...text.matchAll(/\b\d:\d\d:\d\d\b/g)].map(m => m[0]))].slice(0, 30);
     const links = [...document.querySelectorAll('.runner-context a')].map(a => a.getAttribute('href')).filter(href => href && href.includes('?'));
     return { names, ids, times, links };
@@ -232,7 +255,7 @@ async function journey(h, blocklist) {
   await step('runners', async () => { await page.click('nav.main-nav a[href="/runners"]'); await page.waitForURL('**/runners'); });
   await step('profile', openProfile);
   const found = await harvest().catch(() => ({ names: [], ids: [], times: [], links: [] }));
-  h.check('a profile with the runner\'s name, record IDs, times and handoff links opened', found.names.length && found.ids.length && found.times.length && found.links.length,
+  h.check('a profile with the runner\'s name, record IDs and times opened', found.names.length && found.ids.length && found.times.length,
     { names: found.names.length, ids: found.ids.length, times: found.times.length, links: found.links.length });
   // The runner's details and the values in the profile's links: none may reach PostHog. Times are searched for on their
   // own; a race, course, age group or gender is page content anywhere, so only its query form (`&course=boston`).
@@ -242,15 +265,28 @@ async function journey(h, blocklist) {
     ...found.ids.map(id => new RegExp(`(^|[^0-9a-f-])${id}($|[^0-9a-f-])`)), ...found.times, ...linked];
   await wiggle(page, 6);
   const report = await raceReport(h, run, page, step);
+  // The report's share sheet holds the view's split-check link (round 4): its values are needles too.
+  h.check('the race report\'s share sheet links on to the split check with a query', report.onward && report.onward.includes('?'), report.onward);
+  if (report.onward) {
+    found.links.push(report.onward);
+    run.options.needles.push(...[...new URL(report.onward, SITE).searchParams].filter(([key]) => key !== 'via' && key !== 'units')
+      .flatMap(([key, value]) => /\d:\d\d/.test(value) ? value.split(',') : [new RegExp(`[?&]${key}=${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(&|$)`, 'i')]));
+  }
   if (report.link) {
     // Its times and its race's year must reach no event or address either (recordings are I5's: none on these pages).
     run.options.needles.push(...new URL(report.link).searchParams.get('s').split(','));
     if (report.year) run.options.needles.push({ needle: new RegExp(`(^|[^0-9A-Za-z.:+-])${report.year}($|[^0-9A-Za-z.:+-])`), allowAt: /\$snapshot_data/ });
   }
 
-  await step('analysis link (handoff)', async () => { await page.locator('.runner-context a', { hasText: 'Explore pacing across the wider study' }).first().click(); await page.waitForURL('**/analyses/**'); });
+  // The race's finish, to the minute, as a goal (what the profile's analysis link carried until October 18, 2026).
+  const splits = found.links.map(href => new URL(href, SITE).searchParams.get('s')).find(Boolean)?.split(',') ?? [];
+  const [hh, mm, ss] = (splits[splits.length - 1] ?? '').split(':').map(Number);
+  const goal = Math.round((hh * 3600 + mm * 60 + (ss || 0)) / 60);
+  h.check('the report\'s split check link gives the race\'s finish', Number.isFinite(goal) && goal > 90, splits);
+  run.options.needles.push(new RegExp(`[?&]goal=${goal}(&|$)`));
+  await step('analysis with the handoff marker', async () => { await page.goto(`${SITE}/analyses/pacing-pattern?goal=${goal}&age=all&gender=all&via=runner`, { waitUntil: 'load' }); });
   await settle(3000);
-  await step('filter change (the marker is dropped, the query kept)', async () => { await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 4 }); await page.getByRole('button', { name: /Update comparison/ }).click(); });
+  await step('filter change (the marker is dropped, the query kept)', async () => { await page.locator('.miy-chip').first().click(); await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 4 }); await page.getByRole('button', { name: /Update comparison/ }).click(); });
   await settle(3000);
   await step('reload', () => page.reload({ waitUntil: 'load' }));
   await settle(9000); // longer than the recorder's start delay after a full load
@@ -259,7 +295,13 @@ async function journey(h, blocklist) {
   await settle(3000);
   await step('runners again', async () => { await page.click('nav.main-nav a[href="/runners"]'); await page.waitForURL('**/runners'); });
   await step('profile again', openProfile);
-  await step('split check link (handoff)', async () => { await page.locator('.runner-context a', { hasText: 'Read this race in the split check' }).first().click(); await page.waitForURL('**/tools/split-check**'); });
+  await step('split check link (handoff)', async () => {
+    // The view's split-check link is in the race report's share sheet (round 4, October 19, 2026).
+    await page.locator('.rc-report button', { hasText: 'Make a race report' }).click();
+    await page.locator('.rc-report .race-report-actions .race-report-share-open').click();
+    await page.waitForSelector('.rc-report .race-report-sheet.is-open', { timeout: 15000 });
+    await page.locator('.rc-report .race-report-sheet a', { hasText: 'split check' }).first().click(); await page.waitForURL('**/tools/split-check**');
+  });
   await settle(3000);
   // Its race report link keeps the marker and never carries g, nor does the report it opens.
   await step('the handoff split check\'s race report', async () => {
@@ -275,13 +317,19 @@ async function journey(h, blocklist) {
     await page.waitForURL('**/tools/split-check**');
   });
   await settle(2000);
-  const onward = await page.evaluate(() => [...document.querySelectorAll('a[href^="/tools/"], a[href^="/analyses/"]')].map(a => a.getAttribute('href')).filter(href => href.includes('?') && !href.includes('split-check')));
-  for (const [key, pattern] of [['pace band', /^\/tools\/pace-band/], ['starting pace', /^\/analyses\/starting-pace/], ['qualifying', /^\/tools\/qualifying/]]) {
+  const onward = await page.evaluate(() => [...document.querySelectorAll('a[href^="/tools/"], a[href^="/analyses/"], a[href^="/report"]')].map(a => a.getAttribute('href')).filter(href => href.includes('?') && !href.includes('split-check')));
+  // Since WP9 round 4 (October 19, 2026) the split check's one action with a query is the race report (the pace band
+  // button went: the chapter's next card is the one way forward, and the planner leads to the band). The report's link
+  // keeps the times in the query, so it continues the handoff; it is reloaded, and is the query page Back returns to after
+  // the handoff ends.
+  const ONWARD = [['race report', /^\/report/]];
+  const last = ONWARD[ONWARD.length - 1];
+  for (const [key, pattern] of ONWARD) {
     const href = onward.find(link => pattern.test(link));
     if (!h.check(`the split check links on to the ${key} with a query`, href, onward)) continue;
     await step('onward ' + key, async () => { await page.locator(`a[href="${href}"]`).first().click(); await page.waitForURL(url => pattern.test(new URL(url).pathname)); });
     await settle(2500);
-    if (key === 'qualifying') { await step('reload qualifying', () => page.reload({ waitUntil: 'load' })); await settle(9000); }
+    if (key === last[0]) { await step('reload ' + key, () => page.reload({ waitUntil: 'load' })); await settle(9000); }
     else { await step('back to the split check', async () => { await page.goBack(); await page.waitForURL('**/tools/split-check**'); }); await settle(1500); }
   }
   // The site's navigation (no query) ends the handoff: recording resumes.
@@ -294,7 +342,7 @@ async function journey(h, blocklist) {
   await settle(2000);
   await step('Back', async () => { await page.goBack(); await page.waitForURL(url => new URL(url).pathname === '/tools'); });
   await settle(1500);
-  await step('Back to the qualifying page (a query, after the handoff ended)', async () => { await page.goBack(); await page.waitForURL('**/tools/qualifying**'); });
+  await step(`Back to the ${last[0]} page (a query, after the handoff ended)`, async () => { await page.goBack(); await page.waitForURL(url => last[1].test(new URL(url).pathname)); });
   await settle(2500);
   await step('Forward', async () => { await page.goForward(); await page.waitForURL(url => new URL(url).pathname === '/tools'); });
   await settle(1500);
@@ -302,9 +350,11 @@ async function journey(h, blocklist) {
   await run.close();
 
   h.check('every step ran', !log.some(line => line.startsWith('FAIL')), log.filter(line => line.startsWith('FAIL')));
-  // The report joins /runners after a press, after the section tracker first looked: it is still seen, once.
+  // The report joins /runners after a press, after the section tracker first looked: it is still seen, once per page
+  // view. Since round 4 (October 19, 2026) the journey opens it on both visits to /runners (the second time for the
+  // split-check link in its share sheet), so it is seen twice there, once on each visit.
   const reportViews = run.events().filter(({ e }) => e.event === 'section_viewed' && e.properties.section === 'report').map(({ e }) => e.properties.$pathname);
-  h.check('the race report on /runners is one section_viewed report there', reportViews.filter(p => p === '/runners').length === 1, reportViews);
+  h.check('the race report on /runners is one section_viewed report on each of its two visits', reportViews.filter(p => p === '/runners').length === 2, reportViews);
   h.inspect.invariants(run);
   const recorded = [...run.recordedPages.keys()];
   h.check('/stories and /tools were recorded (so I5 is not empty)', recorded.includes('/stories') && recorded.includes('/tools'), recorded);

@@ -1,52 +1,63 @@
+import Arrow from '@/components/ui/Arrow';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { CourseMatched } from '@/components/story/CourseInsights';
-import { clock, count, goalText, minutes, pct, type CoursePageData } from '@/lib/course-page';
+import { getNugget } from '@/lib/nuggets';
+import { LEAD_GOAL } from '@/lib/nuggets/courses';
+import { pct } from '@/lib/nuggets/format';
+import { goalText, type CoursePageData } from '@/lib/course-page';
 import { planHref } from '@/lib/tools/links';
-import { CourseSection, CourseTable, Fact } from './Fact';
+import { CourseSection, CourseTable, Fact, Said } from './Fact';
 
 /** A goal the course chooser publishes no row for. */
 export const GOAL_GAP = 'Too few finishes at this pace.';
 
 /**
- * "Goal times on {race}": the course chooser's published rows at five goals, a static table with no inputs, then the
- * existing same-pace comparison across courses (dots, no ranks). Every goal links into the planner.
+ * "#goals": five goal times from 3:00 to 5:00, one row each, as the section's chart: of finishes on that goal's pace
+ * through 20K here, the share that made the goal (a bar, the lead goal in signal), and across the other courses (a
+ * hollow ring on the bar, as the pacing rows draw them). The bars run to the next round ten above the largest share (a
+ * 30% share runs to 40%, so no bar fills its track and reads as all), its end labelled under them. Each row
+ * opens the race planner for this course at its goal, its arrow at the row's end. The rest of each row's numbers are in
+ * "All numbers".
  */
 export default function CourseGoals({ page }: { page: CoursePageData }) {
-  const { goals, goalsScreened, matched, race, city } = page;
-  // The dek promises five rows only when the table is there.
-  const dek = goals.length ? <>For five goal times: how finishes on goal pace through 20 km finished on this course. Not a prediction.</> : undefined;
+  const { city, race, display, goals } = page;
+  const n = getNugget('course.goal', { city });
+  if (!goals.length) return null;
+  const most = Math.round(Math.max(...goals.flatMap((g) => [g.row?.under ?? 0, g.every?.under ?? 0])) * 100);
+  const top = (Math.floor(most / 10) + 1) / 10;
+  const at = (share: number) => `${Math.min(100, (share / top) * 100).toFixed(1)}%`;
   return (
-    <CourseSection id="goals" track="chapter-6" kicker="Goal times" title={<>Goal times on the {race}</>} dek={dek}>
-      {goalsScreened ? <p className="course-callout">No goal times are shown for this course.</p> : goals.length ? (
-        <CourseTable id="goals-caption" className="course-goals-table" caption="Finishes at five goal paces on this course and how they finished">
-          <thead>
-            <tr><th scope="col">Goal</th><th scope="col">Finishes</th><th scope="col">Finished under the goal</th><th scope="col">Sustained slowdown</th><th scope="col">Time lost after 20 km</th><th scope="col">Median finish (10th–90th percentile)</th></tr>
-          </thead>
-          <tbody>
-            {goals.map(({ goal, row }) => (
-              <tr key={goal}>
-                <th scope="row"><Link href={planHref(city, goal) ?? '/tools/plan'} aria-label={`Plan a ${goalText(goal)} ${race}`}>{goalText(goal)}</Link></th>
-                {row ? (
-                  <>
-                    <td><Fact k={`g.n@${goal}`} v={row.n}>{count(row.n)}</Fact></td>
-                    <td><Fact k={`g.under@${goal}`} v={row.under}>{pct(row.under)}</Fact></td>
-                    <td><Fact k={`g.sd@${goal}`} v={row.sd}>{pct(row.sd)}</Fact></td>
-                    <td><Fact k={`g.after20@${goal}`} v={row.after20}>{minutes(row.after20)}</Fact></td>
-                    <td><Fact k={`g.p50@${goal}`} v={row.fin[1]}>{clock(row.fin[1])}</Fact><small className="course-cell-sub"><Fact k={`g.p10@${goal}`} v={row.fin[0]}>{clock(row.fin[0])}</Fact>–<Fact k={`g.p90@${goal}`} v={row.fin[2]}>{clock(row.fin[2])}</Fact></small></td>
-                  </>
-                ) : <td colSpan={5} className="course-reason" data-goal={goal}>{GOAL_GAP}</td>}
-              </tr>
-            ))}
-          </tbody>
-        </CourseTable>
-      ) : null}
-      {goals.length ? <p className="course-note">Each goal opens the race planner.</p> : null}
-      <p className="course-plan-link"><Link href={planHref(city) ?? '/tools/plan'}>Your goal: plan it</Link>. The race planner takes any goal from 1:30 to 8:00 on this course: even-pace splits{goals.length ? ', how finishes at that pace held up here,' : ''} and a pace band to print. <Link href="/tools/course-chooser">Your goal on every course</Link> in the course chooser.</p>
-      {matched ? (
-        <div className="course-block">
-          <CourseMatched city={city} band={matched} />
-          <p className="course-note">The dots show observed shares, not an order of merit.</p>
-        </div>
+    <CourseSection id="goals" track="chapter-6" beat="Goals" title={<Said nugget={n} />}>
+      <CourseTable id="goals-caption" captionHidden className="course-goals-table" caption={`Of finishes on each goal's pace through 20K in the ${race}, the share that made the goal`}>
+        <thead className="sr-only"><tr><th scope="col">Goal</th><th scope="col">Made the goal, out of 100 (the other courses ringed)</th><th scope="col">Made the goal</th><td /></tr></thead>
+        <tbody>
+          {goals.map(({ goal, row, every }) => (
+            <tr key={goal} className={goal === LEAD_GOAL ? 'is-lead' : undefined}>
+              <th scope="row"><Link href={planHref(city, goal) ?? '/tools/plan'} aria-label={`Plan a ${goalText(goal)} ${race}`}>{goalText(goal)}</Link></th>
+              {row ? (
+                <>
+                  <td className="goal-bar" aria-hidden="true">
+                    <span style={{ width: `max(4px, ${at(row.under)})` }} />
+                    {every ? <i className="goal-every" style={{ left: at(every.under) }} /> : null}
+                  </td>
+                  <td className="goal-value"><Fact k={`g.under.r@${goal}`} v={row.under}>{pct(row.under)}</Fact></td>
+                </>
+              ) : <td colSpan={2} className="course-reason" data-goal={goal}>{GOAL_GAP}</td>}
+              {/* The row is the link (its goal's, stretched over it); the arrow ends the row, as the plan rows' do. */}
+              <td className="goal-go" aria-hidden="true"><Arrow /></td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot aria-hidden="true">
+          {/* The scale is a label, so a header cell: the body's cells hold only checked figures. */}
+          <tr className="goal-axis"><td /><th className="goal-axis-track"><span className="goal-axis-ends"><span>0%</span><span>{pct(top)}</span></span></th><td colSpan={2} /></tr>
+        </tfoot>
+      </CourseTable>
+      {goals.some((g) => g.row && g.every) ? (
+        <ul className="course-rows-key course-goals-key" aria-hidden="true">
+          <li><i className="course-key-bar" />{display}</li>
+          {/* No count (round 6: one page named five different course counts; the slowdown H2 keeps the one that is a finding). */}
+          <li><i className="course-key-ring" />Other courses</li>
+        </ul>
       ) : null}
     </CourseSection>
   );

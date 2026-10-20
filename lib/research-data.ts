@@ -172,10 +172,10 @@ export function getExtraAnswer(id: string): ResearchAnswer {
   if (id === 'p4_even_effort_gap') return { ...unavailable(id, EXTRA_TITLES[id],
     'A validated course-adjusted pacing estimate is not available from the current release.',
     ['Historical course validity ranges are missing. The supplied city route can support an explicitly labeled terrain proxy, but it cannot establish a runner’s physiological effort or how much time hills caused.']),
-    related: [{ href: '/packs/r11_course_section_traps', label: 'Current terrain and pacing comparison' }] };
+    related: [{ href: '/analyses/hills-and-pacing', label: 'Current terrain and pacing comparison' }] };
   if (id === 'p3_race_week_weather') return { ...unavailable(id, EXTRA_TITLES[id],
     'This database contains historical race weather, not live race-day forecasts.',
     ['Recorded or modeled weather from past editions must not be presented as a forecast for an upcoming race.']),
-    related: [{ href: '/packs/r15_weather_penalty_who', label: 'Explore historical weather and pacing' }] };
+    related: [{ href: '/analyses/race-day-weather', label: 'Explore historical weather and pacing' }] };
   return unavailable(id, EXTRA_TITLES[id] || 'Research analysis', 'This result is not available for the current release.');
 }

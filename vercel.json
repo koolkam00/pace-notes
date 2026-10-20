@@ -11,7 +11,12 @@
     { "source": "/htw", "destination": "/slowdown", "permanent": true },
     { "source": "/packs/smyth_htw", "destination": "/slowdown", "permanent": true },
     { "source": "/tools/marathon-pace", "destination": "/tools/marathon-pace-chart", "permanent": true },
-    { "source": "/courses/melbourne", "destination": "/courses", "permanent": true }
+    { "source": "/courses/melbourne", "destination": "/courses", "permanent": true },
+    { "source": "/packs", "destination": "/methodology#downloads", "permanent": true },
+    { "source": "/packs/:id*", "destination": "/methodology#downloads", "permanent": true },
+    { "source": "/research/personalized", "destination": "/research", "permanent": true },
+    { "source": "/analyses/warming-and-pacing", "destination": "/analyses/race-day-weather#warming", "permanent": true },
+    { "source": "/analyses/wind-and-pacing", "destination": "/analyses/race-day-weather#wind", "permanent": true }
   ],
   "headers": [
     {

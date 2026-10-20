@@ -1,48 +1,65 @@
-import { UnitLink as Link } from '@/components/UnitsProvider';
-import { CourseWeather } from '@/components/story/CourseInsights';
-import { PerDegree } from '@/components/story/Units';
-import { count, pct, type CoursePageData } from '@/lib/course-page';
-import { CourseSection, CourseTable, Fact } from './Fact';
-import { Degrees, Wind } from './CourseUnits';
-
-/** r with a true minus sign and two decimals. */
-const r = (value: number) => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(2)}`;
+import Scatter from '@/components/viz/Scatter';
+import { getNugget } from '@/lib/nuggets';
+import { WEATHER_MIN_MORNINGS } from '@/lib/nuggets/courses';
+import { pct, temp } from '@/lib/nuggets/format';
+import type { CoursePageData } from '@/lib/course-page';
+import type { UnitSystem } from '@/lib/units';
+import ByUnits from '@/components/ui/ByUnits.client';
+import { CourseSection, Said } from './Fact';
 
 /**
- * "Race-morning weather by year": only for courses with at least one weather row. The coolest-against-warmest sentence
- * appears only when the two starts are at least the screen's gap apart (hotCoolShown), and the within-course slope only
- * for the courses the story data fits one for.
+ * Round temperature ticks in the reader's units, returned in °C for the scale: every 10 °F or 5 °C, and every 5 °F or
+ * 2 °C where that would leave fewer than two, so the scale can always be read.
+ */
+export function tempTicks(lo: number, hi: number, units: UnitSystem): { value: number; label: string }[] {
+  const toU = (c: number) => (units === 'mi' ? c * 1.8 + 32 : c);
+  const toC = (u: number) => (units === 'mi' ? (u - 32) / 1.8 : u);
+  const at = (step: number) => {
+    const out: { value: number; label: string }[] = [];
+    for (let u = Math.ceil(toU(lo) / step) * step; u <= toU(hi) + 1e-9; u += step) out.push({ value: toC(u), label: `${u}°${units === 'mi' ? 'F' : 'C'}` });
+    return out;
+  };
+  const wide = at(units === 'mi' ? 10 : 5);
+  return wide.length >= 2 ? wide : at(units === 'mi' ? 5 : 2);
+}
+
+export { WEATHER_MIN_MORNINGS };
+
+/**
+ * "#weather", only where the warmest and coolest race mornings are at least 5 °C apart (the contrast is the beat's whole
+ * point) and there are three or more: every morning a dot, start temperature against the share of finishes with a
+ * sustained slowdown. The sentence compares the warmest and coolest mornings other than the hero's edition (the hero
+ * tells that one, course.weather): the two it names are inked and labelled by year, no key, never joined (a line across
+ * the cloud would read as a trend, "warmer, therefore"); the year an "Apart from {year}" sentence sets aside is labelled
+ * quietly on its quiet dot, so the sentence names nothing the chart does not show. The heading says the reading, so the readout opens on a prompt
+ * and no dot is orange (a picked one rings in ink); where the other mornings are too close to compare, the page
+ * leaves the section out (round 6; the page's contents drop its chip too). The y scale runs from zero on the baseline
+ * to the round ten above the dots, both labelled, and the readout names the measure. Elsewhere the mornings are in
+ * "All numbers".
  */
 export default function CourseWeatherByYear({ page }: { page: CoursePageData }) {
-  const { weather, hotCool, slope, city, display, scopes } = page;
-  if (!weather.length) return null;
+  const { city, display, weather, hotCool } = page;
+  if (!hotCool || weather.length < WEATHER_MIN_MORNINGS) return null;
+  const n = getNugget('course.weather', { city });
+  // No pair to compare, no section: a span of temperatures over an uninked scatter is not a finding (round 6).
+  if (!n.guard) return null;
+  const v = n.values as Record<string, number>;
+  const pair = [v.hot_year, v.cool_year];
+  const inPair = (y: number) => pair.includes(y);
+  const lo = Math.min(...weather.map((e) => e.temp)), hi = Math.max(...weather.map((e) => e.temp));
+  const pad = Math.max(1.5, (hi - lo) * 0.08);
+  const top = Math.max(0.1, Math.ceil(Math.max(...weather.map((e) => e.slowdown)) * 10) / 10);
+  const chart = (units: UnitSystem) => (
+    <Scatter points={weather.map((e) => ({ id: String(e.year), x: e.temp, y: e.slowdown, label: String(e.year), key: `${e.year}, at the start`, value: temp(e.temp, units), inPair: inPair(e.year), named: v.apart === 1 && e.year === v.hero_year }))}
+      side={[{ label: 'Sustained slowdown', values: weather.map((e) => pct(e.slowdown)) }]}
+      xDomain={[lo - pad, hi + pad]} yDomain={[0, top]} xTicks={tempTicks(lo - pad, hi + pad, units)}
+      yTicks={[{ value: top, label: pct(top) }, { value: 0, label: pct(0) }]} pairLine={false} selected={String(pair[0] ?? weather[weather.length - 1].year)} prompt="Choose a dot to read its year"
+      axisTitle={{ end: 'At the start' }}
+      label={`Start temperature against sustained slowdown, ${weather.length} ${display} race mornings`} height={150} heightMd={200} />
+  );
   return (
-    <CourseSection id="weather" track="chapter-7" kicker="Weather" title="Race-morning weather by year"
-      dek={<>The weather at the start of every {display} edition.</>}>
-      <CourseTable id="weather-caption" caption={<>{display} race-morning weather by edition</>}>
-        <thead><tr><th scope="col">Year</th><th scope="col">Scheduled start</th><th scope="col">Temperature</th><th scope="col">Dew point</th><th scope="col">Humidity</th><th scope="col">Wind</th></tr></thead>
-        <tbody>
-          {weather.map((w) => (
-            <tr key={w.year}>
-              <th scope="row">{w.year}</th>
-              <td>{w.start ? <Fact k={`w.start@${w.year}`} v={w.start}>{w.start}</Fact> : '—'}</td>
-              <td><Fact k={`w.temp@${w.year}`} v={w.temp}><Degrees c={w.temp} /></Fact></td>
-              <td><Fact k={`w.dew@${w.year}`} v={w.dew}><Degrees c={w.dew} /></Fact></td>
-              <td><Fact k={`w.rh@${w.year}`} v={w.humidity}>{Math.round(w.humidity)}%</Fact></td>
-              <td><Fact k={`w.wind@${w.year}`} v={w.wind}><Wind mps={w.wind} /></Fact></td>
-            </tr>
-          ))}
-        </tbody>
-      </CourseTable>
-      {hotCool ? (
-        <p className="course-hotcool"><Fact k="hc.cool.year" v={hotCool.cool.year}>{hotCool.cool.year}</Fact> started coolest, at <Fact k="hc.cool.temp" v={hotCool.cool.temp}><Degrees c={hotCool.cool.temp} /></Fact>, and <Fact k="hc.cool.sd" v={hotCool.cool.slowdown}>{pct(hotCool.cool.slowdown)}</Fact> of its finishes had a sustained slowdown; <Fact k="hc.hot.year" v={hotCool.hot.year}>{hotCool.hot.year}</Fact> started warmest, at <Fact k="hc.hot.temp" v={hotCool.hot.temp}><Degrees c={hotCool.hot.temp} /></Fact>, with <Fact k="hc.hot.sd" v={hotCool.hot.slowdown}>{pct(hotCool.hot.slowdown)}</Fact>.</p>
-      ) : null}
-      {slope ? (
-        <p className="course-slope">Across <Fact k="slope.editions" v={slope.editions}>{count(slope.editions)}</Fact> {display} editions, the share of finishes with a sustained slowdown changed by <Fact k="slope" v={slope.slope}><PerDegree perC={slope.slope} unit="percentage points" /></Fact> of start temperature (r = <Fact k="slope.r" v={slope.pearson_r}>{r(slope.pearson_r)}</Fact>).</p>
-      ) : null}
-      {/* The chart's accessible name pairs the warmest and coolest editions only when the sentence above may. */}
-      {weather.length >= 2 ? <CourseWeather city={city} editions={weather} pairing={!!hotCool} /> : null}
-      <p className="course-note">{scopes.weather ? <><Link href={`/tools/weather-match?course=${page.slug}`}>Weather match</Link>: past race mornings at your forecast temperature, and how finishes at your pace held up.</> : <><Link href="/tools/weather-match">Weather match</Link>: past race mornings at your forecast temperature on every course.</>}</p>
+    <CourseSection id="weather" track="chapter-7" beat="Weather" title={<span className="course-hotcool"><Said nugget={n} /></span>}>
+      <div className="course-weather"><ByUnits mi={chart('mi')} km={chart('km')} /></div>
     </CourseSection>
   );
 }

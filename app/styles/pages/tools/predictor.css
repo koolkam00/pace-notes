@@ -1,0 +1,85 @@
+/* The finish-time predictor (/tools/predictor; the redesign spec, section 7.13): the range on one night card (◆ published
+   research, its one badge, every published method folded inside it), the recent race, then, kept apart, what finishes on
+   that pace at 20K did (● Pace Notes data). The two are never combined. Every class here is prefixed predictor-.
+   Imported by app/tools/predictor/layout.tsx. */
+
+.predictor { min-width: 0; }
+.predictor-optional { margin-left: 6px; font-size: var(--t-label); font-weight: 400; color: var(--ink-3); }
+
+/* ---------- Inputs ---------- */
+.predictor-number { display: flex; align-items: center; gap: var(--s-2); }
+.predictor-number input { max-width: 9rem; }
+.predictor-number span { white-space: nowrap; font-size: var(--t-small); color: var(--ink-3); }
+/* "Predict" and its three choices on one line, the control as wide as its words. */
+.predictor-target { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }
+.predictor-target > .tool-choice.seg { flex: 0 1 auto; width: auto; min-width: 0; grid-auto-columns: auto; }
+.predictor-more { border-top: 1px solid var(--rule); }
+.predictor-more > summary { display: flex; align-items: center; gap: var(--s-2); min-height: 48px; padding: 0; list-style: none; cursor: pointer; font-size: .9375rem; font-weight: 600; color: var(--ink); }
+.predictor-more > summary::-webkit-details-marker { display: none; }
+.predictor-more > summary::marker { content: ''; }
+.predictor-more > summary::after { content: '+'; margin-left: auto; width: 22px; font-size: 1.25rem; font-weight: 400; line-height: 1; text-align: center; }
+.predictor-more[open] > summary::after { content: '−'; }
+.predictor-more > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.predictor-summary-value { font-size: var(--t-label); font-weight: 500; color: var(--ink-3); white-space: nowrap; }
+.predictor-more-body { display: grid; gap: var(--s-4); padding: 0 0 var(--s-4); }
+.tool-page .predictor-link-button { justify-self: start; min-height: 44px; padding: 0; border: 0; border-radius: var(--r-xs); background: none; box-shadow: none; color: var(--ink); font-size: var(--t-small); font-weight: 600;
+  text-align: left; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.tool-page .predictor-link-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- The night card ---------- */
+.predictor-range { font-variant-numeric: tabular-nums lining-nums; }
+.predictor-to { padding: 0 .04em; color: var(--ink-2); }
+.predictor-stale { color: var(--ink-2); }
+
+/* ---------- Every published method, inside the research card under a hairline ---------- */
+/* Folded under the range (a tap away): the disclosure's own hairline, its summary in the card's quieter ink. */
+.predictor-methods { --wash: var(--paper-sunk); }
+.predictor-methods > summary { color: var(--ink-2); font-size: var(--t-label); }
+.predictor-chart { position: relative; margin: 0; touch-action: manipulation; cursor: default; }
+.predictor-chart svg { display: block; user-select: none; -webkit-user-select: none; overflow: visible; }
+.predictor-chart svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.predictor-chart svg .predictor-row-label { font-size: 14px; font-weight: 600; fill: var(--ink); }
+.predictor-chart svg .predictor-row-detail { font-size: 12px; font-weight: 400; fill: var(--ink-3); }
+.predictor-chart svg .predictor-row-value { font-size: 14px; font-weight: 600; fill: var(--ink); }
+.predictor-chart svg .is-violet .predictor-row-label, .predictor-chart svg .is-violet .predictor-row-value { fill: var(--ink); }
+.predictor-chart svg .is-none .predictor-row-value { font-weight: 400; fill: var(--ink-3); }
+.predictor-chart .grid line { stroke: var(--rule); }
+.predictor-chart .predictor-track { stroke: var(--rule); stroke-width: 1; }
+.predictor-chart .predictor-row-active { fill: var(--ink); fill-opacity: .05; }
+/* The typical range is the night card's figure, so here it is ink on a wash: the page's accent stays with each beat's reading. */
+.predictor-chart .predictor-band { fill: var(--wash); }
+.predictor-chart .predictor-span { fill: var(--ink-2); }
+.predictor-chart .predictor-span.is-fuzzy { fill: var(--ink-2); fill-opacity: .3; }
+.predictor-chart .predictor-span-mid { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.predictor-chart .predictor-dot { fill: var(--ink); stroke: var(--paper); stroke-width: 2; }
+.predictor-chart .predictor-dot.is-hollow { fill: var(--paper); stroke: var(--ink); stroke-width: 2.5; }
+.predictor-chart .predictor-whisker line { stroke: var(--ink-2); stroke-width: 1.5; }
+.predictor-tip { min-width: 12rem; max-width: 17rem; }
+
+/* The method table, in the disclosure: rows stack into cards by the width the results column has. */
+/* Inline in a sentence, so the 44 px reach comes from a pseudo-element. */
+/* Both buttons come first, on the first line, so their 44 px reaches never overlap. */
+@supports (container-type: inline-size) {
+}
+
+/* ---------- What finishes on that pace at 20K did ---------- */
+.predictor-data[tabindex="-1"]:focus { outline: none; }
+.predictor-strip { margin: 0; }
+.predictor-strip svg { display: block; overflow: visible; }
+.predictor-strip svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.predictor-strip .grid line { stroke: var(--rule); }
+.predictor-strip .predictor-strip-bar { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: .75; }
+/* The reading: the finishes under the estimate (the sentence's orange share). */
+.predictor-strip .predictor-strip-bar.is-under { fill: var(--signal); stroke: var(--signal); }
+.predictor-strip .predictor-strip-base { stroke: var(--rule-strong); }
+.predictor-strip .predictor-marker-line { stroke-width: 2; }
+.predictor-strip .predictor-marker-line.is-median { stroke: var(--ink); }
+.predictor-strip .predictor-marker-line.is-est { stroke: var(--ink); stroke-dasharray: 4 3; stroke-width: 1.5; }
+.predictor-strip .predictor-marker-halo { fill: var(--paper); }
+.predictor-strip svg .predictor-marker { font-size: 12px; font-weight: 600; }
+.predictor-strip svg .predictor-marker.is-median { fill: var(--ink); }
+.predictor-strip svg .predictor-marker.is-est { fill: var(--ink); }
+.predictor-retry { justify-self: start; }
+
+/* A half-typed finish time keeps the last result on screen, dimmed, until the time reads again. */
+.predictor-held > :not([role="status"]) { opacity: .45; transition: opacity var(--d-quick); }

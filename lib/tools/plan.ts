@@ -74,6 +74,18 @@ export function courseGoalResult(data: CourseGoal, city: string, seconds: number
   return { state: 'unavailable', course, minutes: published.minutes, reason: gap ? courseGoalReason(gap.reason, data.min_editions) : 'No row is published for this goal.' };
 }
 
+/**
+ * Finishes on a goal's pace through 20K (the course-goal rows at one published goal, in whole minutes): how many there
+ * were, on how many courses, and the share that made the goal, pooled by finishes; for one course, its own row. Null
+ * when fewer than 100 finishes are published. The planner's live nugget and lib/nuggets/tools.ts (plan.goal) share it.
+ */
+export function goalShare(rows: CourseGoalRow[], minutes: number, city: string | null = null): { n: number; under: number; courses: number } | null {
+  const at = rows.filter((r) => r.goal === minutes && (city === null || r.city === city));
+  const n = at.reduce((sum, r) => sum + r.n, 0);
+  if (!at.length || n < 100) return null;
+  return { n, under: at.reduce((sum, r) => sum + r.n * r.under, 0) / n, courses: at.length };
+}
+
 /** "2016–2019", "2013–2018, 2023": years with consecutive runs collapsed. */
 export function yearRuns(years: number[]): string {
   const sorted = [...new Set(years)].sort((a, b) => a - b);

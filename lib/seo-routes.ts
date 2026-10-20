@@ -9,14 +9,14 @@ import { TOOLS } from './tools/registry';
 import { VERIFIED_AT } from './tools/qualifying';
 import { TEN_ANALYSES, type AnalysisId } from './ten-analyses';
 import { getWeatherAnalyses, getWeatherEvidence } from './weather-data';
+import { weatherHref } from './weather-catalog';
 import { getFastStartStarts } from './fast-start-server';
 import { getAllFinisherContextStart } from './all-finisher-context-server';
 import { getCourseNames, slugifyCity } from './course-data';
-import { QUESTIONS, questionForPack } from './question-catalog';
-import { getExtensions, extensionForPack, extensionForQuestion } from './extension-data';
-import { PACK_REPLACEMENTS, getStudyEvidence } from './research-data';
+import { QUESTIONS } from './question-catalog';
+import { getExtensions, extensionForQuestion } from './extension-data';
+import { getStudyEvidence } from './research-data';
 import { PACK_IDS } from './packs';
-import { broaderArchive } from './broader-analysis-catalog';
 import { getPersonalSummary } from './personalized-data';
 import { getInsightsManifest } from './insights-server';
 import type { ExtraPage } from './seo-pages/types';
@@ -24,17 +24,73 @@ import { PACE_PAGES } from './seo-pages/pace';
 import { QUALIFYING_PAGES } from './seo-pages/qualifying';
 import { FINISH_TIME_PAGES } from './seo-pages/finish-times';
 
+const own = (map: Readonly<Record<string, string>>, key: string) => Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+
 /** The one production host. Canonicals, Open Graph URLs, the sitemap and JSON-LD all use it. */
 export const SITE_URL = 'https://splithappens.run';
 
-/** Pages that carry `noindex, follow`, have no canonical and stay out of the sitemap. */
-export const NOINDEX: readonly string[] = ['/runners', '/your-race', '/request-analysis', '/htw', '/packs/smyth_htw', '/report'];
+/**
+ * Pages that carry `noindex, follow`, have no canonical and stay out of the sitemap. The moved addresses below are noindex
+ * too (isNoindex). /your-race is listed here as well as there: verify-seo holds it, with /runners, as a personal page.
+ */
+export const NOINDEX: readonly string[] = ['/runners', '/your-race', '/request-analysis', '/report'];
+
+// ---------- Moved addresses ----------
 
 /**
- * Research-archive pages too thin to index: four say the current release cannot answer the question,
- * and rn1/rn4 are short single-chart summaries (under 170 words) covered better elsewhere.
+ * Addresses that moved, and where each went (the redesign spec, sections 00 and 2.9). Vercel answers each with a 308 from
+ * vercel.json, so a visitor there never sees the old page. The noindex stub kept at each (components/MovedPage.tsx) is for
+ * the GitHub Pages build, which cannot redirect: it names the new place, links to it and forwards in the browser, keeping
+ * the query, and the hash when the target names none (as a 308 does). scripts/verify-seo.cjs checks vercel.json against
+ * movedTo() for every stub and keeps every moved address out of the sitemap and out of the site's own links.
+ *
+ * The research archive (/packs and every /packs/<id>) closed on October 17, 2026 (section 00, cut 1): its data files stay
+ * published under public/data/packs and are listed at /methodology#downloads.
  */
-export const THIN_PACKS: readonly string[] = ['p3_race_week_weather', 'p4_even_effort_gap', 'r16_groups_hold_or_fall', 'r33_start_congestion', 'rn1_wall_severity', 'rn4_reference_dependence'];
+const MOVED: Readonly<Record<string, string>> = {
+  '/htw': '/slowdown',
+  '/packs/smyth_htw': '/slowdown',
+  '/packs': '/methodology#downloads',
+  '/research/personalized': '/research',
+};
+
+/**
+ * Moved addresses with no 308: /your-race forwards old #guide-* links in the browser, and a redirect would drop the hash
+ * before the page could read it. Its stub is the page.
+ */
+export const FORWARD_ONLY: Readonly<Record<string, string>> = { '/your-race': '/research' };
+
+/** Where a moved address went (a path, possibly with a #tab or #section), or null for a page that did not move. */
+export function movedTo(path: string): string | null {
+  assertCleanPath(path);
+  const fixed = own(MOVED, path) ?? own(FORWARD_ONLY, path);
+  if (fixed) return fixed;
+  // Every research-archive question page, whatever its id (vercel.json's /packs/:id* rule).
+  if (/^\/packs\/[^/]+$/.test(path)) return '/methodology#downloads';
+  const analysis = /^\/analyses\/([^/]+)$/.exec(path);
+  const weather = analysis && getWeatherAnalyses().find((item) => item.slug === analysis[1]);
+  // The weather questions that became tabs of race-day weather (their own pages are stubs): lib/weather-catalog.ts.
+  return weather ? weatherHref(weather) : null;
+}
+
+/** The former research-archive question pages, each now a stub (app/packs/[packId]): every registry, question and extension id. */
+export function movedPackIds(): string[] {
+  return [...new Set([...PACK_IDS, ...QUESTIONS.map((question) => question.id), ...getExtensions().map((pack) => pack.id)])].filter((id) => id !== 'smyth_htw');
+}
+
+/** Every moved address that keeps a stub page in the export. */
+export function movedPages(): string[] {
+  return [...Object.keys(MOVED), ...Object.keys(FORWARD_ONLY), ...movedPackIds().map((id) => `/packs/${id}`), ...getWeatherAnalyses().map((item) => `/analyses/${item.slug}`)];
+}
+
+/**
+ * Where an old personalized-guide link (#guide-<question>) goes now: the analysis that answers that question, keyed by the
+ * hash without its '#'. The stubs at /research/personalized and /your-race forward with it (components/LegacyAnalysisLink).
+ * The guide's other questions (returning to a course) have no page of their own and go to the stub's target.
+ */
+export function guideTargets(): Record<string, string> {
+  return Object.fromEntries([...TEN_ANALYSES.map((item) => [`guide-${item.id}`, `/analyses/${item.slug}`]), ['guide-downhill', '/analyses/downhill-start']]);
+}
 
 /** robots.txt keeps crawlers out of the two folders that hold recorded runner names. Everything else stays crawlable. */
 export const ROBOTS_DISALLOW: readonly string[] = ['/data/runners/index/', '/data/runners/profiles/'];
@@ -43,52 +99,39 @@ export const ROBOTS_DISALLOW: readonly string[] = ['/data/runners/index/', '/dat
  * Hand-kept dates for pages whose main content is written text rather than data.
  * Change the date when the visible content of that page changes in a meaningful way.
  * Pages without an entry (and without data) get no lastmod, which is better than a wrong one.
- * Story and primary pack pages also show data: their lastmod is the later of this date and their data date,
+ * Story pages also show data: their lastmod is the later of this date and their data date,
  * so an entry here only matters when their wording changed after the data did.
  */
 export const CONTENT_DATES: Readonly<Record<string, string>> = {
-  '/': '2026-10-16',
-  '/research': '2026-10-16',
-  '/about': '2026-10-16',
-  '/methodology': '2026-10-16',
-  '/stories': '2026-10-16',
-  '/tools': '2026-10-16',
-  '/tools/pace-calculator': '2026-10-16',
-  '/analyses': '2026-10-16',
-  '/courses': '2026-10-16',
-  '/packs': '2026-10-16',
-  '/slowdown': '2026-10-16',
-  '/research/personalized': '2026-10-16',
-  '/privacy': '2026-10-16',
-  // Stories whose headings, deks or chart text were reworded on this date. On 2026-10-16 every story lost its methods
-  // box and its method and coverage notes (they moved to /methodology), so all seven carry that date.
-  '/stories/pacing-types': '2026-10-16',
-  '/stories/round-numbers': '2026-10-16',
-  '/stories/race-replay': '2026-10-16',
-  '/stories/places': '2026-10-16',
-  '/stories/final-kick': '2026-10-16',
-  '/stories/courses': '2026-10-16',
-  '/stories/who-holds-pace': '2026-10-16',
-  // Primary research questions whose question (the heading, or the heading of the recorded-history section) was reworded
-  // on 2026-10-08. On 2026-10-16 every pack page lost its method and sources disclosure (moved to /methodology); these
-  // entries take that date, and the other pack pages keep their data date.
-  '/packs/r01_banking_time': '2026-10-16',
-  '/packs/r11_course_section_traps': '2026-10-16',
-  '/packs/r12_fastest_by_ability': '2026-10-16',
-  '/packs/r13_great_day_vs_consistency': '2026-10-16',
-  '/packs/r14_knowing_course': '2026-10-16',
-  '/packs/r15_weather_penalty_who': '2026-10-16',
-  '/packs/r18_bq_rule_changes': '2026-10-16',
-  '/packs/r19_near_miss_return': '2026-10-16',
-  '/packs/r24_interval_after_pb': '2026-10-16',
-  '/packs/r32_where_pbs_are_gained': '2026-10-16',
-  '/packs/r35_course_adaptation': '2026-10-16',
+  // The redesign (October 18, 2026) rewrote every hub, story and info page: each opens on its reading now, its beats
+  // were cut to the findings, and the chapter crumbs and closing stack are new. October 19: the chapter leads, keys and
+  // story copy were edited again (round 2, part A), and each page's tables moved into one "All numbers" row; the tools
+  // open answer first with short H1s, the analyses' H1s became one clause and /courses opens on its list (part B).
+  '/': '2026-10-19',
+  '/research': '2026-10-19',
+  '/about': '2026-10-19',
+  '/methodology': '2026-10-19',
+  '/stories': '2026-10-19',
+  '/tools': '2026-10-19',
+  '/tools/pace-calculator': '2026-10-19',
+  '/analyses': '2026-10-19',
+  '/courses': '2026-10-19',
+  '/slowdown': '2026-10-19',
+  '/privacy': '2026-10-19',
+  '/stories/pacing-types': '2026-10-19',
+  '/stories/round-numbers': '2026-10-19',
+  '/stories/race-replay': '2026-10-19',
+  '/stories/places': '2026-10-19',
+  '/stories/final-kick': '2026-10-19',
+  '/stories/courses': '2026-10-19',
+  '/stories/who-holds-pace': '2026-10-19',
+  '/stories/race-morning': '2026-10-19',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };
 
 /** The course pages (/courses/<slug>) were rewritten on this date; their lastmod is the later of it and their data's. */
-export const COURSE_PAGES_WRITTEN = '2026-10-16';
+export const COURSE_PAGES_WRITTEN = '2026-10-19';
 
 /**
  * New content pages register in their own module under lib/seo-pages/ (pace, qualifying, finish-times), collected here.
@@ -114,59 +157,22 @@ export function absoluteUrl(path: string): string {
   return path === '/' ? SITE_URL : SITE_URL + path;
 }
 
-// ---------- Research archive (packs) ----------
-
-const own = (map: Readonly<Record<string, string>>, key: string) => Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
-
-/** Every pack id that has a page under /packs, matching app/packs/[packId] plus the smyth_htw page. */
-export function packRouteIds(): string[] {
-  return [...new Set([...PACK_IDS, ...QUESTIONS.map(question => question.id), ...getExtensions().map(pack => pack.id)])];
-}
-
-/**
- * The pack whose page is the original for this pack id: the id itself for the primary pages,
- * the primary id for aliases (s*, ext_*, rn3, p1, p2), and null for thin, legacy or unknown pages
- * (those are noindex). Derived from QUESTIONS aliases, each extension's question_id and PACK_REPLACEMENTS.
- */
-export function packCanonical(id: string): string | null {
-  if (id === 'smyth_htw' || THIN_PACKS.includes(id) || !packRouteIds().includes(id)) return null;
-  const question = questionForPack(id);
-  if (question) return THIN_PACKS.includes(question.id) ? null : question.id;
-  const extension = extensionForPack(id);
-  if (extension) {
-    const target = questionForPack(extension.questionId)?.id ?? null;
-    return target && !THIN_PACKS.includes(target) ? target : null;
-  }
-  const replacement = own(PACK_REPLACEMENTS, id);
-  if (replacement) return THIN_PACKS.includes(replacement) ? null : packCanonical(replacement);
-  return null;
-}
-
-/** The primary (self-canonical, indexable) pack ids, in QUESTIONS order. */
-export function primaryPackIds(): string[] {
-  return QUESTIONS.map(question => question.id).filter(id => packCanonical(id) === id);
-}
-
 // ---------- Route policy ----------
 
-/** True when the page must carry noindex (NOINDEX paths, thin packs, smyth_htw and unknown pack ids). */
+/** True when the page must carry noindex: the NOINDEX pages and every moved address's stub. */
 export function isNoindex(path: string): boolean {
   assertCleanPath(path);
-  if (NOINDEX.includes(path)) return true;
-  const pack = /^\/packs\/([^/]+)$/.exec(path);
-  return pack ? packCanonical(pack[1]) === null : false;
+  return NOINDEX.includes(path) || movedTo(path) !== null;
 }
 
-/** True when the page may be indexed. Pack aliases are indexable but canonicalise to their primary page. */
+/** True when the page may be indexed. */
 export function isIndexable(path: string): boolean {
   return !isNoindex(path);
 }
 
-/** The canonical path a page should declare, or null when it is noindex and declares none. */
+/** The canonical path a page should declare: itself, or null when it is noindex and declares none. */
 export function canonicalPathFor(path: string): string | null {
-  if (isNoindex(path)) return null;
-  const pack = /^\/packs\/([^/]+)$/.exec(path);
-  return pack ? '/packs/' + packCanonical(pack[1]) : path;
+  return isNoindex(path) ? null : path;
 }
 
 // ---------- Honest lastmod dates ----------
@@ -207,13 +213,6 @@ export function dataDate(source: DataSource): string {
   }
 }
 
-/** The newest as_of among the data a primary pack page shows (its extension pack, plus any broader single-race view). */
-export function packDate(id: string): string | undefined {
-  const extension = extensionForQuestion(id) ?? extensionForPack(id);
-  const broader = broaderArchive(id);
-  return latest(extension ? day(extension.asOf) : undefined, broader ? dataDate(broader.kind === 'opening' ? 'fastStart' : 'allFinisher') : undefined);
-}
-
 /** Which data each of the ten analyses shows (see app/analyses/[slug]/page.tsx). */
 const ANALYSIS_SOURCES: Record<AnalysisId, DataSource[]> = {
   profile: ['personalized'], opening: ['fastStart'], checkpoint: ['personalized'], sections: ['personalized'],
@@ -221,16 +220,20 @@ const ANALYSIS_SOURCES: Record<AnalysisId, DataSource[]> = {
   ambition: ['personalized'], gains: ['personalized'], age: ['personalized'],
 };
 
-/** Every date a sitemap lastmod may take: the data as_of dates, the pack dates, CONTENT_DATES, COURSE_PAGES_WRITTEN and the registered extra pages' dates. */
+/** Every date a sitemap lastmod may take: the data as_of dates, the course pack's date, CONTENT_DATES, COURSE_PAGES_WRITTEN and the registered extra pages' dates. */
 export function allSourceDates(): string[] {
   const sources: DataSource[] = ['insights', 'study', 'weather', 'personalized', 'fastStart', 'allFinisher', 'qualifying'];
   const extras = EXTRA_SITEMAP_PAGES.map(page => typeof page.lastmod === 'function' ? page.lastmod() : page.lastmod);
-  return [...new Set([...sources.map(dataDate), ...packRouteIds().map(packDate), ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, ...extras].filter((date): date is string => !!date))].sort();
+  const coursePack = extensionForQuestion('s3_course_breaks');
+  return [...new Set([...sources.map(dataDate), coursePack ? day(coursePack.asOf) : undefined, ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, ...extras].filter((date): date is string => !!date))].sort();
 }
 
 // ---------- Sitemap ----------
 
-/** The indexable, self-canonical pages, each with an honest lastmod or none. Order: home, the research hub, stories, tools, analyses, courses, packs, other pages, extras. */
+/**
+ * The indexable, self-canonical pages, each with an honest lastmod or none. Order: home, the research hub, stories, tools,
+ * analyses, courses, other pages, extras. A moved address is never listed: its stub is noindex.
+ */
 export function sitemapEntries(): SitemapEntry[] {
   const dates = new Map<DataSource, string>();
   const at = (source: DataSource) => { if (!dates.has(source)) dates.set(source, dataDate(source)); return dates.get(source)!; };
@@ -257,7 +260,6 @@ export function sitemapEntries(): SitemapEntry[] {
 
   add('/analyses', 'content');
   for (const analysis of TEN_ANALYSES) add(`/analyses/${analysis.slug}`, ...ANALYSIS_SOURCES[analysis.id]);
-  for (const weather of getWeatherAnalyses()) add(`/analyses/${weather.slug}`, 'weather');
   add('/analyses/downhill-start', 'allFinisher');
 
   add('/courses', 'content', 'insights');
@@ -267,16 +269,9 @@ export function sitemapEntries(): SitemapEntry[] {
     entries.push({ path: `/courses/${slugifyCity(city)}`, ...(lastmod ? { lastmod } : {}) });
   }
 
-  add('/packs', 'content');
-  for (const id of primaryPackIds()) {
-    const lastmod = latest(packDate(id), own(CONTENT_DATES, `/packs/${id}`));
-    entries.push({ path: `/packs/${id}`, ...(lastmod ? { lastmod } : {}) });
-  }
-
   add('/about', 'content', 'personalized', 'weather');
   add('/methodology', 'content', 'study');
   add('/slowdown', 'content', 'study');
-  add('/research/personalized', 'content', 'personalized');
   add('/privacy', 'content');
 
   for (const extra of EXTRA_SITEMAP_PAGES) {

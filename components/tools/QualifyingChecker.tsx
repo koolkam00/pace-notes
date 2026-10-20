@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
+import { checkedDate } from '@/components/tools/QualifyingRaceText';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { Choice, DurationField, EvidencePanel, ExampleNote, ShareBar } from '@/components/tools/ui';
+import { Choice, DurationField, ShareBar } from '@/components/tools/ui';
+import Values from '@/components/ui/Values';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { useWidth } from '@/components/viz/useSize';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
@@ -11,7 +14,7 @@ import {
   BOSTON_CUTOFFS, CHICAGO_ROUTE, STANDARDS, VERIFIED_AT, bostonDownhillIndex, bostonDownhillIndexMetres, clearedCutoffs, comparisonText, evaluate,
   type Band, type Division, type QualifyInput, type QualifyResult, type Standard,
 } from '@/lib/tools/qualifying';
-import { formatDuration, formatMargin, parseDuration } from '@/lib/tools/time';
+import { formatDuration, parseDuration } from '@/lib/tools/time';
 import { METRES_PER_FOOT, type UnitSystem } from '@/lib/units';
 
 /* ---------- Constants ---------- */
@@ -59,9 +62,8 @@ const SYDNEY_MAX_DROP_M = STANDARDS.find((s) => s.key === 'sydney')?.maxNetDropM
 const NYRR_MARATHON_DATE = STANDARDS.find((s) => s.key === 'nyc')?.nyrrMarathonDate;
 /** Who to name when a race does not say whether a time equal to the standard qualifies. */
 const ORGANISER: Record<string, string> = { boston: 'The B.A.A.', nyc: 'NYRR', london: 'London Marathon Events', chicago: 'The Chicago Marathon', berlin: 'The Berlin Marathon', sydney: 'The Sydney Marathon' };
-/** Goals the pace band accepts (its even-pace band), and the whole-minute goals its observed columns and the course chooser cover. */
+/** Goals the pace band accepts (its even-pace band). */
 const BAND_RANGE = [90 * 60, 480 * 60] as const;
-const OBSERVED_RANGE = [150 * 60, 390 * 60] as const;
 const within = (t: number, [lo, hi]: readonly [number, number]) => t >= lo && t <= hi;
 
 /* ---------- Dates (all YYYY-MM-DD, compared as strings, formatted in UTC so no time zone shifts a day) ---------- */
@@ -189,7 +191,9 @@ function verdict(r: QualifyResult, opts: { uk: boolean; nyrrGuaranteed: boolean;
     case 'misses':
       return { tone: 'bad', label: 'Misses the standard', short: 'Misses' };
     default: {
-      if (key === 'london' && !opts.uk) return { tone: 'warn', label: 'Meets the time · UK residents only', short: 'UK only', route: 'If you live in the UK, tick it under “Course and entry details”.' };
+      // It meets the time, but Good For Age is for UK residents: the headline counts it only once "I live in the UK" is
+      // ticked, and the row says both.
+      if (key === 'london' && !opts.uk) return { tone: 'warn', label: 'Meets the time · UK residents only', short: 'Meets the time · UK residents only', route: 'Good For Age is for UK residents. If you live in the UK, tick it under “Course and entry details”.' };
       const route: Record<string, string> = {
         boston: 'You can apply. Acceptance depends on the cut-off.',
         nyc: opts.nyrrGuaranteed ? 'Guaranteed entry: a time from the 2026 TCS New York City Marathon.' : 'Enters the capped pool, fastest first.',
@@ -221,6 +225,9 @@ function bandText(s: Standard, b: Band, division: Division): string {
 }
 
 const marginWord = (m: number) => (m > 0 ? 'under' : m < 0 ? 'over' : 'exactly on');
+/** A margin in words, never a sign ("14:00 under", "3:00 over"): elsewhere on the site + means slower or behind. */
+const marginAmount = (m: number) => formatDuration(Math.abs(Math.round(m)));
+const marginText = (m: number) => (Math.round(m) === 0 ? 'exactly on' : `${marginAmount(m)} ${marginWord(m)}`);
 const fmtTime = (s: number) => formatDuration(s, true);
 const yearOf = (s: Standard) => s.edition.slice(0, 4);
 
@@ -260,7 +267,6 @@ export default function QualifyingChecker() {
   const [dropUnitChoice, setDropUnit] = useState<'ft' | 'm' | null>(null);
   const [nyrr, setNyrr] = useState(false);
   const [uk, setUk] = useState(false);
-  const [buffer, setBuffer] = useState(0);
   const [storageRead, setStorageRead] = useState(false);
   const [timeFocused, setTimeFocused] = useState(false);
   const [interacted, setInteracted] = useState(false);
@@ -277,11 +283,11 @@ export default function QualifyingChecker() {
     } catch { /* storage unavailable: nothing remembered */ }
     setStorageRead(true);
   }, []);
-  // Fine print belongs on paper: open every card's "Rules and fine print" while printing, then put them back.
+  // Fine print belongs on paper: open every race and its "Rules and fine print" while printing, then put them back.
   useEffect(() => {
     let opened: HTMLDetailsElement[] = [];
     const before = () => {
-      opened = [...document.querySelectorAll<HTMLDetailsElement>('.qualifying-fine:not([open])')];
+      opened = [...document.querySelectorAll<HTMLDetailsElement>('.qualifying-race:not([open]), .qualifying-fine:not([open])')];
       opened.forEach((d) => { d.open = true; });
     };
     const after = () => { opened.forEach((d) => { d.open = false; }); opened = []; };
@@ -353,7 +359,8 @@ export default function QualifyingChecker() {
       .map(({ s, r, v, app, courseOut }) => ({ s, r, v, app, courseOut }));
   }, [ready, birth, division, shown, raceDate, drop, nyrr, nyrrGuaranteed, uk, today, now]);
 
-  const meets = items.filter((it) => it.r.status === 'meets').length;
+  // A UK-only standard counts once the visitor says they live in the UK (its row says so either way).
+  const meets = items.filter((it) => it.r.status === 'meets' && (uk || it.s.key !== 'london')).length;
   const boston = items.find((it) => it.s.key === 'boston');
   const planned = raceOk && raceDate > today;
   const extras = [drop ? `${fmtDrop(drop)} drop` : !dropValid ? 'check the drop' : null, nyrr ? 'NYC Marathon 2026' : null, uk ? 'UK resident' : null].filter(Boolean);
@@ -365,7 +372,7 @@ export default function QualifyingChecker() {
     : !birthOk ? 'Enter your date of birth: each race works out your age group differently.'
     : orderError ?? '';
   // One short, always-mounted status line for screen readers, sent once typing settles and only after the visitor changes something.
-  const status = ready ? `${headline}.${boston && boston.r.margin !== null ? ` Boston ${yearOf(boston.s)}: ${formatMargin(boston.r.margin)} ${marginWord(boston.r.margin)} the standard.` : ''}` : emptyMessage;
+  const status = ready ? `${headline}.${boston && boston.r.margin !== null ? ` Boston ${yearOf(boston.s)}: ${marginText(boston.r.margin)} the standard.` : ''}` : emptyMessage;
   const settledStatus = useSettled(interacted ? status : '', 600);
 
   // Which inputs are still the example runner's. The birth date never travels in a link, so it stays an example until entered here.
@@ -373,16 +380,14 @@ export default function QualifyingChecker() {
   const exampleDiv = !changed.div && (!fromUrl.has('div') || divFallback);
   const exampleRace = !fromUrl.has('race') && !changed.race;
   const allExample = exampleTime && exampleDiv && exampleRace && example && !changed.more;
-  const stillExample = [
-    exampleTime && shown !== null ? `time (${fmtTime(shown)})` : null,
-    exampleDiv ? `division (${DIVISION_WORD[division]})` : null,
-    exampleRace && raceOk ? `race date (${fmtDate(raceDate)})` : null,
-    example ? `date of birth (${fmtDate(EXAMPLE_BIRTH)})` : null,
+  // What is still the example's, in the card's kicker ("Women · 3:30:00 · example birth date"): a paragraph above the
+  // card pushed the answer down while the visitor typed below it (critic round 3), so the card never moves.
+  const stillShort = [
+    exampleTime && shown !== null ? 'time' : null, exampleDiv ? 'division' : null, exampleRace && raceOk ? 'race date' : null, example ? 'age' : null,
   ].filter((x): x is string => x !== null);
-  const exampleNote = !ready ? null
-    : allExample ? <>An example runner: {DIVISION_WORD[division]}, {fmtTime(shown!)} on {fmtDate(raceDate)}, born {fmtDate(EXAMPLE_BIRTH)}. Enter yours; each race works out your age group its own way.</>
-    : stillExample.length ? <>The {listWords(stillExample)} {stillExample.length > 1 ? 'are still examples' : 'is still the example'}. Enter yours{example ? ': each race works out your age group differently' : ''}.</>
-    : null;
+  // The kicker stays one line, the time then the division, the same order as the untouched example's; what is still the
+  // example's is one quiet line under the card (critic round 5: two lines of caps named the division twice).
+  const stillExample = allExample || !stillShort.length ? '' : `Example ${listWords(stillShort)}: add yours below.`;
   // Links to the pace band name the division only when the visitor chose it (from the link or here).
   const bandGender = !exampleDiv && division !== 'nonbinary' ? division : null;
 
@@ -390,43 +395,70 @@ export default function QualifyingChecker() {
     <div className="qualifying">
       <p className="sr-only" role="status">{settledStatus}</p>
       <div className="tool-workspace">
+        {/* The answer first (the analyses' grammar): how many standards the example time meets, then the time, division
+            and dates that make it yours, then race by race. */}
+        <div className="tool-results tool-answer">
+          {ready ? (
+            <>
+              <section className="tool-reading night qualifying-headline" aria-labelledby={`${ids}-headline`}>
+                <div className="tool-reading-head">
+                  {/* One line at a phone's width: the time and the division (the race date is in the form below). */}
+                  <p className="tool-reading-kicker">{allExample ? 'Example · ' : ''}{fmtTime(shown!)} · {DIVISIONS.find((d) => d.division === division)!.label}</p>
+                  <h2 className="tool-reading-figure" id={`${ids}-headline`}>
+                    {meets === items.length ? `Meets all ${items.length}` : `Meets ${meets} of ${items.length}`}
+                    <small>{boston ? <BostonLine it={boston} raceDate={raceDate} /> : 'time standards'}</small>
+                  </h2>
+                </div>
+                <p className="qualifying-checked"><EvidenceTag kind="official" /><span>Checked <time dateTime={VERIFIED_AT}>{checkedDate()}</time></span></p>
+              </section>
+              {stillExample ? <p className="qualifying-still">{stillExample}</p> : null}
+            </>
+          ) : (
+            <p className="tool-empty">{emptyMessage}</p>
+          )}
+        </div>
+
         <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Qualifying checker inputs"
           onChangeCapture={() => setInteracted(true)} onClickCapture={(e) => { if ((e.target as HTMLElement).closest('button')) setInteracted(true); }}>
           <h2>Your marathon</h2>
           <div className="qualifying-time" onFocus={() => setTimeFocused(true)} onBlur={() => setTimeFocused(false)}>
             <DurationField label="Chip (net) time" large value={seconds} placeholder="3:29:00" error={timeError}
-              onChange={(s) => { mark('t'); setQ({ t: s === null ? '' : formatDuration(s, true) }); }} hint="h:mm:ss, e.g. 3:29:00 or 3:29" />
+              onChange={(s) => { mark('t'); setQ({ t: s === null ? '' : formatDuration(s, true) }); }} hint="h:mm:ss, e.g. 3:29:00 or 3:29." />
           </div>
           <div className="tool-field">
-            <span className="tool-label" aria-hidden="true">Division</span>
+            {/* Men, Women, Non-binary say what they are: the group's name is for screen readers. */}
             {/* Left out of session replays: the division is the visitor's gender. */}
             <div className="ph-no-capture"><Choice label="Division" value={divEntry.value} onChange={(v) => { mark('div'); setQ({ div: v }); }} options={DIVISIONS.map(({ value, label }) => ({ value, label }))} /></div>
           </div>
-          <div className="tool-field">
-            <label htmlFor={`${ids}-race`}>Race date</label>
-            <div className="qualifying-date-row">
+          {/* The two dates side by side, their notes under both, so the answer starts sooner on a phone. */}
+          <div className="qualifying-dates">
+            <div className="tool-field">
+              <label htmlFor={`${ids}-race`}>Race date</label>
               <input id={`${ids}-race`} type="date" className="qualifying-date" value={raceOk ? raceDate : ''} min="2024-01-01" max="2028-12-31"
                 aria-invalid={!raceOk || undefined} aria-describedby={`${ids}-race-hint`} onChange={(e) => setRaceDate(e.target.value)} />
-              <button type="button" className="qualifying-link-button" onClick={() => setRaceDate(today)}>Today</button>
             </div>
-            <p className={`tool-field-hint${raceOk ? '' : ' is-error'}`} id={`${ids}-race-hint`}>
-              {raceOk ? (planned ? 'A future date checks a planned race against the current windows.' : 'The day you ran it. Each race counts times from its own window.') : 'Enter the race date.'}
+            <div className="tool-field">
+              <label htmlFor={`${ids}-birth`}>Date of birth</label>
+              <input id={`${ids}-birth`} type="date" className="qualifying-date" value={birth} min="1900-01-01" max={today} autoComplete="bday"
+                aria-invalid={(!birthOk || Boolean(orderError)) || undefined} aria-describedby={`${ids}-birth-hint`}
+                onChange={(e) => { setBirth(e.target.value); setExample(false); }} />
+            </div>
+            {/* "The day you ran it" goes without saying on screen; a planned race or a missing date is said. */}
+            <p className={`tool-field-hint${raceOk ? '' : ' is-error'}${raceOk && !planned ? ' sr-only' : ''}`} id={`${ids}-race-hint`}>
+              {raceOk ? (planned ? 'A future race date checks a planned race against the current windows.' : 'The day you ran it.') : 'Enter the race date.'}
             </p>
-          </div>
-          <div className="tool-field">
-            <label htmlFor={`${ids}-birth`}>Date of birth</label>
-            <input id={`${ids}-birth`} type="date" className="qualifying-date" value={birth} min="1900-01-01" max={today} autoComplete="bday"
-              aria-invalid={(!birthOk || Boolean(orderError)) || undefined} aria-describedby={`${ids}-birth-hint`}
-              onChange={(e) => { setBirth(e.target.value); setExample(false); }} />
-            <p className={`tool-field-hint${birthOk && !orderError ? '' : ' is-error'}`} id={`${ids}-birth-hint`}>
-              {!birthOk ? 'Enter your date of birth: each race works out your age group differently.'
-                : orderError ?? (example ? `An example runner born ${fmtDate(EXAMPLE_BIRTH)}. Enter yours. ` : '')}
-              {birthOk && !orderError ? 'It stays in this browser: never in the link or analytics.' : null}
-            </p>
+            {/* A missing or impossible date is said under the fields; otherwise the privacy note sits under "Remember", as
+                its second line, so the answer starts sooner on a phone. */}
+            {!birthOk || orderError ? (
+              <p className="tool-field-hint is-error" id={`${ids}-birth-hint`}>
+                {!birthOk ? 'Enter your date of birth: each race works out your age group differently.' : orderError}
+              </p>
+            ) : null}
             <label className="tool-check">
-              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} aria-describedby={`${ids}-birth-note`} />
               <span>Remember my date of birth on this device</span>
             </label>
+            {birthOk && !orderError ? <p className="tool-field-hint qualifying-birth-note" id={`${ids}-birth-hint`}><span id={`${ids}-birth-note`}>It never goes into links or analytics.</span></p> : null}
           </div>
 
           <details className="qualifying-more">
@@ -450,8 +482,8 @@ export default function QualifyingChecker() {
                   <Choice label="Drop unit" small value={dropUnit} onChange={(v) => { mark('more'); setDropUnit(v); }} options={[{ value: 'ft', label: 'ft' }, { value: 'm', label: 'm' }]} />
                 </div>
                 <p className={`tool-field-hint${dropValid ? '' : ' is-error'}`} id={`${ids}-drop-hint`}>
-                  {!dropValid ? 'Type a number, e.g. 1650. Until then the results leave the drop out. ' : drop ? <>{dropNote(drop)} </> : null}
-                  For Boston’s downhill index: 1,500 ft (457.2 m) adds 5:00, 3,000 ft (914.2 m) adds 10:00, 6,000 ft (1,828.6 m) is not accepted. A drop in metres uses the B.A.A.’s own metric bounds.{SYDNEY_MAX_DROP_M ? ` Sydney accepts at most ${grouped(SYDNEY_MAX_DROP_M)} m.` : ''} The B.A.A. does not list affected races.
+                  {!dropValid ? 'Type a number, e.g. 1650. Until then the results leave the drop out.' : drop ? dropNote(drop)
+                    : `Boston adds 5:00 from ${BOSTON_BOUNDS[dropUnit][0]} and 10:00 from ${BOSTON_BOUNDS[dropUnit][1]}, and does not accept ${BOSTON_BOUNDS[dropUnit][2]} or more.${SYDNEY_MAX_DROP_M ? ` Sydney accepts at most ${grouped(SYDNEY_MAX_DROP_M)} m.` : ''}`}
                 </p>
               </div>
               <div className="tool-field">
@@ -464,9 +496,7 @@ export default function QualifyingChecker() {
                   }} />
                   <span>The race is the 2026 TCS New York City Marathon{NYRR_MARATHON_DATE ? ` (${fmtDate(NYRR_MARATHON_DATE)})` : ''}</span>
                 </label>
-                <p className="tool-field-hint" id={`${ids}-nyrr-hint`}>
-                  NYRR guaranteed entry needs a time from this race (ticking it sets the race date) or a listed NYRR half marathon, which this checker does not take.
-                </p>
+                <p className="tool-field-hint" id={`${ids}-nyrr-hint`}>For NYRR guaranteed entry. Ticking it sets the race date.</p>
               </div>
               <label className="tool-check">
                 <input type="checkbox" checked={uk} onChange={(e) => { mark('more'); setUk(e.target.checked); }} />
@@ -479,32 +509,13 @@ export default function QualifyingChecker() {
         <div className="tool-results">
           {ready ? (
             <>
-              {exampleNote ? <ExampleNote>{exampleNote}</ExampleNote> : null}
-              <div className="tool-headline qualifying-headline">
-                <div className="qualifying-head">
-                  <EvidenceTag kind="official" />
-                  <p className="qualifying-kicker">
-                    {DIVISIONS.find((d) => d.division === division)!.label} · {fmtTime(shown!)} · {planned ? 'planned for' : 'run'} {fmtDate(raceDate)}
-                  </p>
-                  <p className="qualifying-big">{headline}</p>
-                  {boston ? <p className="qualifying-big-sub"><BostonLine it={boston} raceDate={raceDate} /></p> : null}
-                </div>
-                <Scoreboard items={items} />
-              </div>
+              <RaceRows items={items} birth={birth} raceDate={raceDate} seconds={shown!} division={division} drop={drop}
+                dropIgnored={!dropValid} nyrr={nyrr} nyrrGuaranteed={nyrrGuaranteed} uk={uk} units={units} gender={bandGender} named={boston?.s.key} />
 
-              {items.map((it) => (
-                <RaceCard key={it.s.key} it={it} birth={birth} raceDate={raceDate} seconds={shown!} division={division} drop={drop}
-                  dropIgnored={!dropValid} nyrr={nyrr} nyrrGuaranteed={nyrrGuaranteed} uk={uk} />
-              ))}
-
-              <TargetsPanel items={items} seconds={shown!} buffer={buffer} setBuffer={setBuffer} drop={drop} units={units} gender={bandGender} />
-
-              <p className="tool-note qualifying-share-note">The copied link carries your division, time and race date. It leaves out the course and entry details, and whoever opens it enters their own date of birth.</p>
-              <ShareBar />
+              <p className="tool-note qualifying-share-note">The copied link carries your division, time and race date, never your date of birth.</p>
+              <ShareBar print />
             </>
-          ) : (
-            <p className="tool-empty">{emptyMessage}</p>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
@@ -537,77 +548,72 @@ function BostonLine({ it, raceDate }: { it: Item; raceDate: string }) {
   const { r } = it;
   if (r.margin === null) return <>Boston {yearOf(it.s)}: {(it.v.reason ?? it.v.label).replace(/\.$/, '')}.</>;
   const sum = cutoffSummary(r.margin);
-  const lead = <>Boston {yearOf(it.s)}: <b>{formatMargin(r.margin)}</b> {marginWord(r.margin)} the standard</>;
+  const lead = r.margin === 0 ? <>Boston {yearOf(it.s)}: exactly on the standard</> : <>Boston {yearOf(it.s)}: <b>{marginAmount(r.margin)}</b> {marginWord(r.margin)} the standard</>;
   if (r.status === 'outside-window') return <>{lead}, but the race date is {outsideReason(it.s, raceDate) ?? 'outside its window'}.</>;
   if (r.margin < 0) return <>{lead}.</>;
-  return <>{lead}. That margin would have cleared {sum.recent} of the last 4 cut-offs ({sum.span}). Past cut-offs, not a forecast.</>;
+  return <>{lead}, enough for {sum.recent} of the last 4 <span className="nowrap">cut-offs</span> ({sum.span}).</>;
 }
 
-/* ---------- Headline scoreboard: margin against each standard ---------- */
+/* ---------- One row per race: its margin as a bar, opening to its rules ---------- */
 
-function Scoreboard({ items }: { items: Item[] }) {
+function RaceRows({ items, named, ...rest }: { items: Item[]; named?: string } & Omit<Parameters<typeof RaceBody>[0], 'it'>) {
   const margins = items.map((it) => it.r.margin).filter((m): m is number => m !== null);
   const CAP = 30 * 60;
   const lo = Math.max(-CAP, Math.floor(Math.min(-300, ...margins) / 300) * 300);
   const hi = Math.min(CAP, Math.ceil(Math.max(300, ...margins) / 300) * 300);
   const span = hi - lo;
-  const step = span > 2400 ? 1200 : span > 1200 ? 600 : 300;
   const pct = (v: number) => ((Math.min(hi, Math.max(lo, v)) - lo) / span) * 100;
-  const ticks: number[] = [];
-  for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) ticks.push(t);
   return (
-    <div className="qualifying-board-wrap">
-      <div className="qualifying-board-axis" aria-hidden="true">
-        <span />
-        <div className="qualifying-board-scale">
-          {ticks.map((t) => <span key={t} style={{ left: `${pct(t)}%` }} className={t === 0 ? 'is-zero' : undefined}>{t === 0 ? '0' : `${t > 0 ? '+' : '−'}${Math.abs(t) / 60}`}</span>)}
-        </div>
-        <span>min</span>
-      </div>
-      <ol className="qualifying-board">
-        {items.map(({ s, r, v, app }) => {
+    <section className="qualifying-races" aria-label="Each race’s standard">
+      {/* The two words meet at the zero line, wherever the margins put it. */}
+      <p className="qualifying-races-axis" aria-hidden="true">
+        <span className="qualifying-races-axis-track"><span style={{ right: `${100 - pct(0)}%` }}>← Over</span><span style={{ left: `${pct(0)}%` }}>Under →</span></span>
+      </p>
+      <ol className="qualifying-race-list">
+        {items.map((it) => {
+          const { s, r, v, app } = it;
           const m = r.margin;
           const clipped = m !== null && (m > hi || m < lo);
           return (
-            <li key={s.key} className={`qualifying-board-row is-${v.tone}`}>
-              <a className="qualifying-board-name" href={`#qualifying-${s.key}`}>
-                <b>{SHORT[s.key]} {yearOf(s)}</b>
-                <span className={`qualifying-board-app is-${app.kind}`}>{app.short}</span>
-              </a>
-              <div className="qualifying-board-track" aria-hidden="true">
-                {ticks.map((t) => <i key={t} className={t === 0 ? 'is-zero' : undefined} style={{ left: `${pct(t)}%` }} />)}
-                {m !== null ? (
-                  <span className={`qualifying-board-bar${m < 0 ? ' is-neg' : ''}${clipped ? ' is-clipped' : ''}`}
-                    style={{ left: `${Math.min(pct(0), pct(m))}%`, width: `${Math.abs(pct(m) - pct(0))}%` }} />
-                ) : null}
-              </div>
-              <p className="qualifying-board-value">
-                <b>{m !== null ? formatMargin(m) : '—'}</b>
-                {m !== null ? <span className="sr-only"> {marginWord(m)} the standard.</span> : null}
-                <span className="qualifying-board-status"><span aria-hidden="true">{GLYPH[v.tone]}</span> {v.short}</span>
-              </p>
+            <li key={s.key}>
+              {/* Every race that meets is ink; the race the night card names is set in a heavier weight. */}
+              <details className={`qualifying-race is-${v.tone}${s.key === named ? ' is-named' : ''}`} id={`qualifying-${s.key}`}>
+                <summary>
+                  <span className="qualifying-race-name"><b>{SHORT[s.key]} {yearOf(s)}</b><small className={`qualifying-app is-${app.kind}`}>{app.short}</small></span>
+                  <span className="qualifying-race-track" aria-hidden="true">
+                    <i className="qualifying-race-zero" style={{ left: `${pct(0)}%` }} />
+                    {m !== null ? <i className={`qualifying-race-bar${m < 0 ? ' is-neg' : ''}${clipped ? ' is-clipped' : ''}`} style={{ left: `${Math.min(pct(0), pct(m))}%`, width: `${Math.max(0.6, Math.abs(pct(m) - pct(0)))}%` }} /> : null}
+                  </span>
+                  <span className="qualifying-race-value">
+                    {/* The amount, then its direction in words (the bar carries it too): never a sign. */}
+                    <b>{m !== null ? <>{marginAmount(m)}<span className="qualifying-race-word"> {Math.round(m) === 0 ? 'on' : marginWord(m)}</span></> : '—'}</b>
+                    {m !== null ? <span className="sr-only"> the standard.</span> : null}
+                    <small><span aria-hidden="true">{GLYPH[v.tone]}</span> {v.short.includes(' · ') ? v.short.split(' · ').map((part, k) => <Fragment key={k}>{k ? ' · ' : ''}<span className="nowrap">{part}</span></Fragment>) : v.short}</small>
+                  </span>
+                </summary>
+                <RaceBody it={it} {...rest} />
+              </details>
             </li>
           );
         })}
       </ol>
-      <p className="qualifying-board-caption">Minutes under (+) or over (−) each standard. Bars stop at {CAP / 60} minutes. Tap a race for its rules.</p>
-    </div>
+    </section>
   );
 }
 
-/* ---------- One card per race ---------- */
-
-function RaceCard({ it, birth, raceDate, seconds, division, drop, dropIgnored, nyrr, nyrrGuaranteed, uk }: {
+function RaceBody({ it, birth, raceDate, seconds, division, drop, dropIgnored, nyrrGuaranteed, uk, units, gender }: {
   it: Item; birth: string; raceDate: string; seconds: number; division: Division; drop?: Drop;
-  dropIgnored: boolean; nyrr: boolean; nyrrGuaranteed: boolean; uk: boolean;
+  dropIgnored: boolean; nyrr: boolean; nyrrGuaranteed: boolean; uk: boolean; units: UnitSystem;
+  /** The division the visitor chose, passed to the pace band's observed columns (none for non-binary or the example division). */
+  gender: 'men' | 'women' | null;
 }) {
-  const { s, r, v, app, courseOut } = it;
+  const { s, r, v, app } = it;
   const age = ageText(s, r, birth, raceDate);
   const outside = outsideReason(s, raceDate, app.kind === 'closed');
   const { end, why } = windowEnd(s);
   const index = s.key === 'boston' && drop ? bostonIndexFor(drop) : 0;
   const dropShown = drop ? fmtDrop(drop) : null;
-  // The verdict line already says these (index, residency, which New York route); dates in notes read as on the rest of the card.
+  // The verdict line already says these (index, residency, which New York route); dates in notes read as on the rest of the row.
   const notes = r.notes
     .filter((n) => !n.startsWith('Downhill index') && !n.startsWith('London Good For Age places') && !n.startsWith('A non-NYRR') && n !== v.reason
       && !(v.route && n.startsWith('A time from the 2026 TCS New York City Marathon')))
@@ -618,7 +624,6 @@ function RaceCard({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
   const needed = r.limit !== null && index !== null ? r.limit - (index ?? 0) - (s.comparison === 'strictly-under' ? 1 : 0) : null;
   const passesTime = r.margin !== null && (s.comparison === 'strictly-under' ? r.margin > 0 : r.margin >= 0);
   const extraNote = v.tone === 'muted' ? null
-    : r.status === 'misses' && needed !== null ? `To meet it: ${fmtTime(needed)} or faster${index ? ' on this course' : ''}.`
     : r.status === 'outside-window' ? `The time ${passesTime ? 'would meet' : 'would also miss'} the standard, but ${fmtDate(raceDate)} is ${outside ?? 'outside this edition’s window'}.`
     : null;
   const bostonUnsure = s.key === 'boston' && why === 'registration' && !outside && raceDate >= BOSTON_WINDOW_UNSURE_FROM;
@@ -634,89 +639,70 @@ function RaceCard({ it, birth, raceDate, seconds, division, drop, dropIgnored, n
   }
   if (s.key === 'sydney') fine.unshift('Gun or net (chip) time is accepted. This checker uses the chip time you entered; a gun time is usually a little slower.');
   const timeHint = s.key === 'sydney' ? 'Chip (net) time; Sydney also accepts gun time' : 'Chip (net) time';
+  // The time to aim for on this course: the standard less any downhill index, a second inside a strict "under". Its even
+  // pace, and the pace band for it (whole minutes, the minute at or below), when the band takes that goal.
+  const aim = needed !== null && v.tone !== 'muted' && !it.courseOut ? needed : null;
+  const aimPace = aim !== null ? `${formatDuration(perUnit(aim / MARATHON_KM, units))}/${units}` : '';
+  const aimMinutes = aim !== null ? Math.floor(aim / 60) : 0;
+  const aimHref = `/tools/pace-band?goal=${Math.floor(aimMinutes / 60)}:${pad(aimMinutes % 60)}${gender ? `&g=${gender}` : ''}`;
   return (
-    <EvidencePanel kind="official" id={`qualifying-${s.key}`} title={s.race} meta={<>Edition {s.edition}</>}>
-      <span className={`qualifying-app is-${app.kind}`}>{app.label}</span>
-      <div className="qualifying-card">
-        <div className={`qualifying-verdict is-${v.tone}`}>
-          <p className="qualifying-status"><span className="qualifying-glyph" aria-hidden="true">{GLYPH[v.tone]}</span>{v.label}</p>
-          {r.margin !== null ? (
-            <p className="qualifying-margin"><b>{formatMargin(r.margin)}</b> <span>{marginWord(r.margin)} the standard</span></p>
-          ) : null}
-          {v.route || v.reason || extraNote || notes.length || bostonUnsure || (dropIgnored && usesDrop) ? (
-            <ul className="qualifying-verdict-notes">
-              {v.route ? <li>{v.route}</li> : null}
-              {extraNote ? <li>{extraNote}</li> : null}
-              {v.reason ? <li>{v.reason}</li> : null}
-              {notes.map((n) => <li key={n}>{n}</li>)}
-              {bostonUnsure ? <li>A time run in September {raceDate.slice(0, 4)} counts for {yearOf(s)} only if it is run before {raceDate.slice(0, 4)} registration week ends (expected mid-September; not yet announced).</li> : null}
-              {dropIgnored && usesDrop ? <li>Course drop not applied: check the number typed under “Course and entry details”.</li> : null}
-              {r.margin === 0 && !s.comparisonStated && v.tone !== 'muted' ? (
-                <li>Exactly on the standard. {ORGANISER[s.key] ?? 'The race'} does not say whether an equal time qualifies.{s.key === 'boston' ? ' Acceptance goes to those furthest under.' : ''}</li>
-              ) : null}
-              {s.key === 'london' && champ !== null && seconds < champ && !outside ? (
-                <li>Also under the Championship standard ({formatDuration(champ)}), a separate route for UK athletics club members{uk ? '' : ', open to non-residents'}. Applications close {fmtDate(LONDON_CHAMPIONSHIP.closes)}.</li>
-              ) : null}
-            </ul>
-          ) : null}
-        </div>
-
-        <dl className="qualifying-facts">
-          <div className="is-key"><dt>Age used</dt><dd><b>{age.value}</b><span>{age.rule}</span></dd></div>
-          <div className="is-key">
-            <dt>Standard</dt>
-            <dd>
-              {limit !== null && r.band ? <><b>{fmtTime(limit)}</b><span>{bandText(s, r.band, division)}{division === 'nonbinary' && r.band.nonbinary === r.band.women ? ' (equal to the women’s)' : ''} · {comparisonText(s)}</span></>
-                : <><b>—</b><span>{v.reason ?? 'No standard applies.'}</span></>}
-            </dd>
-          </div>
-          <div className="is-key">
-            <dt>{s.key === 'boston' ? 'Time counted' : 'Your time'}</dt>
-            <dd>
-              {s.key === 'boston' && index === null ? <><b>—</b><span>Not counted: courses dropping {BOSTON_BOUNDS[drop!.unit][2]} or more are not accepted (this one: {dropShown}).</span></>
-                : s.key === 'boston' && index ? <><b>{fmtTime(r.counted)}</b><span>{fmtTime(seconds)} chip + {index / 60}:00 downhill index for a {dropShown} net drop</span></>
-                : <><b>{fmtTime(seconds)}</b><span>{s.key === 'boston' ? (drop ? `Chip time; no downhill index for a ${dropShown} drop (under ${BOSTON_BOUNDS[drop.unit][0]})` : 'Chip time; add a course drop for the downhill index') : timeHint}</span></>}
-            </dd>
-          </div>
-          <div className="is-half">
-            <dt>Window</dt>
-            <dd>
-              <b className={outside ? 'is-out' : 'is-in'}><span aria-hidden="true">{outside ? '✕ ' : '✓ '}</span>{outside ? 'Outside' : 'Inside'}</b>
-              <span>
-                {s.windowNote}
-                {why === 'applications' && end ? ` Proof goes in with the application, so the time must be run by ${fmtDate(end)}, when applications ${app.kind === 'closed' ? 'closed' : 'close'}.` : ''}
-                {why === 'registration' ? ` ${end!.slice(0, 4)} registration week has not been dated; it is usually mid-September.` : ''}
-              </span>
-            </dd>
-          </div>
-          <div className="is-half">
-            <dt>Applications</dt>
-            <dd><b className={`qualifying-app-inline is-${app.kind}`}>{app.label}</b><span>{app.detail ? `${app.detail} ` : ''}{s.applications?.note ?? 'Application dates for this edition are not listed yet.'}{app.kind === 'closed' && s.key === 'sydney' ? ' Shown for reference.' : ''}</span></dd>
-          </div>
-          <div className="is-wide"><dt>Entry</dt><dd><span className="qualifying-entry">{s.entry}</span></dd></div>
-        </dl>
-
-        {s.key === 'boston' ? <BostonHistory margin={r.margin} outside={r.status === 'outside-window'} /> : null}
-        {pools.length && r.margin !== null && r.margin >= 0 && !nyrrGuaranteed ? (
-          <p className="tool-callout qualifying-pool">
-            <strong>The capped pool.</strong> NYRR reported how far under their standard non-NYRR qualifiers had to be: {listWords(pools.map((p) => `${formatDuration(p.seconds)} for ${p.year} (${p.accepted} accepted)`))}.
-            {' '}A margin of {formatMargin(r.margin)} {poolSentence(r.margin, pools)}.
-            {' '}NYRR does not publish the next one in advance, and neither does Pace Notes.
-          </p>
+    <div className="qualifying-race-body">
+      <div className={`qualifying-verdict is-${v.tone}`}>
+        <p className="qualifying-status"><span className="qualifying-glyph" aria-hidden="true">{GLYPH[v.tone]}</span>{v.label}{r.margin !== null ? <span className="qualifying-margin"> · {marginText(r.margin)}</span> : null}</p>
+        {v.route || v.reason || extraNote || notes.length || bostonUnsure || (dropIgnored && usesDrop) ? (
+          <ul className="qualifying-verdict-notes">
+            {v.route ? <li>{v.route}</li> : null}
+            {extraNote ? <li>{extraNote}</li> : null}
+            {v.reason ? <li>{v.reason}</li> : null}
+            {notes.map((n) => <li key={n}>{n}</li>)}
+            {bostonUnsure ? <li>A time run in September {raceDate.slice(0, 4)} counts for {yearOf(s)} only if it is run before {raceDate.slice(0, 4)} registration week ends (expected mid-September; not yet announced).</li> : null}
+            {dropIgnored && usesDrop ? <li>Course drop not applied: check the number typed under “Course and entry details”.</li> : null}
+            {r.margin === 0 && !s.comparisonStated && v.tone !== 'muted' ? (
+              <li>Exactly on the standard. {ORGANISER[s.key] ?? 'The race'} does not say whether an equal time qualifies.{s.key === 'boston' ? ' Acceptance goes to those furthest under.' : ''}</li>
+            ) : null}
+            {s.key === 'london' && champ !== null && seconds < champ && !outside ? (
+              <li>Also under the Championship standard ({formatDuration(champ)}), a separate route for UK athletics club members{uk ? '' : ', open to non-residents'}. Applications close {fmtDate(LONDON_CHAMPIONSHIP.closes)}.</li>
+            ) : null}
+          </ul>
         ) : null}
-
-        <details className="qualifying-fine">
-          <summary>Rules and fine print<span className="sr-only">: {SHORT[s.key]}</span></summary>
-          <ul>{fine.map((f) => <li key={f}>{f}</li>)}</ul>
-        </details>
-
-        <p className="qualifying-sources">
-          {s.sources[0] ? <a className="no-print" href={s.sources[0].url} rel="noopener noreferrer">Official qualifying page<span aria-hidden="true">{'\u00a0'}↗</span></a> : null}
-          <Link className="no-print" href={`/tools/qualifying/${s.key}`}>Every {SHORT[s.key] ?? s.race} age group</Link>
-          <span className="qualifying-checked">Checked <time dateTime={VERIFIED_AT}>{VERIFIED_AT}</time></span>
-        </p>
       </div>
-    </EvidencePanel>
+
+      <dl className="tool-ledger qualifying-facts">
+        <div><dt>Standard</dt><dd>{limit !== null && r.band ? fmtTime(limit) : '—'}</dd>
+          <dd className="tool-ledger-note">{limit !== null && r.band ? <>{bandText(s, r.band, division)}{division === 'nonbinary' && r.band.nonbinary === r.band.women ? ' (equal to the women’s)' : ''} · {comparisonText(s)}</> : v.reason ?? 'No standard applies.'}</dd></div>
+        <div><dt>{s.key === 'boston' ? 'Time counted' : 'Your time'}</dt>
+          <dd>{s.key === 'boston' && index === null ? '—' : s.key === 'boston' && index ? fmtTime(r.counted) : fmtTime(seconds)}</dd>
+          <dd className="tool-ledger-note">{s.key === 'boston' && index === null ? `Not counted: courses dropping ${BOSTON_BOUNDS[drop!.unit][2]} or more are not accepted (this one: ${dropShown}).`
+            : s.key === 'boston' && index ? `${fmtTime(seconds)} chip + ${index / 60}:00 downhill index for a ${dropShown} net drop`
+              : s.key === 'boston' ? (drop ? `Chip time; no downhill index for a ${dropShown} drop (under ${BOSTON_BOUNDS[drop.unit][0]})` : 'Chip time; add a course drop for the downhill index') : timeHint}</dd></div>
+        {aim !== null ? <div><dt>Aim for</dt><dd>{fmtTime(aim)}</dd>
+          <dd className="tool-ledger-note">{aimPace} even pace{index ? `, with the ${index / 60}:00 downhill index` : ''}{s.comparison === 'strictly-under' ? ', a second inside the standard' : ''}{within(aim, BAND_RANGE) ? <> · <Link href={aimHref}>Pace band for it</Link></> : null}</dd></div> : null}
+        <div><dt>Age used</dt><dd>{age.value}</dd><dd className="tool-ledger-note">{age.rule}</dd></div>
+        <div><dt>Window</dt><dd className={outside ? 'is-signal' : undefined}>{outside ? 'Outside' : 'Inside'}</dd>
+          <dd className="tool-ledger-note">{s.windowNote}{why === 'applications' && end ? ` The time must be run by ${fmtDate(end)}, when applications ${app.kind === 'closed' ? 'closed' : 'close'}.` : ''}{why === 'registration' ? ` ${end!.slice(0, 4)} registration week has not been dated; it is usually mid-September.` : ''}</dd></div>
+        <div><dt>Applications</dt><dd>{app.label}</dd>
+          <dd className="tool-ledger-note">{app.detail ? `${app.detail} ` : ''}{s.applications?.note ?? 'Application dates for this edition are not listed yet.'}{app.kind === 'closed' && s.key === 'sydney' ? ' Shown for reference.' : ''}</dd></div>
+        <div><dt>Entry</dt><dd className="tool-ledger-note qualifying-entry">{s.entry}</dd></div>
+      </dl>
+
+      {s.key === 'boston' ? <BostonHistory margin={r.margin} outside={r.status === 'outside-window'} /> : null}
+      {pools.length && r.margin !== null && r.margin >= 0 && !nyrrGuaranteed ? (
+        <p className="tool-note qualifying-pool">
+          <strong>The capped pool.</strong> NYRR reported how far under their standard non-NYRR qualifiers had to be: {listWords(pools.map((p) => `${formatDuration(p.seconds)} for ${p.year} (${p.accepted} accepted)`))}.
+          {' '}A margin of {marginAmount(r.margin)} {poolSentence(r.margin, pools)}. Past years, not a forecast.
+        </p>
+      ) : null}
+
+      <details className="tool-more qualifying-fine">
+        <summary>Rules and fine print<span className="sr-only">: {SHORT[s.key]}</span></summary>
+        <div className="tool-more-body"><ul>{fine.map((f) => <li key={f}>{f}</li>)}</ul></div>
+      </details>
+
+      <p className="qualifying-sources">
+        {s.sources[0] ? <a className="no-print" href={s.sources[0].url} rel="noopener noreferrer">Official qualifying page<span aria-hidden="true">{' '}↗</span></a> : null}
+        <Link className="no-print" href={`/tools/qualifying/${s.key}`}>Every {SHORT[s.key] ?? s.race} age group</Link>
+      </p>
+    </div>
   );
 }
 
@@ -726,183 +712,104 @@ function BostonHistory({ margin, outside }: { margin: number | null; outside: bo
   const random = BOSTON_STANDARD.randomSelection;
   const draw = random ? BOSTON_CUTOFFS.find((c) => c.year === random.year) : undefined;
   const share = random && draw ? random.drawn / (draw.notAccepted + random.drawn) : null;
-  const sorted = [...BOSTON_CUTOFFS].sort((a, b) => a.cutoff - b.cutoff);
-  const lowest = sorted[0];
-  const highest = sorted[sorted.length - 1];
-  const zeroYears = BOSTON_CUTOFFS.filter((c) => c.cutoff === 0).map((c) => c.year);
   const sum = margin !== null ? cutoffSummary(margin) : null;
   return (
     <section className="qualifying-boston" aria-labelledby="qualifying-boston-history">
-      <h3 id="qualifying-boston-history">Your margin against every past cut-off</h3>
-      {margin === null ? <p className="qualifying-boston-lead">With no margin to compare, the cut-offs are shown for reference.</p>
-        : margin < 0 ? <p className="qualifying-boston-lead">A time {formatMargin(margin).slice(1)} over the standard could not apply in any of these years.</p>
-        : <p className="qualifying-boston-lead">A margin of <b>{formatMargin(margin)}</b> would have cleared <b>{sum!.recent} of the last 4</b> ({sum!.span}) and {sum!.all} of the {sum!.total} cut-offs since {BOSTON_CUTOFFS[0].year}.{outside ? ' This compares the margin only: the race date is outside the 2028 window.' : ''}</p>}
+      <h3 id="qualifying-boston-history">
+        {margin === null ? 'Every past cut-off'
+          : margin < 0 ? <>A time {marginAmount(margin)} over the standard could not apply in any year.</>
+            : <>Your <b>{marginAmount(margin)}</b> margin would have cleared {sum!.all} of {sum!.total} <span className="nowrap">cut-offs</span> since {BOSTON_CUTOFFS[0].year}.</>}
+      </h3>
+      {outside && margin !== null && margin >= 0 ? <p className="tool-note">This compares the margin only: the race date is outside the window.</p> : null}
       <CutoffChart margin={margin} />
-      <div className="tool-table-wrap">
-        <table className="tool-table qualifying-cutoff-table">
+      <Values id="qualifying-boston-values" caption="Boston cut-offs: how far under their standard applicants had to be, and how many qualifiers were turned away" count={BOSTON_CUTOFFS.length}>
+        <table className="table">
           <thead><tr><th scope="col">Race</th><th scope="col">Cut-off</th><th scope="col">Turned away</th><th scope="col">Cleared</th></tr></thead>
           <tbody>
-            {[...BOSTON_CUTOFFS].reverse().map((c) => {
-              const cleared = margin !== null && margin >= c.cutoff;
-              return (
-                <tr key={c.year}>
-                  <td>{c.year}{c.note ? <span className="qualifying-row-note">{c.note}</span> : null}</td>
-                  <td>{formatDuration(c.cutoff)}</td>
-                  <td>{grouped(c.notAccepted)}</td>
-                  <td className={cleared ? 'is-minus' : undefined}>{cleared ? '✓ yes' : <span className="qualifying-dim">no</span>}</td>
-                </tr>
-              );
-            })}
+            {[...BOSTON_CUTOFFS].reverse().map((c) => (
+              <tr key={c.year}>
+                <th scope="row">{c.year}{c.note ? <small> {c.note}</small> : null}</th>
+                <td>{formatDuration(c.cutoff)}</td>
+                <td>{grouped(c.notAccepted)}</td>
+                <td>{margin !== null && margin >= c.cutoff ? 'Yes' : 'No'}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
-      </div>
-      <p className="tool-note qualifying-table-note">Cut-off: how far under their standard applicants had to be. No cut-off is listed for {BOSTON_CUTOFFS[0].year + 1}.</p>
+      </Values>
       {random && draw && share !== null ? (
-        <p className="tool-callout qualifying-draw">
-          <strong>{random.year} random selection.</strong> For {random.year} the B.A.A. also drew about {grouped(random.drawn)} qualifiers at random from those who missed the {formatDuration(draw.cutoff)} cut-off: about {Math.round(share * 100)}% of that group. The B.A.A. has not said whether the draw will continue.
-        </p>
+        <p className="tool-note"><strong>{random.year} random selection.</strong> The B.A.A. also drew about {grouped(random.drawn)} qualifiers at random from those who missed the {formatDuration(draw.cutoff)} cut-off: about {Math.round(share * 100)}% of that group.</p>
       ) : null}
-      <p className="tool-note">The B.A.A. does not predict cut-offs, and Pace Notes does not either. They have ranged from {formatDuration(lowest.cutoff)} ({zeroYears.join(' and ')}) to {formatDuration(highest.cutoff)} ({highest.year}{highest.note ? `, ${highest.note.toLowerCase()}` : ''}).</p>
+      <p className="tool-note">Past cut-offs, not a forecast: the B.A.A. does not predict them, and neither does Pace Notes.</p>
     </section>
   );
 }
 
+/**
+ * Every Boston cut-off as a lollipop by year, the margin entered as a line across them: the cut-offs it clears in ink,
+ * the rest quiet. Drawn in pixels at the measured width, so labels stay 12 px.
+ */
 function CutoffChart({ margin }: { margin: number | null }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
+  // Drawn only while its race is open (and for printing), so it is always drawn at the width it is shown at.
+  const [shown, setShown] = useState(true);
+  useEffect(() => {
+    const details = ref.current?.closest('details');
+    if (!details) return undefined;
+    const sync = () => setShown(details.open);
+    const print = () => flushSync(() => setShown(true));
+    sync();
+    details.addEventListener('toggle', sync);
+    window.addEventListener('beforeprint', print);
+    window.addEventListener('afterprint', sync);
+    return () => { details.removeEventListener('toggle', sync); window.removeEventListener('beforeprint', print); window.removeEventListener('afterprint', sync); };
+  }, []);
   const narrow = width < 520;
-  const H = narrow ? 200 : 230;
-  const m = { l: 40, r: 8, t: 30, b: 26 };
+  const H = narrow ? 180 : 210;
+  const m = { l: 40, r: 8, t: 22, b: 24 };
   const rows = BOSTON_CUTOFFS;
   const maxCut = Math.max(...rows.map((c) => c.cutoff));
   const yMax = margin !== null && margin > maxCut && margin <= 600 ? Math.ceil((margin + 30) / 120) * 120 : Math.ceil((maxCut + 10) / 120) * 120;
-  const plotW = Math.max(120, width - m.l - m.r);
+  const plotW = Math.max(60, width - m.l - m.r);
   const plotH = H - m.t - m.b;
   const step = plotW / rows.length;
-  const barW = Math.max(6, Math.min(26, step * 0.62));
   const x = (i: number) => m.l + step * i + step / 2;
   const y = (v: number) => m.t + plotH - (Math.min(v, yMax) / yMax) * plotH;
   const ticks: number[] = [];
   for (let t = 0; t <= yMax; t += 120) ticks.push(t);
   const sum = margin !== null && margin >= 0 ? cutoffSummary(margin) : null;
-  const label = `Column chart of Boston Marathon cut-offs from ${rows[0].year} to ${rows[rows.length - 1].year}, from 0:00 to ${formatDuration(maxCut)} under the standard. `
-    + (margin === null ? 'No margin to compare.' : margin < 0 ? `Your time is ${formatMargin(margin).slice(1)} over the standard, so it clears none.` : `Your margin of ${formatMargin(margin)} would have cleared ${sum!.all} of ${sum!.total}, including ${sum!.recent} of the last 4 (${sum!.span}).`);
+  const label = `Boston Marathon cut-offs from ${rows[0].year} to ${rows[rows.length - 1].year}, from 0:00 to ${formatDuration(maxCut)} under the standard. `
+    + (margin === null ? 'No margin to compare.' : margin < 0 ? `Your time is ${marginAmount(margin)} over the standard, so it clears none.` : `Your margin of ${marginAmount(margin)} would have cleared ${sum!.all} of ${sum!.total}, including ${sum!.recent} of the last 4 (${sum!.span}).`);
   const lineY = margin !== null && margin >= 0 ? y(margin) : null;
   const above = margin !== null && margin > yMax;
+  // Every year that has room for its label (about 22 px for "’27", 34 px for "2027"), counted back from the latest.
+  const yearEvery = Math.max(1, Math.ceil(((narrow ? 22 : 31) + 6) / step));
   return (
-    <div className="viz qualifying-cutoff-chart" ref={ref}>
-      <div className="qualifying-legend" aria-hidden="true">
-        <span><i className="is-cleared" />Cleared by your margin</span>
-        <span><i className="is-not" />Not cleared</span>
-        {lineY !== null ? <span><i className="is-line" />Your margin</span> : null}
-      </div>
-      <svg width={width} height={H} role="img" aria-label={label}>
-        <defs>
-          <pattern id="qualifying-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="5" height="5" fill="var(--paper-2)" />
-            <line x1="0" y1="0" x2="0" y2="5" stroke="var(--line-2)" strokeWidth="2" />
-          </pattern>
-        </defs>
+    <div className="qualifying-cutoff-chart" ref={ref} style={shown ? undefined : { height: H }}>
+      {shown ? <svg width={width} height={H} role="img" aria-label={label}>
         {ticks.map((t) => (
-          <g key={t} className="grid">
+          <g key={t} className="qualifying-grid">
             <line x1={m.l} x2={width - m.r} y1={y(t)} y2={y(t)} />
             <text x={m.l - 6} y={y(t) + 4} textAnchor="end">{formatDuration(t)}</text>
           </g>
         ))}
         {rows.map((c, i) => {
           const cleared = margin !== null && margin >= c.cutoff;
-          const top = y(c.cutoff);
-          const h = Math.max(0, m.t + plotH - top);
           return (
-            <g key={c.year}>
-              {h > 0 ? <rect x={x(i) - barW / 2} y={top} width={barW} height={h} rx={2}
-                fill={cleared ? 'var(--green)' : 'url(#qualifying-hatch)'} stroke={cleared ? 'var(--green-ink)' : 'var(--ink-3)'} strokeWidth={cleared ? 0 : 1} />
-                : <rect x={x(i) - barW / 2} y={m.t + plotH - 2} width={barW} height={2} fill={cleared ? 'var(--green-ink)' : 'var(--ink-3)'} />}
-              <text x={x(i)} y={H - 8} textAnchor="middle" className={narrow ? 'qualifying-year-short' : undefined}>{narrow ? String(c.year).slice(2) : c.year}</text>
+            <g key={c.year} className={`qualifying-lolly${cleared ? ' is-cleared' : ''}`}>
+              <line x1={x(i)} x2={x(i)} y1={m.t + plotH} y2={y(c.cutoff)} />
+              <circle cx={x(i)} cy={y(c.cutoff)} r={4.5} />
+              {i % yearEvery === (rows.length - 1) % yearEvery ? <text x={x(i)} y={H - 6} textAnchor="middle">{narrow ? `’${String(c.year).slice(2)}` : c.year}</text> : null}
             </g>
           );
         })}
-        <line x1={m.l} x2={width - m.r} y1={m.t + plotH} y2={m.t + plotH} stroke="var(--ink-3)" />
+        <line className="qualifying-base" x1={m.l} x2={width - m.r} y1={m.t + plotH} y2={m.t + plotH} />
         {lineY !== null ? <line className="qualifying-margin-rule" x1={m.l} x2={width - m.r} y1={lineY} y2={lineY} /> : null}
-        {/* Value labels sit above the margin line; their halo masks it where the two cross, so the numbers stay legible. */}
-        {!narrow ? rows.map((c, i) => <text key={c.year} x={x(i)} y={y(c.cutoff) - 6} textAnchor="middle" className="qualifying-bar-value">{formatDuration(c.cutoff)}</text>) : null}
         {lineY !== null ? (
-          <text className="annotation qualifying-margin-label" x={m.l + 4} y={lineY - 7}>
-            {above ? `Your margin ${formatMargin(margin!)} is above every cut-off ▲` : `Your margin ${formatMargin(margin!)}`}
-          </text>
-        ) : margin !== null ? (
-          <text className="annotation" x={m.l + 6} y={m.t - 12}>Your time is {formatMargin(margin).slice(1)} over the standard</text>
+          <text className="qualifying-margin-label" x={m.l + 4} y={Math.max(12, lineY - 7)}>{above ? `Your ${marginAmount(margin!)} is above every cut-off` : `Your ${marginAmount(margin!)}`}</text>
         ) : null}
-      </svg>
+      </svg> : null}
     </div>
-  );
-}
-
-/* ---------- Targets: standard minus a buffer, and the even pace for it ---------- */
-
-function TargetsPanel({ items, seconds, buffer, setBuffer, drop, units, gender }: {
-  items: Item[]; seconds: number; buffer: number; setBuffer: (n: number) => void; drop?: Drop; units: UnitSystem;
-  /** The division the visitor chose, passed to the pace band's observed columns (none for non-binary or the example division). */
-  gender: 'men' | 'women' | null;
-}) {
-  // A course the race does not accept has no target on it; the note below says which races are left out.
-  const rows = items.filter((it) => it.r.limit !== null && !it.courseOut);
-  const leftOut = items.filter((it) => it.courseOut).map((it) => SHORT[it.s.key]);
-  const bostonIndex = drop ? bostonIndexFor(drop) ?? 0 : 0;
-  const target = (it: Item) => it.r.limit! - (it.s.key === 'boston' ? bostonIndex : 0) - buffer * 60 - (it.s.comparison === 'strictly-under' ? 1 : 0);
-  // Pace band and course chooser goals are whole minutes: the minute at or below the target, as H:MM.
-  const goalParam = (t: number) => { const mins = Math.floor(t / 60); return `${Math.floor(mins / 60)}:${pad(mins % 60)}`; };
-  const bandHref = (t: number) => `/tools/pace-band?goal=${goalParam(t)}${gender ? `&g=${gender}` : ''}`;
-  const bostonRow = rows.find((it) => it.s.key === 'boston');
-  const focus = bostonRow ?? rows[0];
-  const focusT = focus ? target(focus) : null;
-  const observed = focusT !== null && within(focusT, OBSERVED_RANGE);
-  const allLinked = rows.every((it) => within(target(it), BAND_RANGE));
-  // The buttons stay focusable at 0 and 30 (aria-disabled), so a keyboard user's focus never falls back to the page.
-  const set = (n: number) => setBuffer(Math.max(0, Math.min(30, n)));
-  return (
-    <EvidencePanel title="Times to aim for" meta="Each standard minus the buffer you choose, and the even pace for it. Not a forecast of any cut-off.">
-      <div className="qualifying-buffer no-print">
-        <span className="tool-label" id="qualifying-buffer-label">Buffer under each standard</span>
-        <div className="tool-stepper" role="group" aria-labelledby="qualifying-buffer-label">
-          <button type="button" aria-label="One minute less buffer" aria-disabled={buffer <= 0 || undefined} onClick={() => { if (buffer > 0) set(buffer - 1); }}>−</button>
-          <div className="tool-stepper-value"><b className="qualifying-buffer-value" aria-live="polite">{buffer} min</b></div>
-          <button type="button" aria-label="One minute more buffer" aria-disabled={buffer >= 30 || undefined} onClick={() => { if (buffer < 30) set(buffer + 1); }}>+</button>
-        </div>
-      </div>
-      <div className="tool-table-wrap">
-        <table className="tool-table wrap-first qualifying-targets">
-          <thead><tr><th scope="col">Race</th><th scope="col">Aim for</th><th scope="col" className="qualifying-pace-col">Pace /{units}</th><th scope="col">Your margin</th></tr></thead>
-          <tbody>
-            {rows.map((it) => {
-              const t = target(it);
-              const diff = t - seconds;
-              return (
-                <tr key={it.s.key} className={it === focus ? 'is-key' : undefined}>
-                  <td>{SHORT[it.s.key]} {yearOf(it.s)}<span className="qualifying-row-note">standard {fmtTime(it.r.limit!)}{it.s.key === 'boston' && bostonIndex ? `, −${bostonIndex / 60}:00 index` : ''}</span></td>
-                  <td>
-                    {within(t, BAND_RANGE) ? <Link href={bandHref(t)} aria-label={`${fmtTime(t)}: pace band for this target`}>{fmtTime(t)}</Link> : fmtTime(t)}
-                    <span className="qualifying-pace-inline">{formatDuration(perUnit(t / MARATHON_KM, units))}/{units}</span>
-                  </td>
-                  <td className="qualifying-pace-col">{formatDuration(perUnit(t / MARATHON_KM, units))}</td>
-                  <td className={diff >= 0 ? 'is-minus' : 'is-plus'}>{formatMargin(diff)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <p className="tool-note qualifying-table-note">
-        Your margin is how far your {fmtTime(seconds)} is under (+) or over (−) each target. {rows.some((it) => it.s.comparison === 'strictly-under') ? 'London needs a time strictly under its standard, so its target is a second inside. ' : ''}
-        {bostonIndex ? `Boston’s target includes the ${bostonIndex / 60}:00 downhill index for your course. ` : ''}{leftOut.length ? `${leftOut.join(' and ')} ${leftOut.length > 1 ? 'are' : 'is'} left out: ${leftOut.length > 1 ? 'they do' : 'it does'} not accept a course with this drop. ` : ''}{allLinked ? 'Each target links to a pace band for its whole minute.' : 'Targets from 1:30 to 8:00 link to a pace band for their whole minute.'}
-      </p>
-      {focus && focusT !== null && within(focusT, BAND_RANGE) ? (
-        <p className="tool-callout qualifying-plan no-print">
-          <strong>Planning a {SHORT[focus.s.key]} attempt at {fmtTime(focusT)}?</strong>{' '}
-          {observed ? <>The <Link href={bandHref(focusT)}>pace band</Link> shows what finishes near that time actually ran at each 5 km mat, and the <Link href={`/tools/course-chooser?goal=${goalParam(focusT)}`}>course chooser</Link> compares courses at that pace.</>
-            : <>The <Link href={bandHref(focusT)}>pace band</Link> gives even-pace splits for it. Its observed columns and the <Link href="/tools/course-chooser">course chooser</Link> cover goals from 2:30 to 6:30 only.</>}
-        </p>
-      ) : null}
-    </EvidencePanel>
   );
 }

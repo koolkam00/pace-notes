@@ -31,7 +31,8 @@ export type AllFinisherStart = Omit<AllFinisherEvidence, 'rows'> & { initial: Al
 export const ALL_FINISHER_DEFAULT: AllFinisherSelection = { mode: 'all', city: 'All courses', age: 'all', gender: 'all', early_pace: 'all', opening: 'fast10' };
 export const allFinisherFamily = (kind: AllFinisherKind): 'courses' | 'weather' | 'downhill' => kind === 'downhill' ? 'downhill' : ['weather', 'weather-profile', 'race-day'].includes(kind) ? 'weather' : 'courses';
 
-export function readAllFinisherSelection(search: string, start: Pick<AllFinisherStart, 'cities' | 'ages' | 'genders' | 'early_pace_bands' | 'opening_bands'>): AllFinisherSelection {
+/** The address's selection; `opening` is the band a downhill-start explorer opens on when the address names none. */
+export function readAllFinisherSelection(search: string, start: Pick<AllFinisherStart, 'cities' | 'ages' | 'genders' | 'early_pace_bands' | 'opening_bands'>, opening = ALL_FINISHER_DEFAULT.opening): AllFinisherSelection {
   const p = new URLSearchParams(search);
   const city = p.get('race') === 'NYC' ? 'New York' : p.get('race');
   const previous = Number(p.get('previous'));
@@ -39,7 +40,7 @@ export function readAllFinisherSelection(search: string, start: Pick<AllFinisher
   return { mode, city: start.cities.includes(city || '') ? city! : 'All courses',
     age: start.ages.includes(p.get('age') || '') ? p.get('age')! : 'all', gender: start.genders.includes(p.get('gender') || '') ? p.get('gender')! : 'all',
     early_pace: start.early_pace_bands.some(row => row.id === p.get('early')) ? p.get('early')! : 'all',
-    opening: start.opening_bands.some(row => row.id === p.get('opening')) ? p.get('opening')! : 'fast10' };
+    opening: start.opening_bands.some(row => row.id === p.get('opening')) ? p.get('opening')! : opening };
 }
 export function allFinisherSearch(selection: AllFinisherSelection): string {
   return '?' + new URLSearchParams({ comparison: selection.mode, race: selection.city, age: selection.age, gender: selection.gender, early: selection.early_pace, opening: selection.opening }).toString();
@@ -51,6 +52,19 @@ export function allFinisherGroups(row: AllFinisherRow, kind: AllFinisherKind, op
   if (kind === 'race-day') return row.editions;
   return row[allFinisherFamily(kind)].filter(group => kind !== 'downhill' || group.opening === opening);
 }
+/**
+ * A start-temperature band as a short column label in the reader's degrees: "41–50°F", "<41°F", "68°F+", or without
+ * the unit ("41–50") where the chart names it once.
+ */
+export function bandShort(g: Pick<AllFinisherGroup, 'lower_c' | 'upper_c'>, units: UnitSystem, withUnit = true) {
+  const t = (c: number) => Math.round(units === 'mi' ? c * 1.8 + 32 : c);
+  const deg = withUnit ? (units === 'mi' ? '°F' : '°C') : '';
+  if (g.lower_c == null) return `<${t(g.upper_c!)}${deg}`;
+  if (g.upper_c == null) return `${t(g.lower_c)}${deg}+`;
+  return `${t(g.lower_c)}–${t(g.upper_c)}${deg}`;
+}
+/** An opening band in the site's words: "More than 10% faster" → "over 10% fast", "2–5% slower" → "2–5% slow". */
+export const bandWords = (label: string) => label.replace(/^More than /i, 'over ').replace(/(\d%) (fast|slow)er$/i, '$1 $2').replace(/^[A-Z]/, (c) => c.toLowerCase());
 export function earlyPaceLabel(band: AllFinisherStart['early_pace_bands'][number], units: UnitSystem): string {
   if (band.id === 'all') return 'All early paces';
   if (band.lower_s_per_km === null) return 'Faster than ' + paceLabel(band.upper_s_per_km!, units);
@@ -61,9 +75,10 @@ export function allFinisherGroupLabel(group: AllFinisherGroup, kind: AllFinisher
   if (kind === 'race-day') return group.label.replace(/^New York /, 'New York City ');
   if (allFinisherFamily(kind) === 'weather') {
     const temp = (n: number) => `${Number((units === 'mi' ? n * 1.8 + 32 : n).toFixed(1))}°${units === 'mi' ? 'F' : 'C'}`;
-    return group.lower_c == null ? 'Below ' + temp(group.upper_c!) : group.upper_c == null ? temp(group.lower_c) + ' or warmer' : temp(group.lower_c) + ' to below ' + temp(group.upper_c);
+    // The band in the page's grammar ("41–50°F"): from its lower edge to below its upper one.
+    return group.lower_c == null ? 'Below ' + temp(group.upper_c!) : group.upper_c == null ? temp(group.lower_c) + ' or warmer' : temp(group.lower_c).replace(/°[CF]$/, '') + '–' + temp(group.upper_c);
   }
-  if (kind === 'downhill') return group.terrain === 'downhill' ? 'Larger opening descent' : 'Other openings';
+  if (kind === 'downhill') return group.terrain === 'downhill' ? 'Downhill-start courses' : 'Every other course';
   return group.label === 'New York' ? 'New York City' : group.label;
 }
 export function allFinisherCharts(groups: AllFinisherGroup[], focus: AllFinisherGroup, comparison: AllFinisherGroup | undefined, kind: AllFinisherKind, units: UnitSystem) {

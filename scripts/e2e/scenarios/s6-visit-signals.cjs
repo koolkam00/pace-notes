@@ -14,7 +14,10 @@ const { SITE, type, waitFor } = require('../browser.cjs');
 const { ROOT } = require('../inspect.cjs');
 
 const PHONE = { viewport: { width: 390, height: 844 }, mobile: true };
-const HOME_SECTIONS = ['hero', 'paths', 'stakes', 'guide', 'steps', 'stories', 'cta'];
+// The home page's sections since the redesign (WP1, October 17, 2026): the steps and the story teaser are gone.
+const HOME_SECTIONS = ['hero', 'paths', 'stakes', 'guide', 'cta'];
+// The home page's links to a story: its chapter list (the guide), since the story cards left it.
+const HOME_STORY = 'main .chapter-list a[href^="/stories/"]';
 const SENTINEL = 'E2E sentinel Private Name 3:16:41';
 // A recording shows the elements a test adds to the page (a broken image, a missing script) like any other.
 const IN_RECORDING = /\(\/s\/\)/;
@@ -39,15 +42,15 @@ async function reading(h) {
   const order = await page.evaluate(() => [...document.querySelectorAll('[data-track-section]')].map(el => el.dataset.trackSection));
   for (let i = 0; i < 60; i++) { await page.mouse.wheel(0, 600); await page.waitForTimeout(90); }
   await page.waitForTimeout(800);
-  await page.click('.unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(300);
-  await page.click('.unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(300);
+  await page.click('.unit-switch button:has-text("Kilometers")'); await page.waitForTimeout(300);
+  await page.click('.unit-switch button:has-text("Kilometers")'); await page.waitForTimeout(300);
   await page.click('.unit-switch button:has-text("Miles")'); await page.waitForTimeout(300);
   const toBottom = async () => {
     for (let i = 0; i < 80 && await page.evaluate(() => window.scrollY + innerHeight < document.documentElement.scrollHeight - 2); i++) { await page.mouse.wheel(0, 900); await page.waitForTimeout(60); }
     await page.waitForTimeout(400);
   };
   // Story A, read to the end, then back to the (much longer) home page by the header logo: a client-side navigation.
-  await page.evaluate(() => document.querySelector('a.story-card[href^="/stories/"]').click());
+  await page.evaluate(selector => document.querySelector(selector).click(), HOME_STORY);
   await page.waitForURL(url => new URL(url).pathname.startsWith('/stories/'));
   const storyA = new URL(page.url()).pathname;
   await page.waitForTimeout(1500);
@@ -58,13 +61,17 @@ async function reading(h) {
   await feedback.locator('button:has-text("Hard to follow")').click({ force: true });
   await feedback.locator('button:has-text("Yes")').click({ force: true });
   h.check('feedback says thank you', /Thank you/.test(await feedback.locator('[role="status"]').innerText()));
+  // The reasons and the thank-you lengthen the page below the furthest point read, and PostHog measures depth against
+  // the page's height when the next page view goes out: on a short story (pacing types is under three phone screens
+  // since round 3) that alone drops a read to the end under 0.9, so the reader reads on to the new end first.
+  await toBottom();
   await page.waitForTimeout(800);
   await page.locator('a.site-title').click();
   await page.waitForURL(url => new URL(url).pathname === '/');
   await page.waitForTimeout(1500);
   // Story B, read to the end, then the tab leaves the site with a full load: the story's own $pageleave.
-  const storyB = await page.evaluate(a => [...document.querySelectorAll('a.story-card[href^="/stories/"]')].map(el => new URL(el.href).pathname).find(href => href !== a), storyA);
-  await page.evaluate(href => document.querySelector(`a.story-card[href="${href}"]`).click(), storyB);
+  const storyB = await page.evaluate(([selector, a]) => [...document.querySelectorAll(selector)].map(el => new URL(el.href).pathname).find(href => href !== a), [HOME_STORY, storyA]);
+  await page.evaluate(([selector, href]) => [...document.querySelectorAll(selector)].find(el => new URL(el.href).pathname === href).click(), [HOME_STORY, storyB]);
   await page.waitForURL(url => new URL(url).pathname === storyB);
   await page.waitForTimeout(1500);
   await toBottom();
@@ -84,7 +91,7 @@ async function reading(h) {
   const sections = named(run, 'section_viewed').filter(p => p.$pathname === '/' && views[0] && p.$pageview_id === views[0].$pageview_id).map(p => p.section);
   h.check('each home section is counted once, in page order', JSON.stringify(sections) === JSON.stringify(order), { sent: sections, page: order });
   // The home page's sections since October 16, 2026, and none of them a chapter-* (autopilot/metrics.md counts those on /).
-  h.check('the home page marks hero, paths, stakes, guide, steps, stories and cta, in that order', JSON.stringify(order) === JSON.stringify(HOME_SECTIONS), order);
+  h.check('the home page marks hero, paths, stakes, guide and cta, in that order', JSON.stringify(order) === JSON.stringify(HOME_SECTIONS), order);
   h.check('no chapter-* section is sent from the home page', !named(run, 'section_viewed').some(p => p.$pathname === '/' && String(p.section).startsWith('chapter-')), shown(named(run, 'section_viewed').filter(p => p.$pathname === '/')));
   // Once the SDK has loaded, the site's events join its batch (sent every few seconds) instead of one request each.
   const perRequest = run.sent.map(r => (r.events || []).filter(e => e.event === 'section_viewed').length).filter(n => n);
@@ -95,10 +102,13 @@ async function reading(h) {
   // A story read to the end, then a client-side navigation to a longer page, stays read to the end (the next page's
   // height does not count), under the story's own path.
   const home = views.find(p => p.$pathname === '/' && p.$prev_pageview_pathname === storyA);
-  // The client-side return to /: one hero, under the / page view. The story's page view, still open as the router puts
-  // the home page in place, must not count it too.
-  const heroes = named(run, 'section_viewed').filter(p => p.section === 'hero' && (!views[0] || p.$pageview_id !== views[0].$pageview_id));
+  // The client-side return to /: one hero on /, under the / page view. The story's page view, still open as the router
+  // puts the home page in place, must not count it too. (Stories mark a hero of their own since the October 17, 2026
+  // redesign; those are checked below, each once under its story's page view.)
+  const heroes = named(run, 'section_viewed').filter(p => p.section === 'hero' && p.$pathname === '/' && (!views[0] || p.$pageview_id !== views[0].$pageview_id));
   h.check('after a client-side navigation to /, exactly one hero, carrying the / page view\'s $pageview_id', home && heroes.length === 1 && heroes[0].$pageview_id === home.$pageview_id, { home: home && home.$pageview_id, heroes: heroes.map(p => `${p.$pathname} ${p.$pageview_id}`) });
+  const storyHeroes = [storyA, storyB].map(path => named(run, 'section_viewed').filter(p => p.section === 'hero' && p.$pathname === path));
+  h.check('each story read marks its hero once, under its own page view', storyHeroes.every((list, i) => list.length === 1 && list[0].$pageview_id === (views.find(p => p.$pathname === [storyA, storyB][i]) || {}).$pageview_id), storyHeroes.map(list => list.map(p => `${p.$pathname} ${p.$pageview_id}`)));
   const viewPath = new Map(views.map(p => [p.$pageview_id, p.$pathname]));
   const misfiled = named(run, 'section_viewed').filter(p => viewPath.get(p.$pageview_id) !== p.$pathname);
   h.check('every section view carries the page view of its own page', !misfiled.length, misfiled.map(p => `${p.section} ${p.$pathname} ${p.$pageview_id}`));
@@ -269,7 +279,7 @@ async function restored(h) {
   h.check('page_feedback once on the tool, as sent', named(signals, 'page_feedback').length === 1 && named(signals, 'page_feedback_reason').length === 0, shown(named(signals, 'page_feedback')));
 }
 
-// Edits outside a tool's workspace (the course chooser's list) count; buttons that only jump down the page or print do not.
+// Edits outside a tool's workspace (the course chooser's list) count; buttons that only jump within the page or print do not.
 async function toolEdits(h) {
   const run = await h.run('tool edits', { ...PHONE });
   const page = await run.newPage();
@@ -278,17 +288,18 @@ async function toolEdits(h) {
   await page.waitForTimeout(800);
   await page.selectOption('#course-chooser-sort', 'under');
   await page.waitForTimeout(300);
+  // The two filters sit behind one disclosure (one control on the beat).
+  await page.locator('details.course-chooser-filters > summary').click();
   await page.selectOption('#course-chooser-open', 'downhill');
   await page.waitForTimeout(500);
+  // The projector's result sits right above its inputs (no "Result ↑" link since WP9 round 3): opening it is no edit.
   await page.goto(SITE + '/tools/projector', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
-  await page.locator('button:has-text("Full result ↓")').first().click();
-  await page.waitForTimeout(500);
   // A result's next step is not an edit, on the tool it leaves or on the one it opens with the time filled in.
-  await page.goto(SITE + '/tools/predictor', { waitUntil: 'load' });
+  await page.goto(SITE + '/tools/pace-calculator', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
-  await page.locator('.tool-handoffs a:has-text("Turn this into a pace band")').click();
-  await page.waitForURL(/\/tools\/pace-band\?goal=\d:\d\d$/);
+  await page.locator('.tool-handoffs a:has-text("Plan this goal")').click();
+  await page.waitForURL(/\/tools\/plan\?goal=\d:\d\d$/);
   const handedOn = page.url();
   await page.waitForTimeout(1500);
   await page.goto(SITE + '/tools/pace-band', { waitUntil: 'load' });
@@ -300,12 +311,12 @@ async function toolEdits(h) {
   await run.close();
   const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
   h.check('changing the course chooser\'s list is one edit', JSON.stringify(used.filter(u => u.startsWith('/tools/course-chooser'))) === '["/tools/course-chooser:edit"]', used);
-  h.check('"Full result ↓" is not an edit', !used.some(u => u.startsWith('/tools/projector')), used);
+  h.check('opening the projector is not an edit', !used.some(u => u.startsWith('/tools/projector')), used);
   h.check('printing the pace band is a print, not an edit', JSON.stringify(used.filter(u => u.startsWith('/tools/pace-band'))) === '["/tools/pace-band:print"]', used);
-  h.check('following a result\'s next step is not an edit', !used.some(u => u.startsWith('/tools/predictor')) && named(run, '$pageview').filter(p => p.$pathname === '/tools/pace-band').length === 2, { used, handedOn });
+  h.check('following a result\'s next step is not an edit', !used.some(u => u.startsWith('/tools/pace-calculator') || u.startsWith('/tools/plan')) && named(run, '$pageview').filter(p => p.$pathname === '/tools/plan').length === 1, { used, handedOn });
 }
 
-// The race planner: its course result, mat comparison and pace band are each seen once, in page order; its two print
+// The race planner: its mat comparison, course result and pace band are each seen once (the band last); its two print
 // buttons are prints and its Copy link a copied link, none of them an edit; the copied link keeps the course and goal.
 async function planner(h) {
   const run = await h.run('planner', { ...PHONE });
@@ -319,16 +330,20 @@ async function planner(h) {
   await page.evaluate(() => { window.print = () => { window.dispatchEvent(new Event('beforeprint')); window.dispatchEvent(new Event('afterprint')); }; });
   await page.locator('button:has-text("Print wristband strips")').click();
   await page.waitForTimeout(500);
-  await page.locator('button:has-text("Print this plan")').click();
-  await page.waitForTimeout(500);
   await page.locator('#plan-band .share-bar button:has-text("Copy link")').click();
   await page.waitForTimeout(500);
   const copied = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
   await run.close();
   const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
   const sections = named(run, 'section_viewed').filter(p => p.$pathname === '/tools/plan').map(p => p.section);
-  h.check('planner: the course result, the mat comparison and the pace band are each seen once, in page order', JSON.stringify(sections) === '["result","comparison","pace-band"]', sections);
-  h.check('planner: both print buttons are prints and Copy link a copied link; none is an edit', JSON.stringify(used) === '["/tools/plan:print","/tools/plan:print","/tools/plan:copy_link"]', used);
+  // Since the October 2026 redesign the page is short enough for the scroll to reach the chapter's end ("related") too:
+  // it may follow the planner's three, once.
+  const own = sections.filter(s => s !== 'related');
+  // Since round 6 (October 2026) the data beat (comparison) leads the page, above the plan's card (result). It is marked
+  // only once its finishes show, so on a linked course and goal (this run) it is first seen when its file loads, right
+  // after the card; on the example, read at build, it is seen first. Either way each is seen once, the band last.
+  h.check('planner: the mat comparison, the course result and the pace band are each seen once, the band last', ['["comparison","result","pace-band"]', '["result","comparison","pace-band"]'].includes(JSON.stringify(own)) && sections.length - own.length <= 1 && (sections.length === own.length || sections[sections.length - 1] === 'related'), sections);
+  h.check('planner: the print button is a print and Copy link a copied link; neither is an edit', JSON.stringify(used) === '["/tools/plan:print","/tools/plan:copy_link"]', used);
   let link = null;
   try { link = new URL(copied); } catch { /* checked below */ }
   h.check('planner: the copied link opens the same course, goal and units, and carries nothing else', link && link.pathname === '/tools/plan' && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'berlin'], ['goal', '3:30'], ['units', 'mi']]), copied);
@@ -345,26 +360,40 @@ async function raceReport(h) {
   await page.goto(`${SITE}/report?s=${REPORT_S}&course=berlin`, { waitUntil: 'load' });
   await page.waitForSelector('.race-report-table', { timeout: 20000 });
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 500); await page.waitForTimeout(250); }
-  const button = name => page.locator('.race-report-actions button', { hasText: name });
-  // First an image the browser cannot encode: the export fails, reported once, with the button's own message.
+  // Print sits in the report's bar; Save image, Share… and Copy link in the sheet its Share button opens (a modal: it is
+  // closed for the print and opened again for the link).
+  const button = name => page.locator('.race-report-actions .share-bar button', { hasText: name });
+  const inSheet = name => page.locator('.race-report-sheet.is-open button', { hasText: name });
+  const openSheet = async () => { await page.locator('.race-report-actions .race-report-share-open').click(); await page.waitForSelector('.race-report-sheet.is-open [data-report-save]', { timeout: 15000 }); await page.waitForTimeout(300); };
+  // First an image the browser cannot encode, from before the sheet opens (the sheet draws its preview as it opens, and
+  // Save image reuses that drawing): the preview says so and reports nothing (drawing is not an export); then the
+  // export fails, reported once, with the button's own message.
   await page.evaluate(() => { window.__e2eToBlob = HTMLCanvasElement.prototype.toBlob; HTMLCanvasElement.prototype.toBlob = function (callback) { callback(null); }; });
-  for (let i = 0; i < 2; i++) { await button('Save image').click(); await page.waitForTimeout(800); }
-  const message = await page.locator('.race-report-note').textContent();
+  await openSheet();
+  await page.waitForSelector('.race-report-sheet .race-report-preview-wait', { timeout: 15000 });
+  await page.waitForTimeout(800);
+  const drawNote = await page.locator('.race-report-sheet .race-report-preview-wait').textContent();
+  for (let i = 0; i < 2; i++) { await inSheet('Save image').click(); await page.waitForTimeout(800); }
+  const message = await page.locator('.race-report-sheet .race-report-note').textContent();
   await page.evaluate(() => { HTMLCanvasElement.prototype.toBlob = window.__e2eToBlob; });
-  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), button('Save image').click()]);
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), inSheet('Save image').click()]);
   const saved = download.suggestedFilename();
   await page.waitForTimeout(400);
+  const previewShown = await page.locator('.race-report-sheet img.race-report-preview').count();
   // The share sheet: first cancelled, then sent (with the image file, as iOS Safari offers it).
   await page.evaluate(() => {
     window.__e2eShares = 0;
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: data => Boolean(data && data.files) });
     Object.defineProperty(navigator, 'share', { configurable: true, value: async () => { window.__e2eShares += 1; if (window.__e2eShares === 1) throw new DOMException('Share canceled', 'AbortError'); } });
   });
-  await button('Share').click();
+  await page.locator('.race-report-sheet .race-report-share-native').click();
   await waitFor(() => page.evaluate(() => window.__e2eShares === 1), 10000, 200);
   await page.waitForTimeout(400);
-  await button('Share').click();
+  await page.locator('.race-report-sheet .race-report-share-native').click();
   await waitFor(() => page.evaluate(() => window.__e2eShares === 2), 10000, 200);
+  await page.waitForTimeout(400);
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.race-report-sheet:not(.is-open)', { state: 'attached', timeout: 5000 });
   await page.waitForTimeout(400);
   // window.print() would open the print dialog: the page's beforeprint stands in for it.
   await page.evaluate(() => { window.print = () => { window.dispatchEvent(new Event('beforeprint')); window.dispatchEvent(new Event('afterprint')); }; });
@@ -372,7 +401,8 @@ async function raceReport(h) {
   await page.waitForTimeout(300);
   // The browser's clipboard is shared by the jobs running at once, so the copied text is caught in the page instead.
   await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.__e2eCopied = text; } } }); });
-  await button('Copy link').click();
+  await openSheet();
+  await inSheet('Copy link').click();
   await page.waitForTimeout(400);
   const copied = await page.evaluate(() => window.__e2eCopied || '');
   await run.close();
@@ -381,6 +411,7 @@ async function raceReport(h) {
   const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
   const errors = named(run, 'site_error').map(p => p.category);
   h.check('race report: the image is saved as pace-notes-race-report.png', saved === 'pace-notes-race-report.png', saved);
+  h.check('race report: a preview that cannot be drawn says so, and the saved image then shows at the top of the sheet', /could not be drawn/.test(drawNote || '') && previewShown === 1, { drawNote, previewShown });
   h.check('race report: one report_exported image and one share; the cancelled share sends nothing', JSON.stringify(exported) === '["/report:image","/report:share"]', exported);
   h.check('race report: Print is a print and Copy link a copied link; nothing is an edit', JSON.stringify(used) === '["/report:print","/report:copy_link"]', used);
   h.check('race report: an image that cannot be made is one site_error export, with its message', JSON.stringify(errors) === '["export"]' && /could not be made/.test(message || ''), { errors, message });
@@ -498,11 +529,9 @@ const ERROR_STATE = '.tool-state.is-error, .projector-quick-text.is-error, [role
 const OTHER_DATA_PAGES = [
   { path: '/', label: 'home page race replay' },
   { path: '/stories/race-replay' },
-  { path: '/courses/boston' },
-  { path: '/research/personalized' },
   { path: '/report?s=0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31&course=berlin', label: 'the race report' },
   { path: '/runners', act: async page => { await page.locator('#runner-name').fill('Smith'); await page.keyboard.press('Enter'); } },
-  { path: '/analyses/pacing-pattern', label: 'an analysis after a filter change', act: async page => { await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 3 }); await page.getByRole('button', { name: /Update comparison/ }).click(); } },
+  { path: '/analyses/pacing-pattern', label: 'an analysis after a filter change', act: async page => { await page.locator('.miy-chip').first().click(); await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 3 }); await page.getByRole('button', { name: /Update comparison/ }).click(); } },
 ];
 async function dataFailure(h, target) {
   const run = await h.run(target.path, {});

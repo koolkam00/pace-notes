@@ -39,17 +39,20 @@ const CASES = {
   } },
   'plan-url': { path: v => `/tools/plan?course=${v === V.A ? 'berlin' : 'rotterdam'}&goal=${v.hm}`, needles: { A: ['Berlin'], B: ['Rotterdam'] } },
   'course-chooser': { path: '/tools/course-chooser', async drive(page, v, log) {
-    await step(log, 'goal', async () => { const options = await page.locator('#course-chooser-goal option').evaluateAll(o => o.map(x => x.value)); await page.selectOption('#course-chooser-goal', options[v.goalIdx]); });
+    await step(log, 'goal', () => type(page, label(page, 'Goal finish time'), v.hm));
     await step(log, 'sort', () => page.selectOption('#course-chooser-sort', { index: 1 }));
   } },
   'course-chooser-url': { path: v => `/tools/course-chooser?goal=${v.hm}` },
   'split-check': { path: '/tools/split-check', async drive(page, v, log) {
     // Typed with a keypad's dots (0.23.11): each box turns them into colons as they are typed (S1 checks the box).
     for (let i = 0; i < 9; i++) await step(log, 't' + i, () => type(page, `input[id$="-t${i}"]`, v.splits[i].replace(/:/g, '.')));
+    // The comparison's course and gender wait in the one "All numbers" fold under the times.
+    await step(log, 'compare options', () => open(page, 'details.split-check-compare-options'));
     await step(log, 'gender', () => page.locator('.ph-no-capture[role=group] button').nth(v.genderIdx).click());
   } },
   'split-check-paste': { path: '/tools/split-check', async drive(page, v, log) {
-    await step(log, 'open', async () => { const summary = page.locator('.split-check-paste summary'); if (await summary.count()) await summary.click(); });
+    // "Paste times" opens the paste box under the row of buttons.
+    await step(log, 'open', async () => { const toggle = page.locator('.split-check-paste-toggle'); if (await toggle.count()) await toggle.click(); });
     await step(log, 'paste', async () => { await page.locator('textarea[id$="-paste"]').fill(`${v.label}\n` + ['5K', '10K', '15K', '20K', '25K', '30K', '35K', '40K', 'Finish'].map((k, i) => `${k} ${v.splits[i]}`).join('\n')); await page.keyboard.press('Tab'); });
   } },
   'split-check-url': { path: v => `/tools/split-check?s=${v.splits.join(',')}&course=boston&g=${v.genderIdx === 1 ? 'women' : 'men'}` },
@@ -62,21 +65,21 @@ const CASES = {
     await step(log, 'tp', () => type(page, label(page, /Average training pace/, false), v.tp.replace(':', '.')));
   } },
   'predictor-url': { path: v => `/tools/predictor?t=${v.half}&d=half&t2=${v.tenK}&d2=10k&wk=${v.weekly}&tp=${v.tp}` },
-  // The result's next steps open the pace band and the pacing-pattern analysis with a time worked out from the typed one
-  // in their address: those pages must record it no more than a time typed there.
-  'predictor-handoff': { path: '/tools/predictor', async drive(page, v, log) {
-    await step(log, 't1', () => type(page, 'input[id$="-t1"]', v.half));
+  // The result's next step opens the planner with a time worked out from the typed one in its address: that page must
+  // record it no more than a time typed there. (The pace calculator's one row since the redesign's section 00: the
+  // predictor's next card is the planner itself, so it carries no row.)
+  'calculator-handoff': { path: '/tools/pace-calculator', async drive(page, v, log) {
+    await step(log, 'time', () => type(page, label(page, 'Time'), v.marathon));
     await page.waitForTimeout(1200);
-    await step(log, 'pace band', async () => { await page.locator('.tool-handoffs a:has-text("Turn this into a pace band")').click(); await page.waitForURL(/\/tools\/pace-band\?goal=\d:\d\d$/); });
+    await step(log, 'planner', async () => { await page.locator('.tool-handoffs a:has-text("Plan this goal")').click(); await page.waitForURL(/\/tools\/plan\?goal=\d:\d\d$/); });
     await page.waitForTimeout(2000); await wiggle(page, 5);
-    await step(log, 'back', () => page.goBack()); await page.waitForTimeout(1500);
-    await step(log, 'pacing pattern', async () => { await page.locator('.tool-handoffs a:has-text("See how finishers near this time paced")').click(); await page.waitForURL(/\/analyses\/pacing-pattern\?goal=\d+$/); });
-    await page.waitForTimeout(2500); await wiggle(page, 5);
   } },
   'weather-match': { path: '/tools/weather-match', async drive(page, v, log) {
     await step(log, 'temp', () => type(page, '#weather-match-temp', v.temp));
+    // The dew point waits in the disclosure with the race (it feeds the published-research estimates only).
+    await step(log, 'more', () => open(page, 'details.weather-match-more'));
     await step(log, 'dew', () => type(page, '#weather-match-hum', v.dew));
-    await step(log, 'goal', () => type(page, label(page, 'Marathon goal time'), v.marathon));
+    await step(log, 'goal', () => type(page, label(page, 'Goal finish time'), v.marathon));
   } },
   'weather-match-url': { path: v => `/tools/weather-match?temp=${v.temp}&dew=${v.dew}&goal=${v.marathon}` },
   'qualifying': { path: '/tools/qualifying', reload: true, async drive(page, v, log) {
@@ -91,15 +94,19 @@ const CASES = {
   'qualifying-url': { path: v => `/tools/qualifying?t=${v.marathon}&div=${v.genderIdx === 1 ? 'M' : 'X'}&race=${v.race}` },
   'projector': { path: '/tools/projector', reload: true, async drive(page, v, log) {
     await step(log, 'time', () => type(page, '#projector-time', v.mat25));
+    await step(log, 'more', () => open(page, 'details.projector-more'));
     await step(log, 'prev', () => type(page, '#projector-prev', v.mat20));
     await step(log, 'target', () => type(page, label(page, /Target finish/, false), v.hm));
+    await step(log, 'extras', () => open(page, 'details.projector-extras'));
     await step(log, 'start', () => type(page, '#projector-start', v.start));
     await step(log, 'card label', () => type(page, '#projector-card-label', v.label));
     await page.waitForTimeout(800);
     await step(log, 'save card', () => page.getByRole('button', { name: 'Save runner card' }).click());
   } },
   'projector-url': { path: v => `/tools/projector?mat=25&t=${v.mat25}&prev=${v.mat20}&target=${v.hm}:00` },
+  // Make it yours is a chip and a sheet at every width (WP9 round 3): Change opens the form.
   'analysis': { path: '/analyses/pacing-pattern', async drive(page, v, log) {
+    await step(log, 'change', () => page.locator('.miy-chip').first().click());
     await step(log, 'time', () => type(page, label(page, 'Finish time to explore', false), v.hm));
     await step(log, 'refine', () => page.locator('.profile-refinements summary').click());
     await step(log, 'age', () => label(page, 'Age group', false).selectOption({ index: v.ageIdx }));
@@ -113,12 +120,14 @@ const CASES = {
   } },
   'analysis-url': { path: v => `/analyses/finish-time-context?race=Boston&goal=${v.goalMin}&age=${v.ageIdx === 5 ? '40-44' : '55-59'}&gender=${v.genderIdx === 1 ? 'women' : 'men'}` },
   'analysis-start-url': { path: v => `/analyses/starting-pace?race=Boston&age=${v.ageIdx === 5 ? '40-44' : '55-59'}&gender=${v.genderIdx === 1 ? 'Women' : 'Men'}` },
-  'personalized': { path: '/research/personalized', async drive(page, v, log) {
+  // The checkpoint inputs (an elapsed time and the latest 5K) of the archived guide, removed with /research/personalized
+  // (WP8), live on the checkpoint analysis; its optional fields may sit in a closed <details>. The guide's previous
+  // marathon and age group are typed by the 'analysis' case above.
+  'checkpoint': { path: '/analyses/checkpoint', async drive(page, v, log) {
+    await step(log, 'change', () => page.locator('.miy-chip').first().click());
     await step(log, 'optional', () => open(page, 'details.guide-optional'));
-    await step(log, 'previous', () => type(page, label(page, /Previous marathon/, false), v.prev));
     await step(log, 'elapsed', () => type(page, label(page, /Elapsed time/, false), v.mat25));
-    await step(log, '5 km', () => type(page, label(page, /Latest 5 km/, false), v.fiveK));
-    await step(log, 'age', () => label(page, 'Age group', false).selectOption({ index: v.ageIdx }));
+    await step(log, '5 km', () => type(page, label(page, /^(Latest|Last) /, false), v.fiveK));
   } },
   // The home page's course-and-goal form, then the planner it opens. Both courses are ones neither page names by itself
   // (the hero replay's races and the planner's method note are page content in both runs, so a needle among them could
@@ -130,8 +139,9 @@ const CASES = {
     await step(log, 'plan your race', async () => { await page.locator('.home-plan-button').click(); await page.waitForURL(url => new URL(url).pathname === '/tools/plan'); });
     await page.waitForTimeout(1500); await wiggle(page, 5);
   } },
-  'round-numbers': { path: '/stories/round-numbers', async drive(page, v, log) { await step(log, 'my finish', () => type(page, '#my-finish', v.marathon)); } },
+  // The type finder answers for its example first; its nine fields open from "Try your own splits".
   'pacing-types': { path: '/stories/pacing-types', async drive(page, v, log) {
+    await step(log, 'open', () => open(page, 'details.which-try'));
     const inputs = page.locator('.which-card input');
     const n = await inputs.count();
     if (!n) log.push('FAIL no .which-card inputs');
@@ -234,6 +244,6 @@ module.exports = {
   title: 'Every tool, analysis and calculator with two sets of values (typed and in the address)',
   jobs: ({ quick }) => [
     { name: 'every tool has a case', weight: 1, run: async h => everyTool(h) },
-    ...Object.keys(CASES).filter(name => !quick || QUICK.includes(name)).map(name => ({ name, weight: CASES[name].reload ? 32 : name === 'analysis' || name === 'predictor-handoff' ? 25 : 18, run: h => differential(h, name) })),
+    ...Object.keys(CASES).filter(name => !quick || QUICK.includes(name)).map(name => ({ name, weight: CASES[name].reload ? 32 : name === 'analysis' || name === 'calculator-handoff' ? 25 : 18, run: h => differential(h, name) })),
   ],
 };

@@ -1,0 +1,49 @@
+/* The race receipt (components/ui/Receipt.tsx): the analysis answer. A plain night card, its lines divided by
+   hairlines: at most four lines and the result. No torn edge or dashed tear lines (spec section 00, simple is
+   beautiful: nothing decorative). Direction is carried by sign and words, never by colour: only the result is signal.
+   The goal line sits under it on paper. Spec section 3.5. */
+
+.receipt-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); max-width: 34rem; }
+.receipt {
+  position: relative;
+  padding: 20px;
+  border-radius: var(--r-md);
+  background: var(--paper); color: var(--ink);
+  box-shadow: var(--night-edge);
+}
+.receipt-kicker { margin: 0; color: var(--ink-3); }
+.receipt-rule { height: 1px; margin: 16px 0; border: 0; background: var(--rule); }
+.receipt-kicker + .receipt-lines { margin-top: 14px; }
+.receipt-lines { display: grid; gap: 12px; margin: 0; }
+.receipt-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px var(--s-4); }
+.receipt-line dt { font-family: var(--sans); font-size: .9375rem; font-weight: 500; line-height: 1.3; color: var(--ink); }
+.receipt-key { display: block; margin-top: 2px; font-size: var(--t-label); font-weight: 400; line-height: 1.3; color: var(--ink-3); }
+.receipt-line dd { margin: 0; font-family: var(--sans); font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.receipt-result { display: grid; gap: 6px; }
+.receipt-result-label { font-family: var(--sans); font-size: .9375rem; font-weight: 500; line-height: 1.3; color: var(--ink-2); }
+.receipt-result .big-number { color: var(--signal); }
+.receipt-result-fallback { color: var(--ink); }
+.receipt-extra { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px var(--s-4); margin-top: 14px; }
+.receipt-extra-label { font-size: .9375rem; font-weight: 500; line-height: 1.3; color: var(--ink); }
+.receipt-extra-value { font-family: var(--sans); font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.receipt-extra-key { grid-column: 1 / -1; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
+.receipt-foot { margin: 16px 0 0; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
+
+/* The goal line, on paper under the card. */
+.receipt-goal { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-3); margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.receipt-goal strong { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+@media (min-width: 600px) {
+  .receipt { padding-inline: 24px; }
+  .receipt-line { grid-template-columns: minmax(0, 1fr) auto; }
+}
+/* At 200% zoom the result may take two lines rather than overflow. */
+@media (max-width: 299.98px) {
+  .receipt { padding-inline: 14px; }
+  .receipt-result .big-number { font-size: 2rem; white-space: normal; }
+  .receipt-line { grid-template-columns: minmax(0, 1fr); }
+  .receipt-line dd { font-size: 1.375rem; }
+}
+@media (forced-colors: active) {
+  .receipt { border: 1px solid CanvasText; }
+}

@@ -1,48 +1,52 @@
-import { UnitLink as Link } from '@/components/UnitsProvider';
-import RunnerLane from '@/components/art/RunnerLane';
+import { PageList } from '@/components/ui/ChapterList';
 import { getInsightsManifest } from '@/lib/insights-server';
-import { STORIES, storyHref } from '@/lib/stories';
+import { CHAPTERS, livePages, type PageKind } from '@/lib/chapters';
+import { readingOf } from '@/lib/nuggets';
+import { countWord } from '@/lib/nuggets/format';
+import { STORIES, capital } from '@/lib/stories';
 import { finishesM, pageMetadata } from '@/lib/seo';
-import { count } from '@/lib/viz/format';
 
-const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
+
+/** The kinds of page this list holds: the stories, and chapter 05's opener on the story template (/slowdown, the page
+ *  that says what a sustained slowdown is; round 6: it was on neither /stories nor /analyses). */
+const KINDS: PageKind[] = ['story', 'explainer'];
+/** The stories as the contents list them (their chapter names, in race order), chapter 01's /finish-times and chapter
+ *  05's /slowdown among them, so the list is an honest cut of the chain a reader follows (round 5). */
+const storyPages = () => CHAPTERS.flatMap(livePages).filter((p) => KINDS.includes(p.kind));
+/** A story's name inside a sentence: lower case, except a name that starts with a proper noun. */
+const inSentence = (name: string) => name.replace(/^The /, 'the ').replace(/^([A-Z])(?=[a-z])/, (c) => c.toLowerCase());
 
 export function generateMetadata() {
   const manifest = getInsightsManifest();
-  const published = STORIES.filter((s) => manifest.files[s.file]).length;
-  // The topic list names every story, so it is used only when all of them are published.
-  const description = published === STORIES.length && WORDS[published]
-    ? `${WORDS[published]} data stories from ${finishesM()} million recorded marathon finishes: pacing types, the 3:59 effect, race replays, places, the final kick, age and courses.`
+  // The count the page's own line gives (every page it lists), so search and share copy never disagree with it.
+  const published = storyPages().length;
+  const allPublished = STORIES.every((s) => manifest.files[s.file]);
+  // The topic list names the stories as the page lists them, so it is used only when all of them are published; when
+  // every name does not fit 155 characters, the first two and the last two.
+  const names = storyPages().map((p) => inSentence(p.short));
+  const list = (n: string[]) => `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`;
+  const lead = `${WORDS[published]} data stories from ${finishesM()} million recorded marathon finishes`;
+  const full = `${lead}: ${list(names)}.`;
+  const short = `${lead}, from ${names.slice(0, 2).join(' and ')} to ${names.slice(-2).join(' and ')}.`;
+  const description = allPublished && WORDS[published] && names.length >= 4
+    ? (full.length <= 155 ? full : short)
     : `Data stories from ${finishesM()} million recorded marathon finishes, each starting with one finding and the evidence to explore.`;
   return pageMetadata({ title: `Marathon Data Stories from ${finishesM()}M Finishes | Pace Notes`, description, path: '/stories' });
 }
 
+/** The stories: the contents filtered to them, in race order, each with its chapter and reading (spec 7.2, cut 3 of 00). */
 export default function StoriesPage() {
-  const manifest = getInsightsManifest();
-  const stories = STORIES.filter((s) => manifest.files[s.file]);
+  const count = storyPages().length;
   return (
-    <div className="stories-page">
-      <section className="night night-grain bleed story-hero">
-        <div className="container">
-          <p className="eyebrow">Stories from the data</p>
-          <h1 className="story-title">What {count(manifest.analysis_n)} marathon finishes show.</h1>
-          <p className="hero-dek">Each story starts with one finding you can say out loud, then hands you the evidence to explore.</p>
-        </div>
-        <RunnerLane dark height={100} runners={[{ finishMinutes: 170, label: '2:50' }, { finishMinutes: 230, label: '3:50' }, { finishMinutes: 290, label: '4:50' }, { finishMinutes: 350, label: '5:50' }]} />
+    <div className="contents-page">
+      <header className="contents-hero">
+        <h1 className="t-title">Stories</h1>
+        <p className="contents-dek">{capital(countWord(count))} stories, one finding each.</p>
+      </header>
+      <section className="contents-body" aria-label="Every story">
+        <PageList kind={KINDS} readingOf={readingOf} label="Stories" />
       </section>
-      <ol className="story-grid">
-        {stories.map((s) => (
-          <li key={s.slug}>
-            <Link href={storyHref(s)} className="story-card" style={{ ['--story' as string]: s.accent }}>
-              <span className="story-card-number" aria-hidden="true">{s.number}</span>
-              <span className="story-card-kicker">{s.kicker}</span>
-              <h2 className="story-card-title">{s.title}</h2>
-              <span className="story-card-dek">{s.dek}</span>
-              <span className="story-card-go" aria-hidden="true">Read the story →</span>
-            </Link>
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }

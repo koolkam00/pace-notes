@@ -162,10 +162,8 @@ assert.deepEqual(time.parseTrackerText('25K 2:05:31\n30 km 02:31:07 4:59/km\nHal
   // The readers that fall back to parseDuration keep a typed unit too ("3.5h" shows "3:5h").
   assert.deepEqual([predictor.parseRaceTime('3:5h', 42.195), predictor.parseRaceTime('22:5 min', 5), projector.parseElapsed('2:5h'), split.parseMatTime('2:5h')],
     [12600, 1350, 9000, 9000]); ok();
-  const archetype = require('../components/story/ArchetypeStory.tsx');
+  const archetype = require('../lib/pacing-type.ts');   // the type finder's reader (moved out of ArchetypeStory, round 5)
   assert.deepEqual(['0.25.30', '1.12.55', '3,51,00', '0.25.75'].map(archetype.parseClock), [1530, 4375, 13860, null]); ok();
-  const finish = require('../components/story/FinishTimeStory.tsx');
-  assert.deepEqual(['3.58.42', '3.30', '1.12.55', '13.00', '3.75'].map(finish.parseTime), [14322, 12600, null, null, null]); ok();
 }
 
 // ---- pace calculations
@@ -228,9 +226,9 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.equal(chart.formatTenths(59.96), '1:00.0'); assert.equal(chart.formatTenths(3725.25), '1:02:05.3'); checks += 2;
 }
 
-// ---- handoffs from a result (MarathonHandoffs in components/tools/Handoffs.tsx): the predictor's median estimate and the pace
-// calculator's marathon time open the pace band and the pacing-pattern analysis with the time filled in, in the forms
-// those pages read and inside the ranges they take, as if typed there.
+// ---- handoffs from a result (MarathonHandoffs in components/tools/Handoffs.tsx): the pace calculator's marathon time opens
+// the planner (or the pace band, or the pacing-pattern analysis) with the time filled in, in the forms those pages read and
+// inside the ranges they take, as if typed there.
 {
   const links = require('../lib/tools/links.ts');
   const { GOAL_MIN, GOAL_MAX } = require('../lib/personalized-catalog.ts');
@@ -252,22 +250,28 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const React = require('react');
   const { renderToStaticMarkup } = require('react-dom/server');
   const { MarathonHandoffs } = require('../components/tools/Handoffs.tsx');
-  const handoffs = (minutes, extra = 0) => renderToStaticMarkup(React.createElement(MarathonHandoffs, { label: 'With this estimate', seconds: minutes * 60 + extra }));
+  const handoffs = (minutes, extra = 0, to) => renderToStaticMarkup(React.createElement(MarathonHandoffs, { label: 'With this estimate', seconds: minutes * 60 + extra, ...(to ? { to } : {}) }));
   const hrefs = (html) => [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
-  assert.deepEqual(hrefs(handoffs(237)), ['/tools/plan?goal=3:57', '/tools/pace-band?goal=3:57', '/analyses/pacing-pattern?goal=237']); ok();
-  assert.match(handoffs(237), /Plan this goal[\s\S]*Pick your course: even pace for 3:57[\s\S]*Turn this into a pace band[\s\S]*mat times of finishes that just beat it[\s\S]*See how finishers near this time paced/); ok();
-  assert.match(handoffs(140), /Even splits for 2:20, ready to print/, 'Outside 2:30–6:30 the pace band has no observed mat times'); ok();
+  // One row, the first target the time fits (section 00: one link forward per page; critic round 3, October 18, 2026).
+  assert.deepEqual(hrefs(handoffs(237)), ['/tools/plan?goal=3:57']); ok();
+  assert.match(handoffs(237), /Plan this goal[\s\S]*Pick your course: even pace for 3:57/); ok();
+  assert.deepEqual(hrefs(handoffs(237, 0, ['band', 'pacing'])), ['/tools/pace-band?goal=3:57']); ok();
+  assert.match(handoffs(237, 0, ['band']), /Turn this into a pace band[\s\S]*mat times of finishes that just beat it/); ok();
+  assert.match(handoffs(140, 0, ['band']), /Even splits for 2:20, ready to print/, 'Outside 2:30–6:30 the pace band has no observed mat times'); ok();
   assert.deepEqual(hrefs(handoffs(600)), ['/analyses/pacing-pattern?goal=600'], 'Past the pace band\'s and the planner\'s 8:00 only the analysis link stays'); ok();
   assert.equal(handoffs(60), '', 'Nothing to hand off outside both ranges'); ok();
-  // A time with seconds opens both at the minute at or below it, and the band's card says which minute that is.
-  assert.deepEqual(hrefs(handoffs(251, 41)), ['/tools/plan?goal=4:11', '/tools/pace-band?goal=4:11', '/analyses/pacing-pattern?goal=251']); ok();
-  assert.match(handoffs(251, 41), /Even splits for 4:11 \(the minute at or below 4:11:41\), beside/); ok();
-  assert.doesNotMatch(handoffs(251), /minute at or below/, 'A whole-minute time needs no note'); ok();
+  // A time with seconds opens the page at the minute at or below it, and the row names that minute, with no parenthetical.
+  assert.deepEqual(hrefs(handoffs(251, 41)), ['/tools/plan?goal=4:11']); ok();
+  assert.deepEqual(hrefs(handoffs(251, 41, ['band'])), ['/tools/pace-band?goal=4:11']); ok();
+  assert.match(handoffs(251, 41), /Pick your course: even pace for 4:11, and how/); ok();
+  assert.doesNotMatch(handoffs(251, 41) + handoffs(251, 41, ['band']), /minute at or below|4:11:41/, 'The rows name the minute they open at, with no parenthetical'); ok();
   assert.doesNotMatch(handoffs(237), /<button|your chance|arithmetic/i, 'Links only (never counted as a tool edit), in the site\'s words'); ok();
   // Each tool hands on the whole minute at or below its time, the way every tool reads 4:11:41 as 4:11.
   const source = (name) => fs.readFileSync(path.join(__dirname, '..', 'components/tools', name), 'utf8');
-  assert.match(source('Predictor.tsx'), /\{est\.range \? <MarathonHandoffs label="With this estimate" seconds=\{Math\.round\(est\.range\.median\)\} \/> : null\}/); ok();
-  assert.match(source('PaceCalculator.tsx'), /const shownSeconds = ready \? Math\.round\(seconds!\) : null;[\s\S]*<MarathonHandoffs label="With this marathon time" seconds=\{shownSeconds!\} \/>/); ok();
+  // The predictor's one way forward is its chapter's next card (the planner), so it has no row of its own (section 00,
+  // cut 4); the pace calculator, a reference tool with no next card, keeps one row: the planner.
+  assert.doesNotMatch(source('Predictor.tsx'), /MarathonHandoffs|ToolHandoffs/, 'The predictor ends on its next card alone'); ok();
+  assert.match(source('PaceCalculator.tsx'), /const shownSeconds = ready \? Math\.round\(seconds!\) : null;[\s\S]*<MarathonHandoffs label="With this marathon time" seconds=\{shownSeconds!\} to=\{\['plan', 'band'\]\} \/>/); ok();
   assert.match(source('Handoffs.tsx'), /const minutes = Math\.floor\(seconds \/ 60\);/, 'The cards take the minute at or below the time'); ok();
 }
 
@@ -306,8 +310,15 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const sourceOf = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   // The course chooser lists the courses with no row at a goal by name only: their reasons belong to /methodology.
   assert.doesNotMatch(sourceOf('components/tools/CourseChooser.tsx'), /courseGoalReason|tooFewEditions|SLOWDOWN_DEFINITION/, 'The course chooser prints no eligibility reasons or definitions'); ok();
-  assert.match(sourceOf('components/tools/CourseChooser.tsx'), /href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>Plan<[\s\S]*href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>Plan \{goalText\}/, 'Each course chooser row (table and card) links to the planner for its course and goal'); ok();
-  assert.match(sourceOf('app/tools/qualifying/[race]/page.tsx'), /import \{ QUALIFYING_COURSE, STANDARDS \} from '@\/lib\/tools\/qualifying';/, 'The race pages read the shared course map'); ok();
+  // One row per course since the October 2026 redesign: the whole row is the link, and it names the goal it plans.
+  assert.match(sourceOf('components/tools/CourseChooser.tsx'), /<Link className="cc-row" href=\{planHref\(course\.city, goal\) \?\? '\/tools\/plan'\}>[\s\S]*?Plan \{goalText\}[\s\S]*?<\/Link>/, 'Each course chooser row links to the planner for its course and goal'); ok();
+  // A race page links on once, to the checker (opening on this race), and back once (critic rounds 2 and 3, October 18,
+  // 2026): no second checker link, no chip cloud of the other races and no course-page link, which the course pages' own
+  // qualifying links cover. Since round 3 (October 19, 2026) the page opens on its standards table, the checker a
+  // compact secondary button beside the table's heading.
+  assert.match(sourceOf('components/tools/QualifyingRace.tsx'), /<Link className="btn btn-secondary is-compact no-print" href=\{checkerHref\(s\)\}>Check a time<\/Link>/, 'The race page links on to the checker (a secondary button: the header holds the one orange call to action)'); ok();
+  assert.doesNotMatch(sourceOf('components/tools/QualifyingRace.tsx'), /href="\/tools\/qualifying"/, 'One link to the checker'); ok();
+  assert.doesNotMatch(sourceOf('components/tools/QualifyingRace.tsx'), /QualifyingRaceLinks|course\.href/, 'No second list of links at the end of a race page'); ok();
   assert.deepEqual(qualifying.STANDARDS.map((s) => qualifying.QUALIFYING_COURSE[s.key]), ['Boston', 'New York', 'London', 'Chicago', 'Berlin', 'Sydney'], 'Every race with standards names its course');
   assert.deepEqual(['Boston', 'New York', 'Prague'].map(qualifying.qualifyingKeyForCity), ['boston', 'nyc', null]); checks += 2;
 
@@ -399,14 +410,22 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const { renderToStaticMarkup } = require('react-dom/server');
   const RacePlan = require('../components/tools/RacePlan.tsx').default;
   const html = renderToStaticMarkup(React.createElement(RacePlan, { courseGoalSha: null, paceBandSha: null, courses: [] }));
-  assert.match(html, /class="tool-workspace"[\s\S]*class="tool-inputs"[\s\S]*class="tool-results"><p class="sr-only" aria-live="polite">/); ok();
-  assert.match(html, /Per mile[\s\S]*9:09[\s\S]*Per km[\s\S]*5:41/, '4:00 even pace: 9:09/mi and 5:41/km, miles first'); ok();
-  assert.deepEqual([...html.matchAll(/class="plan-mats-k">[^<]*(?:<small>[^<]*<\/small>)?<\/span><b>([^<]+)<\/b>/g)].map((m) => m[1]),
-    ['28:26', '56:53', '1:25:19', '1:53:45', '2:22:12', '2:50:38', '3:19:05', '3:47:31', '4:00:00'], 'Even-pace time at each mat for 4:00 (14,400 s ÷ 42.195 km × each mat)'); ok();
+  // The data beat leads (round 6: what finishes like this one did, before the plan's own times), in its own left-out slot
+  // with the live region; then the plan's card, then the inputs, then the rest.
+  assert.match(html, /class="tool-workspace"><div class="tool-results tool-lead-slot plan-lead-slot"><p class="sr-only" aria-live="polite">[\s\S]*<div class="tool-results tool-answer">[\s\S]*plan-headline[\s\S]*class="tool-inputs"[\s\S]*<div class="tool-results">/, 'The data beat, then the card, then the inputs, then the results'); ok();
+  // The card leads with the pace (miles first), as the pace band and the goal pages do: the goal is its kicker.
+  assert.match(html, /<span id="plan-headline-title">4:00<\/span><\/p><h2 class="tool-reading-figure">9:09<small>per mile, even pace · 5:41\/km<\/small><\/h2>/, '4:00 even pace: 9:09 per mile and 5:41/km, the goal as the kicker'); ok();
+  // The mat times are listed once on a phone (the wristband strips) and once in print (the mat table); from 900 px four of
+  // them fill the card's right half, hidden from assistive tech (which reads every mat on the strips), never a lap list.
+  assert.doesNotMatch(html, /plan-mats/, 'No lap list on the card'); ok();
+  assert.match(html, /<dl class="plan-card-mats" aria-hidden="true"><div><dt>5K<\/dt><dd>28:26<\/dd><\/div><div><dt>Half<\/dt><dd>2:00:00<\/dd><\/div><div><dt>30K<\/dt><dd>2:50:38<\/dd><\/div><div><dt>Finish<\/dt><dd>4:00:00<\/dd><\/div><\/dl>/, 'The card\'s four desktop mats, hidden from assistive tech'); ok();
+  assert.deepEqual([...html.matchAll(/<tr( class="is-finish")?><th scope="row">(?:\d+K|Finish)(?:<small>[^<]*<\/small>)?<\/th><td>([^<]+)<\/td>/g)].map((m) => m[2]).slice(0, 9),
+    ['28:26', '56:53', '1:25:19', '1:53:45', '2:22:12', '2:50:38', '3:19:05', '3:47:31', '4:00:00'], 'Even-pace time at each mat for 4:00 (14,400 s ÷ 42.195 km × each mat), in the printed mat table'); ok();
   // The tracker looks for sections once per page view, so all three are mounted from the start; the comparison is hidden until its data shows.
-  assert.deepEqual([...html.matchAll(/<div data-track-section="([^"]+)"( hidden="")?>/g)].map((m) => m[1] + (m[2] ? ' (hidden)' : '')), ['result', 'comparison (hidden)', 'pace-band']); ok();
-  assert.match(html, /class="tool-share share-bar no-print"><button[^>]*>Copy link<\/button><button[^>]*>Print wristband strips<\/button><button[^>]*>Print this plan<\/button>/, 'Copy link and both print buttons share one row'); ok();
-  assert.match(html, /\/tools\/pace-band\?goal=4:00"[\s\S]*\/tools\/weather-match\?goal=4:00:00[\s\S]*\/tools\/projector\?target=4:00:00&amp;t=none[\s\S]*\/analyses\/pacing-pattern\?goal=240[\s\S]*\/analyses\/hills-and-pacing\?goal=240[\s\S]*\/tools\/split-check"/, 'Links carry the goal in each target\'s own form'); ok();
+  assert.deepEqual([...html.matchAll(/<div data-track-section="([^"]+)"( hidden="")?>/g)].map((m) => m[1] + (m[2] ? ' (hidden)' : '')), ['comparison (hidden)', 'result', 'pace-band']); ok();
+  assert.match(html, /class="tool-share share-bar no-print"><button[^>]*>Copy link<\/button><button type="button" class="btn btn-primary is-compact"[^>]*>Print wristband strips<\/button><span class="sr-only"/, 'Copy link and the one print action (the wristband strips) share one row'); ok();
+  // No next-step row: the journey's finish card follows, the page's one way forward (section 00, cut 4).
+  assert.doesNotMatch(html, /aria-label="Next step"|\/tools\/weather-match\?goal=|\/tools\/projector\?target=/, 'No next-step row before the finish card'); ok();
   assert.doesNotMatch(html, /your chance|the wall|arithmetic|adjusted/i); ok();
   const planSource = sourceOf('components/tools/RacePlan.tsx');
   assert.match(planSource, /useQueryState\(DEFAULTS\)/); assert.match(planSource, /const DEFAULTS = \{ course: 'all', goal: '4:00' \};/, 'The planner keeps exactly course and goal in its address'); checks += 2;
@@ -441,9 +460,9 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.ok(say(F.sectionPaceText(300, [384, 386, 392, 402, 423, 439, 464, 471, 436], 'mi')).includes('1:11 per mile slower; on the fast side it was furthest between the start and 5 km, 1:09 per mile faster')); ok();
   // Held pace against sustained slowdown (4:00 and 5:00 medians).
   const held = [1656, 3300, 4947, 6603, 8281, 9980, 11720, 13498, 14259], slow = [1518, 3023, 4545, 6099, 7736, 9471, 11365, 13412, 14253];
-  assert.equal(say(F.groupGapText(held, slow)), 'At 20 km the median time of the finishes with a sustained slowdown was 8:24 ahead of the median of those that held pace; the two medians were furthest apart at 25 km (9:05), and at the finish the slowdown group’s median was 6 seconds faster.'); ok();
+  assert.equal(say(F.groupGapText(held, slow)), 'At 20 km the median time of the finishes with a sustained slowdown was 8:24 ahead of the median of those without one; the two medians were furthest apart at 25 km (9:05), and at the finish the slowdown group’s median was 6 seconds faster.'); ok();
   assert.ok(say(F.groupGapText([1986, 3992, 6017, 8077, 10213, 12393, 14645, 16910, 17845], [1833, 3668, 5540, 7493, 9606, 11866, 14319, 16841, 17846])).endsWith('at the finish the slowdown group’s median was 1 second slower.')); ok();
-  assert.ok(say(F.groupGapText(held, held)).endsWith('level with the median of those that held pace, and at the finish the two medians were level.')); ok();
+  assert.ok(say(F.groupGapText(held, held)).endsWith('level with the median of those without one, and at the finish the two medians were level.')); ok();
   // Where the slowdowns began: the most common onset section, with ties named.
   assert.equal(say(F.onsetText([546, 3299, 13127, 15378], [20, 25, 30, 35])), 'The sustained slowdown most often began in the 35 to 40 km section: 15,378 of the 32,350 finishes with one (47.5%).'); ok();
   assert.equal(say(F.onsetText([10, 30, 30, 0], [20, 25, 30, 35])), 'The sustained slowdown most often began in the 25 to 30 km and 30 to 35 km sections: 30 of the 70 finishes with one in each (42.9% each).'); ok();
@@ -552,6 +571,14 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   const archetypes = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/insights/archetypes.json'), 'utf8'));
   const k = splits.classify(r0.relative, archetypes.classifier);
   assert.equal(archetypes.classifier.names[k], 'Metronome'); ok();
+  // The type finder's own reader (lib/pacing-type.ts, also run at build for the story's example) agrees with the tools' classifier.
+  const finder = require('../lib/pacing-type.ts');
+  for (const t of [even, slow]) {
+    const got = finder.classifyTimes(t, archetypes.classifier);
+    assert.ok(got, 'the type finder reads a plain marathon');
+    assert.equal(got.best, splits.classify(splits.readSplits(t).relative, archetypes.classifier), 'type finder and tools classifier agree');
+  }
+  checks += 2;
 }
 
 // ---- interpolated share under a time
@@ -666,7 +693,11 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
   const projector = path.join(__dirname, '..', 'public/data/insights/tools/projector.json');
   if (fs.existsSync(projector)) {
     const n = JSON.parse(fs.readFileSync(projector, 'utf8')).cohort_n;
-    assert.ok(registry.EVIDENCE_TEXT.data.includes(`${(n / 1e6).toFixed(2)} million`), 'Evidence text quotes the tool cohort');
+    // The registry types no figure: /methodology fills {finishes} with the cohort from this file.
+    assert.ok(registry.EVIDENCE_TEXT.data.includes('{finishes}') && !/\d million/.test(registry.EVIDENCE_TEXT.data), 'Evidence text leaves the tool cohort to the data');
+    const built = path.join(__dirname, '..', 'out/methodology.html');
+    // One total with its subset (round 4): the eligible finishes, then the tool cohort within them.
+    if (fs.existsSync(built)) assert.ok(fs.readFileSync(built, 'utf8').includes(`the tools use the ${(n / 1e6).toFixed(2)} million without start delays or shifted mats`), 'The built /methodology quotes the tool cohort as a subset of the eligible finishes');
     checks++;
   }
   const slugs = registry.TOOLS.map((t) => t.slug);

@@ -19,7 +19,7 @@ const searchPages = ['/tools/marathon-pace-chart', '/tools/half-marathon-pace-ch
 // build time. verify-analytics checks both lists against STORIES and getCourseNames(), so a new story or course cannot
 // fall to its section unnoticed; a URL under either section that is not on the list (a typed name) still does.
 // Melbourne left the list with the 1652 release (its only edition is excluded, so /courses/melbourne is no longer built).
-export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses'];
+export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses', 'race-morning'];
 export const COURSE_SLUGS: readonly string[] = ['amsterdam', 'auckland', 'austin', 'barcelona', 'berlin', 'boston', 'chicago', 'copenhagen', 'dubai', 'eindhoven', 'frankfurt', 'gold-coast',
   'hamburg', 'helsinki', 'london', 'madrid', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'vienna', 'warsaw', 'washington'];
 const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/report', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research', '/research/personalized',

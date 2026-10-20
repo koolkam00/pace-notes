@@ -1,0 +1,102 @@
+/* The menu sheet and the chapters drawer (components/MenuSheet.tsx; the redesign spec, sections 2.4 and 2.5).
+   Under 600 px a bottom sheet, from 600 to 1179 px a 420 px right drawer: nav#site-menu (the five links as 52 px rows,
+   "Plan your race" the orange pill, then the quieter .nav-more line), the chapters, and Methodology · Privacy.
+   From 1180 px the sheet flattens: nav#site-menu is a row of the header and #site-chapters is its own right drawer.
+   The scrim, grip, close button and title come from sheet.css. */
+
+.menu-sheet { position: fixed; inset: 0; z-index: var(--z-sheet); visibility: hidden; pointer-events: none; transition: visibility 0s linear var(--d-sheet); }
+.menu-sheet.is-open { visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.menu-sheet.is-open > .sheet-scrim { opacity: 1; }
+.menu-panel {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; flex-direction: column;
+  max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px);
+  border-radius: var(--r-lg) var(--r-lg) 0 0; background: var(--paper-raised); color: var(--ink); box-shadow: var(--shadow-sheet);
+  transform: translateY(104%); transition: transform var(--d-sheet) var(--spring-soft);
+}
+.menu-sheet.is-open .menu-panel { transform: none; }
+.menu-panel:focus { outline: none; }
+.menu-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding: 4px var(--gutter) 4px; }
+.menu-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0 var(--gutter) calc(var(--s-6) + env(safe-area-inset-bottom)); }
+
+/* ---------- The five links ---------- */
+.main-nav { display: grid; }
+.main-nav > a {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 52px; padding: 6px 2px;
+  border-bottom: 1px solid var(--rule); color: var(--ink); text-decoration: none;
+  font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; line-height: 1.25; letter-spacing: -.005em;
+}
+.main-nav > a:hover { color: var(--ink); text-decoration: none; }
+.main-nav > a[aria-current] { font-weight: 600; }
+/* The row's arrow, drawn in CSS: currentColor through a mask, ink-3 on the rows and ink on the pill. */
+.main-nav > a::after {
+  content: ''; flex: none; width: 16px; height: 16px; background: var(--ink-3);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8h10M9 4l4 4-4 4' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8h10M9 4l4 4-4 4' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  transition: transform var(--d-quick) var(--ease-out);
+}
+.main-nav > a:hover::after { transform: translateX(3px); }
+/* The filled pill carries no arrow, as no filled button on the site does (round 5), and its words sit centred in it. */
+.main-nav > a.nav-primary::after { display: none; }
+.main-nav > a.nav-primary {
+  justify-content: center; margin: 4px 0 var(--s-2); padding: 6px 22px; border: 0; border-radius: var(--r-pill);
+  background: var(--accent); color: var(--on-accent); font-weight: 600;
+  transition: background-color var(--d-quick) var(--ease-out), transform var(--d-release) var(--spring);
+}
+.main-nav > a.nav-primary:hover { background: var(--accent-hover); color: var(--on-accent); }
+.main-nav > a.nav-primary:active { background: var(--accent-press); transform: scale(.98); transition-duration: var(--d-press); }
+.main-nav > a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
+.main-nav > a.nav-primary:focus-visible { border-radius: var(--r-pill); }
+.main-nav .nav-more { display: flex; flex-wrap: wrap; gap: 0 var(--s-5); padding-top: var(--s-2); }
+.main-nav .nav-more a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--ink-2); font-family: var(--sans); font-size: .9375rem; font-weight: 500; text-decoration: none; }
+.main-nav .nav-more a:hover { color: var(--ink); text-decoration: underline; }
+.main-nav .nav-more a[aria-current] { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+
+/* ---------- The chapters (below 1180 px, part of the sheet) ---------- */
+.menu-chapters { margin-top: var(--s-6); }
+.menu-chapters > .sheet-scrim, .menu-chapters-head { display: none; }
+.menu-chapters-panel:focus { outline: none; }
+.menu-foot { display: flex; flex-wrap: wrap; gap: 0 var(--s-5); margin: var(--s-5) 0 0; padding-top: var(--s-2); border-top: 1px solid var(--rule); }
+.menu-foot-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-3); font-family: var(--sans); font-size: .875rem; font-weight: 500; text-decoration: none; }
+.menu-foot-link:hover { color: var(--ink); text-decoration: underline; }
+
+/* ---------- 600 to 1179 px: a right drawer ---------- */
+@media (min-width: 600px) {
+  .menu-panel { top: 0; left: auto; width: min(420px, calc(100vw - 48px)); max-height: none; border-radius: var(--r-lg) 0 0 var(--r-lg); transform: translateX(104%); }
+  .menu-panel > .sheet-grip { display: none; }
+  .menu-head { padding: 16px 28px 4px; }
+  .menu-body { padding-inline: 28px; }
+}
+
+/* ---------- From 1180 px: the five links in the header, the chapters in their own drawer ---------- */
+@media (min-width: 1180px) {
+  .menu-sheet { position: static; display: contents; visibility: visible; pointer-events: auto; transition: none; }
+  .menu-sheet > .sheet-scrim, .menu-head, .menu-foot, .menu-panel > .sheet-grip { display: none; }
+  .menu-panel, .menu-body { display: contents; }
+
+  .main-nav { display: flex; align-items: center; gap: 2px; margin-right: var(--s-2); }
+  .main-nav > a { min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--r-pill); color: var(--ink-2); font-size: .9375rem; white-space: nowrap; transition: background-color var(--d-quick) var(--ease-out), color var(--d-quick) var(--ease-out); }
+  .main-nav > a:hover { background: var(--paper-sunk); color: var(--ink); }
+  .main-nav > a[aria-current] { color: var(--ink); font-weight: 500; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 8px; }
+  .main-nav > a:focus-visible { border-radius: var(--r-pill); }
+  .main-nav > a.nav-primary { margin: 0 6px 0 0; padding: 0 18px; }
+  .main-nav > a.nav-primary[aria-current] { text-decoration: none; }
+  /* On the home page the hero's two doors are the way in, so the header shows Courses, Tools and Research only. */
+  .main-nav[data-home] > a.nav-door { display: none; }
+  /* A page with its own call to action on its first screen (SiteNav): the plan pill is a plain link there. */
+  .main-nav[data-quiet-primary] > a.nav-primary { margin: 0; padding: 0 12px; background: transparent; color: var(--ink-2); font-weight: 500; }
+  .main-nav[data-quiet-primary] > a.nav-primary:hover { background: var(--paper-sunk); color: var(--ink); }
+  .main-nav > a::after, .main-nav .nav-more { display: none; }
+
+  .menu-chapters { position: fixed; inset: 0; z-index: var(--z-sheet); margin: 0; visibility: hidden; pointer-events: none; transition: visibility 0s linear var(--d-sheet); }
+  .menu-chapters.is-open { visibility: visible; pointer-events: auto; transition-delay: 0s; }
+  .menu-chapters > .sheet-scrim { display: block; }
+  .menu-chapters.is-open > .sheet-scrim { opacity: 1; }
+  .menu-chapters-panel {
+    position: absolute; top: 0; right: 0; bottom: 0; z-index: 1; width: 420px; overflow: auto; overscroll-behavior: contain;
+    padding: 16px 28px var(--s-6); border-radius: var(--r-lg) 0 0 var(--r-lg); background: var(--paper-raised); box-shadow: var(--shadow-sheet);
+    transform: translateX(104%); transition: transform var(--d-sheet) var(--spring-soft);
+  }
+  .menu-chapters.is-open .menu-chapters-panel { transform: none; }
+  .menu-chapters-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding-bottom: var(--s-2); }
+  .menu-chapters .chapter-list { margin-top: var(--s-2); }
+}

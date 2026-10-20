@@ -8,8 +8,9 @@
  *   node scripts/verify-seo.cjs --today YYYY-MM-DD   the date a sitemap lastmod may not pass (default: today, UTC)
  *   node scripts/verify-seo.cjs --self-test   only the built-in fixtures (the banned-words patterns); no export needed
  *
- * The route policy comes from lib/seo-routes.ts (NOINDEX, THIN_PACKS, pack aliases, sitemapEntries()), loaded with
- * the same TypeScript require hook as scripts/verify-units.cjs, and the finish count from finishesM() in lib/seo.tsx.
+ * The route policy comes from lib/seo-routes.ts (NOINDEX, the moved addresses, sitemapEntries()), loaded with the same
+ * TypeScript require hook as scripts/verify-units.cjs, and the finish count from finishesM() in lib/seo.tsx. The 308s
+ * come from vercel.json, matched here the way Vercel matches them (a local redirect table), against movedTo().
  * Failures are grouped by check and the script exits 1 when any check fails. Long titles and descriptions,
  * and a few policy notes, are warnings only.
  */
@@ -43,7 +44,9 @@ const { finishesM } = require(path.join(ROOT, 'lib/seo.tsx'));
 const { ogImageCandidates } = require(path.join(ROOT, 'lib/og-paths.ts'));
 // The cards scripts/build-og-images.cjs makes (no browser needed), as image paths: /og/tools/qualifying/boston.png.
 const PLANNED_CARDS = new Set(require(path.join(ROOT, 'scripts/build-og-images.cjs')).plannedCards().map((file) => `/og/${file}`));
-const { SITE_URL, NOINDEX, THIN_PACKS, ROBOTS_DISALLOW } = routes;
+const { SITE_URL, NOINDEX, FORWARD_ONLY, ROBOTS_DISALLOW } = routes;
+const MOVED_PAGES = routes.movedPages();
+const MOVED_TEXT = 'This page has moved';
 const SITE_HOST = new URL(SITE_URL).host;
 const OLD_HOST = 'htw-live-study.vercel.app';
 const FINISHES_M = finishesM();
@@ -52,9 +55,11 @@ const FINISHES_M = finishesM();
 
 const CHECKS = {
   'head-tags': 'Each page (404 excepted) has one non-empty <title>, one meta description and one <h1>',
-  'robots-meta': 'noindex exactly on NOINDEX, THIN_PACKS and 404, with no conflicting robots tags',
+  'robots-meta': 'noindex exactly on NOINDEX, the moved addresses\' stubs and 404, with no conflicting robots tags',
   canonical: 'Indexable pages have one clean canonical on the production host, equal to canonicalPathFor(); noindex pages have none',
-  aliases: 'Pack aliases point at a built, indexable, self-canonical primary page',
+  stubs: 'Every moved address (movedPages()) has a stub: the H1 "This page has moved", a link to its target, the forward, og:url on the target, no JSON-LD; every target is built and indexable, with its #anchor',
+  redirects: 'vercel.json 308s every moved address but the forward-only ones to its target, first match winning, and redirects no page in the sitemap (a local redirect table)',
+  'moved-links': 'No page links a moved address: every link goes straight to where the page moved',
   'social-tags': 'Indexable pages have og:title, og:description, og:image, twitter:card, and og:url equal to the canonical',
   'og-image': 'Every og:image and twitter:image is a file in the export, on the production host, 1200x630',
   duplicates: 'Indexable pages have unique titles and descriptions',
@@ -69,7 +74,9 @@ const CHECKS = {
   'old-host': `${OLD_HOST} is in no <head>`,
   'finish-counts': `Every "N.N million" or "N.NM" in a title or description equals finishesM() ("${FINISHES_M}")`,
   orphans: 'Every story and analysis page is linked from /research, and every other sitemap page from at least one other page',
+  'hub-counts': 'A hub whose line counts its pages ("Ten stories, one finding each.") lists that many and says the same count in its meta description and og:description',
   'home-form': "The home page's course list (#home-plan-course) has the planner's options (#plan-course), values and names in the same order",
+  'title-brand': 'Every title ends " | Pace Notes", or names the brand itself, unless the suffix would take it past 60 characters (one rule for every page: courseTitle() and docs/SEO.md)',
   'methods-anchors': 'Every /methodology#<id> link (in the exported HTML, and as a literal in app/, components/ or lib/) and every #<id> link on /methodology names an element id on /methodology',
 };
 const WARNINGS = {
@@ -204,9 +211,60 @@ function bannedHits(page) {
   return hits;
 }
 
+// ---------- vercel.json redirects ----------
+
+/**
+ * The redirects of vercel.json as Vercel applies them: in order, the first whose source matches wins. Sources use the
+ * path-to-regexp forms this site needs (literal segments, :name, :name?, :name+ and :name*, where a starred parameter
+ * also matches nothing, so /packs/:id* matches /packs); any other form throws, so an unchecked rule cannot slip in.
+ * Rules with a `has` condition (the old host) are left out: they never apply on the site's own host.
+ */
+function redirectRules(config) {
+  return (config.redirects || []).filter((rule) => !rule.has).map((rule) => {
+    const names = [];
+    const pattern = rule.source.split('/').slice(1).map((segment) => {
+      const param = /^:([A-Za-z_]\w*)([*+?]?)$/.exec(segment);
+      if (param) {
+        names.push(param[1]);
+        return { '': '/([^/]+)', '?': '(?:/([^/]+))?', '+': '((?:/[^/]+)+)', '*': '((?:/[^/]+)*)' }[param[2]];
+      }
+      if (/[:()*+?\\[\]{}]/.test(segment)) throw new Error(`vercel.json source ${rule.source}: the redirect table does not read this pattern`);
+      return '/' + segment.replace(/[.^$|]/g, '\\$&');
+    }).join('');
+    const status = rule.statusCode ?? (rule.permanent === false ? 307 : 308);
+    return { ...rule, status, test: new RegExp(`^${pattern || '/'}$`), names };
+  });
+}
+/** Where a path goes under these rules: { status, location, rule } for the first match, or null. */
+function redirectFor(rules, pathname) {
+  for (const rule of rules) {
+    const match = rule.test.exec(pathname);
+    if (!match) continue;
+    const values = Object.fromEntries(rule.names.map((name, i) => [name, (match[i + 1] || '').replace(/^\//, '')]));
+    const location = rule.destination.replace(/:([A-Za-z_]\w*)[*+?]?/g, (whole, name) => (name in values ? values[name] : whole)).replace(/(.)\/+(?=[?#]|$)/, '$1');
+    return { status: rule.status, location, rule };
+  }
+  return null;
+}
+
 /** Fixtures for the banned-words check, run before every check of an export (and alone with --self-test). */
 function selfTest() {
   const problems = [];
+  // The redirect table: a starred parameter matches nothing or any number of segments, the first rule wins, a host rule
+  // is left out, and a pattern the table cannot read throws.
+  const fixtureRules = redirectRules({ redirects: [
+    { source: '/:path*', has: [{ type: 'host', value: 'old.example' }], destination: 'https://splithappens.run/:path*', permanent: true },
+    { source: '/packs/smyth_htw', destination: '/slowdown', permanent: true },
+    { source: '/packs/:id*', destination: '/methodology#downloads', permanent: true },
+    { source: '/old/:slug', destination: '/new/:slug', permanent: true },
+    { source: '/temp', destination: '/elsewhere', permanent: false },
+  ] });
+  const where = (pathname) => { const r = redirectFor(fixtureRules, pathname); return r ? `${r.status} ${r.location}` : 'none'; };
+  for (const [pathname, want] of [['/packs', '308 /methodology#downloads'], ['/packs/r01', '308 /methodology#downloads'], ['/packs/a/b', '308 /methodology#downloads'],
+    ['/packs/smyth_htw', '308 /slowdown'], ['/packsx', 'none'], ['/old/x', '308 /new/x'], ['/old', 'none'], ['/old/x/y', 'none'], ['/temp', '307 /elsewhere'], ['/', 'none']]) {
+    if (where(pathname) !== want) problems.push(`the redirect table sends ${pathname} to ${where(pathname)}, not ${want}`);
+  }
+  try { redirectRules({ redirects: [{ source: '/a/(.*)', destination: '/b' }] }); problems.push('the redirect table read a regular-expression source it cannot check'); } catch { /* expected */ }
   const yourChance = BANNED.find(([, label]) => label === '"your chance"')[0];
   const caught = ['your chance', 'your chances', 'Your Chance', 'your personal chance', 'your own personal chances', 'your best possible chance', 'what are your\nreal chances'];
   const allowed = ['your race. Chance plays no part', 'your three extra words chance', 'yourchance', 'your chancellor', 'a chance for you'];
@@ -222,7 +280,7 @@ function selfTest() {
     console.error(`verify-seo self-test failed:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`);
     process.exit(1);
   }
-  return `${caught.length + allowed.length} pattern fixtures and a fixture page`;
+  return `${caught.length + allowed.length} pattern fixtures, a fixture page and 10 redirect fixtures`;
 }
 const SELF_TEST = selfTest();
 if (SELF_TEST_ONLY) { console.log(`verify-seo self-test passed: ${SELF_TEST}.`); process.exit(0); }
@@ -303,15 +361,12 @@ for (const page of pages) {
 
   // Robots meta
   const noindexFound = hasNoindex(page);
-  if (noindexExpected && !noindexFound) fail('robots-meta', where, `should be noindex (${page.notFound ? '404' : NOINDEX.includes(page.path) ? 'NOINDEX' : 'thin or legacy pack'}) but robots says "${page.robots.join(' | ') || 'nothing'}"`);
+  if (noindexExpected && !noindexFound) fail('robots-meta', where, `should be noindex (${page.notFound ? '404' : NOINDEX.includes(page.path) ? 'NOINDEX' : 'a moved address'}) but robots says "${page.robots.join(' | ') || 'nothing'}"`);
   if (!noindexExpected && noindexFound) fail('robots-meta', where, `is noindex but lib/seo-routes.ts says it is indexable (robots "${page.robots.join(' | ')}")`);
   if (!page.notFound && page.robots.length > 1 && page.robots.some((r) => /\bnoindex\b/i.test(r)) && page.robots.some((r) => /(^|[\s,])index\b/i.test(r) && !/\bnoindex\b/i.test(r))) {
     fail('robots-meta', where, `conflicting robots tags: ${page.robots.map((r) => `"${r}"`).join(' and ')}`);
   }
   if (noindexExpected && noindexFound && page.robots.some((r) => /\bnofollow\b/i.test(r))) warn('policy', where, 'noindex page also says nofollow; the policy is noindex, follow');
-  if (!page.notFound && noindexExpected && !unclean.has(page.path) && !NOINDEX.includes(page.path) && !THIN_PACKS.map((id) => `/packs/${id}`).includes(page.path)) {
-    fail('robots-meta', where, 'is noindex only because packCanonical() finds no primary page for it; add it to THIN_PACKS or map it to its primary question');
-  }
 
   // Canonical
   const canonical = page.canonicals[0];
@@ -327,15 +382,6 @@ for (const page of pages) {
       else if (!samePage(canonical, expected)) fail('canonical', where, `canonical is ${canonical}, expected ${expected}`);
     }
     indexable.push(page);
-
-    // Pack aliases
-    if (expectedPath !== page.path) {
-      const target = byPath.get(expectedPath);
-      if (!routes.isIndexable(expectedPath)) fail('aliases', where, `canonical target ${expectedPath} is not indexable`);
-      else if (!target) fail('aliases', where, `canonical target ${expectedPath} was not built`);
-      else if (hasNoindex(target)) fail('aliases', where, `canonical target ${expectedPath} is noindex in the build`);
-      else if (target.canonicals.length !== 1 || !samePage(target.canonicals[0], expected)) fail('aliases', where, `canonical target ${expectedPath} is not self-canonical (${target.canonicals.join(', ') || 'no canonical'})`);
-    }
 
     // Social tags
     const one = (key) => (page.social[key] || []).find((v) => v.trim()) || '';
@@ -403,13 +449,17 @@ for (const page of pages) {
   // JSON-LD
   checkJsonLd(page, where, BANNED);
 
+  // The brand: one ending for every title, dropped only where it would not fit (release, October 20, 2026).
+  if (!page.notFound && page.title && !/Pace Notes/.test(page.title) && chars(`${page.title} | Pace Notes`) <= 60) fail('title-brand', where, `"${page.title}" would fit 60 characters with " | Pace Notes"`);
+  if (!page.notFound && page.title && / \| Pace Notes$/.test(page.title) && /Pace Notes.* \| Pace Notes$/.test(page.title)) fail('title-brand', where, `"${page.title}" names the brand twice`);
+
   // Length warnings
   if (!page.notFound && page.title && chars(page.title) > 60) warn('title-length', where, `${chars(page.title)} characters: "${page.title}"`);
   if (!page.notFound && page.descriptions[0] && chars(page.descriptions[0]) > 155) warn('description-length', where, `${chars(page.descriptions[0])} characters`);
 }
 
 function checkJsonLd(page, where, banned) {
-  const NOTHING_HERE = ['/privacy', '/request-analysis', '/your-race', '/htw', '/packs/smyth_htw'];
+  const NOTHING_HERE = ['/privacy', '/request-analysis'];
   if (!page.jsonLd.length) return;
   if (page.path === '/runners' && !page.notFound) fail('json-ld', where, `${page.jsonLd.length} JSON-LD block(s) on /runners; it must have none`);
   else if (page.notFound || NOTHING_HERE.includes(page.path)) warn('policy', where, 'has JSON-LD; the plan keeps this page without structured data');
@@ -484,8 +534,8 @@ for (const [field, read] of [['title', (p) => p.title], ['description', (p) => p
 
 // ---------- noindex set ----------
 
-for (const listed of [...NOINDEX, ...THIN_PACKS.map((id) => `/packs/${id}`)]) {
-  if (!byPath.has(listed)) warn('policy', listed, 'is in NOINDEX or THIN_PACKS but has no page in the export');
+for (const listed of NOINDEX) {
+  if (!byPath.has(listed)) warn('policy', listed, 'is in NOINDEX but has no page in the export');
 }
 if (!pages.some((p) => p.notFound)) fail('robots-meta', '404', 'the export has no 404.html');
 const runners = byPath.get('/runners');
@@ -629,6 +679,131 @@ let sitemapLocs = [];
   }
 })();
 
+// ---------- Hub counts ----------
+
+(function checkHubCounts() {
+  const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+  let counted = 0;
+  for (const hub of ['/stories', '/analyses', '/tools']) {
+    const page = byPath.get(hub);
+    if (!page) continue;
+    const dek = /<p class="contents-dek">([\s\S]*?)<\/p>/.exec(page.html);
+    const first = dek ? textOf(dek[1]).trim().split(/\s+/)[0].toLowerCase() : '';
+    const n = WORDS.indexOf(first);
+    if (n < 0) continue;
+    counted++;
+    const rows = (page.html.match(/class="page-list-row"/g) || []).length;
+    if (rows !== n) fail('hub-counts', hub, `its line says ${first} but it lists ${rows}`);
+    for (const [label, text] of [['description', page.descriptions[0] ?? ''], ['og:description', (page.social['og:description'] || [])[0] ?? '']]) {
+      const said = (text.trim().split(/\s+/)[0] || '').toLowerCase();
+      if (WORDS.includes(said) && said !== first) fail('hub-counts', hub, `its ${label} opens on "${said}", its line on "${first}"`);
+    }
+  }
+  if (!counted) fail('hub-counts', '/stories', 'no hub line with a count was found (the check reads <p class="contents-dek">)');
+})();
+
+// ---------- Moved addresses: stubs, redirects and links ----------
+
+/** Addresses vercel.json redirects that have no page and no stub: the old goal-pace index and a course no longer built. */
+const REDIRECT_ONLY = { '/tools/marathon-pace': '/tools/marathon-pace-chart', '/courses/melbourne': '/courses' };
+
+const linkPath = (href, from) => {
+  if (!href || href.startsWith('#') || /^(mailto|tel|javascript|data):/i.test(href) || href.startsWith('//')) return null;
+  let url;
+  try { url = new URL(href, SITE_URL + (from === '/' ? '/' : from)); } catch { return null; }
+  if (url.host !== SITE_HOST) return null;
+  try { return decodeURIComponent(url.pathname.replace(/\/$/, '')) || '/'; } catch { return null; }
+};
+const idsOf = (page) => new Set([...page.html.matchAll(/<[a-z][\w:-]*\b[^>]*\bid\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map((m) => decode(m[1] ?? m[2])));
+/** The tabs a page opens from its address's hash (components/analysis/WeatherTabs.client.tsx: a panel's data-tab). */
+const tabsOf = (page) => new Set([...page.html.matchAll(/\bdata-tab\s*=\s*"([^"]*)"/gi)].map((m) => decode(m[1])));
+/** The arguments of a stub's forward (components/LegacyAnalysisLink.tsx): [to, guides, base path], or null without one. */
+const forwardOf = (page) => {
+  const scripts = [...page.html.matchAll(/<script\b[^>]*\bdata-forward\b[^>]*>([\s\S]*?)<\/script>/gi)];
+  const call = scripts.length === 1 ? /\}\)\(([\s\S]*)\)\s*$/.exec(scripts[0][1]) : null;
+  try { return call ? JSON.parse(`[${call[1]}]`) : null; } catch { return null; }
+};
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
+(function checkStubs() {
+  for (const page of pages) {
+    if (page.notFound) continue;
+    let to = null;
+    try { to = routes.movedTo(page.path); } catch { continue; }
+    if (to && !MOVED_PAGES.includes(page.path)) fail('stubs', page.path, `is a moved address (to ${to}) that movedPages() does not list`);
+  }
+  for (const from of MOVED_PAGES) {
+    const to = routes.movedTo(from);
+    if (!to) { fail('stubs', from, 'is in movedPages() but movedTo() gives it no target'); continue; }
+    const [toPath, toHash] = to.split('#');
+    const page = byPath.get(from);
+    if (!page) { fail('stubs', from, `has no stub in the export: a host that cannot redirect would show the 404 instead of ${to}`); continue; }
+    if (page.h1.length !== 1 || page.h1[0] !== MOVED_TEXT) fail('stubs', from, `its H1 is ${JSON.stringify(page.h1.join(' | '))}, not "${MOVED_TEXT}"`);
+    if (!page.hrefs.some((href) => href === to || href.startsWith(to + '?'))) fail('stubs', from, `has no visible link to ${to}`);
+    const forward = forwardOf(page);
+    if (!forward) fail('stubs', from, 'has no forward (one <script data-forward> from components/LegacyAnalysisLink.tsx)');
+    else {
+      const [forwardTo, guides, base] = forward;
+      if (forwardTo !== to) fail('stubs', from, `forwards to ${forwardTo}, not ${to}`);
+      if (base !== BASE_PATH) fail('stubs', from, `forwards under the base path ${JSON.stringify(base)}, not ${JSON.stringify(BASE_PATH)}`);
+      const wantGuides = FORWARD_ONLY[from] !== undefined || from === '/research/personalized' ? routes.guideTargets() : null;
+      if (JSON.stringify(guides) !== JSON.stringify(wantGuides)) fail('stubs', from, wantGuides ? 'does not forward the old #guide-<question> links to their analyses (guideTargets())' : 'forwards #guide- links it never had');
+    }
+    const ogUrl = (page.social['og:url'] || [])[0];
+    if (ogUrl !== routes.absoluteUrl(toPath)) fail('stubs', from, `og:url is ${ogUrl || 'missing'}, not the target ${routes.absoluteUrl(toPath)}`);
+    if (page.jsonLd.length) fail('stubs', from, `has ${page.jsonLd.length} JSON-LD block(s); a stub has no structured data`);
+    const target = byPath.get(toPath);
+    if (!target) fail('stubs', from, `moves to ${toPath}, which is not in the export`);
+    else if (expectNoindex(target) || hasNoindex(target)) fail('stubs', from, `moves to ${toPath}, which is noindex`);
+    else if (toHash) {
+      // The hash lands on an element with that id, or opens the tab of that name (a tabbed page reads its hash).
+      if (!idsOf(target).has(toHash) && !tabsOf(target).has(toHash)) fail('stubs', from, `moves to ${to}, but ${toPath} has no element with id="${toHash}" and no tab of that name`);
+    }
+  }
+})();
+
+(function checkRedirects() {
+  let rules;
+  try { rules = redirectRules(JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'))); } catch (error) { fail('redirects', 'vercel.json', `cannot be read as a redirect table: ${error.message}`); return; }
+  const used = new Set();
+  const expect = (from, want) => {
+    const got = redirectFor(rules, from);
+    if (got) used.add(got.rule);
+    if (want === null) { if (got) fail('redirects', from, `answers ${got.status} to ${got.location}; it must reach its page (rule ${got.rule.source})`); return; }
+    if (!got) fail('redirects', from, `has no redirect in vercel.json; expected 308 to ${want}`);
+    else if (got.status !== 308 || got.location !== want) fail('redirects', from, `answers ${got.status} to ${got.location} (rule ${got.rule.source}); expected 308 to ${want}`);
+  };
+  for (const from of MOVED_PAGES) expect(from, FORWARD_ONLY[from] !== undefined ? null : routes.movedTo(from));
+  for (const [from, to] of Object.entries(REDIRECT_ONLY)) expect(from, to);
+  // Any other research-archive address, at any depth, also goes to the downloads; nothing the site serves is redirected.
+  for (const from of ['/packs/not-a-question', '/packs/r01_banking_time/extra']) expect(from, routes.movedTo('/packs/x'));
+  let listed = [];
+  try { listed = routes.sitemapEntries().map((e) => e.path); } catch { /* reported by the sitemap check */ }
+  for (const page of [...new Set([...listed, ...pages.filter((p) => !p.notFound && !expectNoindex(p)).map((p) => p.path), '/packsx', '/runners', '/report'])]) expect(page, null);
+  for (const rule of rules) {
+    if (!used.has(rule)) warn('policy', 'vercel.json', `the redirect from ${rule.source} is never exercised by the redirect table; add its expectation or remove it`);
+    if (rule.status !== 308) fail('redirects', 'vercel.json', `${rule.source} answers ${rule.status}; moved addresses answer 308`);
+    if (rule.destination.startsWith('/')) {
+      const target = rule.destination.split('#')[0];
+      if (!/:/.test(target) && (!byPath.has(target) || expectNoindex(byPath.get(target)))) fail('redirects', 'vercel.json', `${rule.source} goes to ${target}, which is not a built, indexable page`);
+    }
+  }
+})();
+
+(function checkMovedLinks() {
+  const moved = (pathname) => { try { return routes.movedTo(pathname) ?? REDIRECT_ONLY[pathname] ?? null; } catch { return null; } };
+  const linking = new Map();
+  for (const page of pages) {
+    if (page.notFound) continue;
+    const hits = [...new Set(page.hrefs.filter((href) => { const to = linkPath(href, page.path); return to && moved(to); }))];
+    if (hits.length) linking.set(page.path, hits);
+  }
+  for (const [from, hits] of linking) {
+    const message = `links ${hits.length} moved address${hits.length === 1 ? '' : 'es'}, e.g. ${hits.slice(0, 3).join(' , ')} (link to ${moved(linkPath(hits[0], from))} instead)`;
+    fail('moved-links', from, message);
+  }
+})();
+
 // ---------- Links into the methods page ----------
 
 // Since October 16, 2026 every method, definition, source and limit lives on /methodology, and the other pages link the
@@ -747,9 +922,9 @@ function robotsAllows(rules, target) {
 const failed = [...failures].filter(([, list]) => list.length);
 const warned = [...warnings].filter(([, list]) => list.length);
 const noindexCount = pages.filter((p) => !p.notFound && expectNoindex(p)).length;
-const aliasCount = indexable.filter((p) => routes.canonicalPathFor(p.path) !== p.path).length;
+const stubCount = pages.filter((p) => !p.notFound && MOVED_PAGES.includes(p.path)).length;
 const outLabel = OUT === ROOT || OUT.startsWith(ROOT + path.sep) ? path.relative(ROOT, OUT) || '.' : OUT;
-console.log(`verify-seo: ${outLabel}/ has ${pages.length} HTML pages (${indexable.length - aliasCount} indexable, ${aliasCount} aliases, ${noindexCount} noindex, ${pages.filter((p) => p.notFound).length} not-found); sitemap lists ${sitemapLocs.length} URLs; finishesM() = ${FINISHES_M}; self-test passed (${SELF_TEST}).\n`);
+console.log(`verify-seo: ${outLabel}/ has ${pages.length} HTML pages (${indexable.length} indexable, ${noindexCount} noindex of which ${stubCount} moved-address stubs, ${pages.filter((p) => p.notFound).length} not-found); sitemap lists ${sitemapLocs.length} URLs; finishesM() = ${FINISHES_M}; self-test passed (${SELF_TEST}).\n`);
 
 function printGroup(kind, key, title, list) {
   const pagesHit = new Set(list.map((item) => item.page)).size;

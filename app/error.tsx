@@ -25,13 +25,13 @@ export default function PageError({ error }: { error: Error & { digest?: string 
     return () => { if (document.title === TITLE) document.title = previous; };
   }, []);
   return (
-    <section className="page-error">
-      <p className="eyebrow">Loading error</p>
-      <h1 ref={heading} tabIndex={-1}>This page didn&apos;t load properly</h1>
-      <p>Something went wrong while loading this page. Reloading usually fixes it.</p>
-      <div className="hero-actions">
-        <button type="button" className="button-primary" onClick={() => window.location.reload()}>Reload the page</button>
-        <a className="button-secondary" href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/`}>Go to the home page</a>
+    <section className="info-stop page-error">
+      <p className="t-kicker">Loading error</p>
+      <h1 ref={heading} tabIndex={-1} className="t-title">This page didn&apos;t load properly</h1>
+      <p className="info-dek">Something went wrong while loading this page. Reloading usually fixes it.</p>
+      <div className="info-actions">
+        <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}><span>Reload the page</span></button>
+        <a className="btn btn-tertiary" href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/`}><span>Go to the home page</span></a>
       </div>
     </section>
   );

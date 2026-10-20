@@ -1,186 +1,127 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { EvidencePanel } from '@/components/tools/ui';
-import { Pace } from '@/components/story/Units';
-import { slugifyCity } from '@/lib/course-data';
-import {
-  FINISH_GROUPS, GROUP_LABEL, clockMinute, ordinal, percentileLabel, shareLabel,
-  type FinishGroup, type FinishTimeSummary as Summary, type GroupSummary,
-} from '@/lib/finish-times-summary';
+import DotStrip from '@/components/viz/DotStrip';
+import Values from '@/components/ui/Values';
+import PercentileDots from '@/components/story/charts/PercentileDots';
+import Ruler from '@/components/viz/Ruler';
+import EraShift from '@/components/story/charts/EraShift';
+import { Beat, StoryHero, StoryPage } from '@/components/story/StoryPage';
+import { FINISH_GROUPS, GROUP_LABEL, clockMinute, ordinal, percentileMinutes, type FinishTimeSummary as Summary, type GroupSummary } from '@/lib/finish-times-summary';
+import type { Courses } from '@/lib/insights';
+import { getNugget, sentenceOf } from '@/lib/nuggets';
+import { count, hm } from '@/lib/nuggets/format';
+import { courseSlug } from '@/lib/tools/links';
+import { finishMinute } from '@/lib/course-page';
 
-const MARATHON_KM = 42.195;
-const count = (n: number) => n.toLocaleString('en-US');
-const date = (iso: string) => new Date(iso).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' });
-const percentile = (g: GroupSummary, p: number) => g.percentiles.find((x) => x.p === p)?.minute ?? null;
-
-/** Short, lower-case group names for running text. */
-const GROUP_TEXT: Record<FinishGroup, string> = { all: 'all finishes', women: 'recorded women', men: 'recorded men' };
+const PATH = '/finish-times';
+const at = (g: GroupSummary, p: number) => g.percentiles.find((x) => x.p === p)?.minute ?? null;
+const MINUS = '−';
+const signedMin = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(v).toFixed(1)} min`;
 
 /**
- * The /finish-times page body: median bibs, the minute-by-minute distribution, the shares and percentile tables,
- * the races, and onward links. What the numbers cover and how they are counted is on /methodology.
- * Server-rendered from getFinishTimeSummary(); only the even-pace figures and the links follow the visitor's units on the client.
+ * Chapter 01's opener, /finish-times (the redesign spec, section 7.3, under section 00): the median finish alone under
+ * the H1 (recorded women's and men's medians are in All numbers: women against men is chapter 07's story), then three
+ * beats: every finish as 99 finishes, the front of the field against the back across the eras, and the median course by
+ * course. Every number comes from the field.* nuggets and the verified story data; what the numbers cover and how they
+ * are counted is on /methodology.
  */
-export default function FinishTimeSummary({ summary }: { summary: Summary }) {
-  const { groups, coverage } = summary;
-  const all = groups.all;
+export default function FinishTimeSummary({ summary, courses }: { summary: Summary; courses: Courses }) {
+  const { groups } = summary;
+  const title = getNugget('field.title'), median = getNugget('field.median'), middle = getNugget('field.middle'), front = getNugget('field.front'), byRace = getNugget('field.byrace');
+
+  /* The opener's ruler draws the H1's claim on the scale the dots below use: everything past the hour it names (the
+     median's own) is the reading, an orange run named for that hour, and the median an ink dot inside it (round 5: an
+     orange median on its own scale was a second orange, and a second scale, beside the H1's). */
+  const medianAll = groups.all.median ?? NaN;
+  const hourMark = Math.floor(medianAll / 60) * 60;
+
+  // Every finish as 99 finishes: the 1st to the 99th percentile of all finishes. Recorded women and men are the reading's
+  // ruler and the Values table, so the beat has no control that would move it away from its H2.
+  const centiles = (g: typeof FINISH_GROUPS[number]) => percentileMinutes(summary.bins.map((b) => ({ minute: b.minute, n: b[g] })), groups[g].total);
+  const minutes = centiles('all');
+  // The middle half is the H2's run (its ends are the H2's times), the one emphasis; the median is named in ink.
+  // Each of the 99 dots is a hundredth of the field, said as a count (to the nearest hundred) in the key; the median's
+  // tick stands at the median itself, the median the ruler above names, not at its column's centre.
+  const each = Math.round(groups.all.total / 100 / 100) * 100;
+  const layer = { minutes, band: [24, 74] as [number, number], bandLabel: 'The middle half', mark: { index: 49, text: 'Median', at: medianAll },
+    each: `Each dot ≈ ${count(each)} finishes` };
+  const dLo = Math.floor(minutes[0] / 30) * 30;
+  const dHi = Math.ceil(minutes[98] / 30) * 30;
+  const dotTicks = [];
+  // Ticks on the round hours this chapter is about, never the half hours.
+  for (let m = Math.ceil(dLo / 60) * 60; m <= dHi; m += 60) dotTicks.push({ value: m, label: hm(m) });
+
+  // The eras: each fully covered course's change at the 10th and 90th percentile, in minutes.
+  const eras = courses.years.eras;
+  const covered = eras.courses.filter((c) => c.high_coverage);
+  const change = (pair: [number, number]) => (pair[1] - pair[0]) / 60;
+  const rows = [
+    { id: 'p10', label: 'Front of the field', values: covered.map((c) => ({ id: c.city, v: change(c.p10) })), mean: eras.summary.p10.change, display: signedMin(eras.summary.p10.change), tone: 'signal' as const },
+    { id: 'p90', label: 'Back of the field', values: covered.map((c) => ({ id: c.city, v: change(c.p90) })), mean: eras.summary.p90.change, display: signedMin(eras.summary.p90.change), tone: 'ink' as const },
+  ];
+  const span = Math.ceil(Math.max(...rows.flatMap((r) => r.values.map((v) => Math.abs(v.v)))) / 5) * 5;
+
+  // Course by course: each course's median finish across its editions. The strip draws the courses the H2's range spans
+  // (100 or more finishes and three or more editions), so no dot sits past the range it names; All numbers lists every
+  // course with 100 or more finishes, with its editions.
+  const list = courses.courses.filter((c) => c.finishes >= 100);
+  const drawn = list.filter((c) => c.editions >= 3);
+  const t0 = Math.floor(Math.min(...drawn.map((c) => c.median_s)) / 1800) * 1800, t1 = Math.ceil(Math.max(...drawn.map((c) => c.median_s)) / 1800) * 1800;
+  const stripTicks = [];
+  for (let t = t0; t <= t1; t += 1800) stripTicks.push({ value: t, label: hm(t / 60) });
+
   return (
-    <div className="container ft-page">
-      <header className="tool-header ft-header">
-        <p className="eyebrow"><Link href="/">Pace Notes</Link> · Finish times</p>
-        <h1 className="tool-title">Marathon finish times</h1>
-        <p className="tool-dek">
-          The median finish in {coverage.races} large city marathons is <strong>{percentileLabel(all.median, summary.lastMinute)}</strong>.
-          Here is how the finishes spread out, for recorded women and recorded men, and the share that came in under each round time.
-        </p>
-      </header>
+    <StoryPage path={PATH} numbers={[
+      <Values key="ft-percentiles" bare id="ft-percentiles" caption="Finish time at each percentile"
+        columns={[{ key: 'p', label: 'Percentile' }, ...FINISH_GROUPS.map((g) => ({ key: g, label: GROUP_LABEL[g] }))]}
+        rows={[0.1, 0.25, 0.5, 0.75, 0.9].map((p) => [ordinal(p), ...FINISH_GROUPS.map((g) => { const m = at(groups[g], p); return m === null ? '—' : clockMinute(m); })])}
+        reading={2} />,
+      <Values key="ft-eras" bare id="ft-eras" caption={`Change from ${eras.pre[0]}–${eras.pre[1]} to ${eras.post[0]}–${eras.post[1]}, by course`}
+        columns={[{ key: 'c', label: 'Course', text: true }, { key: 'f', label: 'Front, 10th percentile' }, { key: 'b', label: 'Back, 90th percentile' }]}
+        rows={[...covered].sort((a, b) => change(a.p10) - change(b.p10)).map((c) => [c.city, signedMin(change(c.p10)), signedMin(change(c.p90))])} />,
+      <Values key="ft-races" bare id="ft-races" caption="Median finish by course" count={list.length}>
+        <table className="table">
+          <thead><tr><th scope="col" className="is-text">Course</th><th scope="col">Median finish</th><th scope="col">Editions</th><th scope="col">Finishes</th></tr></thead>
+          <tbody>
+            {[...list].sort((a, b) => a.median_s - b.median_s).map((c) => (
+              <tr key={c.city}>
+                <th scope="row" className="is-text"><Link href={`/courses/${courseSlug(c.city)}`}>{c.city}</Link></th>
+                <td>{finishMinute(c.median_s)}</td><td>{c.editions}</td><td>{count(c.finishes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Values>,
+    ]}>
+      {/* The H1 is the finding in words and the figure its time; the ruler draws the H1's claim: the time past the hour
+          it names as the orange run, and the median (the figure's time) an ink dot inside it. */}
+      <StoryHero path={PATH} title={title.guard ? sentenceOf(title) : 'Marathon finish times'} stacked
+        figure={median.figure ? { ...median.figure } : undefined} unitLine={median.key} fallback={!median.guard}
+        instrument={title.guard && median.guard ? (
+          <Ruler min={dLo} max={dHi} ticks={dotTicks} band={{ lo: hourMark, hi: dHi, label: `Over ${hm(hourMark)}`, tone: 'signal' }}
+            marks={[{ value: medianAll, kind: 'compare', label: 'Median' }]}
+            label={`The median finish, ${hm(medianAll)}, sits past ${hm(hourMark)}: more than half of all finishes took longer than ${hm(hourMark)}.`} />
+        ) : undefined} />
 
-      <section className="bibs ft-bibs" aria-label="Median finish times">
-        {FINISH_GROUPS.map((key) => <MedianBib key={key} group={groups[key]} lastMinute={summary.lastMinute} />)}
-      </section>
+      <Beat id="field" track="chapter-1" label="Most finishes" title={middle}>
+        <PercentileDots layer={layer} domain={[dLo, dHi]} ticks={dotTicks}
+          label={`99 finishes, one at each percentile from the 1st to the 99th. All finishes: median ${hm(minutes[49])}, the middle half from ${hm(minutes[24])} to ${hm(minutes[74])}.`} />
+      </Beat>
 
-      <div className="ft-stack">
-        <EvidencePanel kind="data" title="How finish times spread">
-          <Distribution summary={summary} />
-        </EvidencePanel>
+      <Beat id="front" track="chapter-2" label="Then and now" title={front}
+        dek={`${eras.pre[0]}–${String(eras.pre[1]).slice(2)} against ${eras.post[0]}–${String(eras.post[1]).slice(2)}. Each dot is a course; each bar, their average.`}>
+        <EraShift rows={rows} domain={[-span, span]} axisTitle={{ start: 'Faster', end: 'Slower' }}
+          ticks={[-span, -span / 2, 0, span / 2, span].map((v) => ({ value: v, label: v === 0 ? '0' : `${v > 0 ? '+' : MINUS}${Math.abs(v)} min` }))}
+          label={`Change in finish time from ${eras.pre[0]}–${eras.pre[1]} to ${eras.post[0]}–${eras.post[1]} across ${covered.length} courses: 10th percentile ${signedMin(eras.summary.p10.change)}, 90th percentile ${signedMin(eras.summary.p90.change)} on average.`} />
+      </Beat>
 
-        <div className="ft-tables">
-          <EvidencePanel kind="data" title="Share of finishes under each time" meta="Observed shares, not predictions.">
-            <div className="tool-table-wrap">
-              <table className="tool-table ft-table">
-                <caption className="sr-only">Share of finishes under each time</caption>
-                <thead><tr><th scope="col">Finish time</th>{FINISH_GROUPS.map((key) => <th key={key} scope="col">{GROUP_LABEL[key]}</th>)}</tr></thead>
-                <tbody>
-                  {all.under.map(({ minute }) => (
-                    <tr key={minute}>
-                      <th scope="row">Under {clockMinute(minute)}</th>
-                      {FINISH_GROUPS.map((key) => <td key={key}>{shareLabel(groups[key].under.find((u) => u.minute === minute)!.share)}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </EvidencePanel>
-
-          <EvidencePanel kind="data" title="Percentiles">
-            <div className="tool-table-wrap">
-              <table className="tool-table ft-table">
-                <caption className="sr-only">Finish-time percentiles</caption>
-                <thead><tr><th scope="col">Percentile</th>{FINISH_GROUPS.map((key) => <th key={key} scope="col">{GROUP_LABEL[key]}</th>)}</tr></thead>
-                <tbody>
-                  {all.percentiles.map(({ p }) => (
-                    <tr key={p} className={p === 0.5 ? 'is-key' : undefined}>
-                      <th scope="row">{p === 0.5 ? 'Median (50th)' : ordinal(p)}</th>
-                      {FINISH_GROUPS.map((key) => <td key={key}>{percentileLabel(percentile(groups[key], p), summary.lastMinute)}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </EvidencePanel>
-        </div>
-      </div>
-
-      <section className="ft-notes" aria-labelledby="ft-races-title">
-        <h2 id="ft-races-title" className="ft-races-title">The {coverage.races} races</h2>
-        <ul className="ft-races">
-          {coverage.courses.map((course) => <li key={course.city}><Link href={`/courses/${slugifyCity(course.city)}`}>{course.race}</Link></li>)}
-        </ul>
-        <p className="ft-races-note">Each course page shows how that race was paced.</p>
-      </section>
-
-      <p className="print-only ft-print-note">Pace Notes by Andrew Kam · splithappens.run/finish-times · Data as of {date(summary.asOf)}.</p>
-
-      <nav className="tool-next ft-next" aria-label="Keep exploring">
-        <p className="eyebrow">Keep exploring</p>
-        <ul>
-          <li style={{ ['--tool' as string]: '#FF5B2E' }}><Link href="/stories/round-numbers"><b>The 3:59 effect</b><span>Finish times bunch just under round numbers like 3:00, 3:30 and 4:00.</span></Link></li>
-          <li style={{ ['--tool' as string]: '#2F5BFF' }}><Link href="/analyses/finish-time-context"><b>Your target in context</b><span>Where one finish time falls among comparable finishes, by course and recorded gender.</span></Link></li>
-          <li style={{ ['--tool' as string]: '#17A673' }}><Link href="/tools/marathon-pace-chart"><b>Marathon pace chart</b><span>Pace per mile and per km for every goal time, calculated at even pace.</span></Link></li>
-          <li style={{ ['--tool' as string]: '#F4B23E' }}><Link href="/tools/pace-calculator"><b>Pace calculator</b><span>Pace, time and splits for any distance.</span></Link></li>
-        </ul>
-      </nav>
-    </div>
-  );
-}
-
-function MedianBib({ group, lastMinute }: { group: GroupSummary; lastMinute: number }) {
-  const minute = group.median;
-  return (
-    <div className={`bib ft-bib is-${group.group}`}>
-      <span className="bib-tag">Median · {GROUP_TEXT[group.group]}</span>
-      <strong className="bib-number">{percentileLabel(minute, lastMinute)}</strong>
-      {minute !== null ? <span className="bib-foot">Even pace for {clockMinute(minute)}:00: <Pace secondsPerKm={(minute * 60) / MARATHON_KM} /></span> : null}
-    </div>
-  );
-}
-
-/** Minutes → percent across the plot, which spans the first bin's start to the last bin's end. */
-function scale(summary: Summary) {
-  const span = summary.lastMinute + 1 - summary.firstMinute;
-  return (minute: number) => ((minute - summary.firstMinute) / span) * 100;
-}
-
-/** A step outline of per-minute counts in a 0–span × 0–100 box; `closed` fills down to the baseline. */
-function stepPath(values: number[], max: number, closed: boolean) {
-  const y = (n: number) => (100 - (n / max) * 94).toFixed(1);
-  let d = closed ? `M0 100V${y(values[0])}H1` : `M0 ${y(values[0])}H1`;
-  for (let i = 1; i < values.length; i++) d += `V${y(values[i])}H${i + 1}`;
-  return closed ? `${d}V100Z` : d;
-}
-
-function Distribution({ summary }: { summary: Summary }) {
-  const { bins, groups } = summary;
-  const x = scale(summary);
-  const span = bins.length;
-  const max = Math.max(...bins.map((b) => b.all));
-  const all = groups.all;
-  const median = all.median;
-  const grid = [10000, 20000, 30000, 40000, 50000].filter((v) => v < max * 0.97);
-  const ticks: number[] = [];
-  for (let m = Math.ceil(summary.firstMinute / 30) * 30; m <= summary.lastMinute; m += 30) ticks.push(m);
-  const label = `Finishes per minute from ${clockMinute(summary.firstMinute)} to ${clockMinute(summary.lastMinute)}. The median finish is ${percentileLabel(median, summary.lastMinute)} for all finishes, ${percentileLabel(groups.women.median, summary.lastMinute)} for recorded women and ${percentileLabel(groups.men.median, summary.lastMinute)} for recorded men. The busiest minute is ${clockMinute(all.peak.minute)}, with ${count(all.peak.n)} finishes.`;
-  return (
-    <figure className="ft-figure">
-      <div className="ft-plot" role="img" aria-label={label}>
-        <svg viewBox={`0 0 ${span} 100`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
-          {grid.map((v) => <line key={v} className="ft-grid" x1="0" x2={span} y1={100 - (v / max) * 94} y2={100 - (v / max) * 94} vectorEffect="non-scaling-stroke" />)}
-          <path className="ft-area" d={stepPath(bins.map((b) => b.all), max, true)} />
-          <path className="ft-line is-women" d={stepPath(bins.map((b) => b.women), max, false)} vectorEffect="non-scaling-stroke" />
-          <path className="ft-line is-men" d={stepPath(bins.map((b) => b.men), max, false)} vectorEffect="non-scaling-stroke" />
-          {median !== null ? <line className="ft-median" x1={median - summary.firstMinute + 0.5} x2={median - summary.firstMinute + 0.5} y1="0" y2="100" vectorEffect="non-scaling-stroke" /> : null}
-        </svg>
-        <div className="ft-plot-labels" aria-hidden="true">
-          {grid.map((v) => <span key={v} className="ft-grid-label" style={{ bottom: `${(v / max) * 94}%` }}>{count(v)}</span>)}
-          {median !== null ? <span className="ft-median-label" style={{ left: `${x(median + 0.5)}%` }}>Median {clockMinute(median)}</span> : null}
-        </div>
-      </div>
-      <div className="ft-axis" aria-hidden="true">
-        {ticks.map((t) => <span key={t} className={t % 60 ? 'is-half' : undefined} style={{ left: `${x(t)}%` }}>{clockMinute(t)}</span>)}
-      </div>
-      <div className="ft-ranges" aria-hidden="true">
-        {FINISH_GROUPS.map((key) => {
-          const g = groups[key];
-          const at = (p: number) => percentile(g, p);
-          const [p10, p25, p50, p75, p90] = [0.1, 0.25, 0.5, 0.75, 0.9].map(at);
-          if (p10 === null || p25 === null || p50 === null || p75 === null || p90 === null) return null;
-          return (
-            <div key={key} className={`ft-range is-${key}`}>
-              <p className="ft-range-label"><b>{GROUP_LABEL[key]}</b> <span>median {clockMinute(p50)}</span> · <span>middle half {clockMinute(p25)}–{clockMinute(p75)}</span></p>
-              <div className="ft-range-track">
-                <span className="ft-range-whisker" style={{ left: `${x(p10 + 0.5)}%`, width: `${x(p90 + 0.5) - x(p10 + 0.5)}%` }} />
-                <span className="ft-range-box" style={{ left: `${x(p25 + 0.5)}%`, width: `${x(p75 + 0.5) - x(p25 + 0.5)}%` }} />
-                <span className="ft-range-dot" style={{ left: `${x(p50 + 0.5)}%` }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <figcaption className="ft-legend">
-        <span><i className="swatch is-all" />All finishes (shaded)</span>
-        <span><i className="is-women" />Recorded women</span>
-        <span><i className="is-men" />Recorded men</span>
-        <span className="ft-legend-ranges">Bars below: thin line 10th to 90th percentile, thick bar the middle half (25th to 75th), dot the median.</span>
-      </figcaption>
-    </figure>
+      {/* The strip draws the courses the H2's range spans and opens on its low end (the readout names it; the high end is
+          labelled), so the beat never opens on an empty readout. Times floor to the minute, as the course pages read a
+          clock: a median at 3:59:56 is "3:59", never a rounded "4:00". */}
+      <Beat id="by-race" track="chapter-3" label="Course by course" title={byRace} dek="Each course’s median across its editions, three or more.">
+        <DotStrip items={drawn.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: finishMinute(c.median_s), detail: count(c.finishes) }))}
+          domain={[t0, t1]} ticks={stripTicks} readoutKey="Finishes" hint="Choose a dot to read its course." mdScale={1.4}
+          label={`Median finish of ${drawn.length} courses with three or more editions, ranked; choose a dot to read it`} />
+      </Beat>
+    </StoryPage>
   );
 }

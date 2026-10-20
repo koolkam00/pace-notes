@@ -1,28 +1,18 @@
-import { UnitLink as Link } from '@/components/UnitsProvider';
-import { MONTHS, type CoursePageData } from '@/lib/course-page';
-import { courseSlug } from '@/lib/tools/links';
-import { CourseSection } from './Fact';
+import ChapterEnd from '@/components/ChapterEnd';
+import { readingOf } from '@/lib/nuggets';
+import type { CoursePageData } from '@/lib/course-page';
 
-const named = (city: string) => (city === 'New York' ? 'New York City' : city);
-
-/** "Other courses": the alphabetical neighbours and the courses run in the same month. No similarity or difficulty labels. */
-export default function CourseOthers({ page, total }: { page: CoursePageData; total: number }) {
-  const { neighbours, sameMonth, display } = page;
+/**
+ * The page's foot: the closing stack every page in the race ends on (the next chapter, back to every course, then "Was
+ * this useful?"; the page's methods close its All numbers, CourseNumbers), in the #other-courses section that keeps the
+ * course page's `related` id (critic round 5: the tools row and the courses paced alike ahead of it made the course pages
+ * the one template that ended on forward lists; the courses paced alike are #pacing's last line, and the tools are the
+ * hero's "Plan your …" and the menu).
+ */
+export default function CourseOthers({ page }: { page: CoursePageData }) {
   return (
-    <CourseSection id="other-courses" track="related" kicker="More courses" title="Other courses">
-      {neighbours.length ? (
-        <div className="course-others">
-          <p className="course-others-label">Next to {display} in the alphabetical list</p>
-          <ul>{neighbours.map((city) => <li key={city}><Link href={`/courses/${courseSlug(city)}`}>{named(city)}</Link></li>)}</ul>
-        </div>
-      ) : null}
-      {sameMonth.map(({ month, cities }) => (
-        <div className="course-others" key={month}>
-          <p className="course-others-label">Also run in {MONTHS[month - 1]}</p>
-          <ul>{cities.map((city) => <li key={city}><Link href={`/courses/${courseSlug(city)}`}>{named(city)}</Link></li>)}</ul>
-        </div>
-      ))}
-      <p className="course-note"><Link href="/courses">All {total} courses</Link>, in alphabetical order.</p>
-    </CourseSection>
+    <section id="other-courses" tabIndex={-1} className="course-foot is-last" data-track-section="related">
+      <ChapterEnd path={`/courses/${page.slug}`} readingOf={readingOf} track={false} how={false} />
+    </section>
   );
 }

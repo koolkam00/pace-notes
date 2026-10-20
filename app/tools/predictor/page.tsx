@@ -1,8 +1,7 @@
 import Predictor from '@/components/tools/Predictor';
-import { ToolHeader, ToolNext } from '@/components/tools/ToolShell';
+import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
 import { getInsightsManifest } from '@/lib/insights-server';
-import './predictor.css';
 
 export const metadata = pageMetadata({
   title: 'Marathon Time Predictor from a 5K, 10K or Half | Pace Notes',
@@ -26,10 +25,10 @@ function indexVersion(): string | null {
 export default function PredictorPage() {
   const sha = indexVersion();
   return (
-    <div className="container tool-page">
+    <div className="tool-page">
       <ToolHeader slug="predictor" />
       <Predictor indexSha={sha} />
-      <ToolNext current="predictor" />
+      <ToolEnd path="/tools/predictor" how="/methodology#tools-predictor" />
     </div>
   );
 }

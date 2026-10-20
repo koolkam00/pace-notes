@@ -1,0 +1,26 @@
+/* 100 finishes as a 10 × 10 grid of 12 px dots (components/viz/DotGrid.tsx; the redesign spec, section 3.5). Lit dots
+   are the reading in --signal, a comparison grid is --ink, unlit dots --fill-quiet with a --mark-quiet ring, and a guess
+   is an orange ring. Read as "of 100 finishes". Dots light in an 8 ms stagger, at once under reduced motion. */
+
+.dot-grid { margin: 0; }
+.dot-grid-dots { display: grid; grid-template-columns: repeat(10, 12px); gap: 8px; width: max-content; max-width: 220px; margin: 0; padding: 0; list-style: none; }
+.dot-grid-dots li { width: 12px; height: 12px; margin: 0; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
+.dot-grid-dots li.is-lit { background: var(--signal); box-shadow: none; animation: dot-light var(--d-reveal) var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+.dot-grid.is-compare .dot-grid-dots li.is-lit { background: var(--ink); }
+.dot-grid-dots li.is-you { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--signal); }
+.dot-grid-dots li.is-lit.is-you { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--signal); }
+@keyframes dot-light { from { opacity: 0; transform: scale(.4); } }
+.dot-grid-caption { margin-top: var(--s-3); font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.dot-grid-caption strong { font-weight: 600; color: var(--ink); }
+
+@media (max-width: 299.98px) {
+  .dot-grid-dots { grid-template-columns: repeat(10, 10px); gap: 5px; }
+  .dot-grid-dots li { width: 10px; height: 10px; }
+}
+
+/* The 100 dots' key: lit and unlit, named once. */
+.dot-grid-key { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: var(--t-small); font-weight: 400; color: var(--ink-2); }
+.dot-grid-key span { display: inline-flex; align-items: center; gap: 8px; }
+.dot-grid-key i { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--fill-quiet); box-shadow: inset 0 0 0 1px var(--mark-quiet); }
+.dot-grid-key i.is-ink { background: var(--ink); box-shadow: none; }
+.dot-grid-key i.is-signal { background: var(--signal); box-shadow: none; }

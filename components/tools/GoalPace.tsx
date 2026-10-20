@@ -2,11 +2,12 @@
 
 import type { ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { SlowdownTerm } from '@/components/tools/EvidenceTag';
-import { EvidencePanel, Stat } from '@/components/tools/ui';
-import { evenPaceGapText, groupGapText, onsetText, sectionPaceText, slowdownRankText, type GoalPeer } from '@/lib/tools/goal-facts';
-import { HALF_KM, MARATHON_KM, MATS_KM, perUnit, splitTable } from '@/lib/tools/pace';
-import { GOAL_PAGE_MINUTES, courseChooserHref, evenAt, goalLabel, goalPagePath, paceBandHref } from '@/lib/tools/pace-chart';
+import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
+import DotGrid from '@/components/viz/DotGrid';
+import Values, { AllNumbers } from '@/components/ui/Values';
+import { UNEVEN_SHARE, evenPaceGapText, groupGapText, type GoalPeer } from '@/lib/tools/goal-facts';
+import { MARATHON_KM, MATS_KM, perUnit, splitTable } from '@/lib/tools/pace';
+import { evenAt, goalLabel, paceBandHref } from '@/lib/tools/pace-chart';
 import { formatDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
@@ -34,210 +35,158 @@ export interface GoalObserved {
   slow: { n: number; e50: number[] } | null;
 }
 
-/** Finishes in the minute before and after the goal mark (finish-times family), with the smooth-curve expectation. */
-export interface GoalBunching { before: number; after: number; expected: number; ratio: number; ci: [number, number] }
+/**
+ * Finishes in the minute before and after the goal mark (finish-times family), with the smooth-curve expectation, and the
+ * pile-up: the run of minutes just before the mark each at least PILEUP_RATIO times the curve (null when none is).
+ */
+export interface GoalBunching { before: number; after: number; expected: number; ratio: number; ci: [number, number];
+  run: { from: number; to: number; n: number; expected: number; ratio: number } | null }
 
 const CHECKPOINTS = [...MATS_KM, MARATHON_KM];
 const count = (n: number) => Math.round(n).toLocaleString('en-US');
 const clock = (s: number) => formatDuration(s, true);
 /** Elapsed time at a mat: m:ss under an hour, h:mm:ss after, as in the pace charts. */
 const elapsed = (s: number) => formatDuration(s, Math.round(s) >= 3600);
-const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+const pct = (v: number) => `${Math.round(v * 100)}%`;
 const paceText = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
 const unitWord = (units: UnitSystem) => (units === 'mi' ? 'mile' : 'km');
 const other = (units: UnitSystem): UnitSystem => (units === 'mi' ? 'km' : 'mi');
 
-/** "5 km" with the mile equivalent beneath when the visitor reads miles; the timing mats themselves are metric. */
-function PointName({ km, units, halfway = false }: { km: number; units: UnitSystem; halfway?: boolean }) {
-  const finish = Math.abs(km - MARATHON_KM) < 1e-6;
-  const name = finish ? 'Finish' : halfway ? 'Halfway' : `${km} km`;
-  const sub = finish || halfway ? (units === 'mi' ? `${(km / KM_PER_MILE).toFixed(1)} mi` : `${km.toFixed(1)} km`) : units === 'mi' ? `${(km / KM_PER_MILE).toFixed(1)} mi` : null;
-  return <>{name}{sub ? <span className="goal-chart-sub">{sub}</span> : null}</>;
-}
-
-/** The dek under the H1: the even pace in the visitor's units, and what the page sets it beside. */
+/** The dek under the H1 (ToolPageHeader wraps it): what the page sets the even-pace splits beside. Its numbers are on the night card below. */
 export function GoalPaceDek({ goal, observed }: { goal: number; observed: GoalObserved | null }) {
-  const { units } = useUnits();
-  const seconds = goal * 60;
-  const pKm = seconds / MARATHON_KM;
-  return (
-    <p className="tool-dek">
-      A {goalLabel(goal)} marathon at even pace is {formatDuration(perUnit(pKm, units))} per {unitWord(units)} ({formatDuration(perUnit(pKm, other(units)))} per {unitWord(other(units))}), with halfway at {clock(seconds / 2)}.
-      {observed ? <> Below, those even-pace splits sit beside what {count(observed.n)} finishes from {clock(observed.lo)} to {clock(observed.hi)} actually ran at each 5 km mat.</> : null}
-    </p>
-  );
-}
-
-function Panel({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={`tool-table-wrap${className ? ` ${className}` : ''}`}>{children}</div>;
+  const label = goalLabel(goal);
+  // No count here: the page's counts of finishes just under the goal are in its beats below.
+  return <>The even-pace splits for a {label} marathon{observed ? <>, beside what finishes just under {label} actually ran</> : null}.</>;
 }
 
 /** Everything below the header of a goal page. Static HTML in miles; redrawn in km once the units preference is read. */
-export function GoalPaceBody({ goal, observed, bunching, peers }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers: GoalPeer[] }) {
+/** The pile-up's minutes as a table: each minute's finishes and the smooth curve's expectation, the reading row marked. */
+export interface PileupTable { caption: string; rows: [string, string, string][]; reading: number }
+
+export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable, how }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
+  /** The page's methods anchor, the last line of its "All numbers" (ToolEnd `numbers`). */
+  how?: string;
+  /** The pile-up's figure, drawn on the server (a mini minute histogram). */
+  pileup?: ReactNode;
+  /** Its numbers, for the page's one "All numbers" disclosure. */
+  pileupTable?: PileupTable | null }) {
   const { units } = useUnits();
   const label = goalLabel(goal);
   const seconds = goal * 60;
   const pKm = seconds / MARATHON_KM;
-  const even = [...MATS_KM.slice(0, 4).map((km) => ({ km, halfway: false })), { km: HALF_KM, halfway: true }, ...MATS_KM.slice(4).map((km) => ({ km, halfway: false })), { km: MARATHON_KM, halfway: false }];
   const fine = splitTable(seconds, MARATHON_KM, units === 'mi' ? 'mi' : 'km');
   const span = observed ? `${clock(observed.lo)} to ${clock(observed.hi)}` : null;
-  const minuteBefore = `${clock(seconds - 60)} and ${clock(seconds - 1)}`;
-  // Sentences built only from this goal's data (lib/tools/goal-facts.ts), so each goal page reads differently.
+  const even = CHECKPOINTS.map((km) => Math.round(evenAt(seconds, MARATHON_KM, km)));
+  // Sentences built only from this goal's data (lib/tools/goal-facts.ts), so each goal page reads differently. The full
+  // ones go to each chart's description; the page shows one short sentence per beat from the same medians.
   const gapText = observed ? evenPaceGapText(goal, observed.e50) : null;
-  const sectionText = observed?.s50 ? sectionPaceText(goal, observed.s50, units) : null;
   const groupText = observed?.held && observed.slow ? groupGapText(observed.held.e50, observed.slow.e50) : null;
-  const onsetLine = observed?.onset && observed.onsetKm ? onsetText(observed.onset, observed.onsetKm) : null;
-  const slowdownRank = slowdownRankText(goal, peers);
+  // A pile-up is a finding only when minutes before the mark stand well above the curve; a small bump reads as what it is.
+  const run = bunching?.run ?? null;
+  const uneven = observed?.sd != null && observed.sd >= UNEVEN_SHARE;
 
   return (
     <>
-      <div className="tool-headline goal-pace-headline">
-        <Stat label={`Even pace per ${unitWord(units)}`} value={formatDuration(perUnit(pKm, units))} sub={paceText(pKm, other(units))} />
-        <Stat label="Halfway at even pace" value={clock(seconds / 2)} />
-        {observed?.sd != null ? (
-          <Stat label={<><SlowdownTerm>Sustained slowdown</SlowdownTerm> <Link href="/methodology#evidence" className="goal-pace-src">Pace Notes data</Link></>} value={pct(observed.sd)}
-            sub={`of ${count(observed.n)} finishes from ${span}, all courses`} />
-        ) : null}
-      </div>
+      <section className="tool-reading night goal-pace-headline" aria-labelledby="goal-pace-title">
+        <div className="tool-reading-head">
+          <p className="tool-reading-kicker">Even pace for {label}</p>
+          <h2 className="tool-reading-figure" id="goal-pace-title">
+            {formatDuration(perUnit(pKm, units))}
+            <small>per {unitWord(units)} · {paceText(pKm, other(units))} · halfway {clock(seconds / 2)}</small>
+          </h2>
+        </div>
+        <ol className="tool-laps" aria-label={`Elapsed time at each 5 km mat for an even-pace ${label}`}>
+          {CHECKPOINTS.map((km, i) => (
+            <li key={km} className={i === CHECKPOINTS.length - 1 ? 'is-finish' : undefined}>
+              <span>{i === CHECKPOINTS.length - 1 ? 'Finish' : `${km}K`}{units === 'mi' ? <small>{(km / KM_PER_MILE).toFixed(1)} mi</small> : null}</span>
+              <b>{elapsed(even[i])}</b>
+            </li>
+          ))}
+        </ol>
+      </section>
+      {/* The splits as a band to print, said beside them: the chapter end below is the page's one way forward. */}
+      <p className="tool-note goal-pace-more goal-pace-band"><Link href={paceBandHref(goal)}>Print these as a pace band</Link></p>
 
-      <div className="goal-pace-pair">
-        <EvidencePanel id="goal-pace-even" title={`Even-pace splits for ${label}`}
-          meta={`${paceText(pKm, units)} (${paceText(pKm, other(units))}) for every step; each 5 km takes ${formatDuration(pKm * 5)}.`}>
-          <Panel>
-            <table className="tool-table goal-pace-table">
-              <caption>Elapsed time at an even pace for a {label} marathon.</caption>
-              <thead><tr><th scope="col">Point</th><th scope="col">Even pace</th></tr></thead>
+      {bunching ? (
+        <section className="tool-panel goal-pace-bunching" aria-labelledby="goal-pace-bunching-title">
+          <EvidenceTag kind="data" />
+          <h2 className="tool-nugget-text" id="goal-pace-bunching-title">
+            {/* The minute before the mark, one decimal, as the round numbers story says every mark ("1.7×"), so a goal page
+                and the story never give one pile-up two figures (round 6). */}
+            {run
+              ? <>The minute before {label} held <em>{bunching.ratio.toFixed(1)}×</em> the finishes a smooth curve expects.</>
+              : <>Finishes near {label} stay close to the smooth curve: the minute before it holds {bunching.ratio.toFixed(1)}× the curve.</>}
+          </h2>
+          {pileup}
+        </section>
+      ) : null}
+
+      {/* What finishes just under the goal ran: the share with a sustained slowdown on 100 dots, every mat in the table. */}
+      {observed?.held && observed.slow && observed.sd != null ? (
+        <section className="tool-panel goal-pace-slowdown" aria-labelledby="goal-pace-slowdown-title">
+          {bunching ? null : <EvidenceTag kind="data" />}
+          <h2 className="tool-nugget-text" id="goal-pace-slowdown-title">{uneven
+            ? <>Finishes just under {label} didn’t run even: <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>
+            : <>Of finishes just under {label}, only <em>{pct(observed.sd)}</em> had a <SlowdownTerm />.</>}</h2>
+          {/* The share on 100 dots. The two groups mat by mat (with and without a sustained slowdown) are the pace band's
+              chart, one tap on; here they are a table in All numbers, so the two pages never draw the same chart. */}
+          <DotGrid lit={Math.round(observed.sd * 100)} label={`Of 100 finishes from ${span}, ${Math.round(observed.sd * 100)} had a sustained slowdown. ${groupText ?? ''} ${gapText ?? ''}`.trim()} />
+        </section>
+      ) : !observed ? (
+        <section className="tool-panel">
+          <EvidenceTag kind="data" />
+          <p className="tool-state">The observed mat times are not available in this build. The even-pace splits still apply.</p>
+        </section>
+      ) : null}
+
+      {/* Section 00, cut 7: the page's tables in one disclosure at its foot, each with its caption, not a Values row under
+          every beat. */}
+      <AllNumbers id="goal-pace-numbers" className="goal-pace-numbers" how={how} tables={[
+        <Values bare key="every" id="goal-pace-every" caption={`Elapsed time at an even pace for a ${label} marathon, every ${unitWord(units)}, with the 5 km mats and halfway`}>
+          <table className="table">
+            <thead><tr><th scope="col">Split</th><th scope="col">Elapsed</th></tr></thead>
+            <tbody>
+              {fine.map((r) => (
+                <tr key={r.km} className={r.mat || r.halfway || r.finish ? 'is-reading' : undefined}>
+                  <th scope="row">{r.finish ? 'Finish' : r.halfway ? 'Halfway' : r.mat && units === 'mi' ? `${r.km}K mat` : units === 'mi' ? `${Math.round(r.km / KM_PER_MILE)} mi` : `${Math.round(r.km)} km${r.mat ? ' mat' : ''}`}</th>
+                  <td>{elapsed(r.elapsed)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Values>,
+        observed?.held && observed.slow ? (
+          <Values bare key="groups" id="goal-pace-groups" caption={`Elapsed time at each mat: even pace for ${label}, and the median of ${count(observed.n)} finishes from ${span}, of those with no sustained slowdown and of those with one`}>
+            <table className="table">
+              <thead><tr><th scope="col">Mat</th><th scope="col">Even pace</th><th scope="col">Median</th><th scope="col">No sustained slowdown</th><th scope="col">Sustained slowdown</th></tr></thead>
               <tbody>
-                {even.map((p) => (
-                  <tr key={p.km} className={p.halfway ? 'is-key' : p.km === MARATHON_KM ? 'is-finish' : undefined}>
-                    <th scope="row"><PointName km={p.km} units={units} halfway={p.halfway} /></th>
-                    <td>{elapsed(evenAt(seconds, MARATHON_KM, p.km))}</td>
+                {CHECKPOINTS.map((km, i) => (
+                  <tr key={km}>
+                    <th scope="row">{i === CHECKPOINTS.length - 1 ? 'Finish' : `${km}K`}</th>
+                    <td>{elapsed(even[i])}</td>
+                    <td>{elapsed(observed.e50[i])}</td>
+                    <td>{elapsed(observed.held!.e50[i])}</td>
+                    <td>{elapsed(observed.slow!.e50[i])}</td>
                   </tr>
+                ))}
+                <tr><th scope="row">Finishes</th><td></td><td>{count(observed.n)}</td><td>{count(observed.held.n)}</td><td>{count(observed.slow.n)}</td></tr>
+              </tbody>
+            </table>
+          </Values>
+        ) : null,
+        pileupTable ? (
+          <Values bare key="pileup" id="goal-pace-pileup" caption={pileupTable.caption}>
+            <table className="table">
+              <thead><tr><th scope="col">Minute</th><th scope="col">Finishes</th><th scope="col">Smooth curve</th></tr></thead>
+              <tbody>
+                {pileupTable.rows.map((row, i) => (
+                  <tr key={row[0]} className={i === pileupTable.reading ? 'is-reading' : undefined}><th scope="row">{row[0]}</th><td>{row[1]}</td><td>{row[2]}</td></tr>
                 ))}
               </tbody>
             </table>
-          </Panel>
-        </EvidencePanel>
-
-        {observed ? (
-          <EvidencePanel kind="data" id="goal-pace-observed" title={`What ${count(observed.n)} finishes from ${span} ran`}
-            meta={<>Observed, not a recommended plan.</>}>
-            <Panel>
-              <table className="tool-table goal-pace-table goal-pace-observed">
-                <caption>Elapsed times at each 5 km mat and the finish for finishes from {span}.</caption>
-                <thead><tr><th scope="col">Mat</th><th scope="col">Median</th><th scope="col">Middle half</th></tr></thead>
-                <tbody>
-                  {even.map((p) => {
-                    if (p.halfway) return <tr key={p.km} className="is-key goal-pace-none"><th scope="row"><PointName km={p.km} units={units} halfway /></th><td colSpan={2}>No halfway mat</td></tr>;
-                    const i = CHECKPOINTS.indexOf(p.km);
-                    return (
-                      <tr key={p.km} className={p.km === MARATHON_KM ? 'is-finish' : undefined}>
-                        <th scope="row"><PointName km={p.km} units={units} /></th>
-                        <td>{elapsed(observed.e50[i])}</td>
-                        <td className="goal-pace-range">{observed.e25 && observed.e75 ? <>{elapsed(observed.e25[i])}<span aria-hidden="true">–</span><span className="sr-only"> to </span>{elapsed(observed.e75[i])}</> : '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </Panel>
-          </EvidencePanel>
-        ) : (
-          <EvidencePanel kind="data" title={`What finishes at ${label} ran`}>
-            <p className="tool-state">The observed mat times are not available in this build. The even-pace splits still apply.</p>
-          </EvidencePanel>
-        )}
-      </div>
-
-      {observed && (gapText || sectionText) ? (
-        <EvidencePanel kind="data" id="goal-pace-gap" title="The median against even pace"
-          meta={`The same ${count(observed.n)} finishes from ${span}. Observed, not a plan.`}>
-          <div className="goal-pace-facts goal-pace-measure">
-            {gapText ? <p>{gapText}</p> : null}
-            {sectionText ? <p>{sectionText}</p> : null}
-          </div>
-        </EvidencePanel>
-      ) : null}
-
-      {observed?.held && observed.slow && observed.sd != null ? (
-        <EvidencePanel kind="data" id="goal-pace-slowdown" title="Held pace or sustained slowdown"
-          meta={`The same ${count(observed.n)} finishes from ${span}: median elapsed time at each mat.`}>
-          <div className="goal-pace-split">
-            <div className="goal-pace-lead">
-              <p><b>{pct(observed.sd)}</b> of these finishes had a <SlowdownTerm /> ({count(observed.slow.n)} finishes); the other {count(observed.held.n)} held pace.{slowdownRank ? ` ${slowdownRank}` : ''}</p>
-              {groupText ? <p>{groupText}</p> : null}
-              {onsetLine ? <p>{onsetLine}</p> : null}
-            </div>
-            <Panel className="goal-pace-split-table">
-              <table className="tool-table goal-pace-table">
-                <caption>Median elapsed time at each mat for finishes from {span} that held pace and that had a sustained slowdown.</caption>
-                <thead><tr><th scope="col">Mat</th><th scope="col">Held pace</th><th scope="col">Sustained slowdown</th></tr></thead>
-                <tbody>
-                  {CHECKPOINTS.map((km, i) => (
-                    <tr key={km} className={km === MARATHON_KM ? 'is-finish' : undefined}>
-                      <th scope="row"><PointName km={km} units={units} /></th>
-                      <td>{elapsed(observed.held!.e50[i])}</td>
-                      <td>{elapsed(observed.slow!.e50[i])}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Panel>
-          </div>
-        </EvidencePanel>
-      ) : null}
-
-      {bunching ? (
-        <EvidencePanel kind="data" id="goal-pace-bunching" title={`Finish times bunch just under ${label}`}>
-          <p className="goal-pace-measure">
-            {count(bunching.before)} finishes landed between {minuteBefore}, {bunching.ratio.toFixed(2)} times the {count(bunching.expected)} a smooth curve expects there, and {count(bunching.after)} landed in the next minute.
-            {' '}<Link href="/stories/round-numbers">Read the 3:59 effect story</Link>.
-          </p>
-        </EvidencePanel>
-      ) : null}
-
-      <div className="no-print">
-        <EvidencePanel id="goal-pace-every" title={`Every ${unitWord(units)} at even pace`}
-          meta="Timing mats and halfway are marked.">
-          <details className="goal-pace-details">
-            <summary>Show all {fine.length} rows: every {unitWord(units)}, the 5 km mats, halfway and the finish</summary>
-            <Panel>
-              <table className="tool-table">
-                <caption>Elapsed time at an even pace for a {label} marathon, every {unitWord(units)}.</caption>
-                <thead><tr><th scope="col">Split</th><th scope="col">Elapsed</th></tr></thead>
-                <tbody>
-                  {fine.map((r) => (
-                    <tr key={r.km} className={r.finish ? 'is-finish' : r.mat ? 'is-mat' : r.halfway ? 'is-key' : undefined}>
-                      <td>{r.finish ? 'Finish' : r.halfway ? 'Halfway' : r.mat && units === 'mi' ? `${r.km} km mat` : units === 'mi' ? `${Math.round(r.km / KM_PER_MILE)} mi` : `${Math.round(r.km)} km${r.mat ? ' mat' : ''}`}</td>
-                      <td>{elapsed(r.elapsed)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Panel>
-          </details>
-        </EvidencePanel>
-      </div>
-
-      <div className="tool-callout goal-pace-next no-print">
-        <strong>Planning a {label} marathon?</strong>{' '}
-        Print the <Link href={paceBandHref(goal)}>pace band for {label}</Link>, with the observed columns for your course; compare courses at this pace in the <Link href={courseChooserHref(goal)}>course chooser</Link>;
-        or find another goal in the <Link href="/tools/marathon-pace-chart">marathon pace chart</Link>.
-      </div>
-
-      <nav className="goal-chart-goals no-print" aria-labelledby="goal-pace-others">
-        <h2 id="goal-pace-others">Other goals</h2>
-        <ul>
-          {GOAL_PAGE_MINUTES.map((m) => (
-            <li key={m}>
-              {m === goal
-                ? <span aria-current="page"><b>{goalLabel(m)}</b><span>this page</span></span>
-                : <Link href={goalPagePath(m)}><b>{goalLabel(m)}</b><span>marathon pace</span></Link>}
-            </li>
-          ))}
-          <li><Link href="/tools/marathon-pace-chart"><b>All goals</b><span>Marathon pace chart</span></Link></li>
-        </ul>
-      </nav>
+          </Values>
+        ) : null,
+      ]} />
     </>
   );
 }

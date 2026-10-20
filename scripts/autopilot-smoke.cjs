@@ -63,7 +63,7 @@ const CLS_LIMIT = 0.25;
 const MOBILE = { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 };
 const DESKTOP = { name: 'desktop', viewport: { width: 1366, height: 900 } };
 const DESKTOP_TOO = new Set(['/', '/tools']);
-const QUICK_ROUTES = ['/', '/stories', '<story>', '/tools', '<tools>', '/analyses', '/analyses/pacing-pattern', '/runners', '/courses', '<course>', '/about', '/privacy', '/request-analysis', '/packs'];
+const QUICK_ROUTES = ['/', '/stories', '<story>', '/tools', '<tools>', '/analyses', '/analyses/pacing-pattern', '/runners', '/courses', '<course>', '/about', '/privacy', '/request-analysis', '/methodology'];
 const POSTHOG_HOST = /(^|\.)posthog\.com$/i;
 // Vercel adds its toolbar (vercel.live/_next-live/feedback/feedback.js) to preview deployments; it is not site code.
 const PREVIEW_TOOLBAR_HOST = /^vercel\.live$/i;

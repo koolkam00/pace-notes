@@ -1,11 +1,10 @@
 import { notFound } from 'next/navigation';
-import { getInsightsManifest, readInsight, clientArchetypes } from '@/lib/insights-server';
-import type { Archetypes, CourseGeometry, Courses, Demographics, FinishTimes, Kick, Positions, ReplayIndex } from '@/lib/insights';
+import { getInsightsManifest } from '@/lib/insights-server';
 import { STORIES, storyHref, type StoryDefinition } from '@/lib/stories';
 import { JsonLd, absoluteUrl, breadcrumbs, pageMetadata } from '@/lib/seo';
 import { sitemapEntries } from '@/lib/seo-routes';
 import { DEFAULT_OG_IMAGE, ogImageFor } from '@/lib/og-paths';
-import { StoryHeader, StoryNav } from '@/components/story/StoryShell';
+import { placeOf, chapterNumber } from '@/lib/chapters';
 import PacingTypesBody from '@/components/story/bodies/PacingTypesBody';
 import RoundNumbersBody from '@/components/story/bodies/RoundNumbersBody';
 import ReplayBody from '@/components/story/bodies/ReplayBody';
@@ -13,8 +12,15 @@ import PlacesBody from '@/components/story/bodies/PlacesBody';
 import DemographicsBody from '@/components/story/bodies/DemographicsBody';
 import CoursesBody from '@/components/story/bodies/CoursesBody';
 import KickBody from '@/components/story/bodies/KickBody';
+import RaceMorningBody from '@/components/story/bodies/RaceMorningBody';
 
-const BODIES: Record<string, true> = { 'pacing-types': true, 'round-numbers': true, 'race-replay': true, places: true, 'who-holds-pace': true, courses: true, 'final-kick': true };
+// Each story's body is a server component: it reads its data at build and hands its client islands only what they draw.
+// The islands of every story share this route's one page chunk (about 5 KB gzipped; every story loads 161.7 KB in all
+// against the 197.4 KB budget). Splitting them further would take a route folder per story.
+const BODIES: Record<string, () => JSX.Element> = {
+  'pacing-types': PacingTypesBody, 'round-numbers': RoundNumbersBody, 'race-replay': ReplayBody, places: PlacesBody,
+  'who-holds-pace': DemographicsBody, courses: CoursesBody, 'final-kick': KickBody, 'race-morning': RaceMorningBody,
+};
 
 function available() {
   const manifest = getInsightsManifest();
@@ -49,8 +55,6 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
 export default function StoryPage({ params }: { params: { slug: string } }) {
   const story = available().find((s) => s.slug === params.slug);
   if (!story) notFound();
-  const manifest = getInsightsManifest();
-  const files = new Set(available().map((s) => s.file));
   const seo = storySeo(story);
   const image = ogImageFor(seo.path) ?? DEFAULT_OG_IMAGE;
   const article = {
@@ -67,20 +71,13 @@ export default function StoryPage({ params }: { params: { slug: string } }) {
     author: [{ '@type': 'Person', name: 'Andrew Kam' }],
     publisher: { '@type': 'Person', name: 'Andrew Kam' },
   };
-  let body;
-  if (story.slug === 'pacing-types') body = <PacingTypesBody data={clientArchetypes(readInsight<Archetypes>('archetypes.json'))} />;
-  else if (story.slug === 'round-numbers') body = <RoundNumbersBody data={readInsight<FinishTimes>('finish-times.json')} />;
-  else if (story.slug === 'who-holds-pace') body = <DemographicsBody data={readInsight<Demographics>('demographics.json')} />;
-  else if (story.slug === 'final-kick') body = <KickBody data={readInsight<Kick>('kick.json')} />;
-  else if (story.slug === 'courses') body = <CoursesBody data={readInsight<Courses>('courses.json')} geometry={readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses} />;
-  else if (story.slug === 'places') body = <PlacesBody data={readInsight<Positions>('positions.json')} />;
-  else body = <ReplayBody data={readInsight<ReplayIndex>('replay.json')} geometry={readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses} manifest={manifest} />;
+  const place = placeOf(seo.path);
+  const crumb = place ? `Chapter ${chapterNumber(place.chapter)} · ${place.chapter.title}` : 'Stories';
+  const Body = BODIES[story.slug];
   return (
-    <article className="story-page" style={{ ['--story' as string]: story.accent }}>
-      <StoryHeader story={story} />
-      {body}
-      <StoryNav current={story.slug} available={files} />
-      <JsonLd data={[article, breadcrumbs([['Pace Notes', '/'], ['Stories', '/stories'], [story.title]])]} />
-    </article>
+    <>
+      <Body />
+      <JsonLd data={[article, breadcrumbs([['Pace Notes', '/'], [crumb, place ? '/research' : '/stories'], [story.title]])]} />
+    </>
   );
 }

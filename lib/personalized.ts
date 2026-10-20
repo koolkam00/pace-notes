@@ -5,10 +5,13 @@ import { MARATHON_SECTION_ENDS, sectionLabel } from './section-labels';
 
 export const GUIDE_PACK = 'ext_personalized_guide';
 export const defaultProfile: Profile = { city: 'New York', age: 'all', gender: 'all', goal: 180, previous: null, focus: 'prepare' };
+/** A clock time, "3:57:48" with seconds, else to the nearest minute ("3:58"; never the minute floored). */
 export const clock = (seconds: number, showSeconds = false) => {
-  const s = Math.round(seconds);
+  const s = showSeconds ? Math.round(seconds) : Math.round(seconds / 60) * 60;
   return `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}${showSeconds ? `:${String(s % 60).padStart(2, '0')}` : ''}`;
 };
+/** A duration as minutes and seconds ("19:56"). */
+const minSec = (seconds: number) => { const s = Math.round(Math.abs(seconds)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 // The guide's time readers. A dot or comma between groups is read as a colon ("3.30", "2.50.00"), as a keypad types it.
 export const parseMinutes = (text: string) => {
   const match = /^(\d{1,2})[:.,]([0-5]\d)$/.exec(text.trim());
@@ -178,7 +181,7 @@ export function buildGuide(data: CityData, summary: PersonalSummary, profile: Pr
       answer.charts = [bars('Performance relative to earlier best, by start-hour temperature', '% change', weather.map(w => ({ label: w.band, value: w.value, n_value: w.n })), undefined, 'At least three editions and 100 finishes per band. This does not isolate a temperature penalty.')];
     } else if (question.id === 'ambition') {
       const cohort = chooseCohort(data, profile, c => percentUnder(c, target) !== null); if (!cohort) return answer; use(cohort);
-      answer.answer = `${fmt(percentUnder(cohort, target))}% of this historical comparison group finished below ${clock(target * 60)}. Its median finish was ${clock(cohort.finish[1], true)}.`;
+      answer.answer = `${fmt(percentUnder(cohort, target))}% of these finishes were under ${clock(target * 60)}. The median finish was ${clock(cohort.finish[1], true)}.`;
       answer.detail = cohort.prior === 'all' ? 'This is a field comparison without an earlier-time restriction. It does not estimate your fitness or personal chance of success.' : 'These runners had earlier recorded bests in the displayed time band. The proportion is descriptive, not a calibrated prediction of your next race.';
       answer.charts = [{ title: 'Fraction finishing below each threshold', unit: '%', xLabel: 'Finish-time threshold', xUnit: 'finish', xNumeric: true, kind: 'line', rows: cohort.cdf.map((hits, i) => ({ label: (cohort.cdf_min ?? 150) + i, value: 100 * hits / cohort.n, n_value: cohort.n })), series: [{ key: 'value', label: 'Below threshold' }], note: 'Changing the target changes the threshold being counted, not the underlying performances.' }];
     } else if (question.id === 'return') {
@@ -191,7 +194,7 @@ export function buildGuide(data: CityData, summary: PersonalSummary, profile: Pr
     } else if (question.id === 'gains') {
       const cohort = chooseCohort(data, profile, c => !!c.gains[bucket]); if (!cohort) return answer;
       const row = cohort.gains[bucket]; use(cohort, row);
-      answer.answer = `Improving finishes in ${finishBand(target)} gained ${fmt(row.total)} minutes on average versus an earlier recorded best: from ${clock(row.previous, true)} to ${clock(row.current, true)}.`;
+      answer.answer = `Improving finishes in ${finishBand(target)} were ${minSec(row.total * 60)} faster than an earlier recorded best: ${clock(row.previous, true)} to ${clock(row.current, true)}.`;
       answer.detail = 'The three block gains add to the mean total improvement. Negative means the improving runners were, on average, slower in that block despite a faster overall finish.';
       answer.charts = [bars('Where the mean finish improvement came from', 'min', ['Opening 10 km', 'Middle 20 km', 'Final 12.195 km'].map((label, i) => ({ label, value: row.values[i], n_value: row.n })))];
     }

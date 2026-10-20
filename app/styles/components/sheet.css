@@ -1,0 +1,76 @@
+/* Sheet (components/ui/Sheet.client.tsx) and Make it yours (components/ui/MakeItYours.client.tsx). Spec sections 2.4
+   and 3.5. A bottom sheet under 600 px and a right drawer from 600 px: dialog semantics, a scrim, the --spring-soft slide
+   over --d-sheet, a drawn grip, safe-area padding. Closed, it is inert and hidden from the accessibility tree. */
+
+.sheet { position: fixed; inset: 0; z-index: var(--z-sheet); pointer-events: none; visibility: hidden; transition: visibility 0s linear var(--d-sheet); }
+.sheet.is-open { pointer-events: auto; visibility: visible; transition-delay: 0s; }
+.sheet-scrim { position: absolute; inset: 0; z-index: 0; background: var(--scrim); opacity: 0; transition: opacity var(--d-sheet) var(--ease-out); }
+.sheet.is-open .sheet-scrim { opacity: 1; }
+.sheet-panel {
+  position: absolute; z-index: 1; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--paper-raised); color: var(--ink); box-shadow: var(--shadow-sheet);
+  transform: translateY(104%);
+  transition: transform var(--d-sheet) var(--spring-soft);
+  overscroll-behavior: contain;
+}
+.sheet.is-open .sheet-panel { transform: none; }
+.sheet-panel:focus { outline: none; }
+.sheet-grip { flex: none; width: 40px; height: 4px; margin: 10px auto 0; border-radius: 4px; background: var(--rule-strong); }
+.sheet-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding: 8px var(--gutter) 8px; }
+.sheet-title { margin: 0; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-size: 1.375rem; font-weight: 440; line-height: 1.2; letter-spacing: -.01em; color: var(--ink); }
+.sheet-close {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; margin: 0;
+  border: 0; border-radius: 50%; background: var(--paper-sunk); color: var(--ink); box-shadow: none; cursor: pointer;
+  transition: transform var(--d-release) var(--spring);
+}
+.sheet-close:hover { border-color: transparent; background: var(--rule); }
+.sheet-close:active { transform: scale(.92); transition-duration: var(--d-press); }
+.sheet-close:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sheet-close svg { width: 16px; height: 16px; }
+.sheet-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 4px var(--gutter) calc(24px + env(safe-area-inset-bottom)); }
+
+/* The page behind an open sheet does not scroll. */
+:root.has-sheet-open, :root.has-sheet-open body { overflow: hidden; }
+
+@media (min-width: 600px) {
+  .sheet-panel { top: 0; left: auto; width: min(440px, calc(100vw - 48px)); max-height: none; border-radius: var(--r-lg) 0 0 var(--r-lg); transform: translateX(104%); }
+  .sheet-grip { display: none; }
+  .sheet-head { padding-top: 20px; padding-inline: 28px; }
+  .sheet-body { padding-inline: 28px; }
+}
+
+/* ---------- Make it yours: the chip and its sheet ----------
+   The explorer's own form is the sheet's body (one DOM instance, no portal), fixed and sliding at every width. The chip is
+   one 48 px row at the top of the beat, the selection and "Change"; it never floats. */
+.miy-beat { position: relative; }
+.miy-chip {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: var(--s-4);
+  width: 100%; min-height: var(--chip-h); padding: 10px 16px; margin: 0 0 var(--s-5);
+  border: 1px solid var(--rule-strong); border-radius: var(--r-md); background: var(--paper-raised); color: var(--ink); box-shadow: none;
+  font-family: var(--sans); font-size: .9375rem; font-weight: 600; line-height: 1.2; text-align: left; cursor: pointer;
+  transition: transform var(--d-release) var(--spring);
+}
+.miy-chip-text { min-width: 0; text-wrap: pretty; }
+.miy-chip-change { flex: none; font-weight: 600; color: var(--ink-2); text-decoration: underline; text-underline-offset: .2em; text-decoration-color: var(--rule-strong); }
+.miy-chip:hover { border-color: var(--ink-3); }
+.miy-chip:hover .miy-chip-change { color: var(--ink); text-decoration-color: currentColor; }
+.miy-chip:active { transform: scale(.99); transition-duration: var(--d-press); }
+.miy-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Updating: a 2 px progress underline along the row's foot. */
+.miy-chip::after { content: ''; position: absolute; left: 16px; right: 16px; bottom: 6px; height: 2px; border-radius: 2px; background: var(--ink); transform: scaleX(0); transform-origin: left; }
+.miy.is-busy .miy-chip::after { animation: miy-busy calc(1100ms + 99999ms * (1 - var(--motion))) var(--ease-out) infinite; }
+@keyframes miy-busy { 0% { transform: scaleX(0); } 70% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+.miy.is-busy .miy-results { opacity: .6; transition: opacity var(--d-quick) var(--ease-out); }
+
+.miy-sheet { position: fixed; inset: 0; z-index: var(--z-sheet); pointer-events: none; visibility: hidden; transition: visibility 0s linear var(--d-sheet); }
+.miy.is-open .miy-sheet { pointer-events: auto; visibility: visible; transition-delay: 0s; }
+.miy.is-open .sheet-scrim { opacity: 1; }
+.miy.is-open .miy-panel { transform: none; }
+/* On a zoomed-in screen the selection wraps above "Change" rather than truncating. */
+@media (max-width: 359.98px) {
+  .miy-chip { flex-wrap: wrap; gap: 2px var(--s-3); padding-block: 10px; }
+  .miy-chip-text { white-space: normal; }
+}

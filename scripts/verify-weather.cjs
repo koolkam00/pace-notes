@@ -15,7 +15,7 @@ Module._resolveFilename = function (request, ...args) {
 const root = path.join(__dirname, '..');
 const { getWeatherEvidence, getWeatherAnalyses } = require('../lib/weather-data.ts');
 const { WEATHER_QUESTIONS } = require('../lib/weather-catalog.ts');
-const { weatherValue, weatherLabel, weatherFinding } = require('../lib/weather-display.ts');
+const { weatherValue, weatherLabel, weatherFinding, weatherNumber } = require('../lib/weather-display.ts');
 const { sourceReleaseTag, sourceReleaseHref, sourceLabel } = require('../lib/data-source.ts');
 const evidence = getWeatherEvidence();
 const canonical = JSON.stringify(evidence);
@@ -168,8 +168,11 @@ const route = require('../app/analyses/[slug]/page.tsx');
 const slugs = route.generateStaticParams().map(item => item.slug);
 for (const definition of WEATHER_QUESTIONS) {
   const published = ready.some(item => item.id === definition.id);
-  assert.equal(slugs.includes(definition.slug), published, 'Only supported weather questions receive static routes');
+  // A supported question's old route is a moved stub (the redesign spec, section 2.9): the question is now a tab of
+  // race-day weather, which Vercel's 308 or the stub's own forward opens by hash.
+  assert.equal(slugs.includes(definition.slug), published, 'Only supported weather questions keep a (moved) static route');
   if (!published) assert.throws(() => route.default({ params: { slug: definition.slug } }), /NEXT_NOT_FOUND/);
+  else assert.equal(route.default({ params: { slug: definition.slug } }).props.to, `/analyses/race-day-weather#${definition.id}`, `${definition.slug}: forwards to its tab`);
 }
 for (const ids of [[], ['humidity'], ['wind'], ['humidity', 'warming', 'wind']]) {
   const alternate = { ...evidence, candidates: evidence.candidates.map(candidate => ({ ...candidate, status: ids.includes(candidate.id) ? 'ready' : 'withheld' })) };
@@ -205,26 +208,43 @@ const { renderToStaticMarkup } = require('react-dom/server');
 const provider = require('../components/UnitsProvider.tsx');
 const originalUseUnits = provider.useUnits;
 const WeatherAnalysis = require('../components/WeatherAnalysis.tsx').default;
+const { getNugget, sentenceOf } = require('../lib/nuggets/index.ts');
+const NUGGET = { warming: 'weather.warming', wind: 'weather.wind' };
 try {
   for (const units of ['mi', 'km']) {
     // Render the real page in each display mode without browser persistence noise.
     provider.useUnits = () => ({ units, setUnits() {} });
     for (const candidate of ready) {
       const definition = WEATHER_QUESTIONS.find(item => item.id === candidate.id);
-      const html = renderToStaticMarkup(React.createElement(WeatherAnalysis, { definition, candidate, evidence, questions }));
+      const nugget = NUGGET[candidate.id] ? getNugget(NUGGET[candidate.id]) : null;
+      const sentence = nugget ? (nugget.guard ? nugget.headline : nugget.fallback) : weatherFinding(candidate);
+      const html = renderToStaticMarkup(React.createElement(WeatherAnalysis, { definition, candidate, evidence, questions, sentence }));
       // The page shows the finding; its sources, coverage, method and caveats live on /methodology.
       const visible = html.replace(/<[^>]*>/g, ' ');
       assert.ok(!html.includes(sourceReleaseHref(weatherRelease)) && !html.includes(sourceLabel(evidence.input.as_of, weatherRelease)), 'The analysis page carries no source line');
       assert.ok(!html.includes('/data/weather/evidence.json') && !html.includes('open-meteo.com') && !html.includes('/about#data-coverage'), 'Downloads, data sources and coverage links belong on /methodology');
       assert.doesNotMatch(visible, /\d+ race editions · \d+ courses|complete finishes\. Each edition has equal weight|How we calculated this|How to read this|Keep in mind|before adjustment|full-study comparison|accounts for testing three weather questions|Higher means more slowing|Zero means no difference|Compared within courses|Source:/, 'Method, coverage and reading notes are not on the analysis page');
       assert.ok(!visible.includes(definition.purpose), 'The method-explaining purpose line is not shown');
-      assert.ok(html.includes(weatherFinding(candidate)), 'The page states its finding');
-      assert.match(html, /98\.3% uncertainty interval/);
-      assert.doesNotMatch(html, /95% uncertainty interval|95% confidence interval|95% interval/);
-      assert.ok(html.includes(weatherLabel(candidate.exposure.q25, candidate.id, units)));
-      assert.ok(html.includes(weatherLabel(candidate.exposure.q75, candidate.id, units)));
+      // The tab states its finding: the nugget's sentence (lib/nuggets/analyses.ts), in the reader's units.
+      const said = nugget ? sentenceOf(nugget, units).replace(/\*/g, '') : weatherFinding(candidate);
+      assert.ok(html.replace(/<\/?em>/g, '').includes(said), `The tab states its finding: ${said}`);
+      // The card is drawn in the runner's unit (round 6): the second 20K's % slowing in the median race, and that plus the
+      // estimate, with the interval's ends in plain words; its level is a method choice, stated on /methodology only.
+      const v = evidence.editions.map((e) => e.pace_change_pct).filter(Number.isFinite).sort((a, b) => a - b);
+      const base = (v[Math.floor((v.length - 1) / 2)] + v[Math.ceil((v.length - 1) / 2)]) / 2;
+      const p1 = (value) => `${weatherNumber(value, 1)}%`;
+      assert.ok(html.includes(`between ${p1(base + candidate.effect.low)} and ${p1(base + candidate.effect.high)}`), 'The card states the interval\'s ends, in percent');
+      assert.ok(html.includes(`<b>${Math.round(base)}%</b>`) && html.includes(`<b>about ${Math.round(base + candidate.effect.estimate)}%</b>`), 'The card labels both bars in percent');
+      assert.doesNotMatch(visible, /\bpoints?\b/, 'No "points" on the card: the runner\'s unit is percent');
+      assert.doesNotMatch(html, /\d% uncertainty interval|confidence interval|\d% interval/, 'The interval level belongs on /methodology');
+      // The two race days in whole units, converted from the data, said once: in the tab's sentence ("11°F", "10 mph"),
+      // never again on the card under it.
+      const whole = (value) => `${Math.round(weatherValue(value, candidate.id, units))}${candidate.id === 'wind' ? ' ' : ''}${candidate.id === 'wind' ? (units === 'mi' ? 'mph' : 'km/h') : units === 'mi' ? '°F' : '°C'}`;
+      if (nugget?.guard) for (const q of [candidate.exposure.q25, candidate.exposure.q75]) {
+        assert.ok(said.includes(whole(q)), `The tab's sentence names the race day ${whole(q)}`);
+        assert.ok(!html.includes(`<dd>${whole(q)}</dd>`), `The card does not repeat the race day ${whole(q)}`);
+      }
       assert.ok(html.includes('Observed race days'), 'The edition browser is labeled as observed race days, apart from the adjusted estimate');
-      assert.ok(html.includes('percentage points'));
       assert.doesNotMatch(html, /half-marathon splits are measured|observed halfway/);
       for (const edition of evidence.editions) {
         assert.ok(html.includes(edition.city + ' ' + edition.year));
@@ -234,6 +254,12 @@ try {
       assert.doesNotMatch(visible, /\byour chance|\bcaused\b|\bcauses\b/i, 'The finding makes no causal claim');
     }
   }
+  // Race-day weather holds the questions as tabs: start temperature, then each supported weather question.
+  provider.useUnits = () => ({ units: 'mi', setUnits() {} });
+  const page = renderToStaticMarkup(React.createElement(provider.default, null, React.createElement(route.default, { params: { slug: 'race-day-weather' } })));
+  for (const id of ['temperature', ...ready.map(candidate => candidate.id)]) assert.match(page, new RegExp(`<div class="weather-panel" data-tab="${id}"`), `race-day-weather: the ${id} tab`);
+  assert.match(page, /Second 20K slower than the first: /, 'race-day-weather: the weather questions render inside it');
+  assert.doesNotMatch(page, /\d% uncertainty interval/, 'race-day-weather: the interval level belongs on /methodology');
 } finally {
   provider.useUnits = originalUseUnits;
 }
@@ -244,11 +270,5 @@ assert.doesNotMatch(about.replace(/<[^>]*>/g, ''), /private-export|September 11/
 assert.ok(!about.includes('id="data-coverage"') && !about.includes('Marathons and years') && !about.includes('Weather data') && !about.includes('Elevation data'), 'The data inventory is not on /about');
 assert.ok(!about.includes('met the publication rule') && !about.includes(`${cohort.weather_analysis_finishes.toLocaleString('en-US')} eligible finishes`), 'Weather coverage counts are not on /about');
 assert.ok(about.includes('Why it exists') && about.includes('Request an analysis'), '/about keeps why the study exists and how to contact Andrew');
-const WeatherIndex = require('../components/WeatherIndex.tsx').default;
-const index = renderToStaticMarkup(React.createElement(WeatherIndex));
-if (ready.length) {
-  assert.ok(!index.includes(sourceLabel(evidence.input.as_of, weatherRelease)) && !index.includes('Source:'), 'The weather directory carries no source line');
-  for (const candidate of ready) assert.ok(index.includes(weatherFinding(candidate)), 'Each weather entry states its finding');
-} else assert.equal(index, '', 'Do not show a weather directory with no supported questions');
 assert.equal(JSON.stringify(evidence), canonical, 'Rendering and unit conversions must not mutate published evidence');
 console.log('Verified weather provenance, reconciled edition cohorts, all three publication gates, supported routes, source units, corrected uncertainty and actual rendered results in miles and metric.');

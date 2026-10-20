@@ -136,6 +136,22 @@ function groupDuplicates(screen: { city: string; year: number; duplicate_of: num
   return out;
 }
 
+/**
+ * The field as 99 finishes (/finish-times #field): the whole minute of the 1st to the 99th percentile finish of a group,
+ * nearest rank over its cumulative one-minute bins, counted against the group's whole total (finishes past the last
+ * bin count as slower; a rank past it reads as the last bin's minute).
+ */
+export function percentileMinutes(bins: { minute: number; n: number }[], total: number): number[] {
+  const out: number[] = [];
+  let seen = 0, i = 0;
+  for (let p = 1; p <= 99; p++) {
+    const rank = Math.max(1, Math.ceil((p * total) / 100));
+    while (i < bins.length && seen + bins[i].n < rank) { seen += bins[i].n; i++; }
+    out.push(i < bins.length ? bins[i].minute : bins[bins.length - 1].minute);
+  }
+  return out;
+}
+
 // ---------- Display formats (the verifier compares these strings with the full finish records) ----------
 
 /** A whole minute as h:mm, e.g. 250 → "4:10". It names the minute from 4:10:00 to 4:10:59. */

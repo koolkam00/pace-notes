@@ -1,0 +1,3 @@
+/* The share sheet's actions (components/report/ReportActions.tsx): Save image, Copy link and Share…, one under another. */
+
+.share-actions { display: grid; gap: 10px; }

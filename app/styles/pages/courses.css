@@ -1,0 +1,71 @@
+/* /courses (app/courses/page.tsx; the redesign spec, section 7.10, cut under section 00): the reading, then every course
+   as one row the chips sort. Each row: the route as its face (or its pace shape), the name, and the figure the order is
+   by, at the right (the sorted figures are the ranking; no bar repeats them); under any order but the share and A–Z,
+   the share moves to the small line. The courses with fewer than three editions follow
+   under their own label in the share's order, their share quieter. One column on phones, two from 600 px, three from
+   1180 px, read across each row (a ranked list reads row by row). */
+
+.courses-page { padding-bottom: var(--s-6); }
+.courses-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
+/* Chapter 08's hub opens where its course pages do: the crumb at the page-top token (round 5 merge). */
+.reading.courses-reading { padding-top: var(--page-top); padding-bottom: var(--s-2); }
+.courses-list { margin-top: 0; }
+.course-sort .chips { margin-bottom: var(--s-3); }
+.course-index-key { margin: 0 0 var(--s-4); max-width: var(--measure); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+.course-index-key .term-link { color: inherit; }
+
+.course-index { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.course-index li { margin: 0; break-inside: avoid; border-bottom: 1px solid var(--rule); }
+.course-index-row {
+  position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; grid-template-areas: "face name share" "face meta share";
+  column-gap: var(--s-3); row-gap: 2px; align-items: center; min-height: 64px; padding: 10px 0; color: var(--ink); text-decoration: none;
+}
+.course-index-row:hover { text-decoration: none; }
+.course-index-row:hover .course-index-name { text-decoration: underline; text-underline-offset: .2em; text-decoration-thickness: 1px; }
+.course-index-face { grid-area: face; display: block; width: 44px; height: 44px; color: var(--ink-2); }
+.course-index-face .route-face { width: 44px; height: 44px; }
+/* At 44 px the route's line is the face: a fine 1.4 px line (non-scaling), so a twisting route stays a drawing and never
+   clots into a scribble, without the hero's start and finish marks. */
+.course-index-face .route-face-line { stroke-width: 1.4px; }
+.course-index-face .route-face-mark { display: none; }
+/* No route supplied: a short quiet dash centred in the face's slot (round 6). */
+.course-index-noroute { display: block; width: 16px; height: 2px; margin: 21px auto 0; border-radius: 1px; background: var(--mark-quiet); }
+.course-index-name { grid-area: name; min-width: 0; font-size: 1rem; font-weight: 600; line-height: 1.25; }
+.course-index-meta { grid-area: meta; min-width: 0; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
+.course-index-share { grid-area: share; justify-self: end; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; white-space: nowrap; }
+/* The order picks the figure, the bar and the small line (the share and A–Z orders, and the server's first paint, show
+   the share). */
+.course-index-meta > span, .course-index-share > span { display: none; }
+.course-index[data-sort="slowdown"] .m-default, .course-index[data-sort="az"] .m-default, .course-index:not([data-sort]) .m-default,
+.course-index[data-sort="slowdown"] .f-slowdown, .course-index[data-sort="az"] .f-slowdown, .course-index:not([data-sort]) .f-slowdown,
+.course-index[data-sort="climb"] .m-other, .course-index[data-sort="finishes"] .m-other, .course-index[data-sort="temp"] .m-other,
+.course-index[data-sort="climb"] .f-climb,
+.course-index[data-sort="finishes"] .f-finishes,
+.course-index[data-sort="temp"] .f-temp { display: inline; }
+/* Fewer than three editions: the share quieter (a climb or a finish count is not less sure), under their own label in the
+   share's order (the range above leaves them out), in their sorted place under any other. */
+.course-index-foot { margin: var(--s-6) 0 var(--s-2); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.course-index li.is-few .f-slowdown { color: var(--ink-3); }
+
+/* Columns as a grid read across each row, so the order runs left to right, then down. The first row opens on a rule. */
+@media (min-width: 600px) {
+  .course-index { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-7); border-top: 0; }
+  .course-index li:nth-child(-n + 2) { border-top: 1px solid var(--rule); }
+}
+@media (min-width: 1180px) {
+  .course-index { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .course-index li:nth-child(3) { border-top: 1px solid var(--rule); }
+}
+@media (max-width: 299.98px) {
+  .course-index-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name share" "meta share"; }
+  .course-index-face { display: none; }
+}
+/* The closing stack takes the list's width from 900 px, so the page's last block shares its right edge (round 6), the
+   card's title and reading spread across it as on every course page (course.css). */
+@media (min-width: 900px) {
+  .courses-page > .chapter-end { max-width: none; }
+  .courses-page > .chapter-end .chapter-next .next-card { grid-template-columns: minmax(0, 1fr) minmax(0, auto); column-gap: var(--s-7); align-items: end; }
+  .courses-page > .chapter-end .next-card-kicker { grid-column: 1 / -1; }
+  .courses-page > .chapter-end .next-card-title { grid-column: 1; margin-right: 0; }
+  .courses-page > .chapter-end .next-card-reading { grid-column: 2; grid-row: 2; margin-top: 0; }
+}

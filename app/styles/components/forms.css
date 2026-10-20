@@ -1,0 +1,43 @@
+/* Inputs, selects, checkboxes and the keypad hint (spec section 3.5, "Buttons, inputs, tags and tables").
+   Inputs are 52 px or more on --paper-raised with a 1 px --rule-strong border; focus adds the 2 px --focus ring; an error
+   turns the value --signal-ink with a 2 px signal underline and a literal role="alert" message below. */
+
+/* align-content: start keeps the input its own height when a grid row stretches the field beside a taller one. */
+.field { display: grid; align-content: start; gap: 6px; min-width: 0; }
+.field-label { font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.field-hint { font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.field-error { font-size: var(--t-small); line-height: 1.45; font-weight: 600; color: var(--signal-ink); }
+
+.input, .select {
+  width: 100%; max-width: 100%; min-height: 52px; padding: 0 16px;
+  border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
+  background: var(--paper-raised); color: var(--ink);
+  font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; line-height: 1.3; font-variant-numeric: tabular-nums;
+  box-shadow: none;
+  transition: border-color var(--d-quick) var(--ease-out), box-shadow var(--d-quick) var(--ease-out);
+}
+.input::placeholder { color: var(--ink-3); opacity: 1; }
+.input:hover, .select:hover, .input.is-hover { border-color: var(--ink-3); }
+.field .input:focus, .field .select:focus, .input:focus-visible, .select:focus-visible, .input.is-focus { border-color: var(--rule-strong); outline: 2px solid var(--focus); outline-offset: 2px; box-shadow: none; }
+.input[aria-invalid='true'] { color: var(--signal-ink); border-color: var(--rule-strong); box-shadow: inset 0 -2px 0 var(--signal); }
+.input:disabled, .select:disabled { opacity: .6; cursor: not-allowed; }
+.select {
+  appearance: none; -webkit-appearance: none; padding-right: 44px; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+  background-position: calc(100% - 22px) 52%, calc(100% - 17px) 52%;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
+
+/* A checkbox row: the label is the 44 px hit area. */
+.check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: var(--t-small); color: var(--ink-2); cursor: pointer; }
+.check input[type='checkbox'] { width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--ink); }
+
+/* "Tap . for :" (components/KeypadHint.tsx): on a touch screen, only while one of its fields has focus (is-on, set by
+   the component), so no first screen carries it. The two keys are bold glyphs, not key caps: caps cost width, and the
+   hint must stay on its field's help line. */
+.keypad-hint { display: none; }
+@media (pointer: coarse) {
+  .keypad-hint.is-on { display: inline; white-space: nowrap; }
+  .keypad-hint.is-block.is-on { display: block; margin: 0; color: var(--ink-3); font-size: .75rem; line-height: 1.45; }
+}
+.keypad-hint kbd { font-family: var(--sans); font-size: 1.08em; font-weight: 600; line-height: 1; color: inherit; }

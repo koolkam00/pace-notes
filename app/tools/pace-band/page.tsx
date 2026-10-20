@@ -1,11 +1,10 @@
 import PaceBand, { type RouteProfile, type UnpublishedCourse } from '@/components/tools/PaceBand';
-import { ToolHeader, ToolNext } from '@/components/tools/ToolShell';
+import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
 import type { CourseGeometry } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { PaceBandIndex } from '@/lib/tools/data';
 import { courseSlug } from '@/lib/tools/links';
-import './pace-band.css';
 
 export const metadata = pageMetadata({
   title: 'Printable Marathon Pace Band for Any Goal | Pace Notes',
@@ -61,14 +60,13 @@ export default function PaceBandPage() {
   }
 
   // Projector courses, so the race-day link names a course only when the projector publishes it.
-  const projectorScopes = optional<{ scopes: { slug: string }[] }>('tools/projector.json')?.scopes.map((s) => s.slug) ?? null;
   const unpublished = index ? unpublishedCourses(index) : {};
 
   return (
-    <div className="container tool-page">
+    <div className="tool-page">
       <ToolHeader slug="pace-band" />
-      <PaceBand indexSha={indexSha} profiles={profiles} projectorScopes={projectorScopes} unpublished={unpublished} />
-      <ToolNext current="pace-band" />
+      <PaceBand indexSha={indexSha} profiles={profiles} unpublished={unpublished} how="/methodology#tools-pace-band" />
+      <ToolEnd path="/tools/pace-band" how="/methodology#tools-pace-band" numbers />
     </div>
   );
 }

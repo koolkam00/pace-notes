@@ -36,21 +36,26 @@ export default function AnalysisRequest() {
   }
 
   return <div className="analysis-request">
-    <form action={`mailto:${recipient}`} method="post" encType="text/plain" onSubmit={prepareEmail}>
-      <label htmlFor="analysis-question">What would you like to understand?</label>
+    <form className="request-form" action={`mailto:${recipient}`} method="post" encType="text/plain" onSubmit={prepareEmail}>
+      <div className="request-field">
+        <label htmlFor="analysis-question">What would you like to understand?</label>
+        <textarea id="analysis-question" name="Question" rows={3} required maxLength={160} value={question} aria-describedby="question-hint" aria-invalid={error ? true : undefined} onChange={event => { setQuestion(event.target.value); setError(''); setStatus(''); }} />
+      </div>
       <p className="request-hint" id="question-hint">For example: do runners slow down differently on warmer race days?</p>
-      <textarea id="analysis-question" name="Question" rows={3} required maxLength={160} value={question} aria-describedby="question-hint" aria-invalid={error ? true : undefined} onChange={event => { setQuestion(event.target.value); setError(''); setStatus(''); }} />
-      <label htmlFor="analysis-details">A little more context <span>(optional)</span></label>
-      <p className="request-hint" id="details-hint">Tell Andrew which runners, races or comparisons you have in mind.</p>
-      <textarea id="analysis-details" name="Context" rows={5} maxLength={1000} value={details} aria-describedby="details-hint" onChange={event => { setDetails(event.target.value); setStatus(''); }} />
-      {error && <p className="feedback-error" role="alert">{error}</p>}
-      <button className="button-primary" type="submit">Open email draft <span aria-hidden="true">↗</span></button>
-      <p className="request-hint request-delivery">Opens your email app with your request. Review it and press Send to email Andrew. Nothing is submitted from this page.</p>
+      <div className="request-field">
+        <label htmlFor="analysis-details">A little more context <span>(optional)</span></label>
+        <textarea id="analysis-details" name="Context" rows={4} maxLength={1000} value={details} aria-describedby="details-hint" onChange={event => { setDetails(event.target.value); setStatus(''); }} />
+      </div>
+      <p className="request-hint" id="details-hint">Which runners, races or comparisons do you have in mind?</p>
+      {error && <p className="request-error" role="alert">{error}</p>}
+      <button className="btn btn-primary" type="submit"><span>Open email draft</span></button>
+      <p className="request-note">It opens your email app with your request. Review it and press Send to email Andrew. Nothing is sent from this page.</p>
     </form>
     {status && <p className="request-status" role="status">{status}</p>}
-    <div className="request-alternatives">
-      <p>Prefer another way?</p>
-      <div>{question.trim() && <><a href={gmail} target="_blank" rel="noopener noreferrer">Open draft in Gmail <span aria-hidden="true">↗</span></a><button type="button" onClick={() => void copyRequest()}>Copy request</button></>}<a href={`mailto:${recipient}?subject=${encodeURIComponent(subject)}`}>{recipient}</a></div>
+    <div className="request-other">
+      <span>Prefer another way?</span>
+      {question.trim() && <><a href={gmail} target="_blank" rel="noopener noreferrer">Open the draft in Gmail</a><button type="button" onClick={() => void copyRequest()}>Copy the request</button></>}
+      <a href={`mailto:${recipient}?subject=${encodeURIComponent(subject)}`}>{recipient}</a>
     </div>
   </div>;
 }

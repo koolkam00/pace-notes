@@ -1,0 +1,233 @@
+/* The analysis pages and /slowdown (WP3; the redesign spec, sections 4.2 and 7, under section 00). Imported by
+   app/analyses/[slug]/layout.tsx and app/slowdown/layout.tsx. A page is the finding (H1), its question, the answer on
+   one night card, at most two beats, the Make it yours explorer and the chapter end. Whitespace and hairlines divide
+   them, never boxes; the night card is the only filled surface. */
+
+/* ---------- The page ---------- */
+/* One column measure for everything on the page (hero, answer, beats, explorer, chapter end), so their edges line up. */
+.analysis-flow { min-width: 0; max-width: var(--measure-figure); padding-bottom: var(--s-7); }
+/* Inter's tabular figures widen the hyphen ("early - race", "non - binary"): words on charts and in table headers take
+   proportional figures; readouts and table cells keep tabular ones. */
+.analysis-page .viz-frame :is(.viz-label, .tick), .analysis-page .table thead th { font-variant-numeric: normal; }
+/* Every heading here is Fraunces at its own optical size. */
+.analysis-page :is(h1, h2, h3, h4) { font-variation-settings: normal; }
+/* The term link (the page's first "sustained slowdown"): the text's own colour, a dotted underline, as on the tools. */
+.analysis-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: var(--ink-3); text-decoration-thickness: 1px; text-underline-offset: .18em; }
+.analysis-page .term-link:hover { text-decoration-style: solid; text-decoration-color: currentColor; }
+/* Page-copy links take the ink, never the legacy blue (it is off the palette, and 2.7:1 on the dark page). */
+.analysis-page p a:not([class]) { color: inherit; }
+.analysis-hero .reading { padding-top: var(--s-4); }
+.analysis-hero .reading-rule { margin: var(--s-5) 0 var(--s-5); }
+.analysis-hero .reading-figure { justify-items: stretch; }
+
+/* A beat: the H2 is the finding, the figure under it. */
+.analysis-beat .beat-head { margin-bottom: var(--s-4); }
+.analysis-beat-title { margin: 0; max-width: 24ch; }
+.analysis-beat > .viz, .analysis-beat > .beat-grids { max-width: var(--measure-figure); }
+
+/* ---------- The answer card: a figure answer on night (dot grids, cells, a chart) ---------- */
+.answer-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); max-width: 34rem; padding: 20px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); box-shadow: var(--night-edge); }
+/* A kicker that wraps does so in two even lines, never a lone word under a full one. */
+.answer-kicker { margin: 0; color: var(--ink-3); text-wrap: balance; }
+.answer-foot { margin: 0; font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
+.answer-card .viz-frame { margin: 0; }
+/* The card holds the answer only; its "All numbers" sits on paper directly under it (AnswerCard `values`, critic round 5),
+   as at the foot of a story's beat: the same measure as the card, its hairline a step below the card's edge. */
+.answer-stack { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 34rem; min-width: 0; }
+.answer-stack > .answer-card { max-width: none; }
+.answer-values { min-width: 0; }
+.answer-values > .values { margin-top: var(--s-4); }
+
+.answer-dots { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: var(--s-5); }
+.answer-dots-label, .answer-grid-label { margin: 0; font-size: .9375rem; line-height: 1.35; color: var(--ink-2); }
+/* The checkpoint's dots name lit and unlit once (the H1 gives the number, so the card never says it twice). */
+.answer-dots .dot-grid-key { flex-direction: column; align-items: flex-start; gap: 8px; font-size: .9375rem; }
+.answer-dots-label strong, .answer-grid-label strong { display: block; font-family: var(--figure); font-size: 2.25rem; font-weight: 660; line-height: 1; letter-spacing: -.03em; color: var(--signal); }
+.answer-grids { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-5); }
+/* Two grids side by side share the card: their dots take the column's width (at most the grid's own 192 px). */
+.answer-grids .dot-grid-dots, .beat-grids .dot-grid-dots { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; width: 100%; max-width: 192px; }
+.answer-grids .dot-grid-dots li, .beat-grids .dot-grid-dots li { width: auto; height: 0; padding-bottom: 100%; }
+.answer-grid { display: grid; align-content: start; gap: var(--s-3); min-width: 0; }
+.answer-grid + .answer-grid .answer-grid-label strong { color: var(--ink); }
+/* A null pair (downhill starts: 16 against 16) draws both figures alike, so neither side reads as the difference. */
+.answer-pair.is-null .answer-grid-label strong { color: var(--ink); }
+
+.answer-cells { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin: 0; padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.answer-cells dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.answer-cells dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.75rem; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.answer-cells dd.answer-cell-note { margin-top: 6px; font-size: var(--t-label); font-weight: 500; line-height: 1.3; letter-spacing: 0; color: var(--ink-3); }
+
+/* At 200% zoom the curve's gridline labels ("6:00 behind") span nearly half the plot, where the needle rests on the best
+   band: they give way, and the readout keeps every gap in words. */
+@container (max-width: 239.98px) { #sweet-spot .viz-frame .grid-label { display: none; } }
+
+/* A few columns (six or fewer) stay together on a wide screen, about 480 px, rather than spreading 200 px apart across a
+   wide card (critic round 5: race-day weather's five columns across 780 px). /slowdown's "All numbers" sits right under
+   its four columns at the same measure, so the plot and the rule share one right edge. */
+@supports selector(:has(a)) {
+  @media (min-width: 900px) {
+    /* On the answer card the card itself narrows to the plot, so no night void sits beside the columns, and its "All
+       numbers" keeps the card's right edge. */
+    .analysis-hero .answer-stack:has(.viz-frame.columns):not(:has(.column ~ .column ~ .column ~ .column ~ .column ~ .column ~ .column)) { max-width: 36rem; }
+    .analysis-beat .viz-frame.columns:not(:has(.column ~ .column ~ .column ~ .column ~ .column ~ .column ~ .column)),
+    .explore-results > .viz-frame.columns:not(:has(.column ~ .column ~ .column ~ .column ~ .column ~ .column ~ .column)) { max-width: 30rem; }
+  }
+}
+.slowdown-page #history > .viz, .slowdown-page .all-numbers { max-width: 30rem; }
+
+/* Two dot grids side by side inside a beat (the next race). */
+.beat-grids { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-5); max-width: 34rem; }
+.beat-grids .viz-frame { margin: 0; }
+
+/* ---------- Make it yours: the explorer beat ---------- */
+.analysis-explore { scroll-margin-top: calc(var(--header-h) + 8px); }
+/* Under the answer card it redraws (AnswerCard `explore`, round 6): the row and its sentence close under the card, above
+   "All numbers", with no beat gap; the card comes back into view after a change (showAnswerCard). */
+.answer-stack > .analysis-explore { padding-top: var(--s-5); }
+.answer-stack > .analysis-explore .explore-results { margin-top: var(--s-4); }
+.analysis-hero .answer-card { scroll-margin-top: calc(var(--header-h) + 12px); }
+/* On the analyses' line charts the needle's dot (signal, with a halo in the surface colour) shows at rest too, where it
+   meets the subject line, so the readout is tied to a mark from the first paint, the same dot on every curve (round 6:
+   the U-curve's was a small ink dot, and only after a scrub); the finish-time curve rings its own mark. */
+.analysis-page .viz-frame:not(.cdf) .scrub-dot { visibility: visible; }
+/* The hills card's named climb is washed in ink, as on the course pages: slower is never orange (spec 1.3), and a signal
+   wash right above the ramp's slower blocks read close to orange (round 6). */
+.analysis-page .viz-frame.elevation-pace .a-signal { fill: var(--ink); opacity: .08; }
+/* The dek's one quiet line while a selection is drawn on the card (HeroSwap "scope"). */
+.analysis-hero .reading-scope { display: block; margin-top: var(--s-2); font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+/* From a desktop width the row is a chip, not a field: at most 420 px (spec section 3.5), with half the beat gap above
+   it and below it (critic round 4: an 832 px pill floating in 120 px of paper either side read as a text input). */
+@media (min-width: 900px) {
+  .analysis-flow > .analysis-explore { padding-top: calc(var(--beat-gap) / 2); }
+  .analysis-explore .miy-chip { max-width: 26.25rem; }
+  .analysis-flow > .analysis-explore + .chapter-end { margin-top: calc(var(--beat-gap) / 2); }
+}
+.explore-kicker { margin: 0 0 var(--s-3); color: var(--ink-3); }
+.explorer { display: block; min-width: 0; }
+.explorer-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); margin-bottom: var(--s-5); }
+.explorer-head > * { margin: 0; }
+
+.explore-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.explore-mode { display: grid; gap: var(--s-2); }
+.explore-mode .field-hint { margin: 0; }
+.explore-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.explore-submit { justify-self: start; }
+.profile-refinements { border-top: 1px solid var(--rule); }
+.profile-refinements > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); min-height: 48px; list-style: none; font-size: var(--t-small); font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.profile-refinements > summary::-webkit-details-marker { display: none; }
+.profile-refinements > summary::marker { content: ''; }
+/* The same plus/minus as Values. */
+.profile-refinements > summary::after { content: '+'; flex: none; width: 22px; font-size: 1.25rem; font-weight: 400; line-height: 1; text-align: center; color: var(--ink); }
+.profile-refinements[open] > summary::after { content: '−'; }
+.profile-refinements > summary:hover { color: var(--ink); }
+.profile-refinements > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.profile-refinements[open] > summary { margin-bottom: var(--s-2); }
+
+/* The results under the form: the answer to the visitor's own selection. */
+.explore-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.explore-results > * { margin: 0; }
+.explore-title { margin: 0; max-width: 30ch; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-size: clamp(1.375rem, 3.6vw + .5rem, 1.875rem); font-weight: 440; line-height: 1.16; letter-spacing: -.012em; color: var(--ink); text-wrap: balance; }
+.explore-sentence, .explore-note { max-width: var(--measure); font-size: var(--t-small); line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.explore-note { color: var(--ink-3); }
+.explore-results > .viz-frame, .explore-results > .viz { max-width: var(--measure-figure); }
+.explore-cells { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin: 0; max-width: 34rem; }
+.explore-cells > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.explore-cells dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.explore-cells dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.5rem; font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.explore-state { display: grid; gap: var(--s-3); justify-items: start; padding: var(--s-5) 0; color: var(--ink-2); }
+.explore-state > * { margin: 0; }
+
+/* ---------- Race-day weather: the tabs and the effect card ---------- */
+.weather-tabs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); max-width: 34rem; scroll-margin-top: calc(var(--header-h) + 8px); }
+.weather-panel[hidden] { display: none; }
+.weather-effect { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+.weather-sentence { margin: 0; }
+/* The effect card: two bars on one scale (zero to the next 4%), the same on every weather tab. Each row's name and value
+   sit on the line above its bar, the values in one column at the right; the larger exposure's interval is a whisker
+   across its bar's end. */
+.viz-frame.effect-bars { display: grid; gap: 6px; }
+.effect-bars-plot { position: relative; display: grid; gap: var(--s-4); }
+.effect-tick { position: absolute; top: -4px; bottom: -4px; width: 1px; margin-left: -.5px; background: var(--rule); pointer-events: none; }
+.effect-tick:first-child { top: 0; bottom: 0; background: var(--rule-strong); }
+.effect-row { position: relative; display: grid; gap: 6px; }
+.effect-row-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px var(--s-3); margin: 0; }
+.effect-row-head span { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-2); }
+.effect-row-head b { font-size: 1.0625rem; font-weight: 600; line-height: 1.2; letter-spacing: -.01em; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.effect-row.is-signal .effect-row-head b { color: var(--signal-ink); }
+.effect-track { position: relative; height: 26px; }
+.effect-bar { position: relative; display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--mark-quiet); }
+.effect-row.is-signal .effect-bar { background: var(--signal); }
+.effect-range { position: absolute; top: 12px; height: 2px; background: var(--ink); }
+.effect-range::before, .effect-range::after { content: ""; position: absolute; top: -6px; width: 2px; height: 14px; background: var(--ink); }
+.effect-range::before { left: -1px; }
+.effect-range::after { right: -1px; }
+
+/* Table headers wrap, so a long name never pushes the numbers off a phone. */
+.analysis-page .values .table thead th { white-space: normal; vertical-align: bottom; }
+
+/* ---------- Phones at 200% zoom ---------- */
+@media (max-width: 359.98px) {
+  .answer-card { padding-inline: 16px; }
+  .answer-dots { grid-template-columns: minmax(0, 1fr); }
+  .answer-grids, .beat-grids, .answer-cells, .explore-cells { grid-template-columns: minmax(0, 1fr); }
+  /* The comparison switch's two long labels cannot share a row this narrow: each takes its own, the pressed one raised
+     (no sliding thumb), so neither is cut off. */
+  .explore-mode .seg { display: flex; flex-direction: column; width: 100%; border-radius: var(--r-md); }
+  .explore-mode .seg-thumb { display: none; }
+  .explore-mode .seg-btn { width: 100%; min-width: 0; white-space: normal; text-align: center; }
+  .explore-mode .seg-btn[aria-pressed='true'] { background: var(--control-thumb); box-shadow: var(--shadow-raise), 0 0 0 1px var(--rule); }
+}
+@media (max-width: 299.98px) {
+  .answer-card { padding-inline: 14px; }
+  .answer-cells dd, .explore-cells dd { font-size: 1.375rem; }
+}
+
+@media (min-width: 600px) {
+  .answer-card { padding-inline: 24px; }
+  .explore-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* From 900 px the answer spans the column: a receipt sets its lines beside its result, divided by a hairline, so the first
+   screen has no void. Make it yours stays its one-line chip, its form in the sheet (a right drawer). */
+@media (min-width: 900px) {
+  .analysis-hero .receipt-wrap, .analysis-hero .answer-card, .analysis-hero .answer-stack, .analysis-hero .weather-tabs { max-width: none; }
+  .analysis-hero .receipt { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr auto; column-gap: 48px; padding: 28px 32px; }
+  .analysis-hero .receipt > * { grid-column: 1; }
+  .analysis-hero .receipt-kicker { grid-column: 1 / -1; margin-bottom: 18px; }
+  .analysis-hero .receipt-kicker + .receipt-lines { margin-top: 0; }
+  .analysis-hero .receipt-rule { display: none; }
+  .analysis-hero .receipt > .receipt-result { grid-column: 2; grid-row: 2 / span 2; align-content: center; padding-left: 48px; border-left: 1px solid var(--rule); }
+  /* Half the card is narrower than the phone's whole card: a long result ("5:06 behind", "+40 s/mi") steps down. */
+  .analysis-hero .receipt-result.is-long .big-number { font-size: min(3.5rem, 5vw); }
+  .analysis-hero .receipt-foot { align-self: end; }
+  .analysis-hero .answer-dots { grid-template-columns: auto minmax(0, 16rem); }
+  @supports selector(:has(a)) {
+    /* Two near-equal halves, as on downhill starts: the dots and their label on the left (a little wider, so the label
+       stays on one line), the two cells on the right, apart; both halves centred on the dot grid's height, so neither
+       half has a void above its values (critic round 3: bottom-aligned cells left 120 px of night over them). */
+    .analysis-hero .answer-card:has(.answer-cells) { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); column-gap: 48px; align-items: stretch; }
+    .analysis-hero .answer-card:has(.answer-cells) > .answer-kicker { grid-column: 1 / -1; }
+    .analysis-hero .answer-card:has(.answer-cells) .answer-dots { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+    /* The two values each take the column they need (a band "2:50–2:52" never breaks at its dash), sharing the half. */
+    .analysis-hero .answer-card:has(.answer-cells) .answer-cells { grid-template-columns: repeat(2, max-content); justify-content: start; column-gap: 40px; padding: 0 0 0 48px; border-top: 0; border-left: 1px solid var(--rule); align-self: stretch; align-content: center; }
+  }
+  .analysis-hero .answer-grids { grid-template-columns: repeat(2, minmax(0, 18rem)); justify-content: start; column-gap: 64px; }
+  /* A dot strip across the full answer card: 14 px dots on the strip DotStrip draws 1.4 times taller here (mdScale),
+     so the stacks keep their 1 px gaps; the chosen dot's fill grows with the dots. */
+  #answer .viz-frame.dot-strip circle { r: 7px; }
+  #answer .viz-frame.dot-strip .scrub-ring { width: 20px; height: 20px; margin: -10px 0 0 -10px; }
+  .analysis-hero .reading { padding-top: var(--s-6); }
+}
+
+/* ---------- Update comparison, and the example set again ---------- */
+/* Shown only once a setting changes. */
+.explore-submit { display: grid; justify-items: start; gap: 6px; }
+/* The example set again: one line back to the answer, which already draws it. */
+.explore-same { margin: 0; }
+.explore-same-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule-strong, var(--ink-3)); text-underline-offset: 4px; }
+.explore-same-link:hover { text-decoration-color: currentColor; }
+.analysis-hero { scroll-margin-top: var(--header-h); }
+
+
+/* Where time is gained: the stretch after 20K as a hairline bracket over its bars (components/viz/Waterfall.tsx). */
+.viz-frame .waterfall-span rect { fill: var(--signal); }

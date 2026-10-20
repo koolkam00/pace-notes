@@ -495,7 +495,8 @@ for (const selector of ['.tool-results', '.tool-workspace svg', '.analysis-layou
 // and replay-policy.ts is only ever loaded by the SDK's dynamic import.
 const policySource = fs.readFileSync(path.join(__dirname, '../lib/analytics-policy.ts'), 'utf8');
 assert.doesNotMatch(policySource, /sanitizeReplayData|replayAttribute|replayPageUrl|REPLAY_MASKED_TEXT|\$snapshot_data|maskAttributeFn/, 'analytics-policy.ts holds no snapshot sanitizer or recording options');
-const sourceFiles = dir => fs.readdirSync(path.join(__dirname, '..', dir), { recursive: true }).filter(file => /\.(ts|tsx)$/.test(file)).map(file => path.join(dir, file));
+// A source folder may not exist (hooks/ and context/ were emptied by the October 2026 redesign): it then has no files to check.
+const sourceFiles = dir => fs.existsSync(path.join(__dirname, '..', dir)) ? fs.readdirSync(path.join(__dirname, '..', dir), { recursive: true }).filter(file => /\.(ts|tsx)$/.test(file)).map(file => path.join(dir, file)) : [];
 for (const file of [...sourceFiles('components'), ...sourceFiles('app'), ...sourceFiles('lib')]) {
   const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   assert.doesNotMatch(source, /^import\s(?!type\s)[^;]*['"](?:@\/lib\/|\.\/|\.\.\/)*(?:lib\/)?replay-policy['"]/m, `${file} must not import replay-policy statically`);
@@ -516,8 +517,11 @@ const toolComponents = TOOLS.map(tool => {
 });
 assert.equal(new Set(toolComponents).size, TOOLS.length, 'Every registered tool has its own component');
 const required = { 'tool-workspace': toolComponents, 'tool-results': toolComponents,
-  'analysis-layout': ['components/AnalysisExplorer.tsx', 'components/AllFinisherAnalysis.tsx', 'components/FastStartAnalysis.tsx', 'components/WeatherAnalysis.tsx'],
-  'personalized-guide': ['components/PersonalizedGuide.tsx'], 'which-card': ['components/story/ArchetypeStory.tsx'], 'finish-lookup': ['components/story/FinishTimeStory.tsx'],
+  // The analysis page wrapper (WP3: components/analysis/Shell.tsx holds the answer, the goal line and the explorer) and each explorer root.
+  'analysis-layout': ['components/analysis/Shell.tsx', 'components/AnalysisExplorer.tsx', 'components/AllFinisherAnalysis.tsx', 'components/FastStartAnalysis.tsx', 'components/CheckpointExplorer.tsx', 'components/WeatherAnalysis.tsx'],
+  // .personalized-guide stays in the policy (harmless) but has no file since the guide was removed (WP8, spec 6.6).
+  // .finish-lookup stays in the policy (harmless) but has no file since the round-numbers lookup was cut (October 19, 2026).
+  'which-card': ['components/story/ArchetypeStory.tsx', 'components/ui/GuessFirst.client.tsx'],
   'home-plan': ['components/home/HomeDoors.tsx'] };
 for (const [token, files] of Object.entries(required)) {
   for (const file of files) assert.ok(hasClass(read(file), token), `${file} still renders .${token}`);
@@ -554,7 +558,8 @@ assert.ok(hasClasses(raceReport, 'race-report', 'ph-no-capture'), 'RaceReport: t
 assert.match(read('lib/report-shared.ts'), /if \(fromRecord\) return runnerHandoffHref\(href\);/, 'A report link built from a runner record carries the handoff marker and nothing else');
 assert.match(read('components/report/ReportView.tsx'), /<div className="report-tracked" data-track-section="report" hidden=\{!times\}>/, '/report marks its report from the first render, hidden until one shows');
 // The runner view's report appears after a press: it is marked, and the tracker watches sections that join the page later.
-assert.match(runnerContext, /<div data-track-section="report"><Suspense /, 'The runner view marks its race report');
+// The marked section holds the report (after its way back to the analysis, round 5).
+assert.match(runnerContext, /<div data-track-section="report">(?:<button [^>]*rc-report-back[^>]*>[^\n]*?<\/button>)?<Suspense /, 'The runner view marks its race report');
 assert.match(read('components/SectionTracker.tsx'), /new MutationObserver\([\s\S]*?\.observe\(document\.body, \{ childList: true, subtree: true \}\)/, 'SectionTracker watches marked sections added after its first look');
 // A link to a never-recorded page stops the recorder before that page is built, and that function only ever stops it.
 const siteAnalytics = read('components/SiteAnalytics.tsx');
@@ -576,7 +581,11 @@ assert.match(runnerContext, /const RaceReport = lazy(?:<[^(]*>)?\(\(\) => import
 assert.doesNotMatch(runnerContext, /^import\s(?!type\s)[^;]*report\/RaceReport/m, 'RunnerContext imports the race report only dynamically');
 // Every link from a runner's profile to another page of the site carries the handoff marker (the others are sources).
 const contextLinks = [...runnerContext.matchAll(/<(UnitLink|Link|a)\s[^<>]*?href=\{([^}]*)/g)].filter(m => m[1] !== 'a' || !/source_url$/.test(m[2].trim())).map(m => m[2].trim());
-assert.ok(contextLinks.length >= 2, 'RunnerContext links found');
+// One onward link since October 18, 2026: the split check (the pacing-pattern link was cut). Since round 4 (October 19,
+// 2026) it is the race report's `onward`, in its share sheet: the view's one way on is the report.
+const onwardProps = [...runnerContext.matchAll(/onward=\{([^}]*)\}/g)].map(m => m[1].trim());
+assert.ok(contextLinks.length + onwardProps.length >= 1, 'RunnerContext links found');
+for (const link of onwardProps) assert.match(link, /^(?:\w+ \? )?runnerHandoffHref\(/, `RunnerContext's report onward link ${link.slice(0, 40)} is marked as a runner handoff`);
 for (const link of contextLinks) assert.match(link, /^runnerHandoffHref\(/, `RunnerContext link ${link.slice(0, 40)} is marked as a runner handoff`);
 for (const file of sourceFiles('components')) if (/splitCheckHref\(/.test(read(file))) assert.match(read(file), /runnerHandoffHref\(/, `${file} builds a split-check link from a runner's times without the handoff marker`);
 assert.match(read('lib/analytics.ts'), /export function trackPage[^}]*?noteRunnerHandoff\([^}]*?syncRecording/, 'trackPage notes a runner handoff before anything waits for the SDK or the recorder');
@@ -588,10 +597,12 @@ assert.ok(blockedSelectors.includes('.projector-cards'), 'The saved runner cards
 const compat = require('./verify-browser-compat.cjs');
 const compatProblems = compat.sourceProblems().problems;
 assert.equal(compatProblems.length, 0, compat.describe(compatProblems));
-// The course chooser's list of every course follows the visitor's goal, outside its workspace.
+// The course chooser's list of every course follows the visitor's goal: inside its results, outside its workspace.
 const courseChooser = read('components/tools/CourseChooser.tsx');
-assert.ok(hasClasses(courseChooser, 'course-chooser-list', 'ph-no-capture') && hasClasses(courseChooser, 'tool-callout', 'ph-no-capture'), 'CourseChooser: the course list and pace-band callout carry ph-no-capture');
-assert.match(courseChooser, /<div className="ph-no-capture">\s*<EvidencePanel kind="data" title=\{`Not published at \$\{goalText\}`\}/, 'CourseChooser: the not-published panel sits in a ph-no-capture element');
+assert.ok(hasClasses(courseChooser, 'course-chooser-list', 'ph-no-capture'), 'CourseChooser: the course list carries ph-no-capture');
+// Since the October 2026 redesign the list (and its "Not published at" note) sits inside the left-out results.
+const chooserList = courseChooser.indexOf('<div className="course-chooser-list ph-no-capture"');
+assert.ok(chooserList > courseChooser.indexOf('<div className="tool-results">') && courseChooser.indexOf('Not published at') > chooserList, 'CourseChooser: the not-published note sits in the course list, inside the results');
 assert.ok(blockedSelectors.includes('#recharts_measurement_span'), "Recharts' text-measuring span is left out");
 // The gender and division choices are left out of replays.
 for (const [file, label] of [['components/tools/QualifyingChecker.tsx', 'Division'], ['components/tools/SplitCheck.tsx', 'Recorded gender'], ['components/tools/PaceBand.tsx', 'Recorded gender']]) {
@@ -679,7 +690,9 @@ for (const file of ['app', 'components'].flatMap(sourceFiles)) {
 // signal "at least 3 home chapters", which must not become automatic (docs/ANALYTICS.md).
 const homeSource = read('app/(home)/page.tsx').replace(/<HomeDoors\b/, tag => read('components/home/HomeDoors.tsx') + tag);
 const homeSections = [...withoutComments('app/(home)/page.tsx').replace(/<HomeDoors\b/, tag => withoutComments('components/home/HomeDoors.tsx') + tag).matchAll(/data-track-section="([^"]+)"/g)].map(m => m[1]);
-assert.deepEqual(homeSections, ['hero', 'paths', 'stakes', 'guide', 'steps', 'stories', 'cta'], 'Home sections: hero, the three ways to start, stakes, guide, the three steps, the story teaser and the closing call');
+// Since the redesign (WP1, October 17, 2026, on feat/redesign) the home page is four things: the hero with the three
+// ways to start, one guess, the chapters and the closing call; the three steps and the story teaser are gone.
+assert.deepEqual(homeSections, ['hero', 'paths', 'stakes', 'guide', 'cta'], 'Home sections: hero, the three ways to start, the guess, the chapters and the closing call');
 assert.ok(!homeSections.some(id => id.startsWith('chapter-')), 'The home page has no chapter-* sections');
 assert.match(homeSource, /<HomeDoors\b/, 'The home page renders its three ways to start');
 const layoutSource = read('app/layout.tsx');

@@ -1,41 +1,62 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { usePrefersReducedMotion, useInView } from '@/components/art/useTicker';
-import { useUnits } from '@/components/UnitsProvider';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { usePrefersReducedMotion } from '@/components/art/useTicker';
+import ReplayFrame from './ReplayFrame';
+import { byFinish, fieldX, fieldY, FIELD_BOX, hudShare, MARATHON, positionAt, raceClock, routeAspect, sharesAt, type ReplayEdition } from './replay-geometry';
 
-export const CHECKPOINT_KM = [5, 10, 15, 20, 25, 30, 35, 40, 42.195] as const;
-const KM = [0, ...CHECKPOINT_KM];
-const PACE_COLOURS = ['#2F5BFF', '#5C80FF', '#A9BCFF', '#EFE8DA', '#FFB48A', '#FF6A3D', '#E2416B'];
+export type { ReplayEdition } from './replay-geometry';
 
-export interface ReplayEdition {
-  city: string;
-  year: number;
-  finishes: number;
-  sample: number;
-  /** Each row: nine cumulative elapsed seconds (5…42.195 km) then a gender code (0 men, 1 women, 2 other/unrecorded). */
-  rows: number[][];
-  /** Optional route polyline in a unit box with cumulative distance (km) per vertex. */
-  route?: { points: [number, number][]; km: number[] } | null;
-}
-
-interface Props {
+/**
+ * The race replay (the redesign spec, section 3.6), loaded only on pages that render one (next/dynamic in
+ * ReplayStage). Every finish of a sampled field on one race clock.
+ *
+ * The field view draws rank lanes: x is distance covered, y is finish rank (fastest at the top), so the field reads as
+ * a needle that tilts as the race unfolds. Dots are --night-ink, finished ones dimmer; no layer colours who slowed
+ * (slower is never orange). The route view runs the same dots on the course map.
+ *
+ * Play: when the frame is 35% in view it runs once from 20 race-minutes before the first finish (the flag) up to it, at
+ * 3 race-minutes a second, and pauses there with the moment's sentence. Play continues to the last finish; tapping the
+ * canvas pauses. Under reduced motion (or the site's Motion switch) it opens still on the flag frame and plays only on
+ * request. Colours come from the tokens (getComputedStyle), never from this file.
+ */
+type Props = {
   edition: ReplayEdition;
-  /** Race-clock seconds advanced per real second. */
-  defaultSpeed?: number;
-  height?: number;
-  variant?: 'track' | 'route';
-  ghostMinutes?: number | null;
+  /** The first finish of the whole field (the flag), seconds. */
+  flag: number;
+  view?: 'field' | 'route';
+  band?: boolean;
+  race: string;
+  moment?: string | { mi: string; km: string };
+  mark?: { km: number; label: { mi: string; km: string } };
+  /** The share the flag sentence gives, short of a mat: at the flag frame the runners past it step back to ink-3. */
+  split?: { km: number; label: string };
+  poster?: ReactNode;
   autoplay?: boolean;
-  onTime?: (seconds: number) => void;
-  className?: string;
-  /** Shown in place of the field while its rows load (or after they fail). The frame keeps its full size, so the page does not move when they arrive. */
-  status?: { message: string; loading: boolean };
+};
+
+const INTRO = 20 * 60;
+const INTRO_SPEED = 180;
+const PLAY_SPEED = 600;
+
+type Phase = 'waiting' | 'intro' | 'flag' | 'playing' | 'paused' | 'ended';
+
+function tokens(el: Element) {
+  const cs = getComputedStyle(el);
+  const v = (name: string) => cs.getPropertyValue(name).trim();
+  return { ink: v('--night-ink'), quiet: v('--night-mark-quiet'), rule: v('--night-3'), ink3: v('--night-ink-3') };
 }
 
-function clock(seconds: number) {
-  const s = Math.max(0, Math.floor(seconds));
-  return `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+function routeLocator(route: NonNullable<ReplayEdition['route']>) {
+  const { points, km } = route;
+  const total = km[km.length - 1] || MARATHON;
+  return (distance: number): [number, number] => {
+    const d = (Math.min(distance, MARATHON) / MARATHON) * total;
+    let lo = 0, hi = km.length - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (km[mid] <= d) lo = mid; else hi = mid; }
+    const f = Math.max(0, Math.min(1, (d - km[lo]) / (km[hi] - km[lo] || 1)));
+    return [points[lo][0] + f * (points[hi][0] - points[lo][0]), points[lo][1] + f * (points[hi][1] - points[lo][1])];
+  };
 }
 
 function hash(i: number) {
@@ -45,303 +66,161 @@ function hash(i: number) {
   return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
 }
 
-interface Position {
-  km: number;
-  rel: number;
-  finished: boolean;
-  slowSection: boolean;
-}
-
-function positionAt(row: number[], t: number): Position {
-  const finish = row[8];
-  const baseline = (row[3] - row[0]) / 15;
-  if (t >= finish) return { km: 42.195, rel: 0, finished: true, slowSection: false };
-  let j = 0;
-  while (j < 8 && row[j] <= t) j += 1;
-  const start = j === 0 ? 0 : row[j - 1];
-  const end = row[j];
-  const f = (t - start) / (end - start);
-  const km = KM[j] + f * (KM[j + 1] - KM[j]);
-  const pace = (end - start) / (KM[j + 1] - KM[j]);
-  const rel = pace / baseline - 1;
-  return { km, rel, finished: false, slowSection: j >= 4 && rel >= 0.25 };
-}
-
-function routeLocator(route: NonNullable<ReplayEdition['route']>) {
-  const { points, km } = route;
-  const total = km[km.length - 1] || 42.195;
-  return (distance: number): [number, number] => {
-    const d = (distance / 42.195) * total;
-    let lo = 0;
-    let hi = km.length - 1;
-    while (hi - lo > 1) {
-      const mid = (lo + hi) >> 1;
-      if (km[mid] <= d) lo = mid;
-      else hi = mid;
-    }
-    const span = km[hi] - km[lo] || 1;
-    const f = Math.max(0, Math.min(1, (d - km[lo]) / span));
-    return [points[lo][0] + f * (points[hi][0] - points[lo][0]), points[lo][1] + f * (points[hi][1] - points[lo][1])];
-  };
-}
-
-export default function RaceReplay({ edition, defaultSpeed = 600, height = 460, variant = 'track', ghostMinutes = null, autoplay = true, onTime, className, status }: Props) {
-  const wrap = useRef<HTMLDivElement>(null);
+export default function RaceReplay({ edition, flag, view = 'field', band = false, race, moment, mark, split, poster, autoplay = true }: Props) {
+  const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const reduced = usePrefersReducedMotion();
-  // On screen once its top is above the screen's bottom fifth: a replay that only peeks in under a phone's first screen
-  // (its clock showing, the field not) stays still while the page loads.
-  const inView = useInView(wrap, '0px 0px -20% 0px');
-  const { units } = useUnits();
-  const [width, setWidth] = useState(960);
-  const [time, setTime] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(defaultSpeed);
-  const userPaused = useRef(false);
-  const timeRef = useRef(0);
-  const rows = edition.rows;
-  const lastFinish = useMemo(() => rows.reduce((m, r) => Math.max(m, r[8]), 0), [rows]);
-  const firstFinish = useMemo(() => (rows.length ? rows.reduce((m, r) => Math.min(m, r[8]), Infinity) : 0), [rows]);
-  // Gaussian lanes (Box–Muller on stable hashes) so the field reads like a road: dense centre, soft edges.
-  const lanes = useMemo(() => rows.map((_, i) => {
-    const u = Math.max(1e-6, hash(i));
-    const v = hash(i + 7919);
-    const g = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-    return Math.max(0.02, Math.min(0.98, 0.5 + g * 0.16));
-  }), [rows]);
+  const sorted = useMemo(() => byFinish(edition.rows), [edition.rows]);
+  const last = useMemo(() => sorted.reduce((m, r) => Math.max(m, r[8]), 0), [sorted]);
+  const max = last + 300;
+  const [time, setTime] = useState(flag);
+  const [phase, setPhase] = useState<Phase>('waiting');
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [shown, setShown] = useState(false);
+  const timeRef = useRef(flag);
+  const colours = useRef<ReturnType<typeof tokens> | null>(null);
   const locate = useMemo(() => (edition.route ? routeLocator(edition.route) : null), [edition.route]);
-  const mode = variant === 'route' && locate ? 'route' : 'track';
-  // Fit the route's own bounding box, so wide or tall routes fill the canvas instead of a thin band.
-  const box = useMemo(() => {
-    const pts = edition.route?.points;
-    if (!pts?.length) return null;
-    const xs = pts.map((p) => p[0]);
-    const ys = pts.map((p) => p[1]);
-    const x0 = Math.min(...xs);
-    const y0 = Math.min(...ys);
-    return { x0, y0, w: Math.max(1e-6, Math.max(...xs) - x0), h: Math.max(1e-6, Math.max(...ys) - y0) };
-  }, [edition.route]);
-  const canvasHeight = mode === 'route' && box && width < 640 ? Math.min(height, Math.max(300, Math.round(((width - 36) / box.w) * box.h + 80))) : height;
+  const mode = view === 'route' && locate ? 'route' : 'field';
 
   useEffect(() => {
-    const node = wrap.current;
-    if (!node || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(280, Math.floor(entry.contentRect.width))));
-    observer.observe(node);
-    return () => observer.disconnect();
+    const node = canvas.current;
+    if (!node) return;
+    colours.current = tokens(node);
+    const measure = () => setSize({ w: Math.floor(node.clientWidth), h: Math.floor(node.clientHeight) });
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(node);
+    return () => ro.disconnect();
   }, []);
 
-  // Start once visible unless the reader prefers reduced motion; show a meaningful still otherwise.
+  // Start once, when 35% of the frame is in view; under reduced motion, show the flag frame and wait for play.
   useEffect(() => {
-    if (reduced) {
-      setPlaying(false);
-      timeRef.current = Math.round(firstFinish * 1.15);
+    const node = box.current;
+    if (!node || phase !== 'waiting') return;
+    if (reduced || !autoplay) { setShown(true); setPhase('flag'); return; }
+    if (typeof IntersectionObserver === 'undefined') { setShown(true); setPhase('flag'); return; }
+    const io = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      io.disconnect();
+      timeRef.current = Math.max(0, flag - INTRO);
       setTime(timeRef.current);
-      return;
-    }
-    if (autoplay && inView && !userPaused.current && rows.length) setPlaying(true);
-    if (!inView) setPlaying(false);
-  }, [autoplay, inView, reduced, firstFinish, rows.length]);
+      setShown(true);
+      setPhase('intro');
+    }, { threshold: 0.35 });
+    io.observe(node);
+    return () => io.disconnect();
+  }, [phase, reduced, autoplay, flag]);
 
   useEffect(() => {
-    if (!playing) return;
+    if (phase !== 'intro' && phase !== 'playing') return;
     let frame = 0;
-    let last = performance.now();
+    let prev = performance.now();
+    const speed = phase === 'intro' ? INTRO_SPEED : PLAY_SPEED;
+    const stop = phase === 'intro' ? flag : max;
     const loop = (now: number) => {
-      const dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
-      let next = timeRef.current + dt * speed;
-      if (next > lastFinish + 600) next = 0;
+      const dt = Math.min(0.1, (now - prev) / 1000);
+      prev = now;
+      const next = Math.min(stop, timeRef.current + dt * speed);
       timeRef.current = next;
       setTime(next);
+      if (next >= stop) { setPhase(phase === 'intro' ? 'flag' : 'ended'); return; }
       frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [playing, speed, lastFinish]);
+  }, [phase, flag, max]);
 
-  useEffect(() => onTime?.(time), [time, onTime]);
-
-  const stats = useMemo(() => {
-    let finished = 0;
-    let slow = 0;
-    let running = 0;
-    let lead = 0;
-    for (const row of rows) {
-      const p = positionAt(row, time);
-      if (p.finished) finished += 1;
-      else {
-        running += 1;
-        if (p.slowSection) slow += 1;
-        lead = Math.max(lead, p.km);
-      }
-    }
-    return { finished, slow, running, lead };
-  }, [rows, time]);
+  // The flag frame holds (the sentence is on): the runners past the sentence's mat step back, so its share is the
+  // bright part of the field.
+  const held = Math.abs(time - flag) < 30 && phase !== 'intro' && phase !== 'playing';
+  const dimFrom = split && held && mode === 'field' ? split.km : Infinity;
+  // On the home band the sentence names both ends of the field (the first finish and how far its back had come), each a
+  // ring on the frame: the runners between step back a little while it holds, so both rings read (round 5).
+  const hush = !!mark && held && mode === 'field';
 
   const draw = useCallback(() => {
     const node = canvas.current;
-    if (!node) return;
-    const dpr = Math.min(2, typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1);
-    const W = width;
-    const H = canvasHeight;
+    const c = colours.current;
+    if (!node || !c || !size.w || !size.h) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = size.w, H = size.h;
     if (node.width !== Math.round(W * dpr)) node.width = Math.round(W * dpr);
     if (node.height !== Math.round(H * dpr)) node.height = Math.round(H * dpr);
     const g = node.getContext('2d');
     if (!g) return;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, H);
-    const mobile = W < 640;
-    const padX = mobile ? 18 : 40;
-    const dotR = mobile ? 1.5 : 1.9;
-    let place: (km: number, lane: number) => [number, number];
-
-    if (mode === 'route' && locate) {
-      const b = box ?? { x0: 0, y0: 0, w: 1, h: 1 };
-      const size = Math.min((W - padX * 2) / b.w, (H - 40) / b.h);
-      const ox = (W - b.w * size) / 2 - b.x0 * size;
-      const oy = (H - b.h * size) / 2 - b.y0 * size;
-      const pts = edition.route!.points;
-      g.strokeStyle = 'rgba(245,240,230,0.10)';
-      g.lineWidth = 10;
-      g.lineCap = 'round';
-      g.lineJoin = 'round';
+    const t = time;
+    const n = sorted.length;
+    const r = band ? 1.1 : W < 600 ? 1.25 : 1.5;
+    let place: (km: number, i: number) => [number, number];
+    if (mode === 'route' && locate && edition.route) {
+      const pts = edition.route.points;
+      const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      const bx = Math.min(...xs), by = Math.min(...ys);
+      const bw = Math.max(1e-6, Math.max(...xs) - bx), bh = Math.max(1e-6, Math.max(...ys) - by);
+      const s = Math.min((W * 0.9) / bw, (H * 0.88) / bh);
+      const ox = (W - bw * s) / 2 - bx * s, oy = (H - bh * s) / 2 - by * s;
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      g.strokeStyle = c.rule; g.lineWidth = 8;
       g.beginPath();
-      pts.forEach(([x, y], i) => (i ? g.lineTo(ox + x * size, oy + y * size) : g.moveTo(ox + x * size, oy + y * size)));
+      pts.forEach(([x, y], i) => (i ? g.lineTo(ox + x * s, oy + y * s) : g.moveTo(ox + x * s, oy + y * s)));
       g.stroke();
-      g.strokeStyle = 'rgba(47,91,255,0.9)';
-      g.lineWidth = 2;
+      g.strokeStyle = c.quiet; g.lineWidth = 1.5;
       g.stroke();
-      place = (km, lane) => {
+      place = (km, i) => {
         const [x, y] = locate(km);
-        const a = lane * Math.PI * 2;
-        const r = 4 * hash(Math.floor(lane * 1e6));
-        return [ox + x * size + Math.cos(a) * r, oy + y * size + Math.sin(a) * r];
+        const a = hash(i) * Math.PI * 2, d = 3 * hash(i + 7);
+        return [ox + x * s + Math.cos(a) * d, oy + y * s + Math.sin(a) * d];
       };
     } else {
-      const x0 = padX;
-      const x1 = W - padX - (mobile ? 22 : 56);
-      const top = 34;
-      const bottom = H - 34;
-      const X = (km: number) => x0 + ((x1 - x0) * km) / 42.195;
-      g.font = `${mobile ? 10 : 11}px "JetBrains Mono Variable", ui-monospace, monospace`;
-      g.textAlign = 'center';
-      const marks = units === 'mi'
-        ? [0, 5, 10, 15, 20, 25, 26.2].map((mi) => ({ km: Math.min(42.195, mi * 1.609344), label: mi === 0 ? 'start' : mi === 26.2 ? 'finish' : `${mi} mi` }))
-        : [0, 5, 10, 15, 20, 25, 30, 35, 40, 42.195].map((km) => ({ km, label: km === 0 ? 'start' : km === 42.195 ? 'finish' : `${km} km` }));
-      for (const m of marks) {
-        g.strokeStyle = m.km === 0 || m.km >= 42 ? 'rgba(244,178,62,0.55)' : 'rgba(245,240,230,0.08)';
-        g.lineWidth = 1;
-        g.beginPath();
-        g.moveTo(X(m.km), top - 6);
-        g.lineTo(X(m.km), bottom + 4);
-        g.stroke();
-        const show = !mobile || ['start', 'finish', '10 mi', '20 mi', '10 km', '20 km', '30 km', '40 km'].includes(m.label);
-        g.fillStyle = 'rgba(185,179,166,0.85)';
-        if (show && !(m.label === '25 mi')) g.fillText(m.label, X(m.km), bottom + 20);
-      }
-      const road = g.createLinearGradient(0, top, 0, bottom);
-      road.addColorStop(0, 'rgba(245,240,230,0)');
-      road.addColorStop(0.5, 'rgba(245,240,230,0.035)');
-      road.addColorStop(1, 'rgba(245,240,230,0)');
-      g.fillStyle = road;
-      g.fillRect(x0, top, x1 - x0, bottom - top);
-      place = (km, lane) => {
-        const spread = bottom - top;
-        const y = top + spread * (0.5 + (lane - 0.5) * 0.92);
-        if (km >= 42.195) return [x1 + 10 + lane * (mobile ? 12 : 40), y];
-        return [X(km), y];
-      };
+      const fx = fieldX(MARATHON) * W;
+      g.strokeStyle = c.rule; g.lineWidth = 1;
+      g.setLineDash([3, 4]);
+      g.beginPath(); g.moveTo(fx, FIELD_BOX.top * H); g.lineTo(fx, (1 - FIELD_BOX.bottom) * H); g.stroke();
+      g.setLineDash([]);
+      const x20 = fieldX(20) * W;
+      // The 20K mat: quiet, and full strength while the flag frame counts the field short of it.
+      g.globalAlpha = Number.isFinite(dimFrom) ? 1 : 0.5;
+      g.beginPath(); g.moveTo(x20, FIELD_BOX.top * H); g.lineTo(x20, (1 - FIELD_BOX.bottom) * H); g.stroke();
+      g.globalAlpha = 1;
+      place = (km, i) => [fieldX(km) * W, fieldY(n > 1 ? i / (n - 1) : 0.5) * H];
     }
-
-    g.globalCompositeOperation = 'lighter';
-    rows.forEach((row, i) => {
-      const p = positionAt(row, time);
-      const ci = p.finished ? 3 : Math.max(0, Math.min(6, Math.round(3 + p.rel / 0.08)));
-      const [x, y] = place(p.km, lanes[i]);
-      g.globalAlpha = p.finished ? 0.28 : 0.9;
-      g.fillStyle = PACE_COLOURS[ci];
-      g.beginPath();
-      g.arc(x, y, dotR, 0, Math.PI * 2);
-      g.fill();
-    });
+    for (let i = 0; i < n; i++) {
+      const p = positionAt(sorted[i], t);
+      const [x, y] = place(p.km, i);
+      g.fillStyle = p.km >= dimFrom ? c.ink3 : c.ink;
+      g.globalAlpha = p.finished ? 0.4 : p.km >= dimFrom || hush ? 0.6 : 0.85;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    }
     g.globalAlpha = 1;
-    g.globalCompositeOperation = 'source-over';
+  }, [size, time, sorted, mode, locate, edition.route, band, dimFrom, hush]);
 
-    if (ghostMinutes) {
-      const km = Math.min(42.195, (time / (ghostMinutes * 60)) * 42.195);
-      const [x, y] = place(km, 0.5);
-      g.strokeStyle = '#F4B23E';
-      g.fillStyle = '#0E1116';
-      g.lineWidth = 2;
-      g.beginPath();
-      g.arc(x, y, 7, 0, Math.PI * 2);
-      g.fill();
-      g.stroke();
-      g.fillStyle = '#F4B23E';
-      g.beginPath();
-      g.arc(x, y, 3, 0, Math.PI * 2);
-      g.fill();
-    }
-  }, [width, canvasHeight, box, mode, locate, edition.route, rows, time, lanes, ghostMinutes, units]);
-
-  useEffect(() => {
-    draw();
-  }, [draw]);
+  useEffect(() => { draw(); }, [draw]);
 
   const toggle = () => {
-    userPaused.current = playing;
-    setPlaying(!playing);
+    if (phase === 'intro' || phase === 'playing') { setPhase('paused'); return; }
+    if (phase === 'ended' || timeRef.current >= max) { timeRef.current = 0; setTime(0); }
+    setShown(true);
+    setPhase('playing');
   };
-  const scrub = (value: number) => {
-    userPaused.current = true;
-    setPlaying(false);
-    timeRef.current = value;
-    setTime(value);
+  const scrub = (seconds: number) => {
+    timeRef.current = seconds;
+    setTime(seconds);
+    setShown(true);
+    setPhase('paused');
   };
-
-  const share = (n: number) => (rows.length ? Math.round((100 * n) / rows.length) : 0);
-  const lead = units === 'mi' ? `${(stats.lead / 1.609344).toFixed(1)} mi` : `${stats.lead.toFixed(1)} km`;
-
+  const shares = useMemo(() => sharesAt(edition.rows, time), [edition.rows, time]);
+  const playing = phase === 'intro' || phase === 'playing';
+  const atFlag = Math.abs(time - flag) < 30;
   return (
-    <div ref={wrap} className={`replay ${className ?? ''}`} aria-busy={status?.loading || undefined}>
-      <div className="replay-hud" aria-live="off">
-        <div className="replay-clock" aria-hidden="true">{clock(time)}</div>
-        <dl className="replay-stats">
-          <div><dt>Still running</dt><dd>{status ? '–' : `${share(stats.running)}%`}</dd></div>
-          <div><dt>Finished</dt><dd>{status ? '–' : `${share(stats.finished)}%`}</dd></div>
-          <div><dt>In a section ≥25% slower than their 5–20 km pace</dt><dd>{status ? '–' : `${share(stats.slow)}%`}</dd></div>
-          <div><dt>Leading runner on the clock</dt><dd>{status ? '–' : stats.running ? lead : 'all home'}</dd></div>
-        </dl>
-      </div>
-      {status ? (
-        <div className="replay-loading" style={{ height: canvasHeight }}><p>{status.message}</p></div>
-      ) : (
-        <canvas ref={canvas} style={{ width: '100%', height: canvasHeight }} role="img" aria-label={`Animated replay of ${edition.sample.toLocaleString()} sampled finishes from ${edition.city} ${edition.year}. Use the race clock slider to step through it.`} />
-      )}
-      <div className="replay-controls">
-        <button type="button" className="replay-play" onClick={toggle} disabled={Boolean(status)} aria-label={playing ? 'Pause replay' : 'Play replay'}>
-          {playing ? (
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="currentColor" /><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="currentColor" /></svg>
-          ) : (
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 2.5v11l9.5-5.5z" fill="currentColor" /></svg>
-          )}
-        </button>
-        <input className="replay-scrub" type="range" min={0} max={Math.ceil(lastFinish + 300)} step={10} value={Math.round(time)} onChange={(e) => scrub(Number(e.target.value))} disabled={Boolean(status)} aria-label="Race clock" aria-valuetext={clock(time)} />
-        <label className="replay-speed">
-          <span className="sr-only">Replay speed</span>
-          <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} disabled={Boolean(status)}>
-            <option value={240}>4 min / s</option>
-            <option value={600}>10 min / s</option>
-            <option value={1200}>20 min / s</option>
-          </select>
-        </label>
-      </div>
-      <div className="replay-legend" aria-hidden="true">
-        <span>Current section vs own 5–20 km pace</span>
-        <span className="replay-ramp">{PACE_COLOURS.map((c) => <i key={c} style={{ background: c }} />)}</span>
-        <span className="replay-ramp-labels"><b>faster</b><b>same</b><b>slower</b></span>
-      </div>
+    <div ref={box} className="replay-measure">
+      <ReplayFrame race={race} clock={raceClock(time)} finished={hudShare(shares.finished)} view={mode} aspect={routeAspect(edition.route?.points)}
+        poster={poster}
+        canvas={<canvas ref={canvas} className={`replay-canvas${shown ? ' is-shown' : ''}`} onClick={toggle} role="img"
+          aria-label={`${race}: ${edition.sample.toLocaleString('en-US')} sampled finishes on one race clock, ${raceClock(time)}. ${hudShare(shares.finished)} finished.`} />}
+        moment={moment} mark={mark} split={split} momentOn={atFlag && !playing} playing={playing} onPlay={toggle} time={time} max={max} onScrub={scrub} valuetext={raceClock(time)} live={shown} />
     </div>
   );
 }

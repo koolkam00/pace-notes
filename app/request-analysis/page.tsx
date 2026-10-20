@@ -1,18 +1,24 @@
+import InfoNext from '@/components/InfoNext';
 import AnalysisRequest from '@/components/AnalysisRequest';
-import { UnitLink as Link } from '@/components/UnitsProvider';
 import { pageMetadata } from '@/lib/seo';
 
 export const metadata = pageMetadata({
-  title: 'Request an analysis | Pace Notes',
+  title: 'Request an Analysis | Pace Notes',
   description: 'Have a marathon question? Suggest the next analysis for Pace Notes to explore.',
   path: '/request-analysis',
   noindex: true,
 });
 
+/** Request an analysis (the redesign spec, section 7.15): the question, a little context, then an email draft. */
 export default function RequestAnalysisPage() {
-  return <article className="request-page">
-    <header className="directory-heading"><p className="eyebrow">Your questions, next</p><h1>What should we<br />explore next?</h1><p>Have a marathon question the data might answer? Send your idea to Andrew.</p></header>
-    <AnalysisRequest />
-    <section className="request-expectations"><h2>A good question is a starting point.</h2><p>Ideas help shape what gets added to Pace Notes. Each analysis needs enough reliable data to offer a useful answer, so every request may not become a new page.</p><Link className="text-link" href="/analyses">See what we already explore <span aria-hidden="true">↗</span></Link></section>
+  return <article className="info-page">
+    <header className="info-hero">
+      <h1 className="t-title">What should we look at next?</h1>
+      <p className="info-dek">Have a marathon question the data might answer? Send it to Andrew. Each idea needs enough reliable data to answer well, so not every one becomes a page.</p>
+    </header>
+    <div className="info-body">
+      <AnalysisRequest />
+      <InfoNext />
+    </div>
   </article>;
 }

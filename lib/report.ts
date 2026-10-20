@@ -17,7 +17,8 @@ import {
 import { paceBandShardPath, type PaceBandCell } from './tools/pace-band-data';
 import { SECTION_KM, classify, readSplits, validateSplits, type SplitReading } from './tools/splits';
 import { formatDuration } from './tools/time';
-import { KM_PER_MILE, type UnitSystem } from './units';
+import { KM_PER_MILE, matLabel, sectionLabel, type UnitSystem } from './units';
+import { approxWords, pct } from './nuggets/format';
 
 export * from './report-shared';
 
@@ -74,7 +75,11 @@ export type ReportComparison =
 export type ReportType =
   | { state: 'loading' }
   | { state: 'off'; message: string }
-  | { state: 'ok'; name: string; n: number; share: number; cohortN: number; label: string };
+  | {
+    state: 'ok'; name: string; n: number; share: number; cohortN: number; label: string;
+    /** The type's place in the pacing-types order (its colour), its centroid and the shared y range of every centroid: the glyph. */
+    index: number; profile: number[]; domain: [number, number];
+  };
 export type ReportRecord = { edition: string } & (
   | { state: 'loading' }
   | { state: 'off'; message: string }
@@ -117,8 +122,9 @@ export interface ReportInput {
 }
 
 const count = (value: number) => value.toLocaleString('en-US');
-const editions = (k: number) => (k === 1 ? 'one edition' : `${count(k)} editions`);
 const clock = (seconds: number) => formatDuration(seconds, true);
+/** A comparison window's end to the minute, floored ("4:01 to 4:05"), as the split check writes the same window. */
+const windowEnd = (seconds: number) => { const m = Math.floor(seconds / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
 
 function comparisonOf(input: ReportInput['comparison'], finish: number): ReportComparison {
   const { index, indexError, course, gender, shard } = input;
@@ -137,15 +143,19 @@ function comparisonOf(input: ReportInput['comparison'], finish: number): ReportC
   if (!shard || shard.path !== path || (!shard.data && !shard.error)) return { state: 'loading' };
   if (shard.error || !shard.data) return { state: 'off', message: shard.error ?? 'This data could not be loaded. Check the connection and try again.' };
   const { lo, hi, all, held, slow } = windowCells(shard.data, check.minute, index.window_s);
-  if (!all) return { state: 'unavailable', title: 'Too few finishes at this time.', message: `Too few complete finishes ran ${clock(lo)} to ${clock(hi)} ${where}${recorded} to compare.` };
+  if (!all) return { state: 'unavailable', title: 'Too few finishes at this time.', message: `Too few complete finishes ran ${windowEnd(lo)} to ${windowEnd(hi)} ${where}${recorded} to compare.` };
   const group = (key: ReportGroup['key'], name: string, cell: PaceBandCell): ReportGroup => ({ key, name, n: cell.n, ed: cell.ed, at20: cell.e50[3], finish: cell.e50[8] });
-  // Held pace against sustained slowdown, each with 100 finishes; when neither has them, the whole window instead.
-  const groups = held || slow ? [held ? group('held', 'Held pace', held) : null, slow ? group('slowdown', 'Sustained slowdown', slow) : null].filter((g): g is ReportGroup => g !== null)
+  // No sustained slowdown against a sustained slowdown, each with 100 finishes; when neither has them, the whole window
+  // instead. The group is named in the measure's own words everywhere it is drawn or counted (round 5: "Held pace"
+  // here, "No sustained slowdown" on the goal pages), since a finish without one may still have slowed.
+  const groups = held || slow ? [held ? group('held', 'No sustained slowdown', held) : null, slow ? group('slowdown', 'Sustained slowdown', slow) : null].filter((g): g is ReportGroup => g !== null)
     : [group('all', 'All finishes in the window', all)];
-  const missing = !held && !slow ? 'Neither the held-pace nor the sustained-slowdown group has enough finishes, so the whole window is shown.'
-    : !held ? 'The held-pace group has too few finishes to show.' : !slow ? 'The sustained-slowdown group has too few finishes to show.' : null;
+  const missing = !held && !slow ? 'Neither group, with or without a sustained slowdown, has enough finishes, so the whole window is shown.'
+    : !held ? 'The finishes with no sustained slowdown are too few to show.' : !slow ? 'The finishes with a sustained slowdown are too few to show.' : null;
+  // The window pools every edition of the course: the label says so, beside an edition's own counts in the runner view.
+  const pooled = scope.slug === 'all' ? where : `${where}, every edition`;
   return {
-    state: 'ok', label: `complete finishes from ${clock(lo)} to ${clock(hi)} ${where}${recorded}`, n: all.n, ed: all.ed, lo, hi,
+    state: 'ok', label: `complete finishes from ${windowEnd(lo)} to ${windowEnd(hi)} ${pooled}${recorded}`, n: all.n, ed: all.ed, lo, hi,
     slowdownShare: all.sd ?? (slow ? slow.n / all.n : null), groups, missing,
   };
 }
@@ -155,11 +165,13 @@ function typeOf(reading: SplitReading, types: ReportInput['types']): ReportType 
   if (!types.data) return { state: 'loading' };
   const c = types.data.classifier;
   const k = classify(reading.relative, c);
-  const arch = types.data.archetypes.find((a) => a.name === c.names[k]) ?? types.data.archetypes[k];
-  const cohort = types.cohort;
+  const all = types.data.archetypes;
+  const arch = all.find((a) => a.name === c.names[k]) ?? all[k];
+  const span = all.flatMap((a) => a.profile ?? []).filter(Number.isFinite);
   return {
     state: 'ok', name: c.names[k], n: arch.n, share: arch.share, cohortN: types.data.cohort_n,
-    label: `complete finishes in the pacing-types cohort${cohort?.editions ? ` (${editions(cohort.editions)})` : ''}`,
+    label: 'complete finishes',
+    index: Math.max(0, all.indexOf(arch)), profile: arch.profile ?? [], domain: span.length ? [Math.min(...span), Math.max(...span)] : [0, 1],
   };
 }
 
@@ -173,13 +185,16 @@ function recordOf(record: NonNullable<ReportInput['record']>): ReportRecord {
   const pace = all?.pace ?? null;
   return {
     edition, state: 'ok',
-    placement: all ? { label: `eligible finishes in ${edition}`, n: all.n, otherN: all.other_n, rank: all.rank, ties: all.ties, percentile: all.percentile, medianFinish: all.median_finish }
-      : { unavailable: `${edition} has too few eligible finishes for a finish comparison: it needs at least 101.` },
+    // "Ahead of 51 in every 100 other finishes in Copenhagen 2022": which finishes count is /methodology's.
+    placement: all ? { label: `finishes in ${edition}`, n: all.n, otherN: all.other_n, rank: all.rank, ties: all.ties, percentile: all.percentile, medianFinish: all.median_finish }
+      : { unavailable: `Too few finishes in ${edition} to place this race.` },
     late: pace ? { label: `finishes from ${clock(pace.from_sec)} to under ${clock(pace.to_sec)} in ${edition}`, n: pace.n, from: pace.from_sec, to: pace.to_sec, median: pace.late_change.median, race: record.lateChange }
-      : { unavailable: 'The group of similar finish times in this edition has fewer than 101 finishes, so its pacing is not shown.' },
+      : { unavailable: `Too few finishes near this time in ${edition} to compare its late pace.` },
+    // Without weather or a route, one plain line, as the runner view's conditions say it: the data screen's reasons are
+    // method copy, which lives on /methodology.
     weather: context.weather ? { tempC: context.weather.temp_c, humidityPct: context.weather.humidity_pct, windMps: context.weather.wind_mps, start: context.weather.scheduled_start }
-      : { unavailable: context.weather_reason || 'This export does not supply a verified scheduled-start weather match.' },
-    climb: context.terrain ? { gainM: context.terrain.gain_m } : { unavailable: context.terrain_reason || 'This export does not supply a route that can be aligned with the recorded timing sections.' },
+      : { unavailable: 'Not available for this edition.' },
+    climb: context.terrain ? { gainM: context.terrain.gain_m } : { unavailable: 'Not available for this edition.' },
   };
 }
 
@@ -217,18 +232,39 @@ export function relation(seconds: number): string {
   return s === 0 ? 'level with' : `${formatDuration(Math.abs(s))} ${s < 0 ? 'ahead of' : 'behind'}`;
 }
 
+/** h:mm, floored to the minute as a race clock reads it. */
+const hmFloor = (seconds: number) => { const m = Math.floor(seconds / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+
+/**
+ * The comparison's heading when its 20K rows hold the lesson (round 6: the heading named the weaker fact, this race's
+ * gap to the finishes with no sustained slowdown): the finishes at this time that had a sustained slowdown passed 20K
+ * well before this race, and every group still finished together ("…passed 20K 6:03 sooner, and finished at the same 3:32."). It holds while that group passed 20K at least a minute sooner and every group's median finish is within a
+ * minute of the others; "the same" also needs this race's own finish in that minute, else "a median". Null otherwise,
+ * and the heading names this race against the first group, as before. Said as an observation of finishes like this
+ * one, never a promise.
+ */
+export function at20Heading(race20: number, finish: number, groups: ReportGroup[]): string | null {
+  const slow = groups.find((g) => g.key === 'slowdown');
+  if (!slow || groups.length < 2) return null;
+  const finishes = groups.map((g) => g.finish);
+  const together = Math.max(...finishes) - Math.min(...finishes) < 60;
+  const sooner = Math.round(race20 - slow.at20);
+  if (!together || sooner < 60) return null;
+  const median = hmFloor(Math.min(...finishes));
+  const same = hmFloor(finish) === median;
+  return `Finishes like this one that had a sustained slowdown passed 20K ${formatDuration(sooner)} sooner, and finished at ${same ? 'the same' : 'a median'} ${median}.`;
+}
+
 /* ---------- Words and numbers in the visitor's units (the image and its alternative text) ---------- */
 
 /** A pace in seconds per km, in the units shown, with its unit: "9:17/mi". */
 export const paceText = (sPerKm: number, units: UnitSystem) => `${formatDuration(units === 'mi' ? sPerKm * KM_PER_MILE : sPerKm)}/${units}`;
-/** A section by its recorded bounds: "30–35 km" or "18.6–21.7 mi". */
-export function sectionText(section: Pick<ReportSection, 'startKm' | 'endKm'>, units: UnitSystem): string {
-  const { startKm: a, endKm: b } = section;
-  return units === 'km' ? `${a}–${b > 42 ? '42.2' : b} km` : `${(a / KM_PER_MILE).toFixed(1)}–${(b / KM_PER_MILE).toFixed(1)} mi`;
-}
-/** A distance in km, with miles first in miles mode: "30 km" / "18.6 mi (30 km)". */
-export const kmText = (km: number, units: UnitSystem) => (units === 'mi' ? `${(km / KM_PER_MILE).toFixed(1)} mi (${km} km)` : `${km} km`);
-export const shareText = (v: number) => `${(v * 100).toFixed(1)}%`;
+/** A section between two mats, named the same in both unit modes: "30–35K", "40K–finish" (lib/units). */
+export const sectionText = (section: Pick<ReportSection, 'startKm' | 'endKm'>) => sectionLabel(section.startKm, section.endKm);
+/** A mat by its name in both unit modes: "30K", "Finish". */
+export const kmText = (km: number) => matLabel(km);
+/** A share in whole percent, as the report speaks everywhere else ("11%"). */
+export const shareText = (v: number) => pct(v);
 
 /**
  * What the saved image shows, line by line, and what its alternative text says: the race, finish and average pace, the
@@ -241,12 +277,11 @@ export function reportLines(model: ReportModel, units: UnitSystem) {
     race: model.race,
     finish: formatDuration(model.finish, true),
     pace: `average ${paceText(model.average, units)}`,
-    baseline: `5–20 km pace ${paceText(model.baseline, units)} · 25% slower is ${paceText(model.baseline * 1.25, units)}`,
-    sections: model.sections.map((s) => ({ label: sectionText(s, units), pace: paceText(s.pace, units), change: pctSigned(s.vsBaseline), tone: s.tone, vs: s.vsBaseline })),
-    slowdown: model.slowdown.yes && model.slowdown.onsetKm !== null ? `Sustained slowdown: yes, from ${kmText(model.slowdown.onsetKm, units)}` : 'Sustained slowdown: no',
-    type: t.state === 'ok' ? `Pacing type: ${t.name}, the shape of ${count(t.n)} (${shareText(t.share)}) of the ${count(t.cohortN)} ${t.label}` : null,
+    baseline: `5–20K pace ${paceText(model.baseline, units)}`,
+    sections: model.sections.map((s) => ({ label: sectionText(s), mat: matLabel(s.endKm), split: formatDuration(Math.round(s.seconds)), pace: paceText(s.pace, units), change: pctSigned(s.vsBaseline), tone: s.tone, vs: s.vsBaseline })),
+    slowdown: model.slowdown.yes && model.slowdown.onsetKm !== null ? `Sustained slowdown: yes, from ${kmText(model.slowdown.onsetKm)}` : 'Sustained slowdown: no',
+    type: t.state === 'ok' ? `Pacing type: ${t.name}, the shape of ${approxWords(t.share, 'finishes')}` : null,
     comparison: c.state === 'ok' ? `Of ${count(c.n)} ${c.label}, ${c.slowdownShare === null ? 'the share with a sustained slowdown is not published' : `${shareText(c.slowdownShare)} had a sustained slowdown`}.` : null,
-    citation: 'Sustained slowdown: at least 5 km after 20 km run 25% or more slower than the 5–20 km pace. Published slowdown method (2021), doi:10.1371/journal.pone.0251513',
   };
 }
 

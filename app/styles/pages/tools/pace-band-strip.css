@@ -1,0 +1,59 @@
+/* The cut-out wristband strips (components/tools/PaceBandStrip.tsx), shared by the pace band and the race planner: a
+   paper preview scaled to its column, printed at full size. The strip is a printed object, so it stays ink on paper in
+   any theme: its own tokens below, which never flip with data-theme (critic round 3: under the dark theme --card and
+   --night both resolved near black).
+
+   One set of measures in em, with 1 em = 1 cm on paper: the sheet's font size is 1 cm in print, and on screen the
+   column's width divided by the sheet's 19.3 em (at most 1 cm), so the whole band always fits its column with no
+   sideways scroll and no clipped number, on a phone as on a desktop (critic round 5: four strips ran off the right edge
+   mid-number), and it is laid out before any script runs. */
+
+.pace-band-sheet-wrap { container-type: inline-size; margin: 0; padding: 4px 0 8px; }
+.pace-band-held-dim { opacity: .45; transition: opacity var(--d-quick); }
+/* The strip's own colours, from the two tokens no theme redefines (--night-ink, the warm paper, and --on-accent, the
+   ink), so the paper preview is ink on paper under the dark page theme too; the greys mix the two where supported. */
+.pace-band-sheet { --strip: 18.4em; --strip-paper: var(--night-ink); --strip-ink: var(--on-accent); --strip-ink-3: var(--on-accent); --strip-rule: var(--night-ink-2); --strip-paper-2: var(--night-ink);
+  color-scheme: light; display: grid; gap: .32em; width: calc(var(--strip) + .9em); margin-inline: auto; padding: .35em .45em .45em; font-size: .45cm;
+  background: var(--strip-paper); color: var(--strip-ink); box-shadow: var(--shadow-raise); }
+@supports (width: 1cqw) {
+  .pace-band-sheet { font-size: min(1cm, calc((100cqw - 2px) / 19.3)); }
+}
+.pace-band-sheet-head { font-family: var(--sans); font-size: .2293em; letter-spacing: .02em; color: var(--strip-ink-3); }
+.pace-band-strip { position: relative; display: grid; grid-template-columns: repeat(var(--cells, 10), minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr) auto;
+  width: var(--strip); height: 2.5em; border: 1px dashed var(--strip-ink); background: var(--strip-paper); break-inside: avoid; }
+.pace-band-strip::before { content: '\2702'; position: absolute; left: -.38em; top: -.24em; font-size: .3175em; line-height: 1; color: var(--strip-ink); }
+.pace-band-cell { display: grid; align-content: center; justify-items: center; gap: .05em; min-width: 0; padding: .08em .03em; border-right: .5pt solid var(--strip-rule); text-align: center; }
+.pace-band-cell:nth-last-child(2) { border-right: 0; }
+.pace-band-cell .k { font-family: var(--sans); font-size: .2258em; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
+.pace-band-cell .k small { font-size: .906em; font-weight: 500; text-transform: none; }
+.pace-band-cell b { font-family: var(--figure); font-size: min(.441em, calc(var(--strip) / var(--cells, 10) / 4.35)); font-weight: 660; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pace-band-cell .h { font-family: var(--sans); font-size: .2399em; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--strip-ink-3); }
+.pace-band-cell.is-lead { border-right: 1.5pt solid var(--strip-ink); }
+.pace-band-cell.is-lead .h { font-size: .1976em; font-weight: 500; white-space: normal; line-height: 1.2; }
+.pace-band-cell.is-finish b { text-decoration: underline; text-underline-offset: 2px; }
+.pace-band-cell.is-half { background: var(--strip-paper-2); }
+.pace-band-strip-caption { grid-column: 1 / -1; padding: .04em .15em .06em; border-top: .5pt solid var(--strip-rule); font-family: var(--sans); font-size: .1905em; line-height: 1.25; color: var(--strip-ink-3); }
+.pace-band-strip.is-back { display: grid; grid-template-columns: 1fr; }
+.pace-band-strip.is-back svg { display: block; width: 100%; height: 100%; min-height: 0; padding: .1em .15em 0; }
+.pace-band-strip.is-back svg text { fill: var(--strip-ink); }
+
+@supports (color: color-mix(in srgb, var(--paper) 50%, transparent)) {
+  .pace-band-sheet { --strip-ink-3: color-mix(in srgb, var(--strip-ink) 68%, var(--strip-paper)); --strip-rule: color-mix(in srgb, var(--strip-ink) 20%, var(--strip-paper)); --strip-paper-2: color-mix(in srgb, var(--strip-ink) 7%, var(--strip-paper)); }
+}
+
+/* On screen the preview is a scaled picture of the band, so its printed micro text would be a few pixels. The preview
+   keeps only the mat names and the even times: the header line, the strips' legend, the mats' miles and the held line are
+   print only (the night card above lists the mat times). The mat names read at 11 px where the cell has room for them,
+   never wider than their cell. Print keeps every size. */
+@media screen {
+  .pace-band-sheet-head, .pace-band-strip-caption, .pace-band-cell .k small, .pace-band-cell .h { display: none; }
+  .pace-band-cell .k { font-size: clamp(.2258em, 11px, calc(var(--strip) / var(--cells, 10) / 4.8)); }
+}
+
+@media print {
+  .pace-band-sheet-wrap { margin: 0; padding: 0; background: none; }
+  /* Width follows the printable area (strip 18.4 cm + .45 cm for the scissor marks), so A4 and Letter print unscaled. */
+  .pace-band-sheet { font-size: 1cm; width: auto; max-width: calc(var(--strip) + .45em); margin-inline: 0; padding: 0 0 0 .45em; box-shadow: none; }
+  .pace-band-held-dim { opacity: 1 !important; }
+  .pace-band-strip, .pace-band-cell, .pace-band-cell.is-half { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -1,0 +1,297 @@
+/* The race report (/report, and the report in the runner view on /runners; WP6, the redesign spec section 7.12).
+   A night "lap screen" (the race, the finish in Bricolage, and the lap list), then on paper three tiles divided by
+   hairlines, the comparison with finishes at the same time and, in the runner view, the edition's lines. Pace Notes data
+   and published research carry their badges; calculations from the race's own times carry none. It prints as one page,
+   ink on paper. The lap list (components/report/LapList.tsx) is styled here for both pages. */
+
+.report-page { padding-top: var(--page-top); }
+/* The report's headings in the redesign's Fraunces (optical size following the size, weight 440), not the legacy
+   h1/h2 display cut; inside the runner view too. */
+.report-page h1, .report-page h2, .report-page h3, .report-page h4, .race-report h1, .race-report h2, .race-report h3, .race-report h4 { font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; }
+/* Inside main.container, so the site's gutter and left edge: only a reading width of its own. */
+.report-page { max-width: 46rem; }
+/* .report-crumbs keeps the reading crumbs' own spacing, so the H1 lands where every chapter page's does. */
+
+/* ---------- The card ---------- */
+.race-report-root { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); min-width: 0; }
+.race-report { min-width: 0; color: var(--ink); }
+
+/* The lap screen: night, the race and the answer. */
+.race-report-screen { padding: 20px 20px 18px; border-radius: var(--r-md); background: var(--paper); color: var(--ink); box-shadow: var(--night-edge); }
+.race-report-kicker { display: flex; justify-content: space-between; gap: var(--s-4); margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+/* Each part on one line; on a zoomed-in phone the distance drops under "Race report" rather than breaking. */
+.race-report-kicker { flex-wrap: wrap; column-gap: var(--s-4); row-gap: 0; }
+.race-report-kicker > span { white-space: nowrap; }
+/* The example's longer kicker ("Example · a made-up race") may wrap on a very narrow screen. */
+.race-report-kicker > span:first-child { white-space: normal; }
+.race-report .race-report-title { margin: var(--s-3) 0 0; font-family: var(--serif); font-weight: 440; font-size: clamp(1.75rem, 6vw + .2rem, 2.75rem); line-height: 1.05; letter-spacing: -.02em; color: var(--ink); text-wrap: balance; }
+.race-report-title:focus { outline: none; }
+.race-report-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--r-xs); }
+.race-report-finish { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-4); margin: var(--s-3) 0 0; }
+.race-report-finish .big-number { margin-left: -.04em; }
+.race-report-average { font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.race-report-sentence { margin: var(--s-4) 0 0; max-width: 32rem; font-family: var(--serif); font-weight: 440; font-size: 1.25rem; line-height: 1.3; letter-spacing: -.01em; color: var(--ink); text-wrap: pretty; }
+.race-report-sentence em { font-style: italic; color: var(--signal-ink); }
+/* One orange thing per card: with a sustained slowdown its rows carry it, so the sentence keeps its italic in ink. */
+.race-report-sentence.is-quiet em { color: inherit; }
+
+/* The lap list: mat, split, pace and a bar from the race's own 5–20K pace (the zero line, --zero). */
+.lap-list { margin: var(--s-5) 0 0; min-width: 0; }
+.lap-head, .lap-rows li { display: grid; grid-template-columns: 2.75rem 3.75rem 4.5rem minmax(0, 1fr); align-items: center; column-gap: var(--s-2); }
+.lap-list.no-split .lap-head, .lap-list.no-split .lap-rows li { grid-template-columns: 3.25rem 4.5rem minmax(0, 1fr); }
+/* Named by section ("40K–finish"), the first column takes the longest name. */
+.lap-list.by-section .lap-head, .lap-list.by-section .lap-rows li { grid-template-columns: 5.25rem 3.75rem 4.5rem minmax(0, 1fr); }
+.lap-head { padding-bottom: 6px; border-bottom: 1px solid var(--rule); font-size: .75rem; font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.lap-head-bar { position: relative; align-self: stretch; min-width: 0; }
+/* The bar column's head names the zero line, from where it stands. */
+.lap-head-bar > span { position: absolute; left: var(--zero, 0%); bottom: 0; padding-left: 5px; white-space: nowrap; }
+.lap-head-bar > span::before { content: ''; position: absolute; left: 0; top: 2px; bottom: -6px; width: 1px; background: var(--ink-3); }
+.lap-rows { margin: 0; padding: 0; list-style: none; }
+.lap-rows li { position: relative; min-height: 36px; margin: 0; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; }
+.lap-rows li:last-child { border-bottom: 0; }
+.lap-mat { font-size: .9375rem; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.lap-split { font-size: .9375rem; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.lap-pace { font-size: .875rem; color: var(--ink-3); white-space: nowrap; }
+.lap-bar { position: relative; height: 36px; min-width: 0; }
+.lap-bar::before { content: ''; position: absolute; top: 0; bottom: 0; left: var(--zero, 0%); width: 1px; background: var(--ink-3); }
+.lap-bar i { position: absolute; top: 11px; height: 14px; border-radius: 3px; background: var(--mark-quiet); }
+.lap-rows li.is-lit i { background: var(--signal); }
+/* The bars are the reading (orange where the sustained slowdown ran); the paces beside them stay ink, so a long
+   slowdown is one orange run of bars, never a column of orange numerals (round 6: twelve orange marks in one chart). */
+.lap-rows li.is-lit .lap-pace { color: var(--ink); font-weight: 600; }
+.lap-list.is-ink .lap-rows li.is-lit i { background: var(--ink); }
+.lap-list.is-ink .lap-rows li.is-lit .lap-pace { color: var(--ink); font-weight: 600; }
+.lap-caption { margin: var(--s-3) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.lap-caption .term-link { color: var(--ink); text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
+.lap-caption .term-link:hover { text-decoration-style: solid; }
+@media (max-width: 359.98px) {
+  .lap-head, .lap-rows li { grid-template-columns: 2.5rem 3.5rem 4.25rem minmax(0, 1fr); column-gap: 6px; }
+  .lap-mat, .lap-split { font-size: .875rem; }
+  .lap-pace { font-size: .8125rem; }
+}
+/* At 200% zoom the bar takes its own line under the numbers, and the finish steps down a size. */
+@media (max-width: 299.98px) {
+  .race-report-screen { padding: 16px 14px; }
+  .race-report-finish .big-number { font-size: 2rem; }
+  .lap-head { display: none; }
+  /* The mat, split and pace run as words on a line, and the pace wraps under them when the three do not fit (the finish
+     row's "Finish 10:40 7:49/mi" at 195 px), so nothing passes the screen's edge. */
+  .lap-rows li, .lap-list.no-split .lap-rows li { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; padding-top: 6px; }
+  .lap-bar { flex: 1 1 100%; height: 22px; }
+  .lap-bar i { top: 4px; }
+}
+
+/* ---------- Three tiles: the slowdown reading, the pacing type, the first 5K ---------- */
+.race-report-stats { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: var(--s-5); border-top: 1px solid var(--rule); }
+.race-report-stat {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'label value' 'small extra';
+  align-items: baseline; gap: 4px var(--s-4); min-width: 0; padding: 14px 0; border-bottom: 1px solid var(--rule);
+}
+.race-report-stat > span:first-child { grid-area: label; font-size: .9375rem; font-weight: 500; line-height: 1.3; color: var(--ink-2); }
+.race-report-stat > strong { grid-area: value; display: inline-flex; align-items: center; gap: 8px; justify-self: end; font-size: 1.125rem; font-weight: 600; line-height: 1.2; color: var(--ink); text-align: right; }
+.race-report-stat > small { grid-area: small; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.race-report-stat > .race-report-badge, .race-report-stat > .tool-state { grid-area: extra; justify-self: end; }
+.race-report-stat.is-type > small { padding-right: var(--s-2); }
+.race-report-stat .race-report-more { grid-column: 1 / -1; justify-self: start; }
+.race-report-stat .type-glyph { width: 32px; height: 15px; }
+.race-report-more { display: inline-flex; align-items: center; min-height: 44px; margin: -8px 0 -10px; font-size: var(--t-small); font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: .2em; }
+.race-report-more:hover { text-decoration-color: var(--ink); }
+/* Under 360 px (a small phone, or zoom) each tile stacks: the label, the value (the type's glyph before its name), then
+   the sentence and the badge at the full width, so no word is left alone in a narrow column. */
+@media (max-width: 359.98px) {
+  .race-report-stat { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'label' 'value' 'small' 'extra'; gap: 4px; }
+  .race-report-stat > strong, .race-report-stat > .race-report-badge, .race-report-stat > .tool-state { justify-self: start; text-align: left; }
+  .race-report-stat > strong { flex-wrap: wrap; }
+  .race-report-stat.is-type > small { padding-right: 0; }
+}
+@media (min-width: 600px) {
+  .race-report-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
+  .race-report-stat { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'label' 'value' 'small' 'extra'; align-content: start; gap: 6px; padding: 16px; border-bottom: 0; border-left: 1px solid var(--rule); }
+  .race-report-stat:first-child { padding-left: 0; border-left: 0; }
+  .race-report-stat:last-child { padding-right: 0; }
+  .race-report-stat > strong, .race-report-stat > .race-report-badge, .race-report-stat > .tool-state { justify-self: start; text-align: left; }
+  .race-report-stat > .race-report-badge { margin-top: 4px; }
+  .race-report-stat.is-type > small { padding-right: 0; }
+}
+
+/* ---------- Blocks: the comparison, and the edition in the runner view ---------- */
+.race-report-block { min-width: 0; margin-top: var(--s-6); }
+.race-report .race-report-block h2, .race-report .race-report-block h4 { margin: var(--s-2) 0 0; font-family: var(--serif); font-weight: 440; font-size: var(--t-sentence); line-height: 1.25; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+.race-report-block p { margin: var(--s-2) 0 0; max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); }
+.race-report-block p strong { color: var(--ink); }
+.race-report-block .race-report-meta, .race-report-meta { font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.race-report-block .tool-state.is-error, .race-report-stat .tool-state.is-error { display: grid; gap: var(--s-2); justify-items: start; margin-top: var(--s-2); font-size: var(--t-small); color: var(--signal-ink); }
+.race-report-block .tool-state.is-error p { margin: 0; color: inherit; font-size: inherit; }
+.race-report-table { margin-top: var(--s-4); }
+/* This race at 20K against each group's median: each row a one-line label over its track and value, at every width
+   (round 4: side-by-side labels wrapped to four lines in the card's column); the hollow ring is the median. */
+.at20 { margin: 0; }
+.at20-rows, .at20-axis { display: grid; grid-template-columns: minmax(0, 1fr) 6rem; column-gap: var(--s-3); }
+.at20-rows { margin: 0; padding: 0; list-style: none; }
+.at20-rows li { display: contents; }
+.at20-label { grid-column: 1 / -1; min-width: 0; padding-top: var(--s-2); font-size: var(--t-small); font-weight: 500; line-height: 1.3; color: var(--ink-2); }
+/* One line from 320 px; on a narrower screen the count wraps whole under the name. */
+.at20-label small { font-size: inherit; font-weight: 400; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.at20-rows li.is-lit .at20-label { font-weight: 600; color: var(--ink); }
+.at20-track { position: relative; height: 32px; min-width: 0; }
+.at20-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--rule); }
+.at20-track i { position: absolute; top: calc(50% - 1px); height: 2px; background: var(--rule-strong); }
+.at20-rows li.is-lit .at20-track i { background: var(--ink-2); }
+.at20-track b { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; }
+.at20-median { background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
+.at20-race { background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
+.at20-value { align-self: center; font-size: var(--t-small); font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; color: var(--ink); }
+.at20-ends { display: flex; justify-content: space-between; font-size: .75rem; line-height: 1; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.at20-finish { margin: var(--s-3) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.at20-key { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-5); margin: var(--s-3) 0 0; padding: 0; list-style: none; font-size: var(--t-label); color: var(--ink-2); }
+.at20-key li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.at20-key i { flex: none; width: 11px; height: 11px; border-radius: 50%; }
+.at20-key-median { box-shadow: inset 0 0 0 1.5px var(--mark-quiet); }
+.at20-key-race { background: var(--ink); }
+.race-report .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
+.race-report .term-link:hover { text-decoration-style: solid; }
+/* The record's edition lines print with the report; on screen the runner view's tabs above already say them. */
+.race-report-record { display: none; }
+.race-report-record dl { display: grid; margin: var(--s-3) 0 0; border-top: 1px solid var(--rule); }
+.race-report-record dl > div { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: var(--s-3); padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.race-report-record dt { font-size: var(--t-label); font-weight: 600; line-height: 1.45; color: var(--ink-3); }
+.race-report-record dd { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.race-report-record dd strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+/* The foot: the one Pace Notes data badge, then the site and the disclaimer. */
+.race-report-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--s-4); margin-top: var(--s-5); padding-top: var(--s-3); border-top: 1px solid var(--rule); }
+.race-report-foot p { margin: 0; font-size: var(--t-label); line-height: 1.45; color: var(--ink-3); }
+.race-report-foot strong { font-weight: 600; color: var(--ink); }
+@media (max-width: 359.98px) {
+  .race-report-record dl > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+
+/* Evidence badges, drawn like components/tools/EvidenceTag (a glyph and a word in --ink-2, no hue), with the report's
+   own class names (scripts/verify-report.cjs pins them). A 44 px hit area through ::after. */
+.race-report-badge { position: relative; display: inline-flex; align-items: center; gap: 7px; font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.race-report-badge::before { content: ''; flex: none; width: 8px; height: 8px; background: currentColor; }
+.race-report-badge.is-data::before { border-radius: 50%; }
+.race-report-badge.is-research::before { width: 7px; height: 7px; margin: 0 1px; transform: rotate(45deg); }
+a.race-report-badge::after { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 44px; transform: translateY(-50%); }
+a.race-report-badge:hover { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; }
+a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+@media (forced-colors: active) {
+  .race-report-badge::before { background: CanvasText; }
+  .race-report-screen { border: 1px solid CanvasText; }
+}
+
+/* ---------- Actions ---------- */
+.race-report-actions { display: grid; gap: var(--s-2); }
+/* Two actions: Share (the primary, at every width), which opens the sheet with the image, the device's share and the
+   link, then Print. */
+.race-report-actions .share-bar { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.race-report-actions .share-bar .btn { padding-inline: 18px; }
+.race-report-actions .share-bar .btn-primary { flex: 1 1 auto; }
+.race-report-sheet .btn[aria-disabled='true'] { opacity: .55; cursor: progress; }
+.race-report-sheet .race-report-hint { margin-top: var(--s-4); }
+.race-report-sheet .race-report-note { margin-top: var(--s-2); }
+.race-report-hint, .race-report-note { margin: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.race-report-note:empty { display: none; }
+.race-report-note.is-error { color: var(--signal-ink); }
+/* The sheet opens on the image it shares: 60% of the sheet's width (at most 260 px), 4:5, a small radius; a quiet placeholder
+   holds the same box while it draws, so the buttons under it never move. */
+.race-report-preview-frame { display: grid; place-items: center; width: min(60%, 260px); min-height: 12rem; margin: 0 auto var(--s-5); border-radius: var(--r-sm); background: var(--paper-sunk); overflow: hidden; }
+@supports (aspect-ratio: 1) { .race-report-preview-frame { min-height: 0; aspect-ratio: 4 / 5; } }
+.race-report-preview-frame.is-ready { background: transparent; box-shadow: var(--shadow-raise); }
+.race-report-preview { display: block; width: 100%; height: 100%; object-fit: cover; }
+.race-report-preview-wait { padding: var(--s-3); font-size: var(--t-label); line-height: 1.35; text-align: center; color: var(--ink-3); }
+@media (min-width: 600px) {
+  .race-report-actions .share-bar .btn-primary { flex: 0 1 auto; }
+}
+
+/* ---------- Without a race in the link ---------- */
+.report-empty h1 { margin: 0; }
+.report-dek { margin: var(--s-4) 0 0; max-width: var(--measure); font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.report-example { margin-top: var(--s-6); }
+.report-make { max-width: 46rem; margin-top: var(--s-8); }
+.report-make-title { margin: 0; font-family: var(--serif); font-size: var(--t-h2); line-height: 1.15; color: var(--ink); }
+.report-unreadable { margin: var(--s-2) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.report-starts { margin: var(--s-6) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.report-make .report-starts { margin-top: var(--s-4); }
+.report-starts li { margin: 0; }
+.report-start { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); min-height: 64px; padding: 12px 0; border-bottom: 1px solid var(--rule); color: var(--ink); text-decoration: none; }
+.report-start b { display: block; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
+.report-start > span > span { display: block; margin-top: 2px; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.report-start .arrow-icon { width: 18px; height: 18px; transition: transform var(--d-quick) var(--ease-out); }
+.report-start:hover b { text-decoration: underline; text-underline-offset: .2em; }
+.report-start:hover .arrow-icon { transform: translateX(3px); }
+.report-start:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.report-page .chapter-end { margin-top: var(--s-8); }
+
+/* ---------- /report from 900 px: the lap screen at the left, the tiles and the comparison beside it ----------
+   The runner view keeps one column inside its own; print keeps one column (a screen query). */
+@media screen and (min-width: 900px) {
+  .report-page { max-width: none; }
+  .report-page .race-report { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); grid-template-rows: auto auto 1fr auto; column-gap: var(--s-7); align-items: start; }
+  /* The lap screen stays in view beside the tiles and the comparison as they scroll, so the left column never empties. */
+  .report-page .race-report-screen { grid-column: 1; grid-row: 1 / -1; position: sticky; top: calc(var(--header-h) + var(--s-4)); }
+  .report-page .race-report-stats, .report-page .race-report-block, .report-page .race-report-foot { grid-column: 2; }
+  .report-page .race-report-foot { align-self: end; }
+  /* Beside the screen the tiles are rows again: the label at the left, the value at the right. */
+  .report-page .race-report-stats { margin-top: 0; grid-template-columns: minmax(0, 1fr); border-bottom: 0; }
+  .report-page .race-report-stat { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'label value' 'small extra'; gap: 4px var(--s-4); padding: 14px 0; border-left: 0; border-bottom: 1px solid var(--rule); }
+  .report-page .race-report-stat > strong, .report-page .race-report-stat > .race-report-badge, .report-page .race-report-stat > .tool-state { justify-self: end; text-align: right; }
+  .report-page .race-report-stat > .race-report-badge { margin-top: 0; }
+  .report-page .race-report-stat.is-type > small { padding-right: var(--s-2); }
+  .report-page .race-report-block { margin-top: var(--s-6); }
+  /* The actions continue the right column (the tiles, the comparison, the foot); the two columns end there, and the
+     closing stack spans both, so its card ends on the report's own right edge (round 5: at its own width it lined up
+     with nothing above it). */
+  .report-page .race-report-actions { max-width: none; margin-left: calc((100% - var(--s-7)) * 7 / 12 + var(--s-7)); }
+  .report-page .chapter-end { max-width: none; }
+}
+
+/* ---------- Print: the card alone, one page, ink on paper ---------- */
+@media print {
+  @page { margin: 11mm 12mm; }
+  [data-print-hide], .site-footer, .skip-link, .site-header, .report-empty, .report-crumbs, .chapter-end, .race-report-actions, .no-print { display: none !important; }
+  [data-print-path] { max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: none !important; }
+  html, body { background: none !important; }
+  .report-page { padding: 0; max-width: none; }
+  .race-report { font-size: 8pt; }
+  /* The night screen prints in ink: its tokens take the light ones (the legacy names keep the light values). */
+  .race-report-screen { --paper: transparent; --ink: var(--night); --ink-2: var(--night); --ink-3: var(--slate); --rule: var(--line); --mark-quiet: var(--line-2); --signal: var(--orange-ink); --signal-ink: var(--orange-ink); padding: 0; border-radius: 0; background: none; color: var(--night); box-shadow: none !important; }
+  .race-report-kicker { font-size: 7pt; }
+  .race-report .race-report-title { margin-top: 2pt; font-size: 18pt; }
+  .race-report-finish { margin-top: 2pt; }
+  .race-report-finish .big-number { font-size: 26pt; }
+  .race-report-average { font-size: 8pt; }
+  .race-report-sentence { margin-top: 3pt; font-size: 10pt; }
+  .lap-list { margin-top: 5pt; }
+  .lap-head { padding-bottom: 2pt; font-size: 7pt; }
+  .lap-rows li { min-height: 0; }
+  .lap-mat, .lap-split { font-size: 8pt; }
+  .lap-pace { font-size: 7.5pt; }
+  .lap-bar { height: 13pt; }
+  .lap-bar i { top: 3pt; height: 7pt; }
+  .lap-bar, .lap-bar i, .lap-rows li::before { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .lap-caption { margin-top: 3pt; font-size: 7.5pt; }
+  .race-report-stats { margin-top: 6pt; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+  .race-report-stat { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'label' 'value' 'small' 'extra'; gap: 1pt; padding: 4pt 6pt; border-bottom: 0; border-left: 1px solid var(--line); }
+  .race-report-stat:first-child { padding-left: 0; border-left: 0; }
+  .race-report-stat > span:first-child, .race-report-stat > small { font-size: 7.5pt; }
+  .race-report-stat > strong { justify-self: start; font-size: 9pt; }
+  .race-report-stat > .race-report-badge { justify-self: start; }
+  .race-report-badge { font-size: 6.5pt; }
+  .race-report-block { margin-top: 6pt; break-inside: avoid; }
+  .race-report .race-report-block h2, .race-report .race-report-block h4 { margin-top: 1pt; font-size: 10pt; }
+  .race-report-block p, .race-report-record dd { margin-top: 1pt; font-size: 8pt; line-height: 1.35; }
+  .race-report-table { margin-top: 3pt; }
+  .at20-track { height: 18pt; }
+  .at20-label, .at20-value { font-size: 8pt; }
+  .at20-ends { font-size: 7pt; }
+  .at20-key { margin-top: 3pt; font-size: 7pt; }
+  .at20-key i { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .at20-track, .at20-track i, .at20-track b { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .race-report-record { display: block; }
+  .race-report-record dl { margin-top: 2pt; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 8pt; border-top: 0; }
+  .race-report-record dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 2pt 0; border-bottom: 0; }
+  .race-report-record dt { font-size: 6.5pt; }
+  .race-report-foot { margin-top: 6pt; padding-top: 3pt; }
+  .race-report-foot p { font-size: 7pt; }
+  .race-report a { color: inherit; text-decoration: none; }
+}

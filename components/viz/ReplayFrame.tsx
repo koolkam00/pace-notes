@@ -1,0 +1,118 @@
+import type { CSSProperties, ReactNode } from 'react';
+import { withEm } from '@/components/ui/withEm';
+import ByUnits from '@/components/ui/ByUnits.client';
+import { FIELD_BOX, fieldX, MARATHON } from './replay-geometry';
+
+/**
+ * The replay's frame (the redesign spec, sections 3.6 and 7.1), drawn the same before and after its canvas loads so
+ * nothing moves: the race and the clock on the left, the share finished on the right, the canvas box (its height fixed
+ * in CSS) with the poster under the canvas, the moment's sentence under it (its two lines reserved, dimmed to
+ * --night-ink-3 while the race runs on), and the control row: play and pause, then the race clock with hour ticks.
+ * The field is one ink colour: slower is never orange (principle 3), and the replay's stories are about where the field
+ * is, not who slowed. Nothing sits on the canvas, so no control ever covers the leaders reaching the line. Pure markup:
+ * RaceReplay passes the handlers; the placeholder passes none and its controls are disabled.
+ */
+export type FrameProps = {
+  race: string;
+  clock: string;
+  finished: string;
+  view: 'field' | 'route';
+  poster?: ReactNode;
+  canvas?: ReactNode;
+  /** The flag frame's sentence: one string, or both units' (a distance in it), shown in the reader's units. */
+  moment?: string | { mi: string; km: string };
+  momentOn?: boolean;
+  playing?: boolean;
+  onPlay?: () => void;
+  time?: number;
+  max?: number;
+  onScrub?: (seconds: number) => void;
+  valuetext?: string;
+  busy?: boolean;
+  status?: string;
+  /** The canvas is drawing: the poster fades out under it. */
+  live?: boolean;
+  /** The route view's width-to-height ratio (routeAspect), so the frame fits the course's shape. */
+  aspect?: number;
+  /** A point the moment's sentence names (the home band: how far the back of the field had come): a ring on the last
+   *  lane at that exact distance, the back of the whole field (the sample need not hold its last runner), with its
+   *  distance on a hairline above it, in the plot's empty upper left, never on the axis row. Never a control. */
+  mark?: { km: number; label: { mi: string; km: string } };
+  /** The share the moment's sentence gives (the race-replay story: short of 20K), labelled inside the stretch of the
+   *  field it counts, beside that mat, while the flag frame shows. The canvas dims the runners past it. */
+  split?: { km: number; label: string };
+};
+
+/*
+ * Every mark the moment's sentence names (the first finisher, the back of the field, the share short of 20K) is true at
+ * the flag frame only, so each shows while that frame holds and fades out as soon as the clock leaves it (round 5: a
+ * label drawn through the run-up and the playback contradicted the frame under it).
+ */
+
+export default function ReplayFrame({ race, clock, finished, view, poster, canvas, moment, momentOn = true, playing = false, onPlay, time = 0, max = 0, onScrub, valuetext, busy, status, live = false, aspect, mark, split }: FrameProps) {
+  const hours = Math.max(0, Math.floor(max / 3600));
+  const ready = !!onScrub;
+  return (
+    <div className={`replay-frame${live ? ' is-live' : ''}`} aria-busy={busy || undefined}>
+      <div className="replay-hud" aria-live="off">
+        <div className="replay-hud-race">
+          <p className="replay-race">{race}</p>
+          <p className="replay-clock" aria-hidden="true">{clock}</p>
+        </div>
+        <dl className="replay-stats">
+          <div><dt>Finished</dt><dd>{finished}</dd></div>
+        </dl>
+      </div>
+      {/* The rank axis is named above the field, never on it, so no dot ever runs under its words. */}
+      {view === 'field' ? <p className="replay-axis-y" aria-hidden="true">First to finish at the top</p> : null}
+      <div className={`replay-box is-${view}`} style={view === 'route' && aspect ? ({ '--route-aspect': String(aspect) } as CSSProperties) : undefined}>
+        {/* The plot: the canvas and its labels, above the axis row (the home band sets that row over the box's foot, so
+            the plot stops short of it and no runner is ever drawn under a label). */}
+        <div className="replay-plot">
+          {poster}
+          {canvas}
+          {/* The first finisher, on the finish line in the top lane: the sentence's "When the first runner finished" is
+              drawn, not only counted (the sample need not hold the winner, whose lane is the top one). */}
+          {moment && view === 'field' ? (
+            <span className={`replay-first${momentOn ? '' : ' is-off'}`} style={{ left: `${(fieldX(MARATHON) * 100).toFixed(2)}%`, top: `${(FIELD_BOX.top * 100).toFixed(2)}%` }} aria-hidden="true">
+              <s /><b>1st</b>
+            </span>
+          ) : null}
+          {mark && view === 'field' ? (
+            <span className={`replay-mark${momentOn ? '' : ' is-off'}`} style={{ left: `${(fieldX(mark.km) * 100).toFixed(2)}%` }} aria-hidden="true">
+              <b><ByUnits mi={mark.label.mi} km={mark.label.km} /></b><i /><s />
+            </span>
+          ) : null}
+          {split && view === 'field' ? (
+            <span className={`replay-split${momentOn ? '' : ' is-off'}`} style={{ right: `${((1 - fieldX(split.km)) * 100).toFixed(2)}%` }} aria-hidden="true">{split.label}</span>
+          ) : null}
+        </div>
+        {status ? <p className="replay-status">{status}</p> : null}
+      </div>
+      {view === 'field' ? (
+        <div className="replay-mats" aria-hidden="true">
+          {[0, 10, 20, 30].map((km) => <span key={km} style={{ left: `${(fieldX(km) * 100).toFixed(2)}%` }}>{km ? `${km}K` : 'Start'}</span>)}
+          <span className="is-finish">Finish</span>
+        </div>
+      ) : null}
+      {moment ? <p className={`replay-moment${momentOn ? '' : ' is-off'}`}>{typeof moment === 'string' ? withEm(moment) : <ByUnits mi={withEm(moment.mi)} km={withEm(moment.km)} />}</p> : null}
+      <div className="replay-scrub">
+        <button type="button" className="replay-play" onClick={onPlay} disabled={!ready}>
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            {playing ? <><rect x="3.5" y="2.5" width="3" height="11" rx="1" fill="currentColor" /><rect x="9.5" y="2.5" width="3" height="11" rx="1" fill="currentColor" /></>
+              : <path d="M4.5 2.8v10.4L13 8z" fill="currentColor" />}
+          </svg>
+          <span className="sr-only">{playing ? 'Pause the replay' : 'Play the replay'}</span>
+        </button>
+        <div className="replay-track">
+          <input className="replay-range" type="range" min={0} max={Math.max(1, Math.ceil(max))} step={10} value={Math.round(time)} disabled={!ready}
+            onChange={(e) => onScrub?.(Number(e.target.value))} aria-label="Race clock" aria-valuetext={valuetext ?? clock}
+            style={{ '--fill': `${max ? Math.min(100, (time / max) * 100).toFixed(2) : 0}%` } as CSSProperties} />
+          <div className="replay-hours" aria-hidden="true">
+            {Array.from({ length: hours + 1 }, (_, h) => <span key={h} style={{ left: `${(((h * 3600) / Math.max(1, max)) * 100).toFixed(2)}%` }}>{h}h</span>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,114 @@
+/* Guess first (components/ui/GuessFirst.client.tsx): at most one per page. Set on the page like every other beat, in
+   the beat's own whitespace, never a box (round 6: the bordered card read as a widget beside the story; a hairline over
+   it parted the question from its own heading or kicker): a question,
+   a live "Your guess" readout, Lock it in and Skip, then the reveal on the SAME marks: the truth as a signal fill, the
+   guess as an orange ring labelled You, a comparison a small filled quiet dot (a ring is only ever the reader). On the
+   ruler the ring is the thumb: the native range lies over the ruler with its track and thumb invisible. Once the answer
+   shows, the guess steps back to a hairline ring, so the truth is the loudest mark. Spec section 3.5. */
+
+.guess {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); max-width: 36rem;
+  color: var(--ink);
+}
+.guess-question { margin: 0; }
+.guess-readout { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-4); min-height: 40px; }
+.guess-readout-key { font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.guess-readout-value { font-family: var(--sans); font-size: var(--t-readout); font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.guess-readout-value small { margin-left: 4px; font-size: .5em; font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
+.guess-readout-value small.is-pct { margin-left: 0; }
+
+/* The slider: a 2 px track, the guessed part in ink, a 30 px thumb with a 44 px hit area. */
+.guess input[type='range'].guess-range {
+  --fill: 50%;
+  display: block; width: 100%; height: 44px; min-height: 44px; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none; cursor: pointer;
+  -webkit-appearance: none; appearance: none; accent-color: var(--ink); touch-action: pan-y;
+}
+.guess input[type='range'].guess-range::-webkit-slider-runnable-track { height: 2px; border-radius: 2px; background: linear-gradient(to right, var(--ink) var(--fill), var(--rule-strong) var(--fill)); }
+.guess input[type='range'].guess-range::-moz-range-track { height: 2px; border-radius: 2px; background: var(--rule-strong); }
+.guess input[type='range'].guess-range::-moz-range-progress { height: 2px; border-radius: 2px; background: var(--ink); }
+.guess input[type='range'].guess-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 30px; height: 30px; margin-top: -14px;
+  border: 1px solid var(--rule-strong); border-radius: 50%; background: var(--control-thumb); box-shadow: var(--shadow-raise);
+  transition: transform var(--d-release) var(--spring);
+}
+.guess input[type='range'].guess-range::-moz-range-thumb { width: 30px; height: 30px; border: 1px solid var(--rule-strong); border-radius: 50%; background: var(--control-thumb); box-shadow: var(--shadow-raise); }
+/* Dark mode: the thumb is the light ink, so it reads on the dark page. */
+[data-theme="dark"] .guess input[type='range'].guess-range::-webkit-slider-thumb { border-color: var(--ink); background: var(--ink); }
+[data-theme="dark"] .guess input[type='range'].guess-range::-moz-range-thumb { border-color: var(--ink); background: var(--ink); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .guess input[type='range'].guess-range::-webkit-slider-thumb { border-color: var(--ink); background: var(--ink); }
+  :root:not([data-theme="light"]) .guess input[type='range'].guess-range::-moz-range-thumb { border-color: var(--ink); background: var(--ink); }
+}
+.guess input[type='range'].guess-range:active::-webkit-slider-thumb { transform: scale(1.12); transition-duration: var(--d-press); }
+.guess input[type='range'].guess-range:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.guess input[type='range'].guess-range:disabled { cursor: default; opacity: 1; }
+.guess input[type='range'].guess-range:disabled::-webkit-slider-thumb { box-shadow: none; }
+/* On the ruler: the range covers the ruler line, 44 px tall, reaching half a thumb past each end so its thumb centre
+   lands exactly on the ruler's scale; the You ring under it is what the reader sees and drags. */
+.guess input[type='range'].guess-range.is-on-ruler { position: absolute; z-index: 1; top: 26px; left: -15px; width: calc(100% + 30px); opacity: 0; }
+.guess input[type='range'].guess-range.is-on-ruler:disabled { pointer-events: none; }
+.guess-range.is-on-ruler:focus-visible + span .guess-mark.is-you { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--focus); }
+.guess:not(.is-revealed) .guess-ruler { cursor: grab; }
+
+/* The marks: a ruler, or 100 dots. On the ruler, You labels the top row and the truth the row under it, both
+   directly above their marks; a comparison is a small filled dot named in the key below. */
+.guess-marks { position: relative; }
+.guess-ruler { position: relative; height: 76px; margin: 0 8px; }
+.guess-ruler-line { position: absolute; left: 0; right: 0; top: 48px; height: 1px; background: var(--rule-strong); }
+.guess-ruler-tick { position: absolute; top: 44px; width: 1px; height: 9px; background: var(--rule-strong); }
+.guess-ruler-tick-label { position: absolute; top: 62px; transform: translateX(-50%); }
+.guess-mark { position: absolute; top: 48px; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; transition: opacity var(--d-reveal) var(--ease-out), transform var(--d-reveal) var(--spring); }
+.guess-mark.is-truth { background: var(--signal); box-shadow: 0 0 0 2px var(--paper); }
+.guess-mark.is-you { width: 20px; height: 20px; margin: -10px 0 0 -10px; border: 2px solid var(--signal); background: transparent; }
+.guess-mark.is-compare { width: 10px; height: 10px; margin: -5px 0 0 -5px; background: var(--ink-3); box-shadow: 0 0 0 2px var(--paper); }
+.guess-mark-label { position: absolute; transform: translateX(-50%); font-family: var(--sans); font-size: var(--t-direct); font-weight: 600; line-height: 16px; white-space: nowrap; color: var(--ink); }
+.guess-mark-label.is-you { top: 0; }
+.guess-mark-label.is-truth { top: 18px; color: var(--signal-ink); }
+.guess-mark-label.at-start { transform: translateX(-6px); }
+.guess-mark-label.at-end { transform: translateX(calc(-100% + 6px)); }
+.guess-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 8px 0; font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-2); }
+.guess-key span { display: inline-flex; align-items: center; gap: 6px; }
+.guess-key i { flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--ink-3); }
+
+/* The 100 dots take the card's width (up to 300 px), their size growing with it. */
+.guess-dots { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: clamp(4px, 2.4vw, 10px); width: 100%; max-width: 300px; margin: 4px 0; padding: 0; list-style: none; }
+.guess-dot { width: 100%; aspect-ratio: 1; height: auto; margin: 0; border-radius: 50%; border: 1px solid var(--mark-quiet); background: var(--fill-quiet); transition: background-color var(--d-quick) var(--ease-out), transform var(--d-reveal) var(--spring); transition-delay: calc(var(--i, 0) * var(--stagger)); }
+.guess-dot.is-lit { border-color: var(--signal); background: var(--signal); }
+.guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--signal); }
+/* Before the first move the default guess is a quiet hairline ring, so the untouched guess never outshouts the page. */
+.guess:not(.is-touched) .guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--mark-quiet); }
+.guess:not(.is-touched) .guess-dots-key i.is-you { border-color: var(--mark-quiet); }
+/* The ruler's You ring follows the same rule: quiet until the reader moves it. */
+.guess:not(.is-touched) .guess-mark.is-you { border-color: var(--mark-quiet); }
+.guess:not(.is-touched) .guess-mark-label.is-you { color: var(--ink-3); }
+.guess-dots-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
+.guess-dots-key span { display: inline-flex; align-items: center; gap: 6px; }
+.guess-dots-key i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+.guess-dots-key i.is-lit { background: var(--signal); }
+.guess-dots-key i.is-you { border: 2px solid var(--signal); }
+/* Revealed: the guess steps back to a hairline ring in --ink-3 (and its key with it), so the truth's signal dots lead. */
+.guess.is-revealed .guess-dot.is-you { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--ink-3); }
+.guess.is-revealed .guess-dots-key i.is-you { border: 1px solid var(--ink-3); }
+/* The ruler's You ring steps back the same way, so the truth is the one orange mark on the line. */
+.guess.is-revealed .guess-mark.is-you { border-width: 1.5px; border-color: var(--ink-3); }
+.guess.is-revealed .guess-mark-label.is-you { color: var(--ink-3); }
+
+/* Asking: the marks show only the guess. Revealed: the truth and the comparison arrive. */
+.guess:not(.is-revealed) .guess-mark.is-truth, .guess:not(.is-revealed) .guess-mark.is-compare { opacity: 0; transform: scale(.6); }
+.guess:not(.is-revealed) .guess-mark-label.is-truth, .guess:not(.is-revealed) .guess-key { opacity: 0; }
+.guess-mark-label, .guess-key { transition: opacity var(--d-reveal) var(--ease-out); }
+.guess.is-revealed.is-skipped .guess-mark.is-you, .guess.is-revealed.is-skipped .guess-mark-label.is-you { display: none; }
+
+.guess-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-5); }
+.guess-skip {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 2px; margin: 0;
+  border: 0; border-radius: var(--r-xs); background: none; box-shadow: none;
+  font-family: var(--sans); font-size: .9375rem; font-weight: 500; color: var(--ink-2);
+  text-decoration: underline; text-decoration-color: var(--rule-strong); text-underline-offset: .25em; cursor: pointer;
+}
+.guess-skip:hover { color: var(--ink); text-decoration-color: currentColor; border-color: transparent; }
+.guess-skip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.guess-verdict { margin: 0; min-height: 1.25em; }
+.guess-verdict:empty { display: none; }
+.guess-next { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; color: var(--ink); }

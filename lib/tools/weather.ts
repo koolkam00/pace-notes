@@ -3,6 +3,15 @@
  * None is fitted to or validated against Pace Notes data, and none is applied to Pace Notes results.
  */
 
+/**
+ * The weather match's fixed reference window: editions that started at 6–10 °C (43–50 °F; centre and half-width, °C),
+ * inside the start-temperature band the race-day weather analysis finds the steadiest (5–10 °C, 41–50 °F), so chapter 09
+ * names one good window, not two (critic round 4). scripts/nuggets/tools.cjs checks that it stays inside that band.
+ */
+export const WEATHER_REFERENCE = { c: 8, hw: 2 } as const;
+/** The weather match's example forecast, so the page opens on a full result; its nugget reads the same morning. */
+export const WEATHER_EXAMPLE = { temp: { f: 64, c: 18 }, dew: { f: 55, c: 13 } } as const;
+
 export const fToC = (f: number) => ((f - 32) * 5) / 9;
 export const cToF = (c: number) => (c * 9) / 5 + 32;
 

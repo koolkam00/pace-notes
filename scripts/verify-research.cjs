@@ -35,9 +35,10 @@ assert.deepEqual(parseCsv('name,n,note\r\n"New York, NY",,"A ""quote""\nand a li
 for (const value of [null, undefined, '', ' ', 'NaN']) assert.equal(finite(value), null);
 assert.equal(finite(0), 0);
 assert.equal(formatNumber(-1.5, '% change'), '-1.5%');
-assert.equal(sectionLabel(5), '0–5 km');
-assert.equal(sectionLabel(40), '35–40 km');
-assert.equal(sectionLabel(42.195), '40–42.195 km');
+// Sections are named by their mats in both unit modes (the redesign spec, section 3.10).
+assert.equal(sectionLabel(5), '0–5K');
+assert.equal(sectionLabel(40), '35–40K');
+assert.equal(sectionLabel(42.195), '40K–finish');
 
 const questions = getQuestions();
 const extensions = getExtensions();
@@ -285,13 +286,39 @@ for (const question of [...questions, ...extras]) for (const source of question.
   assert.equal(splitAnswer(getStudyAnswer()).shown, `By course, the share ranged from ${low.value.toFixed(1)}% in ${low.label} to ${high.value.toFixed(1)}% in ${high.label}.`);
   const onset = getWallTimingAnswer().charts[0].rows, top = onset.reduce((a, b) => (b.value > a.value ? b : a));
   assert.ok(splitAnswer(getWallTimingAnswer()).shown.startsWith(`The most common start was the ${top.label}–${Number(top.label) + 5} km section, with ${top.value.toFixed(1)}% of sustained slowdowns.`));
-  // /slowdown and the hub show the finding figures; the definition-sensitivity check is on /methodology.
+  // The research hub shows the finding figures; the definition-sensitivity check is on /methodology. /slowdown (rebuilt
+  // under the redesign, section 7.7) draws its own three findings from the same study: checked below.
   const shownFigures = getSlowdownFigures();
   assert.deepEqual(shownFigures.map(f => f.id), ['age', 'history']);
   for (const figure of shownFigures) {
     assert.match(figure.answer, /\d+(?:\.\d)?%/, `${figure.id}: the figure states its finding`);
     assert.doesNotMatch(figure.answer, caveat, `${figure.id}: no method copy in the figure answer`);
   }
+}
+
+// /slowdown: where sustained slowdowns began and the earlier-best columns, each from the current study; the term links to its definition once; no method copy, source links or Recharts.
+{
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const UnitsProvider = require('../components/UnitsProvider.tsx').default;
+  const Slowdown = require('../app/slowdown/page.tsx').default;
+  const html = renderToStaticMarkup(React.createElement(UnitsProvider, null, React.createElement(Slowdown)));
+  const study = require('../lib/research-data.ts').getStudyEvidence();
+  const rows = study.timing.charts[0].rows;
+  const total = rows.reduce((s, r) => s + r.episodes, 0), late = rows.filter(r => r.label >= 30).reduce((s, r) => s + r.episodes, 0);
+  // "Most … began at 30K or later" holds only while more than half of them did.
+  assert.ok(late / total > 0.5, '/slowdown: most sustained slowdowns began at 30K or later');
+  // The H1 is the finding with no link; the unit line under the figure gives the base and links the term once.
+  assert.match(html, /<h1[^>]*>Most sustained slowdowns began at <em>30K or later<\/em>\.<\/h1>/);
+  assert.ok(html.includes(`<p class="reading-unit-line">of the ${total.toLocaleString('en-US')} <a class="term-link" href="/methodology#sustained-slowdown">sustained slowdowns</a></p>`), '/slowdown: the unit line names every sustained slowdown and links the term');
+  assert.ok(html.includes(`>${Math.round(100 * late / total)}<`), '/slowdown: the reading is the share that began at 30K or later');
+  for (const id of ['answer', 'history']) assert.match(html, new RegExp(`<section[^>]*id="${id}"`), `/slowdown: the ${id} beat`);
+  // The spread across courses is course comparison's finding: /slowdown does not repeat it.
+  assert.doesNotMatch(html, /<section[^>]*id="courses"/, '/slowdown: no course beat');
+  assert.equal((html.match(/href="\/methodology#sustained-slowdown"/g) || []).length, 1, '/slowdown links the term to its definition once');
+  const history = study.figures.find(f => f.id === 'history').charts[0].rows.filter(r => r.n_value >= 100);
+  for (const r of history) assert.ok(html.includes(`${Math.round(r.value)}%`), `/slowdown: the ${r.label} column`);
+  assert.doesNotMatch(html, /doi\.org|journals\.plos\.org|evidence\.json|recharts|at least 25%/i, '/slowdown: no definition, citation, source link or Recharts');
 }
 
 console.log(`Verified ${questions.length} questions, ${charts.length} chart views, all original analysis routes, source files, CSV edge cases, and the ${total.toLocaleString('en-US')}-finish denominator.`);

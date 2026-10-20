@@ -1,0 +1,91 @@
+/* The chapter list (components/ui/ChapterList.tsx; the redesign spec, section 3.5) and the chapter rail
+   (components/ChapterRail.tsx, section 2.5). Each chapter's marker sits on a dashed course line that joins the chapters
+   of a part; the reader's chapter has a signal dot on the line and "You are here". Variants: compact (the menu), full
+   (the home guide) and expanded (the contents). Crumbs (components/ui/ChapterHeader.tsx) are styled at the end. */
+
+.chapter-list { --line-x: 28px; }
+.chapter-part + .chapter-part { margin-top: var(--s-5); }
+.chapter-part-label { margin: 0 0 var(--s-1); }
+.chapter-rows, .chapter-pages { list-style: none; margin: 0; padding: 0; }
+.chapter-row { position: relative; margin: 0; }
+.chapter-row + .chapter-row, .chapter-pages li + li { margin-top: 0; }
+/* The course line: 2 px dashes through the marker column, from the first marker of a part to its last. */
+.chapter-row::before {
+  content: ''; position: absolute; left: calc(var(--line-x) - 1px); top: 0; bottom: 0; width: 2px;
+  background: repeating-linear-gradient(to bottom, var(--mark-quiet) 0 5px, transparent 5px 10px);
+}
+.chapter-row:first-child::before { top: 32px; }
+.chapter-row:last-child::before { bottom: calc(100% - 32px); }
+.chapter-row:only-child::before { display: none; }
+
+.chapter-link {
+  position: relative; display: grid; grid-template-columns: calc(var(--line-x) * 2) minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3);
+  min-height: 64px; padding: 8px 0; color: var(--ink); text-decoration: none; border-radius: var(--r-sm);
+}
+.chapter-link:hover { color: var(--ink); text-decoration: none; }
+.chapter-link:hover .chapter-name { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; }
+.chapter-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.chapter-mark { position: relative; z-index: 1; display: flex; align-self: start; justify-content: center; height: 48px; align-items: center; }
+.chapter-text { display: grid; gap: 2px; min-width: 0; padding: 4px 0; }
+.chapter-name { font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: 1.1875rem; line-height: 1.2; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+.chapter-sub { font-family: var(--sans); font-size: var(--t-small); line-height: 1.35; color: var(--ink-3); }
+
+/* You are here: a signal dot on the line under the marker, and the words under the title. */
+.chapter-link[aria-current] .chapter-mark::after {
+  content: ''; position: absolute; left: 50%; top: calc(100% + 4px); width: 10px; height: 10px; margin-left: -5px;
+  border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 3px var(--paper-raised);
+}
+.chapter-link[aria-current] .chapter-text::after { content: 'You are here'; font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--signal-ink); }
+
+/* The reading, right-aligned: the figure and its key (at most two lines). */
+.chapter-reading { display: grid; justify-items: end; gap: 4px; max-width: 18ch; text-align: right; }
+.chapter-key { font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+
+/* Expanded (the contents) is styled with the contents page: app/styles/pages/research.css. */
+
+@media (max-width: 359.98px) {
+  .is-compact .chapter-sub { display: none; }
+  .chapter-list { --line-x: 24px; }
+  .chapter-link { grid-template-columns: calc(var(--line-x) * 2) minmax(0, 1fr); }
+  .chapter-reading { grid-column: 2; justify-items: start; text-align: left; }
+}
+/* 200% zoom on a phone: the names a step smaller and the gap tighter, so a short name keeps its line ("The first 5K",
+   never "The / first 5K") and a longer one breaks at its middle. */
+@media (max-width: 299.98px) {
+  .chapter-link { column-gap: var(--s-2); }
+  .chapter-name { font-size: 1.0625rem; }
+}
+@media (min-width: 900px) {
+  .is-full .chapter-reading .big-number.is-s { font-size: var(--t-figure-m); }
+  .is-full .chapter-name { font-size: 1.5rem; }
+  .is-full .chapter-link { min-height: 88px; }
+}
+
+/* ---------- The chapter rail (from 1180 px) ---------- */
+.chapter-rail { display: none; }
+.chapter-rail ol { list-style: none; margin: 0; padding: 0; }
+.chapter-rail li + li { margin-top: 0; }
+.rail-chapter { display: flex; align-items: center; gap: var(--s-2); margin: 0; }
+.rail-title { margin: var(--s-2) 0 var(--s-3); font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: 1.25rem; line-height: 1.2; letter-spacing: -.01em; color: var(--ink); }
+.rail-pages { border-left: 1px solid var(--rule); }
+.rail-link { display: flex; align-items: center; min-height: 44px; padding: 6px 0 6px 14px; margin-left: -1px; border-left: 2px solid transparent; color: var(--ink-3); font-family: var(--sans); font-size: var(--t-small); font-weight: 500; line-height: 1.3; text-decoration: none; }
+.rail-link:hover { color: var(--ink); text-decoration: none; }
+.rail-pages .rail-link[aria-current="page"] { border-left-color: var(--ink); color: var(--ink); font-weight: 600; }
+/* An also-in-this-chapter tool, current, indented under the chain (ChapterRail); its beats a step further in. */
+.rail-also > .rail-link { padding-left: 26px; }
+.rail-also .rail-beats .rail-link { padding-left: 38px; }
+.rail-beats { margin: 0 0 var(--s-2); }
+.rail-beats .rail-link { min-height: 44px; padding-left: 26px; font-size: var(--t-label); font-weight: 400; }
+.rail-beats .rail-link[aria-current] { color: var(--ink); }
+.rail-beats .rail-link[aria-current]::before { content: ''; flex: none; width: 6px; height: 6px; margin: 0 8px 0 -14px; border-radius: 50%; background: var(--ink); }
+@media (min-width: 1180px) {
+  .chapter-rail { display: block; }
+  /* The rail beside the page names the chapter (its marker, number and title), so the crumb above the H1 does not say
+     it again on the same screen; under 1180 px, with no rail, the crumb is the page's only chapter line. */
+  .with-rail > .chapter-rail ~ * .reading-crumbs { display: none; }
+}
+
+/* ---------- Crumbs: "[FINISH] Chapter 06 · The finish line · Page 1 of 2" ---------- */
+.crumb-chapter { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: none; }
+.crumb-chapter:hover { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; }
+.crumb-place { white-space: nowrap; }

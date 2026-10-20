@@ -1,23 +1,20 @@
 import { notFound } from 'next/navigation';
-import PageFeedback from '@/components/PageFeedback';
-import HeroReplay from '@/components/story/HeroReplay';
-import CourseElevation from '@/components/course/CourseElevation';
-import CourseFinishTimes from '@/components/course/CourseFinishTimes';
-import CourseGlance from '@/components/course/CourseGlance';
+import CourseElevation, { elevationShown } from '@/components/course/CourseElevation';
+import CourseFinishTimes, { timesShown } from '@/components/course/CourseFinishTimes';
+import CourseGlance, { glanceRows } from '@/components/course/CourseGlance';
 import CourseGoals from '@/components/course/CourseGoals';
 import CourseHero from '@/components/course/CourseHero';
+import CourseNumbers from '@/components/course/CourseNumbers';
 import CourseOthers from '@/components/course/CourseOthers';
 import CoursePacing from '@/components/course/CoursePacing';
-import CoursePlan from '@/components/course/CoursePlan';
 import CourseSlowdown from '@/components/course/CourseSlowdown';
-import CourseWeatherByYear from '@/components/course/CourseWeatherByYear';
-import { getIndividualCourseAnswer } from '@/lib/course-data';
+import CourseToc from '@/components/course/CourseToc';
+import CourseWeatherByYear, { WEATHER_MIN_MORNINGS } from '@/components/course/CourseWeatherByYear';
+import { readingAttrs } from '@/lib/chapters';
+import { getNugget } from '@/lib/nuggets';
 import { courseDescription, coursePage, coursePages, courseTitle } from '@/lib/course-page';
-import type { Courses, ReplayIndex } from '@/lib/insights';
-import { getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
-import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
-import '../../tools/tools.css';
-import './course.css';
+import { JsonLd, pageCrumbs, pageMetadata } from '@/lib/seo';
+import '@/app/styles/pages/course.css';
 
 export function generateStaticParams() { return [...coursePages().keys()].map((city) => ({ city })); }
 
@@ -32,39 +29,41 @@ export function generateMetadata({ params }: { params: { city: string } }) {
 }
 
 /**
- * One course page: what the data holds for the race, by year, with its route, pacing, goal times and race mornings, and
- * the way into the planner. Sections and their data are in docs/SEO.md ("Course pages"); every figure is checked against
- * its file by scripts/verify-courses.cjs.
+ * One course page (the redesign spec, sections 4.3 and 7.10, cut under section 00): the night hero with the race's
+ * reading, then one finding and one chart per section in the pinned order (at a glance, finish times, elevation,
+ * pacing, sustained slowdown, goals, weather), each only where the course's data gives it something to show, every long
+ * table in one "All numbers" disclosure, then the closing stack every page ends on (#other-courses). The hero's "Plan your
+ * …" is #plan, the page's call to action. The contents row lists the findings only. Sections and their data are in docs/SEO.md ("Course pages"); every figure is
+ * checked against its file by scripts/verify-courses.cjs and every sentence by scripts/verify-nuggets.cjs.
  */
 export default function CityPage({ params }: { params: { city: string } }) {
   const page = coursePage(params.city);
-  const profile = page && getIndividualCourseAnswer(page.city);
-  if (!page || !profile) notFound();
-  // The pooled pace profile says what it shows; its cohort size and caveats belong on /methodology.
-  const pooled = { ...profile, answer: `Where ${page.display} finishers sped up and slowed down, against their own marathon average.`, detail: undefined, dataset: undefined };
-  const courses = readInsight<Courses>('courses.json');
-  const replay = readInsight<ReplayIndex>('replay.json').editions.filter((e) => e.city === page.city);
-  const choices = replayChoices(replay, getInsightsManifest(), new Map(page.geometry ? [[page.city, { points: page.geometry.route, km: page.geometry.route_km }]] : []));
+  if (!page) notFound();
+  // A section shows only when it has something to show: no heading over an empty chart.
+  const glance = glanceRows(page);
+  const shown: [string, string, boolean][] = [
+    ['at-a-glance', 'At a glance', glance.length > 0], ['finish-times', 'Finish times', timesShown(page)],
+    ['elevation', 'Elevation', elevationShown(page)], ['pacing', 'Pacing', !!page.types], ['slowdown', 'Slowdowns', true], ['goals', 'Goals', page.goals.length > 0],
+    // #weather only where its sentence is a finding (a pair of mornings): a span of temperatures is none (round 6).
+    ['weather', 'Weather', !!page.hotCool && page.weather.length >= WEATHER_MIN_MORNINGS && getNugget('course.weather', { city: page.city }).guard],
+  ];
+  const sections = shown.filter(([, , on]) => on).map(([id, name]) => [id, name] as [string, string]);
   return (
-    <div className="course-page">
-      <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Courses', '/courses'], [page.race]])} />
+    <div className="course-page" {...readingAttrs(`/courses/${page.slug}`, page.race)}>
+      <JsonLd data={pageCrumbs(`/courses/${params.city}`, page.race, { parents: [['Courses', '/courses']] })} />
       <CourseHero page={page} />
+      {/* The contents row only where it saves scrolling: four sections or more (round 6: three chips over a three-section
+          page were chrome a single scroll does without). */}
+      {sections.length >= 4 ? <CourseToc sections={sections} /> : null}
       <CourseGlance page={page} />
       <CourseFinishTimes page={page} />
       <CourseElevation page={page} />
-      <CoursePacing page={page} typical={courses.typical_curve} profile={pooled} />
+      <CoursePacing page={page} />
       <CourseSlowdown page={page} />
       <CourseGoals page={page} />
       <CourseWeatherByYear page={page} />
-      <CoursePlan page={page} />
-      {choices.length ? (
-        <section className="chapter course-section" id="replay" aria-labelledby="replay-title">
-          <div className="chapter-head"><p className="chapter-num">Replay</p><h2 id="replay-title" className="chapter-title">Watch {page.display} {choices[0].year} unfold.</h2></div>
-          <div className="chapter-body night replay-stage"><HeroReplay choices={choices} initial={choices[0].slug} /></div>
-        </section>
-      ) : null}
-      <PageFeedback className="course-feedback" />
-      <CourseOthers page={page} total={coursePages().size} />
+      <CourseNumbers page={page} />
+      <CourseOthers page={page} />
     </div>
   );
 }

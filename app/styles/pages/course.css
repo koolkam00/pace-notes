@@ -1,0 +1,326 @@
+/* A course page (/courses/<slug>; components/course; the redesign spec, sections 4.3 and 7.10, cut under section 00).
+   The night hero, the contents row under it, then one beat per section: a finding as its heading and
+   one chart, divided by hairlines, never boxed. Every long table sits in one "All numbers" disclosure. Mobile first; from
+   900 px the hero and each beat take two columns (the finding beside its chart). */
+
+.course-page { --course-gap: 24px; padding-bottom: var(--s-6); }
+.course-page .term-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: .2em; }
+.course-page .term-link:hover { text-decoration-style: solid; }
+
+/* ---------- The hero: night, full-bleed by its background only (box-shadow and clip-path paint past the column without
+   widening the page) ---------- */
+.course-hero {
+  --route-w: 128px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "head head" "figure route" "sentence sentence" "strip strip" "actions actions";
+  column-gap: var(--s-4); align-items: end;
+  padding: var(--s-4) 0 var(--s-5); background: var(--night); color: var(--ink);
+  /* On the dark page a hairline (--night-edge-colour, transparent on paper) at its top and foot keeps the band from
+     dissolving into the page, as the home page's bands do. */
+  box-shadow: 0 0 0 100vmax var(--night), 0 1px 0 100vmax var(--night-edge-colour), 0 -1px 0 100vmax var(--night-edge-colour); clip-path: inset(-1px -100vmax);
+}
+.course-hero-head { grid-area: head; }
+.course-crumbs { margin-bottom: 0; color: var(--ink-3); }
+.course-title { margin: var(--s-2) 0 0; color: var(--ink); max-width: 16ch; }
+.course-hero .hero-dek { margin: var(--s-3) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+
+.course-hero-figure { grid-area: figure; display: grid; gap: var(--s-2); justify-items: start; margin-top: var(--s-5); min-width: 0; }
+.course-hero-figure .big-number { margin-left: -.04em; }
+.course-hero-key { margin: 0; max-width: 15rem; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); text-wrap: balance; }
+.course-hero-route { grid-area: route; display: grid; justify-items: center; gap: var(--s-2); width: var(--route-w); margin: var(--s-5) 0 0; color: var(--ink); }
+.course-hero-route .route-face { max-height: 132px; }
+.course-hero-route figcaption { font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-3); text-align: center; white-space: nowrap; }
+.course-hero-sentence { grid-area: sentence; margin: var(--s-5) 0 0; max-width: 30rem; color: var(--ink); }
+.course-hero-strip { grid-area: strip; margin-top: var(--s-5); min-width: 0; }
+.course-hero-strip .viz-frame { max-width: none; }
+.course-hero-actions { grid-area: actions; display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-5); }
+
+/* The route as a face (it paints itself in currentColor). */
+.route-face { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* ---------- The contents row: under the hero, in the page's flow (the reading bar carries progress) ---------- */
+.course-toc {
+  margin: 0 calc(-1 * var(--gutter)); padding: 6px var(--gutter);
+  background: var(--paper); border-bottom: 1px solid var(--rule);
+}
+.course-toc ul {
+  display: flex; gap: var(--s-2); margin: 0; padding: 0 0 0 1px; list-style: none;
+  overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+}
+.course-toc ul::-webkit-scrollbar { display: none; }
+.course-toc li { flex: none; margin: 0; scroll-snap-align: start; }
+.course-toc li:last-child { padding-right: 24px; }
+.course-toc-chip {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill);
+  font-size: var(--t-label); font-weight: 600; color: var(--ink); white-space: nowrap; text-decoration: none;
+  transition: border-color var(--d-quick) var(--ease-out), background var(--d-quick) var(--ease-out);
+}
+.course-toc-chip:hover { border-color: var(--ink); text-decoration: none; }
+.course-toc-chip:active { background: var(--paper-sunk); }
+
+/* ---------- Beats: a finding and one chart, a hairline between ---------- */
+.course-beat { padding-top: var(--course-gap); scroll-margin-top: calc(var(--header-h) + var(--s-4)); }
+.course-beat + .course-beat, .course-numbers + .course-beat { margin-top: var(--course-gap); border-top: 1px solid var(--rule); }
+.course-toc + .course-beat { padding-top: var(--s-6); }
+.course-beat[tabindex="-1"]:focus { outline: none; }
+.course-h2 {
+  margin: 0; max-width: 24ch; font-family: var(--serif); font-optical-sizing: auto; font-variation-settings: normal; font-weight: 440; font-size: var(--t-h2);
+  line-height: 1.1; letter-spacing: -.018em; color: var(--ink); text-wrap: balance;
+}
+/* One accent per screen (round 3): only an H1's italic is orange, so a beat's italic is ink and the chart's marks carry
+   the signal (base.css .t-h2 em; layout lint check 9). */
+.course-h2 em { font-style: italic; font-weight: inherit; color: inherit; }
+.course-beat-body { margin-top: var(--s-4); min-width: 0; }
+.course-beat-body > * + * { margin-top: var(--s-5); }
+.course-beat-body .viz-frame { max-width: none; }
+
+/* At a glance: three rows, hairlines between, a figure, its words and a micro-chart. */
+.course-glance .glance-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.glance-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "figure chart" "key chart";
+  column-gap: var(--s-4); row-gap: 6px; align-items: center; margin: 0; padding: var(--s-3) 0; border-bottom: 1px solid var(--rule);
+}
+.glance-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.glance-figure { grid-area: figure; min-width: 0; }
+.glance-figure .big-number { font-size: clamp(2rem, 8.2vw, 3rem); }
+.glance-key { grid-area: key; max-width: 22rem; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); }
+.glance-chart { grid-area: chart; align-self: center; }
+.glance-viz { display: block; overflow: visible; }
+.glance-level { stroke: var(--mark-quiet); stroke-width: 1; stroke-dasharray: 3 3; }
+.glance-start { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
+.glance-signal { fill: none; stroke: var(--signal); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
+.glance-axis { fill: var(--rule-strong); }
+.glance-bar { fill: var(--mark-quiet); }
+.glance-bar.is-signal { fill: var(--signal); }
+.glance-typical { fill: none; stroke: var(--mark-quiet); stroke-width: 1.4; stroke-dasharray: 3 3; }
+.glance-course { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.glance-point { fill: var(--signal); stroke: var(--paper); stroke-width: 1.5; }
+/* One accent per section: the first row's chart carries the orange, the rows after it draw in ink. */
+.glance-row.is-quiet .glance-signal { stroke: var(--ink); }
+.glance-row.is-quiet .glance-bar.is-signal, .glance-row.is-quiet .glance-point { fill: var(--ink); }
+/* One row is the section's finding: its sentence is the H2, so the row is its chart, drawn at the column's width
+   (ShapeChart), or its figure and chart with no rules round it. */
+.course-glance.is-single .glance-rows { border-top: 0; }
+.course-glance.is-single .glance-row { grid-template-areas: "figure chart"; padding-top: 0; }
+.course-glance .glance-row.is-chart { display: flex; align-items: center; gap: var(--s-4); }
+.course-glance .glance-row.is-chart .glance-chart { order: -1; }
+
+/* Elevation: without section paces, no pace blocks. The route's totals under the chart, one line. */
+.course-elevation-plain .pace-blocks { display: none; }
+/* Each block says its unit where it fits (round 6: "+3" read unitless), the % dropped only by a block too narrow for it
+   (the 40K–finish block on a phone), by the block's own width as chart-frame.css does, not by the row's. */
+@container pace-row (max-width: 559.98px) { .course-page #elevation .viz-frame .pace-pct { display: inline; } }
+@container pace-block (max-width: 23.98px) { .course-page #elevation .viz-frame .pace-val.n1 .pace-pct { display: none; } }
+@container pace-block (max-width: 31.98px) { .course-page #elevation .viz-frame .pace-val.n2 .pace-pct { display: none; } }
+@container pace-block (max-width: 37.98px) { .course-page #elevation .viz-frame .pace-val.n3 .pace-pct { display: none; } }
+/* The climb the heading names is washed in ink, its blocks outlined in ink: slower is never orange (spec 1.3), and a
+   signal-tinted wash over the ramp's slower blocks read close to orange (round 6). */
+.course-page #elevation .viz-frame .a-signal { fill: var(--ink); opacity: .06; }
+.course-totals { display: flex; flex-wrap: wrap; gap: 4px var(--s-3); margin: var(--s-4) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.course-totals div { display: flex; flex-wrap: wrap; gap: 0 var(--s-2); }
+.course-totals dt { font-weight: 600; color: var(--ink); }
+.course-totals dd { margin: 0; }
+
+/* Pacing: the dumbbell rows, a glyph beside each type's name; the name column as wide as its longest name ("Fast-start
+   fader"), the track taking the rest of the width, so a few points' gap still reads at desktop width. */
+@container (min-width: 300px) { .viz-frame.dumbbell.course-types .dumbbell-rows { grid-template-columns: auto minmax(0, 1fr) 3rem; } }
+.course-types .dumbbell-label { display: inline-flex; align-items: center; gap: var(--s-2); }
+.course-types .dumbbell-label > span { min-width: 0; }
+
+/* Goals: the table is the chart. A row per goal: the goal (a link to the planner, stretched over the whole row), a bar
+   out of 100, the share. */
+.course-goals-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.course-goals-table tbody tr { position: relative; }
+.course-goals-table tbody th a::after { content: ''; position: absolute; inset: 0; }
+.course-goals-table tbody tr:hover .arrow-icon { transform: translateX(3px); color: var(--ink); }
+.course-goals-table tbody th a:focus-visible { outline: none; }
+.course-goals-table tbody th a:focus-visible::after { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.course-goals-table th, .course-goals-table td { padding: 0; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+.course-goals-table tbody tr:first-child th, .course-goals-table tbody tr:first-child td { border-top: 1px solid var(--rule); }
+.course-goals-table tbody th { width: 4.5rem; text-align: left; }
+.course-goals-table tbody th a {
+  display: inline-flex; align-items: center; min-width: 44px; min-height: 52px; padding-right: var(--s-3);
+  font-size: 1.0625rem; font-weight: 600; color: var(--ink); text-decoration: none;
+}
+.course-goals-table .goal-go { box-sizing: content-box; width: 16px; padding-left: var(--s-3); text-align: right; }
+.course-goals-table .goal-go .arrow-icon { display: block; flex: none; width: 16px; min-width: 16px; height: 16px; color: var(--ink-3); transition: transform var(--d-quick) var(--ease-out); }
+.course-goals-table .goal-bar { width: auto; }
+.course-goals-table .goal-bar::before { content: ''; display: block; height: 8px; border-radius: 4px; background: var(--paper-sunk); }
+.course-goals-table .goal-bar { position: relative; }
+.course-goals-table .goal-bar span { position: absolute; left: 0; top: 50%; height: 8px; margin-top: -4px; border-radius: 4px; background: var(--ink); }
+.course-goals-table .goal-value { width: 3.5rem; padding-left: var(--s-3); text-align: right; font-size: 1.0625rem; font-weight: 600; white-space: nowrap; }
+.course-goals-table tr.is-lead .goal-bar span { background: var(--signal); }
+/* Every course's share on the same bar: a hollow ring, as the pacing rows draw every course. */
+.course-goals-table .goal-bar .goal-every { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.course-beat-body > .course-goals-key { margin: var(--s-3) 0 0; }
+.course-key-bar { display: inline-block; width: 18px; height: 8px; border-radius: 4px; background: var(--ink); }
+.course-key-ring { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.course-goals-table td.course-reason { padding: var(--s-3) 0; font-size: var(--t-small); color: var(--ink-3); }
+.course-goals-table tbody tr:last-child th, .course-goals-table tbody tr:last-child td { border-bottom: 0; }
+/* The bars' scale, under the bar column: zero and the round ten above the largest share. */
+.course-goals-table tfoot td, .course-goals-table tfoot th { padding: 0; border: 0; }
+.course-goals-table tfoot .goal-axis-track { padding-top: 6px; font-size: 12px; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; text-align: left; }
+.course-goals-table .goal-axis-ends { display: flex; justify-content: space-between; }
+/* At 200% zoom the bar keeps a readable track: the goal and value columns narrow and the arrow goes (the row is still
+   the link). */
+@media (max-width: 299.98px) {
+  .course-goals-table .goal-bar { min-width: 64px; }
+  .course-goals-table tbody th { width: 2.75rem; }
+  .course-goals-table .goal-value { width: auto; padding-left: var(--s-2); }
+  .course-goals-table .goal-go { display: none; }
+}
+
+.course-rows-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 var(--s-3); padding: 0; list-style: none; font-size: var(--t-label); line-height: 1.3; color: var(--ink-3); }
+.course-rows-key li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.course-beat .chapter-end { margin-top: var(--s-6); }
+
+/* The scrubbers' detent dots show only once the needle leaves the edition the chart opens on (a mark at rest on the axis
+   would read as data). */
+.course-page .scrub:not(.is-away):not(.is-dragging) .scrub-detents i,
+.course-hero .scrub:not(.is-away):not(.is-dragging) .scrub-detents i { opacity: 0; }
+/* The edition the hero's sentence accents keeps its signal while the needle is elsewhere (round 6: it turned paper-white,
+   the brightest mark on the night card, outshining the orange it stood for). */
+.course-hero .viz-frame .scrub.is-away .m-signal.is-reading { fill: var(--signal); }
+
+/* One "‹ drag ›" hint per page: on its first scrubber (the hero's strip, else the first section's), never again below. */
+@supports selector(:has(a)) {
+  .course-page:has(.course-hero .scrub-hint) .course-beat .scrub-hint,
+  .course-beat:has(.scrub-hint) ~ .course-beat .scrub-hint { display: none; }
+}
+/* A strip waiting for its first pick keeps its prompt on one quiet line, without the readout's reserved height and rule
+   (the readout takes its room when a dot is chosen, on the reader's own tap). */
+@supports selector(:has(a)) {
+  .course-page .viz-frame .readout:has(.readout-value:empty) { min-height: 0; padding-bottom: 0; border-bottom: 0; }
+}
+/* The weather scatter's chosen morning is its dot drawn larger, never a target: the warmer morning the sentence accents
+   in signal while the chart rests on it, any other morning the reader picks in ink. */
+.course-page .viz-frame.scatter .scrub-ring { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
+/* One knockout layer under every dot (Scatter's m-halo), so a cluster's dots never cut crescents into each other. */
+.course-page .viz-frame.scatter circle.m-halo { fill: var(--paper); stroke: none; }
+.course-page .viz-frame.scatter circle.is-flat { stroke: none; }
+
+/* Keyboard focus rings the whole instrument (the plot, its ticks and the drag handle), never a box drawn between the
+   baseline and the tick labels. */
+@supports selector(:has(a)) {
+  .course-page .viz-frame .scrub-area:has(.scrub-plot:focus-visible) { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--r-xs); }
+  .course-page .viz-frame .scrub-plot:focus-visible { outline: none; }
+}
+
+/* ---------- All numbers: one disclosure, every table ---------- */
+.course-numbers { margin-top: var(--course-gap); }
+.course-numbers-body { display: grid; gap: var(--s-6); }
+.course-table-wrap { position: relative; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.course-table-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* A wide table shows an edge at the right while it has more to scroll to: a shade fixed to the region's edge, and a
+   cover of paper that rides at the table's own end and hides the shade once the reader gets there. No script. */
+.course-numbers .course-table-wrap {
+  background:
+    linear-gradient(to left, var(--paper) 40%, transparent) 100% 0 / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--rule-strong), transparent) 100% 0 / 12px 100% no-repeat scroll;
+}
+.course-table { border-collapse: collapse; font-family: var(--sans); font-size: .875rem; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--ink); }
+.course-numbers .course-table { min-width: 100%; }
+.course-table caption { caption-side: top; padding: 0 0 var(--s-2); text-align: left; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.course-numbers .course-table th, .course-numbers .course-table td { height: 44px; padding: 6px 0 6px 16px; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: middle; white-space: nowrap; }
+.course-numbers .course-table th:first-child, .course-numbers .course-table td:first-child { position: sticky; left: 0; z-index: 1; padding-left: 0; padding-right: 12px; text-align: left; background: var(--paper); }
+.course-numbers .course-table thead th { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); vertical-align: bottom; white-space: normal; min-width: 4.5rem; }
+.course-numbers .course-table tbody th { font-weight: 500; color: var(--ink); }
+.course-numbers .course-table td.course-reason { text-align: left; white-space: normal; color: var(--ink-3); }
+
+/* ---------- The foot: after "All numbers", the closing stack every page ends on ---------- */
+.course-foot { margin-top: var(--s-6); scroll-margin-top: calc(var(--header-h) + var(--s-4)); }
+.course-foot[tabindex="-1"]:focus { outline: none; }
+.course-foot.is-last .chapter-end { margin-top: 0; }
+/* The closing stack takes the width of the content above it ("All numbers", the sections) from 900 px, so the page's last
+   block shares their right edge (round 6); the card spreads its title and its reading across that width. The rule is
+   shared with /courses (courses.css imports none of it: it repeats the four lines). */
+@media (min-width: 900px) {
+  .course-page .chapter-end { max-width: none; }
+  .course-page .chapter-end .chapter-next .next-card { grid-template-columns: minmax(0, 1fr) minmax(0, auto); column-gap: var(--s-7); align-items: end; }
+  .course-page .chapter-end .next-card-kicker { grid-column: 1 / -1; }
+  .course-page .chapter-end .next-card-title { grid-column: 1; margin-right: 0; }
+  .course-page .chapter-end .next-card-reading { grid-column: 2; grid-row: 2; margin-top: 0; }
+}
+
+/* #pacing's last line: the courses paced most like this one, three inline links in a quiet sentence (each link's hit
+   area 44 px tall, a pseudo-element; the line keeps its own height). */
+.course-alike { margin: var(--s-4) 0 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.6; color: var(--ink-2); text-wrap: pretty; }
+.course-alike-link { position: relative; white-space: nowrap; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .22em; text-decoration-color: var(--rule-strong); }
+.course-alike-link:hover { text-decoration-color: var(--ink); }
+.course-alike-link::after { content: ''; position: absolute; inset: -12px -2px; }
+#plan[tabindex="-1"]:focus { outline: none; }
+
+/* ---------- From 600 px ---------- */
+@media (min-width: 600px) {
+  .course-hero { --route-w: 168px; }
+}
+
+/* ---------- From 900 px: two columns ---------- */
+@media (min-width: 900px) {
+  .course-page { --course-gap: 64px; }
+  /* The route beside the race's name and its figure (the figure follows the name directly; the route spans both rows),
+     the year strip beside the sentence and the action: no column runs empty. The figure's row is the flexible one, so
+     the route's height opens no gap under the name. */
+  /* Two rows under the name (critic round 5: the name broke in a narrow column while the route floated small in an empty
+     frame, and the strip fell below the fold): the race's name on one line across the band; then the figure beside the
+     route; then the sentence and the action beside the year strip. The whole hero, drag handle included, fits a
+     1440 × 900 screen. */
+  .course-hero {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-8);
+    grid-template-areas: "head head" "figure route" "sentence strip" "actions strip";
+    grid-template-rows: auto auto auto 1fr; align-items: start; padding: var(--s-6) 0 var(--s-7);
+  }
+  .course-title { max-width: none; }
+  .course-hero-route { --route-w: 100%; justify-self: center; align-self: center; width: min(100%, 440px); margin-top: var(--s-4); }
+  /* Without a route the year strip takes the route's place beside the race's name: no cell runs empty. */
+  /* Without a route the name and figure take the whole width and the year strip keeps its row beside its sentence, so
+     the instrument never floats up beside the hero figure, away from the sentence that names it (critic round 4). */
+  .course-hero.is-routeless { grid-template-areas: "head head" "figure figure" "sentence strip" "actions strip"; grid-template-rows: auto auto auto 1fr; }
+  /* With one or two editions there is no strip: the route takes the whole right column, centred against the reading,
+     and the band ends after the button. */
+  .course-hero.is-stripless { grid-template-areas: "head route" "figure route" "sentence route" "actions route"; grid-template-rows: auto auto auto auto; align-content: center; }
+  .course-hero.is-stripless .course-hero-route { grid-row: 1 / -1; align-self: center; }
+  .course-hero.is-routeless.is-stripless { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "figure" "sentence" "actions"; }
+  .course-hero-route .route-face { max-height: 220px; }
+  .course-hero-figure { margin-top: var(--s-5); }
+  .course-hero-key { max-width: 22rem; }
+  .course-hero-strip { margin-top: var(--s-5); align-self: start; }
+  .course-beat { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); column-gap: var(--s-8); align-items: start; }
+  .course-beat > .course-h2 { position: sticky; top: calc(var(--header-h) + var(--s-6)); }
+  .course-beat-body { margin-top: 0; }
+  .course-beat .chapter-end { grid-column: 1 / -1; }
+  .course-numbers { max-width: none; }
+  /* The figure's column is as wide as its figure ("40K–finish" is wider than "9 of 10"), so a figure never prints over
+     its words; with subgrid every row shares the widest figure's column and the words line up. */
+  .glance-row { grid-template-columns: max-content minmax(0, 1fr) auto; grid-template-areas: "figure key chart"; column-gap: var(--s-6); }
+  .course-glance.is-single .glance-row { grid-template-columns: max-content auto; grid-template-areas: "figure chart"; }
+}
+@supports (grid-template-columns: subgrid) {
+  @media (min-width: 900px) {
+    .course-glance .glance-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; column-gap: var(--s-6); }
+    .course-glance .glance-row { grid-column: 1 / -1; grid-template-columns: subgrid; }
+  }
+}
+
+@media (min-width: 1180px) {
+  .course-toc { margin: 0; padding-inline: 0; }
+  /* The header's "Plan your race" steps down to a plain link on a course page (SiteNav data-quiet-primary), so the hero's
+     "Plan your Boston" stays the screen's one primary. */
+}
+
+/* At 200% zoom a phone's column is 163 px: the route face sits under the figure, chips keep their row. */
+@media (max-width: 299.98px) {
+  .course-hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "figure" "route" "sentence" "strip" "actions"; }
+  .course-hero-route { --route-w: 120px; justify-self: start; margin-top: var(--s-4); }
+  .glance-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "figure" "key" "chart"; }
+  .course-glance.is-single .glance-row { grid-template-areas: "figure" "chart"; }
+  /* A long one-word race name ("Copenhagen") fits the 163 px column: a step down, and a break inside the word if it must. */
+  .course-title { font-size: 1.625rem; overflow-wrap: anywhere; hyphens: auto; }
+}
+
+@media print {
+  .course-toc, .course-hero-actions { display: none; }
+  .course-hero { box-shadow: none; clip-path: none; }
+}
+

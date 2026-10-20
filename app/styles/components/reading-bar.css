@@ -1,0 +1,28 @@
+/* The reading bar (components/ReadingBar.client.tsx; the redesign spec, sections 2.4 and 3.5): 36 px, under the header's
+   row, shown only while the header is away, so it slides up into the header's place. The marker and the page's short
+   title, the minutes left, and along the bottom a 2 px line: ink to the reading position, an ink dot at it (chrome, so
+   never the accent: round 5), a 1 px
+   tick at every beat. --p (0 to 1) is set by the bar as the page scrolls. Solid paper: nothing reads through it. */
+
+.reading-bar {
+  position: absolute; left: 0; right: 0; top: 100%; height: var(--reading-h);
+  color: var(--ink); background: var(--paper); opacity: 0; pointer-events: none;
+  transition: opacity var(--d-quick) var(--ease-out);
+}
+.site-header[data-hidden] .reading-bar { opacity: 1; }
+.reading-bar-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); height: 100%; }
+.reading-bar-place { display: flex; align-items: center; gap: var(--s-2); min-width: 0; font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1; }
+.reading-bar-place .marker-badge { height: 20px; min-width: 30px; padding: 0 5px; }
+.reading-bar-short { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reading-bar-left { flex: none; font-family: var(--sans); font-size: var(--t-label); font-weight: 400; line-height: 1; color: var(--ink-3); font-variant-numeric: tabular-nums; transition: opacity var(--d-quick) var(--ease-out); }
+.reading-bar[data-done] .reading-bar-left { opacity: 0; }
+
+/* The line keeps everything on it inside its width (the ticks and the dot rise above it, so it clips sideways only). */
+.reading-bar-line { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--rule); clip-path: inset(-12px 0 -12px 0); }
+.reading-bar-line i { position: absolute; bottom: 0; width: 1px; height: 6px; background: var(--ink-3); }
+.reading-bar-fill { position: absolute; inset: 0; background: var(--ink); transform-origin: left center; transform: scaleX(var(--p, 0)); }
+.reading-bar-dot { position: absolute; top: 50%; left: calc(var(--p, 0) * (100% - 10px) + 5px); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
+
+@media (min-width: 1180px) {
+  .reading-bar { display: none; }
+}

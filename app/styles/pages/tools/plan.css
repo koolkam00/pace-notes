@@ -1,0 +1,129 @@
+/* The race planner (/tools/plan; the redesign spec, section 7.13): the chapter's lead first (of finishes on the goal's
+   pace through 20K, the share that made it, and where that sits among the courses), the plan's pace and four mat times on
+   one night card, the course and goal that make it yours, then the pace band to print (its strips hold every mat). Every
+   class here is prefixed plan-. Imported by app/tools/plan/layout.tsx, with pace-band-strip.css. */
+
+/* The tracked-section wrappers are the results' grid items: they may shrink below their content (the strip preview). */
+.plan-root [data-track-section] { min-width: 0; }
+
+/* ---------- The plan ---------- */
+.plan-problem { font-size: 1rem; }
+.plan-unavailable { color: var(--ink-2); }
+.plan-error { display: grid; gap: var(--s-3); justify-items: start; }
+
+/* While a linked goal's finishes load, the lead keeps about its height, so the card under it does not jump. */
+.plan-loading { min-height: 15rem; margin: 0; padding: 0; }
+
+/* ---------- From 900 px: the lead across the page, then the inputs beside the card, then the band across the column ----------
+   (critic round 5: the data beat, the band and the finish card sat in the right column with the left one empty under
+   the inputs, the band clipped and the finish card half the width of every other closing card.) */
+@media (min-width: 900px) {
+  .plan-root .tool-workspace { grid-template-rows: auto auto auto; }
+  .plan-root .tool-workspace > .plan-lead-slot { grid-column: 1 / -1; grid-row: 1; }
+  .plan-root .tool-workspace > .tool-inputs { grid-row: 2; position: static; max-height: none; overflow: visible; background: none; }
+  .plan-root .tool-workspace > .tool-answer { grid-row: 2; }
+  .plan-root .tool-workspace > .tool-answer ~ .tool-results { grid-column: 1 / -1; grid-row: 3; max-width: var(--measure-figure); }
+  @supports selector(:has(a)) {
+    .tool-page:has(.plan-root .tool-workspace) > .chapter-end { max-width: var(--measure-figure); margin-left: 0; }
+  }
+}
+
+/* ---------- The card: the pace, then four mat times (in its right half from 900 px) ---------- */
+.plan-card-mats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-3); margin: 0; padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.plan-card-mats > div { min-width: 0; }
+.plan-card-mats dt { font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+.plan-card-mats dd { margin: 4px 0 0; font-family: var(--sans); font-size: 1.0625rem; font-weight: 600; line-height: 1.1; letter-spacing: -.01em; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+@media (max-width: 359.98px) {
+  .plan-card-mats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--s-4); }
+}
+@media (min-width: 900px) {
+  .plan-headline { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-6); }
+  .plan-card-mats { grid-template-columns: repeat(2, auto); gap: var(--s-4) var(--s-6); padding: 0 0 0 var(--s-6); border-top: 0; border-left: 1px solid var(--rule); }
+  .plan-card-mats dd { font-size: 1.5rem; letter-spacing: -.02em; }
+}
+
+/* ---------- The lead: where the share sits among the courses ---------- */
+/* Every course on one line (RacePlan CourseSpread): a hairline, a quiet dot per course stacked where they touch, the two
+   ends named under the line; the reading in signal (the chosen course's dot, or the "All courses" tick, 2 px), the other
+   tick quiet. A tick's leader stops 4 px under its label. */
+.plan-spread { --dot: 10px; --step: 10px; --label: 18px; --gap: 10px; max-width: var(--measure-figure); }
+.plan-spread-line { position: relative; height: calc(var(--label) + var(--gap) + var(--stack, 0) * var(--step) + var(--dot)); }
+.plan-spread-line::before { content: ''; position: absolute; left: 0; right: 0; bottom: calc(var(--dot) / 2); height: 1px; background: var(--rule-strong); }
+.plan-spread-dot { position: absolute; z-index: 1; bottom: calc(var(--level, 0) * var(--step)); width: var(--dot); height: var(--dot); margin-left: calc(var(--dot) / -2); border-radius: 50%; background: var(--mark-quiet); box-shadow: 0 0 0 1.5px var(--paper); }
+.plan-spread-dot.is-chosen { z-index: 2; background: var(--signal); }
+.plan-spread-tick { position: absolute; bottom: calc(var(--dot) / 2); width: 1px; height: calc(var(--gap) - 4px + var(--stack, 0) * var(--step) + var(--dot) / 2); margin-left: -.5px; background: var(--ink-3); }
+.plan-spread-tick.is-reading { z-index: 2; width: 2px; margin-left: -1px; background: var(--signal); }
+.plan-spread-all, .plan-spread-name { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-size: var(--t-label); line-height: var(--label); }
+.plan-spread-all { font-weight: 500; color: var(--ink-3); }
+.plan-spread-all.is-reading, .plan-spread-name { font-weight: 600; color: var(--ink); }
+.plan-spread-all.is-start, .plan-spread-name.is-start, .plan-spread-ends .is-start { transform: translateX(-6px); }
+.plan-spread-all.is-end, .plan-spread-name.is-end, .plan-spread-ends .is-end { transform: translateX(calc(-100% + 6px)); }
+.plan-spread-ends { position: relative; height: 22px; margin-top: 6px; }
+.plan-spread-ends span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-size: var(--t-label); font-weight: 500; line-height: 1.3; color: var(--ink-3); }
+/* From 900 px the lead's figure and line sit left, its strip right, on the workspace's two columns. */
+@media (min-width: 900px) {
+  .plan-comparison { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-7); align-items: end; }
+  .plan-comparison > * { grid-column: 1; }
+  .plan-comparison > .plan-spread { grid-column: 2; grid-row: 1 / span 3; align-self: end; max-width: none; }
+}
+.plan-mat-table tbody th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
+.plan-mat-table tfoot td, .plan-mat-table tfoot th { height: 36px; }
+
+/* ---------- The pace band ---------- */
+.plan-band .tool-share { margin-top: var(--s-2); }
+
+
+/* ---------- Print: one Letter or A4 page at the browser's default margins (the plan), or the wristband strips alone ---------- */
+@media print {
+  .plan-root .tool-workspace { gap: .25cm; }
+  .plan-root .tool-results { display: flex; flex-direction: column; gap: .25cm; }
+  .plan-headline, .plan-root [data-track-section='result'], .plan-root [data-track-section='comparison'], .plan-error, .plan-unavailable, .plan-root .tool-handoffs, .plan-root .tool-example { display: none !important; }
+  /* Nothing below the source line, so a full page does not spill onto a blank second one. */
+  .plan-root .pace-band-strip { border-color: var(--accent); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .plan-root .tool-panel { padding: 0; border: 0; background: none; }
+  .plan-band > header { display: none; }
+
+  /* The plan: the header, the strips, the mat table and the source line, in that order. */
+  .plan-print-head { order: 1; display: grid; gap: .08cm; padding-bottom: .2cm; border-bottom: 1.5pt solid var(--night); font-size: 9pt; color: var(--night); }
+  .plan-print-head > * { margin: 0; }
+  /* The header names the course and goal, so the plan leaves out the strips' own heading line (the strips alone keep it). */
+  .plan-root[data-print='plan'] .pace-band-sheet-head { display: none; }
+  .plan-print-kicker { font-family: var(--sans); font-size: 7.5pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .plan-print-title { font-family: var(--serif); font-size: 18pt; font-weight: 440; line-height: 1.1; }
+  .plan-root [data-track-section='pace-band'] { order: 2; }
+  .plan-print-mats { order: 3; }
+  .plan-print-source { order: 4; padding-top: .15cm; border-top: .5pt solid var(--night); font-family: var(--sans); font-size: 7.5pt; color: var(--night); }
+  .plan-mat-table th, .plan-mat-table td, .plan-mat-table tbody th { height: auto; padding-top: .03cm !important; padding-bottom: .03cm !important; font-size: 8.5pt; line-height: 1.25; color: var(--night) !important; }
+  .plan-mat-table thead th { font-size: 6.5pt; }
+  .plan-mat-table tbody th small { display: inline; margin-left: .2cm; font-size: 7pt; }
+  .plan-mat-table tr { break-inside: avoid; }
+  .plan-mat-table tfoot { display: table-row-group; }
+
+  /* Wristband strips only */
+  .plan-root[data-print='strip'] .tool-results > :not([data-track-section='pace-band']) { display: none !important; }
+}
+@supports selector(:has(a)) {
+  @media print {
+    body:has(.plan-root) .skip-link, .tool-page:has(.plan-root) .tool-header { display: none !important; }
+    .tool-page:has(.plan-root) { padding-bottom: 0; }
+  }
+}
+
+/* ---------- The journey's finish: a checkered finish line across the top of the finish card (spec section 2.6) ---------- */
+.chapter-end .chapter-next .next-card.is-finish { overflow: hidden; padding-top: calc(var(--s-5) + 18px); }
+.chapter-end .chapter-next .next-card.is-finish::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 12px;
+  background: repeating-conic-gradient(var(--ink) 0 25%, transparent 0 50%) 0 0 / 12px 12px;
+}
+@media print { .chapter-end .chapter-next .next-card.is-finish::before { display: none; } }
+
+/* ---------- The header on the planner itself ----------
+   From 1180 px the header's orange "Plan your race" pill would point at the page it is on: here it is the current link,
+   plain and underlined like the header's other current links (the shell's .main-nav rules; scoped to this page). */
+@supports selector(:has(*)) {
+  @media (min-width: 1180px) {
+    body:has(.plan-root) .main-nav > a.nav-primary[aria-current] { margin: 0; padding: 0 12px; background: transparent; color: var(--ink); font-weight: 500;
+      text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 8px; }
+    body:has(.plan-root) .main-nav > a.nav-primary[aria-current]:hover { background: var(--paper-sunk); }
+  }
+}

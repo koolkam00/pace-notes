@@ -1,46 +1,30 @@
-import { UnitLink as Link } from '@/components/UnitsProvider';
+import InfoNext from '@/components/InfoNext';
+import RailBeats from '@/components/RailBeats.client';
 import MethodsAnalyses from '@/components/methods/MethodsAnalyses';
-import MethodsData, { STORY_FILE_TOPICS } from '@/components/methods/MethodsData';
+import MethodsData from '@/components/methods/MethodsData';
 import MethodsDefinitions from '@/components/methods/MethodsDefinitions';
+import MethodsDownloads, { STORY_FILE_TOPICS } from '@/components/methods/MethodsDownloads';
+import MethodsHash from '@/components/methods/MethodsHash.client';
 import MethodsPages from '@/components/methods/MethodsPages';
 import MethodsStories from '@/components/methods/MethodsStories';
 import MethodsTools from '@/components/methods/MethodsTools';
-import { Part, Topic, dataHref } from '@/components/methods/shared';
+import { Part, Topic } from '@/components/methods/shared';
+import { readingAttrs } from '@/lib/chapters';
 import { getInsightsManifest } from '@/lib/insights-server';
 import { STORIES, courseSpan } from '@/lib/stories';
 import { JsonLd, absoluteUrl, pageMetadata } from '@/lib/seo';
 import { dataDate } from '@/lib/seo-routes';
 
 export const metadata = pageMetadata({
-  title: 'Methods & Sources: How Pace Notes Studies Marathon Splits',
+  title: 'How We Know: Pace Notes Methods and Sources',
   description: 'Where the Pace Notes marathon data comes from, what sustained slowdown and the other terms mean, how each number is worked out, and what it cannot show.',
   path: '/methodology',
 });
 
-/**
- * The page's contents. Every id is a stable anchor that other pages may link as /methodology#<id>; verify-seo fails
- * when a link on any page names an id this page does not have.
- */
-const CONTENTS: { id: string; title: string; topics: { id: string; title: string }[] }[] = [
-  { id: 'data', title: 'What the data is and where it comes from', topics: [
-    { id: 'study-aims', title: 'What the study is for' }, { id: 'sources', title: 'Sources' }, { id: 'release', title: 'The current release' },
-    { id: 'downloads', title: 'Downloads' }, { id: 'coverage', title: 'Coverage' }, { id: 'totals', title: 'Which pages start from which total' },
-    { id: 'copy-editions', title: 'Copy editions' }, { id: 'data-quality', title: 'Which records are analyzed' }, { id: 'linking', title: 'Linking runners' },
-  ] },
-  { id: 'definitions', title: 'Definitions', topics: [
-    { id: 'sustained-slowdown', title: 'Sustained slowdown' }, { id: 'pacing-types', title: 'Pacing types' }, { id: 'percentiles', title: 'Percentiles and ranges' },
-    { id: 'baselines', title: 'Baselines and relative pace' }, { id: 'opening-groups', title: 'Opening groups' }, { id: 'how-to-read', title: 'Reading the charts' },
-  ] },
-  { id: 'calculations', title: 'How each part of the site is calculated', topics: [
-    { id: 'stories', title: 'Data stories' }, { id: 'personalized', title: 'The ten analyses' }, { id: 'fast-start-method', title: 'Fast starts' },
-    { id: 'all-finisher-context', title: 'All-finisher views' }, { id: 'finish-times', title: 'Finish times' }, { id: 'weather', title: 'Weather questions' },
-    { id: 'question-methods', title: 'Research questions' }, { id: 'tools', title: 'Runner tools' }, { id: 'evidence', title: 'Evidence badges' },
-    { id: 'course-pages', title: 'Course pages' }, { id: 'race-report', title: 'Race report' }, { id: 'runner-search', title: 'Find a runner' },
-    { id: 'weather-routes', title: 'Weather and elevation sources' }, { id: 'matching', title: 'Matching and forecasts' },
-  ] },
-  { id: 'limits', title: 'Limits', topics: [
-    { id: 'interpretation', title: 'What these comparisons can show' }, { id: 'follow-up', title: 'Return and missing follow-up' }, { id: 'additional-data', title: 'Data that could strengthen the study' },
-  ] },
+/** The five parts, for the "Jump to" row (phones and tablets; from 1180 px the rail lists them, RailBeats). */
+const PARTS: { id: string; label: string }[] = [
+  { id: 'data', label: 'Data' }, { id: 'definitions', label: 'Definitions' }, { id: 'calculations', label: 'Calculations' },
+  { id: 'limits', label: 'Limits' }, { id: 'downloads', label: 'Downloads' },
 ];
 
 /**
@@ -67,7 +51,7 @@ function storyDataset() {
     variableMeasured: [
       '5 km checkpoint split times', 'Finish time', 'Section pace relative to the same finish’s own pace',
       'Sustained slowdown (25% or more slower than the 5–20 km pace for at least 5 km after 20 km)',
-      'Recorded gender', 'Age group', 'Modelled race-morning temperature',
+      'Recorded gender', 'Age group', 'Modeled race-morning temperature',
     ],
     distribution: files.map((f) => ({ '@type': 'DataDownload', name: f, encodingFormat: 'application/json', contentUrl: absoluteUrl(`/data/insights/${f}`) })),
   };
@@ -85,64 +69,69 @@ const additions = [
 ];
 
 /**
- * Methods & sources: the one page that explains how Pace Notes works (owner decision, October 16, 2026). Every other
- * page shows its insights only and links here for the definitions, data sources, coverage, calculations and limits.
+ * Methods & sources ("How we know"): the one page that explains how Pace Notes works (owner decision, October 16,
+ * 2026). Every other page shows its insights only and links here for the definitions, data sources, coverage,
+ * calculations and limits. Five parts, each a list of topics that open on request (the redesign spec, sections 7.15
+ * and 00): with every topic closed the page is a few screens, and a link to any id on it opens what holds that id
+ * (MethodsHash). Every id is a stable anchor: verify-seo fails when a link on any page names an id this page lacks.
  */
 export default function MethodologyPage() {
   const dataset = storyDataset();
-  return <article className="prose methods-page">
-    <p className="eyebrow">Methods &amp; sources</p>
-    <h1>How Pace Notes works</h1>
-    <p className="answer">Every other page shows what the data found. This page holds the rest: where the data comes from, what each term means, how each number is worked out, and what the numbers cannot show.</p>
-    <nav className="methods-contents" aria-label="Contents">
-      <p className="methods-contents-label">Contents</p>
-      <ol className="contents-list">
-        {CONTENTS.map((part, i) => <li key={part.id}>
-          <a href={`#${part.id}`}><span className="contents-number">{i + 1}</span><span>{part.title}</span></a>
-          <ul>{part.topics.map((topic) => <li key={topic.id}><a href={`#${topic.id}`}>{topic.title}</a></li>)}</ul>
-        </li>)}
-      </ol>
-    </nav>
+  return <div className="methods-page with-rail" {...readingAttrs('/methodology', 'How we know')}>
+    <aside className="rail methods-rail">
+      <nav aria-label="On this page">
+        <p className="rail-title">On this page</p>
+        <RailBeats />
+      </nav>
+    </aside>
+    <article className="methods-flow">
+      <header className="methods-hero">
+        <h1 className="t-title">How we know</h1>
+        <p className="methods-dek">Where the numbers come from, what each term means, how each one is worked out, and what none of them can show.</p>
+      </header>
+      <nav className="methods-jump" aria-label="Jump to a part">
+        <ol>{PARTS.map((part) => <li key={part.id}><a className="methods-jump-link" href={`#${part.id}`}>{part.label}</a></li>)}</ol>
+      </nav>
 
-    <MethodsData />
-    <MethodsDefinitions />
-    <Part id="calculations" eyebrow="Part 3" title="How each part of the site is calculated">
-      <MethodsStories />
-      <MethodsAnalyses />
-      <MethodsTools />
-      <MethodsPages />
-    </Part>
+      <MethodsData />
+      <MethodsDefinitions />
+      <Part id="calculations" n={3} short="Calculations" title="Calculations" lead="How each part of the site works out its numbers.">
+        <MethodsStories />
+        <MethodsAnalyses />
+        <MethodsTools />
+        <MethodsPages />
+      </Part>
 
-    <Part id="limits" eyebrow="Part 4" title="Limits">
-      <Topic id="interpretation" title="What these comparisons can show">
-        <p>They describe associations. Runners who choose different strategies can also differ in fitness, experience, goals or conditions. A fast opening and a fast finish can go together because a runner is fitter; that does not mean the faster start caused the result. Comparisons should account for these differences and report sample sizes and uncertainty.</p>
-        <p>Each analysis shows its actual comparison group, and names any broader comparison it used when a narrow selection had too few records. Missing ages, splits and route history stay missing; nothing is filled in.</p>
-        <p>Predictions must use only what is known at the checkpoint being studied and be tested on unseen race editions. Declared goals are kept apart from inferred time landmarks. An absence from the database does not show that a runner stopped racing.</p>
-        <p>Splits measure time and pace. Effort, fuelling, intentions and training need other evidence. Terrain-adjusted pace is an estimated proxy, especially when a 5 km section has both climbs and descents.</p>
-      </Topic>
-      <Topic id="follow-up" title="Return and missing follow-up">
-        <p>The near-miss analysis includes runners who have no later observed race. It needs two later years of observed editions in the original city and leaves out the latest two years as index races. Return means an eligible linked appearance anywhere in the export in the next two calendar years. Missing follow-up is never called retirement.</p>
-      </Topic>
-      <details className="methodology" id="additional-data">
-        <summary>Data that could strengthen the study</summary>
-        <div className="methodology-content">
+      <Part id="limits" n={4} short="Limits" title="Limits" lead="What these numbers cannot show.">
+        <Topic id="interpretation" title="What these comparisons can show">
+          <p>They describe associations. Runners who choose different strategies can also differ in fitness, experience, goals or conditions. A fast opening and a fast finish can go together because a runner is fitter; that does not mean the faster start caused the result. Comparisons should account for these differences and report sample sizes and uncertainty.</p>
+          <p>Each analysis shows its actual comparison group, and names any broader comparison it used when a narrow selection had too few records. Missing ages, splits and route history stay missing; nothing is filled in.</p>
+          <p>Predictions must use only what is known at the checkpoint being studied and be tested on unseen race editions. Declared goals are kept apart from inferred time landmarks. An absence from the database does not show that a runner stopped racing.</p>
+          <p>Splits measure time and pace. Effort, fuelling, intentions and training need other evidence. Terrain-adjusted pace is an estimated proxy, especially when a 5 km section has both climbs and descents.</p>
+        </Topic>
+        <Topic id="follow-up" title="Return and missing follow-up">
+          <p>The near-miss analysis includes runners who have no later observed race. It needs two later years of observed editions in the original city and leaves out the latest two years as index races. Return means an eligible linked appearance anywhere in the export in the next two calendar years. Missing follow-up is never called retirement.</p>
+        </Topic>
+        <Topic id="additional-data" title="Data that could strengthen the study">
           <p>Start with dated course routes, hourly weather and start times. These are proposed sources for extending and checking the dataset; listing one here does not mean it has already been joined.</p>
           {additions.map((item) => <section key={item.name}>
             <h4>{item.name}</h4>
             <p>{item.fields} {item.benefit}</p>
-            <p className="study-meta">{item.coverage} <a href={item.href}>{item.source}</a>.</p>
+            <p className="methods-note">{item.coverage} <a href={item.href}>{item.source}</a>.</p>
           </section>)}
           <h4>More fields to keep from official results</h4>
           <p>Keep all published timing points, including halfway and the finish; bib and provider IDs; reported age and category; gun and chip times; official finish, withdrawal, disqualification and non-start statuses; and result corrections. Availability varies by organizer and year.</p>
           <p>Do not infer a withdrawal from one missing timing read, or a debut marathon from a runner’s first appearance in this database.</p>
           <h4>Preserve the evidence</h4>
-          <p>For every added field, keep its source URL, race edition, retrieval date, original unit, and whether it was observed, modelled or inferred. Keep one weather record per place and time, then join it to estimated segment exposure. Between timing mats, a runner’s exact location is an estimate.</p>
+          <p>For every added field, keep its source URL, race edition, retrieval date, original unit, and whether it was observed, modeled or inferred. Keep one weather record per place and time, then join it to estimated segment exposure. Between timing mats, a runner’s exact location is an estimate.</p>
           <p>Hourly wind plus route direction can estimate headwind exposure. Route geometry can estimate turn counts. Crowd density, shade, training, shoes and individual fuelling are harder to reconstruct consistently over 20 years and should not be assumed.</p>
-        </div>
-      </details>
-    </Part>
+        </Topic>
+      </Part>
 
-    <div className="source-links"><Link href="/">Return to the study</Link><a href={dataHref('study/evidence.json')}>Download the current supporting study</a></div>
+      <MethodsDownloads />
+      <InfoNext />
+      <MethodsHash />
+    </article>
     {dataset ? <JsonLd data={dataset} /> : null}
-  </article>;
+  </div>;
 }

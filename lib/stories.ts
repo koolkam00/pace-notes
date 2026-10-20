@@ -4,8 +4,8 @@
  * is a getter that reads the number from the verified story data at build time, so none is typed in.
  */
 import { getInsightsManifest, readInsight } from './insights-server';
-import type { Archetypes, Courses, InsightsManifest, Kick, ReplayIndex } from './insights';
-import { checkpointLabel } from './viz/format';
+import type { Archetypes, Courses, InsightsManifest, ReplayIndex } from './insights';
+import { getNugget, sentenceOf } from './nuggets';
 
 /** One parsed copy of each story file per verified manifest, so the getters below do not re-read files on every access. */
 const files = new WeakMap<InsightsManifest, Map<string, unknown>>();
@@ -23,7 +23,11 @@ export interface StoryDefinition {
   file: string;
   number: string;
   kicker: string;
+  /** The display title: contents rows, next cards, search and share cards. Plain text. */
   title: string;
+  /** The page's H1 when it differs from the title or carries the one italic accent (*…*); defaults to the title. */
+  heading?: string;
+  /** The question the story answers: the dek under its H1 (the redesign spec, section 4.1). */
   dek: string;
   accent: string;
   /** The day the story page was first added (git, YYYY-MM-DD): Article datePublished. */
@@ -36,32 +40,8 @@ export interface StoryDefinition {
 
 const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 
-/**
- * An observed share in words for the start of a sentence: "Three in four" for 0.7457, the simplest
- * n in d (d up to 10) within one percentage point of the share, otherwise "75% of".
- */
-export function shareInWords(share: number): string {
-  for (let d = 2; d < WORDS.length; d += 1) {
-    const n = Math.round(share * d);
-    if (n > 0 && n < d && Math.abs(n / d - share) <= 0.01) return `${WORDS[n][0].toUpperCase()}${WORDS[n].slice(1)} in ${WORDS[d]}`;
-  }
-  return `${Math.round(share * 100)}% of`;
-}
-
 /** Screened finishes in millions with one decimal, the same value as finishesM() in lib/seo.tsx (not imported: lib/seo-routes imports this file). */
 const finishesMillions = () => (getInsightsManifest().analysis_n / 1e6).toFixed(1);
-
-/** "Three in four" from kick.json: finishes that ran the final 2.195 km faster than 35–40 km. Null when the kick data is not in this build. */
-function kickShare(): string | null {
-  const kick = insight<Kick>('kick.json');
-  return kick ? shareInWords(kick.kick.share) : null;
-}
-
-/** Share of finishes with a sustained slowdown that ran the final section faster than their 5–20 km pace ("2.2%"), or null without the kick data. */
-function slowdownFinalBelowBaseline(): string | null {
-  const kick = insight<Kick>('kick.json');
-  return kick ? `${(kick.kick.slowdown_final_below_baseline * 100).toFixed(1)}%` : null;
-}
 
 /** A small count in words ("six"), or null when it has no word. */
 export const countWord = (n: number | null) => (n !== null && n > 0 && n < WORDS.length ? WORDS[n] : null);
@@ -100,40 +80,55 @@ function shapedCourses(): number | null {
   return data ? data.courses.filter((c) => c.curve?.length).length : null;
 }
 
+/** A story's H1 as its finding: the nugget's sentence when its guard holds, else the plain title. */
+function headingOf(id: `${string}.${string}`, title: string): string {
+  const n = getNugget(id);
+  return n.guard ? sentenceOf(n) : title;
+}
+
 export const STORIES: StoryDefinition[] = [
   { slug: 'pacing-types', file: 'archetypes.json', number: '01', kicker: 'The shape of a marathon',
     get title() {
       const types = pacingTypes();
       return `${types ? capital(types) : 'Different'} ways to run the same race`;
     },
-    get dek() {
-      const types = pacingTypes();
-      return `Every finish has a shape, and ${types ? `${types} ` : ''}pacing types recur across the field. See how often the same shape shows up in a runner’s next linked race.`;
-    },
+    /** The finding (the types.top nugget): the two commonest types, named from the data, when together they hold most finishes. */
+    get heading() { return sentenceOf(getNugget('types.top')); },
+    dek: 'Does everyone pace a marathon the same way?',
     accent: '#17A673',
     published: '2026-10-07',
     get seoTitle() {
       const types = pacingTypes();
       return `${types ? `${capital(types)} ` : ''}Marathon Pacing Types from 5 km Splits | Pace Notes`;
     },
+    /** The page's own readings: the two most common types' share (types.top), the types and the finder. */
     get seoDescription() {
       const types = pacingTypes();
-      return `Grouping millions of recorded marathon finishes by the shape of their 5 km splits reveals ${types ? `${types} ` : ''}recurring pacing types, and how often a shape repeats.`;
+      const top = getNugget('types.top');
+      const lead = top.guard ? `${Math.round(Number(top.values.share) * 100)}% of finishes were ${top.values.first}s or ${top.values.second}s: ` : '';
+      return `${lead}${types ? `${types} ` : ''}pacing types from 5 km splits, and which one your splits match.`.replace(/^./, (c) => c.toUpperCase());
     } },
-  { slug: 'round-numbers', file: 'finish-times.json', number: '02', kicker: 'Round numbers', title: 'The 3:59 effect',
-    dek: 'Finish times pile up just before every hour and half-hour. See how the bunching forms, second by second, and how many more finishes slip under a round number in the final stretch.', accent: '#FF5B2E',
+  { slug: 'round-numbers', file: 'finish-times.json', number: '02', kicker: 'Round numbers',
+    /** One name everywhere the story is listed or linked: the chapter's short name for it. */
+    title: 'Round numbers',
+    /** The finding: finishes crowd in just under the round mark that stands tallest against the curve. */
+    get heading() {
+      const top = getNugget('round.top');
+      return top.guard ? `Finishes crowd in *just under ${top.values.mark}*.` : `${this.title}.`;
+    },
+    dek: 'Do round numbers change when runners finish?', accent: '#FF5B2E',
     published: '2026-10-07',
-    seoTitle: 'The 3:59 Effect: Marathon Finishes Bunch Under the Hour',
+    seoTitle: 'Round Numbers: Marathon Finishes Bunch Under Round Times',
     get seoDescription() {
-      return `Marathon finish times pile up just under every hour and half-hour. See the bunching second by second in ${finishesMillions()} million recorded finishes.`;
+      return `Marathon finish times pile up just under every hour and half-hour. See the bunching minute by minute in ${finishesMillions()} million recorded finishes.`;
     } },
   { slug: 'race-replay', file: 'replay.json', number: '03', kicker: 'On the race clock', title: 'Watch a marathon unfold',
-    get dek() {
-      const fields = replayFields();
-      return fields
-        ? `Replay ${fields.races} big-city races and watch each field stretch across the course.`
-        : 'Replay big-city races and watch each field stretch across the course.';
+    /** The moment as a finding (the replay.title nugget), or the title when its guard fails. */
+    get heading() {
+      const n = getNugget('replay.title');
+      return n.guard ? sentenceOf(n) : this.title;
     },
+    dek: 'How spread out is a marathon field?',
     accent: '#F4B23E',
     published: '2026-10-07',
     seoTitle: 'Marathon Race Replay from Recorded Splits | Pace Notes',
@@ -144,48 +139,72 @@ export const STORIES: StoryDefinition[] = [
         : 'Replay big-city marathons from their recorded 5 km splits and watch a sample of each field spread out along the course.';
     } },
   { slug: 'places', file: 'positions.json', number: '04', kicker: 'Places on the clock', title: 'Pass or be passed',
-    dek: 'How much the order of a field changes after 20 km, who moves up late and which section reshuffles the race the most.', accent: '#2F5BFF',
+    /** The H1 is the finding (the places.title nugget), or the title when its guard fails. */
+    get heading() { return headingOf('places.title', this.title); },
+    dek: 'How much can still change after 30K?', accent: '#2F5BFF',
     published: '2026-10-07',
     seoTitle: 'How Marathon Places Change Late in the Race | Pace Notes',
-    get seoDescription() {
-      return `How much a marathon field reorders after the ${checkpointLabel(20, 'km')} mat (${checkpointLabel(20, 'mi')}), who moves up late and which section reshuffles finishing places the most.`;
-    } },
-  { slug: 'final-kick', file: 'kick.json', number: '05', kicker: 'The second half', title: 'The finish-line magnet',
-    get dek() {
-      const share = kickShare();
-      const back = slowdownFinalBelowBaseline();
-      const opening = share && back
-        ? `${share} finishes speed up over the final stretch, yet only ${back} of those with a sustained slowdown ran it faster than their early pace.`
-        : 'How often finishes speed up over the final stretch, and how often those with a sustained slowdown get back to their early pace.';
-      return `${opening} Where the field breaks, how fast starts and later slowing line up, and how often a sustained slowdown recurs in a next linked race.`;
+    seoDescription: 'How much a marathon field reorders after 30K: how often a finish trailing there still beat the runner ahead to the line, and how many moved up late.' },
+  { slug: 'final-kick', file: 'kick.json', number: '05', kicker: 'After 30K',
+    /** The short name its list rows and next cards show (its reading gives the minutes). */
+    title: 'After the slowdown',
+    /** The H1 is the finding in words (the kick.title nugget), ending on its full stop like the race replay's. */
+    get heading() {
+      return sentenceOf(getNugget('kick.title'));
     },
+    dek: 'What happens to a race after a sustained slowdown begins?',
     accent: '#E2416B',
     published: '2026-10-07',
-    seoTitle: 'The Marathon Final Kick: Who Speeds Up Late | Pace Notes',
-    get seoDescription() {
-      const share = kickShare();
-      return `${share ? `${share} recorded marathon finishes speed up over the final stretch. ` : ''}Where fields slow, and how late speed-ups and sustained slowdowns line up.`;
-    } },
-  { slug: 'who-holds-pace', file: 'demographics.json', number: '06', kicker: 'Gender and age', title: 'Who holds their pace',
-    dek: 'At the same finish times, recorded women and men pace their races differently, and so do runners of different ages.', accent: '#7A4DFF',
-    published: '2026-10-07',
-    seoTitle: 'Marathon Pacing by Age and Recorded Gender | Pace Notes',
-    seoDescription: 'At the same finish times, recorded women and men pace marathons differently, and so do age groups. Section-by-section evidence from 5 km splits.' },
-  { slug: 'courses', file: 'courses.json', number: '07', kicker: 'Courses, weather and years', title: 'Every course has a fingerprint',
-    get dek() {
-      const span = courseSpan();
-      const lead = 'Each marathon has its own pacing shape. See the shapes, the routes and the weather on race morning';
-      return span ? `${lead}, with finish times from ${span.first} to ${span.last}.` : `${lead}.`;
+    /** The page's finding: same pace through 20K, the typical gap at the finish with a sustained slowdown (kick.twins). */
+    get seoTitle() {
+      const twins = getNugget('kick.twins');
+      return twins.guard && twins.figure ? `After a Marathon Slowdown: ${twins.figure.value} Minutes Apart | Pace Notes` : 'After a Marathon Slowdown | Pace Notes';
     },
+    /** The page's own finding (kick.twins), then what the story follows. */
+    get seoDescription() {
+      const twins = getNugget('kick.twins');
+      const lead = twins.guard ? `Same pace through 20K, ${twins.figure?.value} minutes apart at the finish. ` : '';
+      return `${lead}What followed a sustained slowdown in recorded finishes, from the warning sign to the finish.`;
+    } },
+  { slug: 'who-holds-pace', file: 'demographics.json', number: '06', kicker: 'Gender and age', title: 'Women and men',
+    get heading() { return headingOf('holds.title', this.title); },
+    dek: 'Do women and men run the second half differently?', accent: '#7A4DFF',
+    published: '2026-10-07',
+    seoTitle: 'Women and Men: Who Holds Marathon Pace | Pace Notes',
+    get seoDescription() {
+      const n = getNugget('holds.gender');
+      const w = Number(n.values.women), m = Number(n.values.men);
+      return n.guard
+        ? `At the same finish times, ${Math.round(w * 100)}% of recorded women’s marathon finishes had a sustained slowdown, against ${Math.round(m * 100)}% of men’s. Mat by mat, from 5 km splits.`
+        : 'Recorded women and men at the same marathon finish times, mat by mat, from 5 km splits.';
+    } },
+  { slug: 'courses', file: 'courses.json', number: '07', kicker: 'Where you run', title: 'Every course has a fingerprint',
+    /** The finding when a pacing shape names its course well above chance (the courses.named guard). */
+    get heading() { return getNugget('courses.named').guard ? 'A race’s pacing shape can *name its course*.' : `${this.title}.`; },
+    dek: 'Does a course change how its marathon is paced?',
     accent: '#0FA3A3',
     published: '2026-10-07',
     seoTitle: 'Marathon Course Fingerprints: Pace by Section | Pace Notes',
+    /** What the page holds (round 6: the description promised weather, finish times and route profiles the story no
+     *  longer draws): its finding, then the fingerprints. */
     get seoDescription() {
-      const span = courseSpan();
       const shaped = shapedCourses();
-      return span && shaped
-        ? `Section-by-section pacing shapes for ${shaped === span.courses ? shaped : `${shaped} of ${span.courses}`} marathon courses, with race-morning weather, finish times from ${span.first} to ${span.last} and route profiles where mapped.`
-        : 'Section-by-section pacing shapes for marathon courses, with race-morning weather, finish times and route profiles where mapped.';
+      const named = getNugget('courses.named');
+      const lead = named.guard ? `A race’s pacing shape names its course ${Math.round(Number(named.values.share) * 100)}% of the time: ` : '';
+      const body = shaped ? `section-by-section fingerprints for ${shaped} city marathons.` : 'section-by-section fingerprints for city marathons.';
+      return `${lead}${body}`.replace(/^./, (c) => c.toUpperCase());
+    } },
+  { slug: 'race-morning', file: 'courses.json', number: '08', kicker: 'The weather', title: 'Race-morning weather',
+    get heading() { return headingOf('weather.title', this.title); },
+    dek: 'Does a warm morning change a marathon?',
+    accent: '#2F5BFF',
+    published: '2026-10-17',
+    seoTitle: 'Marathon Weather: Warm vs Cool Race Mornings | Pace Notes',
+    get seoDescription() {
+      const pairs = insight<Courses>('courses.json')?.weather?.pairs;
+      return pairs
+        ? `The same marathon course on warmer and cooler mornings: in ${pairs.hotter_slowed_more} of ${pairs.total} pairs of editions, the warmer one had more sustained slowdowns.`
+        : 'The same marathon course on warmer and cooler mornings, and how the race changed with the start temperature.';
     } },
 ];
 

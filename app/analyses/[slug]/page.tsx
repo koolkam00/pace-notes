@@ -1,27 +1,33 @@
-import { unitText, distanceLabel, distanceValue, DEFAULT_UNITS } from '@/lib/units';
 import { notFound } from 'next/navigation';
+import { unitText, distanceLabel, distanceValue, DEFAULT_UNITS } from '@/lib/units';
 import { TEN_ANALYSES, analysisBySlug } from '@/lib/ten-analyses';
-import { getAnalysisStart } from '@/lib/analysis-server';
-import AnalysisExplorer from '@/components/AnalysisExplorer';
-import WeatherAnalysis from '@/components/WeatherAnalysis';
-import { getWeatherAnalyses, getWeatherEvidence } from '@/lib/weather-data';
-import FastStartAnalysis from '@/components/FastStartAnalysis';
-import { getFastStartStarts } from '@/lib/fast-start-server';
-import AllFinisherAnalysis from '@/components/AllFinisherAnalysis';
-import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
-import { UnitLink as Link } from '@/components/UnitsProvider';
-import PageFeedback from '@/components/PageFeedback';
-import RelatedTool from '@/components/tools/RelatedTool';
-import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
+import { getWeatherAnalyses } from '@/lib/weather-data';
+import { WEATHER_TAB_TITLES } from '@/lib/weather-catalog';
+import { JsonLd, breadcrumbs, movedMetadata, pageMetadata } from '@/lib/seo';
+import { movedTo } from '@/lib/seo-routes';
+import { PAGE_NUGGET, getNugget, sentenceOf, type NuggetId } from '@/lib/nuggets';
+import { hm } from '@/lib/nuggets/format';
+import StartingPace from '@/components/analysis/pages/StartingPace';
+import DownhillStart from '@/components/analysis/pages/DownhillStart';
+import PacingPattern from '@/components/analysis/pages/PacingPattern';
+import Checkpoint from '@/components/analysis/pages/Checkpoint';
+import WhereTime from '@/components/analysis/pages/WhereTime';
+import FinishContext from '@/components/analysis/pages/FinishContext';
+import AgePacing from '@/components/analysis/pages/AgePacing';
+import CourseComparison from '@/components/analysis/pages/CourseComparison';
+import HillsPacing from '@/components/analysis/pages/HillsPacing';
+import RaceDayWeather from '@/components/analysis/pages/RaceDayWeather';
+import FindingImprovement from '@/components/analysis/pages/FindingImprovement';
+import MovedPage from '@/components/MovedPage';
 
 /** Miles first (the default unit), from the metric mat distance, e.g. "12.4 mi". */
 const mi = (km: number) => distanceLabel(km, DEFAULT_UNITS, 1);
 const checkpointMiles = [20, 30, 35].map(km => distanceValue(km, DEFAULT_UNITS).toFixed(1));
 
 /**
- * Search titles and descriptions per analysis, written against what each page shows.
- * Slugs not listed here (a weather question that passes its evidence check later) fall back to the
- * analysis's own short title and description; see seoFor().
+ * Search titles per analysis, unchanged by the redesign (spec section 6.8); each description leads with the page's
+ * finding (`describe`, below), the text here its fallback. The two weather questions now live as tabs of race-day
+ * weather: their routes are noindex stubs that forward with the tab's hash (spec 2.9).
  */
 const SEO: Record<string, { title: string; description: string; crumb?: string }> = {
   'pacing-pattern': { title: 'How Marathons Are Paced at Your Finish Time | Pace Notes', description: `Median pace in each 5 km section (${mi(5)}) for marathon finishes near your time, from start to finish, by course, age group and recorded gender.` },
@@ -34,16 +40,64 @@ const SEO: Record<string, { title: string; description: string; crumb?: string }
   'finish-time-context': { title: 'Marathon Finish Times: Where Yours Falls | Pace Notes', description: 'See where a marathon finish time falls among comparable recorded finishes. Observed shares of finishes, not predictions.' },
   'finding-improvement': { title: 'Where Faster Marathon Finishes Found Time | Pace Notes', description: 'See where faster marathon finishes found their minutes against an earlier result: the opening, the middle or the late race. Not training advice.' },
   'age-and-pacing': { title: 'Marathon Pace Retention by Age Group | Pace Notes', description: `Compare how marathon finishes held pace from the first 20 km (${mi(20)}) to the second across age groups and recorded genders, within one finish-time band.` },
-  'warming-and-pacing': { title: 'Marathon Pacing When the Temperature Rises | Pace Notes', description: 'See how a temperature rise during a marathon relates to how well runners held their pace later in the race.' },
-  'wind-and-pacing': { title: 'Wind and Marathon Pacing: Windy vs Calm Races | Pace Notes', description: 'Compare late-race slowing on windier and calmer marathon race days.' },
+  'warming-and-pacing': { title: `${WEATHER_TAB_TITLES.warming} | Pace Notes`, description: 'Warming through a marathon, and how much more the second 20K slowed.' },
+  'wind-and-pacing': { title: `${WEATHER_TAB_TITLES.wind} | Pace Notes`, description: 'Wind at the start of a marathon, and the second 20K.' },
   'downhill-start': { title: 'Downhill Marathon Starts and Later Pace | Pace Notes', description: 'Compare opening pace and later slowing on marathon courses that start with a larger descent against courses with other openings.', crumb: 'Downhill starts' },
 };
+
+
+/**
+ * What each analysis lets a reader do, after its finding in the meta description (critic round 4: the descriptions were
+ * tool instructions, while the pages lead with a finding). The finding is the page's own nugget headline, so a share
+ * card or a search result says what the page opens on.
+ */
+const TAIL: Record<string, string> = {
+  'starting-pace': 'Fast and steady marathon openings, against the same pace.',
+  'downhill-start': 'Opening pace and later slowing, downhill-start courses against the rest.',
+  'pacing-pattern': 'Median pace in each 5K for marathon finishes near your time.',
+  checkpoint: 'What followed a time at the 20K, 30K or 35K mat.',
+  'where-time-is-gained': 'Section by section, finishes just under and just over a goal time.',
+  'finish-time-context': 'Where a marathon finish time falls among recorded finishes.',
+  'age-and-pacing': 'Second-20K slowing by age group.',
+  'course-comparison': 'Every course with three or more editions, in an average year.',
+  'hills-and-pacing': 'Each 5K’s pace beside a course’s climbs.',
+  'race-day-weather': 'Start temperature, warming and wind against late slowing.',
+  'finding-improvement': 'Where faster marathon finishes found their minutes.',
+};
+
+/** What a weather tab's old route says while it forwards: one plain sentence, as the other moved pages say theirs. */
+const MOVED_LINE: Record<string, string> = {
+  'warming-and-pacing': 'Warming through the race now has its own tab in race-day weather.',
+  'wind-and-pacing': 'Wind at the start now has its own tab in race-day weather.',
+};
+
+/** The weather tabs' old routes: each describes its tab's finding (critic round 5: the warming one said "held pace"). */
+const COMPAT_NUGGET: Record<string, NuggetId> = { 'warming-and-pacing': 'weather.warming', 'wind-and-pacing': 'weather.wind' };
+
+/** The page's finding, then what it lets a reader do; the finding alone when both would pass 155 characters. */
+function describe(slug: string, fallback: string): string {
+  const compat = COMPAT_NUGGET[slug];
+  if (compat) {
+    const nugget = getNugget(compat);
+    return nugget.guard ? sentenceOf(nugget, DEFAULT_UNITS).replace(/\*/g, '') : fallback;
+  }
+  const id = PAGE_NUGGET[`/analyses/${slug}`];
+  const tail = TAIL[slug];
+  if (!id || !tail) return fallback;
+  const nugget = getNugget(id);
+  if (!nugget.guard) return fallback;
+  const finding = sentenceOf(nugget, DEFAULT_UNITS).replace(/\*/g, '');
+  // Age says the size too: every age group near the goal slowed by the figure's range over the second 20K.
+  const age = slug === 'age-and-pacing' && nugget.figure ? `Near ${hm(Number(nugget.values.goal_min))}, every age group slowed ${nugget.figure.value}${nugget.figure.unit ?? ''} over the second 20K.` : null;
+  const both = `${finding} ${age ?? tail}`;
+  return both.length <= 155 ? both : finding;
+}
 
 function seoFor(slug: string) {
   const item = analysisBySlug(slug) || getWeatherAnalyses().find(item => item.slug === slug);
   const mapped = SEO[slug];
   const crumb = mapped?.crumb ?? (item ? unitText(item.shortTitle, DEFAULT_UNITS) : undefined);
-  if (mapped) return { ...mapped, crumb };
+  if (mapped) return { ...mapped, description: describe(slug, mapped.description), crumb };
   if (!item) return null;
   return { title: unitText(item.shortTitle, DEFAULT_UNITS) + ' | Pace Notes', description: unitText(item.description, DEFAULT_UNITS), crumb };
 }
@@ -52,34 +106,26 @@ export function generateStaticParams() { return [...TEN_ANALYSES, ...getWeatherA
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
   if (!seo) return { title: 'Analysis not found | Pace Notes', robots: { index: false, follow: true } };
-  return pageMetadata({ title: seo.title, description: seo.description, path: `/analyses/${params.slug}` });
+  const path = `/analyses/${params.slug}`;
+  // The weather questions that became tabs of race-day weather are noindex stubs that forward to their tab (spec 2.9).
+  if (movedTo(path)) return movedMetadata(path, seo.title, seo.description);
+  return pageMetadata({ title: seo.title, description: seo.description, path });
 }
+
+const BODIES: Record<string, () => JSX.Element> = {
+  'starting-pace': StartingPace, 'downhill-start': DownhillStart, 'pacing-pattern': PacingPattern, checkpoint: Checkpoint,
+  'where-time-is-gained': WhereTime, 'finish-time-context': FinishContext, 'age-and-pacing': AgePacing, 'course-comparison': CourseComparison,
+  'hills-and-pacing': HillsPacing, 'race-day-weather': RaceDayWeather, 'finding-improvement': FindingImprovement,
+};
+
 export default function AnalysisPage({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
-  return <>{seo ? <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Analyses', '/analyses'], [seo.crumb ?? seo.title]])} /> : null}{analysisBody(params)}<PageFeedback className="page-feedback-analysis" />{params.slug === 'finish-time-context' ? <FinishTimesLink /> : null}<RelatedTool analysis={params.slug} /></>;
-}
-
-/** The whole-field view of finish times, linked from the target-in-context analysis. */
-function FinishTimesLink() {
-  return <aside className="related-tool" aria-label="Marathon finish times"><p>For the whole field at once, <Link href="/finish-times">marathon finish times</Link> gives the median, the percentiles and the share of finishes under each round time, for recorded women and recorded men.</p></aside>;
-}
-
-function analysisBody(params: { slug: string }) {
-  if (params.slug === 'downhill-start') return <AllFinisherAnalysis kind="downhill" start={getAllFinisherContextStart('downhill')} archive history={<div className="prose"><h1>Downhill starts with an earlier result</h1><p><Link href="/research/personalized#guide-downhill">Open the earlier-result downhill comparison</Link> and choose a course.</p></div>} />;
-  const weatherQuestions = getWeatherAnalyses();
-  const weatherDefinition = weatherQuestions.find(item => item.slug === params.slug);
-  if (weatherDefinition) {
-    const evidence = getWeatherEvidence();
-    const candidate = evidence.candidates.find(item => item.id === weatherDefinition.id && item.status === 'ready')!;
-    return <WeatherAnalysis key={candidate.id} definition={weatherDefinition} candidate={candidate} evidence={evidence} questions={weatherQuestions} />;
-  }
-  const definition = analysisBySlug(params.slug);
-  if (!definition) notFound();
-  if (definition.id === 'opening') return <FastStartAnalysis starts={getFastStartStarts()} />;
-  const { summary, answers } = getAnalysisStart();
-  if (definition.id === 'courses' || definition.id === 'weather') {
-    const historyDefinition = { ...definition, dek: definition.id === 'courses' ? 'See how finish times compared with the same runners’ earlier bests, course by course.' : 'See how finish times compared with the same runners’ earlier bests in cooler and warmer races.' };
-    return <AllFinisherAnalysis kind={definition.id} start={getAllFinisherContextStart(definition.id)} history={<AnalysisExplorer definition={historyDefinition} summary={summary} initialAnswer={answers.find(answer => answer.id === definition.id)!} weatherQuestions={weatherQuestions} historyMode />} related={definition.id === 'weather' ? <div className="prose"><h2>More weather questions</h2><ul>{weatherQuestions.map(item => <li key={item.slug}><Link href={'/analyses/' + item.slug}>{item.shortTitle}</Link></li>)}<li><Link href="/packs/r15_weather_penalty_who">Weather and the full pacing pattern</Link></li></ul></div> : undefined} />;
-  }
-  return <AnalysisExplorer key={definition.id} definition={definition} summary={summary} initialAnswer={answers.find(answer => answer.id === definition.id)!} weatherQuestions={weatherQuestions} />;
+  const moved = movedTo(`/analyses/${params.slug}`);
+  if (moved) return <MovedPage to={moved} action="Go to race-day weather">{MOVED_LINE[params.slug] ?? 'This question now lives in race-day weather.'}</MovedPage>;
+  const Body = BODIES[params.slug];
+  if (!seo || !Body) notFound();
+  return <>
+    <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Analyses', '/analyses'], [seo.crumb ?? seo.title]])} />
+    <Body />
+  </>;
 }

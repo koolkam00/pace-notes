@@ -6,8 +6,9 @@
 // show without scrolling, and that button is the only orange control there), the hero at 200% zoom, and its
 // course-and-goal form, which goes to the planner by GET with and without the page's JavaScript, and the keypad's dot
 // typing a colon in time fields (the home goal, a tool's time, a pace and the split check). Last, the units
-// switch: it works on /research opened directly, and every page served with the inert placeholder reads the same in
-// miles and kilometres. Then a course page's contents link, a link away and Back.
+// switch: it works on /research and /methodology opened directly, and every page served with the inert placeholder
+// reads the same in miles and kilometres (a moved address's stub forwards before anyone reads it, keeping the query, to
+// a page with the working switch, so it is left out). Then a course page's contents link, a link away and Back.
 const fs = require('node:fs');
 const path = require('node:path');
 const { SITE, wiggle, openMenu, type } = require('../browser.cjs');
@@ -15,7 +16,7 @@ const { experimentPlant } = require('../inspect.cjs');
 
 const DESKTOP = { viewport: { width: 1280, height: 900 } };
 const PHONE = { viewport: { width: 390, height: 844 }, mobile: true };
-// The five main links, in order, then the Menu's quieter line (components/SiteNav.tsx).
+// The five main links, in order, then the Menu's quieter line (components/SiteNav.tsx, in components/MenuSheet.tsx).
 const MAIN = [['Plan your race', '/tools/plan'], ['Analyze a past race', '/runners'], ['Courses', '/courses'], ['Tools', '/tools'], ['Research', '/research']];
 const MORE = [['About', '/about'], ['Request an analysis', '/request-analysis'], ['Open data ↗', 'https://github.com/koolkam00/pace-notes/releases']];
 const BLOCKED = ['/runners'];
@@ -35,14 +36,18 @@ async function browse(h, device) {
   h.check('the recorder starts on /', await run.waitForRecording(page));
   await openMenu(page);
   const links = await page.evaluate(() => [...document.querySelectorAll('#site-menu a')].map(a => ({ text: a.textContent.trim(), href: a.getAttribute('href'), primary: a.classList.contains('nav-primary'), shown: a.getClientRects().length > 0, more: !!a.closest('.nav-more') })));
-  const expected = [...MAIN, ...(device.mobile ? MORE : [])];
+  // On a wide screen the home page's header leaves out its two doors (Plan your race, Analyze a past race): the hero
+  // holds them, one path to each page per screen. The Menu on a phone lists all five.
+  const expected = device.mobile ? [...MAIN, ...MORE] : MAIN.slice(2);
   const shown = links.filter(l => l.shown);
-  h.check(`the navigation shows the five links in order${device.mobile ? ', then About, Request an analysis and Open data on the Menu\'s quieter line' : ' and nothing else'}`,
+  h.check(`the navigation shows ${device.mobile ? 'the five links in order, then About, Request an analysis and Open data on the Menu\'s quieter line' : 'Courses, Tools and Research on the home page (the hero holds the other two doors) and nothing else'}`,
     JSON.stringify(shown.map(l => [l.text, l.href])) === JSON.stringify(expected) && shown.filter(l => l.more).length === (device.mobile ? MORE.length : 0), shown);
   h.check('Plan your race is the primary (orange) link', links[0] && links[0].primary && links.filter(l => l.primary).length === 1, links);
-  if (device.mobile) await page.locator('.site-header .nav-toggle').click(); // close it again
+  // The Menu is a modal sheet over the header (components/MenuSheet.tsx): close it again with Escape.
+  if (device.mobile) { await page.keyboard.press('Escape'); await page.waitForTimeout(700); }
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 700); await page.waitForTimeout(120); }
-  await click('a.story-card', /^\/stories\/[a-z-]+$/);
+  // A story from the home page's chapter list (its story cards left it in the redesign, WP1, October 17, 2026).
+  await click('main .chapter-list a[href^="/stories/"]', /^\/stories\/[a-z-]+$/);
   for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 800); await page.waitForTimeout(120); }
   for (const [, href] of MAIN) {
     const from = new URL(page.url()).pathname, left = Date.now();
@@ -156,7 +161,7 @@ async function homeForm(h) {
     const page = await run.newPage();
     await page.goto(SITE + '/', { waitUntil: 'load' });
     await page.waitForTimeout(800);
-    if (km) { await page.click('.unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(300); }
+    if (km) { await page.click('.unit-switch button:has-text("Kilometers")'); await page.waitForTimeout(300); }
     await page.selectOption('#home-plan-course', course);
     if (goal) await type(page, '#home-plan-goal', goal);
     // The address the form asked for, before the planner tidies its own query.
@@ -242,17 +247,20 @@ async function keypad(h) {
     units.push({ typed: typedUnits, shown, left: await deskPage.locator('.plan-goal input').first().inputValue(), goal: new URL(deskPage.url()).searchParams.get('goal') });
   }
   await desk.close();
-  h.check('desktop: 3.5h and 3.75 hours typed key by key in the planner read 3:30:00 and 3:45:00 (goal=3:30, goal=3:45)',
-    units[0].left === '3:30:00' && units[0].goal === '3:30' && units[1].left === '3:45:00' && units[1].goal === '3:45', units);
+  // The planner's goal reads h:mm once left, the same as every goal tool's (3:30, never 3:30:00).
+  h.check('desktop: 3.5h and 3.75 hours typed key by key in the planner read 3:30 and 3:45 (goal=3:30, goal=3:45)',
+    units[0].left === '3:30' && units[0].goal === '3:30' && units[1].left === '3:45' && units[1].goal === '3:45', units);
 
   const run = await h.run('keypad', PHONE);
   const page = await run.newPage();
   await page.goto(SITE + '/', { waitUntil: 'load' });
   await page.waitForTimeout(800);
-  const hint = await hintOf(page, '.home-plan .keypad-hint');
-  h.check('phone: the home goal shows "Tap . for :", hidden from screen readers', hint && hint.shown && hint.ariaHidden === 'true' && hint.text === 'Tap . for :', hint);
+  // The hint waits for the goal's focus (the keypad up), so the first screen carries no stray punctuation.
+  const before = await hintOf(page, '.home-plan .keypad-hint');
   await page.selectOption('#home-plan-course', 'berlin');
   const typed = await typeOnly(page, '#home-plan-goal', '3.30');
+  const hint = await hintOf(page, '.home-plan .keypad-hint');
+  h.check('phone: the home goal shows "Tap . for :" once it has focus, not before, hidden from screen readers', before && !before.shown && hint && hint.shown && hint.ariaHidden === 'true' && hint.text === 'Tap . for :', { before, hint });
   h.check('phone: typing 3.30 into the home goal shows 3:30', typed === '3:30', typed);
   const [request] = await Promise.all([
     page.waitForRequest(r => r.isNavigationRequest() && new URL(r.url()).pathname === '/tools/plan', { timeout: 15000 }),
@@ -276,10 +284,15 @@ async function keypad(h) {
   const paceHint = await page.evaluate(() => [...document.querySelectorAll('.tool-field')].filter(f => /Pace per/.test(f.querySelector('label')?.textContent ?? '')).map(f => !!f.querySelector('.keypad-hint')));
   h.check('phone: the pace field has no keypad hint (its dot is a decimal point)', JSON.stringify(paceHint) === '[false]', paceHint);
 
-  // At 200% zoom (195 px wide) the inline hint wraps as one piece, never leaving the colon alone on a line.
+  // At 200% zoom (195 px wide) the inline hint, shown once the goal has focus, wraps as one piece, never leaving the
+  // colon alone on a line; before the focus no hint shows (no first screen carries it).
   await page.setViewportSize({ width: 195, height: 800 });
   await page.goto(SITE + '/tools/pace-band', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
+  const idle = await page.evaluate(() => [...document.querySelectorAll('.keypad-hint')].filter(el => getComputedStyle(el).display !== 'none').length);
+  h.check('phone: no keypad hint shows before a time field has focus', idle === 0, idle);
+  await page.locator('.tool-field-hint').first().evaluate((el) => el.closest('.tool-field, .tool-goal, .field')?.querySelector('input')?.focus());
+  await page.waitForTimeout(200);
   const narrow = await page.evaluate(() => [...document.querySelectorAll('.tool-field-hint .keypad-hint')].filter(el => getComputedStyle(el).display !== 'none').map(el => new Set([...el.getClientRects()].map(r => Math.round(r.top))).size));
   h.check('phone at 195 px: the pace band goal\'s inline "Tap . for :" sits on one line', narrow.length === 1 && narrow[0] === 1, narrow);
   await page.setViewportSize(PHONE.viewport);
@@ -287,36 +300,80 @@ async function keypad(h) {
   // The split check's nine boxes share one hint; each box turns dots into colons, and its pasted list is left as it is.
   await page.goto(SITE + '/tools/split-check', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
-  const gridHint = await hintOf(page, '.split-check-inputs fieldset ~ .tool-field-hint .keypad-hint');
+  const gridIdle = await hintOf(page, '.split-check-inputs fieldset ~ .tool-field-hint .keypad-hint');
   const mat = await typeOnly(page, 'input[id$="-t2"]', '1.12.55');
-  h.check('phone: the split check shows one keypad hint for its nine boxes, and 1.12.55 typed in a box shows 1:12:55',
-    gridHint && gridHint.shown && mat === '1:12:55' && await page.locator('.split-check-inputs .keypad-hint').count() === 1, { gridHint, mat });
+  const gridHint = await hintOf(page, '.split-check-inputs fieldset ~ .tool-field-hint .keypad-hint');
+  h.check('phone: the split check shows one keypad hint for its nine boxes once a box has focus, and 1.12.55 typed in a box shows 1:12:55',
+    gridIdle && !gridIdle.shown && gridHint && gridHint.shown && mat === '1:12:55' && await page.locator('.split-check-inputs .keypad-hint').count() === 1, { gridIdle, gridHint, mat });
   await run.close();
 }
 
+// Every goal tool's goal can be cleared and typed again: four Backspaces empty the 4:00 example (a tool that sets aside a
+// half-typed time, such as the course chooser's 5-minute grid, never writes its own goal back over the visitor's text),
+// and a keypad's 3.30 reads 3:30 in the field once it is left and goal=3:30 in the address, h:mm on every tool.
+async function goalRetype(h) {
+  const run = await h.run('goal retype', PHONE);
+  const page = await run.newPage();
+  const seen = [];
+  for (const route of ['/tools/plan', '/tools/pace-band', '/tools/course-chooser', '/tools/weather-match']) {
+    await page.goto(SITE + route, { waitUntil: 'load' });
+    await page.waitForTimeout(1200);
+    const field = page.getByLabel('Goal finish time', { exact: true }).first();
+    await field.scrollIntoViewIfNeeded({ timeout: 8000 });
+    await field.click({ timeout: 8000 });
+    await page.keyboard.press('End');
+    for (let i = 0; i < 4; i += 1) { await page.keyboard.press('Backspace'); await page.waitForTimeout(60); }
+    const cleared = await field.inputValue();
+    await field.pressSequentially('3.30', { delay: 60 });
+    const typed = await field.inputValue();
+    await field.evaluate((el) => el.blur());
+    await page.waitForTimeout(900);
+    seen.push({ route, cleared, typed, left: await field.inputValue(), goal: new URL(page.url()).searchParams.get('goal') });
+  }
+  await run.close();
+  h.check('every goal tool: four Backspaces clear the 4:00 example, and a typed 3.30 reads 3:30 in the field and goal=3:30 in the address',
+    seen.every((r) => r.cleared === '' && r.typed === '3:30' && r.left === '3:30' && r.goal === '3:30'), seen);
+}
+
 // Every page whose text changes with the units has the header's working switch (lib/unit-preference.ts; the build stops
-// otherwise). /research, opened directly, converts its list of analyses when Kilometres is pressed (it showed the inert
-// placeholder before); every page the export serves with the placeholder (404.html aside) reads the same in both units.
+// otherwise). /research, opened directly, converts its text when Kilometers is pressed: the contents' opener names the
+// marathon distance ("26.2 miles in eleven chapters"), and any pace a chapter's reading carries turns from /mi to /km.
+// /methodology has the working switch too (its pace bands convert). Every page the export serves with the placeholder
+// reads the same in both units: since /privacy and /request-analysis took the working switch (October 18, 2026) that is
+// the 404 page alone, besides the moved addresses' stubs.
 async function unitSwitch(h) {
   const run = await h.run('units switch', DESKTOP);
   const page = await run.newPage();
   const seen = () => page.evaluate(() => {
     const control = document.querySelector('.site-header .unit-switch');
+    const lines = (document.querySelector('main')?.innerText ?? '').split('\n');
     return {
       working: !!control && !control.classList.contains('unit-switch-placeholder') && control.getAttribute('role') === 'group' && getComputedStyle(control).visibility === 'visible',
-      analyses: (document.querySelector('#analyses')?.innerText ?? '').match(/[^\n]*the first [^\n]* to the finish\./)?.[0] ?? null, search: location.search,
+      // The number and its unit are held together by a no-break space, which \s matches.
+      distance: lines.find((line) => /\b(?:26\.2\smiles|42\.2\skm)\b/.test(line)) ?? null,
+      paces: lines.filter((line) => /\d:\d\d\/(?:mi|km)\b/.test(line)),
+      search: location.search,
     };
   });
   await page.goto(SITE + '/research', { waitUntil: 'load' });
   await page.waitForTimeout(800);
   const miles = await seen();
   h.check('/research, opened directly, has the working units switch', miles.working, miles);
-  if (miles.working) { await page.click('.site-header .unit-switch button:has-text("Kilometres")'); await page.waitForTimeout(400); }
+  if (miles.working) { await page.click('.site-header .unit-switch button:has-text("Kilometers")'); await page.waitForTimeout(400); }
   const km = await seen();
-  h.check('pressing Kilometres on /research converts its analyses (the first 3.11 mi, then the first 5 km) and adds units=km',
-    /the first 3\.11 mi to/.test(miles.analyses) && /the first 5 km to/.test(km.analyses) && km.search === '?units=km', { miles, km });
-  const placeholders = fs.readdirSync(h.out, { recursive: true }).filter(file => file.endsWith('.html') && file !== '404.html'
-    && fs.readFileSync(path.join(h.out, file), 'utf8').includes('unit-switch-placeholder')).map(file => '/' + file.replace(/\.html$/, '').replace(/(^|\/)index$/, '')).sort();
+  h.check('pressing Kilometers on /research converts its text (26.2 miles, then 42.2 km; any /mi pace, then /km) and adds units=km',
+    /26\.2\smiles/.test(miles.distance ?? '') && /42\.2\skm/.test(km.distance ?? '') && miles.paces.every((line) => /\/mi\b/.test(line)) && km.paces.every((line) => /\/km\b/.test(line))
+      && miles.paces.length === km.paces.length && km.search === '?units=km', { miles, km });
+  await page.goto(SITE + '/methodology', { waitUntil: 'load' });
+  await page.waitForTimeout(800);
+  const methods = await seen();
+  h.check('/methodology, opened directly, has the working units switch', methods.working, methods);
+  const served = fs.readdirSync(h.out, { recursive: true }).filter(file => file.endsWith('.html'))
+    .map(file => ({ at: '/' + file.replace(/\.html$/, '').replace(/(^|\/)index$/, ''), html: fs.readFileSync(path.join(h.out, file), 'utf8') }))
+    .filter(({ html }) => html.includes('unit-switch-placeholder'));
+  // A stub (components/MovedPage.tsx) replaces itself with its target while the HTML is read (<script data-forward>).
+  const forwards = served.filter(({ html }) => html.includes('<script data-forward')).map(({ at }) => at);
+  const placeholders = served.filter(({ html }) => !html.includes('<script data-forward')).map(({ at }) => at).sort();
   const differ = [];
   for (const at of placeholders) {
     const text = async units => { await page.goto(`${SITE}${at}?units=${units}`, { waitUntil: 'load' }); await page.waitForTimeout(800); return page.evaluate(() => document.querySelector('main')?.innerText ?? ''); };
@@ -325,8 +382,8 @@ async function unitSwitch(h) {
     if (!mi || mi !== kilometres) differ.push({ page: at, miles: mi.split('\n')[line], km: kilometres.split('\n')[line] });
   }
   await run.close();
-  h.check('every page served with the inert placeholder reads the same in miles and kilometres', placeholders.length && !differ.length && !placeholders.includes('/research'), { placeholders, differ });
-  h.note(`units switch: placeholder pages ${placeholders.join(', ')}`);
+  h.check('every page served with the inert placeholder reads the same in miles and kilometres', placeholders.length && !differ.length && !placeholders.includes('/research') && !placeholders.includes('/methodology'), { placeholders, differ });
+  h.note(`units switch: placeholder pages ${placeholders.join(', ')}; ${forwards.length} moved addresses' stubs left out`);
 }
 
 // A course page's in-page links (the contents, "sustained slowdown", "finish times by year") go through the router, so
@@ -359,7 +416,7 @@ async function courseBack(h, device) {
 
 module.exports = {
   id: 'S1',
-  title: 'Browsing: home, story, the five main links, an analysis, privacy; the home page\'s first screen and form; the units switch; Back to a course page',
+  title: 'Browsing: home, story, the five main links, an analysis, privacy; the home page\'s first screen and form; the units switch; Back to a course page; every goal tool\'s goal retyped',
   jobs: ({ quick }) => [
     { name: 'desktop', weight: 34, run: h => browse(h, DESKTOP) },
     ...(quick ? [] : [{ name: 'phone', weight: 34, run: h => browse(h, PHONE) }]),
@@ -369,5 +426,6 @@ module.exports = {
     { name: 'keypad colon', weight: 8, run: keypad },
     { name: 'units switch', weight: 12, run: unitSwitch },
     { name: 'course page Back', weight: 8, run: h => courseBack(h, PHONE) },
+    { name: 'goal retype', weight: 8, run: goalRetype },
   ],
 };

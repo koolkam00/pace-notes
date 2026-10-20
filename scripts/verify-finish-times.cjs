@@ -155,6 +155,54 @@ for (const file of ['app/finish-times/page.tsx', 'components/FinishTimeSummary.t
   }
 }
 
+// ---------- 2b. The page's beats (the redesign, October 2026): 99 finishes, the eras, race by race ----------
+// The field as 99 finishes: each group's 1st to 99th percentile minute, recounted with a plain cumulative walk.
+for (const g of GROUPS) {
+  const N = totals[g];
+  const expectedCentiles = [];
+  for (let p = 1; p <= 99; p++) {
+    const rank = Math.max(1, Math.ceil((p * N) / 100));
+    let seen = 0, minute = hist[hist.length - 1].minute;
+    for (const row of hist) { seen += row[g]; if (seen >= rank) { minute = row.minute; break; } }
+    expectedCentiles.push(minute);
+  }
+  const got = H.percentileMinutes(summary.bins.map((b) => ({ minute: b.minute, n: b[g] })), N);
+  assert.deepEqual(got, expectedCentiles, `${g}: the 99 finishes recount`);
+  assert.equal(got[49], summary.groups[g].median, `${g}: the signal dot is the median`);
+  assert.deepEqual([got[24], got[74]], [0.25, 0.75].map((p) => summary.groups[g].percentiles.find((x) => x.p === p).minute), `${g}: the labelled dots are the quartiles`);
+}
+// The eras: the averages the page marks are the means of the fully covered courses' own changes.
+{
+  const e = courses.years.eras;
+  const covered = e.courses.filter((c) => c.high_coverage);
+  assert.deepEqual(covered.map((c) => c.city).sort(), [...e.high_coverage_courses].sort(), 'Era rows: the fully covered courses');
+  for (const key of ['p10', 'p90']) {
+    const mean = covered.reduce((sum, c) => sum + (c[key][1] - c[key][0]) / 60, 0) / covered.length;
+    assert.ok(Math.abs(mean - e.summary[key].change) < 0.01, `Era ${key}: the marked average (${e.summary[key].change}) is the courses' mean change (${mean.toFixed(3)})`);
+  }
+}
+// Race by race: every course with 100 or more finishes, ranked by median; the extremes the headline names have three or more editions.
+{
+  const list = courses.courses.filter((c) => c.finishes >= 100);
+  assert.ok(list.length >= 2, 'Race by race: at least two courses');
+  const solid = list.filter((c) => c.editions >= 3);
+  const lo = solid.reduce((a, b) => (b.median_s < a.median_s ? b : a)), hi = solid.reduce((a, b) => (b.median_s > a.median_s ? b : a));
+  assert.ok(lo.median_s < hi.median_s, 'Race by race: the range runs low to high');
+  // Medians floor to the minute, as the course pages read a clock (3:59:56 is "3:59", never a rounded "4:00"), in the
+  // H2's range and in the strip and table under it.
+  const floored = (s) => { const m = Math.floor(s / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+  const built = path.join(root, 'out/finish-times.html');
+  if (fs.existsSync(built)) {
+    const text = fs.readFileSync(built, 'utf8').replace(/<[^>]+>/g, '').replace(/&nbsp;|\u00a0/g, ' ');
+    assert.ok(text.includes(`${floored(lo.median_s)} to ${floored(hi.median_s)}`), `Race by race: the built H2 names the floored range ${floored(lo.median_s)} to ${floored(hi.median_s)}`);
+  }
+}
+// The page names no course in a headline and types no number: its figures come from lib/nuggets and the data.
+{
+  const text = fs.readFileSync(path.join(root, 'components/FinishTimeSummary.tsx'), 'utf8');
+  assert.doesNotMatch(text.replace(/\/\*[\s\S]*?\*\//g, ''), /['"`][^'"`\n]*\b\d:\d\d\b[^'"`\n]*['"`]/, 'components/FinishTimeSummary.tsx types no finish time');
+}
+
 // ---------- 3. The full finish records ----------
 let records = 'skipped (--skip-records)';
 if (!skipRecords) {

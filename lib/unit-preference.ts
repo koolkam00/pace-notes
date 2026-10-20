@@ -4,8 +4,10 @@ import { DEFAULT_UNITS, type UnitSystem } from './units';
 // Everywhere else the switch is an inert, hidden placeholder that keeps the header's layout. A page that renders text
 // that changes with the units must be listed: in the server render (the static export's build) useUnits, UnitText and
 // MarathonDistance (components/UnitsProvider.tsx) throw on any other page, so a page left out stops the build.
-const UNIT_PAGES = ['/', '/about', '/slowdown', '/htw', '/research', '/your-race'];
-const UNIT_SECTIONS = ['/analyses', '/runners', '/report', '/packs', '/courses', '/stories', '/tools', '/finish-times'];
+// The moved addresses' stubs (/packs, /htw, /your-race …) and the 404 show no such text, so their switch stays inert
+// (unseen, it keeps the switch's room, so their header matches every other page's).
+const UNIT_PAGES = ['/', '/about', '/methodology', '/slowdown', '/research', '/privacy', '/request-analysis'];
+const UNIT_SECTIONS = ['/analyses', '/runners', '/report', '/courses', '/stories', '/tools', '/finish-times'];
 
 /** Whether the header's units switch works on this page (a path without the base path, as usePathname gives it). */
 export function unitSwitchShown(path: string): boolean {

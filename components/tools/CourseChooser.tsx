@@ -2,15 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
-import { Choice, DataState, EvidencePanel, ExampleNote, ShareBar, Stat } from '@/components/tools/ui';
+import { EvidenceTag } from '@/components/tools/EvidenceTag';
+import Arrow from '@/components/ui/Arrow';
+import { DataState, DurationField, GoalBar, ReadingFoot, Stepper } from '@/components/tools/ui';
+import { fmtGoal } from '@/lib/tools/pace-band-data';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { loadInsight } from '@/lib/insights';
 import type { CourseContext, CourseGoal, CourseGoalRow } from '@/lib/tools/data';
 import { planHref } from '@/lib/tools/links';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
-import { formatDuration, formatHM, formatMargin, parseDuration } from '@/lib/tools/time';
-import { METRES_PER_FOOT, elevationLabel, type UnitSystem } from '@/lib/units';
+import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
+import type { UnitSystem } from '@/lib/units';
 import { count } from '@/lib/viz/format';
 
 /* ------------------------------------------------------------------ */
@@ -21,9 +23,9 @@ const DATA_PATH = 'tools/course-goal.json';
 /** Fallbacks before the data file loads; the loaded file's own values win. */
 const GOALS_FALLBACK: [number, number] = [150, 390];
 const STEP_FALLBACK = 5;
-const DEFAULT_GOAL = 210;
-const PRESETS = [180, 195, 210, 225, 240, 270, 300];
-const DEFAULTS = { goal: '3:30', sort: 'name', dir: '', month: '', open: '' };
+/** The 4:00 example every tool and goal page opens on (spec section 4.4). */
+const DEFAULT_GOAL = 240;
+const DEFAULTS = { goal: '4:00', sort: 'under', dir: '', month: '', open: '' };
 
 type SortKey = 'name' | 'under' | 'sd' | 'after20' | 'n';
 type Dir = 'asc' | 'desc';
@@ -35,42 +37,25 @@ const DEFAULT_DIR: Record<SortKey, Dir> = { name: 'asc', under: 'desc', sd: 'des
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const MINUS = '−';
 
 /** A course page with no course in the data (every edition was screened out). */
 export interface ScreenedCourse { city: string; slug: string }
 interface Item { row: CourseGoalRow; course: CourseContext }
-interface Scale { lo: number; hi: number; ticks: number[] }
 
 const hm = (minutes: number) => formatHM(minutes * 60);
 const pctText = (share: number) => (share > 0 && share < 0.005 ? '<1%' : `${Math.round(share * 100)}%`);
+/** "5–27%": the lowest and highest share, one percent sign; a single value when they round alike. */
+function range2(shares: number[]): string {
+  const [a, b] = [pctText(Math.min(...shares)), pctText(Math.max(...shares))];
+  return a === b ? a : `${a.replace('%', '')}–${b}`;
+}
 const paceText = (sPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(sPerKm, units))}/${units}`;
 
-/** Whole feet or metres through the site's elevation label (source values stay metric). */
-function elev(metres: number, units: UnitSystem, signed = false): string {
-  // "+ 0" turns a rounded −0 into 0, so a flat course never reads "−0 ft".
-  const whole = (units === 'mi' ? Math.round(metres / METRES_PER_FOOT) * METRES_PER_FOOT : Math.round(metres)) + 0;
-  // A no-break space keeps the number and its unit together when a card line wraps.
-  const label = elevationLabel(whole, units).replace('-', MINUS).replace(/ (ft|m)$/, '\u00a0$1');
-  return signed && Math.round(units === 'mi' ? metres / METRES_PER_FOOT : metres) > 0 ? `+${label}` : label;
-}
-const elevUnit = (units: UnitSystem) => (units === 'mi' ? 'ft' : 'm');
-function elevNumber(metres: number, units: UnitSystem): string {
-  return elev(metres, units).replace(/\s*(ft|m)$/, '');
-}
-
-/** "45–62°F" or "7–16°C"; a single value when the range rounds to one number. */
-function tempRange(range: [number, number] | null, units: UnitSystem): string | null {
-  if (!range) return null;
-  const t = (c: number) => Math.round(units === 'mi' ? c * 1.8 + 32 : c);
-  const [a, b] = [t(range[0]), t(range[1])];
-  const sign = (v: number) => String(v).replace('-', MINUS);
-  const unit = units === 'mi' ? '°F' : '°C';
-  return a === b ? `${sign(a)}${unit}` : `${sign(a)}${a < 0 || b < 0 ? ' to ' : '–'}${sign(b)}${unit}`;
-}
 const inMonth = (c: CourseContext, m: number | null) => m === null || c.months.includes(m);
 const inOpening = (c: CourseContext, o: Opening) => o === '' || (o === 'downhill') === c.downhill_opening;
-const monthText = (months: number[], long = false) => (months.length ? months.map((m) => (long ? MONTHS_LONG : MONTHS)[m - 1]).join(long ? ' and ' : ', ') : '—');
+/** A course's name as every page writes it (the data's "New York" is New York City, as on the analyses). */
+const displayCity = (city: string) => (city === 'New York' ? 'New York City' : city);
+const monthText = (months: number[]) => (months.length ? months.map((m) => MONTHS[m - 1]).join(', ') : '—');
 
 /**
  * Read ?goal= and snap it to the published 5-minute grid, saying so when the link asked for something else.
@@ -91,18 +76,6 @@ function readGoal(text: string, range: [number, number], step: number): { minute
   return { minutes: snapped, note: null };
 }
 
-/** One shared time scale for every bar at this goal, with round ticks. */
-function finishScale(rows: CourseGoalRow[], goalS: number): Scale {
-  const lo0 = Math.min(goalS, ...rows.map((r) => r.fin[0]));
-  const hi0 = Math.max(goalS, ...rows.map((r) => r.fin[2]));
-  const pad = Math.max(60, (hi0 - lo0) * 0.04);
-  const [lo, hi] = [lo0 - pad, hi0 + pad];
-  const step = [300, 600, 900, 1200, 1800, 3600].find((s) => (hi - lo) / s <= 4.5) ?? 3600;
-  const ticks: number[] = [];
-  for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) ticks.push(t);
-  return { lo, hi, ticks };
-}
-
 function sortItems(items: Item[], key: SortKey, dir: Dir): Item[] {
   const sign = dir === 'asc' ? 1 : -1;
   const value = (it: Item) => (key === 'under' ? it.row.under : key === 'sd' ? it.row.sd : key === 'after20' ? it.row.after20 : it.row.n);
@@ -111,6 +84,14 @@ function sortItems(items: Item[], key: SortKey, dir: Dir): Item[] {
     const d = value(a) - value(b);
     return d !== 0 ? sign * d : a.course.city.localeCompare(b.course.city);
   });
+}
+
+/** A row's sort value, when the list is sorted by something its bar does not show: "53% of them had a sustained slowdown · ". */
+function sortValue(key: SortKey, row: CourseGoalRow, units: UnitSystem): string {
+  if (key === 'sd') return `${pctText(row.sd)} of them had a sustained slowdown · `;
+  if (key === 'after20') return `${formatDuration(row.after20, true)} after ${units === 'mi' ? '12.4 mi' : '20 km'} · `;
+  if (key === 'n') return `${count(row.n)} finishes · `;
+  return '';
 }
 
 function orderLabel(key: SortKey, dir: Dir): string {
@@ -145,74 +126,35 @@ function useCourseGoal(sha: string | null) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Charts                                                              */
-/* ------------------------------------------------------------------ */
-
-const BAR_W = 168;
-
-/** Finish-time spread for one course: 10th–90th percentile bar, median dot, goal line. */
-function FinishBar({ fin, goalS, scale, variant = 'row', city, goalLabel }: {
-  fin: [number, number, number]; goalS: number; scale: Scale; variant?: 'row' | 'card'; city: string; goalLabel: string;
-}) {
-  const W = variant === 'row' ? BAR_W : 300;
-  const H = variant === 'row' ? 22 : 54;
-  const padX = variant === 'row' ? 7 : 16;
-  const x = (s: number) => padX + ((s - scale.lo) / (scale.hi - scale.lo)) * (W - 2 * padX);
-  const cy = variant === 'row' ? H / 2 : 27;
-  const label = `${city}: 10th percentile finish ${formatDuration(fin[0], true)}, median ${formatDuration(fin[1], true)}, 90th percentile ${formatDuration(fin[2], true)}. The goal, ${goalLabel}, is ${fin[1] > goalS ? 'faster than the median' : 'slower than the median'}.`;
-  return (
-    <svg className={`course-chooser-bar is-${variant}`} viewBox={`0 0 ${W} ${H}`} width={variant === 'row' ? W : undefined} role="img" aria-label={label}>
-      {variant === 'card' ? (
-        <>
-          {scale.ticks.map((t) => (
-            <g key={t} className={t === goalS ? 'is-goal' : undefined}>
-              <line className="course-chooser-grid" x1={x(t)} x2={x(t)} y1={16} y2={40} />
-              <text className="course-chooser-tick" x={x(t)} y={H - 2} textAnchor="middle">{formatHM(t)}</text>
-            </g>
-          ))}
-          <text className="course-chooser-goal-text" x={Math.min(W - 30, Math.max(30, x(goalS)))} y={10} textAnchor="middle">{goalLabel} goal</text>
-        </>
-      ) : null}
-      <line className="course-chooser-goal-line" x1={x(goalS)} x2={x(goalS)} y1={variant === 'row' ? 1 : 14} y2={variant === 'row' ? H - 1 : 40} />
-      <line className="course-chooser-range" x1={x(fin[0])} x2={x(fin[2])} y1={cy} y2={cy} />
-      <line className="course-chooser-whisker" x1={x(fin[0])} x2={x(fin[0])} y1={cy - 5} y2={cy + 5} />
-      <line className="course-chooser-whisker" x1={x(fin[2])} x2={x(fin[2])} y1={cy - 5} y2={cy + 5} />
-      <circle className="course-chooser-median" cx={x(fin[1])} cy={cy} r={4.6} />
-    </svg>
-  );
-}
-
-/** The shared axis above the table's bar column. */
-function FinishAxis({ scale, goalS }: { scale: Scale; goalS: number }) {
-  const W = BAR_W;
-  const padX = 7;
-  const x = (s: number) => padX + ((s - scale.lo) / (scale.hi - scale.lo)) * (W - 2 * padX);
-  return (
-    <svg className="course-chooser-axis" viewBox={`0 0 ${W} 20`} width={W} aria-hidden="true">
-      {scale.ticks.map((t) => (
-        <g key={t} className={t === goalS ? 'is-goal' : undefined}>
-          <text x={x(t)} y={10} textAnchor="middle">{formatHM(t)}</text>
-          <line x1={x(t)} x2={x(t)} y1={13} y2={19} />
-        </g>
-      ))}
-      {scale.ticks.includes(goalS) ? null : <path className="course-chooser-goal-mark" d={`M${x(goalS) - 4} 13 L${x(goalS) + 4} 13 L${x(goalS)} 19 Z`} />}
-    </svg>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
-export default function CourseChooser({ sha, pages, screened, bandGoals }: {
-  sha: string | null; pages: string[]; screened: ScreenedCourse[];
-  /** Goals per course slug where the pace band has observed course data; null when unknown (links then go to the course). */
-  bandGoals: Record<string, number[]> | null;
+/**
+ * Where each course's share sits between the fewest and the most: one tick per course, the two named on the card in ink
+ * (taller), every other one quiet. The names are the card's figures, so the strip carries no labels of its own.
+ */
+function ShareStrip({ items, goalText }: { items: Item[]; goalText: string }) {
+  if (items.length < 2) return null;
+  const sorted = [...items].sort((a, b) => a.row.under - b.row.under);
+  const lo = sorted[0], hi = sorted[sorted.length - 1];
+  const span = hi.row.under - lo.row.under || 1;
+  const at = (it: Item) => `${((it.row.under - lo.row.under) / span) * 100}%`;
+  return (
+    <figure className="viz cc-strip" aria-label={`Share that made ${goalText}, course by course: from ${pctText(lo.row.under)} in ${displayCity(lo.course.city)} to ${pctText(hi.row.under)} in ${displayCity(hi.course.city)}.`} role="img">
+      <div className="cc-strip-track">
+        {sorted.map((it) => <i key={it.course.slug} className={it === lo || it === hi ? 'is-end' : undefined} style={{ left: at(it) }} />)}
+      </div>
+    </figure>
+  );
+}
+
+export default function CourseChooser({ sha, screened }: {
+  sha: string | null; screened: ScreenedCourse[];
 }) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState(DEFAULTS);
   const { data, error, retry } = useCourseGoal(sha);
-  // The example: the default 3:30 goal, untouched and not from a link. Any change or linked value ends it.
+  // The example: the default 4:00 goal, untouched and not from a link. Any change or linked value ends it.
   const [touched, setTouched] = useState(false);
   const setQ = (patch: Partial<typeof DEFAULTS>) => { setTouched(true); setQuery(patch); };
   const isExample = ready && !touched && fromUrl.size === 0;
@@ -223,30 +165,25 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
   // A link with goal= (cleared) opens on a prompt with no results, not on the example goal.
   const noGoal = q.goal.trim() === '';
   const { minutes: goal, note } = noGoal ? { minutes: DEFAULT_GOAL, note: null } : readGoal(q.goal, range, step);
-  const goalS = goal * 60;
   const goalText = hm(goal);
-  const evenKm = goalS / MARATHON_KM;
+  const evenKm = (goal * 60) / MARATHON_KM;
 
-  const sort: SortKey = (SORT_KEYS as string[]).includes(q.sort) ? (q.sort as SortKey) : 'name';
+  const sort: SortKey = (SORT_KEYS as string[]).includes(q.sort) ? (q.sort as SortKey) : 'under';
   const dir: Dir = q.dir === 'asc' || q.dir === 'desc' ? q.dir : DEFAULT_DIR[sort];
   const month = /^(1[0-2]|[1-9])$/.test(q.month) ? Number(q.month) : null;
   const opening: Opening = q.open === 'downhill' || q.open === 'other' ? q.open : '';
 
-  const goals = useMemo(() => {
-    const out: number[] = [];
-    for (let m = range[0]; m <= range[1]; m += step) out.push(m);
-    return out;
-  }, [range, step]);
   const setGoal = (m: number) => setQ({ goal: hm(Math.min(range[1], Math.max(range[0], m))) });
+  // The field shows the goal as typed or linked (it snaps for the results only), so typing is never overwritten.
+  const typed = noGoal ? null : (() => { const sec = parseDuration(q.goal, 'race'); return sec !== null && sec >= 3600 ? sec : goal * 60; })();
   // The steppers stay focusable at the ends of the range (aria-disabled, not disabled), so keyboard focus never drops to the page.
   const canFaster = !noGoal && goal > range[0];
   const canSlower = !noGoal && goal < range[1];
 
   // Controls that unmount when used (Clear filters, Try again) hand focus to a control that stays.
   const monthRef = useRef<HTMLSelectElement>(null);
-  const goalRef = useRef<HTMLSelectElement>(null);
   const clearFilters = () => { monthRef.current?.focus(); setQ({ month: '', open: '' }); };
-  const retryLoad = () => { goalRef.current?.focus(); retry?.(); };
+  const retryLoad = () => { document.getElementById('course-chooser-goal')?.focus(); retry?.(); };
 
   const courseByCity = useMemo(() => new Map((data?.courses ?? []).map((c) => [c.city, c])), [data]);
   const published: Item[] = useMemo(() => (data ? data.rows.filter((r) => r.goal === goal).flatMap((row) => {
@@ -255,7 +192,6 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
   }) : []), [data, goal, courseByCity]);
   const visible = useMemo(() => sortItems(published.filter(({ course }) => inMonth(course, month) && inOpening(course, opening)), sort, dir),
     [published, month, opening, sort, dir]);
-  const scale = useMemo(() => finishScale(published.map((p) => p.row), goalS), [published, goalS]);
   // Filter options come from the courses published at this goal, with how many each leaves (given the other filter).
   // A month from the link stays listed at 0, so the select can still show it.
   const monthOptions = useMemo(() => {
@@ -265,304 +201,177 @@ export default function CourseChooser({ sha, pages, screened, bandGoals }: {
   }, [published, month, opening]);
   const openingCount = (o: Opening) => published.filter((p) => inMonth(p.course, month) && inOpening(p.course, o)).length;
 
-  const unavailable = useMemo(() => {
-    if (!data) return { pace: [] as string[], structural: [] as string[] };
-    const pace: string[] = [];
-    const structural: string[] = [];
-    for (const u of data.unavailable.filter((x) => x.goal === goal).sort((a, b) => a.city.localeCompare(b.city))) {
-      const c = courseByCity.get(u.city);
-      (c && c.editions < minEditions ? structural : pace).push(u.city);
-    }
-    for (const s of screened) structural.push(s.city);
-    structural.sort((a, b) => a.localeCompare(b));
-    return { pace, structural };
-  }, [data, goal, courseByCity, minEditions, screened]);
+  // Courses with no row at this goal: too few finishes at this pace, or (structural) too few editions or none screened in.
+  const unpublished = useMemo(() => {
+    if (!data) return [] as string[];
+    const out = data.unavailable.filter((x) => x.goal === goal).map((u) => u.city);
+    for (const c of data.courses) if (c.editions < minEditions && !out.includes(c.city)) out.push(c.city);
+    for (const s of screened) if (!out.includes(s.city)) out.push(s.city);
+    return [...new Set(out)].sort((a, b) => a.localeCompare(b));
+  }, [data, goal, minEditions, screened]);
 
-  const pageSet = useMemo(() => new Set(pages), [pages]);
-  const slugFor = (city: string) => courseByCity.get(city)?.slug ?? screened.find((s) => s.city === city)?.slug ?? null;
-  const courseLink = (city: string) => {
-    const slug = slugFor(city);
-    return slug && pageSet.has(slug) ? <Link href={`/courses/${slug}`}>{city}</Link> : <>{city}</>;
-  };
-  /**
-   * The pace band for this goal on the course, or the all-course band when the course has too few finishes just under the goal
-   * or the pace band does not publish it. course= is passed only when the build checked that the pace band has it.
-   */
-  const band = (course: CourseContext) => {
-    const own = bandGoals !== null && (bandGoals[course.slug] ?? []).includes(goal);
-    if (own) return { href: `/tools/pace-band?goal=${goalText}&course=${course.slug}`, own, why: '' };
-    const why = bandGoals === null ? 'course groups could not be checked' : `${course.city} has no course group at ${goalText}`;
-    return { href: `/tools/pace-band?goal=${goalText}`, own, why };
-  };
-
-  // Headline: ranges across every published course at this goal (filters only narrow the list below).
-  const stats = useMemo(() => {
+  // The night card: of finishes on the goal's pace through 20K, the share that made it, pooled, and its spread by course.
+  const pooled = useMemo(() => {
     if (!published.length) return null;
-    const under = published.map((p) => p.row.under);
-    const sd = published.map((p) => p.row.sd);
-    const med = published.map((p) => p.row.fin[1]);
-    const belowHalf = under.filter((u) => u < 0.5).length;
-    return {
-      under: [Math.min(...under), Math.max(...under)] as const, sd: [Math.min(...sd), Math.max(...sd)] as const,
-      med: [Math.min(...med), Math.max(...med)] as const, belowHalf, n: published.reduce((s, p) => s + p.row.n, 0),
-    };
+    const n = published.reduce((sum, p) => sum + p.row.n, 0);
+    return { n, under: published.reduce((sum, p) => sum + p.row.n * p.row.under, 0) / n };
   }, [published]);
-  const totalCourses = (data?.courses.length ?? 0) + screened.length;
-  const range2 = (a: number, b: number, f: (v: number) => string) => (f(a) === f(b) ? f(a) : `${f(a)}–${f(b)}`);
+  // The course where the most made the goal and the one where the fewest did (the card's two figures), when they differ.
+  const ends = useMemo(() => {
+    if (published.length < 2) return null;
+    const sorted = [...published].sort((a, b) => a.row.under - b.row.under || a.course.city.localeCompare(b.course.city));
+    const lo = sorted[0], hi = sorted[sorted.length - 1];
+    return pctText(lo.row.under) === pctText(hi.row.under) ? null : { lo, hi };
+  }, [published]);
+  // The bars read on one fixed scale, 0 to 50% (0 to 100% should any share pass half), never stretched to the largest
+  // share, so a 27% share never fills its track; a faint tick marks every course pooled, keyed once above the rows.
+  const barTop = Math.max(...published.map((p) => p.row.under), 0) > 0.5 ? 1 : 0.5;
 
   const filtered = month !== null || opening !== '';
-  const at20 = units === 'mi' ? '12.4\u00a0mi' : '20\u00a0km';
+  const at20 = units === 'mi' ? '12.4 mi' : '20 km';
   const statusText = `${filtered ? `Showing ${visible.length} of ${published.length}` : `Showing all ${published.length}`} published courses at ${goalText}, ${sort === 'name' ? (dir === 'asc' ? 'in alphabetical order' : 'in reverse alphabetical order') : `by ${sortName(sort, goalText, at20)}, ${orderLabel(sort, dir).toLowerCase()}`}.`;
+  const shortStatus = `${filtered ? `${visible.length} of ${published.length} courses${sort === 'name' ? '.' : ', b'}` : sort === 'name' ? '' : 'B'}${sort === 'name' ? '' : `y ${sortName(sort, goalText, at20)}. Not a difficulty ranking.`}`;
   // The one live region: a short summary that changes with the goal, sort and filters (load and error states are DataState's).
   const srStatus = !data ? '' : noGoal ? `Choose a goal from ${hm(range[0])} to ${hm(range[1])} to compare courses.`
-    : `${published.length} of ${totalCourses} courses have a row at ${goalText}. ${statusText}${sort !== 'name' ? ' Not a ranking of course difficulty.' : ''}`;
+    : `${published.length} courses have a row at ${goalText}. ${statusText}${sort !== 'name' ? ' Not a ranking of course difficulty.' : ''}`;
   const setSort = (key: SortKey) => setQ({ sort: key, dir: '' });
-  const headerSort = (key: SortKey) => {
-    const next: Dir = dir === 'asc' ? 'desc' : 'asc';
-    if (key === sort) setQ({ dir: next === DEFAULT_DIR[sort] ? '' : next });
-    else setSort(key);
-  };
-  const ariaSort = (key: SortKey) => (key === sort ? (dir === 'asc' ? 'ascending' : 'descending') : 'none') as 'ascending' | 'descending' | 'none';
-
-  /** A sortable column head (a plain render helper, so focus stays on the button across re-renders). */
-  const sortHead = (k: SortKey, label: string, sub: string) => (
-    <th scope="col" aria-sort={ariaSort(k)} className={k === sort ? 'is-sorted' : undefined}>
-      <button type="button" className="course-chooser-sort-btn" onClick={() => headerSort(k)}>
-        {label}<span className="course-chooser-arrow" aria-hidden="true">{k === sort ? (dir === 'asc' ? '▲' : '▼') : '↕'}</span>
-      </button>
-      {sub ? <span className="course-chooser-sub">{sub}</span> : null}
-    </th>
-  );
 
   return (
     <div className="course-chooser">
       <p className="sr-only" role="status">{srStatus}</p>
-      <div className="tool-workspace course-chooser-workspace">
-        <form className="tool-inputs course-chooser-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Course chooser goal">
+      <div className="tool-workspace">
+        {/* The answer first (the analyses' grammar): the spread for the example goal, then the goal that makes it yours. */}
+        <div className="tool-results tool-answer">
+          <DataState error={error} loading={!data && !error}>
+            {data && noGoal ? <p className="tool-empty">Choose a goal from {hm(range[0])} to {hm(range[1])} to see how finishes at that pace held up on each course.</p>
+            : data && pooled ? (
+              <section className="tool-reading night course-chooser-headline" aria-labelledby="course-chooser-title">
+                {/* Round 6: the chooser's own reading is the courses by name, the fewest and the most at the goal (the
+                    planner shows only where its share sits), over the strip of every course. */}
+                <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}{goalText} · {published.length} courses</p>
+                {ends ? (
+                  <h2 className="cc-pair" id="course-chooser-title">
+                    {/* Fewest first, as the strip under them runs. */}
+                    <span className="cc-pair-item"><b>{pctText(ends.lo.row.under)}</b><span>{displayCity(ends.lo.course.city)}</span></span>
+                    <span className="cc-pair-item"><b>{pctText(ends.hi.row.under)}</b><span>{displayCity(ends.hi.course.city)}</span></span>
+                    <span className="cc-pair-line">made {goalText} from within {Math.round((data.tolerance ?? 0.02) * 100)}% of its pace through 20K: the fewest and the most of any course.</span>
+                  </h2>
+                ) : (
+                  <h2 className="tool-reading-figure course-chooser-title" id="course-chooser-title">
+                    {range2(published.map((p) => p.row.under))}
+                    <small>of finishes within {Math.round((data.tolerance ?? 0.02) * 100)}% of {goalText} pace through 20K made {goalText}</small>
+                  </h2>
+                )}
+                <ShareStrip items={published} goalText={goalText} />
+                {/* The badge and Copy link at the card's foot, as on every other tool card. */}
+                <ReadingFoot badge={<EvidenceTag kind="data" />} />
+              </section>
+            ) : data ? <p className="tool-empty">No course has a published row at {goalText}.</p> : null}
+          </DataState>
+          {error && retry ? <button type="button" className="btn btn-secondary is-compact course-chooser-retry" onClick={retryLoad}>Try again</button> : null}
+        </div>
+
+        <form className="tool-inputs" onSubmit={(e) => e.preventDefault()} aria-label="Course chooser goal">
           <h2>Your goal</h2>
-          <div className="tool-field">
-            <label htmlFor="course-chooser-goal">Marathon goal time</label>
-            <div className="course-chooser-goal">
-              <button type="button" aria-disabled={!canFaster || undefined} onClick={() => { if (canFaster) setGoal(goal - step); }}
-                aria-label={noGoal ? `${step} minutes faster: choose a goal first` : canFaster ? `${step} minutes faster: ${hm(goal - step)}` : `${step} minutes faster: ${hm(range[0])} is the fastest goal`}>−</button>
-              <select id="course-chooser-goal" ref={goalRef} value={noGoal ? '' : goal} onChange={(e) => { if (e.target.value) setGoal(Number(e.target.value)); }} aria-describedby="course-chooser-goal-hint">
-                {noGoal ? <option value="" disabled>Choose</option> : null}
-                {goals.map((m) => <option key={m} value={m}>{hm(m)}</option>)}
-              </select>
-              <button type="button" aria-disabled={!canSlower || undefined} onClick={() => { if (canSlower) setGoal(goal + step); }}
-                aria-label={noGoal ? `${step} minutes slower: choose a goal first` : canSlower ? `${step} minutes slower: ${hm(goal + step)}` : `${step} minutes slower: ${hm(range[1])} is the slowest goal`}>+</button>
-            </div>
-            <p className="tool-field-hint" id="course-chooser-goal-hint">{step}-minute steps from {hm(range[0])} to {hm(range[1])}.{noGoal ? null : <> Even pace for {goalText} is {paceText(evenKm, units)} ({paceText(evenKm, units === 'mi' ? 'km' : 'mi')}).</>}</p>
+          {/* The goal control every goal tool shares (a typed goal snaps to the published 5-minute grid, and the note
+              under it says so); the − / + buttons step a grid goal at a time. */}
+          <div className="tool-goal course-chooser-goal">
+            <Stepper label="Goal" step={step * 60} onStep={(d) => setGoal((noGoal ? DEFAULT_GOAL : goal) + d / 60)}>
+              <DurationField id="course-chooser-goal" label="Goal finish time" large value={typed} placeholder="4:00" format={fmtGoal}
+                onChange={(sec) => { if (sec !== null && sec >= 3600) setQ({ goal: fmtGoal(sec) }); }}
+                hint={`h:mm, from ${hm(range[0])} to ${hm(range[1])} in ${step}-minute steps.`} />
+            </Stepper>
           </div>
-          <div className="tool-presets" role="group" aria-label="Common goals">
-            {PRESETS.map((m) => <button key={m} type="button" aria-pressed={!noGoal && goal === m} onClick={() => setGoal(m)}>{hm(m)}</button>)}
-          </div>
-          {note ? <p className="course-chooser-note">{note}</p> : null}
+          {note ? <p className="tool-field-hint">{note}</p> : null}
         </form>
 
         <div className="tool-results">
-          <DataState error={error} loading={!data && !error}>
-            {data && noGoal ? <p className="tool-empty">Choose a goal from {hm(range[0])} to {hm(range[1])} to see how finishes at that pace held up on each course.</p>
-            : data && stats ? (
-              <>
-              {isExample ? <ExampleNote>A {hm(DEFAULT_GOAL)} goal. Choose yours; the headline and every course row update when you do.</ExampleNote> : null}
-              <div className="tool-headline course-chooser-headline">
-                <div className="course-chooser-head">
-                  <EvidenceTag kind="data" />
-                  <p className="course-chooser-kicker">Goal {goalText} · even pace {paceText(evenKm, units)}</p>
-                  <h2 className="course-chooser-title">How finishes at {goalText} pace held up on {published.length} courses</h2>
-                </div>
-                <div className="course-chooser-stats">
-                  <Stat label={`Finished under ${goalText}`} value={range2(stats.under[0], stats.under[1], pctText)} sub="range across courses" />
-                  <Stat label={<SlowdownTerm>Sustained slowdown</SlowdownTerm>} value={range2(stats.sd[0], stats.sd[1], pctText)} sub="range across courses" />
-                  <Stat label="Median finish" value={range2(stats.med[0], stats.med[1], (s) => formatHM(s))} sub="range of course medians" />
-                </div>
-                <p className="course-chooser-foot">
-                  {stats.belowHalf === published.length ? `On every published course, fewer than half of the ${count(stats.n)} finishes at this pace came in under ${goalText}.` : `On ${stats.belowHalf} of ${published.length} courses, fewer than half of the finishes at this pace came in under ${goalText}.`}
-                </p>
-              </div>
-              </>
-            ) : data ? <p className="tool-empty">No course has a published row at {goalText}.</p> : null}
-          </DataState>
-          {error && retry ? <button type="button" className="button-secondary course-chooser-retry" onClick={retryLoad}>Try again</button> : null}
-        </div>
-      </div>
-
-      {data && !noGoal ? (
-        <>
-          {/* Every row, heading and axis below follows the visitor's goal, so session replays leave these panels out. */}
+          {data && !noGoal ? (
+            <>
+          {/* Every row, heading and axis below follows the visitor's goal, so session replays leave these out. */}
           <div className="course-chooser-list ph-no-capture" data-tool-controls>
-            <EvidencePanel kind="data" id="course-chooser-courses" title={`Every course at ${goalText}`}
-              meta="Alphabetical unless you choose another order.">
+            <section className="tool-panel" aria-labelledby="course-chooser-courses">
+              <h2 className="tool-panel-title" id="course-chooser-courses">Every course at {goalText}</h2>
+              {/* One control on the beat: the sort. The two filters wait behind one disclosure; a link's order (dir) still applies. */}
               <div className="course-chooser-toolbar no-print">
-                <div className="tool-field course-chooser-sort">
+                <div className="tool-field">
                   <label htmlFor="course-chooser-sort">Sort by</label>
                   <select id="course-chooser-sort" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
-                    <option value="name">Course name</option>
                     <option value="under">Share under {goalText}</option>
                     <option value="sd">Sustained-slowdown share</option>
                     <option value="after20">Time after {at20}</option>
                     <option value="n">Finishes</option>
+                    <option value="name">Course name</option>
                   </select>
                 </div>
-                <div className="tool-field course-chooser-order">
-                  <span className="tool-label" aria-hidden="true">Order</span>
-                  <Choice label="Order" small value={dir} onChange={(v) => setQ({ dir: v === DEFAULT_DIR[sort] ? '' : v })}
-                    options={(sort === 'name' ? ['asc', 'desc'] : ['desc', 'asc']).map((d) => ({ value: d as Dir, label: orderLabel(sort, d as Dir) }))} />
-                </div>
-                <div className="tool-field course-chooser-filter">
-                  <label htmlFor="course-chooser-month">Race month</label>
-                  <select id="course-chooser-month" ref={monthRef} value={month === null ? '' : String(month)} onChange={(e) => setQ({ month: e.target.value })}>
-                    <option value="">Any month</option>
-                    {monthOptions.map(({ m, n }) => <option key={m} value={m}>{MONTHS_LONG[m - 1]} ({n})</option>)}
-                  </select>
-                </div>
-                <div className="tool-field course-chooser-filter">
-                  <label htmlFor="course-chooser-open">First 5 km</label>
-                  <select id="course-chooser-open" value={opening} onChange={(e) => setQ({ open: e.target.value })}>
-                    <option value="">Any</option>
-                    <option value="downhill">Downhill only ({openingCount('downhill')})</option>
-                    <option value="other">Not downhill ({openingCount('other')})</option>
-                  </select>
-                </div>
+                <details className="tool-more course-chooser-filters" open={filtered || undefined}>
+                  <summary>Filter by race month or first 5K{filtered ? <span className="course-chooser-filter-count"> · {[month !== null ? MONTHS_LONG[month - 1] : null, opening === 'downhill' ? 'downhill start' : opening === 'other' ? 'no downhill start' : null].filter(Boolean).join(', ')}</span> : null}</summary>
+                  <div className="tool-more-body course-chooser-filter-fields">
+                    <div className="tool-field">
+                      <label htmlFor="course-chooser-month">Race month</label>
+                      <select id="course-chooser-month" ref={monthRef} value={month === null ? '' : String(month)} onChange={(e) => setQ({ month: e.target.value })}>
+                        <option value="">Any month</option>
+                        {monthOptions.map(({ m, n }) => <option key={m} value={m}>{MONTHS_LONG[m - 1]} ({n})</option>)}
+                      </select>
+                    </div>
+                    <div className="tool-field">
+                      <label htmlFor="course-chooser-open">First 5K</label>
+                      <select id="course-chooser-open" value={opening} onChange={(e) => setQ({ open: e.target.value })}>
+                        <option value="">Any</option>
+                        <option value="downhill">Downhill only ({openingCount('downhill')})</option>
+                        <option value="other">Not downhill ({openingCount('other')})</option>
+                      </select>
+                    </div>
+                  </div>
+                </details>
               </div>
-
-              <div className="course-chooser-status-row">
-                <p className="course-chooser-status">{statusText}</p>
-                {filtered ? <button type="button" className="button-secondary course-chooser-clear no-print" onClick={clearFilters}>Clear filters</button> : null}
-              </div>
-
-              {sort !== 'name' ? (
-                <div className="course-chooser-caveat" role="note">
-                  <strong>Sorted by {sortName(sort, goalText, at20)}. Not a ranking of course difficulty.</strong>
-                </div>
+              {/* One short line (critic round 3): the order and that it is not a difficulty ranking; the sort control states
+                  the direction, and the full sentence is the live region's. */}
+              {shortStatus || filtered ? (
+                <p className="tool-note course-chooser-status">
+                  {shortStatus}
+                  {filtered ? <> <button type="button" className="btn btn-tertiary course-chooser-clear no-print" onClick={clearFilters}>Clear filters</button></> : null}
+                </p>
               ) : null}
+              {/* The tick on every bar, named once: the published courses pooled, on the bars' own scale, the set named by its
+                  count, never "every course" (the chooser publishes only the courses with a row at this goal). */}
+              {pooled ? <p className="cc-key" aria-hidden="true"><i className="cc-key-mark" />{pctText(pooled.under)} across all {published.length} courses</p> : null}
 
               {visible.length ? (
-                <>
-                  <div className="tool-table-wrap course-chooser-table-wrap">
-                    <table className="tool-table course-chooser-table">
-                      <caption className="sr-only">Every course with a row at {goalText}</caption>
-                      <thead>
-                        <tr>
-                          {sortHead('name', 'Course', 'race month')}
-                          {sortHead('n', 'Finishes', '')}
-                          {sortHead('under', `Under ${goalText}`, 'share')}
-                          {sortHead('sd', 'Sustained slowdown', 'share')}
-                          {sortHead('after20', `After ${at20}`, 'median extra')}
-                          <th scope="col" className="course-chooser-th-fin">Median finish<span className="course-chooser-sub">10th–90th</span></th>
-                          <th scope="col" className="course-chooser-th-bar"><span className="sr-only">Finish spread against the goal</span><FinishAxis scale={scale} goalS={goalS} /></th>
-                          <th scope="col">Start temp<span className="course-chooser-sub">all course editions</span></th>
-                          <th scope="col">Route profile<span className="course-chooser-sub">climb / descent</span></th>
-                          <th scope="col"><span className="sr-only">Plan</span></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visible.map(({ row, course }) => {
-                          const temps = tempRange(course.start_temp_c, units);
-                          const b = band(course);
-                          return (
-                            <tr key={course.slug}>
-                              <th scope="row">
-                                <span className="course-chooser-city">{courseLink(course.city)}</span>
-                                <span className="course-chooser-sub">{monthText(course.months)}</span>
-                              </th>
-                              <td>{count(row.n)}</td>
-                              <td className={sort === 'under' ? 'is-sorted' : undefined}><b>{pctText(row.under)}</b></td>
-                              <td className={sort === 'sd' ? 'is-sorted' : undefined}><b>{pctText(row.sd)}</b></td>
-                              <td className={sort === 'after20' ? 'is-sorted' : undefined}><b>{formatMargin(row.after20)}</b></td>
-                              <td>{formatDuration(row.fin[1], true)}<span className="course-chooser-sub">{formatDuration(row.fin[0], true)}–{formatDuration(row.fin[2], true)}</span></td>
-                              <td className="course-chooser-td-bar"><FinishBar fin={row.fin} goalS={goalS} scale={scale} city={course.city} goalLabel={goalText} /></td>
-                              <td>{temps ?? '—'}</td>
-                              <td>{course.gain_m !== null && course.loss_m !== null ? `${elevNumber(course.gain_m, units)} / ${elev(course.loss_m, units)}` : '—'}
-                                {course.net_m !== null ? <span className="course-chooser-sub">net {elev(course.net_m, units, true)}</span> : null}
-                                {course.downhill_opening ? <span className="course-chooser-tag">Downhill opening</span> : null}</td>
-                              <td>
-                                <div className="course-chooser-row-links">
-                                  <Link className="course-chooser-band" href={planHref(course.city, goal) ?? '/tools/plan'}>Plan<span className="sr-only"> {goalText} in {course.city}</span></Link>
-                                  {b.own ? <Link className="course-chooser-band" href={b.href}>Pace band<span className="sr-only"> for {goalText} in {course.city}</span></Link>
-                                    : <span><Link className="course-chooser-band" href={b.href}>Pace band<span className="sr-only"> for {goalText}, all courses: {b.why}</span></Link><span className="course-chooser-sub" aria-hidden="true">all courses</span></span>}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <ul className="course-chooser-cards">
-                    {visible.map(({ row, course }) => {
-                      const temps = tempRange(course.start_temp_c, units);
-                      const b = band(course);
-                      return (
-                        <li key={course.slug} className="course-chooser-card">
-                          <div className="course-chooser-card-head">
-                            <h3>{courseLink(course.city)}</h3>
-                            <p>{monthText(course.months)} · {count(row.n)} finishes</p>
-                            {course.downhill_opening ? <span className="course-chooser-tag">Downhill opening</span> : null}
-                          </div>
-                          <dl className="course-chooser-key">
-                            <div className={sort === 'under' ? 'is-sorted' : undefined}><dt>Under {goalText}</dt><dd>{pctText(row.under)}</dd></div>
-                            <div className={sort === 'sd' ? 'is-sorted' : undefined}><dt>Sustained slowdown</dt><dd>{pctText(row.sd)}</dd></div>
-                            <div className={sort === 'after20' ? 'is-sorted' : undefined}><dt>After {at20}</dt><dd>{formatMargin(row.after20)}</dd></div>
-                          </dl>
-                          <details className="course-chooser-more">
-                            <summary>Finish times, weather and route<span className="sr-only"> for {course.city}</span></summary>
-                            <FinishBar fin={row.fin} goalS={goalS} scale={scale} variant="card" city={course.city} goalLabel={goalText} />
-                            <dl className="course-chooser-context">
-                              <div><dt>Finish times</dt><dd>Median {formatDuration(row.fin[1], true)}<br />10th–90th percentile {formatDuration(row.fin[0], true)}–{formatDuration(row.fin[2], true)}</dd></div>
-                              <div><dt>Race month</dt><dd>{monthText(course.months, true)}</dd></div>
-                              <div><dt>Start temperature</dt><dd>{temps ? `${temps} across the course’s race mornings` : 'Not available'}</dd></div>
-                              <div><dt>Route profile</dt><dd>{course.gain_m !== null && course.loss_m !== null ? `Climb ${elev(course.gain_m, units)}, descent ${elev(course.loss_m, units)}` : 'Not available'}{course.net_m !== null ? `, net ${elev(course.net_m, units, true)}` : ''}</dd></div>
-                              <div><dt>First 5 km</dt><dd>{course.downhill_opening ? `Downhill opening: drops more than ${units === 'mi' ? '82 ft' : '25 m'}` : `Not a downhill opening (drops less than ${units === 'mi' ? '82 ft' : '25 m'})`}</dd></div>
-                            </dl>
-                          </details>
-                          <div className="course-chooser-card-links">
-                            {pageSet.has(course.slug) ? <Link href={`/courses/${course.slug}`}>Course page<span className="sr-only"> for {course.city}</span></Link> : null}
-                            <Link href={planHref(course.city, goal) ?? '/tools/plan'}>Plan {goalText}<span className="sr-only"> in {course.city}</span></Link>
-                            {b.own ? <Link href={b.href}>Pace band for {goalText}<span className="sr-only"> in {course.city}</span></Link>
-                              : <Link href={b.href}>Pace band for {goalText}, all courses<span className="sr-only">: {b.why}</span></Link>}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </>
+                <ol className="course-chooser-rows">
+                  {visible.map(({ row, course }) => (
+                    <li key={course.slug}>
+                      <Link className="cc-row" href={planHref(course.city, goal) ?? '/tools/plan'}>
+                        <span className="cc-name">{displayCity(course.city)}</span>
+                        <span className="cc-bar" aria-hidden="true"><i style={{ width: `${(row.under / barTop) * 100}%` }} />{pooled ? <b className="cc-bar-mark" style={{ left: `${(pooled.under / barTop) * 100}%` }} /> : null}</span>
+                        <span className="cc-share"><b>{pctText(row.under)}</b><span className="sr-only"> made {goalText}</span></span>
+                        {/* One reading a row (critic round 4: a second share, of another group than the course pages', read as a
+                            second number for the course): its month, and the value it is sorted by when that is not the share. */}
+                        <span className="cc-sub">{sortValue(sort, row, units)}{monthText(course.months)}{course.downhill_opening ? ' · downhill start' : ''}<span className="sr-only"> · {count(row.n)} finishes</span></span>
+                        {/* The whole row is the link: its name says where it goes, so no visible label repeats on every row. */}
+                        <span className="cc-plan"><span className="sr-only">Plan {goalText} in {displayCity(course.city)}</span><Arrow /></span>
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
               ) : (
-                <div className="tool-empty">
+                <p className="tool-empty">
                   No published course at {goalText} matches these filters{month !== null ? ` (races in ${MONTHS_LONG[month - 1]})` : ''}.{' '}
-                  <button type="button" className="button-secondary course-chooser-clear" onClick={clearFilters}>Clear filters</button>
-                </div>
+                  <button type="button" className="btn btn-tertiary course-chooser-clear" onClick={clearFilters}>Clear filters</button>
+                </p>
               )}
-            </EvidencePanel>
+              {unpublished.length ? <p className="tool-note">Not published at {goalText}: {unpublished.map(displayCity).join(', ')}.</p> : null}
+            </section>
           </div>
-
-          <div className="ph-no-capture">
-            <EvidencePanel kind="data" title={`Not published at ${goalText}`}>
-              <div className="course-chooser-unavail">
-                <div>
-                  <h3>Too few finishes at this pace</h3>
-                  {unavailable.pace.length ? (
-                    <ul>{unavailable.pace.map((city) => <li key={city}><b>{courseLink(city)}</b></li>)}</ul>
-                  ) : <p className="course-chooser-none">Every other course has a row at {goalText}.</p>}
-                </div>
-                {unavailable.structural.length ? (
-                  <div>
-                    <h3>Not published at any goal</h3>
-                    <ul>{unavailable.structural.map((city) => <li key={city}><b>{courseLink(city)}</b></li>)}</ul>
-                  </div>
-                ) : null}
-              </div>
-            </EvidencePanel>
-          </div>
-
-          <div className="tool-callout no-print ph-no-capture">
-            <strong>Picked a course?</strong> Each row’s pace band link opens a printable <Link href={`/tools/pace-band?goal=${goalText}`}>pace band for {goalText}</Link> with what finishes just under {goalText} on that course ran at each 5 km mat; a link marked “all courses” opens the band for every course together. To compare race mornings at your pace, try the <Link href={`/tools/weather-match?goal=${goalText}:00`}>weather match</Link>.
-          </div>
-          <ShareBar />
-        </>
-      ) : null}
+            </>
+          ) : null}
+          {data && !noGoal ? (
+            <GoalBar label="Goal" step={step * 60} onStep={(d) => setGoal(goal + d / 60)} labels={['faster', 'slower']} disabled={[!canFaster, !canSlower]}>
+              <b>{goalText}</b><span>{paceText(evenKm, units)}</span>
+            </GoalBar>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

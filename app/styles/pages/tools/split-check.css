@@ -1,0 +1,107 @@
+/* The split check (/tools/split-check; the redesign spec, section 7.13): the chapter's lead first (finishes at the same
+   time as the race, as 100 dots: chapter 10's Pace Notes data reading), then the race on one night card (the section that
+   decides it, every section as a bar against the runner's own 5–20K pace; a plain calculation, no badge), the nine mat
+   times, then one "All numbers" fold. Every class here is prefixed split-check-. Imported by
+   app/tools/split-check/layout.tsx. */
+
+.split-check-root { min-width: 0; }
+.split-check-optional { margin-left: 6px; font-size: var(--t-label); font-weight: 400; color: var(--ink-3); }
+
+/* ---------- Inputs ---------- */
+/* Paste opens a box under the one row of buttons (Paste times, Clear), never a hairline row of its own. */
+.split-check-paste { display: grid; gap: 6px; }
+.split-check-paste[hidden] { display: none; }
+.tool-page .split-check-paste textarea { display: block; width: 100%; min-height: 104px; margin: 0; padding: 12px 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm);
+  background: var(--paper-raised); color: var(--ink); font-family: var(--sans); font-size: 1rem; line-height: 1.5; resize: vertical; }
+.tool-page .split-check-paste textarea:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.split-check-paste-toggle[aria-expanded='true'] { border-color: var(--ink); }
+
+.split-check-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); margin: 0; padding: 0; border: 0; min-width: 0; }
+/* Each mat is one tile: its name in the corner, the time under it, so nine fit a phone's first screen. */
+.split-check-cell { position: relative; display: grid; min-width: 0; }
+/* The miles sit right after their mat name, so "5K 3.1 mi" never runs into the next column's name. */
+.split-check-cell label { position: absolute; top: 7px; left: 10px; right: 6px; z-index: 1; display: flex; align-items: baseline; justify-content: flex-start; gap: 5px;
+  font-size: .75rem; font-weight: 600; line-height: 1.2; color: var(--ink-2); white-space: nowrap; overflow: hidden; pointer-events: none; }
+.split-check-cell label small { font-size: .6875rem; font-weight: 400; color: var(--ink-3); }
+.tool-page .split-check-cell input { width: 100%; min-height: 56px; padding: 20px 6px 5px 10px; border: 1px solid var(--rule-strong); border-radius: var(--r-sm); background: var(--paper-raised); color: var(--ink);
+  box-shadow: none; text-align: left; font-family: var(--sans); font-size: 1.0625rem; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.tool-page .split-check-cell input:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tool-page .split-check-cell input::placeholder { color: var(--ink-3); font-weight: 400; opacity: 1; }
+.tool-page .split-check-cell input[aria-invalid='true'] { color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal); }
+.tool-page .split-check-cell.is-finish input { border-color: var(--ink); font-weight: 600; }
+.split-check-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.split-check-buttons .split-check-privacy { flex: 1 1 13rem; margin: 0 0 0 var(--s-2); }
+
+/* ---------- The night card: the race, the section that decides it, every section ---------- */
+/* The section that decides the verdict, as a readout over the bars (round 6: the page's figure is the lead's share). */
+.split-check-readout { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s-3); margin: 0; }
+.split-check-readout b { font-family: var(--sans); font-size: var(--t-readout); font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.split-check-readout span { flex: 1 1 12rem; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); }
+.split-check-bars { margin: 0; touch-action: pan-y; }
+.split-check-bars svg { display: block; overflow: visible; }
+.split-check-bars svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.split-check-gridline line { stroke: var(--rule); }
+/* On the night card every bar is a mark (3:1 or more against the card): quicker and even sections in the quiet mark tone,
+   slower ones a step lighter, the section the verdict names in ink (the page's one orange is the data beat's reading under
+   the card, round 5). The track fill (--fill-quiet) is 1.4:1 there, too faint for a bar the reader has to see to read
+   the race from its start. */
+.split-check-bar { fill: var(--mark-quiet); stroke: none; }
+.split-check-bar.is-slow { fill: var(--ordinal-3); }
+.split-check-bar.is-qualify { fill: var(--ink); stroke: var(--ink); }
+.split-check-base { stroke: var(--ink); stroke-width: 1.5; }
+.split-check-threshold { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.split-check-key { display: flex; flex-wrap: wrap; gap: 4px var(--s-4); margin: var(--s-2) 0 0; padding: 0; list-style: none; font-size: var(--t-label); color: var(--ink-2); }
+.split-check-key li { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.split-check-key i { flex: none; width: 18px; height: 0; border-top: 1.5px solid var(--ink); }
+.split-check-key .is-threshold i { border-top: 1.5px dashed var(--ink-3); }
+.split-check-bars svg .split-check-bar-label { font-size: 12px; font-weight: 600; fill: var(--ink-2); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.split-check-bars svg .split-check-bar-label.is-qualify { fill: var(--ink); }
+
+/* While a field is being typed and does not read yet, the last complete race stays, dimmed, instead of the column jumping. */
+.split-check-results { position: relative; }
+.split-check-results.is-stale > :not(.split-check-updating) { opacity: .5; transition: opacity var(--d-quick); }
+.split-check-updating { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
+
+/* ---------- The lead: finishes at the same time, first on the page ---------- */
+/* While the finishes load the lead keeps its shape (badge, a figure's height, 100 quiet dots), so nothing under it moves. */
+/* Without a reading (an empty or wrong set of times) the lead holds nothing and takes no room. */
+.split-check-data:empty { display: none; }
+.split-check-compare.is-loading .split-check-loading { min-height: calc(var(--t-figure-l) * .9 + var(--s-2) + 1.0625rem * 1.4 * 2); align-content: end; }
+.split-check-compare.is-loading .tool-lead-line { color: var(--ink-3); }
+.split-check-unavailable { display: grid; gap: var(--s-2); }
+.split-check-off { display: grid; gap: var(--s-3); padding: 0; }
+.split-check-compare .tool-panel-title { max-width: 30ch; }
+.split-check-report { margin: 0; }
+/* The race's pacing type: one line under the dots. */
+.split-check-shape { margin: 0; }
+.split-check-shape b { font-weight: 600; color: var(--ink); }
+
+/* ---------- All numbers: the comparison's options, then the table ---------- */
+.split-check-numbers { display: grid; gap: var(--s-5); }
+.split-check-options { display: grid; gap: var(--s-4); max-width: 26rem; }
+.split-check-numbers .values-table { margin: 0; }
+
+/* A phone at 200% text: two mats a row, and a label may wrap under its time. */
+@media (max-width: 299.98px) {
+  .split-check-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--s-3); }
+  .split-check-cell { gap: 4px; }
+  .split-check-cell label { position: static; flex-wrap: wrap; white-space: normal; overflow: visible; }
+  .tool-page .split-check-cell input { min-height: 48px; padding: 0 6px; text-align: center; }
+}
+
+/* The nine mats and the paste box make a column taller than most windows: it scrolls with the page instead of sticking,
+   so no line of it is ever cut off under a fade. */
+@media (min-width: 900px) {
+  .tool-page .split-check-root .tool-inputs { position: static; max-height: none; overflow: visible; background: none; }
+  /* The lead runs across the page (its figure and line on the left column, its dots on the right, where the card under
+     it starts), then the times on the left and the race's card on the right, then the fold. The last row is flexible, so
+     neither column waits for the other. */
+  .tool-workspace.split-check-workspace { grid-template-rows: auto auto auto 1fr; }
+  .tool-workspace.split-check-workspace > .split-check-data { grid-column: 1 / -1; grid-row: 1; }
+  .tool-workspace.split-check-workspace > .tool-inputs { grid-column: 1; grid-row: 2 / span 3; }
+  .tool-workspace.split-check-workspace > .tool-answer { grid-column: 2; grid-row: 2; }
+  .tool-workspace.split-check-workspace > .tool-answer ~ .split-check-rest { grid-column: 2; grid-row: 3; }
+  .split-check-compare.is-ok { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-7); align-items: end; }
+  .split-check-compare.is-ok > :not(.split-check-dots) { grid-column: 1; }
+  .split-check-compare.is-ok > .split-check-dots { grid-column: 2; grid-row: 1 / span 3; align-self: end; }
+}
