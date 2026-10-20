@@ -43,11 +43,13 @@ export default function PlacesBody() {
   const beAt = be.reduce((best, b, i) => (Math.abs(b.x - Math.round(crossing)) < Math.abs(be[best].x - Math.round(crossing)) ? i : best), 0);
   const beTop = Math.ceil(Math.max(...be.map((b) => b.median)) / 5) * 5, beBottom = Math.floor(Math.min(...be.map((b) => b.median)) / 5) * 5;
   const slower = (x: number) => (x < 0 ? `${Math.abs(x)}% quicker` : `${x}% slower`);
-  /** Median places per 100 of the field after 30K, whole and signed as the chart's scale is ("−5 places per 100"), short
-   *  enough for the readout's one line at 320 px. */
+  /** Median places per 100 of the field after 30K, signed and whole ("−2 places per 100"), short enough for the readout's
+   *  one line at 320 px. Under one place it keeps the table's decimal ("+0.3 places per 100" at 15% slower), so a pace
+   *  just short of break-even never reads as no change. */
   const placesPer100 = (m: number) => {
-    const r = Math.round(m);
-    return r === 0 ? 'No change in places' : `${r > 0 ? '+' : '−'}${Math.abs(r)} place${Math.abs(r) === 1 ? '' : 's'} per 100`;
+    if (Math.abs(m) < 0.05) return 'No change in places';
+    const whole = Math.abs(m) >= 0.95;
+    return `${signed(m, whole ? 0 : 1)} place${whole && Math.round(Math.abs(m)) === 1 ? '' : 's'} per 100`;
   };
 
 
