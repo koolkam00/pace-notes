@@ -461,8 +461,43 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.deepEqual(['', 'even'].map((c) => shapeLib.bandMode(null, c)), ['even', 'even'], 'No shape: even pace, and no choice to make'); ok();
   assert.deepEqual([shapeLib.bandChoice('course'), shapeLib.bandChoice('even'), shapeLib.BAND_PARAM], ['', 'even', 'pace']); ok();
   assert.deepEqual(shapeLib.BAND_OPTIONS.map((o) => o.label), ['Course shape', 'Even pace']); assert.equal(shapeLib.BAND_LABEL, 'Splits'); checks += 2;
-  assert.equal(shapeLib.noShapeLine('in Singapore'), 'Too few finishes at this goal in Singapore for a course shape.'); ok();
   assert.equal(shapeLib.shapeCaption('Boston', 'women'), 'Course shape · finishes that made the goal in Boston, women · Pace Notes data'); ok();
+  // The one line where there is no shape says why, and never claims a count nobody made: no group for the course (Prague),
+  // none for the recorded gender (Singapore, women), a goal outside the published goals (New York City 7:00, Boston 2:29),
+  // or too few finishes at an in-range goal.
+  const GOALS = [150, 390];
+  const reason = (scoped, gendered, minute) => shapeLib.noShapeReason({ scoped, gendered, minute, goals: GOALS });
+  assert.deepEqual([reason(false, true, 240), reason(true, false, 240), reason(true, true, 420), reason(true, true, 149), reason(true, true, 391), reason(true, true, 150), reason(true, true, 390), reason(false, true, 420)],
+    ['course', 'gender', 'range', 'range', 'range', 'few', 'few', 'course'], 'The reason for no shape, in order'); ok();
+  const line = (r, city, genderWord) => shapeLib.noShapeLine(r, { city, genderWord, goals: GOALS });
+  assert.equal(line('few', 'Singapore'), 'Too few finishes at this goal in Singapore for a course shape.'); ok();
+  assert.equal(line('few', 'Austin', 'women'), 'Too few finishes at this goal in Austin (recorded as women) for a course shape.'); ok();
+  assert.equal(line('range', 'New York City'), 'Course shapes cover goals from 2:30 to 6:30.', 'Outside the published goals: the range, from the index, and no count'); ok();
+  assert.equal(line('course', 'Prague'), 'No course shape for Prague.'); assert.equal(line('gender', 'Singapore', 'women'), 'No course shape for Singapore, recorded as women.'); checks += 2;
+  // The minute a goal's group uses is the whole minute at or below it (never rounded up past the goal).
+  assert.deepEqual([12600, 12630, 12659, 12660].map(shapeLib.bandMinute), [210, 210, 210, 211]); ok();
+  // A hand-edited pace leaves the address; even pace stays on a course and leaves on all courses.
+  assert.deepEqual([['even', false], ['even', true], ['EVEN', false], ['course', false], ['foo', false], ['', false]].map(([p, a]) => shapeLib.tidyChoice(p, a)), ['even', '', '', '', '', '']); ok();
+  // The card's four times: real timing points in course shape (5K, 20K, 30K, finish), even pace's 5K, half, 30K and finish
+  // otherwise, and the course shape's labels with no times while it loads.
+  assert.deepEqual(shapeLib.cardMats(14430, fakeShape), [['5K', fakeShape[0]], ['20K', fakeShape[3]], ['30K', fakeShape[5]], ['Finish', 14430]]); ok();
+  assert.deepEqual(shapeLib.cardMats(14400, null), [['5K', (14400 / 42.195) * 5], ['Half', 7200], ['30K', (14400 / 42.195) * 30], ['Finish', 14400]]); ok();
+  assert.deepEqual(shapeLib.cardMats(14400, null, true), [['5K', null], ['20K', null], ['30K', null], ['Finish', 14400]]); ok();
+  assert.deepEqual(shapeLib.matRows(14430, fakeShape).map((m) => [m.km, m.shaped, m.even]), POINTS.map((km, i) => [km, fakeShape[i], i === 8 ? 14430 : (14430 / 42.195) * km]), 'The folds: each mat\'s shape beside even pace'); ok();
+  assert.ok(shapeLib.matRows(14400, null).every((m) => m.shaped === null)); ok();
+  // The wording both pages print: the shape in words, the kicker in each mode, the card's line, and the even pace labelled
+  // as the average wherever it travels with a course shape (the strip's Goal cell, the goal bar, a watch that reads long).
+  const fakePaces = shapeLib.shapePaces(fakeShape);
+  const fmtMi = (sPerKm) => time.formatDuration(sPerKm * 1.609344);
+  assert.equal(shapeLib.shapeLine(fakeShape, 'mi'), `${fmtMi(fakePaces.to20)}/mi to 20K, ${fmtMi(fakePaces.from30)} from 30K`); ok();
+  assert.equal(shapeLib.bandKicker({ goal: 14400, place: 'Boston', genderWord: 'women', shape: null, units: 'mi' }), '4:00 · Boston · 9:09/mi even', 'Even pace: the kicker as before, no gender'); ok();
+  assert.equal(shapeLib.bandKicker({ goal: 14430, place: 'Boston', genderWord: 'women', shape: fakeShape, units: 'mi' }), `4:00:30 · Boston · women · course shape, ${shapeLib.shapeLine(fakeShape, 'mi')}`); ok();
+  assert.equal(shapeLib.bandKicker({ goal: 14400, place: 'Boston', shape: null, units: 'mi', pending: true }), '4:00 · Boston · course shape', 'While the shape loads: course shape, no paces, never "even"'); ok();
+  assert.equal(shapeLib.bandKicker({ goal: 14400, place: 'Boston', shape: null, units: 'mi', overrun: 0.005, example: true }), 'Example · 4:00 · Boston · 9:09/mi even · watch 9:06/mi'); ok();
+  assert.match(shapeLib.bandKicker({ goal: 14400, place: 'Boston', shape: fakeShape, units: 'mi', overrun: 0.005 }), / · watch avg 9:06\/mi$/, 'Course shape: the watch figure is its average'); ok();
+  assert.deepEqual([shapeLib.goalCellLine(14400 / 42.195, 0, 'mi', false), shapeLib.goalCellLine(14400 / 42.195, 0.01, 'mi', true), shapeLib.goalPace(14400 / 42.195, 'km', true), shapeLib.goalPace(14400 / 42.195, 'mi', false)],
+    ['9:09/mi · 5:41/km', 'avg 9:09/mi · 5:41/km · watch avg 9:04/mi', 'avg 5:41/km', '9:09/mi']); ok();
+  assert.equal(shapeLib.cardShapeLine(14400, 'Boston'), 'Course shape: how finishes that made 4:00 ran Boston. Not a prediction.'); ok();
   // shapePaces: the pace through 20K and from 30K to the finish, from the timing points alone.
   near(shapeLib.shapePaces(fakeShape).to20, fakeShape[3] / 20, 1e-12, 'Pace through 20K'); near(shapeLib.shapePaces(fakeShape).from30, (14430 - fakeShape[5]) / 12.195, 1e-12, 'Pace from 30K'); checks += 2;
   // Even pace is unchanged: bandRows without a shape is the even-pace split table itself.
@@ -542,6 +577,51 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
     const bostonShape = shapeLib.courseShape(boston, 14400);
     assert.equal(time.formatDuration(bostonShape[3]), time.formatDuration((boston.e50[3] * 14400) / boston.e50[8]), 'Boston 4:00 at 20K'); ok();
     assert.ok(shapeLib.shapePaces(bostonShape).to20 < 14400 / 42.195 && shapeLib.shapePaces(bostonShape).from30 > 14400 / 42.195, 'Boston 4:00: quicker than even through 20K, slower from 30K'); ok();
+    // The figures the planner's card and fold show for Boston 4:00 (the reviewers' capture), and the pace band's recorded
+    // gender: the women's group, not all genders.
+    assert.deepEqual(shapeLib.cardMats(14400, bostonShape).map(([k, t]) => `${k} ${time.formatDuration(t)}`), ['5K 26:38', '20K 1:47:56', '30K 2:45:41', 'Finish 4:00:00']); ok();
+    assert.deepEqual([fmtMi(shapeLib.shapePaces(bostonShape).to20), fmtMi(shapeLib.shapePaces(bostonShape).from30), boston.n], ['8:41', '9:48', 10039]); ok();
+    assert.equal(shapeLib.bandKicker({ goal: 14400, place: 'Boston', shape: bostonShape, units: 'mi' }), '4:00 · Boston · course shape, 8:41/mi to 20K, 9:48 from 30K'); ok();
+    const bostonWomen = band.cellOf(file(band.paceBandShardPath('boston', 'women')).groups.all, 240);
+    assert.equal(time.formatDuration(shapeLib.courseShape(bostonWomen, 14400)[3]), '1:48:30', 'Boston women 4:00 at 20K: the women\'s group'); ok();
+    // The reasons on real data, the way the planner and the pace band read them from the index.
+    const scopeOf = (slug) => index.scopes.find((sc) => sc.slug === slug);
+    const why = (slug, gender, minute) => shapeLib.noShapeReason({ scoped: Boolean(scopeOf(slug)), gendered: Boolean(index.shards[band.paceBandShardPath(slug, gender)]), minute, goals: index.goals });
+    assert.deepEqual(index.goals, [150, 390]); ok();
+    assert.deepEqual([why('new-york', 'all', 420), why('boston', 'all', 149), why('prague', 'all', 240), why('singapore', 'women', 240), why('auckland', 'women', 240), why('singapore', 'all', 210)],
+      ['range', 'range', 'course', 'gender', 'gender', 'few'], 'New York City 7:00, Boston 2:29, Prague, Singapore and Auckland women, Singapore 3:30'); ok();
+    // New York City's 6:30 group holds thousands of finishes: outside the published goals there is no count to claim.
+    assert.ok(band.cellOf(file(band.paceBandShardPath('new-york', 'all')).groups.all, 390).n > 1000, 'New York City publishes 6:30'); ok();
+    // The edition rule: a shape needs its 100 finishes, not a number of editions. Every Singapore shape comes from one
+    // edition, and /methodology#tools-course-shape names the courses with fewer than the course results' minimum.
+    const goalsFile = file('tools/course-goal.json');
+    const thin = index.scopes.filter((sc) => sc.slug !== 'all' && sc.editions < goalsFile.min_editions).map((sc) => `${sc.city} ${sc.editions}`).sort();
+    assert.deepEqual(thin, ['Barcelona 2', 'Paris 2', 'Singapore 1'], 'The courses whose shapes rest on one or two editions'); ok();
+    assert.ok(singapore.ed.every((e) => e === 1) && shapeLib.courseShape(band.cellOf(singapore, 240), 14400), 'Singapore: one edition, and still a shape'); ok();
+    const methods = sourceOf('components/methods/MethodsTools.tsx');
+    assert.match(methods, /const thin = band\.scopes\.filter\(\(s\) => s\.slug !== 'all' && s\.city && s\.editions < goal\.min_editions\);/, '/methodology names the courses from the index'); ok();
+    assert.match(methods, /however many editions they come from\{thin\.length \? <>: it needs no minimum of editions/, '/methodology says a shape needs no minimum of editions'); ok();
+
+    // The folds as rendered: the planner's mat table and the pace band's marker table, in course shape beside even pace,
+    // and even pace alone otherwise (both components export them for this).
+    const React = require('react');
+    const { renderToStaticMarkup } = require('react-dom/server');
+    const { MatTable } = require('../components/tools/RacePlan.tsx');
+    const { Wristband } = require('../components/tools/PaceBand.tsx');
+    const tds = (html) => [...html.matchAll(/<tr(?: class="[^"]*")?><th scope="row">(?:[^<]|<small>[^<]*<\/small>)*<\/th>((?:<td>[^<]*<\/td>)+)<\/tr>/g)].map((m) => [...m[1].matchAll(/<td>([^<]*)<\/td>/g)].map((c) => c[1]));
+    const matCourse = renderToStaticMarkup(React.createElement(MatTable, { goal: 14400, units: 'mi', observed: null, shape: { times: bostonShape, n: boston.n, window: 'finishes from 3:55:00 to 3:59:59 in Boston' } }));
+    const evenMats = POINTS.map((km, i) => time.formatDuration(i === 8 ? 14400 : (14400 / 42.195) * km));
+    assert.deepEqual(tds(matCourse).slice(0, 9), bostonShape.map((t, i) => [time.formatDuration(t), evenMats[i]]), 'Planner fold: each mat\'s course shape beside its even pace'); ok();
+    assert.match(matCourse, /<th scope="col">Course shape<\/th><th scope="col">Even pace<\/th>/); assert.match(matCourse, /<tfoot><tr><th scope="row">Finishes<\/th><td>10,039<\/td>/); checks += 2;
+    assert.match(matCourse, /from finishes from 3:55:00 to 3:59:59 in Boston \(Pace Notes data\)/, 'The window, in the table\'s own caption'); ok();
+    const matEven = renderToStaticMarkup(React.createElement(MatTable, { goal: 14400, units: 'mi', observed: null, shape: null }));
+    assert.deepEqual(tds(matEven).map((c) => c[0]), evenMats, 'Planner fold at even pace: the plan alone'); ok();
+    const bostonRows = shapeLib.bandRows(14400, 'mi', bostonShape), evenRows = pace.splitTable(14400, 42.195, 'mi');
+    const wristCourse = renderToStaticMarkup(React.createElement(Wristband, { rows: bostonRows, goal: 14400, pKm: 14400 / 42.195, units: 'mi', overrun: 0.01, even: evenRows }));
+    assert.deepEqual(tds(wristCourse), bostonRows.map((r, i) => [time.formatDuration(r.elapsed), time.formatDuration(evenRows[i].elapsed)]), 'Pace band fold: each marker\'s course shape beside its even pace'); ok();
+    assert.match(wristCourse, /\(from Pace Notes data at the timing points, even between them\), beside exact even-pace times; a watch reading 1\.0% long shows an average of 9:04\/mi/); ok();
+    const wristEven = renderToStaticMarkup(React.createElement(Wristband, { rows: evenRows, goal: 14400, pKm: 14400 / 42.195, units: 'mi', overrun: 0 }));
+    assert.deepEqual(tds(wristEven), evenRows.map((r) => [time.formatDuration(r.elapsed)]), 'Pace band fold at even pace: one column'); ok();
   }
 
   // The strips: in course shape the big numbers are the shape, there is no "H" line, and the caption names the shape and
@@ -558,25 +638,46 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const mats = (html) => [...html.matchAll(/<span class="k">(?:\d+K|Finish) <small>[^<]*<\/small><\/span><b>([^<]+)<\/b>/g)].map((m) => m[1]);
   assert.deepEqual(mats(courseHtml), fakeShape.map((t) => time.formatDuration(t)), 'Course shape: the mat strip is the shape'); ok();
   assert.deepEqual(mats(evenHtml), POINTS.map((km, i) => time.formatDuration(i === 8 ? 14430 : (14430 / 42.195) * km)), 'Even pace: the mat strip is even pace'); ok();
-  assert.match(courseHtml, /Course shape 4:00:30 · each mile · strip 1 of 3/); assert.match(evenHtml, /Even pace 4:00:30 · each mile · strip 1 of 3/); assert.match(courseHtml, /· course shape · cut along the dashed lines/); checks += 3;
+  assert.match(courseHtml, /Course shape 4:00:30 · each mile · strip 1 of 3/); assert.match(evenHtml, /Even pace 4:00:30 · each mile · strip 1 of 3/); checks += 2;
+  assert.ok(courseHtml.includes(`· course shape, ${shapeLib.shapeLine(fakeShape, 'mi')} · cut along the dashed lines`), 'The sheet head gives the shape in the kicker\'s words'); ok();
+  // The Goal cell: in course shape the goal's even pace is labelled as the average, never a bare pace beside the shape.
+  assert.match(courseHtml, /<span class="k">Goal<\/span><b>4:00:30<\/b><span class="h">avg 9:10\/mi · 5:42\/km<\/span>/); assert.match(evenHtml, /<span class="k">Goal<\/span><b>4:00:30<\/b><span class="h">9:10\/mi · 5:42\/km<\/span>/); checks += 2;
+  // While the shape loads: the course shape's strip with dashes for times (the finish is the goal), no "H" line, and its caption.
+  const pendingHtml = renderToStaticMarkup(React.createElement(PaceBandStrip, { goal: 14430, pKm: 14430 / 42.195, units: 'mi', rows: shapeLib.bandRows(14430, 'mi', null), interval: 'mi', overrun: 0,
+    place: 'Boston', genderWord: '', observed: { held, lo: 14100, hi: 14399, place: 'Boston', genderWord: '' }, profile: null, showBack: false, waiting: true, shape: null, pending: true }));
+  assert.deepEqual(mats(pendingHtml), [...Array(8).fill('—'), '4:00:30'], 'Pending: dashes at the mats, the goal at the finish'); ok();
+  assert.doesNotMatch(pendingHtml, /class="h">H |Even pace|<b>\d+:\d\d<\/b><\/div><div class="pace-band-cell"><span class="k">Mi/, 'Pending: no even-pace times, no "H" line'); ok();
 
   // One rule, one control, one wording on both pages.
   const planSource = sourceOf('components/tools/RacePlan.tsx'), bandSource = sourceOf('components/tools/PaceBand.tsx');
   for (const [name, source] of [['RacePlan', planSource], ['PaceBand', bandSource]]) {
-    assert.match(source, /import BandChoice from '@\/components\/tools\/BandChoice';/, `${name} uses the one control`);
-    assert.match(source, /<BandChoice id="[\w-]+" state=\{bandState\} mode=\{pending \? 'course' : mode\} onChange=\{\(m\) => setQ\(\{ pace: bandChoice\(m\) \}\)\} line=\{noShapeLine\(where/, `${name}: the control writes only even pace to the address`);
+    assert.match(source, /import BandChoice, \{ KickerText \} from '@\/components\/tools\/BandChoice';/, `${name} uses the one control and the kicker's phrasing`);
+    assert.match(source, /<BandChoice id="[\w-]+" state=\{bandState\} mode=\{pending \? 'course' : mode\} onChange=\{\(m\) => setQ\(\{ pace: bandChoice\(m\) \}\)\}/, `${name}: the control writes only even pace to the address`);
     assert.match(source, /const mode(?:: BandMode)? = bandMode\(shape, q\.pace\);/, `${name}: one rule for the default and the override`);
     assert.match(source, /bandRows\(goal, [^,]+, shaped\)/, `${name}: the rows come from the shape`);
     assert.match(source, /shape=\{shaped\}/, `${name}: the strips print the band in its mode`);
     assert.match(source, /\{shaped \? 'Course shape from Pace Notes data' : /, `${name}: a printed course shape names Pace Notes data`);
-    checks += 6;
+    assert.match(source, /const minute = goal === null \? null : bandMinute\(goal\);/, `${name}: the group's minute from the one rule`);
+    assert.match(source, /bandKicker\(\{ goal, place, /, `${name}: the band's kicker in the shared words`);
+    assert.match(source, /tidyChoice\(q\.pace, /, `${name}: a hand-edited pace leaves the address`);
+    assert.match(source, /goalPace\(pKm, units, Boolean\(shaped\)\)/, `${name}: the goal bar labels the average in course shape`);
+    checks += 10;
   }
+  assert.match(planSource, /cardMats\(goal, shaped, pending\)/, 'The planner card\'s four times from the one rule'); ok();
+  assert.match(planSource, /<b>\{paces \? formatDuration\(perUnit\(paces\.to20, units\)\) : '—'\}<\/b>[\s\S]{0,200}<b>\{paces \? formatDuration\(perUnit\(paces\.from30, units\)\) : '—'\}<\/b>/, 'The card\'s two phases are the shape\'s paces (dashes while it loads)'); ok();
+  assert.match(planSource, /\{courseCard \? <EvidenceTag kind="data" \/> : null\}\s*<h2 className="tool-panel-title" id="plan-band-title">/, 'The planner\'s band panel carries the Pace Notes data badge in course shape'); ok();
+  assert.match(bandSource, /\{course \? <EvidenceTag kind="data" className="no-print" \/> : null\}/, 'The pace band\'s band carries the Pace Notes data badge in course shape'); ok();
+  assert.match(planSource, /line=\{noShape\}/, 'The planner\'s one line says why there is no shape'); ok();
+  assert.match(planSource, /disabled=\{pending\} onClick=\{\(\) => printAs\('strip'\)\}/, 'The planner waits to print while the shape loads'); ok();
+  assert.match(bandSource, /stale\.place === place && stale\.genderWord === genderWord/, 'The pace band reuses a loading shape only for the same course and recorded gender'); ok();
+  assert.match(bandSource, /const shardPath = paceBandShardPath\(course, gender\);/, 'The pace band reads the chosen recorded gender\'s shard'); ok();
   assert.match(planSource, /shapeFor\(isAll \? 'all' : course\?\.slug \?\? 'all', all, goal\)/, 'The planner shapes only a chosen course, from its all-genders group'); ok();
   assert.match(bandSource, /shapeFor\(course, shapeFrom\.all, goal\)/, 'The pace band shapes from the course and recorded gender on screen'); ok();
-  assert.match(sourceOf('components/tools/BandChoice.tsx'), /<Choice label=\{BAND_LABEL\} value=\{mode\} onChange=\{onChange\} options=\{BAND_OPTIONS\} small \/>/, 'The control is the site\'s segmented Choice'); ok();
+  assert.match(sourceOf('components/tools/BandChoice.tsx'), /<Choice label=\{BAND_LABEL\} value=\{mode\} onChange=\{onChange\} options=\{BAND_OPTIONS\} small className="band-choice-seg" \/>/, 'The control is the site\'s segmented Choice'); ok();
   for (const file of ['lib/tools/course-shape.ts', 'components/tools/BandChoice.tsx']) {
     const text = sourceOf(file).replace(/^\s*(?:\/\/|\/\*\*?|\*).*$/gm, '');
-    assert.doesNotMatch(text, /\bshould\b|your chance|arithmetic|to make \d|predict/i, `${file}: no advice, chance, prediction or causal wording`); ok();
+    // "Not a prediction" is the one allowed use (a short wording disclaimer).
+    assert.doesNotMatch(text, /\bshould\b|your chance|arithmetic|to make \d|(?<!Not a )predict/i, `${file}: no advice, chance, prediction or causal wording`); ok();
   }
 }
 

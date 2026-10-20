@@ -10,8 +10,9 @@
 //   6. console errors and page errors;
 //   7. more than one rgb(255, 91, 46) control on the first screen (every route since round 4);
 //   8. HTML text inside a figure.viz or a card (a next card, a receipt, the report's and the runner's night cards, an
-//      answer card) cut off at its edge or at an element that clips its overflow (a pace block's "+3" past the frame, a
-//      tile's "+4%", a next card's "improvemen"), by more than 1 px; a scroller's content and an ellipsis are exempt;
+//      answer card, a tool's night card) or a segmented button cut off at its edge or at an element that clips its
+//      overflow (a pace block's "+3" past the frame, a tile's "+4%", a next card's "improvemen", a button label running
+//      into the next button), by more than 1 px; a scroller's content and an ellipsis are exempt;
 //   9. more than one coloured heading accent (an em in an h1, h2 or h3 drawn in a colour other than its heading's) within
 //      one screen's height: orange marks the page's one reading, so H2s keep their italic in ink (round 3, October 19);
 //  10. a term link (.term-link) inside an h1: a dotted underline under display type outweighs the reading's accent; the
@@ -141,7 +142,10 @@ function inspect({ isHome }) {
   // between them that clips its overflow sideways. A scroller (overflow auto or scroll) may hold content past its edge
   // by design, and an ellipsis is a deliberate cut, so neither counts; nor does a visually hidden name (a 1 px box).
   // Each text belongs to its nearest figure or card only.
-  const CLIP_ROOTS = 'figure.viz, .next-card, .receipt, .race-report-screen, .answer-card, .runner-numbers';
+  // The tools' night cards (.tool-reading) and each segmented button (.seg-btn: a label wider than its own button runs
+  // into the next one) count too (October 20, 2026: the planner's "9:48 from 30K · co" and "Course shapeEven pace" at
+  // 195 px).
+  const CLIP_ROOTS = 'figure.viz, .next-card, .receipt, .race-report-screen, .answer-card, .runner-numbers, .tool-reading, .seg-btn';
   for (const fig of document.querySelectorAll(CLIP_ROOTS)) {
     if (hidden(fig)) continue;
     const walker = document.createTreeWalker(fig, NodeFilter.SHOW_TEXT);

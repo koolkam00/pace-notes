@@ -37,9 +37,17 @@
   .pace-band-root[data-print='strip'] .tool-results > :not(.pace-band-print-panel) { display: none !important; }
   .pace-band-root[data-print='strip'] .pace-band-print-panel { padding: 0; border: 0; }
   .pace-band-root[data-print='strip'] .pace-band-print-panel > header, .pace-band-root[data-print='strip'] .values { display: none; }
+  /* The sheet head names the goal, course, gender and mode, so the kicker does not print above it; nor does the full
+     page's table of every marker. */
+  .pace-band-root[data-print='strip'] .pace-band-kicker, .pace-band-root[data-print='strip'] .pace-band-print-marks { display: none !important; }
   /* Full page: the band, the observed groups and the band's every marker, no strips. */
   .pace-band-root[data-print='page'] .pace-band-strip, .pace-band-root[data-print='page'] .pace-band-sheet-wrap { display: none !important; }
   .pace-band-root[data-print='page'] .pace-band-print-notes { display: block; font-size: 8.5pt; line-height: 1.45; }
+  /* The band itself, as its table of every marker (the print options' fold is a screen control). */
+  .pace-band-root[data-print='page'] .pace-band-print-marks { display: block; }
+  .pace-band-print-marks-title { margin: 0 0 .1cm; font-family: var(--sans); font-size: 8pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .pace-band-print-marks .table th, .pace-band-print-marks .table td { font-size: 8.5pt; line-height: 1.2; }
+  .pace-band-print-marks tr { break-inside: avoid; }
   .pace-band-root[data-print='page'] .table th, .pace-band-root[data-print='page'] .table td { height: auto; padding-top: .06cm; padding-bottom: .06cm; }
   .pace-band-dim, .pace-band-held-dim { opacity: 1 !important; }
 }

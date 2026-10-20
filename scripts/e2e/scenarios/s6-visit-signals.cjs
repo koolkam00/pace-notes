@@ -374,6 +374,65 @@ async function plannerSplits(h) {
   h.check('planner: the copied link keeps even pace (pace=even) with the course, goal and units', link && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'berlin'], ['goal', '3:30'], ['pace', 'even'], ['units', 'mi']]), copied);
 }
 
+// The course shape as both pages draw it (the reviewers' Boston 4:00 capture): the planner's card gives the two phases and
+// four real timing points, the fold each mat's shape beside even pace with its finishes, the band panel its badge and
+// kicker, and the lead names its group's even pace; the pace band's recorded gender takes that gender's group (women,
+// 20K 1:48:30). While a group loads (its file held back 2.5 s) the card holds dashes in the course shape's layout, never
+// even pace, nothing moves when the shape lands, and printing waits.
+async function courseShapeFigures(h) {
+  const run = await h.run('course shape figures', { ...PHONE });
+  const page = await run.newPage();
+  let hold = true;
+  await page.route(/\/tools\/pace-band\/boston\/\w+\.json(\?|$)/, async (route) => { if (hold) await new Promise((r) => setTimeout(r, 2500)); await route.fallback(); });
+  await page.goto(SITE + '/tools/plan?course=boston&goal=4:00', { waitUntil: 'load' });
+  await page.waitForSelector('.plan-headline.is-pending', { timeout: 20000 });
+  const pending = await page.evaluate(() => ({
+    figure: [...document.querySelectorAll('.plan-headline .plan-phase b')].map((b) => b.textContent),
+    mats: [...document.querySelectorAll('.plan-card-mats dt')].map((d) => d.textContent).join(' '),
+    text: document.querySelector('.plan-headline')?.textContent ?? '',
+    height: document.querySelector('.plan-headline')?.getBoundingClientRect().height ?? 0,
+    print: document.querySelector('#plan-band .share-bar .btn-primary')?.disabled ?? null,
+  }));
+  await page.waitForSelector('.plan-headline:not(.is-pending) .plan-phase b', { timeout: 20000 });
+  await page.waitForSelector('.plan-comparison .tool-lead-line', { timeout: 20000 });
+  hold = false;
+  await page.waitForTimeout(400);
+  const card = await page.evaluate(() => ({
+    figure: [...document.querySelectorAll('.plan-headline .plan-phase b')].map((b) => b.textContent),
+    mats: [...document.querySelectorAll('.plan-card-mats > div')].map((d) => `${d.querySelector('dt')?.textContent} ${d.querySelector('dd')?.textContent}`),
+    height: document.querySelector('.plan-headline')?.getBoundingClientRect().height ?? 0,
+    line: document.querySelector('.plan-shape-line')?.textContent ?? '',
+    kicker: document.querySelector('#plan-band .plan-band-kicker')?.textContent ?? '',
+    badge: Boolean(document.querySelector('#plan-band .plan-band-head .evidence-badge')),
+    lead: document.querySelector('.plan-comparison .tool-lead-line')?.textContent ?? '',
+    print: document.querySelector('#plan-band .share-bar .btn-primary')?.disabled ?? null,
+  }));
+  await page.evaluate(() => { const d = document.querySelector('#plan-mat-values'); if (d) d.open = true; });
+  const fold = await page.evaluate(() => {
+    const table = document.querySelector('#plan-mat-values table');
+    return { head: [...(table?.querySelectorAll('thead th') ?? [])].map((t) => t.textContent), first: [...(table?.querySelectorAll('tbody tr:first-child td') ?? [])].map((t) => t.textContent),
+      finishes: table?.querySelector('tfoot td')?.textContent ?? '' };
+  });
+  await page.goto(SITE + '/tools/pace-band?course=boston&goal=4:00&g=women', { waitUntil: 'load' });
+  await page.waitForFunction(() => /course shape, /.test(document.querySelector('.pace-band-kicker')?.textContent ?? ''), null, { timeout: 20000 });
+  const band = await page.evaluate(() => ({
+    kicker: document.querySelector('.pace-band-kicker')?.textContent ?? '',
+    at20: [...document.querySelectorAll('.pace-band-strip.is-mats .pace-band-cell')].find((c) => /^20K/.test(c.querySelector('.k')?.textContent ?? ''))?.querySelector('b')?.textContent ?? '',
+    badge: Boolean(document.querySelector('#pace-band-band > .evidence-badge')),
+  }));
+  await run.close();
+  h.check('course shape: while the group loads the card holds dashes in the course shape\'s layout, never even pace, and printing waits',
+    JSON.stringify(pending.figure) === '["—","—"]' && pending.mats === '5K 20K 30K Finish' && !/even pace/i.test(pending.text) && pending.print === true, pending);
+  h.check('course shape: Boston 4:00 on the card, 8:41 to 20K and 9:48 from 30K, at 5K, 20K, 30K and the finish, and the card keeps its height',
+    JSON.stringify(card.figure) === '["8:41","9:48"]' && JSON.stringify(card.mats) === '["5K 26:38","20K 1:47:56","30K 2:45:41","Finish 4:00:00"]' && Math.abs(card.height - pending.height) < 1, { card, pendingHeight: pending.height });
+  h.check('course shape: the card says what the shape is, the band carries the badge and the kicker, the lead names even pace, and printing is back',
+    /^Course shape: how finishes that made 4:00 ran Boston\. Not a prediction\.$/.test(card.line) && card.kicker === '4:00 · Boston · course shape, 8:41/mi to 20K, 9:48 from 30K' && card.badge && /within 2% of even 4:00 pace/.test(card.lead) && card.print === false, card);
+  h.check('course shape: the fold puts each mat\'s course shape beside even pace, with the 10,039 finishes',
+    JSON.stringify(fold.head) === '["Mat","Course shape","Even pace"]' && JSON.stringify(fold.first) === '["26:38","28:26"]' && fold.finishes === '10,039', fold);
+  h.check('course shape: the pace band takes the chosen recorded gender\'s group (Boston women 4:00: 20K 1:48:30) with its badge',
+    band.at20 === '1:48:30' && /^4:00 · Boston · women · course shape, /.test(band.kicker) && band.badge, band);
+}
+
 // The race report on /report: its section is seen once; a failed image is site_error export, once (twice pressed), and
 // then Save image is one report_exported image; a cancelled share sends nothing and a share that goes through one
 // report_exported share;
@@ -592,6 +651,7 @@ module.exports = {
       { name: 'tool edits', weight: 8, run: toolEdits },
       { name: 'planner sections, print and copy link', weight: 8, run: planner },
       { name: 'planner splits choice', weight: 6, run: plannerSplits },
+      { name: 'course shape figures', weight: 6, run: courseShapeFigures },
       { name: 'race report exports', weight: 8, run: raceReport },
       { name: 'back-forward cache', weight: 16, run: restored },
       { name: 'experiment before first paint', weight: 14, run: paintOrder },
