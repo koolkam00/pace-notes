@@ -76,16 +76,19 @@ export function DurationField({ label, value, onChange, mode = 'race', placehold
  * drawn as the site's segmented control (app/styles/components/segmented.css) with the pressed option raised. No thumb
  * script: the pressed button carries the raised surface itself, so nothing moves on load.
  */
-export function Choice<T extends string | number>({ label, options, value, onChange, small = false }: {
+export function Choice<T extends string | number>({ label, options, value, onChange, small = false, className }: {
   label: string; value: T; onChange: (v: T) => void; small?: boolean;
+  /** A class of the control's own beside `seg tool-choice`, also given to its buttons and labels as `<class>-btn` and
+      `<class>-label` (the band's Splits choice names itself, so the recording check can tell it from any other choice). */
+  className?: string;
   /** `disabled` keeps an option in view, focusable and named by its `title`, but not choosable (aria-disabled). */
   options: { value: T; label: ReactNode; disabled?: boolean; title?: string }[];
 }) {
   return (
-    <div className={`seg tool-choice${small ? ' is-small' : ''}`} role="group" aria-label={label}>
+    <div className={`seg tool-choice${small ? ' is-small' : ''}${className ? ` ${className}` : ''}`} role="group" aria-label={label}>
       {options.map((o) => (
-        <button key={String(o.value)} type="button" className="seg-btn" aria-pressed={o.value === value} aria-disabled={o.disabled || undefined}
-          title={o.disabled ? o.title : undefined} onClick={() => { if (!o.disabled) onChange(o.value); }}><span className="seg-label">{o.label}</span></button>
+        <button key={String(o.value)} type="button" className={`seg-btn${className ? ` ${className}-btn` : ''}`} aria-pressed={o.value === value} aria-disabled={o.disabled || undefined}
+          title={o.disabled ? o.title : undefined} onClick={() => { if (!o.disabled) onChange(o.value); }}><span className={`seg-label${className ? ` ${className}-label` : ''}`}>{o.label}</span></button>
       ))}
     </div>
   );
@@ -243,9 +246,9 @@ export function CopyLink() {
  * A night card's foot row: its evidence badge (if it has one) at the left and Copy link at the right, so every tool
  * shares its result from the same place.
  */
-export function ReadingFoot({ badge, copy = true }: { badge?: ReactNode; copy?: boolean }) {
+export function ReadingFoot({ badge, copy = true, className }: { badge?: ReactNode; copy?: boolean; className?: string }) {
   if (!badge && !copy) return null;
-  return <div className={`tool-reading-foot${badge ? '' : ' is-copy-only'}`}>{badge ?? null}{copy ? <CopyLink /> : null}</div>;
+  return <div className={`tool-reading-foot${badge ? '' : ' is-copy-only'}${className ? ` ${className}` : ''}`}>{badge ?? null}{copy ? <CopyLink /> : null}</div>;
 }
 
 /**

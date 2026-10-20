@@ -10,8 +10,9 @@
 //   6. console errors and page errors;
 //   7. more than one rgb(255, 91, 46) control on the first screen (every route since round 4);
 //   8. HTML text inside a figure.viz or a card (a next card, a receipt, the report's and the runner's night cards, an
-//      answer card) cut off at its edge or at an element that clips its overflow (a pace block's "+3" past the frame, a
-//      tile's "+4%", a next card's "improvemen"), by more than 1 px; a scroller's content and an ellipsis are exempt;
+//      answer card, a tool's night card) or a segmented button cut off at its edge or at an element that clips its
+//      overflow (a pace block's "+3" past the frame, a tile's "+4%", a next card's "improvemen", a button label running
+//      into the next button), by more than 1 px; a scroller's content and an ellipsis are exempt;
 //   9. more than one coloured heading accent (an em in an h1, h2 or h3 drawn in a colour other than its heading's) within
 //      one screen's height: orange marks the page's one reading, so H2s keep their italic in ink (round 3, October 19);
 //  10. a term link (.term-link) inside an h1: a dotted underline under display type outweighs the reading's accent; the
@@ -21,7 +22,10 @@
 //      Hamburg's leader through "Valencia", the hills needle through "164 ft above the low point"; check 4 compares
 //      text with text only); an HTML leader ([data-leader]) through any text in its scope, its own label included;
 //  12. the visible gridline labels (text.grid-label) of one figure.viz at different x: one left edge, or one right edge
-//      (round 6: an edition line's labels at the left, the right and mid-plot).
+//      (round 6: an edition line's labels at the left, the right and mid-plot);
+//  13. text of two or more words crushed into a box narrower than 3 em, so it wraps a word or a letter to a line
+//      (October 20, 2026: the planner's course-shape labels 7 px wide at 900 px and four lines at 1024 px, which check 8
+//      passed because nothing was cut off). Tool routes are linted at 1024 px too (a tablet held sideways).
 //
 //   node scripts/design/lint-layout.cjs --routes=<comma list | @file> [--widths=195,320,390,1440] [--dir=out]
 //        [--json=<file>] [--only=1,2,3] [--max=12]
@@ -35,7 +39,7 @@ const { chromium } = require('playwright');
 const { readRoutes, serve, open, SITE } = require('./shoot.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const HEIGHTS = { 195: 332, 201: 357, 320: 640, 390: 844, 402: 714 };
+const HEIGHTS = { 195: 332, 201: 357, 320: 640, 390: 844, 402: 714, 1024: 768 };
 
 function args(argv) {
   const out = {};
@@ -61,7 +65,7 @@ function inspect({ isHome }) {
     }
     return false;
   };
-  const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [], clipped: [], accents: [], termH1: [], crossed: [], gridX: [] };
+  const findings = { overflow: [], tinyText: [], overlap: [], outside: [], orange: [], clipped: [], accents: [], termH1: [], crossed: [], gridX: [], crushed: [] };
 
   // 1. Horizontal overflow, with the elements that reach past the right edge.
   // Any overflow at all, even 1 px: a page that can move sideways under a thumb wobbles.
@@ -141,7 +145,10 @@ function inspect({ isHome }) {
   // between them that clips its overflow sideways. A scroller (overflow auto or scroll) may hold content past its edge
   // by design, and an ellipsis is a deliberate cut, so neither counts; nor does a visually hidden name (a 1 px box).
   // Each text belongs to its nearest figure or card only.
-  const CLIP_ROOTS = 'figure.viz, .next-card, .receipt, .race-report-screen, .answer-card, .runner-numbers';
+  // The tools' night cards (.tool-reading) and each segmented button (.seg-btn: a label wider than its own button runs
+  // into the next one) count too (October 20, 2026: the planner's "9:48 from 30K · co" and "Course shapeEven pace" at
+  // 195 px).
+  const CLIP_ROOTS = 'figure.viz, .next-card, .receipt, .race-report-screen, .answer-card, .runner-numbers, .tool-reading, .seg-btn';
   for (const fig of document.querySelectorAll(CLIP_ROOTS)) {
     if (hidden(fig)) continue;
     const walker = document.createTreeWalker(fig, NodeFilter.SHOW_TEXT);
@@ -282,6 +289,22 @@ function inspect({ isHome }) {
     el.setAttribute('data-lint-target', String(index));
     candidates.push({ id: String(index), what: describe(el), w: Math.round(r.width), h: Math.round(r.height), probe: target === el });
   }
+
+  // 13. Words crushed into a narrow box: an element (not an inline run) whose own text has two or more words, laid out
+  // on more than one line in a box under 3 em wide. A visually hidden name (a 1 px box) and SVG text do not count.
+  for (const el of document.querySelectorAll('body *')) {
+    const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(' ').replace(/\s+/g, ' ').trim();
+    if (!/\S\s\S/.test(own) || el.closest('svg') || el.closest('details:not([open])')) continue;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'inline' || cs.display === 'contents' || cs.display === 'none') continue;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 1.5 || r.height <= 1.5) continue;
+    const size = parseFloat(cs.fontSize) || 16;
+    if (r.width >= 3 * size || hidden(el)) continue;
+    const line = parseFloat(cs.lineHeight) || size * 1.2;
+    if (r.height < line * 1.8) continue;
+    findings.crushed.push(`${describe(el)} ${Math.round(r.width)} px wide, ${Math.round(r.height / line)} lines`);
+  }
   return { findings, candidates };
 }
 
@@ -340,19 +363,20 @@ async function lintOne(browser, route, width, opts) {
     10: findings.termH1,
     11: findings.crossed,
     12: findings.gridX,
+    13: findings.crushed,
   };
   for (const k of Object.keys(checks)) if (!opts.only.has(Number(k))) delete checks[k];
   return { route, width, checks, foreign };
 }
 
-const NAMES = { 1: 'horizontal overflow', 2: 'hit area under 44×44', 3: 'chart text under 12 px', 4: 'text overlaps text in a figure', 5: 'text outside its SVG', 6: 'console or page error', 7: 'more than one orange control on the first screen', 8: 'chart text clipped', 9: 'two coloured heading accents within one screen', 10: 'a term link inside an h1', 11: 'a leader or the needle crosses text in a figure', 12: 'gridline labels of one figure at different x' };
+const NAMES = { 1: 'horizontal overflow', 2: 'hit area under 44×44', 3: 'chart text under 12 px', 4: 'text overlaps text in a figure', 5: 'text outside its SVG', 6: 'console or page error', 7: 'more than one orange control on the first screen', 8: 'chart text clipped', 9: 'two coloured heading accents within one screen', 10: 'a term link inside an h1', 11: 'a leader or the needle crosses text in a figure', 12: 'gridline labels of one figure at different x', 13: 'words crushed into a box under 3 em wide' };
 
 async function main() {
   const a = args(process.argv.slice(2));
   const routes = readRoutes(a.routes);
   const widths = String(a.widths || '195,320,390,1440').split(',').map(Number).filter(Boolean);
   const dir = path.resolve(ROOT, a.dir || 'out');
-  const only = new Set(String(a.only || '1,2,3,4,5,6,7,8,9,10,11,12').split(',').map(Number));
+  const only = new Set(String(a.only || '1,2,3,4,5,6,7,8,9,10,11,12,13').split(',').map(Number));
   const max = Number(a.max || 12);
   if (!fs.existsSync(path.join(dir, 'index.html'))) throw new Error(`No export at ${dir}: run npm run build first.`);
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, args: ['--proxy-server=http://127.0.0.1:9', '--proxy-bypass-list=<-loopback>'] });

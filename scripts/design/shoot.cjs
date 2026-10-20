@@ -3,7 +3,7 @@
 // Screenshots of the static export for design review (docs: the redesign spec, section 8.0).
 //
 //   node scripts/design/shoot.cjs --routes=/,/research,/stories/round-numbers --out=<dir>
-//        [--profiles=all|phone,desktop,dark,reduced,km,zoom,phone664,phone714] [--ix] [--dir=out]
+//        [--profiles=all|phone,desktop,tablet,dark,reduced,km,zoom,phone664,phone714] [--ix] [--dir=out]
 //        [--mask=canvas,.replay-hud] [--animations=allow] [--max-screens=60] [--no-scroll]
 //
 // --routes takes a comma list or @file (one route per line, # comments allowed). Pages are served from the export in
@@ -38,6 +38,9 @@ const PROFILES = {
   phone664: { context: { ...phone, viewport: { width: 390, height: 664 } }, captures: ['first'], homeOnly: true },
   phone714: { context: { ...phone, viewport: { width: 402, height: 714 } }, captures: ['first'], homeOnly: true },
   desktop: { context: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, userAgent: DESKTOP_UA }, captures: ['first', 'full'] },
+  // A tablet held sideways or a small laptop, between the two-column layout (900 px) and the chapter rail (1180 px): the
+  // tool routes' cards change layout there (October 20, 2026: the planner's course-shape card).
+  tablet: { context: { viewport: { width: 1024, height: 768 }, deviceScaleFactor: 1, userAgent: DESKTOP_UA }, captures: ['first', 'full'], toolsOnly: true },
   dark: { context: phone, captures: ['first', 'full'], dark: true },   // the system setting dark (colorScheme)
   reduced: { context: { ...phone, reducedMotion: 'reduce' }, captures: ['full'] },
   km: { context: phone, captures: ['first'], query: { units: 'km' } },
@@ -214,6 +217,7 @@ async function main() {
     for (const route of routes) {
       for (const name of requested) {
         if (PROFILES[name].homeOnly && !explicit && route.split('?')[0] !== '/') continue;
+        if (PROFILES[name].toolsOnly && !explicit && !route.startsWith('/tools/')) continue;
         const t0 = Date.now();
         const r = await capture(browser, route, name, opts, !!a.ix);
         results.push(r);

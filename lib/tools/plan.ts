@@ -52,6 +52,15 @@ export function courseGoalReason(reason: string, minEditions: number): string {
 export const tooFewEditions = (editions: number, minEditions: number) =>
   `${editions === 1 ? 'Only one edition' : `Only ${editions} editions`} passed the data screens; ${minEditions} are needed for any goal.`;
 
+/**
+ * The planner's note where its course has a shape at this goal (or one on its way): about the results on goal pace only,
+ * after "No results on goal pace for {city} at this goal." A course with too few editions for any of them has no shape
+ * either (lib/tools/course-shape.ts SHAPE_MIN_EDITIONS), so this note never sits beside a shape it would contradict.
+ */
+export function goalPaceNote(result: Extract<CourseGoalResult, { state: 'unavailable' }>, city: string): string {
+  return `No results on goal pace for ${city} at this goal. ${result.reason}`;
+}
+
 export type CourseGoalResult =
   | { state: 'row'; row: CourseGoalRow; course: CourseContext; minutes: number; rounded: boolean }
   | { state: 'unavailable'; course: CourseContext | null; minutes: number | null; reason: string };

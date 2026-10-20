@@ -4,11 +4,12 @@ import { pageMetadata } from '@/lib/seo';
 import type { CourseGeometry } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { PaceBandIndex } from '@/lib/tools/data';
+import { shapeGoalsOf } from '@/lib/tools/course-shape';
 import { courseSlug } from '@/lib/tools/links';
 
 export const metadata = pageMetadata({
   title: 'Printable Marathon Pace Band for Any Goal | Pace Notes',
-  description: 'Print a free even-pace marathon wristband for any goal time, by mile, km or 5 km mat, beside what finishes at that goal ran at each mat on your course.',
+  description: 'Print a free marathon wristband for any goal time, in your course’s shape or at even pace, by mile, km or 5 km mat, beside what finishes at that goal ran.',
   path: '/tools/pace-band',
 });
 
@@ -65,7 +66,7 @@ export default function PaceBandPage() {
   return (
     <div className="tool-page">
       <ToolHeader slug="pace-band" />
-      <PaceBand indexSha={indexSha} profiles={profiles} unpublished={unpublished} how="/methodology#tools-pace-band" />
+      <PaceBand indexSha={indexSha} profiles={profiles} unpublished={unpublished} shapeGoals={shapeGoalsOf(index)} how="/methodology#tools-pace-band" />
       <ToolEnd path="/tools/pace-band" how="/methodology#tools-pace-band" numbers />
     </div>
   );

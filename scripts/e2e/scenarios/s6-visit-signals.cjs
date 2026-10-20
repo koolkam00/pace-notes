@@ -349,6 +349,145 @@ async function planner(h) {
   h.check('planner: the copied link opens the same course, goal and units, and carries nothing else', link && link.pathname === '/tools/plan' && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'berlin'], ['goal', '3:30'], ['units', 'mi']]), copied);
 }
 
+// The planner's Splits choice (October 20, 2026): on a course with a shape the band opens in course shape; pressing Even
+// pace is the page's one edit (no event of its own), and the copied link then carries pace=even beside the course and goal.
+async function plannerSplits(h) {
+  const run = await h.run('planner splits', { ...PHONE });
+  await run.context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: SITE });
+  const page = await run.newPage();
+  await page.goto(SITE + '/tools/plan?course=berlin&goal=3:30', { waitUntil: 'load' });
+  await page.waitForSelector('.band-choice .seg-btn[aria-pressed="true"]', { timeout: 20000 });
+  await page.waitForTimeout(600);
+  const before = await page.evaluate(() => document.querySelector('.band-choice .seg-btn[aria-pressed="true"]')?.textContent);
+  await page.locator('.band-choice .seg-btn', { hasText: 'Even pace' }).click();
+  await page.waitForTimeout(400);
+  const figure = await page.evaluate(() => document.querySelector('.plan-headline .tool-reading-figure')?.textContent ?? '');
+  await page.locator('#plan-band .share-bar button:has-text("Copy link")').click();
+  await page.waitForTimeout(500);
+  const copied = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+  await run.close();
+  const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
+  h.check('planner: a course with a shape opens in course shape, and Even pace shows even pace', before === 'Course shape' && /even pace/.test(figure), { before, figure });
+  h.check('planner: the Splits choice is one edit, then Copy link a copied link', JSON.stringify(used) === '["/tools/plan:edit","/tools/plan:copy_link"]', used);
+  let link = null;
+  try { link = new URL(copied); } catch { /* checked below */ }
+  h.check('planner: the copied link keeps even pace (pace=even) with the course, goal and units', link && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'berlin'], ['goal', '3:30'], ['pace', 'even'], ['units', 'mi']]), copied);
+}
+
+// The course shape as both pages draw it (the reviewers' Boston 4:00 capture): the planner's card gives the two phases and
+// four real timing points, the fold each mat's shape beside even pace with its finishes, the band panel its badge and a
+// kicker without the card's paces, and the lead keeps the chapter's words; the pace band's recorded gender takes that
+// gender's group (women, 20K 1:48:30), and its Even pace press puts even pace on the strips. While a group loads (its
+// file held back 2.5 s) the card holds dashes in the course shape's layout, never even pace and never its line, nothing
+// moves when the shape lands, and printing waits. With the pace band's index held back, Prague, a goal outside a
+// course's goals (Boston 7:00) and a course the data does not know never show a course shape, a badge or the choice;
+// on the planner Singapore (one edition, too few for a course shape) settles at once at 3:30 and 4:00, and Prague and
+// Singapore say why.
+async function courseShapeFigures(h) {
+  const run = await h.run('course shape figures', { ...PHONE });
+  const page = await run.newPage();
+  let hold = true;
+  await page.route(/\/tools\/pace-band\/boston\/\w+\.json(\?|$)/, async (route) => { if (hold) await new Promise((r) => setTimeout(r, 2500)); await route.fallback(); });
+  await page.goto(SITE + '/tools/plan?course=boston&goal=4:00', { waitUntil: 'load' });
+  await page.waitForSelector('.plan-headline.is-pending', { timeout: 20000 });
+  const pending = await page.evaluate(() => ({
+    figure: [...document.querySelectorAll('.plan-headline .plan-phase b')].map((b) => b.textContent),
+    mats: [...document.querySelectorAll('.plan-card-mats dt')].map((d) => d.textContent).join(' '),
+    text: document.querySelector('.plan-headline')?.innerText ?? '',
+    lineShown: (() => { const l = document.querySelector('.plan-shape-line'); return Boolean(l) && getComputedStyle(l).visibility !== 'hidden'; })(),
+    goalBar: document.querySelector('.tool-goalbar-value > span')?.textContent ?? '',
+    height: document.querySelector('.plan-headline')?.getBoundingClientRect().height ?? 0,
+    print: document.querySelector('#plan-band .share-bar .btn-primary')?.disabled ?? null,
+  }));
+  await page.waitForSelector('.plan-headline:not(.is-pending) .plan-phase b', { timeout: 20000 });
+  await page.waitForSelector('.plan-comparison .tool-lead-line', { timeout: 20000 });
+  hold = false;
+  await page.waitForTimeout(400);
+  const card = await page.evaluate(() => ({
+    figure: [...document.querySelectorAll('.plan-headline .plan-phase b')].map((b) => b.textContent),
+    mats: [...document.querySelectorAll('.plan-card-mats > div')].map((d) => `${d.querySelector('dt')?.textContent} ${d.querySelector('dd')?.textContent}`),
+    height: document.querySelector('.plan-headline')?.getBoundingClientRect().height ?? 0,
+    line: document.querySelector('.plan-shape-line')?.textContent ?? '',
+    kicker: document.querySelector('#plan-band .plan-band-kicker')?.textContent ?? '',
+    badge: Boolean(document.querySelector('#plan-band .plan-band-head .evidence-badge')),
+    lead: document.querySelector('.plan-comparison .tool-lead-line')?.textContent ?? '',
+    print: document.querySelector('#plan-band .share-bar .btn-primary')?.disabled ?? null,
+  }));
+  await page.evaluate(() => { const d = document.querySelector('#plan-mat-values'); if (d) d.open = true; });
+  const fold = await page.evaluate(() => {
+    const table = document.querySelector('#plan-mat-values table');
+    return { head: [...(table?.querySelectorAll('thead th') ?? [])].map((t) => t.textContent), first: [...(table?.querySelectorAll('tbody tr:first-child td') ?? [])].map((t) => t.textContent),
+      finishes: table?.querySelector('tfoot td')?.textContent ?? '' };
+  });
+  await page.goto(SITE + '/tools/pace-band?course=boston&goal=4:00&g=women', { waitUntil: 'load' });
+  await page.waitForFunction(() => /course shape, /.test(document.querySelector('.pace-band-kicker')?.textContent ?? ''), null, { timeout: 20000 });
+  const bandNow = () => page.evaluate(() => ({
+    kicker: document.querySelector('.pace-band-kicker')?.textContent ?? '',
+    line: document.querySelector('#pace-band-band .band-shape-line')?.textContent ?? '',
+    at20: [...document.querySelectorAll('.pace-band-strip.is-mats .pace-band-cell')].find((c) => /^20K/.test(c.querySelector('.k')?.textContent ?? ''))?.querySelector('b')?.textContent ?? '',
+    mile1: document.querySelector('.pace-band-strip.is-splits .pace-band-cell b')?.textContent ?? '',
+    badge: Boolean(document.querySelector('#pace-band-band > .evidence-badge')),
+    choiceNext: document.querySelector('#pace-band-band .pace-band-kicker')?.nextElementSibling?.nextElementSibling?.classList.contains('band-choice') ?? false,
+    pace: new URL(location.href).searchParams.get('pace'),
+  }));
+  const band = await bandNow();
+  // The pace band's Even pace press: even pace on the strips (Boston women 4:00: 20K 1:53:45, mile 1 9:09) and in the address.
+  await page.locator('#pace-band-band .band-choice .seg-btn', { hasText: 'Even pace' }).click();
+  await page.waitForTimeout(400);
+  const bandEven = await bandNow();
+
+  // The planner, settled at once where there is no shape to wait for: Singapore (one edition, so no shape at any goal,
+  // owner decision of October 20, 2026) at 3:30 and 4:00 with its file held back, and Prague.
+  const plannerAt = async (q, wait) => {
+    await page.goto(SITE + '/tools/plan?' + q, { waitUntil: 'load' });
+    await page.waitForTimeout(wait);
+    return page.evaluate(() => ({
+      pending: Boolean(document.querySelector('.plan-headline.is-pending')), shape: Boolean(document.querySelector('.plan-headline.is-shape')),
+      seg: document.querySelectorAll('.band-choice .seg-btn').length, none: document.querySelector('.band-choice-none')?.textContent ?? '',
+      note: document.querySelector('.plan-unavailable')?.textContent ?? '', badges: document.querySelectorAll('.tool-workspace .evidence-badge').length,
+    }));
+  };
+  await page.route(/\/tools\/pace-band\/singapore\/\w+\.json(\?|$)/, async (route) => { await new Promise((r) => setTimeout(r, 2500)); await route.fallback(); });
+  const sg330 = await plannerAt('course=singapore&goal=3:30', 900);
+  const prague = await plannerAt('course=prague&goal=4:00', 1500);
+  const sg400 = await plannerAt('course=singapore&goal=4:00', 4500);
+
+  // The pace band with its index held back 2.5 s: what shows before it arrives.
+  await page.route(/\/tools\/pace-band\.json(\?|$)/, async (route) => { await new Promise((r) => setTimeout(r, 2500)); await route.fallback(); });
+  const early = [];
+  for (const q of ['course=prague&goal=4:00', 'course=boston&goal=7:00', 'course=nowhere&goal=4:00']) {
+    await page.goto(SITE + '/tools/pace-band?' + q, { waitUntil: 'load' });
+    await page.waitForTimeout(700);
+    early.push(await page.evaluate(() => ({
+      kicker: document.querySelector('.pace-band-kicker')?.textContent ?? '', seg: document.querySelectorAll('.band-choice .seg-btn').length,
+      badge: Boolean(document.querySelector('#pace-band-band > .evidence-badge')), none: document.querySelector('#pace-band-band .band-choice-none')?.textContent ?? '',
+      loading: /Loading the finishes/.test(document.querySelector('#pace-band-observed')?.textContent ?? ''),
+    })));
+  }
+  await run.close();
+  h.check('course shape: while the group loads the card holds dashes in the course shape\'s layout, never even pace or its line, and printing waits',
+    JSON.stringify(pending.figure) === '["—","—"]' && pending.mats === '5K 20K 30K Finish' && !/even pace|Course shape:/i.test(pending.text) && !pending.lineShown && pending.goalBar === 'avg 9:09/mi' && pending.print === true, pending);
+  h.check('course shape: Boston 4:00 on the card, 8:41 to 20K and 9:48 from 30K, at 5K, 20K, 30K and the finish, and the card keeps its height',
+    JSON.stringify(card.figure) === '["8:41","9:48"]' && JSON.stringify(card.mats) === '["5K 26:38","20K 1:47:56","30K 2:45:41","Finish 4:00:00"]' && Math.abs(card.height - pending.height) < 1, { card, pendingHeight: pending.height });
+  h.check('course shape: the card says what the shape is, the band carries the badge and a kicker without the card\'s paces, the lead keeps the chapter\'s words, and printing is back',
+    /^Course shape: how finishes that made 4:00 ran Boston\. Not a prediction\.$/.test(card.line) && card.kicker === '4:00 · Boston · course shape' && card.badge && /within 2% of 4:00 pace/.test(card.lead) && !/even 4:00/.test(card.lead) && card.print === false, card);
+  h.check('course shape: the fold puts each mat\'s course shape beside even pace, with the 10,039 finishes',
+    JSON.stringify(fold.head) === '["Mat","Course shape","Even pace"]' && JSON.stringify(fold.first) === '["26:38","28:26"]' && fold.finishes === '10,039', fold);
+  h.check('course shape: the pace band takes the chosen recorded gender\'s group (Boston women 4:00: 20K 1:48:30) with its badge, its line and the choice above the band',
+    band.at20 === '1:48:30' && /^4:00 · Boston · women · course shape, \d:\d\d\/mi to 20K, \d+:\d\d\/mi from 30K$/.test(band.kicker) && band.badge && band.choiceNext
+      && band.line === 'Course shape: how finishes that made 4:00 ran Boston (recorded as women). Not a prediction.', band);
+  h.check('course shape: on the pace band Even pace puts even pace on the strips, takes the badge off the band and keeps pace=even in the address',
+    bandEven.at20 === '1:53:45' && bandEven.mile1 === '9:09' && band.mile1 !== '9:09' && /9:09\/mi even$/.test(bandEven.kicker) && bandEven.pace === 'even' && !bandEven.badge, { band, bandEven });
+  h.check('course shape: the planner settles at once where no shape can come (Singapore 3:30: one edition), and says why',
+    !sg330.pending && !sg330.shape && sg330.seg === 0 && sg330.none === 'Too few editions in Singapore for a course shape.', sg330);
+  h.check('course shape: Prague has no course shape and says so, with no choice', !prague.shape && prague.seg === 0 && prague.none === 'No course shape for Prague.', prague);
+  h.check('course shape: Singapore 4:00, a group on one edition, has no course shape: even pace at once, the one line, and the note on course results as before',
+    !sg400.pending && !sg400.shape && sg400.seg === 0 && sg400.none === 'Too few editions in Singapore for a course shape.'
+      && sg400.note === 'No results for Singapore at this goal. Only one edition passed the data screens; 3 are needed for any goal. Your plan and pace band still work.', sg400);
+  h.check('course shape: before the pace band\'s index arrives, Prague, Boston 7:00 and an unknown course show no course shape, badge or choice, and the first two say why',
+    early.every((e) => e.loading && e.seg === 0 && !e.badge && !/course shape/i.test(e.kicker)) && early[0].none === 'No course shape for Prague.' && early[1].none === 'No course shape at this goal.' && early[2].none === '', early);
+}
+
 // The race report on /report: its section is seen once; a failed image is site_error export, once (twice pressed), and
 // then Save image is one report_exported image; a cancelled share sends nothing and a share that goes through one
 // report_exported share;
@@ -566,6 +705,8 @@ module.exports = {
       { name: 'tool signals and errors', weight: 16, run: using },
       { name: 'tool edits', weight: 8, run: toolEdits },
       { name: 'planner sections, print and copy link', weight: 8, run: planner },
+      { name: 'planner splits choice', weight: 6, run: plannerSplits },
+      { name: 'course shape figures', weight: 6, run: courseShapeFigures },
       { name: 'race report exports', weight: 8, run: raceReport },
       { name: 'back-forward cache', weight: 16, run: restored },
       { name: 'experiment before first paint', weight: 14, run: paintOrder },
