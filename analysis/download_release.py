@@ -23,6 +23,43 @@ EXPECTED = {
 HTW_DB_DOCS = {"EDITIONS.json", "CHANGE-REPORT.md", "SHA256SUMS.txt", "ID-CONTRACT.md"}
 # FULL also carries the producer's notes on which feature fields are known before a race.
 HTW_DB_FULL_DOCS = {"FEATURE-FIELD-NOTES.md"}
+# pace-notes-* archives (first in private-export-20261021-0829): the producer's documents (the feature notes now in CORE
+# too), per-edition row checksums, sparse per-record flags and per-edition metadata, in CORE and FULL alike.
+PACE_NOTES_DOCS = {
+    "EDITIONS.json", "EDITION-CHECKSUMS.csv", "CHANGE-REPORT.md", "SHA256SUMS.txt", "ID-CONTRACT.md",
+    "FEATURE-FIELD-NOTES.md", "edition_meta.parquet", "record_flags.parquet",
+}
+
+
+def expected_members(tag, asset_name, bundle):
+    """The exact files an archive must hold: its layout follows the asset's name, then the tag."""
+    base = EXPECTED | ({"features.parquet"} if bundle == "FULL" else set())
+    if asset_name.startswith("pace-notes-"):
+        return base | PACE_NOTES_DOCS
+    if tag.startswith("htw-db-"):
+        return base | HTW_DB_DOCS | (HTW_DB_FULL_DOCS if bundle == "FULL" else set())
+    return base
+
+
+def release_checksums(release, root):
+    """The release's own SHA256SUMS asset (name to digest), when it publishes one; downloaded and verified like any asset."""
+    sums = [a for a in release["assets"] if a["name"].startswith("RELEASE-SHA256SUMS") and a["name"].endswith(".txt")]
+    if not sums:
+        return None, None
+    if len(sums) != 1:
+        raise ValueError("Expected at most one release checksum file.")
+    path = root / sums[0]["name"]
+    download_asset(sums[0], path)
+    listed = {}
+    for line in path.read_text().splitlines():
+        if not line.strip():
+            continue
+        digest, name = line.split(maxsplit=1)
+        name = name.lstrip("*")
+        if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest) or name in listed:
+            raise ValueError("Malformed release checksum file.")
+        listed[name] = digest
+    return sums[0]["name"], listed
 
 
 def sha256(path):
@@ -95,11 +132,14 @@ def main(argv=None):
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=True)
     release = read_release(repo, tag)
-    expected = EXPECTED | ({"features.parquet"} if args.bundle == "FULL" else set()) | (HTW_DB_DOCS | (HTW_DB_FULL_DOCS if args.bundle == "FULL" else set()) if tag.startswith("htw-db-") else set())
     assets = [a for a in release["assets"] if f"-{args.bundle}-" in a["name"] and a["name"].endswith(".tar.gz")]
     if len(assets) != 1:
         raise ValueError(f"Expected exactly one {args.bundle} archive in the release.")
     asset = assets[0]
+    expected = expected_members(tag, asset["name"], args.bundle)
+    sums_name, listed = release_checksums(release, root)
+    if listed is not None and listed.get(asset["name"]) != asset["digest"][7:]:
+        raise ValueError(f"{asset['name']} is missing from, or differs from, the release checksum file.")
     archive = root / f"{args.bundle.lower()}.tar.gz"
     download_asset(asset, archive)
     seen = set()
@@ -130,6 +170,8 @@ def main(argv=None):
         "bundle": args.bundle,
         "manifest_sha256": sha256(root / "MANIFEST.json"),
     }
+    if sums_name:
+        provenance["release_checksums"] = {"asset": sums_name, "sha256": sha256(root / sums_name)}
     (root / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     print(f"Verified {args.bundle} export {tag}; extracted {len(seen)} files to {root}.")
 

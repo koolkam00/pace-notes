@@ -39,20 +39,27 @@ def release_asset(payload, name="marathon-FULL-20260907.tar.gz", tag=TAG):
 
 
 class PublicReleaseDownloads(unittest.TestCase):
-    def run_export(self, checkout, payload, tag=TAG, bundle="FULL"):
+    def run_export(self, checkout, payload, tag=TAG, bundle="FULL", prefix="marathon", sums=None):
         analysis = checkout / "analysis"
         analysis.mkdir(exist_ok=True)
         (analysis / "release.json").write_text(json.dumps({"repository": REPO, "tag": tag}))
-        asset = release_asset(payload, f"marathon-{bundle}-20260907.tar.gz", tag)
-        release = {"assets": [asset], "published_at": "2026-09-07T13:18:00Z"}
+        asset = release_asset(payload, f"{prefix}-{bundle}-20260907.tar.gz", tag)
+        assets = [asset]
+        bodies = {asset["browser_download_url"]: payload}
+        if sums is not None:
+            text = sums(asset).encode()
+            sums_asset = release_asset(text, "RELEASE-SHA256SUMS-20260907.txt", tag)
+            assets.append(sums_asset)
+            bodies[sums_asset["browser_download_url"]] = text
+        release = {"assets": assets, "published_at": "2026-09-07T13:18:00Z"}
         requests = []
 
         def respond(request, timeout):
             requests.append(request)
             if request.full_url == f"https://api.github.com/repos/{REPO}/releases/tags/{tag}":
                 return io.BytesIO(json.dumps(release).encode())
-            self.assertEqual(request.full_url, asset["browser_download_url"])
-            return io.BytesIO(payload)
+            self.assertIn(request.full_url, bodies)
+            return io.BytesIO(bodies[request.full_url])
 
         destination = checkout / "public/data/downloads" / bundle
         with patch.dict(os.environ, {}, clear=True), \
@@ -86,6 +93,40 @@ class PublicReleaseDownloads(unittest.TestCase):
                 payload = archive_bytes([(f"export/{name}", b"synthetic fixture") for name in sorted(members)])
                 with self.assertRaisesRegex(ValueError, message):
                     self.run_export(Path(folder), payload, case_tag, bundle)
+
+    def test_pace_notes_layouts_carry_flags_metadata_and_documents(self):
+        # pace-notes-* archives (0829): the 8 base members plus 8 producer files in CORE (16); FULL adds features (17).
+        tag = "private-export-20261021-0829"
+        core = download_release.EXPECTED | download_release.PACE_NOTES_DOCS
+        full = core | {"features.parquet"}
+        self.assertEqual((len(core), len(full)), (16, 17))
+        listed = lambda asset: f"{asset['digest'][7:]}  {asset['name']}\n"
+        for bundle, members in [("CORE", core), ("FULL", full)]:
+            with self.subTest(bundle=bundle), tempfile.TemporaryDirectory() as folder:
+                payload = archive_bytes([(f"{tag}/{name}", b"synthetic fixture") for name in sorted(members)])
+                destination, requests = self.run_export(Path(folder), payload, tag, bundle, "pace-notes", listed)
+                self.assertTrue(all((destination / name).is_file() for name in members))
+                self.assertTrue(all(request.get_header("Authorization") is None for request in requests))
+                provenance = json.loads((destination / "provenance.json").read_text())
+                self.assertEqual(provenance["release_checksums"]["asset"], "RELEASE-SHA256SUMS-20260907.txt")
+        cases = [
+            ("CORE without record flags", "CORE", core - {"record_flags.parquet"}, listed, "Missing CORE files"),
+            ("FULL without edition metadata", "FULL", full - {"edition_meta.parquet"}, listed, "Missing FULL files"),
+            ("an extra member", "CORE", core | {"snapshot.sqlite"}, listed, "Unexpected or duplicate"),
+            ("archive digest not in the release sums", "CORE", core, lambda asset: f"{'0' * 64}  {asset['name']}\n", "release checksum file"),
+            ("archive missing from the release sums", "CORE", core, lambda asset: f"{'0' * 64}  other.tar.gz\n", "release checksum file"),
+            ("malformed release sums", "CORE", core, lambda asset: "not a checksum line\n", "Malformed release checksum"),
+        ]
+        for label, bundle, members, sums, message in cases:
+            with self.subTest(label), tempfile.TemporaryDirectory() as folder:
+                payload = archive_bytes([(f"{tag}/{name}", b"synthetic fixture") for name in sorted(members)])
+                with self.assertRaisesRegex(ValueError, message):
+                    self.run_export(Path(folder), payload, tag, bundle, "pace-notes", sums)
+        # The pace-notes documents never pass in an archive of another layout.
+        with tempfile.TemporaryDirectory() as folder:
+            payload = archive_bytes([(f"export/{name}", b"synthetic fixture") for name in sorted(full)])
+            with self.assertRaisesRegex(ValueError, "Unexpected or duplicate"):
+                self.run_export(Path(folder), payload, tag, "FULL")
 
     def test_other_tag_prefixes_are_refused(self):
         with tempfile.TemporaryDirectory() as folder:
