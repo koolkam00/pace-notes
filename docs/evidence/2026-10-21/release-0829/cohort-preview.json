@@ -1,0 +1,790 @@
+{
+ "reproduction_1652_policy_on_1652_full": {
+  "raw": 4915355,
+  "deduplicated": 4915355,
+  "complete": 4064296,
+  "increasing": 4039224,
+  "timing_eligible": 4027044,
+  "eligible": 3871767,
+  "missing_or_unparsed": 851059,
+  "non_increasing": 25072,
+  "outside_quality_bounds": 12180,
+  "source_quality_excluded": 155277,
+  "policy_editions": 30,
+  "policy_editions_present": 30,
+  "cohort_editions": 211,
+  "cohort_cities": 28,
+  "raw_editions": 287,
+  "raw_cities": 34,
+  "by_city": {
+   "Berlin": {
+    "eligible": 769273,
+    "editions": 21,
+    "first": 2005,
+    "last": 2026
+   },
+   "New York": {
+    "eligible": 746234,
+    "editions": 16,
+    "first": 2006,
+    "last": 2025
+   },
+   "Chicago": {
+    "eligible": 421407,
+    "editions": 9,
+    "first": 2016,
+    "last": 2026
+   },
+   "London": {
+    "eligible": 284671,
+    "editions": 7,
+    "first": 2019,
+    "last": 2026
+   },
+   "Boston": {
+    "eligible": 257269,
+    "editions": 10,
+    "first": 2014,
+    "last": 2026
+   },
+   "Washington": {
+    "eligible": 213840,
+    "editions": 11,
+    "first": 2008,
+    "last": 2018
+   },
+   "Rotterdam": {
+    "eligible": 139923,
+    "editions": 11,
+    "first": 2013,
+    "last": 2024
+   },
+   "Amsterdam": {
+    "eligible": 128994,
+    "editions": 11,
+    "first": 2012,
+    "last": 2024
+   },
+   "Copenhagen": {
+    "eligible": 125695,
+    "editions": 11,
+    "first": 2014,
+    "last": 2026
+   },
+   "Hamburg": {
+    "eligible": 117569,
+    "editions": 11,
+    "first": 2013,
+    "last": 2025
+   },
+   "Madrid": {
+    "eligible": 103749,
+    "editions": 13,
+    "first": 2013,
+    "last": 2026
+   },
+   "Paris": {
+    "eligible": 99970,
+    "editions": 2,
+    "first": 2019,
+    "last": 2024
+   },
+   "Valencia": {
+    "eligible": 85809,
+    "editions": 4,
+    "first": 2021,
+    "last": 2024
+   },
+   "Warsaw": {
+    "eligible": 66208,
+    "editions": 12,
+    "first": 2015,
+    "last": 2026
+   },
+   "Stockholm": {
+    "eligible": 50802,
+    "editions": 4,
+    "first": 2011,
+    "last": 2025
+   },
+   "Frankfurt": {
+    "eligible": 44977,
+    "editions": 5,
+    "first": 2018,
+    "last": 2025
+   },
+   "Barcelona": {
+    "eligible": 44671,
+    "editions": 2,
+    "first": 2025,
+    "last": 2026
+   },
+   "Gold Coast": {
+    "eligible": 31544,
+    "editions": 6,
+    "first": 2016,
+    "last": 2023
+   },
+   "Eindhoven": {
+    "eligible": 29058,
+    "editions": 13,
+    "first": 2011,
+    "last": 2025
+   },
+   "Prague": {
+    "eligible": 26332,
+    "editions": 4,
+    "first": 2016,
+    "last": 2019
+   },
+   "Oslo": {
+    "eligible": 18911,
+    "editions": 7,
+    "first": 2016,
+    "last": 2025
+   },
+   "Vienna": {
+    "eligible": 14193,
+    "editions": 3,
+    "first": 2022,
+    "last": 2024
+   },
+   "Sydney": {
+    "eligible": 11345,
+    "editions": 3,
+    "first": 2017,
+    "last": 2019
+   },
+   "Dubai": {
+    "eligible": 10351,
+    "editions": 5,
+    "first": 2016,
+    "last": 2024
+   },
+   "Singapore": {
+    "eligible": 8877,
+    "editions": 1,
+    "first": 2025,
+    "last": 2025
+   },
+   "Helsinki": {
+    "eligible": 7853,
+    "editions": 3,
+    "first": 2015,
+    "last": 2017
+   },
+   "Austin": {
+    "eligible": 7621,
+    "editions": 3,
+    "first": 2017,
+    "last": 2019
+   },
+   "Auckland": {
+    "eligible": 4621,
+    "editions": 3,
+    "first": 2016,
+    "last": 2019
+   }
+  },
+  "excluded_by_edition": {
+   "New York 2008": 37387,
+   "Chicago 2015": 27150,
+   "Amsterdam 2025": 23220,
+   "Boston 2013": 17510,
+   "New York 2007": 15398,
+   "Frankfurt 2019": 10484,
+   "Gold Coast 2024": 5692,
+   "Barcelona 2019": 5535,
+   "Oslo 2026": 3423,
+   "Dubai 2025": 1534,
+   "Eindhoven 2026": 1521,
+   "Tokyo 2017": 999,
+   "Tokyo 2016": 999,
+   "Tokyo 2018": 987,
+   "Auckland 2018": 915,
+   "Tokyo 2026": 770,
+   "Amsterdam 2020": 665,
+   "Paris 2016": 526,
+   "Melbourne 2015": 416,
+   "Paris 2015": 70,
+   "Paris 2014": 40,
+   "Amsterdam 2023": 14,
+   "Paris 2017": 11,
+   "Paris 2018": 11
+  },
+  "policy": [
+   [
+    "Honolulu",
+    2016,
+    "invalid_split_grid"
+   ],
+   [
+    "Rotterdam",
+    2012,
+    "invalid_split_grid"
+   ],
+   [
+    "Eindhoven",
+    2009,
+    "invalid_split_grid"
+   ],
+   [
+    "Eindhoven",
+    2010,
+    "invalid_split_grid"
+   ],
+   [
+    "New York",
+    2008,
+    "unreconciled_hold"
+   ],
+   [
+    "Amsterdam",
+    2025,
+    "unreconciled_hold"
+   ],
+   [
+    "Valencia",
+    2017,
+    "incomplete_ingestion"
+   ],
+   [
+    "Valencia",
+    2018,
+    "incomplete_ingestion"
+   ],
+   [
+    "Frankfurt",
+    2019,
+    "unreconciled_hold"
+   ],
+   [
+    "Tokyo",
+    2026,
+    "selected_field"
+   ],
+   [
+    "Chicago",
+    2015,
+    "incomplete_ingestion"
+   ],
+   [
+    "Oslo",
+    2026,
+    "incomplete_ingestion"
+   ],
+   [
+    "Amsterdam",
+    2020,
+    "invalid_split_grid"
+   ],
+   [
+    "Amsterdam",
+    2023,
+    "incomplete_ingestion"
+   ],
+   [
+    "Melbourne",
+    2015,
+    "incomplete_ingestion"
+   ],
+   [
+    "Boston",
+    2013,
+    "selected_field"
+   ],
+   [
+    "Tokyo",
+    2016,
+    "selected_field"
+   ],
+   [
+    "Tokyo",
+    2017,
+    "selected_field"
+   ],
+   [
+    "Tokyo",
+    2018,
+    "selected_field"
+   ],
+   [
+    "Paris",
+    2014,
+    "invalid_split_grid"
+   ],
+   [
+    "Paris",
+    2015,
+    "invalid_split_grid"
+   ],
+   [
+    "Paris",
+    2016,
+    "invalid_split_grid"
+   ],
+   [
+    "Paris",
+    2017,
+    "invalid_split_grid"
+   ],
+   [
+    "Paris",
+    2018,
+    "invalid_split_grid"
+   ],
+   [
+    "New York",
+    2007,
+    "invalid_split_grid"
+   ],
+   [
+    "Barcelona",
+    2019,
+    "invalid_split_grid"
+   ],
+   [
+    "Eindhoven",
+    2026,
+    "invalid_split_grid"
+   ],
+   [
+    "Gold Coast",
+    2024,
+    "invalid_split_grid"
+   ],
+   [
+    "Auckland",
+    2018,
+    "invalid_split_grid"
+   ],
+   [
+    "Dubai",
+    2025,
+    "invalid_split_grid"
+   ]
+  ]
+ },
+ "preview_proposed_policy_on_0829_full": {
+  "raw": 5327504,
+  "deduplicated": 5327504,
+  "complete": 4445238,
+  "increasing": 4420140,
+  "timing_eligible": 4407710,
+  "eligible": 4108749,
+  "missing_or_unparsed": 882266,
+  "non_increasing": 25098,
+  "outside_quality_bounds": 12430,
+  "source_quality_excluded": 298961,
+  "policy_editions": 41,
+  "policy_editions_present": 41,
+  "cohort_editions": 215,
+  "cohort_cities": 27,
+  "raw_editions": 298,
+  "raw_cities": 34,
+  "by_city": {
+   "Berlin": {
+    "eligible": 769273,
+    "editions": 21,
+    "first": 2005,
+    "last": 2026
+   },
+   "Chicago": {
+    "eligible": 763250,
+    "editions": 19,
+    "first": 2006,
+    "last": 2026
+   },
+   "New York": {
+    "eligible": 746234,
+    "editions": 16,
+    "first": 2006,
+    "last": 2025
+   },
+   "Boston": {
+    "eligible": 257269,
+    "editions": 10,
+    "first": 2014,
+    "last": 2026
+   },
+   "Washington": {
+    "eligible": 213840,
+    "editions": 11,
+    "first": 2008,
+    "last": 2018
+   },
+   "London": {
+    "eligible": 152323,
+    "editions": 3,
+    "first": 2019,
+    "last": 2026
+   },
+   "Amsterdam": {
+    "eligible": 152214,
+    "editions": 12,
+    "first": 2012,
+    "last": 2025
+   },
+   "Rotterdam": {
+    "eligible": 139923,
+    "editions": 11,
+    "first": 2013,
+    "last": 2024
+   },
+   "Copenhagen": {
+    "eligible": 125695,
+    "editions": 11,
+    "first": 2014,
+    "last": 2026
+   },
+   "Hamburg": {
+    "eligible": 117569,
+    "editions": 11,
+    "first": 2013,
+    "last": 2025
+   },
+   "Valencia": {
+    "eligible": 115773,
+    "editions": 5,
+    "first": 2021,
+    "last": 2025
+   },
+   "Paris": {
+    "eligible": 99970,
+    "editions": 2,
+    "first": 2019,
+    "last": 2024
+   },
+   "Madrid": {
+    "eligible": 96835,
+    "editions": 12,
+    "first": 2013,
+    "last": 2026
+   },
+   "Warsaw": {
+    "eligible": 66208,
+    "editions": 12,
+    "first": 2015,
+    "last": 2026
+   },
+   "Frankfurt": {
+    "eligible": 55461,
+    "editions": 6,
+    "first": 2018,
+    "last": 2025
+   },
+   "Barcelona": {
+    "eligible": 44671,
+    "editions": 2,
+    "first": 2025,
+    "last": 2026
+   },
+   "Stockholm": {
+    "eligible": 33825,
+    "editions": 3,
+    "first": 2011,
+    "last": 2024
+   },
+   "Gold Coast": {
+    "eligible": 31544,
+    "editions": 6,
+    "first": 2016,
+    "last": 2023
+   },
+   "Eindhoven": {
+    "eligible": 29058,
+    "editions": 13,
+    "first": 2011,
+    "last": 2025
+   },
+   "Prague": {
+    "eligible": 26332,
+    "editions": 4,
+    "first": 2016,
+    "last": 2019
+   },
+   "Oslo": {
+    "eligible": 22334,
+    "editions": 8,
+    "first": 2016,
+    "last": 2026
+   },
+   "Sydney": {
+    "eligible": 11345,
+    "editions": 3,
+    "first": 2017,
+    "last": 2019
+   },
+   "Dubai": {
+    "eligible": 10351,
+    "editions": 5,
+    "first": 2016,
+    "last": 2024
+   },
+   "Singapore": {
+    "eligible": 8877,
+    "editions": 1,
+    "first": 2025,
+    "last": 2025
+   },
+   "Helsinki": {
+    "eligible": 7853,
+    "editions": 3,
+    "first": 2015,
+    "last": 2017
+   },
+   "Austin": {
+    "eligible": 7621,
+    "editions": 3,
+    "first": 2017,
+    "last": 2019
+   },
+   "Auckland": {
+    "eligible": 3101,
+    "editions": 2,
+    "first": 2016,
+    "last": 2019
+   }
+  },
+  "excluded_by_edition": {
+   "London 2024": 46160,
+   "New York 2008": 37387,
+   "London 2023": 33381,
+   "London 2022": 30878,
+   "Chicago 2007": 23667,
+   "London 2021": 21929,
+   "Boston 2013": 17510,
+   "Stockholm 2025": 16977,
+   "New York 2007": 15398,
+   "Chicago 2005": 13007,
+   "Madrid 2023": 6914,
+   "Vienna 2024": 6004,
+   "Gold Coast 2024": 5692,
+   "Vienna 2023": 5643,
+   "Barcelona 2019": 5535,
+   "Vienna 2022": 2546,
+   "Dubai 2025": 1534,
+   "Eindhoven 2026": 1521,
+   "Auckland 2017": 1520,
+   "Tokyo 2016": 999,
+   "Tokyo 2017": 999,
+   "Tokyo 2018": 987,
+   "Auckland 2018": 915,
+   "Tokyo 2026": 770,
+   "Paris 2016": 526,
+   "Melbourne 2015": 416,
+   "Paris 2015": 70,
+   "Paris 2014": 40,
+   "Amsterdam 2023": 14,
+   "Paris 2017": 11,
+   "Paris 2018": 11
+  },
+  "policy": [
+   [
+    "Honolulu",
+    2016,
+    "invalid_split_grid"
+   ],
+   [
+    "Rotterdam",
+    2012,
+    "invalid_split_grid"
+   ],
+   [
+    "Eindhoven",
+    2009,
+    "invalid_split_grid"
+   ],
+   [
+    "Eindhoven",
+    2010,
+    "invalid_split_grid"
+   ],
+   [
+    "New York",
+    2008,
+    "unreconciled_hold"
+   ],
+   [
+    "Valencia",
+    2017,
+    "incomplete_ingestion"
+   ],
+   [
+    "Valencia",
+    2018,
+    "incomplete_ingestion"
+   ],
+   [
+    "Tokyo",
+    2026,
+    "selected_field"
+   ],
+   [
+    "Amsterdam",
+    2023,
+    "incomplete_ingestion"
+   ],
+   [
+    "Melbourne",
+    2015,
+    "incomplete_ingestion"
+   ],
+   [
+    "Boston",
+    2013,
+    "selected_field"
+   ],
+   [
+    "Tokyo",
+    2016,
+    "selected_field"
+   ],
+   [
+    "Tokyo",
+    2017,
+    "selected_field"
+   ],
+   [
+    "Tokyo",
+    2018,
+    "selected_field"
+   ],
+   [
+    "Paris",
+    2014,
+    "invalid_split_grid"
+   ],
+   [
+    "Paris",
+    2015,
+    "invalid_split_grid"
+   ],
+   [
+    "Paris",
+    2016,
+    "invalid_split_grid"
+   ],
+   [
+    "Paris",
+    2017,
+    "invalid_split_grid"
+   ],
+   [
+    "Paris",
+    2018,
+    "invalid_split_grid"
+   ],
+   [
+    "New York",
+    2007,
+    "invalid_split_grid"
+   ],
+   [
+    "Barcelona",
+    2019,
+    "invalid_split_grid"
+   ],
+   [
+    "Eindhoven",
+    2026,
+    "invalid_split_grid"
+   ],
+   [
+    "Gold Coast",
+    2024,
+    "invalid_split_grid"
+   ],
+   [
+    "Auckland",
+    2018,
+    "invalid_split_grid"
+   ],
+   [
+    "Dubai",
+    2025,
+    "invalid_split_grid"
+   ],
+   [
+    "London",
+    2015,
+    "unreconciled_hold"
+   ],
+   [
+    "London",
+    2016,
+    "unreconciled_hold"
+   ],
+   [
+    "London",
+    2017,
+    "unreconciled_hold"
+   ],
+   [
+    "London",
+    2018,
+    "unreconciled_hold"
+   ],
+   [
+    "London",
+    2021,
+    "unreconciled_hold"
+   ],
+   [
+    "London",
+    2022,
+    "unreconciled_hold"
+   ],
+   [
+    "London",
+    2023,
+    "unreconciled_hold"
+   ],
+   [
+    "London",
+    2024,
+    "unreconciled_hold"
+   ],
+   [
+    "Stockholm",
+    2025,
+    "unreconciled_hold"
+   ],
+   [
+    "Vienna",
+    2022,
+    "unreconciled_hold"
+   ],
+   [
+    "Vienna",
+    2023,
+    "unreconciled_hold"
+   ],
+   [
+    "Vienna",
+    2024,
+    "unreconciled_hold"
+   ],
+   [
+    "Madrid",
+    2023,
+    "invalid_split_grid"
+   ],
+   [
+    "Auckland",
+    2017,
+    "invalid_split_grid"
+   ],
+   [
+    "Chicago",
+    2005,
+    "invalid_split_grid"
+   ],
+   [
+    "Chicago",
+    2007,
+    "selected_field"
+   ]
+  ]
+ }
+}

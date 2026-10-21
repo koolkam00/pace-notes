@@ -1,5 +1,25 @@
 # Project handoff
 
+## Release `private-export-20261021-0829`: verified, not adopted (October 21, 2026)
+
+The owner published `private-export-20261021-0829` on October 21, 2026 and asked for every analysis to be rebuilt from it. Verification and a full edition review are done ([record](REFRESH_20261021_0829.md), [evidence](evidence/2026-10-21/release-0829/)):
+- The archives verify, the delta against 1652 is clean, and the data are complete: 5,327,504 records in 298 editions. 412,943 records were added (Chicago 2005–2014 and 2021, Valencia 2025, the rest of Chicago 2015), 794 removed (Amsterdam 2020) and none of the others changed.
+- Its FULL file has dropped the producer's cross-race runner identities. `/runners` profiles and every cross-year analysis depend on them.
+
+**Owner decisions (October 21, 2026), verbatim:**
+- On the missing identities: "Wait for the producer". Do not adopt this release. The producer republishes FULL with the identity fields, and the site stays on `htw-db-2026-10-16-1652` until then.
+- On London, which the producer now holds: "Keep London 2025–26". London 2021–2024 leave the cohort, and 2025 and 2026 stay in despite the hold. Stockholm 2025 and Vienna 2022–2024, also held, leave too, so Vienna would have no edition left.
+
+The proposed edition policy is in the evidence, not in `analysis/source_quality.py`. Applied to 0829's race records it gives 4,108,749 eligible finishes in 215 editions and 27 cities, against 3,871,767 in 211 and 28 now. It releases Chicago 2015, Frankfurt 2019, Amsterdam 2025 and Oslo 2026, and newly excludes:
+- the London, Stockholm and Vienna holds;
+- Madrid 2023 and Auckland 2017 (misplaced mats);
+- Chicago 2005 (failed 15 km mat);
+- Chicago 2007 (heat-shortened race).
+
+The producer request is in the record.
+
+**Repository state:** branch `data/release-0829`. Only the downloader (the new `pace-notes-*` archive layout, plus a check against the release's own checksum file) and the review's documents and evidence are on it; no pin, policy, builder or data file changed. **Deployed state:** unchanged; production `live.json` names `htw-db-2026-10-16-1652`.
+
 ## Course-shape pace band (October 20, 2026)
 
 **Owner decision (October 20, 2026).** Asked whether the planner's pace band should change with a course's elevation and with how most people on each course run that pace, the owner was told: no elevation model (supplied-route elevation stays context, never a finish-time adjustment, and the data cannot say what a hill costs a runner), but the course's observed shape, which the published pace-band data already holds per course. The owner decided, verbatim: "Have the band switch to course shape". This supersedes the earlier tools stance that the planner's band is only the visitor's even pace ("The planner never suggests a pace" on `/methodology`, now replaced by the course-shape method).

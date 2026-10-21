@@ -1,0 +1,182 @@
+{
+ "release_tag": "private-export-20261021-0829",
+ "reviewed": "2026-10-21",
+ "status": "Verified and reviewed; not adopted. Owner decision (October 21, 2026): wait for the producer to republish FULL with the runner identity fields. The policy below is a proposal for the republished release, not code: it is not in analysis/source_quality.py and nothing was calculated from this release.",
+ "inputs": {
+  "core": "pace-notes-CORE-20261021-0829.tar.gz (189,385,632 bytes; sha256 7f42e3dddfa04baf5e95073bccbd5bdb8bf2aebe79d3916a7c20c302f61fe2dc)",
+  "full": "pace-notes-FULL-20261021-0829.tar.gz (353,880,945 bytes; sha256 b575c500a7725f62ab4da16569469702f8d006df999b269676c50e0a47ed50c9; Figshare 10.6084/m9.figshare.33965155.v2 holds the same file, MD5 ff8f101860d25bb64d22731ab7eac961)",
+  "release_checksums": "RELEASE-SHA256SUMS-20261021-0829.txt (sha256 feddd25f639df6e689633feb57df9fe21502bd16bb7589d5eee638e4c150bc3f), both archive digests listed and matching",
+  "previous": "htw-db-2026-10-16-1652 FULL (race_records.parquet sha256 4347e9ea53843ee4c7debe956dc0c878c126ab7b51434c53185f0ce94d742063)"
+ },
+ "measured": {
+  "records": 5327504,
+  "editions": 298,
+  "cities": 34,
+  "latest_ingested_at": "2026-10-21T11:29:34Z",
+  "manifest_created": "2026-10-21T12:36:38Z",
+  "owner_message_totals": "5,328,298 records and 299 race-years are the platform database counts quoted in CHANGE-REPORT.md; they include Amsterdam 2020 (794 rows), which the release excludes. The release holds 5,327,504 records in 298 editions.",
+  "per_city_records": {
+   "New York": [
+    842251,
+    "2006-2025"
+   ],
+   "Chicago": [
+    832617,
+    "2005-2026"
+   ],
+   "Berlin": [
+    779226,
+    "2005-2026"
+   ],
+   "London": [
+    328804,
+    "2015-2026"
+   ],
+   "Paris": [
+    306378,
+    "2014-2024"
+   ],
+   "Boston": [
+    281734,
+    "2012-2026"
+   ],
+   "Valencia": [
+    213438,
+    "2014-2025"
+   ]
+  },
+  "checksums": "All 16 SHA256SUMS.txt lines match the extracted members; CORE’s 16 members are byte-identical to FULL’s; course_profiles.parquet is byte-identical to 1652’s.",
+  "id_contract": "race_records.id is unique and non-null; features.record_id is the same set; record_flags.record_id is a subset; features.finish_s equals the raw finish on all 5,298,599 comparable rows.",
+  "weather": "299 race_conditions rows, one per edition including the excluded Amsterdam 2020; every one of the 298 released editions has a row.",
+  "delta_vs_1652": {
+   "added": 412943,
+   "deleted": 794,
+   "changed_in_place": 0,
+   "added_editions": [
+    "Chicago 2005-2014",
+    "Chicago 2021",
+    "Valencia 2025"
+   ],
+   "grown": {
+    "Chicago 2015": [
+     27186,
+     37442
+    ]
+   },
+   "deleted_editions": [
+    "Amsterdam 2020 (virtual)"
+   ],
+   "note": "Compared on id, city, year, race, runner, sex, age and all nine split strings. Every 1652 record still present is unchanged. CHANGE-REPORT.md compares against 0934, not 1652."
+  },
+  "features_schema": "16 columns (record_id, city, year, finish_s, nine section paces, first/second half, split ratio), down from 140 in 1652. The producer’s cross-race identity and history fields (runner_id, is_ambiguous, yob, n_races, runner_name, race, sex, seg_*, finish_time and the history features) are absent; the release README says so.",
+  "identity_impact": "/runners candidate profiles group records by the producer’s runner_id (build_runner_lookup.py), and the history analyses (build_extended.py prepare_history: earlier-year benchmarks, consecutive-year pairs; fast start in earlier-best mode; parts of the personalized engine) link records through it. Without it every record would be a singleton profile and every history output empty. Single-race analyses need only race_records.",
+  "record_flags": {
+   "rows": 532402,
+   "on_timing_eligible_rows": 265645,
+   "dnf_split_as_finish_timing_eligible": 0,
+   "split_nonmonotonic_timing_eligible": 0,
+   "last_split_after_finish_timing_eligible": 0,
+   "pace_implausible_timing_eligible": 6694,
+   "shifted_mat_timing_eligible": {
+    "Madrid 2023 (25 km ~0.6 km early)": 6914,
+    "Auckland 2017 (30 km ~0.4 km late)": 1520
+   },
+   "division_timing_eligible": {
+    "elite": 371,
+    "wheelchair_or_handcycle": 39,
+    "suspect_sub2": 4
+   },
+   "age_is_group_floor_timing_eligible": 234325,
+   "note": "The timing checks already remove all 2,124 Honolulu dnf_split_as_finish rows. The policy stays edition-level; record-level flags other than the shifted mats are listed for the producer and not applied."
+  },
+  "completeness_metadata": {
+   "complete": 193,
+   "partial": 56,
+   "unverified": 29,
+   "hold": 20,
+   "excluded": 1,
+   "note": "edition_meta.parquet compares each edition with an official finisher count at 0.5% tolerance. \"Partial\" alone is not treated as incomplete: many partial editions are within 1-2% and several official counts include other categories (the producer says so for Frankfurt, Vienna and Helsinki)."
+  },
+  "valencia_2025_sex": "7,379 records in F- categories have a blank sex (23,391 are M); the producer fixed the same parser gap for 2022-2024. Not corrected here; women count only in All."
+ },
+ "screens": {
+  "reproduction": "screen.py reproduces every screen column of the 1652 edition-screen.csv on the 1652 FULL; cohort.py reproduces the 1652 cohort (3,871,767 eligible, 211 editions, 28 cities).",
+  "a_residue": "Paris 2014-2018 only (already excluded).",
+  "b_outcome_selective": "Gold Coast 2024, Barcelona 2019, Dubai 2025, Auckland 2018, Eindhoven 2026 (all already excluded); next Washington 2017 (91.4/55.6), kept.",
+  "c_mixed_timing_basis": "Eindhoven 2026, Barcelona 2019, New York 2007 and the Paris residue (all already excluded); next Warsaw 2025 at 12.4%, kept.",
+  "new_editions": "Chicago 2006, 2008-2015, 2021 and Valencia 2025 pass every screen. Chicago 2005 passes the fixed one-directional screen (b) but fails its mirror: 16.2% of the fastest quarter and 51.5% of the slowest survive, because 15 km is missing for 58.7% of finishers (83% of the fastest quarter, 46% of the slowest). No other edition with usable finishes has under 50% of its fastest quarter surviving."
+ },
+ "owner_decisions": [
+  {
+   "date": "2026-10-21",
+   "question": "London 2015-2026 marked HOLD by the producer (2021-24 are 12-38% short of official counts with women under-recorded; 2025 2.8% short, 2026 0.5%).",
+   "decision": "Keep London 2025–26",
+   "meaning": "Exclude the clearly incomplete 2021–2024 but keep 2025 and 2026 despite the producer’s hold; Stockholm 2025 and Vienna 2022–24, also on hold, are excluded."
+  },
+  {
+   "date": "2026-10-21",
+   "question": "Release 0829’s FULL no longer includes the producer’s runner identities.",
+   "decision": "Wait for the producer",
+   "meaning": "Do not adopt 0829; ask the producer to republish FULL with the identity fields. The site stays on 1652 until then."
+  }
+ ],
+ "proposed_policy": {
+  "carried_from_1652": [
+   "Honolulu 2016, Rotterdam 2012, Eindhoven 2009, 2010 (force-dropped grids)",
+   "New York 2008 (unreconciled hold; still needs an official finisher count)",
+   "Valencia 2017, 2018 (incomplete)",
+   "Tokyo 2016-2018, 2026 (selected fields; now also producer holds)",
+   "Amsterdam 2023 (finish loaded on 17 of 16,030)",
+   "Melbourne 2015 (partial load)",
+   "Boston 2013 (stopped race)",
+   "Paris 2014-2018 (residue)",
+   "New York 2007, Barcelona 2019, Eindhoven 2026 (mixed timing bases)",
+   "Gold Coast 2024, Auckland 2018, Dubai 2025 (late mats stopped recording)"
+  ],
+  "released": {
+   "Chicago 2015": "The load is finished: 37,442 records, 0.70% above the official 37,182; both sexes run to their slowest finishers (men 7:26, women 8:19). 37,367 timing-eligible.",
+   "Frankfurt 2019": "Held in 1652 only because the producer’s feature engine dropped it; that engine is gone (features are recomputed from the raw splits) and edition_meta lists the edition complete (10,554 of 10,561). 10,484 timing-eligible.",
+   "Amsterdam 2025": "The producer’s HOLD is lifted: complete, 23,325 of 23,328 official finishers. 23,220 timing-eligible.",
+   "Oslo 2026": "The 1652 hold was one missing record; the producer now explains the 1.1% shortfall as official finishers without a 5 km split, which the ingestion leaves out by design and which could never pass the timing checks. 3,423 timing-eligible.",
+   "Amsterdam 2020": "No longer in the release (virtual edition)."
+  },
+  "new_exclusions": {
+   "London 2021-2024 (unreconciled_hold)": "Producer HOLD; 12-38% short of official finishers and women under-recorded (31-39% against 42-43% in 2019, 2025 and 2026). Owner decision.",
+   "London 2015-2018 (unreconciled_hold)": "Producer HOLD; top-N lists or no 5 km splits, so no finish passes the timing checks anyway.",
+   "Stockholm 2025 (unreconciled_hold)": "Producer HOLD; 9.6% short of official finishers.",
+   "Vienna 2022-2024 (unreconciled_hold)": "Producer HOLD; 46%, 7% and 18% short. Vienna then has no edition left in the cohort, so its course page would not be built.",
+   "Madrid 2023 (invalid_split_grid)": "Producer record flag: the 25 km mat sits about 0.6 km early, which distorts the 20-25 and 25-30 km sections of every finish.",
+   "Auckland 2017 (invalid_split_grid)": "Producer record flag: the 30 km mat sits about 0.4 km late.",
+   "Chicago 2005 (invalid_split_grid)": "15 km is missing for 58.7% of finishers, mostly faster ones; complete timings survive for 16% of the quarter with the shortest finish times and 52% of the quarter with the longest.",
+   "Chicago 2007 (selected_field)": "Heat-shortened race: the course closed after about 3.5 hours. Recorded finishes stop at 7:13 (other Chicago years run to 8.5-10 hours), women are 39% of finishers (43-46% in other years) and the producer counts 25,517 against 28,815 official. A finisher set cut off when a race was stopped, as Boston 2013."
+  },
+  "kept_with_note": [
+   "London 2025 and 2026 (producer HOLD; 2.8% and 0.5% short; owner decision)",
+   "Chicago 2009 (15 km missing for 12.7%; 97.1/79.1 quartile survival)",
+   "Partial editions with larger shortfalls whose survivors pass every screen: Frankfurt 2022-2025, Hamburg 2022 and 2025, Stockholm 2011, New York 2014",
+   "Valencia 2025 (complete; sex blank for its women)"
+  ]
+ },
+ "cohort_preview": {
+  "raw": 5327504,
+  "missing_or_unparsed": 882266,
+  "non_increasing": 25098,
+  "outside_quality_bounds": 12430,
+  "timing_eligible": 4407710,
+  "source_quality_excluded": 298961,
+  "eligible": 4108749,
+  "policy_editions": 41,
+  "cohort_editions": 215,
+  "cohort_cities": 27
+ },
+ "open_questions_for_the_producer": [
+  "Restore the cross-race identity in FULL for every record (the 1652 feature columns, or at least record_id, runner_id, is_ambiguous, runner_name, race, sex, yob, seg_05...seg_42 and finish_time), with the matching rules and version; keep runner_id stable for records unchanged since 1652 or supply a mapping. Publish it as a new immutable tag.",
+  "Valencia 2025: set sex from the F- category prefix for its 7,379 blank rows, as for 2022-2024.",
+  "Chicago 2005 15 km (missing for 58.7% of finishers, mostly faster ones) and Chicago 2009 15 km (12.7%): source or ingestion?",
+  "Chicago 2007: do the 25,517 recorded finishers include runners re-routed after the course closed?",
+  "London 2021-2026, Stockholm 2025 and Vienna 2022-2024: the held re-pulls; London 2021-2023 under-record women.",
+  "New York 2008: an official finisher count.",
+  "Amsterdam 2023: the finish column (17 of 16,030 loaded).",
+  "CHANGE-REPORT.md compares with 0934; please also compare with the latest published release (htw-db-2026-10-16-1652)."
+ ]
+}
