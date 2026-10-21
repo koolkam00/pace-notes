@@ -1,0 +1,64 @@
+# Release 1050 calculation log (October 21, 2026, UTC), steps from pipeline.sh in this folder. Two earlier runs (15:49 and 15:56) stopped in build_extended.py when DuckDB's spill files filled the disk; their logs were overwritten. This run started at 16:01 with PACE_NOTES_EXTENDED_MEMORY=10GB and more free disk. weather-verify failed twice because it renders pages that also read the all-finisher context and the stories, which are built later; it was moved to the end and passed.
+16:01:09 START pacing
+16:01:56 OK pacing 47s
+16:01:56 START weather
+16:02:33 OK weather 37s
+16:02:33 START extended
+16:08:04 OK extended 331s
+16:08:04 START findings
+16:08:04 OK findings 0s
+16:08:04 START zip
+16:08:08 OK zip 4s
+16:08:08 START packs-check
+16:08:08 OK packs-check 0s
+16:08:08 START personalized-check
+16:08:21 OK personalized-check 13s
+16:08:21 START packs-import
+16:08:21 OK packs-import 0s
+16:08:21 START personalized-import
+16:08:46 OK personalized-import 25s
+16:08:46 START weather-copy
+16:08:46 OK weather-copy 0s
+16:08:46 START weather-verify
+16:08:53 FAIL weather-verify (see /home/user/data/out-1050/logs/weather-verify.log)
+16:09:19 START explorer
+16:14:25 OK explorer 306s
+16:14:25 START explorer-import
+16:17:34 OK explorer-import 189s
+16:17:34 START context
+16:18:51 OK context 77s
+16:18:51 START context-check
+16:19:43 OK context-check 52s
+16:19:43 START context-import
+16:20:39 OK context-import 56s
+16:20:39 START fast-start
+16:21:30 OK fast-start 51s
+16:21:30 START fast-start-verify
+16:22:06 OK fast-start-verify 36s
+16:22:06 START fast-start-all
+16:23:57 OK fast-start-all 111s
+16:23:57 START fast-start-all-verify
+16:24:53 OK fast-start-all-verify 56s
+16:24:53 START fast-start-copy
+16:24:53 OK fast-start-copy 0s
+16:24:53 START afc
+16:28:30 OK afc 217s
+16:28:30 START afc-verify
+16:30:17 OK afc-verify 107s
+16:30:17 START afc-copy
+16:30:17 OK afc-copy 0s
+16:30:17 START weather-verify
+16:30:19 FAIL weather-verify (see /home/user/data/out-1050/logs/weather-verify.log)
+16:44:10 START insights
+17:02:19 OK insights 1089s
+17:02:19 START geometry
+17:02:22 OK geometry 3s
+17:02:22 START insights-manifest
+17:03:34 OK insights-manifest 72s
+17:03:34 START insights-verify
+17:06:39 OK insights-verify 185s
+17:06:39 START insights-copy
+17:06:39 OK insights-copy 0s
+17:06:39 START weather-verify
+17:06:41 OK weather-verify 2s
+17:06:41 PIPELINE DONE

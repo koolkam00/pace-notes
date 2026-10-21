@@ -21,7 +21,7 @@ const evidence = JSON.parse(bytes);
 const allBytes = fs.readFileSync(path.join(__dirname, '../public/data/fast-start/all-finishers.json'));
 const allEvidence = JSON.parse(allBytes);
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
-// The adopted runner lookup sets the expected cohorts (3,871,767 finishes and 592,241 earlier-best benchmarks under 1652; 3,517,336 and 555,437 under 0934).
+// The adopted runner lookup sets the expected cohorts (4,108,749 finishes and 648,914 earlier-best benchmarks under 1050; 3,871,767 and 592,241 under 1652; 3,517,336 and 555,437 under 0934).
 const runners = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runners/manifest.json'), 'utf8'));
 const eligible = runners.eligible_records, benchmarked = runners.linkage.recent_benchmark_finishes;
 // Method, definitions, coverage and source text belong on /methodology only (owner request, 2026-10-16).

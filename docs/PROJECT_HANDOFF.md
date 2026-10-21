@@ -1,6 +1,24 @@
 # Project handoff
 
-## Release `private-export-20261021-0829`: verified, not adopted (October 21, 2026)
+## Release `private-export-20261021-1050` adopted for every analysis (October 21, 2026)
+
+The owner published `private-export-20261021-1050` on October 21, 2026 (GitHub; Figshare DOI 10.6084/m9.figshare.33965155.v3) and asked for:
+- the Analyst's `live.json` and packs rebuilt from it, with no hand-edited number;
+- every corpus count, race count and year range updated;
+- the 1,734 flagged Chicago 2007 rows left out of every pacing or split analysis;
+- each question's answer, method note and chart checked, flagging any changed insight;
+- cross-race features built on `runner_id`.
+
+It republishes 0829 with the producer's cross-race identity restored in FULL ([0829 review](REFRESH_20261021_0829.md)). The full record is [REFRESH_20261021_1050.md](REFRESH_20261021_1050.md) and the evidence [is here](evidence/2026-10-21/release-1050/).
+
+- **Source:** verified, including FULL split into two parts and checked against the release checksum file. 5,327,504 records, 34 cities, 298 editions. Against 1652: 412,943 added, 794 removed (Amsterdam 2020) and none changed. `runner_id` is the same engine as 1652: 4,653,487 records and 3,522,317 candidate runners, with every shared 1652 identity unchanged.
+- **Policy:** `RULES_1050` (41 editions, 298,961 timing-valid finishes out) is the 0829 proposal with the owner's London decision ("Keep London 2025–26"). Chicago 2007 leaves as a whole edition (heat-shortened race), which covers the flagged rows. All of Vienna (2022–2024) is held, so `/courses/vienna` 308s to `/courses`.
+- **Cohort:** **4,108,749 eligible finishes in 215 editions and 27 cities** (1652: 3,871,767 in 211 and 28). Sustained slowdowns: 1,266,780 (30.83%; 1652: 30.28%).
+- **Producer follow-up found by the rebuild:** Chicago 2025's start was moved to 07:35, but its weather reading stayed at 07:00. That is more than 30 minutes off, so the weather screen and runner context leave it out (weather 297 of 298 editions).
+
+**Repository state:** branch `data/release-1050`, pushed; every owned output rebuilt and imported, October 21, 2026. **Deployed state:** not deployed; production `live.json` named `htw-db-2026-10-16-1652` when checked on October 21, 2026.
+
+## Release `private-export-20261021-0829`: verified, not adopted (October 21, 2026; superseded by 1050 above)
 
 The owner published `private-export-20261021-0829` on October 21, 2026 and asked for every analysis to be rebuilt from it. Verification and a full edition review are done ([record](REFRESH_20261021_0829.md), [evidence](evidence/2026-10-21/release-0829/)):
 - The archives verify, the delta against 1652 is clean, and the data are complete: 5,327,504 records in 298 editions. 412,943 records were added (Chicago 2005–2014 and 2021, Valencia 2025, the rest of Chicago 2015), 794 removed (Amsterdam 2020) and none of the others changed.
