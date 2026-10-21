@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import tarfile
 from pathlib import Path
@@ -29,13 +30,18 @@ PACE_NOTES_DOCS = {
     "EDITIONS.json", "EDITION-CHECKSUMS.csv", "CHANGE-REPORT.md", "SHA256SUMS.txt", "ID-CONTRACT.md",
     "FEATURE-FIELD-NOTES.md", "edition_meta.parquet", "record_flags.parquet",
 }
+# From private-export-20261021-1050 they also carry the producer's cross-race matching rules; 0829 predates them.
+PACE_NOTES_MATCHING = {"MATCHING.md"}
+PACE_NOTES_WITHOUT_MATCHING = {"private-export-20261021-0829"}
+# A large archive may be attached in numbered parts, joined in order before extraction.
+PART = re.compile(r"^(?P<archive>.+\.tar\.gz)\.part-(?P<number>[0-9]{2})$")
 
 
 def expected_members(tag, asset_name, bundle):
     """The exact files an archive must hold: its layout follows the asset's name, then the tag."""
     base = EXPECTED | ({"features.parquet"} if bundle == "FULL" else set())
     if asset_name.startswith("pace-notes-"):
-        return base | PACE_NOTES_DOCS
+        return base | PACE_NOTES_DOCS | (set() if tag in PACE_NOTES_WITHOUT_MATCHING else PACE_NOTES_MATCHING)
     if tag.startswith("htw-db-"):
         return base | HTW_DB_DOCS | (HTW_DB_FULL_DOCS if bundle == "FULL" else set())
     return base
@@ -104,6 +110,46 @@ def read_release(repo, tag):
         return json.load(response)
 
 
+def bundle_assets(release, bundle):
+    """The bundle's archive name and its assets: one whole archive, or parts .part-00, .part-01, ... to join in order."""
+    whole = [a for a in release["assets"] if f"-{bundle}-" in a["name"] and a["name"].endswith(".tar.gz")]
+    parts = sorted((a for a in release["assets"] if f"-{bundle}-" in a["name"] and PART.match(a["name"])), key=lambda a: a["name"])
+    if len(whole) == 1 and not parts:
+        return whole[0]["name"], whole
+    if whole or not parts:
+        raise ValueError(f"Expected exactly one {bundle} archive in the release.")
+    names = {PART.match(a["name"])["archive"] for a in parts}
+    numbers = [int(PART.match(a["name"])["number"]) for a in parts]
+    if len(names) != 1 or len(parts) < 2 or numbers != list(range(len(parts))):
+        raise ValueError(f"The {bundle} archive parts must belong to one archive and be numbered from 00 without gaps.")
+    return names.pop(), parts
+
+
+def download_archive(assets, destination):
+    """Write one archive, or its parts joined in order, checking each asset's size and GitHub digest; return the SHA-256 of the whole."""
+    whole = hashlib.sha256()
+    with destination.open("wb") as stream:
+        for asset in assets:
+            url = asset["browser_download_url"]
+            if urlsplit(url).scheme != "https" or urlsplit(url).hostname != "github.com":
+                raise ValueError("Expected a public GitHub release download URL.")
+            digest = asset.get("digest", "")
+            if not digest.startswith("sha256:"):
+                raise ValueError("The release asset must have a GitHub SHA-256 digest.")
+            part, size = hashlib.sha256(), 0
+            with urlopen(Request(url, headers={"User-Agent": "marathon-pacing-study"}), timeout=60) as response:
+                while chunk := response.read(1 << 20):
+                    stream.write(chunk)
+                    part.update(chunk)
+                    whole.update(chunk)
+                    size += len(chunk)
+            if size != asset["size"] or part.hexdigest() != digest[7:]:
+                stream.close()
+                destination.unlink()
+                raise ValueError("Release asset checksum or size mismatch.")
+    return whole.hexdigest()
+
+
 def download_asset(asset, destination):
     url = asset["browser_download_url"]
     if urlsplit(url).scheme != "https" or urlsplit(url).hostname != "github.com":
@@ -132,16 +178,19 @@ def main(argv=None):
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=True)
     release = read_release(repo, tag)
-    assets = [a for a in release["assets"] if f"-{args.bundle}-" in a["name"] and a["name"].endswith(".tar.gz")]
-    if len(assets) != 1:
-        raise ValueError(f"Expected exactly one {args.bundle} archive in the release.")
-    asset = assets[0]
-    expected = expected_members(tag, asset["name"], args.bundle)
+    archive_name, assets = bundle_assets(release, args.bundle)
+    expected = expected_members(tag, archive_name, args.bundle)
     sums_name, listed = release_checksums(release, root)
-    if listed is not None and listed.get(asset["name"]) != asset["digest"][7:]:
-        raise ValueError(f"{asset['name']} is missing from, or differs from, the release checksum file.")
+    mismatch = ValueError(f"{archive_name} is missing from, or differs from, the release checksum file.")
+    if len(assets) > 1 and listed is None:
+        raise ValueError("A release that splits its archive into parts must publish a release checksum file for the joined archive.")
+    if listed is not None and len(assets) == 1 and listed.get(archive_name) != assets[0]["digest"][7:]:
+        raise mismatch
     archive = root / f"{args.bundle.lower()}.tar.gz"
-    download_asset(asset, archive)
+    archive_sha256 = download_archive(assets, archive)
+    if listed is not None and listed.get(archive_name) != archive_sha256:
+        archive.unlink()
+        raise mismatch
     seen = set()
     with tarfile.open(archive, "r:gz") as tar:
         total = 0
@@ -166,10 +215,12 @@ def main(argv=None):
         download_asset(brief, root / brief["name"])
     provenance = {
         "repository": repo, "release_tag": tag, "release_published_at": release["published_at"],
-        "asset": asset["name"], "asset_sha256": asset["digest"][7:],
+        "asset": archive_name, "asset_sha256": archive_sha256,
         "bundle": args.bundle,
         "manifest_sha256": sha256(root / "MANIFEST.json"),
     }
+    if len(assets) > 1:
+        provenance["asset_parts"] = [{"asset": a["name"], "sha256": a["digest"][7:], "bytes": a["size"]} for a in assets]
     if sums_name:
         provenance["release_checksums"] = {"asset": sums_name, "sha256": sha256(root / sums_name)}
     (root / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")

@@ -153,6 +153,7 @@ const BANNED = [
   ['"20260912" (release tags stay out of copy)', /20260912/],
   ['"htw-db-…" (release tags stay out of copy)', /htw-db-\d/i],
   ['"20261016" (release tags stay out of copy)', /20261016/],
+  ['"20261021" (release tags stay out of copy)', /20261021/],
 ];
 
 const LEDGER_REQUIRED = ['id', 'date', 'kind', 'title', 'hypothesis', 'primary_metric', 'guardrails', 'baseline', 'decision_rule', 'evaluate_after', 'status', 'pr', 'verdict', 'result'];
@@ -1769,7 +1770,7 @@ function selfTest() {
     expect('a line copied, not moved, is reported', { setup: () => write('components/store-read.ts', READ), rules: ['forbidden-pattern'], messages: ['components/store-read.ts:2 browser storage'] });
 
     // Banned copy
-    for (const [label, text] of [['arithmetic', 'Simple arithmetic.'], ['the wall', 'Runners hit the wall.'], ['the wall', 'Before the  wall'], ['your chance', 'Your chance of finishing'], ['private-export', 'From private-export-20260912-0934'], ['20260912', 'Built 20260912'], ['htw-db', 'From htw-db-2026-10-16-1652'], ['20261016', 'Built 20261016']]) {
+    for (const [label, text] of [['arithmetic', 'Simple arithmetic.'], ['the wall', 'Runners hit the wall.'], ['the wall', 'Before the  wall'], ['your chance', 'Your chance of finishing'], ['private-export', 'From private-export-20260912-0934'], ['20260912', 'Built 20260912'], ['htw-db', 'From htw-db-2026-10-16-1652'], ['20261016', 'Built 20261016'], ['20261021', 'Built 20261021']]) {
       expect(`banned ${label}`, { setup: () => write('components/Card.tsx', `export function Card() {\n  return <p>${text}</p>;\n}\n`), rules: ['banned-copy'] });
     }
 

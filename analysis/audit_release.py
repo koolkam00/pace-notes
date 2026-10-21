@@ -9,7 +9,7 @@ from pathlib import Path
 
 import duckdb
 from build_pacing import FIELDS, records
-from download_release import EXPECTED, HTW_DB_DOCS, HTW_DB_FULL_DOCS
+from download_release import EXPECTED, HTW_DB_DOCS, HTW_DB_FULL_DOCS, PACE_NOTES_DOCS, PACE_NOTES_MATCHING, PACE_NOTES_WITHOUT_MATCHING
 
 
 def digest(path):
@@ -73,25 +73,35 @@ def audit(source, core, previous, output):
     report['coverage'] = records(db, '''SELECT count(*) AS raw_records,count(DISTINCT city) AS cities,
       count(DISTINCT (city,year)) AS race_years,max(ingested_at) AS max_ingested_at,
       count(*) FILTER(WHERE age IS NULL) AS null_age FROM r''')[0]
-    report['features'] = records(db, '''SELECT count(*) FILTER(WHERE valid_splits) AS valid_splits,
-      count(*) FILTER(WHERE valid_splits AND htw) AS sustained_slowdown_among_valid,
+    # pace-notes releases from 1050 rename the producer's htw* feature columns to wall_* (FEATURE-FIELD-NOTES.md).
+    slowdown = 'wall_hit' if 'wall_hit' in {row[0] for row in db.execute('DESCRIBE f').fetchall()} else 'htw'
+    report['features'] = records(db, f'''SELECT count(*) FILTER(WHERE valid_splits) AS valid_splits,
+      count(*) FILTER(WHERE valid_splits AND {slowdown}) AS sustained_slowdown_among_valid,
       count(*) FILTER(WHERE runner_name IS NULL) AS null_name,
       count(*) FILTER(WHERE race_date IS NOT NULL) AS supplied_dates FROM f''')[0]
     report['course_validity'] = records(db, '''SELECT count(*) AS profiles,
       count(valid_from_year) AS valid_from,count(valid_to_year) AS valid_to FROM cp''')[0]
     report['weather'] = records(db, '''SELECT count(*) AS rows,count(DISTINCT (city,year)) AS unique_editions,
       count(*) FILTER(WHERE year(try_cast(race_date AS DATE))=year) AS dates_agree FROM w''')[0]
-    htw_db = provenance['release_tag'].startswith('htw-db-')
+    tag = provenance['release_tag']
+    if tag.startswith('htw-db-'):
+        docs, full_only = HTW_DB_DOCS, HTW_DB_FULL_DOCS
+    elif provenance['asset'].startswith('pace-notes-'):
+        # pace-notes archives list every member in MANIFEST.json and SHA256SUMS.txt; FULL adds only features.parquet.
+        docs, full_only = PACE_NOTES_DOCS | (set() if tag in PACE_NOTES_WITHOUT_MATCHING else PACE_NOTES_MATCHING), set()
+    else:
+        docs = full_only = None
+    htw_db = docs is not None
     if htw_db:
-        # htw-db releases add producer documents outside MANIFEST.json; hash them and check SHA256SUMS.txt.
-        for name in sorted(HTW_DB_DOCS | HTW_DB_FULL_DOCS | EXPECTED):
+        # htw-db and pace-notes releases add producer documents; hash them and check SHA256SUMS.txt.
+        for name in sorted(docs | full_only | EXPECTED):
             report['member_sha256'].setdefault(name, digest(source/name))
         report['checksum_list'] = checksum_list(source, report['member_sha256'])
         assert not report['checksum_list']['mismatched'] and not report['checksum_list']['missing'], report['checksum_list']
         report['producer_counts'] = producer_counts(db, source, manifest)
         assert report['producer_counts']['editions_json_mismatches'] == report['producer_counts']['races_summary_mismatches'] == []
     if core:
-        shared = sorted(EXPECTED | (HTW_DB_DOCS if htw_db else set()))
+        shared = sorted(EXPECTED | (docs if htw_db else set()))
         assert all((core/name).is_file() and name in report['member_sha256'] for name in shared)
         report['core_full_shared_hashes_match'] = all(digest(core/name) == report['member_sha256'][name] for name in shared)
         report['core_full_shared_members'] = shared
@@ -103,7 +113,7 @@ def audit(source, core, previous, output):
             # CORE's SHA256SUMS.txt also lists the two FULL-only files; every member CORE does carry must match.
             report['core_checksum_list'] = checksum_list(core, {name: digest(core/name) for name in shared})
             assert not report['core_checksum_list']['mismatched'], report['core_checksum_list']
-            assert set(report['core_checksum_list']['missing']) <= HTW_DB_FULL_DOCS | {'features.parquet'}, report['core_checksum_list']
+            assert set(report['core_checksum_list']['missing']) <= full_only | {'features.parquet'}, report['core_checksum_list']
     if previous:
         location = str(previous/'race_records.parquet').replace("'", "''")
         db.execute(f"CREATE VIEW previous AS SELECT * FROM read_parquet('{location}')")
@@ -150,14 +160,27 @@ def producer_counts(db, source, manifest):
         "SELECT city,year,count(*),count(*) FILTER(WHERE nullif(trim(split_5km),'') IS NOT NULL) FROM r GROUP BY ALL").fetchall()}
     editions = json.loads((source/'EDITIONS.json').read_text())
     summary = json.loads((source/'races_summary.json').read_text())
-    listed = {(e['city'], e['year']): (e['rows'], e['rows_with_5km']) for e in editions['editions']}
     summarized = {(e['city'], e['year']): (e['n_records'], e['n_with_5km']) for e in summary}
     mismatch = lambda claimed: sorted(f'{c} {y}' for c, y in set(claimed) | set(measured) if claimed.get((c, y)) != measured.get((c, y)))
-    return {'editions': len(measured), 'records': sum(n for n, _ in measured.values()),
-            'records_with_5km': sum(n5 for _, n5 in measured.values()),
-            'editions_json_tag': editions['tag'], 'editions_json_baseline': editions['baseline'],
+    counts = {'editions': len(measured), 'records': sum(n for n, _ in measured.values()),
+              'records_with_5km': sum(n5 for _, n5 in measured.values()), 'races_summary_mismatches': mismatch(summarized)}
+    if isinstance(editions, list):
+        # pace-notes: one row per platform edition with its completeness status; the excluded ones are not released.
+        released = [e for e in editions if e['completeness_status'] != 'excluded']
+        records_only = {key: n for key, (n, _) in measured.items()}
+        listed = {(e['city'], e['year']): e['n_records'] for e in released}
+        statuses = {}
+        for e in editions:
+            statuses[e['completeness_status']] = statuses.get(e['completeness_status'], 0) + 1
+        return {**counts, 'manifest_race_years': manifest['n_editions'], 'editions_json_rows': len(editions),
+                'editions_json_status': dict(sorted(statuses.items())),
+                'editions_json_excluded': [f"{e['city']} {e['year']}" for e in editions if e['completeness_status'] == 'excluded'],
+                'editions_json_mismatches': sorted(f'{c} {y}' for c, y in set(listed) | set(records_only)
+                                                   if listed.get((c, y)) != records_only.get((c, y)))}
+    listed = {(e['city'], e['year']): (e['rows'], e['rows_with_5km']) for e in editions['editions']}
+    return {**counts, 'editions_json_tag': editions['tag'], 'editions_json_baseline': editions['baseline'],
             'editions_json_total': editions['total'], 'manifest_race_years': manifest['n_race_years'],
-            'editions_json_mismatches': mismatch(listed), 'races_summary_mismatches': mismatch(summarized),
+            'editions_json_mismatches': mismatch(listed),
             'editions_json_previous_rows': sum(e['prev_rows'] or 0 for e in editions['editions'])}
 
 

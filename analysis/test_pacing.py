@@ -9,6 +9,15 @@ from build_pacing import FIELDS, prepare
 
 
 class PacingValidation(unittest.TestCase):
+    def test_manifest_corpus_reads_either_edition_count_name(self):
+        from build_pacing import manifest_corpus
+        older = {'n_records': 5, 'n_cities': 2, 'n_race_years': 3, 'created_at': 'x'}
+        pace_notes = {'n_records': 5, 'n_cities': 2, 'n_editions': 3, 'created_at': 'x'}
+        self.assertEqual(manifest_corpus(older), manifest_corpus(pace_notes))
+        self.assertEqual(manifest_corpus(pace_notes), {'n_records': 5, 'n_cities': 2, 'n_race_years': 3})
+        with self.assertRaises(KeyError):
+            manifest_corpus({'n_records': 5, 'n_cities': 2})
+
     def test_clock_parsing_and_exclusion_accounting(self):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder)

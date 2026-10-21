@@ -15,7 +15,7 @@ npm run build
 
 The dedicated `all-finisher-context.yml` workflow recalculates and independently verifies without importing or deploying. Existing source and aggregate files remain unchanged when adding these views; source refreshes require rebuilding dependent context instead of relabeling hashes. Record local, CI and production evidence separately in [ALL_FINISHER_ANALYSES.md](ALL_FINISHER_ANALYSES.md).
 
-Use [analysis/README.md](../analysis/README.md) for the complete calculation and import contracts. The current full-refresh source is **`htw-db-2026-10-16-1652`** (repository `koolkam00/pace-notes`), adopted on October 16–17, 2026 and deployed: production `live.json` names it, checked October 21, 2026. The [current refresh](REFRESH_20261016_1652.md) records source, calculation and import evidence. The next release, `private-export-20261021-0829`, was verified and reviewed on October 21, 2026 but **not adopted**: its FULL file lacks the producer's runner identities, and the owner decided to wait for a republished FULL ([review](REFRESH_20261021_0829.md)); the [0934 refresh](REFRESH_20260912_0934.md) keeps its own; earlier feature updates have their own dated records; a prior deployment does not certify a later change.
+Use [analysis/README.md](../analysis/README.md) for the complete calculation and import contracts. The current full-refresh source is **`private-export-20261021-1050`** (repository `koolkam00/pace-notes`), adopted on branch `data/release-1050` on October 21, 2026 and not yet deployed: production `live.json` still named `htw-db-2026-10-16-1652` when checked that day. The [current refresh](REFRESH_20261021_1050.md) records source, calculation and import evidence; the [1652 refresh](REFRESH_20261016_1652.md) keeps its own. The release before it, `private-export-20261021-0829`, was verified and reviewed but **not adopted** (its FULL file lacked the producer's runner identities; [review](REFRESH_20261021_0829.md)); the [0934 refresh](REFRESH_20260912_0934.md) keeps its own; earlier feature updates have their own dated records; a prior deployment does not certify a later change.
 
 ## Verify access and source state
 
@@ -30,31 +30,31 @@ Run from the repository root with Python 3.12 and a fresh output directory. Repl
 
 ```bash
 python -m pip install -r analysis/requirements.txt
-python analysis/download_release.py --bundle FULL --tag htw-db-2026-10-16-1652 --output /path/to/1652-input
-python analysis/download_release.py --bundle CORE --tag htw-db-2026-10-16-1652 --output /path/to/1652-core
-python analysis/inspect_export.py --input /path/to/1652-input --output /path/to/1652-inspection
-python analysis/audit_expanded.py --input /path/to/1652-input --output /path/to/1652-inspection
-python analysis/audit_release.py --input /path/to/1652-input --core /path/to/1652-core --previous /path/to/0934-input --output /path/to/1652-inspection/release-contract.json
+python analysis/download_release.py --bundle FULL --tag private-export-20261021-1050 --output /path/to/1050-input
+python analysis/download_release.py --bundle CORE --tag private-export-20261021-1050 --output /path/to/1050-core
+python analysis/inspect_export.py --input /path/to/1050-input --output /path/to/1050-inspection
+python analysis/audit_expanded.py --input /path/to/1050-input --output /path/to/1050-inspection
+python analysis/audit_release.py --input /path/to/1050-input --core /path/to/1050-core --previous /path/to/1050-input --output /path/to/1050-inspection/release-contract.json
 python -m unittest discover -s analysis -p 'test_*.py'
 ```
 
 `download_release.py` needs no token. If `GH_TOKEN` or `GITHUB_TOKEN` is set, it is sent only to `api.github.com`, including across that host's own redirects: both pins now name the renamed repository `koolkam00/pace-notes` (the old name `koolkam00/htw-live-study` still redirects, but its API answered 403 from this container on October 16, 2026), and an anonymous redirected request can hit GitHub's shared runner rate limit. Asset downloads, and redirects to any other host, never carry the token.
 
-`--previous` takes an earlier release's input folder and reports the raw-record delta in total, by edition and by column (1652 against 0934: 569,263 added, 116,287 deleted, 242,649 changed). A `private-export-*` CORE has eight allowed members and FULL adds `features.parquet`; an `htw-db-*` CORE also carries `EDITIONS.json`, `CHANGE-REPORT.md`, `SHA256SUMS.txt` and `ID-CONTRACT.md` (12 members) and FULL adds `features.parquet` and `FEATURE-FIELD-NOTES.md` (14). A `pace-notes-*` archive (first in `private-export-20261021-0829`; the layout follows the asset name, not the tag) has the eight base files plus `EDITIONS.json`, `EDITION-CHECKSUMS.csv`, `CHANGE-REPORT.md`, `SHA256SUMS.txt`, `ID-CONTRACT.md`, `FEATURE-FIELD-NOTES.md`, `edition_meta.parquet` and `record_flags.parquet` in CORE (16) and adds `features.parquet` in FULL (17). When the release publishes a `RELEASE-SHA256SUMS*.txt` asset, the downloader verifies it too and requires the archive's digest to be listed in it. For htw-db releases the audit also checks every `SHA256SUMS.txt` line, compares the shared documents between CORE and FULL and reconciles `EDITIONS.json` and `races_summary.json` edition by edition. Other producer audit notes belong in separate assets. The downloader validates size/SHA-256, rejects unsafe, duplicate or unexpected members and writes provenance. Do not bypass these checks because a prior release had a different archive layout.
+`--previous` takes an earlier release's input folder and reports the raw-record delta in total, by edition and by column (1652 against 0934: 569,263 added, 116,287 deleted, 242,649 changed; 1050 against 1652: 412,943 added, 794 deleted, none changed). A `private-export-*` CORE has eight allowed members and FULL adds `features.parquet`; an `htw-db-*` CORE also carries `EDITIONS.json`, `CHANGE-REPORT.md`, `SHA256SUMS.txt` and `ID-CONTRACT.md` (12 members) and FULL adds `features.parquet` and `FEATURE-FIELD-NOTES.md` (14). A `pace-notes-*` archive (first in `private-export-20261021-0829`; the layout follows the asset name, not the tag) has the eight base files plus `EDITIONS.json`, `EDITION-CHECKSUMS.csv`, `CHANGE-REPORT.md`, `SHA256SUMS.txt`, `ID-CONTRACT.md`, `FEATURE-FIELD-NOTES.md`, `edition_meta.parquet` and `record_flags.parquet` in CORE (16) and adds `features.parquet` in FULL (17); from `private-export-20261021-1050` both also carry `MATCHING.md` (17 and 18). A release may split an archive into numbered parts (`….tar.gz.part-00`, `-01`, …, first in 1050's FULL): the downloader joins them in order, checks each part's size and digest, and then requires the joined archive's digest in the release checksum file, so a split archive without one is refused. When the release publishes a `RELEASE-SHA256SUMS*.txt` asset, the downloader verifies it too and requires the archive's digest to be listed in it. For htw-db and pace-notes releases the audit also checks every `SHA256SUMS.txt` line, compares the shared documents between CORE and FULL and reconciles `EDITIONS.json` and `races_summary.json` edition by edition. Other producer audit notes belong in separate assets. The downloader validates size/SHA-256, rejects unsafe, duplicate or unexpected members and writes provenance. Do not bypass these checks because a prior release had a different archive layout.
 
 Review the release-specific exclusions in `analysis/source_quality.py` before calculation. The policy follows explicit producer/audit evidence for invalid, incomplete, held or selected fields. Apply it after timing eligibility, include its edition counts and hashes in each output, and exclude those editions from earlier benchmarks as well as outcomes. Do not widen exclusions based on small sample size alone or remove usable records merely because age/gender is missing.
 
 ## Calculate all owned outputs
 
 ```bash
-python analysis/build_pacing.py --input /path/to/1652-input --output /path/to/1652-aggregates --live-as-of CURRENT_PUBLIC_LIVE_AS_OF
-python analysis/build_extended.py --input /path/to/1652-input --output /path/to/1652-aggregates --personalized-output /path/to/1652-personalized --live-as-of CURRENT_PUBLIC_LIVE_AS_OF
-python analysis/write_findings.py --output /path/to/1652-aggregates
-python analysis/build_weather.py --input /path/to/1652-input --output /path/to/1652-weather/evidence.json
-python analysis/build_public_explorer.py --input /path/to/1652-input --output /path/to/1652-explorer
+python analysis/build_pacing.py --input /path/to/1050-input --output /path/to/1050-aggregates --live-as-of CURRENT_PUBLIC_LIVE_AS_OF
+python analysis/build_extended.py --input /path/to/1050-input --output /path/to/1050-aggregates --personalized-output /path/to/1050-personalized --live-as-of CURRENT_PUBLIC_LIVE_AS_OF
+python analysis/write_findings.py --output /path/to/1050-aggregates
+python analysis/build_weather.py --input /path/to/1050-input --output /path/to/1050-weather/evidence.json
+python analysis/build_public_explorer.py --input /path/to/1050-input --output /path/to/1050-explorer
 ```
 
-The first two commands produce all 33 registered broad packs. `build_extended.py` also invokes the twelve-path personalized engine, retaining whole-minute targets 90–720. The weather screen is separate: rerun all three fixed candidates with the existing thresholds, retain every decision in its JSON, and let readiness determine which pages exist. A refresh must not freeze old conclusions or loosen the gate to publish a preferred result.
+The first two commands produce all 33 registered broad packs. `build_extended.py` caps DuckDB at 6 GB and spills the rest to `<input>/extended-temp`; under 1050 the history tables spilled past 4.9 GB of free disk at that cap, so the 1050 run set `PACE_NOTES_EXTENDED_MEMORY=10GB` on a 15 GB machine (results do not depend on the cap). Keep the downloaded `full.tar.gz` beside the extracted files: `build_runner_context.py` re-hashes it and every member it reads. `build_extended.py` also invokes the twelve-path personalized engine, retaining whole-minute targets 90–720. The weather screen is separate: rerun all three fixed candidates with the existing thresholds, retain every decision in its JSON, and let readiness determine which pages exist. A refresh must not freeze old conclusions or loosen the gate to publish a preferred result.
 
 The main workflow produces `pacing-aggregate-packs`, `pacing-personalized-aggregates` and `pacing-export-inspection` for an exact source tag and code commit. The separate weather workflow produces `weather-evidence`; **Public runner explorer** produces `public-runner-explorer` (study plus name-search shards). None of these workflows imports data or deploys the site. Inspect source tag, code revision, successful checks and artifacts; do not infer success from release publication. The historical September 10 failed run is not the status of any later calculation.
 
@@ -67,14 +67,14 @@ Runner context has an additional dependency on the exact imported runner manifes
 ZIP each output's contents with the registered pack folder at archive root. The broad archive must have all 33 registry entries; the personalized archive must have only `ext_personalized_guide`. Validate both before replacing their owned public folders:
 
 ```bash
-python analysis/import_packs.py --archive /path/to/pacing-aggregate-packs.zip --expected-export htw-db-2026-10-16-1652 --check-only
-python analysis/import_personalized.py --archive /path/to/pacing-personalized-aggregates.zip --expected-export htw-db-2026-10-16-1652 --check-only
-python analysis/import_packs.py --archive /path/to/pacing-aggregate-packs.zip --expected-export htw-db-2026-10-16-1652
-python analysis/import_personalized.py --archive /path/to/pacing-personalized-aggregates.zip --expected-export htw-db-2026-10-16-1652
+python analysis/import_packs.py --archive /path/to/pacing-aggregate-packs.zip --expected-export private-20261021-1050 --check-only
+python analysis/import_personalized.py --archive /path/to/pacing-personalized-aggregates.zip --expected-export private-20261021-1050 --check-only
+python analysis/import_packs.py --archive /path/to/pacing-aggregate-packs.zip --expected-export private-20261021-1050
+python analysis/import_personalized.py --archive /path/to/pacing-personalized-aggregates.zip --expected-export private-20261021-1050
 npm ci
-python analysis/import_public_explorer.py --input /path/to/1652-explorer
-python analysis/build_runner_context.py --input /path/to/1652-input --output /path/to/1652-runner-context
-python analysis/import_runner_context.py --input /path/to/1652-runner-context
+python analysis/import_public_explorer.py --input /path/to/1050-explorer
+python analysis/build_runner_context.py --input /path/to/1050-input --output /path/to/1050-runner-context
+python analysis/import_runner_context.py --input /path/to/1050-runner-context
 npm run verify:data
 npm run build
 ```
@@ -90,16 +90,16 @@ The context builder uses `analysis/release.json` and requires the verified FULL 
 Install Python requirements and Node dependencies first. Refresh and import the runner lookup before this sequence when its source or calculation changes. Use a fresh output directory:
 
 ```bash
-python analysis/build_runner_context.py --input /path/to/1652-input --output /path/to/1652-runner-context --runners public/data/runners
-python analysis/import_runner_context.py --input /path/to/1652-runner-context --check-only
-python analysis/import_runner_context.py --input /path/to/1652-runner-context
+python analysis/build_runner_context.py --input /path/to/1050-input --output /path/to/1050-runner-context --runners public/data/runners
+python analysis/import_runner_context.py --input /path/to/1050-runner-context --check-only
+python analysis/import_runner_context.py --input /path/to/1050-runner-context
 npm run verify:data
 npm run build
 ```
 
 `--runners` defaults to the repository's `public/data/runners`. The importer invokes the full Node verifier before any replacement. It stages only `manifest.json` and the listed edition shards, then replaces only `public/data/runner-context`, restoring the prior directory if the swap fails. Its optional `--output` is the **parent** public-data directory, not the runner-context folder; validation still binds to this repository's runner manifest. No other data folder or release pin is modified.
 
-For a standalone calculation audit, run `node scripts/verify-runner-context.cjs --data-root /path/to/1652-runner-context`. It verifies every context shard, all group/CDF counts against the published eligible runner records, and 16 independently recomputed pacing-quartile samples. `npm run verify:data` also includes the context client and UI checks. A same-tag lookup rebuild changes its manifest hash/timestamp and invalidates older context; rebuild rather than relabeling the context manifest.
+For a standalone calculation audit, run `node scripts/verify-runner-context.cjs --data-root /path/to/1050-runner-context`. It verifies every context shard, all group/CDF counts against the published eligible runner records, and 16 independently recomputed pacing-quartile samples. `npm run verify:data` also includes the context client and UI checks. A same-tag lookup rebuild changes its manifest hash/timestamp and invalidates older context; rebuild rather than relabeling the context manifest.
 
 The [Runner context and peers workflow](../.github/workflows/runner-context.yml) runs on relevant pull-request paths or manual dispatch. It downloads the pinned FULL, calculates against the checked-in runner manifest, runs the independent verifier and uploads **`runner-context`** for 30 days. It does not import, change the pin, merge or deploy. Download/extract the artifact into an input directory for the importer, inspect the exact source/code revision, and preserve durable verification evidence before CI artifacts expire. Check pending/local/publication status in [RUNNER_CONTEXT_AND_PEERS.md](RUNNER_CONTEXT_AND_PEERS.md).
 

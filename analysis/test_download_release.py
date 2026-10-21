@@ -39,13 +39,19 @@ def release_asset(payload, name="marathon-FULL-20260907.tar.gz", tag=TAG):
 
 
 class PublicReleaseDownloads(unittest.TestCase):
-    def run_export(self, checkout, payload, tag=TAG, bundle="FULL", prefix="marathon", sums=None):
+    def run_export(self, checkout, payload, tag=TAG, bundle="FULL", prefix="marathon", sums=None, parts=None):
         analysis = checkout / "analysis"
         analysis.mkdir(exist_ok=True)
         (analysis / "release.json").write_text(json.dumps({"repository": REPO, "tag": tag}))
-        asset = release_asset(payload, f"{prefix}-{bundle}-20260907.tar.gz", tag)
-        assets = [asset]
-        bodies = {asset["browser_download_url"]: payload}
+        name = f"{prefix}-{bundle}-20260907.tar.gz"
+        asset = release_asset(payload, name, tag)
+        if parts is None:
+            assets = [asset]
+            bodies = {asset["browser_download_url"]: payload}
+        else:
+            # parts: (suffix, bytes) pairs; the joined archive keeps the whole payload's name and digest.
+            assets = [release_asset(chunk, name + suffix, tag) for suffix, chunk in parts]
+            bodies = {a["browser_download_url"]: chunk for a, (_, chunk) in zip(assets, parts)}
         if sums is not None:
             text = sums(asset).encode()
             sums_asset = release_asset(text, "RELEASE-SHA256SUMS-20260907.txt", tag)
@@ -127,6 +133,50 @@ class PublicReleaseDownloads(unittest.TestCase):
             payload = archive_bytes([(f"export/{name}", b"synthetic fixture") for name in sorted(full)])
             with self.assertRaisesRegex(ValueError, "Unexpected or duplicate"):
                 self.run_export(Path(folder), payload, tag, "FULL")
+
+    def test_split_full_archive_joins_verified_parts(self):
+        # 1050: FULL is attached as .part-00 and .part-01 and carries MATCHING.md; the joined archive must match the release sums.
+        tag = "private-export-20261021-1050"
+        full = download_release.EXPECTED | download_release.PACE_NOTES_DOCS | {"MATCHING.md", "features.parquet"}
+        self.assertEqual(len(full), 18)
+        payload = archive_bytes([(f"{tag}/{name}", b"synthetic fixture") for name in sorted(full)])
+        half = len(payload) // 2
+        split = [(".part-00", payload[:half]), (".part-01", payload[half:])]
+        listed = lambda asset: f"{asset['digest'][7:]}  {asset['name']}\n"
+        with tempfile.TemporaryDirectory() as folder:
+            destination, requests = self.run_export(Path(folder), payload, tag, "FULL", "pace-notes", listed, split)
+            self.assertTrue(all((destination / name).is_file() for name in full))
+            self.assertTrue(all(request.get_header("Authorization") is None for request in requests))
+            provenance = json.loads((destination / "provenance.json").read_text())
+            self.assertEqual(provenance["asset"], "pace-notes-FULL-20260907.tar.gz")
+            self.assertEqual(provenance["asset_sha256"], hashlib.sha256(payload).hexdigest())
+            self.assertEqual([p["asset"] for p in provenance["asset_parts"]], ["pace-notes-FULL-20260907.tar.gz.part-00", "pace-notes-FULL-20260907.tar.gz.part-01"])
+        swapped = [(".part-00", payload[half:]), (".part-01", payload[:half])]
+        cases = [
+            ("parts without a release checksum file", split, None, "must publish a release checksum file"),
+            ("joined archive not in the release sums", split, lambda asset: f"{'0' * 64}  {asset['name']}\n", "release checksum file"),
+            ("parts joined in the wrong order", swapped, listed, "release checksum file"),
+            ("a gap in the part numbers", [(".part-00", payload[:half]), (".part-02", payload[half:])], listed, "numbered from 00"),
+            ("a single part", [(".part-00", payload)], listed, "numbered from 00"),
+        ]
+        for label, parts, sums, message in cases:
+            with self.subTest(label), tempfile.TemporaryDirectory() as folder:
+                with self.assertRaisesRegex(ValueError, message):
+                    self.run_export(Path(folder), payload, tag, "FULL", "pace-notes", sums, parts)
+        with self.subTest("1050 without MATCHING.md"), tempfile.TemporaryDirectory() as folder:
+            short = archive_bytes([(f"{tag}/{name}", b"synthetic fixture") for name in sorted(full - {"MATCHING.md"})])
+            with self.assertRaisesRegex(ValueError, "Missing FULL files"):
+                self.run_export(Path(folder), short, tag, "FULL", "pace-notes", listed)
+
+    def test_a_corrupt_part_is_rejected_and_removed(self):
+        payload = b"0123456789" * 50
+        parts = [release_asset(payload[:250], "x-FULL-1.tar.gz.part-00"), release_asset(payload[250:], "x-FULL-1.tar.gz.part-01")]
+        with tempfile.TemporaryDirectory() as folder:
+            destination = Path(folder) / "full.tar.gz"
+            with patch.object(download_release, "urlopen", side_effect=[io.BytesIO(payload[:250]), io.BytesIO(b"changed")]):
+                with self.assertRaisesRegex(ValueError, "checksum or size mismatch"):
+                    download_release.download_archive(parts, destination)
+            self.assertFalse(destination.exists())
 
     def test_other_tag_prefixes_are_refused(self):
         with tempfile.TemporaryDirectory() as folder:

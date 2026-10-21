@@ -93,7 +93,7 @@ async function main() {
       noMethodCopy(html,`${kind} results (${units})`);
       // The second half is named by its mat in both units (the redesign spec, section 3.10).
       assert.match(html,/after 20K/i);
-      assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
+      assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016|20261021/);
       if(kind==='race-day') {
         assert.match(html,/Slowdown rate in this edition/);
         assert.doesNotMatch(html,/Mean edition slowdown rate|across 3 editions/);

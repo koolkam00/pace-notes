@@ -147,7 +147,7 @@ class Publisher:
             'input_manifest_sha256': self.provenance['manifest_sha256'],
             'analysis_script_sha256': hashlib.sha256(self.script.read_bytes()).hexdigest(),
             'analysis_version': 1, 'engine': f'DuckDB {duckdb.__version__}',
-            'corpus': {k:self.manifest[k] for k in ['n_records','n_cities','n_race_years']},
+            'corpus': manifest_corpus(self.manifest),
             'cohort': self.counts, 'methodology_prose': methods + self.common_method,
             'observational': True, 'minimum_public_cell': MIN_CELL,
         }
@@ -160,6 +160,12 @@ class Publisher:
         for filename, data in [('pack_meta.json', meta), ('summary.json', summary)]:
             (target / filename).write_text(json.dumps(data, indent=2, allow_nan=False) + '\n')
         self.packs.append({'id':pack, 'n':n, 'question_id':question_id})
+
+
+def manifest_corpus(manifest):
+    """The release's own totals; pace-notes manifests (from October 21, 2026) name the edition count n_editions."""
+    editions = manifest['n_race_years'] if 'n_race_years' in manifest else manifest['n_editions']
+    return {'n_records': manifest['n_records'], 'n_cities': manifest['n_cities'], 'n_race_years': editions}
 
 
 def run(source, output, live_as_of):

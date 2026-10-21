@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from build_pacing import POINTS, records
+from build_pacing import POINTS, manifest_corpus, records
 from source_quality import source_quality_report, METHOD as SOURCE_QUALITY_METHOD
 
 PACK = 'ext_personalized_guide'
@@ -248,7 +248,7 @@ def generate(db, source, output, provenance, manifest, counts, diagnostics, live
     metadata={'schema_version':1,'id':PACK,'presentation':'personalized-guide','status':'ready','question_id':'personalized_guide',
       'title':'Twelve questions for your marathon','as_of':summary['as_of'],'input_as_of':manifest['created_at'],
       'input_export_id':summary['export_id'],'live_json_as_of':live_as_of,'n':counts['eligible'],'cohort':counts,
-      'corpus':{k:manifest[k] for k in ['n_records','n_cities','n_race_years']},
+      'corpus':manifest_corpus(manifest),
       'input_asset_sha256':provenance['asset_sha256'],'input_manifest_sha256':provenance['manifest_sha256'],
       'analysis_script_sha256':script_hash,'supporting_script_sha256':hashlib.sha256(Path(__file__).with_name('build_extended.py').read_bytes()).hexdigest(),
       'linkage_audit':diagnostics,'minimum_public_cell':100,'analysis_count':12,
