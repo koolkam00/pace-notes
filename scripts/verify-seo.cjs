@@ -705,7 +705,7 @@ let sitemapLocs = [];
 // ---------- Moved addresses: stubs, redirects and links ----------
 
 /** Addresses vercel.json redirects that have no page and no stub: the old goal-pace index and a course no longer built. */
-const REDIRECT_ONLY = { '/tools/marathon-pace': '/tools/marathon-pace-chart', '/courses/melbourne': '/courses' };
+const REDIRECT_ONLY = { '/tools/marathon-pace': '/tools/marathon-pace-chart', '/courses/melbourne': '/courses', '/courses/vienna': '/courses' };
 
 const linkPath = (href, from) => {
   if (!href || href.startsWith('#') || /^(mailto|tel|javascript|data):/i.test(href) || href.startsWith('//')) return null;

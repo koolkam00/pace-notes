@@ -606,12 +606,16 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
       }
     }
     assert.ok(shards >= 75 && cells > 10000 && steps > cells * 2 * 60, `Every course shard checked (${shards} shards, ${cells} goals, ${steps} steps)`); checks += shards;
-    // The named fallbacks: Singapore publishes a 4:00 group from its one edition and has no shape; Auckland, on three
-    // editions, has none at 5:04, a goal its group does not publish; All courses never takes a shape.
+    // The named fallbacks: Singapore publishes a 4:00 group from its one edition and has no shape; Austin, on three
+    // editions, has a shape at 4:00 but none at 5:53, a goal its group does not publish (Auckland played this part until
+    // the October 21, 2026 release held its 2017 edition; its 4:00 group, now on two editions, has no shape); All courses
+    // never takes a shape.
     const singapore = file(band.paceBandShardPath('singapore', 'all')).groups.all;
     assert.ok(band.cellOf(singapore, 240) && shapeLib.shapeFor('singapore', band.cellOf(singapore, 240), 14400) === null, 'Singapore 4:00: a group, one edition, no shape'); ok();
+    const austin = file(band.paceBandShardPath('austin', 'all')).groups.all;
+    assert.ok(band.cellOf(austin, 240)?.ed === 3 && shapeLib.shapeFor('austin', band.cellOf(austin, 240), 14400) && band.cellOf(austin, 353) === null, 'Austin: a shape at 4:00 on three editions, none at 5:53'); ok();
     const auckland = file(band.paceBandShardPath('auckland', 'all')).groups.all;
-    assert.ok(shapeLib.shapeFor('auckland', band.cellOf(auckland, 240), 14400) && band.cellOf(auckland, 304) === null, 'Auckland: a shape at 4:00, none at 5:04'); ok();
+    assert.ok(band.cellOf(auckland, 240)?.ed === 2 && shapeLib.shapeFor('auckland', band.cellOf(auckland, 240), 14400) === null, 'Auckland 4:00: a group on two editions, no shape'); ok();
     const allCourses = file(band.paceBandShardPath('all', 'all')).groups.all;
     assert.ok(band.cellOf(allCourses, 240) && shapeLib.shapeFor('all', band.cellOf(allCourses, 240), 14400) === null, 'All courses: even pace, though its group has a cell'); ok();
     // Boston 4:00, the planner's capture: the shape is the course's, and the card's two paces come from its timing points.
@@ -634,8 +638,8 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
       return shapeLib.noShapeReason({ scoped: Boolean(scopeOf(slug)), gendered: Boolean(index.shards[shardPath]), minute, goals: index.goals, editions: scopeOf(slug)?.editions ?? null, cellEditions: cell?.ed ?? null });
     };
     assert.deepEqual(index.goals, [150, 390]); ok();
-    assert.deepEqual([why('new-york', 'all', 420), why('boston', 'all', 149), why('prague', 'all', 240), why('singapore', 'women', 240), why('auckland', 'women', 240), why('singapore', 'all', 240), why('barcelona', 'all', 210), why('helsinki', 'all', 267), why('auckland', 'all', 304)],
-      ['range', 'range', 'course', 'gender', 'gender', 'editions', 'editions', 'goal-editions', 'few'], 'New York City 7:00, Boston 2:29, Prague, Singapore and Auckland women, Singapore 4:00, Barcelona 3:30, Helsinki 4:27, Auckland 5:04'); ok();
+    assert.deepEqual([why('new-york', 'all', 420), why('boston', 'all', 149), why('prague', 'all', 240), why('singapore', 'women', 240), why('auckland', 'women', 240), why('singapore', 'all', 240), why('barcelona', 'all', 210), why('helsinki', 'all', 267), why('austin', 'all', 353)],
+      ['range', 'range', 'course', 'gender', 'gender', 'editions', 'editions', 'goal-editions', 'few'], 'New York City 7:00, Boston 2:29, Prague, Singapore and Auckland women, Singapore 4:00, Barcelona 3:30, Helsinki 4:27, Austin 5:53'); ok();
     // The goals each course's group covers, read at build time (shapeGoalsOf) so a page settles at once outside them:
     // Singapore all genders 3:46 to 6:30 (so 3:30 never waits for a shape), no women's group, and Prague not at all.
     const sg = shapeLib.shapeGoalsOf(index);
@@ -661,15 +665,21 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
     const goalsFile = file('tools/course-goal.json');
     assert.equal(shapeLib.SHAPE_MIN_EDITIONS, goalsFile.min_editions, 'The shape\'s edition minimum is the course results\''); ok();
     const thin = index.scopes.filter((sc) => sc.slug !== 'all' && sc.editions < goalsFile.min_editions).map((sc) => `${sc.city} ${sc.editions}`).sort();
-    assert.deepEqual(thin, ['Barcelona 2', 'Paris 2', 'Singapore 1'], 'The courses with too few editions for a course shape'); ok();
+    // Auckland joined the list with the October 21, 2026 release, which held its 2017 edition (a misplaced 30 km mat).
+    assert.deepEqual(thin, ['Auckland 2', 'Barcelona 2', 'Paris 2', 'Singapore 1'], 'The courses with too few editions for a course shape'); ok();
     // /methodology's "a goal at the edge of a course's range can pool fewer editions than the course has": true on a
-    // course with enough editions too (Helsinki 4:27 pools two of its three).
+    // course with enough editions too (Helsinki 4:27 pools two of its three; under the October 21, 2026 release so do
+    // Stockholm's slow goals, from 5:23, after its 2025 hold), and no such goal takes a shape.
     const edge = [];
     for (const sc of index.scopes.filter((x) => x.slug !== 'all' && x.editions >= goalsFile.min_editions)) {
       const group = file(band.paceBandShardPath(sc.slug, 'all')).groups.all;
-      group.g.forEach((m, i) => { if (group.ed[i] < goalsFile.min_editions) edge.push(`${sc.city} ${m} ${group.ed[i]}`); });
+      group.g.forEach((m, i) => {
+        if (group.ed[i] >= goalsFile.min_editions) return;
+        edge.push(`${sc.city} ${m} ${group.ed[i]}`);
+        assert.equal(shapeLib.shapeFor(sc.slug, band.cellOf(group, m), m * 60), null, `${sc.city} ${m}: no shape on ${group.ed[i]} editions`);
+      });
     }
-    assert.deepEqual(edge, ['Helsinki 267 2'], 'A goal at the edge of a course\'s range on fewer editions than a course result needs'); ok();
+    assert.ok(edge.includes('Helsinki 267 2') && edge.every((e) => / [12]$/.test(e)), `A goal at the edge of a course's range on fewer editions than a course result needs (${edge.length})`); ok();
     assert.equal(shapeLib.shapeFor('helsinki', band.cellOf(file(band.paceBandShardPath('helsinki', 'all')).groups.all, 267), 267 * 60), null, 'Helsinki 4:27: no shape on two editions'); ok();
     // The planner never sets a shape beside "3 are needed for any goal": Singapore, Barcelona and Paris have neither course
     // results nor a shape. Beside a shape (or one on its way) the note is scoped to the results on goal pace (goalPaceNote).

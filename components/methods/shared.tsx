@@ -23,7 +23,7 @@ export const pctText = (share: number, digits = 1) => `${(share * 100).toFixed(d
 export const and = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 export const day = (iso: string) => new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }).format(new Date(iso));
 /** "Madrid 2013–2018, New York 2006–2007 and Prague 2016–2019": editions grouped by city, runs of years joined. */
-export function editionList(editions: { city: string; year: number }[]): string {
+export function editionList(editions: readonly { city: string; year: number }[]): string {
   const byCity = new Map<string, number[]>();
   for (const { city, year } of editions) byCity.set(city, [...(byCity.get(city) ?? []), year]);
   return and([...byCity].map(([city, years]) => {

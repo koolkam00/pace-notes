@@ -1,12 +1,12 @@
 {
   "schema_version": 2,
   "status": "ready",
-  "as_of": "2026-10-17T03:53:53Z",
-  "input_as_of": "2026-10-16T20:55:30Z",
-  "release_tag": "htw-db-2026-10-16-1652",
+  "as_of": "2026-10-21T16:10:31Z",
+  "input_as_of": "2026-10-21T15:02:30Z",
+  "release_tag": "private-export-20261021-1050",
   "corpus": {
-    "n_records": 4915355,
-    "eligible_finishes": 3871767
+    "n_records": 5327504,
+    "eligible_finishes": 4108749
   },
   "supporting_study": "study/evidence.json"
 }

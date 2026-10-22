@@ -38,11 +38,20 @@ export default function RaceMorningBody() {
   // The pairs, cooler year first: the readout's key names what its values are (sustained slowdown) and the pair, and the
   // start temperatures beside them follow the same order, cooler then warmer.
   const pairName = (x: (typeof p.list)[number]) => `${x.city} ${x.cool_year} · ${x.hot_year}`;
-  const tiles = (u: UnitSystem) => p.list.map((x) => ({
-    id: `${x.city}-${x.cool_year}-${x.hot_year}`, lit: x.hotter_slowed_more,
-    key: `${x.city}: ${temp(x.cool_temp, u)} in ${x.cool_year} and ${temp(x.hot_temp, u)} in ${x.hot_year}; sustained slowdowns went from ${pct(x.cool_slowdown)} to ${pct(x.hot_slowdown)}.`, value: '',
-    side: `${temp(x.cool_temp, u)} · ${temp(x.hot_temp, u)}`, value2: `${pct(x.cool_slowdown)} · ${pct(x.hot_slowdown)}`, pair: pairName(x),
-  }));
+  // A pair whose shares print the same is said with the fewest decimals (up to two) that tell them apart, so the colour
+  // its square takes (which year had more) can be read from the numbers beside it.
+  const shares = (x: (typeof p.list)[number]) => {
+    const digits = [0, 1, 2].find((d) => pct(x.cool_slowdown, d) !== pct(x.hot_slowdown, d)) ?? 2;
+    return [pct(x.cool_slowdown, digits), pct(x.hot_slowdown, digits)];
+  };
+  const tiles = (u: UnitSystem) => p.list.map((x) => {
+    const [cooler, warmer] = shares(x);
+    return {
+      id: `${x.city}-${x.cool_year}-${x.hot_year}`, lit: x.hotter_slowed_more,
+      key: `${x.city}: ${temp(x.cool_temp, u)} in ${x.cool_year} and ${temp(x.hot_temp, u)} in ${x.hot_year}; sustained slowdowns went from ${cooler} to ${warmer}.`, value: '',
+      side: `${temp(x.cool_temp, u)} · ${temp(x.hot_temp, u)}`, value2: `${cooler} · ${warmer}`, pair: pairName(x),
+    };
+  });
   // The readout opens on the pair furthest apart at the start (the first such in the data), the clearest case of a
   // warmer morning; the waffle draws the warmer-had-more pairs first, so its index counts in that order.
   const widest = p.list.reduce((best, x, i) => (x.hot_temp - x.cool_temp > p.list[best].hot_temp - p.list[best].cool_temp ? i : best), 0);
@@ -53,7 +62,14 @@ export default function RaceMorningBody() {
   const curve = w.curvature.finish_min_curve;
   const base = curve.find((c) => c.change === 0) ?? curve[0];
   const tLo = curve[0].temp, tHi = curve[curve.length - 1].temp;
-  const local = curve.map((c, i) => (i ? c.change - curve[i - 1].change : curve[1].change - curve[0].change));
+  // Each degree's rate is centred on it (half the change from the degree below to the one above): on this fitted curve
+  // that is the slope the H2 and the cool end's label give, where a step from the degree below is the rate half a degree
+  // cooler. The two ends use the one-sided three-point rate, exact on this quadratic (October 22, 2026: a one-step
+  // difference read −0.3 min per °C at 0 °C, where the fitted slope is −0.4).
+  const n = curve.length - 1;
+  const local = curve.map((c, i) => (i === 0 ? (-3 * c.change + 4 * curve[1].change - curve[2].change) / 2
+    : i === n ? (3 * c.change - 4 * curve[n - 1].change + curve[n - 2].change) / 2
+    : (curve[i + 1].change - curve[i - 1].change) / 2));
   const cool = Number(curveN.values.cool_c), warm = Number(curveN.values.warm_c);
   const at = (t: number) => Math.max(0, curve.findIndex((c) => c.temp === t));
   const top = Math.ceil(Math.max(...curve.map((c) => c.change)) / 10) * 10, bottom = Math.floor(Math.min(...curve.map((c) => c.change)) / 5) * 5;

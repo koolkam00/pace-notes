@@ -18,6 +18,8 @@ export type WeatherEvidence = {
   calculation: { script_sha256: string; pacing_script_sha256: string; duckdb_version: string; numpy_version: string; source_quality_script_sha256?: string };
   source_quality?: { reviewed_edition_policy: boolean; release_tag: string; script_sha256: string; policy_sha256: string; editions: { city: string; year: number; timing_eligible_excluded: number }[] };
   cohort: Record<string, number>; exclusions: Record<string, number>;
+  /** Reviewed editions whose reading is an archive hour more than 30 minutes before the scheduled start. */
+  accepted_early_hours?: { city: string; year: number; start_hour: string; scheduled_start: string; minutes_early: number }[];
   prespecified_gate: { confidence: number; practical_difference_pp: number };
   methodology: string[]; candidates: WeatherCandidate[]; editions: WeatherEdition[];
 };

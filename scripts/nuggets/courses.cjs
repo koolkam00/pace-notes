@@ -121,7 +121,9 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         const i = courses.sections.indexOf(c.slowest_section);
         // The share of courses said in words (round 6): every, nearly every (85% or more), most, else the tally.
         const k = tally.get(modal), on = k === shaped ? 'every course' : k / shaped >= 0.85 ? 'nearly every course' : k / shaped > 0.5 ? 'most courses' : `${k} of ${shaped} courses`;
-        step(() => eq(said(n), `${named(city)}’s slowest ${stretch(i)} is ${name}; on ${on} it’s ${usual}.`, `course.late (${city}): the sentence`));
+        // A course of fewer than three editions says how many first, as its slowdown H2 does.
+        const from = c.editions < 3 ? `From its ${['zero', 'one', 'two'][c.editions]} edition${c.editions === 1 ? '' : 's'}, ` : '';
+        step(() => eq(said(n), `${from}${named(city)}’s slowest ${stretch(i)} is ${name}; on ${on} it’s ${usual}.`, `course.late (${city}): the sentence`));
         // The row names its baseline, the course's own average pace (the hills page's is other courses; critic round 4).
         step(() => eq(n.key, `than ${named(city)}’s average pace, at ${name}, its slowest ${stretch(i)}; on ${on} it’s ${usual}`, `course.late (${city}): the row names its baseline`));
         // The row's figure: how much slower than the course's own average its slowest section runs, in whole percent.
@@ -245,7 +247,9 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const n = at('course.among');
       // Only courses with three or more editions are counted either side (the hollow dots on the strip are not).
       const others = courses.courses.filter((o) => o.city !== city && o.editions >= 3);
-      const higher = others.filter((o) => o.slowdown > c.slowdown).length, lower = others.filter((o) => o.slowdown < c.slowdown).length;
+      // On the shares as printed (lib/nuggets/format.ts pct, whole percent): a course printing the same share is neither.
+      const printed = (v) => Number((v * 100).toFixed(0));
+      const higher = others.filter((o) => printed(o.slowdown) > printed(c.slowdown)).length, lower = others.filter((o) => printed(o.slowdown) < printed(c.slowdown)).length;
       step(() => eq([n.values.higher, n.values.lower, n.values.courses], [higher, lower, others.length], `course.among (${city}) recounts the courses with three or more editions either side`));
       const solidSelf = c.editions >= 3;
       const middle = solidSelf && Math.abs(higher - lower) <= 2;
@@ -258,7 +262,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       // leads with how many it has.
       const set = `${solidSelf ? 'other ' : ''}courses with three or more editions`;
       const than = all ? `all ${others.length} ${set}` : `${count} of ${others.length} ${set}`;
-      const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of the courses.`
+      const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of the ${set}.`
         : solidSelf ? `${named(city)}’s ${whole(c.slowdown)}: ${side} than ${than}.`
           : `From its ${words[c.editions]} edition${c.editions === 1 ? '' : 's'}, ${named(city)}’s ${whole(c.slowdown)} is ${side} than ${than}.`;
       if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), want, `course.among (${city}): the sentence`));
@@ -300,7 +304,9 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const pool = mornings.filter((e) => !held.has(`${city}|${e.year}`) && e.year !== heroYear).sort((a, b) => a.year - b.year);
       let hot = null, cool = null;
       for (const e of pool) { if (!hot || e.temp >= hot.temp) hot = e; if (!cool || e.temp <= cool.temp) cool = e; }
-      const guard = shown && !!hot && hot.year !== cool.year && Math.round((hot.temp - cool.temp) * 10) / 10 >= courses.weather.pairs.min_gap_c;
+      // Each end stands alone at its printed temperature in both units (whole degrees, as lib/nuggets/format.ts temp).
+      const alone = (e) => [(c) => (c * 1.8 + 32).toFixed(0), (c) => c.toFixed(0)].every((f) => pool.filter((o) => f(o.temp) === f(e.temp)).length === 1);
+      const guard = shown && !!hot && hot.year !== cool.year && Math.round((hot.temp - cool.temp) * 10) / 10 >= courses.weather.pairs.min_gap_c && alone(hot) && alone(cool);
       step(() => eq(n.guard, guard, `course.weather (${city}): the pair other than the hero's edition, 5 °C apart`));
       // Shares that round alike are said once; under 5 whole points apart, about the same share, warm or cool; 5 points
       // or more, two facts. Otherwise the span of every morning.
@@ -309,9 +315,12 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         const apart = Math.abs(Math.round(hot.slowdown * 100) - Math.round(cool.slowdown * 100));
         const quiet = !same && apart < 5;
         step(() => eq([n.values.hot_year, n.values.cool_year, n.values.quiet], [hot.year, cool.year, quiet ? 1 : 0], `course.weather (${city}): the pair and the null rule`));
-        // A hero that calls its edition the warmest or coolest morning: #weather says it leaves that year out, so its
-        // sentence (a quiet null above all) never denies what the hero has just shown (round 6).
-        const named = heroYear !== null && Number(hero.values.morning) !== 0 && mornings.some((e) => e.year === heroYear);
+        // The hero's edition, left out, as warm as the warmest morning named or as cool as the coolest (the hero's "its
+        // warmest morning", or a tie): #weather says it leaves that year out, so its sentence (a quiet null above all)
+        // never denies what the hero has just shown (round 6).
+        const own = mornings.find((e) => e.year === heroYear);
+        const named = heroYear !== null && !!own && (own.temp >= hot.temp || own.temp <= cool.temp);
+        if (heroYear !== null && Number(hero.values.morning) !== 0) step(() => ok(named, `course.weather (${city}): a hero that names its morning is left out by name`));
         const lead = (rest) => (named ? `Apart from ${heroYear}, ${rest.charAt(0).toLowerCase()}${rest.slice(1)}` : rest);
         step(() => eq(said(n), lead(same
           ? `At ${degF(hot.temp)} in ${hot.year} and at ${degF(cool.temp)} in ${cool.year}, the same ${whole(hot.slowdown)} had a sustained slowdown.`

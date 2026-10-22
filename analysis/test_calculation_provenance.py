@@ -7,7 +7,7 @@ from calculation_provenance import validate_calculation_provenance
 
 class CalculationProvenanceTests(unittest.TestCase):
     def test_all_published_builders_identify_their_actual_code(self):
-        for export_id in ['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652']:
+        for export_id in ['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652', 'private-20261021-1050']:
             self.check_builders(export_id)
 
     def check_builders(self, export_id):

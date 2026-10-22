@@ -107,10 +107,11 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // were cut to the findings, and the chapter crumbs and closing stack are new. October 19: the chapter leads, keys and
   // story copy were edited again (round 2, part A), and each page's tables moved into one "All numbers" row; the tools
   // open answer first with short H1s, the analyses' H1s became one clause and /courses opens on its list (part B).
+  // October 22: /methodology names Chicago 2025's early weather hour and rewrites its weather sources and questions.
   '/': '2026-10-19',
   '/research': '2026-10-19',
   '/about': '2026-10-19',
-  '/methodology': '2026-10-19',
+  '/methodology': '2026-10-22',
   '/stories': '2026-10-19',
   '/tools': '2026-10-19',
   '/tools/pace-calculator': '2026-10-19',

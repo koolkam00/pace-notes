@@ -21,7 +21,7 @@ const evidence = JSON.parse(bytes);
 const allBytes = fs.readFileSync(path.join(__dirname, '../public/data/fast-start/all-finishers.json'));
 const allEvidence = JSON.parse(allBytes);
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
-// The adopted runner lookup sets the expected cohorts (3,871,767 finishes and 592,241 earlier-best benchmarks under 1652; 3,517,336 and 555,437 under 0934).
+// The adopted runner lookup sets the expected cohorts (4,108,749 finishes and 648,914 earlier-best benchmarks under 1050; 3,871,767 and 592,241 under 1652; 3,517,336 and 555,437 under 0934).
 const runners = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runners/manifest.json'), 'utf8'));
 const eligible = runners.eligible_records, benchmarked = runners.linkage.recent_benchmark_finishes;
 // Method, definitions, coverage and source text belong on /methodology only (owner request, 2026-10-16).
@@ -95,7 +95,7 @@ async function main() {
     // Sections and the course axis are named by their mats in both units (the redesign spec, section 3.10).
     assert.match(html,/30–35K/);
     assert.match(html,/>Finish</);
-    assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/,'Internal upload identifiers stay out of visible result copy');
+    assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016|20261021/,'Internal upload identifiers stay out of visible result copy');
   }
   const sparse={...focus,n:100,editions:5,slowdown_n:7,onset:null};
   assert.equal(fastStartCharts(start.initial,sparse,start.bands).onset,null);
@@ -123,7 +123,7 @@ async function main() {
     noMethodCopy(html,`all-finisher results (${units})`);
     assert.match(html,/After 20K, the median finish ran /);
     assert.doesNotMatch(html,/earlier recorded best|earlier-best|All earlier times/,'All mode cannot present its reference as a prior result');
-    assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016/);
+    assert.doesNotMatch(html,/private-export-|20260912|htw-db-|20261016|20261021/);
   }
   const methodology=render(MethodologyPage,{});
   const legacyOpening=(methodology.match(/<details\b[^>]*>[\s\S]*?<\/details>/g)||[]).find(detail=>detail.includes('Which openings are associated with finishing under my target?'));

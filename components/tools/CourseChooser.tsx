@@ -291,7 +291,7 @@ export default function CourseChooser({ sha, screened }: {
           {/* Every row, heading and axis below follows the visitor's goal, so session replays leave these out. */}
           <div className="course-chooser-list ph-no-capture" data-tool-controls>
             <section className="tool-panel" aria-labelledby="course-chooser-courses">
-              <h2 className="tool-panel-title" id="course-chooser-courses">Every course at {goalText}</h2>
+              <h2 className="tool-panel-title" id="course-chooser-courses">Courses at {goalText}</h2>
               {/* One control on the beat: the sort. The two filters wait behind one disclosure; a link's order (dir) still applies. */}
               <div className="course-chooser-toolbar no-print">
                 <div className="tool-field">

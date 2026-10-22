@@ -113,10 +113,10 @@ export function defaultFocus(groups: AllFinisherGroup[], kind: AllFinisherKind):
   if (isProfileKind(kind)) return groups[0];
   const measure = measureOf(kind);
   const lowest = kind !== 'course-consistency' && kind !== 'courses';
-  // As the page's answer picks its end: a course with three or more editions, a start band with five or more races
-  // (a hollow mark is never the finding), unless none qualifies.
+  // As the page's answer picks its end: a course with three or more editions, a start band with five or more races,
+  // unless none qualifies (for start bands, unless fewer than two do, as answerHeadline falls back to every band).
   const firm = groups.filter(g => kind === 'courses' ? g.edition_n >= 3 : kind === 'weather' ? g.edition_n >= 5 : true);
-  return (firm.length ? firm : groups).reduce<AllFinisherGroup | undefined>((a, b) => (!a || (lowest ? b[measure] < a[measure] : b[measure] > a[measure]) ? b : a), undefined);
+  return (firm.length >= (kind === 'weather' ? 2 : 1) ? firm : groups).reduce<AllFinisherGroup | undefined>((a, b) => (!a || (lowest ? b[measure] < a[measure] : b[measure] > a[measure]) ? b : a), undefined);
 }
 
 /**

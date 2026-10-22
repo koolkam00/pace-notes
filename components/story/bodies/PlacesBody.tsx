@@ -63,7 +63,10 @@ export default function PlacesBody() {
         rows={be.map((b) => [slower(b.x), signed(b.median), pct(b.gained)])} reading={beAt} />,
       <Values key="pl-tail" bare id="pl-tail" caption="Share of finishes by places gained per 100 after 30K"
         columns={[{ key: 'p', label: 'Places per 100' }, { key: 's', label: 'Share of finishes' }]}
-        rows={data.histogram.map((h) => [h.lo <= -30 ? `${MINUS}30 or more lost` : h.lo >= 14 ? '+14 or more' : signed(h.lo, 0), pct(h.share, 1)])} />,
+        // Each row is a one-place bin from its lower edge up to the next (the builder's [lo, lo + 1), clipped at −30 and
+        // +15), so it is labelled as that range (October 22, 2026: '−10' held losses of 9 to 10 places and '0' the gains
+        // under one, so neither side added up to the shares above the table).
+        rows={data.histogram.map((h) => [h.lo <= -30 ? 'More than 29 lost' : h.lo >= 14 ? '+14 or more' : `${signed(h.lo, 0)} to ${signed(h.lo + 1, 0)}`, pct(h.share, 1)])} />,
     ]}>
       {/* The H1 says the comparison (twice as often), so the reading is the figure and what it counts, and the ruler
           draws the H1: the same gap from 30K (the figure's dot) against from 40K, on a scale that ends at a coin flip.

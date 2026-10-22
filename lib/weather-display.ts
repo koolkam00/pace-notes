@@ -1,7 +1,8 @@
 import type { UnitSystem } from './units';
 import type { WeatherCandidate, WeatherId } from './weather-types';
 
-export const weatherNumber = (value: number, digits = 1) => new Intl.NumberFormat('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits }).format(value);
+// A negative value takes the minus sign (U+2212) the rest of the site prints, not the hyphen Intl gives.
+export const weatherNumber = (value: number, digits = 1) => new Intl.NumberFormat('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits }).format(value).replace('-', '\u2212');
 export function weatherValue(value: number, id: WeatherId, units: UnitSystem) {
   if (id === 'wind') return value * (units === 'mi' ? 2.2369362920544 : 3.6);
   if (units === 'km') return value;

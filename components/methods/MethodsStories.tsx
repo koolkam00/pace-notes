@@ -105,7 +105,7 @@ function storyNotes(file: string, slug: string): ReactNode[] {
         <>Within-course slopes are simple descriptive slopes. The prespecified <a href="#weather">weather screen</a> remains the adjusted analysis.</>,
         'In the untangled view each course’s dots are moved so its own averages sit at the center; the pooled view mixes field, terrain and climate.',
         'The heat signature is an average within-course association, drawn as a straight line from the typical curve at the average start. Its finish and slowdown readouts use a separate curved fit, compared with a 10 °C start on the same course. Hottest and coolest mornings use courses with three or more editions.',
-        'Race-morning temperatures are modeled for the scheduled start at one point in the city (see Weather and elevation sources).',
+        'Race-morning temperatures are modeled for the hour near the scheduled start at one point in the city (see Weather and elevation sources).',
       ];
       return [
         'Late fade fits each edition curve as a distance-weighted multiple of the typical curve; 1.00× is typical, and the signature is what remains.',
@@ -115,7 +115,7 @@ function storyNotes(file: string, slug: string): ReactNode[] {
         'The same-early-pace comparison weights each edition equally and draws only courses with at least 3 editions and 1,000 finishes in the band. Matching on early pace balances speed, not ability, goals or weather.',
         `The editions whose first 5 km looks inflated (${and([...new Set(data.shape_cohort.start_offset_editions.map((e) => e.city))])}) are left out of every shape statistic.`,
         `Field size counts eligible finishes with all nine splits, not official finishers, and missing years include coverage gaps as well as cancellations.${getInsightsManifest().duplicate_edition_screen.length ? ' Copy editions are left out.' : ''}`,
-        `The before-and-after comparison weights each edition equally within 2015–2019 and 2022–2026 and uses the ${n(data.years.eras.high_coverage_courses.length)} courses where at least ${Math.round(data.years.eras.coverage_rule * 100)}% of raw records are eligible in both periods. Course mix, entry rules and eligibility shares changed too, so it describes the fields, not why they changed.`,
+        `The before-and-after comparison weights each edition equally within 2015–2019 and 2022–2026 and uses the ${n(data.years.eras.high_coverage_courses.length)} courses whose editions in each period average at least ${Math.round(data.years.eras.coverage_rule * 100)}% of raw records eligible. Only the editions the source policy keeps count, so a course can rest on one or two race days in a period. Course mix, entry rules and eligibility shares changed too, so it describes the fields, not why they changed.`,
         'Recorded-gender gaps and changing eligibility shares affect some courses and years.',
         'The course pages use the same fingerprint and race-morning charts.',
       ];

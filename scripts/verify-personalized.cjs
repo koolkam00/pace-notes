@@ -14,7 +14,7 @@ const { getPersonalSummary } = require('../lib/personalized-data.ts');
 const root = 'public/data/packs/ext_personalized_guide';
 const summary = getPersonalSummary();
 const meta = JSON.parse(fs.readFileSync(`${root}/pack_meta.json`, 'utf8'));
-if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652'].includes(meta.input_export_id)) {
+if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652', 'private-20261021-1050'].includes(meta.input_export_id)) {
   for (const [key, file] of Object.entries({analysis_script_sha256: 'build_personalized.py', supporting_script_sha256: 'build_extended.py', pacing_script_sha256: 'build_pacing.py', transport_script_sha256: 'import_personalized.py'})) {
     const bytes = fs.readFileSync(`analysis/${file}`);
     assert.ok(bytes.length, `Cannot verify empty source: ${file}`);

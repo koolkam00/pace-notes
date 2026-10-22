@@ -47,7 +47,7 @@ GATE = {
 METHODS = [
     "The outcome is each edition's median individual percentage pace change from 0–20 km to 20–40 km: 100 × ((time at 40 km − time at 20 km) / time at 20 km − 1). Positive is slowing. These are equal-distance blocks, not measured half-marathon splits; the last 2.195 km is excluded.",
     "Each city/year must identify exactly one race and one weather row with a valid same-year race date. Keep at least 100 complete eligible finishes per edition and weight each retained edition equally. The number of finishes is not the number of independent weather observations.",
-    "Use the producer's observed_at archive hour only when it is within 30 minutes of the supplied scheduled local start; either nearest hour is accepted at an exact half-hour tie. Temperature, dew point, humidity and wind must agree with that hour. Warming is temperature exactly four hourly readings later minus temperature at that start hour; no runner's finish time determines the window. Supplied start times may be approximate or refer to elite rather than mass starts.",
+    "Use the producer's observed_at archive hour only when it is within 30 minutes of the supplied scheduled local start; either nearest hour is accepted at an exact half-hour tie. One reviewed exception is accepted by name: Chicago 2025 uses the 07:00 archive hour for its 07:35 scheduled start, 35 minutes earlier. Temperature, dew point, humidity and wind must agree with that hour. Warming is temperature exactly four hourly readings later minus temperature at that start hour; no runner's finish time determines the window. Supplied start times may be approximate or refer to elite rather than mass starts.",
     "Fit one prespecified joint linear model of edition median pace change, with course fixed effects, a centered linear calendar-year term, centered start temperature and its square, start dew point, first-four-hours temperature change and start wind speed. Course denotes the supplied city, not a verified historical route. Course fixed effects are removed by within-course centering.",
     "Report each weather coefficient multiplied by that exposure's observed edition interquartile range (75th minus 25th percentile). This is a conditional regression contrast, not a prediction that sets dew point beyond the physically supported temperature range. The other modeled variables are held constant.",
     "Uncertainty resamples whole courses with replacement, keeping every edition within the drawn course and recomputing the model. The fixed seed is 20260911; 6,000 draws produce percentile intervals at 98.333333% confidence, an approximate Bonferroni adjustment for the three screened exposures. At least 95% of draws must have full rank. Repeated runners across courses are not separately clustered.",
@@ -55,6 +55,13 @@ METHODS = [
     "This is an exploratory, adjusted edition-level association among eligible finishers. It does not establish a weather penalty, an individual forecast or a causal effect. Field composition, fitness, opening congestion, race organization, route changes and unmeasured conditions remain possible explanations. The opening 0–20 km baseline can itself be affected by weather and congestion. Runners who did not finish or lack valid splits are not represented.",
     "Relative humidity changes with temperature. Dew point is the modeled moisture exposure; the raw humidity percentage is retained for context. Wind speed gives no runner-specific headwind or tailwind without a valid historical route, direction and personal exposure timeline. Scheduled-start weather is not personal wave-start weather.",
 ] + COMMON_METHOD[:2]
+
+
+# Reviewed exceptions to the 30-minute start check: (city, year) -> the exact producer observed_at and scheduled
+# start_local each one accepts, so a row that changes either field fails the check again. Owner decision, October 22,
+# 2026, verbatim: "you can use the early Chicago weather data". Chicago 2025's start moved to the official 07:35 wave-1
+# time while the producer's reading stayed on the 07:00 archive hour.
+ACCEPTED_EARLY_HOURS = {("Chicago", 2025): ("2025-10-12T07:00", "07:35")}
 
 
 def sha256(path):
@@ -77,7 +84,8 @@ def weather_observation(row):
         if len(set(times)) != len(times) or any(t.date() != date.date() for t in times):
             raise ValueError("ambiguous hourly dates")
         observed = datetime.fromisoformat(row["observed_at"])
-        if abs((observed - start).total_seconds()) > 1800:
+        accepted = ACCEPTED_EARLY_HOURS.get((row["city"], int(row["year"]))) == (row["observed_at"], row["start_local"])
+        if abs((observed - start).total_seconds()) > 1800 and not (accepted and observed < start):
             raise ValueError("observed hour differs from scheduled start by more than 30 minutes")
         indices = [times.index(target) for target in (observed, observed + timedelta(hours=4))]
         if times[indices[1]] - times[indices[0]] != timedelta(hours=4):
@@ -266,12 +274,18 @@ def run(source, output):
         raise ValueError("Manifest raw count mismatch")
     candidates = screen_candidates(editions)
     quality = source_quality_report(db, source)
+    early = []
+    for row in editions:
+        minutes = (datetime.fromisoformat(f'{row["date"]}T{row["scheduled_start"]}') - datetime.fromisoformat(row["start_hour"])).total_seconds() / 60
+        if abs(minutes) > 30:
+            early.append({"city": row["city"], "year": row["year"], "start_hour": row["start_hour"],
+                          "scheduled_start": row["scheduled_start"], "minutes_early": round(minutes)})
     result = {"schema_version": VERSION, "id": "weather_screen", "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "input": {**provenance, "as_of": manifest["created_at"], "race_conditions_sha256": sha256(source / "race_conditions.parquet")},
         "calculation": {"script_sha256": sha256(__file__), "pacing_script_sha256": sha256(Path(__file__).with_name("build_pacing.py")),
                         "duckdb_version": duckdb.__version__, "numpy_version": np.__version__, "source_quality_script_sha256": quality['script_sha256']},
         "source_quality": quality,
-        "cohort": counts, "exclusions": exclusions, "prespecified_gate": GATE,
+        "cohort": counts, "exclusions": exclusions, "accepted_early_hours": early, "prespecified_gate": GATE,
         "outcome": {"label": "Median pace change: 20–40 km versus 0–20 km", "unit": "%", "positive_means": "slower second 20 km"},
         "methodology": METHODS + ([SOURCE_QUALITY_METHOD] if quality['reviewed_edition_policy'] else []), "candidates": candidates, "editions": editions}
     output.parent.mkdir(parents=True, exist_ok=True)

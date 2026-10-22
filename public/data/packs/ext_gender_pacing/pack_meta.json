@@ -4,33 +4,33 @@
   "question_id": "r23_gender_pacing",
   "title": "How does pacing differ across recorded gender groups?",
   "status": "ready",
-  "as_of": "2026-10-17T03:46:00Z",
-  "n": 3289542,
-  "input_export_id": "htw-db-2026-10-16-1652",
-  "input_as_of": "2026-10-16T20:55:30Z",
-  "live_json_as_of": "2026-09-12T14:21:17Z",
-  "input_asset_sha256": "c0e2e63fc826a60994cb30b28e2c2fcd57e99ffca5706d876d83c08be773215a",
-  "input_manifest_sha256": "c21298e62ea0780c9c1237aa0fc11ef7025e3ac84c186990968bf5d9e8fe40c6",
-  "analysis_script_sha256": "7c6959b427fa1b06bb9600bb3377ecb226257d14aa0ec61a71a63f42bc87a3dd",
+  "as_of": "2026-10-21T16:01:41Z",
+  "n": 3528456,
+  "input_export_id": "private-20261021-1050",
+  "input_as_of": "2026-10-21T15:02:30Z",
+  "live_json_as_of": "2026-10-17T03:53:53Z",
+  "input_asset_sha256": "6df47d5538023003271a89c289332e964aa136e34b3770ecffd2e704cc8490e5",
+  "input_manifest_sha256": "b6572a8bd8daf408546e80d2dce69dfd92cf74d318c77bf0de4c71cfeba136db",
+  "analysis_script_sha256": "d799a3c92f7ce00d4dae7a20d145a0904486e3e186f9c342c3182a3f7926039b",
   "analysis_version": 1,
   "engine": "DuckDB 1.4.4",
   "corpus": {
-    "n_records": 4915355,
+    "n_records": 5327504,
     "n_cities": 34,
-    "n_race_years": 287
+    "n_race_years": 298
   },
   "cohort": {
-    "deduplicated": 4915355,
-    "complete": 4064296,
-    "increasing": 4039224,
-    "timing_eligible": 4027044,
-    "eligible": 3871767,
-    "source_quality_excluded": 155277,
-    "raw": 4915355,
+    "deduplicated": 5327504,
+    "complete": 4445238,
+    "increasing": 4420140,
+    "timing_eligible": 4407710,
+    "eligible": 4108749,
+    "source_quality_excluded": 298961,
+    "raw": 5327504,
     "duplicates_removed": 0,
-    "missing_or_unparsed": 851059,
-    "non_increasing": 25072,
-    "outside_quality_bounds": 12180
+    "missing_or_unparsed": 882266,
+    "non_increasing": 25098,
+    "outside_quality_bounds": 12430
   },
   "methodology_prose": [
     "Compare average percentage change from the first 20 km to the second 20 km. The pooled chart uses all eligible women\u2019s and men\u2019s records. The matched chart uses only race-edition and one-minute 20 km strata containing at least 20 finishes in each category.",
@@ -45,7 +45,7 @@
   "minimum_public_cell": 100,
   "source_quality": {
     "version": 1,
-    "release_tag": "htw-db-2026-10-16-1652",
+    "release_tag": "private-export-20261021-1050",
     "reviewed_edition_policy": true,
     "editions": [
       {
@@ -88,19 +88,10 @@
         "city": "New York",
         "year": 2008,
         "category": "unreconciled_hold",
-        "reason": "Previously partial ingestion has grown to 38,047 records, but source-total reconciliation and explicit completion evidence are absent; keep the prior hold pending review.",
+        "reason": "Producer marks this edition HOLD while it re-checks the official finisher count: 38,047 records against 37,790 listed finishers.",
         "raw_records": 38047,
         "deduplicated_records": 38047,
         "timing_eligible_excluded": 37387
-      },
-      {
-        "city": "Amsterdam",
-        "year": 2025,
-        "category": "unreconciled_hold",
-        "reason": "Source audit marks HOLD: 23,328 listed versus 23,325 retrieved. This conservative hold does not establish a large bias from the three missing records.",
-        "raw_records": 23325,
-        "deduplicated_records": 23325,
-        "timing_eligible_excluded": 23220
       },
       {
         "city": "Valencia",
@@ -121,15 +112,6 @@
         "timing_eligible_excluded": 0
       },
       {
-        "city": "Frankfurt",
-        "year": 2019,
-        "category": "unreconciled_hold",
-        "reason": "The earlier, wrongly dated records were replaced by the real 2019 race, which the producer lists as complete, but the producer\u2019s feature engine still drops this edition from its valid set. Held until the producer reconciles the two.",
-        "raw_records": 10554,
-        "deduplicated_records": 10554,
-        "timing_eligible_excluded": 10484
-      },
-      {
         "city": "Tokyo",
         "year": 2026,
         "category": "selected_field",
@@ -139,37 +121,10 @@
         "timing_eligible_excluded": 770
       },
       {
-        "city": "Chicago",
-        "year": 2015,
-        "category": "incomplete_ingestion",
-        "reason": "Producer notes say this edition was still being loaded when the snapshot was taken: 27,186 records, loaded in finish order and stopping at 5:31:05 for women and 4:45:16 for men, about three quarters of the field.",
-        "raw_records": 27186,
-        "deduplicated_records": 27186,
-        "timing_eligible_excluded": 27150
-      },
-      {
-        "city": "Oslo",
-        "year": 2026,
-        "category": "incomplete_ingestion",
-        "reason": "Producer marks this edition INCOMPLETE: 3,461 of 3,462 listed runners were retrieved. One missing record is unlikely to bias the results; the edition is held until the producer completes it.",
-        "raw_records": 3461,
-        "deduplicated_records": 3461,
-        "timing_eligible_excluded": 3423
-      },
-      {
-        "city": "Amsterdam",
-        "year": 2020,
-        "category": "invalid_split_grid",
-        "reason": "Producer notes mark this a virtual edition (the race on the course was cancelled in 2020), so these times are not checkpoint timings from the race course.",
-        "raw_records": 794,
-        "deduplicated_records": 794,
-        "timing_eligible_excluded": 665
-      },
-      {
         "city": "Amsterdam",
         "year": 2023,
         "category": "incomplete_ingestion",
-        "reason": "The finish time was loaded for only 17 of 16,030 records, although 40 km is present for 16,008; the 14 complete grids are what is left, not a sample of the field.",
+        "reason": "Producer marks this edition HOLD for a re-pull of the finish times: the finish was loaded for only 17 of 16,030 records, although 40 km is present for 16,008, so the 14 complete grids are what is left, not a sample of the field.",
         "raw_records": 16030,
         "deduplicated_records": 16030,
         "timing_eligible_excluded": 14
@@ -317,10 +272,154 @@
         "raw_records": 1809,
         "deduplicated_records": 1809,
         "timing_eligible_excluded": 1534
+      },
+      {
+        "city": "London",
+        "year": 2015,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: only 1,200 of about 37,793 official finishers were loaded, without 5 km splits, so no finish has a complete set of checkpoint timings.",
+        "raw_records": 1200,
+        "deduplicated_records": 1200,
+        "timing_eligible_excluded": 0
+      },
+      {
+        "city": "London",
+        "year": 2016,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: only 909 of about 39,140 official finishers were loaded, without 5 km splits, so no finish has a complete set of checkpoint timings.",
+        "raw_records": 909,
+        "deduplicated_records": 909,
+        "timing_eligible_excluded": 0
+      },
+      {
+        "city": "London",
+        "year": 2017,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: only 1,520 of about 39,487 official finishers were loaded, without 5 km splits, so no finish has a complete set of checkpoint timings.",
+        "raw_records": 1520,
+        "deduplicated_records": 1520,
+        "timing_eligible_excluded": 0
+      },
+      {
+        "city": "London",
+        "year": 2018,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: only 33,995 of about 40,220 official finishers were loaded, without 5 km splits, so no finish has a complete set of checkpoint timings.",
+        "raw_records": 33995,
+        "deduplicated_records": 33995,
+        "timing_eligible_excluded": 0
+      },
+      {
+        "city": "London",
+        "year": 2021,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: 22,226 of 35,596 official finishers were loaded (37.6% short), and women are 37% of them against 42\u201344% in 2019, 2025 and 2026. Held until the producer re-pulls it.",
+        "raw_records": 22226,
+        "deduplicated_records": 22226,
+        "timing_eligible_excluded": 21929
+      },
+      {
+        "city": "London",
+        "year": 2022,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: 31,145 of 40,619 official finishers were loaded (23.3% short), and women are 39% of them against 42\u201344% in 2019, 2025 and 2026. Held until the producer re-pulls it.",
+        "raw_records": 31145,
+        "deduplicated_records": 31145,
+        "timing_eligible_excluded": 30878
+      },
+      {
+        "city": "London",
+        "year": 2023,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: 34,064 of 43,965 official finishers were loaded (22.5% short), and women are 31% of them against 42\u201344% in 2019, 2025 and 2026. Held until the producer re-pulls it.",
+        "raw_records": 34064,
+        "deduplicated_records": 34064,
+        "timing_eligible_excluded": 33381
+      },
+      {
+        "city": "London",
+        "year": 2024,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: 46,567 of 53,000 official finishers were loaded (12.1% short). Held until the producer re-pulls it.",
+        "raw_records": 46567,
+        "deduplicated_records": 46567,
+        "timing_eligible_excluded": 46160
+      },
+      {
+        "city": "Stockholm",
+        "year": 2025,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: 17,051 of 18,864 official finishers were loaded (9.6% short). Held until the producer re-pulls it.",
+        "raw_records": 17051,
+        "deduplicated_records": 17051,
+        "timing_eligible_excluded": 16977
+      },
+      {
+        "city": "Vienna",
+        "year": 2022,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: 2,574 of 4,803 official finishers were loaded (46.4% short), and the producer is checking whether the official count includes other categories. Held until the two are reconciled.",
+        "raw_records": 2574,
+        "deduplicated_records": 2574,
+        "timing_eligible_excluded": 2546
+      },
+      {
+        "city": "Vienna",
+        "year": 2023,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: 5,659 of 6,111 official finishers were loaded (7.4% short), and the producer is checking whether the official count includes other categories. Held until the two are reconciled.",
+        "raw_records": 5659,
+        "deduplicated_records": 5659,
+        "timing_eligible_excluded": 5643
+      },
+      {
+        "city": "Vienna",
+        "year": 2024,
+        "category": "unreconciled_hold",
+        "reason": "Producer marks this edition HOLD: 6,111 of 7,459 official finishers were loaded (18.1% short), and the producer is checking whether the official count includes other categories. Held until the two are reconciled.",
+        "raw_records": 6115,
+        "deduplicated_records": 6115,
+        "timing_eligible_excluded": 6004
+      },
+      {
+        "city": "Madrid",
+        "year": 2023,
+        "category": "invalid_split_grid",
+        "reason": "The producer flags the 25 km mat as sitting about 0.6 km early, so every finisher\u2019s 20\u201325 km section is short and 25\u201330 km long; the checkpoint timings do not measure the sections they are labelled with.",
+        "raw_records": 7405,
+        "deduplicated_records": 7405,
+        "timing_eligible_excluded": 6914
+      },
+      {
+        "city": "Auckland",
+        "year": 2017,
+        "category": "invalid_split_grid",
+        "reason": "The producer flags the 30 km mat as sitting about 0.4 km late, so every finisher\u2019s 25\u201330 km section is long and 30\u201335 km short; the checkpoint timings do not measure the sections they are labelled with.",
+        "raw_records": 1836,
+        "deduplicated_records": 1836,
+        "timing_eligible_excluded": 1520
+      },
+      {
+        "city": "Chicago",
+        "year": 2005,
+        "category": "invalid_split_grid",
+        "reason": "15 km is missing for 58.7% of finishers, more often for those with shorter finish times, so complete timings survive for 16% of the quarter with the shortest finish times and 52% of the quarter with the longest: they are not a sample of the field.",
+        "raw_records": 32868,
+        "deduplicated_records": 32868,
+        "timing_eligible_excluded": 13007
+      },
+      {
+        "city": "Chicago",
+        "year": 2007,
+        "category": "selected_field",
+        "reason": "The race was cut short in the heat: the course closed after about 3.5 hours and runners still on it were re-routed. The producer flags 1,734 recorded finishes, missing their 30\u201340 km checkpoints, as finishes on a shortened course, and no recorded finish is slower than 7:13 (8:15 or later in every other Chicago year). A finisher set cut off when a race was stopped is not comparable with other editions.",
+        "raw_records": 25517,
+        "deduplicated_records": 25517,
+        "timing_eligible_excluded": 23667
       }
     ],
-    "policy_sha256": "0aa3fa50e769921af9b8bfcb261dd6357f383545cd0c06a1091e567f83cf50ea",
-    "script_sha256": "0fc0cb1282d45766db5c9ccf52ab6ad2adae46d1ae783c7165987a706a3b58d2"
+    "policy_sha256": "ba7749ee0f83896ed925fb771b71e3c86a1d493ab9c941884206ab8063ee2508",
+    "script_sha256": "de261132399ea492dd128c28d43d0502d21c5ab3a46235af2c17e083471c6b65"
   },
-  "source_quality_script_sha256": "0fc0cb1282d45766db5c9ccf52ab6ad2adae46d1ae783c7165987a706a3b58d2"
+  "source_quality_script_sha256": "de261132399ea492dd128c28d43d0502d21c5ab3a46235af2c17e083471c6b65"
 }

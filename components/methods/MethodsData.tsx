@@ -3,6 +3,7 @@ import CohortNote from '@/components/CohortNote';
 import DataCoverage from '@/components/DataCoverage';
 import { sourceReleaseHref } from '@/lib/data-source';
 import { copyEditions } from '@/lib/duplicate-editions';
+import { keptHolds } from '@/lib/edition-review';
 import { getAllFinisherContextStart } from '@/lib/all-finisher-context-server';
 import { CHAPTERS, livePages } from '@/lib/chapters';
 import { getExtensions } from '@/lib/extension-data';
@@ -10,7 +11,7 @@ import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { getWeatherEvidence } from '@/lib/weather-data';
 import { countWord } from '@/lib/nuggets/format';
-import { Part, Topic, day, n } from './shared';
+import { Part, Topic, day, editionList, n } from './shared';
 
 /** Part 1: what the data is, where it comes from and which records are analyzed. The files are under Downloads (Part 5). */
 export default function MethodsData() {
@@ -18,6 +19,7 @@ export default function MethodsData() {
   const extension = getExtensions()[0];
   const personalized = getPersonalSummary();
   const weather = getWeatherEvidence();
+  const kept = keptHolds(release.tag);
   const copies = copyEditions();
   // Every analysis page (the chapters' list, as /analyses shows it). They share one total when the all-finisher views
   // start from the personalized analyses' eligible finishes; otherwise the sentences below keep to the personalized ones.
@@ -43,7 +45,7 @@ export default function MethodsData() {
       <p>Pace Notes uses five kinds of source. They are kept apart, and no figure combines them.</p>
       <ul>
         <li><strong>Race results.</strong> Recorded results from big-city marathons: recorded names, marathon and year, finish times, the official 5 km checkpoint times, and age and recorded gender where the race supplied them. They come from one public data export, the <a href="#release">current release</a>.</li>
-        <li><strong>Weather.</strong> <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo historical weather estimates</a> for one point in each city, for the hour of the scheduled start and the hours after it. They are modeled, not measured at any runner.</li>
+        <li><strong>Weather.</strong> <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo historical weather estimates</a> for one point in each city, for the hour near the scheduled start and the hours after it. They are modeled, not measured at any runner.</li>
         <li><strong>Routes and elevation.</strong> Each race’s current route file, supplied with the data, with elevation from a digital elevation model. Whether earlier editions ran the same route is not known.</li>
         <li><strong>Official standards.</strong> Qualifying times, age rules, windows and dates, transcribed from each race’s own pages and dated by when they were last checked.</li>
         <li><strong>Published research.</strong> Published models and studies, cited in full under <a href="#tools">Runner tools</a>. None is fitted to Pace Notes data.</li>
@@ -77,7 +79,7 @@ export default function MethodsData() {
 
     <Topic id="data-quality" title="Which records are analyzed">
       <p>An analyzed finish needs complete, strictly increasing checkpoints, a finish between 90 minutes and 12 hours, and every section between 2 and 20 minutes per km. Missing or invalid readings are left out, never repaired by guessing. These filters can leave out genuine unusual performances. Sample counts and exclusions are recorded with each analysis.</p>
-      <p>After the timing checks, the reviewed edition policy for this release leaves out invalid, incomplete, held and selected-field editions before any result or earlier benchmark is formed. In this release that removes {n(weather.cohort.source_quality_excluded)} otherwise plausible finishes. They are counted separately from timing errors. Course pages and every other page apply the same policy, and each data file lists the editions it leaves out with the reason. Missing age or recorded gender alone does not remove a finish from the overall cohort.</p>
+      <p>After the timing checks, the reviewed edition policy for this release leaves out invalid, incomplete, held and selected-field editions before any result or earlier benchmark is formed.{kept.length ? ` The exception is ${editionList(kept)}: the producer holds ${kept.length > 1 ? 'them' : 'it'} while it re-checks the finisher count, and after review ${kept.length > 1 ? 'they stay' : 'it stays'} in, because ${kept.length > 1 ? 'their records fall' : 'its records fall'} only slightly short of the official count.` : ''} In this release that removes {n(weather.cohort.source_quality_excluded)} otherwise plausible finishes. They are counted separately from timing errors. Course pages and every other page apply the same policy, and each data file lists the editions it leaves out with the reason. Missing age or recorded gender alone does not remove a finish from the overall cohort.</p>
       <p>The history analyses use the fastest eligible finish in the two strictly earlier calendar years as a benchmark. A substantially improved performance is more than 2% faster than that recorded best. The benchmark describes earlier performance. It is not current fitness or a course-adjusted expected finish. Supplied “ability”, personal-best and exceptional-performance labels are not used to define these outcomes.</p>
       <p>Historical-performance charts can express change as 100 × (current finish ÷ earlier benchmark − 1). Historical opening change compares the first 10 km pace with that benchmark’s whole-marathon average pace. Negative means faster. In their three-group opening analyses, the <a href="#downloads">research packs</a> (the downloadable tables) call a start more than 2% faster, within 2%, or more than 2% slower. These thresholds describe recorded pacing, not physiological boundaries.</p>
       <p>Groups by finish time describe race shapes. Strategy comparisons need ability known before the race, so that the result does not also define the group.</p>

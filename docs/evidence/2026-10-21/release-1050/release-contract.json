@@ -1,0 +1,402 @@
+{
+  "release_tag": "private-export-20261021-1050",
+  "input_provenance": {
+    "repository": "koolkam00/pace-notes",
+    "release_tag": "private-export-20261021-1050",
+    "release_published_at": "2026-10-21T15:14:49Z",
+    "asset": "pace-notes-FULL-20261021-1050.tar.gz",
+    "asset_sha256": "6df47d5538023003271a89c289332e964aa136e34b3770ecffd2e704cc8490e5",
+    "bundle": "FULL",
+    "manifest_sha256": "b6572a8bd8daf408546e80d2dce69dfd92cf74d318c77bf0de4c71cfeba136db",
+    "asset_parts": [
+      {
+        "asset": "pace-notes-FULL-20261021-1050.tar.gz.part-00",
+        "sha256": "07788e3d11abf529e4a4930bfe2082f066ff811bd35b0fab8ac7bbb08e4bd4cc",
+        "bytes": 790000000
+      },
+      {
+        "asset": "pace-notes-FULL-20261021-1050.tar.gz.part-01",
+        "sha256": "9a67ce12c6d14776826249727373895b3ac776cfb366595286164c24a5ad6b09",
+        "bytes": 780523364
+      }
+    ],
+    "release_checksums": {
+      "asset": "RELEASE-SHA256SUMS-20261021-1050.txt",
+      "sha256": "a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f"
+    }
+  },
+  "audit_script_sha256": "408eb69298ddf5c2e49e1489daa993089dfba77beb64522fea5a5df3f3923645",
+  "member_sha256": {
+    "MANIFEST.json": "b6572a8bd8daf408546e80d2dce69dfd92cf74d318c77bf0de4c71cfeba136db",
+    "CHANGE-REPORT.md": "1d419bf84f1ab6e5c38f9e7287bc437ab71217b5971c18e4bbc4b740e68d9ca8",
+    "EDITION-CHECKSUMS.csv": "ff12a15425d2e1d9d4db5fc583a80f6d021694d99f3e1a616ece1bb7d7becefe",
+    "EDITIONS.json": "9cf1688a8284fe11cdc3b74dfadc128c4ce7aa714f90060425f82708b40bf141",
+    "FEATURE-FIELD-NOTES.md": "489cbc4c2a3a2ae481b8ecdaf20eed7b620733954585761882ac5cf11422ba05",
+    "ID-CONTRACT.md": "ded92bb71bcae90091eab0be2aab28a309daa9efb68f5853893867ce9567101d",
+    "MATCHING.md": "c1aae34d2adafa04655822e6400900be414c300224c5db0f2c3e623660d678c5",
+    "README.md": "d63cc50a16704ada5b08cb9feb92b5bfb26b6e82d13964b3eedc1f9db2396bde",
+    "course_profiles.parquet": "afd01df49fa899547fd5a5ccd0d7740a19ae33c98d3b1f732dcbe623a60b867c",
+    "course_segments.parquet": "ecc37923c7dfb868c227241388aaf3ba0e6c7dd86dd49134e0ab514f853ffd1c",
+    "edition_meta.parquet": "7c05491cd8f61b985964ee528403a063ddc45c103cceac50a5d91237f6c3b242",
+    "features.parquet": "753f513c379a2cd4a7244a5dda1734da1d235a3f3de427404d17299602c6e6be",
+    "race_conditions.parquet": "a2efadb42d1570d499e6b2b9fb2390afc1e03c14e32dd86ff268aba85942a401",
+    "race_records.parquet": "6aa60eb7f2b25472265286b0ca4179513808004f67371526783702528b144f10",
+    "races_summary.json": "a02cecf294080d2e3cdc54c16965bd72b81cc3fc9c331b96b329c62fe3bcd9e8",
+    "record_flags.parquet": "1daac358a08f945050429515d635bd7c9df2cfe671344367bf9fb8ae6a31d2f2",
+    "sources.parquet": "29b3352b33250437eae40fbd5ce1fc03c51c4d9c58a2ef0ce33efb61eaf90199",
+    "SHA256SUMS.txt": "3e9e4b4f7610852d1c5d461f56e9d41867e955baf3ce0c01a9153f9c7839f0bc"
+  },
+  "manifest_size_notes": [],
+  "r_ids": {
+    "rows": 5327504,
+    "non_null": 5327504,
+    "unique_ids": 5327504
+  },
+  "f_ids": {
+    "rows": 5327504,
+    "non_null": 5327504,
+    "unique_ids": 5327504
+  },
+  "alignment": {
+    "joined": 5327504,
+    "unmatched": 0,
+    "edition_mismatch": 0,
+    "name_mismatch": 0,
+    "age_mismatch": 0
+  },
+  "sex_normalization": [
+    {
+      "raw_sex": "X",
+      "feature_sex": "NULL",
+      "rows": 701
+    }
+  ],
+  "timings": [
+    {
+      "comparable": 5241428,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 1.8189894035458565e-12,
+      "raw": "split_5km",
+      "feature": "cum_05"
+    },
+    {
+      "comparable": 5211423,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 1.8189894035458565e-12,
+      "raw": "split_10km",
+      "feature": "cum_10"
+    },
+    {
+      "comparable": 5086048,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 3.637978807091713e-12,
+      "raw": "split_15km",
+      "feature": "cum_15"
+    },
+    {
+      "comparable": 4714228,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 7.275957614183426e-12,
+      "raw": "split_20km",
+      "feature": "cum_20"
+    },
+    {
+      "comparable": 4492861,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 7.275957614183426e-12,
+      "raw": "split_25km",
+      "feature": "cum_25"
+    },
+    {
+      "comparable": 4482091,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 7.275957614183426e-12,
+      "raw": "split_30km",
+      "feature": "cum_30"
+    },
+    {
+      "comparable": 4471073,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 1.4551915228366852e-11,
+      "raw": "split_35km",
+      "feature": "cum_35"
+    },
+    {
+      "comparable": 4461070,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 2.1827872842550278e-11,
+      "raw": "split_40km",
+      "feature": "cum_40"
+    },
+    {
+      "comparable": 5298599,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 3.637978807091713e-12,
+      "raw": "split_42_2km",
+      "feature": "finish_time"
+    }
+  ],
+  "coverage": {
+    "raw_records": 5327504,
+    "cities": 34,
+    "race_years": 298,
+    "max_ingested_at": "2026-10-21T11:29:34Z",
+    "null_age": 3675869
+  },
+  "features": {
+    "valid_splits": 4388397,
+    "sustained_slowdown_among_valid": 1360323,
+    "null_name": 11,
+    "supplied_dates": 0
+  },
+  "course_validity": {
+    "profiles": 33,
+    "valid_from": 1,
+    "valid_to": 0
+  },
+  "weather": {
+    "rows": 299,
+    "unique_editions": 299,
+    "dates_agree": 299
+  },
+  "checksum_list": {
+    "listed": 17,
+    "matched": [
+      "CHANGE-REPORT.md",
+      "EDITION-CHECKSUMS.csv",
+      "EDITIONS.json",
+      "FEATURE-FIELD-NOTES.md",
+      "ID-CONTRACT.md",
+      "MANIFEST.json",
+      "MATCHING.md",
+      "README.md",
+      "course_profiles.parquet",
+      "course_segments.parquet",
+      "edition_meta.parquet",
+      "features.parquet",
+      "race_conditions.parquet",
+      "race_records.parquet",
+      "races_summary.json",
+      "record_flags.parquet",
+      "sources.parquet"
+    ],
+    "mismatched": [],
+    "missing": [],
+    "unlisted": []
+  },
+  "producer_counts": {
+    "editions": 298,
+    "records": 5327504,
+    "records_with_5km": 5241428,
+    "races_summary_mismatches": [],
+    "manifest_race_years": 298,
+    "editions_json_rows": 299,
+    "editions_json_status": {
+      "complete": 193,
+      "excluded": 1,
+      "hold": 22,
+      "partial": 54,
+      "unverified": 29
+    },
+    "editions_json_excluded": [
+      "Amsterdam 2020"
+    ],
+    "editions_json_mismatches": []
+  },
+  "core_full_shared_hashes_match": true,
+  "core_full_shared_members": [
+    "CHANGE-REPORT.md",
+    "EDITION-CHECKSUMS.csv",
+    "EDITIONS.json",
+    "FEATURE-FIELD-NOTES.md",
+    "ID-CONTRACT.md",
+    "MANIFEST.json",
+    "MATCHING.md",
+    "README.md",
+    "SHA256SUMS.txt",
+    "course_profiles.parquet",
+    "course_segments.parquet",
+    "edition_meta.parquet",
+    "race_conditions.parquet",
+    "race_records.parquet",
+    "races_summary.json",
+    "record_flags.parquet",
+    "sources.parquet"
+  ],
+  "core_provenance": {
+    "repository": "koolkam00/pace-notes",
+    "release_tag": "private-export-20261021-1050",
+    "release_published_at": "2026-10-21T15:14:49Z",
+    "asset": "pace-notes-CORE-20261021-1050.tar.gz",
+    "asset_sha256": "b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8",
+    "bundle": "CORE",
+    "manifest_sha256": "b6572a8bd8daf408546e80d2dce69dfd92cf74d318c77bf0de4c71cfeba136db",
+    "release_checksums": {
+      "asset": "RELEASE-SHA256SUMS-20261021-1050.txt",
+      "sha256": "a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f"
+    }
+  },
+  "core_checksum_list": {
+    "listed": 17,
+    "matched": [
+      "CHANGE-REPORT.md",
+      "EDITION-CHECKSUMS.csv",
+      "EDITIONS.json",
+      "FEATURE-FIELD-NOTES.md",
+      "ID-CONTRACT.md",
+      "MANIFEST.json",
+      "MATCHING.md",
+      "README.md",
+      "course_profiles.parquet",
+      "course_segments.parquet",
+      "edition_meta.parquet",
+      "race_conditions.parquet",
+      "race_records.parquet",
+      "races_summary.json",
+      "record_flags.parquet",
+      "sources.parquet"
+    ],
+    "mismatched": [],
+    "missing": [
+      "features.parquet"
+    ],
+    "unlisted": []
+  },
+  "previous_delta": {
+    "added": 412943,
+    "deleted": 794,
+    "changed": 0,
+    "unchanged": 4914561
+  },
+  "previous_release": "htw-db-2026-10-16-1652",
+  "previous_delta_by_edition": [
+    {
+      "city": "Amsterdam",
+      "year": 2020,
+      "added": 0,
+      "deleted": 794,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2005,
+      "added": 32868,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2006,
+      "added": 33636,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2007,
+      "added": 25517,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2008,
+      "added": 31341,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2009,
+      "added": 33694,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2010,
+      "added": 36083,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2011,
+      "added": 35749,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2012,
+      "added": 37471,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2013,
+      "added": 38877,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2014,
+      "added": 40601,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2015,
+      "added": 10256,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Chicago",
+      "year": 2021,
+      "added": 26080,
+      "deleted": 0,
+      "changed": 0
+    },
+    {
+      "city": "Valencia",
+      "year": 2025,
+      "added": 30770,
+      "deleted": 0,
+      "changed": 0
+    }
+  ],
+  "previous_changed_columns": {
+    "race": 0,
+    "year": 0,
+    "city": 0,
+    "runner": 0,
+    "sex": 0,
+    "age": 0,
+    "age_group": 0,
+    "split_5km": 0,
+    "split_10km": 0,
+    "split_15km": 0,
+    "split_20km": 0,
+    "split_25km": 0,
+    "split_30km": 0,
+    "split_35km": 0,
+    "split_40km": 0,
+    "split_42_2km": 0,
+    "source_url": 0,
+    "ingested_at": 0,
+    "age_or_group": 0
+  }
+}

@@ -51,6 +51,24 @@ class WeatherTests(unittest.TestCase):
         self.assertIsNone(observation)
         self.assertIn("more than 30 minutes", error)
 
+    def test_reviewed_early_hour_is_accepted_only_as_named(self):
+        def chicago(observed="2025-10-12T07:00", start="07:35", city="Chicago", year=2025):
+            row = sample_weather(7)
+            date = observed[:10]
+            data = json.loads(row["hourly_json"])
+            data["time"] = [f"{date}T{h:02}:00" for h in range(24)]
+            row.update(city=city, year=year, race_date=date, start_local=start, observed_at=observed,
+                       temp_c=float(int(observed[11:13])), dewpoint_c=float(int(observed[11:13])) - 2,
+                       hourly_json=json.dumps(data))
+            return row
+        observation, error = weather_observation(chicago())
+        self.assertIsNone(error)
+        self.assertEqual((observation["start_hour"], observation["scheduled_start"]), ("2025-10-12T07:00", "07:35"))
+        # The same 35 minutes is still refused anywhere else, and the named edition is refused once either field changes.
+        for row in (chicago(city="Boston"), chicago(year=2024, observed="2024-10-12T07:00"),
+                    chicago(start="07:40"), chicago(observed="2025-10-12T06:00")):
+            self.assertIn("more than 30 minutes", weather_observation(row)[1])
+
     def test_missing_four_hour_measurement_and_scalar_disagreement(self):
         row = sample_weather()
         data = json.loads(row["hourly_json"])

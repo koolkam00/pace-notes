@@ -1,5 +1,45 @@
 # Project handoff
 
+## Release `private-export-20261021-1050` adopted for every analysis (October 21, 2026)
+
+The owner published `private-export-20261021-1050` on October 21, 2026 (GitHub; Figshare DOI 10.6084/m9.figshare.33965155.v3) and asked for:
+- the Analyst's `live.json` and packs rebuilt from it, with no hand-edited number;
+- every corpus count, race count and year range updated;
+- the 1,734 flagged Chicago 2007 rows left out of every pacing or split analysis;
+- each question's answer, method note and chart checked, flagging any changed insight;
+- cross-race features built on `runner_id`.
+
+It republishes 0829 with the producer's cross-race identity restored in FULL ([0829 review](REFRESH_20261021_0829.md)). The full record is [REFRESH_20261021_1050.md](REFRESH_20261021_1050.md) and the evidence [is here](evidence/2026-10-21/release-1050/).
+
+- **Source:** verified, including FULL split into two parts and checked against the release checksum file. 5,327,504 records, 34 cities, 298 editions. Against 1652: 412,943 added, 794 removed (Amsterdam 2020) and none changed. `runner_id` is the same engine as 1652: 4,653,487 records and 3,522,317 candidate runners, with every shared 1652 identity unchanged.
+- **Policy:** `RULES_1050` (41 editions, 298,961 timing-valid finishes out) is the 0829 proposal with the owner's London decision ("Keep London 2025–26"). Chicago 2007 leaves as a whole edition (heat-shortened race), which covers the flagged rows. All of Vienna (2022–2024) is held, so `/courses/vienna` 308s to `/courses`.
+- **Cohort:** **4,108,749 eligible finishes in 215 editions and 27 cities** (1652: 3,871,767 in 211 and 28). Sustained slowdowns: 1,266,780 (30.83%; 1652: 30.28%).
+- **Chicago 2025 weather (owner decision, October 22, 2026):** its start was moved to 07:35 but its weather reading stayed at 07:00, which the 30-minute start check refused on October 21. The owner said "you can use the early Chicago weather data", so `build_weather.py` accepts that one hour by name and the weather screen, runner context (weather on 298 of 298 editions), the all-finisher context and the stories and tool data were rebuilt on 1050; nothing else reads the check. Details in the [refresh record](REFRESH_20261021_1050.md#chicago-2025-weather-october-22).
+
+- **Insight review (October 22, 2026):** every page's visible text was compared with the live 1652 site and every pack's answer with its 1652 version. The changed insights, the copy fixed because it no longer held (no number changed) and the questions left for the owner and the producer are in the [refresh record](REFRESH_20261021_1050.md#changed-insights).
+
+**Repository state:** branch `data/release-1050`, PR #78; every owned output rebuilt and imported on October 21, 2026, and the weather-dependent outputs again on October 22 after the owner accepted Chicago 2025's early weather hour; local checks passed on that state on October 22, 2026, and CI on the final head is recorded on PR #78. **Deployed state:** not deployed; production `live.json` still named `htw-db-2026-10-16-1652` when checked on October 22, 2026, 09:23 UTC. The branch preview (https://htw-live-study-git-data-release-1050-koolkam00s-projects.vercel.app) serves this release.
+
+## Release `private-export-20261021-0829`: verified, not adopted (October 21, 2026; superseded by 1050 above)
+
+The owner published `private-export-20261021-0829` on October 21, 2026 and asked for every analysis to be rebuilt from it. Verification and a full edition review are done ([record](REFRESH_20261021_0829.md), [evidence](evidence/2026-10-21/release-0829/)):
+- The archives verify, the delta against 1652 is clean, and the data are complete: 5,327,504 records in 298 editions. 412,943 records were added (Chicago 2005–2014 and 2021, Valencia 2025, the rest of Chicago 2015), 794 removed (Amsterdam 2020) and none of the others changed.
+- Its FULL file has dropped the producer's cross-race runner identities. `/runners` profiles and every cross-year analysis depend on them.
+
+**Owner decisions (October 21, 2026), verbatim:**
+- On the missing identities: "Wait for the producer". Do not adopt this release. The producer republishes FULL with the identity fields, and the site stays on `htw-db-2026-10-16-1652` until then.
+- On London, which the producer now holds: "Keep London 2025–26". London 2021–2024 leave the cohort, and 2025 and 2026 stay in despite the hold. Stockholm 2025 and Vienna 2022–2024, also held, leave too, so Vienna would have no edition left.
+
+The proposed edition policy is in the evidence, not in `analysis/source_quality.py`. Applied to 0829's race records it gives 4,108,749 eligible finishes in 215 editions and 27 cities, against 3,871,767 in 211 and 28 now. It releases Chicago 2015, Frankfurt 2019, Amsterdam 2025 and Oslo 2026, and newly excludes:
+- the London, Stockholm and Vienna holds;
+- Madrid 2023 and Auckland 2017 (misplaced mats);
+- Chicago 2005 (failed 15 km mat);
+- Chicago 2007 (heat-shortened race).
+
+The producer request is in the record.
+
+**Repository state:** branch `data/release-0829`. Only the downloader (the new `pace-notes-*` archive layout, plus a check against the release's own checksum file) and the review's documents and evidence are on it; no pin, policy, builder or data file changed. **Deployed state:** unchanged; production `live.json` names `htw-db-2026-10-16-1652`.
+
 ## Course-shape pace band (October 20, 2026)
 
 **Owner decision (October 20, 2026).** Asked whether the planner's pace band should change with a course's elevation and with how most people on each course run that pace, the owner was told: no elevation model (supplied-route elevation stays context, never a finish-time adjustment, and the data cannot say what a hill costs a runner), but the course's observed shape, which the published pace-band data already holds per course. The owner decided, verbatim: "Have the band switch to course shape". This supersedes the earlier tools stance that the planner's band is only the visitor's even pace ("The planner never suggests a pace" on `/methodology`, now replaced by the course-shape method).

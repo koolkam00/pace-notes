@@ -329,7 +329,7 @@ function scan(value, where, key) {
   scannedValues++;
   if (typeof value === 'number') assert.ok(Number.isFinite(value), `${where}: finite number`);
   if (typeof value === 'string') {
-    if (key !== 'release_tag') assert.ok(!/private-export|20260912|htw-db-|20261016/.test(value), `${where}: copy cites an internal export label`);
+    if (key !== 'release_tag') assert.ok(!/private-export|20260912|htw-db-|20261016|20261021/.test(value), `${where}: copy cites an internal export label`);
     const normalised = normaliseName(value);
     if (normalised) copyStrings.set(normalised, where);
   }
@@ -349,6 +349,11 @@ for (const rule of screen) {
   duplicate[editionIndex.get(editionKey(rule.city, rule.year))] = 1;
 }
 const excluded = new Set(runners.source_quality.editions.map(row => editionKey(row.city, row.year)));
+// The producer-held editions /methodology names as kept (lib/kept-holds.json, read as JSON so this verifier needs
+// no TypeScript or packages): in this release and outside its policy.
+for (const { city, year } of read(path.join(root, 'lib', 'kept-holds.json'))[pin.tag] ?? []) {
+  assert.ok(editionIndex.has(editionKey(city, year)) && !excluded.has(editionKey(city, year)), `${city} ${year}: a kept hold must be in the release and outside the edition policy`);
+}
 const capacity = runners.eligible_records;
 const times = new Float64Array(capacity * 9), editionOf = new Uint16Array(capacity), genderOf = new Uint8Array(capacity);
 const recordIds = new Float64Array(runners.raw_records), profileIds = new Float64Array(runners.profiles);
@@ -1272,7 +1277,16 @@ function checkWeatherMatch(doc) {
   const eds = toolCohortCheck(doc, 'Weather match'), valid = toolWeather(eds);
   assert.deepEqual(doc.editions.map(r => [r.city, r.year]), eds.filter(e => valid.has(e)).map(e => [editions[e].city, editions[e].year]), 'Weather match: editions with a valid, matching weather row');
   const byId = doc.editions.map(r => editionIndex.get(editionKey(r.city, r.year)));
-  doc.editions.forEach((r, j) => near(r.temp_c, Math.round(valid.get(byId[j]).temp_c * 10) / 10, `${r.city} ${r.year}: start temperature`, 1e-9));
+  doc.editions.forEach((r, j) => {
+    const w = valid.get(byId[j]);
+    near(r.temp_c, Math.round(w.temp_c * 10) / 10, `${r.city} ${r.year}: start temperature`, 1e-9);
+    // Wind keeps the source's two decimals, so the tool prints the mph the course pages print (October 22, 2026: rounded
+    // to 0.1 m/s first, 106 of 197 editions printed another mph); dew point and warming are rounded to one.
+    for (const [key, source, tolerance] of [['wind_mps', 'wind_mps', 1e-9], ['dew_c', 'dewpoint_c', .05 + 1e-9], ['warming_c', 'warming_c', .05 + 1e-9]]) {
+      if (w[source] == null) assert.equal(r[key], null, `${r.city} ${r.year}: ${key} without a source value`);
+      else near(r[key], w[source], `${r.city} ${r.year}: ${key}`, tolerance);
+    }
+  });
   const per = new Map();
   for (const e of byId) {
     const bands = new Map();

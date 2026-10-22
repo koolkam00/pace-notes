@@ -245,7 +245,8 @@ const allFinisher = new Map(read('public/data/all-finisher-context/evidence.json
 const policy = read('public/data/packs/ext_course_pacing_profiles/pack_meta.json').source_quality;
 assert.equal(policy.release_tag, release.tag, 'The course-profile source policy is for the adopted release');
 // One page per course with eligible finishes: 29 under 0934, 28 since the 1652 release excluded Melbourne's only edition
-// (2015, a partial load). The count comes from the verified story data, never a typed number.
+// (2015, a partial load), 27 since the October 21, 2026 release held all three Vienna editions. The count comes from the
+// verified story data, never a typed number.
 assert.deepEqual(CITIES, courses.courses.map((c) => c.city).sort(), 'One course page per course in the story data');
 assert.equal(CITIES.length, manifest.cohort.cities, 'Course pages match the story cohort\'s cities');
 
@@ -501,7 +502,7 @@ function sectionOf(body, id) {
 }
 const exported = (pathname) => pathname === '/' ? fs.existsSync(path.join(OUT, 'index.html')) : [`${pathname.slice(1)}.html`, `${pathname.slice(1)}/index.html`].some((f) => fs.existsSync(path.join(OUT, f)));
 
-const BANNED = [[/\bthe wall\b/i, '"the wall"'], [/arithmetic/i, '"arithmetic"'], [/\byour(?:\s+\w+){0,2}\s+chances?\b/i, '"your chance"'], [/private-export/i, 'a release tag'], [/20260912/, 'a release date'], [/htw-db-/i, 'a release tag'], [/20261016/, 'a release date']];
+const BANNED = [[/\bthe wall\b/i, '"the wall"'], [/arithmetic/i, '"arithmetic"'], [/\byour(?:\s+\w+){0,2}\s+chances?\b/i, '"your chance"'], [/private-export/i, 'a release tag'], [/20260912/, 'a release date'], [/htw-db-/i, 'a release tag'], [/20261016/, 'a release date'], [/20261021/, 'a release date']];
 const RANK = /\b(?:rank|ranks|ranked|ranking|rankings|fastest|toughest|hardest|easiest|harder|easier|tougher|similar|best|worst|top \d+)\b/i;
 const DOI = 'doi:10.1371/journal.pone.0251513';
 const DOI_URL = 'https://doi.org/10.1371/journal.pone.0251513';

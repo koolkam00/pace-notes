@@ -7,7 +7,7 @@ import type { CourseGoal } from '@/lib/tools/data';
 
 export const metadata = pageMetadata({
   title: 'Compare Marathon Courses at Your Goal Pace | Pace Notes',
-  description: 'Pick a goal and compare marathon courses side by side: how finishes on that pace held up, race month, start temperatures and elevation. Not a ranking.',
+  description: 'Pick a goal and compare marathon courses side by side: how finishes on that pace held up, the race month and which courses start downhill. Not a ranking.',
   path: '/tools/course-chooser',
 });
 

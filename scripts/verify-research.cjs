@@ -64,7 +64,7 @@ for (const extension of extensions) {
   assert.equal(question.answer, extension.answer.answer, 'Question must use its verified extension result');
   const metadata = JSON.parse(fs.readFileSync(`public/data/packs/${extension.id}/pack_meta.json`, 'utf8'));
   for (const key of ['input_asset_sha256', 'input_manifest_sha256', 'analysis_script_sha256']) assert.match(metadata[key], /^[a-f0-9]{64}$/);
-  if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652'].includes(metadata.input_export_id)) {
+  if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652', 'private-20261021-1050'].includes(metadata.input_export_id)) {
     assert.ok([1, 2].includes(metadata.analysis_version));
     assert.equal(metadata.analysis_script_sha256, scriptHash(metadata.analysis_version === 1 ? 'build_pacing.py' : 'build_extended.py'), `${extension.id}: calculation code mismatch`);
     if (metadata.analysis_version === 2) assert.equal(metadata.supporting_script_sha256, scriptHash('build_pacing.py'), `${extension.id}: eligibility parser mismatch`);
@@ -73,7 +73,7 @@ for (const extension of extensions) {
   assert.ok(Number.isFinite(Date.parse(metadata.live_json_as_of)));
   const c = metadata.cohort;
   assert.equal(c.raw, c.duplicates_removed + c.missing_or_unparsed + c.non_increasing + c.outside_quality_bounds + (c.source_quality_excluded || 0) + c.eligible);
-  if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652'].includes(metadata.input_export_id)) assert.ok(metadata.source_quality?.reviewed_edition_policy, 'This source requires the reviewed edition policy');
+  if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652', 'private-20261021-1050'].includes(metadata.input_export_id)) assert.ok(metadata.source_quality?.reviewed_edition_policy, 'This source requires the reviewed edition policy');
   if (metadata.source_quality) {
     const policy = metadata.source_quality;
     const hash = crypto.createHash('sha256').update(fs.readFileSync('analysis/source_quality.py')).digest('hex');
