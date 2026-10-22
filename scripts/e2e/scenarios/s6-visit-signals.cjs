@@ -675,7 +675,8 @@ const OTHER_DATA_PAGES = [
 async function dataFailure(h, target) {
   const run = await h.run(target.path, {});
   const asked = [];
-  run.block(url => { const data = url.pathname.startsWith('/data/'); if (data) asked.push(url.pathname); return data; });
+  let askedAt = 0;
+  run.block(url => { const data = url.pathname.startsWith('/data/'); if (data) { asked.push(url.pathname); askedAt = Date.now(); } return data; });
   const page = await run.newPage();
   await page.goto(SITE + target.path, { waitUntil: 'load' });
   await page.waitForTimeout(1500);
@@ -684,7 +685,10 @@ async function dataFailure(h, target) {
   const visible = () => page.evaluate(selector => [...document.querySelectorAll(selector)].some(el => el.getClientRects().length && el.textContent.trim())
     || /could not (be )?load|could not be verified/i.test(document.body.innerText), ERROR_STATE);
   const opened = Date.now();
-  await waitFor(async () => (reported() && await visible()) || (!asked.length && Date.now() - opened > 2500), 12000, 400);
+  // Read once the page has settled: an action can retry the failed file (the runner search does on Enter), and for a
+  // moment the retry's loading state replaces the error (October 22, 2026: the first poll saw the old error, the read
+  // after it the loading state). No data request for 300 ms means the last one has failed and its state has rendered.
+  await waitFor(async () => (reported() && Date.now() - askedAt > 300 && await visible()) || (!asked.length && Date.now() - opened > 2500), 12000, 400);
   const errorShown = await visible();
   await page.waitForTimeout(500);
   await run.close();
