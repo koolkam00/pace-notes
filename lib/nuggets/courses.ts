@@ -210,6 +210,10 @@ function courseLate(ctx?: NuggetContext): Nugget {
   const guard = i >= 0 && m >= 0 && n >= 3 && slowest !== modal;
   const name = sectionOf(i), usual = sectionOf(m);
   const display = page?.display ?? 'This course';
+  // A course of fewer editions says how many before it is set beside the others, as its slowdown H2 does (October 22,
+  // 2026: Auckland's slowest 5K, on two editions, read like every other course's).
+  const editions = page?.summary.editions ?? 0;
+  const from = editions > 0 && editions < MIN_EDITIONS ? `From its ${countWord(editions)} ${editions === 1 ? 'edition' : 'editions'}, ` : '';
   // The row's figure is how much slower than its own average the slowest section runs: a reading, not a section name.
   const v = page?.summary.curve?.length === 9 && i >= 0 ? page.summary.curve[i] : NaN;
   const by = Math.round(Math.abs(v));
@@ -217,7 +221,7 @@ function courseLate(ctx?: NuggetContext): Nugget {
     id: 'course.late', page: `/courses/${page?.slug ?? ''}#at-a-glance`, denominator: 'shape',
     values: { section: slowest ?? '', modal: modal ?? '', k, n, pace: v },
     guard,
-    headline: `${display}’s slowest ${stretchOf(i)} is *${name}*; on ${onCourses(k, n)} it’s ${usual}.`,
+    headline: `${from}${display}’s slowest ${stretchOf(i)} is *${name}*; on ${onCourses(k, n)} it’s ${usual}.`,
     fallback: i >= 0 && m >= 0 ? `${display}’s slowest ${stretchOf(i)} is ${name}, as on ${onCourses(k, n)}.` : i >= 0 ? `${display}’s slowest ${stretchOf(i)} is ${name}.` : 'Where the median finish slowed most.',
     figure: i >= 0 && Number.isFinite(v) && v > 0 ? { value: `${by}%`, unit: ' slower', sr: `${by}% slower` } : null,
     // The baseline named (critic round 4: "than average" beside the hills page's "than elsewhere" read as one number).
@@ -498,7 +502,12 @@ function courseWeather(ctx?: NuggetContext): Nugget {
   const cool = pool.length ? pool.reduce((a, b) => (b.temp <= a.temp ? b : a)) : null;
   const minGap = readInsight<Courses>('courses.json').weather.pairs.min_gap_c;
   const apartC = hot && cool ? Math.round((hot.temp - cool.temp) * 10) / 10 : NaN;
-  const guard = weatherShown(page) && !!hot && !!cool && hot.year !== cool.year && apartC >= minGap;
+  // The warmest and coolest mornings each stand alone at their printed temperature, in both units: where another morning
+  // in the pool prints the same (October 22, 2026: Warsaw's 2015, 2019 and 2021 all at 58°F, with 24%, 35% and 36%;
+  // Copenhagen's 2015 and 2025 both at 48°F, with 31% and 19%), the pair rests on a difference no reader can see, so the
+  // page leaves #weather out, as it does for mornings too close to compare.
+  const alone = (e: (typeof pool)[number]) => (['mi', 'km'] as const).every((u) => pool.filter((o) => temp(o.temp, u) === temp(e.temp, u)).length === 1);
+  const guard = weatherShown(page) && !!hot && !!cool && hot.year !== cool.year && apartC >= minGap && alone(hot) && alone(cool);
   const same = guard && pct(hot!.slowdown) === pct(cool!.slowdown);
   const gap = guard ? Math.abs(Math.round(hot!.slowdown * 100) - Math.round(cool!.slowdown * 100)) : NaN;
   const quiet = guard && !same && gap < WEATHER_GAP;

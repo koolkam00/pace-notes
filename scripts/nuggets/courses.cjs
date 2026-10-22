@@ -121,7 +121,9 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         const i = courses.sections.indexOf(c.slowest_section);
         // The share of courses said in words (round 6): every, nearly every (85% or more), most, else the tally.
         const k = tally.get(modal), on = k === shaped ? 'every course' : k / shaped >= 0.85 ? 'nearly every course' : k / shaped > 0.5 ? 'most courses' : `${k} of ${shaped} courses`;
-        step(() => eq(said(n), `${named(city)}’s slowest ${stretch(i)} is ${name}; on ${on} it’s ${usual}.`, `course.late (${city}): the sentence`));
+        // A course of fewer than three editions says how many first, as its slowdown H2 does.
+        const from = c.editions < 3 ? `From its ${['zero', 'one', 'two'][c.editions]} edition${c.editions === 1 ? '' : 's'}, ` : '';
+        step(() => eq(said(n), `${from}${named(city)}’s slowest ${stretch(i)} is ${name}; on ${on} it’s ${usual}.`, `course.late (${city}): the sentence`));
         // The row names its baseline, the course's own average pace (the hills page's is other courses; critic round 4).
         step(() => eq(n.key, `than ${named(city)}’s average pace, at ${name}, its slowest ${stretch(i)}; on ${on} it’s ${usual}`, `course.late (${city}): the row names its baseline`));
         // The row's figure: how much slower than the course's own average its slowest section runs, in whole percent.
@@ -302,7 +304,9 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const pool = mornings.filter((e) => !held.has(`${city}|${e.year}`) && e.year !== heroYear).sort((a, b) => a.year - b.year);
       let hot = null, cool = null;
       for (const e of pool) { if (!hot || e.temp >= hot.temp) hot = e; if (!cool || e.temp <= cool.temp) cool = e; }
-      const guard = shown && !!hot && hot.year !== cool.year && Math.round((hot.temp - cool.temp) * 10) / 10 >= courses.weather.pairs.min_gap_c;
+      // Each end stands alone at its printed temperature in both units (whole degrees, as lib/nuggets/format.ts temp).
+      const alone = (e) => [(c) => (c * 1.8 + 32).toFixed(0), (c) => c.toFixed(0)].every((f) => pool.filter((o) => f(o.temp) === f(e.temp)).length === 1);
+      const guard = shown && !!hot && hot.year !== cool.year && Math.round((hot.temp - cool.temp) * 10) / 10 >= courses.weather.pairs.min_gap_c && alone(hot) && alone(cool);
       step(() => eq(n.guard, guard, `course.weather (${city}): the pair other than the hero's edition, 5 °C apart`));
       // Shares that round alike are said once; under 5 whole points apart, about the same share, warm or cool; 5 points
       // or more, two facts. Otherwise the span of every morning.
