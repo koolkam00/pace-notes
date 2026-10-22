@@ -1,6 +1,6 @@
 # Public export access
 
-Updated October 22, 2026 for **`private-export-20261021-1050`**, the release every page uses (on `main` since PR #78 and live on splithappens.run since October 22, 2026). Full source records, recorded names, supplied features, overlays and the producer's documents are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption ([operations](../docs/OPERATIONS.md)).
+Updated October 22, 2026 for **`private-export-20261021-1050`**, the release every page uses (on `main` since PR #78, `39f3057`; production state is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md)). Full source records, recorded names, supplied features, overlays and the producer's documents are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption ([operations](../docs/OPERATIONS.md)).
 
 ## Open the full records
 
@@ -13,11 +13,11 @@ Steps, with standard tools:
 
 1. Download CORE, or both FULL parts, and the release checksums into one folder.
 2. Join FULL's parts in order: `cat pace-notes-FULL-20261021-1050.tar.gz.part-00 pace-notes-FULL-20261021-1050.tar.gz.part-01 > pace-notes-FULL-20261021-1050.tar.gz`.
-3. Check what you downloaded: `sha256sum -c --ignore-missing RELEASE-SHA256SUMS-20261021-1050.txt` (on macOS, `shasum -a 256 -c`).
-4. Unpack: `tar -xzf pace-notes-FULL-20261021-1050.tar.gz` (or the CORE archive). `SHA256SUMS.txt` inside lists every member's digest.
-5. Read the Parquet tables with DuckDB (`SELECT * FROM 'race_records.parquet' LIMIT 10;`) or PyArrow. `MANIFEST.json`, `ID-CONTRACT.md`, `FEATURE-FIELD-NOTES.md` and `MATCHING.md` describe the fields.
+3. Check what you downloaded: `sha256sum -c --ignore-missing RELEASE-SHA256SUMS-20261021-1050.txt` (on macOS, `shasum -a 256 -c --ignore-missing RELEASE-SHA256SUMS-20261021-1050.txt`). Each file you downloaded prints OK; the others are skipped.
+4. Unpack: `tar -xzf pace-notes-FULL-20261021-1050.tar.gz` (or the CORE archive). It unpacks into a folder named `private-export-20261021-1050/`, whose `SHA256SUMS.txt` lists the data files' digests (CORE's copy also lists `features.parquet`, which only FULL holds, so check it with `--ignore-missing` too).
+5. From inside that folder, read the Parquet tables with DuckDB (`SELECT * FROM 'race_records.parquet' LIMIT 10;`) or PyArrow. `MANIFEST.json`, `ID-CONTRACT.md`, `FEATURE-FIELD-NOTES.md` and `MATCHING.md`, in the same folder, describe the fields.
 
-Or let `analysis/download_release.py` do steps 1 to 3: it streams FULL's parts in order, checks each part's size and digest, and refuses a joined archive whose SHA-256 is not in the release checksums.
+Or let `analysis/download_release.py` do steps 1 to 4: it streams FULL's parts in order, checks each part's size and digest, refuses a joined archive whose SHA-256 is not in the release checksums, and writes every file straight into `--output` (no subfolder), which is the layout the analysis commands expect.
 
 ```bash
 python -m pip install -r analysis/requirements.txt
@@ -25,7 +25,7 @@ python analysis/download_release.py --bundle FULL --tag private-export-20261021-
 python analysis/download_release.py --bundle CORE --tag private-export-20261021-1050 --output /path/to/1050-core
 ```
 
-No account, password or decryption key is required. On October 22, 2026 at 16:44 UTC the release's asset list was read from the GitHub API with no token (HTTP 200), and the release checksums (HTTP 200, 428 bytes) and the first kilobyte of FULL part 00 (HTTP 206, 1,024 bytes) were downloaded with curl sending no credentials, from the project's build container through its HTTPS proxy.
+No account, password or decryption key is required: the repository is public and the release is published, not a draft (GitHub API, October 22, 2026: `private: false`, `visibility: public`; release `draft: false`, `prerelease: false`). The same day at 16:44 UTC the release's asset list (HTTP 200), the release checksums (HTTP 200, 428 bytes) and the first kilobyte of FULL part 00 (HTTP 206, 1,024 bytes) were fetched with curl from the project's build container. That container's HTTPS proxy authenticates GitHub requests (GitHub answered with a 15,000-request limit, not the anonymous 60), so this shows the files are there, not that a client without an account reached them; a check from a browser with no sign-in, or a CI job with no token, would measure that.
 
 | Verification | Value |
 | --- | --- |

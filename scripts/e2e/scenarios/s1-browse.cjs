@@ -86,14 +86,16 @@ async function firstScreen(h) {
     await page.waitForTimeout(800);
     const seen = await page.evaluate(() => {
       const bottom = selector => [...document.querySelectorAll(selector)].map(el => Math.round(el.getBoundingClientRect().bottom));
+      // Only a line that is painted counts: hidden by display, visibility or opacity, or with no height, it is not there.
+      const shown = selector => [...document.querySelectorAll(selector)].filter(el => el.checkVisibility({ visibilityProperty: true, opacityProperty: true }) && el.getBoundingClientRect().height > 0).map(el => Math.round(el.getBoundingClientRect().bottom));
       const orange = [...document.querySelectorAll('a, button, select, input:not([type=hidden])')].filter(el => {
         const r = el.getBoundingClientRect();
         return r.width && r.height && r.top < innerHeight && r.bottom > 0 && getComputedStyle(el).backgroundColor === 'rgb(255, 91, 46)';
       }).map(el => el.textContent.trim());
-      return { innerHeight, scrollY, title: bottom('#hero-title'), what: bottom('.home-hero-what'), button: bottom('.home-plan-button'), doors: bottom('.home-door-link'), orange };
+      return { innerHeight, scrollY, title: bottom('#hero-title'), what: shown('.home-hero-what'), button: bottom('.home-plan-button'), doors: bottom('.home-door-link'), orange };
     });
     await run.close();
-    const fits = seen.scrollY === 0 && seen.what.length === 1 && seen.button.length === 1 && seen.doors.length === 2 && [...seen.title, ...seen.what, ...seen.button, ...seen.doors].every(b => b <= seen.innerHeight);
+    const fits = seen.scrollY === 0 && seen.what.length === 1 && seen.what[0] > seen.title[0] && seen.what[0] < seen.button[0] && seen.button.length === 1 && seen.doors.length === 2 && [...seen.title, ...seen.what, ...seen.button, ...seen.doors].every(b => b <= seen.innerHeight);
     h.check(`${viewport.width} x ${viewport.height}: the title, the line that says what Pace Notes is, the Plan your race button and both other ways to start end above the screen's bottom`, fits, seen);
     h.check(`${viewport.width} x ${viewport.height}: Plan your race is the only orange control on the first screen`, JSON.stringify(seen.orange) === '["Plan your race"]', seen.orange);
     h.note(`${viewport.width} x ${viewport.height}: bottoms (px of ${seen.innerHeight}) title ${seen.title}, what ${seen.what}, button ${seen.button}, doors ${seen.doors.join(' and ')}`);

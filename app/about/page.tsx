@@ -41,7 +41,7 @@ function ways(): Way[] {
  * About (the redesign spec, sections 7.15 and 00; the owner's orientation request, October 22, 2026): what Pace Notes
  * is, where to start, why it exists and how it is made. Functional copy, one short disclaimer and links to /methodology
  * ids only: every data-source, check and coverage sentence is on /methodology. The Where to start rows carry the
- * `steps` section id (one the home page used until October 17), so a view of them is counted without a new id. "Request
+ * `steps` section id (the home page's three steps sent it until the October 20, 2026 redesign), so a view of them is counted without a new id. "Request
  * an analysis" is a link in the text, not a second button beside the footer's. Ends on the way into the race (InfoNext).
  */
 export default function AboutPage() {
@@ -66,7 +66,7 @@ export default function AboutPage() {
       <section className="info-section" aria-labelledby="about-how">
         <h2 id="about-how" className="info-h2">How it is made</h2>
         <p>Pace Notes is made by Andrew Kam, from public race results and the questions runners ask before and after a marathon. The code behind every page is public.</p>
-        <p>The detail is on How we know: <Link href="/methodology#sources">where the data comes from</Link>, <Link href="/methodology#release">how each release is checked</Link> and <Link href="/methodology#limits">what the numbers cannot show</Link>.</p>
+        <p>The detail is on How we know: <Link href="/methodology#sources">where the data comes from</Link>, <Link href="/methodology#release">how new data is checked before it reaches the pages</Link> and <Link href="/methodology#limits">what the numbers cannot show</Link>.</p>
         <p>Have a race question the data could answer? Send Andrew the idea: <Link href="/request-analysis">Request an analysis</Link>.</p>
       </section>
       <InfoNext />

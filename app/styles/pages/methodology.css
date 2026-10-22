@@ -15,7 +15,6 @@
 .methods-short { max-width: var(--measure); margin-top: var(--s-5); }
 .methods-short .info-facts a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; }
 .methods-short .info-facts a:hover { text-decoration-color: currentColor; }
-.methods-short + .methods-jump { margin-top: var(--s-5); }
 
 /* ---------- Jump to: the five parts as chips, sticky under the header ---------- */
 .methods-jump {

@@ -95,9 +95,9 @@ export default function MethodologyPage() {
       <section className="methods-short" aria-labelledby="methods-short-title">
         <h2 id="methods-short-title" className="sr-only">In short</h2>
         <ul className="info-facts">
-          <li>Findings come from <a href="#sources">recorded results of big-city marathons</a>, down to each finish’s 5K splits. The tools also use <a href="#evidence">published research and official standards</a>, each labelled.</li>
-          <li>A share is what past finishes did: <a href="#interpretation">an association, not a forecast</a>.</li>
-          <li>A new release reaches the pages only after every calculation is <a href="#release">rerun and checked</a>.</li>
+          <li>Findings come from <a href="#sources">recorded results of big-city marathons</a>, down to each finish’s 5K splits, with modeled weather and each course’s route as context. The tools also use <a href="#evidence">published research and official standards</a>, each labelled.</li>
+          <li>Percentages describe what past finishes did: <a href="#interpretation">an association, not a forecast</a>.</li>
+          <li>A new data release reaches the pages only after every calculation is <a href="#release">rerun and checked</a>.</li>
           <li>Every file is public, with no account or key: <a href="#downloads">the full records, every release and the code</a>.</li>
         </ul>
       </section>
