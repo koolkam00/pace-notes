@@ -7,6 +7,11 @@
 // are named in the summary, so they are never mistaken for recounted results.
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 const zlib = require('node:zlib'), assert = require('node:assert/strict');
+// TypeScript (lib/edition-review.ts) loads through its transpiler, as in the other verifiers: CI runs Node 20.
+const ts = require('typescript');
+require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, filename);
 
 const started = Date.now();
 const root = path.resolve(__dirname, '..'), args = process.argv.slice(2), options = {};
