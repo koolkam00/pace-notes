@@ -53,6 +53,10 @@ async function reading(h) {
   await page.evaluate(selector => document.querySelector(selector).click(), HOME_STORY);
   await page.waitForURL(url => new URL(url).pathname.startsWith('/stories/'));
   const storyA = new URL(page.url()).pathname;
+  // The address changes before the story is on screen; its page view and hero go out once it renders, which a slow
+  // runner can take seconds to do (CI, October 22, 2026: the round-numbers story had not rendered 2.9 s after its
+  // address changed, so it sent neither). Wait for the story itself, then the usual pause.
+  await page.waitForSelector('.story-page', { timeout: 30000 });
   await page.waitForTimeout(1500);
   await toBottom();
   const feedback = page.locator('.page-feedback');
@@ -68,11 +72,13 @@ async function reading(h) {
   await page.waitForTimeout(800);
   await page.locator('a.site-title').click();
   await page.waitForURL(url => new URL(url).pathname === '/');
+  await page.waitForSelector('#hero-title', { timeout: 30000 });
   await page.waitForTimeout(1500);
   // Story B, read to the end, then the tab leaves the site with a full load: the story's own $pageleave.
   const storyB = await page.evaluate(([selector, a]) => [...document.querySelectorAll(selector)].map(el => new URL(el.href).pathname).find(href => href !== a), [HOME_STORY, storyA]);
   await page.evaluate(([selector, href]) => [...document.querySelectorAll(selector)].find(el => new URL(el.href).pathname === href).click(), [HOME_STORY, storyB]);
   await page.waitForURL(url => new URL(url).pathname === storyB);
+  await page.waitForSelector('.story-page', { timeout: 30000 });
   await page.waitForTimeout(1500);
   await toBottom();
   await page.waitForTimeout(800);
