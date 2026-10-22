@@ -24,9 +24,9 @@ export const WIDE = '(min-width: 1180px)';
 export default function MenuSheet({ open, onClose, chapters }: { open: MenuMode; onClose: () => void; chapters: ReactNode }) {
   const sheet = useRef<HTMLDivElement>(null), panel = useRef<HTMLDivElement>(null);
   const drawer = useRef<HTMLDivElement>(null), drawerPanel = useRef<HTMLDivElement>(null);
-  const active = useRef<HTMLElement | null>(null), body = useRef<HTMLDivElement>(null);
+  const active = useRef<HTMLElement | null>(null), body = useRef<HTMLDivElement>(null), handOff = useRef(false);
   active.current = open === 'chapters' ? drawerPanel.current : panel.current;
-  useDialog(!!open, onClose, active);
+  useDialog(!!open, onClose, active, true, handOff);
   useEffect(() => {
     const wide = window.matchMedia(WIDE);
     const apply = () => {
@@ -42,12 +42,16 @@ export default function MenuSheet({ open, onClose, chapters }: { open: MenuMode;
   const dialog = (on: boolean, title: string) => (on ? { role: 'dialog', 'aria-modal': true, 'aria-labelledby': title } : {});
   const close = (label: string) => <button type="button" className="sheet-close" onClick={onClose} aria-label={label}><CloseIcon /></button>;
   // The menu closes when the path changes (SiteHeader). A link to the page already open (Open data on /methodology goes
-  // to its #downloads) changes no path, so it closes the menu on the click.
+  // to its #downloads) changes no path, so it closes the menu on the click. A followed link to a section leaves the focus
+  // with that section (Next focuses it; How we know's parts take focus, methods/shared.tsx) instead of handing it back
+  // to the Menu button, so the next Tab, or a screen reader, carries on from Downloads, not from the top of the page.
   const here = (event: MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href]') : null;
+    if (!link || link.origin !== window.location.origin) return;
+    if (open && link.hash) handOff.current = true;
     const path = (p: string) => p.replace(/\/+$/, '') || '/';
-    if (link && link.origin === window.location.origin && path(link.pathname) === path(window.location.pathname)) onClose();
+    if (path(link.pathname) === path(window.location.pathname)) onClose();
   };
   return (
     <div ref={sheet} id="site-sheet" className={`menu-sheet${open === 'menu' ? ' is-open' : ''}`} {...dialog(open === 'menu', 'site-sheet-title')}>

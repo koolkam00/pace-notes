@@ -417,6 +417,46 @@ async function courseBack(h, device) {
   h.check('page views: the course page, the planner, the course page again', JSON.stringify(paths) === JSON.stringify(['/courses/boston', '/tools/plan', '/courses/boston']), paths);
 }
 
+// The Menu's Open data (components/SiteNav.tsx) goes to How we know's Downloads: from another page, and from
+// /methodology itself, where no path changes and the menu closes on the click (components/MenuSheet.tsx). Followed by
+// keyboard, the focus stays with Downloads, so the next Tab is a link inside it, not the top of the page.
+async function menuOpenData(h) {
+  const run = await h.run('the Menu\'s Open data', PHONE);
+  const page = await run.newPage();
+  const follow = async () => {
+    await page.keyboard.press('Escape'); // nothing open: a no-op that makes the page take keyboard input
+    await page.locator('.site-header .nav-toggle').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('#site-sheet.is-open'));
+    await page.waitForTimeout(500);
+    await page.locator('#site-menu .nav-more a[href="/methodology#downloads"]').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => location.pathname === '/methodology' && location.hash === '#downloads', null, { timeout: 15000 });
+    await page.waitForTimeout(1200);
+    const state = await page.evaluate(() => {
+      const target = document.getElementById('downloads'), top = target ? Math.round(target.getBoundingClientRect().top) : null;
+      return { open: !!document.querySelector('#site-sheet.is-open'), expanded: document.querySelector('.site-header .nav-toggle').getAttribute('aria-expanded'),
+        locked: document.documentElement.classList.contains('has-sheet-open'), top, inView: top !== null && top >= 0 && top < innerHeight,
+        focus: !!target && target.contains(document.activeElement) };
+    });
+    await page.keyboard.press('Tab');
+    state.tab = await page.evaluate(() => { const a = document.activeElement; return { inside: !!a && !!a.closest('#downloads'), tag: a && a.tagName }; });
+    return state;
+  };
+  const fine = s => !s.open && s.expanded === 'false' && !s.locked && s.inView && s.focus && s.tab.inside;
+  await page.goto(SITE + '/about', { waitUntil: 'load' });
+  await page.waitForTimeout(800);
+  const fromAbout = await follow();
+  h.check('from /about, Open data opens How we know at Downloads, closes the menu and leaves the focus in Downloads', fine(fromAbout), fromAbout);
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.waitForTimeout(400);
+  const onPage = await follow();
+  h.check('on /methodology, Open data closes the menu, shows Downloads and leaves the focus there (no path changes)', fine(onPage), onPage);
+  await run.close();
+  const paths = run.events().filter(({ e }) => e.event === '$pageview').map(({ e }) => e.properties.$pathname);
+  h.check('page views: /about, then /methodology once', JSON.stringify(paths) === JSON.stringify(['/about', '/methodology']), paths);
+}
+
 module.exports = {
   id: 'S1',
   title: 'Browsing: home, story, the five main links, an analysis, privacy; the home page\'s first screen and form; the units switch; Back to a course page; every goal tool\'s goal retyped',
@@ -429,6 +469,7 @@ module.exports = {
     { name: 'keypad colon', weight: 8, run: keypad },
     { name: 'units switch', weight: 12, run: unitSwitch },
     { name: 'course page Back', weight: 8, run: h => courseBack(h, PHONE) },
+    { name: 'Menu Open data', weight: 8, run: menuOpenData },
     { name: 'goal retype', weight: 8, run: goalRetype },
   ],
 };

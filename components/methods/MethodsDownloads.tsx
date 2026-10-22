@@ -20,7 +20,11 @@ export const STORY_FILE_TOPICS: Record<string, string> = {
 
 const RELEASES = 'https://github.com/koolkam00/pace-notes/releases';
 const SOURCE = 'https://github.com/koolkam00/pace-notes';
-/** The full records on Figshare: the DOI without a version resolves to the newest version there. */
+/**
+ * The race records on Figshare. The DOI without a version resolves to the newest version there, which need not be the
+ * release the site uses (version 2 is 0829, never adopted; 1652 is not there), so the row does not call it the current
+ * release; analysis/ACCESS.md gives the versioned DOI of the adopted one.
+ */
 const FIGSHARE = 'https://doi.org/10.6084/m9.figshare.33965155';
 /** How to open the full records of the adopted release (rewritten at every adoption: docs/OPERATIONS.md). */
 const ACCESS = 'https://github.com/koolkam00/pace-notes/blob/main/analysis/ACCESS.md';
@@ -56,7 +60,7 @@ export default function MethodsDownloads() {
   return <Part id="downloads" n={5} short="Downloads" title="Downloads" lead="Every file is public. No account, no key.">
     <div className="methods-file-rows">
       <FileRow href={sourceHref} name="Full race records" what="Every record in the current release, recorded names included" />
-      <FileRow href={FIGSHARE} name="Citable copy" what="The full race records on Figshare, with a DOI and a CC BY 4.0 licence" />
+      <FileRow href={FIGSHARE} name="On Figshare" what="Exports of the race records, each version with its own DOI, under a CC BY 4.0 licence" />
       <FileRow href={RELEASES} name="Every data release" what="Each export, with its checksums" />
       <FileRow href={SOURCE} name="Source code" what="The site and every calculation behind it" />
     </div>

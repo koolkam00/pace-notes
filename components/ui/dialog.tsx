@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useRef, type MutableRefObject, type RefObject } from 'react';
 
 /**
  * The dialog behaviour every sheet shares (Sheet, Make it yours and the site menu): focus moves in and is trapped,
@@ -12,8 +12,12 @@ export const inertWhen = (on: boolean) => (on ? { inert: '' } : {}) as Record<st
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
-/** Focus trap, Escape, scroll lock and focus return for an open dialog panel. `enabled` lets a caller switch it off. */
-export function useDialog(open: boolean, onClose: () => void, panel: RefObject<HTMLElement>, enabled = true) {
+/**
+ * Focus trap, Escape, scroll lock and focus return for an open dialog panel. `enabled` lets a caller switch it off.
+ * `handOff`, set by the caller just before it closes, skips the focus return once: the site menu sets it for a followed
+ * link to a section (#id), whose target takes the focus instead.
+ */
+export function useDialog(open: boolean, onClose: () => void, panel: RefObject<HTMLElement>, enabled = true, handOff?: MutableRefObject<boolean>) {
   const opener = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!open || !enabled) return;
@@ -40,9 +44,10 @@ export function useDialog(open: boolean, onClose: () => void, panel: RefObject<H
       document.removeEventListener('keydown', onKey);
       root.classList.remove('has-sheet-open');
       const back = opener.current;
-      if (back && document.contains(back)) back.focus({ preventScroll: true });
+      if (handOff?.current) handOff.current = false;
+      else if (back && document.contains(back)) back.focus({ preventScroll: true });
     };
-  }, [open, enabled, onClose, panel]);
+  }, [open, enabled, onClose, panel, handOff]);
 }
 
 export const CloseIcon = () => (

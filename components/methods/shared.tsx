@@ -41,7 +41,8 @@ export function editionList(editions: readonly { city: string; year: number }[])
 
 /** One part of the page: its kicker, its heading (an H2) and a one-line lead, then its topics. A beat for the rail and the reading bar. */
 export function Part({ id, n: number, short, title, lead, children }: { id: string; n: number; short: string; title: string; lead?: ReactNode; children: ReactNode }) {
-  return <section id={id} className="methods-part" aria-labelledby={`${id}-title`} data-beat={short}>
+  // tabIndex -1: a link to the part (the Menu's Open data, About's Downloads row) hands it the focus (MenuSheet.tsx).
+  return <section id={id} className="methods-part" aria-labelledby={`${id}-title`} data-beat={short} tabIndex={-1}>
     <header className="methods-part-head">
       <p className="t-kicker">Part {number}</p>
       <h2 id={`${id}-title`} className="t-h2">{title}</h2>

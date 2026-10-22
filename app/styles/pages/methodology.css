@@ -40,6 +40,7 @@
 
 /* ---------- A part: its kicker, heading and lead, then its rows ---------- */
 .methods-part { padding-top: var(--s-8); }
+.methods-part[tabindex="-1"]:focus { outline: none; }
 .methods-part-head { display: grid; gap: var(--s-2); max-width: var(--measure); margin-bottom: var(--s-5); }
 .methods-part-head .t-h2 { margin: 0; }
 .methods-part-lead { margin: 0; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); }
