@@ -7,11 +7,6 @@
 // are named in the summary, so they are never mistaken for recounted results.
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 const zlib = require('node:zlib'), assert = require('node:assert/strict');
-// TypeScript (lib/edition-review.ts) loads through its transpiler, as in the other verifiers: CI runs Node 20.
-const ts = require('typescript');
-require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText, filename);
 
 const started = Date.now();
 const root = path.resolve(__dirname, '..'), args = process.argv.slice(2), options = {};
@@ -354,8 +349,9 @@ for (const rule of screen) {
   duplicate[editionIndex.get(editionKey(rule.city, rule.year))] = 1;
 }
 const excluded = new Set(runners.source_quality.editions.map(row => editionKey(row.city, row.year)));
-// The producer-held editions /methodology names as kept (lib/edition-review.ts): in this release and outside its policy.
-for (const { city, year } of require('../lib/edition-review.ts').keptHolds(pin.tag)) {
+// The producer-held editions /methodology names as kept (lib/edition-review.json, read as JSON so this verifier needs
+// no TypeScript or packages): in this release and outside its policy.
+for (const { city, year } of read(path.join(root, 'lib', 'edition-review.json'))[pin.tag] ?? []) {
   assert.ok(editionIndex.has(editionKey(city, year)) && !excluded.has(editionKey(city, year)), `${city} ${year}: a kept hold must be in the release and outside the edition policy`);
 }
 const capacity = runners.eligible_records;
