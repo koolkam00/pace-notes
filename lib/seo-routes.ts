@@ -108,9 +108,12 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // story copy were edited again (round 2, part A), and each page's tables moved into one "All numbers" row; the tools
   // open answer first with short H1s, the analyses' H1s became one clause and /courses opens on its list (part B).
   // October 22: /methodology names Chicago 2025's early weather hour and rewrites its weather sources and questions.
-  '/': '2026-10-19',
-  '/research': '2026-10-19',
-  '/about': '2026-10-19',
+  // October 22, later: orientation (the owner's request): the home hero says what Pace Notes is, /about says where to
+  // start and how it is made, /methodology opens on the short version and says how to open the full records, and
+  // /research says what stories and analyses are.
+  '/': '2026-10-22',
+  '/research': '2026-10-22',
+  '/about': '2026-10-22',
   '/methodology': '2026-10-22',
   '/stories': '2026-10-19',
   '/tools': '2026-10-19',

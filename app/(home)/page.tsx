@@ -2,8 +2,9 @@
 // chunks of a page in a parent folder for any client component they share, so with this file at app/page.tsx /privacy,
 // /htw and /runners loaded the home page's charts (about 37 KB gzipped). The route group keeps the URL `/`.
 //
-// The start line (the redesign spec, sections 00 and 7.1): four things. The night hero opens on the race replay and the
-// plan door (hero, paths); one guess (stakes); the chapters as a course line, each with its reading (guide); and the
+// The start line (the redesign spec, sections 00 and 7.1): four things. The night hero opens on the race replay, one line
+// under the title saying what Pace Notes is (its claim linked to How we know; the owner's orientation request, October
+// 22, 2026) and the plan door (hero, paths); one guess (stakes); the chapters as a course line, each with its reading (guide); and the
 // closing call (cta). Every number comes from lib/nuggets (site.totals, replay.back as the replay's moment, home.second20k
 // and each chapter's lead), never typed here. The band's moment is how far the back of the field had come, in the edition
 // where it had come least, so the home page never opens on the race-replay story's own race and finding.
@@ -78,7 +79,7 @@ export default function Page() {
       <div className="container home-start-grid">
         <div className="home-hero-copy">
           <h1 id="hero-title" className="t-display home-hero-title"><UnitSentence mi={textFor(title, 'mi')} km={textFor(title, 'km')} /></h1>
-          <p className="home-hero-dek">Pick a course and a goal. See how finishes at that pace held up there.</p>
+          <p className="home-hero-dek"><span className="home-hero-what">Free pacing research from <Link href="/methodology" className="term-link">recorded splits</Link>.</span> <span className="home-hero-how">Pick a course and a goal. See how finishes at that pace held up there.</span></p>
           <HomeDoors courses={courses} />
         </div>
         <div className="home-hero-replay">

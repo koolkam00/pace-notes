@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
 import SiteNav from './SiteNav';
 import { UnitLink as Link } from './UnitsProvider';
 import { CloseIcon, useDialog } from './ui/dialog';
@@ -24,9 +24,9 @@ export const WIDE = '(min-width: 1180px)';
 export default function MenuSheet({ open, onClose, chapters }: { open: MenuMode; onClose: () => void; chapters: ReactNode }) {
   const sheet = useRef<HTMLDivElement>(null), panel = useRef<HTMLDivElement>(null);
   const drawer = useRef<HTMLDivElement>(null), drawerPanel = useRef<HTMLDivElement>(null);
-  const active = useRef<HTMLElement | null>(null), body = useRef<HTMLDivElement>(null);
+  const active = useRef<HTMLElement | null>(null), body = useRef<HTMLDivElement>(null), handOff = useRef(false);
   active.current = open === 'chapters' ? drawerPanel.current : panel.current;
-  useDialog(!!open, onClose, active);
+  useDialog(!!open, onClose, active, true, handOff);
   useEffect(() => {
     const wide = window.matchMedia(WIDE);
     const apply = () => {
@@ -34,20 +34,34 @@ export default function MenuSheet({ open, onClose, chapters }: { open: MenuMode;
       drawer.current?.toggleAttribute('inert', wide.matches && open !== 'chapters');
     };
     apply();
-    // Each time it opens, the menu starts at its top: the five links.
+    // Each time it opens, the menu starts at its top: the five links, and no hand-off is pending.
     if (open && body.current) body.current.scrollTop = 0;
+    if (open) handOff.current = false;
     wide.addEventListener?.('change', apply);
     return () => wide.removeEventListener?.('change', apply);
   }, [open]);
   const dialog = (on: boolean, title: string) => (on ? { role: 'dialog', 'aria-modal': true, 'aria-labelledby': title } : {});
   const close = (label: string) => <button type="button" className="sheet-close" onClick={onClose} aria-label={label}><CloseIcon /></button>;
+  // The menu closes when the path changes (SiteHeader). A link to the page already open (Open data on /methodology goes
+  // to its #downloads) changes no path, so it closes the menu on the click. A followed link to a section leaves the focus
+  // with that section (Next focuses it; How we know's parts take focus, methods/shared.tsx) instead of handing it back
+  // to the Menu button, so the next Tab, or a screen reader, carries on from Downloads, not from the top of the page.
+  // Every press in the menu resets the hand-off, so only the last one counts (useDialog checks the focus really moved).
+  const here = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href]') : null;
+    handOff.current = !!(open && link && link.origin === window.location.origin && link.hash);
+    if (!link || link.origin !== window.location.origin) return;
+    const path = (p: string) => p.replace(/\/+$/, '') || '/';
+    if (path(link.pathname) === path(window.location.pathname)) onClose();
+  };
   return (
     <div ref={sheet} id="site-sheet" className={`menu-sheet${open === 'menu' ? ' is-open' : ''}`} {...dialog(open === 'menu', 'site-sheet-title')}>
       <div className="sheet-scrim" id="site-sheet-scrim" onClick={onClose} aria-hidden="true" />
       <div ref={panel} className="menu-panel" tabIndex={-1}>
         <span className="sheet-grip" aria-hidden="true" />
         <div className="menu-head"><p className="sheet-title" id="site-sheet-title">Menu</p>{close('Close menu')}</div>
-        <div ref={body} className="menu-body">
+        <div ref={body} className="menu-body" onClick={here}>
           <SiteNav id="site-menu" />
           <div ref={drawer} id="site-chapters" className={`menu-chapters${open === 'chapters' ? ' is-open' : ''}`} {...dialog(open === 'chapters', 'site-chapters-title')}>
             <div className="sheet-scrim" id="site-chapters-scrim" onClick={onClose} aria-hidden="true" />

@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation';
 /**
  * The five main links, in the order of a runner's jobs: plan the next race (the orange pill, the site's primary action),
  * analyze a past one, then courses, tools and research. Under 1180 px they are the menu sheet's first rows, with a
- * quieter line under them for About, Request an analysis and the open data; from 1180 px they sit inline in the header
- * and those three are in the footer (components/MenuSheet.tsx, app/styles/components/menu.css). S1 pins the links, their
+ * quieter line under them for About, Request an analysis and Open data (How we know → Downloads, where every file is
+ * listed; it opened the GitHub releases list until October 22, 2026); from 1180 px they sit inline in the header, About
+ * and Request an analysis are in the footer, and the open data is reached through How we know (footer) → Downloads or
+ * About → Where to start (components/MenuSheet.tsx, app/styles/components/menu.css). S1 pins the links, their
  * order and text, the one .nav-primary and the .nav-more line. The rows' arrows are drawn in CSS (menu.css), so the
  * menu carries no icon code.
  */
@@ -30,7 +32,7 @@ export default function SiteNav({ id }: { id?: string }) {
     <span className="nav-more">
       <Link href="/about" aria-current={here(path === '/about')}>About</Link>
       <Link href="/request-analysis" aria-current={here(path === '/request-analysis')}>Request an analysis</Link>
-      <a href="https://github.com/koolkam00/pace-notes/releases">Open data <span aria-hidden="true">↗</span></a>
+      <Link href="/methodology#downloads">Open data</Link>
     </span>
   </nav>;
 }

@@ -74,6 +74,9 @@ const additions = [
  * calculations and limits. Five parts, each a list of topics that open on request (the redesign spec, sections 7.15
  * and 00): with every topic closed the page is a few screens, and a link to any id on it opens what holds that id
  * (MethodsHash). Every id is a stable anchor: verify-seo fails when a link on any page names an id this page lacks.
+ * Under the dek, the short version (the owner's orientation request, October 22, 2026): four facts, each linking to the
+ * topic that holds its detail, so a visitor who reads no further still learns where the numbers come from, what they
+ * mean, how they are checked and where to download them.
  */
 export default function MethodologyPage() {
   const dataset = storyDataset();
@@ -89,6 +92,15 @@ export default function MethodologyPage() {
         <h1 className="t-title">How we know</h1>
         <p className="methods-dek">Where the numbers come from, what each term means, how each one is worked out, and what none of them can show.</p>
       </header>
+      <section className="methods-short" aria-labelledby="methods-short-title">
+        <h2 id="methods-short-title" className="sr-only">In short</h2>
+        <ul className="info-facts">
+          <li>Findings come from <a href="#sources">recorded results of big-city marathons</a>, down to each finish’s 5K splits, with modeled weather and each course’s route as context. The tools also use <a href="#evidence">published research and official standards</a>, each labelled.</li>
+          <li>Percentages describe what past finishes did: <a href="#interpretation">an association, not a forecast</a>.</li>
+          <li>A new data release reaches the pages only after every calculation is <a href="#release">rerun and checked</a>.</li>
+          <li>Every file is public, with no account or key: <a href="#downloads">the full records, every release and the code</a>.</li>
+        </ul>
+      </section>
       <nav className="methods-jump" aria-label="Jump to a part">
         <ol>{PARTS.map((part) => <li key={part.id}><a className="methods-jump-link" href={`#${part.id}`}>{part.label}</a></li>)}</ol>
       </nav>

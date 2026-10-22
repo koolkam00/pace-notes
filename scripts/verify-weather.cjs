@@ -280,9 +280,11 @@ try {
 const AboutPage = require('../app/about/page.tsx').default;
 const about = renderToStaticMarkup(React.createElement(AboutPage));
 assert.doesNotMatch(about.replace(/<[^>]*>/g, ''), /private-export|September 11/);
-// About keeps who and why; the data inventory, weather screen and downloads moved to /methodology.
+// About says what Pace Notes is, where to start, why it exists and how it is made (the owner's orientation request,
+// October 22, 2026); the data inventory, the weather screen and the download files stay on /methodology.
 assert.ok(!about.includes('id="data-coverage"') && !about.includes('Marathons and years') && !about.includes('Weather data') && !about.includes('Elevation data'), 'The data inventory is not on /about');
 assert.ok(!about.includes('met the publication rule') && !about.includes(`${cohort.weather_analysis_finishes.toLocaleString('en-US')} eligible finishes`), 'Weather coverage counts are not on /about');
 assert.ok(about.includes('Why it exists') && about.includes('Request an analysis'), '/about keeps why the study exists and how to contact Andrew');
+assert.ok(about.includes('Where to start') && about.includes('How it is made') && about.includes('href="/methodology#downloads"'), '/about says where to start and how it is made, the data among the ways in');
 assert.equal(JSON.stringify(evidence), canonical, 'Rendering and unit conversions must not mutate published evidence');
 console.log('Verified weather provenance, reconciled edition cohorts, all three publication gates, supported routes, source units, corrected uncertainty and actual rendered results in miles and metric.');

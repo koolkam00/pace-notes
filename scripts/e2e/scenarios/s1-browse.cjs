@@ -2,8 +2,8 @@
 // S1: an ordinary visit, with client-side navigation the whole way: the home page, a story, each of the five main links
 // (on a phone through the Menu), an analysis from the research hub and the privacy page. Each page view is sent with its
 // clean path and the previous page's reading figures, and each page is recorded except the runner search, which never
-// is. Then the home page's first screen on the two common iPhone sizes (the plan button and the other two ways to start
-// show without scrolling, and that button is the only orange control there), the hero at 200% zoom, and its
+// is. Then the home page's first screen on the two common iPhone sizes (the line that says what Pace Notes is, the plan
+// button and the other two ways to start show without scrolling, and that button is the only orange control there), the hero at 200% zoom, and its
 // course-and-goal form, which goes to the planner by GET with and without the page's JavaScript, and the keypad's dot
 // typing a colon in time fields (the home goal, a tool's time, a pace and the split check). Last, the units
 // switch: it works on /research and /methodology opened directly, and every page served with the inert placeholder
@@ -18,7 +18,7 @@ const DESKTOP = { viewport: { width: 1280, height: 900 } };
 const PHONE = { viewport: { width: 390, height: 844 }, mobile: true };
 // The five main links, in order, then the Menu's quieter line (components/SiteNav.tsx, in components/MenuSheet.tsx).
 const MAIN = [['Plan your race', '/tools/plan'], ['Analyze a past race', '/runners'], ['Courses', '/courses'], ['Tools', '/tools'], ['Research', '/research']];
-const MORE = [['About', '/about'], ['Request an analysis', '/request-analysis'], ['Open data ↗', 'https://github.com/koolkam00/pace-notes/releases']];
+const MORE = [['About', '/about'], ['Request an analysis', '/request-analysis'], ['Open data', '/methodology#downloads']];
 const BLOCKED = ['/runners'];
 
 async function browse(h, device) {
@@ -73,8 +73,9 @@ async function browse(h, device) {
   h.check('every page but the runner search was recorded', paths.filter(p => !BLOCKED.includes(p)).every(p => recorded.includes(p)) && !recorded.some(p => BLOCKED.includes(p)), { pageviews: paths, recorded });
 }
 
-// The first phone screen, at the default text size: the title, the plan form with its button and the other two ways
-// to start all show without scrolling (the 57 px header included), and the plan button is the only orange control.
+// The first phone screen, at the default text size: the title, the one line under it that says what Pace Notes is (the
+// owner's orientation request, October 22, 2026), the plan form with its button and the other two ways to start all
+// show without scrolling (the 57 px header included), and the plan button is the only orange control.
 const FIRST_SCREENS = [{ width: 390, height: 664 }, { width: 402, height: 714 }];
 async function firstScreen(h) {
   for (const viewport of FIRST_SCREENS) {
@@ -85,17 +86,19 @@ async function firstScreen(h) {
     await page.waitForTimeout(800);
     const seen = await page.evaluate(() => {
       const bottom = selector => [...document.querySelectorAll(selector)].map(el => Math.round(el.getBoundingClientRect().bottom));
+      // Only a line that is painted counts: hidden by display, visibility or opacity, or with no height, it is not there.
+      const shown = selector => [...document.querySelectorAll(selector)].filter(el => el.checkVisibility({ visibilityProperty: true, opacityProperty: true }) && el.getBoundingClientRect().height > 0).map(el => Math.round(el.getBoundingClientRect().bottom));
       const orange = [...document.querySelectorAll('a, button, select, input:not([type=hidden])')].filter(el => {
         const r = el.getBoundingClientRect();
         return r.width && r.height && r.top < innerHeight && r.bottom > 0 && getComputedStyle(el).backgroundColor === 'rgb(255, 91, 46)';
       }).map(el => el.textContent.trim());
-      return { innerHeight, scrollY, title: bottom('#hero-title'), button: bottom('.home-plan-button'), doors: bottom('.home-door-link'), orange };
+      return { innerHeight, scrollY, title: bottom('#hero-title'), what: shown('.home-hero-what'), button: bottom('.home-plan-button'), doors: bottom('.home-door-link'), orange };
     });
     await run.close();
-    const fits = seen.scrollY === 0 && seen.button.length === 1 && seen.doors.length === 2 && [...seen.title, ...seen.button, ...seen.doors].every(b => b <= seen.innerHeight);
-    h.check(`${viewport.width} x ${viewport.height}: the title, the Plan your race button and both other ways to start end above the screen's bottom`, fits, seen);
+    const fits = seen.scrollY === 0 && seen.what.length === 1 && seen.what[0] > seen.title[0] && seen.what[0] < seen.button[0] && seen.button.length === 1 && seen.doors.length === 2 && [...seen.title, ...seen.what, ...seen.button, ...seen.doors].every(b => b <= seen.innerHeight);
+    h.check(`${viewport.width} x ${viewport.height}: the title, the line that says what Pace Notes is, the Plan your race button and both other ways to start end above the screen's bottom`, fits, seen);
     h.check(`${viewport.width} x ${viewport.height}: Plan your race is the only orange control on the first screen`, JSON.stringify(seen.orange) === '["Plan your race"]', seen.orange);
-    h.note(`${viewport.width} x ${viewport.height}: bottoms (px of ${seen.innerHeight}) title ${seen.title}, button ${seen.button}, doors ${seen.doors.join(' and ')}`);
+    h.note(`${viewport.width} x ${viewport.height}: bottoms (px of ${seen.innerHeight}) title ${seen.title}, what ${seen.what}, button ${seen.button}, doors ${seen.doors.join(' and ')}`);
   }
 }
 
@@ -414,6 +417,57 @@ async function courseBack(h, device) {
   h.check('page views: the course page, the planner, the course page again', JSON.stringify(paths) === JSON.stringify(['/courses/boston', '/tools/plan', '/courses/boston']), paths);
 }
 
+// The Menu's Open data (components/SiteNav.tsx) goes to How we know's Downloads: from another page, and from
+// /methodology itself, where no path changes and the menu closes on the click (components/MenuSheet.tsx). Followed by
+// keyboard, the focus stays with Downloads, so the next Tab is a link inside it, not the top of the page; and the
+// hand-off is used up, so opening the menu again and pressing Escape returns the focus to the Menu button.
+async function menuOpenData(h) {
+  const run = await h.run('the Menu\'s Open data', PHONE);
+  const page = await run.newPage();
+  const toggle = page.locator('.site-header .nav-toggle');
+  const openByKey = async () => {
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('#site-sheet.is-open'));
+    await page.waitForTimeout(500);
+  };
+  const follow = async () => {
+    await openByKey();
+    await page.locator('#site-menu .nav-more a[href="/methodology#downloads"]').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => location.pathname === '/methodology' && location.hash === '#downloads', null, { timeout: 15000 });
+    await page.waitForTimeout(1200);
+    const state = await page.evaluate(() => {
+      const target = document.getElementById('downloads'), top = target ? Math.round(target.getBoundingClientRect().top) : null;
+      return { open: !!document.querySelector('#site-sheet.is-open'), expanded: document.querySelector('.site-header .nav-toggle').getAttribute('aria-expanded'),
+        locked: document.documentElement.classList.contains('has-sheet-open'), top, inView: top !== null && top >= 0 && top < innerHeight,
+        focus: !!target && target.contains(document.activeElement) };
+    });
+    await page.keyboard.press('Tab');
+    state.tab = await page.evaluate(() => { const a = document.activeElement; return { inside: !!a && !!a.closest('#downloads'), tag: a && a.tagName }; });
+    // The hand-off is spent: the next close returns the focus to the Menu button.
+    await openByKey();
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('#site-sheet.is-open'));
+    await page.waitForTimeout(400);
+    state.escape = await page.evaluate(() => !!document.activeElement && document.activeElement.matches('.site-header .nav-toggle'));
+    return state;
+  };
+  const fine = s => !s.open && s.expanded === 'false' && !s.locked && s.inView && s.focus && s.tab.inside && s.escape;
+  await page.goto(SITE + '/about', { waitUntil: 'load' });
+  await page.waitForTimeout(800);
+  const fromAbout = await follow();
+  h.check('from /about, Open data opens How we know at Downloads, closes the menu and leaves the focus in Downloads; a later close returns it to the Menu button', fine(fromAbout), fromAbout);
+  // The same page without its #downloads (the address alone: no navigation, no page view), so the hash change is waited for.
+  await page.evaluate(() => { history.replaceState(history.state, '', location.pathname); scrollTo(0, 0); });
+  await page.waitForTimeout(400);
+  const onPage = await follow();
+  h.check('on /methodology, Open data closes the menu, shows Downloads and leaves the focus there (no path changes); a later close returns it to the Menu button', fine(onPage), onPage);
+  await run.close();
+  const paths = run.events().filter(({ e }) => e.event === '$pageview').map(({ e }) => e.properties.$pathname);
+  h.check('page views: /about, then /methodology once', JSON.stringify(paths) === JSON.stringify(['/about', '/methodology']), paths);
+}
+
 module.exports = {
   id: 'S1',
   title: 'Browsing: home, story, the five main links, an analysis, privacy; the home page\'s first screen and form; the units switch; Back to a course page; every goal tool\'s goal retyped',
@@ -426,6 +480,7 @@ module.exports = {
     { name: 'keypad colon', weight: 8, run: keypad },
     { name: 'units switch', weight: 12, run: unitSwitch },
     { name: 'course page Back', weight: 8, run: h => courseBack(h, PHONE) },
+    { name: 'Menu Open data', weight: 8, run: menuOpenData },
     { name: 'goal retype', weight: 8, run: goalRetype },
   ],
 };

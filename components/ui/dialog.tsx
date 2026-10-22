@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useRef, type MutableRefObject, type RefObject } from 'react';
 
 /**
  * The dialog behaviour every sheet shares (Sheet, Make it yours and the site menu): focus moves in and is trapped,
@@ -12,8 +12,13 @@ export const inertWhen = (on: boolean) => (on ? { inert: '' } : {}) as Record<st
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
-/** Focus trap, Escape, scroll lock and focus return for an open dialog panel. `enabled` lets a caller switch it off. */
-export function useDialog(open: boolean, onClose: () => void, panel: RefObject<HTMLElement>, enabled = true) {
+/**
+ * Focus trap, Escape, scroll lock and focus return for an open dialog panel. `enabled` lets a caller switch it off.
+ * `handOff`, set by the caller when a press may close the dialog, skips the focus return once if the focus has already
+ * left the panel for somewhere else on the page: the site menu sets it for a followed link to a section (#id), which
+ * Next focuses. If the focus is still in the panel, or nowhere (the body), it goes back to the opener as usual.
+ */
+export function useDialog(open: boolean, onClose: () => void, panel: RefObject<HTMLElement>, enabled = true, handOff?: MutableRefObject<boolean>) {
   const opener = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!open || !enabled) return;
@@ -39,10 +44,12 @@ export function useDialog(open: boolean, onClose: () => void, panel: RefObject<H
       window.clearTimeout(t);
       document.removeEventListener('keydown', onKey);
       root.classList.remove('has-sheet-open');
-      const back = opener.current;
-      if (back && document.contains(back)) back.focus({ preventScroll: true });
+      const back = opener.current, now = document.activeElement;
+      const moved = !!handOff?.current && !!now && now !== document.body && !(el && el.contains(now));
+      if (handOff) handOff.current = false;
+      if (!moved && back && document.contains(back)) back.focus({ preventScroll: true });
     };
-  }, [open, enabled, onClose, panel]);
+  }, [open, enabled, onClose, panel, handOff]);
 }
 
 export const CloseIcon = () => (

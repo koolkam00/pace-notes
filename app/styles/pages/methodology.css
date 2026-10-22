@@ -10,6 +10,11 @@
 /* ---------- The opener ---------- */
 .methods-hero { display: grid; gap: var(--s-3); max-width: var(--measure); }
 .methods-dek { margin: 0; max-width: 32rem; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+/* The short version under the dek (app/methodology/page.tsx): four facts, each linking to the topic that holds its
+   detail. The list is /privacy's (.info-facts, info.css). */
+.methods-short { max-width: var(--measure); margin-top: var(--s-5); }
+.methods-short .info-facts a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; }
+.methods-short .info-facts a:hover { text-decoration-color: currentColor; }
 
 /* ---------- Jump to: the five parts as chips, sticky under the header ---------- */
 .methods-jump {
@@ -35,6 +40,7 @@
 
 /* ---------- A part: its kicker, heading and lead, then its rows ---------- */
 .methods-part { padding-top: var(--s-8); }
+.methods-part[tabindex="-1"]:focus { outline: none; }
 .methods-part-head { display: grid; gap: var(--s-2); max-width: var(--measure); margin-bottom: var(--s-5); }
 .methods-part-head .t-h2 { margin: 0; }
 .methods-part-lead { margin: 0; font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); }
