@@ -217,16 +217,27 @@ async function journey(h, blocklist) {
   const settle = async (ms) => { await page.waitForTimeout(ms); await wiggle(page, 6); await page.mouse.wheel(0, 900); await page.waitForTimeout(300); await page.mouse.wheel(0, -900); await page.waitForTimeout(300); };
   const path = () => new URL(page.url()).pathname;
   const flag = () => page.evaluate(() => { try { return sessionStorage.getItem('pace-notes-runner-handoff'); } catch (error) { return 'unreadable'; } });
+  // The first match on the list whose races include one with its pacing analysis (a row with no tag): the race report
+  // and its split-check link need one. Since release 1050 (Chicago 2005–2008 loaded) the very first match can be a
+  // single race with missing checkpoints, so a match without such a race is passed over and the search run again (the
+  // list folds to one row once a match is opened).
+  const analysed = '#runner-profile .runner-race:not(:has(.runner-ineligible))';
   const openProfile = async () => {
-    await page.waitForSelector('#runner-name:not([disabled])', { timeout: 30000 });
-    await page.locator('#runner-name').fill('');
-    await page.locator('#runner-name').pressSequentially(SURNAME, { delay: 20 });
-    await page.click('button[type="submit"]');
-    await page.waitForSelector('.runner-matches li', { timeout: 30000 });
-    await page.locator('.runner-match').first().click();
-    await page.waitForSelector('.runner-profile', { timeout: 30000 });
+    for (let match = 0; ; match++) {
+      await page.waitForSelector('#runner-name:not([disabled])', { timeout: 30000 });
+      await page.locator('#runner-name').fill('');
+      await page.locator('#runner-name').pressSequentially(SURNAME, { delay: 20 });
+      await page.click('button[type="submit"]');
+      await page.waitForSelector('.runner-matches li', { timeout: 30000 });
+      if (match >= await page.locator('.runner-match').count()) throw new Error(`no match on the first page of "${SURNAME}" has a race with its pacing analysis`);
+      await page.locator('.runner-match').nth(match).click();
+      await page.waitForSelector('.runner-profile', { timeout: 30000 });
+      if (await page.locator(analysed).count()) break;
+    }
+    // Up to three races, in the profile's order, with the first analysed one among them.
     const boxes = page.locator('.runner-races input[type="checkbox"]');
     for (let i = 0; i < Math.min(await boxes.count(), 3); i++) await boxes.nth(i).check();
+    await page.locator(analysed).first().locator('input[type="checkbox"]').check();
     await page.click('.runner-selection-actions .button-primary');
     await page.waitForSelector('.runner-context', { timeout: 30000 });
     await page.waitForTimeout(1500);
