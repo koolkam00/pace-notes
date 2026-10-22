@@ -34,8 +34,9 @@ export default function MenuSheet({ open, onClose, chapters }: { open: MenuMode;
       drawer.current?.toggleAttribute('inert', wide.matches && open !== 'chapters');
     };
     apply();
-    // Each time it opens, the menu starts at its top: the five links.
+    // Each time it opens, the menu starts at its top: the five links, and no hand-off is pending.
     if (open && body.current) body.current.scrollTop = 0;
+    if (open) handOff.current = false;
     wide.addEventListener?.('change', apply);
     return () => wide.removeEventListener?.('change', apply);
   }, [open]);
@@ -45,11 +46,12 @@ export default function MenuSheet({ open, onClose, chapters }: { open: MenuMode;
   // to its #downloads) changes no path, so it closes the menu on the click. A followed link to a section leaves the focus
   // with that section (Next focuses it; How we know's parts take focus, methods/shared.tsx) instead of handing it back
   // to the Menu button, so the next Tab, or a screen reader, carries on from Downloads, not from the top of the page.
+  // Every press in the menu resets the hand-off, so only the last one counts (useDialog checks the focus really moved).
   const here = (event: MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href]') : null;
+    handOff.current = !!(open && link && link.origin === window.location.origin && link.hash);
     if (!link || link.origin !== window.location.origin) return;
-    if (open && link.hash) handOff.current = true;
     const path = (p: string) => p.replace(/\/+$/, '') || '/';
     if (path(link.pathname) === path(window.location.pathname)) onClose();
   };

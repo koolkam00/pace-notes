@@ -419,16 +419,20 @@ async function courseBack(h, device) {
 
 // The Menu's Open data (components/SiteNav.tsx) goes to How we know's Downloads: from another page, and from
 // /methodology itself, where no path changes and the menu closes on the click (components/MenuSheet.tsx). Followed by
-// keyboard, the focus stays with Downloads, so the next Tab is a link inside it, not the top of the page.
+// keyboard, the focus stays with Downloads, so the next Tab is a link inside it, not the top of the page; and the
+// hand-off is used up, so opening the menu again and pressing Escape returns the focus to the Menu button.
 async function menuOpenData(h) {
   const run = await h.run('the Menu\'s Open data', PHONE);
   const page = await run.newPage();
-  const follow = async () => {
-    await page.keyboard.press('Escape'); // nothing open: a no-op that makes the page take keyboard input
-    await page.locator('.site-header .nav-toggle').focus();
+  const toggle = page.locator('.site-header .nav-toggle');
+  const openByKey = async () => {
+    await toggle.focus();
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('#site-sheet.is-open'));
     await page.waitForTimeout(500);
+  };
+  const follow = async () => {
+    await openByKey();
     await page.locator('#site-menu .nav-more a[href="/methodology#downloads"]').focus();
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => location.pathname === '/methodology' && location.hash === '#downloads', null, { timeout: 15000 });
@@ -441,17 +445,24 @@ async function menuOpenData(h) {
     });
     await page.keyboard.press('Tab');
     state.tab = await page.evaluate(() => { const a = document.activeElement; return { inside: !!a && !!a.closest('#downloads'), tag: a && a.tagName }; });
+    // The hand-off is spent: the next close returns the focus to the Menu button.
+    await openByKey();
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('#site-sheet.is-open'));
+    await page.waitForTimeout(400);
+    state.escape = await page.evaluate(() => !!document.activeElement && document.activeElement.matches('.site-header .nav-toggle'));
     return state;
   };
-  const fine = s => !s.open && s.expanded === 'false' && !s.locked && s.inView && s.focus && s.tab.inside;
+  const fine = s => !s.open && s.expanded === 'false' && !s.locked && s.inView && s.focus && s.tab.inside && s.escape;
   await page.goto(SITE + '/about', { waitUntil: 'load' });
   await page.waitForTimeout(800);
   const fromAbout = await follow();
-  h.check('from /about, Open data opens How we know at Downloads, closes the menu and leaves the focus in Downloads', fine(fromAbout), fromAbout);
-  await page.evaluate(() => scrollTo(0, 0));
+  h.check('from /about, Open data opens How we know at Downloads, closes the menu and leaves the focus in Downloads; a later close returns it to the Menu button', fine(fromAbout), fromAbout);
+  // The same page without its #downloads (the address alone: no navigation, no page view), so the hash change is waited for.
+  await page.evaluate(() => { history.replaceState(history.state, '', location.pathname); scrollTo(0, 0); });
   await page.waitForTimeout(400);
   const onPage = await follow();
-  h.check('on /methodology, Open data closes the menu, shows Downloads and leaves the focus there (no path changes)', fine(onPage), onPage);
+  h.check('on /methodology, Open data closes the menu, shows Downloads and leaves the focus there (no path changes); a later close returns it to the Menu button', fine(onPage), onPage);
   await run.close();
   const paths = run.events().filter(({ e }) => e.event === '$pageview').map(({ e }) => e.properties.$pathname);
   h.check('page views: /about, then /methodology once', JSON.stringify(paths) === JSON.stringify(['/about', '/methodology']), paths);

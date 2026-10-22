@@ -291,6 +291,40 @@ function pageTimeline(run) {
 // changed; 6 ms in a full-suite S3 run on October 22, 2026). Used only for an event that names its own address.
 const NAV_LAG = 1000;
 
+// What only the blocked pages render (app/runners/page.tsx, components/RunnerSearch.tsx, RunnerContext.tsx and
+// report/RaceReport.tsx: the runner search and its profile, and the race report), and the blocked pages' titles in the
+// build. A recording that holds one of them is a problem whatever the clock says, so the address-and-clock match above
+// is never the only guard: it cannot tell a resumed recording's first snapshot of the new page from one taken while a
+// blocked page's DOM was still on screen.
+const BLOCKED_ROOTS = ['runner-page', 'runner-search-form', 'runner-results', 'runner-context', 'race-report-root', 'race-report'];
+const BLOCKED_TITLE_PAGES = ['report', 'runners'];
+const titles = new Map();
+function blockedTitles(out) {
+  if (!titles.has(out)) {
+    const decode = s => s.replace(/&amp;/g, '&').replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    titles.set(out, new Set(BLOCKED_TITLE_PAGES.map(page => {
+      const html = fs.readFileSync(path.join(out, `${page}.html`), 'utf8');
+      const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1];
+      if (!title) throw new Error(`out/${page}.html has no <title> (scripts/e2e/inspect.cjs BLOCKED_TITLE_PAGES)`);
+      return decode(title).trim();
+    })));
+  }
+  return titles.get(out);
+}
+/** What in one rrweb event only a blocked page renders: a root's class, or a blocked page's <title>. */
+function blockedDom(ev, out) {
+  const found = new Set(), named = blockedTitles(out);
+  eachNode(ev, attributes => {
+    const tokens = typeof attributes.class === 'string' ? attributes.class.split(/\s+/) : [];
+    for (const root of BLOCKED_ROOTS) if (tokens.includes(root)) found.add(`the .${root} element`);
+  }, n => {
+    if (n.tagName !== 'title') return;
+    const text = (n.childNodes || []).map(c => (typeof c.textContent === 'string' ? c.textContent : '')).join('').trim();
+    if (named.has(text)) found.add(`the title "${text}"`);
+  });
+  return [...found];
+}
+
 // I5: nothing is recorded while a runner page, or a page opened from a runner's profile, is open.
 function blockedPages(run) {
   const problems = new Set();
@@ -311,6 +345,7 @@ function blockedPages(run) {
       if (!s.blocked) recorded.set(short(s.url), (recorded.get(short(s.url)) || 0) + 1);
     }
     if (typeof href === 'string' && (policy.recordingBlocked(href) || NEVER_RECORDED(href))) problems.add(`a recording names the blocked page ${short(href)}`);
+    for (const what of blockedDom(ev, run.out)) problems.add(`rrweb ${labelOf(ev)} holds ${what}, which only a blocked page renders`);
   }
   run.recordedPages = recorded;
   run.openWhileRecording = open; // every page open while something was recorded, whatever the rules say about it
