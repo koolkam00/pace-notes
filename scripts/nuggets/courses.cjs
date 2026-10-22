@@ -260,7 +260,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       // leads with how many it has.
       const set = `${solidSelf ? 'other ' : ''}courses with three or more editions`;
       const than = all ? `all ${others.length} ${set}` : `${count} of ${others.length} ${set}`;
-      const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of the courses.`
+      const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of the ${set}.`
         : solidSelf ? `${named(city)}’s ${whole(c.slowdown)}: ${side} than ${than}.`
           : `From its ${words[c.editions]} edition${c.editions === 1 ? '' : 's'}, ${named(city)}’s ${whole(c.slowdown)} is ${side} than ${than}.`;
       if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), want, `course.among (${city}): the sentence`));
@@ -311,9 +311,12 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         const apart = Math.abs(Math.round(hot.slowdown * 100) - Math.round(cool.slowdown * 100));
         const quiet = !same && apart < 5;
         step(() => eq([n.values.hot_year, n.values.cool_year, n.values.quiet], [hot.year, cool.year, quiet ? 1 : 0], `course.weather (${city}): the pair and the null rule`));
-        // A hero that calls its edition the warmest or coolest morning: #weather says it leaves that year out, so its
-        // sentence (a quiet null above all) never denies what the hero has just shown (round 6).
-        const named = heroYear !== null && Number(hero.values.morning) !== 0 && mornings.some((e) => e.year === heroYear);
+        // The hero's edition, left out, as warm as the warmest morning named or as cool as the coolest (the hero's "its
+        // warmest morning", or a tie): #weather says it leaves that year out, so its sentence (a quiet null above all)
+        // never denies what the hero has just shown (round 6).
+        const own = mornings.find((e) => e.year === heroYear);
+        const named = heroYear !== null && !!own && (own.temp >= hot.temp || own.temp <= cool.temp);
+        if (heroYear !== null && Number(hero.values.morning) !== 0) step(() => ok(named, `course.weather (${city}): a hero that names its morning is left out by name`));
         const lead = (rest) => (named ? `Apart from ${heroYear}, ${rest.charAt(0).toLowerCase()}${rest.slice(1)}` : rest);
         step(() => eq(said(n), lead(same
           ? `At ${degF(hot.temp)} in ${hot.year} and at ${degF(cool.temp)} in ${cool.year}, the same ${whole(hot.slowdown)} had a sustained slowdown.`

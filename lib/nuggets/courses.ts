@@ -428,7 +428,7 @@ function courseAmong(ctx?: NuggetContext): Nugget {
     id: 'course.among', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
     values: { share: s?.slowdown ?? NaN, higher, lower, courses: n, editions: s?.editions ?? 0, middle: middle ? 1 : 0 },
     guard,
-    headline: middle ? `${name}’s ${share}: *${nb('near the middle')}* of the courses.` : solid ? `${name}’s ${share}: ${than}.` : `${from}, ${name}’s ${share} is ${than}.`,
+    headline: middle ? `${name}’s ${share}: *${nb('near the middle')}* of the ${set}.` : solid ? `${name}’s ${share}: ${than}.` : `${from}, ${name}’s ${share} is ${than}.`,
     fallback: `${name} beside every course.`,
     figure: null,
   };
@@ -492,7 +492,8 @@ function courseWeather(ctx?: NuggetContext): Nugget {
   const held = heldEditions();
   const hero = heroYear(ctx);
   const pool = w.filter((e) => !!page && !held.has(`${page.city}|${e.year}`) && e.year !== hero);
-  // Ties go to the later edition, as the published pair does.
+  // Ties go to the later edition. (The published pair, Python's max over the years in order, keeps the earlier; only the
+  // year named can differ, never the 5 °C gate.)
   const hot = pool.length ? pool.reduce((a, b) => (b.temp >= a.temp ? b : a)) : null;
   const cool = pool.length ? pool.reduce((a, b) => (b.temp <= a.temp ? b : a)) : null;
   const minGap = readInsight<Courses>('courses.json').weather.pairs.min_gap_c;
@@ -501,10 +502,12 @@ function courseWeather(ctx?: NuggetContext): Nugget {
   const same = guard && pct(hot!.slowdown) === pct(cool!.slowdown);
   const gap = guard ? Math.abs(Math.round(hot!.slowdown * 100) - Math.round(cool!.slowdown * 100)) : NaN;
   const quiet = guard && !same && gap < WEATHER_GAP;
-  // Where the hero's sentence calls its edition the warmest (or coolest) morning, the section says it leaves that year
-  // out ("Apart from 2022, …"), so it never seems to deny what the hero has just shown (round 6: "warm or cool, about the
-  // same share" under a hero whose worst year was its warmest).
-  const named = guard && hero !== null && Number(courseSlowdown(ctx).values.morning) !== 0 && w.some((e) => e.year === hero);
+  // Where the hero's edition, left out of the pool, was as warm as the warmest morning the section names or as cool as
+  // the coolest (the hero's "its warmest morning", or a tie: October 21, 2026, Frankfurt 2019 and 2022 both at 57°F), the
+  // section says it leaves that year out ("Apart from 2022, …"), so it never seems to deny what the hero has just shown
+  // (round 6: "warm or cool, about the same share" under a hero whose worst year was its warmest).
+  const heroMorning = w.find((e) => e.year === hero);
+  const named = guard && !!heroMorning && (heroMorning.temp >= hot!.temp || heroMorning.temp <= cool!.temp);
   const lead = (rest: string) => (named ? `Apart from ${hero}, ${rest.charAt(0).toLowerCase()}${rest.slice(1)}` : rest);
   return {
     id: 'course.weather', page: `/courses/${page?.slug ?? ''}#weather`, denominator: 'course',
