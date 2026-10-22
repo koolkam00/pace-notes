@@ -110,8 +110,19 @@ for (const row of evidence.editions) {
   assert.ok(row.humidity_pct >= 0 && row.humidity_pct <= 100 && row.wind_mps >= 0);
   const startHour = Date.parse(row.start_hour + 'Z');
   assert.equal(Date.parse(row.four_hour + 'Z') - startHour, 4 * 60 * 60 * 1000, 'The weather window is always four hours, regardless of finish speed');
-  assert.ok(Math.abs(startHour - Date.parse(row.date + 'T' + row.scheduled_start + ':00Z')) <= 30 * 60 * 1000, 'Weather must be close to the supplied local start');
+  // Within 30 minutes of the supplied start, or a reviewed early hour the builder names (build_weather.py
+  // ACCEPTED_EARLY_HOURS; owner decision, October 22, 2026): listed with this exact hour and start, at most an hour early.
+  const early = Date.parse(row.date + 'T' + row.scheduled_start + ':00Z') - startHour;
+  const accepted = (evidence.accepted_early_hours ?? []).find(e => e.city === row.city && e.year === row.year);
+  assert.ok(Math.abs(early) <= 30 * 60 * 1000 || (accepted && accepted.start_hour === row.start_hour && accepted.scheduled_start === row.scheduled_start
+    && accepted.minutes_early * 60 * 1000 === early && early <= 60 * 60 * 1000), `${row.city} ${row.year}: weather must be close to the supplied local start`);
   assert.ok(!evidence.source_quality?.editions.some(excluded => excluded.city === row.city && excluded.year === row.year), 'A source-excluded edition cannot appear in the weather comparison');
+}
+// Every listed early hour is a published edition that needed it, and the method names it.
+for (const e of evidence.accepted_early_hours ?? []) {
+  const row = evidence.editions.find(r => r.city === e.city && r.year === e.year);
+  assert.ok(row && e.minutes_early > 30 && e.minutes_early <= 60, `${e.city} ${e.year}: an accepted early hour must be a published edition more than 30 minutes early`);
+  assert.ok(evidence.methodology.some(m => m.includes(`${e.city} ${e.year}`)), `${e.city} ${e.year}: the method must name every accepted early hour`);
 }
 
 // Check the declared evidence gate independently of the Python publication flag.

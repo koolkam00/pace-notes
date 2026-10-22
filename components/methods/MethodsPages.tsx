@@ -6,6 +6,7 @@ import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';
 import { hm } from '@/lib/nuggets/format';
 import { CLIMB_MIN_M } from '@/lib/nuggets/courses';
 import { readInsight } from '@/lib/insights-server';
+import { getWeatherEvidence } from '@/lib/weather-data';
 import { Topic, and, editionList, n } from './shared';
 
 type Edition = { city: string; year: number };
@@ -26,6 +27,9 @@ export default function MethodsPages() {
   const noShapes = courses.courses.filter((c) => c.shape_editions === 0).map((c) => c.city).sort();
   // Copy editions are named only while the release has some (none since 1652).
   const copies = copyEditions().length > 0;
+  // Reviewed editions read from an earlier archive hour (Chicago 2025 since October 22, 2026), named from the evidence.
+  const early = (getWeatherEvidence().accepted_early_hours ?? []).map((e) =>
+    `${e.city} ${e.year}’s weather is the ${e.start_hour.slice(11, 16)} hour, ${e.minutes_early} minutes before its ${e.scheduled_start} start`);
   return <>
     <Topic id="course-pages" title="Course pages">
       <p>Every count on a course page is of finishes with all nine official 5 km checkpoint times, not of runners. One runner can appear in several editions, and runners who did not finish are not in the data. Course pages leave out every edition the reviewed source-quality policy excludes{copies ? ', and the copy editions everywhere except the pooled pace profile' : ''}.</p>
@@ -57,7 +61,7 @@ export default function MethodsPages() {
     </Topic>
 
     <Topic id="weather-routes" title="Weather and elevation sources">
-      <p><strong>Weather.</strong> Every page’s weather is the <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo historical archive</a>’s modeled hour at each edition’s scheduled start, for one point in the city, and the hours after it. It is context, not what any runner felt, and never an adjustment to a time. Race dates, scheduled starts and start temperatures come from those weather records. The data producer supplied the race dates and scheduled starts, and they have not been independently verified. An edition with no weather record has no weather row. On course pages, the coolest and warmest editions are compared only when their start temperatures are at least 5 °C apart, and other things also changed between those years. The within-course temperature slope is an association across a few editions, not a measured effect of heat.</p>
+      <p><strong>Weather.</strong> Every page’s weather is the <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo historical archive</a>’s modeled hour at each edition’s scheduled start, for one point in the city, and the hours after it.{early.length ? ` ${early.length === 1 ? 'One edition reads' : `${early.length} editions read`} an earlier hour: ${early.join('; ')}.` : ''} It is context, not what any runner felt, and never an adjustment to a time. Race dates, scheduled starts and start temperatures come from those weather records. The data producer supplied the race dates and scheduled starts, and they have not been independently verified. An edition with no weather record has no weather row. On course pages, the coolest and warmest editions are compared only when their start temperatures are at least 5 °C apart, and other things also changed between those years. The within-course temperature slope is an association across a few editions, not a measured effect of heat.</p>
       <p>The research packs’ temperature-band analysis uses the Open-Meteo hour nearest the scheduled local start. Each temperature-band comparison gives equal weight to eligible race editions, with at least five editions per band. The humidity, warming and wind screen (see <a href="#weather">Weather questions</a>) uses start-hour and race-window summaries, equal edition weights, course and year controls, temperature adjustment, and uncertainty resampled across whole courses. Only findings passing the documented evidence rule are published as analyses.</p>
       <p><strong>Routes and elevation.</strong> Course elevation comes from each race’s supplied current route file and digital elevation models, sometimes smoothed over 800 m. Historical validity years are absent: whether earlier editions ran the same route is not known, and no time on the site is adjusted for elevation. Terrain comparisons use the available city route as a labeled proxy; mixed hills, route changes, bridges and tunnels limit what they can show. The elevation model can miss bridge decks.</p>
       <p><strong>Qualifying rules in the research packs.</strong> The qualifying-rule comparison uses the B.A.A.’s published five-minute change for the 2020 Boston Marathon. It compares finish-time bunching around the fixed old and new standards in 2016–2017 and 2019 for exact ages 18–31. It does not assign eligibility, acceptance or declared Boston intentions. <a href="https://www.baa.org/news/2020-boston-marathon-qualifier-acceptances-announced/">Official standards and announcement</a>.</p>

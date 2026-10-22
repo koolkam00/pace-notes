@@ -1,0 +1,33 @@
+11:14:47 START tests
+11:14:54 OK tests 7s
+11:14:55 START weather
+11:15:57 OK weather 62s
+11:15:57 START weather-copy
+11:15:57 OK weather-copy 0s
+11:15:57 START context
+11:19:30 OK context 213s
+11:19:30 START context-check
+11:21:18 OK context-check 108s
+11:21:18 START context-import
+11:22:21 OK context-import 63s
+11:22:21 START afc
+11:26:30 OK afc 249s
+11:26:30 START afc-verify
+11:28:29 OK afc-verify 119s
+11:28:29 START afc-copy
+11:28:29 OK afc-copy 0s
+11:28:29 START insights
+11:47:37 OK insights 1148s
+11:47:37 START geometry
+11:47:40 OK geometry 3s
+11:47:40 START insights-manifest
+11:48:56 OK insights-manifest 76s
+11:48:56 START insights-verify
+11:52:25 OK insights-verify 209s
+11:52:25 START insights-copy
+11:52:26 OK insights-copy 1s
+11:52:26 START context-verify
+11:53:27 OK context-verify 61s
+11:53:27 START weather-verify
+11:53:30 OK weather-verify 3s
+11:53:30 PIPELINE DONE
