@@ -287,20 +287,29 @@ function pageTimeline(run) {
   return segments;
 }
 
+// How much later than the page the harness may hear of a navigation (framenavigated reaches Node after the address has
+// changed; 6 ms in a full-suite S3 run on October 22, 2026). Used only for an event that names its own address.
+const NAV_LAG = 1000;
+
 // I5: nothing is recorded while a runner page, or a page opened from a runner's profile, is open.
 function blockedPages(run) {
   const problems = new Set();
   const segments = pageTimeline(run);
   const recorded = new Map(), open = new Set();
   for (const { ev } of run.rrweb()) {
-    const during = segments.filter(s => s.from <= ev.timestamp && ev.timestamp < s.to);
+    const d = ev.data || {};
+    const href = ev.type === 4 ? d.href : ev.type === 5 && d.payload ? d.payload.href : null;
+    // An event that names its own address (a meta event, or a custom one with an href) was made while that address was
+    // open, so it is matched to that address's segment, even one the harness logged up to NAV_LAG later: by the clock
+    // alone, the first event of a page the recorder resumes on can land in the blocked page before it. Every other
+    // event is matched by the clock, and an address naming a blocked page is a problem below whatever its segment.
+    const named = typeof href === 'string' ? segments.filter(s => s.url === href && s.from - NAV_LAG <= ev.timestamp && ev.timestamp < s.to) : [];
+    const during = named.length ? named : segments.filter(s => s.from <= ev.timestamp && ev.timestamp < s.to);
     if (during.length && during.every(s => s.blocked)) problems.add(`rrweb ${labelOf(ev)} recorded while ${during.map(s => short(s.url)).join(' and ')} was open`);
     for (const s of during) {
       open.add(short(s.url));
       if (!s.blocked) recorded.set(short(s.url), (recorded.get(short(s.url)) || 0) + 1);
     }
-    const d = ev.data || {};
-    const href = ev.type === 4 ? d.href : ev.type === 5 && d.payload ? d.payload.href : null;
     if (typeof href === 'string' && (policy.recordingBlocked(href) || NEVER_RECORDED(href))) problems.add(`a recording names the blocked page ${short(href)}`);
   }
   run.recordedPages = recorded;
