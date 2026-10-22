@@ -38,10 +38,10 @@ export default function RaceMorningBody() {
   // The pairs, cooler year first: the readout's key names what its values are (sustained slowdown) and the pair, and the
   // start temperatures beside them follow the same order, cooler then warmer.
   const pairName = (x: (typeof p.list)[number]) => `${x.city} ${x.cool_year} · ${x.hot_year}`;
-  // A pair whose shares round to the same whole percent is said to one decimal, so the colour its square takes (which
-  // year had more) can be read from the numbers beside it.
+  // A pair whose shares print the same is said with the fewest decimals (up to two) that tell them apart, so the colour
+  // its square takes (which year had more) can be read from the numbers beside it.
   const shares = (x: (typeof p.list)[number]) => {
-    const digits = pct(x.cool_slowdown) === pct(x.hot_slowdown) ? 1 : 0;
+    const digits = [0, 1, 2].find((d) => pct(x.cool_slowdown, d) !== pct(x.hot_slowdown, d)) ?? 2;
     return [pct(x.cool_slowdown, digits), pct(x.hot_slowdown, digits)];
   };
   const tiles = (u: UnitSystem) => p.list.map((x) => {

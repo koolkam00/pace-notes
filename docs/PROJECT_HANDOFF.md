@@ -16,7 +16,9 @@ It republishes 0829 with the producer's cross-race identity restored in FULL ([0
 - **Cohort:** **4,108,749 eligible finishes in 215 editions and 27 cities** (1652: 3,871,767 in 211 and 28). Sustained slowdowns: 1,266,780 (30.83%; 1652: 30.28%).
 - **Producer follow-up found by the rebuild:** Chicago 2025's start was moved to 07:35, but its weather reading stayed at 07:00. That is more than 30 minutes off, so the weather screen and runner context leave it out (weather 297 of 298 editions).
 
-**Repository state:** branch `data/release-1050`, pushed; every owned output rebuilt and imported, October 21, 2026. **Deployed state:** not deployed; production `live.json` named `htw-db-2026-10-16-1652` when checked on October 21, 2026.
+- **Insight review (October 22, 2026):** every page's visible text was compared with the live 1652 site and every pack's answer with its 1652 version. The changed insights, the copy fixed because it no longer held (no number changed) and the questions left for the owner and the producer are in the [refresh record](REFRESH_20261021_1050.md#changed-insights).
+
+**Repository state:** branch `data/release-1050`, pushed, draft PR #78; every owned output rebuilt and imported, October 21, 2026; all local checks and CI passed on October 22, 2026. **Deployed state:** not deployed; production `live.json` still named `htw-db-2026-10-16-1652` when checked on October 22, 2026, 09:23 UTC. The branch preview (https://htw-live-study-git-data-release-1050-koolkam00s-projects.vercel.app) serves this release.
 
 ## Release `private-export-20261021-0829`: verified, not adopted (October 21, 2026; superseded by 1050 above)
 
