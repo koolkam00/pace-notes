@@ -402,8 +402,11 @@ function courseAmong(ctx?: NuggetContext): Nugget {
   const page = pageFor(ctx);
   const s = page?.summary;
   const others = [...coursePages().values()].map((p) => p.summary).filter((o) => o.city !== s?.city && o.editions >= MIN_EDITIONS);
-  const higher = s ? others.filter((o) => o.slowdown > s.slowdown).length : 0;
-  const lower = s ? others.filter((o) => o.slowdown < s.slowdown).length : 0;
+  // Counted on the shares as printed (October 21, 2026: Valencia's 19.9% was "lower than all" beside Hamburg's 20.2%,
+  // both printed 20%): a course that prints the same share is neither above nor below.
+  const printed = (v: number) => Number(pct(v).replace('%', ''));
+  const higher = s ? others.filter((o) => printed(o.slowdown) > printed(s.slowdown)).length : 0;
+  const lower = s ? others.filter((o) => printed(o.slowdown) < printed(s.slowdown)).length : 0;
   const n = others.length;
   const solid = !!s && s.editions >= MIN_EDITIONS;
   const middle = solid && Math.abs(higher - lower) <= MIDDLE_SPREAD;

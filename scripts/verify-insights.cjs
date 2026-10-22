@@ -349,6 +349,10 @@ for (const rule of screen) {
   duplicate[editionIndex.get(editionKey(rule.city, rule.year))] = 1;
 }
 const excluded = new Set(runners.source_quality.editions.map(row => editionKey(row.city, row.year)));
+// The producer-held editions /methodology names as kept (lib/edition-review.ts): in this release and outside its policy.
+for (const { city, year } of require('../lib/edition-review.ts').keptHolds(pin.tag)) {
+  assert.ok(editionIndex.has(editionKey(city, year)) && !excluded.has(editionKey(city, year)), `${city} ${year}: a kept hold must be in the release and outside the edition policy`);
+}
 const capacity = runners.eligible_records;
 const times = new Float64Array(capacity * 9), editionOf = new Uint16Array(capacity), genderOf = new Uint8Array(capacity);
 const recordIds = new Float64Array(runners.raw_records), profileIds = new Float64Array(runners.profiles);

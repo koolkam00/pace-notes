@@ -19,7 +19,7 @@ const PATH = '/slowdown';
 export function generateMetadata() {
   const study = getStudyEvidence();
   const share = study && Number.isFinite(study.rate) ? ` (${study.rate.toFixed(1)}% of finishes)` : '';
-  const describe = (detail: string) => `How often recorded marathon finishes had a sustained slowdown${detail}, where episodes began, and patterns by age and earlier results.`;
+  const describe = (detail: string) => `How often recorded marathon finishes had a sustained slowdown${detail}, where they began, and how often by earlier recorded best.`;
   return pageMetadata({
     title: 'Sustained Slowdown in the Marathon | Pace Notes',
     description: describe(share).length <= 155 ? describe(share) : describe(''),

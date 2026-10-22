@@ -245,7 +245,9 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const n = at('course.among');
       // Only courses with three or more editions are counted either side (the hollow dots on the strip are not).
       const others = courses.courses.filter((o) => o.city !== city && o.editions >= 3);
-      const higher = others.filter((o) => o.slowdown > c.slowdown).length, lower = others.filter((o) => o.slowdown < c.slowdown).length;
+      // On the shares as printed (lib/nuggets/format.ts pct, whole percent): a course printing the same share is neither.
+      const printed = (v) => Number((v * 100).toFixed(0));
+      const higher = others.filter((o) => printed(o.slowdown) > printed(c.slowdown)).length, lower = others.filter((o) => printed(o.slowdown) < printed(c.slowdown)).length;
       step(() => eq([n.values.higher, n.values.lower, n.values.courses], [higher, lower, others.length], `course.among (${city}) recounts the courses with three or more editions either side`));
       const solidSelf = c.editions >= 3;
       const middle = solidSelf && Math.abs(higher - lower) <= 2;

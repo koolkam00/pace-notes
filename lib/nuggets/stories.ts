@@ -749,7 +749,7 @@ export function weatherTiltFrom(sig: Courses['weather']['heat_signature']): Nugg
   return {
     id: 'weather.tilt', page: '/stories/race-morning#heat', denominator: 'course',
     values: { early: early?.section ?? '', early_per_10c: early?.per_10c ?? NaN, late: late?.section ?? '', late_per_10c: late?.per_10c ?? NaN }, guard: ok,
-    headline: 'Warm mornings change the shape of the race, *not just the clock*.',
+    headline: 'Warm mornings come with a different race shape, *not just a slower clock*.',
     fallback: 'Section by section, the pace of warmer mornings against cooler ones.',
     figure: null,
   };

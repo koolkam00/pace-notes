@@ -32,13 +32,20 @@ export default function Fingerprints({ x, xDomain, courses, typical, common, com
   // stacked there crowded the one place the eye should rest), labelled once; the others stay ink dots, named.
   const on = dots.filter((d) => d.on);
   const bracket = on.length ? { x: on[0].x, y0: Math.min(...on.map((d) => d.y)), y1: Math.max(...on.map((d) => d.y)) } : null;
+  // Dots sharing a column stack their names: the top one above, the bottom one below, any between to the left (October
+  // 21, 2026: Auckland's dot sat 0.9 points over Helsinki's at 30–35K, and with both on the left one was dropped).
+  const off = dots.filter((d) => !d.on);
+  const side = (d: (typeof off)[number]) => {
+    const column = off.filter((o) => o.k === d.k).sort((a, b) => a.y - b.y);
+    return column.length < 2 ? 'left' as const : column[0] === d ? 'above' as const : column[column.length - 1] === d ? 'below' as const : 'left' as const;
+  };
   const items: LabelItem[] = [
     ...(bracket ? [{ id: 'common', text: commonLabel, x: bracket.x, y: bracket.y0, priority: 3, tone: 'signal' as const, prefer: 'above' as const }] : []),
-    ...dots.filter((d) => !d.on).map((d) => ({ id: d.id, text: d.label, x: d.x, y: d.y, priority: 2, tone: 'ink' as const, size: 13, prefer: 'left' as const })),
+    ...off.map((d) => ({ id: d.id, text: d.label, x: d.x, y: d.y, priority: 2, tone: 'ink' as const, size: 13, prefer: side(d) })),
   ];
   // The direction cue sits at the top left, so no label is placed over it.
   const cue = [0.02, 0.06, 0.1].map((cx) => ({ x: cx, y: 8 / height, r: 8 }));
-  const avoid = [...dots.filter((d) => !d.on).map((d) => ({ x: d.x, y: d.y, r: 5 })), ...typical.map((v, i) => ({ x: sx(x[i]), y: y(v), r: 3 })), ...cue,
+  const avoid = [...off.map((d) => ({ x: d.x, y: d.y, r: 5 })), ...typical.map((v, i) => ({ x: sx(x[i]), y: y(v), r: 3 })), ...cue,
     ...(bracket ? [0, 0.25, 0.5, 0.75, 1].map((f) => ({ x: bracket.x, y: bracket.y0 + f * (bracket.y1 - bracket.y0), r: 6 })) : [])];
   const placed = placeLabels(items, { height, avoid });
   const pts = (values: number[]) => values.map((v, i) => [sx(x[i]), y(v)] as [number, number]);
@@ -51,7 +58,7 @@ export default function Fingerprints({ x, xDomain, courses, typical, common, com
         {courses.map((c) => <path key={c.id} className="l-faint" d={linePath(pts(c.curve))} />)}
         <path className="l-ink" d={linePath(pts(typical))} />
       </svg>
-      {dots.filter((d) => !d.on).map((d) => <circle key={d.id} className="m-ink fp-dot" cx={pc(d.x)} cy={pc(d.y)} r={4} />)}
+      {off.map((d) => <circle key={d.id} className="m-ink fp-dot" cx={pc(d.x)} cy={pc(d.y)} r={4} />)}
       {bracket ? (
         <g className="fp-bracket">
           <rect className="m-signal" x={pc(bracket.x)} y={pc(bracket.y0)} width={2} height={pc(Math.max(0, bracket.y1 - bracket.y0))} transform="translate(-1 0)" />
@@ -67,7 +74,7 @@ export default function Fingerprints({ x, xDomain, courses, typical, common, com
     <ChartFrame className="fingerprints" label={label} height={height} heightMd={heightMd} plot={plot}
       axis={<Axis ticks={xTicks.map((t) => ({ x: sx(t.value), label: t.label }))} />}
       keys={[{ label: 'Typical course', mark: 'line' }, { label: 'Each course', mark: 'line', tone: 'quiet' },
-        ...(dots.some((d) => !d.on) ? [{ label: 'Slowest 5K elsewhere', mark: 'dot' as const }] : [])]}
+        ...(off.length ? [{ label: 'Slowest 5K elsewhere', mark: 'dot' as const }] : [])]}
       values={values} />
   );
 }
