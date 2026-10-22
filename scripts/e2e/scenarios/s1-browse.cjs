@@ -2,8 +2,8 @@
 // S1: an ordinary visit, with client-side navigation the whole way: the home page, a story, each of the five main links
 // (on a phone through the Menu), an analysis from the research hub and the privacy page. Each page view is sent with its
 // clean path and the previous page's reading figures, and each page is recorded except the runner search, which never
-// is. Then the home page's first screen on the two common iPhone sizes (the plan button and the other two ways to start
-// show without scrolling, and that button is the only orange control there), the hero at 200% zoom, and its
+// is. Then the home page's first screen on the two common iPhone sizes (the line that says what Pace Notes is, the plan
+// button and the other two ways to start show without scrolling, and that button is the only orange control there), the hero at 200% zoom, and its
 // course-and-goal form, which goes to the planner by GET with and without the page's JavaScript, and the keypad's dot
 // typing a colon in time fields (the home goal, a tool's time, a pace and the split check). Last, the units
 // switch: it works on /research and /methodology opened directly, and every page served with the inert placeholder
@@ -73,8 +73,9 @@ async function browse(h, device) {
   h.check('every page but the runner search was recorded', paths.filter(p => !BLOCKED.includes(p)).every(p => recorded.includes(p)) && !recorded.some(p => BLOCKED.includes(p)), { pageviews: paths, recorded });
 }
 
-// The first phone screen, at the default text size: the title, the plan form with its button and the other two ways
-// to start all show without scrolling (the 57 px header included), and the plan button is the only orange control.
+// The first phone screen, at the default text size: the title, the one line under it that says what Pace Notes is (the
+// owner's orientation request, October 22, 2026), the plan form with its button and the other two ways to start all
+// show without scrolling (the 57 px header included), and the plan button is the only orange control.
 const FIRST_SCREENS = [{ width: 390, height: 664 }, { width: 402, height: 714 }];
 async function firstScreen(h) {
   for (const viewport of FIRST_SCREENS) {
@@ -89,13 +90,13 @@ async function firstScreen(h) {
         const r = el.getBoundingClientRect();
         return r.width && r.height && r.top < innerHeight && r.bottom > 0 && getComputedStyle(el).backgroundColor === 'rgb(255, 91, 46)';
       }).map(el => el.textContent.trim());
-      return { innerHeight, scrollY, title: bottom('#hero-title'), button: bottom('.home-plan-button'), doors: bottom('.home-door-link'), orange };
+      return { innerHeight, scrollY, title: bottom('#hero-title'), what: bottom('.home-hero-what'), button: bottom('.home-plan-button'), doors: bottom('.home-door-link'), orange };
     });
     await run.close();
-    const fits = seen.scrollY === 0 && seen.button.length === 1 && seen.doors.length === 2 && [...seen.title, ...seen.button, ...seen.doors].every(b => b <= seen.innerHeight);
-    h.check(`${viewport.width} x ${viewport.height}: the title, the Plan your race button and both other ways to start end above the screen's bottom`, fits, seen);
+    const fits = seen.scrollY === 0 && seen.what.length === 1 && seen.button.length === 1 && seen.doors.length === 2 && [...seen.title, ...seen.what, ...seen.button, ...seen.doors].every(b => b <= seen.innerHeight);
+    h.check(`${viewport.width} x ${viewport.height}: the title, the line that says what Pace Notes is, the Plan your race button and both other ways to start end above the screen's bottom`, fits, seen);
     h.check(`${viewport.width} x ${viewport.height}: Plan your race is the only orange control on the first screen`, JSON.stringify(seen.orange) === '["Plan your race"]', seen.orange);
-    h.note(`${viewport.width} x ${viewport.height}: bottoms (px of ${seen.innerHeight}) title ${seen.title}, button ${seen.button}, doors ${seen.doors.join(' and ')}`);
+    h.note(`${viewport.width} x ${viewport.height}: bottoms (px of ${seen.innerHeight}) title ${seen.title}, what ${seen.what}, button ${seen.button}, doors ${seen.doors.join(' and ')}`);
   }
 }
 

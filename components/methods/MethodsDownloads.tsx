@@ -20,6 +20,8 @@ export const STORY_FILE_TOPICS: Record<string, string> = {
 
 const RELEASES = 'https://github.com/koolkam00/pace-notes/releases';
 const SOURCE = 'https://github.com/koolkam00/pace-notes';
+/** How to open the full records of the adopted release (rewritten at every adoption: docs/OPERATIONS.md). */
+const ACCESS = 'https://github.com/koolkam00/pace-notes/blob/main/analysis/ACCESS.md';
 
 /** A file, or a set of files, as one link row: its name, what it holds, and where it goes. */
 function FileRow({ href, name, what }: { href: string; name: string; what: string }) {
@@ -38,7 +40,9 @@ function Files({ files }: { files: { href: string; name: string; what?: string }
 /**
  * Part 5: every public file behind the site (AGENTS.md: the records, the exports and every analysis output, free to
  * download without an account). The research packs that the archive pages showed until October 17, 2026 are listed
- * here (#archive): /packs and /packs/<id> redirect to #downloads.
+ * here (#archive): /packs and /packs/<id> redirect to #downloads. Under the three rows, one line says what kind of file
+ * each is and links to analysis/ACCESS.md for opening the full records, so the release's packaging (parts, checksums,
+ * formats) is written once, there, and no sentence here goes stale when it changes.
  */
 export default function MethodsDownloads() {
   const manifest = getInsightsManifest();
@@ -52,6 +56,7 @@ export default function MethodsDownloads() {
       <FileRow href={RELEASES} name="Every data release" what="Each export, with its checksums" />
       <FileRow href={SOURCE} name="Source code" what="The site and every calculation behind it" />
     </div>
+    <p className="methods-part-note">The full race records are large archives for data tools: <a href={ACCESS}>how to open them</a> gives the steps and checksums for the current release. Every other file below is a JSON or CSV summary.</p>
 
     <Detail id="downloads-stories" title="The stories’ data">
       <Files files={[

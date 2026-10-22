@@ -23,6 +23,7 @@ Use [analysis/README.md](../analysis/README.md) for the complete calculation and
 2. Fetch public repository metadata and full-record assets without a token, cookies or an account. Confirm actual bytes and checksums, not only a visible release page. The legacy word `private` in a tag is not an access control.
 3. Download immutable CORE and FULL from one exact tag; verify archive/member checksums, schema, units, record/feature alignment, raw counts, overlay dates and source completeness. A successful exporter is not analytical validation.
 4. Keep operational credentials out of datasets and logs. Full research records are public and may be stored in or outside the checkout. Prefer durable Release assets for large files.
+5. At each adoption, rewrite the top of [analysis/ACCESS.md](../analysis/ACCESS.md) for the adopted release: asset links and sizes, how to join split parts, the checksum steps and a dated anonymous-access check (since October 22, 2026 `/methodology#downloads` links to it as "how to open them"). Keep the previous release's section below as dated history.
 
 ## Reproduce and audit the current input
 

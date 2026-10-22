@@ -2,7 +2,8 @@
    the error page, plus the folds they share with /methodology. Site-wide (app/styles/site.css): the 404 and the error
    page render under the root layout, and the folds are one look wherever a page keeps its detail closed.
 
-   A prose page: a kicker, the H1 and one line, then short sections divided by hairlines at the reading measure. */
+   A prose page: a kicker, the H1 and one line, then short sections divided by hairlines at the reading measure. /about
+   opens on its ways in (.info-ways): one row per visitor goal, the /tools row's shape at the info measure. */
 
 /* No bottom padding: the footer's own 64 px margin is the gap under the closing line (with both, about 150 px of paper
    read as the page running out rather than ending). */
@@ -41,6 +42,22 @@
 .info-choice [role="status"] { margin: 0; font-size: var(--t-body); font-weight: 600; color: var(--ink); }
 .info-choice-note { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-3); }
 .info-folds { margin-top: 0; }
+
+/* About's ways in (app/about/page.tsx): one row each, the visitor's goal over the page that answers it. The /tools
+   row's shape (tools.css), which /about does not load; the last row drops its rule so the next section's hairline is
+   the only one. */
+.info-ways { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.info-section .info-ways li { margin: 0; border-bottom: 1px solid var(--rule); }
+.info-section .info-ways li:last-child { border-bottom: 0; }
+.info-way { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px var(--s-4); min-height: 64px; padding: 12px 0; color: var(--ink); text-decoration: none; }
+.info-way:hover { text-decoration: none; }
+.info-way:hover b { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: .2em; }
+.info-way:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.info-way .arrow-icon { width: 18px; height: 18px; color: var(--ink-3); transition: transform var(--d-release) var(--spring); }
+.info-way:hover .arrow-icon { transform: translateX(3px); color: var(--ink); }
+.info-way-text { display: grid; gap: 2px; min-width: 0; }
+.info-way-text b { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
+.info-section .info-way-text > span { font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
 
 /* ---------- Folds: a row that opens (details), its title and a plus that turns into a minus ---------- */
 .fold { border-bottom: 1px solid var(--rule); }

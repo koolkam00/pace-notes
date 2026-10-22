@@ -3,7 +3,8 @@
    guess on 100 dots, the chapters as a course line, and the closing call on night. Beats are separated by whitespace,
    never boxes; the guess is the page's one raised surface. S1 pins the phone's first screen: at 390 x 664 and
    402 x 714 the title, the plan button and both other ways to start end above the fold, and the button is the only
-   orange control there. */
+   orange control there. Since October 22, 2026 that screen also holds the line under the title that says what Pace
+   Notes is (the owner's orientation request), and the title keeps two lines at 360 px. */
 
 /* ---------- Night bands: full bleed out of main's column ---------- */
 .home-band { position: relative; width: 100vw; margin-left: calc(50% - 50vw); background: var(--night); color: var(--night-ink); }
@@ -18,9 +19,16 @@
 /* On phones the replay comes first, above the title (the copy is first in the page's order). */
 .home-hero-replay { order: -1; }
 .home-hero-kicker { margin: 0; }
-.home-hero-title { margin-top: var(--s-2); }
+/* The title on the display curve with a 34 px floor (the token's is 36): below about 382 px the miles title keeps two
+   lines, so at 360 x 640 the plan button and both doors stay on the first screen (at 36 px it took three and pushed the
+   doors off; measured October 22, 2026). From 900 px the desktop size below takes over. */
+.home-hero-title { margin-top: var(--s-2); font-size: clamp(2.125rem, 8.6vw + .2rem, 5.25rem); }
 .home-hero-title em { white-space: nowrap; }
-.home-hero-dek { display: none; margin: var(--s-3) 0 0; max-width: 30rem; font-size: var(--t-body); line-height: 1.5; color: var(--night-ink-2); text-wrap: pretty; }
+/* The line under the title says what Pace Notes is, at every width. Phones show only that line, a size smaller, so S1's
+   first screen still holds the title, the plan button and both other ways to start; from 600 px the form's sentence
+   follows it. */
+.home-hero-dek { margin: var(--s-3) 0 0; max-width: 30rem; font-size: var(--t-body); line-height: 1.5; color: var(--night-ink-2); text-wrap: pretty; }
+.home-hero-what { display: block; }
 
 /* The replay band (components/viz/ReplayFrame.tsx in its band variant): the race and clock, the field at a fifth of
    the screen with the start, 20K and the finish labelled at its foot (the sentence says how far the back of the field
@@ -128,9 +136,17 @@
 .home-cta-inner .t-h2 { max-width: 16ch; }
 .home-cta .btn-primary:focus-visible { outline-color: var(--focus-night); }
 
+/* ---------- Phones: the hero's one line (after the doors' rule, so its margin wins) ---------- */
+@media (max-width: 599.98px) {
+  .home-hero-dek { margin-top: var(--s-2); font-size: .9375rem; line-height: 1.4; }
+  .home-hero-how { display: none; }
+  .home-doors { margin-top: var(--s-3); }
+}
+
 /* ---------- Narrow (320 px, and 200% zoom) ---------- */
 @media (max-width: 359.98px) {
   .home-door-others { flex-direction: column; align-items: flex-start; }
+  .home-hero-dek { font-size: var(--t-small); }
 }
 @media (max-width: 299.98px) {
   /* The replay's two shares each take their own lines, and the readings step down a size, so nothing passes the edge. */
@@ -142,10 +158,6 @@
   .home-plan-field, .home-plan-field + .home-plan-field { border-radius: 0; }
   .home-plan-field + .home-plan-field { border-left: 0; border-top: 1px solid var(--night-3); }
   .home-plan-field-head { flex-wrap: wrap; }
-}
-
-@media (min-width: 600px) {
-  .home-hero-dek { display: block; }
 }
 
 /* ---------- Desktop: copy and form on the left half, the replay on the right ----------

@@ -1,8 +1,49 @@
 # Public export access
 
+Updated October 22, 2026 for **`private-export-20261021-1050`**, the release every page uses (on `main` since PR #78 and live on splithappens.run since October 22, 2026). Full source records, recorded names, supplied features, overlays and the producer's documents are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption ([operations](../docs/OPERATIONS.md)).
+
+## Open the full records
+
+- [1050 release and all assets](https://github.com/koolkam00/pace-notes/releases/tag/private-export-20261021-1050), also on Figshare (DOI [10.6084/m9.figshare.33965155.v3](https://doi.org/10.6084/m9.figshare.33965155.v3))
+- [CORE archive](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/pace-notes-CORE-20261021-1050.tar.gz) (189,403,111 bytes): the race records, weather, routes, flags and the producer's documents, 17 members
+- FULL archive in two parts, [part 00](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/pace-notes-FULL-20261021-1050.tar.gz.part-00) (790,000,000 bytes) and [part 01](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/pace-notes-FULL-20261021-1050.tar.gz.part-01) (780,523,364 bytes): every CORE member plus `features.parquet`, which carries the producer's cross-race `runner_id` (rules in `MATCHING.md`)
+- [Release checksums](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/RELEASE-SHA256SUMS-20261021-1050.txt) (428 bytes), listing CORE, the joined FULL and both parts
+
+Steps, with standard tools:
+
+1. Download CORE, or both FULL parts, and the release checksums into one folder.
+2. Join FULL's parts in order: `cat pace-notes-FULL-20261021-1050.tar.gz.part-00 pace-notes-FULL-20261021-1050.tar.gz.part-01 > pace-notes-FULL-20261021-1050.tar.gz`.
+3. Check what you downloaded: `sha256sum -c --ignore-missing RELEASE-SHA256SUMS-20261021-1050.txt` (on macOS, `shasum -a 256 -c`).
+4. Unpack: `tar -xzf pace-notes-FULL-20261021-1050.tar.gz` (or the CORE archive). `SHA256SUMS.txt` inside lists every member's digest.
+5. Read the Parquet tables with DuckDB (`SELECT * FROM 'race_records.parquet' LIMIT 10;`) or PyArrow. `MANIFEST.json`, `ID-CONTRACT.md`, `FEATURE-FIELD-NOTES.md` and `MATCHING.md` describe the fields.
+
+Or let `analysis/download_release.py` do steps 1 to 3: it streams FULL's parts in order, checks each part's size and digest, and refuses a joined archive whose SHA-256 is not in the release checksums.
+
+```bash
+python -m pip install -r analysis/requirements.txt
+python analysis/download_release.py --bundle FULL --tag private-export-20261021-1050 --output /path/to/1050-input
+python analysis/download_release.py --bundle CORE --tag private-export-20261021-1050 --output /path/to/1050-core
+```
+
+No account, password or decryption key is required. On October 22, 2026 at 16:44 UTC the release's asset list was read from the GitHub API with no token (HTTP 200), and the release checksums (HTTP 200, 428 bytes) and the first kilobyte of FULL part 00 (HTTP 206, 1,024 bytes) were downloaded with curl sending no credentials, from the project's build container through its HTTPS proxy.
+
+| Verification | Value |
+| --- | --- |
+| CORE archive SHA-256 | `b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8` |
+| FULL archive SHA-256 (joined) | `6df47d5538023003271a89c289332e964aa136e34b3770ecffd2e704cc8490e5` |
+| FULL part 00 SHA-256 | `07788e3d11abf529e4a4930bfe2082f066ff811bd35b0fab8ac7bbb08e4bd4cc` |
+| FULL part 01 SHA-256 | `9a67ce12c6d14776826249727373895b3ac776cfb366595286164c24a5ad6b09` |
+| Release checksums SHA-256 | `a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f` |
+| Raw records and features | 5,327,504 each |
+| Raw coverage | 34 cities; 298 city/year editions |
+
+The audit, the identity contract, the edition policy and the delta against 1652 (412,943 records added, 794 removed, none changed) are in [the 1050 refresh record](../docs/REFRESH_20261021_1050.md#verified-source). Downloading a release does not change either pin, the website or the ingestion database.
+
+## The 1652 release (October 16, 2026, historical)
+
 Updated October 16, 2026 for **`htw-db-2026-10-16-1652`**, the release the analyses on branch `feat/release-1652` are rebuilt from (repository state; not deployed until that branch is merged and production is checked). Full source records, recorded names, supplied features, overlays and consistent database backups are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database.
 
-## Download the audited source
+### Download the audited source
 
 The release lives in the renamed repository `koolkam00/pace-notes`.
 
@@ -36,7 +77,7 @@ Both archives were downloaded with `analysis/download_release.py` and checked ag
 
 The release is not append-only, unlike 0934 against 1107. The 116,287 deleted IDs are all of Chicago 2018 (51,967), Chicago 2019 (51,807) and Frankfurt 2019 (12,513), reloaded with new IDs: the Chicago copies of the 2024 field and the Frankfurt rows that were the 2025 race filed under 2019 are gone. Records changed in place: Paris 2014–2018 (203,026 rows' 10–40 km strings), Valencia 2022–2024 (15,702 rows from no recorded gender to F, each with a recorded F- category label), Warsaw 2015–2018 (23,919 rows relabelled to the Orlen race) and two Chicago 2024 rows. `CHANGE-REPORT.md` lists edition row counts only, so it does not show the reloads or the in-place changes. The producer's `ID-CONTRACT.md` and `FEATURE-FIELD-NOTES.md` still name the 1107 freeze; the identity contract below was verified at run time instead.
 
-## Record and identity contract
+### Record and identity contract
 
 Raw `id` and feature `record_id` are unique, non-null and have identical sets in 1652. Edition labels, recorded names and age agree exactly; all nine comparable cumulative timings agree within 1 ms after converting feature minutes to seconds (largest difference 7.3e-12 s). Raw `X` gender is normalized to null in 701 feature rows. Feature `age_group` is an engine banding, not the recorded label. Row order is not a join key.
 
@@ -44,7 +85,7 @@ The history builder enables canonical IDs only for the explicitly reviewed 1107,
 
 Raw elapsed strings remain authoritative for site timing calculations. Feature `valid_splits` identifies 4,007,503 rows; this is not the website's raw-timing/source-quality cohort of 3,871,767. The complete export retains invalid, missing and excluded rows for audit. Missing ages remain missing (3,263,720 raw null ages); every feature race date is still null. Unique weather-overlay dates supply edition context, not personal start or exact within-year race chronology.
 
-## Reproduce and inspect
+### Reproduce and inspect
 
 ```bash
 python -m pip install -r analysis/requirements.txt
