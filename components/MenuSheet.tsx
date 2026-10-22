@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
 import SiteNav from './SiteNav';
 import { UnitLink as Link } from './UnitsProvider';
 import { CloseIcon, useDialog } from './ui/dialog';
@@ -41,13 +41,21 @@ export default function MenuSheet({ open, onClose, chapters }: { open: MenuMode;
   }, [open]);
   const dialog = (on: boolean, title: string) => (on ? { role: 'dialog', 'aria-modal': true, 'aria-labelledby': title } : {});
   const close = (label: string) => <button type="button" className="sheet-close" onClick={onClose} aria-label={label}><CloseIcon /></button>;
+  // The menu closes when the path changes (SiteHeader). A link to the page already open (Open data on /methodology goes
+  // to its #downloads) changes no path, so it closes the menu on the click.
+  const here = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href]') : null;
+    const path = (p: string) => p.replace(/\/+$/, '') || '/';
+    if (link && link.origin === window.location.origin && path(link.pathname) === path(window.location.pathname)) onClose();
+  };
   return (
     <div ref={sheet} id="site-sheet" className={`menu-sheet${open === 'menu' ? ' is-open' : ''}`} {...dialog(open === 'menu', 'site-sheet-title')}>
       <div className="sheet-scrim" id="site-sheet-scrim" onClick={onClose} aria-hidden="true" />
       <div ref={panel} className="menu-panel" tabIndex={-1}>
         <span className="sheet-grip" aria-hidden="true" />
         <div className="menu-head"><p className="sheet-title" id="site-sheet-title">Menu</p>{close('Close menu')}</div>
-        <div ref={body} className="menu-body">
+        <div ref={body} className="menu-body" onClick={here}>
           <SiteNav id="site-menu" />
           <div ref={drawer} id="site-chapters" className={`menu-chapters${open === 'chapters' ? ' is-open' : ''}`} {...dialog(open === 'chapters', 'site-chapters-title')}>
             <div className="sheet-scrim" id="site-chapters-scrim" onClick={onClose} aria-hidden="true" />

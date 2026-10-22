@@ -18,7 +18,7 @@ const DESKTOP = { viewport: { width: 1280, height: 900 } };
 const PHONE = { viewport: { width: 390, height: 844 }, mobile: true };
 // The five main links, in order, then the Menu's quieter line (components/SiteNav.tsx, in components/MenuSheet.tsx).
 const MAIN = [['Plan your race', '/tools/plan'], ['Analyze a past race', '/runners'], ['Courses', '/courses'], ['Tools', '/tools'], ['Research', '/research']];
-const MORE = [['About', '/about'], ['Request an analysis', '/request-analysis'], ['Open data ↗', 'https://github.com/koolkam00/pace-notes/releases']];
+const MORE = [['About', '/about'], ['Request an analysis', '/request-analysis'], ['Open data', '/methodology#downloads']];
 const BLOCKED = ['/runners'];
 
 async function browse(h, device) {

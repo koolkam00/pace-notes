@@ -20,6 +20,8 @@ export const STORY_FILE_TOPICS: Record<string, string> = {
 
 const RELEASES = 'https://github.com/koolkam00/pace-notes/releases';
 const SOURCE = 'https://github.com/koolkam00/pace-notes';
+/** The full records on Figshare: the DOI without a version resolves to the newest version there. */
+const FIGSHARE = 'https://doi.org/10.6084/m9.figshare.33965155';
 /** How to open the full records of the adopted release (rewritten at every adoption: docs/OPERATIONS.md). */
 const ACCESS = 'https://github.com/koolkam00/pace-notes/blob/main/analysis/ACCESS.md';
 
@@ -40,9 +42,10 @@ function Files({ files }: { files: { href: string; name: string; what?: string }
 /**
  * Part 5: every public file behind the site (AGENTS.md: the records, the exports and every analysis output, free to
  * download without an account). The research packs that the archive pages showed until October 17, 2026 are listed
- * here (#archive): /packs and /packs/<id> redirect to #downloads. Under the three rows, one line says what kind of file
- * each is and links to analysis/ACCESS.md for opening the full records, so the release's packaging (parts, checksums,
- * formats) is written once, there, and no sentence here goes stale when it changes.
+ * here (#archive): /packs and /packs/<id> redirect to #downloads. Under the four rows (the Figshare copy joined them on
+ * October 22, 2026), one line says what kind of file each is and links to analysis/ACCESS.md for opening the full
+ * records, so the release's packaging (parts, checksums, formats) is written once, there, and no sentence here goes
+ * stale when it changes.
  */
 export default function MethodsDownloads() {
   const manifest = getInsightsManifest();
@@ -53,6 +56,7 @@ export default function MethodsDownloads() {
   return <Part id="downloads" n={5} short="Downloads" title="Downloads" lead="Every file is public. No account, no key.">
     <div className="methods-file-rows">
       <FileRow href={sourceHref} name="Full race records" what="Every record in the current release, recorded names included" />
+      <FileRow href={FIGSHARE} name="Citable copy" what="The full race records on Figshare, with a DOI and a CC BY 4.0 licence" />
       <FileRow href={RELEASES} name="Every data release" what="Each export, with its checksums" />
       <FileRow href={SOURCE} name="Source code" what="The site and every calculation behind it" />
     </div>
