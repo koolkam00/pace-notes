@@ -64,8 +64,11 @@ export default function RaceMorningBody() {
   const tLo = curve[0].temp, tHi = curve[curve.length - 1].temp;
   // Each degree's rate is centred on it (half the change from the degree below to the one above): on this fitted curve
   // that is the slope the H2 and the cool end's label give, where a step from the degree below is the rate half a degree
-  // cooler. The two ends take their one neighbour.
-  const local = curve.map((c, i) => (i === 0 ? curve[1].change - c.change : i === curve.length - 1 ? c.change - curve[i - 1].change
+  // cooler. The two ends use the one-sided three-point rate, exact on this quadratic (October 22, 2026: a one-step
+  // difference read −0.3 min per °C at 0 °C, where the fitted slope is −0.4).
+  const n = curve.length - 1;
+  const local = curve.map((c, i) => (i === 0 ? (-3 * c.change + 4 * curve[1].change - curve[2].change) / 2
+    : i === n ? (3 * c.change - 4 * curve[n - 1].change + curve[n - 2].change) / 2
     : (curve[i + 1].change - curve[i - 1].change) / 2));
   const cool = Number(curveN.values.cool_c), warm = Number(curveN.values.warm_c);
   const at = (t: number) => Math.max(0, curve.findIndex((c) => c.temp === t));

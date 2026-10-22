@@ -44,9 +44,11 @@ def build(cohort):
         if w['weather_race'].strip().casefold() != ed.get('race', '').strip().casefold():
             excluded.append(dict(city=ed['city'], year=ed['year'], reason='Weather race name differs'))
             continue
+        # Wind keeps the source's two decimals, so the tool prints the mph the course page and runner view print
+        # (October 22, 2026: rounded to 0.1 m/s first, Chicago 2025's 2.15 m/s read 4.7 mph against 4.8).
         row = dict(id=len(editions), city=ed['city'], year=int(ed['year']), date=w.get('date'), start=w.get('scheduled_start'),
                    temp_c=r(w['temp_c'], 1), dew_c=r(w['dewpoint_c'], 1) if w.get('dewpoint_c') is not None else None,
-                   wind_mps=r(w['wind_mps'], 1) if w.get('wind_mps') is not None else None,
+                   wind_mps=r(w['wind_mps'], 2) if w.get('wind_mps') is not None else None,
                    warming_c=r(w['warming_c'], 1) if w.get('warming_c') is not None else None, finishes=int(len(idx)))
         editions.append(row)
         # per pace band summary for this edition (only bands with MIN_EDITION finishes count toward a match)

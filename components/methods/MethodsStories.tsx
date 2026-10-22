@@ -105,7 +105,7 @@ function storyNotes(file: string, slug: string): ReactNode[] {
         <>Within-course slopes are simple descriptive slopes. The prespecified <a href="#weather">weather screen</a> remains the adjusted analysis.</>,
         'In the untangled view each course’s dots are moved so its own averages sit at the center; the pooled view mixes field, terrain and climate.',
         'The heat signature is an average within-course association, drawn as a straight line from the typical curve at the average start. Its finish and slowdown readouts use a separate curved fit, compared with a 10 °C start on the same course. Hottest and coolest mornings use courses with three or more editions.',
-        'Race-morning temperatures are modeled for the scheduled start at one point in the city (see Weather and elevation sources).',
+        'Race-morning temperatures are modeled for the hour near the scheduled start at one point in the city (see Weather and elevation sources).',
       ];
       return [
         'Late fade fits each edition curve as a distance-weighted multiple of the typical curve; 1.00× is typical, and the signature is what remains.',

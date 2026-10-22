@@ -55,14 +55,15 @@ export function bandWordsOf(g: Pick<AllFinisherGroup, 'lower_c' | 'upper_c'>, u:
 
 /**
  * Sustained slowdown by start temperature, one column per band with 100 finishes or more. The band followed is the
- * signal; the example's is the fewest among bands with five or more races (the H1's band). A band with fewer races is
- * hollow and keyed, never the example's finding.
+ * signal; the example's is the fewest among bands with five or more races (the H1's band), or among every band shown
+ * when fewer than two have five, as the H2 picks its end (October 22, 2026: Chicago had one such band, which the label
+ * called the fewest while the H2 named a cooler one). A band with fewer races is hollow and keyed.
  */
 export function bandColumns(groups: AllFinisherGroup[], units: UnitSystem, { id, subject }: { id: string; subject?: string }): AnswerParts | null {
   const bands = groups.filter((g) => g.n >= 100 && Number.isFinite(g.slowdown_pct)).sort((a, b) => (a.upper_c ?? Infinity) - (b.upper_c ?? Infinity));
   if (!bands.length) return null;
   const steady = bands.filter((g) => g.edition_n >= 5);
-  const low = steady.reduce<AllFinisherGroup | undefined>((a, b) => (!a || b.slowdown_pct < a.slowdown_pct ? b : a), undefined);
+  const low = (steady.length >= 2 ? steady : bands).reduce<AllFinisherGroup | undefined>((a, b) => (!a || b.slowdown_pct < a.slowdown_pct ? b : a), undefined);
   const focus = bands.find((g) => g.id === subject) ?? low;
   const top = Math.ceil(Math.max(...bands.map((g) => g.slowdown_pct)) / 10) * 10 + 5;
   return {

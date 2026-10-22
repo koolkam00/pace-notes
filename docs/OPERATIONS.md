@@ -85,7 +85,7 @@ Every active analysis must now use the same adopted release. The supporting-stud
 
 ## Runner context refresh
 
-The context builder uses `analysis/release.json` and requires the verified FULL directory containing `full.tar.gz`, `MANIFEST.json`, `provenance.json` and extracted inputs. It checks the source against the existing runner lookup. It explicitly supports the audited 1107, 0934 and 1652 policies; adopting a future tag requires reviewing the source/edition policy, rebuilding the lookup and updating the release-gated contracts together.
+The context builder uses `analysis/release.json` and requires the verified FULL directory containing `full.tar.gz`, `MANIFEST.json`, `provenance.json` and extracted inputs. It checks the source against the existing runner lookup. It explicitly supports the audited 1107, 0934, 1652 and 1050 policies; adopting a future tag requires reviewing the source/edition policy, rebuilding the lookup and updating the release-gated contracts together.
 
 Install Python requirements and Node dependencies first. Refresh and import the runner lookup before this sequence when its source or calculation changes. Use a fresh output directory:
 
@@ -96,6 +96,8 @@ python analysis/import_runner_context.py --input /path/to/1050-runner-context
 npm run verify:data
 npm run build
 ```
+
+A change to `build_weather.py` or `runner_environment.py` (the start-hour check) requires rebuilding, in order: the weather screen; runner context (build, `--check-only`, import); the all-finisher context; then the stories and tool data with course geometry and their manifest, each with its verifier. The packs, the supporting study, the runner lookup and fast start read neither ([October 22, 2026 example](evidence/2026-10-22/chicago-2025-weather/pipeline.sh)).
 
 `--runners` defaults to the repository's `public/data/runners`. The importer invokes the full Node verifier before any replacement. It stages only `manifest.json` and the listed edition shards, then replaces only `public/data/runner-context`, restoring the prior directory if the swap fails. Its optional `--output` is the **parent** public-data directory, not the runner-context folder; validation still binds to this repository's runner manifest. No other data folder or release pin is modified.
 

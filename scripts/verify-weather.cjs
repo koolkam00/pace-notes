@@ -122,7 +122,10 @@ for (const row of evidence.editions) {
 for (const e of evidence.accepted_early_hours ?? []) {
   const row = evidence.editions.find(r => r.city === e.city && r.year === e.year);
   assert.ok(row && e.minutes_early > 30 && e.minutes_early <= 60, `${e.city} ${e.year}: an accepted early hour must be a published edition more than 30 minutes early`);
-  assert.ok(evidence.methodology.some(m => m.includes(`${e.city} ${e.year}`)), `${e.city} ${e.year}: the method must name every accepted early hour`);
+  assert.ok(row.start_hour === e.start_hour && row.scheduled_start === e.scheduled_start
+    && Date.parse(row.date + 'T' + row.scheduled_start + ':00Z') - Date.parse(row.start_hour + 'Z') === e.minutes_early * 60 * 1000, `${e.city} ${e.year}: the listed early hour must be the edition's own hour and start`);
+  assert.ok(evidence.methodology.some(m => m.includes(`${e.city} ${e.year}`) && m.includes(e.start_hour.slice(11, 16)) && m.includes(e.scheduled_start)
+    && m.includes(`${e.minutes_early} minutes`)), `${e.city} ${e.year}: the method must name every accepted early hour with its hour, start and minutes`);
 }
 
 // Check the declared evidence gate independently of the Python publication flag.

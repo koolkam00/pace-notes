@@ -65,6 +65,22 @@ class RunnerEnvironmentTests(unittest.TestCase):
             self.assertFalse(result["start_time_independently_verified"])
             self.assertEqual(result["field_issues"], {})
 
+    def test_reviewed_early_hour_reaches_runner_context(self):
+        def chicago(city="Chicago"):
+            row = weather_fixture(7)
+            hourly = json.loads(row["hourly_json"])
+            hourly["time"] = [t.replace("2020-01-01", "2025-10-12") for t in hourly["time"]]
+            row.update(city=city, year=2025, race_date="2025-10-12", start_local="07:35", observed_at="2025-10-12T07:00",
+                       hourly_json=json.dumps(hourly), source_url=row["source_url"].replace("2020-01-01", "2025-10-12"))
+            return row
+        result, reason = runner_weather(chicago())
+        self.assertIsNone(reason)
+        self.assertEqual([row["time"] for row in result["hours"]], [f"2025-10-12T{h:02}:00" for h in range(7, 12)])
+        self.assertEqual(result["scheduled_start"], "07:35")
+        result, reason = runner_weather(chicago("Boston"))
+        self.assertIsNone(result)
+        self.assertIn("more than 30 minutes", reason)
+
     def test_start_time_disagreement_is_absent_with_reason(self):
         row = weather_fixture()
         row["start_local"] = "15:00"

@@ -29,3 +29,11 @@ step insights-copy bash -c "rm -rf public/data/insights && cp -a $B/insights pub
 step context-verify node scripts/verify-runner-context.cjs
 step weather-verify node scripts/verify-weather.cjs
 echo "$(date -u +%H:%M:%S) PIPELINE DONE"
+
+# Follow-up, 12:25–12:33 UTC the same day: the review found the weather match rounded wind to 0.1 m/s before converting
+# (106 of 197 editions printed another mph than their course page). After insights_tool_weather.py kept the source's two
+# decimals, only that family and the manifest were rebuilt into the same staging folder, verified and copied in:
+#   python analysis/build_insights.py --output $B/insights --only tool-weather-match
+#   python analysis/build_insights.py --output $B/insights --only manifest
+#   node scripts/verify-insights.cjs --input $B/insights
+#   rm -rf public/data/insights && cp -a $B/insights public/data/insights && diff -rq public/data/insights $B/insights

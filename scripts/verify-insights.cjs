@@ -1277,7 +1277,16 @@ function checkWeatherMatch(doc) {
   const eds = toolCohortCheck(doc, 'Weather match'), valid = toolWeather(eds);
   assert.deepEqual(doc.editions.map(r => [r.city, r.year]), eds.filter(e => valid.has(e)).map(e => [editions[e].city, editions[e].year]), 'Weather match: editions with a valid, matching weather row');
   const byId = doc.editions.map(r => editionIndex.get(editionKey(r.city, r.year)));
-  doc.editions.forEach((r, j) => near(r.temp_c, Math.round(valid.get(byId[j]).temp_c * 10) / 10, `${r.city} ${r.year}: start temperature`, 1e-9));
+  doc.editions.forEach((r, j) => {
+    const w = valid.get(byId[j]);
+    near(r.temp_c, Math.round(w.temp_c * 10) / 10, `${r.city} ${r.year}: start temperature`, 1e-9);
+    // Wind keeps the source's two decimals, so the tool prints the mph the course pages print (October 22, 2026: rounded
+    // to 0.1 m/s first, 106 of 197 editions printed another mph); dew point and warming are rounded to one.
+    for (const [key, source, tolerance] of [['wind_mps', 'wind_mps', 1e-9], ['dew_c', 'dewpoint_c', .05 + 1e-9], ['warming_c', 'warming_c', .05 + 1e-9]]) {
+      if (w[source] == null) assert.equal(r[key], null, `${r.city} ${r.year}: ${key} without a source value`);
+      else near(r[key], w[source], `${r.city} ${r.year}: ${key}`, tolerance);
+    }
+  });
   const per = new Map();
   for (const e of byId) {
     const bands = new Map();

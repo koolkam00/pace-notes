@@ -31,3 +31,7 @@
 11:53:27 START weather-verify
 11:53:30 OK weather-verify 3s
 11:53:30 PIPELINE DONE
+12:27:32 OK tool-weather-match (wind at the source's two decimals)
+12:28:50 OK insights-manifest
+12:32:20 OK insights-verify (210.7 s; weather match 198 editions, 1,458 rows)
+(then) OK insights-copy: manifest.json and tools/weather-match.json changed (no timestamp recorded)

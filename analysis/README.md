@@ -12,7 +12,7 @@ The pipeline calculates eight foundation and 25 extended packs, plus the 12-path
 
 [ACCESS.md](ACCESS.md) provides public CORE/FULL and backup downloads. Gzip compression is not encryption. Complete records, names and supplied features are available independently of aggregate charts. Credentials are not dataset contents.
 
-`release.json` pins the main pipeline and `weather-release.json` pins the weather screen. Both select `koolkam00/pace-notes` and 1652 alongside their validated outputs. Pins select inputs; they do not certify analysis or deployment. Source files, calculations and output metadata retain metric units. Miles and per-mile paces are website display conversions.
+`release.json` pins the main pipeline and `weather-release.json` pins the weather screen. Both select `koolkam00/pace-notes` and `private-export-20261021-1050` alongside their validated outputs. Pins select inputs; they do not certify analysis or deployment. Source files, calculations and output metadata retain metric units. Miles and per-mile paces are website display conversions.
 
 These builders consume immutable exports and do not scrape races or operate the live ingestion database. The public explorer builder recalculates the supporting sustained-slowdown results and publishes a complete runner lookup. Its importer writes current compatibility metadata to `public/data/live.json`. Historical S/R/RN/P numerical files remain in Git history, outside the deployed website. The older `live_json_as_of` field in extension metadata records context at calculation time; source identity is determined by input export and checksums.
 
@@ -37,11 +37,11 @@ The downloader verifies release asset size/SHA-256, rejects unsafe, duplicate or
 Read `https://splithappens.run/data/live.json` and substitute its actual `as_of` below. Use the same verified FULL directory for all builders.
 
 ```bash
-python analysis/build_pacing.py --input /path/to/1652-input --output /path/to/1652-aggregates --live-as-of CURRENT_PUBLIC_LIVE_AS_OF
-python analysis/build_extended.py --input /path/to/1652-input --output /path/to/1652-aggregates --personalized-output /path/to/1652-personalized --live-as-of CURRENT_PUBLIC_LIVE_AS_OF
-python analysis/write_findings.py --output /path/to/1652-aggregates
-python analysis/build_weather.py --input /path/to/1652-input --output /path/to/1652-weather/evidence.json
-python analysis/build_public_explorer.py --input /path/to/1652-input --output /path/to/1652-explorer
+python analysis/build_pacing.py --input /path/to/1050-input --output /path/to/1050-aggregates --live-as-of CURRENT_PUBLIC_LIVE_AS_OF
+python analysis/build_extended.py --input /path/to/1050-input --output /path/to/1050-aggregates --personalized-output /path/to/1050-personalized --live-as-of CURRENT_PUBLIC_LIVE_AS_OF
+python analysis/write_findings.py --output /path/to/1050-aggregates
+python analysis/build_weather.py --input /path/to/1050-input --output /path/to/1050-weather/evidence.json
+python analysis/build_public_explorer.py --input /path/to/1050-input --output /path/to/1050-explorer
 ```
 
 `build_pacing.py` writes eight foundation packs; `build_extended.py` writes the other 25 and then calls `build_personalized.generate` on the same prepared cohort/linkage tables. Do not run a partial extension import or replace the current 90–720-minute personalized result with an older 150–270-minute artifact. `write_findings.py` generates narrative results from aggregate tables and records its own script hash.
@@ -126,11 +126,11 @@ Threshold comparisons in the supporting study allow a ratio tolerance of 1e−12
 
 ## Same-edition peers and environmental context
 
-`build_runner_context.py` invokes the shared eligible-cohort calculation, `runner_peers.py` and `runner_environment.py`. It verifies the FULL archive/manifest and four used Parquet members, then requires the source, cohort, policy and ordered editions to agree with the exact runner manifest. The output is a context manifest plus one deterministic gzip JSON shard for each raw edition (287 in 1652). It requires a reviewed release policy; 1107, 0934 and 1652 are explicitly supported. The [complete contracts and coverage](../docs/RUNNER_CONTEXT_AND_PEERS.md) document calculation and publication evidence separately.
+`build_runner_context.py` invokes the shared eligible-cohort calculation, `runner_peers.py` and `runner_environment.py`. It verifies the FULL archive/manifest and four used Parquet members, then requires the source, cohort, policy and ordered editions to agree with the exact runner manifest. The output is a context manifest plus one deterministic gzip JSON shard for each raw edition (298 in 1050, 287 in 1652). It requires a reviewed release policy; 1107, 0934, 1652 and 1050 are explicitly supported. The [complete contracts and coverage](../docs/RUNNER_CONTEXT_AND_PEERS.md) document calculation and publication evidence separately.
 
 Peer groups are exact city/year/race, with All, recorded Men/Women, exact-age bands and combined demographics. Each group and achieved-time pacing cell requires 101 finishes. Finish distributions preserve times to milliseconds; finish percentiles exclude the selected record and give other ties half weight. Group medians and pace quartiles include the selected record. Pace bands are half-open 15-minute intervals centered on the nearest 15-minute finish, not pre-race ability or declared goals. Late change compares 30 km–finish pace against 5–20 km pace. Between-race section differences add to the signed finish difference without weather, terrain or fitness correction.
 
-Weather joins one valid city/year row to the matching race name and verifies five exact archive hours, units and provenance. Missing/invalid fields remain absent with reasons. Terrain requires one matching supplied course and nine consistent sections; it keeps independent gain/loss/net sums, separate whole-profile totals/distances and unknown historical validity. The 0934 context covers 249 weather editions and 254 terrain editions. It does not fit a new weather model, infer personal exposure or adjust finish times.
+Weather joins one valid city/year row to the matching race name and verifies five exact archive hours, units and provenance. Missing/invalid fields remain absent with reasons. Terrain requires one matching supplied course and nine consistent sections; it keeps independent gain/loss/net sums, separate whole-profile totals/distances and unknown historical validity. The 1050 context covers all 298 weather editions (Chicago 2025 through the reviewed early hour in `build_weather.py` `ACCEPTED_EARLY_HOURS`, October 22, 2026) and 281 terrain editions (0934: 249 and 254). It does not fit a new weather model, infer personal exposure or adjust finish times.
 
 After importing the runner lookup, use a fresh context output directory:
 

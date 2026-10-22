@@ -45,7 +45,7 @@ export default function MethodsData() {
       <p>Pace Notes uses five kinds of source. They are kept apart, and no figure combines them.</p>
       <ul>
         <li><strong>Race results.</strong> Recorded results from big-city marathons: recorded names, marathon and year, finish times, the official 5 km checkpoint times, and age and recorded gender where the race supplied them. They come from one public data export, the <a href="#release">current release</a>.</li>
-        <li><strong>Weather.</strong> <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo historical weather estimates</a> for one point in each city, for the hour of the scheduled start and the hours after it. They are modeled, not measured at any runner.</li>
+        <li><strong>Weather.</strong> <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo historical weather estimates</a> for one point in each city, for the hour near the scheduled start and the hours after it. They are modeled, not measured at any runner.</li>
         <li><strong>Routes and elevation.</strong> Each race’s current route file, supplied with the data, with elevation from a digital elevation model. Whether earlier editions ran the same route is not known.</li>
         <li><strong>Official standards.</strong> Qualifying times, age rules, windows and dates, transcribed from each race’s own pages and dated by when they were last checked.</li>
         <li><strong>Published research.</strong> Published models and studies, cited in full under <a href="#tools">Runner tools</a>. None is fitted to Pace Notes data.</li>
