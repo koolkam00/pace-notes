@@ -6,7 +6,11 @@ on:
       - 'analysis/insights_*.py'
       - 'analysis/build_insights.py'
       - 'analysis/build_course_geometry.py'
+      - 'analysis/build_course_terrain.py'
+      - 'analysis/terrain_model.py'
+      - 'analysis/course_terrain/**'
       - 'analysis/test_insights.py'
+      - 'analysis/test_course_terrain.py'
       - 'analysis/build_fast_start.py'
       - 'analysis/build_all_finisher_context.py'
       - 'analysis/release.json'
@@ -44,15 +48,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python analysis/download_release.py --bundle CORE --output "$RUNNER_TEMP/release"
+      - name: Test terrain splits (model, builder refusals, published profile)
+        env:
+          COURSE_PROFILES: ${{ runner.temp }}/release/course_profiles.parquet
+        run: python -m unittest discover -s analysis -p 'test_course_terrain.py'
       - name: Rebuild every story family from the verified runner shards
         run: |
           python analysis/build_insights.py --output "$RUNNER_TEMP/insights"
           python analysis/build_course_geometry.py --profiles "$RUNNER_TEMP/release/course_profiles.parquet" --output "$RUNNER_TEMP/insights/course-geometry.json"
+          python analysis/build_course_terrain.py --profiles "$RUNNER_TEMP/release/course_profiles.parquet" --corrections analysis/course_terrain/corrections.json --output "$RUNNER_TEMP/insights/tools/course-terrain.json"
           python analysis/build_insights.py --output "$RUNNER_TEMP/insights" --only manifest
       - name: Recount the rebuilt data
         run: node scripts/verify-insights.cjs --input "$RUNNER_TEMP/insights"
       - name: Rebuilt family files must match the published bytes
         run: |
+          test -f "$RUNNER_TEMP/insights/tools/course-terrain.json"
           cd public/data/insights
           find . -name '*.json' ! -name manifest.json ! -name course-geometry.json | sort | while read -r file; do
             cmp "$file" "$RUNNER_TEMP/insights/$file"
