@@ -1,270 +1,240 @@
 /**
- * The course-shape band (owner decision, October 20, 2026): the pace band and the race planner print a band in the course's
- * observed shape instead of even pace wherever the course's pace-band group publishes the goal. One rule, shared by both
- * pages and by scripts/verify-tools.cjs:
+ * The terrain band (owner decision, October 23, 2026: "It should use an elevation model"): on a course with a checked
+ * route profile, the pace band and the race planner spread the visitor's own goal over the course's corrected elevation
+ * profile at an even effort, with one published grade curve, instead of evenly. One rule, shared by both pages and by
+ * scripts/verify-tools.cjs:
  *
- * - the group is the pace band's `all` group for the course and recorded gender (every screened finish from G − 5:00 to
- *   G − 0:01, G the whole minute at or below the goal), published only with 100 finishes (`cellOf` returns its cell) and
- *   shaped only when those finishes come from at least 3 editions, the minimum the course results need (owner decision,
- *   October 20, 2026: "Do whatever you recommend"; one or two race days describe their own weather and fields more than
- *   the course, so Singapore, Barcelona and Paris, and Helsinki at 4:27, stay even pace);
- * - its median elapsed time at each of the nine official timing points (the 5–40 km mats and the finish), times
- *   goal ÷ the median finish, so the band ends exactly on the goal (seconds kept) and keeps the course's proportions;
- * - between timing points each segment's pace is held evenly (the mile and km rows, and halfway on those strips). Those
- *   rows are interpolated: the observed facts are the nine timing points only.
+ * - the share of the goal reached at each marker comes from tools/course-terrain.json (lib/tools/terrain-data.ts): one
+ *   share per whole km, per whole mile and at halfway, the same at every goal and for every recorded gender, since the
+ *   goal only sets the scale; the finish is the goal itself, so the band ends exactly on it (seconds kept);
+ * - each marker's elapsed time is the goal times its share, rounded to the second, and each split is the difference of
+ *   two rounded elapsed times, so the splits always add up to the goal;
+ * - no finish data enters the band, and the goal is never changed, only how it is divided.
  *
- * All courses pooled has no course to shape it, so it stays even pace, as does a course or goal without a cell.
- * What a page draws from the shape and the visitor's choice (`bandView`), and the wording both pages print (the kicker,
- * the shape's line, the one line where there is no shape, the strip's labels and captions), are built here too, so the
- * two pages follow one rule and say it in the same words.
+ * All courses pooled has no route, so it stays even pace, as does every course without a checked profile. The as-run
+ * medians of finishes near a goal are never a band: they show only unscaled, in their own Pace Notes data panel, with the
+ * forewarning built here (asRunLine). What a page draws from the terrain and the visitor's choice (`bandView`), and the
+ * wording both pages print (the kicker, the card line, the climbs, the one line where there is no terrain, the strip's
+ * labels and captions), are built here too, so the two pages follow one rule and say it in the same words.
  */
-import type { PaceBandIndex } from '@/lib/tools/data';
-import { MARATHON_KM, perUnit, splitTable, watchTarget, type SplitInterval, type SplitRow } from '@/lib/tools/pace';
-import { CHECKPOINTS, fmtGoal, fmtPace, paceBandShardPath } from '@/lib/tools/pace-band-data';
-import { formatDuration, formatHM } from '@/lib/tools/time';
-import type { UnitSystem } from '@/lib/units';
+import { HALF_KM, MARATHON_KM, perUnit, splitTable, watchTarget, type SplitInterval, type SplitRow } from '@/lib/tools/pace';
+import { CHECKPOINTS, fmtGoal, fmtPace } from '@/lib/tools/pace-band-data';
+import type { NoTerrainWhy, TerrainCourse, TerrainFeature } from '@/lib/tools/terrain-data';
+import { formatDuration } from '@/lib/tools/time';
+import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
-/** The two bands: the course's observed shape, or the goal spread evenly. */
-export type BandMode = 'course' | 'even';
-/** The query key that keeps the visitor's choice. Only `even` is ever written: the default (course shape where one exists) stays out. */
+/** The two bands: the goal spread over the course's terrain, or spread evenly. */
+export type BandMode = 'terrain' | 'even';
+/** The query key that keeps the visitor's choice. Only `even` is ever written: the default (terrain where a course has it) stays out. */
 export const BAND_PARAM = 'pace';
 /** The choice, in the site's segmented control, the same on the planner and the pace band. */
-export const BAND_OPTIONS: { value: BandMode; label: string }[] = [{ value: 'course', label: 'Course shape' }, { value: 'even', label: 'Even pace' }];
+export const BAND_OPTIONS: { value: BandMode; label: string }[] = [{ value: 'terrain', label: 'Terrain' }, { value: 'even', label: 'Even pace' }];
 /** The control's label. */
 export const BAND_LABEL = 'Splits';
 
-/** The fewest editions a course shape rests on: the course results' minimum (tools/course-goal.json `min_editions`). */
-export const SHAPE_MIN_EDITIONS = 3;
-/** A course whose screened editions are too few for any course shape (known from the index at build time). */
-export const thinCourse = (editions: number | null | undefined) => typeof editions === 'number' && editions < SHAPE_MIN_EDITIONS;
-
-/** The whole minute a goal's group uses: the minute at or below the goal, so every finish in the window beat it (3:30:59 → 210). */
+/** The whole minute a goal's observed group uses: the minute at or below the goal, so every finish in the window beat it (3:30:59 → 210). */
 export const bandMinute = (goal: number) => Math.floor(goal / 60);
 
 /**
- * The nine shaped elapsed times (seconds) for a goal, from a published cell's medians: e50[i] × goal ÷ e50[finish], the
- * finish exactly the goal. Null without a cell, or with medians that are not nine finite, rising times. The edition rule
- * is the scope's (`shapeFor`).
+ * The band's mode: terrain wherever the course has terrain splits, unless the visitor chose even pace (`choice` is the
+ * address's `pace` value: `even`, or anything else for the default); even pace wherever there are none.
  */
-export function courseShape(cell: { e50: number[] } | null | undefined, goal: number): number[] | null {
-  const e = cell?.e50;
-  if (!e || e.length !== CHECKPOINTS.length || !Number.isFinite(goal) || goal <= 0) return null;
-  if (!e.every((v, i) => Number.isFinite(v) && v > (i ? e[i - 1] : 0))) return null;
-  return e.map((v, i) => (i === e.length - 1 ? goal : (v * goal) / e[e.length - 1]));
+export function bandMode(terrain: TerrainCourse | null, choice: string): BandMode {
+  return terrain && choice !== 'even' ? 'terrain' : 'even';
 }
 
-/**
- * The shape for a scope: none on all courses pooled (no course to shape it), none from a cell whose finishes come from
- * fewer than SHAPE_MIN_EDITIONS editions, otherwise the cell's.
- */
-export function shapeFor(scope: string, cell: { e50: number[]; ed?: number } | null | undefined, goal: number): number[] | null {
-  if (scope === 'all' || scope === '') return null;
-  if (cell && typeof cell.ed === 'number' && cell.ed < SHAPE_MIN_EDITIONS) return null;
-  return courseShape(cell, goal);
-}
-
-/**
- * The band's mode: course shape wherever a shape exists, unless the visitor chose even pace (`choice` is the address's
- * `pace` value: `even`, or anything else for the default); even pace wherever there is no shape.
- */
-export function bandMode(shape: number[] | null, choice: string): BandMode {
-  return shape && choice !== 'even' ? 'course' : 'even';
-}
-
-/** The address value for a mode: the default (course shape) stays out of the address, even pace is `even`. */
+/** The address value for a mode: the default (terrain) stays out of the address, even pace is `even`. */
 export const bandChoice = (mode: BandMode) => (mode === 'even' ? 'even' : '');
 
 /**
- * The address value a page keeps once it has read its address: `even` stays only where a course could have a shape (not
- * on all courses, where no choice is offered); anything else (`pace=foo`, `pace=course`) is the default and leaves. So a
- * choice of even pace carries from one course to the next, but not through All courses: back on a course, the band is
- * that course's shape again.
+ * The address value a page keeps once it has read its address: `even` stays only where a course could have terrain splits
+ * (not on all courses, where no choice is offered); anything else (`pace=foo`, `pace=course`) is the default and leaves.
+ * So a choice of even pace carries from one course to the next, but not through All courses: back on a course, the band
+ * is that course's terrain again.
  */
 export const tidyChoice = (pace: string, allCourses: boolean) => (!allCourses && pace === 'even' ? 'even' : '');
 
 /**
- * What a page draws from its shape, the visitor's choice and its loading state, the same on both pages: the mode, the
- * shape the band uses (`shaped`, null at even pace), whether the band waits for a shape on its way (`pending`: the
- * course shape's layout with dashes, or a shape kept while its group reloads, `stale`), whether the band is in the course
- * shape's layout (`layout`, the shape or its place) and whether the choice is offered (`offered`).
+ * What a page draws from its course's terrain and the visitor's choice, the same on both pages: the mode, the terrain the
+ * band uses (`banded`, null at even pace) and whether the choice is offered (`offered`: the course has terrain splits).
+ * Everything is known at build time, so nothing waits.
  */
-export function bandView({ shape, choice, loading, stale = false }: { shape: number[] | null; choice: string; loading: boolean; stale?: boolean }) {
-  const mode = bandMode(shape, choice);
-  const shaped = mode === 'course' ? shape : null;
-  const pending = (!shape && loading && choice !== 'even') || (Boolean(shaped) && stale);
-  return { mode, shaped, pending, layout: Boolean(shaped) || pending, offered: Boolean(shape) || loading };
+export function bandView({ terrain, choice }: { terrain: TerrainCourse | null; choice: string }): { mode: BandMode; banded: TerrainCourse | null; offered: boolean } {
+  const mode = bandMode(terrain, choice);
+  return { mode, banded: mode === 'terrain' ? terrain : null, offered: Boolean(terrain) };
 }
 
-/**
- * Each course the pace band publishes, by slug: its city and its groups' published goals by recorded gender (whole
- * minutes), as the index lists them. A course missing here has no group at all (Prague) or is not in the data.
- */
-export type ShapeGoals = Record<string, { city: string | null; editions: number; goals: Partial<Record<'all' | 'men' | 'women', [number, number]>> }>;
+const whole = (v: number) => Math.abs(v - Math.round(v)) < 1e-6;
 
-/** Every course's published goals, read from the index at build time so a page knows before any file loads whether to wait for a shape. */
-export function shapeGoalsOf(index: Pick<PaceBandIndex, 'scopes' | 'shards'> | null): ShapeGoals {
-  const out: ShapeGoals = {};
-  for (const scope of index?.scopes ?? []) {
-    if (scope.slug === 'all') continue;
-    const goals: ShapeGoals[string]['goals'] = {};
-    for (const g of ['all', 'men', 'women'] as const) {
-      const meta = scope.genders[g];
-      if (meta && index?.shards?.[paceBandShardPath(scope.slug, g)]) goals[g] = [meta.goals[0], meta.goals[1]];
-    }
-    out[scope.slug] = { city: scope.city, editions: scope.editions, goals };
-  }
-  return out;
+/**
+ * The share of the goal reached at a marker on the terrain band: 1 at the finish, the published share at halfway, at a
+ * whole km or at a whole mile. Any other distance has no published share and throws.
+ */
+export function terrainAt(t: TerrainCourse, km: number): number {
+  if (km >= 42.19) return 1;
+  if (Math.abs(km - HALF_KM) < 1e-6) return t.half;
+  const k = Math.round(km);
+  if (whole(km) && k >= 1 && k <= t.km.length) return t.km[k - 1];
+  const m = Math.round(km / KM_PER_MILE);
+  if (whole(km / KM_PER_MILE) && m >= 1 && m <= t.mi.length) return t.mi[m - 1];
+  throw new Error(`The terrain band has no marker at ${km} km`);
 }
 
-/**
- * Whether a course's group may have a shape at this minute: a course with enough editions, inside its published goals (a
- * thin course or a goal outside them settles at once as even pace, with no wait for a file that cannot hold one; a gap
- * inside them settles when its file arrives).
- */
-export const mayShape = (goals: readonly [number, number] | null | undefined, minute: number | null, editions?: number | null) =>
-  !thinCourse(editions) && Boolean(goals) && minute !== null && minute >= goals![0] && minute <= goals![1];
-
-/** Elapsed time at a distance on the shaped band: each segment between timing points (and from the start) run evenly. */
-export function shapedAt(shape: number[], km: number): number {
-  let fromKm = 0;
-  let fromT = 0;
-  for (let i = 0; i < CHECKPOINTS.length; i++) {
-    const toKm = CHECKPOINTS[i];
-    if (Math.abs(km - toKm) < 1e-9) return shape[i];
-    if (km < toKm) return fromT + ((shape[i] - fromT) * (km - fromKm)) / (toKm - fromKm);
-    fromKm = toKm;
-    fromT = shape[i];
-  }
-  return shape[CHECKPOINTS.length - 1];
-}
+/** Elapsed time (whole seconds) at a marker on the terrain band: the goal times its share, rounded; the finish is the goal. */
+export const terrainElapsed = (goal: number, t: TerrainCourse, km: number) => (km >= 42.19 ? goal : Math.round(goal * terrainAt(t, km)));
 
 /**
- * The band's rows (every mile or km, halfway and the mats, or the 5K mats), the same markers as the even-pace rows: on a
- * shape, each marker's elapsed time from `shapedAt`; without one, the even-pace rows themselves.
+ * The band's rows (every mile or km, halfway and the mats, or the 5K mats), the same markers as the even-pace rows: on
+ * terrain, each marker's rounded elapsed time and the difference from the one before; without terrain, the even-pace rows
+ * themselves.
  */
-export function bandRows(goal: number, interval: SplitInterval, shape: number[] | null): SplitRow[] {
+export function bandRows(goal: number, interval: SplitInterval, terrain: TerrainCourse | null): SplitRow[] {
   const even = splitTable(goal, MARATHON_KM, interval);
-  if (!shape) return even;
+  if (!terrain) return even;
   let previous = 0;
   return even.map((row) => {
-    const elapsed = shapedAt(shape, row.km);
-    const shaped = { ...row, elapsed, split: elapsed - previous };
+    const elapsed = row.finish ? goal : terrainElapsed(goal, terrain, row.km);
+    const out = { ...row, elapsed, split: elapsed - previous };
     previous = elapsed;
-    return shaped;
+    return out;
   });
 }
 
-/** The shape at a glance, in seconds per km: through 20K (the 20K mat ÷ 20) and from 30K to the finish. */
-export function shapePaces(shape: number[]): { to20: number; from30: number } {
-  return { to20: shape[3] / 20, from30: (shape[8] - shape[5]) / (MARATHON_KM - 30) };
-}
-
-/** The shape in words, the same on both pages and on paper: "8:41/mi to 20K, 9:48/mi from 30K". */
-export function shapeLine(shape: number[], units: UnitSystem): string {
-  const { to20, from30 } = shapePaces(shape);
-  return `${fmtPace(to20, units)} to 20K, ${fmtPace(from30, units)} from 30K`;
-}
-
 /**
- * The night card's four times: in course shape the timing points 5K, 20K, 30K and the finish (never an interpolated
- * half); at even pace 5K, halfway, 30K and the finish. While a course's shape loads (`pending`), the course shape's labels
- * with no times yet (null), the finish being the goal itself.
+ * The night card's four times: 5K, halfway, 30K and the finish, on terrain (rounded elapsed times) or at even pace.
  */
-export function cardMats(goal: number, shape: number[] | null, pending = false): [string, number | null][] {
-  if (shape) return [['5K', shape[0]], ['20K', shape[3]], ['30K', shape[5]], ['Finish', shape[8]]];
-  if (pending) return [['5K', null], ['20K', null], ['30K', null], ['Finish', goal]];
+export function cardMats(goal: number, terrain: TerrainCourse | null): [string, number][] {
+  if (terrain) return [['5K', terrainElapsed(goal, terrain, 5)], ['Half', terrainElapsed(goal, terrain, HALF_KM)], ['30K', terrainElapsed(goal, terrain, 30)], ['Finish', goal]];
   const pKm = goal / MARATHON_KM;
   return [['5K', pKm * 5], ['Half', goal / 2], ['30K', pKm * 30], ['Finish', goal]];
 }
 
-/** Every official mat's time on the band, for the folds: the course shape's (or null at even pace) beside even pace. */
-export function matRows(goal: number, shape: number[] | null): { km: number; shaped: number | null; even: number }[] {
-  return CHECKPOINTS.map((km, i) => ({ km, shaped: shape ? shape[i] : null, even: i === CHECKPOINTS.length - 1 ? goal : (goal / MARATHON_KM) * km }));
+/** Every official mat's time on the band, for the folds and the mat strip: the terrain's (or null at even pace) beside even pace. */
+export function matRows(goal: number, terrain: TerrainCourse | null): { km: number; terrain: number | null; even: number }[] {
+  return CHECKPOINTS.map((km, i) => ({
+    km, terrain: terrain ? terrainElapsed(goal, terrain, km) : null, even: i === CHECKPOINTS.length - 1 ? goal : (goal / MARATHON_KM) * km,
+  }));
 }
-
-/** The short disclaimer that ends the shape's line, kept on one line where it shows. */
-export const SHAPE_DISCLAIMER = 'Not a prediction.';
-/** What the shape is, chosen by its outcome: "Course shape: how finishes that made 4:00 ran Boston." (with the recorded gender on the pace band). */
-export const shapeWhat = (goal: number, city: string, genderWord = '') =>
-  `Course shape: how finishes that made ${fmtGoal(goal)} ran ${city}${genderWord ? ` (recorded as ${genderWord})` : ''}.`;
-/** The shape's one line, the same on both pages (the planner's card, under the pace band's kicker): what it is, and that it is not a prediction. */
-export const cardShapeLine = (goal: number, city: string, genderWord = '') => `${shapeWhat(goal, city, genderWord)} ${SHAPE_DISCLAIMER}`;
 
 /**
- * The band's kicker: the goal and course, then the band in its mode ("course shape, 8:41/mi to 20K, 9:48/mi from 30K",
- * with the recorded gender the shape comes from; "9:09/mi even"), and a watch that reads long. In course shape the watch
- * figure is labelled as the watch's average for the whole race, since the band's own pace changes along the course;
- * while the shape loads (`pending`) it reads "course shape" alone. The planner's card already gives the two phases, so
- * its band panel's kicker leaves them out (`phases: false`: "4:00 · Boston · course shape").
+ * Whole-unit splits (miles 1–26 or km 1–42) from consecutive rounded elapsed times, each with the stretch of road it
+ * covers; the partial last unit is left out. Without terrain, the even-pace times rounded the same way.
  */
-export function bandKicker({ goal, place, genderWord = '', shape, units, overrun = 0, example = false, pending = false, phases = true }: {
-  goal: number; place: string; genderWord?: string; shape: number[] | null; units: UnitSystem; overrun?: number; example?: boolean; pending?: boolean; phases?: boolean;
-}): string {
-  const pKm = goal / MARATHON_KM;
-  const course = Boolean(shape) || pending;
-  const head = `${example ? 'Example · ' : ''}${fmtGoal(goal)} · ${place}${course && genderWord ? ` · ${genderWord}` : ''}`;
-  const mode = shape && phases ? `course shape, ${shapeLine(shape, units)}` : course ? 'course shape' : `${fmtPace(pKm, units)} even`;
-  return `${head} · ${mode}${overrun ? ` · ${watchLine(pKm, overrun, units, course)}` : ''}`;
+export function unitSplits(goal: number, terrain: TerrainCourse | null, units: UnitSystem): { n: number; split: number; fromKm: number; toKm: number }[] {
+  const unit = units === 'mi' ? KM_PER_MILE : 1;
+  const count = Math.floor(MARATHON_KM / unit);
+  const at = (n: number) => (n === 0 ? 0 : terrain ? terrainElapsed(goal, terrain, n * unit) : Math.round((goal * n * unit) / MARATHON_KM));
+  const out: { n: number; split: number; fromKm: number; toKm: number }[] = [];
+  for (let n = 1; n <= count; n++) out.push({ n, split: at(n) - at(n - 1), fromKm: (n - 1) * unit, toKm: n * unit });
+  return out;
 }
 
-/** A watch that reads long by `overrun`: its pace at the goal ("watch 9:04/mi"), in course shape its average ("watch avg 9:04/mi"). */
-export const watchLine = (pKm: number, overrun: number, units: UnitSystem, course: boolean) => `watch ${course ? 'avg ' : ''}${fmtPace(watchTarget(pKm, overrun), units)}`;
+/**
+ * The structure a stretch of road crosses: the first feature (in race order) whose overlap with the stretch is at least a
+ * quarter of the stretch, or at least 40% of the feature's own length; null when none.
+ */
+export function featureFor(features: TerrainFeature[], fromKm: number, toKm: number): TerrainFeature | null {
+  for (const f of [...features].sort((a, b) => a.from_km - b.from_km)) {
+    const overlap = Math.min(toKm, f.to_km) - Math.max(fromKm, f.from_km);
+    if (overlap <= 0) continue;
+    if (overlap >= 0.25 * (toKm - fromKm) - 1e-9 || overlap >= 0.4 * (f.to_km - f.from_km) - 1e-9) return f;
+  }
+  return null;
+}
 
-/** The goal's even pace where it travels with the band (the strip's Goal cell, the goal bar): labelled as the average in course shape. */
-export const goalPace = (pKm: number, units: UnitSystem, course: boolean) => `${course ? 'avg ' : ''}${fmtPace(pKm, units)}`;
+/** The goal's average time per mile or km. */
+const unitAverage = (goal: number, units: UnitSystem) => goal / (MARATHON_KM / (units === 'mi' ? KM_PER_MILE : 1));
+
+/**
+ * The band's climbs: up to three of the slowest whole units, among those at least 2% slower than the goal's average
+ * (ties to the earlier unit), in race order.
+ */
+export function climbs(goal: number, terrain: TerrainCourse, units: UnitSystem): { n: number; split: number; fromKm: number; toKm: number }[] {
+  const avg = unitAverage(goal, units);
+  return unitSplits(goal, terrain, units).filter((u) => u.split >= 1.02 * avg)
+    .sort((a, b) => b.split - a.split || a.n - b.n).slice(0, 3)
+    .sort((a, b) => a.n - b.n);
+}
+
+/**
+ * The climbs in one line, each with the structure it crosses where it crosses one: "Climbs: mile 1 (Verrazzano) 12:50 ·
+ * mile 15 (Queensboro, 59th St) 12:42 · mile 24 12:25"; where no unit is 2% slower than the average, "No mile more than
+ * 2% slower than the 10:18/mi average."
+ */
+export function climbsLine(goal: number, terrain: TerrainCourse, units: UnitSystem): string {
+  const word = units === 'mi' ? 'mile' : 'km';
+  const list = climbs(goal, terrain, units);
+  if (!list.length) return `No ${word} more than 2% slower than the ${fmtPace(goal / MARATHON_KM, units)} average.`;
+  return `Climbs: ${list.map((c) => {
+    const f = featureFor(terrain.features, c.fromKm, c.toKm);
+    return `${word} ${c.n}${f ? ` (${f.short})` : ''} ${formatDuration(c.split)}`;
+  }).join(' · ')}`;
+}
+
+/**
+ * The band's kicker: the goal and course, then the band in its mode ("terrain splits, avg 12:01/mi"; "9:09/mi even"), and
+ * a watch that reads long. On terrain the watch figure is labelled as the watch's average for the whole race, since the
+ * band's own pace changes along the course. The planner's card already gives the average, so its band panel's kicker
+ * leaves it out (`pace: false`: "5:15 · New York · terrain splits"). The band is the same for every recorded gender, so
+ * the kicker never names one.
+ */
+export function bandKicker({ goal, place, terrain, units, overrun = 0, example = false, pace = true }: {
+  goal: number; place: string; terrain: TerrainCourse | null; units: UnitSystem; overrun?: number; example?: boolean; pace?: boolean;
+}): string {
+  const pKm = goal / MARATHON_KM;
+  const onTerrain = Boolean(terrain);
+  const head = `${example ? 'Example · ' : ''}${fmtGoal(goal)} · ${place}`;
+  const mode = onTerrain ? (pace ? `terrain splits, avg ${fmtPace(pKm, units)}` : 'terrain splits') : `${fmtPace(pKm, units)} even`;
+  return `${head} · ${mode}${overrun ? ` · ${watchLine(pKm, overrun, units, onTerrain)}` : ''}`;
+}
+
+/** A watch that reads long by `overrun`: its pace at the goal ("watch 9:04/mi"), on terrain its average ("watch avg 9:04/mi"). */
+export const watchLine = (pKm: number, overrun: number, units: UnitSystem, terrain: boolean) => `watch ${terrain ? 'avg ' : ''}${fmtPace(watchTarget(pKm, overrun), units)}`;
+
+/** The goal's even pace where it travels with the band (the strip's Goal cell, the goal bar): labelled as the average on terrain. */
+export const goalPace = (pKm: number, units: UnitSystem, terrain: boolean) => `${terrain ? 'avg ' : ''}${fmtPace(pKm, units)}`;
 
 /**
  * The printed mat strip's Goal cell under the goal, as lines of phrases. At even pace one line, as before: "9:09/mi ·
- * 5:41/km", then the watch ("watch 9:04/mi"). In course shape "avg" is said once, for the cell ("avg 9:09/mi · 5:41/km"),
- * and the watch's figure takes its own line ("watch 9:04/mi"), each phrase kept whole.
+ * 5:41/km", then the watch ("watch 9:04/mi"). On terrain "avg" is said once, for the cell ("avg 12:01/mi · 7:28/km"), and
+ * the watch's figure takes its own line ("watch 11:54/mi"), each phrase kept whole.
  */
-export function goalCell(pKm: number, overrun: number, units: UnitSystem, course: boolean): string[][] {
-  const paces = [`${course ? 'avg ' : ''}${formatDuration(perUnit(pKm, 'mi'))}/mi`, `${formatDuration(pKm)}/km`];
+export function goalCell(pKm: number, overrun: number, units: UnitSystem, terrain: boolean): string[][] {
+  const paces = [`${terrain ? 'avg ' : ''}${formatDuration(perUnit(pKm, 'mi'))}/mi`, `${formatDuration(pKm)}/km`];
   const watch = overrun ? `watch ${fmtPace(watchTarget(pKm, overrun), units)}` : null;
-  if (!course) return [watch ? [...paces, watch] : paces];
+  if (!terrain) return [watch ? [...paces, watch] : paces];
   return watch ? [paces, [watch]] : [paces];
 }
 
-/**
- * Why a course shows no shape at this goal, in order: the pace band has no group for the course (`course`: Prague, whose
- * editions were all screened out) or for this recorded gender (`gender`: Singapore, women; the pace band's choice), the
- * course's screened editions are too few for any shape (`editions`: Singapore, Barcelona, Paris), the goal is outside the
- * published goals (`range`: 2:30 to 6:30), the goal's group pools too few editions (`goal-editions`: Helsinki 4:27), or the
- * group has too few finishes at this goal (`few`: a goal inside 2:30 to 6:30 whose window was counted and held fewer
- * than 100).
- */
-export type NoShapeReason = 'course' | 'gender' | 'editions' | 'range' | 'goal-editions' | 'few';
-export function noShapeReason({ scoped, gendered, minute, goals, editions = null, cellEditions = null }: {
-  scoped: boolean; gendered: boolean; minute: number; goals: readonly [number, number];
-  /** The course's screened editions (the index's count) and the goal's cell's, when known. */
-  editions?: number | null; cellEditions?: number | null;
-}): NoShapeReason {
-  if (!scoped) return 'course';
-  if (!gendered) return 'gender';
-  if (thinCourse(editions)) return 'editions';
-  if (minute < goals[0] || minute > goals[1]) return 'range';
-  if (thinCourse(cellEditions)) return 'goal-editions';
-  return 'few';
+/** The short disclaimer that ends the card line, kept on one line where it shows. */
+export const TERRAIN_DISCLAIMER = 'Not a prediction.';
+/** What the terrain band is: "Terrain splits: 5:15 spread over New York’s climbs and descents at an even effort." */
+export const terrainWhat = (goal: number, city: string) => `Terrain splits: ${fmtGoal(goal)} spread over ${city}’s climbs and descents at an even effort.`;
+/** The card line, the same on both pages (the planner's card, under the pace band's kicker): what it is, and that it is not a prediction. */
+export const terrainCardLine = (goal: number, city: string) => `${terrainWhat(goal, city)} ${TERRAIN_DISCLAIMER}`;
+
+/** The one line where a course has no terrain splits (the same words on both pages), from its reason. */
+export function noTerrainLine(city: string, why: NoTerrainWhy): string {
+  return why === 'held' ? `Even pace: the ${city} route profile did not pass its check.` : `Even pace: no checked route profile for ${city}.`;
 }
 
+/** The printed mat strip's caption on terrain. */
+export const terrainCaption = (place: string) => `Terrain splits · ${place} route · Published research`;
 /**
- * The one line where a course has no shape (the same words on both pages), from its reason: never a count that was not
- * made. Outside the published goals it gives the range, unless the page already says it beside the line (`noted`: the
- * planner's note on course results, the pace band's finishes section), where it reads "No course shape at this goal."
+ * A printed split strip's caption ("Terrain splits (Published research) 5:15 · each mile · strip 1 of 3"; at even pace
+ * "Even pace 5:15 · …"): each strip is cut out and worn on its own, so on terrain each names its source.
  */
-export function noShapeLine(reason: NoShapeReason, { city, genderWord = '', goals, noted = false }: { city: string; genderWord?: string; goals: readonly [number, number]; noted?: boolean }): string {
-  if (reason === 'range') return noted ? 'No course shape at this goal.' : `Course shapes cover goals from ${formatHM(goals[0] * 60)} to ${formatHM(goals[1] * 60)}.`;
-  if (reason === 'few') return `Too few finishes at this goal in ${city}${genderWord ? ` (recorded as ${genderWord})` : ''} for a course shape.`;
-  if (reason === 'editions') return `Too few editions in ${city} for a course shape.`;
-  if (reason === 'goal-editions') return `Too few editions at this goal in ${city}${genderWord ? ` (recorded as ${genderWord})` : ''} for a course shape.`;
-  return `No course shape for ${city}${genderWord ? `, recorded as ${genderWord}` : ''}.`;
-}
+export const splitCaption = (terrain: boolean, goal: number, interval: SplitInterval, strip: number, strips: number) =>
+  `${terrain ? 'Terrain splits (Published research)' : 'Even pace'} ${fmtGoal(goal)} · ${interval === 'mi' ? 'each mile' : 'each km'} · strip ${strip} of ${strips}`;
 
-/** The printed mat strip's caption in course mode. */
-export const shapeCaption = (place: string, genderWord = '') => `Course shape · finishes that made the goal in ${place}${genderWord ? `, ${genderWord}` : ''} · Pace Notes data`;
+/** The term the forewarning links to its definition (the fourth of asRunLine's parts). */
+export const AS_RUN_TERM = 'sustained slowdown';
 /**
- * A printed split strip's caption ("Course shape (Pace Notes data) 4:00 · each mile · strip 1 of 3"; at even pace "Even
- * pace 4:00 · …"): each strip is cut out and worn on its own, so in course shape each names its source.
+ * The forewarning over the as-run medians, as its parts, so the page links the term: "As run, slowdowns included: 48% had
+ * a sustained slowdown. Not splits to copy." The share is the group's (`sd`, rounded to a whole percent); without one,
+ * the line says only that slowdowns are included.
  */
-export const splitCaption = (course: boolean, goal: number, interval: SplitInterval, strip: number, strips: number) =>
-  `${course ? 'Course shape (Pace Notes data)' : 'Even pace'} ${fmtGoal(goal)} · ${interval === 'mi' ? 'each mile' : 'each km'} · strip ${strip} of ${strips}`;
+export function asRunLine(sd: number | null | undefined): string[] {
+  if (typeof sd !== 'number' || !Number.isFinite(sd)) return ['As run, slowdowns included. Not splits to copy.'];
+  return ['As run, slowdowns included: ', `${Math.round(sd * 100)}%`, ' had a ', AS_RUN_TERM, '. Not splits to copy.'];
+}
