@@ -89,6 +89,8 @@ All historical validity ranges are null. Context explicitly reports that the his
 
 Producer follow-up is to verify historical route intervals, reconcile/document whole-profile versus section processing and short-track coverage, correct Helsinki start provenance, and supply the missing weather/course rows. Do not invent replacements in the website calculation.
 
+One exception to elevation as context only (owner decision, October 23, 2026): the planner's and pace band's [terrain splits](TOOLS.md#terrain-splits-owner-decision-october-23-2026) divide the visitor's own goal over corrected, audited route profiles (`analysis/course_terrain/corrections.json`), never the supplied profile, and adjust no finish time; the runner context described here, including the runner view's supplied-route climb, still uses the supplied profile unchanged.
+
 ## Build, transport and validation
 
 `analysis/build_runner_context.py` consumes the same verified FULL input and the exact imported runner manifest. It verifies the FULL archive/manifest and four used Parquet members, reproduces the shared cohort/source-quality report, and checks the complete ordered edition mapping. It calls `runner_peers.py` and `runner_environment.py`, then writes a manifest and one deterministic gzip JSON shard per raw edition. The manifest records input and script hashes, runner-manifest checksum/timestamp, source tag, cohort, methods and transport checksums. It is bound to that precise runner lookup build; refreshing the lookup requires rebuilding context even when the release tag stays the same.

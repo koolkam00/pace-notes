@@ -141,6 +141,24 @@ The **Story analyses** workflow repeats the build into a temporary directory and
 
 When the release changes, build into a fresh empty folder (`--output <dir>`), run the geometry and `--only manifest` steps against it, verify it with `node scripts/verify-insights.cjs --input <dir>`, and only then replace `public/data/insights` with it: the verifier's inventory check fails on leftover replay or tool shards from the previous release (1652: Boston's and Chicago's replay editions moved to 2014 and 2026, and Melbourne left the course data). `--only` keeps only files listed in the output folder's existing manifest, so it cannot finish a partly built fresh folder; rebuild it whole (about 15 minutes for 1652). Producer follow-ups found by the 1652 refresh are listed in its [record](REFRESH_20261016_1652.md#open-for-the-owner-and-the-producer).
 
+## Terrain splits refresh
+
+The planner's and the pace band's terrain splits (`tools/course-terrain.json`, owner decision of October 23, 2026) are built from the adopted release's `course_profiles.parquet` and the audited correction registry, never from finishes:
+
+```bash
+python -m unittest discover -s analysis -p 'test_course_terrain.py'   # COURSE_PROFILES=<release>/course_profiles.parquet runs the release checks too
+python analysis/build_course_terrain.py --profiles <release>/course_profiles.parquet \
+    --corrections analysis/course_terrain/corrections.json \
+    --output public/data/insights/tools/course-terrain.json
+python analysis/build_insights.py --only manifest
+node scripts/verify-insights.cjs
+node scripts/verify-tools.cjs
+```
+
+Rebuild when the runner-context manifest's `course_profiles.parquet` hash changes (a new release) or when `analysis/course_terrain/corrections.json` changes (bump its `version`). On a new parquet hash the builder refuses until the registry's `input.sha256` and every correction's anchors are re-based on the new file; it also refuses a terrain course of class c, without `sources` or with a `why`, a smoothed grade above 8%, a feature outside its correction and a slug the pace band does not publish. The **Story analyses** workflow rebuilds the file after the release download and requires the committed bytes.
+
+Clearing another course for terrain splits: add its cited corrections and `sources` to the registry, run the provenance scripts in `analysis/course_terrain/provenance/` (network; never in CI), re-run the steady-finisher check from `analysis/course_terrain/validation-2026-10-23/` on the adopted release, set `band: "terrain"`, add its deck guards to `checkCourseTerrain` in `scripts/verify-insights.cjs`, rebuild, re-pin `scripts/verify-tools.cjs` and record the date and the evidence in [tools](TOOLS.md#terrain-splits-owner-decision-october-23-2026).
+
 ## Top 100 charts refresh
 
 The charts bind the runner manifest, the weather evidence, the catalog and every chart script by hash, so rebuild them after any of those change (a new release, a weather refresh, an edit to `analysis/build_charts.py`, `analysis/charts_common.py` or an `analysis/charts_*.py` module):
