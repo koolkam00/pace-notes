@@ -1,0 +1,6421 @@
+{
+ "pooled": {
+  "raw:all_courses": {
+   "courses": [
+    "Amsterdam",
+    "Austin",
+    "Berlin",
+    "Boston",
+    "Chicago",
+    "Copenhagen",
+    "Dubai",
+    "Eindhoven",
+    "Frankfurt",
+    "Gold Coast",
+    "Hamburg",
+    "Helsinki",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Stockholm",
+    "Sydney",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 193,
+   "seg_5_40": {
+    "n": 1351,
+    "corr": 0.498,
+    "slope_obs_on_model": 0.5,
+    "rmse_pp": 0.88,
+    "rmse_zero_pp": 0.88
+   },
+   "seg_all9": {
+    "n": 1737,
+    "corr": 0.449,
+    "slope_obs_on_model": 0.445,
+    "rmse_pp": 1.08,
+    "rmse_zero_pp": 1.02
+   },
+   "within_halves_5_40": {
+    "n": 1351,
+    "corr": 0.489,
+    "slope_obs_on_model": 0.492,
+    "rmse_pp": 0.91,
+    "rmse_zero_pp": 0.91
+   },
+   "mad_obs_vs_model_pp": 1.06,
+   "mad_obs_vs_model_plus_common_pp": 0.73,
+   "mad_obs_vs_even_pp": 1.03,
+   "mad_obs_vs_typical_steady_pp": 0.7
+  },
+  "raw:publishable_a_b": {
+   "courses": [
+    "Amsterdam",
+    "Austin",
+    "Boston",
+    "Chicago",
+    "Eindhoven",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 113,
+   "seg_5_40": {
+    "n": 791,
+    "corr": 0.627,
+    "slope_obs_on_model": 0.589,
+    "rmse_pp": 0.82,
+    "rmse_zero_pp": 0.92
+   },
+   "seg_all9": {
+    "n": 1017,
+    "corr": 0.564,
+    "slope_obs_on_model": 0.491,
+    "rmse_pp": 1.04,
+    "rmse_zero_pp": 1.03
+   },
+   "within_halves_5_40": {
+    "n": 791,
+    "corr": 0.607,
+    "slope_obs_on_model": 0.568,
+    "rmse_pp": 0.87,
+    "rmse_zero_pp": 0.95
+   },
+   "mad_obs_vs_model_pp": 1.02,
+   "mad_obs_vs_model_plus_common_pp": 0.73,
+   "mad_obs_vs_even_pp": 1.04,
+   "mad_obs_vs_typical_steady_pp": 0.75
+  },
+  "raw:class_c": {
+   "courses": [
+    "Berlin",
+    "Copenhagen",
+    "Dubai",
+    "Frankfurt",
+    "Gold Coast",
+    "Hamburg",
+    "Helsinki",
+    "Stockholm",
+    "Sydney"
+   ],
+   "cells": 80,
+   "seg_5_40": {
+    "n": 560,
+    "corr": 0.229,
+    "slope_obs_on_model": 0.264,
+    "rmse_pp": 0.96,
+    "rmse_zero_pp": 0.83
+   },
+   "seg_all9": {
+    "n": 720,
+    "corr": 0.224,
+    "slope_obs_on_model": 0.293,
+    "rmse_pp": 1.13,
+    "rmse_zero_pp": 1.01
+   },
+   "within_halves_5_40": {
+    "n": 560,
+    "corr": 0.235,
+    "slope_obs_on_model": 0.277,
+    "rmse_pp": 0.97,
+    "rmse_zero_pp": 0.84
+   },
+   "mad_obs_vs_model_pp": 1.1,
+   "mad_obs_vs_model_plus_common_pp": 0.73,
+   "mad_obs_vs_even_pp": 1.03,
+   "mad_obs_vs_typical_steady_pp": 0.64
+  },
+  "raw:class_b": {
+   "courses": [
+    "Amsterdam",
+    "Eindhoven",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 85,
+   "seg_5_40": {
+    "n": 595,
+    "corr": 0.532,
+    "slope_obs_on_model": 0.479,
+    "rmse_pp": 0.87,
+    "rmse_zero_pp": 0.85
+   },
+   "seg_all9": {
+    "n": 765,
+    "corr": 0.502,
+    "slope_obs_on_model": 0.432,
+    "rmse_pp": 1.07,
+    "rmse_zero_pp": 0.99
+   },
+   "within_halves_5_40": {
+    "n": 595,
+    "corr": 0.513,
+    "slope_obs_on_model": 0.466,
+    "rmse_pp": 0.91,
+    "rmse_zero_pp": 0.88
+   },
+   "mad_obs_vs_model_pp": 0.98,
+   "mad_obs_vs_model_plus_common_pp": 0.76,
+   "mad_obs_vs_even_pp": 1.01,
+   "mad_obs_vs_typical_steady_pp": 0.71
+  },
+  "corrected:all_courses": {
+   "courses": [
+    "Amsterdam",
+    "Austin",
+    "Berlin",
+    "Boston",
+    "Chicago",
+    "Copenhagen",
+    "Dubai",
+    "Eindhoven",
+    "Frankfurt",
+    "Gold Coast",
+    "Hamburg",
+    "Helsinki",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Stockholm",
+    "Sydney",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 193,
+   "seg_5_40": {
+    "n": 1351,
+    "corr": 0.595,
+    "slope_obs_on_model": 0.579,
+    "rmse_pp": 0.81,
+    "rmse_zero_pp": 0.88
+   },
+   "seg_all9": {
+    "n": 1737,
+    "corr": 0.513,
+    "slope_obs_on_model": 0.504,
+    "rmse_pp": 1.02,
+    "rmse_zero_pp": 1.02
+   },
+   "within_halves_5_40": {
+    "n": 1351,
+    "corr": 0.581,
+    "slope_obs_on_model": 0.569,
+    "rmse_pp": 0.84,
+    "rmse_zero_pp": 0.91
+   },
+   "mad_obs_vs_model_pp": 1.04,
+   "mad_obs_vs_model_plus_common_pp": 0.68,
+   "mad_obs_vs_even_pp": 1.03,
+   "mad_obs_vs_typical_steady_pp": 0.7
+  },
+  "corrected:publishable_a_b": {
+   "courses": [
+    "Amsterdam",
+    "Austin",
+    "Boston",
+    "Chicago",
+    "Eindhoven",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 113,
+   "seg_5_40": {
+    "n": 791,
+    "corr": 0.754,
+    "slope_obs_on_model": 0.672,
+    "rmse_pp": 0.69,
+    "rmse_zero_pp": 0.92
+   },
+   "seg_all9": {
+    "n": 1017,
+    "corr": 0.652,
+    "slope_obs_on_model": 0.56,
+    "rmse_pp": 0.94,
+    "rmse_zero_pp": 1.03
+   },
+   "within_halves_5_40": {
+    "n": 791,
+    "corr": 0.728,
+    "slope_obs_on_model": 0.653,
+    "rmse_pp": 0.75,
+    "rmse_zero_pp": 0.95
+   },
+   "mad_obs_vs_model_pp": 0.99,
+   "mad_obs_vs_model_plus_common_pp": 0.66,
+   "mad_obs_vs_even_pp": 1.04,
+   "mad_obs_vs_typical_steady_pp": 0.75
+  },
+  "corrected:class_c": {
+   "courses": [
+    "Berlin",
+    "Copenhagen",
+    "Dubai",
+    "Frankfurt",
+    "Gold Coast",
+    "Hamburg",
+    "Helsinki",
+    "Stockholm",
+    "Sydney"
+   ],
+   "cells": 80,
+   "seg_5_40": {
+    "n": 560,
+    "corr": 0.242,
+    "slope_obs_on_model": 0.287,
+    "rmse_pp": 0.94,
+    "rmse_zero_pp": 0.83
+   },
+   "seg_all9": {
+    "n": 720,
+    "corr": 0.234,
+    "slope_obs_on_model": 0.311,
+    "rmse_pp": 1.12,
+    "rmse_zero_pp": 1.01
+   },
+   "within_halves_5_40": {
+    "n": 560,
+    "corr": 0.248,
+    "slope_obs_on_model": 0.3,
+    "rmse_pp": 0.95,
+    "rmse_zero_pp": 0.84
+   },
+   "mad_obs_vs_model_pp": 1.1,
+   "mad_obs_vs_model_plus_common_pp": 0.71,
+   "mad_obs_vs_even_pp": 1.03,
+   "mad_obs_vs_typical_steady_pp": 0.64
+  },
+  "corrected:class_b": {
+   "courses": [
+    "Amsterdam",
+    "Eindhoven",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 85,
+   "seg_5_40": {
+    "n": 595,
+    "corr": 0.726,
+    "slope_obs_on_model": 0.608,
+    "rmse_pp": 0.71,
+    "rmse_zero_pp": 0.85
+   },
+   "seg_all9": {
+    "n": 765,
+    "corr": 0.625,
+    "slope_obs_on_model": 0.528,
+    "rmse_pp": 0.95,
+    "rmse_zero_pp": 0.99
+   },
+   "within_halves_5_40": {
+    "n": 595,
+    "corr": 0.696,
+    "slope_obs_on_model": 0.595,
+    "rmse_pp": 0.76,
+    "rmse_zero_pp": 0.88
+   },
+   "mad_obs_vs_model_pp": 0.94,
+   "mad_obs_vs_model_plus_common_pp": 0.67,
+   "mad_obs_vs_even_pp": 1.01,
+   "mad_obs_vs_typical_steady_pp": 0.71
+  }
+ },
+ "calibration": {
+  "raw": {
+   "slope_5_40_ci90": [
+    0.392,
+    0.587,
+    0.723
+   ],
+   "slope_within_halves_ci90": [
+    0.377,
+    0.567,
+    0.689
+   ]
+  },
+  "corrected": {
+   "slope_5_40_ci90": [
+    0.58,
+    0.668,
+    0.791
+   ],
+   "slope_within_halves_ci90": [
+    0.557,
+    0.651,
+    0.76
+   ]
+  }
+ },
+ "asymmetry": {
+  "publishable_a_b 180-360": {
+   "cells": 113,
+   "uphill": 0.73,
+   "uphill_ci90": [
+    0.53,
+    0.89
+   ],
+   "downhill": 0.64,
+   "downhill_ci90": [
+    0.58,
+    0.79
+   ]
+  },
+  "publishable_a_b 180-225": {
+   "cells": 46,
+   "uphill": 0.7,
+   "uphill_ci90": [
+    0.51,
+    0.85
+   ],
+   "downhill": 0.61,
+   "downhill_ci90": [
+    0.54,
+    0.7
+   ]
+  },
+  "publishable_a_b 240-285": {
+   "cells": 48,
+   "uphill": 0.69,
+   "uphill_ci90": [
+    0.52,
+    0.86
+   ],
+   "downhill": 0.67,
+   "downhill_ci90": [
+    0.57,
+    0.82
+   ]
+  },
+  "publishable_a_b 300-360": {
+   "cells": 19,
+   "uphill": 0.92,
+   "uphill_ci90": [
+    0.58,
+    1.05
+   ],
+   "downhill": 0.7,
+   "downhill_ci90": [
+    0.44,
+    1.04
+   ]
+  },
+  "a_b_without_Warsaw 180-360": {
+   "cells": 104,
+   "uphill": 0.78,
+   "uphill_ci90": [
+    0.6,
+    0.92
+   ],
+   "downhill": 0.63,
+   "downhill_ci90": [
+    0.56,
+    0.79
+   ]
+  },
+  "a_b_without_Warsaw 180-225": {
+   "cells": 42,
+   "uphill": 0.75,
+   "uphill_ci90": [
+    0.61,
+    0.89
+   ],
+   "downhill": 0.6,
+   "downhill_ci90": [
+    0.52,
+    0.71
+   ]
+  },
+  "a_b_without_Warsaw 240-285": {
+   "cells": 44,
+   "uphill": 0.74,
+   "uphill_ci90": [
+    0.58,
+    0.91
+   ],
+   "downhill": 0.66,
+   "downhill_ci90": [
+    0.55,
+    0.82
+   ]
+  },
+  "a_b_without_Warsaw 300-360": {
+   "cells": 18,
+   "uphill": 0.96,
+   "uphill_ci90": [
+    0.72,
+    1.08
+   ],
+   "downhill": 0.68,
+   "downhill_ci90": [
+    0.42,
+    1.06
+   ]
+  }
+ },
+ "grade_scale_scan": {
+  "0.0": {
+   "mean_abs_terrain_error_pp": 0.645,
+   "within_halves_pp": 0.664
+  },
+  "0.25": {
+   "mean_abs_terrain_error_pp": 0.521,
+   "within_halves_pp": 0.546
+  },
+  "0.5": {
+   "mean_abs_terrain_error_pp": 0.428,
+   "within_halves_pp": 0.458
+  },
+  "0.75": {
+   "mean_abs_terrain_error_pp": 0.424,
+   "within_halves_pp": 0.465
+  },
+  "1.0": {
+   "mean_abs_terrain_error_pp": 0.495,
+   "within_halves_pp": 0.543
+  },
+  "1.25": {
+   "mean_abs_terrain_error_pp": 0.618,
+   "within_halves_pp": 0.663
+  },
+  "1.5": {
+   "mean_abs_terrain_error_pp": 0.764,
+   "within_halves_pp": 0.805
+  }
+ },
+ "common_pattern_obs_minus_model_pp": {
+  "3:00:00": {
+   "courses": 11,
+   "obs_minus_model_mean_pp": [
+    0.2,
+    -0.39,
+    -0.48,
+    -0.48,
+    -0.61,
+    -0.19,
+    0.59,
+    1.27,
+    0.21
+   ]
+  },
+  "4:00:00": {
+   "courses": 12,
+   "obs_minus_model_mean_pp": [
+    0.44,
+    -0.31,
+    -0.61,
+    -0.55,
+    -0.69,
+    -0.12,
+    1.06,
+    1.33,
+    -1.27
+   ]
+  },
+  "5:15:00": {
+   "courses": 5,
+   "obs_minus_model_mean_pp": [
+    -1.16,
+    -0.28,
+    -0.45,
+    0.58,
+    0.21,
+    0.8,
+    1.86,
+    0.45,
+    -4.59
+   ]
+  },
+  "6:00:00": {
+   "courses": 3,
+   "obs_minus_model_mean_pp": [
+    -3.46,
+    0.43,
+    -0.43,
+    1.59,
+    0.98,
+    0.82,
+    1.96,
+    0.38,
+    -5.16
+   ]
+  }
+ },
+ "features": {
+  "New York: Queensboro segment 20-25 minus mean(15-20, 25-30)": {
+   "observed_by_goal_pp": {
+    "3:00:00": 2.39,
+    "4:00:00": 2.59,
+    "5:15:00": 3.12,
+    "6:00:00": 3.67,
+    "3:30:00": 2.51,
+    "4:30:00": 2.44,
+    "5:00:00": 2.79,
+    "5:30:00": 3.14
+   },
+   "model_pp": {
+    "raw": -0.25,
+    "corrected": 3.69
+   }
+  },
+  "Boston: Newton 30-35 minus 35-40": {
+   "observed_by_goal_pp": {
+    "3:00:00": 2.05,
+    "4:00:00": 2.79,
+    "5:15:00": 3.76,
+    "3:30:00": 2.48,
+    "4:30:00": 3.02,
+    "5:00:00": 4.42,
+    "5:30:00": 3.54
+   },
+   "model_pp": {
+    "raw": 3.05,
+    "corrected": 3.05
+   }
+  },
+  "New York: First Avenue 25-30 minus 20-25": {
+   "observed_by_goal_pp": {
+    "3:00:00": -3.08,
+    "4:00:00": -3.26,
+    "5:15:00": -3.82,
+    "6:00:00": -4.87,
+    "3:30:00": -3.16,
+    "4:30:00": -2.91,
+    "5:00:00": -3.26,
+    "5:30:00": -4.15
+   },
+   "model_pp": {
+    "raw": 0.57,
+    "corrected": -4.47
+   }
+  },
+  "New York: Verrazzano 0-5 minus 5-10": {
+   "observed_by_goal_pp": {
+    "3:00:00": 1.28,
+    "4:00:00": 1.85,
+    "5:15:00": 0.01,
+    "6:00:00": -1.56,
+    "3:30:00": 1.73,
+    "4:30:00": 1.35,
+    "5:00:00": 0.47,
+    "5:30:00": -0.53
+   },
+   "model_pp": {
+    "raw": 0.31,
+    "corrected": 0.57
+   }
+  }
+ },
+ "per_course": {
+  "New York": {
+   "verdict": "publish",
+   "why": "terrain corr -0.51 raw -> 0.79 corrected; bridge and First Avenue reproduced",
+   "raw": {
+    "cls": "b",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": -0.506,
+    "corr_shape_9": -0.121,
+    "corr_shape_plus_common_9": 0.437,
+    "mad_pp": 1.24,
+    "mad_plus_common_pp": 1.1,
+    "mad_even_pp": 1.24,
+    "mad_typical_pp": 0.88,
+    "obs_mean": [
+     0.998,
+     0.987,
+     0.996,
+     1.001,
+     1.021,
+     0.988,
+     1.014,
+     1.009,
+     0.973
+    ],
+    "model": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "model_plus_common": [
+     1.001,
+     0.995,
+     0.99,
+     0.992,
+     0.991,
+     1.004,
+     1.012,
+     1.022,
+     0.985
+    ],
+    "diff_pp": [
+     -0.3,
+     -0.8,
+     0.6,
+     0.8,
+     3.0,
+     -1.7,
+     0.1,
+     -1.3,
+     -1.2
+    ],
+    "obs_qmed": 1.0096,
+    "model_halves": 1.0052
+   },
+   "corrected": {
+    "cls": "b",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.792,
+    "corr_shape_9": 0.586,
+    "corr_shape_plus_common_9": 0.862,
+    "mad_pp": 0.95,
+    "mad_plus_common_pp": 0.67,
+    "mad_even_pp": 1.24,
+    "mad_typical_pp": 0.88,
+    "obs_mean": [
+     0.998,
+     0.987,
+     0.996,
+     1.001,
+     1.021,
+     0.988,
+     1.014,
+     1.009,
+     0.973
+    ],
+    "model": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "model_plus_common": [
+     1.001,
+     0.992,
+     0.989,
+     0.991,
+     1.018,
+     0.982,
+     1.012,
+     1.022,
+     0.983
+    ],
+    "diff_pp": [
+     -0.3,
+     -0.6,
+     0.6,
+     1.0,
+     0.2,
+     0.6,
+     0.1,
+     -1.3,
+     -1.0
+    ],
+    "obs_qmed": 1.0096,
+    "model_halves": 1.007
+   }
+  },
+  "Boston": {
+   "verdict": "publish, forewarn the downhill start",
+   "why": "terrain corr 0.97, slope 1.04; steady finishers did not take the 0-5 km descent (model 0.973 vs 0.993)",
+   "raw": {
+    "cls": "a",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.964,
+    "corr_shape_9": 0.449,
+    "corr_shape_plus_common_9": 0.814,
+    "mad_pp": 1.23,
+    "mad_plus_common_pp": 0.69,
+    "mad_even_pp": 1.31,
+    "mad_typical_pp": 1.03,
+    "obs_mean": [
+     0.993,
+     0.993,
+     0.993,
+     1.002,
+     0.996,
+     1.021,
+     1.024,
+     0.993,
+     0.967
+    ],
+    "model": [
+     0.973,
+     0.997,
+     1.004,
+     1.008,
+     1.001,
+     1.015,
+     1.015,
+     0.985,
+     1.005
+    ],
+    "model_plus_common": [
+     0.973,
+     0.995,
+     0.996,
+     1.005,
+     0.997,
+     1.016,
+     1.027,
+     0.997,
+     0.985
+    ],
+    "diff_pp": [
+     2.0,
+     -0.2,
+     -0.3,
+     -0.4,
+     -0.1,
+     0.5,
+     -0.3,
+     -0.4,
+     -1.8
+    ],
+    "obs_qmed": 1.0106,
+    "model_halves": 1.0088
+   },
+   "corrected": {
+    "cls": "a",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.969,
+    "corr_shape_9": 0.449,
+    "corr_shape_plus_common_9": 0.823,
+    "mad_pp": 1.23,
+    "mad_plus_common_pp": 0.67,
+    "mad_even_pp": 1.31,
+    "mad_typical_pp": 1.03,
+    "obs_mean": [
+     0.993,
+     0.993,
+     0.993,
+     1.002,
+     0.996,
+     1.021,
+     1.024,
+     0.993,
+     0.967
+    ],
+    "model": [
+     0.973,
+     0.997,
+     1.004,
+     1.008,
+     1.001,
+     1.015,
+     1.015,
+     0.985,
+     1.005
+    ],
+    "model_plus_common": [
+     0.973,
+     0.995,
+     0.996,
+     1.005,
+     0.995,
+     1.018,
+     1.026,
+     0.998,
+     0.985
+    ],
+    "diff_pp": [
+     2.0,
+     -0.2,
+     -0.3,
+     -0.3,
+     0.1,
+     0.3,
+     -0.3,
+     -0.5,
+     -1.7
+    ],
+    "obs_qmed": 1.0106,
+    "model_halves": 1.0088
+   }
+  },
+  "Madrid": {
+   "verdict": "publish",
+   "why": "terrain corr 0.88; model 1.14 pp vs even 1.60 pp from the steady shape",
+   "raw": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.886,
+    "corr_shape_9": 0.875,
+    "corr_shape_plus_common_9": 0.9,
+    "mad_pp": 1.13,
+    "mad_plus_common_pp": 1.19,
+    "mad_even_pp": 1.6,
+    "mad_typical_pp": 1.51,
+    "obs_mean": [
+     1.016,
+     0.974,
+     0.989,
+     1.001,
+     0.977,
+     1.011,
+     0.995,
+     1.029,
+     1.019
+    ],
+    "model": [
+     1.044,
+     0.976,
+     0.99,
+     0.986,
+     0.969,
+     1.02,
+     0.977,
+     1.023,
+     1.033
+    ],
+    "model_plus_common": [
+     1.051,
+     0.973,
+     0.98,
+     0.981,
+     0.963,
+     1.02,
+     0.987,
+     1.036,
+     1.019
+    ],
+    "diff_pp": [
+     -3.5,
+     0.1,
+     0.8,
+     2.0,
+     1.4,
+     -0.9,
+     0.8,
+     -0.7,
+     0.0
+    ],
+    "obs_qmed": 1.0115,
+    "model_halves": 1.0018
+   },
+   "corrected": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.875,
+    "corr_shape_9": 0.875,
+    "corr_shape_plus_common_9": 0.927,
+    "mad_pp": 1.14,
+    "mad_plus_common_pp": 1.08,
+    "mad_even_pp": 1.6,
+    "mad_typical_pp": 1.51,
+    "obs_mean": [
+     1.016,
+     0.974,
+     0.989,
+     1.001,
+     0.977,
+     1.011,
+     0.995,
+     1.029,
+     1.019
+    ],
+    "model": [
+     1.033,
+     0.977,
+     0.993,
+     0.987,
+     0.971,
+     1.023,
+     0.977,
+     1.021,
+     1.039
+    ],
+    "model_plus_common": [
+     1.039,
+     0.975,
+     0.984,
+     0.981,
+     0.963,
+     1.025,
+     0.987,
+     1.036,
+     1.025
+    ],
+    "diff_pp": [
+     -2.3,
+     -0.0,
+     0.4,
+     2.0,
+     1.3,
+     -1.3,
+     0.8,
+     -0.6,
+     -0.6
+    ],
+    "obs_qmed": 1.0115,
+    "model_halves": 1.0046
+   }
+  },
+  "Valencia": {
+   "verdict": "publish",
+   "why": "terrain corr 0.84, small effect (5-40 range 1.6 pp)",
+   "raw": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.571,
+    "corr_shape_9": 0.577,
+    "corr_shape_plus_common_9": 0.91,
+    "mad_pp": 0.86,
+    "mad_plus_common_pp": 0.51,
+    "mad_even_pp": 0.85,
+    "mad_typical_pp": 0.42,
+    "obs_mean": [
+     1.004,
+     0.995,
+     0.995,
+     0.992,
+     0.997,
+     1.002,
+     1.015,
+     1.009,
+     0.979
+    ],
+    "model": [
+     0.997,
+     1.003,
+     1.004,
+     0.995,
+     1.003,
+     1.01,
+     1.001,
+     0.997,
+     0.978
+    ],
+    "model_plus_common": [
+     1.002,
+     1.0,
+     0.995,
+     0.99,
+     0.997,
+     1.011,
+     1.011,
+     1.01,
+     0.963
+    ],
+    "diff_pp": [
+     0.2,
+     -0.6,
+     -0.0,
+     0.2,
+     0.0,
+     -0.9,
+     0.4,
+     -0.1,
+     1.6
+    ],
+    "obs_qmed": 1.0079,
+    "model_halves": 1.0008
+   },
+   "corrected": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.835,
+    "corr_shape_9": 0.495,
+    "corr_shape_plus_common_9": 0.967,
+    "mad_pp": 0.8,
+    "mad_plus_common_pp": 0.3,
+    "mad_even_pp": 0.85,
+    "mad_typical_pp": 0.42,
+    "obs_mean": [
+     1.004,
+     0.995,
+     0.995,
+     0.992,
+     0.997,
+     1.002,
+     1.015,
+     1.009,
+     0.979
+    ],
+    "model": [
+     0.999,
+     1.003,
+     1.001,
+     0.996,
+     1.004,
+     1.002,
+     1.008,
+     0.992,
+     0.99
+    ],
+    "model_plus_common": [
+     1.004,
+     1.001,
+     0.992,
+     0.991,
+     0.997,
+     1.003,
+     1.018,
+     1.006,
+     0.975
+    ],
+    "diff_pp": [
+     0.1,
+     -0.6,
+     0.2,
+     0.2,
+     -0.0,
+     -0.1,
+     -0.3,
+     0.3,
+     0.4
+    ],
+    "obs_qmed": 1.0079,
+    "model_halves": 1.0006
+   }
+  },
+  "Austin": {
+   "verdict": "publish with caution",
+   "why": "terrain corr 0.93 but model over-reacts (slope 0.67); 3 editions, small groups",
+   "raw": {
+    "cls": "a",
+    "goals": 6,
+    "goal_range": [
+     210,
+     285
+    ],
+    "corr_terrain_dev_5_40": 0.925,
+    "corr_shape_9": 0.817,
+    "corr_shape_plus_common_9": 0.917,
+    "mad_pp": 1.11,
+    "mad_plus_common_pp": 0.77,
+    "mad_even_pp": 0.94,
+    "mad_typical_pp": 1.13,
+    "obs_mean": [
+     1.017,
+     0.971,
+     1.005,
+     0.997,
+     1.001,
+     0.996,
+     0.998,
+     1.012,
+     1.008
+    ],
+    "model": [
+     1.033,
+     0.964,
+     1.01,
+     1.006,
+     1.011,
+     0.995,
+     0.975,
+     0.997,
+     1.019
+    ],
+    "model_plus_common": [
+     1.04,
+     0.961,
+     1.0,
+     1.001,
+     1.005,
+     0.995,
+     0.985,
+     1.011,
+     1.003
+    ],
+    "diff_pp": [
+     -2.3,
+     1.0,
+     0.5,
+     -0.4,
+     -0.5,
+     0.1,
+     1.2,
+     0.1,
+     0.5
+    ],
+    "obs_qmed": 1.0049,
+    "model_halves": 0.9939
+   },
+   "corrected": {
+    "cls": "a",
+    "goals": 6,
+    "goal_range": [
+     210,
+     285
+    ],
+    "corr_terrain_dev_5_40": 0.925,
+    "corr_shape_9": 0.817,
+    "corr_shape_plus_common_9": 0.918,
+    "mad_pp": 1.11,
+    "mad_plus_common_pp": 0.75,
+    "mad_even_pp": 0.94,
+    "mad_typical_pp": 1.13,
+    "obs_mean": [
+     1.017,
+     0.971,
+     1.005,
+     0.997,
+     1.001,
+     0.996,
+     0.998,
+     1.012,
+     1.008
+    ],
+    "model": [
+     1.033,
+     0.964,
+     1.01,
+     1.006,
+     1.011,
+     0.995,
+     0.975,
+     0.997,
+     1.019
+    ],
+    "model_plus_common": [
+     1.04,
+     0.961,
+     1.0,
+     1.001,
+     1.004,
+     0.996,
+     0.985,
+     1.012,
+     1.002
+    ],
+    "diff_pp": [
+     -2.3,
+     1.0,
+     0.4,
+     -0.3,
+     -0.3,
+     -0.1,
+     1.3,
+     0.0,
+     0.6
+    ],
+    "obs_qmed": 1.0049,
+    "model_halves": 0.9939
+   }
+  },
+  "London": {
+   "verdict": "publish (near even)",
+   "why": "terrain small (1.0 pp range); corr 0.25",
+   "raw": {
+    "cls": "b",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.133,
+    "corr_shape_9": 0.489,
+    "corr_shape_plus_common_9": 0.651,
+    "mad_pp": 0.82,
+    "mad_plus_common_pp": 0.74,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.85,
+    "obs_mean": [
+     0.981,
+     0.995,
+     1.009,
+     0.995,
+     0.998,
+     1.007,
+     1.017,
+     1.004,
+     0.988
+    ],
+    "model": [
+     0.99,
+     0.997,
+     1.0,
+     1.0,
+     1.002,
+     1.01,
+     0.999,
+     1.001,
+     1.002
+    ],
+    "model_plus_common": [
+     0.992,
+     0.995,
+     0.991,
+     0.998,
+     0.999,
+     1.012,
+     1.009,
+     1.013,
+     0.98
+    ],
+    "diff_pp": [
+     -1.1,
+     -0.0,
+     1.8,
+     -0.3,
+     -0.1,
+     -0.5,
+     0.8,
+     -0.9,
+     0.7
+    ],
+    "obs_qmed": 1.0104,
+    "model_halves": 1.006
+   },
+   "corrected": {
+    "cls": "b",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.248,
+    "corr_shape_9": 0.477,
+    "corr_shape_plus_common_9": 0.656,
+    "mad_pp": 0.83,
+    "mad_plus_common_pp": 0.78,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.85,
+    "obs_mean": [
+     0.981,
+     0.995,
+     1.009,
+     0.995,
+     0.998,
+     1.007,
+     1.017,
+     1.004,
+     0.988
+    ],
+    "model": [
+     0.991,
+     0.997,
+     1.001,
+     1.006,
+     0.997,
+     1.007,
+     1.002,
+     0.999,
+     1.003
+    ],
+    "model_plus_common": [
+     0.993,
+     0.995,
+     0.992,
+     1.003,
+     0.991,
+     1.01,
+     1.012,
+     1.012,
+     0.981
+    ],
+    "diff_pp": [
+     -1.1,
+     -0.0,
+     1.7,
+     -0.9,
+     0.7,
+     -0.4,
+     0.5,
+     -0.8,
+     0.7
+    ],
+    "obs_qmed": 1.0104,
+    "model_halves": 1.0026
+   }
+  },
+  "Amsterdam": {
+   "verdict": "publish (equals even pace)",
+   "why": "range 0.2 pp",
+   "raw": {
+    "cls": "b",
+    "goals": 10,
+    "goal_range": [
+     180,
+     315
+    ],
+    "corr_terrain_dev_5_40": 0.074,
+    "corr_shape_9": -0.226,
+    "corr_shape_plus_common_9": 0.79,
+    "mad_pp": 0.98,
+    "mad_plus_common_pp": 0.52,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.46,
+    "obs_mean": [
+     1.005,
+     0.99,
+     0.993,
+     1.001,
+     0.991,
+     0.998,
+     1.015,
+     1.011,
+     0.992
+    ],
+    "model": [
+     0.999,
+     1.001,
+     1.0,
+     0.998,
+     1.001,
+     1.0,
+     1.002,
+     0.999,
+     1.001
+    ],
+    "model_plus_common": [
+     1.001,
+     1.0,
+     0.991,
+     0.994,
+     0.997,
+     1.0,
+     1.013,
+     1.011,
+     0.983
+    ],
+    "diff_pp": [
+     0.4,
+     -0.9,
+     0.1,
+     0.7,
+     -0.6,
+     -0.3,
+     0.2,
+     -0.0,
+     0.9
+    ],
+    "obs_qmed": 1.0063,
+    "model_halves": 1.0011
+   },
+   "corrected": {
+    "cls": "b",
+    "goals": 10,
+    "goal_range": [
+     180,
+     315
+    ],
+    "corr_terrain_dev_5_40": 0.249,
+    "corr_shape_9": -0.218,
+    "corr_shape_plus_common_9": 0.846,
+    "mad_pp": 0.95,
+    "mad_plus_common_pp": 0.45,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.46,
+    "obs_mean": [
+     1.005,
+     0.99,
+     0.993,
+     1.001,
+     0.991,
+     0.998,
+     1.015,
+     1.011,
+     0.992
+    ],
+    "model": [
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.001,
+     0.999,
+     1.003
+    ],
+    "model_plus_common": [
+     1.003,
+     0.998,
+     0.991,
+     0.995,
+     0.994,
+     1.003,
+     1.011,
+     1.012,
+     0.985
+    ],
+    "diff_pp": [
+     0.2,
+     -0.8,
+     0.1,
+     0.6,
+     -0.3,
+     -0.5,
+     0.4,
+     -0.1,
+     0.7
+    ],
+    "obs_qmed": 1.0063,
+    "model_halves": 1.0004
+   }
+  },
+  "Eindhoven": {
+   "verdict": "publish (equals even pace)",
+   "why": "range 0.3 pp",
+   "raw": {
+    "cls": "b",
+    "goals": 8,
+    "goal_range": [
+     180,
+     285
+    ],
+    "corr_terrain_dev_5_40": 0.154,
+    "corr_shape_9": -0.267,
+    "corr_shape_plus_common_9": 0.748,
+    "mad_pp": 0.68,
+    "mad_plus_common_pp": 0.47,
+    "mad_even_pp": 0.67,
+    "mad_typical_pp": 0.48,
+    "obs_mean": [
+     0.995,
+     1.001,
+     0.999,
+     0.994,
+     0.997,
+     1.0,
+     1.009,
+     1.013,
+     0.983
+    ],
+    "model": [
+     0.998,
+     1.001,
+     0.999,
+     1.003,
+     0.998,
+     1.001,
+     1.0,
+     0.999,
+     1.002
+    ],
+    "model_plus_common": [
+     1.004,
+     0.999,
+     0.989,
+     0.998,
+     0.991,
+     1.0,
+     1.01,
+     1.013,
+     0.991
+    ],
+    "diff_pp": [
+     -0.9,
+     0.2,
+     1.0,
+     -0.5,
+     0.6,
+     0.0,
+     -0.1,
+     -0.0,
+     -0.8
+    ],
+    "obs_qmed": 1.0067,
+    "model_halves": 0.9997
+   },
+   "corrected": {
+    "cls": "b",
+    "goals": 8,
+    "goal_range": [
+     180,
+     285
+    ],
+    "corr_terrain_dev_5_40": 0.48,
+    "corr_shape_9": 0.469,
+    "corr_shape_plus_common_9": 0.858,
+    "mad_pp": 0.64,
+    "mad_plus_common_pp": 0.38,
+    "mad_even_pp": 0.67,
+    "mad_typical_pp": 0.48,
+    "obs_mean": [
+     0.995,
+     1.001,
+     0.999,
+     0.994,
+     0.997,
+     1.0,
+     1.009,
+     1.013,
+     0.983
+    ],
+    "model": [
+     0.998,
+     1.001,
+     1.001,
+     1.001,
+     1.0,
+     0.999,
+     1.002,
+     0.999,
+     0.997
+    ],
+    "model_plus_common": [
+     1.005,
+     0.998,
+     0.992,
+     0.995,
+     0.992,
+     0.999,
+     1.011,
+     1.014,
+     0.985
+    ],
+    "diff_pp": [
+     -1.0,
+     0.3,
+     0.7,
+     -0.2,
+     0.5,
+     0.1,
+     -0.2,
+     -0.1,
+     -0.2
+    ],
+    "obs_qmed": 1.0067,
+    "model_halves": 0.9994
+   }
+  },
+  "Rotterdam": {
+   "verdict": "publish (equals even pace)",
+   "why": "range 0.7 pp",
+   "raw": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.661,
+    "corr_shape_9": -0.104,
+    "corr_shape_plus_common_9": 0.914,
+    "mad_pp": 0.79,
+    "mad_plus_common_pp": 0.35,
+    "mad_even_pp": 0.67,
+    "mad_typical_pp": 0.39,
+    "obs_mean": [
+     1.0,
+     0.992,
+     0.994,
+     0.996,
+     1.0,
+     0.999,
+     1.003,
+     1.021,
+     0.99
+    ],
+    "model": [
+     0.997,
+     0.996,
+     1.002,
+     0.999,
+     1.003,
+     0.999,
+     0.997,
+     1.003,
+     1.01
+    ],
+    "model_plus_common": [
+     1.002,
+     0.994,
+     0.992,
+     0.995,
+     0.997,
+     0.999,
+     1.008,
+     1.015,
+     0.996
+    ],
+    "diff_pp": [
+     -0.2,
+     -0.2,
+     0.2,
+     0.1,
+     0.3,
+     0.0,
+     -0.5,
+     0.5,
+     -0.7
+    ],
+    "obs_qmed": 1.0096,
+    "model_halves": 1.0028
+   },
+   "corrected": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.557,
+    "corr_shape_9": 0.307,
+    "corr_shape_plus_common_9": 0.909,
+    "mad_pp": 0.67,
+    "mad_plus_common_pp": 0.37,
+    "mad_even_pp": 0.67,
+    "mad_typical_pp": 0.39,
+    "obs_mean": [
+     1.0,
+     0.992,
+     0.994,
+     0.996,
+     1.0,
+     0.999,
+     1.003,
+     1.021,
+     0.99
+    ],
+    "model": [
+     1.001,
+     0.997,
+     1.0,
+     1.0,
+     1.003,
+     0.999,
+     0.998,
+     1.002,
+     1.002
+    ],
+    "model_plus_common": [
+     1.005,
+     0.994,
+     0.991,
+     0.995,
+     0.996,
+     1.0,
+     1.008,
+     1.016,
+     0.987
+    ],
+    "diff_pp": [
+     -0.5,
+     -0.2,
+     0.3,
+     0.1,
+     0.4,
+     -0.1,
+     -0.5,
+     0.5,
+     0.3
+    ],
+    "obs_qmed": 1.0096,
+    "model_halves": 1.0014
+   }
+  },
+  "Chicago": {
+   "verdict": "publish (equals even pace)",
+   "why": "range 0.2 pp",
+   "raw": {
+    "cls": "a",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.073,
+    "corr_shape_9": -0.598,
+    "corr_shape_plus_common_9": 0.915,
+    "mad_pp": 1.12,
+    "mad_plus_common_pp": 0.52,
+    "mad_even_pp": 1.07,
+    "mad_typical_pp": 0.52,
+    "obs_mean": [
+     1.002,
+     1.003,
+     0.984,
+     0.996,
+     0.996,
+     0.998,
+     1.009,
+     1.023,
+     0.978
+    ],
+    "model": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "model_plus_common": [
+     1.0,
+     0.998,
+     0.993,
+     0.996,
+     0.997,
+     1.002,
+     1.011,
+     1.01,
+     0.984
+    ],
+    "diff_pp": [
+     0.2,
+     0.5,
+     -1.0,
+     -0.0,
+     -0.1,
+     -0.4,
+     -0.2,
+     1.2,
+     -0.6
+    ],
+    "obs_qmed": 1.0074,
+    "model_halves": 1.0009
+   },
+   "corrected": {
+    "cls": "a",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.087,
+    "corr_shape_9": -0.598,
+    "corr_shape_plus_common_9": 0.903,
+    "mad_pp": 1.12,
+    "mad_plus_common_pp": 0.53,
+    "mad_even_pp": 1.07,
+    "mad_typical_pp": 0.52,
+    "obs_mean": [
+     1.002,
+     1.003,
+     0.984,
+     0.996,
+     0.996,
+     0.998,
+     1.009,
+     1.023,
+     0.978
+    ],
+    "model": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "model_plus_common": [
+     1.0,
+     0.998,
+     0.994,
+     0.995,
+     0.995,
+     1.004,
+     1.011,
+     1.011,
+     0.983
+    ],
+    "diff_pp": [
+     0.2,
+     0.5,
+     -1.0,
+     0.1,
+     0.1,
+     -0.6,
+     -0.2,
+     1.1,
+     -0.5
+    ],
+    "obs_qmed": 1.0074,
+    "model_halves": 1.0009
+   }
+  },
+  "Warsaw": {
+   "verdict": "hold: even pace",
+   "why": "model worse than no terrain (terrain RMSE 0.62 vs 0.34 pp; 9-segment MAD 1.39 vs even 0.95); route vintage or start alignment suspected",
+   "raw": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.092,
+    "corr_shape_9": -0.248,
+    "corr_shape_plus_common_9": 0.666,
+    "mad_pp": 1.25,
+    "mad_plus_common_pp": 0.7,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.38,
+    "obs_mean": [
+     1.006,
+     0.998,
+     0.991,
+     0.995,
+     0.991,
+     1.001,
+     1.012,
+     1.016,
+     0.976
+    ],
+    "model": [
+     0.986,
+     1.0,
+     0.999,
+     1.013,
+     1.001,
+     0.999,
+     0.996,
+     1.005,
+     1.004
+    ],
+    "model_plus_common": [
+     0.99,
+     0.997,
+     0.99,
+     1.009,
+     0.995,
+     0.998,
+     1.006,
+     1.019,
+     0.99
+    ],
+    "diff_pp": [
+     1.6,
+     0.1,
+     0.2,
+     -1.4,
+     -0.4,
+     0.3,
+     0.5,
+     -0.2,
+     -1.4
+    ],
+    "obs_qmed": 1.0056,
+    "model_halves": 1.0012
+   },
+   "corrected": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.211,
+    "corr_shape_9": -0.446,
+    "corr_shape_plus_common_9": 0.5,
+    "mad_pp": 1.39,
+    "mad_plus_common_pp": 0.77,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.38,
+    "obs_mean": [
+     1.006,
+     0.998,
+     0.991,
+     0.995,
+     0.991,
+     1.001,
+     1.012,
+     1.016,
+     0.976
+    ],
+    "model": [
+     0.983,
+     1.001,
+     1.0,
+     1.013,
+     0.999,
+     1.001,
+     0.995,
+     1.004,
+     1.01
+    ],
+    "model_plus_common": [
+     0.986,
+     0.999,
+     0.991,
+     1.009,
+     0.993,
+     1.002,
+     1.005,
+     1.018,
+     0.996
+    ],
+    "diff_pp": [
+     1.9,
+     -0.0,
+     0.0,
+     -1.4,
+     -0.1,
+     -0.1,
+     0.7,
+     -0.2,
+     -1.9
+    ],
+    "obs_qmed": 1.0056,
+    "model_halves": 1.0015
+   }
+  },
+  "Oslo": {
+   "verdict": "hold until 39-42 km is checked",
+   "why": "terrain corr 0.81 for 5-40 km but last 2.2 km misses by 4.0 pp (model plans a descent the steady finishers did not show)",
+   "raw": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.829,
+    "corr_shape_9": 0.728,
+    "corr_shape_plus_common_9": 0.709,
+    "mad_pp": 1.03,
+    "mad_plus_common_pp": 1.2,
+    "mad_even_pp": 1.1,
+    "mad_typical_pp": 0.99,
+    "obs_mean": [
+     1.017,
+     0.976,
+     0.996,
+     0.998,
+     0.999,
+     0.993,
+     0.999,
+     1.019,
+     1.007
+    ],
+    "model": [
+     1.023,
+     0.97,
+     1.01,
+     1.001,
+     1.012,
+     0.98,
+     0.998,
+     1.013,
+     0.983
+    ],
+    "model_plus_common": [
+     1.029,
+     0.967,
+     1.001,
+     0.997,
+     1.007,
+     0.979,
+     1.009,
+     1.026,
+     0.967
+    ],
+    "diff_pp": [
+     -1.1,
+     0.9,
+     -0.5,
+     0.1,
+     -0.8,
+     1.4,
+     -1.0,
+     -0.8,
+     4.0
+    ],
+    "obs_qmed": 1.0073,
+    "model_halves": 0.9979
+   },
+   "corrected": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.81,
+    "corr_shape_9": 0.716,
+    "corr_shape_plus_common_9": 0.703,
+    "mad_pp": 1.06,
+    "mad_plus_common_pp": 1.17,
+    "mad_even_pp": 1.1,
+    "mad_typical_pp": 0.99,
+    "obs_mean": [
+     1.017,
+     0.976,
+     0.996,
+     0.998,
+     0.999,
+     0.993,
+     0.999,
+     1.019,
+     1.007
+    ],
+    "model": [
+     1.031,
+     0.971,
+     0.999,
+     1.004,
+     1.016,
+     0.984,
+     0.996,
+     1.007,
+     0.984
+    ],
+    "model_plus_common": [
+     1.036,
+     0.968,
+     0.99,
+     0.999,
+     1.009,
+     0.984,
+     1.007,
+     1.021,
+     0.967
+    ],
+    "diff_pp": [
+     -1.9,
+     0.8,
+     0.7,
+     -0.1,
+     -1.0,
+     0.8,
+     -0.8,
+     -0.2,
+     4.0
+    ],
+    "obs_qmed": 1.0073,
+    "model_halves": 0.9979
+   }
+  },
+  "Auckland": {
+   "verdict": "publishable on the profile audit only",
+   "why": "no steady shape (2 editions): no observed check",
+   "raw": null,
+   "corrected": null
+  },
+  "Barcelona": {
+   "verdict": "publishable on the profile audit only",
+   "why": "no steady shape (2 editions); straight decks assumed",
+   "raw": null,
+   "corrected": null
+  },
+  "Paris": {
+   "verdict": "publishable on the profile audit only",
+   "why": "no steady shape (2 editions); quay tunnels assumed used",
+   "raw": null,
+   "corrected": null
+  },
+  "Sydney": {
+   "verdict": "even pace (class c confirmed)",
+   "why": "model contradicts the steady shape: terrain corr -0.34, 10-15 km model 1.036 vs 0.986",
+   "raw": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     180,
+     270
+    ],
+    "corr_terrain_dev_5_40": -0.363,
+    "corr_shape_9": -0.323,
+    "corr_shape_plus_common_9": 0.08,
+    "mad_pp": 2.15,
+    "mad_plus_common_pp": 1.66,
+    "mad_even_pp": 1.25,
+    "mad_typical_pp": 0.92,
+    "obs_mean": [
+     0.994,
+     1.003,
+     0.986,
+     0.998,
+     0.981,
+     0.998,
+     1.018,
+     1.029,
+     0.984
+    ],
+    "model": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "model_plus_common": [
+     0.98,
+     0.998,
+     1.029,
+     0.983,
+     0.993,
+     1.007,
+     1.008,
+     1.004,
+     0.998
+    ],
+    "diff_pp": [
+     1.5,
+     0.5,
+     -4.3,
+     1.5,
+     -1.2,
+     -1.0,
+     1.0,
+     2.5,
+     -1.4
+    ],
+    "obs_qmed": 1.0095,
+    "model_halves": 1.0001
+   },
+   "corrected": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     180,
+     270
+    ],
+    "corr_terrain_dev_5_40": -0.336,
+    "corr_shape_9": -0.323,
+    "corr_shape_plus_common_9": 0.103,
+    "mad_pp": 2.15,
+    "mad_plus_common_pp": 1.66,
+    "mad_even_pp": 1.25,
+    "mad_typical_pp": 0.92,
+    "obs_mean": [
+     0.994,
+     1.003,
+     0.986,
+     0.998,
+     0.981,
+     0.998,
+     1.018,
+     1.029,
+     0.984
+    ],
+    "model": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "model_plus_common": [
+     0.979,
+     0.998,
+     1.029,
+     0.982,
+     0.991,
+     1.009,
+     1.008,
+     1.005,
+     0.998
+    ],
+    "diff_pp": [
+     1.5,
+     0.5,
+     -4.3,
+     1.6,
+     -1.1,
+     -1.1,
+     1.1,
+     2.4,
+     -1.4
+    ],
+    "obs_qmed": 1.0095,
+    "model_halves": 1.0001
+   }
+  },
+  "Berlin": {
+   "verdict": "even pace (class c)",
+   "why": "raw model agrees in direction (0.75) but amplitude 1.1 pp",
+   "raw": {
+    "cls": "c",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.639,
+    "corr_shape_9": 0.602,
+    "corr_shape_plus_common_9": 0.891,
+    "mad_pp": 0.77,
+    "mad_plus_common_pp": 0.47,
+    "mad_even_pp": 0.83,
+    "mad_typical_pp": 0.53,
+    "obs_mean": [
+     0.993,
+     1.003,
+     0.994,
+     0.997,
+     1.0,
+     1.006,
+     0.999,
+     1.017,
+     0.978
+    ],
+    "model": [
+     1.0,
+     1.004,
+     0.998,
+     0.999,
+     1.006,
+     1.0,
+     0.995,
+     1.002,
+     0.993
+    ],
+    "model_plus_common": [
+     1.001,
+     1.002,
+     0.989,
+     0.996,
+     1.003,
+     1.001,
+     1.007,
+     1.013,
+     0.972
+    ],
+    "diff_pp": [
+     -0.8,
+     0.1,
+     0.5,
+     0.1,
+     -0.3,
+     0.6,
+     -0.7,
+     0.3,
+     0.6
+    ],
+    "obs_qmed": 1.0074,
+    "model_halves": 1.0002
+   },
+   "corrected": {
+    "cls": "c",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.751,
+    "corr_shape_9": 0.602,
+    "corr_shape_plus_common_9": 0.913,
+    "mad_pp": 0.77,
+    "mad_plus_common_pp": 0.43,
+    "mad_even_pp": 0.83,
+    "mad_typical_pp": 0.53,
+    "obs_mean": [
+     0.993,
+     1.003,
+     0.994,
+     0.997,
+     1.0,
+     1.006,
+     0.999,
+     1.017,
+     0.978
+    ],
+    "model": [
+     1.0,
+     1.004,
+     0.998,
+     0.999,
+     1.006,
+     1.0,
+     0.995,
+     1.002,
+     0.993
+    ],
+    "model_plus_common": [
+     1.001,
+     1.002,
+     0.989,
+     0.995,
+     1.001,
+     1.003,
+     1.006,
+     1.014,
+     0.972
+    ],
+    "diff_pp": [
+     -0.8,
+     0.1,
+     0.4,
+     0.1,
+     -0.1,
+     0.4,
+     -0.7,
+     0.2,
+     0.7
+    ],
+    "obs_qmed": 1.0074,
+    "model_halves": 1.0002
+   }
+  },
+  "Frankfurt": {
+   "verdict": "even pace (class c)",
+   "why": "raw model 0.70, amplitude 1.4 pp",
+   "raw": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.755,
+    "corr_shape_9": 0.853,
+    "corr_shape_plus_common_9": 0.955,
+    "mad_pp": 0.64,
+    "mad_plus_common_pp": 0.41,
+    "mad_even_pp": 0.89,
+    "mad_typical_pp": 0.35,
+    "obs_mean": [
+     1.004,
+     1.001,
+     0.983,
+     0.996,
+     0.996,
+     1.0,
+     1.012,
+     1.014,
+     0.985
+    ],
+    "model": [
+     1.006,
+     1.003,
+     0.993,
+     0.998,
+     1.0,
+     0.999,
+     1.0,
+     1.007,
+     0.988
+    ],
+    "model_plus_common": [
+     1.011,
+     1.0,
+     0.984,
+     0.993,
+     0.994,
+     0.998,
+     1.011,
+     1.02,
+     0.973
+    ],
+    "diff_pp": [
+     -0.7,
+     0.1,
+     -0.1,
+     0.3,
+     0.1,
+     0.2,
+     0.1,
+     -0.6,
+     1.2
+    ],
+    "obs_qmed": 1.0086,
+    "model_halves": 1.0003
+   },
+   "corrected": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.695,
+    "corr_shape_9": 0.853,
+    "corr_shape_plus_common_9": 0.949,
+    "mad_pp": 0.64,
+    "mad_plus_common_pp": 0.45,
+    "mad_even_pp": 0.89,
+    "mad_typical_pp": 0.35,
+    "obs_mean": [
+     1.004,
+     1.001,
+     0.983,
+     0.996,
+     0.996,
+     1.0,
+     1.012,
+     1.014,
+     0.985
+    ],
+    "model": [
+     1.006,
+     1.003,
+     0.993,
+     0.998,
+     1.0,
+     0.999,
+     1.0,
+     1.007,
+     0.988
+    ],
+    "model_plus_common": [
+     1.011,
+     1.0,
+     0.984,
+     0.993,
+     0.993,
+     1.0,
+     1.01,
+     1.021,
+     0.972
+    ],
+    "diff_pp": [
+     -0.7,
+     0.1,
+     -0.2,
+     0.4,
+     0.3,
+     0.0,
+     0.2,
+     -0.7,
+     1.2
+    ],
+    "obs_qmed": 1.0086,
+    "model_halves": 1.0003
+   }
+  },
+  "Stockholm": {
+   "verdict": "even pace (class c)",
+   "why": "corr 0.49; Vasterbron unresolved",
+   "raw": {
+    "cls": "c",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.461,
+    "corr_shape_9": 0.385,
+    "corr_shape_plus_common_9": 0.788,
+    "mad_pp": 1.08,
+    "mad_plus_common_pp": 0.89,
+    "mad_even_pp": 1.07,
+    "mad_typical_pp": 0.72,
+    "obs_mean": [
+     1.002,
+     1.008,
+     0.987,
+     0.989,
+     1.004,
+     1.005,
+     1.007,
+     1.009,
+     0.973
+    ],
+    "model": [
+     0.99,
+     1.011,
+     0.991,
+     0.999,
+     1.012,
+     0.99,
+     1.0,
+     1.008,
+     0.997
+    ],
+    "model_plus_common": [
+     0.99,
+     1.009,
+     0.982,
+     0.997,
+     1.009,
+     0.99,
+     1.011,
+     1.021,
+     0.977
+    ],
+    "diff_pp": [
+     1.3,
+     -0.1,
+     0.5,
+     -0.8,
+     -0.5,
+     1.5,
+     -0.4,
+     -1.2,
+     -0.4
+    ],
+    "obs_qmed": 1.008,
+    "model_halves": 1.0045
+   },
+   "corrected": {
+    "cls": "c",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.491,
+    "corr_shape_9": 0.385,
+    "corr_shape_plus_common_9": 0.81,
+    "mad_pp": 1.08,
+    "mad_plus_common_pp": 0.85,
+    "mad_even_pp": 1.07,
+    "mad_typical_pp": 0.72,
+    "obs_mean": [
+     1.002,
+     1.008,
+     0.987,
+     0.989,
+     1.004,
+     1.005,
+     1.007,
+     1.009,
+     0.973
+    ],
+    "model": [
+     0.99,
+     1.011,
+     0.991,
+     0.999,
+     1.012,
+     0.99,
+     1.0,
+     1.008,
+     0.997
+    ],
+    "model_plus_common": [
+     0.99,
+     1.009,
+     0.983,
+     0.996,
+     1.007,
+     0.992,
+     1.011,
+     1.022,
+     0.976
+    ],
+    "diff_pp": [
+     1.3,
+     -0.1,
+     0.4,
+     -0.8,
+     -0.3,
+     1.3,
+     -0.4,
+     -1.3,
+     -0.3
+    ],
+    "obs_qmed": 1.008,
+    "model_halves": 1.0045
+   }
+  },
+  "Hamburg": {
+   "verdict": "even pace (class c)",
+   "why": "corr 0.33; Wallringtunnel unresolved",
+   "raw": {
+    "cls": "c",
+    "goals": 10,
+    "goal_range": [
+     180,
+     315
+    ],
+    "corr_terrain_dev_5_40": 0.275,
+    "corr_shape_9": 0.165,
+    "corr_shape_plus_common_9": 0.859,
+    "mad_pp": 0.85,
+    "mad_plus_common_pp": 0.46,
+    "mad_even_pp": 0.76,
+    "mad_typical_pp": 0.4,
+    "obs_mean": [
+     1.006,
+     0.995,
+     0.988,
+     0.995,
+     1.0,
+     1.004,
+     1.002,
+     1.014,
+     0.992
+    ],
+    "model": [
+     1.011,
+     0.988,
+     0.998,
+     0.996,
+     1.006,
+     0.998,
+     0.995,
+     1.002,
+     1.012
+    ],
+    "model_plus_common": [
+     1.014,
+     0.985,
+     0.99,
+     0.993,
+     1.001,
+     0.998,
+     1.007,
+     1.014,
+     0.995
+    ],
+    "diff_pp": [
+     -0.8,
+     0.9,
+     -0.1,
+     0.2,
+     -0.1,
+     0.6,
+     -0.5,
+     -0.0,
+     -0.3
+    ],
+    "obs_qmed": 1.0086,
+    "model_halves": 1.0029
+   },
+   "corrected": {
+    "cls": "c",
+    "goals": 10,
+    "goal_range": [
+     180,
+     315
+    ],
+    "corr_terrain_dev_5_40": 0.326,
+    "corr_shape_9": 0.165,
+    "corr_shape_plus_common_9": 0.881,
+    "mad_pp": 0.85,
+    "mad_plus_common_pp": 0.43,
+    "mad_even_pp": 0.76,
+    "mad_typical_pp": 0.4,
+    "obs_mean": [
+     1.006,
+     0.995,
+     0.988,
+     0.995,
+     1.0,
+     1.004,
+     1.002,
+     1.014,
+     0.992
+    ],
+    "model": [
+     1.011,
+     0.988,
+     0.998,
+     0.996,
+     1.006,
+     0.998,
+     0.995,
+     1.002,
+     1.012
+    ],
+    "model_plus_common": [
+     1.014,
+     0.985,
+     0.99,
+     0.992,
+     1.0,
+     1.0,
+     1.006,
+     1.015,
+     0.994
+    ],
+    "diff_pp": [
+     -0.8,
+     0.9,
+     -0.2,
+     0.3,
+     0.0,
+     0.4,
+     -0.4,
+     -0.1,
+     -0.2
+    ],
+    "obs_qmed": 1.0086,
+    "model_halves": 1.0029
+   }
+  },
+  "Gold Coast": {
+   "verdict": "even pace (class c)",
+   "why": "corr 0.40",
+   "raw": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.33,
+    "corr_shape_9": 0.349,
+    "corr_shape_plus_common_9": 0.883,
+    "mad_pp": 1.14,
+    "mad_plus_common_pp": 0.57,
+    "mad_even_pp": 1.19,
+    "mad_typical_pp": 0.74,
+    "obs_mean": [
+     0.999,
+     1.0,
+     0.991,
+     0.992,
+     0.989,
+     0.989,
+     1.013,
+     1.034,
+     0.982
+    ],
+    "model": [
+     0.998,
+     1.004,
+     1.0,
+     0.999,
+     1.002,
+     0.996,
+     1.001,
+     1.0,
+     0.998
+    ],
+    "model_plus_common": [
+     1.003,
+     1.002,
+     0.991,
+     0.994,
+     0.997,
+     0.996,
+     1.012,
+     1.012,
+     0.983
+    ],
+    "diff_pp": [
+     -0.4,
+     -0.1,
+     0.1,
+     -0.2,
+     -0.8,
+     -0.7,
+     0.1,
+     2.2,
+     -0.1
+    ],
+    "obs_qmed": 1.0094,
+    "model_halves": 0.9994
+   },
+   "corrected": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.4,
+    "corr_shape_9": 0.349,
+    "corr_shape_plus_common_9": 0.892,
+    "mad_pp": 1.14,
+    "mad_plus_common_pp": 0.56,
+    "mad_even_pp": 1.19,
+    "mad_typical_pp": 0.74,
+    "obs_mean": [
+     0.999,
+     1.0,
+     0.991,
+     0.992,
+     0.989,
+     0.989,
+     1.013,
+     1.034,
+     0.982
+    ],
+    "model": [
+     0.998,
+     1.004,
+     1.0,
+     0.999,
+     1.002,
+     0.996,
+     1.001,
+     1.0,
+     0.998
+    ],
+    "model_plus_common": [
+     1.003,
+     1.002,
+     0.991,
+     0.994,
+     0.995,
+     0.997,
+     1.011,
+     1.013,
+     0.983
+    ],
+    "diff_pp": [
+     -0.4,
+     -0.1,
+     0.0,
+     -0.1,
+     -0.6,
+     -0.9,
+     0.1,
+     2.1,
+     -0.1
+    ],
+    "obs_qmed": 1.0094,
+    "model_halves": 0.9994
+   }
+  },
+  "Copenhagen": {
+   "verdict": "even pace (class c)",
+   "why": "corr 0.10, flat",
+   "raw": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.067,
+    "corr_shape_9": -0.668,
+    "corr_shape_plus_common_9": 0.719,
+    "mad_pp": 0.78,
+    "mad_plus_common_pp": 0.48,
+    "mad_even_pp": 0.6,
+    "mad_typical_pp": 0.41,
+    "obs_mean": [
+     0.997,
+     0.998,
+     0.995,
+     0.999,
+     0.996,
+     1.002,
+     1.005,
+     1.015,
+     0.985
+    ],
+    "model": [
+     0.997,
+     1.0,
+     1.0,
+     1.003,
+     1.001,
+     0.996,
+     1.002,
+     0.998,
+     1.009
+    ],
+    "model_plus_common": [
+     1.002,
+     0.997,
+     0.991,
+     0.998,
+     0.996,
+     0.995,
+     1.012,
+     1.01,
+     0.995
+    ],
+    "diff_pp": [
+     -0.6,
+     0.1,
+     0.4,
+     0.0,
+     0.1,
+     0.6,
+     -0.8,
+     0.4,
+     -1.0
+    ],
+    "obs_qmed": 1.006,
+    "model_halves": 1.0
+   },
+   "corrected": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.105,
+    "corr_shape_9": -0.668,
+    "corr_shape_plus_common_9": 0.769,
+    "mad_pp": 0.78,
+    "mad_plus_common_pp": 0.45,
+    "mad_even_pp": 0.6,
+    "mad_typical_pp": 0.41,
+    "obs_mean": [
+     0.997,
+     0.998,
+     0.995,
+     0.999,
+     0.996,
+     1.002,
+     1.005,
+     1.015,
+     0.985
+    ],
+    "model": [
+     0.997,
+     1.0,
+     1.0,
+     1.003,
+     1.001,
+     0.996,
+     1.002,
+     0.998,
+     1.009
+    ],
+    "model_plus_common": [
+     1.002,
+     0.997,
+     0.991,
+     0.998,
+     0.994,
+     0.997,
+     1.012,
+     1.011,
+     0.994
+    ],
+    "diff_pp": [
+     -0.5,
+     0.1,
+     0.4,
+     0.1,
+     0.2,
+     0.5,
+     -0.7,
+     0.3,
+     -0.9
+    ],
+    "obs_qmed": 1.006,
+    "model_halves": 1.0
+   }
+  },
+  "Dubai": {
+   "verdict": "even pace (class c)",
+   "why": "corr 0.06, flat",
+   "raw": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     180,
+     270
+    ],
+    "corr_terrain_dev_5_40": -0.021,
+    "corr_shape_9": 0.222,
+    "corr_shape_plus_common_9": 0.871,
+    "mad_pp": 0.85,
+    "mad_plus_common_pp": 0.42,
+    "mad_even_pp": 0.88,
+    "mad_typical_pp": 0.25,
+    "obs_mean": [
+     1.01,
+     0.996,
+     0.991,
+     0.991,
+     0.992,
+     0.996,
+     1.007,
+     1.02,
+     0.994
+    ],
+    "model": [
+     1.002,
+     1.001,
+     0.997,
+     1.002,
+     1.0,
+     1.0,
+     1.002,
+     0.999,
+     0.994
+    ],
+    "model_plus_common": [
+     1.008,
+     0.999,
+     0.988,
+     0.996,
+     0.993,
+     0.998,
+     1.012,
+     1.013,
+     0.985
+    ],
+    "diff_pp": [
+     0.2,
+     -0.3,
+     0.4,
+     -0.5,
+     -0.1,
+     -0.2,
+     -0.5,
+     0.7,
+     0.9
+    ],
+    "obs_qmed": 1.0069,
+    "model_halves": 0.9991
+   },
+   "corrected": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     180,
+     270
+    ],
+    "corr_terrain_dev_5_40": 0.058,
+    "corr_shape_9": 0.222,
+    "corr_shape_plus_common_9": 0.877,
+    "mad_pp": 0.85,
+    "mad_plus_common_pp": 0.43,
+    "mad_even_pp": 0.88,
+    "mad_typical_pp": 0.25,
+    "obs_mean": [
+     1.01,
+     0.996,
+     0.991,
+     0.991,
+     0.992,
+     0.996,
+     1.007,
+     1.02,
+     0.994
+    ],
+    "model": [
+     1.002,
+     1.001,
+     0.997,
+     1.002,
+     1.0,
+     1.0,
+     1.002,
+     0.999,
+     0.994
+    ],
+    "model_plus_common": [
+     1.008,
+     0.999,
+     0.988,
+     0.996,
+     0.991,
+     1.0,
+     1.011,
+     1.014,
+     0.985
+    ],
+    "diff_pp": [
+     0.2,
+     -0.3,
+     0.3,
+     -0.5,
+     0.1,
+     -0.3,
+     -0.5,
+     0.6,
+     1.0
+    ],
+    "obs_qmed": 1.0069,
+    "model_halves": 0.9991
+   }
+  },
+  "Helsinki": {
+   "verdict": "even pace (class c)",
+   "why": "corr 0.55; 0-5 km steady 1.061 (start crowding)",
+   "raw": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     210,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.531,
+    "corr_shape_9": 0.163,
+    "corr_shape_plus_common_9": 0.596,
+    "mad_pp": 2.19,
+    "mad_plus_common_pp": 1.58,
+    "mad_even_pp": 2.08,
+    "mad_typical_pp": 1.71,
+    "obs_mean": [
+     1.061,
+     0.989,
+     0.965,
+     0.977,
+     0.993,
+     0.996,
+     1.026,
+     1.0,
+     0.985
+    ],
+    "model": [
+     1.001,
+     1.001,
+     0.997,
+     1.001,
+     1.005,
+     0.99,
+     1.008,
+     0.992,
+     1.007
+    ],
+    "model_plus_common": [
+     1.003,
+     0.999,
+     0.989,
+     0.998,
+     1.0,
+     0.991,
+     1.019,
+     1.006,
+     0.989
+    ],
+    "diff_pp": [
+     5.8,
+     -1.0,
+     -2.4,
+     -2.2,
+     -0.7,
+     0.5,
+     0.6,
+     -0.5,
+     -0.4
+    ],
+    "obs_qmed": 1.0071,
+    "model_halves": 0.9998
+   },
+   "corrected": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     210,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.551,
+    "corr_shape_9": 0.163,
+    "corr_shape_plus_common_9": 0.603,
+    "mad_pp": 2.19,
+    "mad_plus_common_pp": 1.56,
+    "mad_even_pp": 2.08,
+    "mad_typical_pp": 1.71,
+    "obs_mean": [
+     1.061,
+     0.989,
+     0.965,
+     0.977,
+     0.993,
+     0.996,
+     1.026,
+     1.0,
+     0.985
+    ],
+    "model": [
+     1.001,
+     1.001,
+     0.997,
+     1.001,
+     1.005,
+     0.99,
+     1.008,
+     0.992,
+     1.007
+    ],
+    "model_plus_common": [
+     1.003,
+     0.999,
+     0.989,
+     0.998,
+     0.999,
+     0.992,
+     1.019,
+     1.006,
+     0.988
+    ],
+    "diff_pp": [
+     5.8,
+     -1.0,
+     -2.4,
+     -2.1,
+     -0.5,
+     0.4,
+     0.7,
+     -0.6,
+     -0.3
+    ],
+    "obs_qmed": 1.0071,
+    "model_halves": 0.9998
+   }
+  },
+  "Singapore": {
+   "verdict": "even pace (class c)",
+   "why": "no steady shape",
+   "raw": null,
+   "corrected": null
+  },
+  "Washington": {
+   "verdict": "even pace (class c)",
+   "why": "profile is not the timed course",
+   "raw": null,
+   "corrected": null
+  }
+ },
+ "not_in_pace_band": [
+  "Athens",
+  "Cologne",
+  "Honolulu",
+  "Mexico City",
+  "Prague",
+  "Tokyo",
+  "Vienna"
+ ],
+ "calibration_verdict": "not justified: the global slope (0.67, 90% CI 0.58-0.79) varies by course (Boston 1.04, New York 0.78, Madrid/Valencia/Oslo 0.58-0.60) and goal (0.64 at 3:00-3:45 to 0.81 at 5:00-6:00), the best global scale lowers mean terrain error only from 0.50 to 0.42 pp, and fitting it to outcome-selected Pace Notes data would mix badges",
+ "ny_515": {
+  "goal": "5:15:00",
+  "crossings": [
+   {
+    "id": "nyc-verrazzano",
+    "name": "Verrazzano-Narrows Bridge (upper level)",
+    "km": [
+     0.0,
+     3.06
+    ],
+    "mi": [
+     0.0,
+     1.9
+    ]
+   },
+   {
+    "id": "nyc-pulaski",
+    "name": "Pulaski Bridge (halfway)",
+    "km": [
+     20.6,
+     21.61
+    ],
+    "mi": [
+     12.8,
+     13.43
+    ]
+   },
+   {
+    "id": "nyc-queensboro",
+    "name": "Queensboro (59th St) Bridge",
+    "km": [
+     23.32,
+     25.75
+    ],
+    "mi": [
+     14.49,
+     16.0
+    ]
+   },
+   {
+    "id": "nyc-willis",
+    "name": "Willis Avenue Bridge",
+    "km": [
+     30.95,
+     32.04
+    ],
+    "mi": [
+     19.23,
+     19.91
+    ]
+   },
+   {
+    "id": "nyc-madison",
+    "name": "Madison Avenue Bridge",
+    "km": [
+     33.13,
+     33.82
+    ],
+    "mi": [
+     20.58,
+     21.01
+    ]
+   },
+   {
+    "id": "first-ave",
+    "name": "First Avenue (Manhattan, northbound)",
+    "km": [
+     25.69,
+     30.6
+    ],
+    "mi": [
+     15.96,
+     19.01
+    ],
+    "note": "approximate, from the Queensboro exit to the Willis Avenue Bridge"
+   }
+  ],
+  "corrected": {
+   "miles": [
+    {
+     "mile": "1",
+     "elapsed": "0:12:50",
+     "split": "12:50",
+     "pace_per_mile": "12:50",
+     "net_m": 32.7,
+     "climb_m": 36.9,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "mile": "2",
+     "elapsed": "0:23:51",
+     "split": "11:01",
+     "pace_per_mile": "11:01",
+     "net_m": -58.7,
+     "climb_m": 0.8,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "mile": "3",
+     "elapsed": "0:36:01",
+     "split": "12:10",
+     "pace_per_mile": "12:10",
+     "net_m": 7.8,
+     "climb_m": 9.7,
+     "features": []
+    },
+    {
+     "mile": "4",
+     "elapsed": "0:48:06",
+     "split": "12:05",
+     "pace_per_mile": "12:05",
+     "net_m": 3.7,
+     "climb_m": 5.8,
+     "features": []
+    },
+    {
+     "mile": "5",
+     "elapsed": "0:59:49",
+     "split": "11:43",
+     "pace_per_mile": "11:43",
+     "net_m": -13.4,
+     "climb_m": 0.4,
+     "features": []
+    },
+    {
+     "mile": "6",
+     "elapsed": "1:11:48",
+     "split": "11:59",
+     "pace_per_mile": "11:59",
+     "net_m": -0.5,
+     "climb_m": 6.8,
+     "features": []
+    },
+    {
+     "mile": "7",
+     "elapsed": "1:23:41",
+     "split": "11:53",
+     "pace_per_mile": "11:53",
+     "net_m": -5.5,
+     "climb_m": 1.9,
+     "features": []
+    },
+    {
+     "mile": "8",
+     "elapsed": "1:35:50",
+     "split": "12:09",
+     "pace_per_mile": "12:09",
+     "net_m": 7.5,
+     "climb_m": 7.9,
+     "features": []
+    },
+    {
+     "mile": "9",
+     "elapsed": "1:47:55",
+     "split": "12:05",
+     "pace_per_mile": "12:05",
+     "net_m": 2.8,
+     "climb_m": 10.7,
+     "features": []
+    },
+    {
+     "mile": "10",
+     "elapsed": "1:59:40",
+     "split": "11:45",
+     "pace_per_mile": "11:45",
+     "net_m": -11.7,
+     "climb_m": 1.9,
+     "features": []
+    },
+    {
+     "mile": "11",
+     "elapsed": "2:11:48",
+     "split": "12:08",
+     "pace_per_mile": "12:08",
+     "net_m": 6.1,
+     "climb_m": 10.2,
+     "features": []
+    },
+    {
+     "mile": "12",
+     "elapsed": "2:23:39",
+     "split": "11:51",
+     "pace_per_mile": "11:51",
+     "net_m": -6.5,
+     "climb_m": 1.7,
+     "features": []
+    },
+    {
+     "mile": "13",
+     "elapsed": "2:35:50",
+     "split": "12:11",
+     "pace_per_mile": "12:11",
+     "net_m": 7.9,
+     "climb_m": 13.1,
+     "features": [
+      "Pulaski Bridge (halfway)"
+     ]
+    },
+    {
+     "mile": "14",
+     "elapsed": "2:47:38",
+     "split": "11:48",
+     "pace_per_mile": "11:48",
+     "net_m": -10.2,
+     "climb_m": 2.5,
+     "features": [
+      "Pulaski Bridge (halfway)"
+     ]
+    },
+    {
+     "mile": "15",
+     "elapsed": "3:00:20",
+     "split": "12:42",
+     "pace_per_mile": "12:42",
+     "net_m": 29.0,
+     "climb_m": 28.9,
+     "features": [
+      "Queensboro (59th St) Bridge"
+     ]
+    },
+    {
+     "mile": "16",
+     "elapsed": "3:12:06",
+     "split": "11:46",
+     "pace_per_mile": "11:46",
+     "net_m": -16.6,
+     "climb_m": 11.4,
+     "features": [
+      "Queensboro (59th St) Bridge",
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "mile": "17",
+     "elapsed": "3:24:03",
+     "split": "11:57",
+     "pace_per_mile": "11:57",
+     "net_m": -2.4,
+     "climb_m": 5.1,
+     "features": [
+      "Queensboro (59th St) Bridge",
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "mile": "18",
+     "elapsed": "3:35:51",
+     "split": "11:48",
+     "pace_per_mile": "11:48",
+     "net_m": -10.7,
+     "climb_m": 3.8,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "mile": "19",
+     "elapsed": "3:47:49",
+     "split": "11:58",
+     "pace_per_mile": "11:58",
+     "net_m": -0.2,
+     "climb_m": 0.6,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "mile": "20",
+     "elapsed": "3:59:57",
+     "split": "12:08",
+     "pace_per_mile": "12:08",
+     "net_m": 4.9,
+     "climb_m": 11.8,
+     "features": [
+      "Willis Avenue Bridge",
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "mile": "21",
+     "elapsed": "4:11:53",
+     "split": "11:56",
+     "pace_per_mile": "11:56",
+     "net_m": -3.0,
+     "climb_m": 5.4,
+     "features": [
+      "Madison Avenue Bridge"
+     ]
+    },
+    {
+     "mile": "22",
+     "elapsed": "4:23:56",
+     "split": "12:03",
+     "pace_per_mile": "12:03",
+     "net_m": 2.5,
+     "climb_m": 4.3,
+     "features": [
+      "Madison Avenue Bridge"
+     ]
+    },
+    {
+     "mile": "23",
+     "elapsed": "4:36:04",
+     "split": "12:08",
+     "pace_per_mile": "12:08",
+     "net_m": 6.6,
+     "climb_m": 8.8,
+     "features": []
+    },
+    {
+     "mile": "24",
+     "elapsed": "4:48:29",
+     "split": "12:25",
+     "pace_per_mile": "12:25",
+     "net_m": 17.9,
+     "climb_m": 19.3,
+     "features": []
+    },
+    {
+     "mile": "25",
+     "elapsed": "5:00:16",
+     "split": "11:47",
+     "pace_per_mile": "11:47",
+     "net_m": -11.2,
+     "climb_m": 3.8,
+     "features": []
+    },
+    {
+     "mile": "26",
+     "elapsed": "5:12:18",
+     "split": "12:02",
+     "pace_per_mile": "12:02",
+     "net_m": 1.3,
+     "climb_m": 7.2,
+     "features": []
+    },
+    {
+     "mile": "26.2",
+     "elapsed": "5:15:00",
+     "split": "2:42",
+     "pace_per_mile": "12:21",
+     "net_m": 3.4,
+     "climb_m": 3.4,
+     "features": []
+    }
+   ],
+   "km": [
+    {
+     "km": "1",
+     "elapsed": "0:08:19",
+     "split": "8:19",
+     "pace_per_km": "8:19",
+     "net_m": 34.6,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "km": "2",
+     "elapsed": "0:15:30",
+     "split": "7:11",
+     "pace_per_km": "7:11",
+     "net_m": -15.6,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "km": "3",
+     "elapsed": "0:22:14",
+     "split": "6:44",
+     "pace_per_km": "6:44",
+     "net_m": -44.5,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "km": "4",
+     "elapsed": "0:29:51",
+     "split": "7:37",
+     "pace_per_km": "7:37",
+     "net_m": 7.1,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "km": "5",
+     "elapsed": "0:37:19",
+     "split": "7:28",
+     "pace_per_km": "7:28",
+     "net_m": 0.4,
+     "features": []
+    },
+    {
+     "km": "6",
+     "elapsed": "0:44:45",
+     "split": "7:26",
+     "pace_per_km": "7:26",
+     "net_m": -0.2,
+     "features": []
+    },
+    {
+     "km": "7",
+     "elapsed": "0:52:13",
+     "split": "7:28",
+     "pace_per_km": "7:28",
+     "net_m": 0.2,
+     "features": []
+    },
+    {
+     "km": "8",
+     "elapsed": "0:59:29",
+     "split": "7:16",
+     "pace_per_km": "7:16",
+     "net_m": -8.9,
+     "features": []
+    },
+    {
+     "km": "9",
+     "elapsed": "1:06:47",
+     "split": "7:18",
+     "pace_per_km": "7:18",
+     "net_m": -7.3,
+     "features": []
+    },
+    {
+     "km": "10",
+     "elapsed": "1:14:24",
+     "split": "7:37",
+     "pace_per_km": "7:37",
+     "net_m": 7.7,
+     "features": []
+    },
+    {
+     "km": "11",
+     "elapsed": "1:21:42",
+     "split": "7:18",
+     "pace_per_km": "7:18",
+     "net_m": -7.1,
+     "features": []
+    },
+    {
+     "km": "12",
+     "elapsed": "1:29:13",
+     "split": "7:31",
+     "pace_per_km": "7:31",
+     "net_m": 2.7,
+     "features": []
+    },
+    {
+     "km": "13",
+     "elapsed": "1:36:50",
+     "split": "7:37",
+     "pace_per_km": "7:37",
+     "net_m": 7.4,
+     "features": []
+    },
+    {
+     "km": "14",
+     "elapsed": "1:44:21",
+     "split": "7:31",
+     "pace_per_km": "7:31",
+     "net_m": 2.2,
+     "features": []
+    },
+    {
+     "km": "15",
+     "elapsed": "1:51:38",
+     "split": "7:17",
+     "pace_per_km": "7:17",
+     "net_m": -8.2,
+     "features": []
+    },
+    {
+     "km": "16",
+     "elapsed": "1:58:57",
+     "split": "7:19",
+     "pace_per_km": "7:19",
+     "net_m": -6.8,
+     "features": []
+    },
+    {
+     "km": "17",
+     "elapsed": "2:06:34",
+     "split": "7:37",
+     "pace_per_km": "7:37",
+     "net_m": 7.1,
+     "features": []
+    },
+    {
+     "km": "18",
+     "elapsed": "2:13:56",
+     "split": "7:22",
+     "pace_per_km": "7:22",
+     "net_m": -3.5,
+     "features": []
+    },
+    {
+     "km": "19",
+     "elapsed": "2:21:17",
+     "split": "7:21",
+     "pace_per_km": "7:21",
+     "net_m": -4.9,
+     "features": []
+    },
+    {
+     "km": "20",
+     "elapsed": "2:28:46",
+     "split": "7:29",
+     "pace_per_km": "7:29",
+     "net_m": 0.9,
+     "features": []
+    },
+    {
+     "km": "21",
+     "elapsed": "2:36:27",
+     "split": "7:41",
+     "pace_per_km": "7:41",
+     "net_m": 9.9,
+     "features": [
+      "Pulaski Bridge (halfway)"
+     ]
+    },
+    {
+     "km": "22",
+     "elapsed": "2:43:40",
+     "split": "7:13",
+     "pace_per_km": "7:13",
+     "net_m": -12.3,
+     "features": [
+      "Pulaski Bridge (halfway)"
+     ]
+    },
+    {
+     "km": "23",
+     "elapsed": "2:51:09",
+     "split": "7:29",
+     "pace_per_km": "7:29",
+     "net_m": 1.8,
+     "features": []
+    },
+    {
+     "km": "24",
+     "elapsed": "2:59:10",
+     "split": "8:01",
+     "pace_per_km": "8:01",
+     "net_m": 23.2,
+     "features": [
+      "Queensboro (59th St) Bridge"
+     ]
+    },
+    {
+     "km": "25",
+     "elapsed": "3:06:58",
+     "split": "7:48",
+     "pace_per_km": "7:48",
+     "net_m": 14.1,
+     "features": [
+      "Queensboro (59th St) Bridge"
+     ]
+    },
+    {
+     "km": "26",
+     "elapsed": "3:13:55",
+     "split": "6:57",
+     "pace_per_km": "6:57",
+     "net_m": -28.9,
+     "features": [
+      "Queensboro (59th St) Bridge",
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "27",
+     "elapsed": "3:21:18",
+     "split": "7:23",
+     "pace_per_km": "7:23",
+     "net_m": -2.6,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "28",
+     "elapsed": "3:28:49",
+     "split": "7:31",
+     "pace_per_km": "7:31",
+     "net_m": 2.2,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "29",
+     "elapsed": "3:36:05",
+     "split": "7:16",
+     "pace_per_km": "7:16",
+     "net_m": -9.5,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "30",
+     "elapsed": "3:43:31",
+     "split": "7:26",
+     "pace_per_km": "7:26",
+     "net_m": -0.3,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "31",
+     "elapsed": "3:51:01",
+     "split": "7:30",
+     "pace_per_km": "7:30",
+     "net_m": 2.6,
+     "features": [
+      "Willis Avenue Bridge",
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "32",
+     "elapsed": "3:58:34",
+     "split": "7:33",
+     "pace_per_km": "7:33",
+     "net_m": 2.7,
+     "features": [
+      "Willis Avenue Bridge"
+     ]
+    },
+    {
+     "km": "33",
+     "elapsed": "4:05:56",
+     "split": "7:22",
+     "pace_per_km": "7:22",
+     "net_m": -3.5,
+     "features": [
+      "Willis Avenue Bridge"
+     ]
+    },
+    {
+     "km": "34",
+     "elapsed": "4:13:22",
+     "split": "7:26",
+     "pace_per_km": "7:26",
+     "net_m": -1.1,
+     "features": [
+      "Madison Avenue Bridge"
+     ]
+    },
+    {
+     "km": "35",
+     "elapsed": "4:20:55",
+     "split": "7:33",
+     "pace_per_km": "7:33",
+     "net_m": 4.0,
+     "features": []
+    },
+    {
+     "km": "36",
+     "elapsed": "4:28:20",
+     "split": "7:25",
+     "pace_per_km": "7:25",
+     "net_m": -0.7,
+     "features": []
+    },
+    {
+     "km": "37",
+     "elapsed": "4:35:57",
+     "split": "7:37",
+     "pace_per_km": "7:37",
+     "net_m": 6.8,
+     "features": []
+    },
+    {
+     "km": "38",
+     "elapsed": "4:43:51",
+     "split": "7:54",
+     "pace_per_km": "7:54",
+     "net_m": 19.5,
+     "features": []
+    },
+    {
+     "km": "39",
+     "elapsed": "4:51:15",
+     "split": "7:24",
+     "pace_per_km": "7:24",
+     "net_m": -2.3,
+     "features": []
+    },
+    {
+     "km": "40",
+     "elapsed": "4:58:33",
+     "split": "7:18",
+     "pace_per_km": "7:18",
+     "net_m": -9.1,
+     "features": []
+    },
+    {
+     "km": "41",
+     "elapsed": "5:05:53",
+     "split": "7:20",
+     "pace_per_km": "7:20",
+     "net_m": -5.6,
+     "features": []
+    },
+    {
+     "km": "42",
+     "elapsed": "5:13:29",
+     "split": "7:36",
+     "pace_per_km": "7:36",
+     "net_m": 6.6,
+     "features": []
+    },
+    {
+     "km": "42.2",
+     "elapsed": "5:15:00",
+     "split": "1:31",
+     "pace_per_km": "7:47",
+     "net_m": 2.7,
+     "features": []
+    }
+   ],
+   "mats": [
+    "0:37:19",
+    "1:14:24",
+    "1:51:38",
+    "2:28:46",
+    "3:06:58",
+    "3:43:31",
+    "4:20:55",
+    "4:58:33",
+    "5:15:00"
+   ],
+   "mat_splits": [
+    "37:19",
+    "37:05",
+    "37:14",
+    "37:08",
+    "38:12",
+    "36:33",
+    "37:24",
+    "37:38",
+    "16:27"
+   ],
+   "segment_relative_pace": [
+    0.9995,
+    0.9938,
+    0.9974,
+    0.9946,
+    1.0238,
+    0.9791,
+    1.0017,
+    1.0085,
+    1.0036
+   ],
+   "halfway": "2:37:11",
+   "halves": "2:37:11 + 2:37:49",
+   "fastest_mile": "2",
+   "slowest_mile": "1"
+  },
+  "raw": {
+   "miles": [
+    {
+     "mile": "1",
+     "elapsed": "0:11:24",
+     "split": "11:24",
+     "pace_per_mile": "11:24",
+     "net_m": -39.8,
+     "climb_m": 0.0,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "mile": "2",
+     "elapsed": "0:23:50",
+     "split": "12:26",
+     "pace_per_mile": "12:26",
+     "net_m": 17.5,
+     "climb_m": 17.7,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "mile": "3",
+     "elapsed": "0:36:00",
+     "split": "12:10",
+     "pace_per_mile": "12:10",
+     "net_m": 7.7,
+     "climb_m": 9.6,
+     "features": []
+    },
+    {
+     "mile": "4",
+     "elapsed": "0:48:08",
+     "split": "12:08",
+     "pace_per_mile": "12:08",
+     "net_m": 3.7,
+     "climb_m": 12.0,
+     "features": []
+    },
+    {
+     "mile": "5",
+     "elapsed": "0:59:52",
+     "split": "11:44",
+     "pace_per_mile": "11:44",
+     "net_m": -13.4,
+     "climb_m": 0.4,
+     "features": []
+    },
+    {
+     "mile": "6",
+     "elapsed": "1:11:52",
+     "split": "12:00",
+     "pace_per_mile": "12:00",
+     "net_m": -0.5,
+     "climb_m": 6.8,
+     "features": []
+    },
+    {
+     "mile": "7",
+     "elapsed": "1:23:45",
+     "split": "11:53",
+     "pace_per_mile": "11:53",
+     "net_m": -5.5,
+     "climb_m": 1.9,
+     "features": []
+    },
+    {
+     "mile": "8",
+     "elapsed": "1:35:55",
+     "split": "12:10",
+     "pace_per_mile": "12:10",
+     "net_m": 7.5,
+     "climb_m": 7.9,
+     "features": []
+    },
+    {
+     "mile": "9",
+     "elapsed": "1:48:00",
+     "split": "12:05",
+     "pace_per_mile": "12:05",
+     "net_m": 2.8,
+     "climb_m": 10.7,
+     "features": []
+    },
+    {
+     "mile": "10",
+     "elapsed": "1:59:46",
+     "split": "11:46",
+     "pace_per_mile": "11:46",
+     "net_m": -11.7,
+     "climb_m": 1.9,
+     "features": []
+    },
+    {
+     "mile": "11",
+     "elapsed": "2:11:55",
+     "split": "12:09",
+     "pace_per_mile": "12:09",
+     "net_m": 6.1,
+     "climb_m": 10.2,
+     "features": []
+    },
+    {
+     "mile": "12",
+     "elapsed": "2:23:47",
+     "split": "11:52",
+     "pace_per_mile": "11:52",
+     "net_m": -6.5,
+     "climb_m": 1.7,
+     "features": []
+    },
+    {
+     "mile": "13",
+     "elapsed": "2:35:42",
+     "split": "11:55",
+     "pace_per_mile": "11:55",
+     "net_m": -4.3,
+     "climb_m": 2.8,
+     "features": [
+      "Pulaski Bridge (halfway)"
+     ]
+    },
+    {
+     "mile": "14",
+     "elapsed": "2:47:44",
+     "split": "12:02",
+     "pace_per_mile": "12:02",
+     "net_m": 1.9,
+     "climb_m": 4.0,
+     "features": [
+      "Pulaski Bridge (halfway)"
+     ]
+    },
+    {
+     "mile": "15",
+     "elapsed": "2:59:43",
+     "split": "11:59",
+     "pace_per_mile": "11:59",
+     "net_m": -0.1,
+     "climb_m": 2.0,
+     "features": [
+      "Queensboro (59th St) Bridge"
+     ]
+    },
+    {
+     "mile": "16",
+     "elapsed": "3:12:02",
+     "split": "12:19",
+     "pace_per_mile": "12:19",
+     "net_m": 12.3,
+     "climb_m": 16.3,
+     "features": [
+      "Queensboro (59th St) Bridge",
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "mile": "17",
+     "elapsed": "3:24:00",
+     "split": "11:58",
+     "pace_per_mile": "11:58",
+     "net_m": -2.2,
+     "climb_m": 5.1,
+     "features": [
+      "Queensboro (59th St) Bridge",
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "mile": "18",
+     "elapsed": "3:35:48",
+     "split": "11:48",
+     "pace_per_mile": "11:48",
+     "net_m": -10.7,
+     "climb_m": 3.8,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "mile": "19",
+     "elapsed": "3:47:47",
+     "split": "11:59",
+     "pace_per_mile": "11:59",
+     "net_m": -0.2,
+     "climb_m": 0.6,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "mile": "20",
+     "elapsed": "3:59:54",
+     "split": "12:07",
+     "pace_per_mile": "12:07",
+     "net_m": 4.9,
+     "climb_m": 8.2,
+     "features": [
+      "Willis Avenue Bridge",
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "mile": "21",
+     "elapsed": "4:11:47",
+     "split": "11:53",
+     "pace_per_mile": "11:53",
+     "net_m": -5.2,
+     "climb_m": 0.7,
+     "features": [
+      "Madison Avenue Bridge"
+     ]
+    },
+    {
+     "mile": "22",
+     "elapsed": "4:23:53",
+     "split": "12:06",
+     "pace_per_mile": "12:06",
+     "net_m": 4.8,
+     "climb_m": 5.1,
+     "features": [
+      "Madison Avenue Bridge"
+     ]
+    },
+    {
+     "mile": "23",
+     "elapsed": "4:36:03",
+     "split": "12:10",
+     "pace_per_mile": "12:10",
+     "net_m": 6.6,
+     "climb_m": 8.8,
+     "features": []
+    },
+    {
+     "mile": "24",
+     "elapsed": "4:48:26",
+     "split": "12:23",
+     "pace_per_mile": "12:23",
+     "net_m": 16.5,
+     "climb_m": 19.4,
+     "features": []
+    },
+    {
+     "mile": "25",
+     "elapsed": "5:00:13",
+     "split": "11:47",
+     "pace_per_mile": "11:47",
+     "net_m": -11.5,
+     "climb_m": 3.8,
+     "features": []
+    },
+    {
+     "mile": "26",
+     "elapsed": "5:12:18",
+     "split": "12:05",
+     "pace_per_mile": "12:05",
+     "net_m": 3.0,
+     "climb_m": 7.4,
+     "features": []
+    },
+    {
+     "mile": "26.2",
+     "elapsed": "5:15:00",
+     "split": "2:42",
+     "pace_per_mile": "12:21",
+     "net_m": 3.4,
+     "climb_m": 3.4,
+     "features": []
+    }
+   ],
+   "km": [
+    {
+     "km": "1",
+     "elapsed": "0:06:52",
+     "split": "6:52",
+     "pace_per_km": "6:52",
+     "net_m": -39.8,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "km": "2",
+     "elapsed": "0:14:20",
+     "split": "7:28",
+     "pace_per_km": "7:28",
+     "net_m": 0.8,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "km": "3",
+     "elapsed": "0:22:10",
+     "split": "7:50",
+     "pace_per_km": "7:50",
+     "net_m": 15.6,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "km": "4",
+     "elapsed": "0:29:50",
+     "split": "7:40",
+     "pace_per_km": "7:40",
+     "net_m": 8.8,
+     "features": [
+      "Verrazzano-Narrows Bridge (upper level)"
+     ]
+    },
+    {
+     "km": "5",
+     "elapsed": "0:37:18",
+     "split": "7:28",
+     "pace_per_km": "7:28",
+     "net_m": 0.4,
+     "features": []
+    },
+    {
+     "km": "6",
+     "elapsed": "0:44:38",
+     "split": "7:20",
+     "pace_per_km": "7:20",
+     "net_m": -6.5,
+     "features": []
+    },
+    {
+     "km": "7",
+     "elapsed": "0:52:15",
+     "split": "7:37",
+     "pace_per_km": "7:37",
+     "net_m": 6.5,
+     "features": []
+    },
+    {
+     "km": "8",
+     "elapsed": "0:59:32",
+     "split": "7:17",
+     "pace_per_km": "7:17",
+     "net_m": -8.9,
+     "features": []
+    },
+    {
+     "km": "9",
+     "elapsed": "1:06:51",
+     "split": "7:19",
+     "pace_per_km": "7:19",
+     "net_m": -7.3,
+     "features": []
+    },
+    {
+     "km": "10",
+     "elapsed": "1:14:28",
+     "split": "7:37",
+     "pace_per_km": "7:37",
+     "net_m": 7.7,
+     "features": []
+    },
+    {
+     "km": "11",
+     "elapsed": "1:21:47",
+     "split": "7:19",
+     "pace_per_km": "7:19",
+     "net_m": -7.1,
+     "features": []
+    },
+    {
+     "km": "12",
+     "elapsed": "1:29:18",
+     "split": "7:31",
+     "pace_per_km": "7:31",
+     "net_m": 2.7,
+     "features": []
+    },
+    {
+     "km": "13",
+     "elapsed": "1:36:55",
+     "split": "7:37",
+     "pace_per_km": "7:37",
+     "net_m": 7.4,
+     "features": []
+    },
+    {
+     "km": "14",
+     "elapsed": "1:44:27",
+     "split": "7:32",
+     "pace_per_km": "7:32",
+     "net_m": 2.2,
+     "features": []
+    },
+    {
+     "km": "15",
+     "elapsed": "1:51:44",
+     "split": "7:17",
+     "pace_per_km": "7:17",
+     "net_m": -8.2,
+     "features": []
+    },
+    {
+     "km": "16",
+     "elapsed": "1:59:03",
+     "split": "7:19",
+     "pace_per_km": "7:19",
+     "net_m": -6.8,
+     "features": []
+    },
+    {
+     "km": "17",
+     "elapsed": "2:06:40",
+     "split": "7:37",
+     "pace_per_km": "7:37",
+     "net_m": 7.1,
+     "features": []
+    },
+    {
+     "km": "18",
+     "elapsed": "2:14:04",
+     "split": "7:24",
+     "pace_per_km": "7:24",
+     "net_m": -3.5,
+     "features": []
+    },
+    {
+     "km": "19",
+     "elapsed": "2:21:25",
+     "split": "7:21",
+     "pace_per_km": "7:21",
+     "net_m": -4.9,
+     "features": []
+    },
+    {
+     "km": "20",
+     "elapsed": "2:28:54",
+     "split": "7:29",
+     "pace_per_km": "7:29",
+     "net_m": 0.9,
+     "features": []
+    },
+    {
+     "km": "21",
+     "elapsed": "2:36:17",
+     "split": "7:23",
+     "pace_per_km": "7:23",
+     "net_m": -3.4,
+     "features": [
+      "Pulaski Bridge (halfway)"
+     ]
+    },
+    {
+     "km": "22",
+     "elapsed": "2:43:45",
+     "split": "7:28",
+     "pace_per_km": "7:28",
+     "net_m": 1.0,
+     "features": [
+      "Pulaski Bridge (halfway)"
+     ]
+    },
+    {
+     "km": "23",
+     "elapsed": "2:51:15",
+     "split": "7:30",
+     "pace_per_km": "7:30",
+     "net_m": 1.8,
+     "features": []
+    },
+    {
+     "km": "24",
+     "elapsed": "2:58:41",
+     "split": "7:26",
+     "pace_per_km": "7:26",
+     "net_m": -0.4,
+     "features": [
+      "Queensboro (59th St) Bridge"
+     ]
+    },
+    {
+     "km": "25",
+     "elapsed": "3:06:05",
+     "split": "7:24",
+     "pace_per_km": "7:24",
+     "net_m": -3.0,
+     "features": [
+      "Queensboro (59th St) Bridge"
+     ]
+    },
+    {
+     "km": "26",
+     "elapsed": "3:13:51",
+     "split": "7:46",
+     "pace_per_km": "7:46",
+     "net_m": 11.8,
+     "features": [
+      "Queensboro (59th St) Bridge",
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "27",
+     "elapsed": "3:21:15",
+     "split": "7:24",
+     "pace_per_km": "7:24",
+     "net_m": -2.6,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "28",
+     "elapsed": "3:28:46",
+     "split": "7:31",
+     "pace_per_km": "7:31",
+     "net_m": 2.2,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "29",
+     "elapsed": "3:36:02",
+     "split": "7:16",
+     "pace_per_km": "7:16",
+     "net_m": -9.5,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "30",
+     "elapsed": "3:43:29",
+     "split": "7:27",
+     "pace_per_km": "7:27",
+     "net_m": -0.3,
+     "features": [
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "31",
+     "elapsed": "3:50:55",
+     "split": "7:26",
+     "pace_per_km": "7:26",
+     "net_m": -0.5,
+     "features": [
+      "Willis Avenue Bridge",
+      "First Avenue (Manhattan, northbound)"
+     ]
+    },
+    {
+     "km": "32",
+     "elapsed": "3:58:30",
+     "split": "7:35",
+     "pace_per_km": "7:35",
+     "net_m": 5.1,
+     "features": [
+      "Willis Avenue Bridge"
+     ]
+    },
+    {
+     "km": "33",
+     "elapsed": "4:05:55",
+     "split": "7:25",
+     "pace_per_km": "7:25",
+     "net_m": -1.9,
+     "features": [
+      "Willis Avenue Bridge"
+     ]
+    },
+    {
+     "km": "34",
+     "elapsed": "4:13:19",
+     "split": "7:24",
+     "pace_per_km": "7:24",
+     "net_m": -2.2,
+     "features": [
+      "Madison Avenue Bridge"
+     ]
+    },
+    {
+     "km": "35",
+     "elapsed": "4:20:52",
+     "split": "7:33",
+     "pace_per_km": "7:33",
+     "net_m": 4.2,
+     "features": []
+    },
+    {
+     "km": "36",
+     "elapsed": "4:28:18",
+     "split": "7:26",
+     "pace_per_km": "7:26",
+     "net_m": -0.7,
+     "features": []
+    },
+    {
+     "km": "37",
+     "elapsed": "4:35:55",
+     "split": "7:37",
+     "pace_per_km": "7:37",
+     "net_m": 6.8,
+     "features": []
+    },
+    {
+     "km": "38",
+     "elapsed": "4:43:50",
+     "split": "7:55",
+     "pace_per_km": "7:55",
+     "net_m": 19.5,
+     "features": []
+    },
+    {
+     "km": "39",
+     "elapsed": "4:51:11",
+     "split": "7:21",
+     "pace_per_km": "7:21",
+     "net_m": -5.1,
+     "features": []
+    },
+    {
+     "km": "40",
+     "elapsed": "4:58:32",
+     "split": "7:21",
+     "pace_per_km": "7:21",
+     "net_m": -6.4,
+     "features": []
+    },
+    {
+     "km": "41",
+     "elapsed": "5:05:53",
+     "split": "7:21",
+     "pace_per_km": "7:21",
+     "net_m": -5.5,
+     "features": []
+    },
+    {
+     "km": "42",
+     "elapsed": "5:13:29",
+     "split": "7:36",
+     "pace_per_km": "7:36",
+     "net_m": 6.6,
+     "features": []
+    },
+    {
+     "km": "42.2",
+     "elapsed": "5:15:00",
+     "split": "1:31",
+     "pace_per_km": "7:47",
+     "net_m": 2.7,
+     "features": []
+    }
+   ],
+   "mats": [
+    "0:37:18",
+    "1:14:28",
+    "1:51:44",
+    "2:28:54",
+    "3:06:05",
+    "3:43:29",
+    "4:20:52",
+    "4:58:32",
+    "5:15:00"
+   ],
+   "mat_splits": [
+    "37:18",
+    "37:10",
+    "37:16",
+    "37:10",
+    "37:11",
+    "37:24",
+    "37:23",
+    "37:40",
+    "16:28"
+   ],
+   "segment_relative_pace": [
+    0.9991,
+    0.9961,
+    0.9983,
+    0.9955,
+    0.9962,
+    1.0019,
+    1.0016,
+    1.0091,
+    1.0049
+   ],
+   "halfway": "2:37:01",
+   "halves": "2:37:01 + 2:37:59",
+   "fastest_mile": "1",
+   "slowest_mile": "2"
+  },
+  "steady_all": {
+   "n": 2549,
+   "editions": 15,
+   "mats": [
+    "0:36:46",
+    "1:13:33",
+    "1:50:46",
+    "2:28:22",
+    "3:06:53",
+    "3:43:58",
+    "4:22:04",
+    "4:59:28",
+    "5:15:00"
+   ],
+   "mat_splits": [
+    "36:46",
+    "36:47",
+    "37:13",
+    "37:36",
+    "38:31",
+    "37:05",
+    "38:06",
+    "37:24",
+    "15:32"
+   ],
+   "rel": [
+    0.9852,
+    0.9852,
+    0.9969,
+    1.0075,
+    1.0317,
+    0.9935,
+    1.0209,
+    1.0018,
+    0.9483
+   ]
+  },
+  "steady_men": {
+   "n": 780,
+   "editions": 15,
+   "mats": [
+    "0:36:47",
+    "1:13:33",
+    "1:50:46",
+    "2:28:17",
+    "3:06:46",
+    "3:43:46",
+    "4:21:51",
+    "4:59:21",
+    "5:15:00"
+   ],
+   "mat_splits": [
+    "36:47",
+    "36:46",
+    "37:13",
+    "37:31",
+    "38:29",
+    "37:00",
+    "38:05",
+    "37:30",
+    "15:39"
+   ],
+   "rel": [
+    0.9853,
+    0.9853,
+    0.997,
+    1.0051,
+    1.031,
+    0.9914,
+    1.0203,
+    1.0043,
+    0.9555
+   ]
+  },
+  "steady_women": {
+   "n": 1766,
+   "editions": 15,
+   "mats": [
+    "0:36:47",
+    "1:13:33",
+    "1:50:46",
+    "2:28:24",
+    "3:06:55",
+    "3:44:01",
+    "4:22:09",
+    "4:59:31",
+    "5:15:00"
+   ],
+   "mat_splits": [
+    "36:47",
+    "36:46",
+    "37:13",
+    "37:38",
+    "38:31",
+    "37:06",
+    "38:08",
+    "37:22",
+    "15:29"
+   ],
+   "rel": [
+    0.9853,
+    0.9853,
+    0.9969,
+    1.0082,
+    1.0321,
+    0.994,
+    1.0214,
+    1.0009,
+    0.9453
+   ]
+  },
+  "even": {
+   "mats": [
+    "0:37:20",
+    "1:14:39",
+    "1:51:59",
+    "2:29:18",
+    "3:06:38",
+    "3:43:58",
+    "4:21:17",
+    "4:58:37",
+    "5:15:00"
+   ],
+   "pace_per_mile": "12:01",
+   "pace_per_km": "7:28"
+  }
+ },
+ "ny_sensitivity": {
+  "recommended (median 210 m, sigma 100 m)": {
+   "mat_splits": [
+    "37:19",
+    "37:05",
+    "37:14",
+    "37:08",
+    "38:12",
+    "36:33",
+    "37:24",
+    "37:38",
+    "16:27"
+   ],
+   "miles_1_2_15_16_24": [
+    "12:50",
+    "11:01",
+    "12:42",
+    "11:46",
+    "12:25"
+   ]
+  },
+  "sigma 200 m": {
+   "mat_splits": [
+    "37:14",
+    "37:07",
+    "37:16",
+    "37:09",
+    "38:10",
+    "36:35",
+    "37:23",
+    "37:39",
+    "16:27"
+   ],
+   "miles_1_2_15_16_24": [
+    "12:46",
+    "11:03",
+    "12:42",
+    "11:48",
+    "12:25"
+   ]
+  },
+  "sigma 50 m": {
+   "mat_splits": [
+    "37:20",
+    "37:05",
+    "37:13",
+    "37:06",
+    "38:14",
+    "36:32",
+    "37:24",
+    "37:39",
+    "16:27"
+   ],
+   "miles_1_2_15_16_24": [
+    "12:51",
+    "11:02",
+    "12:41",
+    "11:46",
+    "12:25"
+   ]
+  },
+  "Kay 2012 quartic": {
+   "mat_splits": [
+    "37:16",
+    "37:03",
+    "37:13",
+    "37:04",
+    "38:27",
+    "36:20",
+    "37:25",
+    "37:44",
+    "16:28"
+   ],
+   "miles_1_2_15_16_24": [
+    "13:02",
+    "10:44",
+    "12:52",
+    "11:42",
+    "12:31"
+   ]
+  },
+  "Verrazzano lower level (approx -9 m at midspan)": {
+   "mat_splits": [
+    "37:13",
+    "37:07",
+    "37:14",
+    "37:09",
+    "38:13",
+    "36:33",
+    "37:25",
+    "37:39",
+    "16:27"
+   ],
+   "miles_1_2_15_16_24": [
+    "12:39",
+    "11:07",
+    "12:43",
+    "11:46",
+    "12:25"
+   ]
+  }
+ },
+ "examples": {
+  "New York all 5:15:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:37:18",
+     "1:14:28",
+     "1:51:44",
+     "2:28:54",
+     "3:06:05",
+     "3:43:29",
+     "4:20:52",
+     "4:58:32",
+     "5:15:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:37:19",
+     "1:14:24",
+     "1:51:38",
+     "2:28:46",
+     "3:06:58",
+     "3:43:31",
+     "4:20:55",
+     "4:58:33",
+     "5:15:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 2549,
+    "editions": 15,
+    "qmed": 1.0096,
+    "rel": [
+     0.985,
+     0.985,
+     0.997,
+     1.008,
+     1.032,
+     0.993,
+     1.021,
+     1.002,
+     0.948
+    ],
+    "elapsed": [
+     "0:36:46",
+     "1:13:33",
+     "1:50:46",
+     "2:28:22",
+     "3:06:53",
+     "3:43:58",
+     "4:22:04",
+     "4:59:28",
+     "5:15:00"
+    ]
+   },
+   "even": [
+    "0:37:20",
+    "1:14:39",
+    "1:51:59",
+    "2:29:18",
+    "3:06:38",
+    "3:43:58",
+    "4:21:17",
+    "4:58:37",
+    "5:15:00"
+   ]
+  },
+  "New York men 5:15:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:37:18",
+     "1:14:28",
+     "1:51:44",
+     "2:28:54",
+     "3:06:05",
+     "3:43:29",
+     "4:20:52",
+     "4:58:32",
+     "5:15:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:37:19",
+     "1:14:24",
+     "1:51:38",
+     "2:28:46",
+     "3:06:58",
+     "3:43:31",
+     "4:20:55",
+     "4:58:33",
+     "5:15:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 780,
+    "editions": 15,
+    "qmed": 1.0107,
+    "rel": [
+     0.985,
+     0.985,
+     0.997,
+     1.005,
+     1.031,
+     0.991,
+     1.02,
+     1.004,
+     0.955
+    ],
+    "elapsed": [
+     "0:36:47",
+     "1:13:33",
+     "1:50:46",
+     "2:28:17",
+     "3:06:46",
+     "3:43:46",
+     "4:21:51",
+     "4:59:21",
+     "5:15:00"
+    ]
+   },
+   "even": [
+    "0:37:20",
+    "1:14:39",
+    "1:51:59",
+    "2:29:18",
+    "3:06:38",
+    "3:43:58",
+    "4:21:17",
+    "4:58:37",
+    "5:15:00"
+   ]
+  },
+  "New York women 5:15:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:37:18",
+     "1:14:28",
+     "1:51:44",
+     "2:28:54",
+     "3:06:05",
+     "3:43:29",
+     "4:20:52",
+     "4:58:32",
+     "5:15:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:37:19",
+     "1:14:24",
+     "1:51:38",
+     "2:28:46",
+     "3:06:58",
+     "3:43:31",
+     "4:20:55",
+     "4:58:33",
+     "5:15:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 1766,
+    "editions": 15,
+    "qmed": 1.0092,
+    "rel": [
+     0.985,
+     0.985,
+     0.997,
+     1.008,
+     1.032,
+     0.994,
+     1.021,
+     1.001,
+     0.945
+    ],
+    "elapsed": [
+     "0:36:47",
+     "1:13:33",
+     "1:50:46",
+     "2:28:24",
+     "3:06:55",
+     "3:44:01",
+     "4:22:09",
+     "4:59:31",
+     "5:15:00"
+    ]
+   },
+   "even": [
+    "0:37:20",
+    "1:14:39",
+    "1:51:59",
+    "2:29:18",
+    "3:06:38",
+    "3:43:58",
+    "4:21:17",
+    "4:58:37",
+    "5:15:00"
+   ]
+  },
+  "New York all 3:00:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:21:19",
+     "0:42:33",
+     "1:03:51",
+     "1:25:05",
+     "1:46:20",
+     "2:07:42",
+     "2:29:04",
+     "2:50:35",
+     "3:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:21:19",
+     "0:42:31",
+     "1:03:47",
+     "1:25:00",
+     "1:46:51",
+     "2:07:43",
+     "2:29:05",
+     "2:50:36",
+     "3:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 6399,
+    "editions": 15,
+    "qmed": 1.0104,
+    "rel": [
+     1.002,
+     0.989,
+     0.994,
+     0.996,
+     1.013,
+     0.982,
+     1.006,
+     1.017,
+     1.001
+    ],
+    "elapsed": [
+     "0:21:22",
+     "0:42:28",
+     "1:03:41",
+     "1:24:55",
+     "1:46:32",
+     "2:07:29",
+     "2:28:56",
+     "2:50:38",
+     "3:00:00"
+    ]
+   },
+   "even": [
+    "0:21:20",
+    "0:42:40",
+    "1:03:59",
+    "1:25:19",
+    "1:46:39",
+    "2:07:59",
+    "2:29:18",
+    "2:50:38",
+    "3:00:00"
+   ]
+  },
+  "New York all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:28:25",
+     "0:56:45",
+     "1:25:08",
+     "1:53:27",
+     "2:21:47",
+     "2:50:16",
+     "3:18:45",
+     "3:47:27",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:28:26",
+     "0:56:41",
+     "1:25:03",
+     "1:53:20",
+     "2:22:27",
+     "2:50:18",
+     "3:18:47",
+     "3:47:28",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 18169,
+    "editions": 15,
+    "qmed": 1.0093,
+    "rel": [
+     1.005,
+     0.986,
+     0.995,
+     0.998,
+     1.018,
+     0.985,
+     1.011,
+     1.011,
+     0.98
+    ],
+    "elapsed": [
+     "0:28:34",
+     "0:56:36",
+     "1:24:55",
+     "1:53:18",
+     "2:22:15",
+     "2:50:16",
+     "3:19:01",
+     "3:47:46",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "New York all 6:00:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:42:37",
+     "1:25:07",
+     "2:07:42",
+     "2:50:10",
+     "3:32:40",
+     "4:15:24",
+     "4:58:08",
+     "5:41:11",
+     "6:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:42:38",
+     "1:25:02",
+     "2:07:35",
+     "2:50:01",
+     "3:33:41",
+     "4:15:27",
+     "4:58:11",
+     "5:41:12",
+     "6:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 1066,
+    "editions": 15,
+    "qmed": 1.0109,
+    "rel": [
+     0.972,
+     0.988,
+     0.998,
+     1.015,
+     1.04,
+     0.991,
+     1.017,
+     1.002,
+     0.944
+    ],
+    "elapsed": [
+     "0:41:29",
+     "1:23:38",
+     "2:06:12",
+     "2:49:31",
+     "3:33:53",
+     "4:16:11",
+     "4:59:34",
+     "5:42:19",
+     "6:00:00"
+    ]
+   },
+   "even": [
+    "0:42:40",
+    "1:25:19",
+    "2:07:59",
+    "2:50:38",
+    "3:33:18",
+    "4:15:57",
+    "4:58:37",
+    "5:41:16",
+    "6:00:00"
+   ]
+  },
+  "Boston all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.973,
+     0.997,
+     1.004,
+     1.008,
+     1.001,
+     1.015,
+     1.015,
+     0.985,
+     1.005
+    ],
+    "elapsed": [
+     "0:27:40",
+     "0:56:01",
+     "1:24:34",
+     "1:53:14",
+     "2:21:42",
+     "2:50:34",
+     "3:19:27",
+     "3:47:27",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.973,
+     0.997,
+     1.004,
+     1.008,
+     1.001,
+     1.015,
+     1.015,
+     0.985,
+     1.005
+    ],
+    "elapsed": [
+     "0:27:40",
+     "0:56:01",
+     "1:24:34",
+     "1:53:14",
+     "2:21:42",
+     "2:50:34",
+     "3:19:27",
+     "3:47:27",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 4243,
+    "editions": 10,
+    "qmed": 1.0114,
+    "rel": [
+     1.001,
+     0.991,
+     0.99,
+     0.997,
+     0.992,
+     1.018,
+     1.024,
+     0.996,
+     0.979
+    ],
+    "elapsed": [
+     "0:28:27",
+     "0:56:39",
+     "1:24:48",
+     "1:53:09",
+     "2:21:22",
+     "2:50:18",
+     "3:19:26",
+     "3:47:46",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "Berlin all 3:30:00": {
+   "model_raw": {
+    "rel": [
+     1.0,
+     1.004,
+     0.998,
+     0.999,
+     1.006,
+     1.0,
+     0.995,
+     1.002,
+     0.993
+    ],
+    "elapsed": [
+     "0:24:52",
+     "0:49:51",
+     "1:14:40",
+     "1:39:32",
+     "2:04:34",
+     "2:29:27",
+     "2:54:13",
+     "3:19:09",
+     "3:30:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     1.004,
+     0.998,
+     0.999,
+     1.006,
+     1.0,
+     0.995,
+     1.002,
+     0.993
+    ],
+    "elapsed": [
+     "0:24:52",
+     "0:49:51",
+     "1:14:40",
+     "1:39:32",
+     "2:04:34",
+     "2:29:27",
+     "2:54:13",
+     "3:19:09",
+     "3:30:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 37592,
+    "editions": 21,
+    "qmed": 1.0058,
+    "rel": [
+     1.004,
+     1.0,
+     0.993,
+     0.994,
+     0.998,
+     1.001,
+     0.998,
+     1.017,
+     0.991
+    ],
+    "elapsed": [
+     "0:24:59",
+     "0:49:51",
+     "1:14:34",
+     "1:39:17",
+     "2:04:07",
+     "2:29:02",
+     "2:53:51",
+     "3:19:10",
+     "3:30:00"
+    ]
+   },
+   "even": [
+    "0:24:53",
+    "0:49:46",
+    "1:14:39",
+    "1:39:32",
+    "2:04:25",
+    "2:29:18",
+    "2:54:11",
+    "3:19:05",
+    "3:30:00"
+   ]
+  },
+  "Sydney all 3:00:00": {
+   "model_raw": {
+    "rel": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "elapsed": [
+     "0:20:46",
+     "0:42:07",
+     "1:04:14",
+     "1:25:19",
+     "1:46:37",
+     "2:08:08",
+     "2:29:27",
+     "2:50:35",
+     "3:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "elapsed": [
+     "0:20:46",
+     "0:42:07",
+     "1:04:14",
+     "1:25:19",
+     "1:46:37",
+     "2:08:08",
+     "2:29:27",
+     "2:50:35",
+     "3:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 162,
+    "editions": 3,
+    "qmed": 1.012,
+    "rel": [
+     0.986,
+     0.997,
+     0.99,
+     1.003,
+     0.986,
+     0.998,
+     1.016,
+     1.024,
+     0.999
+    ],
+    "elapsed": [
+     "0:21:02",
+     "0:42:18",
+     "1:03:25",
+     "1:24:49",
+     "1:45:50",
+     "2:07:08",
+     "2:28:48",
+     "2:50:39",
+     "3:00:00"
+    ]
+   },
+   "even": [
+    "0:21:20",
+    "0:42:40",
+    "1:03:59",
+    "1:25:19",
+    "1:46:39",
+    "2:07:59",
+    "2:29:18",
+    "2:50:38",
+    "3:00:00"
+   ]
+  },
+  "Sydney all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "elapsed": [
+     "0:27:41",
+     "0:56:10",
+     "1:25:38",
+     "1:53:45",
+     "2:22:09",
+     "2:50:51",
+     "3:19:16",
+     "3:47:26",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "elapsed": [
+     "0:27:41",
+     "0:56:10",
+     "1:25:38",
+     "1:53:45",
+     "2:22:09",
+     "2:50:51",
+     "3:19:16",
+     "3:47:26",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 312,
+    "editions": 3,
+    "qmed": 1.006,
+    "rel": [
+     1.0,
+     1.007,
+     0.984,
+     0.994,
+     0.98,
+     0.999,
+     1.019,
+     1.026,
+     0.98
+    ],
+    "elapsed": [
+     "0:28:26",
+     "0:57:05",
+     "1:25:05",
+     "1:53:21",
+     "2:21:13",
+     "2:49:38",
+     "3:18:36",
+     "3:47:46",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "Chicago all 4:30:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "elapsed": [
+     "0:31:57",
+     "1:03:58",
+     "1:35:58",
+     "2:07:55",
+     "2:39:55",
+     "3:11:55",
+     "3:43:55",
+     "4:15:54",
+     "4:30:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "elapsed": [
+     "0:31:57",
+     "1:03:58",
+     "1:35:58",
+     "2:07:55",
+     "2:39:55",
+     "3:11:55",
+     "3:43:55",
+     "4:15:54",
+     "4:30:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 14260,
+    "editions": 19,
+    "qmed": 1.0071,
+    "rel": [
+     1.009,
+     1.002,
+     0.981,
+     0.994,
+     0.996,
+     0.998,
+     1.01,
+     1.023,
+     0.971
+    ],
+    "elapsed": [
+     "0:32:16",
+     "1:04:20",
+     "1:35:43",
+     "2:07:31",
+     "2:39:22",
+     "3:11:17",
+     "3:43:37",
+     "4:16:22",
+     "4:30:00"
+    ]
+   },
+   "even": [
+    "0:32:00",
+    "1:03:59",
+    "1:35:59",
+    "2:07:59",
+    "2:39:58",
+    "3:11:58",
+    "3:43:58",
+    "4:15:57",
+    "4:30:00"
+   ]
+  },
+  "Chicago all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "elapsed": [
+     "0:28:24",
+     "0:56:51",
+     "1:25:19",
+     "1:53:42",
+     "2:22:09",
+     "2:50:36",
+     "3:19:02",
+     "3:47:28",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "elapsed": [
+     "0:28:24",
+     "0:56:51",
+     "1:25:19",
+     "1:53:42",
+     "2:22:09",
+     "2:50:36",
+     "3:19:02",
+     "3:47:28",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 24261,
+    "editions": 19,
+    "qmed": 1.0072,
+    "rel": [
+     1.011,
+     0.998,
+     0.985,
+     0.993,
+     0.994,
+     0.996,
+     1.006,
+     1.023,
+     0.987
+    ],
+    "elapsed": [
+     "0:28:45",
+     "0:57:09",
+     "1:25:09",
+     "1:53:24",
+     "2:21:39",
+     "2:49:58",
+     "3:18:35",
+     "3:47:40",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "London all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.99,
+     0.997,
+     1.0,
+     1.0,
+     1.002,
+     1.01,
+     0.999,
+     1.001,
+     1.002
+    ],
+    "elapsed": [
+     "0:28:09",
+     "0:56:31",
+     "1:24:57",
+     "1:53:24",
+     "2:21:54",
+     "2:50:38",
+     "3:19:02",
+     "3:47:30",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.991,
+     0.997,
+     1.001,
+     1.006,
+     0.997,
+     1.007,
+     1.002,
+     0.999,
+     1.003
+    ],
+    "elapsed": [
+     "0:28:11",
+     "0:56:32",
+     "1:25:00",
+     "1:53:36",
+     "2:21:57",
+     "2:50:35",
+     "3:19:05",
+     "3:47:29",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 3417,
+    "editions": 3,
+    "qmed": 1.0108,
+    "rel": [
+     0.985,
+     0.996,
+     1.008,
+     0.992,
+     0.997,
+     1.006,
+     1.016,
+     1.005,
+     0.989
+    ],
+    "elapsed": [
+     "0:28:02",
+     "0:56:21",
+     "1:25:00",
+     "1:53:13",
+     "2:21:34",
+     "2:50:10",
+     "3:19:04",
+     "3:47:39",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "Amsterdam all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     1.001,
+     1.0,
+     0.998,
+     1.001,
+     1.0,
+     1.002,
+     0.999,
+     1.001
+    ],
+    "elapsed": [
+     "0:28:24",
+     "0:56:52",
+     "1:25:19",
+     "1:53:41",
+     "2:22:10",
+     "2:50:36",
+     "3:19:06",
+     "3:47:30",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.001,
+     0.999,
+     1.003
+    ],
+    "elapsed": [
+     "0:28:27",
+     "0:56:53",
+     "1:25:18",
+     "1:53:44",
+     "2:22:10",
+     "2:50:37",
+     "3:19:04",
+     "3:47:28",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 9900,
+    "editions": 12,
+    "qmed": 1.0056,
+    "rel": [
+     1.012,
+     0.992,
+     0.991,
+     0.996,
+     0.989,
+     0.994,
+     1.013,
+     1.013,
+     0.999
+    ],
+    "elapsed": [
+     "0:28:47",
+     "0:56:59",
+     "1:25:09",
+     "1:53:29",
+     "2:21:38",
+     "2:49:54",
+     "3:18:43",
+     "3:47:32",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "Rotterdam all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.997,
+     0.996,
+     1.002,
+     0.999,
+     1.003,
+     0.999,
+     0.997,
+     1.003,
+     1.01
+    ],
+    "elapsed": [
+     "0:28:21",
+     "0:56:42",
+     "1:25:11",
+     "1:53:36",
+     "2:22:07",
+     "2:50:31",
+     "3:18:52",
+     "3:47:23",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.001,
+     0.997,
+     1.0,
+     1.0,
+     1.003,
+     0.999,
+     0.998,
+     1.002,
+     1.002
+    ],
+    "elapsed": [
+     "0:28:27",
+     "0:56:48",
+     "1:25:14",
+     "1:53:40",
+     "2:22:12",
+     "2:50:37",
+     "3:19:00",
+     "3:47:29",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 7168,
+    "editions": 11,
+    "qmed": 1.0095,
+    "rel": [
+     1.003,
+     0.992,
+     0.995,
+     0.993,
+     0.999,
+     0.999,
+     1.001,
+     1.022,
+     0.991
+    ],
+    "elapsed": [
+     "0:28:32",
+     "0:56:44",
+     "1:25:02",
+     "1:53:17",
+     "2:21:41",
+     "2:50:05",
+     "3:18:33",
+     "3:47:38",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "Valencia all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.997,
+     1.003,
+     1.004,
+     0.995,
+     1.003,
+     1.01,
+     1.001,
+     0.997,
+     0.978
+    ],
+    "elapsed": [
+     "0:28:22",
+     "0:56:53",
+     "1:25:25",
+     "1:53:43",
+     "2:22:14",
+     "2:50:58",
+     "3:19:26",
+     "3:47:47",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.999,
+     1.003,
+     1.001,
+     0.996,
+     1.004,
+     1.002,
+     1.008,
+     0.992,
+     0.99
+    ],
+    "elapsed": [
+     "0:28:24",
+     "0:56:56",
+     "1:25:25",
+     "1:53:43",
+     "2:22:17",
+     "2:50:46",
+     "3:19:26",
+     "3:47:38",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 4403,
+    "editions": 4,
+    "qmed": 1.0068,
+    "rel": [
+     1.009,
+     0.995,
+     0.994,
+     0.991,
+     0.997,
+     1.0,
+     1.013,
+     1.009,
+     0.982
+    ],
+    "elapsed": [
+     "0:28:41",
+     "0:56:59",
+     "1:25:15",
+     "1:53:25",
+     "2:21:47",
+     "2:50:14",
+     "3:19:03",
+     "3:47:44",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  }
+ }
+}

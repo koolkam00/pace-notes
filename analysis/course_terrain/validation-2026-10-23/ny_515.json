@@ -1,0 +1,1590 @@
+{
+ "goal": "5:15:00",
+ "crossings": [
+  {
+   "id": "nyc-verrazzano",
+   "name": "Verrazzano-Narrows Bridge (upper level)",
+   "km": [
+    0.0,
+    3.06
+   ],
+   "mi": [
+    0.0,
+    1.9
+   ]
+  },
+  {
+   "id": "nyc-pulaski",
+   "name": "Pulaski Bridge (halfway)",
+   "km": [
+    20.6,
+    21.61
+   ],
+   "mi": [
+    12.8,
+    13.43
+   ]
+  },
+  {
+   "id": "nyc-queensboro",
+   "name": "Queensboro (59th St) Bridge",
+   "km": [
+    23.32,
+    25.75
+   ],
+   "mi": [
+    14.49,
+    16.0
+   ]
+  },
+  {
+   "id": "nyc-willis",
+   "name": "Willis Avenue Bridge",
+   "km": [
+    30.95,
+    32.04
+   ],
+   "mi": [
+    19.23,
+    19.91
+   ]
+  },
+  {
+   "id": "nyc-madison",
+   "name": "Madison Avenue Bridge",
+   "km": [
+    33.13,
+    33.82
+   ],
+   "mi": [
+    20.58,
+    21.01
+   ]
+  },
+  {
+   "id": "first-ave",
+   "name": "First Avenue (Manhattan, northbound)",
+   "km": [
+    25.69,
+    30.6
+   ],
+   "mi": [
+    15.96,
+    19.01
+   ],
+   "note": "approximate, from the Queensboro exit to the Willis Avenue Bridge"
+  }
+ ],
+ "corrected": {
+  "miles": [
+   {
+    "mile": "1",
+    "elapsed": "0:12:50",
+    "split": "12:50",
+    "pace_per_mile": "12:50",
+    "net_m": 32.7,
+    "climb_m": 36.9,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "mile": "2",
+    "elapsed": "0:23:51",
+    "split": "11:01",
+    "pace_per_mile": "11:01",
+    "net_m": -58.7,
+    "climb_m": 0.8,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "mile": "3",
+    "elapsed": "0:36:01",
+    "split": "12:10",
+    "pace_per_mile": "12:10",
+    "net_m": 7.8,
+    "climb_m": 9.7,
+    "features": []
+   },
+   {
+    "mile": "4",
+    "elapsed": "0:48:06",
+    "split": "12:05",
+    "pace_per_mile": "12:05",
+    "net_m": 3.7,
+    "climb_m": 5.8,
+    "features": []
+   },
+   {
+    "mile": "5",
+    "elapsed": "0:59:49",
+    "split": "11:43",
+    "pace_per_mile": "11:43",
+    "net_m": -13.4,
+    "climb_m": 0.4,
+    "features": []
+   },
+   {
+    "mile": "6",
+    "elapsed": "1:11:48",
+    "split": "11:59",
+    "pace_per_mile": "11:59",
+    "net_m": -0.5,
+    "climb_m": 6.8,
+    "features": []
+   },
+   {
+    "mile": "7",
+    "elapsed": "1:23:41",
+    "split": "11:53",
+    "pace_per_mile": "11:53",
+    "net_m": -5.5,
+    "climb_m": 1.9,
+    "features": []
+   },
+   {
+    "mile": "8",
+    "elapsed": "1:35:50",
+    "split": "12:09",
+    "pace_per_mile": "12:09",
+    "net_m": 7.5,
+    "climb_m": 7.9,
+    "features": []
+   },
+   {
+    "mile": "9",
+    "elapsed": "1:47:55",
+    "split": "12:05",
+    "pace_per_mile": "12:05",
+    "net_m": 2.8,
+    "climb_m": 10.7,
+    "features": []
+   },
+   {
+    "mile": "10",
+    "elapsed": "1:59:40",
+    "split": "11:45",
+    "pace_per_mile": "11:45",
+    "net_m": -11.7,
+    "climb_m": 1.9,
+    "features": []
+   },
+   {
+    "mile": "11",
+    "elapsed": "2:11:48",
+    "split": "12:08",
+    "pace_per_mile": "12:08",
+    "net_m": 6.1,
+    "climb_m": 10.2,
+    "features": []
+   },
+   {
+    "mile": "12",
+    "elapsed": "2:23:39",
+    "split": "11:51",
+    "pace_per_mile": "11:51",
+    "net_m": -6.5,
+    "climb_m": 1.7,
+    "features": []
+   },
+   {
+    "mile": "13",
+    "elapsed": "2:35:50",
+    "split": "12:11",
+    "pace_per_mile": "12:11",
+    "net_m": 7.9,
+    "climb_m": 13.1,
+    "features": [
+     "Pulaski Bridge (halfway)"
+    ]
+   },
+   {
+    "mile": "14",
+    "elapsed": "2:47:38",
+    "split": "11:48",
+    "pace_per_mile": "11:48",
+    "net_m": -10.2,
+    "climb_m": 2.5,
+    "features": [
+     "Pulaski Bridge (halfway)"
+    ]
+   },
+   {
+    "mile": "15",
+    "elapsed": "3:00:20",
+    "split": "12:42",
+    "pace_per_mile": "12:42",
+    "net_m": 29.0,
+    "climb_m": 28.9,
+    "features": [
+     "Queensboro (59th St) Bridge"
+    ]
+   },
+   {
+    "mile": "16",
+    "elapsed": "3:12:06",
+    "split": "11:46",
+    "pace_per_mile": "11:46",
+    "net_m": -16.6,
+    "climb_m": 11.4,
+    "features": [
+     "Queensboro (59th St) Bridge",
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "mile": "17",
+    "elapsed": "3:24:03",
+    "split": "11:57",
+    "pace_per_mile": "11:57",
+    "net_m": -2.4,
+    "climb_m": 5.1,
+    "features": [
+     "Queensboro (59th St) Bridge",
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "mile": "18",
+    "elapsed": "3:35:51",
+    "split": "11:48",
+    "pace_per_mile": "11:48",
+    "net_m": -10.7,
+    "climb_m": 3.8,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "mile": "19",
+    "elapsed": "3:47:49",
+    "split": "11:58",
+    "pace_per_mile": "11:58",
+    "net_m": -0.2,
+    "climb_m": 0.6,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "mile": "20",
+    "elapsed": "3:59:57",
+    "split": "12:08",
+    "pace_per_mile": "12:08",
+    "net_m": 4.9,
+    "climb_m": 11.8,
+    "features": [
+     "Willis Avenue Bridge",
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "mile": "21",
+    "elapsed": "4:11:53",
+    "split": "11:56",
+    "pace_per_mile": "11:56",
+    "net_m": -3.0,
+    "climb_m": 5.4,
+    "features": [
+     "Madison Avenue Bridge"
+    ]
+   },
+   {
+    "mile": "22",
+    "elapsed": "4:23:56",
+    "split": "12:03",
+    "pace_per_mile": "12:03",
+    "net_m": 2.5,
+    "climb_m": 4.3,
+    "features": [
+     "Madison Avenue Bridge"
+    ]
+   },
+   {
+    "mile": "23",
+    "elapsed": "4:36:04",
+    "split": "12:08",
+    "pace_per_mile": "12:08",
+    "net_m": 6.6,
+    "climb_m": 8.8,
+    "features": []
+   },
+   {
+    "mile": "24",
+    "elapsed": "4:48:29",
+    "split": "12:25",
+    "pace_per_mile": "12:25",
+    "net_m": 17.9,
+    "climb_m": 19.3,
+    "features": []
+   },
+   {
+    "mile": "25",
+    "elapsed": "5:00:16",
+    "split": "11:47",
+    "pace_per_mile": "11:47",
+    "net_m": -11.2,
+    "climb_m": 3.8,
+    "features": []
+   },
+   {
+    "mile": "26",
+    "elapsed": "5:12:18",
+    "split": "12:02",
+    "pace_per_mile": "12:02",
+    "net_m": 1.3,
+    "climb_m": 7.2,
+    "features": []
+   },
+   {
+    "mile": "26.2",
+    "elapsed": "5:15:00",
+    "split": "2:42",
+    "pace_per_mile": "12:21",
+    "net_m": 3.4,
+    "climb_m": 3.4,
+    "features": []
+   }
+  ],
+  "km": [
+   {
+    "km": "1",
+    "elapsed": "0:08:19",
+    "split": "8:19",
+    "pace_per_km": "8:19",
+    "net_m": 34.6,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "km": "2",
+    "elapsed": "0:15:30",
+    "split": "7:11",
+    "pace_per_km": "7:11",
+    "net_m": -15.6,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "km": "3",
+    "elapsed": "0:22:14",
+    "split": "6:44",
+    "pace_per_km": "6:44",
+    "net_m": -44.5,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "km": "4",
+    "elapsed": "0:29:51",
+    "split": "7:37",
+    "pace_per_km": "7:37",
+    "net_m": 7.1,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "km": "5",
+    "elapsed": "0:37:19",
+    "split": "7:28",
+    "pace_per_km": "7:28",
+    "net_m": 0.4,
+    "features": []
+   },
+   {
+    "km": "6",
+    "elapsed": "0:44:45",
+    "split": "7:26",
+    "pace_per_km": "7:26",
+    "net_m": -0.2,
+    "features": []
+   },
+   {
+    "km": "7",
+    "elapsed": "0:52:13",
+    "split": "7:28",
+    "pace_per_km": "7:28",
+    "net_m": 0.2,
+    "features": []
+   },
+   {
+    "km": "8",
+    "elapsed": "0:59:29",
+    "split": "7:16",
+    "pace_per_km": "7:16",
+    "net_m": -8.9,
+    "features": []
+   },
+   {
+    "km": "9",
+    "elapsed": "1:06:47",
+    "split": "7:18",
+    "pace_per_km": "7:18",
+    "net_m": -7.3,
+    "features": []
+   },
+   {
+    "km": "10",
+    "elapsed": "1:14:24",
+    "split": "7:37",
+    "pace_per_km": "7:37",
+    "net_m": 7.7,
+    "features": []
+   },
+   {
+    "km": "11",
+    "elapsed": "1:21:42",
+    "split": "7:18",
+    "pace_per_km": "7:18",
+    "net_m": -7.1,
+    "features": []
+   },
+   {
+    "km": "12",
+    "elapsed": "1:29:13",
+    "split": "7:31",
+    "pace_per_km": "7:31",
+    "net_m": 2.7,
+    "features": []
+   },
+   {
+    "km": "13",
+    "elapsed": "1:36:50",
+    "split": "7:37",
+    "pace_per_km": "7:37",
+    "net_m": 7.4,
+    "features": []
+   },
+   {
+    "km": "14",
+    "elapsed": "1:44:21",
+    "split": "7:31",
+    "pace_per_km": "7:31",
+    "net_m": 2.2,
+    "features": []
+   },
+   {
+    "km": "15",
+    "elapsed": "1:51:38",
+    "split": "7:17",
+    "pace_per_km": "7:17",
+    "net_m": -8.2,
+    "features": []
+   },
+   {
+    "km": "16",
+    "elapsed": "1:58:57",
+    "split": "7:19",
+    "pace_per_km": "7:19",
+    "net_m": -6.8,
+    "features": []
+   },
+   {
+    "km": "17",
+    "elapsed": "2:06:34",
+    "split": "7:37",
+    "pace_per_km": "7:37",
+    "net_m": 7.1,
+    "features": []
+   },
+   {
+    "km": "18",
+    "elapsed": "2:13:56",
+    "split": "7:22",
+    "pace_per_km": "7:22",
+    "net_m": -3.5,
+    "features": []
+   },
+   {
+    "km": "19",
+    "elapsed": "2:21:17",
+    "split": "7:21",
+    "pace_per_km": "7:21",
+    "net_m": -4.9,
+    "features": []
+   },
+   {
+    "km": "20",
+    "elapsed": "2:28:46",
+    "split": "7:29",
+    "pace_per_km": "7:29",
+    "net_m": 0.9,
+    "features": []
+   },
+   {
+    "km": "21",
+    "elapsed": "2:36:27",
+    "split": "7:41",
+    "pace_per_km": "7:41",
+    "net_m": 9.9,
+    "features": [
+     "Pulaski Bridge (halfway)"
+    ]
+   },
+   {
+    "km": "22",
+    "elapsed": "2:43:40",
+    "split": "7:13",
+    "pace_per_km": "7:13",
+    "net_m": -12.3,
+    "features": [
+     "Pulaski Bridge (halfway)"
+    ]
+   },
+   {
+    "km": "23",
+    "elapsed": "2:51:09",
+    "split": "7:29",
+    "pace_per_km": "7:29",
+    "net_m": 1.8,
+    "features": []
+   },
+   {
+    "km": "24",
+    "elapsed": "2:59:10",
+    "split": "8:01",
+    "pace_per_km": "8:01",
+    "net_m": 23.2,
+    "features": [
+     "Queensboro (59th St) Bridge"
+    ]
+   },
+   {
+    "km": "25",
+    "elapsed": "3:06:58",
+    "split": "7:48",
+    "pace_per_km": "7:48",
+    "net_m": 14.1,
+    "features": [
+     "Queensboro (59th St) Bridge"
+    ]
+   },
+   {
+    "km": "26",
+    "elapsed": "3:13:55",
+    "split": "6:57",
+    "pace_per_km": "6:57",
+    "net_m": -28.9,
+    "features": [
+     "Queensboro (59th St) Bridge",
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "27",
+    "elapsed": "3:21:18",
+    "split": "7:23",
+    "pace_per_km": "7:23",
+    "net_m": -2.6,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "28",
+    "elapsed": "3:28:49",
+    "split": "7:31",
+    "pace_per_km": "7:31",
+    "net_m": 2.2,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "29",
+    "elapsed": "3:36:05",
+    "split": "7:16",
+    "pace_per_km": "7:16",
+    "net_m": -9.5,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "30",
+    "elapsed": "3:43:31",
+    "split": "7:26",
+    "pace_per_km": "7:26",
+    "net_m": -0.3,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "31",
+    "elapsed": "3:51:01",
+    "split": "7:30",
+    "pace_per_km": "7:30",
+    "net_m": 2.6,
+    "features": [
+     "Willis Avenue Bridge",
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "32",
+    "elapsed": "3:58:34",
+    "split": "7:33",
+    "pace_per_km": "7:33",
+    "net_m": 2.7,
+    "features": [
+     "Willis Avenue Bridge"
+    ]
+   },
+   {
+    "km": "33",
+    "elapsed": "4:05:56",
+    "split": "7:22",
+    "pace_per_km": "7:22",
+    "net_m": -3.5,
+    "features": [
+     "Willis Avenue Bridge"
+    ]
+   },
+   {
+    "km": "34",
+    "elapsed": "4:13:22",
+    "split": "7:26",
+    "pace_per_km": "7:26",
+    "net_m": -1.1,
+    "features": [
+     "Madison Avenue Bridge"
+    ]
+   },
+   {
+    "km": "35",
+    "elapsed": "4:20:55",
+    "split": "7:33",
+    "pace_per_km": "7:33",
+    "net_m": 4.0,
+    "features": []
+   },
+   {
+    "km": "36",
+    "elapsed": "4:28:20",
+    "split": "7:25",
+    "pace_per_km": "7:25",
+    "net_m": -0.7,
+    "features": []
+   },
+   {
+    "km": "37",
+    "elapsed": "4:35:57",
+    "split": "7:37",
+    "pace_per_km": "7:37",
+    "net_m": 6.8,
+    "features": []
+   },
+   {
+    "km": "38",
+    "elapsed": "4:43:51",
+    "split": "7:54",
+    "pace_per_km": "7:54",
+    "net_m": 19.5,
+    "features": []
+   },
+   {
+    "km": "39",
+    "elapsed": "4:51:15",
+    "split": "7:24",
+    "pace_per_km": "7:24",
+    "net_m": -2.3,
+    "features": []
+   },
+   {
+    "km": "40",
+    "elapsed": "4:58:33",
+    "split": "7:18",
+    "pace_per_km": "7:18",
+    "net_m": -9.1,
+    "features": []
+   },
+   {
+    "km": "41",
+    "elapsed": "5:05:53",
+    "split": "7:20",
+    "pace_per_km": "7:20",
+    "net_m": -5.6,
+    "features": []
+   },
+   {
+    "km": "42",
+    "elapsed": "5:13:29",
+    "split": "7:36",
+    "pace_per_km": "7:36",
+    "net_m": 6.6,
+    "features": []
+   },
+   {
+    "km": "42.2",
+    "elapsed": "5:15:00",
+    "split": "1:31",
+    "pace_per_km": "7:47",
+    "net_m": 2.7,
+    "features": []
+   }
+  ],
+  "mats": [
+   "0:37:19",
+   "1:14:24",
+   "1:51:38",
+   "2:28:46",
+   "3:06:58",
+   "3:43:31",
+   "4:20:55",
+   "4:58:33",
+   "5:15:00"
+  ],
+  "mat_splits": [
+   "37:19",
+   "37:05",
+   "37:14",
+   "37:08",
+   "38:12",
+   "36:33",
+   "37:24",
+   "37:38",
+   "16:27"
+  ],
+  "segment_relative_pace": [
+   0.9995,
+   0.9938,
+   0.9974,
+   0.9946,
+   1.0238,
+   0.9791,
+   1.0017,
+   1.0085,
+   1.0036
+  ],
+  "halfway": "2:37:11",
+  "halves": "2:37:11 + 2:37:49",
+  "fastest_mile": "2",
+  "slowest_mile": "1"
+ },
+ "raw": {
+  "miles": [
+   {
+    "mile": "1",
+    "elapsed": "0:11:24",
+    "split": "11:24",
+    "pace_per_mile": "11:24",
+    "net_m": -39.8,
+    "climb_m": 0.0,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "mile": "2",
+    "elapsed": "0:23:50",
+    "split": "12:26",
+    "pace_per_mile": "12:26",
+    "net_m": 17.5,
+    "climb_m": 17.7,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "mile": "3",
+    "elapsed": "0:36:00",
+    "split": "12:10",
+    "pace_per_mile": "12:10",
+    "net_m": 7.7,
+    "climb_m": 9.6,
+    "features": []
+   },
+   {
+    "mile": "4",
+    "elapsed": "0:48:08",
+    "split": "12:08",
+    "pace_per_mile": "12:08",
+    "net_m": 3.7,
+    "climb_m": 12.0,
+    "features": []
+   },
+   {
+    "mile": "5",
+    "elapsed": "0:59:52",
+    "split": "11:44",
+    "pace_per_mile": "11:44",
+    "net_m": -13.4,
+    "climb_m": 0.4,
+    "features": []
+   },
+   {
+    "mile": "6",
+    "elapsed": "1:11:52",
+    "split": "12:00",
+    "pace_per_mile": "12:00",
+    "net_m": -0.5,
+    "climb_m": 6.8,
+    "features": []
+   },
+   {
+    "mile": "7",
+    "elapsed": "1:23:45",
+    "split": "11:53",
+    "pace_per_mile": "11:53",
+    "net_m": -5.5,
+    "climb_m": 1.9,
+    "features": []
+   },
+   {
+    "mile": "8",
+    "elapsed": "1:35:55",
+    "split": "12:10",
+    "pace_per_mile": "12:10",
+    "net_m": 7.5,
+    "climb_m": 7.9,
+    "features": []
+   },
+   {
+    "mile": "9",
+    "elapsed": "1:48:00",
+    "split": "12:05",
+    "pace_per_mile": "12:05",
+    "net_m": 2.8,
+    "climb_m": 10.7,
+    "features": []
+   },
+   {
+    "mile": "10",
+    "elapsed": "1:59:46",
+    "split": "11:46",
+    "pace_per_mile": "11:46",
+    "net_m": -11.7,
+    "climb_m": 1.9,
+    "features": []
+   },
+   {
+    "mile": "11",
+    "elapsed": "2:11:55",
+    "split": "12:09",
+    "pace_per_mile": "12:09",
+    "net_m": 6.1,
+    "climb_m": 10.2,
+    "features": []
+   },
+   {
+    "mile": "12",
+    "elapsed": "2:23:47",
+    "split": "11:52",
+    "pace_per_mile": "11:52",
+    "net_m": -6.5,
+    "climb_m": 1.7,
+    "features": []
+   },
+   {
+    "mile": "13",
+    "elapsed": "2:35:42",
+    "split": "11:55",
+    "pace_per_mile": "11:55",
+    "net_m": -4.3,
+    "climb_m": 2.8,
+    "features": [
+     "Pulaski Bridge (halfway)"
+    ]
+   },
+   {
+    "mile": "14",
+    "elapsed": "2:47:44",
+    "split": "12:02",
+    "pace_per_mile": "12:02",
+    "net_m": 1.9,
+    "climb_m": 4.0,
+    "features": [
+     "Pulaski Bridge (halfway)"
+    ]
+   },
+   {
+    "mile": "15",
+    "elapsed": "2:59:43",
+    "split": "11:59",
+    "pace_per_mile": "11:59",
+    "net_m": -0.1,
+    "climb_m": 2.0,
+    "features": [
+     "Queensboro (59th St) Bridge"
+    ]
+   },
+   {
+    "mile": "16",
+    "elapsed": "3:12:02",
+    "split": "12:19",
+    "pace_per_mile": "12:19",
+    "net_m": 12.3,
+    "climb_m": 16.3,
+    "features": [
+     "Queensboro (59th St) Bridge",
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "mile": "17",
+    "elapsed": "3:24:00",
+    "split": "11:58",
+    "pace_per_mile": "11:58",
+    "net_m": -2.2,
+    "climb_m": 5.1,
+    "features": [
+     "Queensboro (59th St) Bridge",
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "mile": "18",
+    "elapsed": "3:35:48",
+    "split": "11:48",
+    "pace_per_mile": "11:48",
+    "net_m": -10.7,
+    "climb_m": 3.8,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "mile": "19",
+    "elapsed": "3:47:47",
+    "split": "11:59",
+    "pace_per_mile": "11:59",
+    "net_m": -0.2,
+    "climb_m": 0.6,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "mile": "20",
+    "elapsed": "3:59:54",
+    "split": "12:07",
+    "pace_per_mile": "12:07",
+    "net_m": 4.9,
+    "climb_m": 8.2,
+    "features": [
+     "Willis Avenue Bridge",
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "mile": "21",
+    "elapsed": "4:11:47",
+    "split": "11:53",
+    "pace_per_mile": "11:53",
+    "net_m": -5.2,
+    "climb_m": 0.7,
+    "features": [
+     "Madison Avenue Bridge"
+    ]
+   },
+   {
+    "mile": "22",
+    "elapsed": "4:23:53",
+    "split": "12:06",
+    "pace_per_mile": "12:06",
+    "net_m": 4.8,
+    "climb_m": 5.1,
+    "features": [
+     "Madison Avenue Bridge"
+    ]
+   },
+   {
+    "mile": "23",
+    "elapsed": "4:36:03",
+    "split": "12:10",
+    "pace_per_mile": "12:10",
+    "net_m": 6.6,
+    "climb_m": 8.8,
+    "features": []
+   },
+   {
+    "mile": "24",
+    "elapsed": "4:48:26",
+    "split": "12:23",
+    "pace_per_mile": "12:23",
+    "net_m": 16.5,
+    "climb_m": 19.4,
+    "features": []
+   },
+   {
+    "mile": "25",
+    "elapsed": "5:00:13",
+    "split": "11:47",
+    "pace_per_mile": "11:47",
+    "net_m": -11.5,
+    "climb_m": 3.8,
+    "features": []
+   },
+   {
+    "mile": "26",
+    "elapsed": "5:12:18",
+    "split": "12:05",
+    "pace_per_mile": "12:05",
+    "net_m": 3.0,
+    "climb_m": 7.4,
+    "features": []
+   },
+   {
+    "mile": "26.2",
+    "elapsed": "5:15:00",
+    "split": "2:42",
+    "pace_per_mile": "12:21",
+    "net_m": 3.4,
+    "climb_m": 3.4,
+    "features": []
+   }
+  ],
+  "km": [
+   {
+    "km": "1",
+    "elapsed": "0:06:52",
+    "split": "6:52",
+    "pace_per_km": "6:52",
+    "net_m": -39.8,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "km": "2",
+    "elapsed": "0:14:20",
+    "split": "7:28",
+    "pace_per_km": "7:28",
+    "net_m": 0.8,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "km": "3",
+    "elapsed": "0:22:10",
+    "split": "7:50",
+    "pace_per_km": "7:50",
+    "net_m": 15.6,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "km": "4",
+    "elapsed": "0:29:50",
+    "split": "7:40",
+    "pace_per_km": "7:40",
+    "net_m": 8.8,
+    "features": [
+     "Verrazzano-Narrows Bridge (upper level)"
+    ]
+   },
+   {
+    "km": "5",
+    "elapsed": "0:37:18",
+    "split": "7:28",
+    "pace_per_km": "7:28",
+    "net_m": 0.4,
+    "features": []
+   },
+   {
+    "km": "6",
+    "elapsed": "0:44:38",
+    "split": "7:20",
+    "pace_per_km": "7:20",
+    "net_m": -6.5,
+    "features": []
+   },
+   {
+    "km": "7",
+    "elapsed": "0:52:15",
+    "split": "7:37",
+    "pace_per_km": "7:37",
+    "net_m": 6.5,
+    "features": []
+   },
+   {
+    "km": "8",
+    "elapsed": "0:59:32",
+    "split": "7:17",
+    "pace_per_km": "7:17",
+    "net_m": -8.9,
+    "features": []
+   },
+   {
+    "km": "9",
+    "elapsed": "1:06:51",
+    "split": "7:19",
+    "pace_per_km": "7:19",
+    "net_m": -7.3,
+    "features": []
+   },
+   {
+    "km": "10",
+    "elapsed": "1:14:28",
+    "split": "7:37",
+    "pace_per_km": "7:37",
+    "net_m": 7.7,
+    "features": []
+   },
+   {
+    "km": "11",
+    "elapsed": "1:21:47",
+    "split": "7:19",
+    "pace_per_km": "7:19",
+    "net_m": -7.1,
+    "features": []
+   },
+   {
+    "km": "12",
+    "elapsed": "1:29:18",
+    "split": "7:31",
+    "pace_per_km": "7:31",
+    "net_m": 2.7,
+    "features": []
+   },
+   {
+    "km": "13",
+    "elapsed": "1:36:55",
+    "split": "7:37",
+    "pace_per_km": "7:37",
+    "net_m": 7.4,
+    "features": []
+   },
+   {
+    "km": "14",
+    "elapsed": "1:44:27",
+    "split": "7:32",
+    "pace_per_km": "7:32",
+    "net_m": 2.2,
+    "features": []
+   },
+   {
+    "km": "15",
+    "elapsed": "1:51:44",
+    "split": "7:17",
+    "pace_per_km": "7:17",
+    "net_m": -8.2,
+    "features": []
+   },
+   {
+    "km": "16",
+    "elapsed": "1:59:03",
+    "split": "7:19",
+    "pace_per_km": "7:19",
+    "net_m": -6.8,
+    "features": []
+   },
+   {
+    "km": "17",
+    "elapsed": "2:06:40",
+    "split": "7:37",
+    "pace_per_km": "7:37",
+    "net_m": 7.1,
+    "features": []
+   },
+   {
+    "km": "18",
+    "elapsed": "2:14:04",
+    "split": "7:24",
+    "pace_per_km": "7:24",
+    "net_m": -3.5,
+    "features": []
+   },
+   {
+    "km": "19",
+    "elapsed": "2:21:25",
+    "split": "7:21",
+    "pace_per_km": "7:21",
+    "net_m": -4.9,
+    "features": []
+   },
+   {
+    "km": "20",
+    "elapsed": "2:28:54",
+    "split": "7:29",
+    "pace_per_km": "7:29",
+    "net_m": 0.9,
+    "features": []
+   },
+   {
+    "km": "21",
+    "elapsed": "2:36:17",
+    "split": "7:23",
+    "pace_per_km": "7:23",
+    "net_m": -3.4,
+    "features": [
+     "Pulaski Bridge (halfway)"
+    ]
+   },
+   {
+    "km": "22",
+    "elapsed": "2:43:45",
+    "split": "7:28",
+    "pace_per_km": "7:28",
+    "net_m": 1.0,
+    "features": [
+     "Pulaski Bridge (halfway)"
+    ]
+   },
+   {
+    "km": "23",
+    "elapsed": "2:51:15",
+    "split": "7:30",
+    "pace_per_km": "7:30",
+    "net_m": 1.8,
+    "features": []
+   },
+   {
+    "km": "24",
+    "elapsed": "2:58:41",
+    "split": "7:26",
+    "pace_per_km": "7:26",
+    "net_m": -0.4,
+    "features": [
+     "Queensboro (59th St) Bridge"
+    ]
+   },
+   {
+    "km": "25",
+    "elapsed": "3:06:05",
+    "split": "7:24",
+    "pace_per_km": "7:24",
+    "net_m": -3.0,
+    "features": [
+     "Queensboro (59th St) Bridge"
+    ]
+   },
+   {
+    "km": "26",
+    "elapsed": "3:13:51",
+    "split": "7:46",
+    "pace_per_km": "7:46",
+    "net_m": 11.8,
+    "features": [
+     "Queensboro (59th St) Bridge",
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "27",
+    "elapsed": "3:21:15",
+    "split": "7:24",
+    "pace_per_km": "7:24",
+    "net_m": -2.6,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "28",
+    "elapsed": "3:28:46",
+    "split": "7:31",
+    "pace_per_km": "7:31",
+    "net_m": 2.2,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "29",
+    "elapsed": "3:36:02",
+    "split": "7:16",
+    "pace_per_km": "7:16",
+    "net_m": -9.5,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "30",
+    "elapsed": "3:43:29",
+    "split": "7:27",
+    "pace_per_km": "7:27",
+    "net_m": -0.3,
+    "features": [
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "31",
+    "elapsed": "3:50:55",
+    "split": "7:26",
+    "pace_per_km": "7:26",
+    "net_m": -0.5,
+    "features": [
+     "Willis Avenue Bridge",
+     "First Avenue (Manhattan, northbound)"
+    ]
+   },
+   {
+    "km": "32",
+    "elapsed": "3:58:30",
+    "split": "7:35",
+    "pace_per_km": "7:35",
+    "net_m": 5.1,
+    "features": [
+     "Willis Avenue Bridge"
+    ]
+   },
+   {
+    "km": "33",
+    "elapsed": "4:05:55",
+    "split": "7:25",
+    "pace_per_km": "7:25",
+    "net_m": -1.9,
+    "features": [
+     "Willis Avenue Bridge"
+    ]
+   },
+   {
+    "km": "34",
+    "elapsed": "4:13:19",
+    "split": "7:24",
+    "pace_per_km": "7:24",
+    "net_m": -2.2,
+    "features": [
+     "Madison Avenue Bridge"
+    ]
+   },
+   {
+    "km": "35",
+    "elapsed": "4:20:52",
+    "split": "7:33",
+    "pace_per_km": "7:33",
+    "net_m": 4.2,
+    "features": []
+   },
+   {
+    "km": "36",
+    "elapsed": "4:28:18",
+    "split": "7:26",
+    "pace_per_km": "7:26",
+    "net_m": -0.7,
+    "features": []
+   },
+   {
+    "km": "37",
+    "elapsed": "4:35:55",
+    "split": "7:37",
+    "pace_per_km": "7:37",
+    "net_m": 6.8,
+    "features": []
+   },
+   {
+    "km": "38",
+    "elapsed": "4:43:50",
+    "split": "7:55",
+    "pace_per_km": "7:55",
+    "net_m": 19.5,
+    "features": []
+   },
+   {
+    "km": "39",
+    "elapsed": "4:51:11",
+    "split": "7:21",
+    "pace_per_km": "7:21",
+    "net_m": -5.1,
+    "features": []
+   },
+   {
+    "km": "40",
+    "elapsed": "4:58:32",
+    "split": "7:21",
+    "pace_per_km": "7:21",
+    "net_m": -6.4,
+    "features": []
+   },
+   {
+    "km": "41",
+    "elapsed": "5:05:53",
+    "split": "7:21",
+    "pace_per_km": "7:21",
+    "net_m": -5.5,
+    "features": []
+   },
+   {
+    "km": "42",
+    "elapsed": "5:13:29",
+    "split": "7:36",
+    "pace_per_km": "7:36",
+    "net_m": 6.6,
+    "features": []
+   },
+   {
+    "km": "42.2",
+    "elapsed": "5:15:00",
+    "split": "1:31",
+    "pace_per_km": "7:47",
+    "net_m": 2.7,
+    "features": []
+   }
+  ],
+  "mats": [
+   "0:37:18",
+   "1:14:28",
+   "1:51:44",
+   "2:28:54",
+   "3:06:05",
+   "3:43:29",
+   "4:20:52",
+   "4:58:32",
+   "5:15:00"
+  ],
+  "mat_splits": [
+   "37:18",
+   "37:10",
+   "37:16",
+   "37:10",
+   "37:11",
+   "37:24",
+   "37:23",
+   "37:40",
+   "16:28"
+  ],
+  "segment_relative_pace": [
+   0.9991,
+   0.9961,
+   0.9983,
+   0.9955,
+   0.9962,
+   1.0019,
+   1.0016,
+   1.0091,
+   1.0049
+  ],
+  "halfway": "2:37:01",
+  "halves": "2:37:01 + 2:37:59",
+  "fastest_mile": "1",
+  "slowest_mile": "2"
+ },
+ "steady_all": {
+  "n": 2549,
+  "editions": 15,
+  "mats": [
+   "0:36:46",
+   "1:13:33",
+   "1:50:46",
+   "2:28:22",
+   "3:06:53",
+   "3:43:58",
+   "4:22:04",
+   "4:59:28",
+   "5:15:00"
+  ],
+  "mat_splits": [
+   "36:46",
+   "36:47",
+   "37:13",
+   "37:36",
+   "38:31",
+   "37:05",
+   "38:06",
+   "37:24",
+   "15:32"
+  ],
+  "rel": [
+   0.9852,
+   0.9852,
+   0.9969,
+   1.0075,
+   1.0317,
+   0.9935,
+   1.0209,
+   1.0018,
+   0.9483
+  ]
+ },
+ "steady_men": {
+  "n": 780,
+  "editions": 15,
+  "mats": [
+   "0:36:47",
+   "1:13:33",
+   "1:50:46",
+   "2:28:17",
+   "3:06:46",
+   "3:43:46",
+   "4:21:51",
+   "4:59:21",
+   "5:15:00"
+  ],
+  "mat_splits": [
+   "36:47",
+   "36:46",
+   "37:13",
+   "37:31",
+   "38:29",
+   "37:00",
+   "38:05",
+   "37:30",
+   "15:39"
+  ],
+  "rel": [
+   0.9853,
+   0.9853,
+   0.997,
+   1.0051,
+   1.031,
+   0.9914,
+   1.0203,
+   1.0043,
+   0.9555
+  ]
+ },
+ "steady_women": {
+  "n": 1766,
+  "editions": 15,
+  "mats": [
+   "0:36:47",
+   "1:13:33",
+   "1:50:46",
+   "2:28:24",
+   "3:06:55",
+   "3:44:01",
+   "4:22:09",
+   "4:59:31",
+   "5:15:00"
+  ],
+  "mat_splits": [
+   "36:47",
+   "36:46",
+   "37:13",
+   "37:38",
+   "38:31",
+   "37:06",
+   "38:08",
+   "37:22",
+   "15:29"
+  ],
+  "rel": [
+   0.9853,
+   0.9853,
+   0.9969,
+   1.0082,
+   1.0321,
+   0.994,
+   1.0214,
+   1.0009,
+   0.9453
+  ]
+ },
+ "even": {
+  "mats": [
+   "0:37:20",
+   "1:14:39",
+   "1:51:59",
+   "2:29:18",
+   "3:06:38",
+   "3:43:58",
+   "4:21:17",
+   "4:58:37",
+   "5:15:00"
+  ],
+  "pace_per_mile": "12:01",
+  "pace_per_km": "7:28"
+ }
+}
