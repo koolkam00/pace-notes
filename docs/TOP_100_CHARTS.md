@@ -1,6 +1,6 @@
 # Top 100 charts
 
-A section of its own at `/charts`: a hundred findings from the adopted runner release, one chart and one takeaway each, numbered 1 to 100 and drawn so that each page also works as an Instagram card (1080 × 1350). It stays off the chapter chain: its one way in from the core site is a line on `/research`, and its methods live on `/methodology#top-charts`. Started October 23, 2026 on branch `feat/top-100-charts` (pull request #81); repository state, not yet merged or deployed.
+A section of its own at `/charts`: a hundred findings from the adopted runner release, one chart and one takeaway each, numbered 1 to 100 and drawn so that each page also works as an Instagram card (1080 × 1350). It stays off the chapter chain: its one way in from the core site is a line on `/research`, and its methods live on `/methodology#top-charts`. Started October 23, 2026 on branch `feat/top-100-charts`; merged as `24caac1` (pull request #81) and live on splithappens.run the same day (production `version.json` named that commit, and the production smoke test passed 210 of 210 page checks).
 
 ## What a chart is
 
