@@ -31,28 +31,16 @@
       "reason": "The result chart's scrubber state (WP3): whether the pointer, wiggled over the page, crossed the chart and moved its needle off the opening position, lit a detent or flipped the drag hint. Where the pointer was, never a typed value; the readout text stays masked."
     }
   ],
-  "home": [
-    {
-      "pattern": "^attr:(class\\|(tool-field-hint band-choice-none|tool-field band-choice|tool-label|seg tool-choice is-small band-choice-seg|seg-btn band-choice-seg-btn|seg-label band-choice-seg-label)|aria-pressed\\|\\*\\*\\*)$",
-      "reason": "The band's Splits choice (October 20, 2026): on one course and goal the pace-band group publishes a course shape, so the workspace shows its Course shape | Even pace control; on the other there is none, so it shows one line in its place. Only the choice's own classes (its field and label, band-choice-seg on the control, its buttons and labels; the no-shape line has no field around it) and the masked pressed state of its buttons, the one segmented choice in the planner's workspace, may differ. Which state shows, never the course or goal (the workspace text and the pressed state are masked)."
-    }
-  ],
   "plan": [
     {
-      "pattern": "^attr:(class\\|(tool-field-hint band-choice-none|seg tool-choice is-small band-choice-seg|seg-btn band-choice-seg-btn|seg-label band-choice-seg-label)|aria-pressed\\|\\*\\*\\*)$",
-      "reason": "The band's Splits choice (October 20, 2026): on one course and goal the pace-band group publishes a course shape, so the workspace shows its Course shape | Even pace control; on the other there is none, so it shows one line in its place. Only the choice's own classes (band-choice-seg on the control, its buttons and labels) and the masked pressed state of its buttons, the one segmented choice in the planner's workspace, may differ. Which state shows, never the course or goal (the workspace text and the pressed state are masked)."
+      "pattern": "^attr:(class\\|(tool-field-hint band-choice-none|tool-field band-choice|tool-label|seg tool-choice is-small band-choice-seg|seg-btn band-choice-seg-btn|seg-label band-choice-seg-label)|aria-pressed\\|\\*\\*\\*)$",
+      "reason": "The band's Splits choice (October 23, 2026, terrain splits): on one course (Rotterdam) the band has terrain splits, so the workspace shows its Terrain | Even pace control with its label; on the other (Berlin) there are none, so it shows one line in its place. Only the choice's own classes (its field and label, band-choice-seg on the control, its buttons and labels; the line has no field around it) and the masked pressed state of its buttons, the one segmented choice in the planner's workspace, may differ. Which state shows, never the course or goal (the workspace text and the pressed state are masked). The card, the As run panel and the strips are in left-out results regions, so their terrain classes (is-terrain, plan-asrun) never reach the recording."
     }
   ],
   "plan-url": [
     {
-      "pattern": "^attr:(class\\|(tool-field-hint band-choice-none|seg tool-choice is-small band-choice-seg|seg-btn band-choice-seg-btn|seg-label band-choice-seg-label)|aria-pressed\\|\\*\\*\\*)$",
-      "reason": "The band's Splits choice (October 20, 2026): on one course and goal the pace-band group publishes a course shape, so the workspace shows its Course shape | Even pace control; on the other there is none, so it shows one line in its place. Only the choice's own classes (band-choice-seg on the control, its buttons and labels) and the masked pressed state of its buttons, the one segmented choice in the planner's workspace, may differ. Which state shows, never the course or goal (the workspace text and the pressed state are masked)."
-    }
-  ],
-  "pace-band-url": [
-    {
-      "pattern": "^attr:class\\|(tool-field band-choice|seg tool-choice is-small band-choice-seg|seg-btn band-choice-seg-btn|seg-label band-choice-seg-label)$",
-      "reason": "The band's Splits choice (October 20, 2026): on one course, recorded gender and goal the pace-band group publishes a course shape, so the workspace shows its Course shape | Even pace control (band-choice-seg on the control, its buttons and labels); on the other there is none and the field is left out (the finishes section, a left-out region, says why). Which state shows, never the course, gender or goal; the page's other choices give both runs the same masked pressed states."
+      "pattern": "^attr:(class\\|(tool-field-hint band-choice-none|tool-field band-choice|tool-label|seg tool-choice is-small band-choice-seg|seg-btn band-choice-seg-btn|seg-label band-choice-seg-label)|aria-pressed\\|\\*\\*\\*)$",
+      "reason": "The band's Splits choice (October 23, 2026, terrain splits): on one course (Rotterdam) the band has terrain splits, so the workspace shows its Terrain | Even pace control with its label; on the other (Berlin) there are none, so it shows one line in its place. Only the choice's own classes (its field and label, band-choice-seg on the control, its buttons and labels; the line has no field around it) and the masked pressed state of its buttons, the one segmented choice in the planner's workspace, may differ. Which state shows, never the course or goal (the workspace text and the pressed state are masked). The card, the As run panel and the strips are in left-out results regions, so their terrain classes (is-terrain, plan-asrun) never reach the recording."
     }
   ]
 }
