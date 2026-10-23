@@ -3,6 +3,7 @@
  * role="img" and the takeaway as its name; the page's All numbers table is its twin.
  */
 import type { ChartSpec } from '@/lib/charts/spec';
+import { typeset } from '@/lib/charts/typo';
 import type { UnitSystem } from '@/lib/units';
 import { Big, Flow, Heatmap, Waffle } from './grid';
 import { W, keyLayout, type Ctx } from './kit';
@@ -32,7 +33,8 @@ export function draw(spec: ChartSpec, ctx: Ctx): Drawn {
 }
 
 /** `fit`: the height (units) a fixed frame gives the chart; the card passes it, the page lets the chart take its own. */
-export default function ChartSvg({ spec, label, units = 'mi', fit }: { spec: ChartSpec; label: string; units?: UnitSystem; fit?: number }) {
+export default function ChartSvg({ spec: raw, label, units = 'mi', fit }: { spec: ChartSpec; label: string; units?: UnitSystem; fit?: number }) {
+  const spec = typeset(raw);
   // Forms that name their marks directly never take a key; a spec's own key (two encodings) sits above the plot.
   const ownKey = spec.form === 'stacked' || spec.form === 'dumbbell' ? { node: null, height: 0 } : keyLayout(spec.key, 14);
   const ctx: Ctx = { units, fit: fit ? fit - ownKey.height - 2 : undefined };

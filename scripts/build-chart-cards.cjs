@@ -35,7 +35,7 @@ const { CATALOG, readChart, getChartsManifest } = require('../lib/charts-server.
 
 /** The files a card's drawing depends on besides its own data: the chart code, the styles, the words and the fonts. */
 const CODE = ['components/charts/ChartCard.tsx', 'components/charts/ChartSvg.tsx', 'components/charts/kit.tsx', 'components/charts/rows.tsx', 'components/charts/xy.tsx',
-  'components/charts/grid.tsx', 'lib/charts/fmt.ts', 'lib/charts/measure.ts', 'lib/charts/spec.ts', 'lib/nuggets/format.ts', 'lib/units.ts',
+  'components/charts/grid.tsx', 'lib/charts/fmt.ts', 'lib/charts/measure.ts', 'lib/charts/spec.ts', 'lib/charts/typo.ts', 'lib/nuggets/format.ts', 'lib/units.ts',
   'app/styles/tokens.css', 'app/styles/fonts.css', 'app/styles/pages/charts.css', 'scripts/build-chart-cards.cjs'];
 const FONTS = ['inter-latin-wght-normal.woff2', 'fraunces-latin-opsz-normal.woff2', 'bricolage-grotesque-latin-wght-normal.woff2'];
 const codeHash = () => sha(CODE.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n') + FONTS.map((f) => sha(fs.readFileSync(path.join(ROOT, 'public/fonts', f)))).join(''));

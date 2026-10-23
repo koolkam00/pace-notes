@@ -18,6 +18,7 @@ export type Fmt =
   | 'share1' //    0.473 → "47.3%"
   | 'dpct' //      signed change 0.032 → "+3%"
   | 'dpct1' //     signed change 0.032 → "+3.2%"
+  | 'dpts' //      signed gap in whole percentage points 0.054 → "+5 pts", 0.012 → "+1 pt"
   | 'count' //     15856 → "15,856"
   | 'ratio' //     1.73 → "1.7×"
   | 'ratio2' //    1.734 → "1.73×"
@@ -28,7 +29,8 @@ export type Fmt =
   | 'yy' //        2019 → "’19"
   | 'pace' //      s/km, the reader's units
   | 'temp' //      °C, the reader's units
-  | 'dtemp'; //    a °C gap, the reader's units
+  | 'dtemp' //     a °C gap, the reader's units
+  | 'elev'; //     metres, the reader's units: 123 → "404 ft" or "123 m"
 
 export type Tone = 'signal' | 'ink' | 'ink2' | 'quiet' | 'faint' | 'o1' | 'o2' | 'o3' | 'o4';
 
@@ -67,7 +69,7 @@ export type Note = {
 
 export type Ref = { axis: 'x' | 'y'; value: number; label?: string; tone?: 'signal' | 'ink' | 'quiet' };
 export type Band = { axis: 'x' | 'y'; from: number; to: number; label?: string; tone?: 'signal' | 'quiet' };
-export type KeyItem = { label: string; tone: Tone; mark: 'dot' | 'line' | 'dash' | 'square' | 'ring' | 'band' };
+export type KeyItem = { label: string; tone: Tone; mark: 'dot' | 'line' | 'dash' | 'square' | 'ring' | 'band' | 'arrow' };
 
 type Common = {
   /** Plot height, units (the canvas is 340 wide); forms with rows size themselves. */
@@ -99,6 +101,8 @@ export type DumbbellSpec = Common & {
   arrow?: boolean;
   /** Print b − a at the right of each row in this format. */
   gap?: Fmt;
+  /** A vertical reference line with its label over the plot, as in bars. */
+  ref?: Ref;
 };
 
 export type RangeSpec = Common & {
@@ -190,7 +194,8 @@ export type HeatmapSpec = Common & {
 export type StackedSpec = Common & {
   form: 'stacked';
   rows: (Row & { parts: number[] })[];
-  parts: { label: string; tone: Tone }[];
+  /** `values: false` keeps a part's numbers off the bars (context parts beside the one the reading is about). */
+  parts: { label: string; tone: Tone; values?: boolean }[];
   fmt: Fmt;
 };
 
@@ -243,7 +248,8 @@ export type MultiplesSpec = Common & {
 
 export type PyramidSpec = Common & {
   form: 'pyramid';
-  rows: { label: string; left: number; right: number; tone?: Tone }[];
+  /** `toneLeft` and `toneRight` tone one side's bar, falling back to `tone`. */
+  rows: { label: string; left: number; right: number; tone?: Tone; toneLeft?: Tone; toneRight?: Tone }[];
   left: string;
   right: string;
   fmt: Fmt;
@@ -272,4 +278,4 @@ export const FORMS: readonly Form[] = [
 ];
 
 /** Formats whose text depends on the reader's units: a spec using one is drawn twice. */
-export const UNIT_FMTS: readonly Fmt[] = ['pace', 'temp', 'dtemp'];
+export const UNIT_FMTS: readonly Fmt[] = ['pace', 'temp', 'dtemp', 'elev'];

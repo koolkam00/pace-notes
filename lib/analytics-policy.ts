@@ -25,7 +25,7 @@ export const COURSE_SLUGS: readonly string[] = ['amsterdam', 'auckland', 'austin
   'hamburg', 'helsinki', 'london', 'madrid', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'warsaw', 'washington'];
 // The Top 100 charts are numbered pages, /charts/1 … /charts/CHART_COUNT: a count rather than a list keeps this module
 // small. verify-analytics checks it against lib/charts/catalog.json; any other /charts/ path records as /charts.
-export const CHART_COUNT = 2;
+export const CHART_COUNT = 100;
 const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/report', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research', '/research/personalized',
   ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug),
   '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages,

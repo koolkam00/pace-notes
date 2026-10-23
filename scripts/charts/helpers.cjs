@@ -1,4 +1,4 @@
-// Helpers for the chart recounts (scripts/charts/<theme>.cjs) and the comparison verify-charts.cjs runs on each one.
+// Helpers for the chart recounts (scripts/charts/<module>.cjs) and the comparison verify-charts.cjs runs on each one.
 //
 // A recount is (C, file, H) => ({ values, plot }). `values` must hold every key of the file's values. `plot` mirrors the
 // file's plot: every number in it (and in any array of rows, bins, points or series) must be recounted, and a label or

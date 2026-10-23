@@ -30,7 +30,7 @@ export function scale(d0: number, d1: number, r0: number, r1v: number) {
 
 /** Tick values of an axis: its own, or round ones for its format. */
 export function axisTicks(a: Axis, ctx: Ctx, count = 4): number[] {
-  if (a.cats) return a.cats.map((_, i) => i);
+  if (a.cats) return a.ticks ?? a.cats.map((_, i) => i);
   return (a.ticks ?? ticksFor(a.min, a.max, a.fmt, count, ctx.units)).filter((v) => v >= a.min - 1e-9 && v <= a.max + 1e-9);
 }
 
@@ -141,6 +141,7 @@ export function keyLayout(items: KeyItem[] | undefined, y: number) {
             : k.mark === 'ring' ? <circle className={`cx-ring ${strokeOf(k.tone)}`} cx={kx + 6} cy={ky - 4.5} r={4.5} />
               : k.mark === 'band' ? <rect className="cx-band" x={kx} y={ky - 10} width={12} height={11} />
                 : k.mark === 'square' ? <rect className={fillOf(k.tone)} x={kx} y={ky - 10} width={11} height={11} />
+                  : k.mark === 'arrow' ? <path className={fillOf(k.tone)} d={`M${kx + 12} ${ky - 4.5}L${kx + 4} ${ky - 9.5}L${kx + 4} ${ky + 0.5}Z`} />
                   : <circle className={fillOf(k.tone)} cx={kx + 6} cy={ky - 4.5} r={5} />}
           <Txt x={kx + 18} y={ky} cls="cx-tick">{k.label}</Txt>
         </g>

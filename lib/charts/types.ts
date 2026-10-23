@@ -40,7 +40,7 @@ type V = Record<string, number | string>;
 /** What a takeaway asserts: the sentence (one *…* accent) when the guard holds, a neutral one when it does not. */
 export type Takeaway = { guard: boolean; headline: string; fallback: string };
 
-/** A chart's words (lib/charts/text/<theme>.ts): every number in them comes from the chart's values. */
+/** A chart's words (lib/charts/text/<module>.ts): every number in them comes from the chart's values. */
 export type ChartText = {
   /** The card's headline and the page's H1: at most 47 characters, so "<title> | Pace Notes" fits 60. */
   title: string;

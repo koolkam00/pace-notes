@@ -3,7 +3,7 @@
  * prints. It reuses the nugget formatters, so "47%" or "3:59" reads the same here as anywhere on the site.
  */
 import { clock, count, delta, hm, ms, pace, temp, tempGap } from '@/lib/nuggets/format';
-import type { UnitSystem } from '@/lib/units';
+import { elevationValue, type UnitSystem } from '@/lib/units';
 import type { Fmt } from './spec';
 
 const MINUS = '−';
@@ -21,6 +21,7 @@ export function fmt(v: number, f: Fmt, units: UnitSystem = 'mi'): string {
     case 'share': return `${Math.round(v * 100)}%`;
     case 'share1': return v === 0 ? '0%' : `${(v * 100).toFixed(1)}%`;
     case 'dpct': { const p = Math.round(v * 100); return `${signed(String(Math.abs(p)), p)}%`; }
+    case 'dpts': { const p = Math.round(v * 100) || 0; return `${signed(String(Math.abs(p)), p)} ${Math.abs(p) === 1 ? 'pt' : 'pts'}`; }
     case 'dpct1': { const p = Number((v * 100).toFixed(1)); return `${signed(Math.abs(p).toFixed(1), p)}%`; }
     case 'count': return count(v);
     case 'ratio': return `${v.toFixed(1)}×`;
@@ -33,6 +34,7 @@ export function fmt(v: number, f: Fmt, units: UnitSystem = 'mi'): string {
     case 'pace': return pace(v, units, false);
     case 'temp': return temp(v, units);
     case 'dtemp': { const t = tempGap(Math.abs(v), units); return v > 0 ? `+${t}` : v < 0 ? `${MINUS}${t}` : t; }
+    case 'elev': { const e = Math.round(elevationValue(v, units)) || 0; return `${e < 0 ? MINUS : ''}${count(Math.abs(e))} ${units === 'mi' ? 'ft' : 'm'}`; }
   }
 }
 
@@ -59,6 +61,11 @@ export function ticksFor(min: number, max: number, f: Fmt, count = 4, units: Uni
     const toU = (c: number) => (units === 'mi' ? (f === 'temp' ? c * 1.8 + 32 : c * 1.8) : c);
     const fromU = (u: number) => (units === 'mi' ? (f === 'temp' ? (u - 32) / 1.8 : u / 1.8) : u);
     return nice(toU(min), toU(max), count).map(fromU);
+  }
+  if (f === 'elev') {
+    // Round heights in the reader's units (feet or metres), drawn back at their metre positions.
+    const k = units === 'mi' ? elevationValue(1, units) : 1;
+    return nice(min * k, max * k, count).map((v) => v / k);
   }
   if (f === 'year' || f === 'yy' || f === 'int') return nice(min, max, count).filter((v) => Number.isInteger(v));
   return nice(min, max, count);

@@ -2,7 +2,7 @@
 // Independent reconciliation of the Top 100 charts (public/data/charts, /charts).
 // It does not import the Python builders: the eligible finishes are rebuilt from the checksum-verified runner shards
 // (scripts/charts/cohort.cjs) and every chart's takeaway values and plotted numbers are recounted by its own function in
-// scripts/charts/<theme>.cjs. A registered chart without a recount fails. Before the recounts it checks provenance (the
+// scripts/charts/<module>.cjs. A registered chart without a recount fails. Before the recounts it checks provenance (the
 // adopted release, the exact runner manifest, the catalog, the weather evidence, every script hash), the inventory, the
 // group-size threshold, identifier fields, release labels in copy, the words every title and takeaway may not use,
 // title and description lengths, and that no chart string equals a recorded runner name.
@@ -41,7 +41,7 @@ ok(new Set(catalog.map((c) => c.slug)).size === catalog.length, 'Unique chart sl
 for (const c of catalog) {
   ok(/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(c.slug), `${c.slug}: a lowercase slug`);
   ok(THEMES.includes(c.theme), `${c.slug}: a known theme`);
-  ok(/^charts_[a-z_]+$/.test(c.module) && fs.existsSync(path.join(root, 'analysis', `${c.module}.py`)), `${c.slug}: its builder module exists`);
+  ok(/^charts_[a-z0-9_]+$/.test(c.module) && fs.existsSync(path.join(root, 'analysis', `${c.module}.py`)), `${c.slug}: its builder module exists`);
 }
 const pin = read(path.join(root, 'analysis/release.json'));
 const runnerBytes = fs.readFileSync(path.join(dataRoot, 'runners/manifest.json'));
@@ -52,7 +52,11 @@ assert.equal(runners.release_tag, pin.tag, 'Adopted runner source');
 assert.equal(manifest.release_tag, pin.tag, 'Charts use the adopted release');
 assert.equal(manifest.runner_manifest_sha256, hash(runnerBytes), 'Exact runner manifest binding');
 assert.equal(manifest.runner_manifest_as_of, runners.as_of); assert.equal(manifest.input_as_of, runners.input_as_of);
-assert.equal(manifest.catalog_sha256, hash(fs.readFileSync(path.join(root, 'lib/charts/catalog.json'))), 'The charts were built from the current catalog');
+// With --only (development), other charts' catalog rows may have changed since this folder was built; the listed charts'
+// rows are still checked file by file below. A full run requires the exact catalog.
+const catalogSha = hash(fs.readFileSync(path.join(root, 'lib/charts/catalog.json')));
+if (only && manifest.catalog_sha256 !== catalogSha) console.warn('Note: the catalog changed since this folder was built (development run).');
+else assert.equal(manifest.catalog_sha256, catalogSha, 'The charts were built from the current catalog');
 assert.equal(manifest.weather.release_tag, read(path.join(root, 'analysis/weather-release.json')).tag, 'Weather evidence pin');
 assert.equal(manifest.weather.evidence_sha256, hash(fs.readFileSync(path.join(dataRoot, 'weather/evidence.json'))), 'Exact weather evidence binding');
 assert.equal(manifest.eligible_records, runners.eligible_records, 'Eligible source records');
@@ -66,7 +70,7 @@ assert.deepEqual(unbound, [], 'Every charts_*.py module is bound to the manifest
 const ownModules = only ? new Set(catalog.filter((c) => only.has(c.slug)).map((c) => `${c.module}.py`)) : null;
 const bound = Object.entries({ ...runners.scripts, ...manifest.scripts }).filter(([name]) => !ownModules || !/^charts_/.test(name) || name === 'charts_common.py' || ownModules.has(name));
 for (const [name, digest] of bound) {
-  assert.match(name, /^[a-z_]+\.py$/);
+  assert.match(name, /^[a-z0-9_]+\.py$/);
   assert.equal(digest, hash(fs.readFileSync(path.join(analysisDir, name))), `Stale calculation script: ${name}`);
 }
 

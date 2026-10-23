@@ -7,22 +7,35 @@ import { fmt } from '@/lib/charts/fmt';
 import { T, Txt, W, fillOf, r1, textTone, tw, valueText, wrap, type Ctx } from './kit';
 import type { Drawn } from './rows';
 
+/** The row title's lines: the last is the longest run of final words that fits `gutter`, the rest wrap to `above`. */
+function rowTitleLines(text: string, gutter: number, above: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  let k = words.length - 1;
+  while (k > 0 && tw(words.slice(k - 1).join(' '), T.tick) <= gutter) k--;
+  const head = words.slice(0, k).join(' ');
+  return [...(head ? wrap(head, Math.max(gutter, above), T.tick) : []), words.slice(k).join(' ')];
+}
+
 export function Heatmap(s: HeatmapSpec, ctx: Ctx): Drawn {
   const nr = s.rows.length, nc = s.cols.length;
   const lw = Math.min(120, Math.max(...s.rows.map((l) => tw(l, T.label))) + 10);
   const colTitle = s.colTitle ? 22 : 0;
-  const head = colTitle + 22;
+  // The row title sits top left, its last line level with the column headers and inside the label gutter; the words
+  // that do not fit there wrap onto lines above it, left of the column title, and the head grows to hold them.
+  const rowTitle = s.rowTitle ? rowTitleLines(s.rowTitle, lw - 6, s.colTitle ? lw + (W - lw - tw(s.colTitle, T.tick)) / 2 - 10 : W) : [];
+  const head = Math.max(colTitle + 22, rowTitle.length ? 22 + 16 * (rowTitle.length - 1) : 0);
   const cw = (W - lw) / nc;
-  const ch = ctx.fit ? Math.max(22, Math.min(48, (ctx.fit - head - (s.rowTitle ? 22 : 6)) / nr)) : Math.max(24, Math.min(40, cw * 0.8));
+  const ch = ctx.fit ? Math.max(22, Math.min(48, (ctx.fit - head - 6) / nr)) : Math.max(24, Math.min(40, cw * 0.8));
   const [d0, d1] = s.domain;
   const level = (v: number) => Math.max(0, Math.min(1, (v - d0) / (d1 - d0 || 1)));
   const lit = new Set((s.highlight ?? []).map(([a, b]) => `${a}:${b}`));
   const showValues = s.values ?? cw >= 34;
-  const height = head + nr * ch + (s.rowTitle ? 22 : 6);
+  const height = head + nr * ch + 6;
   const node = (
     <g>
       {s.colTitle ? <Txt x={lw + (W - lw) / 2} y={14} cls="cx-tick is-quiet" anchor="middle">{s.colTitle}</Txt> : null}
       {s.cols.map((c, j) => <Txt key={c} x={lw + cw * (j + 0.5)} y={head - 7} cls="cx-tick" anchor="middle">{c}</Txt>)}
+      {rowTitle.map((l, k) => <Txt key={`rt${k}`} x={0} y={head - 7 - 16 * (rowTitle.length - 1 - k)} cls="cx-tick is-quiet">{l}</Txt>)}
       {s.rows.map((rl, i) => (
         <g key={rl}>
           <Txt x={0} y={head + ch * (i + 0.5) + 5} cls="cx-label">{rl}</Txt>
@@ -41,10 +54,24 @@ export function Heatmap(s: HeatmapSpec, ctx: Ctx): Drawn {
           })}
         </g>
       ))}
-      {s.rowTitle ? <Txt x={0} y={height - 4} cls="cx-tick is-quiet">{s.rowTitle}</Txt> : null}
     </g>
   );
   return { height, node };
+}
+
+/**
+ * Whole squares for shares that add to at most 1: the signal part keeps its own rounded count (the number the takeaway
+ * prints), the others share what is left by largest remainder, so the lit squares never pass 100 or fall short of the
+ * parts' total. Shares that add to less than 1 leave the rest unlit.
+ */
+function squares(shares: number[], keep: boolean[]): number[] {
+  const total = Math.min(100, Math.round(shares.reduce((a, v) => a + v, 0) * 100));
+  const counts = shares.map((v, k) => (keep[k] ? Math.min(total, Math.round(v * 100)) : Math.floor(v * 100)));
+  const order = shares.map((v, k) => k).filter((k) => !keep[k]).sort((a, b) => (shares[b] * 100 % 1) - (shares[a] * 100 % 1) || a - b);
+  let left = total - counts.reduce((a, v) => a + v, 0);
+  for (let i = 0; left > 0 && order.length; i = (i + 1) % order.length, left--) counts[order[i]]++;
+  for (let i = order.length - 1; left < 0 && i >= 0; i--) { while (left < 0 && counts[order[i]] > 0) { counts[order[i]]--; left++; } }
+  return counts;
 }
 
 export function Waffle(s: WaffleSpec, ctx: Ctx): Drawn {
@@ -55,7 +82,7 @@ export function Waffle(s: WaffleSpec, ctx: Ctx): Drawn {
   const size = target / (10 + 9 * gapR);
   const gap = size * gapR;
   const grid = 10 * size + 9 * gap;
-  const counts = s.parts.map((p) => Math.round(p.share * 100));
+  const counts = squares(items.map((it) => it.share), items.map((it) => it.tone === 'signal')).slice(0, s.parts.length);
   const tones: string[] = [];
   s.parts.forEach((p, k) => { for (let c = 0; c < counts[k]; c++) tones.push(p.tone); });
   const legendX = grid + 18;
@@ -91,7 +118,8 @@ export function Big(s: BigSpec, ctx: Ctx): Drawn {
   const figure = fmt(s.value, s.fmt, ctx.units);
   const size = Math.min(120, (W / Math.max(1, tw(figure, 1, 'b660'))) * 0.92);
   const capLines = wrap(s.caption, W, 17, 'i500');
-  const top = size * 0.86;
+  // The baseline sits just under one em from the top, so the figure's text box (its ascent) stays inside the canvas.
+  const top = size * 0.98;
   let y = top + 16 + capLines.length * 22;
   const cmp = s.compare ?? [];
   const max = Math.max(...cmp.map((c) => c.value), 0);

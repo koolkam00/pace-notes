@@ -32,8 +32,9 @@ function Bands({ bands, xs, ys, b }: { bands?: Band[]; xs: (v: number) => number
           const x0 = Math.max(b.left, xs(band.from)), x1 = Math.min(b.right, xs(band.to));
           return (
             <g key={i}>
-              <rect className={band.tone === 'signal' ? 'cx-band is-signal' : 'cx-band'} x={r1(x0)} y={b.top} width={r1(Math.max(0, x1 - x0))} height={r1(b.bottom - b.top)} />
-              {band.label ? <Txt x={x1 - 4} y={b.top + 16} cls={`cx-tick${band.tone === 'signal' ? ' is-signal' : ''}`} anchor="end">{band.label}</Txt> : null}
+              {/* From the top gridline down, so the band never runs into the axis title written on that line. */}
+              <rect className={band.tone === 'signal' ? 'cx-band is-signal' : 'cx-band'} x={r1(x0)} y={b.top + 8} width={r1(Math.max(0, x1 - x0))} height={r1(Math.max(0, b.bottom - b.top - 8))} />
+              {band.label ? <Txt x={x1 - 4} y={b.top + 24} cls={`cx-tick${band.tone === 'signal' ? ' is-signal' : ''}`} anchor="end">{band.label}</Txt> : null}
             </g>
           );
         }
@@ -61,7 +62,8 @@ function Refs({ refs, xs, ys, b, ctx }: { refs?: Ref[]; xs: (v: number) => numbe
           const anchor = x > b.right - 60 ? 'end' : x < b.left + 60 ? 'start' : 'middle';
           return (
             <g key={i}>
-              <line className={cls} x1={r1(x)} x2={r1(x)} y1={b.top - 4} y2={b.bottom} />
+              {/* The line starts a few units under its label's baseline, clear of descenders. */}
+              <line className={cls} x1={r1(x)} x2={r1(x)} y1={ref.label ? b.top : b.top - 4} y2={b.bottom} />
               {ref.label ? <Txt x={anchor === 'end' ? x - 4 : anchor === 'start' ? x + 4 : x} y={b.top - 8} cls={`cx-tick ${ref.tone === 'signal' ? 'is-signal' : 'is-strong'}`} anchor={anchor}>{ref.label}</Txt> : null}
             </g>
           );
@@ -70,7 +72,7 @@ function Refs({ refs, xs, ys, b, ctx }: { refs?: Ref[]; xs: (v: number) => numbe
         return (
           <g key={i}>
             <line className={cls} x1={b.left} x2={b.right} y1={r1(y)} y2={r1(y)} />
-            {ref.label ? <Txt x={b.right} y={y - 5} cls={`cx-tick ${ref.tone === 'signal' ? 'is-signal' : 'is-strong'}`} anchor="end" halo>{ref.label}</Txt> : null}
+            {ref.label ? <Txt x={b.right} y={y - 8} cls={`cx-tick ${ref.tone === 'signal' ? 'is-signal' : 'is-strong'}`} anchor="end" halo>{ref.label}</Txt> : null}
           </g>
         );
       })}
@@ -272,7 +274,13 @@ export function Strip(s: StripSpec, ctx: Ctx): Drawn {
   let need = layout();
   while (need > avail && r > 2.5) { r = Math.max(2.5, r - 0.25); need = layout(); }
   const xs = scale(s.x.min, s.x.max, r + 2, W - r - 2);
-  let y = 4 + head;
+  // In a fixed frame a single swarm sits midway between its labels and the axis (the leaders grow to reach it).
+  const spare = ctx.fit && !many ? Math.max(0, ctx.fit - 28 - titleH - (4 + head) - need) : 0;
+  // A note set above the first swarm needs room over it, which a page (no spare height) does not otherwise give.
+  const lo0 = rows[0]?.lo ?? 0;
+  const lift = Math.max(0, ...(s.notes ?? []).filter((n) => (n.row ?? 0) === 0 && (n.dy ?? -10) < 0)
+    .map((n) => 0.75 * T.note + 2 - (n.dy ?? -10) + lo0 - 4 - head));
+  let y = 4 + head + Math.max(lift, spare / 2);
   const laid = rows.map((row) => {
     const top = y;
     const centre = y + (many ? 20 : 0) - row.lo + 2;
@@ -286,10 +294,11 @@ export function Strip(s: StripSpec, ctx: Ctx): Drawn {
   const node = (
     <g>
       {xt.map((v) => <line key={v} className="cx-grid" x1={r1(xs(v))} x2={r1(xs(v))} y1={head} y2={bottom} />)}
-      <Refs refs={s.refs} xs={xs} ys={() => 0} b={{ top: head + 12, bottom, left: 0, right: W }} ctx={ctx} />
+      <Refs refs={s.refs} xs={xs} ys={() => 0} b={{ top: head + 12 + (!head && s.refs?.some((rf) => rf.label) ? 10 : 0), bottom, left: 0, right: W }} ctx={ctx} />
       {laid.map(({ g, offs, centre, top }) => (
         <g key={g.label}>
-          {many ? <Txt x={0} y={top + 14} cls="cx-label is-strong">{g.label}</Txt> : null}
+          {/* A ref line passes behind the group heading, which knocks it out. */}
+          {many ? <Txt x={0} y={top + 14} cls="cx-label is-strong" halo={!!s.refs?.length}>{g.label}</Txt> : null}
           {g.dots.map((d, k) => ({ d, k })).sort((a, c) => rank(a.d.tone ?? 'quiet') - rank(c.d.tone ?? 'quiet')).map(({ d, k }) => (
             <circle key={k} className={`cx-dot ${fillOf(d.tone)}`} cx={r1(xs(d.v))} cy={r1(centre + offs[k])} r={r1(r)} />
           ))}

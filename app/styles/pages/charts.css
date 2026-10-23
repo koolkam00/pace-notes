@@ -54,6 +54,7 @@
 @media (max-width: 299.98px) {
   .chart-card-plot { overflow-x: auto; }
   .chart-card-plot .cx { min-width: 300px; }
+  .chart-card-foot { flex-wrap: wrap; }
 }
 
 /* ---------- The canvas ---------- */
@@ -74,6 +75,9 @@
 .cx .is-quiet { fill: var(--ink-3); }
 .cx-label.is-panel { font-size: 14px; font-weight: 600; }
 .cx-tick.is-label { font-weight: 600; fill: var(--ink-2); }
+/* A labelled dot's name takes its dot's tone: the signal reading in signal, the named comparator in ink. */
+.cx .cx-tick.is-label.is-signal { fill: var(--signal-ink); }
+.cx .cx-tick.is-label.is-strong { fill: var(--ink); }
 .cx .has-halo { paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
 
 /* Tones: one signal mark (the reading), ink for what the sentence names besides it, quiet context. */
@@ -87,6 +91,10 @@
 .tf-o3 { fill: var(--ordinal-3); }
 .tf-o4 { fill: var(--ordinal-4); }
 .tf-signal.is-soft { fill-opacity: .55; }
+/* The comparator tone (series-wide): a filled rectangle in ink (a bar, column, bin, stacked part, waffle square, key
+   square, compare bar or range box) takes the softer light of ink-2, so the signal stays the brightest mark on the card.
+   Ink text, dots, rings, lines and arrows keep full ink. The same rule holds on paper, where ink-2 is the softer dark. */
+.cx rect.tf-ink { fill: var(--ink-2); }
 .ts-signal { stroke: var(--signal); }
 .ts-ink { stroke: var(--ink); }
 .ts-ink2 { stroke: var(--ink-2); }
@@ -114,6 +122,7 @@
 .cx-fit { stroke: var(--ink-2); stroke-width: 1.5px; stroke-dasharray: 5 4; }
 .cx-dot { stroke: var(--paper); stroke-width: .75px; }
 .cx-dot.tf-quiet { fill-opacity: .8; }
+.cx-mid { stroke: var(--paper); stroke-width: 1.5px; }
 .cx-cell { fill: var(--ink); }
 .cx-cell.is-empty { fill: none; stroke: var(--rule); stroke-width: 1px; stroke-dasharray: 2 3; }
 .cx-cell-ring { fill: none; stroke: var(--signal); stroke-width: 3px; }
@@ -141,16 +150,20 @@
 /* ---------- A chart's page ---------- */
 .chart-page { max-width: 760px; margin: 0 auto; padding: var(--s-5) 0 var(--s-7); display: flex; flex-direction: column; gap: var(--s-4); }
 .chart-crumbs { margin: 0 auto; width: 100%; max-width: 470px; font-family: var(--sans); font-size: var(--t-small); font-weight: 600; }
-.chart-crumbs a { color: var(--ink-2); text-decoration: none; }
+.chart-crumbs a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-2); text-decoration: none; }
 .chart-crumbs a:hover { text-decoration: underline; }
 .chart-save { margin: 0 auto; width: 100%; max-width: 470px; font-family: var(--sans); font-size: var(--t-small); font-weight: 600; }
 .chart-save a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); }
 .chart-numbers { width: 100%; max-width: 470px; margin: 0 auto; }
-.chart-pager { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); width: 100%; max-width: 470px; margin: var(--s-4) auto 0; }
+.chart-pager { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3); width: 100%; max-width: 470px; margin: var(--s-4) auto 0; }
 .chart-pager a { display: flex; align-items: center; gap: var(--s-2); min-height: 44px; padding: var(--s-3); border: 1px solid var(--rule); border-radius: var(--r-md); color: var(--ink); text-decoration: none; font-family: var(--sans); font-size: var(--t-small); line-height: 1.3; }
 .chart-pager a:hover { border-color: var(--ink-3); }
 .chart-pager-next { justify-content: flex-end; text-align: right; }
 .chart-pager-n { display: block; font-size: var(--t-kicker); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 @media (max-width: 599.98px) {
   .chart-page { padding-top: var(--s-3); }
+}
+/* Narrow screens (and 200% zoom on a phone): the two charts either side stack, each with the width for its title. */
+@media (max-width: 359.98px) {
+  .chart-pager { grid-template-columns: minmax(0, 1fr); }
 }

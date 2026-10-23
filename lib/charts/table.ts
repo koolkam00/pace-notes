@@ -3,6 +3,7 @@
  * disagrees with the chart. Long series (a minute-by-minute histogram) are listed at the chart's own resolution.
  */
 import { fmt } from './fmt';
+import { typeset } from './typo';
 import { UNIT_FMTS, type Axis, type ChartSpec, type Fmt } from './spec';
 import type { UnitSystem } from '@/lib/units';
 
@@ -10,7 +11,8 @@ export type ChartTable = { columns: { key: string; label: string; text?: boolean
 
 const at = (a: Axis, v: number, units: UnitSystem) => (a.cats ? a.cats[Math.round(v)] ?? String(v) : fmt(v, a.fmt, units));
 
-export function tableOf(spec: ChartSpec, units: UnitSystem = 'mi'): ChartTable {
+export function tableOf(raw: ChartSpec, units: UnitSystem = 'mi'): ChartTable {
+  const spec = typeset(raw);
   const f = (v: number, k: Fmt) => fmt(v, k, units);
   switch (spec.form) {
     case 'bars':

@@ -11,10 +11,11 @@ from charts_common import ChartCohort, edition_ranks, require_cell, sh, share
 from insights_data import Finishes
 
 ROOT = Path(__file__).resolve().parents[1]
-CITIES = ['Amsterdam', 'Berlin', 'Boston', 'Chicago', 'London', 'New York', 'Paris', 'Valencia', 'Washington']
+CITIES = ['Amsterdam', 'Berlin', 'Boston', 'Chicago', 'Copenhagen', 'Eindhoven', 'Gold Coast', 'Hamburg', 'London', 'Madrid', 'New York',
+          'Oslo', 'Paris', 'Rotterdam', 'Valencia', 'Warsaw', 'Washington']
 
 
-def synthetic(n_per_edition=1500, years=(2019, 2023, 2025), seed=7):
+def synthetic(n_per_edition=600, years=(2006, 2013, 2016, 2019, 2021, 2023, 2025, 2026), seed=7):
     """A cohort with real city names and plausible splits: a base pace, a later fade for some finishes, recorded gender
     and age, and linked records that run more than one edition."""
     rng = np.random.default_rng(seed)
@@ -38,8 +39,8 @@ def synthetic(n_per_edition=1500, years=(2019, 2023, 2025), seed=7):
     profile = rng.integers(1, n // 2, n).astype(np.uint64)
     f = Finishes(times, edition, gender, age, ages, profile, editions)
     f.raw_by_edition = np.bincount(edition, minlength=len(editions))
-    weather = dict(editions=[dict(city=e['city'], year=e['year'], temp_c=float(rng.uniform(5, 22)), dewpoint_c=float(rng.uniform(0, 15)),
-                                  wind_mps=float(rng.uniform(1, 6)), warming_c=float(rng.uniform(0, 6))) for e in editions])
+    weather = dict(editions=[dict(city=e['city'], year=e['year'], date=f"{e['year']}-10-{1 + k % 28:02d}", temp_c=float(rng.uniform(5, 22)), dewpoint_c=float(rng.uniform(0, 15)),
+                                  wind_mps=float(rng.uniform(1, 6)), warming_c=float(rng.uniform(0, 6))) for k, e in enumerate(editions)])
     return ChartCohort(f, dict(editions=editions), 'test', weather=weather, geometry=None)
 
 

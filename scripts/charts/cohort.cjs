@@ -58,6 +58,8 @@ function loadCohort({ root, dataRoot, strings = new Map() }) {
   const exact = new Float64Array(n), profile = new Int32Array(n);
   const recordIds = new Float64Array(runners.raw_records), profileIds = new Float64Array(runners.profiles);
   const files = Object.keys(runners.shards).sort(), nameHits = [];
+  // Every record read, by edition, before the eligibility skip: recounts apply their own retention screens to it.
+  const rawN = new Int32Array(editions.length);
   let raw = 0, profiles = 0, eligible = 0;
   for (const file of files) {
     assert.match(file, /^(profiles|index)\/[a-f0-9]{3}\.json\.gz$/);
@@ -76,6 +78,7 @@ function loadCohort({ root, dataRoot, strings = new Map() }) {
         recordIds[raw++] = race.id;
         if (strings.size && typeof race.name === 'string' && strings.has(normaliseName(race.name))) nameHits.push(strings.get(normaliseName(race.name)));
         assert.ok(integer(race.edition) && race.edition < editions.length, 'Valid edition mapping');
+        rawN[race.edition]++;
         assert.equal(typeof race.eligible, 'boolean', 'Explicit source eligibility');
         if (!race.eligible) continue;
         const ed = editions[race.edition], t = race.times;
@@ -173,7 +176,7 @@ function loadCohort({ root, dataRoot, strings = new Map() }) {
 
   return {
     n, times, edition, gender, age, exactAge: exact, profile, finish, baseline, slow, onset, pace, shapeKeep, shapeFlagged,
-    granular, exactAgeOk, editions, cities, city, year, edN, rowsOf, genderGapEdition, nameHits,
+    granular, exactAgeOk, editions, cities, city, year, edN, rawN, rowsOf, genderGapEdition, nameHits,
     ed: { city: editions.map((e) => e.city), year: editions.map((e) => e.year), race: editions.map((e) => e.race), temp: col('temp_c'), dew: col('dewpoint_c'), wind: col('wind_mps'), warming: col('warming_c') },
     weather, geometry, runners, manifestSha: hash(manifestBytes), pin,
   };

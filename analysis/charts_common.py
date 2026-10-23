@@ -62,9 +62,16 @@ def median(values):
     return quantile(values, 0.5)
 
 
+def plural(noun):
+    """An English plural for the charts' count nouns: 'es' after s, sh, ch, x and z ('finishes'), else 's'."""
+    return f'{noun}es' if noun.endswith(('s', 'sh', 'ch', 'x', 'z')) else f'{noun}s'
+
+
 def count_phrase(n, noun):
-    from insights_stats import count_phrase as phrase
-    return phrase(n, noun)
+    """'15 editions', '1 finish', '2,345 finishes' or 'no finishes' for chart prose, so a printed count comes from the
+    data. The charts' own pluraliser: insights_stats.count_phrase stays as it is, since other manifests bind its hash."""
+    n = int(n)
+    return f'no {plural(noun)}' if n == 0 else f'1 {noun}' if n == 1 else f'{n:,} {plural(noun)}'
 
 
 def edition_ranks(values, edition):
