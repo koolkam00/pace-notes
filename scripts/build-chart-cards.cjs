@@ -67,7 +67,8 @@ function cardInputs(item) {
 }
 
 function cardHtml({ item, file, words }, fit) {
-  const foot = React.createElement(React.Fragment, null, React.createElement('b', null, 'Pace Notes'), React.createElement('span', null, `splithappens.run/charts/${item.number}`));
+  const mark = React.createElement('span', { className: 'chart-mark', 'aria-hidden': 'true' }, React.createElement('i'), React.createElement('i'), React.createElement('i'));
+  const foot = React.createElement(React.Fragment, null, React.createElement('b', null, mark, 'Pace Notes'), React.createElement('span', null, `splithappens.run/charts/${item.number}`));
   const card = React.createElement(ChartCard, {
     number: item.number, theme: THEME_NAMES[item.theme], title: words.title, takeaway: accent(words.headline), label: words.plain,
     spec: file.plot, units: 'mi', heading: 'h2', foot, fit,

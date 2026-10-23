@@ -13,7 +13,7 @@ import { CATALOG, chartHref, readChart } from '@/lib/charts-server';
 
 /** The brand line under every card: the same on the page and on the image. */
 export function CardFoot({ number }: { number: number }) {
-  return <><b>Pace Notes</b><span>splithappens.run/charts/{number}</span></>;
+  return <><b><span className="chart-mark" aria-hidden="true"><i /><i /><i /></span>Pace Notes</b><span>splithappens.run/charts/{number}</span></>;
 }
 
 /**

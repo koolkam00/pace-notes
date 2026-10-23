@@ -30,11 +30,17 @@
 .chart-card-take a { color: inherit; text-decoration-color: var(--ink-3); text-underline-offset: 3px; }
 .chart-card-plot { margin: 6px 0 0; min-width: 0; }
 .chart-card-foot {
-  display: flex; justify-content: space-between; gap: var(--s-3); align-items: baseline;
+  display: flex; justify-content: space-between; gap: var(--s-3); align-items: center;
   margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--rule);
   font-family: var(--sans); font-size: var(--t-tick); font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums;
 }
-.chart-card-foot b { font-family: var(--bib); font-weight: 660; font-size: .9375rem; letter-spacing: -.01em; color: var(--ink); }
+.chart-card-foot b { display: inline-flex; align-items: center; gap: 7px; font-family: var(--bib); font-weight: 660; font-size: .9375rem; letter-spacing: -.01em; color: var(--ink); }
+/* The brand mark of the header (components/header.css .brand-mark), drawn again here so the image needs no other sheet. */
+.chart-mark { position: relative; display: block; flex: none; width: 18px; height: 18px; overflow: hidden; border-radius: 50%; background: var(--accent); }
+.chart-mark i { position: absolute; display: block; height: 1.8px; border-radius: 2px; background: var(--on-accent); }
+.chart-mark i:nth-child(1) { left: 3.5px; right: 3.5px; top: 5.2px; }
+.chart-mark i:nth-child(2) { left: 5.5px; right: 3.5px; top: 8.6px; }
+.chart-mark i:nth-child(3) { left: 3.5px; right: 6.2px; top: 12px; }
 
 /* Phones: the card runs edge to edge, as the image does in a feed, so the canvas keeps its width. */
 @media (max-width: 599.98px) {
