@@ -88,10 +88,11 @@
   .tool-choice:not(.band-choice-seg) .seg-btn { min-width: max-content; }
   .tool-choice:not(.band-choice-seg) .seg-label { min-width: 28px; }
 }
-/* The course shape's one line (BandChoice ShapeLine: the planner's card, under the pace band's kicker). While a shape is
-   on its way it keeps its place, unshown, so the card and the band do not move when it lands. */
+/* The terrain splits' lines (BandChoice TerrainLine: the planner's card, under the pace band's kicker): what they are,
+   then the climbs on a line of their own, each climb kept whole where it fits. */
 .band-shape-line { margin: 0; font-size: .9375rem; line-height: 1.4; color: var(--ink-2); text-wrap: pretty; }
-.band-shape-line.is-pending { visibility: hidden; }
+.band-climbs { display: block; margin-top: .25em; font-variant-numeric: tabular-nums; }
+.band-climb { display: inline-block; max-width: 100%; }
 /* Presets (common goals, distances): chips, never clipped; they wrap. */
 .tool-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
 .tool-page .tool-presets button { min-width: 44px; min-height: 44px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: var(--r-pill); background: transparent; color: var(--ink);

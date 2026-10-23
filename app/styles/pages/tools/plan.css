@@ -36,33 +36,21 @@
 @media (max-width: 359.98px) {
   .plan-card-mats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--s-4); }
 }
-/* The course shape on the card: its two phases at equal weight (the pace to 20K, then from 30K to the finish), each label
-   beside its figure, or under it where the card is narrow; then the one line that says what the shape is. */
-.tool-reading-figure.plan-shape { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 6px 12px; font-size: var(--t-figure-m); }
-.plan-phase { display: contents; }
-.plan-phase b { font-weight: inherit; white-space: nowrap; }
-.tool-reading-figure.plan-shape small { display: block; margin: 0; }
-/* Under 300 px (200% zoom) each label goes under its figure. */
-@media (max-width: 299.98px) {
-  .tool-reading-figure.plan-shape { grid-template-columns: minmax(0, 1fr); row-gap: 0; }
-  .tool-reading-figure.plan-shape small { margin-bottom: 6px; }
-}
+/* The terrain splits on the card: the even card's figure (the goal's average pace), then the lines that say what the
+   terrain splits are and where they climb (BandChoice TerrainLine). */
 .plan-shape-line { margin: 4px 0 0; }
 .plan-band-kicker { margin: 0; }
-/* While a course's shape loads, the card's figures wait, dimmed (only opacity moves), until the shape replaces them. */
-.plan-headline .tool-reading-figure, .plan-headline .plan-card-mats { transition: opacity var(--d-quick); }
-.plan-headline.is-pending .tool-reading-figure, .plan-headline.is-pending .plan-card-mats { opacity: .45; }
 @media (min-width: 900px) {
   .plan-headline { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-6); }
   .plan-card-mats { grid-template-columns: repeat(2, auto); gap: var(--s-4) var(--s-6); padding: 0 0 0 var(--s-6); border-top: 0; border-left: 1px solid var(--rule); }
   .plan-card-mats dd { font-size: 1.5rem; letter-spacing: -.02em; }
 }
-/* In course shape the two phases' labels need the card's width: from 900 px to 1180 px (a tablet held sideways, a small
-   laptop) the four times stay under the figures in one row, as on a phone, instead of taking the card's right half and
-   leaving the labels a few letters wide (round-2 review, October 20, 2026). */
+/* On terrain the card's lines need the card's width: from 900 px to 1180 px (a tablet held sideways, a small laptop)
+   the four times stay under the figure in one row, as on a phone, instead of taking the card's right half and leaving
+   the climbs a few words wide. */
 @media (min-width: 900px) and (max-width: 1179.98px) {
-  .plan-headline.is-shape { grid-template-columns: minmax(0, 1fr); }
-  .plan-headline.is-shape .plan-card-mats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-3); padding: var(--s-4) 0 0; border-top: 1px solid var(--rule); border-left: 0; }
+  .plan-headline.is-terrain { grid-template-columns: minmax(0, 1fr); }
+  .plan-headline.is-terrain .plan-card-mats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-3); padding: var(--s-4) 0 0; border-top: 1px solid var(--rule); border-left: 0; }
 }
 
 /* ---------- The lead: where the share sits among the courses ---------- */
@@ -95,6 +83,10 @@
 /* ---------- The pace band ---------- */
 .plan-band .tool-share { margin-top: var(--s-2); }
 
+/* ---------- As run: the finishes near the goal at the times they ran (Pace Notes data), after the band ---------- */
+.plan-asrun .evidence-badge { justify-self: start; }
+.plan-asrun-note { color: var(--ink-2); }
+
 
 /* ---------- Print: one Letter or A4 page at the browser's default margins (the plan), or the wristband strips alone ---------- */
 @media print {
@@ -107,6 +99,14 @@
   .plan-band > header { display: none; }
   /* The "All numbers" fold is a screen control: the plan prints its own mat table (plan-print-mats), the strips none. */
   .plan-band details.values { display: none !important; }
+  /* The As run panel prints in plan-print-mats, after the mat table, with its note and its source named. */
+  .plan-asrun { display: none !important; }
+  .plan-print-asrun { display: grid; gap: .08cm; margin-top: .25cm; }
+  .plan-print-asrun > p { margin: 0; font-family: var(--sans); font-size: 8pt; color: var(--night); }
+  .plan-print-asrun-title { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 7.5pt !important; }
+  .plan-print-asrun .table th, .plan-print-asrun .table td { height: auto; padding-top: .03cm !important; padding-bottom: .03cm !important; font-size: 8.5pt; line-height: 1.25; color: var(--night) !important; }
+  .plan-print-asrun .table thead th { font-size: 6.5pt; }
+  .plan-print-asrun .table tr { break-inside: avoid; }
 
   /* The plan: the header, the strips, the mat table and the source line, in that order. */
   .plan-print-head { order: 1; display: grid; gap: .08cm; padding-bottom: .2cm; border-bottom: 1.5pt solid var(--night); font-size: 9pt; color: var(--night); }

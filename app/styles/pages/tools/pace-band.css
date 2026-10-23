@@ -22,6 +22,9 @@
 .pace-band-table th small, .pace-band-wrist th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
 .pace-band-wrist tr.is-mat th, .pace-band-wrist tr.is-mat td { font-weight: 600; color: var(--ink); }
 .pace-band-wrist tr.is-finish th, .pace-band-wrist tr.is-finish td { border-top: 1.5px solid var(--ink); font-weight: 600; color: var(--ink); }
+.pace-band-wrist td.pace-band-wrist-route { font-weight: 400; color: var(--ink-2); white-space: normal; }
+/* The forewarning under the finishes' sentence: as run, slowdowns included, not splits to copy. */
+.pace-band-asrun { color: var(--ink-2); }
 
 /* ---------- The band to print: the page's answer ---------- */
 .pace-band-print-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); min-width: 0; }
@@ -37,7 +40,7 @@
   .pace-band-root[data-print='strip'] .tool-results > :not(.pace-band-print-panel) { display: none !important; }
   .pace-band-root[data-print='strip'] .pace-band-print-panel { padding: 0; border: 0; }
   .pace-band-root[data-print='strip'] .pace-band-print-panel > header, .pace-band-root[data-print='strip'] .values { display: none; }
-  /* The sheet head names the goal, course, gender and mode, so the kicker and the shape's line do not print above it;
+  /* The sheet head names the goal, course and mode, so the kicker and the terrain splits' lines do not print above it;
      nor does the full page's table of every marker. */
   .pace-band-root[data-print='strip'] .pace-band-kicker, .pace-band-root[data-print='strip'] .band-shape-line, .pace-band-root[data-print='strip'] .pace-band-print-marks { display: none !important; }
   /* Full page: the band, the observed groups and the band's every marker, no strips. */
