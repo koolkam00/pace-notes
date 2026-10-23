@@ -12,7 +12,7 @@ import KeypadHint from '@/components/KeypadHint';
 import Values from '@/components/ui/Values';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
-import { bandChoice, bandKicker, bandMinute, bandRows, bandView, goalPace, mayShape, noShapeLine, noShapeReason, shapeFor, shapeLine, tidyChoice, type ShapeGoals } from '@/lib/tools/course-shape';
+import { bandChoice, bandKicker, bandMinute, bandRows, bandView, goalPace, mayShape, noShapeLine, noShapeReason, shapeFor, shapeLine, tidyChoice, type ShapeGoals } from '@/lib/tools/terrain-band';
 import { MARATHON_KM, splitTable, watchTarget, type SplitInterval } from '@/lib/tools/pace';
 import { CHECKPOINTS, PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell as Cell } from '@/lib/tools/pace-band-data';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';

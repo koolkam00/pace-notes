@@ -10,7 +10,7 @@ import { useQueryState } from '@/components/tools/useQueryState';
 import Values from '@/components/ui/Values';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, type CourseGoal, type CourseGoalRow, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
-import { bandChoice, bandKicker, bandMinute, bandRows, bandView, cardMats, goalPace, matRows, mayShape, noShapeLine, noShapeReason, shapeFor, shapeLine, shapePaces, tidyChoice } from '@/lib/tools/course-shape';
+import { bandChoice, bandKicker, bandMinute, bandRows, bandView, cardMats, goalPace, matRows, mayShape, noShapeLine, noShapeReason, shapeFor, shapeLine, shapePaces, tidyChoice } from '@/lib/tools/terrain-band';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
 import { PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell } from '@/lib/tools/pace-band-data';
 import { COURSE_GOAL_FILE, PLAN_GOAL_MAX_S, PLAN_GOAL_MIN_S, courseGoalResult, goalPaceNote, goalShare, publishedGoal, readPlanGoal, roundedNote } from '@/lib/tools/plan';

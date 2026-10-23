@@ -6,7 +6,7 @@ import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { pageMetadata } from '@/lib/seo';
 import type { CourseGoal, PaceBandIndex, ProjectorIndex, WeatherMatch } from '@/lib/tools/data';
 import { courseSlug } from '@/lib/tools/links';
-import { shapeGoalsOf } from '@/lib/tools/course-shape';
+import { shapeGoalsOf } from '@/lib/tools/terrain-band';
 import { PACE_BAND_INDEX } from '@/lib/tools/pace-band-data';
 import { COURSE_GOAL_FILE, goalShare, screenedReason } from '@/lib/tools/plan';
 

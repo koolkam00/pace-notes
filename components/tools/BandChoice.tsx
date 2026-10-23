@@ -1,7 +1,7 @@
 'use client';
 
 import { Choice } from '@/components/tools/ui';
-import { BAND_LABEL, BAND_OPTIONS, SHAPE_DISCLAIMER, shapeWhat, type BandMode } from '@/lib/tools/course-shape';
+import { BAND_LABEL, BAND_OPTIONS, SHAPE_DISCLAIMER, shapeWhat, type BandMode } from '@/lib/tools/terrain-band';
 
 /**
  * The band's one control, the same on the race planner and the pace band (owner decision, October 20, 2026), directly

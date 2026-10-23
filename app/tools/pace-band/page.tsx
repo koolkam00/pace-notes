@@ -4,7 +4,7 @@ import { pageMetadata } from '@/lib/seo';
 import type { CourseGeometry } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { PaceBandIndex } from '@/lib/tools/data';
-import { shapeGoalsOf } from '@/lib/tools/course-shape';
+import { shapeGoalsOf } from '@/lib/tools/terrain-band';
 import { courseSlug } from '@/lib/tools/links';
 
 export const metadata = pageMetadata({

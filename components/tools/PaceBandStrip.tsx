@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react';
 import { type SplitInterval, type SplitRow } from '@/lib/tools/pace';
-import { goalCell, shapeCaption, shapeLine, splitCaption } from '@/lib/tools/course-shape';
+import { goalCell, shapeCaption, shapeLine, splitCaption } from '@/lib/tools/terrain-band';
 import { CHECKPOINTS, fmtGoal } from '@/lib/tools/pace-band-data';
 import { formatDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, elevationLabel, type UnitSystem } from '@/lib/units';
