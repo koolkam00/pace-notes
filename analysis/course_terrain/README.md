@@ -7,7 +7,7 @@ splits spread the visitor's own goal over a corrected route profile with one pub
 | Path | What it is | Run in CI |
 |---|---|---|
 | `corrections.json` | The audited registry (schema `pace-notes/course-profile-corrections`, version `2026-10-23.1`): every supplied course, its class, structure audit and corrections, plus `slug`, `band`, `why`, `features` and `sources` | read by the builder |
-| `fixtures/parity.json` | A synthetic profile and its expected plan shares, asserted by `analysis/test_course_terrain.py` and by `scripts/verify-tools.cjs` (Python and JavaScript model parity) | yes |
+| `fixtures/parity.json` | A synthetic profile and its expected plan shares, asserted by `analysis/test_course_terrain.py`; the JavaScript model in `scripts/verify-tools.cjs` asserts the same values (Python and JavaScript parity) | yes |
 | `provenance/` | The scripts that sampled the terrain models and wrote the registry (network, never run in CI) | no |
 | `validation-2026-10-23/` | Dated evidence: the check of the model against steady finishers that chose the ten courses | no |
 
