@@ -4,6 +4,7 @@
  * the reading of every page in the chapter flow (section 2.2), the ids lib/chapters.ts uses.
  */
 import { ANALYSIS_NUGGETS } from './analyses';
+import { CHART_NUGGETS } from './charts';
 import { COURSE_CONTEXT_NUGGETS, COURSE_NUGGETS } from './courses';
 import { HOME_NUGGETS } from './home';
 import { RUNNER_NUGGETS } from './runners';
@@ -16,7 +17,7 @@ export * from './types';
 export { finishesM, plain, sentenceOf, siteTotals, textFor } from './core';
 
 const REGISTRY: Record<string, Builder> = {};
-for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGETS, TOOL_NUGGETS, RUNNER_NUGGETS]) {
+for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGETS, TOOL_NUGGETS, RUNNER_NUGGETS, CHART_NUGGETS]) {
   for (const [id, build] of Object.entries(group)) {
     if (REGISTRY[id]) throw new Error(`Nugget ${id} is registered twice.`);
     REGISTRY[id] = build;

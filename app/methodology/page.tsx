@@ -1,6 +1,7 @@
 import InfoNext from '@/components/InfoNext';
 import RailBeats from '@/components/RailBeats.client';
 import MethodsAnalyses from '@/components/methods/MethodsAnalyses';
+import MethodsCharts from '@/components/methods/MethodsCharts';
 import MethodsData from '@/components/methods/MethodsData';
 import MethodsDefinitions from '@/components/methods/MethodsDefinitions';
 import MethodsDownloads, { STORY_FILE_TOPICS } from '@/components/methods/MethodsDownloads';
@@ -112,6 +113,7 @@ export default function MethodologyPage() {
         <MethodsAnalyses />
         <MethodsTools />
         <MethodsPages />
+        <MethodsCharts />
       </Part>
 
       <Part id="limits" n={4} short="Limits" title="Limits" lead="What these numbers cannot show.">

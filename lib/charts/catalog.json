@@ -1,0 +1,4 @@
+[
+  { "number": 1, "slug": "minute-before-the-hour", "theme": "finish-times", "module": "charts_finish_times" },
+  { "number": 2, "slug": "quarter-at-20k", "theme": "racing", "module": "charts_racing" }
+]

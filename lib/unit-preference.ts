@@ -7,7 +7,7 @@ import { DEFAULT_UNITS, type UnitSystem } from './units';
 // The moved addresses' stubs (/packs, /htw, /your-race …) and the 404 show no such text, so their switch stays inert
 // (unseen, it keeps the switch's room, so their header matches every other page's).
 const UNIT_PAGES = ['/', '/about', '/methodology', '/slowdown', '/research', '/privacy', '/request-analysis'];
-const UNIT_SECTIONS = ['/analyses', '/runners', '/report', '/courses', '/stories', '/tools', '/finish-times'];
+const UNIT_SECTIONS = ['/analyses', '/runners', '/report', '/courses', '/stories', '/tools', '/finish-times', '/charts'];
 
 /** Whether the header's units switch works on this page (a path without the base path, as usePathname gives it). */
 export function unitSwitchShown(path: string): boolean {

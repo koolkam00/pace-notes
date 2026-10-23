@@ -365,7 +365,7 @@ assert.match(chartSource('RunnerContext.tsx'), /<LineProfile [^>]*yDomain=\{axis
 {
   const { unitSwitchShown } = require('../lib/unit-preference.ts');
   for (const page of ['/', '/about', '/slowdown', '/research', '/methodology', '/analyses', '/analyses/pacing-pattern', '/runners',
-    '/courses', '/courses/boston', '/stories', '/stories/final-kick', '/tools', '/tools/plan', '/tools/qualifying/boston', '/finish-times', '/privacy', '/request-analysis']) assert.ok(unitSwitchShown(page), `The units switch works on ${page}`);
+    '/courses', '/courses/boston', '/stories', '/stories/final-kick', '/tools', '/tools/plan', '/tools/qualifying/boston', '/finish-times', '/charts', '/charts/1', '/privacy', '/request-analysis']) assert.ok(unitSwitchShown(page), `The units switch works on ${page}`);
   // The moved addresses' stubs (lib/seo-routes.ts movedTo) show no text that changes with the units.
   for (const page of ['/research/personalized', '/htw', '/your-race', '/packs', '/packs/smyth_htw', '/packs/r01_banking_time', '/_not-found', '/toolsx', '/research-notes', '/methodology-notes']) assert.equal(unitSwitchShown(page), false, `${page} keeps the inert placeholder`);
   // A second copy of the provider whose next/navigation reports a chosen page, as the static export's render does.

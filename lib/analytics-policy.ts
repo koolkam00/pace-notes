@@ -23,10 +23,14 @@ const searchPages = ['/tools/marathon-pace-chart', '/tools/half-marathon-pace-ch
 export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses', 'race-morning'];
 export const COURSE_SLUGS: readonly string[] = ['amsterdam', 'auckland', 'austin', 'barcelona', 'berlin', 'boston', 'chicago', 'copenhagen', 'dubai', 'eindhoven', 'frankfurt', 'gold-coast',
   'hamburg', 'helsinki', 'london', 'madrid', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'warsaw', 'washington'];
+// The Top 100 charts are numbered pages, /charts/1 … /charts/CHART_COUNT: a count rather than a list keeps this module
+// small. verify-analytics checks it against lib/charts/catalog.json; any other /charts/ path records as /charts.
+export const CHART_COUNT = 2;
 const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners', '/report', '/about', '/methodology', '/privacy', '/request-analysis', '/slowdown', '/htw', '/your-race', '/research', '/research/personalized',
   ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug),
   '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages,
-  '/stories', ...STORY_SLUGS.map(slug => '/stories/' + slug), '/courses', ...COURSE_SLUGS.map(slug => '/courses/' + slug)]);
+  '/stories', ...STORY_SLUGS.map(slug => '/stories/' + slug), '/courses', ...COURSE_SLUGS.map(slug => '/courses/' + slug),
+  '/charts', ...Array.from({ length: CHART_COUNT }, (_, i) => `/charts/${i + 1}`)]);
 const analyses = new Set([...TEN_ANALYSES.map(item => item.id), ...WEATHER_QUESTIONS.map(item => item.id)]);
 // The experiments registry (data only), typed as lib/experiment-runtime.ts defines an entry.
 const experiments: readonly ExperimentDefinition[] = EXPERIMENTS;
@@ -96,6 +100,7 @@ export function analyticsPath(value: string, basePath = ''): string {
     if (path.startsWith('/courses/')) return '/courses';
     if (path === '/packs' || path.startsWith('/packs/')) return '/packs';
     if (path.startsWith('/stories/')) return '/stories';
+    if (path.startsWith('/charts/')) return '/charts';
   } catch {}
   return '/other';
 }
