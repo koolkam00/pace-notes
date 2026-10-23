@@ -89,6 +89,8 @@ const { STORIES } = require('../lib/stories.ts');
 const { getCourseNames, slugifyCity } = require('../lib/course-data.ts');
 assert.deepEqual([...policy.STORY_SLUGS].sort(), STORIES.map(story => story.slug).sort(), 'STORY_SLUGS in lib/analytics-policy.ts lists every story in lib/stories.ts');
 assert.deepEqual([...policy.COURSE_SLUGS].sort(), getCourseNames().map(slugifyCity).sort(), 'COURSE_SLUGS in lib/analytics-policy.ts lists every course page');
+assert.equal(policy.CHART_COUNT, require('../lib/charts/catalog.json').length, 'CHART_COUNT in lib/analytics-policy.ts is the number of charts in lib/charts/catalog.json');
+assert.equal(policy.analyticsPath('/charts/0'), '/charts'); assert.equal(policy.analyticsPath(`/charts/${policy.CHART_COUNT + 1}`), '/charts'); assert.equal(policy.analyticsPath('/charts/Private-Name'), '/charts');
 for (const root of ['/stories', '/courses']) assert.deepEqual(sitemap.filter(entry => entry.path.startsWith(root + '/')).map(entry => entry.path.slice(root.length + 1)).sort(), [...(root === '/stories' ? policy.STORY_SLUGS : policy.COURSE_SLUGS)].sort(), `every ${root} page in the sitemap keeps its own path`);
 for (const { path: page } of sitemap) {
   const section = sections.find(root => page.startsWith(root + '/'));

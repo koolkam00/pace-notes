@@ -141,6 +141,21 @@ The **Story analyses** workflow repeats the build into a temporary directory and
 
 When the release changes, build into a fresh empty folder (`--output <dir>`), run the geometry and `--only manifest` steps against it, verify it with `node scripts/verify-insights.cjs --input <dir>`, and only then replace `public/data/insights` with it: the verifier's inventory check fails on leftover replay or tool shards from the previous release (1652: Boston's and Chicago's replay editions moved to 2014 and 2026, and Melbourne left the course data). `--only` keeps only files listed in the output folder's existing manifest, so it cannot finish a partly built fresh folder; rebuild it whole (about 15 minutes for 1652). Producer follow-ups found by the 1652 refresh are listed in its [record](REFRESH_20261016_1652.md#open-for-the-owner-and-the-producer).
 
+## Top 100 charts refresh
+
+The charts bind the runner manifest, the weather evidence, the catalog and every chart script by hash, so rebuild them after any of those change (a new release, a weather refresh, an edit to `analysis/build_charts.py`, `analysis/charts_common.py` or an `analysis/charts_*.py` module):
+
+```bash
+python -m unittest discover -s analysis -p 'test_charts.py'
+python analysis/build_charts.py --output public/data/charts
+node scripts/verify-charts.cjs
+node scripts/build-chart-cards.cjs              # redraws the cards whose stamp changed (needs Chromium)
+node scripts/build-chart-cards.cjs --captions   # docs/CHARTS_INSTAGRAM.md
+npm run verify:data && npm run build
+```
+
+Read every headline that changed before publishing: a chart whose guard no longer holds shows its neutral fallback. The **Top 100 charts** workflow rebuilds the charts in CI and requires the committed bytes. See [Top 100 charts](TOP_100_CHARTS.md).
+
 ## Producer operations and missing information
 
 The live producer database, scheduled ingestion, retries and recovery scripts are external to this checkout. A consistent SQLite snapshot is made through SQLite's backup mechanism or an equivalent supported snapshot; do not blindly copy a changing database or replace ingestion with a downloaded backup. Publish checksummed full-record snapshots with anonymous opening instructions. Public snapshot access does not require exposing the live service or its credentials.

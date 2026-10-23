@@ -1,0 +1,169 @@
+/* The Top 100 charts (/charts): the night card every chart sits in, the same on the page and on the 1080 × 1350 image
+   (scripts/build-chart-cards.cjs), and the chart canvas (components/charts). The canvas is 340 units wide and its text
+   is sized in units, so the card never draws it under 300 px wide: 14-unit ticks stay at 12 px or more. */
+
+/* ---------- The card ---------- */
+.chart-card {
+  --card-pad: 22px;
+  max-width: 470px;
+  margin: 0 auto;
+  padding: var(--card-pad);
+  border-radius: var(--r-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chart-card-kicker {
+  display: flex; justify-content: space-between; gap: var(--s-3);
+  margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-3); font-variant-numeric: tabular-nums;
+}
+.chart-card-kicker b { color: var(--ink-2); font-weight: 600; }
+.chart-card-title {
+  margin: 0; font-family: var(--serif); font-weight: 440; font-optical-sizing: auto; font-size: 1.75rem; line-height: 1.08;
+  letter-spacing: -.015em; color: var(--ink); text-wrap: balance;
+}
+.chart-card-take {
+  margin: 0; font-family: var(--sans); font-size: .96875rem; font-weight: 450; line-height: 1.42; color: var(--ink-2); text-wrap: pretty;
+}
+.chart-card-take em { font-style: normal; font-weight: 650; color: var(--signal-ink); }
+.chart-card-take a { color: inherit; text-decoration-color: var(--ink-3); text-underline-offset: 3px; }
+.chart-card-plot { margin: 6px 0 0; min-width: 0; }
+.chart-card-foot {
+  display: flex; justify-content: space-between; gap: var(--s-3); align-items: center;
+  margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--rule);
+  font-family: var(--sans); font-size: var(--t-tick); font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums;
+}
+.chart-card-foot b { display: inline-flex; align-items: center; gap: 7px; font-family: var(--bib); font-weight: 660; font-size: .9375rem; letter-spacing: -.01em; color: var(--ink); }
+/* The brand mark of the header (components/header.css .brand-mark), drawn again here so the image needs no other sheet. */
+.chart-mark { position: relative; display: block; flex: none; width: 18px; height: 18px; overflow: hidden; border-radius: 50%; background: var(--accent); }
+.chart-mark i { position: absolute; display: block; height: 1.8px; border-radius: 2px; background: var(--on-accent); }
+.chart-mark i:nth-child(1) { left: 3.5px; right: 3.5px; top: 5.2px; }
+.chart-mark i:nth-child(2) { left: 5.5px; right: 3.5px; top: 8.6px; }
+.chart-mark i:nth-child(3) { left: 3.5px; right: 6.2px; top: 12px; }
+
+/* Phones: the card runs edge to edge, as the image does in a feed, so the canvas keeps its width. */
+@media (max-width: 599.98px) {
+  .chart-card { --card-pad: 16px; margin-inline: calc(-1 * var(--gutter)); border-radius: 0; }
+}
+@media (max-width: 359.98px) {
+  .chart-card { --card-pad: 12px; }
+  .chart-card-title { font-size: 1.5rem; }
+}
+/* Under 324 px of canvas the chart scrolls sideways inside the card instead of shrinking its text under 12 px. */
+@media (max-width: 299.98px) {
+  .chart-card-plot { overflow-x: auto; }
+  .chart-card-plot .cx { min-width: 300px; }
+  .chart-card-foot { flex-wrap: wrap; }
+}
+
+/* ---------- The canvas ---------- */
+.cx { display: block; width: 100%; height: auto; overflow: visible; font-family: var(--sans); font-variant-numeric: tabular-nums; }
+.cx text { font-family: var(--sans); }
+.cx-tick { font-size: 14px; font-weight: 500; fill: var(--ink-3); }
+.cx-label { font-size: 15px; font-weight: 500; fill: var(--ink-2); }
+.cx-value { font-size: 14px; font-weight: 600; fill: var(--ink-2); }
+.cx-note { font-size: 14px; font-weight: 600; fill: var(--ink-2); }
+.cx-head { font-size: 15px; font-weight: 600; fill: var(--ink); }
+.cx-caption { font-size: 17px; font-weight: 500; fill: var(--ink-2); }
+.cx-inside { font-size: 14px; font-weight: 600; fill: var(--ink); }
+.cx-inside.is-dark { fill: var(--night); }
+.cx-figure { font-family: var(--bib); font-size: 26px; font-weight: 660; fill: var(--ink); letter-spacing: -.01em; }
+.cx-big { font-family: var(--bib); font-weight: 660; fill: var(--signal-ink); letter-spacing: -.03em; }
+.cx .is-strong { fill: var(--ink); font-weight: 600; }
+.cx .is-signal { fill: var(--signal-ink); font-weight: 650; }
+.cx .is-quiet { fill: var(--ink-3); }
+.cx-label.is-panel { font-size: 14px; font-weight: 600; }
+.cx-tick.is-label { font-weight: 600; fill: var(--ink-2); }
+/* A labelled dot's name takes its dot's tone: the signal reading in signal, the named comparator in ink. */
+.cx .cx-tick.is-label.is-signal { fill: var(--signal-ink); }
+.cx .cx-tick.is-label.is-strong { fill: var(--ink); }
+.cx .has-halo { paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
+
+/* Tones: one signal mark (the reading), ink for what the sentence names besides it, quiet context. */
+.tf-signal { fill: var(--signal); }
+.tf-ink { fill: var(--ink); }
+.tf-ink2 { fill: var(--ink-2); }
+.tf-quiet { fill: var(--mark-quiet); }
+.tf-faint { fill: var(--rule-strong); }
+.tf-o1 { fill: var(--ordinal-1); }
+.tf-o2 { fill: var(--ordinal-2); }
+.tf-o3 { fill: var(--ordinal-3); }
+.tf-o4 { fill: var(--ordinal-4); }
+.tf-signal.is-soft { fill-opacity: .55; }
+/* The comparator tone (series-wide): a filled rectangle in ink (a bar, column, bin, stacked part, waffle square, key
+   square, compare bar or range box) takes the softer light of ink-2, so the signal stays the brightest mark on the card.
+   Ink text, dots, rings, lines and arrows keep full ink. The same rule holds on paper, where ink-2 is the softer dark. */
+.cx rect.tf-ink { fill: var(--ink-2); }
+.ts-signal { stroke: var(--signal); }
+.ts-ink { stroke: var(--ink); }
+.ts-ink2 { stroke: var(--ink-2); }
+.ts-quiet { stroke: var(--mark-quiet); }
+.ts-faint { stroke: var(--rule-strong); }
+.ts-o1 { stroke: var(--ordinal-1); }
+.ts-o2 { stroke: var(--ordinal-2); }
+.ts-o3 { stroke: var(--ordinal-3); }
+.ts-o4 { stroke: var(--ordinal-4); }
+
+.cx-grid { stroke: var(--rule); stroke-width: 1px; }
+.cx-zero, .cx-axis { stroke: var(--rule-strong); stroke-width: 1.25px; }
+.cx-tickmark { stroke: var(--rule-strong); stroke-width: 1.25px; }
+.cx-ref { stroke-width: 1.5px; stroke-dasharray: 4 3; fill: none; }
+.cx-line { fill: none; stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round; }
+.cx-line.is-thin { stroke-width: 1.75px; }
+.cx-line.is-dash, .cx-keyline.is-dash { stroke-dasharray: 5 4; }
+.cx-keyline { stroke-width: 2.5px; stroke-linecap: round; }
+.cx-area { fill-opacity: .16; stroke: none; }
+.cx-band { fill: var(--ink); fill-opacity: .06; }
+.cx-band.is-signal { fill: var(--signal); fill-opacity: .12; }
+.cx-stem { stroke-width: 2.5px; stroke-linecap: round; }
+.cx-ring { fill: var(--paper); stroke-width: 2px; }
+.cx-slope { stroke-width: 2px; fill: none; }
+.cx-fit { stroke: var(--ink-2); stroke-width: 1.5px; stroke-dasharray: 5 4; }
+.cx-dot { stroke: var(--paper); stroke-width: .75px; }
+.cx-dot.tf-quiet { fill-opacity: .8; }
+.cx-mid { stroke: var(--paper); stroke-width: 1.5px; }
+.cx-cell { fill: var(--ink); }
+.cx-cell.is-empty { fill: none; stroke: var(--rule); stroke-width: 1px; stroke-dasharray: 2 3; }
+.cx-cell-ring { fill: none; stroke: var(--signal); stroke-width: 3px; }
+.cx-inside.is-on { font-weight: 700; }
+.cx-ribbon { fill: var(--ink); fill-opacity: .2; }
+.cx-ribbon.is-signal { fill: var(--signal); fill-opacity: .72; }
+.cx-ridge { fill: var(--paper); fill-opacity: .92; }
+.cx-ridge.is-signal { fill: var(--signal); fill-opacity: .22; }
+.cx-leader { stroke: var(--ink-3); stroke-width: 1px; }
+.cx-leader.is-signal { stroke: var(--signal); }
+.cx-unlit { fill-opacity: .9; }
+
+/* ---------- The hub ---------- */
+.charts-list { list-style: none; margin: 0 auto; padding: 0; max-width: 760px; counter-reset: none; }
+.charts-list li { border-top: 1px solid var(--rule); }
+.charts-list li:last-child { border-bottom: 1px solid var(--rule); }
+.charts-row { display: grid; grid-template-columns: 3.25rem 1fr; gap: var(--s-3); align-items: baseline; padding: var(--s-4) 0; color: inherit; text-decoration: none; }
+.charts-row:hover .charts-row-title { text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: 3px; }
+.charts-row-n { font-family: var(--bib); font-weight: 660; font-size: 1.75rem; line-height: 1; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.charts-row-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.charts-row-theme { font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.charts-row-title { font-family: var(--serif); font-weight: 440; font-size: 1.25rem; line-height: 1.2; color: var(--ink); text-wrap: balance; }
+.charts-row-take { font-family: var(--sans); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+
+/* ---------- A chart's page ---------- */
+.chart-page { max-width: 760px; margin: 0 auto; padding: var(--s-5) 0 var(--s-7); display: flex; flex-direction: column; gap: var(--s-4); }
+.chart-crumbs { margin: 0 auto; width: 100%; max-width: 470px; font-family: var(--sans); font-size: var(--t-small); font-weight: 600; }
+.chart-crumbs a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-2); text-decoration: none; }
+.chart-crumbs a:hover { text-decoration: underline; }
+.chart-save { margin: 0 auto; width: 100%; max-width: 470px; font-family: var(--sans); font-size: var(--t-small); font-weight: 600; }
+.chart-save a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); }
+.chart-numbers { width: 100%; max-width: 470px; margin: 0 auto; }
+.chart-pager { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3); width: 100%; max-width: 470px; margin: var(--s-4) auto 0; }
+.chart-pager a { display: flex; align-items: center; gap: var(--s-2); min-height: 44px; padding: var(--s-3); border: 1px solid var(--rule); border-radius: var(--r-md); color: var(--ink); text-decoration: none; font-family: var(--sans); font-size: var(--t-small); line-height: 1.3; }
+.chart-pager a:hover { border-color: var(--ink-3); }
+.chart-pager-next { justify-content: flex-end; text-align: right; }
+.chart-pager-n { display: block; font-size: var(--t-kicker); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+@media (max-width: 599.98px) {
+  .chart-page { padding-top: var(--s-3); }
+}
+/* Narrow screens (and 200% zoom on a phone): the two charts either side stack, each with the width for its title. */
+@media (max-width: 359.98px) {
+  .chart-pager { grid-template-columns: minmax(0, 1fr); }
+}

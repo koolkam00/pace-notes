@@ -1,0 +1,70 @@
+name: Top 100 charts
+
+on:
+  pull_request:
+    paths:
+      - 'analysis/charts_*.py'
+      - 'analysis/build_charts.py'
+      - 'analysis/test_charts.py'
+      - 'analysis/build_insights.py'
+      - 'analysis/insights_data.py'
+      - 'analysis/insights_stats.py'
+      - 'analysis/build_fast_start.py'
+      - 'analysis/release.json'
+      - 'analysis/weather-release.json'
+      - 'analysis/requirements.txt'
+      - 'lib/charts/**'
+      - 'components/charts/**'
+      - 'public/data/charts/**'
+      - 'public/data/runners/**'
+      - 'public/data/weather/evidence.json'
+      - 'public/data/insights/course-geometry.json'
+      - 'public/charts/cards/**'
+      - 'scripts/verify-charts.cjs'
+      - 'scripts/charts/**'
+      - 'scripts/build-chart-cards.cjs'
+      - '.github/workflows/charts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: python -m pip install -r analysis/requirements.txt
+      - run: npm ci
+      - name: Test the chart calculations
+        run: python -m unittest discover -s analysis -p 'test_charts.py'
+      - name: Independently recount the published charts
+        run: node scripts/verify-charts.cjs
+      - name: The committed cards match the published charts
+        run: node scripts/build-chart-cards.cjs --check
+      - name: Rebuild every chart from the verified runner shards
+        run: python analysis/build_charts.py --output "$RUNNER_TEMP/charts"
+      - name: Recount the rebuilt charts
+        run: node scripts/verify-charts.cjs --input "$RUNNER_TEMP/charts"
+      - name: Rebuilt chart files must match the published bytes
+        run: |
+          cd public/data/charts
+          find . -name '*.json' ! -name manifest.json | sort | while read -r file; do
+            cmp "$file" "$RUNNER_TEMP/charts/$file"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chart-data
+          path: ${{ runner.temp }}/charts/
+          if-no-files-found: error
+          retention-days: 30

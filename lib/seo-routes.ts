@@ -19,6 +19,7 @@ import { getStudyEvidence } from './research-data';
 import { PACK_IDS } from './packs';
 import { getPersonalSummary } from './personalized-data';
 import { getInsightsManifest } from './insights-server';
+import { CATALOG as CHART_CATALOG, getChartsManifest } from './charts-server';
 import type { ExtraPage } from './seo-pages/types';
 import { PACE_PAGES } from './seo-pages/pace';
 import { QUALIFYING_PAGES } from './seo-pages/qualifying';
@@ -111,10 +112,11 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // October 22, later: orientation (the owner's request): the home hero says what Pace Notes is, /about says where to
   // start and how it is made, /methodology opens on the short version and says how to open the full records, and
   // /research says what stories and analyses are.
+  // October 23: /research links the Top 100 charts and /methodology holds their methods (#top-charts).
   '/': '2026-10-22',
-  '/research': '2026-10-22',
+  '/research': '2026-10-23',
   '/about': '2026-10-22',
-  '/methodology': '2026-10-22',
+  '/methodology': '2026-10-23',
   '/stories': '2026-10-19',
   '/tools': '2026-10-19',
   '/tools/pace-calculator': '2026-10-19',
@@ -182,7 +184,7 @@ export function canonicalPathFor(path: string): string | null {
 // ---------- Honest lastmod dates ----------
 
 /** The kinds of published data a page can show; each has one as_of date. */
-export type DataSource = 'insights' | 'study' | 'weather' | 'personalized' | 'fastStart' | 'allFinisher' | 'qualifying';
+export type DataSource = 'insights' | 'study' | 'weather' | 'personalized' | 'fastStart' | 'allFinisher' | 'qualifying' | 'charts';
 
 /** UTC calendar date (YYYY-MM-DD) of an ISO timestamp or date. Throws on anything unparsable. */
 function day(value: string | undefined | null): string {
@@ -214,6 +216,7 @@ export function dataDate(source: DataSource): string {
     }
     case 'allFinisher': return day(getAllFinisherContextStart().as_of);
     case 'qualifying': return day(VERIFIED_AT);
+    case 'charts': return day(getChartsManifest().as_of);
   }
 }
 
@@ -226,7 +229,7 @@ const ANALYSIS_SOURCES: Record<AnalysisId, DataSource[]> = {
 
 /** Every date a sitemap lastmod may take: the data as_of dates, the course pack's date, CONTENT_DATES, COURSE_PAGES_WRITTEN and the registered extra pages' dates. */
 export function allSourceDates(): string[] {
-  const sources: DataSource[] = ['insights', 'study', 'weather', 'personalized', 'fastStart', 'allFinisher', 'qualifying'];
+  const sources: DataSource[] = ['insights', 'study', 'weather', 'personalized', 'fastStart', 'allFinisher', 'qualifying', 'charts'];
   const extras = EXTRA_SITEMAP_PAGES.map(page => typeof page.lastmod === 'function' ? page.lastmod() : page.lastmod);
   const coursePack = extensionForQuestion('s3_course_breaks');
   return [...new Set([...sources.map(dataDate), coursePack ? day(coursePack.asOf) : undefined, ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, ...extras].filter((date): date is string => !!date))].sort();
@@ -272,6 +275,10 @@ export function sitemapEntries(): SitemapEntry[] {
     const lastmod = latest(at('insights'), coursePack ? day(coursePack.asOf) : undefined, COURSE_PAGES_WRITTEN);
     entries.push({ path: `/courses/${slugifyCity(city)}`, ...(lastmod ? { lastmod } : {}) });
   }
+
+  // The Top 100 charts: a section of its own, off the chapter chain (its one way in is a line on /research).
+  add('/charts', 'charts');
+  for (const chart of CHART_CATALOG) add(`/charts/${chart.number}`, 'charts');
 
   add('/about', 'content', 'personalized', 'weather');
   add('/methodology', 'content', 'study');

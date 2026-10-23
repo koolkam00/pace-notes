@@ -1,5 +1,20 @@
 # Project handoff
 
+## Top 100 charts: a section of its own (October 23, 2026)
+
+The owner asked on October 23, 2026 for "a new section called top 100 charts": a hundred analyses of the data, each with one key takeaway, drawn to expert visualisation standards, for a series on Instagram, and kept apart so it does not crowd the core site.
+
+**Repository state:** branch `feat/top-100-charts`, pull request #81 (draft). **Deployed state:** not deployed; the Vercel preview of the branch is the only place it runs.
+
+What it is: `/charts` (a numbered list) and `/charts/1` … `/charts/100`, one chart and one takeaway each, every page also drawn as a 1080 × 1350 card (`public/charts/cards/<n>.png`) with a caption in `docs/CHARTS_INSTAGRAM.md`. It is off the chapter chain, the Menu and the footer; its one way in from the core site is a line on `/research`, and its methods are one section of `/methodology` (`#top-charts`). Every number comes from the adopted release (`private-export-20261021-1050`) through `analysis/build_charts.py` and is recounted independently by `scripts/verify-charts.cjs`; the cards carry stamps that `build-chart-cards.cjs --check` recomputes. Both run in `npm run verify:data`, and the **Top 100 charts** workflow rebuilds every chart in CI and requires the committed bytes. The contract, the checks, the refresh steps and the dated evidence are in [Top 100 charts](TOP_100_CHARTS.md); the refresh is also under [Operations](OPERATIONS.md#top-100-charts-refresh).
+
+How the hundred were chosen and checked (summary; detail in [Top 100 charts](TOP_100_CHARTS.md#evidence)): 135 tested candidates, a curated 100 critiqued by three independent reviewers, weak or repeated entries replaced after a second round, then each chart built, reviewed, fixed and polished. A whole-set adversarial review (77 confirmed findings, 6 of them blockers) set one series style and was fixed module by module, each module re-checked by an independent editor; two near-duplicates were cut and replaced by newly tested and judged analyses. A second whole-set review (60 confirmed findings, 3 blockers) was fixed and re-checked the same way; it cut two more weak cards, replaced by the two highest-scored of ten fresh candidates ("Sub-3:30 doubles: the second more often slower", "The 25–30K split ordered the field best"), and sharpened the New York 25–30K card. The series order puts the strongest first, keeps neighbours on different themes and forms, and spaces related cards (New York, field spread, the 3:59 cards) apart.
+
+Still for the owner:
+- Read the hundred before posting: the cards publish under the owner's name, and a refresh can change a headline (a chart whose guard no longer holds shows its fallback sentence).
+- Bars are the most common form (25 of 100), above the 15 per form the selection aimed for; no two neighbouring cards share a form, but a series that runs daily may want more variety.
+- Dumbbells draw their first dot as a quiet ring and their second as an ink dot on every row but the signal one (`components/charts/rows.tsx`), so on No. 42 the comparison dot of the accented row is a ring with an ink label rather than ink itself; a per-row tone would change all eleven dumbbell cards and was left for a later pass.
+
 ## Orientation: what Pace Notes is, where to start and how it is made (October 22, 2026)
 
 The owner relayed a visitor's feedback on October 22, 2026 and asked for a plan and its implementation: "I wonder whether some additional text or notes which clearly explain the purpose of the site, how and why it was developed, and how the information can be accessed and best used would be helpful to some people."

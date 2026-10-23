@@ -63,7 +63,7 @@ const CLS_LIMIT = 0.25;
 const MOBILE = { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 };
 const DESKTOP = { name: 'desktop', viewport: { width: 1366, height: 900 } };
 const DESKTOP_TOO = new Set(['/', '/tools']);
-const QUICK_ROUTES = ['/', '/stories', '<story>', '/tools', '<tools>', '/analyses', '/analyses/pacing-pattern', '/runners', '/courses', '<course>', '/about', '/privacy', '/request-analysis', '/methodology'];
+const QUICK_ROUTES = ['/', '/stories', '<story>', '/tools', '<tools>', '/analyses', '/analyses/pacing-pattern', '/runners', '/courses', '<course>', '/charts', '<chart>', '/about', '/privacy', '/request-analysis', '/methodology'];
 const POSTHOG_HOST = /(^|\.)posthog\.com$/i;
 // Vercel adds its toolbar (vercel.live/_next-live/feedback/feedback.js) to preview deployments; it is not site code.
 const PREVIEW_TOOLBAR_HOST = /^vercel\.live$/i;
@@ -240,6 +240,7 @@ async function main(argv, deps) {
   for (const route of QUICK_ROUTES) {
     if (route === '<story>') { const p = first(/^\/stories\/[^/]+$/); if (p) quick.push(p); else if (sitemap.length) fail('sitemap.xml', 'lists no story page'); }
     else if (route === '<course>') { const p = first(/^\/courses\/[^/]+$/); if (p) quick.push(p); else if (sitemap.length) fail('sitemap.xml', 'lists no course page'); }
+    else if (route === '<chart>') { const p = first(/^\/charts\/\d+$/); if (p) quick.push(p); else if (sitemap.length) fail('sitemap.xml', 'lists no chart page'); }
     else if (route === '<tools>') quick.push(...sitemap.filter((p) => /^\/tools\/[^/]+$/.test(p)));
     else quick.push(route);
   }
@@ -494,7 +495,7 @@ async function main(argv, deps) {
 
 // ---------- Self-test ----------
 
-const SELF_TEST_SITEMAP = ['/', '/stories/final-kick', '/tools', '/tools/pace-band', '/courses/amsterdam', '/about'];
+const SELF_TEST_SITEMAP = ['/', '/stories/final-kick', '/tools', '/tools/pace-band', '/courses/amsterdam', '/charts/1', '/about'];
 
 /**
  * The site and Chromium, stood in for: just enough of fetch and of Playwright's API for main(). Every page answers

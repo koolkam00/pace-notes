@@ -7,7 +7,8 @@
  *   /tools/<slug>/<more>                              its own card, public/og/tools/<slug>/<more>.png (the goal pages
  *                                                     /tools/marathon-pace/<goal>, the race pages /tools/qualifying/<race>),
  *                                                     else the parent tool's card, public/og/tools/<slug>.png
- *   /stories, /tools, /courses, /analyses, /packs     the section card, public/og/sections/<section>.png,
+ *   /stories, /tools, /courses, /analyses, /packs,    the section card, public/og/sections/<section>.png,
+ *   /charts
  *   and every page below them                         also used by analysis and pack pages
  *   /<page> outside those sections                    its own card when it has one, public/og/pages/<page>.png
  *                                                     (/finish-times, /research)
@@ -32,6 +33,7 @@ const SECTION_CARDS: Readonly<Record<string, string>> = {
   courses: '/og/sections/courses.png',
   analyses: '/og/sections/analyses.png',
   packs: '/og/sections/packs.png',
+  charts: '/og/sections/charts.png',
 };
 
 /** Top-level pages outside the sections keep their own cards here. */

@@ -1,0 +1,602 @@
+[
+  {
+    "number": 1,
+    "slug": "minute-before-the-hour",
+    "theme": "finish-times",
+    "module": "charts_finish_times_1"
+  },
+  {
+    "number": 2,
+    "slug": "women-slow-down-less",
+    "theme": "people",
+    "module": "charts_people_1"
+  },
+  {
+    "number": 3,
+    "slug": "second-20k-rarely-quicker",
+    "theme": "pacing",
+    "module": "charts_pacing_1"
+  },
+  {
+    "number": 4,
+    "slug": "same-second-different-20k",
+    "theme": "racing",
+    "module": "charts_racing_2"
+  },
+  {
+    "number": 5,
+    "slug": "slowdowns-run-in-streaks",
+    "theme": "trends",
+    "module": "charts_trends_1"
+  },
+  {
+    "number": 6,
+    "slug": "every-race-has-its-minute",
+    "theme": "courses",
+    "module": "charts_courses_1"
+  },
+  {
+    "number": 7,
+    "slug": "big-birthday-bulge",
+    "theme": "people",
+    "module": "charts_people_1"
+  },
+  {
+    "number": 8,
+    "slug": "where-slowdowns-began",
+    "theme": "pacing",
+    "module": "charts_pacing_2"
+  },
+  {
+    "number": 9,
+    "slug": "same-race-warmer-return",
+    "theme": "courses",
+    "module": "charts_courses_1"
+  },
+  {
+    "number": 10,
+    "slug": "same-four-hours-different-place",
+    "theme": "finish-times",
+    "module": "charts_finish_times_1"
+  },
+  {
+    "number": 11,
+    "slug": "late-climber-came-in-first",
+    "theme": "racing",
+    "module": "charts_more"
+  },
+  {
+    "number": 12,
+    "slug": "women-outnumber-men-mid-20s",
+    "theme": "people",
+    "module": "charts_people_1"
+  },
+  {
+    "number": 13,
+    "slug": "fields-halved-in-2021",
+    "theme": "trends",
+    "module": "charts_trends_1"
+  },
+  {
+    "number": 14,
+    "slug": "ahead-at-20k-gone-by-40k",
+    "theme": "racing",
+    "module": "charts_racing_2"
+  },
+  {
+    "number": 15,
+    "slug": "rarely-back-to-early-pace",
+    "theme": "pacing",
+    "module": "charts_pacing_1"
+  },
+  {
+    "number": 16,
+    "slug": "one-hour-holds-half",
+    "theme": "finish-times",
+    "module": "charts_finish_times_2"
+  },
+  {
+    "number": 17,
+    "slug": "downhill-start-quick-first-5k",
+    "theme": "courses",
+    "module": "charts_courses_2"
+  },
+  {
+    "number": 18,
+    "slug": "sub-3-went-mainstream",
+    "theme": "trends",
+    "module": "charts_trends_1"
+  },
+  {
+    "number": 19,
+    "slug": "age-barely-shows-until-45",
+    "theme": "people",
+    "module": "charts_people_1"
+  },
+  {
+    "number": 20,
+    "slug": "same-20k-different-finish",
+    "theme": "pacing",
+    "module": "charts_pacing_1"
+  },
+  {
+    "number": 21,
+    "slug": "matched-at-every-mat",
+    "theme": "racing",
+    "module": "charts_racing_1"
+  },
+  {
+    "number": 22,
+    "slug": "only-1-in-20-under-3",
+    "theme": "finish-times",
+    "module": "charts_finish_times_1"
+  },
+  {
+    "number": 23,
+    "slug": "most-records-appear-once",
+    "theme": "trends",
+    "module": "charts_trends_2"
+  },
+  {
+    "number": 24,
+    "slug": "boston-packed-front-long-back",
+    "theme": "courses",
+    "module": "charts_more"
+  },
+  {
+    "number": 25,
+    "slug": "sixties-beat-the-young-median",
+    "theme": "people",
+    "module": "charts_people_2"
+  },
+  {
+    "number": 26,
+    "slug": "when-the-front-1-percent-finish",
+    "theme": "racing",
+    "module": "charts_racing_1"
+  },
+  {
+    "number": 27,
+    "slug": "quickest-and-slowest-5k",
+    "theme": "pacing",
+    "module": "charts_pacing_2"
+  },
+  {
+    "number": 28,
+    "slug": "new-york-2021-returners",
+    "theme": "trends",
+    "module": "charts_trends_2"
+  },
+  {
+    "number": 29,
+    "slug": "seventy-plus-under-four",
+    "theme": "people",
+    "module": "charts_people_2"
+  },
+  {
+    "number": 30,
+    "slug": "shared-second",
+    "theme": "finish-times",
+    "module": "charts_finish_times_1"
+  },
+  {
+    "number": 31,
+    "slug": "races-that-warmed-up",
+    "theme": "courses",
+    "module": "charts_courses_1"
+  },
+  {
+    "number": 32,
+    "slug": "place-in-the-field-sticks",
+    "theme": "trends",
+    "module": "charts_trends_1"
+  },
+  {
+    "number": 33,
+    "slug": "mens-median-on-the-mark",
+    "theme": "finish-times",
+    "module": "charts_finish_times_2"
+  },
+  {
+    "number": 34,
+    "slug": "even-pace-1-in-13",
+    "theme": "pacing",
+    "module": "charts_pacing_1"
+  },
+  {
+    "number": 35,
+    "slug": "how-spread-out-each-race-is",
+    "theme": "courses",
+    "module": "charts_courses_1"
+  },
+  {
+    "number": 36,
+    "slug": "pairs-in-step-split-up",
+    "theme": "racing",
+    "module": "charts_racing_1"
+  },
+  {
+    "number": 37,
+    "slug": "sub-3-not-only-for-the-young",
+    "theme": "people",
+    "module": "charts_people_1"
+  },
+  {
+    "number": 38,
+    "slug": "quicker-every-time",
+    "theme": "trends",
+    "module": "charts_trends_1"
+  },
+  {
+    "number": 39,
+    "slug": "later-slowdowns-up-front",
+    "theme": "pacing",
+    "module": "charts_pacing_2"
+  },
+  {
+    "number": 40,
+    "slug": "leads-overturned",
+    "theme": "racing",
+    "module": "charts_racing_1"
+  },
+  {
+    "number": 41,
+    "slug": "women-median-matches-older-men",
+    "theme": "people",
+    "module": "charts_more"
+  },
+  {
+    "number": 42,
+    "slug": "quick-double-mostly-slower",
+    "theme": "finish-times",
+    "module": "charts_finish_times_2"
+  },
+  {
+    "number": 43,
+    "slug": "boston-slowest-before-35k",
+    "theme": "courses",
+    "module": "charts_courses_2"
+  },
+  {
+    "number": 44,
+    "slug": "time-in-hand-for-4",
+    "theme": "racing",
+    "module": "charts_racing_1"
+  },
+  {
+    "number": 45,
+    "slug": "even-pacing-rose-since-2019",
+    "theme": "trends",
+    "module": "charts_trends_1"
+  },
+  {
+    "number": 46,
+    "slug": "women-beat-the-median-man",
+    "theme": "people",
+    "module": "charts_people_1"
+  },
+  {
+    "number": 47,
+    "slug": "middle-split-orders-the-field",
+    "theme": "pacing",
+    "module": "charts_pacing_2"
+  },
+  {
+    "number": 48,
+    "slug": "just-over-3-then-next",
+    "theme": "trends",
+    "module": "charts_trends_2"
+  },
+  {
+    "number": 49,
+    "slug": "where-each-race-slows",
+    "theme": "courses",
+    "module": "charts_courses_1"
+  },
+  {
+    "number": 50,
+    "slug": "older-finishes-draw-level",
+    "theme": "people",
+    "module": "charts_people_1"
+  },
+  {
+    "number": 51,
+    "slug": "fields-stretching-out",
+    "theme": "finish-times",
+    "module": "charts_finish_times_2"
+  },
+  {
+    "number": 52,
+    "slug": "bigger-fade-later-finish",
+    "theme": "pacing",
+    "module": "charts_pacing_1"
+  },
+  {
+    "number": 53,
+    "slug": "quicker-second-20k-again",
+    "theme": "trends",
+    "module": "charts_trends_2"
+  },
+  {
+    "number": 54,
+    "slug": "three-hour-crowd-at-20k",
+    "theme": "racing",
+    "module": "charts_racing_2"
+  },
+  {
+    "number": 55,
+    "slug": "each-race-keeps-its-profile",
+    "theme": "courses",
+    "module": "charts_more"
+  },
+  {
+    "number": 56,
+    "slug": "long-back-of-the-field",
+    "theme": "finish-times",
+    "module": "charts_finish_times_2"
+  },
+  {
+    "number": 57,
+    "slug": "women-at-the-front-grew",
+    "theme": "trends",
+    "module": "charts_trends_2"
+  },
+  {
+    "number": 58,
+    "slug": "slowed-in-every-5k",
+    "theme": "pacing",
+    "module": "charts_pacing_1"
+  },
+  {
+    "number": 59,
+    "slug": "younger-finishes-slowed-more",
+    "theme": "people",
+    "module": "charts_people_2"
+  },
+  {
+    "number": 60,
+    "slug": "front-settles-early",
+    "theme": "racing",
+    "module": "charts_racing_2"
+  },
+  {
+    "number": 61,
+    "slug": "kick-just-under-the-mark",
+    "theme": "finish-times",
+    "module": "charts_finish_times_1"
+  },
+  {
+    "number": 62,
+    "slug": "cooler-mornings-more-even-pacing",
+    "theme": "courses",
+    "module": "charts_courses_2"
+  },
+  {
+    "number": 63,
+    "slug": "new-york-got-younger",
+    "theme": "trends",
+    "module": "charts_trends_1"
+  },
+  {
+    "number": 64,
+    "slug": "gap-widest-at-the-front",
+    "theme": "people",
+    "module": "charts_people_2"
+  },
+  {
+    "number": 65,
+    "slug": "two-ways-to-run-359",
+    "theme": "pacing",
+    "module": "charts_pacing_1"
+  },
+  {
+    "number": 66,
+    "slug": "slowing-that-still-gained",
+    "theme": "racing",
+    "module": "charts_racing_1"
+  },
+  {
+    "number": 67,
+    "slug": "finishing-kick-by-city",
+    "theme": "courses",
+    "module": "charts_courses_2"
+  },
+  {
+    "number": 68,
+    "slug": "quicker-finishes-more-repeatable",
+    "theme": "trends",
+    "module": "charts_trends_2"
+  },
+  {
+    "number": 69,
+    "slug": "ten-minutes-many-places",
+    "theme": "finish-times",
+    "module": "charts_finish_times_1"
+  },
+  {
+    "number": 70,
+    "slug": "in-step-and-close-in-age",
+    "theme": "people",
+    "module": "charts_more"
+  },
+  {
+    "number": 71,
+    "slug": "kick-but-not-early-pace",
+    "theme": "pacing",
+    "module": "charts_pacing_1"
+  },
+  {
+    "number": 72,
+    "slug": "women-move-up-after-20k",
+    "theme": "racing",
+    "module": "charts_racing_1"
+  },
+  {
+    "number": 73,
+    "slug": "wind-about-the-same",
+    "theme": "courses",
+    "module": "charts_courses_2"
+  },
+  {
+    "number": 74,
+    "slug": "in-step-once-in-step-again",
+    "theme": "trends",
+    "module": "charts_more"
+  },
+  {
+    "number": 75,
+    "slug": "front-of-the-field-is-younger",
+    "theme": "people",
+    "module": "charts_people_2"
+  },
+  {
+    "number": 76,
+    "slug": "seconds-before-the-mark",
+    "theme": "finish-times",
+    "module": "charts_finish_times_1"
+  },
+  {
+    "number": 77,
+    "slug": "steady-before-20k",
+    "theme": "pacing",
+    "module": "charts_pacing_2"
+  },
+  {
+    "number": 78,
+    "slug": "new-york-2006-vs-2025",
+    "theme": "people",
+    "module": "charts_people_1"
+  },
+  {
+    "number": 79,
+    "slug": "steady-climbers-twice-fallers",
+    "theme": "racing",
+    "module": "charts_more"
+  },
+  {
+    "number": 80,
+    "slug": "same-race-different-year",
+    "theme": "trends",
+    "module": "charts_trends_2"
+  },
+  {
+    "number": 81,
+    "slug": "mornings-vary-by-year",
+    "theme": "courses",
+    "module": "charts_more"
+  },
+  {
+    "number": 82,
+    "slug": "a-year-apart",
+    "theme": "finish-times",
+    "module": "charts_finish_times_1"
+  },
+  {
+    "number": 83,
+    "slug": "order-shuffled-faster-after-20k",
+    "theme": "racing",
+    "module": "charts_racing_2"
+  },
+  {
+    "number": 84,
+    "slug": "womens-share-rose-in-most-races",
+    "theme": "trends",
+    "module": "charts_trends_1"
+  },
+  {
+    "number": 85,
+    "slug": "climb-a-loose-guide",
+    "theme": "courses",
+    "module": "charts_courses_1"
+  },
+  {
+    "number": 86,
+    "slug": "where-the-slow-day-happened",
+    "theme": "pacing",
+    "module": "charts_pacing_2"
+  },
+  {
+    "number": 87,
+    "slug": "even-ten-minute-marks",
+    "theme": "finish-times",
+    "module": "charts_finish_times_2"
+  },
+  {
+    "number": 88,
+    "slug": "even-pace-paradox",
+    "theme": "people",
+    "module": "charts_people_2"
+  },
+  {
+    "number": 89,
+    "slug": "new-york-sped-up-at-25k",
+    "theme": "courses",
+    "module": "charts_courses_2"
+  },
+  {
+    "number": 90,
+    "slug": "same-records-years-later",
+    "theme": "trends",
+    "module": "charts_trends_2"
+  },
+  {
+    "number": 91,
+    "slug": "slowest-5k-after-20k",
+    "theme": "pacing",
+    "module": "charts_pacing_2"
+  },
+  {
+    "number": 92,
+    "slug": "womens-share-by-finish-time",
+    "theme": "people",
+    "module": "charts_people_2"
+  },
+  {
+    "number": 93,
+    "slug": "how-a-race-spreads-out",
+    "theme": "racing",
+    "module": "charts_racing_2"
+  },
+  {
+    "number": 94,
+    "slug": "men-bunch-at-round-marks",
+    "theme": "finish-times",
+    "module": "charts_finish_times_2"
+  },
+  {
+    "number": 95,
+    "slug": "five-races-in-same-share",
+    "theme": "trends",
+    "module": "charts_trends_1"
+  },
+  {
+    "number": 96,
+    "slug": "womens-share-by-city",
+    "theme": "people",
+    "module": "charts_people_2"
+  },
+  {
+    "number": 97,
+    "slug": "warm-mornings-reshuffle",
+    "theme": "racing",
+    "module": "charts_racing_2"
+  },
+  {
+    "number": 98,
+    "slug": "most-ran-second-5k-quicker",
+    "theme": "pacing",
+    "module": "charts_pacing_2"
+  },
+  {
+    "number": 99,
+    "slug": "second-20k-quicker-by-city",
+    "theme": "courses",
+    "module": "charts_courses_2"
+  },
+  {
+    "number": 100,
+    "slug": "every-new-york-in-the-data",
+    "theme": "trends",
+    "module": "charts_trends_2"
+  }
+]
