@@ -1,5 +1,6 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import PaceChartTable from '@/components/tools/PaceChartTable';
+import HalfFieldPanel from '@/components/half/HalfFieldPanel';
 import { ToolEnd, ToolPageHeader } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
 import { HALF_CHART, MARATHON_CHART, goalLabel } from '@/lib/tools/pace-chart';
@@ -25,6 +26,9 @@ export default function HalfMarathonPaceChartPage() {
       </ToolPageHeader>
 
       <PaceChartTable race="half" />
+
+      {/* What half finishes ran (Pace Notes data), apart from the table's even-pace columns, which stay unbadged. */}
+      <HalfFieldPanel />
 
       <p className="tool-note goal-chart-other no-print">Running a marathon? The <Link href="/tools/marathon-pace-chart">marathon pace chart</Link> covers {marathonRange}.</p>
 

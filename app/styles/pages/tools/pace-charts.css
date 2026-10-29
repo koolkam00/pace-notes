@@ -42,3 +42,7 @@
   .goal-chart-wrap.is-overflow { -webkit-mask-image: none; mask-image: none; }
   .goal-chart-table .goal-chart-goal { position: static; }
 }
+
+/* ---------- The half pace chart's observed panel (components/half/HalfFieldPanel.tsx) ---------- */
+.half-field .viz-frame { max-width: var(--measure-figure); }
+.half-field-more a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: var(--t-small); font-weight: 600; color: var(--ink); }
