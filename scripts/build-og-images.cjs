@@ -104,10 +104,12 @@ const PACE_CHART_CARDS = [
   { slug: 'half-marathon-pace-chart', eyebrow: 'Runner tools · Pace charts', title: 'Half marathon pace chart', accent: TOKENS.blue },
 ];
 
-/** Top-level pages outside the sections, with their own card in public/og/pages/: the page's H1 (components/FinishTimeSummary.tsx, app/research/(hub)/page.tsx). */
+/** Top-level pages outside the sections, with their own card in public/og/pages/: the page's H1 (components/FinishTimeSummary.tsx, app/research/(hub)/page.tsx), or its name (/half). */
 const PAGE_CARDS = [
   { slug: 'finish-times', eyebrow: 'Finish times · Median and distribution', title: 'Marathon finish times', accent: TOKENS.orange },
   { slug: 'research', eyebrow: 'Research · Stories, analyses and open data', title: 'Explore the research', accent: TOKENS.violet },
+  // /half (app/half/page.tsx, components/half/HalfPage.tsx): off the chain, so a card of its own, not a section's.
+  { slug: 'half', eyebrow: 'Half marathon · Finish times', title: 'The half marathon', accent: TOKENS.orange },
 ];
 
 function cardSpecs() {
