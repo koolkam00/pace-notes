@@ -6,7 +6,7 @@ import { goalCell, splitCaption, terrainCaption } from '@/lib/tools/terrain-band
 import { CHECKPOINTS, fmtGoal } from '@/lib/tools/pace-band-data';
 import type { TerrainFeature } from '@/lib/tools/terrain-data';
 import { formatDuration } from '@/lib/tools/time';
-import { KM_PER_MILE, elevationLabel, type UnitSystem } from '@/lib/units';
+import { KM_PER_MILE, elevationValue, type UnitSystem } from '@/lib/units';
 
 /**
  * A terrain course's corrected, smoothed route profile (every `step` km from the start, on the official 42.195 km axis)
@@ -88,6 +88,13 @@ const ELEVATION_SCALE_M = 200;
 const LABEL_SIZE = 8.5;
 /** Labels whose middles fall closer than this (km) to the previous label's are left out. */
 const LABEL_GAP_KM = 1.5;
+/** A label's width in drawing units (an estimate on the generous side, so the ticks and other labels keep clear). */
+const labelWidth = (text: string) => text.length * LABEL_SIZE * 0.56;
+/** An elevation for the band, in whole feet or metres, with the minus sign the site prints (U+2212). */
+const wholeElevation = (metres: number, units: UnitSystem) => {
+  const v = Math.round(elevationValue(metres, units));
+  return `${v < 0 ? '\u2212' : ''}${Math.abs(v).toLocaleString('en-US')} ${units === 'mi' ? 'ft' : 'm'}`;
+};
 
 /**
  * The corrected profile the terrain splits were spread over, as a strip for the back of the band, with each structure's
@@ -118,14 +125,14 @@ function ElevationStrip({ profile, units }: { profile: RouteProfile; units: Unit
     if (previousMid !== null && mid - previousMid < LABEL_GAP_KM) continue;
     previousMid = mid;
     const cx = x(mid);
-    const width = f.short.length * LABEL_SIZE * 0.56;
+    const width = labelWidth(f.short);
     const anchor = cx - width / 2 < 2 ? 'start' : cx + width / 2 > W - 2 ? 'end' : 'middle';
     const left = anchor === 'start' ? Math.max(0, cx - 4) : anchor === 'end' ? cx - width : cx - width / 2;
     const tx = anchor === 'start' ? left : anchor === 'end' ? Math.min(W, cx + 4) : cx;
     const under = pts.filter((_, i) => i * profile.step >= Math.min(f.from_km, mid - 0.25) && i * profile.step <= Math.max(f.to_km, mid + 0.25));
     let ty = Math.max(LABEL_SIZE, y(Math.max(...(under.length ? under : [lo]))) - 3);
     const touches = (yy: number) => labels.some((l) => {
-      const lw = l.text.length * LABEL_SIZE * 0.56;
+      const lw = labelWidth(l.text);
       const ll = l.anchor === 'start' ? l.x : l.anchor === 'end' ? l.x - lw : l.x - lw / 2;
       return left < ll + lw + 3 && ll < left + width + 3 && Math.abs(l.y - yy) < LABEL_SIZE + 1;
     });
@@ -133,23 +140,42 @@ function ElevationStrip({ profile, units }: { profile: RouteProfile; units: Unit
     labels.push({ id: f.id, text: f.short, x: tx, y: ty, anchor });
   }
   const named = labels.length ? ` Marked: ${labels.map((l) => l.text).join(', ')}.` : '';
+  // Each 5 km tick is broken where it would run through a label (the label's box with a margin), so every name on the
+  // wristband reads whole.
+  const boxes = labels.map((l) => {
+    const w = labelWidth(l.text);
+    const left = l.anchor === 'start' ? l.x : l.anchor === 'end' ? l.x - w : l.x - w / 2;
+    return { x0: left - 2, x1: left + w + 2, y0: l.y - LABEL_SIZE - 1, y1: l.y + LABEL_SIZE * 0.3 + 1 };
+  });
+  const tickRuns = (tx: number) => {
+    const runs: [number, number][] = [];
+    let from = top;
+    for (const b of boxes.filter((b) => b.x0 <= tx && tx <= b.x1).sort((a, b) => a.y0 - b.y0)) {
+      if (b.y0 > from) runs.push([from, Math.min(b.y0, H)]);
+      from = Math.max(from, b.y1);
+    }
+    if (from < H) runs.push([from, H]);
+    return runs;
+  };
+  const low = wholeElevation(profile.min, units), high = wholeElevation(profile.max, units);
   return (
     <div className="pace-band-strip is-back">
       <svg viewBox={`0 0 ${W} ${H + 12}`} preserveAspectRatio="none" role="img"
-        aria-label={`Route elevation for ${profile.city}, from ${elevationLabel(profile.min, units)} to ${elevationLabel(profile.max, units)}, drawn on a fixed ${scale} vertical scale.${named}`}>
+        aria-label={`Route elevation for ${profile.city}, from ${low} to ${high}, drawn on a fixed ${scale} vertical scale.${named}`}>
         <path d={fill} fill="var(--strip-rule)" stroke="none" />
         <polyline points={coords.join(' ')} fill="none" stroke="var(--strip-ink)" strokeWidth={1} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {[5, 10, 15, 20, 25, 30, 35, 40].filter((km) => km < profile.km).map((km) => (
           <g key={km}>
-            <line x1={x(km)} x2={x(km)} y1={top} y2={H} stroke="var(--strip-ink)" strokeWidth={0.6} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
+            {tickRuns(x(km)).map(([y1, y2]) => <line key={y1} x1={x(km)} x2={x(km)} y1={y1} y2={y2} stroke="var(--strip-ink)" strokeWidth={0.6} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />)}
             <text x={x(km)} y={H + 10} textAnchor="middle" fontSize={LABEL_SIZE} fontFamily="var(--sans)">{km}K</text>
           </g>
         ))}
         {labels.map((l) => (
-          <text key={l.id} className="pace-band-back-label" x={l.x.toFixed(1)} y={l.y.toFixed(1)} textAnchor={l.anchor} fontSize={LABEL_SIZE} fontFamily="var(--sans)">{l.text}</text>
+          <text key={l.id} className="pace-band-back-label" x={l.x.toFixed(1)} y={l.y.toFixed(1)} textAnchor={l.anchor} fontSize={LABEL_SIZE} fontFamily="var(--sans)"
+            paintOrder="stroke" stroke="var(--strip-paper)" strokeWidth={2.5} strokeLinejoin="round">{l.text}</text>
         ))}
       </svg>
-      <p className="pace-band-strip-caption">Back · {profile.race} route elevation, {elevationLabel(profile.min, units)} to {elevationLabel(profile.max, units)} · strip height = {scale} on every course</p>
+      <p className="pace-band-strip-caption">Back · {profile.race} route elevation, {low} to {high} · strip height = {scale} on every course</p>
     </div>
   );
 }
