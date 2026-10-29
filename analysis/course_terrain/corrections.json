@@ -1,6 +1,6 @@
 {
  "schema": "pace-notes/course-profile-corrections",
- "version": "2026-10-23.1",
+ "version": "2026-10-23.2",
  "generated": "2026-10-23",
  "input": {
   "path": "/home/user/data/1050-full/course_profiles.parquet",
@@ -27601,8 +27601,10 @@
     {
      "dataset": "NYC Planimetric Database: Elevation Points (NYC Office of Technology and Innovation, 2022 aerial survey)",
      "url": "https://data.cityofnewyork.us/d/9uxf-ng6q",
-     "licence": "NYC Open Data Terms of Use",
-     "licence_url": "https://opendata.cityofnewyork.us/overview/#termsofuse",
+     "licence": "NYC Open Data Law: no licence requirement or restrictions on use (NYC Administrative Code § 23-502(d))",
+     "licence_url": "https://cityofnewyork.github.io/opendatatsm/LocalLaw11of2012.html",
+     "licence_checked": "2026-10-29",
+     "licence_terms": "Such public data sets shall be made available without any registration requirement, license requirement or restrictions on their use provided that the department may require a third party providing to the public any public data set, or application utilizing such data set, to explicitly identify the source and version of the public data set, and a description of any modifications made to such public data set.",
      "retrieved": "2026-10-23"
     },
     {

@@ -30,7 +30,7 @@ export interface TerrainModel {
 }
 
 /** A source of a course's profile, with its licence. */
-export interface TerrainSource { dataset: string; url: string; licence: string; licence_url?: string; retrieved: string }
+export interface TerrainSource { dataset: string; url: string; licence: string; licence_url?: string; licence_checked?: string; licence_terms?: string; retrieved: string }
 
 /** The published file. */
 export interface TerrainIndex {

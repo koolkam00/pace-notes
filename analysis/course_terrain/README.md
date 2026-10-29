@@ -6,7 +6,7 @@ splits spread the visitor's own goal over a corrected route profile with one pub
 
 | Path | What it is | Run in CI |
 |---|---|---|
-| `corrections.json` | The audited registry (schema `pace-notes/course-profile-corrections`, version `2026-10-23.1`): every supplied course, its class, structure audit and corrections, plus `slug`, `band`, `why`, `features` and `sources` | read by the builder |
+| `corrections.json` | The audited registry (schema `pace-notes/course-profile-corrections`, version `2026-10-23.2`; `.1` of October 23, 2026 plus, on October 29, 2026, New York's NYC Open Data licence as read, with no correction, course or feature changed): every supplied course, its class, structure audit and corrections, plus `slug`, `band`, `why`, `features` and `sources` | read by the builder |
 | `fixtures/parity.json` | A synthetic profile and its expected plan shares, asserted by `analysis/test_course_terrain.py`; the JavaScript model in `scripts/verify-tools.cjs` asserts the same values (Python and JavaScript parity) | yes |
 | `provenance/` | The scripts that sampled the terrain models and wrote the registry (network, never run in CI) | no |
 | `validation-2026-10-23/` | Dated evidence: the check of the model against steady finishers that chose the ten courses | no |
@@ -24,12 +24,13 @@ splits spread the visitor's own goal over a corrected route profile with one pub
   one range correction or one `structures_applied` range. The builder maps them to the official axis
   (`(km - first point) × 42.195 / route length`, where the route length is the corrected profile's own length).
 - `sources`: `{dataset, url, licence, licence_url, retrieved}` for every dataset the corrected profile of a terrain
-  course is built from. Licences as checked on October 23, 2026:
+  course is built from, plus `licence_checked` and `licence_terms` where the terms were read after retrieval.
+  Licences as checked on October 23, 2026 (New York's NYC Open Data terms on October 29, 2026):
 
 | Source | Licence | Checked against |
 |---|---|---|
 | USGS 3DEP 1/3 arc-second DEM (NED 10 m) | Public domain | ScienceBase 3DEP item metadata ("All 3DEP products are public domain"); usgs.gov returned HTTP 403 |
-| NYC Planimetric Database: Elevation Points | NYC Open Data Terms of Use | not verified: opendata.cityofnewyork.us returned HTTP 403; the dataset's own metadata names no licence (attribution: NYC Office of Technology and Innovation) |
+| NYC Planimetric Database: Elevation Points | NYC Open Data Law, NYC Administrative Code § 23-502(d): public data sets "shall be made available without any registration requirement, license requirement or restrictions on their use", provided the City may require a third party to identify the source and version and describe any modifications | Read October 29, 2026. The former terms address (`opendata.cityofnewyork.us/overview/#termsofuse`) now redirects to `nyc.gov/opendata/get-started/what-is-open-data-`, which has no terms section and links the Open Data Law; the law's text was read in the City's Open Data Technical Standards Manual (`cityofnewyork.github.io/opendatatsm/LocalLaw11of2012.html`; the American Legal code library answered HTTP 403). The nyc.gov Terms of use it links in its footer cover NYC.gov's own pages and do not mention Open Data or data sets. The dataset's metadata names no licence (`license: null`; attribution: NYC Office of Technology and Innovation). `/methodology#tools-terrain-profiles` names the source (the City's Planimetric Elevation Points, NYC Open Data, 2022 aerial survey) and the change (decks replaced), and `corrections.json` holds every modification |
 | Environment Agency LIDAR Composite DTM 1 m and DSM 1 m | Open Government Licence v3.0 | data.gov.uk dataset metadata ("Open Government Licence") |
 | IGN España MDT05 | CC BY 4.0 | IGN licence conditions (links CC BY 4.0) |
 | AHN4 via PDOK | CC0 1.0 | PDOK AHN WCS capabilities (`AccessConstraints`: "Geen beperkingen", CC0 1.0) |

@@ -23,7 +23,7 @@ builder (`analysis/build_course_terrain.py`) only applies the anchors already in
 | Dataset | Used for | Licence |
 |---|---|---|
 | USGS 3DEP 1/3 arc-second DEM (NED 10 m), through the supplied course profiles (OpenTopoData `ned10m`) | New York, Boston, Chicago, Austin base profiles | Public domain |
-| NYC Planimetric Database: Elevation Points (NYC Open Data `9uxf-ng6q`, NYC Office of Technology and Innovation; March 2022 imagery) | New York bridge decks, the Bay Ridge cut and the Central Park arches; check of the NED base profile (1,616 street spot elevations, median difference −0.01 m) | NYC Open Data Terms of Use |
+| NYC Planimetric Database: Elevation Points (NYC Open Data `9uxf-ng6q`, NYC Office of Technology and Innovation; March 2022 imagery) | New York bridge decks, the Bay Ridge cut and the Central Park arches; check of the NED base profile (1,616 street spot elevations, median difference −0.01 m) | NYC Open Data Law, NYC Administrative Code § 23-502(d): no licence requirement or restrictions on use (read October 29, 2026; recorded at the time of retrieval as "NYC Open Data Terms of Use", unread; see `../README.md`) |
 | Environment Agency LIDAR Composite DTM 1 m and last-return DSM 1 m (WCS `environment.data.gov.uk/spatialdata`) | London rebuild and Tower Bridge deck | Open Government Licence v3.0 (contains Environment Agency information) |
 | IGN España MDT05 (WCS `servicios.idee.es/wcs-inspire/mdt`) | Madrid, Valencia, Barcelona rebuilds | CC BY 4.0 (© Instituto Geográfico Nacional) |
 | AHN4 0.5 m DTM and DSM, Rijkswaterstaat via PDOK (WCS `service.pdok.nl/rws/ahn/wcs/v1_0`) | Amsterdam, Eindhoven, Rotterdam rebuilds and the Erasmusbrug deck | CC0 1.0 |
