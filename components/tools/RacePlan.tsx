@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useUnits } from '@/components/UnitsProvider';
 import AsRunTable, { AsRunNote, MatName } from '@/components/tools/AsRunTable';
 import BandChoice, { KickerText, TerrainLine } from '@/components/tools/BandChoice';
@@ -11,7 +11,7 @@ import { useQueryState } from '@/components/tools/useQueryState';
 import Values from '@/components/ui/Values';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, type CourseGoal, type CourseGoalRow, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
-import { bandChoice, bandKicker, bandMinute, bandRows, bandView, cardMats, climbs, climbsLine, goalPace, matRows, noTerrainLine, tidyChoice, unitSplits } from '@/lib/tools/terrain-band';
+import { bandChoice, bandKicker, bandMinute, bandRows, bandView, cardMats, climbs, climbsLine, goalPace, matRows, noTerrainLine, tidyChoice, unitSplits, type BandMode } from '@/lib/tools/terrain-band';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
 import { PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell } from '@/lib/tools/pace-band-data';
 import { COURSE_GOAL_FILE, PLAN_GOAL_MAX_S, PLAN_GOAL_MIN_S, courseGoalResult, goalPaceNote, goalShare, publishedGoal, readPlanGoal, roundedNote } from '@/lib/tools/plan';
@@ -41,6 +41,7 @@ const DEFAULTS = { course: 'all', goal: '4:00', pace: '' };
 const BAND_GOALS_FALLBACK: [number, number] = [150, 390];
 
 const clampGoal = (s: number) => Math.min(PLAN_GOAL_MAX_S, Math.max(PLAN_GOAL_MIN_S, s));
+const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 /** The loader's own neutral message ("could not be loaded" / "could not be verified"); a browser network error reads as the first. */
 const errorText = (e: unknown) => (e instanceof Error && e.message.startsWith('This data') ? e.message : 'This data could not be loaded. Check the connection and try again.');
 
@@ -243,6 +244,20 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
   useEffect(() => {
     if (ready && q.pace !== tidyChoice(q.pace, isAll)) setQuery({ pace: tidyChoice(q.pace, isAll) });
   }, [ready, q.pace, isAll, setQuery]);
+  // The Splits choice stays under the finger: the card above it gains or loses the terrain's lines with the mode, so
+  // after a press the page scrolls by however far the control moved, before the change is painted (the browser's own
+  // scroll anchoring does not always make up for it). Nothing moves on a wide screen, where the inputs sit beside the card.
+  const choiceTop = useRef<number | null>(null);
+  const chooseBand = (m: BandMode) => {
+    choiceTop.current = document.getElementById('plan-band-choice')?.getBoundingClientRect().top ?? null;
+    setQ({ pace: bandChoice(m) });
+  };
+  useIsoLayoutEffect(() => {
+    const before = choiceTop.current;
+    choiceTop.current = null;
+    const now = document.getElementById('plan-band-choice')?.getBoundingClientRect().top;
+    if (before !== null && now !== undefined && Math.abs(now - before) >= 1) window.scrollBy({ top: now - before, left: 0, behavior: 'instant' });
+  }, [mode]);
 
   // The lead: of finishes on the goal's pace through 20K (the course-goal rows at the nearest published goal), the share
   // that made it, on every course pooled or on the chosen one. Until the file loads, the 4:00 example on every course reads
@@ -427,7 +442,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
                 hint="h:mm or h:mm:ss, from 1:30 to 8:00." error={fieldError} />
             </Stepper>
           </div>
-          {planned ? <BandChoice id="plan-band-choice" state={bandState} mode={mode} onChange={(m) => setQ({ pace: bandChoice(m) })} line={noTerrain} /> : null}
+          {planned ? <BandChoice id="plan-band-choice" state={bandState} mode={mode} onChange={chooseBand} line={noTerrain} /> : null}
         </form>
 
         <div className="tool-results">

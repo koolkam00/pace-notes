@@ -78,7 +78,7 @@
 .tool-choice.seg { display: grid; width: 100%; min-width: 0; }
 .tool-choice.is-small .seg-btn { min-width: 44px; padding: 0 10px; }
 .tool-choice .seg-label { display: inline-block; min-width: 24px; text-align: center; }
-/* The band's Splits choice (Course shape | Even pace, the planner and the pace band): under 300 px (a phone at 200% zoom)
+/* The band's Splits choice (Terrain | Even pace, the planner and the pace band): under 300 px (a phone at 200% zoom)
    each label wraps inside its own button instead of running into the next one. */
 @media (max-width: 299.98px) {
   .band-choice .seg-btn { white-space: normal; line-height: 1.15; padding-inline: 6px; }

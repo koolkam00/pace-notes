@@ -5,10 +5,12 @@ import { Choice } from '@/components/tools/ui';
 import { BAND_LABEL, BAND_OPTIONS, TERRAIN_DISCLAIMER, terrainWhat, type BandMode } from '@/lib/tools/terrain-band';
 
 /**
- * The band's one control, the same on the race planner and the pace band (owner decision, October 23, 2026), directly
- * above the band it changes: Terrain | Even pace where the course has terrain splits; where it has none, one quiet line
- * in its place saying why (`none`, no label: there is nothing to choose); nothing on all courses (no route to spread a
- * goal over), or for a course the data does not know. A press is the tool's ordinary edit.
+ * The band's one control, the same on the race planner and the pace band (owner decision, October 23, 2026), with
+ * nothing above it that changes with the mode, so a press never moves it (the pace band puts it at the head of the band;
+ * the planner keeps it in place as the card above it changes): Terrain | Even pace where the course has terrain splits;
+ * where it has none, one quiet line in its place saying why (`none`, no label: there is nothing to choose); nothing on
+ * all courses (no route to spread a goal over), or for a course the data does not know. A press is the tool's ordinary
+ * edit.
  */
 export default function BandChoice({ id, state, mode, onChange, line = '', className }: {
   id: string; state: 'choice' | 'none' | 'off'; mode: BandMode; onChange: (mode: BandMode) => void; line?: string; className?: string;

@@ -146,8 +146,8 @@ export default function PaceBand({ indexSha, profiles, unpublished, cities = {},
   const minute = goal === null ? null : bandMinute(goal);
 
   const observed: Observed = useMemo(() => {
-    if (!indexSha) return { state: 'off', message: 'The observed data is not available in this build. The even-pace band still works.', retry: false };
-    if (indexError) return { state: 'off', message: 'The observed data could not be loaded or verified. The even-pace band still works.', retry: true };
+    if (!indexSha) return { state: 'off', message: 'The observed data is not available in this build. Your pace band still works.', retry: false };
+    if (indexError) return { state: 'off', message: 'The observed data could not be loaded or verified. Your pace band still works.', retry: true };
     if (!index) return { state: 'loading' };
     if (!scope) {
       return known ? { state: 'unavailable', title: `Not published for ${known.city}.`, message: known.note, range: null }
@@ -155,11 +155,11 @@ export default function PaceBand({ indexSha, profiles, unpublished, cities = {},
     }
     const meta = scope.genders[gender];
     if (!meta || !index.shards?.[shardPath]) {
-      return { state: 'unavailable', title: 'Not published for this selection.', message: 'The even-pace band still works.', range: null };
+      return { state: 'unavailable', title: 'Not published for this selection.', message: 'Your pace band still works.', range: null };
     }
     const range = `Published goals ${where}${genderWord ? ` for ${genderWord}` : ''}: ${formatHM(meta.goals[0] * 60)} to ${formatHM(meta.goals[1] * 60)}${meta.count < meta.goals[1] - meta.goals[0] + 1 ? ', with gaps' : ''}.`;
     if (minute === null) return { state: 'unavailable', title: 'No goal yet.', message: 'Type a goal to see what finishes at that time ran.', range: null };
-    if (minute < OBS_MIN || minute > OBS_MAX) return { state: 'unavailable', title: 'Outside the observed range.', message: `Observed groups cover whole-minute goals from ${formatHM(OBS_MIN * 60)} to ${formatHM(OBS_MAX * 60)}. The even-pace band works for any goal from 1:30 to 8:00.`, range: null };
+    if (minute < OBS_MIN || minute > OBS_MAX) return { state: 'unavailable', title: 'Outside the observed range.', message: `Observed groups cover whole-minute goals from ${formatHM(OBS_MIN * 60)} to ${formatHM(OBS_MAX * 60)}. Your pace band works for any goal from 1:30 to 8:00.`, range: null };
     if (!shard || shard.path !== shardPath) return { state: 'loading' };
     if (!shard.data) return { state: 'off', message: 'This selection could not be loaded or verified. Try again, or choose another course.', retry: true };
     const all = cellOf(shard.data.groups.all, minute);
@@ -259,9 +259,13 @@ export default function PaceBand({ indexSha, profiles, unpublished, cities = {},
     requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
   };
 
-  const fallbacks = (
+  // A wider group, where one can help: never for a goal outside the observed range (All courses and every recorded gender
+  // cover the same goals), and never All courses while the band is terrain splits (All courses has none, so the band
+  // would change to even pace).
+  const outside = minute !== null && (minute < OBS_MIN || minute > OBS_MAX);
+  const fallbacks = outside ? null : (
     <div className="pace-band-actions">
-      {course !== 'all' ? <button type="button" className="btn btn-secondary is-compact" onClick={() => widen({ course: 'all' }, 'Showing All courses in the observed columns.')}>Switch to All courses</button> : null}
+      {course !== 'all' && !banded ? <button type="button" className="btn btn-secondary is-compact" onClick={() => widen({ course: 'all' }, 'Showing All courses in the observed columns.')}>Switch to All courses</button> : null}
       {gender !== 'all' ? <button type="button" className="btn btn-secondary is-compact" onClick={() => widen({ g: 'all' }, 'Showing all genders in the observed columns.')}>Switch to all genders</button> : null}
     </div>
   );
@@ -528,12 +532,12 @@ export function Wristband({ rows, goal, pKm, units, overrun, even = null, featur
 }
 
 /**
- * The band to print, the page's answer: the kicker (goal, course and the band in its mode: terrain splits with their
- * average, or the even pace), on terrain the card line and the climbs, the Splits choice directly above the band it
- * changes (or the one line saying why there are no terrain splits), a live preview of the cut-out strips (the strips
- * themselves for @media print), the one Print button, and the print options folded under it: rows, a watch that reads
- * long, the back strip, the full page and the band as a table. The full page prints that table (`table`) in place of the
- * strips.
+ * The band to print, the page's answer: the Splits choice at its head (or the one line saying why there are no terrain
+ * splits), above everything it changes, so it stays in place when pressed; then the kicker (goal, course and the band in
+ * its mode: terrain splits with their average, or the even pace), on terrain the card line and the climbs, a live
+ * preview of the cut-out strips (the strips themselves for @media print), the one Print button, and the print options
+ * folded under it: rows, a watch that reads long, the back strip, the full page and the band as a table. The full page
+ * prints that table (`table`) in place of the strips.
  */
 function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, kicker, line, choice, busy, profile, showBack, onBack, onPrint, waiting, controls, values, optionsOpen = false, mats, terrain, table }: {
   goal: number; pKm: number; units: UnitSystem; rows: ReturnType<typeof splitTable>; interval: SplitInterval; overrun: number; place: string; genderWord: string;
@@ -550,12 +554,15 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
 }) {
   return (
     <section className="pace-band-print-panel" id="pace-band-band" aria-labelledby="pace-band-print-title" aria-busy={busy || undefined}>
+      {/* The Splits choice (or the one line saying why there is none) heads the band: nothing above it changes with the
+          mode, so a press never moves it out from under the finger; the badge, the kicker and the terrain's lines under
+          it do change. */}
+      {choice}
       {/* The terrain splits carry the Published research badge; even pace none, the visitor's own times (the finishes
           below carry the data badge, and the printed strip names its source either way). */}
       {terrain ? <EvidenceTag kind="research" className="no-print" /> : null}
       <p className="tool-reading-kicker pace-band-kicker" id="pace-band-print-title"><KickerText text={kicker} /></p>
       {line}
-      {choice}
       <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
         profile={profile} showBack={showBack} waiting={waiting} mats={mats} terrain={terrain} />
       <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('strip')}>Print wristband strips</button>} />

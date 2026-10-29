@@ -731,6 +731,16 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   }
   const asRunNote = renderToStaticMarkup(React.createElement(AsRunTable.AsRunNote, { sd: nyAll.sd }));
   assert.match(asRunNote, /^As run, slowdowns included: 48% had a <a [^>]*href="\/methodology#sustained-slowdown"[^>]*>sustained slowdown<\/a>\. Not splits to copy\.$/, 'The forewarning links the term to its definition'); ok();
+  // The finishes' lines (MatLines, under the forewarning): the zero line's name "Even" ends short of the finish dots,
+  // which sit near the zero line whenever the medians land near the goal, and is drawn after the lines (on its halo).
+  const MatLines = require('../components/tools/MatLines.tsx').default;
+  const gapsOf = (cell) => POINTS.map((km, i) => cell.e50[i] - (i === 8 ? G : (G / 42.195) * km));
+  const matLines = renderToStaticMarkup(React.createElement(MatLines, { units: 'mi', label: 'x', lines: [
+    { key: 'held', label: 'No sustained slowdown', tone: 'quiet', gaps: gapsOf(nyHeld) }, { key: 'slow', label: 'Sustained slowdown', tone: 'ink', gaps: gapsOf(nySlow) }] }));
+  const zeroLabel = matLines.match(/<text class="mat-lines-zero-label" x="([\d.]+)" y="[\d.]+" text-anchor="end">Even<\/text>/);
+  const dotsX = [...matLines.matchAll(/<circle cx="([\d.]+)" cy="[\d.]+" r="4"><\/circle>/g)].map((m) => +m[1]);
+  assert.ok(zeroLabel && dotsX.length === 2 && dotsX.every((cx) => +zeroLabel[1] <= cx - 4 - 2 - 2), `"Even" ends clear of the finish dots: ${zeroLabel?.[1]} against ${dotsX}`); ok();
+  assert.ok(matLines.indexOf('class="mat-lines-zero-label"') > matLines.lastIndexOf('class="mat-lines-line'), '"Even" is drawn after the lines'); ok();
 
   // The strips: no "H" line in either mode; on terrain the big numbers are the terrain splits and every strip names the
   // Published research source; at even pace each mat holds its time alone and the caption names no source.
@@ -770,15 +780,40 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.deepEqual(labels, ['Verrazzano', 'Pulaski', 'Queensboro, 59th St', 'Willis Ave', 'Madison Ave'], 'The back names New York\'s structures at the km ticks\' size'); ok();
   assert.equal((back.match(/<polyline points="([^"]+)"/)?.[1].split(' ') ?? []).length, 85, 'The back draws the 85 corrected samples'); ok();
   const backCaption = back.match(/<p class="pace-band-strip-caption">(Back · [^<]+)<\/p>/)?.[1] ?? '';
-  assert.match(backCaption, /^Back · New York City Marathon route elevation, −?[\d,.]+ ft to [\d,.]+ ft · strip height = 656 ft on every course$/, `The back's caption: ${backCaption}`); ok();
+  assert.match(backCaption, /^Back · New York City Marathon route elevation, −?[\d,]+ ft to [\d,]+ ft · strip height = 656 ft on every course$/, `The back's caption: ${backCaption}`); ok();
   assert.doesNotMatch(backCaption, /corrected|bridge|tunnel|source|model/i, 'No method or source wording on the back'); ok();
+  // Each course's back: the caption's range in whole feet or metres with the minus sign the site prints; every 5 km tick
+  // broken where it would run through a structure's name (the names New York prints at 25K and 35K and London's at 20K),
+  // and each name on a paper halo.
+  const wholeElevation = (metres, units) => { const v = Math.round(units === 'mi' ? metres / 0.3048 : metres); return `${v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('en-US')} ${units === 'mi' ? 'ft' : 'm'}`; };
+  const brokenTicks = {};
+  for (const slug of TEN) for (const units of ['mi', 'km']) {
+    const c = terrain[slug], st = strips[slug];
+    const html = stripOf({ rows: tb.bandRows(G, units, c), mats: tb.matRows(G, c).map((m) => m.terrain), terrain: true, units, interval: units, place: c.city, showBack: true,
+      profile: { slug, city: c.city, race: c.race, km: 42.195, step: st.step_km, m: st.m, min: st.min, max: st.max, gain: st.gain, loss: st.loss, features: c.features } });
+    const svg = html.slice(html.indexOf('<div class="pace-band-strip is-back">'));
+    const caption = svg.match(/<p class="pace-band-strip-caption">(Back · [^<]+)<\/p>/)?.[1] ?? '';
+    assert.equal(caption, `Back · ${c.race} route elevation, ${wholeElevation(st.min, units)} to ${wholeElevation(st.max, units)} · strip height = ${units === 'mi' ? '656 ft' : '200 m'} on every course`, `${c.city} back caption (${units})`); ok();
+    assert.match(svg, new RegExp(`aria-label="Route elevation for ${c.city}, from ${wholeElevation(st.min, units)} to ${wholeElevation(st.max, units)}, `), `${c.city}: the back's label in the same words`); ok();
+    const names = [...svg.matchAll(/<text class="pace-band-back-label" x="([-\d.]+)" y="([-\d.]+)" text-anchor="(start|middle|end)" font-size="8\.5" font-family="var\(--sans\)" paint-order="stroke" stroke="var\(--strip-paper\)" stroke-width="2\.5" stroke-linejoin="round">([^<]+)<\/text>/g)]
+      .map(([, x, y, anchor, text]) => { const w = text.length * 8.5 * 0.56, left = anchor === 'start' ? +x : anchor === 'end' ? +x - w : +x - w / 2; return { text, x0: left - 1, x1: left + w + 1, y0: +y - 8.5, y1: +y + 2 }; });
+    assert.equal(names.length, (svg.match(/class="pace-band-back-label"/g) || []).length, `${c.city}: every name on the back has its halo`); ok();
+    const ticks = [...svg.matchAll(/<line x1="([\d.]+)" x2="[\d.]+" y1="([\d.]+)" y2="([\d.]+)" stroke="var\(--strip-ink\)" stroke-width="0\.6" stroke-dasharray="2 3"/g)].map(([, x, y1, y2]) => ({ x: +x, y1: +y1, y2: +y2 }));
+    const crossing = ticks.filter((t) => names.some((n) => n.x0 <= t.x && t.x <= n.x1 && t.y1 < n.y1 && n.y0 < t.y2));
+    assert.deepEqual(crossing, [], `${c.city} (${units}): no 5 km tick runs through a name on the back`); ok();
+    if (units === 'mi') brokenTicks[slug] = names.filter((n) => ticks.some((t) => n.x0 <= t.x && t.x <= n.x1)).map((n) => n.text);
+  }
+  assert.ok(['Queensboro, 59th St', 'Madison Ave'].every((n) => brokenTicks['new-york'].includes(n)) && brokenTicks.london.includes('Tower Bridge'),
+    `The ticks are broken around New York's Queensboro (25K) and Madison Ave (35K) and London's Tower Bridge (20K): ${JSON.stringify(brokenTicks)}`); ok();
 
   // One rule, one control, one wording on both pages: the wiring.
   const files = ['lib/tools/terrain-band.ts', 'lib/tools/terrain-data.ts', 'components/tools/BandChoice.tsx', 'components/tools/RacePlan.tsx', 'components/tools/PaceBand.tsx', 'components/tools/PaceBandStrip.tsx'];
   const planSource = sourceOf('components/tools/RacePlan.tsx'), bandSource = sourceOf('components/tools/PaceBand.tsx'), stripSource = sourceOf('components/tools/PaceBandStrip.tsx');
   for (const [name, source] of [['RacePlan', planSource], ['PaceBand', bandSource]]) {
     assert.match(source, /import BandChoice, \{ KickerText, TerrainLine \} from '@\/components\/tools\/BandChoice';/, `${name} uses the one control, the kicker's phrasing and the terrain's lines`);
-    assert.match(source, /<BandChoice id="[\w-]+" state=\{bandState\} mode=\{mode\} onChange=\{\(m\) => setQ\(\{ pace: bandChoice\(m\) \}\)\}/, `${name}: the control writes only even pace to the address`);
+    assert.match(source, name === 'RacePlan'
+      ? /<BandChoice id="plan-band-choice" state=\{bandState\} mode=\{mode\} onChange=\{chooseBand\}[\s\S]*const chooseBand = \(m: BandMode\) => \{\s*choiceTop\.current = [^\n]+\n\s*setQ\(\{ pace: bandChoice\(m\) \}\);\s*\};|const chooseBand = \(m: BandMode\) => \{\s*choiceTop\.current = [^\n]+\n\s*setQ\(\{ pace: bandChoice\(m\) \}\);\s*\};[\s\S]*<BandChoice id="plan-band-choice" state=\{bandState\} mode=\{mode\} onChange=\{chooseBand\}/
+      : /<BandChoice id="[\w-]+" state=\{bandState\} mode=\{mode\} onChange=\{\(m\) => setQ\(\{ pace: bandChoice\(m\) \}\)\}/, `${name}: the control writes only even pace to the address`);
     assert.match(source, /const \{ mode, banded, offered \} = bandView\(\{ terrain: [^,]+, choice: q\.pace \}\);/, `${name}: one rule for the default and the override (bandView, with the visitor's choice)`);
     assert.equal((source.match(/\bbanded\s*=[^=>]/g) || []).length, 0, `${name}: the band's terrain is only ever bandView's`);
     assert.equal((source.match(/bandRows\(/g) || []).length, 1, `${name}: one set of rows`);
@@ -830,6 +865,12 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.match(planSource, /`\$\{fmtGoal\(goal\)\} goal in \$\{banded\.city\}: terrain splits, average \$\{fmtPace\(pKm, units\)\}\$\{clause\}\.`/, 'The planner\'s live region on terrain'); ok();
   assert.match(planSource, /`, slowest \$\{word\} \$\{slowest\.n\} at \$\{formatDuration\(slowest\.split\)\}` : steady \? `, every \$\{word\} within 2% of it` : ''/); ok();
   assert.match(planSource, /result\?\.state === 'unavailable' && goalData\.data && offered \? goalPaceNote\(/, 'Beside terrain splits, in either mode, the note is scoped to the results on goal pace'); ok();
+  // The lead keeps the chapter's words in either mode: its line and the words it is built from never read the band.
+  assert.match(planSource, /<DataLead id="plan-comparison" titleId="plan-comparison-title" className="plan-comparison"\s*figure=\{\{ value: String\(madeOf100\), unit: '%', sr: `\$\{madeOf100\} percent` \}\} line=\{<>\{leadLine\}\.<\/>\}>/, 'The lead prints its one line'); ok();
+  const leadWords = ['tolerance', 'nearGoal', 'leadLine', 'shareGoal', 'madeOf100', 'spreadText'].map((name) => (planSource.match(new RegExp(`const ${name} = [^\\n]+(?:\\n\\s+\\?[^\\n]+|\\n\\s+:[^\\n]+)*`)) || [''])[0]);
+  assert.ok(leadWords.every(Boolean), 'The lead\'s words are found'); ok();
+  assert.doesNotMatch(leadWords.join('\n'), /\bbanded\b|\bmode\b|\boffered\b|\bterrain|q\.pace|'even |even \$\{/, 'The lead\'s words do not change with the Splits choice'); ok();
+  assert.doesNotMatch(planSource, /\$\{(?:banded|offered|mode === 'even') \? 'even ' : ''\}/, 'No "even" in the lead in either mode'); ok();
   assert.doesNotMatch(planSource + bandSource, /is-narrow-only/, 'Every badge shows at every width'); ok();
   // The pace band: the band never changes with the recorded gender; the finishes section reads the chosen gender's shard.
   assert.match(bandSource, /const courseTerrain = course === 'all' \? null : own\(terrain, course\);/); assert.match(bandSource, /bandView\(\{ terrain: courseTerrain, choice: q\.pace \}\)/); checks += 2;
@@ -839,7 +880,15 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.match(bandSource, /noTerrainLine\(city, own\(why, course\) \?\? 'profile'\)/); ok();
   assert.match(bandSource, /kicker=\{bandKicker\(\{ goal, place, terrain: banded, units, overrun, example: isExample \}\)\}/, 'The pace band\'s kicker names no gender'); ok();
   assert.match(bandSource, /line=\{banded \? <TerrainLine goal=\{goal\} city=\{banded\.city\} climbs=\{climbText\} \/> : null\}/); ok();
-  assert.match(bandSource, /<KickerText text=\{kicker\} \/><\/p>\s*\{line\}\s*\{choice\}\s*<PaceBandStrip/, 'The pace band: kicker, the terrain\'s lines, then the choice directly above the band'); ok();
+  // A press never moves the control (October 29, 2026: Even pace took the terrain's lines out from above it, and the next
+  // tap landed on the strips): the pace band's choice heads the band, nothing above it changes with the mode; the planner,
+  // whose card above the control changes, scrolls by however far the control moved before the change is painted.
+  assert.match(printPanel, /<section className="pace-band-print-panel" id="pace-band-band" aria-labelledby="pace-band-print-title" aria-busy=\{busy \|\| undefined\}>\s*(?:\{\/\*[\s\S]*?\*\/\}\s*)?\{choice\}\s*(?:\{\/\*[\s\S]*?\*\/\}\s*)?\{terrain \? <EvidenceTag kind="research" className="no-print" \/> : null\}\s*<p className="tool-reading-kicker pace-band-kicker" id="pace-band-print-title"><KickerText text=\{kicker\} \/><\/p>\s*\{line\}\s*<PaceBandStrip/,
+    'The pace band: the Splits choice heads the band, then the badge, the kicker and the terrain\'s lines, then the strips'); ok();
+  assert.match(bandSource, /choice=\{<BandChoice id="pace-band-choice" state=\{bandState\} /, 'The pace band passes the one control as the panel\'s choice'); ok();
+  assert.match(planSource, /const useIsoLayoutEffect = typeof window === 'undefined' \? useEffect : useLayoutEffect;/); ok();
+  assert.match(planSource, /useIsoLayoutEffect\(\(\) => \{\s*const before = choiceTop\.current;\s*choiceTop\.current = null;\s*const now = document\.getElementById\('plan-band-choice'\)\?\.getBoundingClientRect\(\)\.top;\s*if \(before !== null && now !== undefined && Math\.abs\(now - before\) >= 1\) window\.scrollBy\(\{ top: now - before, left: 0, behavior: 'instant' \}\);\s*\}, \[mode\]\);/,
+    'The planner keeps its Splits choice in place: after a press it scrolls by however far the control moved'); ok();
   assert.match(bandSource, /<PrintPanel goal=\{goal\} pKm=\{pKm\} units=\{units\} rows=\{rows\} /); ok();
   assert.match(bandSource, /<Wristband rows=\{rows\} goal=\{goal\} pKm=\{pKm\} units=\{units\} overrun=\{overrun\} even=\{banded \? splitTable\(goal, MARATHON_KM, interval\) : null\} features=\{banded\?\.features \?\? \[\]\} \/>/); ok();
   assert.match(bandSource, /\{banded \? 'Terrain splits from published research' : 'Pace Notes pace band'\} · splithappens\.run\/tools\/pace-band/, 'The pace band\'s printed note'); ok();
@@ -868,6 +917,15 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   // "course shape" in visible copy anywhere under the tools and methods (the old anchor id tools-course-shape stays).
   const visible = (source) => source.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map((line) => line.replace(/(^|\s)\/\/\s.*$/, '$1')).join('\n');
   for (const file of files) { assert.doesNotMatch(visible(sourceOf(file)), /adjust|\bshould\b|your chance|arithmetic|to make \d|(?<!Not a )predict/i, `${file}: no advice, chance, prediction or causal wording`); ok(); }
+  // The pace band's finishes section never says the band is even pace (on terrain it is not, and the band never depends
+  // on the finishes data): its states say the visitor's pace band still works. A wider group is offered only where it
+  // can help: never for a goal outside the observed range (every course and recorded gender covers the same goals), and
+  // never All courses while the band is terrain splits (the band would change to even pace).
+  assert.doesNotMatch(visible(bandSource), /even-pace band/, 'The pace band: no state says the band is even pace'); ok();
+  assert.equal((bandSource.match(/Your pace band still works\./g) || []).length, 3, 'The pace band: the data, its failure and a selection with no group leave the band working'); ok();
+  assert.match(bandSource, /title: 'Outside the observed range\.', message: `Observed groups cover whole-minute goals from \$\{formatHM\(OBS_MIN \* 60\)\} to \$\{formatHM\(OBS_MAX \* 60\)\}\. Your pace band works for any goal from 1:30 to 8:00\.`/); ok();
+  assert.match(bandSource, /const outside = minute !== null && \(minute < OBS_MIN \|\| minute > OBS_MAX\);\s*const fallbacks = outside \? null : \(/, 'No wider group for a goal outside the observed range'); ok();
+  assert.match(bandSource, /\{course !== 'all' && !banded \? <button type="button" className="btn btn-secondary is-compact" onClick=\{\(\) => widen\(\{ course: 'all' \}, /, 'No switch to All courses while the band is terrain splits'); ok();
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]));
   for (const dir of ['lib/tools', 'components/tools', 'components/methods', 'app/tools']) {
     for (const file of walk(path.join(root, dir)).filter((x) => /\.tsx?$/.test(x))) assert.doesNotMatch(visible(fs.readFileSync(file, 'utf8')), /course shape/i, `${path.relative(root, file)}: "course shape" in visible copy`);

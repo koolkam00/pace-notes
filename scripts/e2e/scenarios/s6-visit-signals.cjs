@@ -364,22 +364,31 @@ async function planner(h) {
 
 // The planner's Splits choice (October 23, 2026): on a course with terrain splits the band opens on Terrain (New York
 // 5:15: the card's average 12:01 and its climbs); pressing Even pace is the page's one edit (no event of its own), and the
-// copied link then carries pace=even beside the course, goal and units.
+// copied link then carries pace=even beside the course, goal and units. The lead keeps the chapter's words in either
+// mode, and the control stays under the finger although the card above it loses the terrain's lines (October 29, 2026).
 async function plannerSplits(h) {
   const run = await h.run('planner splits', { ...PHONE });
   await run.context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: SITE });
   const page = await run.newPage();
   await page.goto(SITE + '/tools/plan?course=new-york&goal=5:15', { waitUntil: 'load' });
   await page.waitForSelector('.plan-headline.is-terrain', { timeout: 20000 });
+  await page.waitForSelector('.plan-comparison .tool-lead-line', { timeout: 20000 });
   await page.waitForTimeout(600);
-  const before = await page.evaluate(() => ({
+  // The control in the middle of the screen, as a visitor has it when pressing it.
+  await page.evaluate(() => { const r = document.querySelector('.band-choice').getBoundingClientRect(); window.scrollBy(0, r.top - innerHeight / 2); });
+  await page.waitForTimeout(300);
+  const state = () => page.evaluate(() => ({
     pressed: document.querySelector('.band-choice .seg-btn[aria-pressed="true"]')?.textContent ?? '',
     figure: document.querySelector('.plan-headline .tool-reading-figure')?.textContent ?? '',
     line: document.querySelector('.plan-headline .band-shape-line')?.textContent ?? '',
+    lead: document.querySelector('.plan-comparison .tool-lead-line')?.textContent ?? '',
+    top: Math.round(document.querySelector('.band-choice').getBoundingClientRect().top),
   }));
+  const before = await state();
   await page.locator('.band-choice .seg-btn', { hasText: 'Even pace' }).click();
   await page.waitForTimeout(400);
-  const figure = await page.evaluate(() => document.querySelector('.plan-headline .tool-reading-figure')?.textContent ?? '');
+  const after = await state();
+  const figure = after.figure;
   await page.locator('#plan-band .share-bar button:has-text("Copy link")').click();
   await page.waitForTimeout(500);
   const copied = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
@@ -387,6 +396,8 @@ async function plannerSplits(h) {
   const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
   h.check('planner: New York 5:15 opens on Terrain (average 12:01, the Verrazzano climb first), and Even pace shows even pace',
     before.pressed === 'Terrain' && /^12:01per mile, average/.test(before.figure) && before.line.includes('Climbs: mile 1 (Verrazzano) 12:50') && /even pace/.test(figure), { before, figure });
+  h.check('planner: the lead keeps the chapter\'s words in either mode (within 2% of 5:15 pace)', /within 2% of 5:15 pace/.test(before.lead) && after.lead === before.lead && !/even 5:15/.test(after.lead), { before: before.lead, after: after.lead });
+  h.check('planner: pressing Even pace leaves the control where it was', Math.abs(after.top - before.top) <= 1, { before: before.top, after: after.top });
   h.check('planner: the Splits choice is one edit, then Copy link a copied link', JSON.stringify(used) === '["/tools/plan:edit","/tools/plan:copy_link"]', used);
   let link = null;
   try { link = new URL(copied); } catch { /* checked below */ }
@@ -454,6 +465,8 @@ async function terrainFigures(h) {
       back: [...document.querySelectorAll('.pace-band-strip.is-back text.pace-band-back-label')].map((t) => t.textContent),
       none: document.querySelector('#pace-band-band .band-choice-none')?.textContent ?? '',
       error: Boolean([...document.querySelectorAll('#pace-band-observed .tool-state.is-error')].some((e) => e.getClientRects().length)),
+      errorText: document.querySelector('#pace-band-observed .tool-state.is-error')?.textContent ?? '',
+      choiceTop: Math.round(document.querySelector('#pace-band-band .band-choice')?.getBoundingClientRect().top ?? NaN),
       pace: new URL(location.href).searchParams.get('pace'),
     };
   });
@@ -464,6 +477,9 @@ async function terrainFigures(h) {
   await page.locator('[aria-labelledby="pace-band-gender"] .seg-btn', { hasText: 'Women' }).click();
   await page.waitForTimeout(1200);
   const nyWomen = await bandNow();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  const nyTop = await bandNow();
   await page.locator('#pace-band-band .band-choice .seg-btn', { hasText: 'Even pace' }).click();
   await page.waitForTimeout(400);
   const nyEven = await bandNow();
@@ -506,6 +522,7 @@ async function terrainFigures(h) {
   h.check('terrain: choosing women leaves every time on the band unchanged', nyWomen.times === ny.times && nyWomen.kicker === ny.kicker && nyWomen.times.length > 100, { ny: ny.times, women: nyWomen.times });
   h.check('terrain: on the pace band Even pace puts even pace on the strips (mile 1 12:01, 20K 2:29:18), takes the badge off and keeps pace=even',
     nyEven.mile1 === '12:01' && nyEven.at20 === '2:29:18' && nyEven.pace === 'even' && !nyEven.research && /12:01\/mi even$/.test(nyEven.kicker), nyEven);
+  h.check('terrain: on the pace band pressing Even pace leaves the control where it was, at the top of the page too', Number.isFinite(nyTop.choiceTop) && Math.abs(nyEven.choiceTop - nyTop.choiceTop) <= 1, { before: nyTop.choiceTop, after: nyEven.choiceTop });
   h.check('terrain: pace=course is dropped from the address and Terrain shows', dropped.pace === null && dropped.pressed === 'Terrain' && dropped.mile1 === '12:50', dropped);
   h.check('terrain: Boston women 4:00 has the all-genders band (20K 1:53:14)', bostonWomen.at20 === '1:53:14' && bostonWomen.pressed === 'Terrain', bostonWomen);
   h.check('terrain: the pace band says why Berlin, Oslo and Prague are at even pace, and nothing for an unknown course', bandLines.berlin.none === 'Even pace: no checked route profile for Berlin.'
@@ -513,6 +530,8 @@ async function terrainFigures(h) {
     && Object.values(bandLines).every((l) => !l.pressed && !l.research), bandLines);
   h.check('terrain: with its data failing the pace band still draws New York\'s terrain splits, and the finishes section shows its error',
     failed.mile1 === '12:50' && failed.research && failed.error, failed);
+  h.check('terrain: the failed finishes say the visitor\'s pace band still works, never that it is even pace',
+    /Your pace band still works\./.test(failed.errorText) && !/even-pace/i.test(failed.errorText), failed.errorText);
 }
 
 // The race report on /report: its section is seen once; a failed image is site_error export, once (twice pressed), and
