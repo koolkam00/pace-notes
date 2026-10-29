@@ -1,0 +1,272 @@
+/**
+ * Nuggets for the half-marathon pages (spec 3.7): /half (half finishes in verified results, denominator `half`) and
+ * /stories/half-to-full (pairs of half and marathon records linked by name, denominator `linked`). One surface uses
+ * one family; where a /half sentence quotes the marathon it says so ("In the marathon, …").
+ *
+ * Every value is read from the verified half files (lib/half-server.ts) and every example is picked by the data: the
+ * flagship's half is the 5-minute band nearest the pooled median half (1:45), its mark the readout mark of that window
+ * (4:00). Each builder has a pure `…From(data)` twin, so scripts/nuggets/half.cjs recounts it from the published JSON
+ * and proves its fallback on a fixture. Fallbacks never assert a direction. The deks with numbers are built here too
+ * (`halfDeks`), so a page types no number.
+ */
+import type { HalfField, HalfLinked, HalfWindow, HalfWomen } from '@/lib/half-types';
+import { readHalf } from '@/lib/half-server';
+import { floorHM, readoutMark } from '@/lib/tools/half-to-full';
+import { inWords, pct, ratio, spokenPct, spokenTime } from './format';
+import { shareFigure, type Builder } from './build';
+import type { Nugget } from './types';
+
+const MIN_CELL = 100;
+const MIN_EDITIONS = 3;
+const between = (v: number, lo: number, hi: number) => Number.isFinite(v) && v > lo && v < hi;
+const clock = (seconds: number) => floorHM(seconds);
+const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+/** The share of all verified finishes under `s` seconds, and the recorded women's and men's. */
+function underAt(field: HalfField, s: number) {
+  return field.under.find((u) => u.s === s) ?? { s, all: NaN, F: NaN, M: NaN };
+}
+
+// ---------- /half: half finishes in verified results ----------
+
+/** /half reading: just over half of half finishes came in under 2:00 (verified, and the same in every usable result). */
+export function halfFieldFrom(field: HalfField): Nugget {
+  const u = underAt(field, 7200);
+  const all = field.checks.all_usable.under_7200;
+  const floors = field.cohort.finishes >= MIN_CELL && field.cohort.editions >= MIN_EDITIONS;
+  const guard = floors && between(all, 0.5, 0.6) && Number.isFinite(u.all);
+  const headline = between(u.all, 0.5, 0.6)
+    ? 'Just over half of half marathon finishes came in under *2:00*.'
+    : `*${pct(u.all)}* of half marathon finishes came in under 2:00.`;
+  const p50 = field.quantiles.all.p50;
+  return {
+    id: 'half.field', page: '/half', denominator: 'half',
+    values: { under_7200: u.all, women_under_7200: u.F, men_under_7200: u.M, all_usable_under_7200: all, finishes: field.cohort.finishes,
+      editions: field.cohort.editions, median_s: p50, women_median_s: field.quantiles.F.p50, men_median_s: field.quantiles.M.p50 },
+    guard,
+    headline: guard ? headline : '',
+    fallback: 'Half marathon finishes by finish time.',
+    figure: Number.isFinite(p50) ? { value: clock(p50), sr: spokenTime(Math.floor(p50 / 60) * 60) } : null,
+    key: 'median half finish',
+  };
+}
+
+/** /half beat 1: 1 in 4 half finishes came in under 1:45 (and the editions-equal share within 3 points). */
+export function halfUnderFrom(field: HalfField): Nugget {
+  const u = underAt(field, 6300);
+  const eq = field.checks.editions_equal.under_6300;
+  const guard = field.cohort.finishes >= MIN_CELL && field.cohort.editions >= MIN_EDITIONS && Number.isFinite(u.all) && Math.abs(u.all - eq) <= 0.03;
+  const words = inWords(u.all);
+  return {
+    id: 'half.under', page: '/half#your-time', denominator: 'half',
+    values: { under_6300: u.all, women_under_6300: u.F, men_under_6300: u.M, editions_equal_under_6300: eq },
+    guard,
+    headline: words === '1 in 4' ? '*1 in 4* half finishes came in under 1:45.' : `*${pct(u.all)}* of half finishes came in under 1:45.`,
+    fallback: 'Half finishes under 1:45.',
+    figure: null,
+  };
+}
+
+/** /half beat 2: the minute before 2:00 held 1.2× the finishes the smooth curve expects. */
+export function halfCrowdFrom(field: HalfField): Nugget {
+  const m = field.marks.find((x) => x.minutes === 120);
+  const guard = !!m && m.ratio >= 1.15 && m.ratio_ci95[0] > 1 && m.minute_before >= MIN_CELL;
+  return {
+    id: 'half.crowd', page: '/half#crowd', denominator: 'half',
+    values: { ratio: m?.ratio ?? NaN, ratio_lo: m?.ratio_ci95[0] ?? NaN, ratio_hi: m?.ratio_ci95[1] ?? NaN,
+      minute_before: m?.minute_before ?? NaN, expected_minute_before: m?.expected_minute_before ?? NaN },
+    guard,
+    headline: m ? `The minute before 2:00 held *${ratio(m.ratio, 1)}* the finishes the curve expects.` : '',
+    fallback: 'Finishes in the minute before each round time.',
+    figure: null,
+  };
+}
+
+/** /half beat 3: from the band where every median share passes one half (2:15), most half finishes were women's. */
+export function halfWomenFrom(women: HalfWomen): Nugget {
+  const shares = women.median_share;
+  const j = women.bands.findIndex((b) => b.lo_s === women.cross_s);
+  const guard = women.cross_s !== null && j > 0 && shares[j - 1] <= 0.5 && shares.slice(j).every((s) => s > 0.5) && women.band_editions.length >= 20;
+  return {
+    id: 'half.women', page: '/half#women', denominator: 'half',
+    values: { cross_s: women.cross_s ?? NaN, editions: women.band_editions.length, before_cross: j > 0 ? shares[j - 1] : NaN,
+      at_cross: j >= 0 ? shares[j] : NaN, under_90: shares[0], marathon_cross_s: women.marathon.cross_s },
+    guard,
+    headline: guard ? `From *${clock(women.cross_s!)}* on, most half finishes were women’s.` : '',
+    fallback: 'Women’s share of half finishes, by finish time.',
+    figure: null,
+  };
+}
+
+/** /half beat 4: in every same-city, same-year pair, the half had a larger share of women's finishes. */
+export function halfCitiesFrom(women: HalfWomen): Nugget {
+  const s = women.same_city.summary, all = women.same_city.all_scope_check;
+  const guard = s.half_higher === s.pairs && s.pairs >= 10 && s.cities >= 5 && all.half_higher === all.pairs;
+  return {
+    id: 'half.cities', page: '/half#two-distances', denominator: 'half',
+    values: { pairs: s.pairs, cities: s.cities, half_higher: s.half_higher, half_median: s.half_median, marathon_median: s.marathon_median,
+      diff_median_points: s.diff_median_points, all_pairs: all.pairs, all_half_higher: all.half_higher },
+    guard,
+    headline: 'In the same city and year, the half always had *more women*.',
+    fallback: 'Women’s share of half and marathon finishes, same city and year.',
+    figure: null,
+  };
+}
+
+// ---------- /stories/half-to-full: records linked by name ----------
+
+const members = (linked: HalfLinked) => Object.fromEntries(linked.checks.battery.members.map((m) => [m.id, m]));
+
+/**
+ * The flagship H1's guard (spec 3.2; analysis/half_linked.py flagship_guard): enough pairs and marathon editions; the
+ * pooled minutes over double between 10 and 60; every battery member's multiple within [2.15, 2.25] and, re-expressed
+ * at the pooled median half, within 3 minutes of the pooled minutes; the verified-halves and one-pair-per-person minutes
+ * within 3 minutes of it; every member's under-double share under 15%.
+ */
+export function flagshipGuard(linked: HalfLinked): boolean {
+  const b = linked.checks.battery, m = members(linked), pooled = m.pooled;
+  if (!pooled || !m.verified_halves || !m.one_per_person) return false;
+  const extra = pooled.extra_p50_s, half = b.pooled_half_p50_s, all = Object.values(m);
+  return linked.set.pairs >= MIN_CELL && linked.set.marathon_editions >= MIN_EDITIONS && extra >= 600 && extra <= 3600
+    && all.every((x) => x.multiple_p50 >= 2.15 && x.multiple_p50 <= 2.25)
+    && all.every((x) => Math.abs((x.multiple_p50 - 2) * half - extra) <= 180)
+    && Math.abs(extra - m.verified_halves.extra_p50_s) <= 180 && Math.abs(extra - m.one_per_person.extra_p50_s) <= 180
+    && all.every((x) => x.under_double < 0.15);
+}
+
+/** Story H1 (chapter 11's lead): after a half, the typical marathon took double it plus 21 minutes; figure 8%. */
+export function halfExtraFrom(linked: HalfLinked): Nugget {
+  const m = members(linked), pooled = m.pooled;
+  const extra = linked.overall.extra_s.p50;
+  const minutes = Math.round(extra / 60);
+  const under = linked.overall.under_double_plus_min['0'];
+  const guard = flagshipGuard(linked) && pooled?.extra_p50_s === extra;
+  const figureOk = !!pooled && Object.values(m).every((x) => x.under_double < 0.15) && !!m.verified_halves && Math.abs(under - m.verified_halves.under_double) <= 0.03;
+  const figure = figureOk ? shareFigure(under) : { value: `+${minutes}`, unit: ' min', sr: `plus ${minutes} minutes` };
+  return {
+    id: 'half.extra', page: '/stories/half-to-full', denominator: 'linked',
+    values: { extra_s: extra, extra_min: minutes, under_double: under, pairs: linked.set.pairs, marathon_editions: linked.set.marathon_editions,
+      multiple_p50: linked.overall.ratio_p50, pooled_half_s: linked.checks.battery.pooled_half_p50_s, figure_is_share: figureOk ? 1 : 0 },
+    guard,
+    headline: `After a half, the typical marathon took double it plus *${minutes} minutes*.`,
+    fallback: 'The marathon after a half, against double the half.',
+    figure,
+    key: figureOk ? 'of marathons came in under double the half before them' : 'over double the half, typical',
+  };
+}
+
+/** The flagship's half (the 5-minute band nearest the pooled median half) and its window for a group, or null. */
+export function flagshipWindow(linked: HalfLinked, group: 'all' | 'F' | 'M' = 'all'): HalfWindow | null {
+  const h = Math.round(linked.checks.battery.pooled_half_p50_s / 300) * 300;
+  return linked.windows[group].find((w) => w.h === h) ?? null;
+}
+
+/** Story beat 1: after a 1:45 half, 67% of marathons came in under 4:00 (and the verified-only and editions-equal checks agree). */
+export function halfRangeFrom(linked: HalfLinked): Nugget {
+  const w = flagshipWindow(linked);
+  const mark = w ? readoutMark(w) : null;
+  const share = mark ? mark[1] : NaN;
+  const c = linked.checks;
+  // The builder's checks are at the 1:45 window and the 4:00 mark: the reading must be at the same place.
+  const checked = !!w && !!mark && w.h === 6300 && mark[0] === 14400;
+  const guard = checked && w!.n >= MIN_CELL && w!.e >= MIN_EDITIONS && Math.abs(share - c.verified.w105_under_14400) <= 0.05
+    && Math.abs(share - c.editions_equal.w105_under_14400) <= 0.05 && between(share, 0.5, 0.9);
+  return {
+    id: 'half.range', page: '/stories/half-to-full#after', denominator: 'linked',
+    values: { h: w?.h ?? NaN, mark_s: mark?.[0] ?? NaN, share, n: w?.n ?? NaN, e: w?.e ?? NaN, median_s: w?.q[9] ?? NaN,
+      verified_share: c.verified.w105_under_14400, editions_equal_share: c.editions_equal.w105_under_14400 },
+    guard,
+    headline: w && mark ? `After a ${clock(w.h)} half, *${pct(share)}* of marathons came in under ${clock(mark[0])}.` : '',
+    fallback: 'Marathons after a half, half time by half time.',
+    figure: null,
+  };
+}
+
+/** Story beat 2: after the same half, recorded women's marathons had far fewer sustained slowdowns (within strata). */
+export function halfSexesFrom(linked: HalfLinked): Nugget {
+  const s = linked.sexes, v = linked.checks.verified.sexes;
+  const guard = s.strata >= 20 && s.women_lower >= 0.9 * s.strata && s.diff_points >= 10 && v.women_lower >= 0.9 * v.strata;
+  return {
+    id: 'half.sexes', page: '/stories/half-to-full#women-men', denominator: 'linked',
+    values: { strata: s.strata, women_lower: s.women_lower, women_std: s.women_std, men_std: s.men_std, diff_points: s.diff_points,
+      verified_strata: v.strata, verified_women_lower: v.women_lower },
+    guard,
+    headline: 'After the same half, recorded women’s marathons had *far fewer* sustained slowdowns.',
+    fallback: 'Sustained slowdowns in women’s and men’s marathons after the same half.',
+    figure: null,
+    term: '/methodology#sustained-slowdown',
+  };
+}
+
+/** The guess's answer: about 1 in 10 recorded women's marathons after the flagship's half had a sustained slowdown. */
+export function halfSexesGuessFrom(linked: HalfLinked): Nugget {
+  const f = flagshipWindow(linked, 'F'), m = flagshipWindow(linked, 'M');
+  const guard = !!f && !!m && f.n >= MIN_CELL && m.n >= MIN_CELL;
+  const words = f ? inWords(f.sus) : '';
+  return {
+    id: 'half.sexesGuess', page: '/stories/half-to-full#women-men', denominator: 'linked',
+    values: { h: f?.h ?? NaN, women_share: f?.sus ?? NaN, men_share: m?.sus ?? NaN, women_n: f?.n ?? NaN, men_n: m?.n ?? NaN,
+      women_slowdowns: f ? Math.round(f.sus * f.n) : NaN, men_slowdowns: m ? Math.round(m.sus * m.n) : NaN,
+      men_of_100: m ? Math.round(m.sus * 100) : NaN },
+    guard,
+    headline: f ? (/^1 in /.test(words) ? `About *${words}* did.` : `*${pct(f.sus)}* did.`) : '',
+    fallback: 'Recorded women’s and men’s marathons after the same half.',
+    figure: f ? { value: pct(f.sus).replace('%', ''), unit: '%', sr: spokenPct(f.sus) } : null,
+  };
+}
+
+// ---------- The deks with numbers (pages print these, never their own figures) ----------
+
+export type HalfDeks = {
+  /** /half reading's unit line: "the median half finish; recorded women’s 2:07, men’s 1:51". */
+  fieldUnit: string;
+  /** /half beat 1: "Recorded women’s: 9%. Men’s: 36%. Slide to any time from 1:10 to 3:00." */
+  under: string;
+  /** /half beat 2, or null when its guard fails (the dek then names only 2:00, which the H2 already does). */
+  crowd: string | null;
+  /** /half beat 3: "Under 1:30, 7% were. In the marathon, women’s finishes pass half only from 5:15." */
+  women: string;
+  /** /half beat 4: "In the typical pair, 38% of half finishes were women’s, against 24% of the marathon’s." */
+  cities: string;
+  /** Story beat 1: "The typical one took 3:54. Slide to any half from 1:10 to 2:45." */
+  range: string | null;
+  /** The guess: "After a 1:45 half, 30 of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?" */
+  guess: string | null;
+};
+
+export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLinked): HalfDeks {
+  const u = underAt(field, 6300);
+  const marks = Object.fromEntries(field.marks.map((m) => [m.minutes, m]));
+  const others = [105, 135, 150].map((k) => marks[k]?.ratio ?? NaN);
+  const crowdOk = !!marks[90] && marks[90].ratio_ci95[0] > 1.1 && others.every((r) => r < 1.1);
+  const s = women.same_city.summary;
+  const w = flagshipWindow(linked), f = flagshipWindow(linked, 'F'), m = flagshipWindow(linked, 'M');
+  const all = linked.windows.all;
+  const first = field.under[0].s, last = field.under[field.under.length - 1].s;
+  return {
+    fieldUnit: `the median half finish; recorded women’s ${clock(field.quantiles.F.p50)}, men’s ${clock(field.quantiles.M.p50)}`,
+    under: `Recorded women’s: ${pct(u.F)}. Men’s: ${pct(u.M)}. Slide to any time from ${clock(first)} to ${clock(last)}.`,
+    crowd: crowdOk ? `The minute before 1:30 held ${ratio(marks[90].ratio, 1)} too; before 1:45, 2:15 and 2:30, about ${ratio(median(others), 2)}.` : null,
+    women: `Under 1:30, ${pct(women.median_share[0])} were. In the marathon, women’s finishes pass half only from ${clock(women.marathon.cross_s)}.`,
+    cities: `In the typical pair, ${pct(s.half_median)} of half finishes were women’s, against ${pct(s.marathon_median)} of the marathon’s.`,
+    range: w ? `The typical one took ${clock(w.q[9])}. Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.` : null,
+    guess: f && m ? `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?` : null,
+  };
+}
+
+/** The deks from the verified files. */
+export function halfDeks(): HalfDeks {
+  return halfDeksFrom(readHalf('field.json'), readHalf('women.json'), readHalf('linked.json'));
+}
+
+export const HALF_NUGGETS: Record<string, Builder> = {
+  'half.field': () => halfFieldFrom(readHalf('field.json')),
+  'half.under': () => halfUnderFrom(readHalf('field.json')),
+  'half.crowd': () => halfCrowdFrom(readHalf('field.json')),
+  'half.women': () => halfWomenFrom(readHalf('women.json')),
+  'half.cities': () => halfCitiesFrom(readHalf('women.json')),
+  'half.extra': () => halfExtraFrom(readHalf('linked.json')),
+  'half.range': () => halfRangeFrom(readHalf('linked.json')),
+  'half.sexes': () => halfSexesFrom(readHalf('linked.json')),
+  'half.sexesGuess': () => halfSexesGuessFrom(readHalf('linked.json')),
+};

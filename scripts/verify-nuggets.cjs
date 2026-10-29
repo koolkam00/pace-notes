@@ -118,7 +118,8 @@ ok(/^of races traced to their course by pacing shape alone, against \d+% by chan
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
 ok(/^of finishes (?:just over \d:\d\d|from \d:\d\d to \d:\d\d) had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
 ok(/^of finishes on even \d:\d\d pace at 30K still got under \d:\d\d$/.test(keys['checkpoint.under']), 'chapter 04 key');
-eq(keys['gains.final'], 'of the minutes improving finishes gained came after 30K', 'chapter 11 key');
+eq(keys['half.extra'], 'of marathons came in under double the half before them', 'chapter 11 key (the half story opens it, October 29, 2026)');
+eq(N.getNugget('gains.final').key, 'of the minutes improving finishes gained came after 30K', 'gains.final key (second in chapter 11)');
 
 // Every key stands alone as a short phrase a runner reads under its figure: never a bare figure jammed against a unit
 // ("1.0pts"), at most 90 characters.
@@ -268,6 +269,10 @@ Object.assign(RECOUNT, analyses.RECOUNT);
 // The tool nuggets (WP4): their recounts and fixtures live in scripts/nuggets/tools.cjs.
 const toolNuggets = require('./nuggets/tools.cjs')({ json, eq, ok, core });
 Object.assign(RECOUNT, toolNuggets.RECOUNT);
+// The half-marathon nuggets (docs/HALF_MARATHON.md): their recounts, deks and fixtures live in scripts/nuggets/half.cjs.
+const halfNuggets = require('./nuggets/half.cjs')({ json, eq, ok, core });
+Object.assign(RECOUNT, halfNuggets.RECOUNT);
+halfNuggets.deks(require('../lib/nuggets/half.ts'));
 for (const [id, recount] of Object.entries(RECOUNT)) {
   const n = N.getNugget(id);
   ok(!n.placeholder, `${id} is a real nugget, not a placeholder`);
@@ -296,6 +301,7 @@ if (!args.has('--no-fixture')) {
     ...storyRecounts.fixtures(stories),
     ...analyses.fixtures(require('../lib/nuggets/analyses.ts')),
     ...toolNuggets.fixtures(require('../lib/nuggets/tools.ts')),
+    ...halfNuggets.fixtures(require('../lib/nuggets/half.ts')),
   ];
   for (const [n, text] of fallbacks) {
     eq(n.guard, false, `fixture ${n.id}: the guard fails`);
