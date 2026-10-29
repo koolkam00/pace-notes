@@ -15,15 +15,11 @@ module.exports = function half({ json, eq, ok, core }) {
   const close = (a, b, message, tol = 1e-9) => ok(Math.abs(a - b) <= tol, `${message}: ${a} vs ${b}`);
   const shown = (n) => core.sentenceOf(n, 'mi');
   const has = (n, text, message) => ok(shown(n).includes(text), `${message}: "${text}" in "${shown(n)}"`);
-  const clock = (s) => { const m = Math.floor(s / 60 + 1e-9); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
-  const pct = (share) => `${Math.round(share * 100)}%`;
-  const oneIn = (share) => {
-    let best = null;
-    for (const d of [2, 3, 4, 5, 10, 20, 25, 50, 100]) { const err = Math.abs(1 / d - share) / share; if (err < 0.1 && (!best || err < best.err)) best = { d, err }; }
-    return best ? `1 in ${best.d}` : null;
-  };
+  // The shared pure derivations (scripts/half/derive.cjs): times as pages print them, shares, 1 in d, numpy's median.
+  const D = require('../half/derive.cjs');
+  const { clock, pct, oneIn } = D;
   const words = (t) => core.plain(t).split(/\s+/).filter(Boolean).length;
-  const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  const median = D.npMedian;
 
   // The half files are the ones the manifest binds.
   const crypto = require('node:crypto');
@@ -35,20 +31,16 @@ module.exports = function half({ json, eq, ok, core }) {
   }
 
   // Shares under a time from the published counts: all finishes from the minute histogram, each sex from its 5-minute bins.
-  const total = (c) => c.under_lo + c.counts.reduce((a, b) => a + b, 0) + c.at_or_over_hi;
+  const total = D.tailedTotal;
   const underAll = (s) => {
-    const mins = field.minutes;
-    ok(s % 60 === 0 && s / 60 >= mins.lo && s / 60 <= mins.hi, `half: ${s} s is a minute edge of the histogram`);
-    let k = mins.under_lo;
-    for (let i = 0; i < s / 60 - mins.lo; i++) k += mins.counts[i];
-    return k / total(mins);
+    const k = D.underMinutes(field.minutes, s);
+    ok(k !== null, `half: ${s} s is a minute edge of the histogram`);
+    return k / total(field.minutes);
   };
   const underSex = (g, s) => {
-    const b = field.sex_bins;
-    ok((s - b.lo_s) % b.bin_s === 0, `half: ${s} s is a bin edge of the sex bins`);
-    let k = b[g].under_lo;
-    for (let i = 0; i < (s - b.lo_s) / b.bin_s; i++) k += b[g].counts[i];
-    return k / total(b[g]);
+    const k = D.underBins(field.sex_bins, field.sex_bins[g], s);
+    ok(k !== null, `half: ${s} s is a bin edge of the sex bins`);
+    return k / total(field.sex_bins[g]);
   };
   eq(total(field.minutes), field.cohort.finishes, 'half: the minute histogram holds every verified finish');
   eq(total(field.sex_bins.F) + total(field.sex_bins.M), field.cohort.sex_finishes, 'half: the sex bins hold every recorded finish of the sex editions');
@@ -122,17 +114,7 @@ module.exports = function half({ json, eq, ok, core }) {
   };
 
   const battery = Object.fromEntries(linked.checks.battery.members.map((m) => [m.id, m]));
-  const flagshipOk = () => {
-    const P = battery.pooled, H = linked.checks.battery.pooled_half_p50_s, X = P.extra_p50_s;
-    let pass = linked.set.pairs >= 100 && linked.set.marathon_editions >= 3 && X >= 600 && X <= 3600;
-    for (const m of Object.values(battery)) {
-      if (m.multiple_p50 < 2.15 || m.multiple_p50 > 2.25) pass = false;
-      if (Math.abs((m.multiple_p50 - 2) * H - X) > 180) pass = false;
-      if (m.under_double >= 0.15) pass = false;
-    }
-    if (Math.abs(X - battery.verified_halves.extra_p50_s) > 180 || Math.abs(X - battery.one_per_person.extra_p50_s) > 180) pass = false;
-    return pass;
-  };
+  const flagshipOk = () => D.flagshipGuard(linked);
   R['half.extra'] = (n) => {
     eq(battery.pooled.extra_p50_s, linked.overall.extra_s.p50, 'half.extra: the battery pools what the overall reading pools');
     eq(battery.pooled.n, linked.set.pairs, 'half.extra: the pooled member holds every pair');
@@ -149,11 +131,7 @@ module.exports = function half({ json, eq, ok, core }) {
   };
 
   const flagship = (group) => linked.windows[group].find((w) => w.h === Math.round(linked.checks.battery.pooled_half_p50_s / 300) * 300) || null;
-  const readout = (w) => {
-    const near = (ms) => ms.reduce((b, m) => (Math.abs(m[0] - w.q[9]) < Math.abs(b[0] - w.q[9]) ? m : b));
-    const hh = w.marks.filter(([t]) => t % 1800 === 0);
-    return w.marks.length ? near(hh.length ? hh : w.marks) : null;
-  };
+  const readout = D.readoutMark;
   R['half.range'] = (n) => {
     const w = flagship('all');
     ok(w, 'half.range: the flagship window is published');

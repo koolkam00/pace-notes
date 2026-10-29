@@ -49,7 +49,7 @@ export type HalfRoundMark = {
   /** minute_before ÷ expected_minute_before, and its 200-draw whole-edition bootstrap interval. */
   ratio: number;
   ratio_ci95: [number, number];
-  /** minute_before ÷ minute_after. */
+  /** insights_round.cliff_index: the drop from the minute before to the minute from the mark, against the drops either side. */
   cliff: number;
 };
 
