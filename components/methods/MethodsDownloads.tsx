@@ -6,6 +6,7 @@ import { getInsightsManifest } from '@/lib/insights-server';
 import { STORIES, storyPublished } from '@/lib/stories';
 import { TOOLS } from '@/lib/tools/registry';
 import { Detail, Part, dataHref } from './shared';
+import { HalfDownloads } from './MethodsHalf';
 
 /** What each story's downloadable summary file holds. Every one is an aggregate; none holds a runner name or a single runner's record. */
 export const STORY_FILE_TOPICS: Record<string, string> = {
@@ -108,6 +109,8 @@ export default function MethodsDownloads() {
         <span className="methods-links">{pack.answer.sources.filter((source) => source.href.includes('/data/packs/')).map((source) => <a key={source.href} href={source.href}>{source.label.replace(/ \((JSON|CSV)\)$/, '')}</a>)}</span>
       </li>)}</ul>
     </Detail>}
+
+    <HalfDownloads />
 
     <p className="methods-part-note">Every file except the full race records is an aggregate, and each one states its own cohort, screens and method.</p>
   </Part>;

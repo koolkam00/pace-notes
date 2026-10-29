@@ -6,6 +6,7 @@ import { BOSTON_CUTOFFS, STANDARDS, VERIFIED_AT } from '@/lib/tools/qualifying';
 import { toolHref } from '@/lib/tools/registry';
 import { STORIES, countWord } from '@/lib/stories';
 import { Detail, Topic, and, day, editionList, n } from './shared';
+import { HalfToolNotes } from './MethodsHalf';
 
 type Edition = { city: string; year: number; finishes: number };
 type Screens = { start_offset: Edition[]; grid: (Edition & { reason: string })[] };
@@ -140,10 +141,12 @@ export default function MethodsTools() {
     </Detail>
 
     <Detail id="tools-pace-charts" title="Marathon and half marathon pace charts">
+      <HalfToolNotes tool="pace-charts" />
       <p>Every number on the pace charts is an even pace. The marathon chart lists the official timing mats every 5 km from 5 to 40 km, halfway at 21.0975 km and, in miles, every fifth mile. None of them are recorded splits, and the charts use no race data, weather, elevation or course.</p>
     </Detail>
 
     <Detail id="tools-goal-pages" title="Marathon pace goal pages">
+      <HalfToolNotes tool="goal-pages" />
       <p>Each goal page (3:00, 3:30, 4:00, 4:30 and 5:00) sets the even-pace splits for the goal beside the pace band’s All-courses group for it: every screened finish from 5:00 to 0:01 under the goal, all recorded genders, each with all nine official 5 km checkpoint times. These are achieved finishes, not stated goals. The page’s sentences are built only from that goal’s pace-band values.</p>
       <p>A section’s median pace is the median of every finish’s own pace over that section, so it need not equal the gap between two mat medians. The middle half is observed variation between finishes, not uncertainty and not a plan.</p>
       <p>The bunching panel uses the finish-time data behind the <a href="#story-round-numbers">{STORIES.find((st) => st.slug === 'round-numbers')!.title.replace(/^The /, '')} story</a>. A smooth curve is fitted to the minutes around the goal, and the ratio’s 95% interval comes from resampling whole race editions. The panel appears only when that whole interval is above 1.</p>
@@ -158,6 +161,7 @@ export default function MethodsTools() {
       <p><strong>Not modeled:</strong> adding weekly mileage cut Vickers and Vertosick’s typical error from about 19.5 to about 15 minutes, but their coefficients are not reproduced. No course, weather, age or sex adjustment is applied, and every estimate assumes marathon-specific training, a flat course and cool weather.</p>
       <p><strong>The Pace Notes data panel</strong> takes the even pace of the estimate you pick and finds the race-day projector’s All-courses group at 20 km. That group holds complete finishes whose 20 km time put them in the same {projector.band_s / 60}-minute band of even-pace finish (20 km time × 42.195 ÷ 20). It shows their finish percentiles (stored from the 5th to the 95th in steps of 5), the share under the estimate (interpolated between percentiles, so approximate) and the share with a sustained slowdown. Pace Notes holds marathons only, so it cannot test a half-to-full prediction.</p>
       <p><strong>Why marathon predictions run fast.</strong> The classic formulas assume your endurance carries over: Riegel’s 1.06 and the Daniels–Gilbert equations both describe runners trained for the distance, which is why the page labels Riegel the classic formula and sets the typical range beside it. On the page, Riegel 1.06 is the classic formula, Daniels–Gilbert the fitness equations and the half-to-full exponents (from the RunningAHEAD training logs) the typical range; the accuracy of the estimate from your two races is from Vickers and Vertosick’s study of recreational runners, and the estimate from training volume is Tanda (2011).</p>
+      <HalfToolNotes tool="predictor" />
       <p className="methods-links">
         <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5000509/">Vickers &amp; Vertosick (2016), BMC Sports Science, Medicine and Rehabilitation 8:26</a>
         <a href="https://www.runningahead.com/forums/post/2b60fbf5f01e41fcae69ea40a70223d4">RunningAHEAD half-to-full exponents, 4,402 training logs</a>

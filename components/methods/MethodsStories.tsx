@@ -3,6 +3,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { STORIES, halfManifest, storyHref, storyPublished } from '@/lib/stories';
 import { Detail, Topic, and, dataHref, editionList, n } from './shared';
+import { HalfStoryDetail } from './MethodsHalf';
 
 type Edition = { city: string; year: number };
 type Screened = Edition & { reason: string };
@@ -143,12 +144,6 @@ export default function MethodsStories() {
         <p className="methods-links"><Link href={storyHref(story)}>Read the story</Link><a href={dataHref(`insights/${story.file}`)}>{story.file}</a></p>
       </Detail>;
     })}
-    {half && halfStories.map((story) => {
-      const [from, to] = half.link_rules.window_days;
-      return <Detail key={story.slug} id={`story-${story.slug}`} title={story.title}>
-        <p>Each eligible marathon finish is paired with the nearest earlier half marathon of a record linked to it by name, {from} to {to} days before, one pair per record and marathon. A half time’s window holds the pairs whose half was within 2:30 of that whole minute. Counts are pairs of records, never verified people, and the comparisons describe what went together, not why.</p>
-        <p className="methods-links"><Link href={storyHref(story)}>Read the story</Link></p>
-      </Detail>;
-    })}
+    {half && halfStories.some((story) => story.slug === 'half-to-full') ? <HalfStoryDetail /> : null}
   </Topic>;
 }
