@@ -402,6 +402,39 @@ async function plannerSplits(h) {
   let link = null;
   try { link = new URL(copied); } catch { /* checked below */ }
   h.check('planner: the copied link keeps even pace (pace=even) with the course, goal and units', link && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'new-york'], ['goal', '5:15'], ['pace', 'even'], ['units', 'mi']]), copied);
+
+  // A press of the option already pressed changes nothing and leaves nothing behind (October 29, 2026): pressing Terrain
+  // while it is on, scrolling on and partway back, then changing the course to Berlin (no terrain splits, so the mode
+  // changes) keeps the course select where it was on screen, give or take the browser's own scroll anchoring (1 px). A
+  // place kept by that press was spent then as a jump (100 px here).
+  const again = await h.run('planner splits repeat press', { ...PHONE });
+  const repeat = await again.newPage();
+  await repeat.goto(SITE + '/tools/plan?course=new-york&goal=5:15', { waitUntil: 'load' });
+  await repeat.waitForSelector('.plan-headline.is-terrain', { timeout: 20000 });
+  await repeat.waitForSelector('.plan-comparison .tool-lead-line', { timeout: 20000 });
+  await repeat.waitForTimeout(600);
+  await repeat.evaluate(() => { const r = document.querySelector('.band-choice').getBoundingClientRect(); window.scrollBy(0, r.top - innerHeight / 2); });
+  await repeat.waitForTimeout(300);
+  await repeat.locator('.band-choice .seg-btn', { hasText: 'Terrain' }).click();
+  await repeat.waitForTimeout(400);
+  await repeat.evaluate(() => window.scrollBy(0, 500));
+  await repeat.waitForTimeout(300);
+  await repeat.evaluate(() => window.scrollBy(0, -400));
+  await repeat.waitForTimeout(300);
+  const where = () => repeat.evaluate(() => ({
+    pressed: document.querySelector('.band-choice .seg-btn[aria-pressed="true"]')?.textContent ?? '',
+    select: Math.round(document.getElementById('plan-course').getBoundingClientRect().top),
+    course: new URLSearchParams(location.search).get('course'),
+    terrain: Boolean(document.querySelector('.plan-headline.is-terrain')),
+  }));
+  const held = await where();
+  await repeat.selectOption('#plan-course', 'berlin');
+  await repeat.waitForSelector('.plan-headline:not(.is-terrain)', { timeout: 20000 });
+  await repeat.waitForTimeout(800);
+  const moved = await where();
+  await again.close();
+  h.check('planner: pressing Terrain while it is on, then changing the course to Berlin, leaves the course select where it was on screen',
+    held.pressed === 'Terrain' && held.terrain && held.select > 0 && held.select < 844 && moved.course === 'berlin' && !moved.terrain && Math.abs(moved.select - held.select) <= 2, { held, moved });
 }
 
 // The terrain splits as both pages draw them (New York 5:15, the visitor's case), with no data file needed: the planner's

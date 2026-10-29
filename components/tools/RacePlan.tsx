@@ -246,9 +246,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
   // The Splits choice stays under the finger: the card above it gains or loses the terrain's lines with the mode, so
   // after a press the page scrolls by however far the control moved, before the change is painted (the browser's own
   // scroll anchoring does not always make up for it). Nothing moves on a wide screen, where the inputs sit beside the card.
+  // Only a press that changes the mode keeps the control's place: a press of the option already pressed changes nothing,
+  // and a place kept then would be spent by a later change of mode (a new course) as a jump.
   const choiceTop = useRef<number | null>(null);
   const chooseBand = (m: BandMode) => {
-    choiceTop.current = document.getElementById('plan-band-choice')?.getBoundingClientRect().top ?? null;
+    choiceTop.current = m === mode ? null : document.getElementById('plan-band-choice')?.getBoundingClientRect().top ?? null;
     setQ({ pace: bandChoice(m) });
   };
   useIsoLayoutEffect(() => {
