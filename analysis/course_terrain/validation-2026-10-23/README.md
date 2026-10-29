@@ -21,6 +21,7 @@ runs in CI. The model itself is never fitted to these finishes: this was a check
 | `sensitivity.py` → `ny_sensitivity.json` | New York 5:15 under other smoothing (σ 50 m and 200 m), the Kay 2012 curve and the Verrazzano lower level |
 | `ny_plan.py` → `ny_515.json` | The visitor's New York 5:15 plan, raw against corrected profile, beside the steady groups |
 | `summarise.py` → `results.json` | The summary the course choice was made from |
+| `curve_crosscheck.py` → `curve_crosscheck.json` | The grade curve against Fellrnr's approximation of the same Strava curve (added October 29, 2026, standard library only, reproducing the design work's table): within 0.0034 on −10% … +10% (largest 0.0033 at −10%), within 0.002 from −6% to +10% |
 
 Headline results (recorded in `docs/TOOLS.md`, never on a page): terrain correlation against steady finishers 0.754 on
 the 12 class a and b courses with corrected profiles (0.627 on the raw profiles), 0.242 on class c; New York −0.51 raw
@@ -30,4 +31,5 @@ terrain error only from 0.50 to 0.42 percentage points, and would fit the model 
 Warsaw (model worse than no terrain) and Oslo (last 2.2 km off by 4.0 points) are held at even pace. These figures
 chose the ten courses; they were not pre-registered.
 
-The scripts read and write the research workspace paths written into them and are kept unchanged as a record.
+The scripts read and write the research workspace paths written into them and are kept unchanged as a record, apart from
+`curve_crosscheck.py`, which needs no input and writes its JSON to standard output.

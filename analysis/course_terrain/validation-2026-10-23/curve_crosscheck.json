@@ -1,0 +1,127 @@
+{
+ "curves": {
+  "fellrnr": "1 + 2.896 i + 15.14 i^2 (i = g / 100; Fellrnr prints the linear term with a minus sign)",
+  "strava2017_quadratic": "1 + 0.02869556 g + 0.001520768 g^2 (g percent; sci-dani.com fit)"
+ },
+ "purpose": "Cross-check of the terrain splits grade curve against Fellrnr's approximation of the same Strava 2017 curve",
+ "summary": [
+  {
+   "at_pct": -10.0,
+   "from_pct": -10,
+   "grid_step_pct": 0.01,
+   "largest_abs_gap": 0.003321,
+   "to_pct": 10
+  },
+  {
+   "at_pct": 10.0,
+   "from_pct": -6,
+   "grid_step_pct": 0.01,
+   "largest_abs_gap": 0.001968,
+   "to_pct": 10
+  }
+ ],
+ "table": [
+  {
+   "fellrnr": 0.8618,
+   "gap": 0.003321,
+   "grade_pct": -10,
+   "strava2017_quadratic": 0.865121
+  },
+  {
+   "fellrnr": 0.865216,
+   "gap": 0.002549,
+   "grade_pct": -8,
+   "strava2017_quadratic": 0.867765
+  },
+  {
+   "fellrnr": 0.880744,
+   "gap": 0.00183,
+   "grade_pct": -6,
+   "strava2017_quadratic": 0.882574
+  },
+  {
+   "fellrnr": 0.89305,
+   "gap": 0.001491,
+   "grade_pct": -5,
+   "strava2017_quadratic": 0.894541
+  },
+  {
+   "fellrnr": 0.908384,
+   "gap": 0.001166,
+   "grade_pct": -4,
+   "strava2017_quadratic": 0.90955
+  },
+  {
+   "fellrnr": 0.926746,
+   "gap": 0.000854,
+   "grade_pct": -3,
+   "strava2017_quadratic": 0.9276
+  },
+  {
+   "fellrnr": 0.948136,
+   "gap": 0.000556,
+   "grade_pct": -2,
+   "strava2017_quadratic": 0.948692
+  },
+  {
+   "fellrnr": 0.972554,
+   "gap": 0.000271,
+   "grade_pct": -1,
+   "strava2017_quadratic": 0.972825
+  },
+  {
+   "fellrnr": 1.0,
+   "gap": 0.0,
+   "grade_pct": 0,
+   "strava2017_quadratic": 1.0
+  },
+  {
+   "fellrnr": 1.030474,
+   "gap": -0.000258,
+   "grade_pct": 1,
+   "strava2017_quadratic": 1.030216
+  },
+  {
+   "fellrnr": 1.063976,
+   "gap": -0.000502,
+   "grade_pct": 2,
+   "strava2017_quadratic": 1.063474
+  },
+  {
+   "fellrnr": 1.100506,
+   "gap": -0.000732,
+   "grade_pct": 3,
+   "strava2017_quadratic": 1.099774
+  },
+  {
+   "fellrnr": 1.140064,
+   "gap": -0.000949,
+   "grade_pct": 4,
+   "strava2017_quadratic": 1.139115
+  },
+  {
+   "fellrnr": 1.18265,
+   "gap": -0.001153,
+   "grade_pct": 5,
+   "strava2017_quadratic": 1.181497
+  },
+  {
+   "fellrnr": 1.228264,
+   "gap": -0.001343,
+   "grade_pct": 6,
+   "strava2017_quadratic": 1.226921
+  },
+  {
+   "fellrnr": 1.328576,
+   "gap": -0.001682,
+   "grade_pct": 8,
+   "strava2017_quadratic": 1.326894
+  },
+  {
+   "fellrnr": 1.441,
+   "gap": -0.001968,
+   "grade_pct": 10,
+   "strava2017_quadratic": 1.439032
+  }
+ ]
+}
