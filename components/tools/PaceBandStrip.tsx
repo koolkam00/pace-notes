@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react';
 import { type SplitInterval, type SplitRow } from '@/lib/tools/pace';
-import { MAT_PACES_NOTE, splitPacesNote, type StripPaces } from '@/lib/tools/stretch-paces';
+import { matPacesNote, splitPacesNote, type StripPaces } from '@/lib/tools/stretch-paces';
 import { goalCell, splitCaption, terrainCaption } from '@/lib/tools/terrain-band';
 import { CHECKPOINTS, fmtGoal } from '@/lib/tools/pace-band-data';
 import type { TerrainFeature } from '@/lib/tools/terrain-data';
@@ -23,9 +23,10 @@ export interface RouteProfile { slug: string; city: string; race: string; km: nu
  * and captions that name the terrain splits and their source on every strip, since each is cut out and worn on its own.
  * At even pace each mat holds its even-pace time alone. With `paces` (the visitor ticked "Add each stretch’s pace",
  * lib/tools/stretch-paces.ts) each 5K cell also holds, under its time, the pace of the 5K section that ends there, and
- * each mile or km cell its own pace (the halfway cell none), and the captions say so; without it the strips are exactly
- * as before. The preview is scaled to fit its column on every screen, in CSS alone (em measures sized from the column,
- * pace-band-strip.css), so it never scrolls, clips or shifts when the script runs. It prints at full size.
+ * each mile or km cell its own pace (the halfway cell none), and the captions say so (a watch's pace, when the pace band's
+ * watch reads long); without it the strips are exactly as before. The preview is scaled to fit its column on every
+ * screen, in CSS alone (em measures sized from the column, pace-band-strip.css), so it never scrolls, clips or shifts when
+ * the script runs. It prints at full size.
  */
 export default function PaceBandStrip({ goal, pKm, units, rows, interval, overrun, place, genderWord, profile, showBack, waiting, mats = null, terrain = false, paces = null }: {
   goal: number; pKm: number; units: UnitSystem; rows: SplitRow[]; interval: SplitInterval; overrun: number; place: string; genderWord: string;
@@ -36,7 +37,7 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
   mats?: number[] | null;
   /** The band is the terrain splits. */
   terrain?: boolean;
-  /** Each stretch's pace under its time (stripPaces, in the band's units), or null for the strips as before. */
+  /** Each stretch's pace under its time (stripPaces, in the band's units, as a watch that reads long shows it), or null for the strips as before. */
   paces?: StripPaces | null;
 }) {
   const onTerrain = terrain && Boolean(mats);
@@ -46,7 +47,7 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
   const perStrip = splitCells.length ? Math.ceil(splitCells.length / Math.ceil(splitCells.length / 12)) : 0;
   const strips: (typeof splitCells)[] = [];
   for (let i = 0; i < splitCells.length; i += perStrip) strips.push(splitCells.slice(i, i + perStrip));
-  const caption = onTerrain ? `${terrainCaption(place)}${paces ? MAT_PACES_NOTE : ''}` : paces ? `Even-pace times${MAT_PACES_NOTE}.` : 'Even-pace times.';
+  const caption = onTerrain ? `${terrainCaption(place)}${paces ? matPacesNote(paces.overrun) : ''}` : paces ? `Even-pace times${matPacesNote(paces.overrun)}.` : 'Even-pace times.';
   const unitKm = interval === 'mi' ? KM_PER_MILE : 1;
   const withPaces = paces ? ' has-paces' : '';
   return (
@@ -81,7 +82,7 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
                   {paces && !r.halfway ? <PaceLine pace={paces.units[Math.round(r.km / unitKm) - 1]} /> : null}
                 </div>
               ))}
-              <p className="pace-band-strip-caption">{splitCaption(onTerrain, goal, interval, s + 1, strips.length)}{paces ? splitPacesNote(interval === 'mi' ? 'mi' : 'km') : null}</p>
+              <p className="pace-band-strip-caption">{splitCaption(onTerrain, goal, interval, s + 1, strips.length)}{paces ? splitPacesNote(interval === 'mi' ? 'mi' : 'km', paces.overrun) : null}</p>
             </div>
           ))}
           {showBack && profile ? <ElevationStrip profile={profile} units={units} /> : null}

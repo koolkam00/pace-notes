@@ -431,7 +431,9 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   // carry no paces; the fold of every 5K and every mile follows Every mat; nothing more prints.
   assert.match(html, /<\/div><\/div><label class="tool-check band-paces no-print"><input type="checkbox"\/><span>Add each stretch’s pace<small> \(per mile\)<\/small><\/span><\/label><div class="tool-share share-bar no-print">/, 'The planner: the paces box under the strips, unticked'); ok();
   assert.ok(!/class="p"|has-paces|plan-print-stretches/.test(html), 'The planner, paces off: no paces on the strips, no printed tables'); ok();
-  assert.match(html, /id="plan-mat-values"[\s\S]*<details class="values" id="plan-stretch-values"><summary><span>All numbers<span class="values-count">36 rows<\/span><\/span>[\s\S]*?<p class="values-caption" id="plan-stretch-values-caption">Every 5K and every mile: time and pace<\/p>/, 'The planner: the fold of every 5K and every mile, after Every mat'); ok();
+  assert.match(html, /id="plan-mat-values"[\s\S]*<details class="values" id="plan-stretch-values"><summary><span>All numbers<span class="values-count">each 5K and mile · 36 rows<\/span><\/span>[\s\S]*?<p class="values-caption" id="plan-stretch-values-caption">Every 5K and every mile: time and pace<\/p>/, 'The planner: the fold of every 5K and every mile, after Every mat, named in its summary'); ok();
+  assert.match(html, /<details class="values" id="plan-mat-values"><summary><span>All numbers<span class="values-count">9 rows<\/span><\/span>/, 'The planner: the Every mat fold keeps its plain summary'); ok();
+  assert.ok(!/plan-paces-note|aria-describedby="plan-paces-note"/.test(html), 'The planner, paces off: no note under the box'); ok();
   const planSource = sourceOf('components/tools/RacePlan.tsx');
   assert.match(planSource, /useQueryState\(DEFAULTS\)/); assert.match(planSource, /const DEFAULTS = \{ course: 'all', goal: '4:00', pace: '', paces: '' \};/, 'The planner keeps exactly course, goal, the band\'s even-pace choice and the stretch-pace option in its address'); checks += 2;
   // On all courses (the example) the band is even pace: no Terrain | Even pace choice, no terrain line and no badge on the band.
@@ -564,26 +566,34 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
           rowSets += 1;
         }
         // Each stretch's time and pace (lib/tools/stretch-paces.ts, the paces=1 option): the nine 5K sections are the
-        // differences of the band's mat times and add up exactly to the goal; at even pace every stretch runs at the goal's
-        // even pace, the exact times adding up to the goal.
+        // differences of the band's mat times as the strips print them and add up exactly to the goal, on terrain and at
+        // even pace (the even-pace times rounded to the second, as the strips and unitSplits round them); at even pace
+        // every stretch is at the goal's even pace.
         const fives = sp.fiveKStretches(goal, t), fivesEven = sp.fiveKStretches(goal, null);
+        const R = (km) => (km >= 42.19 ? goal : Math.round((goal * km) / 42.195));
         assert.equal(fives.length, 9); assert.equal(fivesEven.length, 9);
         assert.equal(fives.reduce((a, x) => a + x.time, 0), goal, `${slug} ${goal}: the nine 5K section times add up exactly to the goal`);
         fives.forEach((x, i) => assert.equal(x.time, E(goal, t, POINTS[i]) - (i ? E(goal, t, POINTS[i - 1]) : 0), `${slug} ${goal} ${x.label}: the difference of the band's mat times`));
-        assert.ok(Math.abs(fivesEven.reduce((a, x) => a + x.time, 0) - goal) < 1e-6, `${slug} ${goal}: even pace, the 5K sections add up to the goal`);
-        stretchChecks += 4;
+        assert.equal(fivesEven.reduce((a, x) => a + x.time, 0), goal, `${slug} ${goal}: even pace, the 5K section times add up exactly to the goal`);
+        fivesEven.forEach((x, i) => assert.equal(x.time, R(POINTS[i]) - (i ? R(POINTS[i - 1]) : 0), `${slug} ${goal} ${x.label}: even pace, the difference of the strip's rounded mat times`));
+        stretchChecks += 5;
         for (const units of ['mi', 'km']) {
           const even = fmtPaceOf(goal / 42.195, units);
           assert.ok(fives.every((x) => sp.stretchPace(x, units) === fmtPaceOf(x.time / (x.toKm - x.fromKm), units)) && fivesEven.every((x) => sp.stretchPace(x, units) === even), `${slug} ${goal} ${units}: each 5K's pace is its time over its distance; at even pace the even pace`);
-          const each = sp.unitStretches(goal, t, units), eachEven = sp.unitStretches(goal, null, units), whole = tb.unitSplits(goal, t, units);
+          const each = sp.unitStretches(goal, t, units), eachEven = sp.unitStretches(goal, null, units), whole = tb.unitSplits(goal, t, units), wholeEven = tb.unitSplits(goal, null, units);
           assert.equal(each.length, whole.length + 1, `${slug} ${goal} ${units}: every whole unit and the last part one`);
           assert.equal(each.reduce((a, x) => a + x.time, 0), goal, `${slug} ${goal} ${units}: the unit times add up exactly to the goal`);
-          assert.ok(Math.abs(eachEven.reduce((a, x) => a + x.time, 0) - goal) < 1e-6, `${slug} ${goal} ${units}: even pace, the unit times add up to the goal`);
+          assert.equal(eachEven.reduce((a, x) => a + x.time, 0), goal, `${slug} ${goal} ${units}: even pace, the unit times add up exactly to the goal`);
           assert.ok(whole.every((w, i) => each[i].time === w.split && sp.stretchPace(each[i], units) === `${F(w.split)}/${units}`), `${slug} ${goal} ${units}: each whole unit's time is its split and its pace is that time`);
+          assert.ok(wholeEven.every((w, i) => eachEven[i].time === w.split && Math.abs(w.split - goal * (units === 'mi' ? MI : 1) / 42.195) <= 1), `${slug} ${goal} ${units}: even pace, each whole unit's time is its rounded split, within a second of the even pace`);
           assert.ok(eachEven.every((x) => sp.stretchPace(x, units) === even), `${slug} ${goal} ${units}: at even pace every unit at the even pace`);
           const strip = sp.stripPaces(goal, t, units);
-          assert.ok(strip.mats.length === 9 && strip.units.length === whole.length && strip.mats.every((v, i) => v === sp.stretchPace(fives[i], units)) && strip.units.every((v, i) => v === sp.stretchPace(each[i], units)), `${slug} ${goal} ${units}: the strips' paces are the tables'`);
-          stretchChecks += 7;
+          assert.ok(strip.overrun === 0 && strip.mats.length === 9 && strip.units.length === whole.length && strip.mats.every((v, i) => v === sp.stretchPace(fives[i], units)) && strip.units.every((v, i) => v === sp.stretchPace(each[i], units)), `${slug} ${goal} ${units}: the strips' paces are the tables'`);
+          // A watch that reads the course 1% long (the pace band's watch=1): every pace as that watch shows it, the course
+          // pace ÷ 1.01 (watchTarget, as the Goal cell and the kicker), the times unchanged.
+          const watch = sp.stripPaces(goal, t, units, 0.01);
+          assert.ok(watch.overrun === 0.01 && watch.mats.every((v, i) => v === fmtPaceOf(fives[i].pace / 1.01, units)) && watch.units.every((v, i) => v === fmtPaceOf(each[i].pace / 1.01, units)), `${slug} ${goal} ${units}: with a watch 1% long, each pace as the watch shows it`);
+          stretchChecks += 9;
         }
         for (const units of ['mi', 'km']) {
           const unit = units === 'mi' ? MI : 1, avg = goal / (42.195 / unit);
@@ -599,7 +609,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
     }
   }
   assert.ok(TEN.length === 10 && plans >= 7820 && rowSets >= 7820 * 3, `Every terrain plan checked (${TEN.length} courses, ${plans} plans, ${rowSets} row sets, ${rowsChecked} rows)`); checks += plans;
-  assert.ok(stretchChecks === plans * 18, `Every terrain plan's stretches checked at miles and km, on terrain and at even pace (${stretchChecks})`); ok();
+  assert.ok(stretchChecks === plans * 23, `Every terrain plan's stretches checked at miles and km, on terrain, at even pace and with a watch that reads long (${stretchChecks})`); ok();
 
   // The pins (re-derived from the built file; spec section 7.2 and section 10).
   const ny = terrain['new-york'], G = clock(5, 15);
@@ -805,9 +815,12 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
 
   // Each stretch's pace (owner request, October 29, 2026: "Can you also add options for paces per mile for each 5k and mile
   // time"; lib/tools/stretch-paces.ts). The pins, re-derived from the built file (New York 5:15 terrain; any change needs a
-  // written reason), and even pace 4:00 derived exactly: 14,400 s × 5 ÷ 42.195 = 1,706.36 s a 5K (28:26), 341.27 s/km
-  // (9:09/mi); 40K–Finish 14,400 × 2.195 ÷ 42.195 = 749.09 s (12:29); a mile 549.23 s (9:09).
-  const row = (x, units) => `${x.label} ${F(x.time)} ${sp.stretchPace(x, units)}`;
+  // written reason), and even pace 4:00 derived exactly: the strip's mat times are 14,400 × km ÷ 42.195 rounded to the
+  // second (5K 1,706.36 → 28:26, 10K 3,412.73 → 56:53, …, 40K 13,650.91 → 3:47:31), so the sections are 28:26 or 28:27
+  // and 40K–Finish 14,400 − 13,651 = 749 s (12:29), adding up to 4:00:00; every pace is the even pace, 341.27 s/km
+  // (9:09/mi); a mile is 549.23 s, so the rounded miles are 9:09 or 9:10 (miles 3, 7, 12, 16, 20 and 25) and the last
+  // 0.2 mi 2:00 (review, October 29, 2026: the exact times had shown rows that did not add up to the goal).
+  const row = (x, units, overrun = 0) => `${x.label} ${F(x.time)} ${sp.stretchPace(x, units, overrun)}`;
   const nyFives = sp.fiveKStretches(G, ny), nyEach = sp.unitStretches(G, ny, 'mi'), nyEachKm = sp.unitStretches(G, ny, 'km');
   assert.deepEqual(nyFives.map((x) => row(x, 'mi')), ['0–5K 37:19 12:01/mi', '5–10K 37:05 11:56/mi', '10–15K 37:14 11:59/mi', '15–20K 37:08 11:57/mi', '20–25K 38:12 12:18/mi',
     '25–30K 36:33 11:46/mi', '30–35K 37:24 12:02/mi', '35–40K 37:38 12:07/mi', '40K–Finish 16:27 12:04/mi'], 'New York 5:15 terrain: each 5K\'s time and pace per mile'); ok();
@@ -816,14 +829,36 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.deepEqual([0, 2, 23, 41, 42].map((i) => row(nyEachKm[i], 'km')), ['Km 1 8:19 8:19/km', 'Km 3 6:44 6:44/km', 'Km 24 8:01 8:01/km', 'Km 42 7:36 7:36/km', 'Last 0.2 km 1:31 7:47/km'], 'New York 5:15 terrain: km 1, 3, 24 and 42, and the last 0.2 km'); ok();
   assert.deepEqual(nyEach.map((x) => x.label), [...Array.from({ length: 26 }, (_, i) => `Mile ${i + 1}`), 'Last 0.2 mi']); assert.deepEqual(nyEachKm.map((x) => x.label), [...Array.from({ length: 42 }, (_, i) => `Km ${i + 1}`), 'Last 0.2 km']); checks += 2;
   const evenFives = sp.fiveKStretches(B, null), evenEach = sp.unitStretches(B, null, 'mi');
-  assert.deepEqual(evenFives.map((x) => row(x, 'mi')), [...['0–5K', '5–10K', '10–15K', '15–20K', '20–25K', '25–30K', '30–35K', '35–40K'].map((l) => `${l} 28:26 9:09/mi`), '40K–Finish 12:29 9:09/mi'], 'Even pace 4:00: every 5K 28:26 at 9:09/mi, 40K–Finish 12:29'); ok();
-  near(evenFives[0].time, 14400 * 5 / 42.195, 1e-9, 'Even pace 4:00: the exact 5K time'); near(evenFives[8].time, 14400 * 2.195 / 42.195, 1e-9, 'Even pace 4:00: the exact 40K–Finish time'); checks += 2;
-  assert.ok(evenEach.slice(0, 26).every((x) => row(x, 'mi') === `${x.label} 9:09 9:09/mi`) && row(evenEach[26], 'mi') === 'Last 0.2 mi 2:00 9:09/mi', 'Even pace 4:00: every mile 9:09 at 9:09/mi, the last 0.2 mi 2:00'); ok();
+  assert.deepEqual(evenFives.map((x) => row(x, 'mi')), ['0–5K 28:26 9:09/mi', '5–10K 28:27 9:09/mi', '10–15K 28:26 9:09/mi', '15–20K 28:26 9:09/mi', '20–25K 28:27 9:09/mi',
+    '25–30K 28:26 9:09/mi', '30–35K 28:27 9:09/mi', '35–40K 28:26 9:09/mi', '40K–Finish 12:29 9:09/mi'], 'Even pace 4:00: each 5K 28:26 or 28:27 at 9:09/mi, 40K–Finish 12:29'); ok();
+  assert.deepEqual([evenFives[0].time, evenFives[1].time, evenFives[8].time, evenFives.reduce((a, x) => a + x.time, 0)], [Math.round(14400 * 5 / 42.195), Math.round(14400 * 10 / 42.195) - Math.round(14400 * 5 / 42.195), 14400 - Math.round(14400 * 40 / 42.195), 14400], 'Even pace 4:00: the sections from the strip\'s rounded mat times, adding up to the goal'); ok();
+  near(evenFives[0].pace, 14400 / 42.195, 1e-9, 'Even pace 4:00: the pace is the exact even pace'); ok();
+  const tenSecondMiles = evenEach.slice(0, 26).filter((x) => F(x.time) === '9:10').map((x) => x.label);
+  assert.ok(evenEach.slice(0, 26).every((x) => /^Mile \d+ 9:(?:09|10) 9:09\/mi$/.test(row(x, 'mi'))) && row(evenEach[26], 'mi') === 'Last 0.2 mi 2:00 9:09/mi', 'Even pace 4:00: every mile 9:09 or 9:10 at 9:09/mi, the last 0.2 mi 2:00'); ok();
+  assert.deepEqual(tenSecondMiles, ['Mile 3', 'Mile 7', 'Mile 12', 'Mile 16', 'Mile 20', 'Mile 25'], 'Even pace 4:00: the miles the rounded strip times make 9:10'); ok();
+  // A watch that reads the course 1% long (the pace band's watch=1): New York 5:15's paces as the watch shows them, the
+  // course pace ÷ 1.01 (0–5K 721.6 s/mi → 714.5, 11:54/mi, the kicker's "watch avg 11:54/mi"); the times stay the course's.
+  assert.deepEqual(nyFives.map((x) => row(x, 'mi', 0.01)), ['0–5K 37:19 11:54/mi', '5–10K 37:05 11:49/mi', '10–15K 37:14 11:52/mi', '15–20K 37:08 11:50/mi', '20–25K 38:12 12:10/mi',
+    '25–30K 36:33 11:39/mi', '30–35K 37:24 11:55/mi', '35–40K 37:38 12:00/mi', '40K–Finish 16:27 11:56/mi'], 'New York 5:15, a watch 1% long: each 5K\'s watch pace'); ok();
+  assert.deepEqual([0, 14, 23, 26].map((i) => row(nyEach[i], 'mi', 0.01)), ['Mile 1 12:50 12:42/mi', 'Mile 15 12:42 12:34/mi', 'Mile 24 12:25 12:18/mi', 'Last 0.2 mi 2:42 12:13/mi'], 'New York 5:15, a watch 1% long: miles 1, 15 and 24, and the last 0.2 mi'); ok();
   // The option and its words.
   assert.deepEqual([sp.PACES_PARAM, sp.PACES_LABEL, sp.pacesUnit('mi'), sp.pacesUnit('km')], ['paces', 'Add each stretch’s pace', ' (per mile)', ' (per km)']); ok();
   assert.deepEqual(['1', '0', '', 'yes', 'true', 'on', ' 1', '01', 'TRUE'].map(sp.tidyPaces), ['1', '', '', '', '', '', '', '', ''], 'paces=1 stays; any other value leaves the address'); ok();
-  assert.deepEqual([sp.stretchesTitle('mi'), sp.stretchesTitle('km'), sp.stretchCount('mi'), sp.stretchCount('km'), sp.MAT_PACES_NOTE, sp.splitPacesNote('mi'), sp.splitPacesNote('km')],
-    ['Every 5K and every mile: time and pace', 'Every 5K and every km: time and pace', 36, 52, ' · each 5K’s pace under its time', ' · pace per mile under each time', ' · pace per km under each time']); ok();
+  assert.deepEqual([sp.stretchesTitle('mi'), sp.stretchesTitle('km'), sp.stretchesName('mi'), sp.stretchesName('km'), sp.stretchCount('mi'), sp.stretchCount('km'), sp.matPacesNote(), sp.splitPacesNote('mi'), sp.splitPacesNote('km')],
+    ['Every 5K and every mile: time and pace', 'Every 5K and every km: time and pace', 'each 5K and mile', 'each 5K and km', 36, 52, ' · each 5K’s pace under its time (Finish: last 2.2 km)', ' · pace per mile under each time', ' · pace per km under each time']); ok();
+  // With a watch that reads long, every place the paces appear says they are the watch's.
+  assert.deepEqual([sp.matPacesNote(0.01), sp.splitPacesNote('mi', 0.005), sp.splitPacesNote('km', 0.015), sp.paceHead(), sp.paceHead(0.01)],
+    [' · each 5K’s watch pace under its time (Finish: last 2.2 km)', ' · watch pace per mile under each time', ' · watch pace per km under each time', 'Pace', 'Watch pace']); ok();
+  // The line under the box while it is on (the strips' captions print only on paper): which stretch each pace is, the
+  // finish's 2.2 km included, and the watch.
+  assert.deepEqual([sp.pacesNote('mi', true), sp.pacesNote('km', true), sp.pacesNote('mi', false), sp.pacesNote('mi', true, 0.01), sp.pacesNote('km', false, 0.005)], [
+    'Under each 5K mat: the pace of the 5K before it (Finish: the last 2.2 km). Under each mile: that mile’s pace.',
+    'Under each 5K mat: the pace of the 5K before it (Finish: the last 2.2 km). Under each km: that km’s pace.',
+    'Under each 5K mat: the pace of the 5K before it (Finish: the last 2.2 km).',
+    'Under each 5K mat: the pace of the 5K before it (Finish: the last 2.2 km). Under each mile: that mile’s pace. Paces as a watch reading the course 1% long shows them.',
+    'Under each 5K mat: the pace of the 5K before it (Finish: the last 2.2 km). Paces as a watch reading the course 0.5% long shows them.']); ok();
+  for (const text of [sp.pacesNote('mi', true, 0.015), sp.matPacesNote(0.01), sp.splitPacesNote('mi', 0.01), sp.stretchCaption('unit', G, true, 'mi', 0.01)]) assert.doesNotMatch(text, /adjust|\bshould\b|your chance|arithmetic|fastest|the wall|predict/i, text);
+  checks += 4;
   // The strips with the option on: a pace under each of the nine 5K cells' times and under each mile (or km) cell's, none
   // in the halfway cell; the captions say so. With it off the strips are exactly as before: removing the option's
   // additions from the strips with it on gives, byte for byte, the strips without it.
@@ -841,15 +876,22 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.deepEqual(onCells.filter(([k]) => k === 'Half'), [['Half', '2:37:11', null]], 'Paces on: the halfway cell keeps its time and shows no pace'); ok();
   assert.equal(pacesOf(on).length, 9 + 26); assert.equal((on.match(/has-paces/g) || []).length, 4, 'Paces on: the four strips are marked'); checks += 2;
   assert.ok(on.includes('<span class="k">Mi 1</span><b>12:50</b><span class="p">12:50<small>/mi</small></span>') && on.includes('<span class="k">Mi 15</span><b>3:00:20</b><span class="p">12:42<small>/mi</small></span>'), 'Paces on: mile 1 at 12:50/mi, mile 15 at 12:42/mi'); ok();
-  assert.match(on, /<p class="pace-band-strip-caption">Terrain splits · New York route · Published research · each 5K’s pace under its time<\/p>/); ok();
+  assert.match(on, /<p class="pace-band-strip-caption">Terrain splits · New York route · Published research · each 5K’s pace under its time \(Finish: last 2\.2 km\)<\/p>/); ok();
   assert.equal((on.match(/ · pace per mile under each time<\/p>/g) || []).length, 3, 'Paces on: each mile strip\'s caption says so'); ok();
   assert.ok(!/class="p"|has-paces|pace under|pace per mile/.test(off), 'Paces off: no pace markup on the strips'); ok();
-  assert.equal(on.replace(/<span class="p">[^<]*<small>[^<]*<\/small><\/span>/g, '').replace(/ has-paces/g, '').replace(/ · each 5K’s pace under its time/g, '').replace(/ · pace per (?:mile|km) under each time/g, ''), off, 'Paces off: the strips byte for byte as before'); ok();
+  assert.equal(on.replace(/<span class="p">[^<]*<small>[^<]*<\/small><\/span>/g, '').replace(/ has-paces/g, '').replace(/ · each 5K’s pace under its time \(Finish: last 2\.2 km\)/g, '').replace(/ · pace per (?:mile|km) under each time/g, ''), off, 'Paces off: the strips byte for byte as before'); ok();
   assert.equal(paceStrip({ paces: null }), off); assert.equal(stripOf({ rows: nyEven, mats: null, terrain: false }), evenHtml); checks += 2;
   // At even pace and on a km band.
   const evenOn = stripOf({ goal: B, pKm: B / 42.195, rows: pace.splitTable(B, 42.195, 'mi'), mats: null, terrain: false, paces: sp.stripPaces(B, null, 'mi') });
   assert.ok(pacesOf(evenOn).length === 35 && pacesOf(evenOn).every((v) => v === '9:09/mi'), 'Even pace 4:00, paces on: 9:09/mi under every 5K and every mile'); ok();
-  assert.match(evenOn, /<p class="pace-band-strip-caption">Even-pace times · each 5K’s pace under its time\.<\/p>/); ok();
+  assert.match(evenOn, /<p class="pace-band-strip-caption">Even-pace times · each 5K’s pace under its time \(Finish: last 2\.2 km\)\.<\/p>/); ok();
+  // With a watch that reads the course 1% long (the pace band's watch=1): the same cells hold the watch's paces, the times
+  // unchanged, and every caption says "watch pace"; the planner never has a watch (overrun 0).
+  const watchOn = paceStrip({ overrun: 0.01, paces: sp.stripPaces(G, ny, 'mi', 0.01) });
+  assert.deepEqual(pacesOf(matPart(watchOn)), ['11:54/mi', '11:49/mi', '11:52/mi', '11:50/mi', '12:10/mi', '11:39/mi', '11:55/mi', '12:00/mi', '11:56/mi'], 'A watch 1% long: the mat strip\'s nine watch paces'); ok();
+  assert.ok(watchOn.includes('<span class="k">Mi 1</span><b>12:50</b><span class="p">12:42<small>/mi</small></span>') && watchOn.includes('<span class="k">Mi 15</span><b>3:00:20</b><span class="p">12:34<small>/mi</small></span>'), 'A watch 1% long: mile 1 12:50 at 12:42/mi on the watch, mile 15 12:42 at 12:34/mi'); ok();
+  assert.match(watchOn, /<p class="pace-band-strip-caption">Terrain splits · New York route · Published research · each 5K’s watch pace under its time \(Finish: last 2\.2 km\)<\/p>/); assert.equal((watchOn.match(/ · watch pace per mile under each time<\/p>/g) || []).length, 3, 'A watch 1% long: each mile strip\'s caption says watch pace'); checks += 2;
+  assert.equal(splitCells(watchOn).map(([k, t]) => `${k} ${t}`).join(), onCells.map(([k, t]) => `${k} ${t}`).join(), 'A watch 1% long: the times are the course\'s'); ok();
   const kmOn = stripOf({ rows: tb.bandRows(G, 'km', ny), interval: 'km', mats: nyMats.map((m) => m.terrain), terrain: true, paces: sp.stripPaces(G, ny, 'km') });
   const kmCells = splitCells(kmOn);
   assert.equal(kmCells.length, 43); assert.deepEqual(kmCells.filter(([k]) => k !== 'Half').map(([k, , p]) => [k, p]), nyEachKm.slice(0, 42).map((x, i) => [`Km ${i + 1}`, `${F(x.time)}/km`]), 'Paces on, km band: one pace per km cell, its km time'); checks += 2;
@@ -868,6 +910,19 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.deepEqual([...evenTables.matchAll(/<p class="stretch-title"[^>]*>([^<]+)<\/p>/g)].map((m) => m[1]), ['Each 5K', 'Each km']); assert.equal(tableRows(evenTables).length, 52); checks += 2;
   assert.deepEqual([...evenTables.matchAll(/<caption class="sr-only">([^<]+)<\/caption>/g)].map((m) => m[1]), ['Even-pace time and pace for each 5K of 4:00', 'Even-pace time and pace for each km of 4:00']); ok();
   assert.ok(tableRows(evenTables).every((r) => r.endsWith(' 5:41/km')), 'Even pace 4:00 in km: every stretch at 5:41/km'); ok();
+  // The tables' times add up to the goal as printed, at even pace too, and match the strip's own rounded times.
+  const sumOf = (rows) => rows.reduce((a, r) => a + r.split(' ').at(-2).split(':').reduce((x, y) => x * 60 + Number(y), 0), 0);
+  for (const [goal, terrainOf, units] of [[B, null, 'km'], [B, null, 'mi'], [clock(3, 30), null, 'mi'], [clock(3, 30), null, 'km'], [G, null, 'mi'], [G, ny, 'mi'], [G, ny, 'km']]) {
+    const r = tableRows(tablesOf({ goal, terrain: terrainOf, units }));
+    assert.deepEqual([sumOf(r.slice(0, 9)), sumOf(r.slice(9))], [goal, goal], `${F(goal)} ${terrainOf ? 'terrain' : 'even'} ${units}: the printed 5K rows and ${units} rows each add up to the goal`); ok();
+  }
+  const evenStrip = stripOf({ goal: clock(3, 30), pKm: clock(3, 30) / 42.195, rows: pace.splitTable(clock(3, 30), 42.195, 'mi'), mats: null, terrain: false });
+  const stripTimes = splitCells(evenStrip).filter(([k]) => k !== 'Half').map(([, t]) => t.split(':').reduce((x, y) => x * 60 + Number(y), 0));
+  assert.deepEqual(tableRows(tablesOf({ goal: clock(3, 30), terrain: null, units: 'mi' })).slice(9, 35).map((r) => r.split(' ').at(-2)), stripTimes.map((t, i) => F(t - (i ? stripTimes[i - 1] : 0))), 'Even pace 3:30: each mile\'s time is the difference of the strip\'s own times'); ok();
+  const watchTables = tablesOf({ overrun: 0.01 });
+  assert.deepEqual(heads(watchTables), ['Stretch', 'Time', 'Watch pace', 'Stretch', 'Time', 'Watch pace'], 'A watch 1% long: the pace column says watch pace'); ok();
+  assert.deepEqual(tableRows(watchTables).slice(0, 1).concat(tableRows(watchTables).slice(9, 10)), ['0–5K 37:19 11:54/mi', 'Mile 1 12:50 12:42/mi']); ok();
+  assert.deepEqual([...watchTables.matchAll(/<caption class="sr-only">([^<]+)<\/caption>/g)].map((m) => m[1]), ['Terrain-split time and pace for each 5K of 5:15 (published research); paces as a watch reading the course 1% long shows them', 'Terrain-split time and pace for each mile of 5:15 (published research); paces as a watch reading the course 1% long shows them']); ok();
 
   // One rule, one control, one wording on both pages: the wiring.
   const files = ['lib/tools/terrain-band.ts', 'lib/tools/terrain-data.ts', 'components/tools/BandChoice.tsx', 'components/tools/RacePlan.tsx', 'components/tools/PaceBand.tsx', 'components/tools/PaceBandStrip.tsx',
@@ -979,21 +1034,30 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   }
   assert.match(planSource, /const DEFAULTS = \{ course: 'all', goal: '4:00', pace: '', paces: '' \};/); assert.match(bandSource, /back: '0', pace: '', paces: '' \};/); checks += 2;
   assert.match(planSource, /const paces = useMemo\(\(\) => \(goal !== null && pacesOn \? stripPaces\(goal, banded, units\) : null\), \[goal, pacesOn, banded, units\]\);/); ok();
-  assert.match(planSource, /mats=\{mats\} terrain=\{Boolean\(banded\)\} paces=\{paces\} \/>\s*\{\/\*[^*]*\*\/\}\s*<label className="tool-check band-paces no-print"><input type="checkbox" checked=\{pacesOn\} onChange=\{\(e\) => setQ\(\{ paces: e\.target\.checked \? '1' : '' \}\)\} \/>[\s\S]{0,120}<\/label>\s*\{\/\*[^*]*\*\/\}\s*<ShareBar/, 'The planner: the box directly under the band, above the Print button'); ok();
-  assert.match(planSource, /<MatTable goal=\{goal\} units=\{units\} terrain=\{banded\} \/>\s*<\/Values>\s*\{\/\*[^*]*\*\/\}\s*<Values id="plan-stretch-values" count=\{stretchCount\(units\)\} caption=\{stretchesTitle\(units\)\}>\s*<StretchTables goal=\{goal\} terrain=\{banded\} units=\{units\} \/>\s*<\/Values>\s*<\/section>/, 'The planner: the fold right after Every mat, in the band panel'); ok();
+  assert.match(planSource, /mats=\{mats\} terrain=\{Boolean\(banded\)\} paces=\{paces\} \/>\s*\{\/\*[^*]*\*\/\}\s*<label className="tool-check band-paces no-print"><input type="checkbox" checked=\{pacesOn\} aria-describedby=\{pacesOn \? 'plan-paces-note' : undefined\} onChange=\{\(e\) => setQuery\(\{ paces: e\.target\.checked \? '1' : '' \}\)\} \/>[\s\S]{0,120}<\/label>\s*\{pacesOn \? <p className="tool-note band-paces-note no-print" id="plan-paces-note">\{pacesNote\(units, true\)\}<\/p> : null\}\s*\{\/\*[^*]*\*\/\}\s*<ShareBar/, 'The planner: the box directly under the band, its note under it while on, above the Print button'); ok();
+  // The box shows the same plan another way: it writes the address without marking the plan touched, and a link holding
+  // only paces=1 is still the example (review, October 29, 2026: ticking it had removed "Example ·").
+  assert.match(planSource, /const isExample = ready && Array\.from\(fromUrl\)\.every\(\(key\) => key === 'paces'\) && !touched;/, 'The planner: paces alone never ends the example'); ok();
+  assert.doesNotMatch(planSource, /setQ\(\{ paces:/, 'The planner: the paces box does not count as touching the plan'); ok();
+  assert.match(planSource, /<MatTable goal=\{goal\} units=\{units\} terrain=\{banded\} \/>\s*<\/Values>\s*\{\/\*[^*]*\*\/\}\s*<Values id="plan-stretch-values" count=\{stretchCount\(units\)\} name=\{stretchesName\(units\)\} caption=\{stretchesTitle\(units\)\}>\s*<StretchTables goal=\{goal\} terrain=\{banded\} units=\{units\} \/>\s*<\/Values>\s*<\/section>/, 'The planner: the fold right after Every mat, in the band panel'); ok();
   assert.match(planSource, /\{pacesOn \? \(\s*<div className="print-only plan-print-stretches">[\s\S]{0,260}<StretchTables goal=\{goal\} terrain=\{banded\} units=\{units\} \/>/, 'The planner prints the tables only with the option on'); ok();
   assert.match(bandSource, /const paceUnits: UnitSystem = interval === 'km' \? 'km' : interval === 'mi' \? 'mi' : units;/, 'The pace band: the paces in its rows\' units, the 5K mats in the page\'s'); ok();
-  assert.match(bandSource, /const paces = useMemo\(\(\) => \(goal !== null && pacesOn \? stripPaces\(goal, banded, paceUnits\) : null\), \[goal, pacesOn, banded, paceUnits\]\);/); ok();
+  assert.match(bandSource, /const paces = useMemo\(\(\) => \(goal !== null && pacesOn \? stripPaces\(goal, banded, paceUnits, overrun\) : null\), \[goal, pacesOn, banded, paceUnits, overrun\]\);/, 'The pace band: the strips\' paces for its watch'); ok();
+  assert.match(bandSource, /const stretches = goal === null \? null : <StretchTables goal=\{goal\} terrain=\{banded\} units=\{paceUnits\} overrun=\{overrun\} \/>;/, 'The pace band: the tables\' paces for its watch'); ok();
+  assert.doesNotMatch(planSource, /overrun=\{overrun\}|stripPaces\([^)]*overrun/, 'The planner has no watch: its paces are the course\'s'); ok();
   assert.match(bandSource, /useEffect\(\(\) => \{ if \(ready && fromUrl\.has\('paces'\) && q\.paces === '1'\) setPacesLinked\(true\); \}, \[ready, fromUrl, q\.paces\]\);/); assert.match(bandSource, /optionsOpen=\{Boolean\(q\.split\) \|\| overrun !== 0 \|\| pacesLinked\}/, 'A link with paces=1 opens the print options'); checks += 2;
-  assert.match(printPanel, /\{controls\}\s*<label className="tool-check"><input type="checkbox" checked=\{pacesOn\} onChange=\{\(e\) => onPaces\(e\.target\.checked\)\} \/>[\s\S]{0,100}<\/label>\s*\{profile \? \(/, 'The pace band: the box in the print options, next to the back strip\'s'); ok();
+  assert.match(printPanel, /\{controls\}\s*\{\/\*[^*]*\*\/\}\s*<div className="pace-band-paces">\s*<label className="tool-check"><input type="checkbox" checked=\{pacesOn\} aria-describedby=\{pacesOn \? 'pace-band-paces-note' : undefined\} onChange=\{\(e\) => onPaces\(e\.target\.checked\)\} \/>[\s\S]{0,100}<\/label>\s*\{pacesOn \? <p className="tool-note pace-band-paces-note" id="pace-band-paces-note">\{pacesNote\(paceUnits, interval !== '5k', overrun\)\}<\/p> : null\}\s*<\/div>\s*\{profile \? \(/, 'The pace band: the box in the print options, next to the back strip\'s, its note under it while on'); ok();
   assert.match(printPanel, /mats=\{mats\} terrain=\{terrain\} paces=\{paces\} \/>/); ok();
-  assert.match(bandSource, /\{wrist\}<\/Values>\s*<Values id="pace-band-stretch-values" count=\{stretchCount\(paceUnits\)\} caption=\{stretchesTitle\(paceUnits\)\}>\{stretches\}<\/Values>/, 'The pace band: the fold after Every marker, in the print options'); ok();
+  assert.match(bandSource, /\{wrist\}<\/Values>\s*<Values id="pace-band-stretch-values" count=\{stretchCount\(paceUnits\)\} name=\{stretchesName\(paceUnits\)\} caption=\{stretchesTitle\(paceUnits\)\}>\{stretches\}<\/Values>/, 'The pace band: the fold after Every marker, in the print options, named in its summary'); ok();
   assert.match(bandSource, /stretches=\{pacesOn \? stretches : null\}/); assert.match(printPanel, /\{stretches \? <div className="print-only pace-band-print-stretches">/, 'The full page prints the tables only with the option on'); checks += 2;
   const stripCss = sourceOf('app/styles/pages/tools/pace-band-strip.css'), bandCss = sourceOf('app/styles/pages/tools/pace-band.css'), planCss = sourceOf('app/styles/pages/tools/plan.css');
   assert.match(stripCss, /\.pace-band-strip\.has-paces \.pace-band-cell\.is-half::after \{ content: ''; display: block; height: 1\.1em; margin-top: \.03em; \}/, 'The halfway cell keeps the paces\' line height'); ok();
   assert.match(stripCss, /\.pace-band-cell \.p, \.pace-band-strip\.has-paces \.pace-band-cell\.is-half::after \{ font-size: var\(--pace-size\); line-height: 1\.1; \}/); assert.match(stripCss, /\.pace-band-cell \.p \{ margin-top: \.03em;/, 'The halfway line matches the pace line: one size, one line height, one margin'); checks += 2;
   assert.match(bandCss, /\.pace-band-root\[data-print='strip'\] \.pace-band-print-stretches \{ display: none !important; \}/, 'The strips alone never print the tables'); ok();
   assert.match(planCss, /\.plan-print-stretches \{ order: 5; [^}]*break-before: page; \}/, 'The plan prints the tables on a page of their own'); ok();
+  // In print the page column spans the printable area on the two pages that print the strips, so the strip and its scissor
+  // marks (18.4 + 0.45 cm) fit Letter and A4 (review, October 29, 2026: the screen gutter had held in print).
+  assert.match(stripCss, /@media print \{[^@]*@supports selector\(:has\(a\)\) \{\s*main\.container:has\(\.pace-band-sheet\):not\(:has\(\.pace-band-root\[data-print='page'\]\)\) \{ width: 100%; \}\s*\}/, 'In print the page column spans the printable area where the strips print'); ok();
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]));
   for (const dir of ['lib/tools', 'components/tools', 'components/methods', 'app/tools']) {
     for (const file of walk(path.join(root, dir)).filter((x) => /\.tsx?$/.test(x))) assert.doesNotMatch(visible(fs.readFileSync(file, 'utf8')), /course shape/i, `${path.relative(root, file)}: "course shape" in visible copy`);

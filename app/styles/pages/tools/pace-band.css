@@ -34,6 +34,9 @@
 .pace-band-options { border-bottom: 1px solid var(--rule); }
 .pace-band-controls .tool-choice .seg-btn { padding-inline: 8px; }
 .pace-band-controls .tool-check small { font-size: inherit; color: var(--ink-3); }
+/* The stretch-pace box and, while it is on, the line saying what each pace is, set under the label's text. */
+.pace-band-paces { display: grid; }
+.pace-band-paces-note { padding-left: 30px; }
 
 /* ---------- Print ---------- */
 @media print {

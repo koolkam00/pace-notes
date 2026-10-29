@@ -18,7 +18,7 @@ import { bandChoice, bandKicker, bandMinute, bandRows, bandView, climbsLine, fea
 import { MARATHON_KM, splitTable, watchTarget, type SplitInterval } from '@/lib/tools/pace';
 import { CHECKPOINTS, PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell as Cell } from '@/lib/tools/pace-band-data';
 import type { NoTerrainWhy, TerrainCourse, TerrainFeature } from '@/lib/tools/terrain-data';
-import { PACES_LABEL, pacesUnit, stretchCount, stretchesTitle, stripPaces, tidyPaces, type StripPaces } from '@/lib/tools/stretch-paces';
+import { PACES_LABEL, pacesNote, pacesUnit, stretchCount, stretchesName, stretchesTitle, stripPaces, tidyPaces, type StripPaces } from '@/lib/tools/stretch-paces';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { DEFAULT_UNITS, KM_PER_MILE, matLabel, type UnitSystem } from '@/lib/units';
@@ -214,10 +214,11 @@ export default function PaceBand({ indexSha, profiles, unpublished, cities = {},
   const mats = goal !== null && banded ? matRows(goal, banded).map((m) => m.terrain!) : null;
   const climbText = goal !== null && banded ? climbsLine(goal, banded, interval === 'km' ? 'km' : interval === 'mi' ? 'mi' : units) : '';
   // Each stretch's pace, like the climbs, in the band's own rows' units (miles or km; the 5K mats by the page's units), so
-  // a mile cell's pace is its mile time.
+  // a mile cell's pace is its mile time; with a watch that reads long, each pace as that watch shows it, as the Goal cell
+  // and the kicker give the watch's average (the times stay the course's).
   const paceUnits: UnitSystem = interval === 'km' ? 'km' : interval === 'mi' ? 'mi' : units;
-  const paces = useMemo(() => (goal !== null && pacesOn ? stripPaces(goal, banded, paceUnits) : null), [goal, pacesOn, banded, paceUnits]);
-  const stretches = goal === null ? null : <StretchTables goal={goal} terrain={banded} units={paceUnits} />;
+  const paces = useMemo(() => (goal !== null && pacesOn ? stripPaces(goal, banded, paceUnits, overrun) : null), [goal, pacesOn, banded, paceUnits, overrun]);
+  const stretches = goal === null ? null : <StretchTables goal={goal} terrain={banded} units={paceUnits} overrun={overrun} />;
   // Every marker on the band as a table: in the print options' fold, and printed with the full page.
   const wrist = goal === null || pKm === null ? null
     : <Wristband rows={rows} goal={goal} pKm={pKm} units={units} overrun={overrun} even={banded ? splitTable(goal, MARATHON_KM, interval) : null} features={banded?.features ?? []} />;
@@ -331,7 +332,7 @@ export default function PaceBand({ indexSha, profiles, unpublished, cities = {},
                 values={<>
                   <Values id="pace-band-rows-values" how={banded ? how : undefined} caption={banded ? `Every marker on the band: terrain splits (timing points in bold) beside even pace for ${fmtGoal(goal)}` : `Every marker on the band: even-pace elapsed time for ${fmtGoal(goal)}`} count={rows.length}>
                     {wrist}</Values>
-                  <Values id="pace-band-stretch-values" count={stretchCount(paceUnits)} caption={stretchesTitle(paceUnits)}>{stretches}</Values>
+                  <Values id="pace-band-stretch-values" count={stretchCount(paceUnits)} name={stretchesName(paceUnits)} caption={stretchesTitle(paceUnits)}>{stretches}</Values>
                 </>} />
             </>
           )}
@@ -591,7 +592,11 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
         <summary>Print options</summary>
         <div className="tool-more-body pace-band-controls">
           {controls}
-          <label className="tool-check"><input type="checkbox" checked={pacesOn} onChange={(e) => onPaces(e.target.checked)} /><span>{PACES_LABEL}<small>{pacesUnit(paceUnits)}</small></span></label>
+          {/* While the option is on, one line under it says what each pace is (the strips' captions print only on paper). */}
+          <div className="pace-band-paces">
+            <label className="tool-check"><input type="checkbox" checked={pacesOn} aria-describedby={pacesOn ? 'pace-band-paces-note' : undefined} onChange={(e) => onPaces(e.target.checked)} /><span>{PACES_LABEL}<small>{pacesUnit(paceUnits)}</small></span></label>
+            {pacesOn ? <p className="tool-note pace-band-paces-note" id="pace-band-paces-note">{pacesNote(paceUnits, interval !== '5k', overrun)}</p> : null}
+          </div>
           {profile ? (
             <label className="tool-check"><input type="checkbox" checked={showBack} onChange={(e) => onBack(e.target.checked)} />A route elevation strip for the back ({profile.city})</label>
           ) : null}

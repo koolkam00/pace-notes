@@ -85,6 +85,9 @@
 /* The option directly under the strips: each stretch's pace under its time, its unit in small type. */
 .band-paces { margin-top: var(--s-2); }
 .band-paces small { font-size: inherit; color: var(--ink-3); }
+/* While it is on, one line under it says what each pace is, set under the label's text (the box is 20 px, then 10 px) and
+   held to the box rather than the panel's 16 px gap, as on the pace band. */
+.band-paces-note { margin-top: calc(-1 * var(--s-4)); padding-left: 30px; }
 
 /* ---------- As run: the finishes near the goal at the times they ran (Pace Notes data), after the band ---------- */
 .plan-asrun .evidence-badge { justify-self: start; }

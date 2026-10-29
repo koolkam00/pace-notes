@@ -36,11 +36,16 @@ type Props = {
   bare?: boolean;
   /** The page's /methodology anchor, linked at the foot of the open fold ("How these were measured"). */
   how?: string;
+  /**
+   * A short name before the row count, for a fold that sits beside another one of the same size, so the two read apart
+   * while closed ("All numbers · each 5K and mile · 36 rows"); without it the summary is "All numbers" and the count alone.
+   */
+  name?: string;
   children?: ReactNode;
   className?: string;
 };
 
-export default function Values({ id, caption, columns, rows, reading, count, open = false, bare = false, how, children, className }: Props) {
+export default function Values({ id, caption, columns, rows, reading, count, open = false, bare = false, how, name, children, className }: Props) {
   const n = count ?? rows?.length;
   const captionId = `${id}-caption`;
   const body = (
@@ -70,7 +75,7 @@ export default function Values({ id, caption, columns, rows, reading, count, ope
   return (
     <details className={`values${className ? ` ${className}` : ''}`} id={id} open={open || undefined}>
       <summary>
-        <span>All numbers{typeof n === 'number' ? <span className="values-count">{n.toLocaleString('en-US')} {n === 1 ? 'row' : 'rows'}</span> : null}</span>
+        <span>All numbers{typeof n === 'number' ? <span className="values-count">{name ? `${name} · ` : ''}{n.toLocaleString('en-US')} {n === 1 ? 'row' : 'rows'}</span> : null}</span>
         <span className="values-glyph" aria-hidden="true" />
       </summary>
       <div className="values-body">{body}{how ? <HowLink href={how} /> : null}</div>

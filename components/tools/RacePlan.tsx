@@ -17,7 +17,7 @@ import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
 import { PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell } from '@/lib/tools/pace-band-data';
 import { COURSE_GOAL_FILE, PLAN_GOAL_MAX_S, PLAN_GOAL_MIN_S, courseGoalResult, goalPaceNote, goalShare, publishedGoal, readPlanGoal, roundedNote } from '@/lib/tools/plan';
 import type { NoTerrainWhy, TerrainCourse } from '@/lib/tools/terrain-data';
-import { PACES_LABEL, pacesUnit, stretchCount, stretchesTitle, stripPaces, tidyPaces } from '@/lib/tools/stretch-paces';
+import { PACES_LABEL, pacesNote, pacesUnit, stretchCount, stretchesName, stretchesTitle, stripPaces, tidyPaces } from '@/lib/tools/stretch-paces';
 import { formatDuration, formatHM } from '@/lib/tools/time';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
@@ -191,10 +191,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
 }) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState(DEFAULTS);
-  // The example: the default 4:00 on all courses, untouched and not from a link.
+  // The example: the default 4:00 on all courses, untouched and not from a link. The stretch-pace option shows the same plan
+  // another way, so neither ticking it nor a link holding only paces=1 ends the example.
   const [touched, setTouched] = useState(false);
   const setQ = useCallback((patch: Partial<typeof DEFAULTS>) => { setTouched(true); setQuery(patch); }, [setQuery]);
-  const isExample = ready && fromUrl.size === 0 && !touched;
+  const isExample = ready && Array.from(fromUrl).every((key) => key === 'paces') && !touched;
 
   const { seconds: goal, read, problem } = readPlanGoal(q.goal);
   // A goal in any form the tools read (210, 3:30:00, 3h30) is kept in the address as H:MM, or H:MM:SS with seconds.
@@ -457,8 +458,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
                 </header>
                 <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={units === 'mi' ? 'mi' : 'km'} overrun={0} place={place} genderWord=""
                   profile={null} showBack={false} waiting={false} mats={mats} terrain={Boolean(banded)} paces={paces} />
-                {/* The option sits directly under the band it changes: each stretch's pace under its time, in the page's units. */}
-                <label className="tool-check band-paces no-print"><input type="checkbox" checked={pacesOn} onChange={(e) => setQ({ paces: e.target.checked ? '1' : '' })} /><span>{PACES_LABEL}<small>{pacesUnit(units)}</small></span></label>
+                {/* The option sits directly under the band it changes: each stretch's pace under its time, in the page's units, and
+                    while it is on one line under it says what each pace is (the strips' captions print only on paper). It
+                    shows the same plan another way, so it is not a change to the plan (setQuery: the example stays). */}
+                <label className="tool-check band-paces no-print"><input type="checkbox" checked={pacesOn} aria-describedby={pacesOn ? 'plan-paces-note' : undefined} onChange={(e) => setQuery({ paces: e.target.checked ? '1' : '' })} /><span>{PACES_LABEL}<small>{pacesUnit(units)}</small></span></label>
+                {pacesOn ? <p className="tool-note band-paces-note no-print" id="plan-paces-note">{pacesNote(units, true)}</p> : null}
                 {/* One print action, the band this page exists for; the browser's own print command gives the whole plan. */}
                 <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>} />
                 {/* Every mat, one fold: the terrain splits beside even pace, or the plan alone. */}
@@ -466,7 +470,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
                   <MatTable goal={goal} units={units} terrain={banded} />
                 </Values>
                 {/* Every stretch's time and pace, from the same band (no badge inside the fold: the panel carries it). */}
-                <Values id="plan-stretch-values" count={stretchCount(units)} caption={stretchesTitle(units)}>
+                <Values id="plan-stretch-values" count={stretchCount(units)} name={stretchesName(units)} caption={stretchesTitle(units)}>
                   <StretchTables goal={goal} terrain={banded} units={units} />
                 </Values>
               </section>
