@@ -30,7 +30,7 @@ export default function PredictorLink({ chart, halves, paces }: {
       {paces[index] ? <p className="half-pace-gap">Typical marathon pace: <b>{paces[index].gap}</b> {paces[index].word} than the half.</p> : null}
       <p className="half-not">{NOT_A_PREDICTION}</p>
       <p className="half-predictor">
-        <Link href={`/tools/predictor?d=half&t=${half}:00`} className="half-predictor-link">Your own half in the predictor<Arrow /></Link>
+        <Link href={`/tools/predictor?d=half&t=${half}:00`} className="half-predictor-link">Your own half in the Finish-time predictor<Arrow /></Link>
       </p>
     </>
   );

@@ -109,7 +109,9 @@ export function RatioColumns({ marks, signal, ink, label, values }: {
       <Annotation labels={placed} />
     </Plot>
   );
-  const keys: KeyItem[] = [{ label: 'The minute before each time, against the smooth curve', mark: 'square' }, { label: '95% interval', mark: 'line' }];
+  // The columns are named by the H2 and their axis; the key names only the whisker (a single swatch for three tones of
+  // column read as one of them).
+  const keys: KeyItem[] = [{ label: '95% interval', mark: 'line' }];
   return (
     <ChartFrame className="columns half-ratio" label={label} height={height} heightMd={230} plot={plot}
       axis={<Axis ticks={marks.map((m, i) => ({ x: x(i + 0.5), label: m.mark, priority: tone(m) === 'signal' ? 4 : 2 }))} />}

@@ -77,12 +77,13 @@ export function StoryPage({ path, className, numbers = [], halfScope, children }
   // The page's methods are the last line of its All numbers (they sit with the figures they explain), so the closing row
   // is the way back alone; a page with no tables keeps "How we know" in that row (round 6: one methods link per screen).
   const tables = numbers.some(Boolean);
+  const body = <>{children}<AllNumbers tables={numbers} className="story-numbers" how={howWeKnowOf(path) ?? undefined} /></>;
   return (
-    <div className={`story-page with-rail${className ? ` ${className}` : ''}`} {...readingAttrs(path)} {...(halfScope ? { 'data-half-scope': halfScope } : {})}>
+    <div className={`story-page with-rail${className ? ` ${className}` : ''}`} {...readingAttrs(path)}>
       <ChapterRail path={path} />
       <article className="story-flow">
-        {children}
-        <AllNumbers tables={numbers} className="story-numbers" how={howWeKnowOf(path) ?? undefined} />
+        {/* A half story's scope covers its own figures and tables, not the chapter end, whose next card is another page's. */}
+        {halfScope ? <div className="story-half-scope" data-half-scope={halfScope}>{body}</div> : body}
         <ChapterEnd path={path} readingOf={readingOf} how={!tables} />
       </article>
     </div>
