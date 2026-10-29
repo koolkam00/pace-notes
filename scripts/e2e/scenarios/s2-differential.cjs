@@ -65,6 +65,33 @@ const CASES = {
     await step(log, 'tp', () => type(page, label(page, /Average training pace/, false), v.tp.replace(':', '.')));
   } },
   'predictor-url': { path: v => `/tools/predictor?t=${v.half}&d=half&t2=${v.tenK}&d2=10k&wk=${v.weekly}&tp=${v.tp}` },
+  // The half panel (records linked by name, spec 4.1): a half inside its range replaces the 20K panel; the recorded-sex
+  // chips travel as sx=f or sx=m and never reach an event; a half outside the range, or another distance, brings the 20K
+  // panel back. Each run types its own half first, then the same 1:45:00, whose readings the panel must show.
+  'predictor-half': { path: '/tools/predictor', after: halfPanelPrivate, async drive(page, v, log) {
+    const panel = page.locator('#predictor-linked');
+    const has = async (name, text) => step(log, name, async () => { await panel.waitFor({ timeout: 8000 }); await page.waitForFunction(([t]) => (document.querySelector('#predictor-linked')?.textContent || '').includes(t), [text], { timeout: 8000 }); });
+    await step(log, 'half chip', () => page.locator('.predictor-chips button', { hasText: /^Half$/ }).first().click());
+    await step(log, 'own half', () => type(page, 'input[id$="-t1"]', v.half));
+    await has('panel for the own half', 'records linked by name');
+    await step(log, '1:45:00', () => type(page, 'input[id$="-t1"]', '1:45:00'));
+    await has('1:45 typical', '3:54');
+    await has('not a prediction', 'Not a prediction.');
+    await step(log, 'no 20K panel', async () => { if (await page.locator('#predictor-data').count()) throw new Error('the 20K panel shows beside the half panel'); });
+    await step(log, 'recorded women', () => panel.getByRole('button', { name: 'Recorded women' }).click());
+    await has('women at 1:45', '3:49');
+    await step(log, 'sx=f in the address', () => page.waitForURL(/[?&]sx=f(&|$)/, { timeout: 5000 }));
+    await step(log, '2:55:00', () => type(page, 'input[id$="-t1"]', '2:55:00'));
+    await step(log, '20K panel at 2:55', () => page.locator('#predictor-data').waitFor({ timeout: 8000 }));
+    await step(log, '10K chip', () => page.locator('.predictor-chips button', { hasText: /^10K$/ }).first().click());
+    await step(log, '20K panel for a 10K', () => page.locator('#predictor-data').waitFor({ timeout: 8000 }));
+  } },
+  // The pace calculator hands a half time to the predictor (spec 4.4).
+  'calculator-half': { path: '/tools/pace-calculator?d=half', async drive(page, v, log) {
+    await step(log, 'half time', () => type(page, label(page, 'Time'), '1:45:00'));
+    await page.waitForTimeout(1200);
+    await step(log, 'handoff', async () => { const link = page.locator('.tool-handoffs a:has-text("Finish-time predictor")'); await link.waitFor({ timeout: 5000 }); const href = await link.getAttribute('href'); if (href !== '/tools/predictor?d=half&t=1:45:00') throw new Error(`href ${href}`); });
+  } },
   // The result's next step opens the planner with a time worked out from the typed one in its address: that page must
   // record it no more than a time typed there. (The pace calculator's one row since the redesign's section 00: the
   // predictor's next card is the planner itself, so it carries no row.)
@@ -174,6 +201,12 @@ function homeFormMasked(h, run, id) {
   };
   for (const { ev } of run.rrweb()) if (ev.type === 2) walk(ev.data && ev.data.node, false);
   h.check(`${id}: the home form is in the recording, with every text and value masked`, forms > 0 && !leaks.length, { forms, leaks: leaks.slice(0, 8) });
+}
+
+/** The half panel's choice and the typed half never reach PostHog: no sx, and neither run's half nor the shared 1:45:00. */
+function halfPanelPrivate(h, run, id) {
+  const hits = h.inspect.search(run, [/[?&]sx=/, /"sx"/, /(^|[^0-9a-z:.-])1:45:00($|[^0-9a-z:.-])/, /(^|[^0-9a-z:.-])2:55:00($|[^0-9a-z:.-])/]);
+  h.check(`${id}: the half panel's recorded-sex choice and the typed times are in no PostHog request`, !hits.length, hits.slice(0, 6).map((hit) => `${hit.needle} in ${hit.at}`));
 }
 
 const KNOWN = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'known-differences.json'), 'utf8'));

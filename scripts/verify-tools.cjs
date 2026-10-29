@@ -1545,4 +1545,123 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
   checks += 8 + otherTools.length;
 }
 
-console.log(`Tool libraries passed ${checks} checks: time parsing and keypad input (the dot key types a colon in race-time fields; every time reader takes dots and commas), pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), the terrain splits (an independent model recomputing every published share and the parity fixture, every terrain course at every whole-minute goal from 1:30 to 8:00 and +30 s at miles, km and the 5K mats, the pinned plans, the rules, wording, folds, strips and wiring, and each 5K's and each mile's or km's time and pace for the paces option), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);
+// ---- the marathons after a half (lib/tools/half-to-full.ts, public/data/half; spec section 4): the predictor's half panel,
+// the goal pages' "The half before" and the pace calculator's handoff. Golden values from the committed files, and the
+// wiring that keeps the 20K panel unchanged for every other input.
+{
+  const ROOT = path.join(__dirname, '..');
+  const halfDir = path.join(ROOT, 'public/data/half');
+  if (fs.existsSync(path.join(halfDir, 'manifest.json'))) {
+    const htf = require('../lib/tools/half-to-full.ts');
+    const tool = JSON.parse(fs.readFileSync(path.join(halfDir, 'tools/half-to-full.json'), 'utf8'));
+    const linked = JSON.parse(fs.readFileSync(path.join(halfDir, 'linked.json'), 'utf8'));
+    const Q = tool.Q;
+    const win = (s, g = 'all') => htf.windowFor(tool, s, g);
+    const marksOf = (w) => Object.fromEntries(w.marks.map(([t, share]) => [t, share]));
+    // The page example (1:55:00): every value exact.
+    const w155 = win(H(1, 55));
+    assert.ok(w155 && w155.h === H(1, 55) && w155.n === 2056 && w155.e === 79 && w155.q[9] === 15338.5, `1:55 all window: ${JSON.stringify(w155 && [w155.n, w155.e, w155.q[9]])}`); ok();
+    assert.deepEqual(marksOf(w155), { 14400: 0.2154669261, 15300: 0.4892996109, 16200: 0.7490272374 }, '1:55 marks'); ok();
+    assert.equal(w155.sus, 0.329766537, '1:55 sustained slowdown'); ok();
+    assert.equal(htf.linkedSentence(w155, Q), 'Of records linked by name with a half near 1:55, the typical marathon 3 to 16 weeks later took *4:15*; half took 4:01 to 4:30.'); ok();
+    assert.equal(htf.slowdownSentence(w155), '33% of these marathons had a sustained slowdown.'); ok();
+    assert.deepEqual(htf.markLabels(w155), ['4:00 · 22%', '4:15 · 49%', '4:30 · 75%']); ok();
+    const f155 = win(H(1, 55), 'F');
+    assert.ok(f155 && f155.n === 694 && f155.e === 61 && f155.q[9] === 15212.5 && f155.sus === 0.1671469741, `1:55 women: ${JSON.stringify(f155 && [f155.n, f155.e, f155.q[9], f155.sus])}`); ok();
+    assert.equal(win(H(1, 45)).q[9], 14056, '1:45 all median'); ok();
+    // The spec's example rows: pairs (editions), median, half took (p25–p75), marks, sustained slowdown.
+    for (const [s, g, n, e, median, mid, marks, sus] of [
+      [H(1, 55), 'F', 694, 61, '4:13', '4:02 to 4:25', ['21%', '54%', '82%'], '17%'],
+      [H(1, 55), 'M', 1362, 69, '4:16', '4:01 to 4:32', ['22%', '46%', '71%'], '41%'],
+      [H(1, 45), 'all', 2573, 84, '3:54', '3:44 to 4:05', ['3:45 · 27%', '4:00 · 67%', '4:15 · 85%'], '27%'],
+      [H(1, 45), 'F', 479, 63, '3:49', '3:42 to 3:57', ['3:45 · 37%', '4:00 · 82%'], '10%'],
+      [H(1, 30), 'all', 2154, 79, '3:17', '3:09 to 3:25', ['3:00 · 7%', '3:15 · 43%', '3:30 · 83%'], '17%'],
+      [H(2, 15), 'all', 677, 55, '4:57', '4:37 to 5:16', ['4:45 · 32%', '5:00 · 54%', '5:15 · 73%'], '37%'],
+    ]) {
+      const w = win(s, g);
+      assert.ok(w && w.n === n && w.e === e, `${time.formatHM(s)} ${g}: ${w && w.n} (${w && w.e})`);
+      const said = htf.linkedSentence(w, Q);
+      assert.ok(said.includes(`took *${median}*`) && said.endsWith(`half took ${mid}.`), `${time.formatHM(s)} ${g}: ${said}`);
+      const labels = htf.markLabels(w);
+      assert.ok(marks.every((m) => (m.includes('·') ? labels.includes(m) : labels.some((l) => l.endsWith(` ${m}`)))), `${time.formatHM(s)} ${g} marks: ${labels.join(', ')}`);
+      assert.ok(htf.slowdownSentence(w).startsWith(`${sus} of these`), `${time.formatHM(s)} ${g}: ${htf.slowdownSentence(w)}`);
+      checks += 4;
+    }
+    // Windows, not bands: the typed half's nearest whole minute (1:57:29 reads 1:57; 1:52:30 reads 1:53).
+    const w157 = win(H(1, 57, 29));
+    assert.ok(w157.h === H(1, 57) && w157.n === 2021 && Math.round(w157.q[9]) === H(4, 20, 31), `1:57:29: ${w157.h} ${w157.n} ${w157.q[9]}`); ok();
+    assert.equal(win(H(1, 52, 30)).h, H(1, 53), '1:52:30 reads the 1:53 window'); ok();
+    // Outside a group's published range: no window (2:55 falls back to the 20K panel; women's at 1:25 are too few).
+    assert.equal(win(H(2, 55)), null, '2:55: outside the all range'); ok();
+    assert.equal(win(H(1, 25), 'F'), null, '1:25: no recorded women\'s window'); ok();
+    assert.equal(htf.tooFewSentence(tool, 'F'), 'Too few recorded women’s pairs near this half to show; recorded women’s halves from 1:26 to 2:40 have enough.'); ok();
+    assert.equal(htf.tooFewSentence(tool, 'M'), 'Too few recorded men’s pairs near this half to show; recorded men’s halves from 1:10 to 2:29 have enough.'); ok();
+    assert.deepEqual([tool.groups.all.from, tool.groups.all.to], [H(1, 10), H(2, 45)], 'The all range is 1:10 to 2:45'); ok();
+    // tools/half-to-full.json is linked.json's windows, window for window.
+    for (const g of ['all', 'F', 'M']) {
+      for (const lw of linked.windows[g]) {
+        const tw = win(lw.h, g);
+        assert.ok(tw && tw.n === lw.n && tw.e === lw.e && tw.sus === lw.sus && JSON.stringify(tw.q) === JSON.stringify(lw.q) && JSON.stringify(tw.marks) === JSON.stringify(lw.marks), `${g} ${lw.h}: the tool file equals linked.json`);
+      }
+      checks += 1;
+    }
+    // The readout's pace gap: the extra over double ÷ the marathon distance (+55 s/mi, +34 s/km at 1:45).
+    const b105 = linked.windows.all.find((w) => w.h === H(1, 45));
+    assert.equal(htf.paceGapText(b105.extra_p50, 'mi'), '+55 s/mi'); assert.equal(htf.paceGapText(b105.extra_p50, 'km'), '+34 s/km'); checks += 2;
+    // The goal pages' "The half before": every row of the spec's table, and forward-consistent with the predictor (the
+    // window at H has a median under the goal, the window a minute slower does not).
+    const GOALS = {
+      10800: { H: '1:23', n: 1325, e: 76, q50: H(2, 58, 41), range: '8 in 10 took 2:49 to 3:14.', sexes: null },
+      12600: { H: '1:35', n: 2327, e: 90, q50: H(3, 29, 18), range: '8 in 10 took 3:15 to 3:52.', sexes: 'Recorded women’s: near 1:37 · men’s: near 1:35.' },
+      14400: { H: '1:48', n: 2427, e: 80, q50: H(3, 59, 37), range: '8 in 10 took 3:41 to 4:29.', sexes: 'Recorded women’s: near 1:49 · men’s: near 1:47.' },
+      16200: { H: '2:01', n: 1568, e: 69, q50: H(4, 28, 37), range: '8 in 10 took 3:57 to 5:01.', sexes: 'Recorded women’s: near 2:02 · men’s: near 2:01.' },
+      18000: { H: '2:16', n: 634, e: 52, q50: H(4, 58, 18), range: '8 in 10 took 4:10 to 5:34.', sexes: 'Recorded women’s: near 2:15 · men’s: near 2:17.' },
+    };
+    assert.deepEqual(linked.goals.map((g) => g.goal_s), Object.keys(GOALS).map(Number), 'Five goal pages'); ok();
+    for (const g of linked.goals) {
+      const want = GOALS[g.goal_s];
+      const lines = htf.goalLines(g);
+      assert.equal(lines.lead, `After a half near *${want.H}*, the typical marathon came in under ${time.formatHM(g.goal_s)}.`);
+      assert.equal(lines.range, want.range); assert.equal(lines.sexes, want.sexes);
+      assert.equal(lines.link, `/tools/predictor?d=half&t=${want.H}:00`);
+      assert.ok(g.all.n === want.n && g.all.e === want.e && Math.floor(g.all.q50) === want.q50, `${g.goal_s}: ${g.all.n} (${g.all.e}) ${g.all.q50}`);
+      const at = win(g.all.h), slower = win(g.all.h + 60);
+      assert.ok(at.q[9] < g.goal_s && (!slower || slower.q[9] >= g.goal_s), `${g.goal_s}: the predictor at ${want.H} is under the goal and a minute slower is not`);
+      for (const sex of ['F', 'M']) {
+        if (!g[sex]) continue;
+        const sw = win(g[sex].h, sex), sn = win(g[sex].h + 60, sex);
+        assert.ok(sw.q[9] < g.goal_s && (!sn || sn.q[9] >= g.goal_s), `${g.goal_s} ${sex}: forward-consistent`);
+      }
+      checks += 7;
+    }
+    // Wiring: the panel replaces the 20K panel only for a half inside the range (and the projector shard then does not
+    // load); the sex choice travels as sx ('f' or 'm', absent for all), which the defaults leave out of the URL; the
+    // panel sits outside the research card; the goal page and the calculator use the same sentences and links.
+    const pred = fs.readFileSync(path.join(ROOT, 'components/tools/Predictor.tsx'), 'utf8');
+    assert.match(pred, /const DEFAULTS = \{[^}]*\bsx: ''[^}]*\}/, 'sx defaults to empty, so the default URL has no sx'); ok();
+    assert.match(pred, /const linked = half !== null && halfMinute !== null && halfMinute >= half\.from && halfMinute <= half\.to;/, 'The half panel shows only inside the all range'); ok();
+    assert.match(pred, /dist1\.preset\?\.key === 'half'/, 'Only for the half preset (a custom distance within 0.5% snaps to it)'); ok();
+    assert.match(pred, /useProjector\(indexSha, !!est\?\.isMarathon && !linked\)/, 'The 20K shard is not loaded for a half the half panel reads'); ok();
+    const card = pred.slice(pred.indexOf('function Headline('));
+    assert.doesNotMatch(card, /LinkedPanel|predictor-linked/, 'No half panel text inside the research card'); ok();
+    assert.match(pred, /dynamic\(\(\) => import\('\.\/LinkedPanel'\)/, 'The half panel loads lazily'); ok();
+    const panel = fs.readFileSync(path.join(ROOT, 'components/tools/LinkedPanel.tsx'), 'utf8');
+    for (const needle of ['data-half-scope="linked"', 'id="predictor-linked"', '<EvidenceTag kind="data" /><ScopeTag />', 'linkedSentence(win, tool.Q)', 'slowdownSentence(win)', 'tooFewSentence(tool, group)', 'NOT_A_PREDICTION', 'href="/stories/half-to-full#after"', 'loadHalf<HalfTool>(HALF_TOOL_FILE, sha)', 'marks={win.marks.map(']) {
+      assert.ok(panel.includes(needle), `LinkedPanel: ${needle}`); ok();
+    }
+    assert.doesNotMatch(panel, /track\(|capture\(|posthog/i, 'The half panel sends nothing to analytics (sx and the typed time never reach an event)'); ok();
+    const strip = fs.readFileSync(path.join(ROOT, 'components/tools/FinishStrip.tsx'), 'utf8');
+    assert.match(pred, /<FinishStrip q=\{q\} Q=\{Q\} est=\{T\} \/>/, 'The 20K panel draws the moved strip as before'); ok();
+    assert.doesNotMatch(pred, /function FinishStrip/, 'The strip lives in components/tools/FinishStrip.tsx only'); ok();
+    assert.match(strip, /export function FinishStrip/); ok();
+    const goalSrc = fs.readFileSync(path.join(ROOT, 'components/tools/GoalPace.tsx'), 'utf8');
+    for (const needle of ['id="goal-pace-half"', 'data-half-scope="linked"', 'goalLines(goal)', 'NOT_A_PREDICTION', '<ScopeTag />', 'records linked by name']) { assert.ok(goalSrc.includes(needle), `GoalPace: ${needle}`); ok(); }
+    assert.doesNotMatch(goalSrc.slice(goalSrc.indexOf('function HalfBefore')), /\baim for\b|\bneed\b|\btarget\b/i, 'The half before never says aim for, need or target'); ok();
+    const calc = fs.readFileSync(path.join(ROOT, 'components/tools/PaceCalculator.tsx'), 'utf8');
+    assert.match(calc, /<ToolHandoffs label="With this half time" links=\{\[\{\s*href: `\/tools\/predictor\?d=half&t=\$\{formatDuration\(shownSeconds!, true\)\}`,\s*title: 'Finish-time predictor', text: `The marathons after a \$\{formatHM\(Math\.floor\(shownSeconds! \/ 60\) \* 60\)\} half`,/, 'The calculator hands a half time to the predictor'); ok();
+    assert.equal(`/tools/predictor?d=half&t=${time.formatDuration(H(1, 45), true)}`, '/tools/predictor?d=half&t=1:45:00'); ok();
+    assert.equal(time.formatHM(H(1, 45)), '1:45'); ok();
+  }
+}
+
+console.log(`Tool libraries passed ${checks} checks: the marathons after a half (the predictor's half panel, the goal pages' half before and the calculator's handoff, from the committed half files), time parsing and keypad input (the dot key types a colon in race-time fields; every time reader takes dots and commas), pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), the terrain splits (an independent model recomputing every published share and the parity fixture, every terrain course at every whole-minute goal from 1:30 to 8:00 and +30 s at miles, km and the 5K mats, the pinned plans, the rules, wording, folds, strips and wiring, and each 5K's and each mile's or km's time and pace for the paces option), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);
