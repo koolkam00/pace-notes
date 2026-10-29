@@ -393,6 +393,65 @@ async function plannerSplits(h) {
   h.check('planner: the copied link keeps even pace (pace=even) with the course, goal and units', link && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'new-york'], ['goal', '5:15'], ['pace', 'even'], ['units', 'mi']]), copied);
 }
 
+// Each stretch's pace (October 29, 2026, on branch feat/terrain-paces): on the planner (New York 5:15) ticking "Add each
+// stretch’s pace" puts 0–5K's 12:01/mi under the mat strip's 5K time and 12:50/mi under Mi 1, none in the halfway cell, is
+// the page's one edit, and the copied link gains paces=1; on the pace band a link with paces=1 opens the print options with
+// the box ticked and the paces shown, and paces=yes leaves the address. Every tool_used action is one the policy allows.
+async function stretchPaces(h) {
+  const run = await h.run('stretch paces', { ...PHONE });
+  const page = await run.newPage();
+  const strips = () => page.evaluate(() => {
+    const cells = (sel) => [...document.querySelectorAll(`${sel} .pace-band-cell`)];
+    const pace = (cell) => { const p = cell?.querySelector('.p'); return p && p.getClientRects().length ? p.textContent : ''; };
+    return {
+      at5k: pace(cells('.pace-band-strip.is-mats').find((c) => (c.querySelector('.k')?.textContent ?? '').startsWith('5K '))),
+      finish: pace(cells('.pace-band-strip.is-mats').find((c) => (c.querySelector('.k')?.textContent ?? '').startsWith('Finish'))),
+      mile1: pace(cells('.pace-band-strip.is-splits').find((c) => c.querySelector('.k')?.textContent === 'Mi 1')),
+      half: cells('.pace-band-strip.is-splits').filter((c) => c.classList.contains('is-half')).map((c) => c.querySelectorAll('.p').length),
+      count: document.querySelectorAll('.pace-band-strip .pace-band-cell .p').length,
+      fold: document.querySelector('[id$="-stretch-values"] .values-caption')?.textContent ?? '',
+      paces: new URL(location.href).searchParams.get('paces'),
+    };
+  });
+  await page.goto(SITE + '/tools/plan?course=new-york&goal=5:15', { waitUntil: 'load' });
+  await page.waitForSelector('.plan-headline.is-terrain', { timeout: 20000 });
+  await page.waitForTimeout(600);
+  const before = await strips();
+  await page.locator('#plan-band .band-paces input[type="checkbox"]').check();
+  await page.waitForTimeout(400);
+  const after = await strips();
+  // The browser's clipboard is shared by the jobs running at once, so the copied text is caught in the page instead.
+  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => { window.__e2eCopied = text; } } }); });
+  await page.locator('#plan-band .share-bar button:has-text("Copy link")').click();
+  await page.waitForTimeout(500);
+  const copied = await page.evaluate(() => window.__e2eCopied || '');
+  await page.goto(SITE + '/tools/pace-band?course=new-york&goal=5:15&paces=1', { waitUntil: 'load' });
+  await page.waitForSelector('#pace-band-band .pace-band-strip.has-paces', { timeout: 20000 });
+  await page.waitForTimeout(600);
+  const band = { ...(await strips()), ...(await page.evaluate(() => ({
+    open: Boolean(document.querySelector('#pace-band-band details.pace-band-options')?.open),
+    ticked: [...document.querySelectorAll('#pace-band-band .pace-band-options .tool-check')].find((l) => l.textContent.startsWith('Add each stretch’s pace'))?.querySelector('input')?.checked ?? null,
+    label: [...document.querySelectorAll('#pace-band-band .pace-band-options .tool-check')].map((l) => l.textContent).find((t) => t.startsWith('Add each')) ?? '',
+  }))) };
+  await page.goto(SITE + '/tools/pace-band?course=new-york&goal=5:15&paces=yes', { waitUntil: 'load' });
+  await page.waitForSelector('#pace-band-band .pace-band-strip', { timeout: 20000 });
+  await page.waitForTimeout(900);
+  const junk = { ...(await strips()), open: await page.evaluate(() => Boolean(document.querySelector('#pace-band-band details.pace-band-options')?.open)) };
+  await run.close();
+  const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
+  h.check('stretch paces: the planner opens without paces; ticking the box puts 12:01/mi under 5K, 12:04/mi under the finish and 12:50/mi under Mi 1, none at halfway',
+    before.count === 0 && after.at5k === '12:01/mi' && after.finish === '12:04/mi' && after.mile1 === '12:50/mi' && after.count === 9 + 26 && after.half.length === 1 && after.half[0] === 0
+      && after.paces === '1' && after.fold === 'Every 5K and every mile: time and pace', { before, after });
+  h.check('stretch paces: the box is the planner\'s one edit, then Copy link a copied link; every action is one the policy allows',
+    JSON.stringify(used) === '["/tools/plan:edit","/tools/plan:copy_link"]' && named(run, 'tool_used').every((p) => ['edit', 'print', 'copy_link'].includes(p.action)), used);
+  let link = null;
+  try { link = new URL(copied); } catch { /* checked below */ }
+  h.check('stretch paces: the copied link gains paces=1 beside the course, goal and units', link && link.pathname === '/tools/plan' && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'new-york'], ['goal', '5:15'], ['paces', '1'], ['units', 'mi']]), copied);
+  h.check('stretch paces: on the pace band a link with paces=1 opens the print options, the box ticked, and the paces show',
+    band.open && band.ticked === true && band.label === 'Add each stretch’s pace (per mile)' && band.at5k === '12:01/mi' && band.mile1 === '12:50/mi' && band.count === 9 + 26 && band.paces === '1', band);
+  h.check('stretch paces: paces=yes leaves the address, with no paces and the print options closed', junk.paces === null && junk.count === 0 && !junk.open, junk);
+}
+
 // The terrain splits as both pages draw them (New York 5:15, the visitor's case), with no data file needed: the planner's
 // card and band are in place while every data file is still held back (2.5 s), with the Published research badge on the
 // card and the band and no data badge on either, the fold's terrain beside even pace, printing at once; then the As run
@@ -738,6 +797,7 @@ module.exports = {
       { name: 'planner sections, print and copy link', weight: 8, run: planner },
       { name: 'planner splits choice', weight: 6, run: plannerSplits },
       { name: 'terrain figures', weight: 8, run: terrainFigures },
+      { name: 'stretch paces', weight: 6, run: stretchPaces },
       { name: 'race report exports', weight: 8, run: raceReport },
       { name: 'back-forward cache', weight: 16, run: restored },
       { name: 'experiment before first paint', weight: 14, run: paintOrder },
