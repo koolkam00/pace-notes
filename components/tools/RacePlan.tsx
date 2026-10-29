@@ -458,7 +458,7 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
                 <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={units === 'mi' ? 'mi' : 'km'} overrun={0} place={place} genderWord=""
                   profile={null} showBack={false} waiting={false} mats={mats} terrain={Boolean(banded)} paces={paces} />
                 {/* The option sits directly under the band it changes: each stretch's pace under its time, in the page's units. */}
-                <label className="tool-check band-paces"><input type="checkbox" checked={pacesOn} onChange={(e) => setQ({ paces: e.target.checked ? '1' : '' })} /><span>{PACES_LABEL}<small>{pacesUnit(units)}</small></span></label>
+                <label className="tool-check band-paces no-print"><input type="checkbox" checked={pacesOn} onChange={(e) => setQ({ paces: e.target.checked ? '1' : '' })} /><span>{PACES_LABEL}<small>{pacesUnit(units)}</small></span></label>
                 {/* One print action, the band this page exists for; the browser's own print command gives the whole plan. */}
                 <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>} />
                 {/* Every mat, one fold: the terrain splits beside even pace, or the plan alone. */}

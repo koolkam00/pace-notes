@@ -37,10 +37,13 @@
 /* Each stretch's pace under its time, when the visitor ticks "Add each stretch’s pace" (lib/tools/stretch-paces.ts): one
    short line in every 5K cell and every mile or km cell, sized from the cell like the times so it never runs past it; the
    halfway cell has no pace but keeps an empty line of the same height, so the times stay level along the strip. */
-.pace-band-strip.has-paces { --pace-size: min(.2258em, calc(var(--strip) / var(--cells, 10) / 5.4)); }
+.pace-band-strip.has-paces { --pace-size: min(.2258em, calc(var(--strip) / var(--cells, 10) / 5)); }
 .pace-band-cell .p, .pace-band-strip.has-paces .pace-band-cell.is-half::after { font-size: var(--pace-size); line-height: 1.1; }
-.pace-band-cell .p { font-family: var(--sans); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--strip-ink); }
-.pace-band-strip.has-paces .pace-band-cell.is-half::after { content: ''; display: block; height: 1.1em; }
+.pace-band-cell .p { margin-top: .03em; font-family: var(--sans); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--strip-ink-3); }
+.pace-band-cell .p small { font-size: .78em; font-weight: 500; }
+/* The finish time's underline sits close under it, clear of the pace line below. */
+.pace-band-strip.has-paces .pace-band-cell.is-finish b { text-underline-offset: 1px; }
+.pace-band-strip.has-paces .pace-band-cell.is-half::after { content: ''; display: block; height: 1.1em; margin-top: .03em; }
 .pace-band-strip.is-back svg { display: block; width: 100%; height: 100%; min-height: 0; padding: .1em .15em 0; }
 .pace-band-strip.is-back svg text { fill: var(--strip-ink); }
 
@@ -56,7 +59,7 @@
   .pace-band-sheet-head, .pace-band-strip-caption, .pace-band-cell .k small, .pace-band-cell .h { display: none; }
   .pace-band-cell .k { font-size: clamp(.2258em, 11px, calc(var(--strip) / var(--cells, 10) / 4.8)); }
   /* The paces read at 10 px where the cell has room, as the mat names do at 11 px. */
-  .pace-band-strip.has-paces { --pace-size: clamp(.2258em, 10px, calc(var(--strip) / var(--cells, 10) / 5.4)); }
+  .pace-band-strip.has-paces { --pace-size: clamp(.2258em, 10px, calc(var(--strip) / var(--cells, 10) / 5)); }
 }
 
 @media print {

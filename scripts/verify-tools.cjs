@@ -429,7 +429,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.doesNotMatch(html, /your chance|the wall|arithmetic|adjusted/i); ok();
   // The stretch-pace option, off by default: its box directly under the strips and above the print row, unticked; the strips
   // carry no paces; the fold of every 5K and every mile follows Every mat; nothing more prints.
-  assert.match(html, /<\/div><\/div><label class="tool-check band-paces"><input type="checkbox"\/><span>Add each stretch’s pace<small> \(per mile\)<\/small><\/span><\/label><div class="tool-share share-bar no-print">/, 'The planner: the paces box under the strips, unticked'); ok();
+  assert.match(html, /<\/div><\/div><label class="tool-check band-paces no-print"><input type="checkbox"\/><span>Add each stretch’s pace<small> \(per mile\)<\/small><\/span><\/label><div class="tool-share share-bar no-print">/, 'The planner: the paces box under the strips, unticked'); ok();
   assert.ok(!/class="p"|has-paces|plan-print-stretches/.test(html), 'The planner, paces off: no paces on the strips, no printed tables'); ok();
   assert.match(html, /id="plan-mat-values"[\s\S]*<details class="values" id="plan-stretch-values"><summary><span>All numbers<span class="values-count">36 rows<\/span><\/span>[\s\S]*?<p class="values-caption" id="plan-stretch-values-caption">Every 5K and every mile: time and pace<\/p>/, 'The planner: the fold of every 5K and every mile, after Every mat'); ok();
   const planSource = sourceOf('components/tools/RacePlan.tsx');
@@ -828,23 +828,23 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   // in the halfway cell; the captions say so. With it off the strips are exactly as before: removing the option's
   // additions from the strips with it on gives, byte for byte, the strips without it.
   const paceStrip = (o) => stripOf({ rows: nyRows, mats: nyMats.map((m) => m.terrain), terrain: true, ...o });
-  const pacesOf = (html) => [...html.matchAll(/<span class="p">([^<]+)<\/span>/g)].map((m) => m[1]);
+  const pacesOf = (html) => [...html.matchAll(/<span class="p">([^<]+)<small>([^<]+)<\/small><\/span>/g)].map((m) => m[1] + m[2]);
   const matPart = (html) => html.slice(html.indexOf('pace-band-strip is-mats'), html.indexOf('pace-band-strip is-splits'));
   const nyPaces = sp.stripPaces(G, ny, 'mi');
   const on = paceStrip({ paces: nyPaces }), off = paceStrip({});
   assert.deepEqual(pacesOf(matPart(on)), nyFives.map((x) => sp.stretchPace(x, 'mi')), 'Paces on: the mat strip\'s nine 5K paces'); ok();
-  assert.match(on, /<span class="k">5K <small>3\.1mi<\/small><\/span><b>37:19<\/b><span class="p">12:01\/mi<\/span><\/div>/, 'Paces on: 0–5K\'s pace under the 5K time'); ok();
-  assert.match(on, /<span class="k">Finish <small>26\.2mi<\/small><\/span><b>5:15:00<\/b><span class="p">12:04\/mi<\/span><\/div>/, 'Paces on: 40K–Finish\'s pace under the finish'); ok();
-  const splitCells = (html) => [...html.matchAll(/<div class="pace-band-cell(?: is-half| is-mat)?"><span class="k">(Mi \d+|Km \d+|Half)<\/span><b>([^<]+)<\/b>(?:<span class="p">([^<]+)<\/span>)?<\/div>/g)].map((m) => [m[1], m[2], m[3] ?? null]);
+  assert.match(on, /<span class="k">5K <small>3\.1mi<\/small><\/span><b>37:19<\/b><span class="p">12:01<small>\/mi<\/small><\/span><\/div>/, 'Paces on: 0–5K\'s pace under the 5K time, its unit in small type'); ok();
+  assert.match(on, /<span class="k">Finish <small>26\.2mi<\/small><\/span><b>5:15:00<\/b><span class="p">12:04<small>\/mi<\/small><\/span><\/div>/, 'Paces on: 40K–Finish\'s pace under the finish'); ok();
+  const splitCells = (html) => [...html.matchAll(/<div class="pace-band-cell(?: is-half| is-mat)?"><span class="k">(Mi \d+|Km \d+|Half)<\/span><b>([^<]+)<\/b>(?:<span class="p">([^<]+)<small>([^<]+)<\/small><\/span>)?<\/div>/g)].map((m) => [m[1], m[2], m[3] ? m[3] + m[4] : null]);
   const onCells = splitCells(on);
   assert.equal(onCells.length, 27); assert.deepEqual(onCells.filter(([k]) => k !== 'Half').map(([k, t, p]) => [k, p]), nyEach.slice(0, 26).map((x, i) => [`Mi ${i + 1}`, `${F(x.time)}/mi`]), 'Paces on: one pace per mile cell, its mile time'); checks += 2;
   assert.deepEqual(onCells.filter(([k]) => k === 'Half'), [['Half', '2:37:11', null]], 'Paces on: the halfway cell keeps its time and shows no pace'); ok();
   assert.equal(pacesOf(on).length, 9 + 26); assert.equal((on.match(/has-paces/g) || []).length, 4, 'Paces on: the four strips are marked'); checks += 2;
-  assert.ok(on.includes('<span class="k">Mi 1</span><b>12:50</b><span class="p">12:50/mi</span>') && on.includes('<span class="k">Mi 15</span><b>3:00:20</b><span class="p">12:42/mi</span>'), 'Paces on: mile 1 at 12:50/mi, mile 15 at 12:42/mi'); ok();
+  assert.ok(on.includes('<span class="k">Mi 1</span><b>12:50</b><span class="p">12:50<small>/mi</small></span>') && on.includes('<span class="k">Mi 15</span><b>3:00:20</b><span class="p">12:42<small>/mi</small></span>'), 'Paces on: mile 1 at 12:50/mi, mile 15 at 12:42/mi'); ok();
   assert.match(on, /<p class="pace-band-strip-caption">Terrain splits · New York route · Published research · each 5K’s pace under its time<\/p>/); ok();
   assert.equal((on.match(/ · pace per mile under each time<\/p>/g) || []).length, 3, 'Paces on: each mile strip\'s caption says so'); ok();
   assert.ok(!/class="p"|has-paces|pace under|pace per mile/.test(off), 'Paces off: no pace markup on the strips'); ok();
-  assert.equal(on.replace(/<span class="p">[^<]*<\/span>/g, '').replace(/ has-paces/g, '').replace(/ · each 5K’s pace under its time/g, '').replace(/ · pace per (?:mile|km) under each time/g, ''), off, 'Paces off: the strips byte for byte as before'); ok();
+  assert.equal(on.replace(/<span class="p">[^<]*<small>[^<]*<\/small><\/span>/g, '').replace(/ has-paces/g, '').replace(/ · each 5K’s pace under its time/g, '').replace(/ · pace per (?:mile|km) under each time/g, ''), off, 'Paces off: the strips byte for byte as before'); ok();
   assert.equal(paceStrip({ paces: null }), off); assert.equal(stripOf({ rows: nyEven, mats: null, terrain: false }), evenHtml); checks += 2;
   // At even pace and on a km band.
   const evenOn = stripOf({ goal: B, pKm: B / 42.195, rows: pace.splitTable(B, 42.195, 'mi'), mats: null, terrain: false, paces: sp.stripPaces(B, null, 'mi') });
@@ -979,7 +979,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   }
   assert.match(planSource, /const DEFAULTS = \{ course: 'all', goal: '4:00', pace: '', paces: '' \};/); assert.match(bandSource, /back: '0', pace: '', paces: '' \};/); checks += 2;
   assert.match(planSource, /const paces = useMemo\(\(\) => \(goal !== null && pacesOn \? stripPaces\(goal, banded, units\) : null\), \[goal, pacesOn, banded, units\]\);/); ok();
-  assert.match(planSource, /mats=\{mats\} terrain=\{Boolean\(banded\)\} paces=\{paces\} \/>\s*\{\/\*[^*]*\*\/\}\s*<label className="tool-check band-paces"><input type="checkbox" checked=\{pacesOn\} onChange=\{\(e\) => setQ\(\{ paces: e\.target\.checked \? '1' : '' \}\)\} \/>[\s\S]{0,120}<\/label>\s*\{\/\*[^*]*\*\/\}\s*<ShareBar/, 'The planner: the box directly under the band, above the Print button'); ok();
+  assert.match(planSource, /mats=\{mats\} terrain=\{Boolean\(banded\)\} paces=\{paces\} \/>\s*\{\/\*[^*]*\*\/\}\s*<label className="tool-check band-paces no-print"><input type="checkbox" checked=\{pacesOn\} onChange=\{\(e\) => setQ\(\{ paces: e\.target\.checked \? '1' : '' \}\)\} \/>[\s\S]{0,120}<\/label>\s*\{\/\*[^*]*\*\/\}\s*<ShareBar/, 'The planner: the box directly under the band, above the Print button'); ok();
   assert.match(planSource, /<MatTable goal=\{goal\} units=\{units\} terrain=\{banded\} \/>\s*<\/Values>\s*\{\/\*[^*]*\*\/\}\s*<Values id="plan-stretch-values" count=\{stretchCount\(units\)\} caption=\{stretchesTitle\(units\)\}>\s*<StretchTables goal=\{goal\} terrain=\{banded\} units=\{units\} \/>\s*<\/Values>\s*<\/section>/, 'The planner: the fold right after Every mat, in the band panel'); ok();
   assert.match(planSource, /\{pacesOn \? \(\s*<div className="print-only plan-print-stretches">[\s\S]{0,260}<StretchTables goal=\{goal\} terrain=\{banded\} units=\{units\} \/>/, 'The planner prints the tables only with the option on'); ok();
   assert.match(bandSource, /const paceUnits: UnitSystem = interval === 'km' \? 'km' : interval === 'mi' \? 'mi' : units;/, 'The pace band: the paces in its rows\' units, the 5K mats in the page\'s'); ok();
@@ -990,7 +990,8 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.match(bandSource, /\{wrist\}<\/Values>\s*<Values id="pace-band-stretch-values" count=\{stretchCount\(paceUnits\)\} caption=\{stretchesTitle\(paceUnits\)\}>\{stretches\}<\/Values>/, 'The pace band: the fold after Every marker, in the print options'); ok();
   assert.match(bandSource, /stretches=\{pacesOn \? stretches : null\}/); assert.match(printPanel, /\{stretches \? <div className="print-only pace-band-print-stretches">/, 'The full page prints the tables only with the option on'); checks += 2;
   const stripCss = sourceOf('app/styles/pages/tools/pace-band-strip.css'), bandCss = sourceOf('app/styles/pages/tools/pace-band.css'), planCss = sourceOf('app/styles/pages/tools/plan.css');
-  assert.match(stripCss, /\.pace-band-strip\.has-paces \.pace-band-cell\.is-half::after \{ content: ''; display: block; height: 1\.1em; \}/, 'The halfway cell keeps the paces\' line height'); ok();
+  assert.match(stripCss, /\.pace-band-strip\.has-paces \.pace-band-cell\.is-half::after \{ content: ''; display: block; height: 1\.1em; margin-top: \.03em; \}/, 'The halfway cell keeps the paces\' line height'); ok();
+  assert.match(stripCss, /\.pace-band-cell \.p, \.pace-band-strip\.has-paces \.pace-band-cell\.is-half::after \{ font-size: var\(--pace-size\); line-height: 1\.1; \}/); assert.match(stripCss, /\.pace-band-cell \.p \{ margin-top: \.03em;/, 'The halfway line matches the pace line: one size, one line height, one margin'); checks += 2;
   assert.match(bandCss, /\.pace-band-root\[data-print='strip'\] \.pace-band-print-stretches \{ display: none !important; \}/, 'The strips alone never print the tables'); ok();
   assert.match(planCss, /\.plan-print-stretches \{ order: 5; [^}]*break-before: page; \}/, 'The plan prints the tables on a page of their own'); ok();
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]));

@@ -67,7 +67,7 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
               <div key={km} className={`pace-band-cell${i === 8 ? ' is-finish' : ''}`}>
                 <span className="k">{i === 8 ? 'Finish' : `${km}K`} <small>{i === 8 ? '26.2mi' : `${(km / KM_PER_MILE).toFixed(1)}mi`}</small></span>
                 <b>{formatDuration(i === 8 ? goal : onTerrain ? mats![i] : pKm * km)}</b>
-                {paces ? <span className="p">{paces.mats[i]}</span> : null}
+                {paces ? <PaceLine pace={paces.mats[i]} /> : null}
               </div>
             ))}
             <p className="pace-band-strip-caption">{caption}</p>
@@ -78,7 +78,7 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
                 <div key={r.km} className={`pace-band-cell${r.halfway ? ' is-half' : r.mat ? ' is-mat' : ''}`}>
                   <span className="k">{r.halfway ? 'Half' : interval === 'mi' ? `Mi ${Math.round(r.km / KM_PER_MILE)}` : `Km ${Math.round(r.km)}`}</span>
                   <b>{formatDuration(r.elapsed)}</b>
-                  {paces && !r.halfway ? <span className="p">{paces.units[Math.round(r.km / unitKm) - 1]}</span> : null}
+                  {paces && !r.halfway ? <PaceLine pace={paces.units[Math.round(r.km / unitKm) - 1]} /> : null}
                 </div>
               ))}
               <p className="pace-band-strip-caption">{splitCaption(onTerrain, goal, interval, s + 1, strips.length)}{paces ? splitPacesNote(interval === 'mi' ? 'mi' : 'km') : null}</p>
@@ -89,6 +89,12 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
       </div>
     </>
   );
+}
+
+/** A stretch's pace under its time ("12:01/mi"), its unit in smaller type so the figure keeps its size in a narrow cell. */
+function PaceLine({ pace }: { pace: string }) {
+  const at = pace.lastIndexOf('/');
+  return <span className="p">{pace.slice(0, at)}<small>{pace.slice(at)}</small></span>;
 }
 
 /** Full height of the printed elevation strip, the same on every course, so flat courses print flat. */
