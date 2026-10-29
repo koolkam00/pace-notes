@@ -7,17 +7,18 @@ runs in CI. The model itself is never fitted to these finishes: this was a check
   shifted-mat-grid editions removed, as in `analysis/insights_tools_common.py`).
 - Steady group: finishes on the course whose pace from 20K to the finish was within ±3% of their pace from 0 to 20K,
   in a window from G − 10:00 to G + 9:59 around each goal G, published only with at least 100 such finishes from at
-  least 3 editions, at goals from 3:00 to 6:00. These finishes are chosen by how their race went, so the comparison
-  does not show that the splits produce a finish time.
+  least 3 editions, at goals from 3:00 to 5:30 (the scan runs to 6:00, but no goal above 5:30 has the 6 courses a
+  comparison needs; the summary's bin labelled 5:00-6:00 holds only goals 5:00 to 5:30). These finishes are chosen by
+  how their race went, so the comparison does not show that the splits produce a finish time.
 - Model: `terrain_model.py` here is the reference model (Strava 2017 quadratic, with a `sens` grade scale used only
-  for the sensitivity scan). `analysis/terrain_model.py` is its port without `sens`; the two give identical numbers.
+  for `validate.py`'s grade-scale scan). `analysis/terrain_model.py` is its port without `sens`; the two give identical numbers.
 
 | File | What it holds |
 |---|---|
 | `measure/prep.py`, `measure/measure.py`, `measure/variants.py`, `measure/analyse.py`, `measure/finalize.py` | Build the steady-finisher cells from the release (the intermediate `cells.pkl` and cohort arrays are not committed) |
-| `validate.py` | Model against steady finishers on the raw and corrected profiles: `model_shapes.json` (not committed), `comparison.json`, `ny_515.json` |
+| `validate.py` | Model against steady finishers on the raw and corrected profiles, with the grade-scale scan: `model_shapes.json` (not committed), `comparison.json` |
 | `asym.py` → `asymmetry.json` | Share of the model's uphill cost and downhill gain the steady finishers took |
-| `sensitivity.py` → `ny_sensitivity.json` | New York 5:15 under scaled grades |
+| `sensitivity.py` → `ny_sensitivity.json` | New York 5:15 under other smoothing (σ 50 m and 200 m), the Kay 2012 curve and the Verrazzano lower level |
 | `ny_plan.py` → `ny_515.json` | The visitor's New York 5:15 plan, raw against corrected profile, beside the steady groups |
 | `summarise.py` → `results.json` | The summary the course choice was made from |
 

@@ -98,7 +98,7 @@ npm run verify:data
 npm run build
 ```
 
-A change to `build_weather.py` or `runner_environment.py` (the start-hour check) requires rebuilding, in order: the weather screen; runner context (build, `--check-only`, import); the all-finisher context; then the stories and tool data with course geometry and their manifest, each with its verifier. The packs, the supporting study, the runner lookup and fast start read neither ([October 22, 2026 example](evidence/2026-10-22/chicago-2025-weather/pipeline.sh)).
+A change to `build_weather.py` or `runner_environment.py` (the start-hour check) requires rebuilding, in order: the weather screen; runner context (build, `--check-only`, import); the all-finisher context; then the stories and tool data with course geometry, the terrain splits (`build_course_terrain.py`, which binds the runner-context manifest) and their manifest, each with its verifier. The packs, the supporting study, the runner lookup and fast start read neither ([October 22, 2026 example](evidence/2026-10-22/chicago-2025-weather/pipeline.sh)).
 
 `--runners` defaults to the repository's `public/data/runners`. The importer invokes the full Node verifier before any replacement. It stages only `manifest.json` and the listed edition shards, then replaces only `public/data/runner-context`, restoring the prior directory if the swap fails. Its optional `--output` is the **parent** public-data directory, not the runner-context folder; validation still binds to this repository's runner manifest. No other data folder or release pin is modified.
 
@@ -127,19 +127,22 @@ The history verifier checks every cell's count, edition coverage and onset, then
 
 ## Data story refresh
 
-Rebuild the stories after the runner or runner-context manifests change:
+Rebuild the stories after the runner or runner-context manifests change. The terrain splits bind the runner-context manifest (its bytes and `input_as_of`) and the release tag, so they are rebuilt in the same pass, before the manifest step:
 
 ```bash
 python -m unittest discover -s analysis -p 'test_insights.py'
 python analysis/build_insights.py
 python analysis/build_course_geometry.py --profiles <CORE export>/course_profiles.parquet
+python analysis/build_course_terrain.py --profiles <CORE export>/course_profiles.parquet \
+    --corrections analysis/course_terrain/corrections.json \
+    --output public/data/insights/tools/course-terrain.json
 python analysis/build_insights.py --only manifest
 node scripts/verify-insights.cjs
 ```
 
 The **Story analyses** workflow repeats the build into a temporary directory and requires byte-identical family files. See [data stories](STORIES.md).
 
-When the release changes, build into a fresh empty folder (`--output <dir>`), run the geometry and `--only manifest` steps against it, verify it with `node scripts/verify-insights.cjs --input <dir>`, and only then replace `public/data/insights` with it: the verifier's inventory check fails on leftover replay or tool shards from the previous release (1652: Boston's and Chicago's replay editions moved to 2014 and 2026, and Melbourne left the course data). `--only` keeps only files listed in the output folder's existing manifest, so it cannot finish a partly built fresh folder; rebuild it whole (about 15 minutes for 1652). Producer follow-ups found by the 1652 refresh are listed in its [record](REFRESH_20261016_1652.md#open-for-the-owner-and-the-producer).
+When the release changes, build into a fresh empty folder (`--output <dir>`), run the geometry, terrain-splits (`--output <dir>/tools/course-terrain.json`) and `--only manifest` steps against it, verify it with `node scripts/verify-insights.cjs --input <dir>`, and only then replace `public/data/insights` with it: the verifier's inventory check fails on leftover replay or tool shards from the previous release (1652: Boston's and Chicago's replay editions moved to 2014 and 2026, and Melbourne left the course data). `--only` keeps only files listed in the output folder's existing manifest, so it cannot finish a partly built fresh folder; rebuild it whole (about 15 minutes for 1652). Producer follow-ups found by the 1652 refresh are listed in its [record](REFRESH_20261016_1652.md#open-for-the-owner-and-the-producer).
 
 ## Terrain splits refresh
 
@@ -155,9 +158,9 @@ node scripts/verify-insights.cjs
 node scripts/verify-tools.cjs
 ```
 
-Rebuild when the runner-context manifest's `course_profiles.parquet` hash changes (a new release) or when `analysis/course_terrain/corrections.json` changes (bump its `version`). On a new parquet hash the builder refuses until the registry's `input.sha256` and every correction's anchors are re-based on the new file; it also refuses a terrain course of class c, without `sources` or with a `why`, a smoothed grade above 8%, a feature outside its correction and a slug the pace band does not publish. The **Story analyses** workflow rebuilds the file after the release download and requires the committed bytes.
+Rebuild whenever the runner-context manifest changes (its bytes, its `input_as_of` or its `course_profiles.parquet` hash; `verify-insights` binds all three), whenever the adopted release in `analysis/release.json` changes, and whenever `analysis/course_terrain/corrections.json` changes (bump its `version`); the [story refresh](#data-story-refresh) above runs it. On a new parquet hash the builder refuses until the registry's `input.sha256` and every correction's anchors are re-based on the new file; it also refuses a terrain course of class c, without `sources` or with a `why`, a smoothed grade above 8%, a feature outside its correction and a slug the pace band does not publish. The **Story analyses** workflow rebuilds the file after the release download and requires the committed bytes.
 
-Clearing another course for terrain splits: add its cited corrections and `sources` to the registry, run the provenance scripts in `analysis/course_terrain/provenance/` (network; never in CI), re-run the steady-finisher check from `analysis/course_terrain/validation-2026-10-23/` on the adopted release, set `band: "terrain"`, add its deck guards to `checkCourseTerrain` in `scripts/verify-insights.cjs`, rebuild, re-pin `scripts/verify-tools.cjs` and record the date and the evidence in [tools](TOOLS.md#terrain-splits-owner-decision-october-23-2026).
+Clearing another course for terrain splits: add its cited corrections and `sources` to the registry, run the provenance scripts in `analysis/course_terrain/provenance/` (network; never in CI), re-run the steady-finisher check from `analysis/course_terrain/validation-2026-10-23/` on the adopted release, set `band: "terrain"`, add its deck guards to `checkCourseTerrain` in `scripts/verify-insights.cjs` (each window over the water alone, so the uncorrected supplied profile fails it; `test_course_terrain.py` checks that with `COURSE_PROFILES` set), rebuild, re-pin `scripts/verify-tools.cjs` and record the date and the evidence in [tools](TOOLS.md#terrain-splits-owner-decision-october-23-2026).
 
 ## Top 100 charts refresh
 
