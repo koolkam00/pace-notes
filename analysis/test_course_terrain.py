@@ -10,6 +10,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import tempfile
 import unittest
 
@@ -327,6 +328,31 @@ class AdoptedRelease(unittest.TestCase):
         self.assertGreaterEqual(float(m[(d >= 0.9) & (d <= 1.5)].max()), 75.0, 'Verrazzano upper level')
         window = (d >= 23.3) & (d <= 24.9)
         self.assertGreaterEqual(float(m[window].max() - np.interp(23.3, d, m)), 35.0, 'Queensboro lower level rise')
+
+    def test_every_deck_guard_fails_on_the_supplied_profile(self):
+        # The deck guards in scripts/verify-insights.cjs (TERRAIN_DECKS) catch a ground model only if the uncorrected
+        # supplied profile fails each of them; each must pass on the published, corrected input.
+        source = (ROOT / 'scripts/verify-insights.cjs').read_text()
+        table = re.search(r'const TERRAIN_DECKS = \[(.*?)\];\n', source, re.S)
+        self.assertIsNotNone(table, 'TERRAIN_DECKS in scripts/verify-insights.cjs')
+        decks = [(slug, name, float(a), float(b), float(floor)) for slug, name, a, b, floor in
+                 re.findall(r"\['([\w-]+)', '([^']+)', ([\d.]+), ([\d.]+), ([\d.]+)\]", table.group(1))]
+        self.assertEqual(len(decks), 7)
+        supplied = bct.read_profiles(PROFILES)
+
+        def window_max(d, m, a, b):
+            # The highest reading in the window on the official axis, the window's two ends included (interpolated).
+            o = (np.asarray(d) - d[0]) * tm.KM / (d[-1] - d[0])
+            z = np.asarray(m, float)
+            return float(max(z[(o >= a) & (o <= b)].max(initial=-1e9), np.interp(a, o, z), np.interp(b, o, z)))
+
+        for slug, name, a, b, floor in decks:
+            course = next(c for c in self.doc['courses'] if c['slug'] == slug)
+            corrected = window_max(course['route']['d_km'], course['route']['m'], a, b)
+            race, points = supplied[course['city']]
+            raw = window_max([p[0] for p in points], [p[1] for p in points], a, b)
+            self.assertGreaterEqual(corrected, floor, f'{course["city"]} {name}: the published input passes')
+            self.assertLess(raw, floor, f'{course["city"]} {name}: the supplied profile ({raw:.1f} m) must fail the {floor} m guard')
 
     def test_new_york_pins_and_raw_profile_guards(self):
         G = 5 * 3600 + 15 * 60

@@ -1363,9 +1363,12 @@ const TERRAIN_MODEL = { name: 'strava-2017-quadratic', a1: 0.02869556, a2: 0.001
 // Deck guards on the published model input, official axis (route km x 42.195 / route length), against published clearances:
 // Verrazzano 69.5 m (228 ft, Britannica / Wikipedia), Pulaski 11.9 m (39 ft, Coast Guard drawbridge rule), Queensboro 39.9 m
 // (131 ft, Waterway Guide), Willis Ave 7.3 m (24 ft) and Madison Ave 7.6 m (25 ft, 33 CFR 117.789); Erasmusbrug is a
-// regression guard on its 16.5 m deck. A supplied ground model reads each of them near water level.
+// regression guard on its 16.5 m deck. A supplied ground model reads each of them near water level, and each window holds
+// only the span over the water, so the uncorrected supplied profile fails every guard (test_course_terrain.py asserts it
+// on the release's profile): the Willis window stops at the swing span (0-1.8 m uncorrected), short of the Bronx approach,
+// whose ground already reaches 10.5 m.
 const TERRAIN_DECKS = [['new-york', 'Verrazzano', 0.9, 1.5, 75], ['new-york', 'Pulaski', 20.6, 21.6, 14], ['new-york', 'Queensboro', 23.3, 25.8, 40],
-  ['new-york', 'Willis Ave', 30.9, 32.1, 9], ['new-york', 'Madison Ave', 33.1, 33.9, 7.6],
+  ['new-york', 'Willis Ave', 31.0, 31.45, 9], ['new-york', 'Madison Ave', 33.1, 33.9, 7.6],
   ['rotterdam', 'Erasmusbrug 1', 0.3, 0.9, 14], ['rotterdam', 'Erasmusbrug 2', 26.2, 27.2, 14]];
 const strictlyIncreasing = values => values.every((v, i) => !i || v > values[i - 1]);
 function checkCourseTerrain(doc) {
