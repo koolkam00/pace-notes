@@ -34,6 +34,16 @@
 .pace-band-cell.is-half { background: var(--strip-paper-2); }
 .pace-band-strip-caption { grid-column: 1 / -1; padding: .04em .15em .06em; border-top: .5pt solid var(--strip-rule); font-family: var(--sans); font-size: .1905em; line-height: 1.25; color: var(--strip-ink-3); }
 .pace-band-strip.is-back { display: grid; grid-template-columns: 1fr; }
+/* Each stretch's pace under its time, when the visitor ticks "Add each stretch’s pace" (lib/tools/stretch-paces.ts): one
+   short line in every 5K cell and every mile or km cell, sized from the cell like the times so it never runs past it; the
+   halfway cell has no pace but keeps an empty line of the same height, so the times stay level along the strip. */
+.pace-band-strip.has-paces { --pace-size: min(.2258em, calc(var(--strip) / var(--cells, 10) / 5)); }
+.pace-band-cell .p, .pace-band-strip.has-paces .pace-band-cell.is-half::after { font-size: var(--pace-size); line-height: 1.1; }
+.pace-band-cell .p { margin-top: .03em; font-family: var(--sans); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--strip-ink-3); }
+.pace-band-cell .p small { font-size: .78em; font-weight: 500; }
+/* The finish time's underline sits close under it, clear of the pace line below. */
+.pace-band-strip.has-paces .pace-band-cell.is-finish b { text-underline-offset: 1px; }
+.pace-band-strip.has-paces .pace-band-cell.is-half::after { content: ''; display: block; height: 1.1em; margin-top: .03em; }
 .pace-band-strip.is-back svg { display: block; width: 100%; height: 100%; min-height: 0; padding: .1em .15em 0; }
 .pace-band-strip.is-back svg text { fill: var(--strip-ink); }
 
@@ -48,12 +58,39 @@
 @media screen {
   .pace-band-sheet-head, .pace-band-strip-caption, .pace-band-cell .k small, .pace-band-cell .h { display: none; }
   .pace-band-cell .k { font-size: clamp(.2258em, 11px, calc(var(--strip) / var(--cells, 10) / 4.8)); }
+  /* The paces read at 10 px where the cell has room, as the mat names do at 11 px. */
+  .pace-band-strip.has-paces { --pace-size: clamp(.2258em, 10px, calc(var(--strip) / var(--cells, 10) / 5)); }
 }
 
 @media print {
+  /* The page column spans the printable area, as base.css means it to for print: layout.css comes later in the cascade,
+     so its screen width (100% less two gutters) otherwise held in print too, and the strip plus its scissor marks
+     (18.85 cm) ran about 4 px past Letter's printable width (19.56 cm at 0.4 in margins) and 25 px past A4's, clipping
+     the right-hand cut line (review, October 29, 2026). Only where the strips print: not the pace band's full page
+     (print=page), which prints no strip and whose chart dots would then reach the paper's edge. A browser without :has()
+     keeps the column as it was. */
+  @supports selector(:has(a)) {
+    main.container:has(.pace-band-sheet):not(:has(.pace-band-root[data-print='page'])) { width: 100%; }
+  }
   .pace-band-sheet-wrap { margin: 0; padding: 0; background: none; }
   /* Width follows the printable area (strip 18.4 cm + .45 cm for the scissor marks), so A4 and Letter print unscaled. */
   .pace-band-sheet { font-size: 1cm; width: auto; max-width: calc(var(--strip) + .45em); margin-inline: 0; padding: 0 0 0 .45em; box-shadow: none; }
   .pace-band-held-dim { opacity: 1 !important; }
   .pace-band-strip, .pace-band-cell, .pace-band-cell.is-half { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* ---------- Every stretch's time and pace (components/tools/StretchTables.tsx), in a fold on both pages ---------- */
+/* The 5K table and the mile or km table, side by side where the column has room. */
+.stretch-tables { display: grid; gap: var(--s-5); }
+@media (min-width: 600px) {
+  .stretch-tables { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+.stretch-title { margin: 0 0 var(--s-2); font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+@media print {
+  /* Printed with the plan or the full page: the two tables side by side, in the tables' print size. */
+  .stretch-tables { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6cm; align-items: start; }
+  .stretch-title { margin: 0 0 .05cm; font-size: 7.5pt; color: var(--night); }
+  .stretch-table th, .stretch-table td, .stretch-table tbody th { height: auto; padding-top: .03cm !important; padding-bottom: .03cm !important; font-size: 8.5pt; line-height: 1.25; color: var(--night) !important; }
+  .stretch-table thead th { font-size: 6.5pt; }
+  .stretch-table tr { break-inside: avoid; }
 }

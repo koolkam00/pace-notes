@@ -2,6 +2,7 @@
 
 import { Fragment } from 'react';
 import { type SplitInterval, type SplitRow } from '@/lib/tools/pace';
+import { matPacesNote, splitPacesNote, type StripPaces } from '@/lib/tools/stretch-paces';
 import { goalCell, splitCaption, terrainCaption } from '@/lib/tools/terrain-band';
 import { CHECKPOINTS, fmtGoal } from '@/lib/tools/pace-band-data';
 import type { TerrainFeature } from '@/lib/tools/terrain-data';
@@ -20,11 +21,14 @@ export interface RouteProfile { slug: string; city: string; race: string; km: nu
  * for the back. With `terrain` (lib/tools/terrain-band.ts) the band is the terrain splits: its nine rounded mat times
  * (`mats`) on the mat strip and `rows` built the same way (bandRows), the Goal cell's even pace labelled as the average,
  * and captions that name the terrain splits and their source on every strip, since each is cut out and worn on its own.
- * At even pace each mat holds its even-pace time alone. The preview is scaled to fit its column on every screen, in CSS
- * alone (em measures sized from the column, pace-band-strip.css), so it never scrolls, clips or shifts when the script
- * runs. It prints at full size.
+ * At even pace each mat holds its even-pace time alone. With `paces` (the visitor ticked "Add each stretch’s pace",
+ * lib/tools/stretch-paces.ts) each 5K cell also holds, under its time, the pace of the 5K section that ends there, and
+ * each mile or km cell its own pace (the halfway cell none), and the captions say so (a watch's pace, when the pace band's
+ * watch reads long); without it the strips are exactly as before. The preview is scaled to fit its column on every
+ * screen, in CSS alone (em measures sized from the column, pace-band-strip.css), so it never scrolls, clips or shifts when
+ * the script runs. It prints at full size.
  */
-export default function PaceBandStrip({ goal, pKm, units, rows, interval, overrun, place, genderWord, profile, showBack, waiting, mats = null, terrain = false }: {
+export default function PaceBandStrip({ goal, pKm, units, rows, interval, overrun, place, genderWord, profile, showBack, waiting, mats = null, terrain = false, paces = null }: {
   goal: number; pKm: number; units: UnitSystem; rows: SplitRow[]; interval: SplitInterval; overrun: number; place: string; genderWord: string;
   profile: RouteProfile | null; showBack: boolean;
   /** The goal field holds text that is not a goal: the preview is dimmed. */
@@ -33,6 +37,8 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
   mats?: number[] | null;
   /** The band is the terrain splits. */
   terrain?: boolean;
+  /** Each stretch's pace under its time (stripPaces, in the band's units, as a watch that reads long shows it), or null for the strips as before. */
+  paces?: StripPaces | null;
 }) {
   const onTerrain = terrain && Boolean(mats);
   // Split strips repeat every mile or km, plus halfway; the mat strip carries the 5 km mats and the finish.
@@ -41,13 +47,15 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
   const perStrip = splitCells.length ? Math.ceil(splitCells.length / Math.ceil(splitCells.length / 12)) : 0;
   const strips: (typeof splitCells)[] = [];
   for (let i = 0; i < splitCells.length; i += perStrip) strips.push(splitCells.slice(i, i + perStrip));
-  const caption = onTerrain ? terrainCaption(place) : 'Even-pace times.';
+  const caption = onTerrain ? `${terrainCaption(place)}${paces ? matPacesNote(paces.overrun) : ''}` : paces ? `Even-pace times${matPacesNote(paces.overrun)}.` : 'Even-pace times.';
+  const unitKm = interval === 'mi' ? KM_PER_MILE : 1;
+  const withPaces = paces ? ' has-paces' : '';
   return (
     <>
       <div className={`pace-band-sheet-wrap${waiting ? ' pace-band-held-dim' : ''}`}>
         <div className="pace-band-sheet">
           <p className="pace-band-sheet-head">Pace Notes · pace band · {fmtGoal(goal)} goal · {place}{onTerrain ? ' · terrain splits' : genderWord ? ` · ${genderWord}` : ''} · cut along the dashed lines</p>
-          <div className="pace-band-strip is-mats">
+          <div className={`pace-band-strip is-mats${withPaces}`}>
             <div className="pace-band-cell is-lead">
               <span className="k">Goal</span>
               <b>{fmtGoal(goal)}</b>
@@ -60,19 +68,21 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
               <div key={km} className={`pace-band-cell${i === 8 ? ' is-finish' : ''}`}>
                 <span className="k">{i === 8 ? 'Finish' : `${km}K`} <small>{i === 8 ? '26.2mi' : `${(km / KM_PER_MILE).toFixed(1)}mi`}</small></span>
                 <b>{formatDuration(i === 8 ? goal : onTerrain ? mats![i] : pKm * km)}</b>
+                {paces ? <PaceLine pace={paces.mats[i]} /> : null}
               </div>
             ))}
             <p className="pace-band-strip-caption">{caption}</p>
           </div>
           {strips.map((cells, s) => (
-            <div key={s} className="pace-band-strip is-splits" style={{ ['--cells' as string]: cells.length }}>
+            <div key={s} className={`pace-band-strip is-splits${withPaces}`} style={{ ['--cells' as string]: cells.length }}>
               {cells.map((r) => (
                 <div key={r.km} className={`pace-band-cell${r.halfway ? ' is-half' : r.mat ? ' is-mat' : ''}`}>
                   <span className="k">{r.halfway ? 'Half' : interval === 'mi' ? `Mi ${Math.round(r.km / KM_PER_MILE)}` : `Km ${Math.round(r.km)}`}</span>
                   <b>{formatDuration(r.elapsed)}</b>
+                  {paces && !r.halfway ? <PaceLine pace={paces.units[Math.round(r.km / unitKm) - 1]} /> : null}
                 </div>
               ))}
-              <p className="pace-band-strip-caption">{splitCaption(onTerrain, goal, interval, s + 1, strips.length)}</p>
+              <p className="pace-band-strip-caption">{splitCaption(onTerrain, goal, interval, s + 1, strips.length)}{paces ? splitPacesNote(interval === 'mi' ? 'mi' : 'km', paces.overrun) : null}</p>
             </div>
           ))}
           {showBack && profile ? <ElevationStrip profile={profile} units={units} /> : null}
@@ -80,6 +90,12 @@ export default function PaceBandStrip({ goal, pKm, units, rows, interval, overru
       </div>
     </>
   );
+}
+
+/** A stretch's pace under its time ("12:01/mi"), its unit in smaller type so the figure keeps its size in a narrow cell. */
+function PaceLine({ pace }: { pace: string }) {
+  const at = pace.lastIndexOf('/');
+  return <span className="p">{pace.slice(0, at)}<small>{pace.slice(at)}</small></span>;
 }
 
 /** Full height of the printed elevation strip, the same on every course, so flat courses print flat. */

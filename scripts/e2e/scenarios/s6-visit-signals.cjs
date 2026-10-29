@@ -437,6 +437,100 @@ async function plannerSplits(h) {
     held.pressed === 'Terrain' && held.terrain && held.select > 0 && held.select < 844 && moved.course === 'berlin' && !moved.terrain && Math.abs(moved.select - held.select) <= 2, { held, moved });
 }
 
+// Each stretch's pace (October 29, 2026, on branch feat/terrain-paces): on the planner (New York 5:15) ticking "Add each
+// stretch’s pace" puts 0–5K's 12:01/mi under the mat strip's 5K time and 12:50/mi under Mi 1, none in the halfway cell,
+// shows the line saying what each pace is and names the fold, is the page's one edit, and the copied link gains paces=1;
+// on the pace band a link with paces=1 opens the print options with the box ticked and the paces shown, a watch that reads
+// 1% long turns them into the watch's (11:54/mi, 12:42/mi, "Watch pace"), and paces=yes leaves the address; on the
+// planner's example the box keeps "Example ·", as does a link holding only paces=1. Every tool_used action is one the
+// policy allows.
+async function stretchPaces(h) {
+  const run = await h.run('stretch paces', { ...PHONE });
+  const page = await run.newPage();
+  const strips = () => page.evaluate(() => {
+    const cells = (sel) => [...document.querySelectorAll(`${sel} .pace-band-cell`)];
+    const pace = (cell) => { const p = cell?.querySelector('.p'); return p && p.getClientRects().length ? p.textContent : ''; };
+    return {
+      at5k: pace(cells('.pace-band-strip.is-mats').find((c) => (c.querySelector('.k')?.textContent ?? '').startsWith('5K '))),
+      finish: pace(cells('.pace-band-strip.is-mats').find((c) => (c.querySelector('.k')?.textContent ?? '').startsWith('Finish'))),
+      mile1: pace(cells('.pace-band-strip.is-splits').find((c) => c.querySelector('.k')?.textContent === 'Mi 1')),
+      half: cells('.pace-band-strip.is-splits').filter((c) => c.classList.contains('is-half')).map((c) => c.querySelectorAll('.p').length),
+      count: document.querySelectorAll('.pace-band-strip .pace-band-cell .p').length,
+      fold: document.querySelector('[id$="-stretch-values"] .values-caption')?.textContent ?? '',
+      summary: document.querySelector('[id$="-stretch-values"] > summary')?.textContent ?? '',
+      note: [...document.querySelectorAll('#plan-paces-note, #pace-band-paces-note')].filter((n) => n.getClientRects().length).map((n) => n.textContent).join(' | '),
+      head: [...document.querySelectorAll('[id$="-stretch-values"] .stretch-table thead th')].map((th) => th.textContent).slice(0, 3).join(' · '),
+      kicker: document.querySelector('.plan-headline .tool-reading-kicker')?.textContent ?? '',
+      paces: new URL(location.href).searchParams.get('paces'),
+    };
+  });
+  await page.goto(SITE + '/tools/plan?course=new-york&goal=5:15', { waitUntil: 'load' });
+  await page.waitForSelector('.plan-headline.is-terrain', { timeout: 20000 });
+  await page.waitForTimeout(600);
+  const before = await strips();
+  await page.locator('#plan-band .band-paces input[type="checkbox"]').check();
+  await page.waitForTimeout(400);
+  const after = await strips();
+  // The browser's clipboard is shared by the jobs running at once, so the copied text is caught in the page instead.
+  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => { window.__e2eCopied = text; } } }); });
+  await page.locator('#plan-band .share-bar button:has-text("Copy link")').click();
+  await page.waitForTimeout(500);
+  const copied = await page.evaluate(() => window.__e2eCopied || '');
+  await page.goto(SITE + '/tools/pace-band?course=new-york&goal=5:15&paces=1', { waitUntil: 'load' });
+  await page.waitForSelector('#pace-band-band .pace-band-strip.has-paces', { timeout: 20000 });
+  await page.waitForTimeout(600);
+  const band = { ...(await strips()), ...(await page.evaluate(() => ({
+    open: Boolean(document.querySelector('#pace-band-band details.pace-band-options')?.open),
+    ticked: [...document.querySelectorAll('#pace-band-band .pace-band-options .tool-check')].find((l) => l.textContent.startsWith('Add each stretch’s pace'))?.querySelector('input')?.checked ?? null,
+    label: [...document.querySelectorAll('#pace-band-band .pace-band-options .tool-check')].map((l) => l.textContent).find((t) => t.startsWith('Add each')) ?? '',
+  }))) };
+  // The watch reads the course 1% long: the paces become the watch's, the times stay the course's.
+  await page.locator('#pace-band-band .pace-band-options button:has-text("+1%")').click();
+  await page.waitForTimeout(400);
+  const watch = { ...(await strips()), mile1Time: await page.evaluate(() => [...document.querySelectorAll('.pace-band-strip.is-splits .pace-band-cell')].find((c) => c.querySelector('.k')?.textContent === 'Mi 1')?.querySelector('b')?.textContent ?? '') };
+  await page.goto(SITE + '/tools/pace-band?course=new-york&goal=5:15&paces=yes', { waitUntil: 'load' });
+  await page.waitForSelector('#pace-band-band .pace-band-strip', { timeout: 20000 });
+  await page.waitForTimeout(900);
+  const junk = { ...(await strips()), open: await page.evaluate(() => Boolean(document.querySelector('#pace-band-band details.pace-band-options')?.open)) };
+  // The planner's example: the box shows the same plan another way, so "Example ·" stays when it is ticked and unticked,
+  // and with a link holding only paces=1.
+  await page.goto(SITE + '/tools/plan', { waitUntil: 'load' });
+  await page.waitForSelector('.plan-headline .tool-reading-kicker', { timeout: 20000 });
+  await page.waitForTimeout(600);
+  const example = [(await strips()).kicker];
+  await page.locator('#plan-band .band-paces input[type="checkbox"]').check();
+  await page.waitForTimeout(400);
+  const exampleOn = await strips();
+  example.push(exampleOn.kicker);
+  await page.locator('#plan-band .band-paces input[type="checkbox"]').uncheck();
+  await page.waitForTimeout(400);
+  example.push((await strips()).kicker);
+  await page.goto(SITE + '/tools/plan?paces=1', { waitUntil: 'load' });
+  await page.waitForSelector('#plan-band .pace-band-strip.has-paces', { timeout: 20000 });
+  await page.waitForTimeout(600);
+  example.push((await strips()).kicker);
+  await run.close();
+  const used = named(run, 'tool_used').map(p => `${p.$pathname}:${p.action}`);
+  const NOTE = 'Under each 5K mat: the pace of the 5K before it (Finish: the last 2.2 km). Under each mile: that mile’s pace.';
+  h.check('stretch paces: the planner opens without paces; ticking the box puts 12:01/mi under 5K, 12:04/mi under the finish and 12:50/mi under Mi 1, none at halfway, with the line saying what each pace is and the fold named',
+    before.count === 0 && before.note === '' && after.at5k === '12:01/mi' && after.finish === '12:04/mi' && after.mile1 === '12:50/mi' && after.count === 9 + 26 && after.half.length === 1 && after.half[0] === 0
+      && after.paces === '1' && after.fold === 'Every 5K and every mile: time and pace' && after.summary === 'All numberseach 5K and mile · 36 rows' && after.note === NOTE && after.head === 'Stretch · Time · Pace', { before, after });
+  h.check('stretch paces: the box is the planner\'s one edit, then Copy link a copied link, the watch the pace band\'s, the example\'s box the example page\'s; every action is one the policy allows',
+    JSON.stringify(used) === '["/tools/plan:edit","/tools/plan:copy_link","/tools/pace-band:edit","/tools/plan:edit"]' && named(run, 'tool_used').every((p) => ['edit', 'print', 'copy_link'].includes(p.action)), used);
+  h.check('stretch paces: on the pace band a watch that reads 1% long shows the watch\'s paces (11:54/mi under 5K, 12:42/mi under Mi 1, its time still 12:50) and says so',
+    watch.at5k === '11:54/mi' && watch.mile1 === '12:42/mi' && watch.mile1Time === '12:50' && watch.count === 9 + 26 && watch.head === 'Stretch · Time · Watch pace'
+      && watch.note === `${NOTE} Paces as a watch reading the course 1% long shows them.`, watch);
+  h.check('stretch paces: on the planner\'s example the box keeps "Example ·", ticked, unticked and from a link holding only paces=1',
+    example.length === 4 && example.every((k) => k.startsWith('Example · 4:00')) && exampleOn.count === 9 + 26 && exampleOn.paces === '1', { example, exampleOn: exampleOn.paces });
+  let link = null;
+  try { link = new URL(copied); } catch { /* checked below */ }
+  h.check('stretch paces: the copied link gains paces=1 beside the course, goal and units', link && link.pathname === '/tools/plan' && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'new-york'], ['goal', '5:15'], ['paces', '1'], ['units', 'mi']]), copied);
+  h.check('stretch paces: on the pace band a link with paces=1 opens the print options, the box ticked, and the paces show',
+    band.open && band.ticked === true && band.label === 'Add each stretch’s pace (per mile)' && band.at5k === '12:01/mi' && band.mile1 === '12:50/mi' && band.count === 9 + 26 && band.paces === '1'
+      && band.note === NOTE && band.summary === 'All numberseach 5K and mile · 36 rows', band);
+  h.check('stretch paces: paces=yes leaves the address, with no paces and the print options closed', junk.paces === null && junk.count === 0 && !junk.open, junk);
+}
+
 // The terrain splits as both pages draw them (New York 5:15, the visitor's case), with no data file needed: the planner's
 // card and band are in place while every data file is still held back (2.5 s), with the Published research badge on the
 // card and the band and no data badge on either, the fold's terrain beside even pace, printing at once; then the As run
@@ -790,6 +884,7 @@ module.exports = {
       { name: 'planner sections, print and copy link', weight: 8, run: planner },
       { name: 'planner splits choice', weight: 6, run: plannerSplits },
       { name: 'terrain figures', weight: 8, run: terrainFigures },
+      { name: 'stretch paces', weight: 6, run: stretchPaces },
       { name: 'race report exports', weight: 8, run: raceReport },
       { name: 'back-forward cache', weight: 16, run: restored },
       { name: 'experiment before first paint', weight: 14, run: paintOrder },

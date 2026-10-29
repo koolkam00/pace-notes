@@ -6,6 +6,7 @@ import AsRunTable, { AsRunNote, MatName } from '@/components/tools/AsRunTable';
 import BandChoice, { KickerText, TerrainLine } from '@/components/tools/BandChoice';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import PaceBandStrip from '@/components/tools/PaceBandStrip';
+import StretchTables from '@/components/tools/StretchTables';
 import { DataLead, DurationField, GoalBar, ReadingFoot, ShareBar, Stepper } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import Values from '@/components/ui/Values';
@@ -16,6 +17,7 @@ import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
 import { PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell } from '@/lib/tools/pace-band-data';
 import { COURSE_GOAL_FILE, PLAN_GOAL_MAX_S, PLAN_GOAL_MIN_S, courseGoalResult, goalPaceNote, goalShare, publishedGoal, readPlanGoal, roundedNote } from '@/lib/tools/plan';
 import type { NoTerrainWhy, TerrainCourse } from '@/lib/tools/terrain-data';
+import { PACES_LABEL, pacesNote, pacesUnit, stretchCount, stretchesName, stretchesTitle, stripPaces, tidyPaces } from '@/lib/tools/stretch-paces';
 import { formatDuration, formatHM } from '@/lib/tools/time';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
@@ -35,8 +37,11 @@ export interface PlanCourse {
   page: boolean;
 }
 
-/** The address: the course, the goal and the band's mode (`pace=even` only; terrain, the default where a course has it, stays out). */
-const DEFAULTS = { course: 'all', goal: '4:00', pace: '' };
+/**
+ * The address: the course, the goal, the band's mode (`pace=even` only; terrain, the default where a course has it, stays
+ * out) and each stretch's pace on the strips (`paces=1` only; off, the default, stays out).
+ */
+const DEFAULTS = { course: 'all', goal: '4:00', pace: '', paces: '' };
 /** The pace band's observed goals, before its index loads (whole minutes). */
 const BAND_GOALS_FALLBACK: [number, number] = [150, 390];
 
@@ -187,10 +192,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
 }) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState(DEFAULTS);
-  // The example: the default 4:00 on all courses, untouched and not from a link.
+  // The example: the default 4:00 on all courses, untouched and not from a link. The stretch-pace option shows the same plan
+  // another way, so neither ticking it nor a link holding only paces=1 ends the example.
   const [touched, setTouched] = useState(false);
   const setQ = useCallback((patch: Partial<typeof DEFAULTS>) => { setTouched(true); setQuery(patch); }, [setQuery]);
-  const isExample = ready && fromUrl.size === 0 && !touched;
+  const isExample = ready && Array.from(fromUrl).every((key) => key === 'paces') && !touched;
 
   const { seconds: goal, read, problem } = readPlanGoal(q.goal);
   // A goal in any form the tools read (210, 3:30:00, 3h30) is kept in the address as H:MM, or H:MM:SS with seconds.
@@ -259,6 +265,12 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
     const now = document.getElementById('plan-band-choice')?.getBoundingClientRect().top;
     if (before !== null && now !== undefined && Math.abs(now - before) >= 1) window.scrollBy({ top: now - before, left: 0, behavior: 'instant' });
   }, [mode]);
+  // Each stretch's pace on the strips (owner request, October 29, 2026): `paces=1` stays, any other value leaves the
+  // address (tidyPaces); off is never written.
+  useEffect(() => {
+    if (ready && q.paces !== tidyPaces(q.paces)) setQuery({ paces: tidyPaces(q.paces) });
+  }, [ready, q.paces, setQuery]);
+  const pacesOn = q.paces === '1';
 
   // The lead: of finishes on the goal's pace through 20K (the course-goal rows at the nearest published goal), the share
   // that made it, on every course pooled or on the chosen one. Until the file loads, the 4:00 example on every course reads
@@ -289,6 +301,8 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
   // The terrain splits' nine mat times for the mat strip, and the climbs line under the card's.
   const mats = goal !== null && banded ? matRows(goal, banded).map((m) => m.terrain!) : null;
   const climbText = goal !== null && banded ? climbsLine(goal, banded, units) : '';
+  // With the option on, each 5K's and each mile's (or km's) pace under its time on the strips, from the band's own times.
+  const paces = useMemo(() => (goal !== null && pacesOn ? stripPaces(goal, banded, units) : null), [goal, pacesOn, banded, units]);
   // The finishes near the goal as they ran (unscaled), for the As run panel.
   const asRunCaption = observed ? `Median elapsed time at each mat, finishes from ${formatDuration(observed.lo, true)} to ${formatDuration(observed.hi, true)} ${where}` : '';
 
@@ -459,12 +473,21 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
                   {banded ? <p className="tool-reading-kicker plan-band-kicker"><KickerText text={bandKicker({ goal, place, terrain: banded, units, pace: false })} /></p> : null}
                 </header>
                 <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={units === 'mi' ? 'mi' : 'km'} overrun={0} place={place} genderWord=""
-                  profile={null} showBack={false} waiting={false} mats={mats} terrain={Boolean(banded)} />
+                  profile={null} showBack={false} waiting={false} mats={mats} terrain={Boolean(banded)} paces={paces} />
+                {/* The option sits directly under the band it changes: each stretch's pace under its time, in the page's units, and
+                    while it is on one line under it says what each pace is (the strips' captions print only on paper). It
+                    shows the same plan another way, so it is not a change to the plan (setQuery: the example stays). */}
+                <label className="tool-check band-paces no-print"><input type="checkbox" checked={pacesOn} aria-describedby={pacesOn ? 'plan-paces-note' : undefined} onChange={(e) => setQuery({ paces: e.target.checked ? '1' : '' })} /><span>{PACES_LABEL}<small>{pacesUnit(units)}</small></span></label>
+                {pacesOn ? <p className="tool-note band-paces-note no-print" id="plan-paces-note">{pacesNote(units, true)}</p> : null}
                 {/* One print action, the band this page exists for; the browser's own print command gives the whole plan. */}
                 <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>} />
                 {/* Every mat, one fold: the terrain splits beside even pace, or the plan alone. */}
                 <Values id="plan-mat-values" how={how} count={9} caption={banded ? 'Every mat: terrain splits beside even pace' : 'Every mat: your plan'}>
                   <MatTable goal={goal} units={units} terrain={banded} />
+                </Values>
+                {/* Every stretch's time and pace, from the same band (no badge inside the fold: the panel carries it). */}
+                <Values id="plan-stretch-values" count={stretchCount(units)} name={stretchesName(units)} caption={stretchesTitle(units)}>
+                  <StretchTables goal={goal} terrain={banded} units={units} />
                 </Values>
               </section>
             ) : null}
@@ -497,6 +520,13 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
               </div>
               {/* Each source the printed page holds is named: the terrain splits (published research) and the as-run table (Pace Notes data). */}
               <p className="print-only plan-print-source">{banded ? 'Terrain splits from published research' : observed ? 'Your plan' : 'Your race plan'}{observed ? ' · As run from Pace Notes data' : ''} · splithappens.run/tools/plan</p>
+              {/* With the option on, the printed plan adds every stretch's time and pace, on a page of its own. */}
+              {pacesOn ? (
+                <div className="print-only plan-print-stretches">
+                  <p className="plan-print-stretches-title">{stretchesTitle(units)} · {fmtGoal(goal)} · {place}{banded ? ' · terrain splits from published research' : ''}</p>
+                  <StretchTables goal={goal} terrain={banded} units={units} />
+                </div>
+              ) : null}
               {/* No next-step row: the journey's finish card follows, the page's one way forward (section 00, cut 4). */}
               {dataError && !goalData.error ? <DataProblem error={dataError} onRetry={retry} /> : null}
               <GoalBar label="Goal" onStep={step}>
