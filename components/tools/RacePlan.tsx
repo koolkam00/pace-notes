@@ -235,9 +235,8 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
   // Nothing waits on a file: the terrain is in the page.
   const { mode, banded, offered } = bandView({ terrain: isAll ? null : course?.terrain ?? null, choice: q.pace });
   const bandState = offered ? 'choice' as const : !isAll && course ? 'none' as const : 'off' as const;
-  // Why there are no terrain splits (no checked route profile, or one that did not pass its check); nothing when the
-  // terrain file is not in the build.
-  const noTerrain = bandState === 'none' && course?.why ? noTerrainLine(course.city, course.why) : '';
+  // That there are no terrain splits here (the reason is on /methodology); nothing when the terrain file is not in the build.
+  const noTerrain = bandState === 'none' && course?.why ? noTerrainLine(course.city) : '';
   // A hand-edited `pace` (pace=foo, pace=EVEN) is the default and leaves the address, as does `even` on all courses, where
   // no choice is offered; a choice of even pace on a course stays and carries to the next course, but not through All
   // courses (tidyChoice).

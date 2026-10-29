@@ -19,7 +19,7 @@
  */
 import { HALF_KM, MARATHON_KM, perUnit, splitTable, watchTarget, type SplitInterval, type SplitRow } from '@/lib/tools/pace';
 import { CHECKPOINTS, fmtGoal, fmtPace } from '@/lib/tools/pace-band-data';
-import type { NoTerrainWhy, TerrainCourse, TerrainFeature } from '@/lib/tools/terrain-data';
+import type { TerrainCourse, TerrainFeature } from '@/lib/tools/terrain-data';
 import { formatDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
@@ -213,9 +213,11 @@ export const terrainWhat = (goal: number, city: string) => `Terrain splits: ${fm
 /** The card line, the same on both pages (the planner's card, under the pace band's kicker): what it is, and that it is not a prediction. */
 export const terrainCardLine = (goal: number, city: string) => `${terrainWhat(goal, city)} ${TERRAIN_DISCLAIMER}`;
 
-/** The one line where a course has no terrain splits (the same words on both pages), from its reason. */
-export function noTerrainLine(city: string, why: NoTerrainWhy): string {
-  return why === 'held' ? `Even pace: the ${city} route profile did not pass its check.` : `Even pace: no checked route profile for ${city}.`;
+/** The one line where a course has no terrain splits: the same words on both pages and for either reason (a profile
+    that did not pass its check, or none checked). The reasons are on /methodology#tools-terrain-profiles, since a page
+    carries no coverage or method-caveat text (October 29, 2026). */
+export function noTerrainLine(city: string): string {
+  return `Even pace: no terrain splits for ${city}.`;
 }
 
 /** The printed mat strip's caption on terrain. */

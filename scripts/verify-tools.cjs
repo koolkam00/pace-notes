@@ -627,11 +627,15 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.deepEqual([ff([f('short', 1.0, 1.2)], 0, MI), ff([f('long', 1.5, 3.5)], 0, MI), ff([f('quarter', 0.75, 3)], 0, 1), ff([f('b', 0.5, 0.9), f('a', 0.1, 0.5)], 0, 1), ff([f('touch', 1, 2)], 0, 1)],
     ['short', null, 'quarter', 'a', null], 'featureFor: 40% of a short structure, 25% of the unit, race order, no touching ends'); ok();
 
-  // Courses and reasons: why every other course is at even pace, in the one line both pages print.
+  // Courses and reasons: every other course is at even pace for its reason in the file (which /methodology lists), and
+  // the one line both pages print says so in the same words for either reason, naming none (October 29, 2026: a page
+  // carries no coverage or method-caveat text).
   assert.deepEqual(['berlin', 'sydney', 'warsaw', 'oslo', 'prague'].map((s) => why[s]), ['profile', 'profile', 'held', 'held', 'profile']); ok();
-  assert.deepEqual([['Berlin', 'berlin'], ['Sydney', 'sydney'], ['Warsaw', 'warsaw'], ['Oslo', 'oslo'], ['Prague', 'prague']].map(([city, slug]) => tb.noTerrainLine(city, why[slug])), [
-    'Even pace: no checked route profile for Berlin.', 'Even pace: no checked route profile for Sydney.', 'Even pace: the Warsaw route profile did not pass its check.',
-    'Even pace: the Oslo route profile did not pass its check.', 'Even pace: no checked route profile for Prague.']); ok();
+  assert.deepEqual(['Berlin', 'Sydney', 'Warsaw', 'Oslo', 'Prague'].map((city) => tb.noTerrainLine(city)), [
+    'Even pace: no terrain splits for Berlin.', 'Even pace: no terrain splits for Sydney.', 'Even pace: no terrain splits for Warsaw.',
+    'Even pace: no terrain splits for Oslo.', 'Even pace: no terrain splits for Prague.']); ok();
+  assert.equal(tb.noTerrainLine.length, 1, 'The line takes the city alone: one wording for either reason'); ok();
+  assert.doesNotMatch(tb.noTerrainLine('Xity'), /check|profile|survey|finish|route|elevation|data|source/i, 'The line names no reason, source or method'); ok();
   const paceIndex = insight(band.PACE_BAND_INDEX);
   const scopes = paceIndex.scopes.filter((s) => s.slug !== 'all');
   assert.ok(TEN.every((slug) => scopes.some((s) => s.slug === slug)), 'Every terrain course is a pace-band course'); ok();
@@ -643,7 +647,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const control = (p) => renderToStaticMarkup(React.createElement(BandChoice.default, { id: 'x', onChange: () => {}, ...p }));
   assert.equal(control({ state: 'off', mode: 'even' }), '', 'All courses: no control and no line'); ok();
   assert.equal(control({ state: 'none', mode: 'even', line: '' }), '', 'A course nobody knows: no line'); ok();
-  assert.equal(control({ state: 'none', mode: 'even', line: tb.noTerrainLine('Berlin', 'profile') }), '<p class="tool-field-hint band-choice-none" id="x">Even pace: no checked route profile for Berlin.</p>'); ok();
+  assert.equal(control({ state: 'none', mode: 'even', line: tb.noTerrainLine('Berlin') }), '<p class="tool-field-hint band-choice-none" id="x">Even pace: no terrain splits for Berlin.</p>'); ok();
   const choiceHtml = control({ state: 'choice', mode: 'terrain' });
   assert.match(choiceHtml, /class="tool-field band-choice"/); assert.match(choiceHtml, />Splits</);
   assert.deepEqual([...choiceHtml.matchAll(/<button[^>]*aria-pressed="(true|false)"[^>]*>(?:<span[^>]*>)?([^<]+)(?:<\/span>)?<\/button>/g)].map((m) => `${m[2]}:${m[1]}`), ['Terrain:true', 'Even pace:false'], 'Terrain pressed by default'); checks += 3;
@@ -822,7 +826,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
     assert.match(source, /mats=\{mats\} terrain=\{Boolean\(banded\)\}/, `${name}: the strips print the band in its mode`);
     assert.match(source, /climbsLine\(goal, banded, /, `${name}: the climbs from the one rule`);
     assert.match(source, /<TerrainLine goal=\{goal\} city=\{banded\.city\} climbs=\{climbText\}/, `${name}: the terrain's lines in the same words`);
-    assert.match(source, /noTerrainLine\(/, `${name}: the one line says why there are no terrain splits`);
+    assert.match(source, /noTerrainLine\(/, `${name}: the one line where there are no terrain splits`);
     assert.match(source, /const minute = goal === null \? null : bandMinute\(goal\);/, `${name}: the group's minute from the one rule`);
     assert.match(source, /bandKicker\(\{ goal, place, terrain: banded, units/, `${name}: the band's kicker in the shared words`);
     assert.match(source, /tidyChoice\(q\.pace, /, `${name}: a hand-edited pace leaves the address`);
@@ -855,7 +859,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.match(planSource, /<PaceBandStrip goal=\{goal\} pKm=\{pKm\} units=\{units\} rows=\{rows\} /, 'The planner\'s strips print the band\'s rows'); ok();
   assert.match(planSource, /<button type="button" className="btn btn-primary is-compact" data-not-edit onClick=\{\(\) => printAs\('strip'\)\}>Print wristband strips<\/button>/, 'The planner prints at once'); ok();
   assert.match(planSource, /const bandState = offered \? 'choice' as const : !isAll && course \? 'none' as const : 'off' as const;/, 'The planner: the choice on a terrain course, the line on another, nothing on all courses or an unknown slug'); ok();
-  assert.match(planSource, /noTerrainLine\(course\.city, course\.why\)/); ok();
+  assert.match(planSource, /course\?\.why \? noTerrainLine\(course\.city\) : ''/, 'The planner: the line on a course the terrain file lists as even'); ok();
   assert.match(planSource, /bandView\(\{ terrain: isAll \? null : course\?\.terrain \?\? null, choice: q\.pace \}\)/, 'The planner: All courses has no terrain'); ok();
   assert.match(planSource, /bandKicker\(\{ goal, place, terrain: banded, units, pace: false \}\)/, 'The planner\'s band panel kicker leaves the average to the card'); ok();
   assert.match(planSource, /<small>per \{unitWord\}, \{banded \? 'average' : 'even pace'\} · /, 'The card\'s figure: the average pace on terrain'); ok();
@@ -877,7 +881,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   assert.doesNotMatch(bandSource.match(/const courseTerrain = [^\n]+/)[0] + bandSource.match(/bandView\(\{[^)]+\)/)[0], /gender/, 'The pace band\'s band takes no recorded gender'); ok();
   assert.match(bandSource, /const shardPath = paceBandShardPath\(course, gender\);/, 'The finishes section reads the chosen recorded gender\'s shard'); ok();
   assert.match(bandSource, /const bandState = offered \? 'choice' as const : course !== 'all' && \(published \|\| known\) \? 'none' as const : 'off' as const;/); ok();
-  assert.match(bandSource, /noTerrainLine\(city, own\(why, course\) \?\? 'profile'\)/); ok();
+  assert.match(bandSource, /bandState === 'none' && why && city \? noTerrainLine\(city\) : ''/, 'The pace band: the line on a known course without terrain splits'); ok();
   assert.match(bandSource, /kicker=\{bandKicker\(\{ goal, place, terrain: banded, units, overrun, example: isExample \}\)\}/, 'The pace band\'s kicker names no gender'); ok();
   assert.match(bandSource, /line=\{banded \? <TerrainLine goal=\{goal\} city=\{banded\.city\} climbs=\{climbText\} \/> : null\}/); ok();
   // A press never moves the control (October 29, 2026: Even pace took the terrain's lines out from above it, and the next

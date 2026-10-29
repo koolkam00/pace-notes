@@ -410,8 +410,8 @@ async function plannerSplits(h) {
 // panel (Pace Notes data) with the forewarning and the medians as they ran. On the pace band the strips carry the terrain
 // splits, a recorded gender changes nothing on the band (Boston women 4:00 as all genders), the back strip names the
 // bridges, Even pace puts even pace on the band and stays in the address, pace=course is dropped. Berlin, Oslo and Prague
-// say why they are at even pace on both pages, an unknown course says nothing, and with its data failing the pace band
-// still draws its terrain splits while the finishes section shows its error.
+// say they have no terrain splits on both pages (the reason is on /methodology), an unknown course says nothing, and
+// with its data failing the pace band still draws its terrain splits while the finishes section shows its error.
 async function terrainFigures(h) {
   const run = await h.run('terrain figures', { ...PHONE });
   const page = await run.newPage();
@@ -513,8 +513,8 @@ async function terrainFigures(h) {
   h.check('terrain: the As run panel, Pace Notes data, with the forewarning (48%, sustained slowdown linked) and the medians as they ran (5K 32:52)',
     plan.title === 'As run near 5:15 in New York' && JSON.stringify(plan.asRunBadges) === '["evidence-data"]' && plan.note.includes('48%') && plan.note.includes('Not splits to copy.')
       && plan.term === '/methodology#sustained-slowdown' && plan.all5k === '32:52', plan);
-  h.check('terrain: the planner says why Berlin, Oslo and Prague are at even pace, and nothing for an unknown course or on all courses', lines.berlin.none === 'Even pace: no checked route profile for Berlin.'
-    && lines.oslo.none === 'Even pace: the Oslo route profile did not pass its check.' && lines.prague.none === 'Even pace: no checked route profile for Prague.' && lines.nowhere.none === '' && lines.all.none === ''
+  h.check('terrain: the planner says Berlin, Oslo and Prague have no terrain splits (the same words for either reason), and nothing for an unknown course or on all courses', lines.berlin.none === 'Even pace: no terrain splits for Berlin.'
+    && lines.oslo.none === 'Even pace: no terrain splits for Oslo.' && lines.prague.none === 'Even pace: no terrain splits for Prague.' && lines.nowhere.none === '' && lines.all.none === ''
     && Object.values(lines).every((l) => l.seg === 0 && !l.terrain), lines);
   h.check('terrain: the pace band\'s New York 5:15 strips (mile 1 12:50, mile 15 3:00:20), its badge and kicker, the forewarning, and the bridges on the back',
     ny.mile1 === '12:50' && ny.mile15 === '3:00:20' && ny.research && !ny.data && ny.pressed === 'Terrain' && ny.kicker === '5:15 · New York · terrain splits, avg 12:01/mi'
@@ -525,8 +525,8 @@ async function terrainFigures(h) {
   h.check('terrain: on the pace band pressing Even pace leaves the control where it was, at the top of the page too', Number.isFinite(nyTop.choiceTop) && Math.abs(nyEven.choiceTop - nyTop.choiceTop) <= 1, { before: nyTop.choiceTop, after: nyEven.choiceTop });
   h.check('terrain: pace=course is dropped from the address and Terrain shows', dropped.pace === null && dropped.pressed === 'Terrain' && dropped.mile1 === '12:50', dropped);
   h.check('terrain: Boston women 4:00 has the all-genders band (20K 1:53:14)', bostonWomen.at20 === '1:53:14' && bostonWomen.pressed === 'Terrain', bostonWomen);
-  h.check('terrain: the pace band says why Berlin, Oslo and Prague are at even pace, and nothing for an unknown course', bandLines.berlin.none === 'Even pace: no checked route profile for Berlin.'
-    && bandLines.oslo.none === 'Even pace: the Oslo route profile did not pass its check.' && bandLines.prague.none === 'Even pace: no checked route profile for Prague.' && bandLines.nowhere.none === ''
+  h.check('terrain: the pace band says Berlin, Oslo and Prague have no terrain splits (the same words for either reason), and nothing for an unknown course', bandLines.berlin.none === 'Even pace: no terrain splits for Berlin.'
+    && bandLines.oslo.none === 'Even pace: no terrain splits for Oslo.' && bandLines.prague.none === 'Even pace: no terrain splits for Prague.' && bandLines.nowhere.none === ''
     && Object.values(bandLines).every((l) => !l.pressed && !l.research), bandLines);
   h.check('terrain: with its data failing the pace band still draws New York\'s terrain splits, and the finishes section shows its error',
     failed.mile1 === '12:50' && failed.research && failed.error, failed);

@@ -183,10 +183,10 @@ export default function PaceBand({ indexSha, profiles, unpublished, cities = {},
   // visitor chose even pace; on all courses, and on a course without them, even pace. The finishes near the goal never
   // change the band: they load for their own section below, and the band never waits for them.
   const { mode, banded, offered } = bandView({ terrain: courseTerrain, choice: q.pace });
-  // No terrain splits: the one line says why (no checked route profile, or one that did not pass its check). Nothing on
-  // all courses, for a course the data does not know (the finishes section says so) or without the terrain file.
+  // No terrain splits: the one line says so (the reason is on /methodology). Nothing on all courses, for a course the
+  // data does not know (the finishes section says so) or without the terrain file.
   const bandState = offered ? 'choice' as const : course !== 'all' && (published || known) ? 'none' as const : 'off' as const;
-  const noTerrain = bandState === 'none' && why && city ? noTerrainLine(city, own(why, course) ?? 'profile') : '';
+  const noTerrain = bandState === 'none' && why && city ? noTerrainLine(city) : '';
   // A hand-edited `pace` (pace=foo, pace=EVEN) is the default and leaves the address, as does `even` on all courses, where
   // no choice is offered; a choice of even pace on a course stays and carries to the next course, but not through All
   // courses (tidyChoice).
