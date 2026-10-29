@@ -291,15 +291,21 @@ export type HalfFinishesEditions = { finishes: number; editions: number };
 export type HalfPolicyCounts = {
   raw: number; R1: number; R2: number; R3: number; R4: number; R5_fast: number; R5_slow: number; R6: number;
   record_usable: number; R7: number; record_usable_after_R7: number;
-  E1_held_editions: number; E2_E8_editions: number; E2_E8_finishes: number;
+  /** Record-usable finishes in city-years with no registry row (E0), and in held editions (E1). */
+  E0_editions: number; E0_finishes: number;
+  E1_held_editions: number; E1_held_finishes: number;
+  E2_E8_editions: number; E2_E8_finishes: number;
   use_finish: HalfFinishesEditions;
   verified: HalfFinishesEditions;
   verified_use_sex: HalfFinishesEditions;
+  /** use_finish editions with no race date (they enter no date window), and their finishes after R7. */
+  undated: HalfFinishesEditions;
   set_b: { pairs: number; people: number; marathon_editions: number; half_editions: number };
 };
 
 export type HalfScript =
-  | 'analysis/build_half.py' | 'analysis/half_common.py' | 'analysis/half_quality.py' | 'analysis/half_links_extract.py'
+  | 'analysis/build_half.py' | 'analysis/half_common.py' | 'analysis/half_quality.py' | 'analysis/half_policy_lists.py'
+  | 'analysis/half_links_extract.py'
   | 'analysis/half_marathon.py' | 'analysis/half_pairs.py' | 'analysis/half_field.py' | 'analysis/half_women.py'
   | 'analysis/half_linked.py' | 'analysis/half_cards.py';
 
