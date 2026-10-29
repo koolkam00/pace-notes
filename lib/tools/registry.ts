@@ -44,15 +44,15 @@ export const EVIDENCE_LABEL: Record<ToolEvidence, string> = {
  */
 export const EVIDENCE_TEXT: Record<ToolEvidence, string> = {
   data: 'Observed from {finishes} screened marathon finishes: the eligible finishes, less the editions with start delays or shifted mats. Descriptive, never a personal probability.',
-  research: 'Published models and studies, cited. Not fitted to Pace Notes data.',
+  research: 'Published models and studies, cited: shown as ranges where studies differ, or as one named method where a tool needs a single plan. Not fitted to Pace Notes data.',
   official: 'Transcribed from official race pages, with the date they were checked.',
 };
 
 export const TOOLS: ToolDefinition[] = [
-  { slug: 'plan', title: 'Plan your race', heading: 'Marathon race planner', short: 'Splits and a pace band for your course and goal', group: 'race', evidence: ['data'], accent: '#1D3FD8', file: 'tools/course-goal.json',
+  { slug: 'plan', title: 'Plan your race', heading: 'Marathon race planner', short: 'Splits and a pace band for your course and goal', group: 'race', evidence: ['data', 'research'], accent: '#1D3FD8', file: 'tools/course-goal.json',
     dek: 'Pick a course and a goal: your splits, your pace band, and how that pace held up there.' },
-  { slug: 'pace-band', title: 'Pace band', heading: 'Marathon pace band', short: 'A wristband to print for your course and goal', group: 'race', evidence: ['data'], accent: '#FF5B2E', file: 'tools/pace-band.json',
-    dek: 'A wristband to print in the course’s shape or at even pace, beside the mat times of finishes that made your goal.' },
+  { slug: 'pace-band', title: 'Pace band', heading: 'Marathon pace band', short: 'A wristband to print for your course and goal', group: 'race', evidence: ['data', 'research'], accent: '#FF5B2E', file: 'tools/pace-band.json',
+    dek: 'A wristband to print with your course’s climbs and bridges or at even pace, beside the mat times of finishes near your goal.' },
   { slug: 'course-chooser', title: 'Course chooser', short: 'How your goal pace held up, course by course', group: 'race', evidence: ['data'], accent: '#0FA3A3', file: 'tools/course-goal.json',
     dek: 'How finishes on your goal pace held up, course by course.' },
   { slug: 'predictor', title: 'Finish-time predictor', heading: 'Marathon time predictor', short: 'A marathon range from a recent race', group: 'race', evidence: ['data', 'research'], accent: '#7A4DFF', file: 'tools/projector.json',

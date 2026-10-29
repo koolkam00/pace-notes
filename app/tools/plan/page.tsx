@@ -6,13 +6,13 @@ import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { pageMetadata } from '@/lib/seo';
 import type { CourseGoal, PaceBandIndex, ProjectorIndex, WeatherMatch } from '@/lib/tools/data';
 import { courseSlug } from '@/lib/tools/links';
-import { shapeGoalsOf } from '@/lib/tools/course-shape';
 import { PACE_BAND_INDEX } from '@/lib/tools/pace-band-data';
 import { COURSE_GOAL_FILE, goalShare, screenedReason } from '@/lib/tools/plan';
+import { TERRAIN_FILE, terrainProps, type TerrainIndex } from '@/lib/tools/terrain-data';
 
 export const metadata = pageMetadata({
   title: 'Marathon Race Planner: Goal Pace by Course | Pace Notes',
-  description: 'Plan a marathon goal on your course: splits for every mat, in its shape where finishes allow, how that pace held up there, and a pace band to print.',
+  description: 'Plan a marathon goal on your course: splits for every mat, with its climbs and bridges where the route is checked, how that pace held up there, and a pace band to print.',
   path: '/tools/plan',
 });
 
@@ -37,17 +37,18 @@ function safeSet(read: () => string[]): Set<string> {
 /**
  * The courses the planner offers, alphabetical: every course in the course-goal file, plus any whose editions were all
  * screened out (named with the reason). Each carries only its name, slug, which tools and pages publish it, read from
- * their own index files, so no link names a course its target does not have, and the goals its course shape covers (the
- * pace band's all-genders group), so the band knows before any file loads whether to wait for a shape.
+ * their own index files, so no link names a course its target does not have, and its terrain splits
+ * (tools/course-terrain.json, without the route itself) or why it has none. Without the terrain file every course is at
+ * even pace, with no line.
  */
-function planCourses(goal: CourseGoal | null, band: PaceBandIndex | null): PlanCourse[] {
+function planCourses(goal: CourseGoal | null, band: PaceBandIndex | null, terrainIndex: TerrainIndex | null): PlanCourse[] {
   const projector = optional<ProjectorIndex>('tools/projector.json');
   const weather = optional<WeatherMatch>('tools/weather-match.json');
   const listed = new Set((goal?.courses ?? []).map((c) => c.city));
   const cities = new Set([...listed, ...[...(goal?.screens?.start_offset ?? []), ...(goal?.screens?.grid ?? [])].map((e) => e.city),
     ...(band?.scopes ?? []).flatMap((s) => (s.city ? [s.city] : []))]);
   const bandSlugs = new Set((band?.scopes ?? []).map((s) => s.slug));
-  const shapeGoals = shapeGoalsOf(band);
+  const { terrain, why } = terrainProps(terrainIndex);
   const projectorSlugs = new Set((projector?.scopes ?? []).map((s) => s.slug));
   const weatherSlugs = new Set((weather?.editions ?? []).map((e) => courseSlug(e.city)));
   const pages = safeSet(() => getCourseNames().map(slugifyCity));
@@ -55,7 +56,8 @@ function planCourses(goal: CourseGoal | null, band: PaceBandIndex | null): PlanC
     const slug = courseSlug(city);
     return {
       slug, city, screened: goal && !listed.has(city) ? screenedReason(city, goal.screens) : null,
-      band: bandSlugs.has(slug), shapeGoals: shapeGoals[slug]?.goals.all ?? null, editions: shapeGoals[slug]?.editions ?? null, projector: projectorSlugs.has(slug), weather: weatherSlugs.has(slug), page: pages.has(slug),
+      band: bandSlugs.has(slug), projector: projectorSlugs.has(slug), weather: weatherSlugs.has(slug), page: pages.has(slug),
+      terrain: terrain[slug] ?? null, why: terrainIndex && !terrain[slug] ? why[slug] ?? 'profile' : null,
     };
   });
 }
@@ -80,7 +82,8 @@ export default function PlanPage() {
   const paceBandSha = manifest.files[PACE_BAND_INDEX]?.sha256 ?? null;
   const goal = optional<CourseGoal>(COURSE_GOAL_FILE);
   const band = optional<PaceBandIndex>(PACE_BAND_INDEX);
-  const courses = planCourses(goal, band);
+  const terrainIndex = optional<TerrainIndex>(TERRAIN_FILE);
+  const courses = planCourses(goal, band, terrainIndex);
 
   return (
     <div className="tool-page">

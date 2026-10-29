@@ -1,15 +1,15 @@
 import PaceBand, { type RouteProfile, type UnpublishedCourse } from '@/components/tools/PaceBand';
 import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
 import { pageMetadata } from '@/lib/seo';
-import type { CourseGeometry } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { PaceBandIndex } from '@/lib/tools/data';
-import { shapeGoalsOf } from '@/lib/tools/course-shape';
 import { courseSlug } from '@/lib/tools/links';
+import { MARATHON_KM } from '@/lib/tools/pace';
+import { TERRAIN_FILE, terrainProps, type TerrainIndex } from '@/lib/tools/terrain-data';
 
 export const metadata = pageMetadata({
   title: 'Printable Marathon Pace Band for Any Goal | Pace Notes',
-  description: 'Print a free marathon wristband for any goal time, in your course’s shape or at even pace, by mile, km or 5 km mat, beside what finishes at that goal ran.',
+  description: 'Print a free marathon wristband for any goal time, with your course’s climbs and bridges or at even pace, by mile, km or 5 km mat, beside what finishes at that goal ran.',
   path: '/tools/pace-band',
 });
 
@@ -48,17 +48,18 @@ export default function PaceBandPage() {
   const indexSha = manifest.files[INDEX]?.sha256 ?? null;
   const index = indexSha ? readInsight<PaceBandIndex>(INDEX) : null;
 
-  // Supplied route elevation for the optional printed back strip. Context only: never used in a calculation.
-  const geometry = manifest.files['course-geometry.json'] ? readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses : [];
-  const profiles: RouteProfile[] = [];
-  for (const scope of index?.scopes ?? []) {
-    const course = scope.city ? geometry.find((c) => c.city === scope.city) : undefined;
-    if (!course || !course.elevation_m?.length) continue;
-    profiles.push({
-      slug: scope.slug, city: course.city, race: course.race, km: course.distance_km, step: course.elevation_step_km,
-      m: course.elevation_m.map((v) => Math.round(v * 10) / 10), min: course.min_m, max: course.max_m, gain: course.gain_m, loss: course.loss_m,
-    });
-  }
+  // The terrain splits (tools/course-terrain.json): each terrain course's shares and structures, every other course's
+  // reason, and for the optional printed back strip the corrected profile the splits were spread over. No other course
+  // gets a back strip. Without the file every course is at even pace, with no line.
+  const terrainIndex = optional<TerrainIndex>(TERRAIN_FILE);
+  const { terrain, why, strips = {} } = terrainProps(terrainIndex, true);
+  const profiles: RouteProfile[] = Object.values(terrain).map((t) => {
+    const strip = strips[t.slug];
+    return { slug: t.slug, city: t.city, race: t.race, km: MARATHON_KM, step: strip.step_km, m: strip.m, min: strip.min, max: strip.max, gain: strip.gain, loss: strip.loss, features: t.features };
+  });
+  // Every course the pace band publishes, by slug, so a course link names its city before the index loads.
+  const cities: Record<string, string> = {};
+  for (const scope of index?.scopes ?? []) if (scope.slug !== 'all' && scope.city) cities[scope.slug] = scope.city;
 
   // Projector courses, so the race-day link names a course only when the projector publishes it.
   const unpublished = index ? unpublishedCourses(index) : {};
@@ -66,7 +67,7 @@ export default function PaceBandPage() {
   return (
     <div className="tool-page">
       <ToolHeader slug="pace-band" />
-      <PaceBand indexSha={indexSha} profiles={profiles} unpublished={unpublished} shapeGoals={shapeGoalsOf(index)} how="/methodology#tools-pace-band" />
+      <PaceBand indexSha={indexSha} profiles={profiles} unpublished={unpublished} cities={cities} terrain={terrain} why={terrainIndex ? why : null} how="/methodology#tools-pace-band" />
       <ToolEnd path="/tools/pace-band" how="/methodology#tools-pace-band" numbers />
     </div>
   );

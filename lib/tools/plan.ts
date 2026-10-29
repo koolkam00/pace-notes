@@ -53,9 +53,9 @@ export const tooFewEditions = (editions: number, minEditions: number) =>
   `${editions === 1 ? 'Only one edition' : `Only ${editions} editions`} passed the data screens; ${minEditions} are needed for any goal.`;
 
 /**
- * The planner's note where its course has a shape at this goal (or one on its way): about the results on goal pace only,
- * after "No results on goal pace for {city} at this goal." A course with too few editions for any of them has no shape
- * either (lib/tools/course-shape.ts SHAPE_MIN_EDITIONS), so this note never sits beside a shape it would contradict.
+ * The planner's note where its course has terrain splits (the Splits choice is offered): about the results on goal pace
+ * only, after "No results on goal pace for {city} at this goal." Their minimum of editions is the course-goal file's
+ * `min_editions`, a rule for those results alone, so this note never reads as a rule the terrain splits beside it break.
  */
 export function goalPaceNote(result: Extract<CourseGoalResult, { state: 'unavailable' }>, city: string): string {
   return `No results on goal pace for ${city} at this goal. ${result.reason}`;

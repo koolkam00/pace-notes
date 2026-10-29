@@ -1,22 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useUnits } from '@/components/UnitsProvider';
-import BandChoice, { KickerText, ShapeLine } from '@/components/tools/BandChoice';
+import AsRunTable, { AsRunNote, MatName } from '@/components/tools/AsRunTable';
+import BandChoice, { KickerText, TerrainLine } from '@/components/tools/BandChoice';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import PaceBandStrip from '@/components/tools/PaceBandStrip';
+import StretchTables from '@/components/tools/StretchTables';
 import { DataLead, DurationField, GoalBar, ReadingFoot, ShareBar, Stepper } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
 import Values from '@/components/ui/Values';
 import { loadInsight } from '@/lib/insights';
 import { loadShard, type CourseGoal, type CourseGoalRow, type PaceBandIndex, type PaceBandShard } from '@/lib/tools/data';
-import { bandChoice, bandKicker, bandMinute, bandRows, bandView, cardMats, goalPace, matRows, mayShape, noShapeLine, noShapeReason, shapeFor, shapeLine, shapePaces, tidyChoice } from '@/lib/tools/course-shape';
+import { bandChoice, bandKicker, bandMinute, bandRows, bandView, cardMats, climbs, climbsLine, goalPace, matRows, noTerrainLine, tidyChoice, unitSplits, type BandMode } from '@/lib/tools/terrain-band';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
 import { PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell } from '@/lib/tools/pace-band-data';
 import { COURSE_GOAL_FILE, PLAN_GOAL_MAX_S, PLAN_GOAL_MIN_S, courseGoalResult, goalPaceNote, goalShare, publishedGoal, readPlanGoal, roundedNote } from '@/lib/tools/plan';
+import type { NoTerrainWhy, TerrainCourse } from '@/lib/tools/terrain-data';
+import { PACES_LABEL, pacesNote, pacesUnit, stretchCount, stretchesName, stretchesTitle, stripPaces, tidyPaces } from '@/lib/tools/stretch-paces';
 import { formatDuration, formatHM } from '@/lib/tools/time';
-import { KM_PER_MILE, matLabel, type UnitSystem } from '@/lib/units';
-import { count } from '@/lib/viz/format';
+import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
 /** A course the planner offers, with the tools and pages that publish it (read from their index files at build time). */
 export interface PlanCourse {
@@ -26,20 +29,24 @@ export interface PlanCourse {
   screened: string | null;
   /** The pace band, the race-day projector and the weather match publish this course. */
   band: boolean; projector: boolean; weather: boolean;
-  /** The goals (whole minutes) its course shape covers: the pace band's all-genders group, from the index at build time. */
-  shapeGoals: [number, number] | null;
-  /** The pace band's screened editions for the course (the index's count): fewer than SHAPE_MIN_EDITIONS, no course shape. */
-  editions: number | null;
+  /** The course's terrain splits (tools/course-terrain.json, read at build time), or null where it has none. */
+  terrain: TerrainCourse | null;
+  /** Why a course has no terrain splits; null on a terrain course, or for every course when the file is not in the build. */
+  why: NoTerrainWhy | null;
   /** /courses/<slug> exists. */
   page: boolean;
 }
 
-/** The address: the course, the goal and the band's mode (`pace=even` only; course shape, the default where a course has one, stays out). */
-const DEFAULTS = { course: 'all', goal: '4:00', pace: '' };
+/**
+ * The address: the course, the goal, the band's mode (`pace=even` only; terrain, the default where a course has it, stays
+ * out) and each stretch's pace on the strips (`paces=1` only; off, the default, stays out).
+ */
+const DEFAULTS = { course: 'all', goal: '4:00', pace: '', paces: '' };
 /** The pace band's observed goals, before its index loads (whole minutes). */
 const BAND_GOALS_FALLBACK: [number, number] = [150, 390];
 
 const clampGoal = (s: number) => Math.min(PLAN_GOAL_MAX_S, Math.max(PLAN_GOAL_MIN_S, s));
+const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 /** The loader's own neutral message ("could not be loaded" / "could not be verified"); a browser network error reads as the first. */
 const errorText = (e: unknown) => (e instanceof Error && e.message.startsWith('This data') ? e.message : 'This data could not be loaded. Check the connection and try again.');
 
@@ -73,69 +80,45 @@ function useShard(index: PaceBandIndex | null, path: string | null) {
   return { listed, data: current?.data ?? null, error: current?.error ?? null, loading: listed && !current, retry };
 }
 
-/** "5K" with the mile equivalent in miles; the finish "Finish" with the marathon distance. Mats keep their names in both units. */
-function MatName({ km, units }: { km: number; units: UnitSystem }) {
-  const finish = km >= 42.19;
-  return <>{finish ? 'Finish' : matLabel(km)}{units === 'mi' ? <small>{finish ? '26.2 mi' : `${(km / KM_PER_MILE).toFixed(1)} mi`}</small> : null}</>;
-}
-
-interface Observed { held: PaceBandCell | null; slow: PaceBandCell | null; lo: number; hi: number; minute: number }
+/** The pace band's groups for the course (or all courses), all recorded genders, in the goal's window: the As run panel's medians. */
+interface Observed { all: PaceBandCell; held: PaceBandCell | null; slow: PaceBandCell | null; lo: number; hi: number; minute: number }
 
 /**
- * Even pace (the visitor's plan) beside the observed medians at each mat, in separately labelled columns; with the course
- * shape, each mat's course-shape time beside the even-pace time (matRows), and the finishes the shape comes from (`window`
- * names them for assistive tech). Exported for scripts/verify-tools.cjs, which renders both.
+ * Every official mat's time on the band: on terrain, each mat's terrain-split time beside its even-pace time (matRows);
+ * at even pace, the visitor's own times alone. The observed medians are never in this table: they are in the As run
+ * panel (AsRunTable). Exported for scripts/verify-tools.cjs, which renders both.
  */
-export function MatTable({ goal, units, observed, shape }: { goal: number; units: UnitSystem; observed: Observed | null; shape: { times: number[]; n: number; window: string } | null }) {
-  const mats = matRows(goal, shape?.times ?? null);
-  if (shape) {
+export function MatTable({ goal, units, terrain }: { goal: number; units: UnitSystem; terrain: TerrainCourse | null }) {
+  const mats = matRows(goal, terrain);
+  if (terrain) {
     return (
       <table className="tool-table plan-mat-table">
-        <caption className="sr-only">Course-shape elapsed time for your goal at each official mat, from finishes {shape.window} (Pace Notes data), beside the even-pace time</caption>
-        <thead><tr><th scope="col">Mat</th><th scope="col">Course shape</th><th scope="col">Even pace</th></tr></thead>
+        <caption className="sr-only">Terrain-split elapsed time for your goal at each official mat (published research), beside the even-pace time</caption>
+        <thead><tr><th scope="col">Mat</th><th scope="col">Terrain</th><th scope="col">Even pace</th></tr></thead>
         <tbody>
           {mats.map((m, i) => (
             <tr key={m.km} className={i === 8 ? 'is-finish' : undefined}>
               <th scope="row"><MatName km={m.km} units={units} /></th>
-              <td>{formatDuration(m.shaped!)}</td>
+              <td>{formatDuration(m.terrain!)}</td>
               <td>{formatDuration(m.even)}</td>
             </tr>
           ))}
         </tbody>
-        <tfoot><tr><th scope="row">Finishes</th><td>{count(shape.n)}</td><td /></tr></tfoot>
       </table>
     );
   }
-  const held = observed?.held ?? null;
-  const slow = observed?.slow ?? null;
-  const data = held || slow;
   return (
     <table className="tool-table plan-mat-table">
-      <caption className="sr-only">{data ? 'Even-pace elapsed time for your goal at each official mat, beside the median elapsed time of the held-pace and sustained-slowdown groups (Pace Notes data)' : 'Even-pace elapsed time for your goal at each official mat'}</caption>
-      <thead>
-        <tr>
-          <th scope="col">Mat</th>
-          <th scope="col">Your plan</th>
-          {/* Short heads, so four columns fit a phone; the caption names the two groups in full. */}
-          {held ? <th scope="col">Held</th> : null}
-          {slow ? <th scope="col">Slowed</th> : null}
-        </tr>
-      </thead>
+      <caption className="sr-only">Even-pace elapsed time for your goal at each official mat</caption>
+      <thead><tr><th scope="col">Mat</th><th scope="col">Your plan</th></tr></thead>
       <tbody>
         {mats.map((m, i) => (
           <tr key={m.km} className={i === 8 ? 'is-finish' : undefined}>
             <th scope="row"><MatName km={m.km} units={units} /></th>
             <td>{formatDuration(m.even)}</td>
-            {held ? <td>{formatDuration(held.e50[i])}</td> : null}
-            {slow ? <td>{formatDuration(slow.e50[i])}</td> : null}
           </tr>
         ))}
       </tbody>
-      {data ? (
-        <tfoot>
-          <tr><th scope="row">Finishes</th><td />{held ? <td>{count(held.n)}</td> : null}{slow ? <td>{count(slow.n)}</td> : null}</tr>
-        </tfoot>
-      ) : null}
     </table>
   );
 }
@@ -209,10 +192,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
 }) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState(DEFAULTS);
-  // The example: the default 4:00 on all courses, untouched and not from a link.
+  // The example: the default 4:00 on all courses, untouched and not from a link. The stretch-pace option shows the same plan
+  // another way, so neither ticking it nor a link holding only paces=1 ends the example.
   const [touched, setTouched] = useState(false);
   const setQ = useCallback((patch: Partial<typeof DEFAULTS>) => { setTouched(true); setQuery(patch); }, [setQuery]);
-  const isExample = ready && fromUrl.size === 0 && !touched;
+  const isExample = ready && Array.from(fromUrl).every((key) => key === 'paces') && !touched;
 
   const { seconds: goal, read, problem } = readPlanGoal(q.goal);
   // A goal in any form the tools read (210, 3:30:00, 3h30) is kept in the address as H:MM, or H:MM:SS with seconds.
@@ -248,28 +232,45 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
   const windowS = shard.data?.window_s || 300;
   const all = shard.data && minute !== null && inBand ? cellOf(shard.data.groups.all, minute) : null;
   const observed: Observed | null = shard.data && all && minute !== null ? {
-    held: cellOf(shard.data.groups.held, minute), slow: cellOf(shard.data.groups.slowdown, minute), lo: minute * 60 - windowS, hi: minute * 60 - 1, minute,
+    all, held: cellOf(shard.data.groups.held, minute), slow: cellOf(shard.data.groups.slowdown, minute), lo: minute * 60 - windowS, hi: minute * 60 - 1, minute,
   } : null;
-  const comparison = observed && (observed.held || observed.slow) ? observed : null;
 
-  // The band (owner decision, October 20, 2026): on a course whose group publishes this goal, the course shape (that
-  // group's mat medians scaled to the goal, lib/tools/course-shape.ts) unless the visitor chose even pace; on all courses,
-  // or where the course has no shape at this goal, even pace, with the one line saying why. A goal outside the goals the
-  // course's group covers (known at build time) settles at once; inside them, while the group's file loads, the choice
-  // keeps its place and the card and strips take the course shape's layout with dashes for times, dimmed, until the shape
-  // arrives, and printing waits for it.
-  const shape = goal === null ? null : shapeFor(isAll ? 'all' : course?.slug ?? 'all', all, goal);
-  const shapeLoading = !shape && !isAll && Boolean(course?.band) && mayShape(course?.shapeGoals, minute, course?.editions) && Boolean(paceBandSha) && !bandIndex.error && !shard.error && (!bandIndex.data || shard.loading);
-  // The card and band in the course shape's layout (courseCard): the shape itself, or its place while it loads.
-  const { mode, shaped, pending, layout: courseCard, offered } = bandView({ shape, choice: q.pace, loading: shapeLoading });
-  const bandState = offered ? 'choice' as const : !isAll && course && paceBandSha && !bandIndex.error && !shard.error ? 'none' as const : 'off' as const;
-  const paces = shaped ? shapePaces(shaped) : null;
+  // The band (owner decision, October 23, 2026): on a course with terrain splits (tools/course-terrain.json, read at
+  // build time, lib/tools/terrain-band.ts), the visitor's goal spread over the corrected route at an even effort, unless
+  // the visitor chose even pace; on all courses, and on a course without them, even pace, with the one line saying why.
+  // Nothing waits on a file: the terrain is in the page.
+  const { mode, banded, offered } = bandView({ terrain: isAll ? null : course?.terrain ?? null, choice: q.pace });
+  const bandState = offered ? 'choice' as const : !isAll && course ? 'none' as const : 'off' as const;
+  // That there are no terrain splits here (the reason is on /methodology); nothing when the terrain file is not in the build.
+  const noTerrain = bandState === 'none' && course?.why ? noTerrainLine(course.city) : '';
   // A hand-edited `pace` (pace=foo, pace=EVEN) is the default and leaves the address, as does `even` on all courses, where
   // no choice is offered; a choice of even pace on a course stays and carries to the next course, but not through All
   // courses (tidyChoice).
   useEffect(() => {
     if (ready && q.pace !== tidyChoice(q.pace, isAll)) setQuery({ pace: tidyChoice(q.pace, isAll) });
   }, [ready, q.pace, isAll, setQuery]);
+  // The Splits choice stays under the finger: the card above it gains or loses the terrain's lines with the mode, so
+  // after a press the page scrolls by however far the control moved, before the change is painted (the browser's own
+  // scroll anchoring does not always make up for it). Nothing moves on a wide screen, where the inputs sit beside the card.
+  // Only a press that changes the mode keeps the control's place: a press of the option already pressed changes nothing,
+  // and a place kept then would be spent by a later change of mode (a new course) as a jump.
+  const choiceTop = useRef<number | null>(null);
+  const chooseBand = (m: BandMode) => {
+    choiceTop.current = m === mode ? null : document.getElementById('plan-band-choice')?.getBoundingClientRect().top ?? null;
+    setQ({ pace: bandChoice(m) });
+  };
+  useIsoLayoutEffect(() => {
+    const before = choiceTop.current;
+    choiceTop.current = null;
+    const now = document.getElementById('plan-band-choice')?.getBoundingClientRect().top;
+    if (before !== null && now !== undefined && Math.abs(now - before) >= 1) window.scrollBy({ top: now - before, left: 0, behavior: 'instant' });
+  }, [mode]);
+  // Each stretch's pace on the strips (owner request, October 29, 2026): `paces=1` stays, any other value leaves the
+  // address (tidyPaces); off is never written.
+  useEffect(() => {
+    if (ready && q.paces !== tidyPaces(q.paces)) setQuery({ paces: tidyPaces(q.paces) });
+  }, [ready, q.paces, setQuery]);
+  const pacesOn = q.paces === '1';
 
   // The lead: of finishes on the goal's pace through 20K (the course-goal rows at the nearest published goal), the share
   // that made it, on every course pooled or on the chosen one. Until the file loads, the 4:00 example on every course reads
@@ -296,8 +297,14 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
     return at.length >= 2 ? at : null;
   }, [exampleOn, example, goalData.data, published]);
   const pooled = exampleOn ? { under: example!.under } : goalData.data && published ? goalShare(goalData.data.rows, published.minutes) : null;
-  const rows = useMemo(() => (goal === null ? [] : bandRows(goal, units === 'mi' ? 'mi' : 'km', shaped)), [goal, units, shaped]);
-  const matShape = shaped && all && observed ? { times: shaped, n: all.n, window: `${formatDuration(observed.lo, true)} to ${formatDuration(observed.hi, true)} ${where}` } : null;
+  const rows = useMemo(() => (goal === null ? [] : bandRows(goal, units === 'mi' ? 'mi' : 'km', banded)), [goal, units, banded]);
+  // The terrain splits' nine mat times for the mat strip, and the climbs line under the card's.
+  const mats = goal !== null && banded ? matRows(goal, banded).map((m) => m.terrain!) : null;
+  const climbText = goal !== null && banded ? climbsLine(goal, banded, units) : '';
+  // With the option on, each 5K's and each mile's (or km's) pace under its time on the strips, from the band's own times.
+  const paces = useMemo(() => (goal !== null && pacesOn ? stripPaces(goal, banded, units) : null), [goal, pacesOn, banded, units]);
+  // The finishes near the goal as they ran (unscaled), for the As run panel.
+  const asRunCaption = observed ? `Median elapsed time at each mat, finishes from ${formatDuration(observed.lo, true)} to ${formatDuration(observed.hi, true)} ${where}` : '';
 
   // Printing: the wristband strips alone, or the one-page plan (also what the browser's own print command gives).
   const [printMode, setPrintMode] = useState<'plan' | 'strip'>('plan');
@@ -328,8 +335,19 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
   const spreadText = spread && leadLine && madeOf100 !== null
     ? `${madeOf100}% ${leadLine}; course by course, from ${Math.round(spread[0].under * 100)}% in ${spread[0].city} to ${Math.round(spread[spread.length - 1].under * 100)}% in ${spread[spread.length - 1].city}.`
     : null;
-  const summary = goal === null || pKm === null ? problem : loading || pending ? null : [
-    shaped ? `${fmtGoal(goal)} goal in ${course?.city ?? ''}: course shape, ${shapeLine(shaped, units)}.`
+  // On terrain the summary names the slowest climb, or that every unit is within 2% of the average when that is so.
+  const terrainSummary = () => {
+    if (goal === null || pKm === null || !banded) return '';
+    const word = units === 'mi' ? 'mile' : 'km';
+    const slow = climbs(goal, banded, units);
+    const slowest = slow.length ? slow.reduce((a, b) => (b.split > a.split ? b : a)) : null;
+    const avg = goal / (MARATHON_KM / (units === 'mi' ? KM_PER_MILE : 1));
+    const steady = !slowest && unitSplits(goal, banded, units).every((u) => Math.abs(u.split / avg - 1) <= 0.02);
+    const clause = slowest ? `, slowest ${word} ${slowest.n} at ${formatDuration(slowest.split)}` : steady ? `, every ${word} within 2% of it` : '';
+    return `${fmtGoal(goal)} goal in ${banded.city}: terrain splits, average ${fmtPace(pKm, units)}${clause}.`;
+  };
+  const summary = goal === null || pKm === null ? problem : loading ? null : [
+    banded ? terrainSummary()
       : `${fmtGoal(goal)} goal${course ? ` in ${course.city}` : ''}: even pace ${fmtPace(pKm, units)}.`,
     shareOk ? `Pace Notes data: ${spreadText ?? `${madeOf100}% ${leadLine}.`}` : '',
     result?.state === 'unavailable' ? 'No course results for this goal.' : '',
@@ -348,12 +366,11 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
 
   const fieldError = read !== null && goal === null ? problem : undefined;
   const planned = goal !== null && pKm !== null && minute !== null;
-  const leadShown = Boolean(planned && shareOk && madeOf100 !== null && leadLine);
   const unitWord = units === 'mi' ? 'mile' : 'km';
   const city = course?.city ?? null;
-  // Why the nugget is missing, when it is: said once, under the plan. Where the course has a shape at this goal (in
-  // either mode, so the Splits choice never rewrites it) the note is scoped to the results on goal pace (goalPaceNote),
-  // so their own minimum of editions never reads as a rule the shape beside it breaks.
+  // Why the nugget is missing, when it is: said once, under the plan. Where the course has terrain splits (in either
+  // mode, so the Splits choice never rewrites it) the note is scoped to the results on goal pace (goalPaceNote), so their
+  // own minimum of editions never reads as a rule the terrain splits beside it break.
   const missing = !planned ? null
     : unknown ? 'This link names a course that is not in the data. Choose one above; your plan and pace band still work.'
     : !courseGoalSha ? null
@@ -362,13 +379,6 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
     : result?.state === 'unavailable' && goalData.data && offered ? goalPaceNote(result, course?.city ?? 'this course')
     : result?.state === 'unavailable' ? `No results for ${course?.city ?? 'this course'} at this goal. ${result.reason} Your plan and pace band still work.`
     : null;
-  // Why there is no shape: no pace-band group for the course (Prague), too few editions for any shape (Singapore,
-  // Barcelona, Paris) or at this goal (Helsinki 4:27), a goal outside the published goals (the note above
-  // already gives the course results' range when it shows, so the line then says only that there is none), or too few
-  // finishes at this goal; never a count that was not made.
-  const rangeNoted = result?.state === 'unavailable' && result.minutes === null && Boolean(result.course);
-  const noShape = course && minute !== null ? noShapeLine(noShapeReason({ scoped: course.band, gendered: true, minute, goals: bandGoals, editions: course.editions, cellEditions: all?.ed ?? null }), { city: course.city, goals: bandGoals, noted: rangeNoted }) : '';
-
   return (
     <div className="plan-root" data-print={printMode}>
       <div className="tool-workspace">
@@ -398,50 +408,34 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
             <div className="print-only plan-print-head">
               <p className="plan-print-kicker">Pace Notes · race plan</p>
               <p className="plan-print-title">{place} · {fmtGoal(goal)} goal</p>
-              <p>{shaped ? <>Course shape (Pace Notes data): {shapeLine(shaped, units)}.</>
-                : pending ? <>Course shape (Pace Notes data).</>
+              <p>{banded ? <>Terrain splits (Published research): {fmtGoal(goal)} over the {banded.city} route at an even effort, average {fmtPace(pKm, units)}.</>
                 : <>Even pace {fmtPace(pKm, units)} · {fmtPace(pKm, units === 'mi' ? 'km' : 'mi')}.</>} Cut the strips out along the dashed lines.</p>
             </div>
           )}
           <div data-track-section="result" hidden={!planned}>
             {planned ? (
-              <section className={`tool-reading night plan-headline${courseCard ? ' is-shape' : ''}${pending ? ' is-pending' : ''}`} aria-labelledby="plan-headline-title" aria-busy={pending || undefined}>
+              <section className={`tool-reading night plan-headline${banded ? ' is-terrain' : ''}`} aria-labelledby="plan-headline-title">
                 {/* The plan's pace, as on the goal pages: the goal the visitor typed is the kicker. Four mat times under it on a
                     phone and in the card's right half from 900 px (round 6: the dek promises the splits), hidden from
-                    assistive tech, which reads every mat on the strips. In course shape the figure is the shape at a
-                    glance, its two phases at equal weight (the pace through 20K, then from 30K to the finish), the line
-                    under it says what the shape is (how finishes that made the goal ran the course, not a prediction), and
-                    the four are real timing points (5K, 20K, 30K, the finish), never an interpolated half. While the shape
-                    loads the same layout holds dashes and keeps the line's place unshown, so nothing says even pace,
-                    nothing claims a shape that has not arrived, and nothing moves when it lands. In course shape the mats
-                    stay under the figures until 1180 px, where the labels have room beside them (plan.css). */}
+                    assistive tech, which reads every mat on the strips. On terrain the figure is the goal's average pace,
+                    the lines under it say what the terrain splits are (not a prediction) and where they climb, the four
+                    times are the terrain splits' own, and the card carries the Published research badge. */}
                 <div className="tool-reading-head">
                   <p className="tool-reading-kicker">{isExample ? 'Example · ' : ''}<span id="plan-headline-title">{fmtGoal(goal)}{city ? ` in ${city}` : ''}</span></p>
-                  {courseCard ? (
-                    <>
-                      <h2 className="tool-reading-figure plan-shape">
-                        <span className="plan-phase"><b>{paces ? formatDuration(perUnit(paces.to20, units)) : '—'}</b> <small>per {unitWord} to 20K</small></span>
-                        <span className="sr-only">; </span>
-                        <span className="plan-phase"><b>{paces ? formatDuration(perUnit(paces.from30, units)) : '—'}</b> <small>per {unitWord} from 30K</small></span>
-                      </h2>
-                      <ShapeLine goal={goal} city={city ?? ''} pending={pending} className="plan-shape-line" />
-                    </>
-                  ) : (
-                    <h2 className="tool-reading-figure">
-                      {formatDuration(perUnit(pKm, units))}
-                      <small>per {unitWord}, even pace · {formatDuration(perUnit(pKm, units === 'mi' ? 'km' : 'mi'))}/{units === 'mi' ? 'km' : 'mi'}</small>
-                    </h2>
-                  )}
+                  <h2 className="tool-reading-figure">
+                    {formatDuration(perUnit(pKm, units))}
+                    <small>per {unitWord}, {banded ? 'average' : 'even pace'} · {formatDuration(perUnit(pKm, units === 'mi' ? 'km' : 'mi'))}/{units === 'mi' ? 'km' : 'mi'}</small>
+                  </h2>
+                  {banded ? <TerrainLine goal={goal} city={banded.city} climbs={climbText} className="plan-shape-line" /> : null}
                 </div>
                 <dl className="plan-card-mats" aria-hidden="true">
-                  {cardMats(goal, shaped, pending).map(([k, t]) => (
-                    <div key={k}><dt>{k}</dt><dd>{t === null ? '—' : formatDuration(t)}</dd></div>
+                  {cardMats(goal, banded).map(([k, t]) => (
+                    <div key={k}><dt>{k}</dt><dd>{formatDuration(t)}</dd></div>
                   ))}
                 </dl>
-                {/* The course shape is Pace Notes data: its badge sits on the lead directly above when the lead shows, and
-                    here, at every width, once the lead is known not to show, so it never comes and goes while the lead
-                    loads (the band panel below carries its own). */}
-                {courseCard && !leadShown && !loading ? <ReadingFoot badge={<EvidenceTag kind="data" />} copy={false} /> : null}
+                {/* The terrain splits are published research: their badge sits on the card at every width. The data lead
+                    above keeps its own badge, in its own section. */}
+                {banded ? <ReadingFoot badge={<EvidenceTag kind="research" />} copy={false} /> : null}
               </section>
             ) : null}
           </div>
@@ -463,47 +457,80 @@ export default function RacePlan({ courseGoalSha, paceBandSha, courses, example 
                 hint="h:mm or h:mm:ss, from 1:30 to 8:00." error={fieldError} />
             </Stepper>
           </div>
-          {planned ? <BandChoice id="plan-band-choice" state={bandState} mode={pending ? 'course' : mode} onChange={(m) => setQ({ pace: bandChoice(m) })} line={noShape} /> : null}
+          {planned ? <BandChoice id="plan-band-choice" state={bandState} mode={mode} onChange={chooseBand} line={noTerrain} /> : null}
         </form>
 
         <div className="tool-results">
           <div data-track-section="pace-band" hidden={!planned}>
             {planned ? (
               <section className="tool-panel plan-band" id="plan-band" aria-labelledby="plan-band-title">
-                {/* The course shape carries the Pace Notes data badge and the band's kicker, without the two paces the card
-                    above already gives (a page says each number once); even pace none, the visitor's own times (the
+                {/* The terrain splits carry the Published research badge and the band's kicker, without the average the
+                    card above already gives (a page says each number once); even pace none, the visitor's own times (the
                     printed page names its source either way). */}
                 <header className="tool-panel-head plan-band-head">
-                  {courseCard ? <EvidenceTag kind="data" /> : null}
+                  {banded ? <EvidenceTag kind="research" /> : null}
                   <h2 className="tool-panel-title" id="plan-band-title">Your pace band</h2>
-                  {courseCard ? <p className="tool-reading-kicker plan-band-kicker"><KickerText text={bandKicker({ goal, place, shape: shaped, units, pending, phases: false })} /></p> : null}
+                  {banded ? <p className="tool-reading-kicker plan-band-kicker"><KickerText text={bandKicker({ goal, place, terrain: banded, units, pace: false })} /></p> : null}
                 </header>
                 <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={units === 'mi' ? 'mi' : 'km'} overrun={0} place={place} genderWord=""
-                  observed={comparison ? { held: comparison.held, lo: comparison.lo, hi: comparison.hi, place, genderWord: '' } : null} profile={null} showBack={false} waiting={pending}
-                  shape={shaped} pending={pending} />
-                {/* One print action, the band this page exists for; the browser's own print command gives the whole plan.
-                    It waits while a course's shape loads, so a print never holds a band the page has not settled. */}
-                <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit disabled={pending} onClick={() => printAs('strip')}>Print wristband strips</button>} />
-                {/* Every mat, one fold: the course shape beside even pace, or the plan beside the finishes at this time (the
-                    strips' "H" line). The course shape's window is in the table's own caption and its Finishes row. */}
-                <Values id="plan-mat-values" how={how} count={9}
-                  caption={shaped ? 'Every mat: course shape beside even pace'
-                    : comparison ? `Every mat: your plan beside finishes from ${formatDuration(comparison.lo, true)} to ${formatDuration(comparison.hi, true)} ${where}` : 'Every mat: your plan'}>
-                  <MatTable goal={goal} units={units} observed={comparison} shape={matShape} />
+                  profile={null} showBack={false} waiting={false} mats={mats} terrain={Boolean(banded)} paces={paces} />
+                {/* The option sits directly under the band it changes: each stretch's pace under its time, in the page's units, and
+                    while it is on one line under it says what each pace is (the strips' captions print only on paper). It
+                    shows the same plan another way, so it is not a change to the plan (setQuery: the example stays). */}
+                <label className="tool-check band-paces no-print"><input type="checkbox" checked={pacesOn} aria-describedby={pacesOn ? 'plan-paces-note' : undefined} onChange={(e) => setQuery({ paces: e.target.checked ? '1' : '' })} /><span>{PACES_LABEL}<small>{pacesUnit(units)}</small></span></label>
+                {pacesOn ? <p className="tool-note band-paces-note no-print" id="plan-paces-note">{pacesNote(units, true)}</p> : null}
+                {/* One print action, the band this page exists for; the browser's own print command gives the whole plan. */}
+                <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit onClick={() => printAs('strip')}>Print wristband strips</button>} />
+                {/* Every mat, one fold: the terrain splits beside even pace, or the plan alone. */}
+                <Values id="plan-mat-values" how={how} count={9} caption={banded ? 'Every mat: terrain splits beside even pace' : 'Every mat: your plan'}>
+                  <MatTable goal={goal} units={units} terrain={banded} />
+                </Values>
+                {/* Every stretch's time and pace, from the same band (no badge inside the fold: the panel carries it). */}
+                <Values id="plan-stretch-values" count={stretchCount(units)} name={stretchesName(units)} caption={stretchesTitle(units)}>
+                  <StretchTables goal={goal} terrain={banded} units={units} />
                 </Values>
               </section>
             ) : null}
           </div>
 
+          {/* How the finishes near the goal ran (Pace Notes data), at the times they ran, never scaled to the goal and never
+              a band: a record of those races, slowdowns included, in its own panel after the band, with the forewarning. */}
+          {planned && observed ? (
+            <section className="tool-panel plan-asrun" id="plan-asrun" aria-labelledby="plan-asrun-title">
+              <EvidenceTag kind="data" />
+              <h2 className="tool-panel-title" id="plan-asrun-title">As run near {fmtGoal(goal)} {where}</h2>
+              <p className="tool-note plan-asrun-note"><AsRunNote sd={observed.all.sd} /></p>
+              <Values id="plan-asrun-values" how={how} caption={asRunCaption} count={9}>
+                <AsRunTable cells={{ all: observed.all, held: observed.held, slow: observed.slow }} units={units} short />
+              </Values>
+            </section>
+          ) : null}
+
           {planned ? (
             <>
-              <div className="print-only plan-print-mats"><MatTable goal={goal} units={units} observed={comparison} shape={matShape} /></div>
-              {/* Only a page that prints observed figures (the course shape, or the mat table's groups and the "H" line) is attributed to the data. */}
-              <p className="print-only plan-print-source">{shaped ? 'Course shape from Pace Notes data' : comparison ? 'Your plan beside Pace Notes data' : 'Your race plan'} · splithappens.run/tools/plan</p>
+              <div className="print-only plan-print-mats">
+                <MatTable goal={goal} units={units} terrain={banded} />
+                {observed ? (
+                  <div className="plan-print-asrun">
+                    <p className="plan-print-asrun-title">As run near {fmtGoal(goal)} {where} · Pace Notes data</p>
+                    <p className="plan-print-asrun-note"><AsRunNote sd={observed.all.sd} /></p>
+                    <AsRunTable cells={{ all: observed.all, held: observed.held, slow: observed.slow }} units={units} short />
+                  </div>
+                ) : null}
+              </div>
+              {/* Each source the printed page holds is named: the terrain splits (published research) and the as-run table (Pace Notes data). */}
+              <p className="print-only plan-print-source">{banded ? 'Terrain splits from published research' : observed ? 'Your plan' : 'Your race plan'}{observed ? ' · As run from Pace Notes data' : ''} · splithappens.run/tools/plan</p>
+              {/* With the option on, the printed plan adds every stretch's time and pace, on a page of its own. */}
+              {pacesOn ? (
+                <div className="print-only plan-print-stretches">
+                  <p className="plan-print-stretches-title">{stretchesTitle(units)} · {fmtGoal(goal)} · {place}{banded ? ' · terrain splits from published research' : ''}</p>
+                  <StretchTables goal={goal} terrain={banded} units={units} />
+                </div>
+              ) : null}
               {/* No next-step row: the journey's finish card follows, the page's one way forward (section 00, cut 4). */}
               {dataError && !goalData.error ? <DataProblem error={dataError} onRetry={retry} /> : null}
               <GoalBar label="Goal" onStep={step}>
-                <b>{fmtGoal(goal)}</b><span>{goalPace(pKm, units, courseCard)}</span>
+                <b>{fmtGoal(goal)}</b><span>{goalPace(pKm, units, Boolean(banded))}</span>
               </GoalBar>
             </>
           ) : null}

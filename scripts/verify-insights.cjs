@@ -208,7 +208,9 @@ assert.deepEqual(runners.points_km, points);
 // A module added since (a family still in progress) is reported, never silently trusted.
 const boundScripts = Object.keys(manifest.scripts);
 for (const name of ['build_insights.py', 'build_fast_start.py', 'insights_data.py', 'insights_stats.py']) assert.ok(boundScripts.includes(name), `Shared script bound: ${name}`);
-assert.ok(boundScripts.every(name => /^insights_[a-z_]+\.py$/.test(name) || ['build_insights.py', 'build_fast_start.py'].includes(name)), 'Only story scripts are bound');
+// The terrain-split builder and model are bound with tools/course-terrain.json (checkCourseTerrain).
+const TERRAIN_FILE = 'tools/course-terrain.json', TERRAIN_SCRIPTS = ['build_course_terrain.py', 'terrain_model.py'];
+assert.ok(boundScripts.every(name => /^insights_[a-z_]+\.py$/.test(name) || ['build_insights.py', 'build_fast_start.py', ...TERRAIN_SCRIPTS].includes(name)), 'Only story scripts are bound');
 const unboundModules = fs.readdirSync(analysisDir).filter(name => /^insights_.*\.py$/.test(name) && !boundScripts.includes(name)).sort();
 assert.deepEqual(manifest.source_scripts, runners.scripts, 'Runner source scripts');
 for (const [name, digest] of Object.entries({ ...runners.scripts, ...manifest.scripts })) {
@@ -261,7 +263,7 @@ const familyOf = file => {
 };
 const families = new Map();
 for (const [file, doc] of docs) {
-  if (file === 'course-geometry.json') continue;
+  if (file === 'course-geometry.json' || file === TERRAIN_FILE) continue; // own provenance; checked below
   const { family, index, shard } = familyOf(file);
   assert.equal(doc.family, family, `${file}: family label`);
   assert.equal(doc.release_tag, pin.tag, `${file}: release`);
@@ -298,6 +300,16 @@ if (geometry) {
   }
 }
 
+// The audited correction registry behind the terrain splits. Its curated structures (bridges) are the only
+// id and name fields the terrain file may carry.
+const terrainRegistryBytes = fs.readFileSync(path.join(analysisDir, 'course_terrain/corrections.json'));
+const terrainRegistry = JSON.parse(terrainRegistryBytes);
+const terrainFeatures = new Map(terrainRegistry.courses.map(c => [c.slug, c.features || []]));
+const terrainFeatureAt = where => {
+  const m = where.match(/^tools\/course-terrain\.json\.courses\[(\d+)\]\.features\[(\d+)\]$/);
+  return m ? terrainFeatures.get(docs.get(TERRAIN_FILE)?.courses?.[Number(m[1])]?.slug)?.[Number(m[2])] ?? null : undefined;
+};
+
 // 8. Structure: finite numbers, published groups >= 100, no identifiers or names, clean copy.
 const identityKey = /^(ids?|rids?|record_?ids?|profile_?ids?|runners?|runner_?ids?|bibs?|bib_?(no|number)|names?|(full|first|last|given|family)_?names?|participants?|participant_?ids?|persons?|person_?ids?)$/i;
 // Group sizes: every `n`, plus the named matched-group sizes. Audit rows that carry a
@@ -312,6 +324,11 @@ function scan(value, where, key) {
     for (const [name, item] of Object.entries(value)) {
       if (name === 'id' && where.startsWith('tools/weather-match.json.editions[')) {
         assert.equal(item, Number(where.match(/\[(\d+)\]$/)[1]), `${where}.id: edition row index`);
+      } else if (name === 'name' && where === `${TERRAIN_FILE}.model`) {
+        assert.equal(item, 'strava-2017-quadratic', `${where}.name: the terrain model's name`);
+      } else if ((name === 'id' || name === 'name') && terrainFeatureAt(where) !== undefined) {
+        // A terrain feature: a curated structure from corrections.json, in the same course and order.
+        assert.ok(terrainFeatureAt(where) && item === terrainFeatureAt(where)[name], `${where}.${name}: a curated structure from corrections.json`);
       } else if (identityKey.test(name)) {
         // Only the archetype labels may use a name field; anything else could carry a runner identity.
         const values = Array.isArray(item) ? item : [item];
@@ -1337,12 +1354,115 @@ function checkCourseGoal(doc) {
   return { rows: doc.rows.length, unavailable: doc.unavailable.length };
 }
 
+// Terrain splits (tools/course-terrain.json): the visitor's goal spread over a corrected route profile with one published
+// grade curve. No finish data enters it. Bound to the adopted release, the runner-context manifest's course profiles, the
+// audited correction registry and its two scripts; the model is recomputed independently in verify-tools.
+const TERRAIN_SLUGS = ['amsterdam', 'austin', 'boston', 'chicago', 'eindhoven', 'london', 'madrid', 'new-york', 'rotterdam', 'valencia'];
+const TERRAIN_MODEL = { name: 'strava-2017-quadratic', a1: 0.02869556, a2: 0.001520768, clamp_pct: [-10, 10], grid_points: 4221, median_samples: 21,
+  sigma_samples: 10, kernel_half_width: 40, edges: 'nearest', grade: 'central-differences', weights: 'trapezoid' };
+// Deck guards on the published model input, official axis (route km x 42.195 / route length), against published clearances:
+// Verrazzano 69.5 m (228 ft, Britannica / Wikipedia), Pulaski 11.9 m (39 ft, Coast Guard drawbridge rule), Queensboro 39.9 m
+// (131 ft, Waterway Guide), Willis Ave 7.3 m (24 ft) and Madison Ave 7.6 m (25 ft, 33 CFR 117.789); Erasmusbrug is a
+// regression guard on its 16.5 m deck. A supplied ground model reads each of them near water level, and each window holds
+// only the span over the water, so the uncorrected supplied profile fails every guard (test_course_terrain.py asserts it
+// on the release's profile): the Willis window stops at the swing span (0-1.8 m uncorrected), short of the Bronx approach,
+// whose ground already reaches 10.5 m.
+const TERRAIN_DECKS = [['new-york', 'Verrazzano', 0.9, 1.5, 75], ['new-york', 'Pulaski', 20.6, 21.6, 14], ['new-york', 'Queensboro', 23.3, 25.8, 40],
+  ['new-york', 'Willis Ave', 31.0, 31.45, 9], ['new-york', 'Madison Ave', 33.1, 33.9, 7.6],
+  ['rotterdam', 'Erasmusbrug 1', 0.3, 0.9, 14], ['rotterdam', 'Erasmusbrug 2', 26.2, 27.2, 14]];
+const strictlyIncreasing = values => values.every((v, i) => !i || v > values[i - 1]);
+function checkCourseTerrain(doc) {
+  assert.ok(doc, `${TERRAIN_FILE} is published`);
+  assert.deepEqual(TERRAIN_SCRIPTS.filter(name => !(name in manifest.scripts)), [], `${TERRAIN_FILE} binds its builder and model in the manifest`);
+  assert.deepEqual(Object.keys(doc).sort(), ['context_manifest_sha256', 'corrections_sha256', 'corrections_version', 'course_profiles_sha256', 'courses',
+    'even', 'family', 'input_as_of', 'model', 'release_tag', 'schema_version', 'scripts'], 'Terrain file fields');
+  assert.equal(doc.family, 'tool-course-terrain'); assert.equal(doc.schema_version, 1);
+  assert.equal(doc.release_tag, pin.tag, 'Terrain splits use the adopted release');
+  assert.equal(doc.input_as_of, context.input_as_of, 'Terrain splits: runner-context input timestamp');
+  assert.equal(doc.context_manifest_sha256, contextSha, 'Terrain splits bind the current runner-context manifest');
+  assert.equal(doc.course_profiles_sha256, context.input_files['course_profiles.parquet'], 'Terrain splits use the adopted course profiles');
+  assert.equal(terrainRegistry.input.sha256, doc.course_profiles_sha256, 'The correction registry was audited against the adopted course profiles');
+  assert.equal(doc.corrections_sha256, hash(terrainRegistryBytes), 'Stale correction registry');
+  assert.equal(doc.corrections_version, terrainRegistry.version, 'Correction registry version');
+  assert.deepEqual(Object.keys(doc.scripts).sort(), TERRAIN_SCRIPTS, 'Terrain scripts');
+  for (const name of TERRAIN_SCRIPTS) {
+    const digest = hash(fs.readFileSync(path.join(analysisDir, name)));
+    assert.equal(doc.scripts[name], digest, `Stale terrain script: ${name}`); assert.equal(manifest.scripts[name], digest, `Manifest binds ${name}`);
+  }
+  assert.deepEqual(doc.model, TERRAIN_MODEL, 'Terrain model constants');
+  // Course sets: exactly the ten terrain courses; every other registry course at even pace with its reason.
+  const registry = new Map(terrainRegistry.courses.map(c => [c.slug, c]));
+  assert.equal(registry.size, terrainRegistry.courses.length, 'One registry entry per course');
+  assert.deepEqual(doc.courses.map(c => c.slug), TERRAIN_SLUGS, 'Terrain courses');
+  assert.deepEqual(terrainRegistry.courses.filter(c => c.band === 'terrain').map(c => c.slug).sort(), TERRAIN_SLUGS, 'Registry terrain courses');
+  assert.deepEqual(doc.even, terrainRegistry.courses.filter(c => c.band !== 'terrain').map(c => ({ slug: c.slug, city: c.city, why: c.why }))
+    .sort((a, b) => byText(a.slug, b.slug)), 'Even-pace courses and reasons');
+  assert.ok(doc.even.every(c => registry.get(c.slug).band === 'even' && ['held', 'profile'].includes(c.why)), 'Even-pace reasons');
+  assert.deepEqual(doc.even.filter(c => c.why === 'held').map(c => c.slug), ['oslo', 'warsaw'], 'Held courses');
+  const paceBand = docs.get('tools/pace-band.json');
+  const scopes = new Set((paceBand?.scopes || []).map(s => s.slug));
+  let points = 0;
+  for (const c of doc.courses) {
+    const r = registry.get(c.slug), label = `Terrain ${c.city}`;
+    assert.deepEqual(Object.keys(c).sort(), ['city', 'class', 'features', 'flags', 'half', 'km', 'max_grade_pct', 'mi', 'race', 'route', 'route_km',
+      'slug', 'smoothed_gain_m', 'sources', 'strip'], `${label}: fields`);
+    assert.equal(c.city, r.city); assert.equal(c.class, r.class); assert.ok(['a', 'b'].includes(c.class), `${label}: class a or b`);
+    assert.equal(r.band, 'terrain'); assert.ok(!('why' in r), `${label}: a terrain course has no why`);
+    assert.ok(scopes.has(c.slug), `${label}: a pace-band scope`);
+    assert.ok(typeof c.race === 'string' && c.race.length, `${label}: race name`);
+    assert.ok(c.sources.length && c.sources.every(s => ['dataset', 'url', 'licence', 'retrieved'].every(k => typeof s[k] === 'string' && s[k].length)
+      && /^https:\/\//.test(s.url) && /^\d{4}-\d{2}-\d{2}$/.test(s.retrieved)), `${label}: sources with url, licence and retrieved`);
+    assert.deepEqual(c.sources, r.sources, `${label}: sources as in the registry`);
+    assert.deepEqual(c.flags, r.flags || [], `${label}: flags as in the registry`);
+    // Shapes: u at whole km and whole miles, strictly increasing inside (0, 1), in distance order.
+    assert.equal(c.km.length, 42, `${label}: 42 km shares`); assert.equal(c.mi.length, 26, `${label}: 26 mile shares`);
+    const byDistance = [...c.km.map((u, i) => [i + 1, u]), ...c.mi.map((u, i) => [(i + 1) * 1.609344, u]), [21.0975, c.half]].sort((a, b) => a[0] - b[0]);
+    assert.ok([...c.km, ...c.mi, c.half].every(u => finite(u) && u > 0 && u < 1 && Math.abs(u * 1e7 - Math.round(u * 1e7)) < 1e-6), `${label}: shares in (0, 1), 7 decimals`);
+    assert.ok(strictlyIncreasing(c.km) && strictlyIncreasing(c.mi) && strictlyIncreasing(byDistance.map(p => p[1])), `${label}: shares increase with distance`);
+    assert.ok(c.km[20] < c.half && c.half < c.km[21], `${label}: halfway between 21 and 22 km`);
+    assert.ok(finite(c.max_grade_pct) && c.max_grade_pct >= 0 && c.max_grade_pct <= 8, `${label}: smoothed grade at most 8%`);
+    // The published model input: the corrected route, on its own axis.
+    const d = c.route.d_km, m = c.route.m;
+    assert.ok(Array.isArray(d) && d.length >= 20 && d.length === m.length && d.every(finite) && m.every(finite), `${label}: route input`);
+    assert.ok(strictlyIncreasing(d) && d[0] === 0, `${label}: route distances start at 0 and increase`);
+    assert.equal(c.route_km, Math.round((d[d.length - 1] - d[0]) * 1000) / 1000, `${label}: route length`);
+    assert.ok(d.every(v => Math.abs(v * 1000 - Math.round(v * 1000)) < 1e-6) && m.every(v => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6), `${label}: route rounded to 0.001 km and 0.01 m`);
+    points += d.length;
+    assert.equal(c.strip.step_km, 0.5); assert.equal(c.strip.m.length, 85, `${label}: strip every 0.5 km to 42 km`);
+    assert.ok(c.strip.m.every(finite) && c.strip.min <= Math.min(...c.strip.m) + 0.05 && c.strip.max >= Math.max(...c.strip.m) - 0.05, `${label}: strip range`);
+    assert.ok(c.strip.min >= Math.min(...m) - 0.05 && c.strip.max <= Math.max(...m) + 0.05, `${label}: smoothing stays inside the route input`);
+    assert.ok(finite(c.strip.gain) && finite(c.strip.loss) && c.strip.gain >= 0 && c.strip.loss >= 0 && c.smoothed_gain_m === c.strip.gain, `${label}: gain and loss`);
+    // Features: curated structures, inside one range correction or applied structure, mapped to the official axis.
+    const official = km => Math.round((km - d[0]) * 42.195 / (d[d.length - 1] - d[0]) * 1000) / 1000;
+    const ranges = [...(r.corrections || []).filter(x => (x.mode || 'replace_range') !== 'replace_all').map(x => [x.km_from, x.km_to]),
+      ...(r.structures_applied || []).map(x => [x.d_from, x.d_to])];
+    assert.deepEqual(c.features, (r.features || []).map(f => ({ id: f.id, name: f.name, short: f.short, from_km: official(f.km_from), to_km: official(f.km_to) })), `${label}: features`);
+    for (const f of r.features || []) {
+      assert.ok(f.km_from < f.km_to && ranges.some(([a, b]) => a - 1e-9 <= f.km_from && f.km_to <= b + 1e-9), `${label}: ${f.id} lies inside a correction range`);
+    }
+    assert.ok(strictlyIncreasing(c.features.map(f => f.from_km)), `${label}: features in race order`);
+  }
+  const ny = doc.courses.find(c => c.slug === 'new-york');
+  assert.deepEqual(ny.features.map(f => f.id), ['nyc-verrazzano', 'nyc-pulaski', 'nyc-queensboro', 'nyc-willis', 'nyc-madison'], 'New York features');
+  const decks = {};
+  for (const [slug, name, from, to, floor] of TERRAIN_DECKS) {
+    const c = doc.courses.find(x => x.slug === slug), d = c.route.d_km, L = d[d.length - 1] - d[0];
+    const inWindow = c.route.m.filter((_, i) => { const km = (d[i] - d[0]) * 42.195 / L; return km >= from && km <= to; });
+    assert.ok(inWindow.length >= 2 && Math.max(...inWindow) >= floor, `${c.city} ${name}: corrected deck reaches ${floor} m between ${from} and ${to} km`);
+    decks[`${slug}:${name}`] = Math.max(...inWindow);
+  }
+  // Every registry course outside the terrain set carries no features; a class c course is never terrain.
+  assert.ok(terrainRegistry.courses.every(c => c.band === 'terrain' ? c.class !== 'c' : !(c.features || []).length), 'Registry bands and features');
+  return { courses: doc.courses.length, even: doc.even.length, route_points: points, decks };
+}
+
 const checkers = { 'finish-times': checkFinishTimes, archetypes: checkArchetypes, positions: checkPositions, demographics: checkDemographics, replay: checkReplay, courses: checkCourses, kick: checkKick,
   'tool-projector': checkProjector, 'tool-pace-band': checkPaceBand, 'tool-weather-match': checkWeatherMatch, 'tool-course-goal': checkCourseGoal };
 const recounted = {}, genericOnly = [];
 for (const [family, doc] of families) {
   if (checkers[family]) recounted[family] = checkers[family](doc); else genericOnly.push(family);
 }
+recounted['tool-course-terrain'] = checkCourseTerrain(docs.get(TERRAIN_FILE));
 assert.ok('finish-times' in recounted && 'replay' in recounted, 'Core story families are present');
 console.log(JSON.stringify({
   verified: 'insights', release_tag: pin.tag, input: input.startsWith(root + path.sep) ? path.relative(root, input) : input, files: listed.length, scanned_values: scannedValues,

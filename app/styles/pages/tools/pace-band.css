@@ -22,6 +22,9 @@
 .pace-band-table th small, .pace-band-wrist th small { display: block; font-size: .75rem; font-weight: 400; color: var(--ink-3); }
 .pace-band-wrist tr.is-mat th, .pace-band-wrist tr.is-mat td { font-weight: 600; color: var(--ink); }
 .pace-band-wrist tr.is-finish th, .pace-band-wrist tr.is-finish td { border-top: 1.5px solid var(--ink); font-weight: 600; color: var(--ink); }
+.pace-band-wrist td.pace-band-wrist-route { font-weight: 400; color: var(--ink-2); white-space: normal; }
+/* The forewarning under the finishes' sentence: as run, slowdowns included, not splits to copy. */
+.pace-band-asrun { color: var(--ink-2); }
 
 /* ---------- The band to print: the page's answer ---------- */
 .pace-band-print-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); min-width: 0; }
@@ -30,6 +33,10 @@
 .pace-band-controls { display: grid; gap: var(--s-4); }
 .pace-band-options { border-bottom: 1px solid var(--rule); }
 .pace-band-controls .tool-choice .seg-btn { padding-inline: 8px; }
+.pace-band-controls .tool-check small { font-size: inherit; color: var(--ink-3); }
+/* The stretch-pace box and, while it is on, the line saying what each pace is, set under the label's text. */
+.pace-band-paces { display: grid; }
+.pace-band-paces-note { padding-left: 30px; }
 
 /* ---------- Print ---------- */
 @media print {
@@ -37,9 +44,10 @@
   .pace-band-root[data-print='strip'] .tool-results > :not(.pace-band-print-panel) { display: none !important; }
   .pace-band-root[data-print='strip'] .pace-band-print-panel { padding: 0; border: 0; }
   .pace-band-root[data-print='strip'] .pace-band-print-panel > header, .pace-band-root[data-print='strip'] .values { display: none; }
-  /* The sheet head names the goal, course, gender and mode, so the kicker and the shape's line do not print above it;
+  /* The sheet head names the goal, course and mode, so the kicker and the terrain splits' lines do not print above it;
      nor does the full page's table of every marker. */
-  .pace-band-root[data-print='strip'] .pace-band-kicker, .pace-band-root[data-print='strip'] .band-shape-line, .pace-band-root[data-print='strip'] .pace-band-print-marks { display: none !important; }
+  .pace-band-root[data-print='strip'] .pace-band-kicker, .pace-band-root[data-print='strip'] .band-shape-line, .pace-band-root[data-print='strip'] .pace-band-print-marks,
+  .pace-band-root[data-print='strip'] .pace-band-print-stretches { display: none !important; }
   /* Full page: the band, the observed groups and the band's every marker, no strips. */
   .pace-band-root[data-print='page'] .pace-band-strip, .pace-band-root[data-print='page'] .pace-band-sheet-wrap { display: none !important; }
   .pace-band-root[data-print='page'] .pace-band-print-notes { display: block; font-size: 8.5pt; line-height: 1.45; }
@@ -48,6 +56,8 @@
   .pace-band-print-marks-title { margin: 0 0 .1cm; font-family: var(--sans); font-size: 8pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
   .pace-band-print-marks .table th, .pace-band-print-marks .table td { font-size: 8.5pt; line-height: 1.2; }
   .pace-band-print-marks tr { break-inside: avoid; }
+  /* With the option on, every stretch's time and pace follows the table of every marker. */
+  .pace-band-root[data-print='page'] .pace-band-print-stretches { display: block; margin-top: .3cm; break-inside: avoid; }
   .pace-band-root[data-print='page'] .table th, .pace-band-root[data-print='page'] .table td { height: auto; padding-top: .06cm; padding-bottom: .06cm; }
   /* A fold's summary ("All numbers · 9 rows") is a screen control: the full page prints an open fold's table without it,
      and a fold left closed (the browser's own print command) not at all. */

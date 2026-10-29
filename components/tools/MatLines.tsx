@@ -74,8 +74,11 @@ export default function MatLines({ lines, zeroTick = 'Even', units: _units, labe
     }
   }
   for (const v of ticks) { const w = tickText(v).length * 7 + 4; taken.push({ x0: m.l, x1: m.l + w, y0: y(v) - 17, y1: y(v) }); }
+  // The zero line's name ends short of the finish dots (radius 4 with a 2 px rim, at the right end), which sit near the
+  // zero line whenever the finishes' medians land near the goal; it is drawn after the lines, on its paper halo.
+  const zeroEnd = m.l + iw - 10;
   const zeroW = zeroTick.length * 7.4 + 6;
-  taken.push({ x0: m.l + iw - zeroW, x1: m.l + iw, y0: zeroY - 17, y1: zeroY });
+  taken.push({ x0: zeroEnd - zeroW, x1: m.l + iw, y0: zeroY - 17, y1: zeroY });
   const bi = bracket ? CHECKPOINTS.indexOf(bracket.km) : -1;
   const br = bracket && bi >= 0 && lines.length >= 2 ? (() => {
     const ya = y(lines[0].gaps[bi]), yb = y(lines[1].gaps[bi]);
@@ -121,7 +124,6 @@ export default function MatLines({ lines, zeroTick = 'Even', units: _units, labe
           </g>
         ))}
         <line className="mat-lines-zero" x1={m.l} x2={m.l + iw} y1={zeroY} y2={zeroY} />
-        <text className="mat-lines-zero-label" x={m.l + iw} y={zeroY - 5} textAnchor="end">{zeroTick}</text>
         {xTicks.map((t) => <text key={t.label} className="mat-lines-tick" x={t.x} y={H - 6} textAnchor={t.anchor}>{t.label}</text>)}
         {br && bracket ? (
           <g className="mat-lines-bracket">
@@ -135,6 +137,7 @@ export default function MatLines({ lines, zeroTick = 'Even', units: _units, labe
             <circle cx={x(MARATHON_KM)} cy={y(l.gaps[8])} r={4} />
           </g>
         ))}
+        <text className="mat-lines-zero-label" x={zeroEnd} y={zeroY - 5} textAnchor="end">{zeroTick}</text>
         {names.map((n) => (n ? <text key={n.l.key} className={`mat-lines-name is-${n.l.tone}`} x={n.x} y={n.y}>{n.l.label}</text> : null))}
       </svg>
       {named ? null : (

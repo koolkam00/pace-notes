@@ -1,0 +1,9182 @@
+{
+ "goals": [
+  180,
+  240,
+  315,
+  360
+ ],
+ "cells": [],
+ "pooled": {
+  "raw:all_courses": {
+   "courses": [
+    "Amsterdam",
+    "Austin",
+    "Berlin",
+    "Boston",
+    "Chicago",
+    "Copenhagen",
+    "Dubai",
+    "Eindhoven",
+    "Frankfurt",
+    "Gold Coast",
+    "Hamburg",
+    "Helsinki",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Stockholm",
+    "Sydney",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 193,
+   "seg_5_40": {
+    "n": 1351,
+    "corr": 0.498,
+    "slope_obs_on_model": 0.5,
+    "rmse_pp": 0.88,
+    "rmse_zero_pp": 0.88
+   },
+   "seg_all9": {
+    "n": 1737,
+    "corr": 0.449,
+    "slope_obs_on_model": 0.445,
+    "rmse_pp": 1.08,
+    "rmse_zero_pp": 1.02
+   },
+   "within_halves_5_40": {
+    "n": 1351,
+    "corr": 0.489,
+    "slope_obs_on_model": 0.492,
+    "rmse_pp": 0.91,
+    "rmse_zero_pp": 0.91
+   },
+   "mad_obs_vs_model_pp": 1.06,
+   "mad_obs_vs_model_plus_common_pp": 0.73,
+   "mad_obs_vs_even_pp": 1.03,
+   "mad_obs_vs_typical_steady_pp": 0.7
+  },
+  "raw:publishable_a_b": {
+   "courses": [
+    "Amsterdam",
+    "Austin",
+    "Boston",
+    "Chicago",
+    "Eindhoven",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 113,
+   "seg_5_40": {
+    "n": 791,
+    "corr": 0.627,
+    "slope_obs_on_model": 0.589,
+    "rmse_pp": 0.82,
+    "rmse_zero_pp": 0.92
+   },
+   "seg_all9": {
+    "n": 1017,
+    "corr": 0.564,
+    "slope_obs_on_model": 0.491,
+    "rmse_pp": 1.04,
+    "rmse_zero_pp": 1.03
+   },
+   "within_halves_5_40": {
+    "n": 791,
+    "corr": 0.607,
+    "slope_obs_on_model": 0.568,
+    "rmse_pp": 0.87,
+    "rmse_zero_pp": 0.95
+   },
+   "mad_obs_vs_model_pp": 1.02,
+   "mad_obs_vs_model_plus_common_pp": 0.73,
+   "mad_obs_vs_even_pp": 1.04,
+   "mad_obs_vs_typical_steady_pp": 0.75
+  },
+  "raw:class_c": {
+   "courses": [
+    "Berlin",
+    "Copenhagen",
+    "Dubai",
+    "Frankfurt",
+    "Gold Coast",
+    "Hamburg",
+    "Helsinki",
+    "Stockholm",
+    "Sydney"
+   ],
+   "cells": 80,
+   "seg_5_40": {
+    "n": 560,
+    "corr": 0.229,
+    "slope_obs_on_model": 0.264,
+    "rmse_pp": 0.96,
+    "rmse_zero_pp": 0.83
+   },
+   "seg_all9": {
+    "n": 720,
+    "corr": 0.224,
+    "slope_obs_on_model": 0.293,
+    "rmse_pp": 1.13,
+    "rmse_zero_pp": 1.01
+   },
+   "within_halves_5_40": {
+    "n": 560,
+    "corr": 0.235,
+    "slope_obs_on_model": 0.277,
+    "rmse_pp": 0.97,
+    "rmse_zero_pp": 0.84
+   },
+   "mad_obs_vs_model_pp": 1.1,
+   "mad_obs_vs_model_plus_common_pp": 0.73,
+   "mad_obs_vs_even_pp": 1.03,
+   "mad_obs_vs_typical_steady_pp": 0.64
+  },
+  "raw:class_b": {
+   "courses": [
+    "Amsterdam",
+    "Eindhoven",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 85,
+   "seg_5_40": {
+    "n": 595,
+    "corr": 0.532,
+    "slope_obs_on_model": 0.479,
+    "rmse_pp": 0.87,
+    "rmse_zero_pp": 0.85
+   },
+   "seg_all9": {
+    "n": 765,
+    "corr": 0.502,
+    "slope_obs_on_model": 0.432,
+    "rmse_pp": 1.07,
+    "rmse_zero_pp": 0.99
+   },
+   "within_halves_5_40": {
+    "n": 595,
+    "corr": 0.513,
+    "slope_obs_on_model": 0.466,
+    "rmse_pp": 0.91,
+    "rmse_zero_pp": 0.88
+   },
+   "mad_obs_vs_model_pp": 0.98,
+   "mad_obs_vs_model_plus_common_pp": 0.76,
+   "mad_obs_vs_even_pp": 1.01,
+   "mad_obs_vs_typical_steady_pp": 0.71
+  },
+  "corrected:all_courses": {
+   "courses": [
+    "Amsterdam",
+    "Austin",
+    "Berlin",
+    "Boston",
+    "Chicago",
+    "Copenhagen",
+    "Dubai",
+    "Eindhoven",
+    "Frankfurt",
+    "Gold Coast",
+    "Hamburg",
+    "Helsinki",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Stockholm",
+    "Sydney",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 193,
+   "seg_5_40": {
+    "n": 1351,
+    "corr": 0.595,
+    "slope_obs_on_model": 0.579,
+    "rmse_pp": 0.81,
+    "rmse_zero_pp": 0.88
+   },
+   "seg_all9": {
+    "n": 1737,
+    "corr": 0.513,
+    "slope_obs_on_model": 0.504,
+    "rmse_pp": 1.02,
+    "rmse_zero_pp": 1.02
+   },
+   "within_halves_5_40": {
+    "n": 1351,
+    "corr": 0.581,
+    "slope_obs_on_model": 0.569,
+    "rmse_pp": 0.84,
+    "rmse_zero_pp": 0.91
+   },
+   "mad_obs_vs_model_pp": 1.04,
+   "mad_obs_vs_model_plus_common_pp": 0.68,
+   "mad_obs_vs_even_pp": 1.03,
+   "mad_obs_vs_typical_steady_pp": 0.7
+  },
+  "corrected:publishable_a_b": {
+   "courses": [
+    "Amsterdam",
+    "Austin",
+    "Boston",
+    "Chicago",
+    "Eindhoven",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 113,
+   "seg_5_40": {
+    "n": 791,
+    "corr": 0.754,
+    "slope_obs_on_model": 0.672,
+    "rmse_pp": 0.69,
+    "rmse_zero_pp": 0.92
+   },
+   "seg_all9": {
+    "n": 1017,
+    "corr": 0.652,
+    "slope_obs_on_model": 0.56,
+    "rmse_pp": 0.94,
+    "rmse_zero_pp": 1.03
+   },
+   "within_halves_5_40": {
+    "n": 791,
+    "corr": 0.728,
+    "slope_obs_on_model": 0.653,
+    "rmse_pp": 0.75,
+    "rmse_zero_pp": 0.95
+   },
+   "mad_obs_vs_model_pp": 0.99,
+   "mad_obs_vs_model_plus_common_pp": 0.66,
+   "mad_obs_vs_even_pp": 1.04,
+   "mad_obs_vs_typical_steady_pp": 0.75
+  },
+  "corrected:class_c": {
+   "courses": [
+    "Berlin",
+    "Copenhagen",
+    "Dubai",
+    "Frankfurt",
+    "Gold Coast",
+    "Hamburg",
+    "Helsinki",
+    "Stockholm",
+    "Sydney"
+   ],
+   "cells": 80,
+   "seg_5_40": {
+    "n": 560,
+    "corr": 0.242,
+    "slope_obs_on_model": 0.287,
+    "rmse_pp": 0.94,
+    "rmse_zero_pp": 0.83
+   },
+   "seg_all9": {
+    "n": 720,
+    "corr": 0.234,
+    "slope_obs_on_model": 0.311,
+    "rmse_pp": 1.12,
+    "rmse_zero_pp": 1.01
+   },
+   "within_halves_5_40": {
+    "n": 560,
+    "corr": 0.248,
+    "slope_obs_on_model": 0.3,
+    "rmse_pp": 0.95,
+    "rmse_zero_pp": 0.84
+   },
+   "mad_obs_vs_model_pp": 1.1,
+   "mad_obs_vs_model_plus_common_pp": 0.71,
+   "mad_obs_vs_even_pp": 1.03,
+   "mad_obs_vs_typical_steady_pp": 0.64
+  },
+  "corrected:class_b": {
+   "courses": [
+    "Amsterdam",
+    "Eindhoven",
+    "London",
+    "Madrid",
+    "New York",
+    "Oslo",
+    "Rotterdam",
+    "Valencia",
+    "Warsaw"
+   ],
+   "cells": 85,
+   "seg_5_40": {
+    "n": 595,
+    "corr": 0.726,
+    "slope_obs_on_model": 0.608,
+    "rmse_pp": 0.71,
+    "rmse_zero_pp": 0.85
+   },
+   "seg_all9": {
+    "n": 765,
+    "corr": 0.625,
+    "slope_obs_on_model": 0.528,
+    "rmse_pp": 0.95,
+    "rmse_zero_pp": 0.99
+   },
+   "within_halves_5_40": {
+    "n": 595,
+    "corr": 0.696,
+    "slope_obs_on_model": 0.595,
+    "rmse_pp": 0.76,
+    "rmse_zero_pp": 0.88
+   },
+   "mad_obs_vs_model_pp": 0.94,
+   "mad_obs_vs_model_plus_common_pp": 0.67,
+   "mad_obs_vs_even_pp": 1.01,
+   "mad_obs_vs_typical_steady_pp": 0.71
+  }
+ },
+ "calibration": {
+  "raw": {
+   "slope_5_40_ci90": [
+    0.392,
+    0.587,
+    0.723
+   ],
+   "slope_within_halves_ci90": [
+    0.377,
+    0.567,
+    0.689
+   ]
+  },
+  "corrected": {
+   "slope_5_40_ci90": [
+    0.58,
+    0.668,
+    0.791
+   ],
+   "slope_within_halves_ci90": [
+    0.557,
+    0.651,
+    0.76
+   ]
+  }
+ },
+ "per_course": {
+  "Amsterdam": {
+   "corrected": {
+    "cls": "b",
+    "goals": 10,
+    "goal_range": [
+     180,
+     315
+    ],
+    "corr_terrain_dev_5_40": 0.249,
+    "corr_shape_9": -0.218,
+    "corr_shape_plus_common_9": 0.846,
+    "mad_pp": 0.95,
+    "mad_plus_common_pp": 0.45,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.46,
+    "obs_mean": [
+     1.005,
+     0.99,
+     0.993,
+     1.001,
+     0.991,
+     0.998,
+     1.015,
+     1.011,
+     0.992
+    ],
+    "model": [
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.001,
+     0.999,
+     1.003
+    ],
+    "model_plus_common": [
+     1.003,
+     0.998,
+     0.991,
+     0.995,
+     0.994,
+     1.003,
+     1.011,
+     1.012,
+     0.985
+    ],
+    "diff_pp": [
+     0.2,
+     -0.8,
+     0.1,
+     0.6,
+     -0.3,
+     -0.5,
+     0.4,
+     -0.1,
+     0.7
+    ],
+    "obs_qmed": 1.0063,
+    "model_halves": 1.0004
+   },
+   "raw": {
+    "cls": "b",
+    "goals": 10,
+    "goal_range": [
+     180,
+     315
+    ],
+    "corr_terrain_dev_5_40": 0.074,
+    "corr_shape_9": -0.226,
+    "corr_shape_plus_common_9": 0.79,
+    "mad_pp": 0.98,
+    "mad_plus_common_pp": 0.52,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.46,
+    "obs_mean": [
+     1.005,
+     0.99,
+     0.993,
+     1.001,
+     0.991,
+     0.998,
+     1.015,
+     1.011,
+     0.992
+    ],
+    "model": [
+     0.999,
+     1.001,
+     1.0,
+     0.998,
+     1.001,
+     1.0,
+     1.002,
+     0.999,
+     1.001
+    ],
+    "model_plus_common": [
+     1.001,
+     1.0,
+     0.991,
+     0.994,
+     0.997,
+     1.0,
+     1.013,
+     1.011,
+     0.983
+    ],
+    "diff_pp": [
+     0.4,
+     -0.9,
+     0.1,
+     0.7,
+     -0.6,
+     -0.3,
+     0.2,
+     -0.0,
+     0.9
+    ],
+    "obs_qmed": 1.0063,
+    "model_halves": 1.0011
+   }
+  },
+  "Austin": {
+   "corrected": {
+    "cls": "a",
+    "goals": 6,
+    "goal_range": [
+     210,
+     285
+    ],
+    "corr_terrain_dev_5_40": 0.925,
+    "corr_shape_9": 0.817,
+    "corr_shape_plus_common_9": 0.918,
+    "mad_pp": 1.11,
+    "mad_plus_common_pp": 0.75,
+    "mad_even_pp": 0.94,
+    "mad_typical_pp": 1.13,
+    "obs_mean": [
+     1.017,
+     0.971,
+     1.005,
+     0.997,
+     1.001,
+     0.996,
+     0.998,
+     1.012,
+     1.008
+    ],
+    "model": [
+     1.033,
+     0.964,
+     1.01,
+     1.006,
+     1.011,
+     0.995,
+     0.975,
+     0.997,
+     1.019
+    ],
+    "model_plus_common": [
+     1.04,
+     0.961,
+     1.0,
+     1.001,
+     1.004,
+     0.996,
+     0.985,
+     1.012,
+     1.002
+    ],
+    "diff_pp": [
+     -2.3,
+     1.0,
+     0.4,
+     -0.3,
+     -0.3,
+     -0.1,
+     1.3,
+     0.0,
+     0.6
+    ],
+    "obs_qmed": 1.0049,
+    "model_halves": 0.9939
+   },
+   "raw": {
+    "cls": "a",
+    "goals": 6,
+    "goal_range": [
+     210,
+     285
+    ],
+    "corr_terrain_dev_5_40": 0.925,
+    "corr_shape_9": 0.817,
+    "corr_shape_plus_common_9": 0.917,
+    "mad_pp": 1.11,
+    "mad_plus_common_pp": 0.77,
+    "mad_even_pp": 0.94,
+    "mad_typical_pp": 1.13,
+    "obs_mean": [
+     1.017,
+     0.971,
+     1.005,
+     0.997,
+     1.001,
+     0.996,
+     0.998,
+     1.012,
+     1.008
+    ],
+    "model": [
+     1.033,
+     0.964,
+     1.01,
+     1.006,
+     1.011,
+     0.995,
+     0.975,
+     0.997,
+     1.019
+    ],
+    "model_plus_common": [
+     1.04,
+     0.961,
+     1.0,
+     1.001,
+     1.005,
+     0.995,
+     0.985,
+     1.011,
+     1.003
+    ],
+    "diff_pp": [
+     -2.3,
+     1.0,
+     0.5,
+     -0.4,
+     -0.5,
+     0.1,
+     1.2,
+     0.1,
+     0.5
+    ],
+    "obs_qmed": 1.0049,
+    "model_halves": 0.9939
+   }
+  },
+  "Berlin": {
+   "corrected": {
+    "cls": "c",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.751,
+    "corr_shape_9": 0.602,
+    "corr_shape_plus_common_9": 0.913,
+    "mad_pp": 0.77,
+    "mad_plus_common_pp": 0.43,
+    "mad_even_pp": 0.83,
+    "mad_typical_pp": 0.53,
+    "obs_mean": [
+     0.993,
+     1.003,
+     0.994,
+     0.997,
+     1.0,
+     1.006,
+     0.999,
+     1.017,
+     0.978
+    ],
+    "model": [
+     1.0,
+     1.004,
+     0.998,
+     0.999,
+     1.006,
+     1.0,
+     0.995,
+     1.002,
+     0.993
+    ],
+    "model_plus_common": [
+     1.001,
+     1.002,
+     0.989,
+     0.995,
+     1.001,
+     1.003,
+     1.006,
+     1.014,
+     0.972
+    ],
+    "diff_pp": [
+     -0.8,
+     0.1,
+     0.4,
+     0.1,
+     -0.1,
+     0.4,
+     -0.7,
+     0.2,
+     0.7
+    ],
+    "obs_qmed": 1.0074,
+    "model_halves": 1.0002
+   },
+   "raw": {
+    "cls": "c",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.639,
+    "corr_shape_9": 0.602,
+    "corr_shape_plus_common_9": 0.891,
+    "mad_pp": 0.77,
+    "mad_plus_common_pp": 0.47,
+    "mad_even_pp": 0.83,
+    "mad_typical_pp": 0.53,
+    "obs_mean": [
+     0.993,
+     1.003,
+     0.994,
+     0.997,
+     1.0,
+     1.006,
+     0.999,
+     1.017,
+     0.978
+    ],
+    "model": [
+     1.0,
+     1.004,
+     0.998,
+     0.999,
+     1.006,
+     1.0,
+     0.995,
+     1.002,
+     0.993
+    ],
+    "model_plus_common": [
+     1.001,
+     1.002,
+     0.989,
+     0.996,
+     1.003,
+     1.001,
+     1.007,
+     1.013,
+     0.972
+    ],
+    "diff_pp": [
+     -0.8,
+     0.1,
+     0.5,
+     0.1,
+     -0.3,
+     0.6,
+     -0.7,
+     0.3,
+     0.6
+    ],
+    "obs_qmed": 1.0074,
+    "model_halves": 1.0002
+   }
+  },
+  "Boston": {
+   "corrected": {
+    "cls": "a",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.969,
+    "corr_shape_9": 0.449,
+    "corr_shape_plus_common_9": 0.823,
+    "mad_pp": 1.23,
+    "mad_plus_common_pp": 0.67,
+    "mad_even_pp": 1.31,
+    "mad_typical_pp": 1.03,
+    "obs_mean": [
+     0.993,
+     0.993,
+     0.993,
+     1.002,
+     0.996,
+     1.021,
+     1.024,
+     0.993,
+     0.967
+    ],
+    "model": [
+     0.973,
+     0.997,
+     1.004,
+     1.008,
+     1.001,
+     1.015,
+     1.015,
+     0.985,
+     1.005
+    ],
+    "model_plus_common": [
+     0.973,
+     0.995,
+     0.996,
+     1.005,
+     0.995,
+     1.018,
+     1.026,
+     0.998,
+     0.985
+    ],
+    "diff_pp": [
+     2.0,
+     -0.2,
+     -0.3,
+     -0.3,
+     0.1,
+     0.3,
+     -0.3,
+     -0.5,
+     -1.7
+    ],
+    "obs_qmed": 1.0106,
+    "model_halves": 1.0088
+   },
+   "raw": {
+    "cls": "a",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.964,
+    "corr_shape_9": 0.449,
+    "corr_shape_plus_common_9": 0.814,
+    "mad_pp": 1.23,
+    "mad_plus_common_pp": 0.69,
+    "mad_even_pp": 1.31,
+    "mad_typical_pp": 1.03,
+    "obs_mean": [
+     0.993,
+     0.993,
+     0.993,
+     1.002,
+     0.996,
+     1.021,
+     1.024,
+     0.993,
+     0.967
+    ],
+    "model": [
+     0.973,
+     0.997,
+     1.004,
+     1.008,
+     1.001,
+     1.015,
+     1.015,
+     0.985,
+     1.005
+    ],
+    "model_plus_common": [
+     0.973,
+     0.995,
+     0.996,
+     1.005,
+     0.997,
+     1.016,
+     1.027,
+     0.997,
+     0.985
+    ],
+    "diff_pp": [
+     2.0,
+     -0.2,
+     -0.3,
+     -0.4,
+     -0.1,
+     0.5,
+     -0.3,
+     -0.4,
+     -1.8
+    ],
+    "obs_qmed": 1.0106,
+    "model_halves": 1.0088
+   }
+  },
+  "Chicago": {
+   "corrected": {
+    "cls": "a",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.087,
+    "corr_shape_9": -0.598,
+    "corr_shape_plus_common_9": 0.903,
+    "mad_pp": 1.12,
+    "mad_plus_common_pp": 0.53,
+    "mad_even_pp": 1.07,
+    "mad_typical_pp": 0.52,
+    "obs_mean": [
+     1.002,
+     1.003,
+     0.984,
+     0.996,
+     0.996,
+     0.998,
+     1.009,
+     1.023,
+     0.978
+    ],
+    "model": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "model_plus_common": [
+     1.0,
+     0.998,
+     0.994,
+     0.995,
+     0.995,
+     1.004,
+     1.011,
+     1.011,
+     0.983
+    ],
+    "diff_pp": [
+     0.2,
+     0.5,
+     -1.0,
+     0.1,
+     0.1,
+     -0.6,
+     -0.2,
+     1.1,
+     -0.5
+    ],
+    "obs_qmed": 1.0074,
+    "model_halves": 1.0009
+   },
+   "raw": {
+    "cls": "a",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.073,
+    "corr_shape_9": -0.598,
+    "corr_shape_plus_common_9": 0.915,
+    "mad_pp": 1.12,
+    "mad_plus_common_pp": 0.52,
+    "mad_even_pp": 1.07,
+    "mad_typical_pp": 0.52,
+    "obs_mean": [
+     1.002,
+     1.003,
+     0.984,
+     0.996,
+     0.996,
+     0.998,
+     1.009,
+     1.023,
+     0.978
+    ],
+    "model": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "model_plus_common": [
+     1.0,
+     0.998,
+     0.993,
+     0.996,
+     0.997,
+     1.002,
+     1.011,
+     1.01,
+     0.984
+    ],
+    "diff_pp": [
+     0.2,
+     0.5,
+     -1.0,
+     -0.0,
+     -0.1,
+     -0.4,
+     -0.2,
+     1.2,
+     -0.6
+    ],
+    "obs_qmed": 1.0074,
+    "model_halves": 1.0009
+   }
+  },
+  "Copenhagen": {
+   "corrected": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.105,
+    "corr_shape_9": -0.668,
+    "corr_shape_plus_common_9": 0.769,
+    "mad_pp": 0.78,
+    "mad_plus_common_pp": 0.45,
+    "mad_even_pp": 0.6,
+    "mad_typical_pp": 0.41,
+    "obs_mean": [
+     0.997,
+     0.998,
+     0.995,
+     0.999,
+     0.996,
+     1.002,
+     1.005,
+     1.015,
+     0.985
+    ],
+    "model": [
+     0.997,
+     1.0,
+     1.0,
+     1.003,
+     1.001,
+     0.996,
+     1.002,
+     0.998,
+     1.009
+    ],
+    "model_plus_common": [
+     1.002,
+     0.997,
+     0.991,
+     0.998,
+     0.994,
+     0.997,
+     1.012,
+     1.011,
+     0.994
+    ],
+    "diff_pp": [
+     -0.5,
+     0.1,
+     0.4,
+     0.1,
+     0.2,
+     0.5,
+     -0.7,
+     0.3,
+     -0.9
+    ],
+    "obs_qmed": 1.006,
+    "model_halves": 1.0
+   },
+   "raw": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.067,
+    "corr_shape_9": -0.668,
+    "corr_shape_plus_common_9": 0.719,
+    "mad_pp": 0.78,
+    "mad_plus_common_pp": 0.48,
+    "mad_even_pp": 0.6,
+    "mad_typical_pp": 0.41,
+    "obs_mean": [
+     0.997,
+     0.998,
+     0.995,
+     0.999,
+     0.996,
+     1.002,
+     1.005,
+     1.015,
+     0.985
+    ],
+    "model": [
+     0.997,
+     1.0,
+     1.0,
+     1.003,
+     1.001,
+     0.996,
+     1.002,
+     0.998,
+     1.009
+    ],
+    "model_plus_common": [
+     1.002,
+     0.997,
+     0.991,
+     0.998,
+     0.996,
+     0.995,
+     1.012,
+     1.01,
+     0.995
+    ],
+    "diff_pp": [
+     -0.6,
+     0.1,
+     0.4,
+     0.0,
+     0.1,
+     0.6,
+     -0.8,
+     0.4,
+     -1.0
+    ],
+    "obs_qmed": 1.006,
+    "model_halves": 1.0
+   }
+  },
+  "Dubai": {
+   "corrected": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     180,
+     270
+    ],
+    "corr_terrain_dev_5_40": 0.058,
+    "corr_shape_9": 0.222,
+    "corr_shape_plus_common_9": 0.877,
+    "mad_pp": 0.85,
+    "mad_plus_common_pp": 0.43,
+    "mad_even_pp": 0.88,
+    "mad_typical_pp": 0.25,
+    "obs_mean": [
+     1.01,
+     0.996,
+     0.991,
+     0.991,
+     0.992,
+     0.996,
+     1.007,
+     1.02,
+     0.994
+    ],
+    "model": [
+     1.002,
+     1.001,
+     0.997,
+     1.002,
+     1.0,
+     1.0,
+     1.002,
+     0.999,
+     0.994
+    ],
+    "model_plus_common": [
+     1.008,
+     0.999,
+     0.988,
+     0.996,
+     0.991,
+     1.0,
+     1.011,
+     1.014,
+     0.985
+    ],
+    "diff_pp": [
+     0.2,
+     -0.3,
+     0.3,
+     -0.5,
+     0.1,
+     -0.3,
+     -0.5,
+     0.6,
+     1.0
+    ],
+    "obs_qmed": 1.0069,
+    "model_halves": 0.9991
+   },
+   "raw": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     180,
+     270
+    ],
+    "corr_terrain_dev_5_40": -0.021,
+    "corr_shape_9": 0.222,
+    "corr_shape_plus_common_9": 0.871,
+    "mad_pp": 0.85,
+    "mad_plus_common_pp": 0.42,
+    "mad_even_pp": 0.88,
+    "mad_typical_pp": 0.25,
+    "obs_mean": [
+     1.01,
+     0.996,
+     0.991,
+     0.991,
+     0.992,
+     0.996,
+     1.007,
+     1.02,
+     0.994
+    ],
+    "model": [
+     1.002,
+     1.001,
+     0.997,
+     1.002,
+     1.0,
+     1.0,
+     1.002,
+     0.999,
+     0.994
+    ],
+    "model_plus_common": [
+     1.008,
+     0.999,
+     0.988,
+     0.996,
+     0.993,
+     0.998,
+     1.012,
+     1.013,
+     0.985
+    ],
+    "diff_pp": [
+     0.2,
+     -0.3,
+     0.4,
+     -0.5,
+     -0.1,
+     -0.2,
+     -0.5,
+     0.7,
+     0.9
+    ],
+    "obs_qmed": 1.0069,
+    "model_halves": 0.9991
+   }
+  },
+  "Eindhoven": {
+   "corrected": {
+    "cls": "b",
+    "goals": 8,
+    "goal_range": [
+     180,
+     285
+    ],
+    "corr_terrain_dev_5_40": 0.48,
+    "corr_shape_9": 0.469,
+    "corr_shape_plus_common_9": 0.858,
+    "mad_pp": 0.64,
+    "mad_plus_common_pp": 0.38,
+    "mad_even_pp": 0.67,
+    "mad_typical_pp": 0.48,
+    "obs_mean": [
+     0.995,
+     1.001,
+     0.999,
+     0.994,
+     0.997,
+     1.0,
+     1.009,
+     1.013,
+     0.983
+    ],
+    "model": [
+     0.998,
+     1.001,
+     1.001,
+     1.001,
+     1.0,
+     0.999,
+     1.002,
+     0.999,
+     0.997
+    ],
+    "model_plus_common": [
+     1.005,
+     0.998,
+     0.992,
+     0.995,
+     0.992,
+     0.999,
+     1.011,
+     1.014,
+     0.985
+    ],
+    "diff_pp": [
+     -1.0,
+     0.3,
+     0.7,
+     -0.2,
+     0.5,
+     0.1,
+     -0.2,
+     -0.1,
+     -0.2
+    ],
+    "obs_qmed": 1.0067,
+    "model_halves": 0.9994
+   },
+   "raw": {
+    "cls": "b",
+    "goals": 8,
+    "goal_range": [
+     180,
+     285
+    ],
+    "corr_terrain_dev_5_40": 0.154,
+    "corr_shape_9": -0.267,
+    "corr_shape_plus_common_9": 0.748,
+    "mad_pp": 0.68,
+    "mad_plus_common_pp": 0.47,
+    "mad_even_pp": 0.67,
+    "mad_typical_pp": 0.48,
+    "obs_mean": [
+     0.995,
+     1.001,
+     0.999,
+     0.994,
+     0.997,
+     1.0,
+     1.009,
+     1.013,
+     0.983
+    ],
+    "model": [
+     0.998,
+     1.001,
+     0.999,
+     1.003,
+     0.998,
+     1.001,
+     1.0,
+     0.999,
+     1.002
+    ],
+    "model_plus_common": [
+     1.004,
+     0.999,
+     0.989,
+     0.998,
+     0.991,
+     1.0,
+     1.01,
+     1.013,
+     0.991
+    ],
+    "diff_pp": [
+     -0.9,
+     0.2,
+     1.0,
+     -0.5,
+     0.6,
+     0.0,
+     -0.1,
+     -0.0,
+     -0.8
+    ],
+    "obs_qmed": 1.0067,
+    "model_halves": 0.9997
+   }
+  },
+  "Frankfurt": {
+   "corrected": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.695,
+    "corr_shape_9": 0.853,
+    "corr_shape_plus_common_9": 0.949,
+    "mad_pp": 0.64,
+    "mad_plus_common_pp": 0.45,
+    "mad_even_pp": 0.89,
+    "mad_typical_pp": 0.35,
+    "obs_mean": [
+     1.004,
+     1.001,
+     0.983,
+     0.996,
+     0.996,
+     1.0,
+     1.012,
+     1.014,
+     0.985
+    ],
+    "model": [
+     1.006,
+     1.003,
+     0.993,
+     0.998,
+     1.0,
+     0.999,
+     1.0,
+     1.007,
+     0.988
+    ],
+    "model_plus_common": [
+     1.011,
+     1.0,
+     0.984,
+     0.993,
+     0.993,
+     1.0,
+     1.01,
+     1.021,
+     0.972
+    ],
+    "diff_pp": [
+     -0.7,
+     0.1,
+     -0.2,
+     0.4,
+     0.3,
+     0.0,
+     0.2,
+     -0.7,
+     1.2
+    ],
+    "obs_qmed": 1.0086,
+    "model_halves": 1.0003
+   },
+   "raw": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.755,
+    "corr_shape_9": 0.853,
+    "corr_shape_plus_common_9": 0.955,
+    "mad_pp": 0.64,
+    "mad_plus_common_pp": 0.41,
+    "mad_even_pp": 0.89,
+    "mad_typical_pp": 0.35,
+    "obs_mean": [
+     1.004,
+     1.001,
+     0.983,
+     0.996,
+     0.996,
+     1.0,
+     1.012,
+     1.014,
+     0.985
+    ],
+    "model": [
+     1.006,
+     1.003,
+     0.993,
+     0.998,
+     1.0,
+     0.999,
+     1.0,
+     1.007,
+     0.988
+    ],
+    "model_plus_common": [
+     1.011,
+     1.0,
+     0.984,
+     0.993,
+     0.994,
+     0.998,
+     1.011,
+     1.02,
+     0.973
+    ],
+    "diff_pp": [
+     -0.7,
+     0.1,
+     -0.1,
+     0.3,
+     0.1,
+     0.2,
+     0.1,
+     -0.6,
+     1.2
+    ],
+    "obs_qmed": 1.0086,
+    "model_halves": 1.0003
+   }
+  },
+  "Gold Coast": {
+   "corrected": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.4,
+    "corr_shape_9": 0.349,
+    "corr_shape_plus_common_9": 0.892,
+    "mad_pp": 1.14,
+    "mad_plus_common_pp": 0.56,
+    "mad_even_pp": 1.19,
+    "mad_typical_pp": 0.74,
+    "obs_mean": [
+     0.999,
+     1.0,
+     0.991,
+     0.992,
+     0.989,
+     0.989,
+     1.013,
+     1.034,
+     0.982
+    ],
+    "model": [
+     0.998,
+     1.004,
+     1.0,
+     0.999,
+     1.002,
+     0.996,
+     1.001,
+     1.0,
+     0.998
+    ],
+    "model_plus_common": [
+     1.003,
+     1.002,
+     0.991,
+     0.994,
+     0.995,
+     0.997,
+     1.011,
+     1.013,
+     0.983
+    ],
+    "diff_pp": [
+     -0.4,
+     -0.1,
+     0.0,
+     -0.1,
+     -0.6,
+     -0.9,
+     0.1,
+     2.1,
+     -0.1
+    ],
+    "obs_qmed": 1.0094,
+    "model_halves": 0.9994
+   },
+   "raw": {
+    "cls": "c",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.33,
+    "corr_shape_9": 0.349,
+    "corr_shape_plus_common_9": 0.883,
+    "mad_pp": 1.14,
+    "mad_plus_common_pp": 0.57,
+    "mad_even_pp": 1.19,
+    "mad_typical_pp": 0.74,
+    "obs_mean": [
+     0.999,
+     1.0,
+     0.991,
+     0.992,
+     0.989,
+     0.989,
+     1.013,
+     1.034,
+     0.982
+    ],
+    "model": [
+     0.998,
+     1.004,
+     1.0,
+     0.999,
+     1.002,
+     0.996,
+     1.001,
+     1.0,
+     0.998
+    ],
+    "model_plus_common": [
+     1.003,
+     1.002,
+     0.991,
+     0.994,
+     0.997,
+     0.996,
+     1.012,
+     1.012,
+     0.983
+    ],
+    "diff_pp": [
+     -0.4,
+     -0.1,
+     0.1,
+     -0.2,
+     -0.8,
+     -0.7,
+     0.1,
+     2.2,
+     -0.1
+    ],
+    "obs_qmed": 1.0094,
+    "model_halves": 0.9994
+   }
+  },
+  "Hamburg": {
+   "corrected": {
+    "cls": "c",
+    "goals": 10,
+    "goal_range": [
+     180,
+     315
+    ],
+    "corr_terrain_dev_5_40": 0.326,
+    "corr_shape_9": 0.165,
+    "corr_shape_plus_common_9": 0.881,
+    "mad_pp": 0.85,
+    "mad_plus_common_pp": 0.43,
+    "mad_even_pp": 0.76,
+    "mad_typical_pp": 0.4,
+    "obs_mean": [
+     1.006,
+     0.995,
+     0.988,
+     0.995,
+     1.0,
+     1.004,
+     1.002,
+     1.014,
+     0.992
+    ],
+    "model": [
+     1.011,
+     0.988,
+     0.998,
+     0.996,
+     1.006,
+     0.998,
+     0.995,
+     1.002,
+     1.012
+    ],
+    "model_plus_common": [
+     1.014,
+     0.985,
+     0.99,
+     0.992,
+     1.0,
+     1.0,
+     1.006,
+     1.015,
+     0.994
+    ],
+    "diff_pp": [
+     -0.8,
+     0.9,
+     -0.2,
+     0.3,
+     0.0,
+     0.4,
+     -0.4,
+     -0.1,
+     -0.2
+    ],
+    "obs_qmed": 1.0086,
+    "model_halves": 1.0029
+   },
+   "raw": {
+    "cls": "c",
+    "goals": 10,
+    "goal_range": [
+     180,
+     315
+    ],
+    "corr_terrain_dev_5_40": 0.275,
+    "corr_shape_9": 0.165,
+    "corr_shape_plus_common_9": 0.859,
+    "mad_pp": 0.85,
+    "mad_plus_common_pp": 0.46,
+    "mad_even_pp": 0.76,
+    "mad_typical_pp": 0.4,
+    "obs_mean": [
+     1.006,
+     0.995,
+     0.988,
+     0.995,
+     1.0,
+     1.004,
+     1.002,
+     1.014,
+     0.992
+    ],
+    "model": [
+     1.011,
+     0.988,
+     0.998,
+     0.996,
+     1.006,
+     0.998,
+     0.995,
+     1.002,
+     1.012
+    ],
+    "model_plus_common": [
+     1.014,
+     0.985,
+     0.99,
+     0.993,
+     1.001,
+     0.998,
+     1.007,
+     1.014,
+     0.995
+    ],
+    "diff_pp": [
+     -0.8,
+     0.9,
+     -0.1,
+     0.2,
+     -0.1,
+     0.6,
+     -0.5,
+     -0.0,
+     -0.3
+    ],
+    "obs_qmed": 1.0086,
+    "model_halves": 1.0029
+   }
+  },
+  "Helsinki": {
+   "corrected": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     210,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.551,
+    "corr_shape_9": 0.163,
+    "corr_shape_plus_common_9": 0.603,
+    "mad_pp": 2.19,
+    "mad_plus_common_pp": 1.56,
+    "mad_even_pp": 2.08,
+    "mad_typical_pp": 1.71,
+    "obs_mean": [
+     1.061,
+     0.989,
+     0.965,
+     0.977,
+     0.993,
+     0.996,
+     1.026,
+     1.0,
+     0.985
+    ],
+    "model": [
+     1.001,
+     1.001,
+     0.997,
+     1.001,
+     1.005,
+     0.99,
+     1.008,
+     0.992,
+     1.007
+    ],
+    "model_plus_common": [
+     1.003,
+     0.999,
+     0.989,
+     0.998,
+     0.999,
+     0.992,
+     1.019,
+     1.006,
+     0.988
+    ],
+    "diff_pp": [
+     5.8,
+     -1.0,
+     -2.4,
+     -2.1,
+     -0.5,
+     0.4,
+     0.7,
+     -0.6,
+     -0.3
+    ],
+    "obs_qmed": 1.0071,
+    "model_halves": 0.9998
+   },
+   "raw": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     210,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.531,
+    "corr_shape_9": 0.163,
+    "corr_shape_plus_common_9": 0.596,
+    "mad_pp": 2.19,
+    "mad_plus_common_pp": 1.58,
+    "mad_even_pp": 2.08,
+    "mad_typical_pp": 1.71,
+    "obs_mean": [
+     1.061,
+     0.989,
+     0.965,
+     0.977,
+     0.993,
+     0.996,
+     1.026,
+     1.0,
+     0.985
+    ],
+    "model": [
+     1.001,
+     1.001,
+     0.997,
+     1.001,
+     1.005,
+     0.99,
+     1.008,
+     0.992,
+     1.007
+    ],
+    "model_plus_common": [
+     1.003,
+     0.999,
+     0.989,
+     0.998,
+     1.0,
+     0.991,
+     1.019,
+     1.006,
+     0.989
+    ],
+    "diff_pp": [
+     5.8,
+     -1.0,
+     -2.4,
+     -2.2,
+     -0.7,
+     0.5,
+     0.6,
+     -0.5,
+     -0.4
+    ],
+    "obs_qmed": 1.0071,
+    "model_halves": 0.9998
+   }
+  },
+  "London": {
+   "corrected": {
+    "cls": "b",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.248,
+    "corr_shape_9": 0.477,
+    "corr_shape_plus_common_9": 0.656,
+    "mad_pp": 0.83,
+    "mad_plus_common_pp": 0.78,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.85,
+    "obs_mean": [
+     0.981,
+     0.995,
+     1.009,
+     0.995,
+     0.998,
+     1.007,
+     1.017,
+     1.004,
+     0.988
+    ],
+    "model": [
+     0.991,
+     0.997,
+     1.001,
+     1.006,
+     0.997,
+     1.007,
+     1.002,
+     0.999,
+     1.003
+    ],
+    "model_plus_common": [
+     0.993,
+     0.995,
+     0.992,
+     1.003,
+     0.991,
+     1.01,
+     1.012,
+     1.012,
+     0.981
+    ],
+    "diff_pp": [
+     -1.1,
+     -0.0,
+     1.7,
+     -0.9,
+     0.7,
+     -0.4,
+     0.5,
+     -0.8,
+     0.7
+    ],
+    "obs_qmed": 1.0104,
+    "model_halves": 1.0026
+   },
+   "raw": {
+    "cls": "b",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.133,
+    "corr_shape_9": 0.489,
+    "corr_shape_plus_common_9": 0.651,
+    "mad_pp": 0.82,
+    "mad_plus_common_pp": 0.74,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.85,
+    "obs_mean": [
+     0.981,
+     0.995,
+     1.009,
+     0.995,
+     0.998,
+     1.007,
+     1.017,
+     1.004,
+     0.988
+    ],
+    "model": [
+     0.99,
+     0.997,
+     1.0,
+     1.0,
+     1.002,
+     1.01,
+     0.999,
+     1.001,
+     1.002
+    ],
+    "model_plus_common": [
+     0.992,
+     0.995,
+     0.991,
+     0.998,
+     0.999,
+     1.012,
+     1.009,
+     1.013,
+     0.98
+    ],
+    "diff_pp": [
+     -1.1,
+     -0.0,
+     1.8,
+     -0.3,
+     -0.1,
+     -0.5,
+     0.8,
+     -0.9,
+     0.7
+    ],
+    "obs_qmed": 1.0104,
+    "model_halves": 1.006
+   }
+  },
+  "Madrid": {
+   "corrected": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.875,
+    "corr_shape_9": 0.875,
+    "corr_shape_plus_common_9": 0.927,
+    "mad_pp": 1.14,
+    "mad_plus_common_pp": 1.08,
+    "mad_even_pp": 1.6,
+    "mad_typical_pp": 1.51,
+    "obs_mean": [
+     1.016,
+     0.974,
+     0.989,
+     1.001,
+     0.977,
+     1.011,
+     0.995,
+     1.029,
+     1.019
+    ],
+    "model": [
+     1.033,
+     0.977,
+     0.993,
+     0.987,
+     0.971,
+     1.023,
+     0.977,
+     1.021,
+     1.039
+    ],
+    "model_plus_common": [
+     1.039,
+     0.975,
+     0.984,
+     0.981,
+     0.963,
+     1.025,
+     0.987,
+     1.036,
+     1.025
+    ],
+    "diff_pp": [
+     -2.3,
+     -0.0,
+     0.4,
+     2.0,
+     1.3,
+     -1.3,
+     0.8,
+     -0.6,
+     -0.6
+    ],
+    "obs_qmed": 1.0115,
+    "model_halves": 1.0046
+   },
+   "raw": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.886,
+    "corr_shape_9": 0.875,
+    "corr_shape_plus_common_9": 0.9,
+    "mad_pp": 1.13,
+    "mad_plus_common_pp": 1.19,
+    "mad_even_pp": 1.6,
+    "mad_typical_pp": 1.51,
+    "obs_mean": [
+     1.016,
+     0.974,
+     0.989,
+     1.001,
+     0.977,
+     1.011,
+     0.995,
+     1.029,
+     1.019
+    ],
+    "model": [
+     1.044,
+     0.976,
+     0.99,
+     0.986,
+     0.969,
+     1.02,
+     0.977,
+     1.023,
+     1.033
+    ],
+    "model_plus_common": [
+     1.051,
+     0.973,
+     0.98,
+     0.981,
+     0.963,
+     1.02,
+     0.987,
+     1.036,
+     1.019
+    ],
+    "diff_pp": [
+     -3.5,
+     0.1,
+     0.8,
+     2.0,
+     1.4,
+     -0.9,
+     0.8,
+     -0.7,
+     0.0
+    ],
+    "obs_qmed": 1.0115,
+    "model_halves": 1.0018
+   }
+  },
+  "New York": {
+   "corrected": {
+    "cls": "b",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.792,
+    "corr_shape_9": 0.586,
+    "corr_shape_plus_common_9": 0.862,
+    "mad_pp": 0.95,
+    "mad_plus_common_pp": 0.67,
+    "mad_even_pp": 1.24,
+    "mad_typical_pp": 0.88,
+    "obs_mean": [
+     0.998,
+     0.987,
+     0.996,
+     1.001,
+     1.021,
+     0.988,
+     1.014,
+     1.009,
+     0.973
+    ],
+    "model": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "model_plus_common": [
+     1.001,
+     0.992,
+     0.989,
+     0.991,
+     1.018,
+     0.982,
+     1.012,
+     1.022,
+     0.983
+    ],
+    "diff_pp": [
+     -0.3,
+     -0.6,
+     0.6,
+     1.0,
+     0.2,
+     0.6,
+     0.1,
+     -1.3,
+     -1.0
+    ],
+    "obs_qmed": 1.0096,
+    "model_halves": 1.007
+   },
+   "raw": {
+    "cls": "b",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": -0.506,
+    "corr_shape_9": -0.121,
+    "corr_shape_plus_common_9": 0.437,
+    "mad_pp": 1.24,
+    "mad_plus_common_pp": 1.1,
+    "mad_even_pp": 1.24,
+    "mad_typical_pp": 0.88,
+    "obs_mean": [
+     0.998,
+     0.987,
+     0.996,
+     1.001,
+     1.021,
+     0.988,
+     1.014,
+     1.009,
+     0.973
+    ],
+    "model": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "model_plus_common": [
+     1.001,
+     0.995,
+     0.99,
+     0.992,
+     0.991,
+     1.004,
+     1.012,
+     1.022,
+     0.985
+    ],
+    "diff_pp": [
+     -0.3,
+     -0.8,
+     0.6,
+     0.8,
+     3.0,
+     -1.7,
+     0.1,
+     -1.3,
+     -1.2
+    ],
+    "obs_qmed": 1.0096,
+    "model_halves": 1.0052
+   }
+  },
+  "Oslo": {
+   "corrected": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.81,
+    "corr_shape_9": 0.716,
+    "corr_shape_plus_common_9": 0.703,
+    "mad_pp": 1.06,
+    "mad_plus_common_pp": 1.17,
+    "mad_even_pp": 1.1,
+    "mad_typical_pp": 0.99,
+    "obs_mean": [
+     1.017,
+     0.976,
+     0.996,
+     0.998,
+     0.999,
+     0.993,
+     0.999,
+     1.019,
+     1.007
+    ],
+    "model": [
+     1.031,
+     0.971,
+     0.999,
+     1.004,
+     1.016,
+     0.984,
+     0.996,
+     1.007,
+     0.984
+    ],
+    "model_plus_common": [
+     1.036,
+     0.968,
+     0.99,
+     0.999,
+     1.009,
+     0.984,
+     1.007,
+     1.021,
+     0.967
+    ],
+    "diff_pp": [
+     -1.9,
+     0.8,
+     0.7,
+     -0.1,
+     -1.0,
+     0.8,
+     -0.8,
+     -0.2,
+     4.0
+    ],
+    "obs_qmed": 1.0073,
+    "model_halves": 0.9979
+   },
+   "raw": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.829,
+    "corr_shape_9": 0.728,
+    "corr_shape_plus_common_9": 0.709,
+    "mad_pp": 1.03,
+    "mad_plus_common_pp": 1.2,
+    "mad_even_pp": 1.1,
+    "mad_typical_pp": 0.99,
+    "obs_mean": [
+     1.017,
+     0.976,
+     0.996,
+     0.998,
+     0.999,
+     0.993,
+     0.999,
+     1.019,
+     1.007
+    ],
+    "model": [
+     1.023,
+     0.97,
+     1.01,
+     1.001,
+     1.012,
+     0.98,
+     0.998,
+     1.013,
+     0.983
+    ],
+    "model_plus_common": [
+     1.029,
+     0.967,
+     1.001,
+     0.997,
+     1.007,
+     0.979,
+     1.009,
+     1.026,
+     0.967
+    ],
+    "diff_pp": [
+     -1.1,
+     0.9,
+     -0.5,
+     0.1,
+     -0.8,
+     1.4,
+     -1.0,
+     -0.8,
+     4.0
+    ],
+    "obs_qmed": 1.0073,
+    "model_halves": 0.9979
+   }
+  },
+  "Rotterdam": {
+   "corrected": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.557,
+    "corr_shape_9": 0.307,
+    "corr_shape_plus_common_9": 0.909,
+    "mad_pp": 0.67,
+    "mad_plus_common_pp": 0.37,
+    "mad_even_pp": 0.67,
+    "mad_typical_pp": 0.39,
+    "obs_mean": [
+     1.0,
+     0.992,
+     0.994,
+     0.996,
+     1.0,
+     0.999,
+     1.003,
+     1.021,
+     0.99
+    ],
+    "model": [
+     1.001,
+     0.997,
+     1.0,
+     1.0,
+     1.003,
+     0.999,
+     0.998,
+     1.002,
+     1.002
+    ],
+    "model_plus_common": [
+     1.005,
+     0.994,
+     0.991,
+     0.995,
+     0.996,
+     1.0,
+     1.008,
+     1.016,
+     0.987
+    ],
+    "diff_pp": [
+     -0.5,
+     -0.2,
+     0.3,
+     0.1,
+     0.4,
+     -0.1,
+     -0.5,
+     0.5,
+     0.3
+    ],
+    "obs_qmed": 1.0096,
+    "model_halves": 1.0014
+   },
+   "raw": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.661,
+    "corr_shape_9": -0.104,
+    "corr_shape_plus_common_9": 0.914,
+    "mad_pp": 0.79,
+    "mad_plus_common_pp": 0.35,
+    "mad_even_pp": 0.67,
+    "mad_typical_pp": 0.39,
+    "obs_mean": [
+     1.0,
+     0.992,
+     0.994,
+     0.996,
+     1.0,
+     0.999,
+     1.003,
+     1.021,
+     0.99
+    ],
+    "model": [
+     0.997,
+     0.996,
+     1.002,
+     0.999,
+     1.003,
+     0.999,
+     0.997,
+     1.003,
+     1.01
+    ],
+    "model_plus_common": [
+     1.002,
+     0.994,
+     0.992,
+     0.995,
+     0.997,
+     0.999,
+     1.008,
+     1.015,
+     0.996
+    ],
+    "diff_pp": [
+     -0.2,
+     -0.2,
+     0.2,
+     0.1,
+     0.3,
+     0.0,
+     -0.5,
+     0.5,
+     -0.7
+    ],
+    "obs_qmed": 1.0096,
+    "model_halves": 1.0028
+   }
+  },
+  "Stockholm": {
+   "corrected": {
+    "cls": "c",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.491,
+    "corr_shape_9": 0.385,
+    "corr_shape_plus_common_9": 0.81,
+    "mad_pp": 1.08,
+    "mad_plus_common_pp": 0.85,
+    "mad_even_pp": 1.07,
+    "mad_typical_pp": 0.72,
+    "obs_mean": [
+     1.002,
+     1.008,
+     0.987,
+     0.989,
+     1.004,
+     1.005,
+     1.007,
+     1.009,
+     0.973
+    ],
+    "model": [
+     0.99,
+     1.011,
+     0.991,
+     0.999,
+     1.012,
+     0.99,
+     1.0,
+     1.008,
+     0.997
+    ],
+    "model_plus_common": [
+     0.99,
+     1.009,
+     0.983,
+     0.996,
+     1.007,
+     0.992,
+     1.011,
+     1.022,
+     0.976
+    ],
+    "diff_pp": [
+     1.3,
+     -0.1,
+     0.4,
+     -0.8,
+     -0.3,
+     1.3,
+     -0.4,
+     -1.3,
+     -0.3
+    ],
+    "obs_qmed": 1.008,
+    "model_halves": 1.0045
+   },
+   "raw": {
+    "cls": "c",
+    "goals": 11,
+    "goal_range": [
+     180,
+     330
+    ],
+    "corr_terrain_dev_5_40": 0.461,
+    "corr_shape_9": 0.385,
+    "corr_shape_plus_common_9": 0.788,
+    "mad_pp": 1.08,
+    "mad_plus_common_pp": 0.89,
+    "mad_even_pp": 1.07,
+    "mad_typical_pp": 0.72,
+    "obs_mean": [
+     1.002,
+     1.008,
+     0.987,
+     0.989,
+     1.004,
+     1.005,
+     1.007,
+     1.009,
+     0.973
+    ],
+    "model": [
+     0.99,
+     1.011,
+     0.991,
+     0.999,
+     1.012,
+     0.99,
+     1.0,
+     1.008,
+     0.997
+    ],
+    "model_plus_common": [
+     0.99,
+     1.009,
+     0.982,
+     0.997,
+     1.009,
+     0.99,
+     1.011,
+     1.021,
+     0.977
+    ],
+    "diff_pp": [
+     1.3,
+     -0.1,
+     0.5,
+     -0.8,
+     -0.5,
+     1.5,
+     -0.4,
+     -1.2,
+     -0.4
+    ],
+    "obs_qmed": 1.008,
+    "model_halves": 1.0045
+   }
+  },
+  "Sydney": {
+   "corrected": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     180,
+     270
+    ],
+    "corr_terrain_dev_5_40": -0.336,
+    "corr_shape_9": -0.323,
+    "corr_shape_plus_common_9": 0.103,
+    "mad_pp": 2.15,
+    "mad_plus_common_pp": 1.66,
+    "mad_even_pp": 1.25,
+    "mad_typical_pp": 0.92,
+    "obs_mean": [
+     0.994,
+     1.003,
+     0.986,
+     0.998,
+     0.981,
+     0.998,
+     1.018,
+     1.029,
+     0.984
+    ],
+    "model": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "model_plus_common": [
+     0.979,
+     0.998,
+     1.029,
+     0.982,
+     0.991,
+     1.009,
+     1.008,
+     1.005,
+     0.998
+    ],
+    "diff_pp": [
+     1.5,
+     0.5,
+     -4.3,
+     1.6,
+     -1.1,
+     -1.1,
+     1.1,
+     2.4,
+     -1.4
+    ],
+    "obs_qmed": 1.0095,
+    "model_halves": 1.0001
+   },
+   "raw": {
+    "cls": "c",
+    "goals": 7,
+    "goal_range": [
+     180,
+     270
+    ],
+    "corr_terrain_dev_5_40": -0.363,
+    "corr_shape_9": -0.323,
+    "corr_shape_plus_common_9": 0.08,
+    "mad_pp": 2.15,
+    "mad_plus_common_pp": 1.66,
+    "mad_even_pp": 1.25,
+    "mad_typical_pp": 0.92,
+    "obs_mean": [
+     0.994,
+     1.003,
+     0.986,
+     0.998,
+     0.981,
+     0.998,
+     1.018,
+     1.029,
+     0.984
+    ],
+    "model": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "model_plus_common": [
+     0.98,
+     0.998,
+     1.029,
+     0.983,
+     0.993,
+     1.007,
+     1.008,
+     1.004,
+     0.998
+    ],
+    "diff_pp": [
+     1.5,
+     0.5,
+     -4.3,
+     1.5,
+     -1.2,
+     -1.0,
+     1.0,
+     2.5,
+     -1.4
+    ],
+    "obs_qmed": 1.0095,
+    "model_halves": 1.0001
+   }
+  },
+  "Valencia": {
+   "corrected": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.835,
+    "corr_shape_9": 0.495,
+    "corr_shape_plus_common_9": 0.967,
+    "mad_pp": 0.8,
+    "mad_plus_common_pp": 0.3,
+    "mad_even_pp": 0.85,
+    "mad_typical_pp": 0.42,
+    "obs_mean": [
+     1.004,
+     0.995,
+     0.995,
+     0.992,
+     0.997,
+     1.002,
+     1.015,
+     1.009,
+     0.979
+    ],
+    "model": [
+     0.999,
+     1.003,
+     1.001,
+     0.996,
+     1.004,
+     1.002,
+     1.008,
+     0.992,
+     0.99
+    ],
+    "model_plus_common": [
+     1.004,
+     1.001,
+     0.992,
+     0.991,
+     0.997,
+     1.003,
+     1.018,
+     1.006,
+     0.975
+    ],
+    "diff_pp": [
+     0.1,
+     -0.6,
+     0.2,
+     0.2,
+     -0.0,
+     -0.1,
+     -0.3,
+     0.3,
+     0.4
+    ],
+    "obs_qmed": 1.0079,
+    "model_halves": 1.0006
+   },
+   "raw": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.571,
+    "corr_shape_9": 0.577,
+    "corr_shape_plus_common_9": 0.91,
+    "mad_pp": 0.86,
+    "mad_plus_common_pp": 0.51,
+    "mad_even_pp": 0.85,
+    "mad_typical_pp": 0.42,
+    "obs_mean": [
+     1.004,
+     0.995,
+     0.995,
+     0.992,
+     0.997,
+     1.002,
+     1.015,
+     1.009,
+     0.979
+    ],
+    "model": [
+     0.997,
+     1.003,
+     1.004,
+     0.995,
+     1.003,
+     1.01,
+     1.001,
+     0.997,
+     0.978
+    ],
+    "model_plus_common": [
+     1.002,
+     1.0,
+     0.995,
+     0.99,
+     0.997,
+     1.011,
+     1.011,
+     1.01,
+     0.963
+    ],
+    "diff_pp": [
+     0.2,
+     -0.6,
+     -0.0,
+     0.2,
+     0.0,
+     -0.9,
+     0.4,
+     -0.1,
+     1.6
+    ],
+    "obs_qmed": 1.0079,
+    "model_halves": 1.0008
+   }
+  },
+  "Warsaw": {
+   "corrected": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.211,
+    "corr_shape_9": -0.446,
+    "corr_shape_plus_common_9": 0.5,
+    "mad_pp": 1.39,
+    "mad_plus_common_pp": 0.77,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.38,
+    "obs_mean": [
+     1.006,
+     0.998,
+     0.991,
+     0.995,
+     0.991,
+     1.001,
+     1.012,
+     1.016,
+     0.976
+    ],
+    "model": [
+     0.983,
+     1.001,
+     1.0,
+     1.013,
+     0.999,
+     1.001,
+     0.995,
+     1.004,
+     1.01
+    ],
+    "model_plus_common": [
+     0.986,
+     0.999,
+     0.991,
+     1.009,
+     0.993,
+     1.002,
+     1.005,
+     1.018,
+     0.996
+    ],
+    "diff_pp": [
+     1.9,
+     -0.0,
+     0.0,
+     -1.4,
+     -0.1,
+     -0.1,
+     0.7,
+     -0.2,
+     -1.9
+    ],
+    "obs_qmed": 1.0056,
+    "model_halves": 1.0015
+   },
+   "raw": {
+    "cls": "b",
+    "goals": 9,
+    "goal_range": [
+     180,
+     300
+    ],
+    "corr_terrain_dev_5_40": 0.092,
+    "corr_shape_9": -0.248,
+    "corr_shape_plus_common_9": 0.666,
+    "mad_pp": 1.25,
+    "mad_plus_common_pp": 0.7,
+    "mad_even_pp": 0.95,
+    "mad_typical_pp": 0.38,
+    "obs_mean": [
+     1.006,
+     0.998,
+     0.991,
+     0.995,
+     0.991,
+     1.001,
+     1.012,
+     1.016,
+     0.976
+    ],
+    "model": [
+     0.986,
+     1.0,
+     0.999,
+     1.013,
+     1.001,
+     0.999,
+     0.996,
+     1.005,
+     1.004
+    ],
+    "model_plus_common": [
+     0.99,
+     0.997,
+     0.99,
+     1.009,
+     0.995,
+     0.998,
+     1.006,
+     1.019,
+     0.99
+    ],
+    "diff_pp": [
+     1.6,
+     0.1,
+     0.2,
+     -1.4,
+     -0.4,
+     0.3,
+     0.5,
+     -0.2,
+     -1.4
+    ],
+    "obs_qmed": 1.0056,
+    "model_halves": 1.0012
+   }
+  }
+ },
+ "common_pattern_obs_minus_model": {
+  "3:00:00": {
+   "courses": 11,
+   "obs_minus_model_mean_pp": [
+    0.2,
+    -0.39,
+    -0.48,
+    -0.48,
+    -0.61,
+    -0.19,
+    0.59,
+    1.27,
+    0.21
+   ]
+  },
+  "4:00:00": {
+   "courses": 12,
+   "obs_minus_model_mean_pp": [
+    0.44,
+    -0.31,
+    -0.61,
+    -0.55,
+    -0.69,
+    -0.12,
+    1.06,
+    1.33,
+    -1.27
+   ]
+  },
+  "5:15:00": {
+   "courses": 5,
+   "obs_minus_model_mean_pp": [
+    -1.16,
+    -0.28,
+    -0.45,
+    0.58,
+    0.21,
+    0.8,
+    1.86,
+    0.45,
+    -4.59
+   ]
+  },
+  "6:00:00": {
+   "courses": 3,
+   "obs_minus_model_mean_pp": [
+    -3.46,
+    0.43,
+    -0.43,
+    1.59,
+    0.98,
+    0.82,
+    1.96,
+    0.38,
+    -5.16
+   ]
+  }
+ },
+ "grade_scale_scan": {
+  "0.0": {
+   "mean_abs_terrain_error_pp": 0.645,
+   "within_halves_pp": 0.664
+  },
+  "0.25": {
+   "mean_abs_terrain_error_pp": 0.521,
+   "within_halves_pp": 0.546
+  },
+  "0.5": {
+   "mean_abs_terrain_error_pp": 0.428,
+   "within_halves_pp": 0.458
+  },
+  "0.75": {
+   "mean_abs_terrain_error_pp": 0.424,
+   "within_halves_pp": 0.465
+  },
+  "1.0": {
+   "mean_abs_terrain_error_pp": 0.495,
+   "within_halves_pp": 0.543
+  },
+  "1.25": {
+   "mean_abs_terrain_error_pp": 0.618,
+   "within_halves_pp": 0.663
+  },
+  "1.5": {
+   "mean_abs_terrain_error_pp": 0.764,
+   "within_halves_pp": 0.805
+  }
+ },
+ "features": {
+  "New York: Queensboro segment 20-25 minus mean(15-20, 25-30)": {
+   "observed_by_goal_pp": {
+    "3:00:00": 2.39,
+    "4:00:00": 2.59,
+    "5:15:00": 3.12,
+    "6:00:00": 3.67,
+    "3:30:00": 2.51,
+    "4:30:00": 2.44,
+    "5:00:00": 2.79,
+    "5:30:00": 3.14
+   },
+   "model_pp": {
+    "raw": -0.25,
+    "corrected": 3.69
+   }
+  },
+  "Boston: Newton 30-35 minus 35-40": {
+   "observed_by_goal_pp": {
+    "3:00:00": 2.05,
+    "4:00:00": 2.79,
+    "5:15:00": 3.76,
+    "3:30:00": 2.48,
+    "4:30:00": 3.02,
+    "5:00:00": 4.42,
+    "5:30:00": 3.54
+   },
+   "model_pp": {
+    "raw": 3.05,
+    "corrected": 3.05
+   }
+  },
+  "New York: First Avenue 25-30 minus 20-25": {
+   "observed_by_goal_pp": {
+    "3:00:00": -3.08,
+    "4:00:00": -3.26,
+    "5:15:00": -3.82,
+    "6:00:00": -4.87,
+    "3:30:00": -3.16,
+    "4:30:00": -2.91,
+    "5:00:00": -3.26,
+    "5:30:00": -4.15
+   },
+   "model_pp": {
+    "raw": 0.57,
+    "corrected": -4.47
+   }
+  },
+  "New York: Verrazzano 0-5 minus 5-10": {
+   "observed_by_goal_pp": {
+    "3:00:00": 1.28,
+    "4:00:00": 1.85,
+    "5:15:00": 0.01,
+    "6:00:00": -1.56,
+    "3:30:00": 1.73,
+    "4:30:00": 1.35,
+    "5:00:00": 0.47,
+    "5:30:00": -0.53
+   },
+   "model_pp": {
+    "raw": 0.31,
+    "corrected": 0.57
+   }
+  }
+ },
+ "examples": {
+  "New York all 5:15:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:37:18",
+     "1:14:28",
+     "1:51:44",
+     "2:28:54",
+     "3:06:05",
+     "3:43:29",
+     "4:20:52",
+     "4:58:32",
+     "5:15:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:37:19",
+     "1:14:24",
+     "1:51:38",
+     "2:28:46",
+     "3:06:58",
+     "3:43:31",
+     "4:20:55",
+     "4:58:33",
+     "5:15:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 2549,
+    "editions": 15,
+    "qmed": 1.0096,
+    "rel": [
+     0.985,
+     0.985,
+     0.997,
+     1.008,
+     1.032,
+     0.993,
+     1.021,
+     1.002,
+     0.948
+    ],
+    "elapsed": [
+     "0:36:46",
+     "1:13:33",
+     "1:50:46",
+     "2:28:22",
+     "3:06:53",
+     "3:43:58",
+     "4:22:04",
+     "4:59:28",
+     "5:15:00"
+    ]
+   },
+   "even": [
+    "0:37:20",
+    "1:14:39",
+    "1:51:59",
+    "2:29:18",
+    "3:06:38",
+    "3:43:58",
+    "4:21:17",
+    "4:58:37",
+    "5:15:00"
+   ]
+  },
+  "New York men 5:15:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:37:18",
+     "1:14:28",
+     "1:51:44",
+     "2:28:54",
+     "3:06:05",
+     "3:43:29",
+     "4:20:52",
+     "4:58:32",
+     "5:15:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:37:19",
+     "1:14:24",
+     "1:51:38",
+     "2:28:46",
+     "3:06:58",
+     "3:43:31",
+     "4:20:55",
+     "4:58:33",
+     "5:15:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 780,
+    "editions": 15,
+    "qmed": 1.0107,
+    "rel": [
+     0.985,
+     0.985,
+     0.997,
+     1.005,
+     1.031,
+     0.991,
+     1.02,
+     1.004,
+     0.955
+    ],
+    "elapsed": [
+     "0:36:47",
+     "1:13:33",
+     "1:50:46",
+     "2:28:17",
+     "3:06:46",
+     "3:43:46",
+     "4:21:51",
+     "4:59:21",
+     "5:15:00"
+    ]
+   },
+   "even": [
+    "0:37:20",
+    "1:14:39",
+    "1:51:59",
+    "2:29:18",
+    "3:06:38",
+    "3:43:58",
+    "4:21:17",
+    "4:58:37",
+    "5:15:00"
+   ]
+  },
+  "New York women 5:15:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:37:18",
+     "1:14:28",
+     "1:51:44",
+     "2:28:54",
+     "3:06:05",
+     "3:43:29",
+     "4:20:52",
+     "4:58:32",
+     "5:15:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:37:19",
+     "1:14:24",
+     "1:51:38",
+     "2:28:46",
+     "3:06:58",
+     "3:43:31",
+     "4:20:55",
+     "4:58:33",
+     "5:15:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 1766,
+    "editions": 15,
+    "qmed": 1.0092,
+    "rel": [
+     0.985,
+     0.985,
+     0.997,
+     1.008,
+     1.032,
+     0.994,
+     1.021,
+     1.001,
+     0.945
+    ],
+    "elapsed": [
+     "0:36:47",
+     "1:13:33",
+     "1:50:46",
+     "2:28:24",
+     "3:06:55",
+     "3:44:01",
+     "4:22:09",
+     "4:59:31",
+     "5:15:00"
+    ]
+   },
+   "even": [
+    "0:37:20",
+    "1:14:39",
+    "1:51:59",
+    "2:29:18",
+    "3:06:38",
+    "3:43:58",
+    "4:21:17",
+    "4:58:37",
+    "5:15:00"
+   ]
+  },
+  "New York all 3:00:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:21:19",
+     "0:42:33",
+     "1:03:51",
+     "1:25:05",
+     "1:46:20",
+     "2:07:42",
+     "2:29:04",
+     "2:50:35",
+     "3:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:21:19",
+     "0:42:31",
+     "1:03:47",
+     "1:25:00",
+     "1:46:51",
+     "2:07:43",
+     "2:29:05",
+     "2:50:36",
+     "3:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 6399,
+    "editions": 15,
+    "qmed": 1.0104,
+    "rel": [
+     1.002,
+     0.989,
+     0.994,
+     0.996,
+     1.013,
+     0.982,
+     1.006,
+     1.017,
+     1.001
+    ],
+    "elapsed": [
+     "0:21:22",
+     "0:42:28",
+     "1:03:41",
+     "1:24:55",
+     "1:46:32",
+     "2:07:29",
+     "2:28:56",
+     "2:50:38",
+     "3:00:00"
+    ]
+   },
+   "even": [
+    "0:21:20",
+    "0:42:40",
+    "1:03:59",
+    "1:25:19",
+    "1:46:39",
+    "2:07:59",
+    "2:29:18",
+    "2:50:38",
+    "3:00:00"
+   ]
+  },
+  "New York all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:28:25",
+     "0:56:45",
+     "1:25:08",
+     "1:53:27",
+     "2:21:47",
+     "2:50:16",
+     "3:18:45",
+     "3:47:27",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:28:26",
+     "0:56:41",
+     "1:25:03",
+     "1:53:20",
+     "2:22:27",
+     "2:50:18",
+     "3:18:47",
+     "3:47:28",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 18169,
+    "editions": 15,
+    "qmed": 1.0093,
+    "rel": [
+     1.005,
+     0.986,
+     0.995,
+     0.998,
+     1.018,
+     0.985,
+     1.011,
+     1.011,
+     0.98
+    ],
+    "elapsed": [
+     "0:28:34",
+     "0:56:36",
+     "1:24:55",
+     "1:53:18",
+     "2:22:15",
+     "2:50:16",
+     "3:19:01",
+     "3:47:46",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "New York all 6:00:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     0.996,
+     0.998,
+     0.996,
+     0.996,
+     1.002,
+     1.002,
+     1.009,
+     1.005
+    ],
+    "elapsed": [
+     "0:42:37",
+     "1:25:07",
+     "2:07:42",
+     "2:50:10",
+     "3:32:40",
+     "4:15:24",
+     "4:58:08",
+     "5:41:11",
+     "6:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     0.994,
+     0.997,
+     0.995,
+     1.024,
+     0.979,
+     1.002,
+     1.009,
+     1.004
+    ],
+    "elapsed": [
+     "0:42:38",
+     "1:25:02",
+     "2:07:35",
+     "2:50:01",
+     "3:33:41",
+     "4:15:27",
+     "4:58:11",
+     "5:41:12",
+     "6:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 1066,
+    "editions": 15,
+    "qmed": 1.0109,
+    "rel": [
+     0.972,
+     0.988,
+     0.998,
+     1.015,
+     1.04,
+     0.991,
+     1.017,
+     1.002,
+     0.944
+    ],
+    "elapsed": [
+     "0:41:29",
+     "1:23:38",
+     "2:06:12",
+     "2:49:31",
+     "3:33:53",
+     "4:16:11",
+     "4:59:34",
+     "5:42:19",
+     "6:00:00"
+    ]
+   },
+   "even": [
+    "0:42:40",
+    "1:25:19",
+    "2:07:59",
+    "2:50:38",
+    "3:33:18",
+    "4:15:57",
+    "4:58:37",
+    "5:41:16",
+    "6:00:00"
+   ]
+  },
+  "Boston all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.973,
+     0.997,
+     1.004,
+     1.008,
+     1.001,
+     1.015,
+     1.015,
+     0.985,
+     1.005
+    ],
+    "elapsed": [
+     "0:27:40",
+     "0:56:01",
+     "1:24:34",
+     "1:53:14",
+     "2:21:42",
+     "2:50:34",
+     "3:19:27",
+     "3:47:27",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.973,
+     0.997,
+     1.004,
+     1.008,
+     1.001,
+     1.015,
+     1.015,
+     0.985,
+     1.005
+    ],
+    "elapsed": [
+     "0:27:40",
+     "0:56:01",
+     "1:24:34",
+     "1:53:14",
+     "2:21:42",
+     "2:50:34",
+     "3:19:27",
+     "3:47:27",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 4243,
+    "editions": 10,
+    "qmed": 1.0114,
+    "rel": [
+     1.001,
+     0.991,
+     0.99,
+     0.997,
+     0.992,
+     1.018,
+     1.024,
+     0.996,
+     0.979
+    ],
+    "elapsed": [
+     "0:28:27",
+     "0:56:39",
+     "1:24:48",
+     "1:53:09",
+     "2:21:22",
+     "2:50:18",
+     "3:19:26",
+     "3:47:46",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "Berlin all 3:30:00": {
+   "model_raw": {
+    "rel": [
+     1.0,
+     1.004,
+     0.998,
+     0.999,
+     1.006,
+     1.0,
+     0.995,
+     1.002,
+     0.993
+    ],
+    "elapsed": [
+     "0:24:52",
+     "0:49:51",
+     "1:14:40",
+     "1:39:32",
+     "2:04:34",
+     "2:29:27",
+     "2:54:13",
+     "3:19:09",
+     "3:30:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     1.004,
+     0.998,
+     0.999,
+     1.006,
+     1.0,
+     0.995,
+     1.002,
+     0.993
+    ],
+    "elapsed": [
+     "0:24:52",
+     "0:49:51",
+     "1:14:40",
+     "1:39:32",
+     "2:04:34",
+     "2:29:27",
+     "2:54:13",
+     "3:19:09",
+     "3:30:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 37592,
+    "editions": 21,
+    "qmed": 1.0058,
+    "rel": [
+     1.004,
+     1.0,
+     0.993,
+     0.994,
+     0.998,
+     1.001,
+     0.998,
+     1.017,
+     0.991
+    ],
+    "elapsed": [
+     "0:24:59",
+     "0:49:51",
+     "1:14:34",
+     "1:39:17",
+     "2:04:07",
+     "2:29:02",
+     "2:53:51",
+     "3:19:10",
+     "3:30:00"
+    ]
+   },
+   "even": [
+    "0:24:53",
+    "0:49:46",
+    "1:14:39",
+    "1:39:32",
+    "2:04:25",
+    "2:29:18",
+    "2:54:11",
+    "3:19:05",
+    "3:30:00"
+   ]
+  },
+  "Sydney all 3:00:00": {
+   "model_raw": {
+    "rel": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "elapsed": [
+     "0:20:46",
+     "0:42:07",
+     "1:04:14",
+     "1:25:19",
+     "1:46:37",
+     "2:08:08",
+     "2:29:27",
+     "2:50:35",
+     "3:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "elapsed": [
+     "0:20:46",
+     "0:42:07",
+     "1:04:14",
+     "1:25:19",
+     "1:46:37",
+     "2:08:08",
+     "2:29:27",
+     "2:50:35",
+     "3:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 162,
+    "editions": 3,
+    "qmed": 1.012,
+    "rel": [
+     0.986,
+     0.997,
+     0.99,
+     1.003,
+     0.986,
+     0.998,
+     1.016,
+     1.024,
+     0.999
+    ],
+    "elapsed": [
+     "0:21:02",
+     "0:42:18",
+     "1:03:25",
+     "1:24:49",
+     "1:45:50",
+     "2:07:08",
+     "2:28:48",
+     "2:50:39",
+     "3:00:00"
+    ]
+   },
+   "even": [
+    "0:21:20",
+    "0:42:40",
+    "1:03:59",
+    "1:25:19",
+    "1:46:39",
+    "2:07:59",
+    "2:29:18",
+    "2:50:38",
+    "3:00:00"
+   ]
+  },
+  "Sydney all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "elapsed": [
+     "0:27:41",
+     "0:56:10",
+     "1:25:38",
+     "1:53:45",
+     "2:22:09",
+     "2:50:51",
+     "3:19:16",
+     "3:47:26",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.974,
+     1.001,
+     1.036,
+     0.989,
+     0.999,
+     1.009,
+     0.999,
+     0.991,
+     1.006
+    ],
+    "elapsed": [
+     "0:27:41",
+     "0:56:10",
+     "1:25:38",
+     "1:53:45",
+     "2:22:09",
+     "2:50:51",
+     "3:19:16",
+     "3:47:26",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 312,
+    "editions": 3,
+    "qmed": 1.006,
+    "rel": [
+     1.0,
+     1.007,
+     0.984,
+     0.994,
+     0.98,
+     0.999,
+     1.019,
+     1.026,
+     0.98
+    ],
+    "elapsed": [
+     "0:28:26",
+     "0:57:05",
+     "1:25:05",
+     "1:53:21",
+     "2:21:13",
+     "2:49:38",
+     "3:18:36",
+     "3:47:46",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "Chicago all 4:30:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "elapsed": [
+     "0:31:57",
+     "1:03:58",
+     "1:35:58",
+     "2:07:55",
+     "2:39:55",
+     "3:11:55",
+     "3:43:55",
+     "4:15:54",
+     "4:30:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "elapsed": [
+     "0:31:57",
+     "1:03:58",
+     "1:35:58",
+     "2:07:55",
+     "2:39:55",
+     "3:11:55",
+     "3:43:55",
+     "4:15:54",
+     "4:30:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 14260,
+    "editions": 19,
+    "qmed": 1.0071,
+    "rel": [
+     1.009,
+     1.002,
+     0.981,
+     0.994,
+     0.996,
+     0.998,
+     1.01,
+     1.023,
+     0.971
+    ],
+    "elapsed": [
+     "0:32:16",
+     "1:04:20",
+     "1:35:43",
+     "2:07:31",
+     "2:39:22",
+     "3:11:17",
+     "3:43:37",
+     "4:16:22",
+     "4:30:00"
+    ]
+   },
+   "even": [
+    "0:32:00",
+    "1:03:59",
+    "1:35:59",
+    "2:07:59",
+    "2:39:58",
+    "3:11:58",
+    "3:43:58",
+    "4:15:57",
+    "4:30:00"
+   ]
+  },
+  "Chicago all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "elapsed": [
+     "0:28:24",
+     "0:56:51",
+     "1:25:19",
+     "1:53:42",
+     "2:22:09",
+     "2:50:36",
+     "3:19:02",
+     "3:47:28",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.999,
+     1.0,
+     1.001,
+     0.998,
+     1.0,
+     1.0,
+     1.0,
+     0.999,
+     1.004
+    ],
+    "elapsed": [
+     "0:28:24",
+     "0:56:51",
+     "1:25:19",
+     "1:53:42",
+     "2:22:09",
+     "2:50:36",
+     "3:19:02",
+     "3:47:28",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 24261,
+    "editions": 19,
+    "qmed": 1.0072,
+    "rel": [
+     1.011,
+     0.998,
+     0.985,
+     0.993,
+     0.994,
+     0.996,
+     1.006,
+     1.023,
+     0.987
+    ],
+    "elapsed": [
+     "0:28:45",
+     "0:57:09",
+     "1:25:09",
+     "1:53:24",
+     "2:21:39",
+     "2:49:58",
+     "3:18:35",
+     "3:47:40",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "London all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.99,
+     0.997,
+     1.0,
+     1.0,
+     1.002,
+     1.01,
+     0.999,
+     1.001,
+     1.002
+    ],
+    "elapsed": [
+     "0:28:09",
+     "0:56:31",
+     "1:24:57",
+     "1:53:24",
+     "2:21:54",
+     "2:50:38",
+     "3:19:02",
+     "3:47:30",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.991,
+     0.997,
+     1.001,
+     1.006,
+     0.997,
+     1.007,
+     1.002,
+     0.999,
+     1.003
+    ],
+    "elapsed": [
+     "0:28:11",
+     "0:56:32",
+     "1:25:00",
+     "1:53:36",
+     "2:21:57",
+     "2:50:35",
+     "3:19:05",
+     "3:47:29",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 3417,
+    "editions": 3,
+    "qmed": 1.0108,
+    "rel": [
+     0.985,
+     0.996,
+     1.008,
+     0.992,
+     0.997,
+     1.006,
+     1.016,
+     1.005,
+     0.989
+    ],
+    "elapsed": [
+     "0:28:02",
+     "0:56:21",
+     "1:25:00",
+     "1:53:13",
+     "2:21:34",
+     "2:50:10",
+     "3:19:04",
+     "3:47:39",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "Amsterdam all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.999,
+     1.001,
+     1.0,
+     0.998,
+     1.001,
+     1.0,
+     1.002,
+     0.999,
+     1.001
+    ],
+    "elapsed": [
+     "0:28:24",
+     "0:56:52",
+     "1:25:19",
+     "1:53:41",
+     "2:22:10",
+     "2:50:36",
+     "3:19:06",
+     "3:47:30",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.001,
+     0.999,
+     1.003
+    ],
+    "elapsed": [
+     "0:28:27",
+     "0:56:53",
+     "1:25:18",
+     "1:53:44",
+     "2:22:10",
+     "2:50:37",
+     "3:19:04",
+     "3:47:28",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 9900,
+    "editions": 12,
+    "qmed": 1.0056,
+    "rel": [
+     1.012,
+     0.992,
+     0.991,
+     0.996,
+     0.989,
+     0.994,
+     1.013,
+     1.013,
+     0.999
+    ],
+    "elapsed": [
+     "0:28:47",
+     "0:56:59",
+     "1:25:09",
+     "1:53:29",
+     "2:21:38",
+     "2:49:54",
+     "3:18:43",
+     "3:47:32",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "Rotterdam all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.997,
+     0.996,
+     1.002,
+     0.999,
+     1.003,
+     0.999,
+     0.997,
+     1.003,
+     1.01
+    ],
+    "elapsed": [
+     "0:28:21",
+     "0:56:42",
+     "1:25:11",
+     "1:53:36",
+     "2:22:07",
+     "2:50:31",
+     "3:18:52",
+     "3:47:23",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     1.001,
+     0.997,
+     1.0,
+     1.0,
+     1.003,
+     0.999,
+     0.998,
+     1.002,
+     1.002
+    ],
+    "elapsed": [
+     "0:28:27",
+     "0:56:48",
+     "1:25:14",
+     "1:53:40",
+     "2:22:12",
+     "2:50:37",
+     "3:19:00",
+     "3:47:29",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 7168,
+    "editions": 11,
+    "qmed": 1.0095,
+    "rel": [
+     1.003,
+     0.992,
+     0.995,
+     0.993,
+     0.999,
+     0.999,
+     1.001,
+     1.022,
+     0.991
+    ],
+    "elapsed": [
+     "0:28:32",
+     "0:56:44",
+     "1:25:02",
+     "1:53:17",
+     "2:21:41",
+     "2:50:05",
+     "3:18:33",
+     "3:47:38",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  },
+  "Valencia all 4:00:00": {
+   "model_raw": {
+    "rel": [
+     0.997,
+     1.003,
+     1.004,
+     0.995,
+     1.003,
+     1.01,
+     1.001,
+     0.997,
+     0.978
+    ],
+    "elapsed": [
+     "0:28:22",
+     "0:56:53",
+     "1:25:25",
+     "1:53:43",
+     "2:22:14",
+     "2:50:58",
+     "3:19:26",
+     "3:47:47",
+     "4:00:00"
+    ]
+   },
+   "model_corrected": {
+    "rel": [
+     0.999,
+     1.003,
+     1.001,
+     0.996,
+     1.004,
+     1.002,
+     1.008,
+     0.992,
+     0.99
+    ],
+    "elapsed": [
+     "0:28:24",
+     "0:56:56",
+     "1:25:25",
+     "1:53:43",
+     "2:22:17",
+     "2:50:46",
+     "3:19:26",
+     "3:47:38",
+     "4:00:00"
+    ]
+   },
+   "steady_D2": {
+    "n": 4403,
+    "editions": 4,
+    "qmed": 1.0068,
+    "rel": [
+     1.009,
+     0.995,
+     0.994,
+     0.991,
+     0.997,
+     1.0,
+     1.013,
+     1.009,
+     0.982
+    ],
+    "elapsed": [
+     "0:28:41",
+     "0:56:59",
+     "1:25:15",
+     "1:53:25",
+     "2:21:47",
+     "2:50:14",
+     "3:19:03",
+     "3:47:44",
+     "4:00:00"
+    ]
+   },
+   "even": [
+    "0:28:26",
+    "0:56:53",
+    "1:25:19",
+    "1:53:45",
+    "2:22:12",
+    "2:50:38",
+    "3:19:05",
+    "3:47:31",
+    "4:00:00"
+   ]
+  }
+ },
+ "cell_metrics": [
+  {
+   "city": "Amsterdam",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "b",
+   "n": 5377,
+   "qmed": 1.005,
+   "mad_raw": 0.814,
+   "mad_adj": 0.532,
+   "mad_even": 0.772,
+   "mad_typical": 0.39
+  },
+  {
+   "city": "Berlin",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "c",
+   "n": 20192,
+   "qmed": 1.007,
+   "mad_raw": 0.534,
+   "mad_adj": 0.241,
+   "mad_even": 0.464,
+   "mad_typical": 0.299
+  },
+  {
+   "city": "Boston",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "a",
+   "n": 12392,
+   "qmed": 1.011,
+   "mad_raw": 1.056,
+   "mad_adj": 0.693,
+   "mad_even": 0.742,
+   "mad_typical": 0.75
+  },
+  {
+   "city": "Chicago",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "a",
+   "n": 15397,
+   "qmed": 1.008,
+   "mad_raw": 0.561,
+   "mad_adj": 0.219,
+   "mad_even": 0.527,
+   "mad_typical": 0.192
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "c",
+   "n": 4315,
+   "qmed": 1.003,
+   "mad_raw": 0.467,
+   "mad_adj": 0.511,
+   "mad_even": 0.288,
+   "mad_typical": 0.426
+  },
+  {
+   "city": "Dubai",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "c",
+   "n": 166,
+   "qmed": 1.004,
+   "mad_raw": 0.688,
+   "mad_adj": 0.348,
+   "mad_even": 0.652,
+   "mad_typical": 0.215
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1306,
+   "qmed": 1.008,
+   "mad_raw": 0.471,
+   "mad_adj": 0.343,
+   "mad_even": 0.473,
+   "mad_typical": 0.32
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "c",
+   "n": 2857,
+   "qmed": 1.009,
+   "mad_raw": 0.578,
+   "mad_adj": 0.326,
+   "mad_even": 0.631,
+   "mad_typical": 0.291
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "c",
+   "n": 808,
+   "qmed": 1.008,
+   "mad_raw": 0.849,
+   "mad_adj": 0.539,
+   "mad_even": 0.93,
+   "mad_typical": 0.719
+  },
+  {
+   "city": "Hamburg",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "c",
+   "n": 3041,
+   "qmed": 1.009,
+   "mad_raw": 0.478,
+   "mad_adj": 0.306,
+   "mad_even": 0.674,
+   "mad_typical": 0.328
+  },
+  {
+   "city": "London",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "b",
+   "n": 3014,
+   "qmed": 1.01,
+   "mad_raw": 0.641,
+   "mad_adj": 0.526,
+   "mad_even": 0.737,
+   "mad_typical": 0.624
+  },
+  {
+   "city": "Madrid",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "b",
+   "n": 865,
+   "qmed": 1.015,
+   "mad_raw": 1.078,
+   "mad_adj": 1.246,
+   "mad_even": 1.604,
+   "mad_typical": 1.35
+  },
+  {
+   "city": "New York",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "b",
+   "n": 6399,
+   "qmed": 1.01,
+   "mad_raw": 0.746,
+   "mad_adj": 0.749,
+   "mad_even": 0.853,
+   "mad_typical": 0.529
+  },
+  {
+   "city": "Oslo",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "b",
+   "n": 566,
+   "qmed": 1.011,
+   "mad_raw": 1.228,
+   "mad_adj": 1.436,
+   "mad_even": 1.279,
+   "mad_typical": 1.171
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "b",
+   "n": 3590,
+   "qmed": 1.009,
+   "mad_raw": 0.568,
+   "mad_adj": 0.368,
+   "mad_even": 0.448,
+   "mad_typical": 0.295
+  },
+  {
+   "city": "Stockholm",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "c",
+   "n": 457,
+   "qmed": 1.012,
+   "mad_raw": 0.751,
+   "mad_adj": 0.787,
+   "mad_even": 0.553,
+   "mad_typical": 0.459
+  },
+  {
+   "city": "Sydney",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "c",
+   "n": 162,
+   "qmed": 1.012,
+   "mad_raw": 1.783,
+   "mad_adj": 1.466,
+   "mad_even": 0.976,
+   "mad_typical": 0.76
+  },
+  {
+   "city": "Valencia",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "b",
+   "n": 8682,
+   "qmed": 1.006,
+   "mad_raw": 0.84,
+   "mad_adj": 0.445,
+   "mad_even": 0.636,
+   "mad_typical": 0.551
+  },
+  {
+   "city": "Warsaw",
+   "goal": 180,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1090,
+   "qmed": 1.006,
+   "mad_raw": 1.05,
+   "mad_adj": 0.811,
+   "mad_even": 0.726,
+   "mad_typical": 0.42
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 5377,
+   "qmed": 1.005,
+   "mad_raw": 0.735,
+   "mad_adj": 0.419,
+   "mad_even": 0.772,
+   "mad_typical": 0.39
+  },
+  {
+   "city": "Berlin",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 20192,
+   "qmed": 1.007,
+   "mad_raw": 0.534,
+   "mad_adj": 0.178,
+   "mad_even": 0.464,
+   "mad_typical": 0.299
+  },
+  {
+   "city": "Boston",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 12392,
+   "qmed": 1.011,
+   "mad_raw": 1.056,
+   "mad_adj": 0.675,
+   "mad_even": 0.742,
+   "mad_typical": 0.75
+  },
+  {
+   "city": "Chicago",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 15397,
+   "qmed": 1.008,
+   "mad_raw": 0.561,
+   "mad_adj": 0.242,
+   "mad_even": 0.527,
+   "mad_typical": 0.192
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 4315,
+   "qmed": 1.003,
+   "mad_raw": 0.467,
+   "mad_adj": 0.478,
+   "mad_even": 0.288,
+   "mad_typical": 0.426
+  },
+  {
+   "city": "Dubai",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 166,
+   "qmed": 1.004,
+   "mad_raw": 0.688,
+   "mad_adj": 0.35,
+   "mad_even": 0.652,
+   "mad_typical": 0.215
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1306,
+   "qmed": 1.008,
+   "mad_raw": 0.5,
+   "mad_adj": 0.28,
+   "mad_even": 0.473,
+   "mad_typical": 0.32
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 2857,
+   "qmed": 1.009,
+   "mad_raw": 0.578,
+   "mad_adj": 0.353,
+   "mad_even": 0.631,
+   "mad_typical": 0.291
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 808,
+   "qmed": 1.008,
+   "mad_raw": 0.849,
+   "mad_adj": 0.511,
+   "mad_even": 0.93,
+   "mad_typical": 0.719
+  },
+  {
+   "city": "Hamburg",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 3041,
+   "qmed": 1.009,
+   "mad_raw": 0.478,
+   "mad_adj": 0.267,
+   "mad_even": 0.674,
+   "mad_typical": 0.328
+  },
+  {
+   "city": "London",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 3014,
+   "qmed": 1.01,
+   "mad_raw": 0.586,
+   "mad_adj": 0.516,
+   "mad_even": 0.737,
+   "mad_typical": 0.624
+  },
+  {
+   "city": "Madrid",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 865,
+   "qmed": 1.015,
+   "mad_raw": 1.098,
+   "mad_adj": 1.177,
+   "mad_even": 1.604,
+   "mad_typical": 1.35
+  },
+  {
+   "city": "New York",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 6399,
+   "qmed": 1.01,
+   "mad_raw": 0.459,
+   "mad_adj": 0.366,
+   "mad_even": 0.853,
+   "mad_typical": 0.529
+  },
+  {
+   "city": "Oslo",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 566,
+   "qmed": 1.011,
+   "mad_raw": 1.236,
+   "mad_adj": 1.334,
+   "mad_even": 1.279,
+   "mad_typical": 1.171
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 3590,
+   "qmed": 1.009,
+   "mad_raw": 0.484,
+   "mad_adj": 0.302,
+   "mad_even": 0.448,
+   "mad_typical": 0.295
+  },
+  {
+   "city": "Stockholm",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 457,
+   "qmed": 1.012,
+   "mad_raw": 0.751,
+   "mad_adj": 0.764,
+   "mad_even": 0.553,
+   "mad_typical": 0.459
+  },
+  {
+   "city": "Sydney",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 162,
+   "qmed": 1.012,
+   "mad_raw": 1.783,
+   "mad_adj": 1.464,
+   "mad_even": 0.976,
+   "mad_typical": 0.76
+  },
+  {
+   "city": "Valencia",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 8682,
+   "qmed": 1.006,
+   "mad_raw": 0.606,
+   "mad_adj": 0.207,
+   "mad_even": 0.636,
+   "mad_typical": 0.551
+  },
+  {
+   "city": "Warsaw",
+   "goal": 180,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1090,
+   "qmed": 1.006,
+   "mad_raw": 1.186,
+   "mad_adj": 0.865,
+   "mad_even": 0.726,
+   "mad_typical": 0.42
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "b",
+   "n": 6187,
+   "qmed": 1.004,
+   "mad_raw": 0.89,
+   "mad_adj": 0.519,
+   "mad_even": 0.889,
+   "mad_typical": 0.382
+  },
+  {
+   "city": "Berlin",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "c",
+   "n": 25290,
+   "qmed": 1.005,
+   "mad_raw": 0.547,
+   "mad_adj": 0.258,
+   "mad_even": 0.548,
+   "mad_typical": 0.328
+  },
+  {
+   "city": "Boston",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "a",
+   "n": 12122,
+   "qmed": 1.01,
+   "mad_raw": 1.128,
+   "mad_adj": 0.66,
+   "mad_even": 0.844,
+   "mad_typical": 0.88
+  },
+  {
+   "city": "Chicago",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "a",
+   "n": 18839,
+   "qmed": 1.007,
+   "mad_raw": 0.691,
+   "mad_adj": 0.228,
+   "mad_even": 0.63,
+   "mad_typical": 0.2
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "c",
+   "n": 5087,
+   "qmed": 1.003,
+   "mad_raw": 0.584,
+   "mad_adj": 0.458,
+   "mad_even": 0.359,
+   "mad_typical": 0.377
+  },
+  {
+   "city": "Dubai",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "c",
+   "n": 212,
+   "qmed": 1.008,
+   "mad_raw": 0.799,
+   "mad_adj": 0.402,
+   "mad_even": 0.764,
+   "mad_typical": 0.175
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1396,
+   "qmed": 1.008,
+   "mad_raw": 0.542,
+   "mad_adj": 0.422,
+   "mad_even": 0.52,
+   "mad_typical": 0.418
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "c",
+   "n": 2837,
+   "qmed": 1.007,
+   "mad_raw": 0.595,
+   "mad_adj": 0.282,
+   "mad_even": 0.779,
+   "mad_typical": 0.312
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "c",
+   "n": 689,
+   "qmed": 1.008,
+   "mad_raw": 0.882,
+   "mad_adj": 0.515,
+   "mad_even": 0.934,
+   "mad_typical": 0.628
+  },
+  {
+   "city": "Hamburg",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "c",
+   "n": 4423,
+   "qmed": 1.007,
+   "mad_raw": 0.558,
+   "mad_adj": 0.303,
+   "mad_even": 0.786,
+   "mad_typical": 0.4
+  },
+  {
+   "city": "London",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "b",
+   "n": 2999,
+   "qmed": 1.008,
+   "mad_raw": 0.605,
+   "mad_adj": 0.584,
+   "mad_even": 0.674,
+   "mad_typical": 0.697
+  },
+  {
+   "city": "Madrid",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1308,
+   "qmed": 1.011,
+   "mad_raw": 0.946,
+   "mad_adj": 1.235,
+   "mad_even": 1.65,
+   "mad_typical": 1.346
+  },
+  {
+   "city": "New York",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "b",
+   "n": 8634,
+   "qmed": 1.01,
+   "mad_raw": 0.866,
+   "mad_adj": 0.819,
+   "mad_even": 0.97,
+   "mad_typical": 0.574
+  },
+  {
+   "city": "Oslo",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "b",
+   "n": 849,
+   "qmed": 1.008,
+   "mad_raw": 1.148,
+   "mad_adj": 1.238,
+   "mad_even": 1.388,
+   "mad_typical": 1.082
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "b",
+   "n": 3966,
+   "qmed": 1.008,
+   "mad_raw": 0.736,
+   "mad_adj": 0.304,
+   "mad_even": 0.596,
+   "mad_typical": 0.257
+  },
+  {
+   "city": "Stockholm",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "c",
+   "n": 779,
+   "qmed": 1.011,
+   "mad_raw": 0.787,
+   "mad_adj": 0.768,
+   "mad_even": 0.591,
+   "mad_typical": 0.436
+  },
+  {
+   "city": "Sydney",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "c",
+   "n": 240,
+   "qmed": 1.009,
+   "mad_raw": 1.961,
+   "mad_adj": 1.599,
+   "mad_even": 1.052,
+   "mad_typical": 0.857
+  },
+  {
+   "city": "Valencia",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "b",
+   "n": 7032,
+   "qmed": 1.006,
+   "mad_raw": 0.9,
+   "mad_adj": 0.448,
+   "mad_even": 0.714,
+   "mad_typical": 0.475
+  },
+  {
+   "city": "Warsaw",
+   "goal": 195,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1491,
+   "qmed": 1.005,
+   "mad_raw": 1.136,
+   "mad_adj": 0.737,
+   "mad_even": 0.83,
+   "mad_typical": 0.342
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 6187,
+   "qmed": 1.004,
+   "mad_raw": 0.845,
+   "mad_adj": 0.406,
+   "mad_even": 0.889,
+   "mad_typical": 0.382
+  },
+  {
+   "city": "Berlin",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 25290,
+   "qmed": 1.005,
+   "mad_raw": 0.547,
+   "mad_adj": 0.205,
+   "mad_even": 0.548,
+   "mad_typical": 0.328
+  },
+  {
+   "city": "Boston",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 12122,
+   "qmed": 1.01,
+   "mad_raw": 1.128,
+   "mad_adj": 0.622,
+   "mad_even": 0.844,
+   "mad_typical": 0.88
+  },
+  {
+   "city": "Chicago",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 18839,
+   "qmed": 1.007,
+   "mad_raw": 0.691,
+   "mad_adj": 0.251,
+   "mad_even": 0.63,
+   "mad_typical": 0.2
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 5087,
+   "qmed": 1.003,
+   "mad_raw": 0.584,
+   "mad_adj": 0.403,
+   "mad_even": 0.359,
+   "mad_typical": 0.377
+  },
+  {
+   "city": "Dubai",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 212,
+   "qmed": 1.008,
+   "mad_raw": 0.799,
+   "mad_adj": 0.419,
+   "mad_even": 0.764,
+   "mad_typical": 0.175
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1396,
+   "qmed": 1.008,
+   "mad_raw": 0.483,
+   "mad_adj": 0.305,
+   "mad_even": 0.52,
+   "mad_typical": 0.418
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 2837,
+   "qmed": 1.007,
+   "mad_raw": 0.595,
+   "mad_adj": 0.309,
+   "mad_even": 0.779,
+   "mad_typical": 0.312
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 689,
+   "qmed": 1.008,
+   "mad_raw": 0.882,
+   "mad_adj": 0.504,
+   "mad_even": 0.934,
+   "mad_typical": 0.628
+  },
+  {
+   "city": "Hamburg",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 4423,
+   "qmed": 1.007,
+   "mad_raw": 0.558,
+   "mad_adj": 0.276,
+   "mad_even": 0.786,
+   "mad_typical": 0.4
+  },
+  {
+   "city": "London",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 2999,
+   "qmed": 1.008,
+   "mad_raw": 0.545,
+   "mad_adj": 0.579,
+   "mad_even": 0.674,
+   "mad_typical": 0.697
+  },
+  {
+   "city": "Madrid",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1308,
+   "qmed": 1.011,
+   "mad_raw": 0.966,
+   "mad_adj": 1.154,
+   "mad_even": 1.65,
+   "mad_typical": 1.346
+  },
+  {
+   "city": "New York",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 8634,
+   "qmed": 1.01,
+   "mad_raw": 0.568,
+   "mad_adj": 0.433,
+   "mad_even": 0.97,
+   "mad_typical": 0.574
+  },
+  {
+   "city": "Oslo",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 849,
+   "qmed": 1.008,
+   "mad_raw": 1.148,
+   "mad_adj": 1.13,
+   "mad_even": 1.388,
+   "mad_typical": 1.082
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 3966,
+   "qmed": 1.008,
+   "mad_raw": 0.595,
+   "mad_adj": 0.243,
+   "mad_even": 0.596,
+   "mad_typical": 0.257
+  },
+  {
+   "city": "Stockholm",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 779,
+   "qmed": 1.011,
+   "mad_raw": 0.787,
+   "mad_adj": 0.745,
+   "mad_even": 0.591,
+   "mad_typical": 0.436
+  },
+  {
+   "city": "Sydney",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 240,
+   "qmed": 1.009,
+   "mad_raw": 1.961,
+   "mad_adj": 1.597,
+   "mad_even": 1.052,
+   "mad_typical": 0.857
+  },
+  {
+   "city": "Valencia",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 7032,
+   "qmed": 1.006,
+   "mad_raw": 0.684,
+   "mad_adj": 0.182,
+   "mad_even": 0.714,
+   "mad_typical": 0.475
+  },
+  {
+   "city": "Warsaw",
+   "goal": 195,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1491,
+   "qmed": 1.005,
+   "mad_raw": 1.301,
+   "mad_adj": 0.815,
+   "mad_even": 0.83,
+   "mad_typical": 0.342
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "b",
+   "n": 9475,
+   "qmed": 1.005,
+   "mad_raw": 0.888,
+   "mad_adj": 0.515,
+   "mad_even": 0.897,
+   "mad_typical": 0.346
+  },
+  {
+   "city": "Austin",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "a",
+   "n": 189,
+   "qmed": 1.003,
+   "mad_raw": 0.976,
+   "mad_adj": 0.799,
+   "mad_even": 0.931,
+   "mad_typical": 1.06
+  },
+  {
+   "city": "Berlin",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "c",
+   "n": 37592,
+   "qmed": 1.006,
+   "mad_raw": 0.543,
+   "mad_adj": 0.272,
+   "mad_even": 0.56,
+   "mad_typical": 0.444
+  },
+  {
+   "city": "Boston",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "a",
+   "n": 11548,
+   "qmed": 1.011,
+   "mad_raw": 1.14,
+   "mad_adj": 0.627,
+   "mad_even": 0.906,
+   "mad_typical": 0.938
+  },
+  {
+   "city": "Chicago",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "a",
+   "n": 24701,
+   "qmed": 1.007,
+   "mad_raw": 0.791,
+   "mad_adj": 0.271,
+   "mad_even": 0.731,
+   "mad_typical": 0.266
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "c",
+   "n": 8101,
+   "qmed": 1.004,
+   "mad_raw": 0.658,
+   "mad_adj": 0.479,
+   "mad_even": 0.435,
+   "mad_typical": 0.414
+  },
+  {
+   "city": "Dubai",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "c",
+   "n": 289,
+   "qmed": 1.009,
+   "mad_raw": 0.909,
+   "mad_adj": 0.478,
+   "mad_even": 0.873,
+   "mad_typical": 0.276
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1937,
+   "qmed": 1.006,
+   "mad_raw": 0.544,
+   "mad_adj": 0.393,
+   "mad_even": 0.49,
+   "mad_typical": 0.387
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "c",
+   "n": 3230,
+   "qmed": 1.008,
+   "mad_raw": 0.547,
+   "mad_adj": 0.351,
+   "mad_even": 0.81,
+   "mad_typical": 0.319
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "c",
+   "n": 973,
+   "qmed": 1.008,
+   "mad_raw": 0.997,
+   "mad_adj": 0.465,
+   "mad_even": 1.058,
+   "mad_typical": 0.715
+  },
+  {
+   "city": "Hamburg",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "c",
+   "n": 6998,
+   "qmed": 1.007,
+   "mad_raw": 0.631,
+   "mad_adj": 0.313,
+   "mad_even": 0.775,
+   "mad_typical": 0.345
+  },
+  {
+   "city": "Helsinki",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "c",
+   "n": 204,
+   "qmed": 1.011,
+   "mad_raw": 1.472,
+   "mad_adj": 0.891,
+   "mad_even": 1.337,
+   "mad_typical": 0.905
+  },
+  {
+   "city": "London",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "b",
+   "n": 4097,
+   "qmed": 1.009,
+   "mad_raw": 0.602,
+   "mad_adj": 0.604,
+   "mad_even": 0.684,
+   "mad_typical": 0.754
+  },
+  {
+   "city": "Madrid",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "b",
+   "n": 2045,
+   "qmed": 1.01,
+   "mad_raw": 0.946,
+   "mad_adj": 1.193,
+   "mad_even": 1.688,
+   "mad_typical": 1.399
+  },
+  {
+   "city": "New York",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "b",
+   "n": 13760,
+   "qmed": 1.009,
+   "mad_raw": 0.907,
+   "mad_adj": 0.938,
+   "mad_even": 0.999,
+   "mad_typical": 0.675
+  },
+  {
+   "city": "Oslo",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1288,
+   "qmed": 1.007,
+   "mad_raw": 1.12,
+   "mad_adj": 1.217,
+   "mad_even": 1.306,
+   "mad_typical": 1.024
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "b",
+   "n": 6075,
+   "qmed": 1.009,
+   "mad_raw": 0.783,
+   "mad_adj": 0.308,
+   "mad_even": 0.643,
+   "mad_typical": 0.29
+  },
+  {
+   "city": "Stockholm",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "c",
+   "n": 1060,
+   "qmed": 1.009,
+   "mad_raw": 0.873,
+   "mad_adj": 0.764,
+   "mad_even": 0.626,
+   "mad_typical": 0.329
+  },
+  {
+   "city": "Sydney",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "c",
+   "n": 361,
+   "qmed": 1.01,
+   "mad_raw": 2.167,
+   "mad_adj": 1.685,
+   "mad_even": 1.194,
+   "mad_typical": 0.908
+  },
+  {
+   "city": "Valencia",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "b",
+   "n": 7317,
+   "qmed": 1.006,
+   "mad_raw": 0.927,
+   "mad_adj": 0.475,
+   "mad_even": 0.764,
+   "mad_typical": 0.44
+  },
+  {
+   "city": "Warsaw",
+   "goal": 210,
+   "prof": "raw",
+   "cls": "b",
+   "n": 2207,
+   "qmed": 1.005,
+   "mad_raw": 1.192,
+   "mad_adj": 0.676,
+   "mad_even": 0.893,
+   "mad_typical": 0.352
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 9475,
+   "qmed": 1.005,
+   "mad_raw": 0.852,
+   "mad_adj": 0.402,
+   "mad_even": 0.897,
+   "mad_typical": 0.346
+  },
+  {
+   "city": "Austin",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 189,
+   "qmed": 1.003,
+   "mad_raw": 0.976,
+   "mad_adj": 0.794,
+   "mad_even": 0.931,
+   "mad_typical": 1.06
+  },
+  {
+   "city": "Berlin",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 37592,
+   "qmed": 1.006,
+   "mad_raw": 0.543,
+   "mad_adj": 0.238,
+   "mad_even": 0.56,
+   "mad_typical": 0.444
+  },
+  {
+   "city": "Boston",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 11548,
+   "qmed": 1.011,
+   "mad_raw": 1.14,
+   "mad_adj": 0.607,
+   "mad_even": 0.906,
+   "mad_typical": 0.938
+  },
+  {
+   "city": "Chicago",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 24701,
+   "qmed": 1.007,
+   "mad_raw": 0.791,
+   "mad_adj": 0.293,
+   "mad_even": 0.731,
+   "mad_typical": 0.266
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 8101,
+   "qmed": 1.004,
+   "mad_raw": 0.658,
+   "mad_adj": 0.432,
+   "mad_even": 0.435,
+   "mad_typical": 0.414
+  },
+  {
+   "city": "Dubai",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 289,
+   "qmed": 1.009,
+   "mad_raw": 0.909,
+   "mad_adj": 0.493,
+   "mad_even": 0.873,
+   "mad_typical": 0.276
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1937,
+   "qmed": 1.006,
+   "mad_raw": 0.468,
+   "mad_adj": 0.285,
+   "mad_even": 0.49,
+   "mad_typical": 0.387
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 3230,
+   "qmed": 1.008,
+   "mad_raw": 0.547,
+   "mad_adj": 0.375,
+   "mad_even": 0.81,
+   "mad_typical": 0.319
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 973,
+   "qmed": 1.008,
+   "mad_raw": 0.997,
+   "mad_adj": 0.448,
+   "mad_even": 1.058,
+   "mad_typical": 0.715
+  },
+  {
+   "city": "Hamburg",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 6998,
+   "qmed": 1.007,
+   "mad_raw": 0.631,
+   "mad_adj": 0.289,
+   "mad_even": 0.775,
+   "mad_typical": 0.345
+  },
+  {
+   "city": "Helsinki",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 204,
+   "qmed": 1.011,
+   "mad_raw": 1.472,
+   "mad_adj": 0.864,
+   "mad_even": 1.337,
+   "mad_typical": 0.905
+  },
+  {
+   "city": "London",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 4097,
+   "qmed": 1.009,
+   "mad_raw": 0.568,
+   "mad_adj": 0.63,
+   "mad_even": 0.684,
+   "mad_typical": 0.754
+  },
+  {
+   "city": "Madrid",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 2045,
+   "qmed": 1.01,
+   "mad_raw": 0.966,
+   "mad_adj": 1.108,
+   "mad_even": 1.688,
+   "mad_typical": 1.399
+  },
+  {
+   "city": "New York",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 13760,
+   "qmed": 1.009,
+   "mad_raw": 0.601,
+   "mad_adj": 0.507,
+   "mad_even": 0.999,
+   "mad_typical": 0.675
+  },
+  {
+   "city": "Oslo",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1288,
+   "qmed": 1.007,
+   "mad_raw": 1.152,
+   "mad_adj": 1.177,
+   "mad_even": 1.306,
+   "mad_typical": 1.024
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 6075,
+   "qmed": 1.009,
+   "mad_raw": 0.642,
+   "mad_adj": 0.256,
+   "mad_even": 0.643,
+   "mad_typical": 0.29
+  },
+  {
+   "city": "Stockholm",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 1060,
+   "qmed": 1.009,
+   "mad_raw": 0.873,
+   "mad_adj": 0.736,
+   "mad_even": 0.626,
+   "mad_typical": 0.329
+  },
+  {
+   "city": "Sydney",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 361,
+   "qmed": 1.01,
+   "mad_raw": 2.167,
+   "mad_adj": 1.683,
+   "mad_even": 1.194,
+   "mad_typical": 0.908
+  },
+  {
+   "city": "Valencia",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 7317,
+   "qmed": 1.006,
+   "mad_raw": 0.734,
+   "mad_adj": 0.243,
+   "mad_even": 0.764,
+   "mad_typical": 0.44
+  },
+  {
+   "city": "Warsaw",
+   "goal": 210,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 2207,
+   "qmed": 1.005,
+   "mad_raw": 1.364,
+   "mad_adj": 0.714,
+   "mad_even": 0.893,
+   "mad_typical": 0.352
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "b",
+   "n": 9968,
+   "qmed": 1.004,
+   "mad_raw": 0.902,
+   "mad_adj": 0.49,
+   "mad_even": 0.91,
+   "mad_typical": 0.386
+  },
+  {
+   "city": "Austin",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "a",
+   "n": 250,
+   "qmed": 1.005,
+   "mad_raw": 0.98,
+   "mad_adj": 0.65,
+   "mad_even": 1.015,
+   "mad_typical": 1.105
+  },
+  {
+   "city": "Berlin",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "c",
+   "n": 38644,
+   "qmed": 1.006,
+   "mad_raw": 0.567,
+   "mad_adj": 0.336,
+   "mad_even": 0.624,
+   "mad_typical": 0.54
+  },
+  {
+   "city": "Boston",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "a",
+   "n": 7646,
+   "qmed": 1.012,
+   "mad_raw": 1.155,
+   "mad_adj": 0.583,
+   "mad_even": 0.974,
+   "mad_typical": 0.955
+  },
+  {
+   "city": "Chicago",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "a",
+   "n": 26279,
+   "qmed": 1.007,
+   "mad_raw": 0.898,
+   "mad_adj": 0.291,
+   "mad_even": 0.838,
+   "mad_typical": 0.266
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "c",
+   "n": 8287,
+   "qmed": 1.005,
+   "mad_raw": 0.743,
+   "mad_adj": 0.478,
+   "mad_even": 0.52,
+   "mad_typical": 0.364
+  },
+  {
+   "city": "Dubai",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "c",
+   "n": 344,
+   "qmed": 1.005,
+   "mad_raw": 0.762,
+   "mad_adj": 0.308,
+   "mad_even": 0.85,
+   "mad_typical": 0.209
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1873,
+   "qmed": 1.006,
+   "mad_raw": 0.614,
+   "mad_adj": 0.445,
+   "mad_even": 0.578,
+   "mad_typical": 0.464
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "c",
+   "n": 3134,
+   "qmed": 1.007,
+   "mad_raw": 0.478,
+   "mad_adj": 0.354,
+   "mad_even": 0.895,
+   "mad_typical": 0.325
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "c",
+   "n": 1104,
+   "qmed": 1.008,
+   "mad_raw": 1.025,
+   "mad_adj": 0.561,
+   "mad_even": 1.086,
+   "mad_typical": 0.699
+  },
+  {
+   "city": "Hamburg",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "c",
+   "n": 7921,
+   "qmed": 1.006,
+   "mad_raw": 0.709,
+   "mad_adj": 0.416,
+   "mad_even": 0.648,
+   "mad_typical": 0.316
+  },
+  {
+   "city": "Helsinki",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "c",
+   "n": 264,
+   "qmed": 1.007,
+   "mad_raw": 1.825,
+   "mad_adj": 1.231,
+   "mad_even": 1.711,
+   "mad_typical": 1.287
+  },
+  {
+   "city": "London",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "b",
+   "n": 3667,
+   "qmed": 1.01,
+   "mad_raw": 0.689,
+   "mad_adj": 0.658,
+   "mad_even": 0.753,
+   "mad_typical": 0.808
+  },
+  {
+   "city": "Madrid",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1919,
+   "qmed": 1.009,
+   "mad_raw": 1.009,
+   "mad_adj": 1.206,
+   "mad_even": 1.638,
+   "mad_typical": 1.412
+  },
+  {
+   "city": "New York",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "b",
+   "n": 15827,
+   "qmed": 1.009,
+   "mad_raw": 0.984,
+   "mad_adj": 1.046,
+   "mad_even": 1.05,
+   "mad_typical": 0.795
+  },
+  {
+   "city": "Oslo",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1343,
+   "qmed": 1.008,
+   "mad_raw": 0.952,
+   "mad_adj": 1.025,
+   "mad_even": 1.169,
+   "mad_typical": 0.939
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "b",
+   "n": 6781,
+   "qmed": 1.008,
+   "mad_raw": 0.784,
+   "mad_adj": 0.362,
+   "mad_even": 0.644,
+   "mad_typical": 0.341
+  },
+  {
+   "city": "Stockholm",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "c",
+   "n": 1206,
+   "qmed": 1.007,
+   "mad_raw": 0.939,
+   "mad_adj": 0.797,
+   "mad_even": 0.77,
+   "mad_typical": 0.404
+  },
+  {
+   "city": "Sydney",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "c",
+   "n": 358,
+   "qmed": 1.01,
+   "mad_raw": 2.278,
+   "mad_adj": 1.785,
+   "mad_even": 1.279,
+   "mad_typical": 0.968
+  },
+  {
+   "city": "Valencia",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "b",
+   "n": 5447,
+   "qmed": 1.006,
+   "mad_raw": 0.917,
+   "mad_adj": 0.47,
+   "mad_even": 0.806,
+   "mad_typical": 0.371
+  },
+  {
+   "city": "Warsaw",
+   "goal": 225,
+   "prof": "raw",
+   "cls": "b",
+   "n": 2336,
+   "qmed": 1.005,
+   "mad_raw": 1.248,
+   "mad_adj": 0.638,
+   "mad_even": 0.931,
+   "mad_typical": 0.309
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 9968,
+   "qmed": 1.004,
+   "mad_raw": 0.866,
+   "mad_adj": 0.378,
+   "mad_even": 0.91,
+   "mad_typical": 0.386
+  },
+  {
+   "city": "Austin",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 250,
+   "qmed": 1.005,
+   "mad_raw": 0.98,
+   "mad_adj": 0.628,
+   "mad_even": 1.015,
+   "mad_typical": 1.105
+  },
+  {
+   "city": "Berlin",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 38644,
+   "qmed": 1.006,
+   "mad_raw": 0.567,
+   "mad_adj": 0.329,
+   "mad_even": 0.624,
+   "mad_typical": 0.54
+  },
+  {
+   "city": "Boston",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 7646,
+   "qmed": 1.012,
+   "mad_raw": 1.155,
+   "mad_adj": 0.558,
+   "mad_even": 0.974,
+   "mad_typical": 0.955
+  },
+  {
+   "city": "Chicago",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 26279,
+   "qmed": 1.007,
+   "mad_raw": 0.898,
+   "mad_adj": 0.313,
+   "mad_even": 0.838,
+   "mad_typical": 0.266
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 8287,
+   "qmed": 1.005,
+   "mad_raw": 0.743,
+   "mad_adj": 0.428,
+   "mad_even": 0.52,
+   "mad_typical": 0.364
+  },
+  {
+   "city": "Dubai",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 344,
+   "qmed": 1.005,
+   "mad_raw": 0.762,
+   "mad_adj": 0.323,
+   "mad_even": 0.85,
+   "mad_typical": 0.209
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1873,
+   "qmed": 1.006,
+   "mad_raw": 0.539,
+   "mad_adj": 0.349,
+   "mad_even": 0.578,
+   "mad_typical": 0.464
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 3134,
+   "qmed": 1.007,
+   "mad_raw": 0.478,
+   "mad_adj": 0.378,
+   "mad_even": 0.895,
+   "mad_typical": 0.325
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 1104,
+   "qmed": 1.008,
+   "mad_raw": 1.025,
+   "mad_adj": 0.543,
+   "mad_even": 1.086,
+   "mad_typical": 0.699
+  },
+  {
+   "city": "Hamburg",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 7921,
+   "qmed": 1.006,
+   "mad_raw": 0.709,
+   "mad_adj": 0.393,
+   "mad_even": 0.648,
+   "mad_typical": 0.316
+  },
+  {
+   "city": "Helsinki",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 264,
+   "qmed": 1.007,
+   "mad_raw": 1.825,
+   "mad_adj": 1.205,
+   "mad_even": 1.711,
+   "mad_typical": 1.287
+  },
+  {
+   "city": "London",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 3667,
+   "qmed": 1.01,
+   "mad_raw": 0.655,
+   "mad_adj": 0.714,
+   "mad_even": 0.753,
+   "mad_typical": 0.808
+  },
+  {
+   "city": "Madrid",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1919,
+   "qmed": 1.009,
+   "mad_raw": 1.029,
+   "mad_adj": 1.135,
+   "mad_even": 1.638,
+   "mad_typical": 1.412
+  },
+  {
+   "city": "New York",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 15827,
+   "qmed": 1.009,
+   "mad_raw": 0.663,
+   "mad_adj": 0.609,
+   "mad_even": 1.05,
+   "mad_typical": 0.795
+  },
+  {
+   "city": "Oslo",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1343,
+   "qmed": 1.008,
+   "mad_raw": 0.996,
+   "mad_adj": 1.011,
+   "mad_even": 1.169,
+   "mad_typical": 0.939
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 6781,
+   "qmed": 1.008,
+   "mad_raw": 0.643,
+   "mad_adj": 0.305,
+   "mad_even": 0.644,
+   "mad_typical": 0.341
+  },
+  {
+   "city": "Stockholm",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 1206,
+   "qmed": 1.007,
+   "mad_raw": 0.939,
+   "mad_adj": 0.773,
+   "mad_even": 0.77,
+   "mad_typical": 0.404
+  },
+  {
+   "city": "Sydney",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 358,
+   "qmed": 1.01,
+   "mad_raw": 2.278,
+   "mad_adj": 1.783,
+   "mad_even": 1.279,
+   "mad_typical": 0.968
+  },
+  {
+   "city": "Valencia",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 5447,
+   "qmed": 1.006,
+   "mad_raw": 0.776,
+   "mad_adj": 0.271,
+   "mad_even": 0.806,
+   "mad_typical": 0.371
+  },
+  {
+   "city": "Warsaw",
+   "goal": 225,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 2336,
+   "qmed": 1.005,
+   "mad_raw": 1.401,
+   "mad_adj": 0.696,
+   "mad_even": 0.931,
+   "mad_typical": 0.309
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "b",
+   "n": 9900,
+   "qmed": 1.006,
+   "mad_raw": 0.872,
+   "mad_adj": 0.449,
+   "mad_even": 0.851,
+   "mad_typical": 0.401
+  },
+  {
+   "city": "Austin",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "a",
+   "n": 198,
+   "qmed": 1.005,
+   "mad_raw": 1.014,
+   "mad_adj": 0.522,
+   "mad_even": 1.015,
+   "mad_typical": 1.197
+  },
+  {
+   "city": "Berlin",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "c",
+   "n": 39856,
+   "qmed": 1.007,
+   "mad_raw": 0.596,
+   "mad_adj": 0.378,
+   "mad_even": 0.664,
+   "mad_typical": 0.553
+  },
+  {
+   "city": "Boston",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "a",
+   "n": 4243,
+   "qmed": 1.011,
+   "mad_raw": 1.278,
+   "mad_adj": 0.631,
+   "mad_even": 1.077,
+   "mad_typical": 0.95
+  },
+  {
+   "city": "Chicago",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "a",
+   "n": 24261,
+   "qmed": 1.007,
+   "mad_raw": 1.027,
+   "mad_adj": 0.352,
+   "mad_even": 0.966,
+   "mad_typical": 0.339
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "c",
+   "n": 8193,
+   "qmed": 1.007,
+   "mad_raw": 0.839,
+   "mad_adj": 0.481,
+   "mad_even": 0.621,
+   "mad_typical": 0.365
+  },
+  {
+   "city": "Dubai",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "c",
+   "n": 359,
+   "qmed": 1.006,
+   "mad_raw": 0.822,
+   "mad_adj": 0.415,
+   "mad_even": 0.909,
+   "mad_typical": 0.268
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1609,
+   "qmed": 1.006,
+   "mad_raw": 0.601,
+   "mad_adj": 0.418,
+   "mad_even": 0.588,
+   "mad_typical": 0.467
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "c",
+   "n": 2896,
+   "qmed": 1.009,
+   "mad_raw": 0.536,
+   "mad_adj": 0.394,
+   "mad_even": 0.931,
+   "mad_typical": 0.341
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "c",
+   "n": 901,
+   "qmed": 1.011,
+   "mad_raw": 1.19,
+   "mad_adj": 0.552,
+   "mad_even": 1.215,
+   "mad_typical": 0.777
+  },
+  {
+   "city": "Hamburg",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "c",
+   "n": 7941,
+   "qmed": 1.008,
+   "mad_raw": 0.741,
+   "mad_adj": 0.428,
+   "mad_even": 0.675,
+   "mad_typical": 0.312
+  },
+  {
+   "city": "Helsinki",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "c",
+   "n": 428,
+   "qmed": 1.005,
+   "mad_raw": 1.906,
+   "mad_adj": 1.304,
+   "mad_even": 1.801,
+   "mad_typical": 1.38
+  },
+  {
+   "city": "London",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "b",
+   "n": 3417,
+   "qmed": 1.011,
+   "mad_raw": 0.738,
+   "mad_adj": 0.649,
+   "mad_even": 0.843,
+   "mad_typical": 0.841
+  },
+  {
+   "city": "Madrid",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1678,
+   "qmed": 1.009,
+   "mad_raw": 1.065,
+   "mad_adj": 1.171,
+   "mad_even": 1.634,
+   "mad_typical": 1.482
+  },
+  {
+   "city": "New York",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "b",
+   "n": 18169,
+   "qmed": 1.009,
+   "mad_raw": 1.058,
+   "mad_adj": 1.116,
+   "mad_even": 1.1,
+   "mad_typical": 0.883
+  },
+  {
+   "city": "Oslo",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1262,
+   "qmed": 1.006,
+   "mad_raw": 0.964,
+   "mad_adj": 1.132,
+   "mad_even": 1.031,
+   "mad_typical": 0.937
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "b",
+   "n": 7168,
+   "qmed": 1.01,
+   "mad_raw": 0.794,
+   "mad_adj": 0.347,
+   "mad_even": 0.654,
+   "mad_typical": 0.352
+  },
+  {
+   "city": "Stockholm",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "c",
+   "n": 1364,
+   "qmed": 1.008,
+   "mad_raw": 0.96,
+   "mad_adj": 0.773,
+   "mad_even": 0.79,
+   "mad_typical": 0.428
+  },
+  {
+   "city": "Sydney",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "c",
+   "n": 312,
+   "qmed": 1.006,
+   "mad_raw": 2.218,
+   "mad_adj": 1.677,
+   "mad_even": 1.276,
+   "mad_typical": 0.866
+  },
+  {
+   "city": "Valencia",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "b",
+   "n": 4403,
+   "qmed": 1.007,
+   "mad_raw": 0.85,
+   "mad_adj": 0.488,
+   "mad_even": 0.811,
+   "mad_typical": 0.369
+  },
+  {
+   "city": "Warsaw",
+   "goal": 240,
+   "prof": "raw",
+   "cls": "b",
+   "n": 2086,
+   "qmed": 1.004,
+   "mad_raw": 1.306,
+   "mad_adj": 0.679,
+   "mad_even": 0.99,
+   "mad_typical": 0.327
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 9900,
+   "qmed": 1.006,
+   "mad_raw": 0.883,
+   "mad_adj": 0.394,
+   "mad_even": 0.851,
+   "mad_typical": 0.401
+  },
+  {
+   "city": "Austin",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 198,
+   "qmed": 1.005,
+   "mad_raw": 1.014,
+   "mad_adj": 0.522,
+   "mad_even": 1.015,
+   "mad_typical": 1.197
+  },
+  {
+   "city": "Berlin",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 39856,
+   "qmed": 1.007,
+   "mad_raw": 0.596,
+   "mad_adj": 0.385,
+   "mad_even": 0.664,
+   "mad_typical": 0.553
+  },
+  {
+   "city": "Boston",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 4243,
+   "qmed": 1.011,
+   "mad_raw": 1.278,
+   "mad_adj": 0.598,
+   "mad_even": 1.077,
+   "mad_typical": 0.95
+  },
+  {
+   "city": "Chicago",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 24261,
+   "qmed": 1.007,
+   "mad_raw": 1.027,
+   "mad_adj": 0.375,
+   "mad_even": 0.966,
+   "mad_typical": 0.339
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 8193,
+   "qmed": 1.007,
+   "mad_raw": 0.839,
+   "mad_adj": 0.448,
+   "mad_even": 0.621,
+   "mad_typical": 0.365
+  },
+  {
+   "city": "Dubai",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 359,
+   "qmed": 1.006,
+   "mad_raw": 0.822,
+   "mad_adj": 0.42,
+   "mad_even": 0.909,
+   "mad_typical": 0.268
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1609,
+   "qmed": 1.006,
+   "mad_raw": 0.561,
+   "mad_adj": 0.391,
+   "mad_even": 0.588,
+   "mad_typical": 0.467
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 2896,
+   "qmed": 1.009,
+   "mad_raw": 0.536,
+   "mad_adj": 0.427,
+   "mad_even": 0.931,
+   "mad_typical": 0.341
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 901,
+   "qmed": 1.011,
+   "mad_raw": 1.19,
+   "mad_adj": 0.526,
+   "mad_even": 1.215,
+   "mad_typical": 0.777
+  },
+  {
+   "city": "Hamburg",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 7941,
+   "qmed": 1.008,
+   "mad_raw": 0.741,
+   "mad_adj": 0.406,
+   "mad_even": 0.675,
+   "mad_typical": 0.312
+  },
+  {
+   "city": "Helsinki",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 428,
+   "qmed": 1.005,
+   "mad_raw": 1.906,
+   "mad_adj": 1.279,
+   "mad_even": 1.801,
+   "mad_typical": 1.38
+  },
+  {
+   "city": "London",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 3417,
+   "qmed": 1.011,
+   "mad_raw": 0.704,
+   "mad_adj": 0.721,
+   "mad_even": 0.843,
+   "mad_typical": 0.841
+  },
+  {
+   "city": "Madrid",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1678,
+   "qmed": 1.009,
+   "mad_raw": 1.086,
+   "mad_adj": 1.099,
+   "mad_even": 1.634,
+   "mad_typical": 1.482
+  },
+  {
+   "city": "New York",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 18169,
+   "qmed": 1.009,
+   "mad_raw": 0.73,
+   "mad_adj": 0.682,
+   "mad_even": 1.1,
+   "mad_typical": 0.883
+  },
+  {
+   "city": "Oslo",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1262,
+   "qmed": 1.006,
+   "mad_raw": 1.007,
+   "mad_adj": 1.097,
+   "mad_even": 1.031,
+   "mad_typical": 0.937
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 7168,
+   "qmed": 1.01,
+   "mad_raw": 0.653,
+   "mad_adj": 0.347,
+   "mad_even": 0.654,
+   "mad_typical": 0.352
+  },
+  {
+   "city": "Stockholm",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 1364,
+   "qmed": 1.008,
+   "mad_raw": 0.96,
+   "mad_adj": 0.743,
+   "mad_even": 0.79,
+   "mad_typical": 0.428
+  },
+  {
+   "city": "Sydney",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 312,
+   "qmed": 1.006,
+   "mad_raw": 2.218,
+   "mad_adj": 1.675,
+   "mad_even": 1.276,
+   "mad_typical": 0.866
+  },
+  {
+   "city": "Valencia",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 4403,
+   "qmed": 1.007,
+   "mad_raw": 0.772,
+   "mad_adj": 0.289,
+   "mad_even": 0.811,
+   "mad_typical": 0.369
+  },
+  {
+   "city": "Warsaw",
+   "goal": 240,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 2086,
+   "qmed": 1.004,
+   "mad_raw": 1.46,
+   "mad_adj": 0.738,
+   "mad_even": 0.99,
+   "mad_typical": 0.327
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "b",
+   "n": 4403,
+   "qmed": 1.008,
+   "mad_raw": 0.925,
+   "mad_adj": 0.489,
+   "mad_even": 0.904,
+   "mad_typical": 0.448
+  },
+  {
+   "city": "Austin",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "a",
+   "n": 159,
+   "qmed": 1.007,
+   "mad_raw": 1.128,
+   "mad_adj": 0.643,
+   "mad_even": 0.978,
+   "mad_typical": 1.111
+  },
+  {
+   "city": "Berlin",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "c",
+   "n": 20187,
+   "qmed": 1.007,
+   "mad_raw": 0.631,
+   "mad_adj": 0.48,
+   "mad_even": 0.738,
+   "mad_typical": 0.557
+  },
+  {
+   "city": "Boston",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "a",
+   "n": 1915,
+   "qmed": 1.01,
+   "mad_raw": 1.446,
+   "mad_adj": 0.734,
+   "mad_even": 1.248,
+   "mad_typical": 0.935
+  },
+  {
+   "city": "Chicago",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "a",
+   "n": 15415,
+   "qmed": 1.007,
+   "mad_raw": 1.193,
+   "mad_adj": 0.478,
+   "mad_even": 1.136,
+   "mad_typical": 0.473
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "c",
+   "n": 3328,
+   "qmed": 1.007,
+   "mad_raw": 0.856,
+   "mad_adj": 0.532,
+   "mad_even": 0.669,
+   "mad_typical": 0.423
+  },
+  {
+   "city": "Dubai",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "c",
+   "n": 175,
+   "qmed": 1.008,
+   "mad_raw": 0.849,
+   "mad_adj": 0.401,
+   "mad_even": 0.937,
+   "mad_typical": 0.174
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "b",
+   "n": 692,
+   "qmed": 1.008,
+   "mad_raw": 0.75,
+   "mad_adj": 0.529,
+   "mad_even": 0.747,
+   "mad_typical": 0.518
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "c",
+   "n": 1247,
+   "qmed": 1.008,
+   "mad_raw": 0.547,
+   "mad_adj": 0.425,
+   "mad_even": 0.957,
+   "mad_typical": 0.352
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "c",
+   "n": 485,
+   "qmed": 1.009,
+   "mad_raw": 1.206,
+   "mad_adj": 0.521,
+   "mad_even": 1.23,
+   "mad_typical": 0.719
+  },
+  {
+   "city": "Hamburg",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "c",
+   "n": 3968,
+   "qmed": 1.008,
+   "mad_raw": 0.804,
+   "mad_adj": 0.507,
+   "mad_even": 0.716,
+   "mad_typical": 0.367
+  },
+  {
+   "city": "Helsinki",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "c",
+   "n": 260,
+   "qmed": 1.009,
+   "mad_raw": 2.438,
+   "mad_adj": 1.736,
+   "mad_even": 2.323,
+   "mad_typical": 1.905
+  },
+  {
+   "city": "London",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1537,
+   "qmed": 1.012,
+   "mad_raw": 0.757,
+   "mad_adj": 0.752,
+   "mad_even": 0.85,
+   "mad_typical": 0.889
+  },
+  {
+   "city": "Madrid",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "b",
+   "n": 741,
+   "qmed": 1.012,
+   "mad_raw": 1.126,
+   "mad_adj": 1.232,
+   "mad_even": 1.652,
+   "mad_typical": 1.524
+  },
+  {
+   "city": "New York",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "b",
+   "n": 10918,
+   "qmed": 1.01,
+   "mad_raw": 1.111,
+   "mad_adj": 1.141,
+   "mad_even": 1.171,
+   "mad_typical": 0.922
+  },
+  {
+   "city": "Oslo",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "b",
+   "n": 559,
+   "qmed": 1.005,
+   "mad_raw": 1.005,
+   "mad_adj": 1.231,
+   "mad_even": 1.022,
+   "mad_typical": 0.884
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "b",
+   "n": 3455,
+   "qmed": 1.01,
+   "mad_raw": 0.805,
+   "mad_adj": 0.371,
+   "mad_even": 0.667,
+   "mad_typical": 0.453
+  },
+  {
+   "city": "Stockholm",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "c",
+   "n": 850,
+   "qmed": 1.007,
+   "mad_raw": 1.006,
+   "mad_adj": 0.738,
+   "mad_even": 0.9,
+   "mad_typical": 0.525
+  },
+  {
+   "city": "Sydney",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "c",
+   "n": 174,
+   "qmed": 1.007,
+   "mad_raw": 2.365,
+   "mad_adj": 1.761,
+   "mad_even": 1.456,
+   "mad_typical": 1.059
+  },
+  {
+   "city": "Valencia",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1721,
+   "qmed": 1.008,
+   "mad_raw": 0.852,
+   "mad_adj": 0.487,
+   "mad_even": 0.909,
+   "mad_typical": 0.388
+  },
+  {
+   "city": "Warsaw",
+   "goal": 255,
+   "prof": "raw",
+   "cls": "b",
+   "n": 809,
+   "qmed": 1.006,
+   "mad_raw": 1.436,
+   "mad_adj": 0.707,
+   "mad_even": 1.112,
+   "mad_typical": 0.371
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 4403,
+   "qmed": 1.008,
+   "mad_raw": 0.935,
+   "mad_adj": 0.435,
+   "mad_even": 0.904,
+   "mad_typical": 0.448
+  },
+  {
+   "city": "Austin",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 159,
+   "qmed": 1.007,
+   "mad_raw": 1.128,
+   "mad_adj": 0.632,
+   "mad_even": 0.978,
+   "mad_typical": 1.111
+  },
+  {
+   "city": "Berlin",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 20187,
+   "qmed": 1.007,
+   "mad_raw": 0.631,
+   "mad_adj": 0.447,
+   "mad_even": 0.738,
+   "mad_typical": 0.557
+  },
+  {
+   "city": "Boston",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 1915,
+   "qmed": 1.01,
+   "mad_raw": 1.446,
+   "mad_adj": 0.701,
+   "mad_even": 1.248,
+   "mad_typical": 0.935
+  },
+  {
+   "city": "Chicago",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 15415,
+   "qmed": 1.007,
+   "mad_raw": 1.193,
+   "mad_adj": 0.501,
+   "mad_even": 1.136,
+   "mad_typical": 0.473
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 3328,
+   "qmed": 1.007,
+   "mad_raw": 0.856,
+   "mad_adj": 0.51,
+   "mad_even": 0.669,
+   "mad_typical": 0.423
+  },
+  {
+   "city": "Dubai",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 175,
+   "qmed": 1.008,
+   "mad_raw": 0.849,
+   "mad_adj": 0.416,
+   "mad_even": 0.937,
+   "mad_typical": 0.174
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 692,
+   "qmed": 1.008,
+   "mad_raw": 0.716,
+   "mad_adj": 0.404,
+   "mad_even": 0.747,
+   "mad_typical": 0.518
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 1247,
+   "qmed": 1.008,
+   "mad_raw": 0.547,
+   "mad_adj": 0.489,
+   "mad_even": 0.957,
+   "mad_typical": 0.352
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 485,
+   "qmed": 1.009,
+   "mad_raw": 1.206,
+   "mad_adj": 0.486,
+   "mad_even": 1.23,
+   "mad_typical": 0.719
+  },
+  {
+   "city": "Hamburg",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 3968,
+   "qmed": 1.008,
+   "mad_raw": 0.804,
+   "mad_adj": 0.511,
+   "mad_even": 0.716,
+   "mad_typical": 0.367
+  },
+  {
+   "city": "Helsinki",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 260,
+   "qmed": 1.009,
+   "mad_raw": 2.438,
+   "mad_adj": 1.711,
+   "mad_even": 2.323,
+   "mad_typical": 1.905
+  },
+  {
+   "city": "London",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1537,
+   "qmed": 1.012,
+   "mad_raw": 0.741,
+   "mad_adj": 0.819,
+   "mad_even": 0.85,
+   "mad_typical": 0.889
+  },
+  {
+   "city": "Madrid",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 741,
+   "qmed": 1.012,
+   "mad_raw": 1.146,
+   "mad_adj": 1.082,
+   "mad_even": 1.652,
+   "mad_typical": 1.524
+  },
+  {
+   "city": "New York",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 10918,
+   "qmed": 1.01,
+   "mad_raw": 0.83,
+   "mad_adj": 0.747,
+   "mad_even": 1.171,
+   "mad_typical": 0.922
+  },
+  {
+   "city": "Oslo",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 559,
+   "qmed": 1.005,
+   "mad_raw": 1.049,
+   "mad_adj": 1.181,
+   "mad_even": 1.022,
+   "mad_typical": 0.884
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 3455,
+   "qmed": 1.01,
+   "mad_raw": 0.665,
+   "mad_adj": 0.44,
+   "mad_even": 0.667,
+   "mad_typical": 0.453
+  },
+  {
+   "city": "Stockholm",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 850,
+   "qmed": 1.007,
+   "mad_raw": 1.006,
+   "mad_adj": 0.709,
+   "mad_even": 0.9,
+   "mad_typical": 0.525
+  },
+  {
+   "city": "Sydney",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 174,
+   "qmed": 1.007,
+   "mad_raw": 2.365,
+   "mad_adj": 1.76,
+   "mad_even": 1.456,
+   "mad_typical": 1.059
+  },
+  {
+   "city": "Valencia",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1721,
+   "qmed": 1.008,
+   "mad_raw": 0.856,
+   "mad_adj": 0.287,
+   "mad_even": 0.909,
+   "mad_typical": 0.388
+  },
+  {
+   "city": "Warsaw",
+   "goal": 255,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 809,
+   "qmed": 1.006,
+   "mad_raw": 1.572,
+   "mad_adj": 0.79,
+   "mad_even": 1.112,
+   "mad_typical": 0.371
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "b",
+   "n": 3033,
+   "qmed": 1.007,
+   "mad_raw": 0.934,
+   "mad_adj": 0.505,
+   "mad_even": 0.863,
+   "mad_typical": 0.469
+  },
+  {
+   "city": "Austin",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "a",
+   "n": 127,
+   "qmed": 1.01,
+   "mad_raw": 1.234,
+   "mad_adj": 0.969,
+   "mad_even": 0.987,
+   "mad_typical": 1.162
+  },
+  {
+   "city": "Berlin",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "c",
+   "n": 16867,
+   "qmed": 1.007,
+   "mad_raw": 0.71,
+   "mad_adj": 0.482,
+   "mad_even": 0.807,
+   "mad_typical": 0.592
+  },
+  {
+   "city": "Boston",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "a",
+   "n": 1310,
+   "qmed": 1.01,
+   "mad_raw": 1.354,
+   "mad_adj": 0.783,
+   "mad_even": 1.239,
+   "mad_typical": 0.977
+  },
+  {
+   "city": "Chicago",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "a",
+   "n": 14260,
+   "qmed": 1.007,
+   "mad_raw": 1.225,
+   "mad_adj": 0.535,
+   "mad_even": 1.174,
+   "mad_typical": 0.515
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "c",
+   "n": 2060,
+   "qmed": 1.007,
+   "mad_raw": 0.908,
+   "mad_adj": 0.539,
+   "mad_even": 0.739,
+   "mad_typical": 0.43
+  },
+  {
+   "city": "Dubai",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "c",
+   "n": 116,
+   "qmed": 1.008,
+   "mad_raw": 1.117,
+   "mad_adj": 0.593,
+   "mad_even": 1.205,
+   "mad_typical": 0.408
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "b",
+   "n": 416,
+   "qmed": 1.008,
+   "mad_raw": 0.916,
+   "mad_adj": 0.574,
+   "mad_even": 0.955,
+   "mad_typical": 0.574
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "c",
+   "n": 980,
+   "qmed": 1.01,
+   "mad_raw": 0.63,
+   "mad_adj": 0.497,
+   "mad_even": 0.948,
+   "mad_typical": 0.389
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "c",
+   "n": 346,
+   "qmed": 1.009,
+   "mad_raw": 1.258,
+   "mad_adj": 0.488,
+   "mad_even": 1.278,
+   "mad_typical": 0.653
+  },
+  {
+   "city": "Hamburg",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "c",
+   "n": 3035,
+   "qmed": 1.008,
+   "mad_raw": 0.947,
+   "mad_adj": 0.594,
+   "mad_even": 0.741,
+   "mad_typical": 0.361
+  },
+  {
+   "city": "Helsinki",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "c",
+   "n": 218,
+   "qmed": 1.004,
+   "mad_raw": 2.467,
+   "mad_adj": 1.818,
+   "mad_even": 2.364,
+   "mad_typical": 1.974
+  },
+  {
+   "city": "London",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1444,
+   "qmed": 1.011,
+   "mad_raw": 0.768,
+   "mad_adj": 0.795,
+   "mad_even": 0.895,
+   "mad_typical": 0.907
+  },
+  {
+   "city": "Madrid",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "b",
+   "n": 381,
+   "qmed": 1.014,
+   "mad_raw": 1.14,
+   "mad_adj": 1.193,
+   "mad_even": 1.661,
+   "mad_typical": 1.68
+  },
+  {
+   "city": "New York",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "b",
+   "n": 9874,
+   "qmed": 1.01,
+   "mad_raw": 1.196,
+   "mad_adj": 1.217,
+   "mad_even": 1.144,
+   "mad_typical": 0.998
+  },
+  {
+   "city": "Oslo",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "b",
+   "n": 381,
+   "qmed": 1.005,
+   "mad_raw": 0.949,
+   "mad_adj": 1.249,
+   "mad_even": 0.842,
+   "mad_typical": 0.82
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "b",
+   "n": 2207,
+   "qmed": 1.01,
+   "mad_raw": 0.773,
+   "mad_adj": 0.377,
+   "mad_even": 0.689,
+   "mad_typical": 0.48
+  },
+  {
+   "city": "Stockholm",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "c",
+   "n": 658,
+   "qmed": 1.006,
+   "mad_raw": 1.209,
+   "mad_adj": 0.838,
+   "mad_even": 1.116,
+   "mad_typical": 0.771
+  },
+  {
+   "city": "Sydney",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "c",
+   "n": 133,
+   "qmed": 1.011,
+   "mad_raw": 2.267,
+   "mad_adj": 1.64,
+   "mad_even": 1.485,
+   "mad_typical": 1.029
+  },
+  {
+   "city": "Valencia",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "b",
+   "n": 990,
+   "qmed": 1.009,
+   "mad_raw": 0.794,
+   "mad_adj": 0.518,
+   "mad_even": 0.895,
+   "mad_typical": 0.408
+  },
+  {
+   "city": "Warsaw",
+   "goal": 270,
+   "prof": "raw",
+   "cls": "b",
+   "n": 575,
+   "qmed": 1.006,
+   "mad_raw": 1.287,
+   "mad_adj": 0.658,
+   "mad_even": 0.963,
+   "mad_typical": 0.38
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 3033,
+   "qmed": 1.007,
+   "mad_raw": 0.902,
+   "mad_adj": 0.45,
+   "mad_even": 0.863,
+   "mad_typical": 0.469
+  },
+  {
+   "city": "Austin",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 127,
+   "qmed": 1.01,
+   "mad_raw": 1.234,
+   "mad_adj": 0.927,
+   "mad_even": 0.987,
+   "mad_typical": 1.162
+  },
+  {
+   "city": "Berlin",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 16867,
+   "qmed": 1.007,
+   "mad_raw": 0.71,
+   "mad_adj": 0.456,
+   "mad_even": 0.807,
+   "mad_typical": 0.592
+  },
+  {
+   "city": "Boston",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 1310,
+   "qmed": 1.01,
+   "mad_raw": 1.354,
+   "mad_adj": 0.781,
+   "mad_even": 1.239,
+   "mad_typical": 0.977
+  },
+  {
+   "city": "Chicago",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 14260,
+   "qmed": 1.007,
+   "mad_raw": 1.225,
+   "mad_adj": 0.552,
+   "mad_even": 1.174,
+   "mad_typical": 0.515
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 2060,
+   "qmed": 1.007,
+   "mad_raw": 0.908,
+   "mad_adj": 0.517,
+   "mad_even": 0.739,
+   "mad_typical": 0.43
+  },
+  {
+   "city": "Dubai",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 116,
+   "qmed": 1.008,
+   "mad_raw": 1.117,
+   "mad_adj": 0.575,
+   "mad_even": 1.205,
+   "mad_typical": 0.408
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 416,
+   "qmed": 1.008,
+   "mad_raw": 0.927,
+   "mad_adj": 0.465,
+   "mad_even": 0.955,
+   "mad_typical": 0.574
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 980,
+   "qmed": 1.01,
+   "mad_raw": 0.63,
+   "mad_adj": 0.533,
+   "mad_even": 0.948,
+   "mad_typical": 0.389
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 346,
+   "qmed": 1.009,
+   "mad_raw": 1.258,
+   "mad_adj": 0.477,
+   "mad_even": 1.278,
+   "mad_typical": 0.653
+  },
+  {
+   "city": "Hamburg",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 3035,
+   "qmed": 1.008,
+   "mad_raw": 0.947,
+   "mad_adj": 0.596,
+   "mad_even": 0.741,
+   "mad_typical": 0.361
+  },
+  {
+   "city": "Helsinki",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 218,
+   "qmed": 1.004,
+   "mad_raw": 2.467,
+   "mad_adj": 1.793,
+   "mad_even": 2.364,
+   "mad_typical": 1.974
+  },
+  {
+   "city": "London",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1444,
+   "qmed": 1.011,
+   "mad_raw": 0.803,
+   "mad_adj": 0.863,
+   "mad_even": 0.895,
+   "mad_typical": 0.907
+  },
+  {
+   "city": "Madrid",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 381,
+   "qmed": 1.014,
+   "mad_raw": 1.161,
+   "mad_adj": 0.992,
+   "mad_even": 1.661,
+   "mad_typical": 1.68
+  },
+  {
+   "city": "New York",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 9874,
+   "qmed": 1.01,
+   "mad_raw": 0.934,
+   "mad_adj": 0.855,
+   "mad_even": 1.144,
+   "mad_typical": 0.998
+  },
+  {
+   "city": "Oslo",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 381,
+   "qmed": 1.005,
+   "mad_raw": 0.993,
+   "mad_adj": 1.28,
+   "mad_even": 0.842,
+   "mad_typical": 0.82
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 2207,
+   "qmed": 1.01,
+   "mad_raw": 0.676,
+   "mad_adj": 0.467,
+   "mad_even": 0.689,
+   "mad_typical": 0.48
+  },
+  {
+   "city": "Stockholm",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 658,
+   "qmed": 1.006,
+   "mad_raw": 1.209,
+   "mad_adj": 0.793,
+   "mad_even": 1.116,
+   "mad_typical": 0.771
+  },
+  {
+   "city": "Sydney",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 133,
+   "qmed": 1.011,
+   "mad_raw": 2.267,
+   "mad_adj": 1.639,
+   "mad_even": 1.485,
+   "mad_typical": 1.029
+  },
+  {
+   "city": "Valencia",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 990,
+   "qmed": 1.009,
+   "mad_raw": 0.829,
+   "mad_adj": 0.33,
+   "mad_even": 0.895,
+   "mad_typical": 0.408
+  },
+  {
+   "city": "Warsaw",
+   "goal": 270,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 575,
+   "qmed": 1.006,
+   "mad_raw": 1.422,
+   "mad_adj": 0.745,
+   "mad_even": 0.963,
+   "mad_typical": 0.38
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1572,
+   "qmed": 1.007,
+   "mad_raw": 0.993,
+   "mad_adj": 0.537,
+   "mad_even": 0.91,
+   "mad_typical": 0.493
+  },
+  {
+   "city": "Austin",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "a",
+   "n": 113,
+   "qmed": 1.001,
+   "mad_raw": 1.329,
+   "mad_adj": 1.014,
+   "mad_even": 0.715,
+   "mad_typical": 1.148
+  },
+  {
+   "city": "Berlin",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "c",
+   "n": 11682,
+   "qmed": 1.007,
+   "mad_raw": 0.817,
+   "mad_adj": 0.542,
+   "mad_even": 0.904,
+   "mad_typical": 0.583
+  },
+  {
+   "city": "Boston",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "a",
+   "n": 847,
+   "qmed": 1.01,
+   "mad_raw": 1.28,
+   "mad_adj": 0.734,
+   "mad_even": 1.521,
+   "mad_typical": 1.122
+  },
+  {
+   "city": "Chicago",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "a",
+   "n": 10528,
+   "qmed": 1.008,
+   "mad_raw": 1.259,
+   "mad_adj": 0.639,
+   "mad_even": 1.209,
+   "mad_typical": 0.607
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "c",
+   "n": 951,
+   "qmed": 1.008,
+   "mad_raw": 0.918,
+   "mad_adj": 0.408,
+   "mad_even": 0.771,
+   "mad_typical": 0.443
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "b",
+   "n": 165,
+   "qmed": 1.004,
+   "mad_raw": 1.037,
+   "mad_adj": 0.663,
+   "mad_even": 0.988,
+   "mad_typical": 0.728
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "c",
+   "n": 461,
+   "qmed": 1.009,
+   "mad_raw": 0.764,
+   "mad_adj": 0.456,
+   "mad_even": 0.92,
+   "mad_typical": 0.36
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "c",
+   "n": 244,
+   "qmed": 1.011,
+   "mad_raw": 1.268,
+   "mad_adj": 0.594,
+   "mad_even": 1.353,
+   "mad_typical": 0.814
+  },
+  {
+   "city": "Hamburg",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "c",
+   "n": 1621,
+   "qmed": 1.01,
+   "mad_raw": 1.043,
+   "mad_adj": 0.507,
+   "mad_even": 0.727,
+   "mad_typical": 0.415
+  },
+  {
+   "city": "Helsinki",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "c",
+   "n": 111,
+   "qmed": 1.01,
+   "mad_raw": 2.719,
+   "mad_adj": 2.071,
+   "mad_even": 2.598,
+   "mad_typical": 2.347
+  },
+  {
+   "city": "London",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1082,
+   "qmed": 1.011,
+   "mad_raw": 0.884,
+   "mad_adj": 0.762,
+   "mad_even": 1.053,
+   "mad_typical": 0.882
+  },
+  {
+   "city": "Madrid",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "b",
+   "n": 176,
+   "qmed": 1.014,
+   "mad_raw": 1.336,
+   "mad_adj": 0.912,
+   "mad_even": 1.553,
+   "mad_typical": 1.745
+  },
+  {
+   "city": "New York",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "b",
+   "n": 7158,
+   "qmed": 1.01,
+   "mad_raw": 1.329,
+   "mad_adj": 1.139,
+   "mad_even": 1.267,
+   "mad_typical": 0.948
+  },
+  {
+   "city": "Oslo",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "b",
+   "n": 181,
+   "qmed": 1.004,
+   "mad_raw": 1.024,
+   "mad_adj": 0.873,
+   "mad_even": 1.135,
+   "mad_typical": 0.831
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "b",
+   "n": 961,
+   "qmed": 1.012,
+   "mad_raw": 0.896,
+   "mad_adj": 0.321,
+   "mad_even": 0.851,
+   "mad_typical": 0.483
+  },
+  {
+   "city": "Stockholm",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "c",
+   "n": 556,
+   "qmed": 1.007,
+   "mad_raw": 1.239,
+   "mad_adj": 0.867,
+   "mad_even": 1.251,
+   "mad_typical": 0.809
+  },
+  {
+   "city": "Valencia",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "b",
+   "n": 395,
+   "qmed": 1.012,
+   "mad_raw": 0.755,
+   "mad_adj": 0.565,
+   "mad_even": 0.996,
+   "mad_typical": 0.403
+  },
+  {
+   "city": "Warsaw",
+   "goal": 285,
+   "prof": "raw",
+   "cls": "b",
+   "n": 376,
+   "qmed": 1.004,
+   "mad_raw": 1.284,
+   "mad_adj": 0.657,
+   "mad_even": 0.954,
+   "mad_typical": 0.409
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1572,
+   "qmed": 1.007,
+   "mad_raw": 0.947,
+   "mad_adj": 0.486,
+   "mad_even": 0.91,
+   "mad_typical": 0.493
+  },
+  {
+   "city": "Austin",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 113,
+   "qmed": 1.001,
+   "mad_raw": 1.329,
+   "mad_adj": 1.003,
+   "mad_even": 0.715,
+   "mad_typical": 1.148
+  },
+  {
+   "city": "Berlin",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 11682,
+   "qmed": 1.007,
+   "mad_raw": 0.817,
+   "mad_adj": 0.498,
+   "mad_even": 0.904,
+   "mad_typical": 0.583
+  },
+  {
+   "city": "Boston",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 847,
+   "qmed": 1.01,
+   "mad_raw": 1.28,
+   "mad_adj": 0.733,
+   "mad_even": 1.521,
+   "mad_typical": 1.122
+  },
+  {
+   "city": "Chicago",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 10528,
+   "qmed": 1.008,
+   "mad_raw": 1.259,
+   "mad_adj": 0.652,
+   "mad_even": 1.209,
+   "mad_typical": 0.607
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 951,
+   "qmed": 1.008,
+   "mad_raw": 0.918,
+   "mad_adj": 0.405,
+   "mad_even": 0.771,
+   "mad_typical": 0.443
+  },
+  {
+   "city": "Eindhoven",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 165,
+   "qmed": 1.004,
+   "mad_raw": 0.931,
+   "mad_adj": 0.571,
+   "mad_even": 0.988,
+   "mad_typical": 0.728
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 461,
+   "qmed": 1.009,
+   "mad_raw": 0.764,
+   "mad_adj": 0.511,
+   "mad_even": 0.92,
+   "mad_typical": 0.36
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 244,
+   "qmed": 1.011,
+   "mad_raw": 1.268,
+   "mad_adj": 0.595,
+   "mad_even": 1.353,
+   "mad_typical": 0.814
+  },
+  {
+   "city": "Hamburg",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 1621,
+   "qmed": 1.01,
+   "mad_raw": 1.043,
+   "mad_adj": 0.504,
+   "mad_even": 0.727,
+   "mad_typical": 0.415
+  },
+  {
+   "city": "Helsinki",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 111,
+   "qmed": 1.01,
+   "mad_raw": 2.719,
+   "mad_adj": 2.082,
+   "mad_even": 2.598,
+   "mad_typical": 2.347
+  },
+  {
+   "city": "London",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1082,
+   "qmed": 1.011,
+   "mad_raw": 0.955,
+   "mad_adj": 0.835,
+   "mad_even": 1.053,
+   "mad_typical": 0.882
+  },
+  {
+   "city": "Madrid",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 176,
+   "qmed": 1.014,
+   "mad_raw": 1.357,
+   "mad_adj": 0.851,
+   "mad_even": 1.553,
+   "mad_typical": 1.745
+  },
+  {
+   "city": "New York",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 7158,
+   "qmed": 1.01,
+   "mad_raw": 1.059,
+   "mad_adj": 0.751,
+   "mad_even": 1.267,
+   "mad_typical": 0.948
+  },
+  {
+   "city": "Oslo",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 181,
+   "qmed": 1.004,
+   "mad_raw": 1.179,
+   "mad_adj": 0.969,
+   "mad_even": 1.135,
+   "mad_typical": 0.831
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 961,
+   "qmed": 1.012,
+   "mad_raw": 0.815,
+   "mad_adj": 0.47,
+   "mad_even": 0.851,
+   "mad_typical": 0.483
+  },
+  {
+   "city": "Stockholm",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 556,
+   "qmed": 1.007,
+   "mad_raw": 1.239,
+   "mad_adj": 0.818,
+   "mad_even": 1.251,
+   "mad_typical": 0.809
+  },
+  {
+   "city": "Valencia",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 395,
+   "qmed": 1.012,
+   "mad_raw": 0.906,
+   "mad_adj": 0.374,
+   "mad_even": 0.996,
+   "mad_typical": 0.403
+  },
+  {
+   "city": "Warsaw",
+   "goal": 285,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 376,
+   "qmed": 1.004,
+   "mad_raw": 1.385,
+   "mad_adj": 0.749,
+   "mad_even": 0.954,
+   "mad_typical": 0.409
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "b",
+   "n": 706,
+   "qmed": 1.008,
+   "mad_raw": 1.161,
+   "mad_adj": 0.459,
+   "mad_even": 1.111,
+   "mad_typical": 0.488
+  },
+  {
+   "city": "Berlin",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "c",
+   "n": 6843,
+   "qmed": 1.009,
+   "mad_raw": 0.983,
+   "mad_adj": 0.561,
+   "mad_even": 1.087,
+   "mad_typical": 0.643
+  },
+  {
+   "city": "Boston",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "a",
+   "n": 482,
+   "qmed": 1.013,
+   "mad_raw": 1.308,
+   "mad_adj": 0.698,
+   "mad_even": 2.004,
+   "mad_typical": 1.433
+  },
+  {
+   "city": "Chicago",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "a",
+   "n": 7210,
+   "qmed": 1.008,
+   "mad_raw": 1.351,
+   "mad_adj": 0.773,
+   "mad_even": 1.33,
+   "mad_typical": 0.727
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "c",
+   "n": 354,
+   "qmed": 1.009,
+   "mad_raw": 1.07,
+   "mad_adj": 0.404,
+   "mad_even": 0.985,
+   "mad_typical": 0.452
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "c",
+   "n": 236,
+   "qmed": 1.011,
+   "mad_raw": 1.113,
+   "mad_adj": 0.627,
+   "mad_even": 1.181,
+   "mad_typical": 0.466
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "c",
+   "n": 131,
+   "qmed": 1.013,
+   "mad_raw": 1.627,
+   "mad_adj": 0.917,
+   "mad_even": 1.65,
+   "mad_typical": 0.955
+  },
+  {
+   "city": "Hamburg",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "c",
+   "n": 687,
+   "qmed": 1.011,
+   "mad_raw": 1.2,
+   "mad_adj": 0.505,
+   "mad_even": 0.883,
+   "mad_typical": 0.413
+  },
+  {
+   "city": "Helsinki",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "c",
+   "n": 169,
+   "qmed": 1.003,
+   "mad_raw": 2.48,
+   "mad_adj": 2.013,
+   "mad_even": 2.426,
+   "mad_typical": 2.157
+  },
+  {
+   "city": "London",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "b",
+   "n": 808,
+   "qmed": 1.011,
+   "mad_raw": 1.035,
+   "mad_adj": 0.766,
+   "mad_even": 1.24,
+   "mad_typical": 0.891
+  },
+  {
+   "city": "Madrid",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "b",
+   "n": 100,
+   "qmed": 1.01,
+   "mad_raw": 1.51,
+   "mad_adj": 1.34,
+   "mad_even": 1.316,
+   "mad_typical": 1.615
+  },
+  {
+   "city": "New York",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "b",
+   "n": 5003,
+   "qmed": 1.01,
+   "mad_raw": 1.615,
+   "mad_adj": 1.227,
+   "mad_even": 1.484,
+   "mad_typical": 1.033
+  },
+  {
+   "city": "Oslo",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "b",
+   "n": 104,
+   "qmed": 1.011,
+   "mad_raw": 0.852,
+   "mad_adj": 1.382,
+   "mad_even": 0.77,
+   "mad_typical": 1.207
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "b",
+   "n": 366,
+   "qmed": 1.011,
+   "mad_raw": 0.938,
+   "mad_adj": 0.37,
+   "mad_even": 0.859,
+   "mad_typical": 0.581
+  },
+  {
+   "city": "Stockholm",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "c",
+   "n": 392,
+   "qmed": 1.004,
+   "mad_raw": 1.33,
+   "mad_adj": 1.15,
+   "mad_even": 1.457,
+   "mad_typical": 1.097
+  },
+  {
+   "city": "Valencia",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "b",
+   "n": 159,
+   "qmed": 1.011,
+   "mad_raw": 0.928,
+   "mad_adj": 0.72,
+   "mad_even": 1.108,
+   "mad_typical": 0.334
+  },
+  {
+   "city": "Warsaw",
+   "goal": 300,
+   "prof": "raw",
+   "cls": "b",
+   "n": 183,
+   "qmed": 1.009,
+   "mad_raw": 1.288,
+   "mad_adj": 0.726,
+   "mad_even": 1.128,
+   "mad_typical": 0.502
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 706,
+   "qmed": 1.008,
+   "mad_raw": 1.152,
+   "mad_adj": 0.43,
+   "mad_even": 1.111,
+   "mad_typical": 0.488
+  },
+  {
+   "city": "Berlin",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 6843,
+   "qmed": 1.009,
+   "mad_raw": 0.983,
+   "mad_adj": 0.513,
+   "mad_even": 1.087,
+   "mad_typical": 0.643
+  },
+  {
+   "city": "Boston",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 482,
+   "qmed": 1.013,
+   "mad_raw": 1.308,
+   "mad_adj": 0.718,
+   "mad_even": 2.004,
+   "mad_typical": 1.433
+  },
+  {
+   "city": "Chicago",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 7210,
+   "qmed": 1.008,
+   "mad_raw": 1.351,
+   "mad_adj": 0.765,
+   "mad_even": 1.33,
+   "mad_typical": 0.727
+  },
+  {
+   "city": "Copenhagen",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 354,
+   "qmed": 1.009,
+   "mad_raw": 1.07,
+   "mad_adj": 0.394,
+   "mad_even": 0.985,
+   "mad_typical": 0.452
+  },
+  {
+   "city": "Frankfurt",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 236,
+   "qmed": 1.011,
+   "mad_raw": 1.113,
+   "mad_adj": 0.655,
+   "mad_even": 1.181,
+   "mad_typical": 0.466
+  },
+  {
+   "city": "Gold Coast",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 131,
+   "qmed": 1.013,
+   "mad_raw": 1.627,
+   "mad_adj": 0.911,
+   "mad_even": 1.65,
+   "mad_typical": 0.955
+  },
+  {
+   "city": "Hamburg",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 687,
+   "qmed": 1.011,
+   "mad_raw": 1.2,
+   "mad_adj": 0.457,
+   "mad_even": 0.883,
+   "mad_typical": 0.413
+  },
+  {
+   "city": "Helsinki",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 169,
+   "qmed": 1.003,
+   "mad_raw": 2.48,
+   "mad_adj": 1.98,
+   "mad_even": 2.426,
+   "mad_typical": 2.157
+  },
+  {
+   "city": "London",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 808,
+   "qmed": 1.011,
+   "mad_raw": 1.146,
+   "mad_adj": 0.804,
+   "mad_even": 1.24,
+   "mad_typical": 0.891
+  },
+  {
+   "city": "Madrid",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 100,
+   "qmed": 1.01,
+   "mad_raw": 1.411,
+   "mad_adj": 1.138,
+   "mad_even": 1.316,
+   "mad_typical": 1.615
+  },
+  {
+   "city": "New York",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 5003,
+   "qmed": 1.01,
+   "mad_raw": 1.366,
+   "mad_adj": 0.827,
+   "mad_even": 1.484,
+   "mad_typical": 1.033
+  },
+  {
+   "city": "Oslo",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 104,
+   "qmed": 1.011,
+   "mad_raw": 0.809,
+   "mad_adj": 1.351,
+   "mad_even": 0.77,
+   "mad_typical": 1.207
+  },
+  {
+   "city": "Rotterdam",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 366,
+   "qmed": 1.011,
+   "mad_raw": 0.856,
+   "mad_adj": 0.534,
+   "mad_even": 0.859,
+   "mad_typical": 0.581
+  },
+  {
+   "city": "Stockholm",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 392,
+   "qmed": 1.004,
+   "mad_raw": 1.33,
+   "mad_adj": 1.093,
+   "mad_even": 1.457,
+   "mad_typical": 1.097
+  },
+  {
+   "city": "Valencia",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 159,
+   "qmed": 1.011,
+   "mad_raw": 1.071,
+   "mad_adj": 0.533,
+   "mad_even": 1.108,
+   "mad_typical": 0.334
+  },
+  {
+   "city": "Warsaw",
+   "goal": 300,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 183,
+   "qmed": 1.009,
+   "mad_raw": 1.39,
+   "mad_adj": 0.825,
+   "mad_even": 1.128,
+   "mad_typical": 0.502
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 315,
+   "prof": "raw",
+   "cls": "b",
+   "n": 178,
+   "qmed": 1.008,
+   "mad_raw": 1.381,
+   "mad_adj": 0.732,
+   "mad_even": 1.361,
+   "mad_typical": 0.827
+  },
+  {
+   "city": "Berlin",
+   "goal": 315,
+   "prof": "raw",
+   "cls": "c",
+   "n": 2592,
+   "qmed": 1.01,
+   "mad_raw": 1.168,
+   "mad_adj": 0.729,
+   "mad_even": 1.279,
+   "mad_typical": 0.617
+  },
+  {
+   "city": "Boston",
+   "goal": 315,
+   "prof": "raw",
+   "cls": "a",
+   "n": 249,
+   "qmed": 1.011,
+   "mad_raw": 1.108,
+   "mad_adj": 0.468,
+   "mad_even": 1.863,
+   "mad_typical": 1.166
+  },
+  {
+   "city": "Chicago",
+   "goal": 315,
+   "prof": "raw",
+   "cls": "a",
+   "n": 3942,
+   "qmed": 1.008,
+   "mad_raw": 1.534,
+   "mad_adj": 0.958,
+   "mad_even": 1.5,
+   "mad_typical": 1.043
+  },
+  {
+   "city": "Hamburg",
+   "goal": 315,
+   "prof": "raw",
+   "cls": "c",
+   "n": 141,
+   "qmed": 1.012,
+   "mad_raw": 1.375,
+   "mad_adj": 0.679,
+   "mad_even": 1.018,
+   "mad_typical": 0.695
+  },
+  {
+   "city": "London",
+   "goal": 315,
+   "prof": "raw",
+   "cls": "b",
+   "n": 400,
+   "qmed": 1.011,
+   "mad_raw": 1.03,
+   "mad_adj": 0.923,
+   "mad_even": 1.263,
+   "mad_typical": 0.887
+  },
+  {
+   "city": "New York",
+   "goal": 315,
+   "prof": "raw",
+   "cls": "b",
+   "n": 2549,
+   "qmed": 1.01,
+   "mad_raw": 1.835,
+   "mad_adj": 1.298,
+   "mad_even": 1.699,
+   "mad_typical": 1.087
+  },
+  {
+   "city": "Stockholm",
+   "goal": 315,
+   "prof": "raw",
+   "cls": "c",
+   "n": 213,
+   "qmed": 1.007,
+   "mad_raw": 1.343,
+   "mad_adj": 1.238,
+   "mad_even": 1.713,
+   "mad_typical": 1.291
+  },
+  {
+   "city": "Amsterdam",
+   "goal": 315,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 178,
+   "qmed": 1.008,
+   "mad_raw": 1.369,
+   "mad_adj": 0.684,
+   "mad_even": 1.361,
+   "mad_typical": 0.827
+  },
+  {
+   "city": "Berlin",
+   "goal": 315,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 2592,
+   "qmed": 1.01,
+   "mad_raw": 1.168,
+   "mad_adj": 0.652,
+   "mad_even": 1.279,
+   "mad_typical": 0.617
+  },
+  {
+   "city": "Boston",
+   "goal": 315,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 249,
+   "qmed": 1.011,
+   "mad_raw": 1.108,
+   "mad_adj": 0.464,
+   "mad_even": 1.863,
+   "mad_typical": 1.166
+  },
+  {
+   "city": "Chicago",
+   "goal": 315,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 3942,
+   "qmed": 1.008,
+   "mad_raw": 1.534,
+   "mad_adj": 0.945,
+   "mad_even": 1.5,
+   "mad_typical": 1.043
+  },
+  {
+   "city": "Hamburg",
+   "goal": 315,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 141,
+   "qmed": 1.012,
+   "mad_raw": 1.375,
+   "mad_adj": 0.583,
+   "mad_even": 1.018,
+   "mad_typical": 0.695
+  },
+  {
+   "city": "London",
+   "goal": 315,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 400,
+   "qmed": 1.011,
+   "mad_raw": 1.141,
+   "mad_adj": 0.988,
+   "mad_even": 1.263,
+   "mad_typical": 0.887
+  },
+  {
+   "city": "New York",
+   "goal": 315,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 2549,
+   "qmed": 1.01,
+   "mad_raw": 1.555,
+   "mad_adj": 0.763,
+   "mad_even": 1.699,
+   "mad_typical": 1.087
+  },
+  {
+   "city": "Stockholm",
+   "goal": 315,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 213,
+   "qmed": 1.007,
+   "mad_raw": 1.343,
+   "mad_adj": 1.154,
+   "mad_even": 1.713,
+   "mad_typical": 1.291
+  },
+  {
+   "city": "Berlin",
+   "goal": 330,
+   "prof": "raw",
+   "cls": "c",
+   "n": 1403,
+   "qmed": 1.01,
+   "mad_raw": 1.341,
+   "mad_adj": 0.876,
+   "mad_even": 1.443,
+   "mad_typical": 0.645
+  },
+  {
+   "city": "Boston",
+   "goal": 330,
+   "prof": "raw",
+   "cls": "a",
+   "n": 129,
+   "qmed": 1.008,
+   "mad_raw": 1.26,
+   "mad_adj": 0.966,
+   "mad_even": 2.006,
+   "mad_typical": 1.219
+  },
+  {
+   "city": "Chicago",
+   "goal": 330,
+   "prof": "raw",
+   "cls": "a",
+   "n": 2553,
+   "qmed": 1.009,
+   "mad_raw": 1.755,
+   "mad_adj": 0.941,
+   "mad_even": 1.698,
+   "mad_typical": 1.061
+  },
+  {
+   "city": "London",
+   "goal": 330,
+   "prof": "raw",
+   "cls": "b",
+   "n": 312,
+   "qmed": 1.01,
+   "mad_raw": 1.235,
+   "mad_adj": 1.105,
+   "mad_even": 1.479,
+   "mad_typical": 1.144
+  },
+  {
+   "city": "New York",
+   "goal": 330,
+   "prof": "raw",
+   "cls": "b",
+   "n": 1824,
+   "qmed": 1.01,
+   "mad_raw": 2.007,
+   "mad_adj": 1.426,
+   "mad_even": 1.904,
+   "mad_typical": 1.187
+  },
+  {
+   "city": "Stockholm",
+   "goal": 330,
+   "prof": "raw",
+   "cls": "c",
+   "n": 132,
+   "qmed": 1.01,
+   "mad_raw": 1.484,
+   "mad_adj": 1.12,
+   "mad_even": 1.995,
+   "mad_typical": 1.322
+  },
+  {
+   "city": "Berlin",
+   "goal": 330,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 1403,
+   "qmed": 1.01,
+   "mad_raw": 1.341,
+   "mad_adj": 0.797,
+   "mad_even": 1.443,
+   "mad_typical": 0.645
+  },
+  {
+   "city": "Boston",
+   "goal": 330,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 129,
+   "qmed": 1.008,
+   "mad_raw": 1.26,
+   "mad_adj": 0.912,
+   "mad_even": 2.006,
+   "mad_typical": 1.219
+  },
+  {
+   "city": "Chicago",
+   "goal": 330,
+   "prof": "corrected",
+   "cls": "a",
+   "n": 2553,
+   "qmed": 1.009,
+   "mad_raw": 1.755,
+   "mad_adj": 0.943,
+   "mad_even": 1.698,
+   "mad_typical": 1.061
+  },
+  {
+   "city": "London",
+   "goal": 330,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 312,
+   "qmed": 1.01,
+   "mad_raw": 1.259,
+   "mad_adj": 1.106,
+   "mad_even": 1.479,
+   "mad_typical": 1.144
+  },
+  {
+   "city": "New York",
+   "goal": 330,
+   "prof": "corrected",
+   "cls": "b",
+   "n": 1824,
+   "qmed": 1.01,
+   "mad_raw": 1.708,
+   "mad_adj": 0.86,
+   "mad_even": 1.904,
+   "mad_typical": 1.187
+  },
+  {
+   "city": "Stockholm",
+   "goal": 330,
+   "prof": "corrected",
+   "cls": "c",
+   "n": 132,
+   "qmed": 1.01,
+   "mad_raw": 1.484,
+   "mad_adj": 0.99,
+   "mad_even": 1.995,
+   "mad_typical": 1.322
+  }
+ ]
+}

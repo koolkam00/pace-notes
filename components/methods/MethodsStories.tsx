@@ -65,7 +65,7 @@ function storyNotes(file: string, slug: string): ReactNode[] {
       const data = readInsight<StoryFile & { grid_screen: Screened[]; start_offset_editions: Edition[] }>(file);
       return [
         'A faster final section means faster than the runner’s own 35–40 km, not faster than the early pace.',
-        'The final section is only 2.195 km, so finish-mat placement and course shape matter more there than in a 5 km section: 50 m shifts its pace by about 2%.',
+        'The final section is only 2.195 km, so finish-mat placement and the route’s layout matter more there than in a 5 km section: 50 m shifts its pace by about 2%.',
         'Recorded 5 km sections cannot show walking breaks, stops or recoveries inside a section, and runners who did not finish are absent.',
         `${n(data.grid_screen.length + data.start_offset_editions.length)} editions are left out of the section statistics: ${and([...data.grid_screen.map((g) => `${g.city} ${g.year} (${g.reason.charAt(0).toLowerCase()}${g.reason.slice(1)})`), `the ${n(data.start_offset_editions.length)} start-offset editions`])}. These are inferences from the timing data.`,
         'Recovery means a later section back within 10% of the runner’s 5–20 km pace. The recovery shares for recorded women and men are not matched on pace, age or course.',

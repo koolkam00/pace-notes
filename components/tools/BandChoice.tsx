@@ -1,14 +1,16 @@
 'use client';
 
+import { Fragment } from 'react';
 import { Choice } from '@/components/tools/ui';
-import { BAND_LABEL, BAND_OPTIONS, SHAPE_DISCLAIMER, shapeWhat, type BandMode } from '@/lib/tools/course-shape';
+import { BAND_LABEL, BAND_OPTIONS, TERRAIN_DISCLAIMER, terrainWhat, type BandMode } from '@/lib/tools/terrain-band';
 
 /**
- * The band's one control, the same on the race planner and the pace band (owner decision, October 20, 2026), directly
- * above the band it changes: Course shape | Even pace where the course has a shape at this goal (and while its finishes
- * load, so the field keeps its place); where it has none, one quiet line in its place saying why (`none`, no label: there
- * is nothing to choose); nothing on all courses (no course to shape it), for a course the data does not know, or when the
- * data could not be loaded (the page's own error says so). A press is the tool's ordinary edit.
+ * The band's one control, the same on the race planner and the pace band (owner decision, October 23, 2026), with
+ * nothing above it that changes with the mode, so a press never moves it (the pace band puts it at the head of the band;
+ * the planner keeps it in place as the card above it changes): Terrain | Even pace where the course has terrain splits;
+ * where it has none, one quiet line in its place saying why (`none`, no label: there is nothing to choose); nothing on
+ * all courses (no route to spread a goal over), or for a course the data does not know. A press is the tool's ordinary
+ * edit.
  */
 export default function BandChoice({ id, state, mode, onChange, line = '', className }: {
   id: string; state: 'choice' | 'none' | 'off'; mode: BandMode; onChange: (mode: BandMode) => void; line?: string; className?: string;
@@ -24,21 +26,27 @@ export default function BandChoice({ id, state, mode, onChange, line = '', class
 }
 
 /**
- * The shape's one line, the same words on both pages (the planner's card, under the pace band's kicker): what the shape
- * is, chosen by its outcome, then "Not a prediction." kept on one line. While a shape is on its way (`pending`) the line
- * keeps its place but is not shown or read, so nothing claims a shape before it has arrived.
+ * The terrain band's lines, the same words on both pages (the planner's card, under the pace band's kicker): what the
+ * band is, then "Not a prediction." kept on one line; then, on a line of its own, the climbs (climbsLine), each climb
+ * kept whole where it fits.
  */
-export function ShapeLine({ goal, city, genderWord = '', pending = false, className }: { goal: number; city: string; genderWord?: string; pending?: boolean; className?: string }) {
+export function TerrainLine({ goal, city, climbs, className }: { goal: number; city: string; climbs: string; className?: string }) {
+  const parts = climbs.split(' · ');
   return (
-    <p className={`band-shape-line${pending ? ' is-pending' : ''}${className ? ` ${className}` : ''}`} aria-hidden={pending || undefined}>
-      {shapeWhat(goal, city, genderWord)} <span className="nowrap">{SHAPE_DISCLAIMER}</span>
+    <p className={`band-shape-line${className ? ` ${className}` : ''}`}>
+      {terrainWhat(goal, city)} <span className="nowrap">{TERRAIN_DISCLAIMER}</span>
+      {climbs ? (
+        <span className="band-climbs">
+          {parts.map((part, i) => <Fragment key={i}>{i ? ' ' : ''}<span className="band-climb">{part}{i < parts.length - 1 ? ' ·' : ''}</span></Fragment>)}
+        </span>
+      ) : null}
     </p>
   );
 }
 
 /**
  * The band's kicker (bandKicker) on screen: it breaks only between its phrases (after " · " or ", "), never inside one,
- * so "course shape" and "8:41/mi to 20K" each stay on one line at every width.
+ * so "terrain splits" and "avg 12:01/mi" each stay on one line at every width.
  */
 export function KickerText({ text }: { text: string }) {
   const parts = text.split(/(\s·\s|,\s)/);

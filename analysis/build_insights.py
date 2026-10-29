@@ -21,6 +21,8 @@ from insights_data import AGE_LABELS, GENDER_LABELS, read_finishes, screen_dupli
 
 ROOT = Path(__file__).resolve().parents[1]
 FAMILY_MODULES = {}
+TERRAIN_FILE = 'tools/course-terrain.json'
+TERRAIN_SCRIPTS = ('build_course_terrain.py', 'terrain_model.py')
 
 
 def register(name, module, filename):
@@ -107,14 +109,16 @@ def run(output, only=None, cache=None):
     pin, full, manifest, manifest_sha = load_cohort(cache)
     cohort, screen = screen_duplicates(full)
     context_manifest = ROOT / 'public/data/runner-context/manifest.json'
+    output = Path(output)
+    # The terrain builder and model are bound exactly when tools/course-terrain.json is published.
+    terrain_scripts = list(TERRAIN_SCRIPTS) if (output / TERRAIN_FILE).exists() else []
     scripts = {name: sha256_file(Path(__file__).with_name(name)) for name in sorted(
-        p.name for p in Path(__file__).parent.glob('insights_*.py')) + ['build_insights.py', 'build_fast_start.py']}
+        p.name for p in Path(__file__).parent.glob('insights_*.py')) + ['build_insights.py', 'build_fast_start.py', *terrain_scripts]}
     common = dict(
         schema_version=1, release_tag=manifest['release_tag'], input_as_of=manifest['input_as_of'],
         runner_manifest_sha256=manifest_sha, runner_manifest_as_of=manifest['as_of'],
         eligible_records=int(full.n), analysis_n=int(cohort.n), duplicate_edition_screen=screen,
     )
-    output = Path(output)
     files = {}
     for name, (module, filename) in families().items():
         if only and name not in only:
@@ -143,6 +147,10 @@ def run(output, only=None, cache=None):
     geometry = output / 'course-geometry.json'
     if geometry.exists():
         files['course-geometry.json'] = dict(bytes=geometry.stat().st_size, sha256=sha256_file(geometry))
+    # Terrain splits: built by build_course_terrain.py from the course profiles and the audited corrections, then listed here.
+    terrain = output / TERRAIN_FILE
+    if terrain.exists():
+        files[TERRAIN_FILE] = dict(bytes=terrain.stat().st_size, sha256=sha256_file(terrain))
     cities = sorted({cohort.editions[e]['city'] for e in np.unique(cohort.edition)})
     manifest_out = dict(
         **common, as_of=datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),

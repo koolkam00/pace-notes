@@ -28,6 +28,9 @@ const SOURCE = 'https://github.com/koolkam00/pace-notes';
 const FIGSHARE = 'https://doi.org/10.6084/m9.figshare.33965155';
 /** How to open the full records of the adopted release (rewritten at every adoption: docs/OPERATIONS.md). */
 const ACCESS = 'https://github.com/koolkam00/pace-notes/blob/main/analysis/ACCESS.md';
+/** The terrain splits' file and the audited route-profile corrections it is built from (the registry lives in the source, not in public/data). */
+const TERRAIN_FILE = 'tools/course-terrain.json';
+const CORRECTIONS = 'https://github.com/koolkam00/pace-notes/blob/main/analysis/course_terrain/corrections.json';
 
 /** A file, or a set of files, as one link row: its name, what it holds, and where it goes. */
 function FileRow({ href, name, what }: { href: string; name: string; what: string }) {
@@ -56,6 +59,10 @@ export default function MethodsDownloads() {
   const sourceHref = sourceReleaseHref(release.tag);
   const storyFiles = [...new Set(STORIES.filter((story) => manifest.files[story.file]).map((story) => story.file))];
   const toolFiles = [...new Set(TOOLS.filter((tool) => tool.file && manifest.files[tool.file]).map((tool) => tool.file as string))];
+  const terrainFiles = manifest.files[TERRAIN_FILE] ? [
+    { href: dataHref(`insights/${TERRAIN_FILE}`), name: 'course-terrain.json', what: `${TOOLS.filter((tool) => tool.slug === 'plan' || tool.slug === 'pace-band').map((tool) => tool.title).join(', ')}: the terrain splits, with each checked course’s corrected route` },
+    { href: CORRECTIONS, name: 'corrections.json', what: 'the audited route-profile corrections behind them, with their sources and licences' },
+  ] : [];
   const packs = getExtensions().slice().sort((a, b) => a.title.localeCompare(b.title));
   return <Part id="downloads" n={5} short="Downloads" title="Downloads" lead="Every file is public. No account, no key.">
     <div className="methods-file-rows">
@@ -86,8 +93,11 @@ export default function MethodsDownloads() {
       ]} />
     </Detail>
 
-    {toolFiles.length > 0 && <Detail id="downloads-tools" title="The tools’ data">
-      <Files files={toolFiles.map((file) => ({ href: dataHref(`insights/${file}`), name: file.replace(/^tools\//, ''), what: TOOLS.filter((tool) => tool.file === file).map((tool) => tool.title).join(', ') }))} />
+    {toolFiles.length + terrainFiles.length > 0 && <Detail id="downloads-tools" title="The tools’ data">
+      <Files files={[
+        ...toolFiles.map((file) => ({ href: dataHref(`insights/${file}`), name: file.replace(/^tools\//, ''), what: TOOLS.filter((tool) => tool.file === file).map((tool) => tool.title).join(', ') })),
+        ...terrainFiles,
+      ]} />
     </Detail>}
 
     {packs.length > 0 && <Detail id="archive" title="The research packs’ data">
