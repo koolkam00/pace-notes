@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { getInsightsManifest, readInsight } from './insights-server';
+import { getHalfManifest } from './half-server';
 import type { Archetypes, Courses, InsightsManifest, ReplayIndex } from './insights';
 import type { HalfManifest } from './half-types';
 import { getNugget, sentenceOf } from './nuggets';
@@ -89,17 +90,12 @@ function shapedCourses(): number | null {
 }
 
 /**
- * The half-marathon manifest, or null when this build has no half data (public/data/half/manifest.json is absent): a
- * build without it still builds every marathon page, and no half story or page is listed, routed or mapped.
+ * The verified half-marathon manifest (lib/half-server.ts, which throws on any binding or digest mismatch), or null when
+ * this build has no half data (public/data/half/manifest.json is absent): a build without it still builds every
+ * marathon page, and no half story or page is listed, routed or mapped.
  */
-let half: { key: string; manifest: HalfManifest } | undefined;
 export function halfManifest(): HalfManifest | null {
-  const file = path.join(process.cwd(), 'public/data/half/manifest.json');
-  if (!fs.existsSync(file)) return null;
-  const stat = fs.statSync(file);
-  const key = `${stat.size}:${stat.mtimeMs}`;
-  if (half?.key !== key) half = { key, manifest: JSON.parse(fs.readFileSync(file, 'utf8')) as HalfManifest };
-  return half.manifest;
+  return fs.existsSync(path.join(process.cwd(), 'public/data/half/manifest.json')) ? getHalfManifest() : null;
 }
 
 /** Whether a story is published: its data file is in the manifest of its source. */
