@@ -66,7 +66,8 @@ export default function HalfToFullBody() {
   const home = Math.max(0, bands.findIndex((w) => w.h === range.values.h));
   const markOf = bands.map((w) => readoutMark(w));
   const yLo = Math.min(...bands.map((w) => Math.min(q(w, 0.1), 2 * w.h))), yHi = Math.max(...bands.map((w) => Math.max(q(w, 0.9), 2 * w.h)));
-  const yDomain: [number, number] = [Math.floor(yLo / 1800) * 1800, Math.ceil(yHi / 1800) * 1800];
+  // The plot holds the middle 8 in 10 and double the half, to the 10 minutes around them (no empty half hour above).
+  const yDomain: [number, number] = [Math.floor(yLo / 600) * 600, Math.ceil(yHi / 600) * 600];
   const chart = (u: UnitSystem) => (
     <PredictorLink key={u} halves={bands.map((w) => floorHM(w.h))}
       paces={bands.map((w) => { const gap = paceGap(w.extra_p50, u); return { gap: `${Math.round(Math.abs(gap))} s/${u}`, word: gap < 0 ? 'quicker' : 'slower' }; })}

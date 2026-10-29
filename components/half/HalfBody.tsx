@@ -81,7 +81,9 @@ export default function HalfBody() {
           </>
         )} />
 
-      <Beat id="your-time" track="chapter-1" label="Your time" title={under} dek={deks.under}>
+      {/* The dek says how to use the chart: the recorded women's and men's shares are the readout's own side rows, so
+          the dek's version of them (deks.under) would put the same two numbers twice on one screen. */}
+      <Beat id="your-time" track="chapter-1" label="Your time" title={under} dek={`Slide to any time from ${hm(first)} to ${hm(last)}.`}>
         <Cdf points={curve} ticks={[75, 90, 105, 120, 135, 150, 165, 180].map((m) => ({ value: m, label: hm(m) }))}
           scrub={{
             label: `Half finish time, ${hm(first)} to ${hm(last)}`,
@@ -110,7 +112,7 @@ export default function HalfBody() {
 
       <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities}>
         <Dumbbell rows={sc.cities.map((c) => ({ id: c.city, label: c.city, a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` }))}
-          domain={[0, 0.6]} ticks={[0, 0.2, 0.4, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}
+          domain={[0, 0.6]} ticks={[0, 0.3, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}
           label={`Women’s share of recorded finishes in the same city and year, marathon then half: ${sc.cities.map((c) => `${c.city} ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
         <SaveImage slug="half-more-women" />
       </Beat>

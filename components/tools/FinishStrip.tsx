@@ -61,8 +61,11 @@ function stackLabels(markers: Marker[], width: number, margin: number) {
 /** A share of finishes as the strip's flags print it: "22%". */
 const flagPct = (share: number) => `${Math.round(share * 100)}%`;
 
-export function FinishStrip({ q, Q, est, marks }: {
+export function FinishStrip({ q, Q, est, marks, format = fmtShort }: {
   q: number[]; Q: number[];
+  /** How the bracket and the flags print a time: the 20K panel's to the nearest minute (fmtShort); the half panel's
+   *  whole minute at or below it, as every half page reads a time. Ticks are whole minutes either way. */
+  format?: (seconds: number) => string;
   /** The 20K panel's estimate (the whole minute the cohort is on pace for). */
   est?: number;
   /** The half panel's round times and the share of the group's finishes under each (strictly), seconds. */
@@ -89,12 +92,12 @@ export function FinishStrip({ q, Q, est, marks }: {
     { key: 'est', x: x(est), label: tiny ? fmtShort(est) : `On ${fmtShort(est)} pace`, tone: 'est' as const },
     // The median in whole minutes, as the sentence above names it (one precision for one number).
     { key: 'median', x: x(q[i50]), label: `Their median ${fmtShort(q[i50])}`, tone: 'median' as const },
-  ] : flags.map((f) => ({ key: `m${f.s}`, x: x(f.s), label: `${fmtShort(f.s)} · ${flagPct(f.share)}`, tone: f === nearest ? 'median' as const : 'est' as const })), width, m.l);
+  ] : flags.map((f) => ({ key: `m${f.s}`, x: x(f.s), label: `${format(f.s)} · ${flagPct(f.share)}`, tone: f === nearest ? 'median' as const : 'est' as const })), width, m.l);
   const labelRows = Math.max(1, ...markers.map((mk) => mk.row + 1));
   const top = 8 + labelRows * 17;
   const plotH = narrow ? 80 : 96;
   const base = top + plotH;
-  const range = `${fmtShort(q[i10])}–${fmtShort(q[i90])}`;
+  const range = `${format(q[i10])}–${format(q[i90])}`;
   const bracket = bracketLayout(x(q[i10]), x(q[i90]), `80% of finishes: ${range}`, width, m.l, `80%: ${range}`);
   const bracketY = base + 34;
   const H = bracketY + bracket.height;
