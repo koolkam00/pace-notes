@@ -66,6 +66,17 @@ const release = readJson('analysis/release.json');
 const manifestBytes = fs.readFileSync(path.join(opt.data, 'manifest.json'));
 const manifest = JSON.parse(manifestBytes);
 
+// ---------- 0. Parity with the Python builders (scripts/half/fixtures/parity.json, also checked by analysis/test_half.py) ----------
+{
+  const parity = readJson('scripts/half/fixtures/parity.json');
+  for (const [i, c] of parity.cases.entries()) {
+    const sorted = D.ascending(c.values);
+    eq(parity.levels.map((q) => D.quantileSorted(sorted, q)), c.quantiles, `parity case ${i}: the linear quantile`);
+    eq(c.quantiles.map(D.sec), c.published, `parity case ${i}: seconds as published (Python rounding, ties to even)`);
+  }
+  eq([D.sec(100.25), D.sec(7040), D.sh(1 / 2048), D.r(2.20145, 4)], [100.2, 7040, 0.0004882812, 2.2014], 'Python rounding of exact and inexact ties (2.20145 is stored just under the tie)');
+}
+
 // ---------- 1. Provenance ----------
 eq([manifest.schema_version, manifest.family], [1, 'half'], 'half manifest schema');
 eq([manifest.half.tag, manifest.half.sqlite_sha256], [pin.half.tag, pin.half.sqlite_sha256], 'the manifest binds the pinned half snapshot');
@@ -449,6 +460,12 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
     ok(receipt.runner_manifest_sha256 === sha(runnerBytes), stale('the runner manifest changed'));
     ok(receipt.policy_sha256 === sha(policyBytes), stale('the policy changed'));
     ok(int(receipt.values_checked, 1000), 'the receipt counts the values it checked');
+    if (receipt.counts) {
+      const { set_b: recountedSetB, marathon: recountedMarathon, ...recounted } = receipt.counts;
+      eq(recounted, policyCounts, 'the recounted policy counts are the manifest’s');
+      eq(recountedSetB, setB, 'the recounted set B is the manifest’s');
+      ok(recountedMarathon && recountedMarathon.eligible === runners.eligible_records, 'the recount read every eligible marathon finish');
+    } else ok(false, 'the receipt carries its recounted counts');
     eq(Object.keys(receipt.files || {}).sort(), Object.keys(manifest.files).sort(), 'the receipt recounted every published file');
     for (const [name, c] of Object.entries(receipt.files || {})) ok(int(c.values, 1) && c.mismatches === 0, `the receipt recounted ${name} without a mismatch`);
     const text = fs.readFileSync(rel(receiptPath), 'utf8');
