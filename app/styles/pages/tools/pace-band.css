@@ -54,7 +54,7 @@
   .pace-band-print-marks .table th, .pace-band-print-marks .table td { font-size: 8.5pt; line-height: 1.2; }
   .pace-band-print-marks tr { break-inside: avoid; }
   /* With the option on, every stretch's time and pace follows the table of every marker. */
-  .pace-band-root[data-print='page'] .pace-band-print-stretches { display: block; margin-top: .3cm; }
+  .pace-band-root[data-print='page'] .pace-band-print-stretches { display: block; margin-top: .3cm; break-inside: avoid; }
   .pace-band-root[data-print='page'] .table th, .pace-band-root[data-print='page'] .table td { height: auto; padding-top: .06cm; padding-bottom: .06cm; }
   /* A fold's summary ("All numbers · 9 rows") is a screen control: the full page prints an open fold's table without it,
      and a fold left closed (the browser's own print command) not at all. */
