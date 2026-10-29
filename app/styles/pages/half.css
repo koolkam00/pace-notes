@@ -26,3 +26,8 @@
 @media (prefers-reduced-motion: reduce) {
   .half-end .tool-handoffs .arrow-icon { transition: none; }
 }
+
+/* ---------- The figures (components/half/HalfCharts.tsx) ---------- */
+/* A round time's interval: a 1.5 px whisker with 9 px caps over its column, in the second ink (never the column's own
+   fill or outline, which it would inherit from the column's group). */
+.half-page .viz-frame .half-whisker { fill: var(--ink-2); stroke: none; }

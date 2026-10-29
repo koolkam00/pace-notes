@@ -1,19 +1,119 @@
 import { getNugget, sentenceOf } from '@/lib/nuggets';
-import { StoryHero } from '@/components/story/StoryPage';
+import { halfDeks } from '@/lib/nuggets/half';
+import { count, hm, pct, ratio } from '@/lib/nuggets/format';
+import { readHalf } from '@/lib/half-server';
+import { Beat, StoryHero } from '@/components/story/StoryPage';
+import Cdf from '@/components/viz/Cdf';
+import Dumbbell from '@/components/viz/Dumbbell';
+import Values from '@/components/ui/Values';
 import HalfPage, { HALF_PATH, HalfCrumbs } from './HalfPage';
+import { FieldHistogram, RatioColumns, SaveImage, ShareColumns } from './HalfCharts';
+
+/** The round time the reading names (2:00) and the one beat 1's readout opens on (1:45), in minutes. */
+const READING_MARK = 120;
+const OPEN_MARK = 105;
+/** The beat-1 readout's detents: the half's round times. */
+const DETENTS = [90, 105, 120, 135, 150];
+const W = 'Recorded women’s', M = 'Recorded men’s';
+/** A women's share of the recorded finishes on one side of a same-city pair. */
+const womenShare = (side: { F: number; M: number }) => side.F / (side.F + side.M);
 
 /**
  * /half, "The half marathon": where half marathon finish times sit, from half finishes in verified results (field.json,
  * women.json; no scope chip). Off the chapter chain like the Top 100 charts: no rail and no reading bar. Every sentence
- * and figure is a half nugget (lib/nuggets/half.ts); the page types no number.
+ * and every figure is a half nugget or a dek built with them (lib/nuggets/half.ts); the charts draw the same files. The
+ * page types no number.
+ *
+ * The reading (just over half under 2:00, the median 1:57, every minute as a histogram), then four beats: where any time
+ * sits (the share under it, scrubbable), the crowd in the minute before 2:00, women the majority of finishes from 2:15,
+ * and the same city's half and marathon. One All numbers fold at the foot holds every chart's table.
  */
 export default function HalfBody() {
-  const field = getNugget('half.field');
-  const figure = field.figure;
+  const field = readHalf('field.json');
+  const women = readHalf('women.json');
+  const deks = halfDeks();
+  const reading = getNugget('half.field'), under = getNugget('half.under'), crowd = getNugget('half.crowd');
+  const womenN = getNugget('half.women'), cities = getNugget('half.cities');
+  const figure = reading.figure;
+  const at = (s: number) => field.under.find((u) => u.s === s)!;
+  const total = field.cohort.finishes;
+
+  // The share under every whole minute from 1:10 to 3:00, from the minute histogram (finishes under minute m are the
+  // tail under 1:05 and every minute before m), and the scrubber's 23 five-minute marks.
+  const { lo, counts, under_lo: tail } = field.minutes;
+  const first = field.under[0].s / 60, last = field.under[field.under.length - 1].s / 60;
+  const curve = Array.from({ length: last - first + 1 }, (_, i) => first + i).map((m) => ({
+    x: m, share: (tail + counts.slice(0, m - lo).reduce((a, b) => a + b, 0)) / total,
+  }));
+  const marks = field.under;
+  const markIndex = (minutes: number) => marks.findIndex((u) => u.s === minutes * 60);
+  const span = last - first;
+
+  // Beat 3: the band whose median share first passes one half and stays over it.
+  const cross = women.bands.findIndex((b) => b.lo_s === women.cross_s);
+  const sc = women.same_city;
+
+  const histLabel = `Half marathon finishes in each minute from ${hm(lo)} to ${hm(field.minutes.hi - 1)}: the median ${hm(Math.floor(field.quantiles.all.p50 / 60))}, ${pct(at(READING_MARK * 60).all)} under ${hm(READING_MARK)}.`;
   return (
-    <HalfPage scope="verified" how="/methodology#half-field">
-      <StoryHero path={HALF_PATH} crumbs={<HalfCrumbs />} title={sentenceOf(field)} stacked fallback={!field.guard}
-        figure={figure ? { value: figure.value, unit: figure.unit, sr: figure.sr } : undefined} />
+    <HalfPage scope="verified" how="/methodology#half-field" numbers={[
+      <Values key="under" bare id="hf-under" caption="Half finishes under each time"
+        columns={[{ key: 't', label: 'Under' }, { key: 'a', label: 'All' }, { key: 'f', label: W }, { key: 'm', label: M }]}
+        rows={marks.map((u) => [hm(u.s / 60), pct(u.all, 1), pct(u.F, 1), pct(u.M, 1)])} reading={markIndex(OPEN_MARK)} />,
+      <Values key="crowd" bare id="hf-crowd" caption="The minute before each round time, against the smooth curve"
+        columns={[{ key: 'k', label: 'Before' }, { key: 'r', label: '× curve' }, { key: 'b', label: 'Minute before' }, { key: 'e', label: 'Curve' }, { key: 'a', label: 'Minute after' }, { key: 'c', label: '95% interval' }]}
+        rows={field.marks.map((m) => [m.mark, ratio(m.ratio, 2), count(m.minute_before), count(m.expected_minute_before), count(m.minute_after), `${ratio(m.ratio_ci95[0], 2)} to ${ratio(m.ratio_ci95[1], 2)}`])}
+        reading={field.marks.findIndex((m) => m.minutes === READING_MARK)} />,
+      <Values key="women" bare id="hf-women" caption={`Women’s share of recorded half finishes in each band: the median of ${women.band_editions.length} editions`}
+        columns={[{ key: 'b', label: 'Finish band' }, { key: 's', label: 'Women’s share' }]}
+        rows={women.bands.map((b, i) => [b.hi_s === null ? `${hm(b.lo_s / 60)} and over` : b.lo_s === 0 ? `Under ${hm(b.hi_s / 60)}` : `${hm(b.lo_s / 60)} to ${hm(b.hi_s / 60 - 1)}:59`, pct(women.median_share[i], 1)])}
+        reading={cross} />,
+      <Values key="cities" bare id="hf-cities" caption="Women’s share of recorded finishes, the same city and year"
+        columns={[{ key: 'c', label: 'City', text: true }, { key: 'y', label: 'Year' }, { key: 'h', label: 'Half' }, { key: 'm', label: 'Marathon' }]}
+        rows={[...sc.pairs].sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year).map((p) => [p.city, String(p.year), pct(womenShare(p.half), 1), pct(womenShare(p.marathon), 1)])} />,
+    ]}>
+      <StoryHero path={HALF_PATH} crumbs={<HalfCrumbs />} title={sentenceOf(reading)} stacked fallback={!reading.guard}
+        figure={figure ? { value: figure.value, unit: figure.unit, sr: figure.sr } : undefined}
+        unitLine={figure ? deks.fieldUnit : undefined}
+        instrument={(
+          <>
+            <FieldHistogram field={field} mark={READING_MARK} share={`${pct(at(READING_MARK * 60).all)} under ${hm(READING_MARK)}`} label={histLabel} />
+            <SaveImage slug="half-under-2" />
+          </>
+        )} />
+
+      <Beat id="your-time" track="chapter-1" label="Your time" title={under} dek={deks.under}>
+        <Cdf points={curve} ticks={[75, 90, 105, 120, 135, 150, 165, 180].map((m) => ({ value: m, label: hm(m) }))}
+          scrub={{
+            label: `Half finish time, ${hm(first)} to ${hm(last)}`,
+            points: {
+              x: marks.map((u) => (u.s / 60 - first) / span),
+              // Where the needle meets the curve, on Cdf's own scale (yScale(0, 1, { top: 0.06 })).
+              dot: marks.map((u) => 1 - u.all * 0.94),
+              keys: marks.map((u) => `Under ${hm(u.s / 60)}`),
+              values: marks.map((u) => pct(u.all)),
+              side: [{ label: W, values: marks.map((u) => pct(u.F)) }, { label: M, values: marks.map((u) => pct(u.M)) }],
+            },
+            initial: markIndex(OPEN_MARK), detents: DETENTS.map(markIndex).filter((i) => i >= 0),
+          }}
+          label={`The share of half finishes under each time from ${hm(first)} to ${hm(last)}: ${pct(at(OPEN_MARK * 60).all)} under ${hm(OPEN_MARK)}, ${pct(at(READING_MARK * 60).all)} under ${hm(READING_MARK)}.`} />
+      </Beat>
+
+      <Beat id="crowd" track="chapter-2" label="Round times" title={crowd} dek={deks.crowd ?? undefined}>
+        <RatioColumns marks={field.marks} signal={READING_MARK} ink={deks.crowd ? [90] : []}
+          label={`Finishes in the minute before each round time, against the smooth curve: ${field.marks.map((m) => `${m.mark} ${ratio(m.ratio, 2)}`).join(', ')}.`} />
+      </Beat>
+
+      <Beat id="women" track="chapter-3" label="Women and men" title={womenN} dek={deks.women}>
+        <ShareColumns bands={women.bands} shares={women.median_share} signal={cross} format={(s) => pct(s)}
+          label={`Women’s share of recorded half finishes by finish band, the median of ${women.band_editions.length} editions: ${women.bands.map((b, i) => `${b.label} ${pct(women.median_share[i])}`).join(', ')}.`} />
+      </Beat>
+
+      <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities}>
+        <Dumbbell rows={sc.cities.map((c) => ({ id: c.city, label: c.city, a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` }))}
+          domain={[0, 0.6]} ticks={[0, 0.2, 0.4, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}
+          label={`Women’s share of recorded finishes in the same city and year, marathon then half: ${sc.cities.map((c) => `${c.city} ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
+        <SaveImage slug="half-more-women" />
+      </Beat>
     </HalfPage>
   );
 }

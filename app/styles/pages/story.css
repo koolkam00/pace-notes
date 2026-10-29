@@ -284,3 +284,23 @@
 /* The courses named on the bundle (the slowest 5K elsewhere) knock the 27 faint lines out wider than a plain label's
    halo, so no line runs through or behind their words (round 5). */
 .fingerprints .viz-label { stroke-width: 5px; }
+
+/* ---------- The half pages (components/half, components/story/bodies/HalfToFullBody.tsx) ---------- */
+/* Both half pages load this sheet (/half through app/half/layout.tsx). "Save the image" under a figure that has a
+   "From the half" card: a plain link at a 44 px target. */
+.half-save { margin: var(--s-2) 0 0; font-family: var(--sans); font-size: var(--t-small); font-weight: 600; }
+.half-save a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); }
+/* The reading's ruler names its band in a key under it (the band's own label has no room beside "Typical" on a phone). */
+.half-ruler-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-3) 0 0; padding: 0; list-style: none; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.half-ruler-key li { display: inline-flex; align-items: flex-start; gap: 8px; margin: 0; }
+.half-ruler-key i { flex: none; width: 18px; height: 10px; margin-top: calc((1.4em - 10px) / 2); border-radius: 5px; background: var(--ink); opacity: .1; }
+.half-ruler-key b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+/* Under the half-by-half profile: the scrubbed half's pace line, "Not a prediction." on its own line, the predictor link. */
+.half-pace-gap { margin: var(--s-4) 0 0; max-width: 34rem; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
+.half-pace-gap b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.half-not { margin: var(--s-3) 0 0; font-size: var(--t-small); font-weight: 600; line-height: 1.5; color: var(--ink); }
+.half-predictor { margin: var(--s-1) 0 0; }
+.half-predictor-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; color: var(--ink); }
+/* A figure-free way from a marathon beat to the half pages, at the beat's foot (components/half/HalfWays.tsx). */
+.story-way { margin: var(--s-4) 0 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
+.story-way a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; color: var(--ink); }
