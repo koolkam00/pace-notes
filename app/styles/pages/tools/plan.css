@@ -82,6 +82,9 @@
 
 /* ---------- The pace band ---------- */
 .plan-band .tool-share { margin-top: var(--s-2); }
+/* The option directly under the strips: each stretch's pace under its time, its unit in small type. */
+.band-paces { margin-top: var(--s-2); }
+.band-paces small { font-size: inherit; color: var(--ink-3); }
 
 /* ---------- As run: the finishes near the goal at the times they ran (Pace Notes data), after the band ---------- */
 .plan-asrun .evidence-badge { justify-self: start; }
@@ -120,6 +123,9 @@
   .plan-root [data-track-section='pace-band'] { order: 2; }
   .plan-print-mats { order: 3; }
   .plan-print-source { order: 4; padding-top: .15cm; border-top: .5pt solid var(--night); font-family: var(--sans); font-size: 7.5pt; color: var(--night); }
+  /* With the option on, every stretch's time and pace, after the source line, on a page of its own (the plan fills one). */
+  .plan-print-stretches { order: 5; display: grid; gap: .15cm; break-before: page; }
+  .plan-print-stretches-title { margin: 0; font-family: var(--sans); font-size: 7.5pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--night); }
   .plan-mat-table th, .plan-mat-table td, .plan-mat-table tbody th { height: auto; padding-top: .03cm !important; padding-bottom: .03cm !important; font-size: 8.5pt; line-height: 1.25; color: var(--night) !important; }
   .plan-mat-table thead th { font-size: 6.5pt; }
   .plan-mat-table tbody th small { display: inline; margin-left: .2cm; font-size: 7pt; }

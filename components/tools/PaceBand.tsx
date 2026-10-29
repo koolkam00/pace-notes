@@ -6,6 +6,7 @@ import { useUnits } from '@/components/UnitsProvider';
 import AsRunTable, { AsRunNote } from '@/components/tools/AsRunTable';
 import BandChoice, { KickerText, TerrainLine } from '@/components/tools/BandChoice';
 import PaceBandStrip, { type RouteProfile } from '@/components/tools/PaceBandStrip';
+import StretchTables from '@/components/tools/StretchTables';
 import MatLines, { aheadText } from '@/components/tools/MatLines';
 import { Choice, GoalBar, ShareBar, Stepper } from '@/components/tools/ui';
 import { useQueryState } from '@/components/tools/useQueryState';
@@ -17,6 +18,7 @@ import { bandChoice, bandKicker, bandMinute, bandRows, bandView, climbsLine, fea
 import { MARATHON_KM, splitTable, watchTarget, type SplitInterval } from '@/lib/tools/pace';
 import { CHECKPOINTS, PACE_BAND_INDEX, cellOf, fmtGoal, fmtPace, paceBandShardPath, type PaceBandCell as Cell } from '@/lib/tools/pace-band-data';
 import type { NoTerrainWhy, TerrainCourse, TerrainFeature } from '@/lib/tools/terrain-data';
+import { PACES_LABEL, pacesUnit, stretchCount, stretchesTitle, stripPaces, tidyPaces, type StripPaces } from '@/lib/tools/stretch-paces';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { DEFAULT_UNITS, KM_PER_MILE, matLabel, type UnitSystem } from '@/lib/units';
@@ -37,8 +39,11 @@ const COMMIT_MS = 400;
 /** After this pause, an unreadable or out-of-range goal is flagged even before the field loses focus. */
 const PAUSE_MS = 900;
 const EMPTY_GOAL = 'Type a goal, such as 3:30.';
-/** `pace=even` keeps the visitor's even-pace choice; terrain, the default where the course has it, stays out. */
-const DEFAULTS = { goal: '4:00', course: 'all', g: 'all', split: '', watch: '0', print: 'strip', back: '0', pace: '' };
+/**
+ * `pace=even` keeps the visitor's even-pace choice; terrain, the default where the course has it, stays out. `paces=1`
+ * keeps each stretch's pace on the strips; off, the default, stays out.
+ */
+const DEFAULTS = { goal: '4:00', course: 'all', g: 'all', split: '', watch: '0', print: 'strip', back: '0', pace: '', paces: '' };
 
 type Gender = 'all' | 'men' | 'women';
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'women', label: 'Women' }, { value: 'men', label: 'Men' }];
@@ -193,12 +198,26 @@ export default function PaceBand({ indexSha, profiles, unpublished, cities = {},
   useEffect(() => {
     if (ready && q.pace !== tidyChoice(q.pace, course === 'all')) setQuery({ pace: tidyChoice(q.pace, course === 'all') });
   }, [ready, q.pace, course, setQuery]);
+  // Each stretch's pace on the strips (owner request, October 29, 2026): `paces=1` stays, any other value leaves the
+  // address (tidyPaces); off is never written. A link with paces=1 opens the print options on arrival, as rows and a watch
+  // do; the fold then stays open while the box is ticked or unticked.
+  useEffect(() => {
+    if (ready && q.paces !== tidyPaces(q.paces)) setQuery({ paces: tidyPaces(q.paces) });
+  }, [ready, q.paces, setQuery]);
+  const pacesOn = q.paces === '1';
+  const [pacesLinked, setPacesLinked] = useState(false);
+  useEffect(() => { if (ready && fromUrl.has('paces') && q.paces === '1') setPacesLinked(true); }, [ready, fromUrl, q.paces]);
   const pKm = goal === null ? null : goal / MARATHON_KM;
   const rows = useMemo(() => (goal === null ? [] : bandRows(goal, interval, banded)), [goal, interval, banded]);
   // The terrain splits' nine mat times for the mat strip; the climbs by the band's own rows (miles or km; the 5K mats by
   // the page's units).
   const mats = goal !== null && banded ? matRows(goal, banded).map((m) => m.terrain!) : null;
   const climbText = goal !== null && banded ? climbsLine(goal, banded, interval === 'km' ? 'km' : interval === 'mi' ? 'mi' : units) : '';
+  // Each stretch's pace, like the climbs, in the band's own rows' units (miles or km; the 5K mats by the page's units), so
+  // a mile cell's pace is its mile time.
+  const paceUnits: UnitSystem = interval === 'km' ? 'km' : interval === 'mi' ? 'mi' : units;
+  const paces = useMemo(() => (goal !== null && pacesOn ? stripPaces(goal, banded, paceUnits) : null), [goal, pacesOn, banded, paceUnits]);
+  const stretches = goal === null ? null : <StretchTables goal={goal} terrain={banded} units={paceUnits} />;
   // Every marker on the band as a table: in the print options' fold, and printed with the full page.
   const wrist = goal === null || pKm === null ? null
     : <Wristband rows={rows} goal={goal} pKm={pKm} units={units} overrun={overrun} even={banded ? splitTable(goal, MARATHON_KM, interval) : null} features={banded?.features ?? []} />;
@@ -296,7 +315,8 @@ export default function PaceBand({ indexSha, profiles, unpublished, cities = {},
                 line={banded ? <TerrainLine goal={goal} city={banded.city} climbs={climbText} /> : null}
                 choice={<BandChoice id="pace-band-choice" state={bandState} mode={mode} onChange={(m) => setQ({ pace: bandChoice(m) })} line={noTerrain} className="no-print" />}
                 profile={profile} showBack={showBack} onBack={(v) => setQ({ back: v ? '1' : '0' })} onPrint={printAs} waiting={held}
-                mats={mats} terrain={Boolean(banded)} table={wrist}
+                mats={mats} terrain={Boolean(banded)} table={wrist} paces={paces} pacesOn={pacesOn} paceUnits={paceUnits} onPaces={(v) => setQ({ paces: v ? '1' : '' })}
+                stretches={pacesOn ? stretches : null}
                 controls={<>
                   <div className="tool-field">
                     <span className="tool-label" id="pace-band-rows">Rows</span>
@@ -307,9 +327,12 @@ export default function PaceBand({ indexSha, profiles, unpublished, cities = {},
                     <div role="group" aria-labelledby="pace-band-watch"><Choice label="Watch reads the course long by" small value={String(overrun * 100)} onChange={(v) => setQ({ watch: v })} options={WATCH_OPTIONS} /></div>
                   </div>
                 </>}
-                optionsOpen={Boolean(q.split) || overrun !== 0}
-                values={<Values id="pace-band-rows-values" how={banded ? how : undefined} caption={banded ? `Every marker on the band: terrain splits (timing points in bold) beside even pace for ${fmtGoal(goal)}` : `Every marker on the band: even-pace elapsed time for ${fmtGoal(goal)}`} count={rows.length}>
-                  {wrist}</Values>} />
+                optionsOpen={Boolean(q.split) || overrun !== 0 || pacesLinked}
+                values={<>
+                  <Values id="pace-band-rows-values" how={banded ? how : undefined} caption={banded ? `Every marker on the band: terrain splits (timing points in bold) beside even pace for ${fmtGoal(goal)}` : `Every marker on the band: even-pace elapsed time for ${fmtGoal(goal)}`} count={rows.length}>
+                    {wrist}</Values>
+                  <Values id="pace-band-stretch-values" count={stretchCount(paceUnits)} caption={stretchesTitle(paceUnits)}>{stretches}</Values>
+                </>} />
             </>
           )}
         </div>
@@ -535,7 +558,7 @@ export function Wristband({ rows, goal, pKm, units, overrun, even = null, featur
  * long, the back strip, the full page and the band as a table. The full page prints that table (`table`) in place of the
  * strips.
  */
-function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, kicker, line, choice, busy, profile, showBack, onBack, onPrint, waiting, controls, values, optionsOpen = false, mats, terrain, table }: {
+function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWord, kicker, line, choice, busy, profile, showBack, onBack, onPrint, waiting, controls, values, optionsOpen = false, mats, terrain, table, paces, pacesOn, paceUnits, onPaces, stretches }: {
   goal: number; pKm: number; units: UnitSystem; rows: ReturnType<typeof splitTable>; interval: SplitInterval; overrun: number; place: string; genderWord: string;
   kicker: string; line: ReactNode; choice: ReactNode; busy: boolean;
   profile: RouteProfile | null; showBack: boolean; onBack: (v: boolean) => void; onPrint: (mode: 'strip' | 'page') => void;
@@ -547,6 +570,8 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
   mats: number[] | null; terrain: boolean;
   /** Every marker on the band, for the printed full page. */
   table: ReactNode;
+  /** Each stretch's pace on the strips (null when off), the option's state and units, and its tables for the printed full page (null when off). */
+  paces: StripPaces | null; pacesOn: boolean; paceUnits: UnitSystem; onPaces: (v: boolean) => void; stretches: ReactNode;
 }) {
   return (
     <section className="pace-band-print-panel" id="pace-band-band" aria-labelledby="pace-band-print-title" aria-busy={busy || undefined}>
@@ -557,7 +582,7 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
       {line}
       {choice}
       <PaceBandStrip goal={goal} pKm={pKm} units={units} rows={rows} interval={interval} overrun={overrun} place={place} genderWord={genderWord}
-        profile={profile} showBack={showBack} waiting={waiting} mats={mats} terrain={terrain} />
+        profile={profile} showBack={showBack} waiting={waiting} mats={mats} terrain={terrain} paces={paces} />
       <ShareBar extra={<button type="button" className="btn btn-primary is-compact" data-not-edit disabled={waiting} aria-describedby={waiting ? 'pace-band-print-held' : undefined} onClick={() => onPrint('strip')}>Print wristband strips</button>} />
       {waiting ? <p className="tool-note" id="pace-band-print-held">Fix the goal below to print. The preview still shows {fmtGoal(goal)}.</p> : null}
       {/* One control for the beat: the print options fold into one disclosure (rows, a watch that reads long, the back,
@@ -566,6 +591,7 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
         <summary>Print options</summary>
         <div className="tool-more-body pace-band-controls">
           {controls}
+          <label className="tool-check"><input type="checkbox" checked={pacesOn} onChange={(e) => onPaces(e.target.checked)} /><span>{PACES_LABEL}<small>{pacesUnit(paceUnits)}</small></span></label>
           {profile ? (
             <label className="tool-check"><input type="checkbox" checked={showBack} onChange={(e) => onBack(e.target.checked)} />A route elevation strip for the back ({profile.city})</label>
           ) : null}
@@ -577,6 +603,8 @@ function PrintPanel({ goal, pKm, units, rows, interval, overrun, place, genderWo
       {/* The full page prints the band as this table instead of the strips (the fold above is a screen control); on
           terrain its title names the source, as the badge does on screen. */}
       {table ? <div className="print-only pace-band-print-marks"><p className="pace-band-print-marks-title">Every marker on the band{terrain ? ' · terrain splits from published research' : ''}</p>{table}</div> : null}
+      {/* With the option on, the full page also prints every stretch's time and pace. */}
+      {stretches ? <div className="print-only pace-band-print-stretches"><p className="pace-band-print-marks-title">{stretchesTitle(paceUnits)}{terrain ? ' · terrain splits from published research' : ''}</p>{stretches}</div> : null}
     </section>
   );
 }
