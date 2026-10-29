@@ -63,6 +63,15 @@
 }
 
 @media print {
+  /* The page column spans the printable area, as base.css means it to for print: layout.css comes later in the cascade,
+     so its screen width (100% less two gutters) otherwise held in print too, and the strip plus its scissor marks
+     (18.85 cm) ran about 4 px past Letter's printable width (19.56 cm at 0.4 in margins) and 25 px past A4's, clipping
+     the right-hand cut line (review, October 29, 2026). Only where the strips print: not the pace band's full page
+     (print=page), which prints no strip and whose chart dots would then reach the paper's edge. A browser without :has()
+     keeps the column as it was. */
+  @supports selector(:has(a)) {
+    main.container:has(.pace-band-sheet):not(:has(.pace-band-root[data-print='page'])) { width: 100%; }
+  }
   .pace-band-sheet-wrap { margin: 0; padding: 0; background: none; }
   /* Width follows the printable area (strip 18.4 cm + .45 cm for the scissor marks), so A4 and Letter print unscaled. */
   .pace-band-sheet { font-size: 1cm; width: auto; max-width: calc(var(--strip) + .45em); margin-inline: 0; padding: 0 0 0 .45em; box-shadow: none; }
