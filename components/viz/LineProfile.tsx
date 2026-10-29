@@ -55,7 +55,10 @@ type Props = {
    * `follow` names the series (by id) whose value at each scrub point the needle marks with a dot while it is away from
    * the headline's point, so a scrubbed needle always shows where it crosses the subject line.
    */
-  scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string; follow?: string };
+  scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string; follow?: string;
+    /** Told the scrubbed point's index as it changes (a client wrapper that renders this profile, such as a link that
+     *  follows the needle: components/half/PredictorLink.client.tsx). */
+    onIndex?: (index: number) => void };
   axisTitle?: { start?: string; end?: string };
   /** A quiet direction cue at the plot's top left, where a y axis is read ("faster ↑"), for a scale drawn against habit
    * (slower down). */
@@ -219,7 +222,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
   return (
     <ChartFrame label={label} height={height} heightMd={heightMd} k={lensOn ? current : undefined}
       lens={lensOn ? <Lens label={lensLabel ?? 'Show'} options={layers.map((l) => ({ value: l.id, label: l.label }))} defaultValue={current} chips={chips} /> : undefined}
-      scrub={scrub ? <Scrubber points={followed(scrub)} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber> : undefined}
+      scrub={scrub ? <Scrubber points={followed(scrub)} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis} onIndex={scrub.onIndex}>{plot}</Scrubber> : undefined}
       plot={scrub ? undefined : plot} axis={scrub ? undefined : axis} keys={keys} values={values}
     />
   );
