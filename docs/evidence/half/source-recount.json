@@ -6,13 +6,13 @@
  "mismatches": 0,
  "values_checked": 16545,
  "manifest_sha256": "349882e019f67ddfb0756d59f10198591df41d5aa21410e8c8d0cc1ca7fc5baf",
- "verify_half_source_sha256": "1048c0ded629123afac7185dc58d0ccc7b6fcb9365fbbe01e66032e7c57284c0",
+ "verify_half_source_sha256": "852e1dd4ca8a63959b6c67d46942e2b8007fad170241cc48d7bc80bfa6978d33",
  "recount_scripts": {
   "scripts/half/derive.cjs": "15c8885eeff04eaddbcb8530e9a32a51b04b5992d8e5243eb25744f03cddd71c",
   "scripts/half/families.cjs": "4aee6d176eecf82066205790ba843ef56a586b1bb2fbb058fea536e04ed358db",
   "scripts/half/marathon.cjs": "0099e408bf084446f6fc60d91b362d5f761111128c9d5bb14b2de7aab08c5a4d",
   "scripts/half/policy.cjs": "aabf1fc424f20a4ed71c474cacf29f356d693a7dc9230ec4b9ceba5f0c1d39bc",
-  "scripts/verify-half-source.cjs": "1048c0ded629123afac7185dc58d0ccc7b6fcb9365fbbe01e66032e7c57284c0"
+  "scripts/verify-half-source.cjs": "852e1dd4ca8a63959b6c67d46942e2b8007fad170241cc48d7bc80bfa6978d33"
  },
  "half_sqlite_sha256": "655a2d7efcdb6078f1743968bc4d4a2d2e020322855513aa633e153f6fa3673a",
  "links_extract_content_sha256": "95c37966a508c262cc7edc611b5aa6af1e6df0b76c5b5d7a329739b0640d3d75",

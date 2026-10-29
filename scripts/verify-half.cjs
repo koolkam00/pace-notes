@@ -497,13 +497,16 @@ if (opt.html) {
   };
   const elements = (html, attrRe) => {
     const out = [];
-    const re = new RegExp(`<[a-zA-Z][\\w-]*\\b[^>]*${attrRe.source}[^>]*>`, 'g');
+    // An attribute pattern, or a start-tag pattern when it begins with '<' (/<nav\\b/).
+    const re = new RegExp(attrRe.source.startsWith('<') ? `${attrRe.source}[^>]*>` : `<[a-zA-Z][\\w-]*\\b[^>]*${attrRe.source}[^>]*>`, 'g');
     let m;
     while ((m = re.exec(html))) { out.push({ tag: m[0], html: elementAt(html, m.index), index: m.index }); }
     return out;
   };
   const remove = (html, attrRe) => { let h = html; for (const el of elements(h, attrRe).reverse()) h = h.slice(0, el.index) + ' ' + h.slice(el.index + el.html.length); return h; };
   const CHIP = /class="[^"]*\bscope-chip\b[^"]*"/;
+  // Spec copy that names the tool by its short name (spec 3.2: "Your own half in the predictor →").
+  const HTML_ALLOWED = ['Your own half in the predictor'];
   const LINKED_ROUTES = ['/stories/half-to-full'];
   const linkedHref = (href) => LINKED_ROUTES.some((r) => href === r || href.startsWith(`${r}#`) || href.startsWith(`${r}?`));
   const LINKED_FIGURES = [/double it plus/i, /under double the half/i, /linked by name/i, /over double the half/i];
@@ -543,7 +546,15 @@ if (opt.html) {
       if (route !== '/methodology') {
         const words = textOf(remove(el.html, CHIP));
         for (const [re, what] of [...W.STATUS_WORDS, ...W.VERIFICATION_WORDS]) ok(!re.test(words), `${route}: ${what} on a half surface`);
-        for (const [re, what] of [...W.BANNED, ...W.HALF_BANNED]) { const t = W.ALLOWED.reduce((s, a) => s.split(a).join(' '), words); ok(!re.test(t), `${route}: ${what} on a half surface`); }
+        // The word rules apply to the half content itself: the chapter rail, navigation, the chapter's next card, the
+        // feedback block and reading links repeat other pages' words.
+        let content = el.html;
+        for (const re of [/<aside\b/, /<nav\b/, /class="[^"]*\bchapter-end\b[^"]*"/, /class="[^"]*crumbs\b[^"]*"/, /class="[^"]*\bpage-feedback\b[^"]*"/, /data-half-link="linked"/, CHIP]) content = remove(content, re);
+        const t = [...W.ALLOWED, ...HTML_ALLOWED].reduce((acc, a) => acc.split(a).join(' '), textOf(content));
+        for (const [re, what] of [...W.BANNED, ...W.HALF_BANNED]) {
+          const hit = re.exec(t);
+          ok(!hit, `${route}: ${what} on a half surface: …${hit ? t.slice(Math.max(0, hit.index - 40), hit.index + 40) : ''}…`);
+        }
       }
     }
     for (const el of elements(html, CHIP)) ok(/Includes unverified half results/.test(textOf(el.html)) && /href="\/methodology#half-coverage"/.test(el.html), `${route}: the chip reads "Includes unverified half results" and links /methodology#half-coverage`);

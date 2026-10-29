@@ -20,7 +20,8 @@
 //   npm run verify:half-source -- [--half platform_half.sqlite] [--links links-slim.sqlite] [--no-write]
 //
 // Defaults: $PACE_HALF_DIR/platform_half.sqlite and $PACE_HALF_DIR/links-slim.sqlite (PACE_HALF_DIR defaults to
-// ~/data/half-1133). Memory: about 2 GB (typed arrays for 6.9 million records and 4.1 million marathon finishes).
+// ~/data/half-1133). About 80 s and under 1 GB of memory (typed arrays for 6.9 million records and 4.1 million marathon
+// finishes); the sha256 of the 3.7 GB snapshot is read once.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
