@@ -6,7 +6,7 @@ import { DEFAULT_UNITS, type UnitSystem } from './units';
 // MarathonDistance (components/UnitsProvider.tsx) throw on any other page, so a page left out stops the build.
 // The moved addresses' stubs (/packs, /htw, /your-race …) and the 404 show no such text, so their switch stays inert
 // (unseen, it keeps the switch's room, so their header matches every other page's).
-const UNIT_PAGES = ['/', '/about', '/methodology', '/slowdown', '/research', '/privacy', '/request-analysis'];
+const UNIT_PAGES = ['/', '/about', '/methodology', '/slowdown', '/research', '/privacy', '/request-analysis', '/half'];
 const UNIT_SECTIONS = ['/analyses', '/runners', '/report', '/courses', '/stories', '/tools', '/finish-times', '/charts'];
 
 /** Whether the header's units switch works on this page (a path without the base path, as usePathname gives it). */

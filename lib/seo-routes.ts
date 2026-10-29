@@ -4,7 +4,7 @@
  * Every list here is derived from the same registries the pages are built from, so the sitemap
  * cannot name a route that was not built. See docs/SEO.md.
  */
-import { STORIES } from './stories';
+import { STORIES, halfManifest, storyPublished } from './stories';
 import { TOOLS } from './tools/registry';
 import { VERIFIED_AT } from './tools/qualifying';
 import { TEN_ANALYSES, type AnalysisId } from './ten-analyses';
@@ -113,6 +113,7 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // start and how it is made, /methodology opens on the short version and says how to open the full records, and
   // /research says what stories and analyses are.
   // October 23: /research links the Top 100 charts and /methodology holds their methods (#top-charts).
+  // October 29: the half marathon: /half and the story that opens chapter 11 (/stories/half-to-full).
   '/': '2026-10-22',
   '/research': '2026-10-23',
   '/about': '2026-10-22',
@@ -132,6 +133,8 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/stories/courses': '2026-10-19',
   '/stories/who-holds-pace': '2026-10-19',
   '/stories/race-morning': '2026-10-19',
+  '/half': '2026-10-29',
+  '/stories/half-to-full': '2026-10-29',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };
@@ -184,7 +187,7 @@ export function canonicalPathFor(path: string): string | null {
 // ---------- Honest lastmod dates ----------
 
 /** The kinds of published data a page can show; each has one as_of date. */
-export type DataSource = 'insights' | 'study' | 'weather' | 'personalized' | 'fastStart' | 'allFinisher' | 'qualifying' | 'charts';
+export type DataSource = 'insights' | 'study' | 'weather' | 'personalized' | 'fastStart' | 'allFinisher' | 'qualifying' | 'charts' | 'half';
 
 /** UTC calendar date (YYYY-MM-DD) of an ISO timestamp or date. Throws on anything unparsable. */
 function day(value: string | undefined | null): string {
@@ -217,7 +220,17 @@ export function dataDate(source: DataSource): string {
     case 'allFinisher': return day(getAllFinisherContextStart().as_of);
     case 'qualifying': return day(VERIFIED_AT);
     case 'charts': return day(getChartsManifest().as_of);
+    case 'half': {
+      const half = halfManifest();
+      if (!half) throw new Error('The half-marathon data is missing.');
+      return day(half.as_of);
+    }
   }
+}
+
+/** The half-marathon data's date, or undefined when this build has no half data (its pages are not built then). */
+export function halfDataDate(): string | undefined {
+  return halfManifest() ? dataDate('half') : undefined;
 }
 
 /** Which data each of the ten analyses shows (see app/analyses/[slug]/page.tsx). */
@@ -229,7 +242,7 @@ const ANALYSIS_SOURCES: Record<AnalysisId, DataSource[]> = {
 
 /** Every date a sitemap lastmod may take: the data as_of dates, the course pack's date, CONTENT_DATES, COURSE_PAGES_WRITTEN and the registered extra pages' dates. */
 export function allSourceDates(): string[] {
-  const sources: DataSource[] = ['insights', 'study', 'weather', 'personalized', 'fastStart', 'allFinisher', 'qualifying', 'charts'];
+  const sources: DataSource[] = ['insights', 'study', 'weather', 'personalized', 'fastStart', 'allFinisher', 'qualifying', 'charts', ...(halfManifest() ? ['half' as const] : [])];
   const extras = EXTRA_SITEMAP_PAGES.map(page => typeof page.lastmod === 'function' ? page.lastmod() : page.lastmod);
   const coursePack = extensionForQuestion('s3_course_breaks');
   return [...new Set([...sources.map(dataDate), coursePack ? day(coursePack.asOf) : undefined, ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, ...extras].filter((date): date is string => !!date))].sort();
@@ -250,18 +263,22 @@ export function sitemapEntries(): SitemapEntry[] {
     entries.push(lastmod ? { path, lastmod } : { path });
   };
   const manifest = getInsightsManifest();
+  // The half-marathon data, when this build has it: /half, the half story and the half lines on host pages.
+  const half: DataSource[] = halfManifest() ? ['half'] : [];
 
   add('/', 'content', 'insights', 'study', 'personalized');
-  add('/research', 'content', 'insights', 'study', 'weather');
+  // /research lists chapter 11, whose lead is the half story's reading.
+  add('/research', 'content', 'insights', 'study', 'weather', ...half);
 
   add('/stories', 'content', 'insights');
-  for (const story of STORIES.filter(s => manifest.files[s.file])) add(`/stories/${story.slug}`, 'content', 'insights');
+  for (const story of STORIES.filter(storyPublished)) add(`/stories/${story.slug}`, 'content', story.source === 'half' ? 'half' : 'insights');
 
   add('/tools', 'content', 'insights');
   for (const tool of TOOLS.filter(t => !t.file || manifest.files[t.file])) {
     const path = `/tools/${tool.slug}`;
     if (tool.slug === 'qualifying') add(path, 'qualifying');
-    else if (tool.file) add(path, 'insights');
+    // The predictor's half panel reads the half data.
+    else if (tool.file) add(path, 'insights', ...(tool.slug === 'predictor' ? half : []));
     else add(path, 'content');
   }
 
@@ -279,6 +296,9 @@ export function sitemapEntries(): SitemapEntry[] {
   // The Top 100 charts: a section of its own, off the chapter chain (its one way in is a line on /research).
   add('/charts', 'charts');
   for (const chart of CHART_CATALOG) add(`/charts/${chart.number}`, 'charts');
+
+  // The half marathon: a page of its own, off the chapter chain like the charts, built only with the half data.
+  if (half.length) add('/half', 'content', 'half');
 
   add('/about', 'content', 'personalized', 'weather');
   add('/methodology', 'content', 'study');

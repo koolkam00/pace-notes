@@ -28,7 +28,7 @@ export default function SiteNav({ id }: { id?: string }) {
     <Link href="/runners" className="nav-door" aria-current={here(within('/runners'))}>Analyze a past race</Link>
     <Link href="/courses" aria-current={here(within('/courses'))}>Courses</Link>
     <Link href="/tools" aria-current={here(within('/tools') && !within('/tools/plan'))}>Tools</Link>
-    <Link href="/research" aria-current={here(['/research', '/stories', '/analyses', '/packs', '/slowdown', '/finish-times'].some(within))}>Research</Link>
+    <Link href="/research" aria-current={here(['/research', '/stories', '/analyses', '/packs', '/slowdown', '/finish-times', '/half'].some(within))}>Research</Link>
     <span className="nav-more">
       <Link href="/about" aria-current={here(path === '/about')}>About</Link>
       <Link href="/request-analysis" aria-current={here(path === '/request-analysis')}>Request an analysis</Link>

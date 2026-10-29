@@ -20,7 +20,7 @@ const searchPages = ['/tools/marathon-pace-chart', '/tools/half-marathon-pace-ch
 // fall to its section unnoticed; a URL under either section that is not on the list (a typed name) still does.
 // Melbourne left the list with the 1652 release (its only edition is excluded, so /courses/melbourne is no longer built),
 // and Vienna with the October 21, 2026 release (its three editions are producer holds).
-export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses', 'race-morning'];
+export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses', 'race-morning', 'half-to-full'];
 export const COURSE_SLUGS: readonly string[] = ['amsterdam', 'auckland', 'austin', 'barcelona', 'berlin', 'boston', 'chicago', 'copenhagen', 'dubai', 'eindhoven', 'frankfurt', 'gold-coast',
   'hamburg', 'helsinki', 'london', 'madrid', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'warsaw', 'washington'];
 // The Top 100 charts are numbered pages, /charts/1 … /charts/CHART_COUNT: a count rather than a list keeps this module
@@ -30,7 +30,7 @@ const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners',
   ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug),
   '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages,
   '/stories', ...STORY_SLUGS.map(slug => '/stories/' + slug), '/courses', ...COURSE_SLUGS.map(slug => '/courses/' + slug),
-  '/charts', ...Array.from({ length: CHART_COUNT }, (_, i) => `/charts/${i + 1}`)]);
+  '/charts', ...Array.from({ length: CHART_COUNT }, (_, i) => `/charts/${i + 1}`), '/half']);
 const analyses = new Set([...TEN_ANALYSES.map(item => item.id), ...WEATHER_QUESTIONS.map(item => item.id)]);
 // The experiments registry (data only), typed as lib/experiment-runtime.ts defines an entry.
 const experiments: readonly ExperimentDefinition[] = EXPERIMENTS;
