@@ -4,10 +4,10 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DurationField, ShareBar } from '@/components/tools/ui';
 import Values from '@/components/ui/Values';
-import { MarathonHandoffs } from '@/components/tools/Handoffs';
+import { MarathonHandoffs, ToolHandoffs } from '@/components/tools/Handoffs';
 import { useQueryState } from '@/components/tools/useQueryState';
 import { DISTANCES, MARATHON_KM, SPLIT_KM, kmh, mph, paceChart, paceFrom, perKm, perUnit, splitTable, unitKm, type SplitInterval } from '@/lib/tools/pace';
-import { formatDuration, parseDuration } from '@/lib/tools/time';
+import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 
 type Field = 'distance' | 'time' | 'pace';
@@ -62,7 +62,11 @@ function useSettled<T>(value: T, ms: number): T {
   return settled;
 }
 
-export default function PaceCalculator() {
+/**
+ * `halfRange`: the half times (seconds, whole minutes) the predictor's half panel covers, or null when the half data is not in
+ * this build. A half time inside it hands on to the predictor, where the marathons after that half are.
+ */
+export default function PaceCalculator({ halfRange = null }: { halfRange?: [number, number] | null }) {
   const { units } = useUnits();
   const [q, setQ] = useQueryState(DEFAULTS);
   const [chartFrom, setChartFrom] = useState(units === 'mi' ? 300 : 180);
@@ -121,6 +125,9 @@ export default function PaceCalculator() {
   // Cross-tool goals are whole minutes: the minute at or below the time shown (whole seconds), as H:MM.
   const shownSeconds = ready ? Math.round(seconds!) : null;
   const goalMinutes = shownSeconds !== null && isMarathon ? Math.floor(shownSeconds / 60) : null;
+  // A half time (the "Half marathon" preset) inside the half panel's range: the predictor shows the marathons after it.
+  const halfMinute = shownSeconds !== null && preset?.key === 'half' && solve !== 'distance' ? Math.round(shownSeconds / 60) * 60 : null;
+  const halfHandoff = halfMinute !== null && halfRange !== null && halfMinute >= halfRange[0] && halfMinute <= halfRange[1];
 
   const speedText = ready ? (units === 'mi' ? `${mph(paceKm!).toFixed(1)} mph` : `${kmh(paceKm!).toFixed(1)} km/h`) : '';
   const status = ready
@@ -267,6 +274,12 @@ export default function PaceCalculator() {
                 {/* Where a marathon time goes next, after the last section, never between the answer and its splits: one row,
                     the planner (the chapter end carries the rest). */}
                 {goalMinutes !== null ? <MarathonHandoffs label="With this marathon time" seconds={shownSeconds!} to={['plan', 'band']} /> : null}
+                {halfHandoff ? (
+                  <ToolHandoffs label="With this half time" links={[{
+                    href: `/tools/predictor?d=half&t=${formatDuration(shownSeconds!, true)}`,
+                    title: 'Finish-time predictor', text: `The marathons after a ${formatHM(Math.floor(shownSeconds! / 60) * 60)} half`,
+                  }]} />
+                ) : null}
                 <ShareBar print />
               </>
             ) : null}
