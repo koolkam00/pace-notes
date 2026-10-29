@@ -30,6 +30,8 @@ a.evidence-badge:focus-visible { outline: 2px solid var(--focus); outline-offset
   color: var(--ink-2); background: none; border: 1px solid var(--rule-strong); border-radius: var(--r-pill);
   white-space: normal; overflow-wrap: anywhere; text-align: left;
 }
+/* After a dek's sentence (the half story's hero): a little air above it when it wraps to a line of its own. */
+.reading-dek .scope-chip { margin-top: 6px; vertical-align: middle; }
 a.scope-chip { position: relative; text-decoration: none; }
 a.scope-chip::after { content: ''; position: absolute; left: -2px; right: -2px; top: 50%; height: 44px; min-height: 100%; transform: translateY(-50%); }
 a.scope-chip:hover { color: var(--ink); border-color: var(--ink-2); text-decoration: underline; text-underline-offset: .2em; }
