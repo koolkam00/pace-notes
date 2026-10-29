@@ -83,3 +83,15 @@
 
 /* A half-typed finish time keeps the last result on screen, dimmed, until the time reads again. */
 .predictor-held > :not([role="status"]) { opacity: .45; transition: opacity var(--d-quick); }
+
+/* ---------- After a half (records linked by name; components/tools/LinkedPanel.tsx) ---------- */
+/* It replaces the 20K panel for a half inside the published range, in the same place and grammar: the data badge and
+   the scope chip side by side, the sentence, the strip, the sustained-slowdown share, the recorded-sex choice, "Not a
+   prediction." on its own line and the way to the story. */
+.predictor-linked[tabindex="-1"]:focus { outline: none; }
+.predictor-linked-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.predictor-linked-sus { max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
+.predictor-linked-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }
+.predictor-linked-group > .tool-choice.seg { flex: 0 1 auto; width: auto; min-width: 0; grid-auto-columns: auto; }
+.predictor-linked-not { font-size: var(--t-small); font-weight: 600; line-height: 1.5; color: var(--ink); }
+.predictor-linked-more a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: var(--t-small); font-weight: 600; color: var(--ink); }
