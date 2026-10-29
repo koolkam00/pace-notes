@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "access": "private source; pages publish aggregates only",
+  "repository": "koolkam00/pace-notes-db-backup",
+  "half": {
+    "tag": "half-snapshot-20261029-1133",
+    "assets": {
+      "half-20261029-1133.sqlite.zst.part00": "59043a603ee5938d2143f233adbdebcdbdc83244de0aa52eb4c8070bffcb68a4",
+      "README.md": "16384533a60b4e1a3dc5109eccf79e5bd72413d9a7dee1d805ea9566a410de83"
+    },
+    "sqlite": "platform_half.sqlite",
+    "sqlite_sha256": "655a2d7efcdb6078f1743968bc4d4a2d2e020322855513aa633e153f6fa3673a"
+  },
+  "links": {
+    "tag": "runner-links-20261029-1156",
+    "pairs_with": "half-snapshot-20261029-1133",
+    "built_at": "2026-10-29T15:51:57",
+    "assets": {
+      "runner_links-20261029-1156.sqlite.zst.part00": "7195eba8eac3aa3a1d85ffd28b38f04ca0abff448afccc4ec59d4aa5eb8de9d7",
+      "MATCHING_HALF.md": "7acb6ce59ba58140d44b8f84282158a6739fea56e5ebf9a8e22692023a48f030",
+      "README.md": "e21cb07288409a247c62ba3944175c06e5f5dc854ad365db56935d8dbe9ee61c",
+      "linking-scripts-20261029-1156.tar.gz": "29c1ca0cc1cc37a55e62ea6639c93e90d547ce238e4a471be2003e826ee930d3"
+    },
+    "extract": "links-slim.sqlite",
+    "extract_content_sha256": "95c37966a508c262cc7edc611b5aa6af1e6df0b76c5b5d7a329739b0640d3d75"
+  },
+  "marathon_release": "private-export-20261021-1050",
+  "policy": "analysis/half-policy-20261029-1133.json"
+}
