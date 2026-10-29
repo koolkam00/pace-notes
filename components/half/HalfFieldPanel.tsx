@@ -26,7 +26,12 @@ export default function HalfFieldPanel() {
   const under = field.under;
   const at = (minutes: number) => under.find((u) => u.s === minutes * 60);
   const two = at(READING);
-  const first = under[0].s / 60, last = under[under.length - 1].s / 60;
+  const last = under[under.length - 1].s / 60;
+  // The curve starts at the histogram's first minute (1:05, the share under it from its tail), so the first round
+  // time's share has room to its left on the narrowest screens.
+  const { lo, under_lo: tail } = field.minutes;
+  const first = lo;
+  const curve = [{ x: lo, y: tail / field.cohort.finishes }, ...under.map((u) => ({ x: u.s / 60, y: u.all }))];
   const said = sentenceOf(reading);
   const sentence = reading.guard && two ? `${said.replace(/\.$/, '')}: recorded women’s ${pct(two.F)}, men’s ${pct(two.M)}.` : said;
   const marks = MARKS.map((m) => at(m)).filter((u): u is NonNullable<typeof u> => !!u);
@@ -34,10 +39,10 @@ export default function HalfFieldPanel() {
     <section className="tool-panel half-field" id="half-field" data-half-scope="verified" aria-labelledby="half-field-title">
       <EvidenceTag kind="data" />
       <h2 className="tool-nugget-text" id="half-field-title">{reading.guard ? withEm(sentence) : sentence.replace(/\*/g, '')}</h2>
-      <LineProfile x={under.map((u) => u.s / 60)} xDomain={[first, last]} yDomain={[0, 1]}
+      <LineProfile x={curve.map((p) => p.x)} xDomain={[first, last]} yDomain={[0, 1]}
         layers={[{
           id: 'under', label: 'Under',
-          series: [{ id: 'share', values: under.map((u) => u.all), tone: 'ink' }],
+          series: [{ id: 'share', values: curve.map((p) => p.y), tone: 'ink' }],
           points: marks.map((u) => ({ x: u.s / 60, y: u.all, kind: u.s === READING * 60 ? 'reading' as const : 'compare' as const })),
           // Each round time's share sits left of its dot, above the curve (the time is the tick under it), so all five fit
           // on the narrowest phone ("1:30 · 7%" beside its dot did not, at the curve's foot).
@@ -45,7 +50,7 @@ export default function HalfFieldPanel() {
         }]}
         xTicks={[...MARKS, last].filter((m) => m >= first && m <= last).map((m) => ({ value: m, label: hm(m), priority: m === READING ? 3 : 2 }))}
         yTicks={[0.25, 0.5, 0.75].map((v) => ({ value: v, label: pct(v) }))} gridSide="right"
-        label={`The share of half marathon finishes under each time from ${hm(first)} to ${hm(last)}: ${marks.map((u) => `${pct(u.all)} under ${hm(u.s / 60)}`).join(', ')}.`}
+        label={`The share of half marathon finishes under each time from ${hm(under[0].s / 60)} to ${hm(last)}: ${marks.map((u) => `${pct(u.all)} under ${hm(u.s / 60)}`).join(', ')}.`}
         height={200} heightMd={240} />
       <p className="half-field-more"><Link href="/half">The half marathon<Arrow /></Link></p>
     </section>

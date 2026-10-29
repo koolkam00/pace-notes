@@ -31,3 +31,12 @@
 /* A round time's interval: a 1.5 px whisker with 9 px caps over its column, in the second ink (never the column's own
    fill or outline, which it would inherit from the column's group). */
 .half-page .viz-frame .half-whisker { fill: var(--ink-2); stroke: none; }
+/* The same city's half and marathon: each row's two shares ("26% · 45%") need a wider value column than the form's
+   4.5rem, so the city names take a little less; below 260 px (200% zoom) the values go (All numbers has them) and the
+   track takes their room. */
+.half-cities { max-width: var(--measure-figure); }
+.half-cities .viz-frame.dumbbell .dumbbell-rows, .half-cities .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 30%) minmax(0, 1fr) 5.5rem; }
+@container (max-width: 259.98px) {
+  .half-cities .viz-frame.dumbbell .dumbbell-rows, .half-cities .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 38%) minmax(0, 1fr); }
+  .half-cities .viz-frame.dumbbell .dumbbell-value, .half-cities .viz-frame.dumbbell .dumbbell-axis > span:last-child { display: none; }
+}

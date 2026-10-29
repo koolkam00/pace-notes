@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { ReactNode } from 'react';
 import ChartFrame, { type KeyItem } from '@/components/viz/ChartFrame';
 import Axis from '@/components/viz/Axis';
-import Plot, { Baseline, RefLine } from '@/components/viz/Plot';
+import Plot, { Baseline, Gridlines, RefLine } from '@/components/viz/Plot';
 import Annotation from '@/components/viz/Annotation';
 import { placeLabels, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
 import { linear, pc, stepEdge, stepPath, yScale } from '@/components/viz/scale';
@@ -139,11 +139,13 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
     size: i === signal ? 14 : 13, gap: 6, prefer: 'above' as const,
   }] : []));
   const half = y(0.5);
-  const rule = { id: 'rule', text: '50%', x: 0, y: half, priority: 4, tone: 'quiet' as const, size: 12, gap: 5, prefer: 'above' as const };
-  const placed = placeLabels([rule, ...items], { height, boxes: shares.map((s, i) => ({ x0: x(i + 0.5) - 12 / 288, x1: x(i + 0.5) + 12 / 288, y0: y(s), y1: 1 })) });
+  // The 50% rule's name is the gridline's own label at its left end, where the early bands stand short of it; the
+  // values keep clear of its box.
+  const ruleBox = { x0: 0, x1: 34 / 288, y0: half - 20 / height, y1: half };
+  const placed = placeLabels(items, { height, boxes: [ruleBox, ...shares.map((s, i) => ({ x0: x(i + 0.5) - 12 / 288, x1: x(i + 0.5) + 12 / 288, y0: y(s), y1: 1 }))] });
   const plot = (
     <Plot>
-      <rect className="grid-line" x="0" y={pc(half)} width="100%" height="1" />
+      <Gridlines lines={[{ y: half, label: '50%' }]} side="left" />
       {shares.map((s, i) => {
         const t = tone(i);
         const cls = t === 'signal' ? 'm-signal' : t === 'ink' ? 'm-ink' : 'm-quiet';

@@ -403,7 +403,8 @@
 
 
 /* ---------- A marathon goal page's "The half before" (records linked by name; components/tools/GoalPace.tsx) ---------- */
-.goal-pace-half-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+/* When the badge and the chip wrap onto two lines, 20 px between them keeps their 44 px hit areas apart. */
+.goal-pace-half-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 20px var(--s-3); }
 .goal-pace-half-kicker { font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
 .goal-pace-half-lines { max-width: var(--measure); font-size: var(--t-small); line-height: 1.6; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .goal-pace-half-not { font-size: var(--t-small); font-weight: 600; line-height: 1.5; color: var(--ink); }
