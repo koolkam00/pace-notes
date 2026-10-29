@@ -1180,7 +1180,11 @@
   },
   "R7": {
    "applies_to": "record-usable rows",
-   "bib": "try_cast(bib AS INTEGER) in the range, inclusive",
+   "bib": [
+    73000,
+    75999
+   ],
+   "bib_rule": "try_cast(bib AS INTEGER) in the range, inclusive",
    "city": "Oslo Half",
    "reason": "Same-day Oslo marathon finishers listed under the half in a bib block.",
    "years": [

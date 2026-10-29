@@ -254,6 +254,8 @@ class Rules(unittest.TestCase):
         self.assertEqual(doc['record_rules']['R3']['pattern'], hq.NONRUN_SUBRACE_RE)
         self.assertEqual(doc['expected'], hq.EXPECTED_20261029_1133)
         self.assertEqual(len(doc['edition_rules']['editions']), 68)
+        self.assertEqual([doc['record_rules']['R7'][k] for k in ('city', 'years', 'bib')], ['Oslo Half', [2016, 2025], [73000, 75999]],
+                         'the frozen policy carries the R7 block itself, the Node recount reads it from there')
 
 
 class SetB(unittest.TestCase):

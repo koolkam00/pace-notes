@@ -160,7 +160,7 @@ def policy_document(tag: str = TAG) -> dict:
                    'name_required': 'trim(name) longer than 3 characters and not matching the anonymous pattern',
                    'anonymous_pattern': NAME_ANONYMOUS_RE,
                    'keep': 'the copy from the largest sub-race list (R3 and R4 counts), then the lowest record id'},
-            'R7': {**R7, 'applies_to': 'record-usable rows', 'bib': 'try_cast(bib AS INTEGER) in the range, inclusive'},
+            'R7': {**R7, 'applies_to': 'record-usable rows', 'bib_rule': 'try_cast(bib AS INTEGER) in the range, inclusive'},
         },
         'statuses': {'verified': list(VERIFIED), 'unverified': list(UNVERIFIED), 'held': list(HELD)},
         'edition_rules': {
