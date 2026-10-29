@@ -9,6 +9,7 @@ import LineProfile from '@/components/viz/LineProfile';
 import Ruler from '@/components/viz/Ruler';
 import Values from '@/components/ui/Values';
 import PairBars from '../charts/PairBars';
+import { HalfWay } from '@/components/half/HalfWays';
 import { Beat, Say, StoryHero, StoryPage, rich } from '../StoryPage';
 
 const PATH = '/stories/who-holds-pace';
@@ -80,6 +81,7 @@ export default function DemographicsBody() {
             { id: 'pooled', label: 'All finishes', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: pointsApart(Number(unmask.values.pooled_gap)) },
           ]}
           label={`Second 20K against the first. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}. All finishes: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}.`} />
+        <HalfWay className="story-way" href="/stories/half-to-full#women-men">After the same half, too</HalfWay>
       </Beat>
 
       {/* The gap at every finish time restated the opener's finding (at the same finish times), so it is cut; its

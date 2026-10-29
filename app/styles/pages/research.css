@@ -127,3 +127,9 @@
   .page-list .page-reading .big-number.is-s { font-size: 1.5rem; }
   .page-list .page-reading-key { font-size: var(--t-small); }
 }
+
+/* A half reading on the contents is a link to the page it is from (components/ui/ChapterList.tsx): it reads as every
+   other chapter's reading, the whole of it a tap target, with the site's focus ring. */
+.chapter-list.is-expanded .chapter-reading-link { color: inherit; text-decoration: none; }
+.chapter-list.is-expanded .chapter-reading-link:hover .chapter-key { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; }
+.chapter-list.is-expanded .chapter-reading-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }

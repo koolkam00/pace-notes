@@ -1,4 +1,5 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
+import { HalfWay } from '@/components/half/HalfWays';
 import DotStrip from '@/components/viz/DotStrip';
 import Values from '@/components/ui/Values';
 import PercentileDots from '@/components/story/charts/PercentileDots';
@@ -121,6 +122,7 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
         <DotStrip items={drawn.map((c) => ({ id: c.city, label: c.city, value: c.median_s, display: finishMinute(c.median_s), detail: count(c.finishes) }))}
           domain={[t0, t1]} ticks={stripTicks} readoutKey="Finishes" hint="Choose a dot to read its course." mdScale={1.4}
           label={`Median finish of ${drawn.length} courses with three or more editions, ranked; choose a dot to read it`} />
+        <HalfWay className="story-way" lead="Ran a half?">The half marathon</HalfWay>
       </Beat>
     </StoryPage>
   );

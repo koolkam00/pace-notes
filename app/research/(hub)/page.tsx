@@ -3,6 +3,7 @@
 // guide at /research/personalized would load this page's chunks too (see the home page's note, docs/WEBSITE_ARCHITECTURE.md).
 import { assertCohortTotals } from '@/components/CohortNote';
 import { MarathonDistance, UnitLink as Link } from '@/components/UnitsProvider';
+import { halfLive } from '@/components/half/HalfWays';
 import ChapterList from '@/components/ui/ChapterList';
 import { CHAPTERS } from '@/lib/chapters';
 import { readingOf } from '@/lib/nuggets';
@@ -39,7 +40,7 @@ export default function ResearchPage() {
     <header className="contents-hero" data-track-section="hero">
       <h1 className="t-title">The race, start to finish.</h1>
       <p className="contents-dek"><MarathonDistance /> in {chapters} chapters, and what each one found.</p>
-      <p className="contents-views"><Link href="/stories">Stories</Link> show one finding each. <Link href="/analyses">Analyses</Link> answer a question you can set to your own course and time. The <Link href="/charts">Top 100 charts</Link> are a hundred findings, one picture each.</p>
+      <p className="contents-views"><Link href="/stories">Stories</Link> show one finding each. <Link href="/analyses">Analyses</Link> answer a question you can set to your own course and time. The <Link href="/charts">Top 100 charts</Link> are a hundred findings, one picture each.{halfLive() ? <> <Link href="/half">The half marathon</Link> has a page of its own.</> : null}</p>
     </header>
     <section id="analyses" className="contents-body" data-track-section="analyses" aria-label="Every chapter and page">
       <ChapterList variant="expanded" readingOf={readingOf} label="Contents" className="contents-chapters"

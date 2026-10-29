@@ -7,6 +7,7 @@ import { finishesM } from '@/lib/nuggets';
 import { countWord } from '@/lib/nuggets/format';
 import { pageMetadata } from '@/lib/seo';
 import { toolBySlug, toolHref } from '@/lib/tools/registry';
+import { halfLive } from '@/components/half/HalfWays';
 
 export const metadata = pageMetadata({
   title: 'About Pace Notes: Marathon Pacing Research',
@@ -33,6 +34,7 @@ function ways(): Way[] {
     tool('course-chooser', 'Choosing which marathon to run'),
     runners ? { href: runners.href, goal: 'Looking back at a race you ran', name: runners.title } : null,
     { href: '/research', goal: 'Seeing how marathons unfold', name: `Research: the race in ${countWord(CHAPTERS.length)} chapters` },
+    halfLive() ? { href: '/half', goal: 'Running a half marathon', name: 'The half marathon' } : null,
     { href: '/methodology#downloads', goal: 'Using the data yourself', name: 'Downloads, on How we know' },
   ].filter((w): w is Way => !!w);
 }

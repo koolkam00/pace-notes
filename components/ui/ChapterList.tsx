@@ -38,16 +38,22 @@ function KeyText({ text }: { text: string }) {
   return <>{joinRanges(text)}</>;
 }
 
-function Reading({ readingOf, id, fallbackKey, size }: { readingOf?: ReadingOf; id: Chapter['lead']; fallbackKey?: string; size: 's' | 'm' }) {
+function Reading({ readingOf, id, fallbackKey, size, href }: { readingOf?: ReadingOf; id: Chapter['lead']; fallbackKey?: string; size: 's' | 'm';
+  /** The page the reading is from, when the reading itself links there (a half reading on the contents, below). */
+  href?: string }) {
   const reading = readingOf?.(id);
   if (!reading) return null;
   const key = reading.key ?? fallbackKey;
-  return (
-    <span className="chapter-reading">
+  const body = (
+    <>
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size={size} />
       {key ? <span className="chapter-key"><KeyText text={key} /></span> : null}
-    </span>
+    </>
   );
+  // A half reading (records linked by name) is shown only as a link to the page that carries its scope chip, as every
+  // other place repeats it (spec section 9, `data-half-link`, checked by verify-half).
+  if (href) return <ChapterLink href={href} className="chapter-reading chapter-reading-link" data-half-link="linked">{body}</ChapterLink>;
+  return <span className="chapter-reading">{body}</span>;
 }
 
 /** A page's reading on one quiet line (/stories, /analyses): the figure, then its key ("47% of the field had not …"). */
@@ -82,7 +88,8 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                   <h2 className="chapter-text">
                     <span className="chapter-name">{chapter.title}</span>
                   </h2>
-                  <Reading readingOf={readingOf} id={chapter.lead} fallbackKey={chapter.key} size="s" />
+                  <Reading readingOf={readingOf} id={chapter.lead} fallbackKey={chapter.key} size="s"
+                    href={chapter.lead.startsWith('half.') ? livePages(chapter).find((p) => p.nugget === chapter.lead)?.href : undefined} />
                 </div>
                 <ol className="chapter-pages">
                   {/* The chapter's hub (Every course) closes its list: a page of the chapter, outside its chain. */}
