@@ -484,6 +484,145 @@ class Determinism(unittest.TestCase):
                 build_half.check_sources(hc.load_pin(), wrong, wrong)
 
 
+class DownloadHalf(unittest.TestCase):
+    """analysis/download_half.py on synthetic parts: SHA256SUMS and the pin, reassembly, the token's reach."""
+
+    def setUp(self):
+        import download_half
+        self.dh = download_half
+        self.tmp = tempfile.TemporaryDirectory()
+        self.folder = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def parts(self, name='half-20990101-0000.sqlite.zst'):
+        """A tiny SQLite, compressed with zstd and split into two parts; returns (sqlite sha, {part: sha})."""
+        import shutil
+        import subprocess
+        if shutil.which('zstd') is None:
+            self.skipTest('the zstd command is not installed')
+        db = self.folder / 'source.sqlite'
+        con = sqlite3.connect(db)
+        con.executescript('CREATE TABLE t (x INTEGER); ' + ' '.join(f'INSERT INTO t VALUES ({i});' for i in range(500)))
+        con.commit()
+        con.close()
+        packed = subprocess.run(['zstd', '-q', '-c', str(db)], check=True, capture_output=True).stdout
+        cut = len(packed) // 2
+        shas = {}
+        for i, chunk in enumerate((packed[:cut], packed[cut:])):
+            path = self.folder / f'{name}.part{i:02d}'
+            path.write_bytes(chunk)
+            shas[path.name] = hc.bytes_sha256(chunk)
+        sqlite_sha = hc.file_sha256(db)
+        db.unlink()
+        return sqlite_sha, shas
+
+    def spec(self, shas, sqlite_sha):
+        return {'key': 'half', 'tag': 'half-snapshot-20990101-0000', 'assets': dict(shas), 'parts': sorted(shas),
+                'target': 'platform_half.sqlite', 'target_sha256': sqlite_sha}
+
+    def test_sums_file(self):
+        good = self.folder / 'SHA256SUMS'
+        good.write_text(f"{'a' * 64}  one.md\n{'b' * 64} *two.zst.part00\n")
+        self.assertEqual(self.dh.read_sums(good), {'one.md': 'a' * 64, 'two.zst.part00': 'b' * 64})
+        good.write_text(f"{'a' * 64}  one.md\n{'a' * 64}  one.md\n")
+        with self.assertRaises(hc.HalfError):
+            self.dh.read_sums(good)
+
+    def test_the_real_pin_names_both_releases(self):
+        specs = self.dh.releases(hc.load_pin())
+        self.assertEqual([s['key'] for s in specs], ['half', 'links'])
+        self.assertEqual(specs[0]['parts'], ['half-20261029-1133.sqlite.zst.part00'])
+        self.assertEqual(specs[0]['target_sha256'], hc.load_pin()['half']['sqlite_sha256'])
+
+    def test_folder_check_and_reassembly(self):
+        sqlite_sha, shas = self.parts()
+        spec = self.spec(shas, sqlite_sha)
+        sums = self.folder / 'SHA256SUMS'
+        sums.write_text(''.join(f'{d}  {n}\n' for n, d in shas.items()))
+        found = self.dh.check_folder(self.folder, spec)
+        self.assertEqual(sorted(found), sorted(shas))
+        self.assertIs(self.dh.identify(self.folder, [spec]), spec)
+        out = self.folder / 'out'
+        out.mkdir()
+        record = self.dh.place(spec, found, out, downloaded=False, keep_links_sqlite=False, replace=False)
+        self.assertEqual(record['sqlite']['sha256'], sqlite_sha)
+        self.assertTrue(all(p.exists() for p in found.values()), 'an owner folder keeps its parts')
+        self.assertEqual(self.dh.place(spec, found, out, downloaded=False, keep_links_sqlite=False, replace=False)['sqlite']['kept'], True)
+        # A part that differs from SHA256SUMS, a SHA256SUMS that differs from the pin, a wrong decompressed digest.
+        first = self.folder / spec['parts'][0]
+        first.write_bytes(first.read_bytes()[:-1] + b'\0')
+        with self.assertRaisesRegex(hc.HalfError, 'does not match SHA256SUMS'):
+            self.dh.check_folder(self.folder, spec)
+        with self.assertRaisesRegex(hc.HalfError, 'with the digest pinned'):
+            self.dh.check_folder(self.folder, {**spec, 'assets': {**shas, spec['parts'][0]: 'c' * 64}})
+        sqlite_sha, shas = self.parts()
+        with self.assertRaisesRegex(hc.HalfError, 'not the pinned one'):
+            self.dh.reassemble([self.folder / n for n in sorted(shas)], out / 'again.sqlite', 'd' * 64)
+        self.assertFalse((out / 'again.sqlite').exists(), 'nothing is left behind after a refused decompress')
+
+    def test_downloaded_parts_are_deleted_after_a_verified_decompress(self):
+        sqlite_sha, shas = self.parts()
+        spec = self.spec(shas, sqlite_sha)
+        out = self.folder / 'out'
+        out.mkdir()
+        record = self.dh.place(spec, {n: self.folder / n for n in shas}, out, downloaded=True, keep_links_sqlite=False, replace=False)
+        self.assertEqual(record['parts'], 'downloaded, verified and deleted')
+        self.assertFalse(any((self.folder / n).exists() for n in shas))
+
+    def test_the_token_never_leaves_api_github_com(self):
+        from unittest.mock import patch
+        from urllib.request import Request
+        import download_release
+        request = self.dh.api_request('https://api.github.com/repos/o/r/releases/assets/1', 'secret-token', 'application/octet-stream')
+        self.assertNotIn('Authorization', request.headers, 'the token is not an ordinary (redirected) header')
+        self.assertEqual(request.unredirected_hdrs['Authorization'], 'Bearer secret-token')
+        handler = download_release.GitHubApiRedirect()
+        for target, carries in (('https://objects.githubusercontent.com/x?sig=1', False), ('https://api.github.com/repositories/9/releases/assets/1', True)):
+            new = handler.redirect_request(request, None, 302, 'Found', {}, target)
+            self.assertEqual('Authorization' in new.unredirected_hdrs or 'Authorization' in new.headers, carries, target)
+
+        body = b'part bytes'
+
+        class Response:
+            def __init__(self):
+                self.left = body
+
+            def read(self, n):
+                out, self.left = self.left[:n], self.left[n:]
+                return out
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        seen = []
+
+        class Opener:
+            def open(self, req, timeout):
+                seen.append(req)
+                return Response()
+
+        asset = {'name': 'x.part00', 'url': 'https://api.github.com/repos/o/r/releases/assets/1', 'size': len(body),
+                 'digest': 'sha256:' + hc.bytes_sha256(body)}
+        with patch.object(self.dh, '_opener', return_value=Opener()):
+            self.dh.download_api_asset(asset, 'secret-token', self.folder / 'x.part00', hc.bytes_sha256(body))
+            self.assertEqual((self.folder / 'x.part00').read_bytes(), body)
+            self.assertEqual(seen[0].get_header('Accept'), 'application/octet-stream')
+            with self.assertRaises(hc.HalfError):
+                self.dh.download_api_asset({**asset, 'url': 'https://example.com/x'}, 'secret-token', self.folder / 'y', hc.bytes_sha256(body))
+            with self.assertRaises(hc.HalfError):
+                self.dh.download_api_asset(asset, 'secret-token', self.folder / 'z.part00', 'e' * 64)
+        self.assertFalse((self.folder / 'z.part00').exists())
+        self.assertIsInstance(request, Request)
+
+    def test_refuses_an_output_inside_the_repository(self):
+        self.assertEqual(self.dh.main(['--from-dir', str(self.folder), '--out', str(ROOT / 'public' / 'data' / 'half')]), 1)
+
+
 SOURCE_DIR = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1133')
 
 
