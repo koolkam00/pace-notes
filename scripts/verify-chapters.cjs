@@ -76,6 +76,9 @@ test('placeOf: a page in the chain, a child, and pages outside the race', () => 
   assert.ok('child' in C.placeOf('/report') && C.placeOf('/report').chapter.n === 10);
   assert.ok('child' in C.placeOf('/tools/marathon-pace/4-00') && C.placeOf('/tools/marathon-pace/4-00').chapter.n === 6);
   assert.ok('child' in C.placeOf('/tools/pace-band') && C.placeOf('/tools/pace-band').chapter.n === 11);
+  const half = C.placeOf('/stories/half-to-full');
+  assert.ok(half && 'page' in half && half.chapter.n === 11 && half.index === 0, 'the half opens chapter 11');
+  assert.equal(C.placeOf('/half'), null, '/half is off the chain');
   for (const outside of ['/', '/research', '/methodology', '/tools', '/tools/pace-calculator', '/tools/marathon-pace']) assert.equal(C.placeOf(outside), null, outside);
 });
 test('nextOf: within a chapter, into the next one, from a child, and the finish', () => {
@@ -87,7 +90,11 @@ test('nextOf: within a chapter, into the next one, from a child, and the finish'
   const hills = C.nextOf('/analyses/hills-and-pacing');
   assert.deepEqual([href(hills), hills.opensChapter, hills.chapter.n], ['/stories/race-morning', true, 9]);
   assert.equal(href(C.nextOf('/courses')), '/stories/race-morning');
-  assert.equal(href(C.nextOf('/report')), '/analyses/finding-improvement');
+  // Chapter 11 opens on the half (October 29, 2026): the end of chapter 10 hands on to it, and it to where runners improve.
+  const half = C.nextOf('/report');
+  assert.deepEqual([href(half), half.opensChapter, half.chapter.n], ['/stories/half-to-full', true, 11]);
+  assert.equal(href(C.nextOf('/runners')), '/stories/half-to-full');
+  assert.deepEqual([href(C.nextOf('/stories/half-to-full')), C.nextOf('/stories/half-to-full').opensChapter], ['/analyses/finding-improvement', false]);
   assert.equal(href(C.nextOf('/tools/pace-band')), '/tools/plan');
   assert.equal(C.nextOf('/tools/plan'), null);
   assert.equal(C.nextOf('/methodology'), null);
@@ -100,7 +107,9 @@ test('prevOf: within a chapter, across chapters, children and the start', () => 
   assert.equal(C.prevOf('/stories/race-morning').href, '/analyses/hills-and-pacing');
   assert.equal(C.prevOf('/report').href, '/runners');
   assert.equal(C.prevOf('/tools/marathon-pace/3-30').href, '/analyses/finish-time-context');
-  for (const tool of ['/tools/pace-band', '/tools/course-chooser', '/tools/predictor']) assert.equal(C.prevOf(tool).href, '/analyses/finding-improvement', `${tool} leads back to its chapter`);
+  for (const tool of ['/tools/pace-band', '/tools/course-chooser', '/tools/predictor']) assert.equal(C.prevOf(tool).href, '/stories/half-to-full', `${tool} leads back to its chapter's opener`);
+  assert.equal(C.prevOf('/stories/half-to-full').href, '/runners');
+  assert.equal(C.prevOf('/analyses/finding-improvement').href, '/stories/half-to-full');
   assert.equal(C.prevOf('/finish-times'), null);
 });
 test('a pending page is skipped by every link', () => {
@@ -116,6 +125,7 @@ test('howWeKnowOf and readingAttrs', () => {
   assert.equal(C.howWeKnowOf('/courses/boston'), '/methodology#course-pages');
   assert.equal(C.howWeKnowOf('/report'), '/methodology#race-report');
   assert.equal(C.howWeKnowOf('/methodology'), null);
+  assert.equal(C.howWeKnowOf('/stories/half-to-full'), '/methodology#story-half-to-full');
   assert.deepEqual(C.readingAttrs('/stories/round-numbers'), { 'data-reading': '', 'data-marker': 'FINISH', 'data-short': 'Round numbers' });
   assert.deepEqual(C.readingAttrs('/courses/boston', 'Boston'), { 'data-reading': '', 'data-marker': '08', 'data-short': 'Boston' });
   assert.deepEqual(C.readingAttrs('/methodology', 'Methods'), { 'data-reading': '', 'data-short': 'Methods' });

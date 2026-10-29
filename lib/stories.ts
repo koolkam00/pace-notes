@@ -1,10 +1,15 @@
 /**
- * Registry of the data stories. A story is published only when its data file is in the verified manifest.
+ * Registry of the data stories. A story is published only when its data file is in its verified manifest: the insights
+ * manifest (public/data/insights), or for a half-marathon story (`source: 'half'`) the half manifest (public/data/half),
+ * which a build without the half data does not have. `storyPublished` is the one gate every list, route and sitemap uses.
  * Server only: text that quotes a share, count or year (titles, deks, search titles and descriptions)
  * is a getter that reads the number from the verified story data at build time, so none is typed in.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { getInsightsManifest, readInsight } from './insights-server';
 import type { Archetypes, Courses, InsightsManifest, ReplayIndex } from './insights';
+import type { HalfManifest } from './half-types';
 import { getNugget, sentenceOf } from './nuggets';
 
 /** One parsed copy of each story file per verified manifest, so the getters below do not re-read files on every access. */
@@ -20,7 +25,10 @@ function insight<T>(name: string): T | null {
 
 export interface StoryDefinition {
   slug: string;
+  /** The story's data file, in the manifest of its `source`. */
   file: string;
+  /** Where its data lives: the marathon insights (the default) or the half-marathon aggregates (public/data/half). */
+  source?: 'insights' | 'half';
   number: string;
   kicker: string;
   /** The display title: contents rows, next cards, search and share cards. Plain text. */
@@ -78,6 +86,26 @@ export function courseSpan(): { courses: number; first: number; last: number } |
 function shapedCourses(): number | null {
   const data = insight<Courses>('courses.json');
   return data ? data.courses.filter((c) => c.curve?.length).length : null;
+}
+
+/**
+ * The half-marathon manifest, or null when this build has no half data (public/data/half/manifest.json is absent): a
+ * build without it still builds every marathon page, and no half story or page is listed, routed or mapped.
+ */
+let half: { key: string; manifest: HalfManifest } | undefined;
+export function halfManifest(): HalfManifest | null {
+  const file = path.join(process.cwd(), 'public/data/half/manifest.json');
+  if (!fs.existsSync(file)) return null;
+  const stat = fs.statSync(file);
+  const key = `${stat.size}:${stat.mtimeMs}`;
+  if (half?.key !== key) half = { key, manifest: JSON.parse(fs.readFileSync(file, 'utf8')) as HalfManifest };
+  return half.manifest;
+}
+
+/** Whether a story is published: its data file is in the manifest of its source. */
+export function storyPublished(story: StoryDefinition): boolean {
+  if (story.source === 'half') return !!halfManifest()?.files[story.file];
+  return !!getInsightsManifest().files[story.file];
 }
 
 /** A story's H1 as its finding: the nugget's sentence when its guard holds, else the plain title. */
@@ -205,6 +233,23 @@ export const STORIES: StoryDefinition[] = [
       return pairs
         ? `The same marathon course on warmer and cooler mornings: in ${pairs.hotter_slowed_more} of ${pairs.total} pairs of editions, the warmer one had more sustained slowdowns.`
         : 'The same marathon course on warmer and cooler mornings, and how the race changed with the start temperature.';
+    } },
+  // The half and the marathon that followed it, 3 to 16 weeks later, for records linked by name (public/data/half,
+  // linked.json): chapter 11's opener. Its words read the half nuggets only (lib/nuggets/half.ts), never insight().
+  { slug: 'half-to-full', file: 'linked.json', source: 'half', number: '09', kicker: 'Half to full',
+    title: 'From the half to the marathon',
+    get heading() { return headingOf('half.extra', this.title); },
+    dek: 'What did the marathon take after a half?', accent: '#F4B23E',
+    published: '2026-10-29',
+    get seoTitle() {
+      const n = getNugget('half.extra');
+      return n.guard ? `Half to Marathon: Double It Plus ${n.values.extra_min} Minutes | Pace Notes` : 'From the Half to the Marathon | Pace Notes';
+    },
+    get seoDescription() {
+      const n = getNugget('half.extra');
+      return n.guard
+        ? `After a half, the typical marathon took double it plus ${n.values.extra_min} minutes. See the marathons that followed each half time, 3 to 16 weeks later.`
+        : 'The marathons that followed a half 3 to 16 weeks later, half time by half time.';
     } },
 ];
 

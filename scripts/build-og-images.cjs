@@ -112,7 +112,7 @@ const PAGE_CARDS = [
 
 function cardSpecs() {
   loadTypeScript();
-  const { STORIES } = require(path.join(ROOT, 'lib/stories.ts'));
+  const { STORIES, storyPublished } = require(path.join(ROOT, 'lib/stories.ts'));
   const { TOOLS, toolBySlug } = require(path.join(ROOT, 'lib/tools/registry.ts'));
   const { GOAL_PAGE_MINUTES, goalLabel, goalPagePath } = require(path.join(ROOT, 'lib/tools/pace-chart.ts'));
   const { STANDARDS } = require(path.join(ROOT, 'lib/tools/qualifying.ts'));
@@ -124,7 +124,8 @@ function cardSpecs() {
   const summaries = manifest.files['courses.json'] ? readInsight('courses.json').courses : [];
   const slug = (value) => { if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) throw new Error(`Unsafe card slug: ${value}`); return value; };
   const cards = [];
-  for (const story of STORIES) {
+  // A published story only: a half story needs the half data in this build (lib/stories.ts storyPublished).
+  for (const story of STORIES.filter(storyPublished)) {
     cards.push({ file: `stories/${slug(story.slug)}.png`, eyebrow: `Data story · ${story.kicker}`, title: story.title, accent: story.accent });
   }
   for (const tool of TOOLS) {

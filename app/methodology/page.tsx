@@ -12,7 +12,7 @@ import MethodsTools from '@/components/methods/MethodsTools';
 import { Part, Topic } from '@/components/methods/shared';
 import { readingAttrs } from '@/lib/chapters';
 import { getInsightsManifest } from '@/lib/insights-server';
-import { STORIES, courseSpan } from '@/lib/stories';
+import { STORIES, courseSpan, storyPublished } from '@/lib/stories';
 import { JsonLd, absoluteUrl, pageMetadata } from '@/lib/seo';
 import { dataDate } from '@/lib/seo-routes';
 
@@ -36,7 +36,7 @@ const PARTS: { id: string; label: string }[] = [
 function storyDataset() {
   const manifest = getInsightsManifest();
   const span = courseSpan();
-  const files = STORIES.filter((s) => manifest.files[s.file] && STORY_FILE_TOPICS[s.file]).map((s) => s.file);
+  const files = STORIES.filter((s) => s.source !== 'half' && storyPublished(s) && STORY_FILE_TOPICS[s.file]).map((s) => s.file);
   if (!span || !files.length) return null;
   const topics = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' }).format(files.map((f) => STORY_FILE_TOPICS[f]));
   return {

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
-import { STORIES, storyHref } from '@/lib/stories';
+import { STORIES, halfManifest, storyHref, storyPublished } from '@/lib/stories';
 import { Detail, Topic, and, dataHref, editionList, n } from './shared';
 
 type Edition = { city: string; year: number };
@@ -128,7 +128,10 @@ function storyNotes(file: string, slug: string): ReactNode[] {
 export default function MethodsStories() {
   const manifest = getInsightsManifest();
   const copies = manifest.duplicate_edition_screen;
-  const stories = STORIES.filter((story) => manifest.files[story.file]);
+  // The marathon stories read their method from their insights file; a half story's method is its own (below).
+  const stories = STORIES.filter((story) => story.source !== 'half' && storyPublished(story));
+  const half = halfManifest();
+  const halfStories = half ? STORIES.filter((story) => story.source === 'half' && storyPublished(story)) : [];
   return <Topic id="stories" title="Data stories">
     <p>The data stories use {n(manifest.analysis_n)} eligible finishes. These are every record in the adopted release with all nine checkpoints present and increasing, a finish between 1:30 and 12:00 and every section between 2 and 20 minutes per kilometer, after the reviewed source-quality exclusions. {copies.length ? `${and(copies.map((c) => `${c.city} ${c.year}`))} ${copies.length > 1 ? 'are' : 'is'} also left out, because ${copies.length > 1 ? 'their' : 'its'} records duplicate the ${copies[0].city} ${copies[0].duplicate_of} field. ` : ''}Counts are race finishes, not unique runners. Associations describe what went together; they do not explain why.</p>
     {stories.map((story) => {
@@ -138,6 +141,13 @@ export default function MethodsStories() {
         <p>{data.method}</p>
         {notes.length > 0 && <ul>{notes.map((note, i) => <li key={i}>{note}</li>)}</ul>}
         <p className="methods-links"><Link href={storyHref(story)}>Read the story</Link><a href={dataHref(`insights/${story.file}`)}>{story.file}</a></p>
+      </Detail>;
+    })}
+    {half && halfStories.map((story) => {
+      const [from, to] = half.link_rules.window_days;
+      return <Detail key={story.slug} id={`story-${story.slug}`} title={story.title}>
+        <p>Each eligible marathon finish is paired with the nearest earlier half marathon of a record linked to it by name, {from} to {to} days before, one pair per record and marathon. A half time’s window holds the pairs whose half was within 2:30 of that whole minute. Counts are pairs of records, never verified people, and the comparisons describe what went together, not why.</p>
+        <p className="methods-links"><Link href={storyHref(story)}>Read the story</Link></p>
       </Detail>;
     })}
   </Topic>;

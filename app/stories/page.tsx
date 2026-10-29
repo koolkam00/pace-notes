@@ -1,9 +1,8 @@
 import { PageList } from '@/components/ui/ChapterList';
-import { getInsightsManifest } from '@/lib/insights-server';
 import { CHAPTERS, livePages, type PageKind } from '@/lib/chapters';
 import { readingOf } from '@/lib/nuggets';
 import { countWord } from '@/lib/nuggets/format';
-import { STORIES, capital } from '@/lib/stories';
+import { STORIES, capital, storyHref, storyPublished } from '@/lib/stories';
 import { finishesM, pageMetadata } from '@/lib/seo';
 
 const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
@@ -18,15 +17,16 @@ const storyPages = () => CHAPTERS.flatMap(livePages).filter((p) => KINDS.include
 const inSentence = (name: string) => name.replace(/^The /, 'the ').replace(/^([A-Z])(?=[a-z])/, (c) => c.toLowerCase());
 
 export function generateMetadata() {
-  const manifest = getInsightsManifest();
   // The count the page's own line gives (every page it lists), so search and share copy never disagree with it.
   const published = storyPages().length;
-  const allPublished = STORIES.every((s) => manifest.files[s.file]);
+  const allPublished = STORIES.every(storyPublished);
   // The topic list names the stories as the page lists them, so it is used only when all of them are published; when
   // every name does not fit 155 characters, the first two and the last two.
   const names = storyPages().map((p) => inSentence(p.short));
   const list = (n: string[]) => `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`;
-  const lead = `${WORDS[published]} data stories from ${finishesM()} million recorded marathon finishes`;
+  // A half-marathon story is not one of the marathon finishes' stories, so with one listed the count says "most".
+  const half = STORIES.some((s) => s.source === 'half' && storyPages().some((p) => p.href === storyHref(s)));
+  const lead = `${WORDS[published]} data stories${half ? ', most' : ''} from ${finishesM()} million recorded marathon finishes`;
   const full = `${lead}: ${list(names)}.`;
   const short = `${lead}, from ${names.slice(0, 2).join(' and ')} to ${names.slice(-2).join(' and ')}.`;
   const description = allPublished && WORDS[published] && names.length >= 4
