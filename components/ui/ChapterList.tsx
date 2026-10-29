@@ -106,7 +106,8 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
               </li>
             ) : (
               <li className="chapter-row" key={chapter.id}>
-                <ChapterLink href={chapterHref(chapter)} match={pagesOf(chapter)} className="chapter-link">
+                <ChapterLink href={chapterHref(chapter)} match={pagesOf(chapter)} className="chapter-link"
+                  {...(!compact && readingOf && chapter.lead.startsWith('half.') ? { 'data-half-link': 'linked' } : {})}>
                   <span className="chapter-mark"><MarkerBadge marker={chapter.marker} /></span>
                   <span className="chapter-text">
                     <span className="chapter-name">{chapter.title}</span>
@@ -141,7 +142,7 @@ export function PageList({ kind, prefix, readingOf, label }: { kind: PageKind | 
             <p className="page-list-chapter"><MarkerBadge marker={chapter.marker} /><span>{chapter.title}</span></p>
             <ol className="page-list-rows">
               {pages.map((page) => (
-                <li key={page.href} className="page-list-row">
+                <li key={page.href} className="page-list-row" {...(readingOf && page.nugget.startsWith('half.') ? { 'data-half-link': 'linked' } : {})}>
                   <ChapterLink href={page.href} className="page-list-link"><span className="page-list-title">{page.title}</span></ChapterLink>
                   <PageReading readingOf={readingOf} page={page} />
                   <Arrow className="page-list-go" />

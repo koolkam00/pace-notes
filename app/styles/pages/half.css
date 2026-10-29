@@ -1,0 +1,28 @@
+/* The half marathon (/half; components/half): the story page's markup (app/styles/pages/story.css, imported with this
+   sheet by app/half/layout.tsx) without the chapter rail, the reading bar or the chapter end. Tokens only; the dark
+   theme comes from the tokens' own redefinitions. */
+
+/* ---------- The crumbs: "Pace Notes › The half marathon" ---------- */
+.half-page .reading-crumbs { gap: 0 8px; }
+.half-crumb-sep { color: var(--ink-3); }
+.half-crumb-here { color: var(--ink-2); }
+
+/* ---------- The closing stack ---------- */
+/* The half's tools as plain rows (the tool pages' handoff rows, components/tools/Handoffs.tsx, whose sheet is the tools
+   section's): a kicker, then one 52 px row per tool, hairlines between, the arrow at the right. */
+.half-end .tool-handoffs { display: grid; gap: var(--s-2); margin: 0; }
+.half-end .tool-handoffs-label { margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.half-end .tool-handoffs ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.half-end .tool-handoffs li { margin: 0; border-bottom: 1px solid var(--rule); }
+.half-end .tool-handoffs li > a { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-4); min-height: 52px; padding: 12px 0; color: var(--ink); text-decoration: none; }
+.half-end .tool-handoffs li > a:hover { text-decoration: none; }
+.half-end .tool-handoffs li > a:hover b { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: .2em; }
+.half-end .tool-handoffs li > a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.half-end .tool-handoff-text { display: grid; gap: 2px; min-width: 0; }
+.half-end .tool-handoffs b { font-size: 1rem; font-weight: 600; line-height: 1.3; }
+.half-end .tool-handoff-text > span { font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
+.half-end .tool-handoffs .arrow-icon { width: 18px; height: 18px; color: var(--ink); transition: transform var(--d-release) var(--spring); }
+.half-end .tool-handoffs li > a:hover .arrow-icon { transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) {
+  .half-end .tool-handoffs .arrow-icon { transition: none; }
+}
