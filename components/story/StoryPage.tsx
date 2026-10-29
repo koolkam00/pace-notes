@@ -14,38 +14,40 @@ import { readingOf, type Nugget, type NuggetText } from '@/lib/nuggets';
 type Track = (typeof TRACKED_SECTIONS)[number];
 
 export const TERM_HREF = '/methodology#sustained-slowdown';
-/** The half pages' term: links between half and marathon records are candidates, explained on /methodology. */
+/**
+ * The half pages' term: half and marathon records linked by name, explained on /methodology#half-linking. Opt-in
+ * (`linked`), since the Top 100 charts use the same words for marathon records linked across races.
+ */
 export const LINKED_HREF = '/methodology#half-linking';
-/** The terms a sentence links to their definitions on /methodology, each at its first use on the page. */
-const TERMS: readonly { re: RegExp; href: string }[] = [
-  { re: /\bsustained[ -]slowdowns?\b/i, href: TERM_HREF },
-  { re: /\brecords linked by name\b/i, href: LINKED_HREF },
-];
+/** The terms a sentence can link to their definitions on /methodology, each at its first use on the page. */
+const SLOWDOWN_TERM = { re: /\bsustained[ -]slowdowns?\b/i, href: TERM_HREF };
+const LINKED_TERM = { re: /\brecords linked by name\b/i, href: LINKED_HREF };
+type Term = typeof SLOWDOWN_TERM;
 
 /** A range ("35–40K", "2022–26") never breaks at its dash: a word joiner holds the two ends together. */
 export const keep = joinRanges;
 
-/** The text with the first use of each term not yet in `done` linked to its definition (and added to `done`). */
-function linkTerms(body: string, done: Set<string>): ReactNode {
-  const hits = TERMS.filter((t) => !done.has(t.href)).map((t) => ({ t, m: t.re.exec(body) })).filter((h): h is { t: typeof TERMS[number]; m: RegExpExecArray } => !!h.m);
+/** The text with the first use of each pending term linked to its definition (and taken off `pending`). */
+function linkTerms(body: string, pending: Term[]): ReactNode {
+  const hits = pending.map((t) => ({ t, m: t.re.exec(body) })).filter((h): h is { t: Term; m: RegExpExecArray } => !!h.m);
   if (!hits.length) return body;
   const { t, m } = hits.reduce((a, b) => (b.m.index < a.m.index ? b : a));
-  done.add(t.href);
-  return <>{body.slice(0, m.index)}<Link href={t.href} className="term-link">{m[0]}</Link>{linkTerms(body.slice(m.index + m[0].length), done)}</>;
+  pending.splice(pending.indexOf(t), 1);
+  return <>{body.slice(0, m.index)}<Link href={t.href} className="term-link">{m[0]}</Link>{linkTerms(body.slice(m.index + m[0].length), pending)}</>;
 }
 
 /**
  * A sentence with its one *…* accent as <em>. With `term`, the first "sustained slowdown" in it links to its definition
- * on /methodology (.term-link), and so do the first "records linked by name" (the half pages' linked figures,
- * /methodology#half-linking): pages pass it once, at the terms' first use (the redesign spec, section 3.10).
+ * on /methodology (.term-link); with `linked` (the half pages' linked figures), so does the first "records linked by
+ * name" (/methodology#half-linking). Pages pass them once, at the terms' first use (the redesign spec, section 3.10).
  */
-export function rich(text: string, { term = false, plain = false }: { term?: boolean; plain?: boolean } = {}): ReactNode {
+export function rich(text: string, { term = false, linked = false, plain = false }: { term?: boolean; linked?: boolean; plain?: boolean } = {}): ReactNode {
   const parts = keep(text).split(/(\*[^*]+\*)/).filter(Boolean);
-  const done = new Set<string>(term ? [] : TERMS.map((t) => t.href));
+  const pending: Term[] = [...(term ? [SLOWDOWN_TERM] : []), ...(linked ? [LINKED_TERM] : [])];
   return parts.map((part, i) => {
     const accent = part.startsWith('*') && part.endsWith('*') && part.length > 2;
     const body = accent ? part.slice(1, -1) : part;
-    const node = linkTerms(body, done);
+    const node = linkTerms(body, pending);
     return accent && !plain ? <em key={i}>{node}</em> : <span key={i}>{node}</span>;
   });
 }

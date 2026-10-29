@@ -18,7 +18,7 @@ export default function HalfToFullBody() {
   return (
     <StoryPage path={PATH} halfScope="linked">
       <StoryHero path={PATH} title={story.heading ?? story.title} stacked fallback={!extra.guard}
-        dek={<>{rich('Halves and marathons of records linked by name, the half 3 to 16 weeks before.', { term: true })} <ScopeTag /></>}
+        dek={<>{rich('Halves and marathons of records linked by name, the half 3 to 16 weeks before.', { linked: true })} <ScopeTag /></>}
         figure={figure ? { value: figure.value, unit: figure.unit, sr: figure.sr } : undefined} unitLine={figure ? extra.key : undefined} />
     </StoryPage>
   );
