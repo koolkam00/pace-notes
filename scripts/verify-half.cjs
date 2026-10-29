@@ -528,6 +528,7 @@ if (opt.html) {
       const toLinked = [...own, ...inner].filter(linkedHref);
       ok(own.length ? linkedHref(own[0]) && !inner.some(linkedHref) : toLinked.length === 1, `${route}: a reading marked data-half-link is a link to a linked page, or wraps exactly one (${JSON.stringify([...own, ...inner])})`);
       ok(!CHIP.test(el.html), `${route}: a reading repeated as a link carries no chip`);
+      ok(!/half marathon finishes|half finishes|came in under 2:00/i.test(textOf(el.html)), `${route}: a reading link holds no other half figure`);
     }
     if (!scoped.length) {
       if (route !== '/methodology') ok(!CHIP.test(html), `${route}: a scope chip outside any half surface`);
@@ -557,7 +558,10 @@ if (opt.html) {
         }
       }
     }
-    for (const el of elements(html, CHIP)) ok(/Includes unverified half results/.test(textOf(el.html)) && /href="\/methodology#half-coverage"/.test(el.html), `${route}: the chip reads "Includes unverified half results" and links /methodology#half-coverage`);
+    for (const el of elements(html, CHIP)) {
+      ok(/Includes unverified half results/.test(textOf(el.html)) && /href="\/methodology#half-coverage"/.test(el.html), `${route}: the chip reads "Includes unverified half results" and links /methodology#half-coverage`);
+      ok(!/\d/.test(textOf(el.html)), `${route}: the chip carries no numbers`);
+    }
     // "Records linked by name": the first mention on a page is the term link to /methodology#half-linking.
     const main = html.slice(Math.max(0, html.indexOf('<main')));
     const at = textOf(main).search(/linked by name/i);

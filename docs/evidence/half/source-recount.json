@@ -11,7 +11,7 @@
   "scripts/half/derive.cjs": "15c8885eeff04eaddbcb8530e9a32a51b04b5992d8e5243eb25744f03cddd71c",
   "scripts/half/families.cjs": "4aee6d176eecf82066205790ba843ef56a586b1bb2fbb058fea536e04ed358db",
   "scripts/half/marathon.cjs": "0099e408bf084446f6fc60d91b362d5f761111128c9d5bb14b2de7aab08c5a4d",
-  "scripts/half/policy.cjs": "aabf1fc424f20a4ed71c474cacf29f356d693a7dc9230ec4b9ceba5f0c1d39bc",
+  "scripts/half/policy.cjs": "64be8f311d9e527059033e654cc608ed384abf29c029ae9fefbb277c271f8646",
   "scripts/verify-half-source.cjs": "852e1dd4ca8a63959b6c67d46942e2b8007fad170241cc48d7bc80bfa6978d33"
  },
  "half_sqlite_sha256": "655a2d7efcdb6078f1743968bc4d4a2d2e020322855513aa633e153f6fa3673a",

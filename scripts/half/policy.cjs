@@ -253,9 +253,9 @@ function applyPolicy(db, policy, log = () => {}) {
   const rx = policy.edition_rules;
   const INDEPENDENT = new RegExp(rx.E3.independent_pattern), NOT_INDEPENDENT = new RegExp(rx.E3.not_independent_pattern);
   const SINGLE_SEX = new RegExp(rx.E4.single_sex_event_pattern);
-  const reviewedById = new Map([[6690, 'cross_edition_duplicate'], [3707, 'cross_edition_duplicate'], [7854, 'cross_edition_duplicate'], [7508, 'cross_edition_duplicate'],
-    [7509, 'cross_edition_duplicate'], [3666, 'cross_edition_duplicate'], [6740, 'cross_edition_overlap_hold'], [7012, 'cross_edition_overlap_hold']]);
-  const reviewedByKey = new Map([['Brunico: 3/4 Mezza Maratona\u00002013', 'not_half_distance']]);
+  // E2 is a reviewed decision (duplicates, overlaps, other distances), not a computed screen: it comes from the frozen
+  // list and, in the reviewed order, preempts the screens after it.
+  const reviewedE2 = new Map(rx.editions.filter((x) => x.rule === 'E2').map((x) => [`${x.city}\u0000${x.year}`, x.category]));
   const group = (status) => (STATUS.held.includes(status) ? 'held' : STATUS.unverified.includes(status) ? 'unverified' : STATUS.verified.includes(status) ? 'verified' : 'no_rows');
   const ET = editions.map((x, e) => {
     const m = meta.get(`${x.city}\u0000${x.year}`);
@@ -280,8 +280,7 @@ function applyPolicy(db, policy, log = () => {}) {
     if (r.group === 'no_edition_meta') r.category = 'no_edition_meta';
     else if (r.group === 'no_rows' || (r.n_usable === 0 && r.group !== 'held')) r.category = 'no_usable_rows';
     else if (r.group === 'held') r.category = 'held_by_producer';
-    else if (reviewedById.has(r.edition_id)) r.category = reviewedById.get(r.edition_id);
-    else if (reviewedByKey.has(`${r.city}\u0000${r.year}`)) r.category = reviewedByKey.get(`${r.city}\u0000${r.year}`);
+    else if (reviewedE2.has(`${r.city}\u0000${r.year}`)) r.category = reviewedE2.get(`${r.city}\u0000${r.year}`);
     else if (r.independent && r.group !== 'verified' && hasOff && r.n_db > (1 + T) * r.official) r.category = 'count_excess_vs_independent';
     else if (r.independent && r.group !== 'verified' && hasOff && r.n_usable < (1 - T) * r.official) r.category = 'count_shortfall_vs_independent';
     else if (!r.independent && hasOff && r.official > 0 && r.n_db < (1 - T) * r.official) r.category = 'rows_short_of_source_list';
