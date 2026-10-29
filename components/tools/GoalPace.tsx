@@ -2,7 +2,11 @@
 
 import type { ReactNode } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
-import { EvidenceTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
+import { EvidenceTag, ScopeTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
+import Arrow from '@/components/ui/Arrow';
+import { withEm } from '@/components/ui/withEm';
+import type { HalfGoal } from '@/lib/half-types';
+import { NOT_A_PREDICTION, floorHM, goalLines } from '@/lib/tools/half-to-full';
 import DotGrid from '@/components/viz/DotGrid';
 import Values, { AllNumbers } from '@/components/ui/Values';
 import { UNEVEN_SHARE, evenPaceGapText, groupGapText, type GoalPeer } from '@/lib/tools/goal-facts';
@@ -63,7 +67,10 @@ export function GoalPaceDek({ goal, observed }: { goal: number; observed: GoalOb
 /** The pile-up's minutes as a table: each minute's finishes and the smooth curve's expectation, the reading row marked. */
 export interface PileupTable { caption: string; rows: [string, string, string][]; reading: number }
 
-export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable, how }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
+export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable, how, halfBefore = null }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
+  /** The half before the goal (records linked by name, linked.json `goals`): the slowest half window whose typical
+   *  marathon came in under it, so the predictor at that half agrees. Null when the half data has none for this goal. */
+  halfBefore?: HalfGoal | null;
   /** The page's methods anchor, the last line of its "All numbers" (ToolEnd `numbers`). */
   how?: string;
   /** The pile-up's figure, drawn on the server (a mini minute histogram). */
@@ -139,6 +146,10 @@ export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable, ho
         </section>
       ) : null}
 
+      {/* The half before (Pace Notes data, records linked by name, with the scope chip): the half near which the typical
+          marathon came in under this goal. Forward-consistent with the predictor (lib/tools/half-to-full.ts goalLines). */}
+      {halfBefore ? <HalfBefore goal={halfBefore} /> : null}
+
       {/* Section 00, cut 7: the page's tables in one disclosure at its foot, each with its caption, not a Values row under
           every beat. */}
       <AllNumbers id="goal-pace-numbers" className="goal-pace-numbers" how={how} tables={[
@@ -188,5 +199,26 @@ export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable, ho
         ) : null,
       ]} />
     </>
+  );
+}
+
+/**
+ * A goal page's "The half before" panel: after a half near H, the typical marathon came in under the goal; the middle
+ * 8 in 10; the recorded women's and men's halves where both have a window; "Not a prediction."; and the predictor at H.
+ * Every line is lib/tools/half-to-full.ts goalLines, which verify-tools checks against the data.
+ */
+function HalfBefore({ goal }: { goal: HalfGoal }) {
+  const lines = goalLines(goal);
+  const H = floorHM(goal.all.h);
+  return (
+    <section className="tool-panel goal-pace-half" id="goal-pace-half" data-half-scope="linked" aria-labelledby="goal-pace-half-title">
+      <p className="goal-pace-half-tags"><EvidenceTag kind="data" /><ScopeTag /></p>
+      <p className="goal-pace-half-kicker">The half before</p>
+      <h2 className="tool-nugget-text" id="goal-pace-half-title">{withEm(lines.lead)}</h2>
+      <p className="tool-panel-meta">Half and marathon <Link href="/methodology#half-linking" className="term-link">records linked by name</Link>, the half 3 to 16 weeks before.</p>
+      <p className="goal-pace-half-lines">{lines.range}{lines.sexes ? <><br />{lines.sexes}</> : null}</p>
+      <p className="goal-pace-half-not">{NOT_A_PREDICTION}</p>
+      <p className="goal-pace-half-more"><Link href={lines.link}>The marathons after a {H} half<Arrow /></Link></p>
+    </section>
   );
 }

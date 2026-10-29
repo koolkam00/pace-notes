@@ -401,3 +401,10 @@
 .tool-page .range-bracket line { stroke: var(--ink-2); stroke-width: 1.5; }
 .tool-page svg .range-bracket text { font-family: var(--sans); font-size: 12px; font-weight: 500; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
 
+
+/* ---------- A marathon goal page's "The half before" (records linked by name; components/tools/GoalPace.tsx) ---------- */
+.goal-pace-half-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.goal-pace-half-kicker { font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.goal-pace-half-lines { max-width: var(--measure); font-size: var(--t-small); line-height: 1.6; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.goal-pace-half-not { font-size: var(--t-small); font-weight: 600; line-height: 1.5; color: var(--ink); }
+.goal-pace-half-more a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: var(--t-small); font-weight: 600; color: var(--ink); }

@@ -18,6 +18,9 @@ import type { GoalPeer } from '@/lib/tools/goal-facts';
 import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
 import { GOAL_PAGE_MINUTES, goalFromSlug, goalLabel, goalPagePath, goalSearchName, goalSlug } from '@/lib/tools/pace-chart';
 import { formatDuration } from '@/lib/tools/time';
+import type { HalfGoal } from '@/lib/half-types';
+import { readHalf } from '@/lib/half-server';
+import { halfManifest } from '@/lib/stories';
 
 // No `dynamicParams = false`: with output 'export' it changes nothing in the build (only these slugs are exported and
 // any other slug calls notFound()), and Next 14.2's dev server then answers every goal page with a 500.
@@ -147,6 +150,15 @@ function pileupFigure(minute: number, bunching: GoalBunching): { figure: ReactNo
   }
 }
 
+/**
+ * The half before the goal: the slowest half window whose typical marathon came in under it (linked.json `goals`,
+ * records linked by name), or null when the half data is not in this build or has no window for the goal.
+ */
+function halfBeforeFor(minute: number): HalfGoal | null {
+  if (!halfManifest()?.files['linked.json']) return null;
+  return readHalf('linked.json').goals.find((g) => g.goal_s === minute * 60) ?? null;
+}
+
 /** Every goal page's window size and sustained-slowdown share, so a page can say where its goal sits among them. */
 function goalPeers(): GoalPeer[] {
   const peers = GOAL_PAGE_MINUTES.map((goal) => {
@@ -194,7 +206,7 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
         <p className="print-only goal-chart-print-note">Pace Notes {label} marathon pace. splithappens.run{goalPagePath(minute)}</p>
       </ToolPageHeader>
       <div className="goal-pace-stack">
-        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={pileup?.figure ?? null} pileupTable={pileup?.table ?? null} how="/methodology#tools-goal-pages" />
+        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={pileup?.figure ?? null} pileupTable={pileup?.table ?? null} how="/methodology#tools-goal-pages" halfBefore={halfBeforeFor(minute)} />
       </div>
       <ToolEnd path={goalPagePath(minute)} how="/methodology#tools-goal-pages" numbers />
     </div></ChainFrame>
