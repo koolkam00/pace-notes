@@ -13,30 +13,39 @@ import { readingOf, type Nugget, type NuggetText } from '@/lib/nuggets';
 
 type Track = (typeof TRACKED_SECTIONS)[number];
 
-const TERM = /\bsustained[ -]slowdowns?\b/i;
 export const TERM_HREF = '/methodology#sustained-slowdown';
+/** The half pages' term: links between half and marathon records are candidates, explained on /methodology. */
+export const LINKED_HREF = '/methodology#half-linking';
+/** The terms a sentence links to their definitions on /methodology, each at its first use on the page. */
+const TERMS: readonly { re: RegExp; href: string }[] = [
+  { re: /\bsustained[ -]slowdowns?\b/i, href: TERM_HREF },
+  { re: /\brecords linked by name\b/i, href: LINKED_HREF },
+];
 
 /** A range ("35–40K", "2022–26") never breaks at its dash: a word joiner holds the two ends together. */
 export const keep = joinRanges;
 
+/** The text with the first use of each term not yet in `done` linked to its definition (and added to `done`). */
+function linkTerms(body: string, done: Set<string>): ReactNode {
+  const hits = TERMS.filter((t) => !done.has(t.href)).map((t) => ({ t, m: t.re.exec(body) })).filter((h): h is { t: typeof TERMS[number]; m: RegExpExecArray } => !!h.m);
+  if (!hits.length) return body;
+  const { t, m } = hits.reduce((a, b) => (b.m.index < a.m.index ? b : a));
+  done.add(t.href);
+  return <>{body.slice(0, m.index)}<Link href={t.href} className="term-link">{m[0]}</Link>{linkTerms(body.slice(m.index + m[0].length), done)}</>;
+}
+
 /**
  * A sentence with its one *…* accent as <em>. With `term`, the first "sustained slowdown" in it links to its definition
- * on /methodology (.term-link): pages pass it once, at the term's first use (the redesign spec, section 3.10).
+ * on /methodology (.term-link), and so do the first "records linked by name" (the half pages' linked figures,
+ * /methodology#half-linking): pages pass it once, at the terms' first use (the redesign spec, section 3.10).
  */
 export function rich(text: string, { term = false, plain = false }: { term?: boolean; plain?: boolean } = {}): ReactNode {
   const parts = keep(text).split(/(\*[^*]+\*)/).filter(Boolean);
-  let linked = !term;
+  const done = new Set<string>(term ? [] : TERMS.map((t) => t.href));
   return parts.map((part, i) => {
     const accent = part.startsWith('*') && part.endsWith('*') && part.length > 2;
     const body = accent ? part.slice(1, -1) : part;
-    let node: ReactNode = body;
-    if (!linked) {
-      const m = TERM.exec(body);
-      if (m) {
-        linked = true;
-        node = <>{body.slice(0, m.index)}<Link href={TERM_HREF} className="term-link">{m[0]}</Link>{body.slice(m.index + m[0].length)}</>;
-      }
-    }
+    const node = linkTerms(body, done);
     return accent && !plain ? <em key={i}>{node}</em> : <span key={i}>{node}</span>;
   });
 }
@@ -57,12 +66,17 @@ export function Say({ nugget, term = false }: { nugget: Nugget; term?: boolean }
  * disclosure holding every chart's table (`numbers`, each a `<Values bare …/>`), and the closing stack, with the chapter
  * rail beside them from 1180 px. Every section is a tracked beat: hero, chapter-1 … chapter-n, related.
  */
-export function StoryPage({ path, className, numbers = [], children }: { path: string; className?: string; numbers?: ReactNode[]; children: ReactNode }) {
+export function StoryPage({ path, className, numbers = [], halfScope, children }: {
+  path: string; className?: string; numbers?: ReactNode[];
+  /** A half-marathon story names the scope of its figures on its root for verify-half ("linked": records linked by name). */
+  halfScope?: 'verified' | 'linked';
+  children: ReactNode;
+}) {
   // The page's methods are the last line of its All numbers (they sit with the figures they explain), so the closing row
   // is the way back alone; a page with no tables keeps "How we know" in that row (round 6: one methods link per screen).
   const tables = numbers.some(Boolean);
   return (
-    <div className={`story-page with-rail${className ? ` ${className}` : ''}`} {...readingAttrs(path)}>
+    <div className={`story-page with-rail${className ? ` ${className}` : ''}`} {...readingAttrs(path)} {...(halfScope ? { 'data-half-scope': halfScope } : {})}>
       <ChapterRail path={path} />
       <article className="story-flow">
         {children}
@@ -79,21 +93,24 @@ export function StoryPage({ path, className, numbers = [], children }: { path: s
  * place (the pacing types' continuation of the home page's guess). With no figure, sentence or instrument (the race
  * replay, whose replay is its reading), the hairline under the H1 goes too, so the H1 sits straight over the children.
  */
-export function StoryHero({ path, title, dek, figure, figures, variant, unitLine, sentence, instrument, fallback, stacked = false, label = 'The reading', children }: {
+export function StoryHero({ path, title, dek, figure, figures, variant, unitLine, sentence, instrument, fallback, stacked = false, label = 'The reading', crumbs, children }: {
   path: string; title: ReactNode; dek?: ReactNode; figure?: Figure; figures?: [Figure, Figure]; variant?: 'figure' | 'pair';
   unitLine?: ReactNode; sentence?: ReactNode; instrument?: ReactNode; fallback?: boolean;
   /** The instrument runs under the figure across the whole column at every width, as on a phone: a scale (a ruler, a
    *  line) reads as one unit with the figure it draws (round 6: from 900 px a ruler floated small in an empty right
    *  half). A block instrument (a legend, a waffle) sits beside the figure from 900 px instead. */
   stacked?: boolean;
-  label?: string; children?: ReactNode;
+  label?: string;
+  /** The crumbs over the H1: the page's chapter (ChapterCrumbs) by default; a page off the chain (/half) passes its own. */
+  crumbs?: ReactNode;
+  children?: ReactNode;
 }) {
   const bare = !figure && !figures && !sentence && !instrument;
   return (
     <section className={`story-hero-beat${bare ? ' is-bare' : ''}`} data-track-section="hero" data-beat={label}>
       {/* Every page in the chain sets its H1 at one size (round 4: stories 84 px beside analyses' and tools' 68 px
           read as two sites in one chapter): the title size. */}
-      <Reading crumbs={<ChapterCrumbs path={path} />} title={typeof title === 'string' ? rich(title) : title} titleSize="title" dek={dek}
+      <Reading crumbs={crumbs ?? <ChapterCrumbs path={path} />} title={typeof title === 'string' ? rich(title) : title} titleSize="title" dek={dek}
         variant={variant ?? (figures ? 'pair' : 'figure')} figure={figure} figures={figures} unitLine={unitLine}
         sentence={sentence} instrument={instrument} fallback={fallback} stacked={stacked} />
       {children}
