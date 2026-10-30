@@ -9,16 +9,26 @@ import { extent, linear, pc } from './scale';
  */
 export type DumbbellRow = { id: string; label: string; a: number; b: number; display: string; highlight?: boolean };
 
-export default function Dumbbell({ rows, domain, ticks, label, keyLabels, values, bare = false }: {
+export default function Dumbbell({ rows, domain, ticks, label, keyLabels, values, bare = false, keyFirst = false }: {
   rows: DumbbellRow[]; domain?: [number, number]; ticks: { value: number; label: string }[]; label: string;
   /** What the hollow and the filled marks are ("Typical", "Observed"). */
   keyLabels: { a: string; b: string }; values?: ReactNode;
   /** No value column: the label takes its own width and the track the rest, for small gaps (Values holds the numbers). */
   bare?: boolean;
+  /** The key above the rows, in the order each row prints its two values, for a list whose rows say "a · b" (the
+   *  reader needs the order before the first row, not after the last). */
+  keyFirst?: boolean;
 }) {
   const x = linear(domain ?? extent(rows.flatMap((r) => [r.a, r.b])));
+  const key = (
+    <ul className={`viz-key${keyFirst ? ' is-first' : ''}`} aria-hidden="true">
+      <li><i className="viz-key-mark is-hollow" />{keyLabels.a}</li>
+      <li><i className="viz-key-mark" />{keyLabels.b}</li>
+    </ul>
+  );
   return (
     <figure className={`viz viz-frame dumbbell${bare ? ' is-bare' : ''}`}>
+      {keyFirst ? key : null}
       <ul className="dumbbell-rows" role="img" aria-label={label}>
         {rows.map((r) => {
           const xa = x(r.a), xb = x(r.b);
@@ -37,10 +47,7 @@ export default function Dumbbell({ rows, domain, ticks, label, keyLabels, values
         })}
       </ul>
       <div className="dumbbell-axis"><span /><Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label }))} refWidth={bare ? 240 : 150} />{bare ? null : <span />}</div>
-      <ul className="viz-key" aria-hidden="true">
-        <li><i className="viz-key-mark is-hollow" />{keyLabels.a}</li>
-        <li><i className="viz-key-mark" />{keyLabels.b}</li>
-      </ul>
+      {keyFirst ? null : key}
       {values}
     </figure>
   );

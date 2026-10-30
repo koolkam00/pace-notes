@@ -17,15 +17,18 @@ export default function Plot({ paths, children, className }: { paths?: ReactNode
 
 /**
  * Horizontal hairlines at y fractions (at most three), each labelled inside the plot on the clear side. A label's
- * `className` is a width class (`w240`) when it hides below some plot width.
+ * `className` is a width class (`w240`) when it hides below some plot width. `labelAt` names the scrubber points whose
+ * needle runs through the labels' column: while the needle stands on one, the labels hide (the Scrubber's is-under).
  */
-export function Gridlines({ lines, side = 'left' }: { lines: { y: number; label?: string; className?: string }[]; side?: 'left' | 'right' }) {
+export function Gridlines({ lines, side = 'left', labelAt = [] }: { lines: { y: number; label?: string; className?: string }[]; side?: 'left' | 'right'; labelAt?: number[] }) {
+  // One wrapper per point, nested, so the label hides under any of them (visibility is inherited).
+  const wrap = (node: ReactNode) => labelAt.reduceRight<ReactNode>((inner, i) => <g data-scrub-i={i}>{inner}</g>, node);
   return (
     <g className="viz-grid">
       {lines.slice(0, 3).map((l) => (
         <g key={l.y}>
           <rect className="grid-line" x="0" y={pc(l.y)} width="100%" height="1" />
-          {l.label ? <text className={`tick grid-label${l.className ? ` ${l.className}` : ''}`} x={side === 'left' ? '0' : '100%'} y={pc(l.y)} dy={-5} textAnchor={side === 'left' ? 'start' : 'end'}>{l.label}</text> : null}
+          {l.label ? wrap(<text className={`tick grid-label${l.className ? ` ${l.className}` : ''}`} x={side === 'left' ? '0' : '100%'} y={pc(l.y)} dy={-5} textAnchor={side === 'left' ? 'start' : 'end'}>{l.label}</text>) : null}
         </g>
       ))}
     </g>

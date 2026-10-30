@@ -104,6 +104,8 @@
 
 /* ---------- Key, caption, states ---------- */
 .viz-frame .viz-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-4) 0 0; padding: 0; list-style: none; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+/* A key read before the rows (a dumbbell whose rows print "a · b"): above them, with the rows' gap under it. */
+.viz-frame .viz-key.is-first { margin: 0 0 var(--s-2); }
 /* Each swatch centres on its label's first line, so a label that wraps keeps its swatch beside its opening words. */
 .viz-frame .viz-key li { display: inline-flex; align-items: flex-start; gap: 8px; margin: 0; }
 .viz-frame .viz-key-mark { flex: none; display: inline-block; width: 10px; height: 10px; margin-top: calc((1.4em - 10px) / 2); border-radius: 50%; background: var(--ink); }
