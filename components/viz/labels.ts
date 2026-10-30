@@ -195,9 +195,10 @@ export type LaidTick = Tick & { anchor: 'start' | 'middle' | 'end'; minWidth: nu
 /**
  * Axis ticks: each keeps its label clear of higher-priority ticks (the ends and the marks named first) and inside the
  * axis; the anchor turns to start or end near an edge. A tick that cannot fit even at the reference width is dropped
- * (minWidth null); one that stops fitting below it carries its width class.
+ * (minWidth null); one that stops fitting below it carries its width class. `gap` is the clear space kept between two
+ * labels, in px of the generous width estimate (6 by default).
  */
-export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH, centred = false): LaidTick[] {
+export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH, centred = false, gap = 6): LaidTick[] {
   // Centred ticks (years under stems, where a label slid off its tick reads as the next year's) never turn at an edge:
   // one that does not fit centred hides below the width it fits.
   const anchorOf = (t: Tick): LaidTick['anchor'] => {
@@ -222,7 +223,7 @@ export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH, centred =
   const kept: { i: number; t: Tick; anchor: LaidTick['anchor']; min: number | null }[] = [];
   for (const { t, i } of order) {
     const anchor = anchorOf(t);
-    const clash = (fw: number) => { const w = fw * scale; return !inside(box(t, anchor, w), w, size) || kept.some((k) => k.min !== null && k.min <= fw && overlaps(box(t, anchor, w), box(k.t, k.anchor, w), 6)); };
+    const clash = (fw: number) => { const w = fw * scale; return !inside(box(t, anchor, w), w, size) || kept.some((k) => k.min !== null && k.min <= fw && overlaps(box(t, anchor, w), box(k.t, k.anchor, w), gap)); };
     let min: number | null = null;
     for (let s = 0; s < widths.length; s++) {
       if (widths.slice(s).every((w) => !clash(w))) { min = s === 0 ? 0 : widths[s]; break; }

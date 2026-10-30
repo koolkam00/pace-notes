@@ -108,7 +108,9 @@ export default function LinkedPanel({ sha, seconds, group, onGroup }: {
         </div>
       )}
       <p className="predictor-linked-not">{NOT_A_PREDICTION}</p>
-      <p className="predictor-linked-more arrow-line"><Link href="/stories/half-to-full#after"><ArrowTail text="From the half to the marathon" /></Link></p>
+      {/* The story's name in the chain (lib/chapters.ts), as the chapter's back link under this panel names it: one page,
+          one name on the predictor (review, October 30, 2026). */}
+      <p className="predictor-linked-more arrow-line"><Link href="/stories/half-to-full#after"><ArrowTail text="Half marathon to full" /></Link></p>
     </section>
   );
 }

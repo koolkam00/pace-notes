@@ -98,9 +98,10 @@ export default function HalfBody() {
           </>
         )} />
 
-      {/* The dek says how to use the chart: the recorded women's and men's shares are the readout's own side rows, so
-          the dek's version of them (deks.under) would put the same two numbers twice on one screen. */}
-      <Beat id="your-time" track="chapter-1" label="Your time" title={under} dek={`Slide to any time from ${hm(first)} to ${hm(last)}.`}>
+      {/* The dek says how to use the chart, step included (the needle stops on the published marks only): the recorded
+          women's and men's shares are the readout's own side rows, so the dek's version of them (deks.under) would put
+          the same two numbers twice on one screen. */}
+      <Beat id="your-time" track="chapter-1" label="Your time" title={under} dek={deks.slide}>
         {/* Ticks every 15 minutes to the scale's end (3:00, turned to end at the plot's edge, so the last stop has its
             time), the half hours first: the quarters show and hide together (a tick group), so where 2:45 would touch
             3:00 a phone keeps 1:30, 2:00, 2:30 and 3:00 evenly, and a wider screen adds every quarter. */}
@@ -133,17 +134,20 @@ export default function HalfBody() {
       ) : null}
 
       <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities ?? undefined}>
-        {/* The key first, in the order every row prints its pair (marathon · half), then the two typical shares (the
-            dek's two medians across the pairs, worded as two) as the one signal row, as the share card draws it, then
-            each city. While the beat's heading falls back (too few pairs or cities for a direction, October 30, 2026)
-            the typical row is drawn quiet like the cities, as the women's columns are. A value column sized to its pairs, and none on a zoomed-in screen (half.css). */}
+        {/* The key first, in the order every row prints its pair (marathon · half), then, while the beat's heading holds,
+            the two typical shares (the dek's two medians across the pairs, worded as two) as the one signal row, as the
+            share card draws it, then each city. While the heading falls back (too few pairs or cities for a direction,
+            October 30, 2026) the typical row and its "typically" in the label are left out with the dek: two medians
+            side by side state the direction the heading withdrew (review, October 30, 2026: the row and the label
+            still did). The cities stay, as a chart keeps its values. A value column sized to its pairs, and none on a
+            zoomed-in screen (half.css). */}
         <div className="half-cities">
           <Dumbbell keyFirst rows={[
-            { id: 'typical', label: 'Typical', a: sc.summary.marathon_median, b: sc.summary.half_median, display: `${pct(sc.summary.marathon_median)} · ${pct(sc.summary.half_median)}`, highlight: cities.guard },
+            ...(cities.guard ? [{ id: 'typical', label: 'Typical', a: sc.summary.marathon_median, b: sc.summary.half_median, display: `${pct(sc.summary.marathon_median)} · ${pct(sc.summary.half_median)}`, highlight: true }] : []),
             ...sc.cities.map((c) => ({ id: c.city, label: c.city, a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` })),
           ]}
             domain={[0, 0.6]} ticks={[0, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}
-            label={`Women’s share of recorded finishes in the same city and year, marathon then half: typically ${pct(sc.summary.marathon_median)} and ${pct(sc.summary.half_median)}; ${sc.cities.map((c) => `${c.city} ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
+            label={`Women’s share of recorded finishes in the same city and year, marathon then half: ${cities.guard ? `typically ${pct(sc.summary.marathon_median)} and ${pct(sc.summary.half_median)}; ` : ''}${sc.cities.map((c) => `${c.city} ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
         </div>
         <SaveImage slug="half-more-women" />
       </Beat>

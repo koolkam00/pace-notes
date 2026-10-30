@@ -2,7 +2,7 @@ import Arrow from '@/components/ui/Arrow';
 import PageFeedback from '@/components/PageFeedback';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { ToolHandoffs } from '@/components/tools/Handoffs';
-import { CHAPTERS } from '@/lib/chapters';
+import { CHAPTERS, chapterNumber } from '@/lib/chapters';
 import { settledReadingOf } from '@/lib/nuggets';
 import { STORIES, storyHref, storyPublished } from '@/lib/stories';
 import HalfNext from './HalfNext';
@@ -25,7 +25,10 @@ export default function HalfEnd() {
     <div className="chapter-end half-end" data-track-section="related">
       {story && href && page && storyPublished(story) ? (
         <nav className="chapter-next half-pagination" aria-label="Next page">
-          <HalfNext href={href} kicker={story.title} title={page.short}
+          {/* The kicker names the chapter the story opens and the title is the story's name in the chain, so the card
+              never names one page twice (review, October 30, 2026: the story's title over its chain name read as the
+              same words twice since the H1 fell back to the title). */}
+          <HalfNext href={href} kicker={chapter ? `Chapter ${chapterNumber(chapter)} · ${chapter.title}` : 'Next'} title={page.short}
             reading={reading ? { ...reading, key: reading.key ?? chapter?.key } : null} />
         </nav>
       ) : null}

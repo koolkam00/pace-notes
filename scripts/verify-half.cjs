@@ -502,6 +502,8 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
 }
 
 const withdrawnCards = [];
+// The guards the --html page rules follow (section 9), read from the nuggets in section 7.
+const pageGuards = {};
 // ---------- 7. Words: the half nuggets, deks and tool sentences ----------
 {
   const ts = require('typescript');
@@ -522,6 +524,9 @@ const withdrawnCards = [];
     ok((String(n.headline).match(/\*/g) || []).length <= 2, `${id}: at most one accent`);
   }
   for (const [k, v] of Object.entries(N.halfDeks())) if (typeof v === 'string') texts.push([`deks.${k}`, v]);
+  const sexes = N.halfSexesFrom(linked);
+  Object.assign(pageGuards, { cities: N.halfCitiesFrom(women).guard, sexesHeadline: plain(sexes.headline), sexesFallback: plain(sexes.fallback),
+    guess: N.halfSexesGuessFrom(linked).guard && N.halfDeks().guess !== null });
   for (const g of ['all', 'F', 'M']) {
     for (const w of linked.windows[g]) {
       const win = T.fromLinked(w);
@@ -734,6 +739,20 @@ if (opt.html) {
       ok(textOf(el.html).includes('Not a prediction.'), `${route}: "Not a prediction." in the half-before panel`);
     }
     for (const el of elements(html, /id="half-field"/)) ok(/data-half-scope="verified"/.test(el.tag), `${route}: the observed half panel is a verified surface`);
+    // While half.cities falls back, its beat states no direction in any slot: no "typically" in the dumbbell's label,
+    // no Typical row and no row drawn as the signal (post-merge review, October 30, 2026: the row and the label still
+    // gave the two medians the dek had withdrawn).
+    if (route === '/half' && pageGuards.cities === false) {
+      const beat = elements(html, /id="two-distances"/)[0];
+      ok(beat && !/typically/i.test(beat.html) && !/>Typical</.test(beat.html) && !/is-highlight|is-signal/.test(beat.html), `${route}: the same-city beat states no reading while half.cities falls back`);
+    }
+    // The guess's heading never gives its answer away: while the guess is up, the beat's H2 is half.sexes's neutral
+    // line, and its reading comes with the reveal (post-merge review, October 30, 2026).
+    if (route === '/stories/half-to-full' && pageGuards.guess) {
+      const h2 = /<h2\b[^>]*id="women-men-title"[^>]*>([\s\S]*?)<\/h2>/.exec(html);
+      const said = h2 ? textOf(h2[1]).replace(/\s+/g, ' ').trim() : '';
+      ok(said === pageGuards.sexesFallback && said !== pageGuards.sexesHeadline, `${route}: the guess's heading is the neutral line, not the reading ("${said}")`);
+    }
   }
   ok(surfaces >= 2 && readings >= 1, `--html: ${surfaces} half surfaces and ${readings} reading links found`);
   console.log(JSON.stringify({ html: { pages: pages.length, surfaces, readings } }));

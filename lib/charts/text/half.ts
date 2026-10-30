@@ -51,7 +51,10 @@ export const HALF_CARD_TEXT: Record<HalfCardSlug, HalfCardText> = {
       return {
         guard,
         title: 'Just over half broke 2:00',
-        headline: `*${pct(all)}* of half marathon finishes came in under 2:00: recorded women's ${pct(women)}, men's ${pct(men)}.`,
+        // Each sex's own share under 2:00, named as one ("33% of recorded women's finishes"): after the colon, "recorded
+        // women's 33%, men's 67%" read as a split of the finishes under 2:00, and the two add up to 100 (review, October
+        // 30, 2026; women's finishes are 22% of those under 2:00).
+        headline: `*${pct(all)}* of half marathon finishes came in under 2:00: ${pct(women)} of recorded women's finishes and ${pct(men)} of men's.`,
         titleFallback: 'Half marathon finishes and 2:00',
         fallback: 'Half marathon finishes, under 2:00 and 2:00 or slower.',
       };

@@ -241,12 +241,22 @@ export function halfSexesGuessFrom(linked: HalfLinked): Nugget {
 export type HalfDeks = {
   /** /half reading's unit line: "the median half finish; recorded women’s 2:08, men’s 1:52". */
   fieldUnit: string;
-  /** /half beat 1: "Recorded women’s: 9%. Men’s: 35%. Slide to any time from 1:15 to 3:00." */
+  /**
+   * /half beat 1's dek, how to use the needle: "Slide from 1:15 to 3:00, 5 minutes at a time." The needle stops on the
+   * published marks only, so the dek names their step ("Slide to any time" promised a 1:52 the needle cannot reach;
+   * review, October 30, 2026).
+   */
+  slide: string;
+  /** /half beat 1 with the shares: "Recorded women’s: 9%. Men’s: 35%. Slide from 1:15 to 3:00, 5 minutes at a time." */
   under: string;
   /**
-   * /half beat 2: the minute before 2:00 in finishes against the curve ("16,949 finishes came in at 1:59, where the
-   * smooth curve expects about 14,000."), then, while its guard holds, the other marks ("The minute before 1:30 held
-   * 1.2× too; before 1:45, 2:15 and 2:30, about 1.05×."). Null without a 2:00 mark.
+   * /half beat 2: the minute before 2:00 in finishes against the curve, and, while it holds the most finishes over the
+   * curve of the five, that it does, so the beat says why 2:00 is its subject ("16,949 finishes came in at 1:59, where
+   * the smooth curve expects about 14,000: the most extra finishes before any round time."); then, while its
+   * guard holds, the other marks. Where 1:30's column stands taller than 2:00's the dek says so with both decimals, as
+   * the columns print them ("The minute before 1:30 stood a little taller against its curve, 1.24×; …"), else "held
+   * 1.2× too" (review, October 30, 2026: since the stamp correction 1:30 is the taller column, unexplained). Null
+   * without a 2:00 mark.
    */
   crowd: string | null;
   /** The marks beat 2's dek names besides 2:00, in minutes ([90] while its guard holds): the chart draws them a step up. */
@@ -266,10 +276,18 @@ export type HalfDeks = {
   cities: string | null;
   /**
    * Story beat 1, the spec's dek: the typical marathon after the flagship's half, then how to use the needle ("The
-   * typical one took 3:54. Slide to any half from 1:10 to 2:45."): the sentence a runner of that half wants first. Under
-   * the plain heading (half.range fails) "the typical one" names no half, so the dek is how to use the needle alone.
+   * typical one took 3:54. Slide from a 1:10 half to a 2:45 half, 5 minutes at a time."): the sentence a runner of that
+   * half wants first. Under the plain heading (half.range fails) "the typical one" names no half, so the dek is how to
+   * use the needle alone. The needle stops on the 5-minute windows only, so the dek names the step.
    */
   range: string | null;
+  /**
+   * The story's hero dek, under any H1: what the page pairs and for whom, then where to look, as a sentence that states
+   * no reading ("Each half here is paired with the marathon 3 to 16 weeks after it, for records linked by name. Find
+   * your half below."). The weeks are set B's window. Under the plain H1 the old verbless dek, written to qualify the
+   * reading H1, told a first-time reader nothing (review, October 30, 2026).
+   */
+  hero: string;
   /**
    * The story's reading, under the ruler: the minutes over double 15 minutes quicker than the flagship's half, then the
    * span of the 5-minute windows from 15 minutes slower on ("Fewer minutes over double after a quicker half: +17 after
@@ -311,17 +329,34 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
   const after = slower.map(minutesOver);
   const spanLo = Math.min(...after), spanHi = Math.max(...after);
   const level = !!qb && after.length >= 3 && after.every((x) => Math.abs(x - minutesOver(qb)) <= 4) && !!qa && minutesOver(qa) < spanLo;
-  const slide = `Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.`;
+  // The needle's stops: the story's 5-minute windows (the scrubber's points), /half's published marks.
+  const stops = all.filter((x) => x.h % 300 === 0);
+  const slide = stops.length ? `Slide from a ${clock(stops[0].h)} half to a ${clock(stops[stops.length - 1].h)} half, 5 minutes at a time.` : '';
+  const step = field.under.length > 1 ? (field.under[1].s - field.under[0].s) / 60 : NaN;
+  const fieldSlide = `Slide from ${clock(first)} to ${clock(last)}, ${step} minutes at a time.`;
   const pairs = side.map((h) => [at('F', h), at('M', h)] as const);
   const lower = pairs.length === 2 && pairs.every(([pf, pm]) => !!pf && !!pm && pf.sus < pm.sus);
+  // Beat 2: whether 2:00 holds the most finishes over the curve of the five marks, and whether 1:30's column, as the
+  // chart prints it, stands taller than 2:00's.
+  const excess = (m: HalfField['marks'][number]) => m.minute_before - m.expected_minute_before;
+  const most = !!two && field.marks.every((m) => m === two || excess(m) < excess(two));
+  const taller = !!two && !!marks[90] && Number(marks[90].ratio.toFixed(2)) > Number(two.ratio.toFixed(2));
+  const [fromWeeks, toWeeks] = linked.set.window_days.map((d) => d / 7);
+  const span = Number.isInteger(fromWeeks) && Number.isInteger(toWeeks) ? `${fromWeeks} to ${toWeeks} weeks` : `${linked.set.window_days[0]} to ${linked.set.window_days[1]} days`;
   return {
     fieldUnit: `the median half finish; recorded women’s ${clock(field.quantiles.F.p50)}, men’s ${clock(field.quantiles.M.p50)}`,
-    under: `Recorded women’s: ${pct(u.F)}. Men’s: ${pct(u.M)}. Slide to any time from ${clock(first)} to ${clock(last)}.`,
-    crowd: two ? `${count(two.minute_before)} finishes came in at ${clock(two.minutes * 60 - 60)}, where the smooth curve expects about ${count(Math.round(two.expected_minute_before / 100) * 100)}.${crowdOk ? ` The minute before 1:30 held ${ratio(marks[90].ratio, 1)} too; before 1:45, 2:15 and 2:30, about ${ratio(median(others), 2)}.` : ''}` : null,
+    slide: fieldSlide,
+    under: `Recorded women’s: ${pct(u.F)}. Men’s: ${pct(u.M)}. ${fieldSlide}`,
+    crowd: two ? `${count(two.minute_before)} finishes came in at ${clock(two.minutes * 60 - 60)}, where the smooth curve expects about ${count(Math.round(two.expected_minute_before / 100) * 100)}${most ? ': the most extra finishes before any round time' : ''}.${crowdOk
+      ? (taller
+        ? ` The minute before 1:30 stood a little taller against its curve, ${ratio(marks[90].ratio, 2)}; before 1:45, 2:15 and 2:30, about ${ratio(median(others), 2)}.`
+        : ` The minute before 1:30 held ${ratio(marks[90].ratio, 1)} too; before 1:45, 2:15 and 2:30, about ${ratio(median(others), 2)}.`)
+      : ''}` : null,
     crowdNamed: crowdOk ? [90] : [],
     women: halfWomenFrom(women).guard ? `Under 1:30, ${pct(women.median_share[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.` : null,
     cities: halfCitiesFrom(women).guard ? `Women’s share of finishes was typically ${pct(s.half_median)} in the half and ${pct(s.marathon_median)} in the marathon.` : null,
-    range: w ? (halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}. ${slide}` : slide) : null,
+    range: w && slide ? (halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}. ${slide}` : slide) : null,
+    hero: `Each half here is paired with the marathon ${span} after it, for records linked by name. Find your half below.`,
     scale: qa && qb && minutesOver(qa) < minutesOver(qb)
       ? `Fewer minutes over double after a quicker half: +${minutesOver(qa)} after a ${clock(qa.h)} half, ${level
         ? `${spanLo === spanHi ? `+${spanLo}` : `+${spanLo} to +${spanHi}`} from ${clock(qb.h)} to\u00a0${clock(slower[slower.length - 1].h)}`

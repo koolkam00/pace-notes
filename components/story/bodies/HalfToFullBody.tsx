@@ -15,7 +15,8 @@ import GuessFirst from '@/components/ui/GuessFirst.client';
 import Values from '@/components/ui/Values';
 import PredictorLink from '@/components/half/PredictorLink.client';
 import { SaveImage } from '@/components/half/HalfCharts';
-import { Beat, Say, StoryHero, StoryPage, rich } from '../StoryPage';
+import { HalfWay } from '@/components/half/HalfWays';
+import { Beat, Say, SayText, StoryHero, StoryPage, rich } from '../StoryPage';
 
 const PATH = '/stories/half-to-full';
 /** The flagship's half (1:45, the band nearest the pooled median half) and the readout's other detents, seconds. */
@@ -41,7 +42,8 @@ const plus = (s: number) => `${s >= 0 ? '+' : '−'}${Math.round(Math.abs(s) / 6
  * The reading (the typical marathon took double the half plus 21 minutes; only 8% came in under double; a ruler of the
  * minutes over double), then two beats: the marathons after each half time (a profile with a needle, the typical
  * marathon and the middle 80%, the share under the nearest round time, and the link into the predictor at the scrubbed
- * half), and women and men after the same half (the page's one guess). One All numbers fold at the foot.
+ * half), and women and men after the same half (the page's one guess, under a heading that does not give its answer
+ * away; the reading comes with the reveal), then the way to /half. One All numbers fold at the foot.
  */
 export default function HalfToFullBody() {
   const story = STORIES.find((s) => s.slug === 'half-to-full')!;
@@ -148,6 +150,7 @@ export default function HalfToFullBody() {
   const both = F.filter((f) => f.h % BAND_S === 0 && Mw.some((m) => m.h === f.h)).map((f) => ({ h: f.h, f, m: Mw.find((m) => m.h === f.h)! }));
   const hasGuess = guess.guard && deks.guess !== null;
   const women = F.find((w) => w.h === guess.values.h), men = Mw.find((w) => w.h === guess.values.h);
+  const showGuess = hasGuess && !!women && !!men;
 
   return (
     <StoryPage path={PATH} halfScope="linked" numbers={[
@@ -171,7 +174,9 @@ export default function HalfToFullBody() {
         reading={both.findIndex((b) => b.h === guess.values.h)} />,
     ]}>
       <StoryHero path={PATH} title={story.heading ?? story.title} stacked fallback={!extra.guard}
-        dek={<>{rich('Halves and marathons of records linked by name, the half 3 to 16 weeks before.', { linked: true })} <ScopeTag /></>}
+        // The dek says what the page pairs and where to look, and states no reading, so it reads the same under the
+        // plain H1 (review, October 30, 2026: the old verbless dek was written to qualify the reading H1).
+        dek={<>{rich(deks.hero, { linked: true })} <ScopeTag /></>}
         figure={figure ? { value: figure.value, unit: figure.unit, sr: figure.sr } : undefined} unitLine={figure ? extra.key : undefined}
         instrument={extra.guard ? ruler : undefined} />
 
@@ -180,20 +185,26 @@ export default function HalfToFullBody() {
         <SaveImage slug="half-double" />
       </Beat>
 
-      <Beat id="women-men" track="chapter-2" label="Women and men" title={<Say nugget={sexes} term />}>
-        {hasGuess && women && men ? (
+      {/* With the guess, the heading is the beat's neutral line and the reading comes with the reveal, after the guess's
+          own answer: a heading that says "far fewer" gave the guess away before the reader made it (review, October
+          30, 2026; round numbers puts a teaser over its guess the same way). Without the guess, the heading is the
+          nugget, as every beat's is. */}
+      <Beat id="women-men" track="chapter-2" label="Women and men" title={showGuess ? <SayText text={sexes.fallback} term plain /> : <Say nugget={sexes} term />}>
+        {showGuess ? (
           // The men's 100 stand beside the guess from the start (the question gives them), so the reveal shows the two
           // side by side. The other halves' comparison and the card (which prints the answer) come only after it.
           <GuessFirst marks="dots" unit="of 100" initial={Number(guess.values.men_of_100)}
-            question={deks.guess!} truth={women.sus * 100} truthLabel="had a sustained slowdown" truthName={gridName('Recorded women’s')} compareName={gridName(M)}
-            compare={{ value: men.sus * 100, label: M }} answer={sentenceOf(guess)}
+            question={deks.guess!} truth={women!.sus * 100} truthLabel="had a sustained slowdown" truthName={gridName('Recorded women’s')} compareName={gridName(M)}
+            compare={{ value: men!.sus * 100, label: M }} answer={sexes.guard ? `${sentenceOf(guess)} ${sentenceOf(sexes).replace(/\*/g, '')}` : sentenceOf(guess)}
             after={<>{deks.guessMore ? <p className="half-guess-more">{deks.guessMore}</p> : null}<SaveImage slug="half-same-half" /></>} />
         ) : (
           <Dumbbell rows={both.map(({ h, f, m }) => ({ id: String(h), label: `${floorHM(h)} half`, a: m.sus, b: f.sus, display: `${pct(f.sus)} · ${pct(m.sus)}` }))}
             domain={[0, 0.6]} ticks={[0, 0.2, 0.4, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Recorded men’s', b: 'Recorded women’s' }}
             label={`Sustained slowdowns after the same half, recorded women’s and men’s marathons: ${both.map(({ h, f, m }) => `${hm(minutes(h))} ${pct(f.sus)} and ${pct(m.sus)}`).join('; ')}.`} />
         )}
-        {hasGuess && women && men ? null : <SaveImage slug="half-same-half" />}
+        {showGuess ? null : <SaveImage slug="half-same-half" />}
+        {/* The way on to every half finish, not only those linked to a marathon: no figure of its own (spec 3.4). */}
+        <HalfWay className="story-way" lead="Where your half sits among half finishes:">The half marathon</HalfWay>
       </Beat>
     </StoryPage>
   );
