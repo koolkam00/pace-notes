@@ -1,6 +1,8 @@
 # Design system
 
-The final system of the redesign, written October 20, 2026 from the code on `feat/redesign` at release preparation (repository state on the branch, draft pull request #71; not merged into `main` and not deployed). It replaces the October 18 version of this page, which is in Git history. The owner's rule wins every conflict: **simple is beautiful**. Every element must help a runner learn the page's finding or act on it; anything else is deleted, not hidden.
+The site's design system: how a page is built, how it ends, its type, colour, space, components and copy rules, how it is checked, and how a visual change is reviewed. It describes the code on `main`. The redesign that set it merged as `c6744791` (#71) on October 20, 2026; later work (the Top 100 charts, the terrain splits, the half marathon) follows it. What is deployed is in the [project handoff](PROJECT_HANDOFF.md#current-state).
+
+The owner's direction of October 17, 2026 wins every conflict: "focus on amazing design, simple is beautiful; you can delete anything you feel is too cluttered, old or doesn't contribute to making this as good and as beautiful as possible." ([owner decisions](OWNER_DECISIONS.md)). Every element must help a runner learn the page's finding or act on it; anything else is deleted, not hidden. The redesign spec that this page condenses is kept as it was in [history](history/redesign-2026-10/DESIGN-SPEC.md); code comments that cite "the redesign spec, section N" mean that file. Earlier versions of this page are in Git history.
 
 ## The page
 
@@ -9,7 +11,7 @@ The final system of the redesign, written October 20, 2026 from the code on `fea
 - **Beats.** After the reading, at most a few beats, each one finding as its H2 (one clause, at most 12 words: `verify-chapters` rule 9) over one figure and at most two sentences. Beats are separated by whitespace and a hairline, never by boxes. A page says each number once: the card into it, its H1 accent and the figure under the H1 never repeat one another (`verify-chapters` rule 10).
 - **Night is the race and the answer.** Dark surfaces (`.night`) mean the replay, the home and course heroes, the analysis answer, a tool's result card and the next card. Never a form, a caption or a promo.
 - **Orange is the reading; a ring is you.** A filled signal mark is the one thing the sentence is about; the reader's own guess, goal or time is an open ring; everything else is ink, quiet grey or a validated data colour. "Slower" is never orange. Only the H1's italic accent is orange; a beat H2 keeps its italic in ink (`.t-h2 em`), and the marks under it carry the signal. A null finding's accent is ink italic (`NULL_FINDINGS`). The layout linter fails two coloured heading accents within one screen (check 9) and a term link inside an H1 (check 10).
-- **Budgets** (phone screens of 844 px): home 4.5, story 6, analysis 4, course page 7, tool 5 (its result within 3), hubs 4, `/methodology` with its folds closed 10.
+- **Budgets** (phone screens of 844 px): home 4.5, story 6, analysis 4, course page 7, tool 5 (its result within 3), hubs 4, info pages 2.5, `/methodology` with its folds closed 10. No check enforces them: `scripts/design/shoot.cjs` prints each capture's height in screens (`screens=`, the page's height over the viewport's) and the reviewer compares it with the budget.
 
 ## How a page ends, and the one way to its methods
 
@@ -34,7 +36,7 @@ Only `app/styles/tokens.css` holds colour literals (`verify-css` rule 1). Three 
 
 - `:root`, the light page: `--paper` #F5F0E6, `--ink` #15171C (with `--ink-2`, `--ink-3`), hairlines `--rule`/`--rule-strong`, quiet marks `--mark-quiet` (3.5:1) and `--fill-quiet` (always with a `--mark-quiet` edge, `verify-css` rule 7), the reading `--signal` #E5461A (`--signal-ink` for text), the primary button and brand mark `--accent` #FF5B2E, and a one-hue ordinal ramp `--ordinal-1…4`.
 - `.night`, the race and the answer at any theme: the same names take their night values, so a component written with `--ink` or `--signal` reads on either surface.
-- **Dark**, the page theme under the reader's system setting (owner decision 2): no toggle and nothing stored. The dark values sit twice in `tokens.css`, under `[data-theme="dark"]` and under `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }`, and every component rule written for the attribute has its twin under the media query (`verify-css` rule 9). Night bands step to `#07090C`; a night card on the dark page takes a hairline ring from `--night-edge`. The viewport `themeColor` is a light and dark pair (`app/layout.tsx`). Share images and OG cards keep their own night palette.
+- **Dark**, the page theme under the reader's system setting (the redesign spec's default 2, taken; it is a default, not an owner decision: [register](OWNER_DECISIONS.md#defaults-not-owner-decisions)): no toggle and nothing stored. The dark values sit twice in `tokens.css`, under `[data-theme="dark"]` and under `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }`, and every component rule written for the attribute has its twin under the media query (`verify-css` rule 9). Night bands step to `#07090C`; a night card on the dark page takes a hairline ring from `--night-edge`. The viewport `themeColor` is a light and dark pair (`app/layout.tsx`). Share images and OG cards keep their own night palette.
 
 Data colours: the diverging pace ramp (`PACE_RAMP` in `lib/viz/format.ts`, for heatmaps only, every warm stop at OKLab ΔE ≥ 15 from every signal, `verify-css` rule 8) and the six pacing-type colours with their night set (`lib/viz/palette.ts`, `typeStyle()`).
 
@@ -63,4 +65,64 @@ Every figure and directional word comes from a field through `lib/nuggets/` with
 
 ## Checks
 
-`node scripts/verify-css.cjs` (tokens, breakpoints, chart text, quiet edges, compatibility, the pace ramp and dark parity), `scripts/verify-chapters.cjs` (the chain, the readings, number once and the methods pattern), `scripts/design/shoot.cjs` (captures at phone, desktop, dark by system setting, reduced motion, km and 200% zoom), `scripts/design/lint-layout.cjs`, `scripts/design/interactions.cjs` and `scripts/design/sheet.py` (contact sheets, strips and diffs). The `/design-system` gallery was deleted at integration (owner decision 14), and the temporary working notes under `docs/redesign-work/` were deleted at release preparation (October 20, 2026; they are in Git history).
+`node scripts/verify-css.cjs` (tokens, breakpoints, chart text, quiet edges, compatibility, the pace ramp and dark parity; `npm run verify:data` runs it, and `npm run verify:css` adds its self-test and `copy-fonts --check`), `scripts/verify-chapters.cjs` (the chain, the readings, number once and the methods pattern; `--html` after a build checks the export), `scripts/verify-nuggets.cjs` (every reading recounted with its guard), `scripts/design/shoot.cjs`, `scripts/design/lint-layout.cjs`, `scripts/design/interactions.cjs` and `scripts/design/sheet.py` ([visual review](#visual-review), below). The design scripts and `verify-chapters --html` run only locally; [operations](OPERATIONS.md#checks-by-change-type) lists which checks CI runs. The `/design-system` gallery was deleted at integration (the redesign spec's default 14, taken), and the temporary working notes under `docs/redesign-work/` were deleted at release preparation (October 20, 2026); the spec among them is kept in [history](history/redesign-2026-10/DESIGN-SPEC.md).
+
+## Visual review
+
+A change that alters what a page shows is reviewed from captures of the built site, by readers who did not make it, until a fresh round finds nothing serious. The redesign took six integration rounds ([handoff history](history/handoff-2026-10-redesign.md)) and the half-marathon pages five, then another independent review after the stamp correction ([handoff history](history/handoff-2026-10-20-to-30.md#half-marathons-a-page-a-story-and-the-tools-october-2930-2026)); budget four or five rounds for a new section, and review again after any later change to its data or code. Most findings in those rounds were labels colliding at 320 px and at 200% zoom, two numbers on one screen that did not add up, and sentences that named the wrong group.
+
+### Capture
+
+The scripts serve the static export in `out/` inside Playwright's routing (no port is opened and every other host is refused, so a capture never reaches analytics). They need Playwright's Chromium (`npx playwright install chromium`; `PLAYWRIGHT_CHROMIUM_PATH` points them at another binary) and, for the sheets, Python with Pillow. Run them one at a time on a small machine.
+
+```bash
+npm run build                                                    # writes out/
+node scripts/design/lint-layout.cjs --routes=<list|@file> --widths=195,320,390,1440   # add 1024 for tool routes
+node scripts/design/shoot.cjs --routes=@routes.txt --profiles=all --ix --out=<dir>
+python3 scripts/design/sheet.py sheets <dir>                     # one contact sheet per route; `strips` cuts full pages into screens
+python3 scripts/design/sheet.py diff <before> <after>            # pixel diff of two capture folders
+```
+
+`--routes` takes a comma list or `@file` (one route per line, `#` comments allowed); without it both scripts stop ("--routes is required"), so `npm run design:lint` and `npm run design:shoot` need `-- --routes=…`. The matrix is the one `shoot.cjs` defines in `PROFILES`:
+
+| Profile | Viewport | Captures | Routes under `--profiles=all` |
+| --- | --- | --- | --- |
+| `phone` | 390 × 844, device scale 2, touch | first screen and full page | all |
+| `phone664`, `phone714` | 390 × 664, 402 × 714 | first screen | home only |
+| `desktop` | 1440 × 900 | first screen and full page | all |
+| `tablet` | 1024 × 768 | first screen and full page | `/tools/*` only |
+| `dark` | the phone, system setting dark | first screen and full page | all |
+| `reduced` | the phone, reduced motion | full page | all |
+| `km` | the phone, `?units=km` | first screen | all |
+| `zoom` | 195 × 332 (the 390 phone at 200% zoom) | first screen | all |
+
+`--ix` adds the interaction captures of `scripts/design/interactions.cjs` on the phone, desktop and zoom profiles (menu, sheet, scrubs to a detent, the guess before and after, segments, the replay at its flag, folds open); a page without the control records "n/a". For a before-and-after diff, capture both with `--mask=canvas,.replay-hud` so the replay's moving parts compare equal. The layout linter's thirteen checks are listed at the top of `lint-layout.cjs`; it lints each width at its own height (195 × 332, 320 × 640, 390 × 844, 1024 × 768, 1440 × 900).
+
+The matrix has gaps: no real WebKit or iOS device (Playwright's WebKit is not installed; [older browsers](WEBSITE_ARCHITECTURE.md#older-browsers-and-error-pages)), dark only at phone width, and no 320 px capture profile (the linter covers 320). Add what a change needs: a 320 × 568 phone and a 195 × 422 zoom found most of the half pages' collisions; scrubbers at their first, home and last points; a guess before, made and revealed; every state of a tool (empty, typed, too few, each chip).
+
+### Critics, skeptics and the exit rule
+
+1. **Critics, one per lens**, each given the captures, the routes and the published JSON, and none of them the author:
+   - a first-time reader on a phone: what is the finding, what would they do next, what confused them;
+   - numbers and rules: recompute every printed number from the published JSON, never trusting a verifier's pass, and check every count against its floor and every word against the rules in [AGENTS.md](../AGENTS.md);
+   - data-viz design: one reading per chart, orange only for the reading, labels clear of marks, the "looks off" list in the [redesign spec](history/redesign-2026-10/DESIGN-SPEC.md#80-rules-every-package-follows) (section 8.0);
+   - interaction and accessibility: keyboard, focus, ARIA names, contrast in both themes, the page with JavaScript off;
+   - editor: one takeaway per beat, no causal wording, and agreement with the figures the site prints elsewhere.
+2. **Severity.** P1: the page states something false or misleading, breaks a rule, or cannot be used (a crash, a cut-off control, an unreadable chart). P2: a reader would notice and be slowed or confused (a collision, numbers that do not add up, a sentence naming the wrong group). P3: polish.
+3. **One skeptic per finding**, a separate agent that tries to refute it against the captures, the code and the data before anyone fixes it. A finding that does not survive is dropped; one that does is fixed at its root, with a check where a check can hold it.
+4. **Fix, rebuild and capture again**, then start a fresh round with new critics.
+5. **Exit only when a fresh, independent round finds no P1 or P2.** A round judged by the agent that made the fixes does not count. The half pages' fifth round was judged by the fixing agent alone, with no panel of critics; the next independent review, of the build after the stamp correction, found a P1 (a floor lowered with no decision behind it) and a P2 (a story figure, repeated in four places, still stating the reading its guard had rejected).
+
+Keep the critiques and contact sheets in the pull request description, not in the repository.
+
+### Copy checks
+
+- **Two numbers on one screen must add up.** Derive each displayed difference from the displayed values, not from unrounded data: the half story's readout prints the typical marathon and its minutes over double the half from the same rounded window (`windowOverDouble` in `lib/tools/half-to-full.ts`); before that, a 2:45 half read "Typical 5:57" beside "+30 over double". Where a verifier can, recompute each table row from its own printed cells.
+- **One measure per beat, or name both.** A pooled share beside a per-window share reads as a contradiction ("8% came in under double" beside "23 in 100" at a 2:45 half) unless the page says which is which.
+- **Every slot a failed guard feeds falls back.** When a nugget's guard fails (`sentenceOf` in `lib/nuggets/core.ts` gives the neutral fallback), nothing on the page may still state the rejected reading: not the H1, the figure and each place it is repeated (chapter rows on `/` and `/research`, next cards, night cards), the dek, a caption, the table row marked as the reading, the chart's signal mark, the share card or the `/methodology` sentence that describes the page. The figure states a reading only under a guard of its own, otherwise a neutral count. Recount each slot in the nugget's recount (`scripts/nuggets/*.cjs`).
+- **Name recorded sex wherever a sex filter applies.** With a recorded-sex chip pressed or `sx=` in a shared link, every sentence the filter changes says "recorded women's" or "recorded men's", so a shared link never reads as all marathons.
+- The rules every page already keeps are in [copy and numbers](#copy-and-numbers): figures from nuggets, shares "of finishes", no "your chance", no "arithmetic", no release tags in visible copy.
+
+## Touching tokens, fonts or units
+
+The Top 100 and half-marathon share cards are stamped with a hash of everything they are drawn from, including `app/styles/tokens.css`, `app/styles/fonts.css`, `lib/units.ts`, `lib/nuggets/format.ts` and the chart code (`CODE` in `scripts/build-chart-cards.cjs`). A change to any of them makes every card stale, and `npm run verify:data` fails on both `--check` runs. Re-stamp both sets (`node scripts/build-chart-cards.cjs`, then `node scripts/build-chart-cards.cjs --set half`), run each again with `--check`, open the PNGs, and run `npm run og:check` (the Open Graph cards copy the colour tokens; no CI job runs it). [Top 100 charts](TOP_100_CHARTS.md) describes the cards.
