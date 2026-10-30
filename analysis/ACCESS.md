@@ -1,6 +1,6 @@
 # Public export access
 
-Updated October 22, 2026 for **`private-export-20261021-1050`**, the release every page uses (on `main` since PR #78, `39f3057`; production state is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md)). Full source records, recorded names, supplied features, overlays and the producer's documents are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption ([operations](../docs/OPERATIONS.md)).
+Updated October 22, 2026 for **`private-export-20261021-1050`**, the release every page uses (on `main` since PR #78, `39f3057`; production state is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md)). Full source records, recorded names, supplied features, overlays and the producer's documents are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption ([operations](../docs/OPERATIONS.md)). The half-marathon releases have [their own section](#half-marathon-releases-october-30-2026).
 
 ## Open the full records
 
@@ -38,6 +38,30 @@ No account, password or decryption key is required: the repository is public and
 | Raw coverage | 34 cities; 298 city/year editions |
 
 The audit, the identity contract, the edition policy and the delta against 1652 (412,943 records added, 794 removed, none changed) are in [the 1050 refresh record](../docs/REFRESH_20261021_1050.md#verified-source). Downloading a release does not change either pin, the website or the ingestion database.
+
+## Half-marathon releases (October 30, 2026)
+
+The half-marathon pages (`/half`, the half-to-full story and the tools' half panels) read the owner's public half releases in the same repository, under CC BY 4.0, pinned by sha256 in [`analysis/half-release.json`](half-release.json). Contract, rules and evidence: [half marathons](../docs/HALF_MARATHON.md#sources-and-access).
+
+- [`half-dataset-20261029-1202`](https://github.com/koolkam00/pace-notes/releases/tag/half-dataset-20261029-1202), archived as doi:[10.6084/m9.figshare.34858428.v1](https://doi.org/10.6084/m9.figshare.34858428.v1): the half results and the links between half and marathon records, with the release's own README, comma-separated tables and `SHA256SUMS`. The pages use:
+
+  | Asset | Bytes | SHA-256 |
+  | --- | ---: | --- |
+  | [`half-20261029-1133.sqlite.zst.part00`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/half-20261029-1133.sqlite.zst.part00) (the results, reassembled to `platform_half.sqlite`, 3,744,944,128 bytes, sha256 `655a2d7efcdb6078f1743968bc4d4a2d2e020322855513aa633e153f6fa3673a`) | 392,995,892 | `59043a603ee5938d2143f233adbdebcdbdc83244de0aa52eb4c8070bffcb68a4` |
+  | [`runner_links-20261029-1156.sqlite.zst.part00`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/runner_links-20261029-1156.sqlite.zst.part00) (the links, 5.3 GB once decompressed) | 839,334,549 | `7195eba8eac3aa3a1d85ffd28b38f04ca0abff448afccc4ec59d4aa5eb8de9d7` |
+  | [`MATCHING_HALF.md`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/MATCHING_HALF.md) (how the links are built, their tiers and audit) | 4,637 | `7acb6ce59ba58140d44b8f84282158a6739fea56e5ebf9a8e22692023a48f030` |
+  | [`linking-scripts-20261029-1156.tar.gz`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/linking-scripts-20261029-1156.tar.gz) (the scripts that built the links) | 4,364 | `29c1ca0cc1cc37a55e62ea6639c93e90d547ce238e4a471be2003e826ee930d3` |
+
+- [`half-dataset-20261029-2157`](https://github.com/koolkam00/pace-notes/releases/tag/half-dataset-20261029-2157), the corrected edition metadata: version 1's metadata (in the DOI above) overstated the verified editions, so the pages take verified status from [`csv-edition_meta.csv.zst`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-2157/csv-edition_meta.csv.zst) (582,494 bytes, sha256 `2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842`; its README explains the correction). An edition is verified only when it is stamped in both. That release's newer results are not in the pages yet.
+
+Steps, with standard tools: download the parts and the release's `SHA256SUMS` into one folder, check them (`sha256sum -c --ignore-missing SHA256SUMS`), then decompress (`zstd -d half-20261029-1133.sqlite.zst.part00 -o platform_half.sqlite`, the same for the links) and open the SQLite with `sqlite3` or DuckDB. Or let the downloader do it, checking every asset against its release's `SHA256SUMS` and the pin, reassembling `platform_half.sqlite` with an integrity check and cutting the links extract the builders read (`links-slim.sqlite`, about 45 MB; the 5.3 GB links SQLite is deleted afterwards unless `--keep-links-sqlite`):
+
+```bash
+python -m pip install -r analysis/requirements.txt
+PACE_HALF_DIR=/path/to/half-1133 python3 -I analysis/download_half.py [--links-work /a/larger/disk]
+```
+
+**Anonymous access** (checked October 30, 2026, 17:02 UTC, requests with no GitHub credentials, and again at 19:30 UTC for the assets above and both `SHA256SUMS`, whose `Content-Range` totals give the byte counts in the table): both release pages answered 200 and every pinned asset and both `SHA256SUMS` answered a ranged GET (`curl -sSL -r 0-0 -o /dev/null -w '%{http_code}' URL`) with 206 after one redirect; `https://doi.org/10.6084/m9.figshare.34858428.v1` redirected (302) to the figshare record. The asset host answers HEAD with 401, so HEAD is not a valid test, and api.github.com requests from the project's build sessions carry injected credentials, so they prove nothing. The first, private copies (`half-snapshot-20261029-1133`, `runner-links-20261029-1156` in `koolkam00/pace-notes-db-backup`) stay as provenance; their names are the identities the policy and counts are keyed by, not access labels.
 
 ## The 1652 release (October 16, 2026, historical)
 
