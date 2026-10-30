@@ -68,7 +68,8 @@ export const HALF_CARD_TEXT: Record<HalfCardSlug, HalfCardText> = {
       return {
         guard,
         title: 'More women in the half, city by city',
-        headline: `In the same city and year, the half always had *more women*: typically ${pct(half)} of finishes, against ${pct(marathon)} in the marathon.`,
+        // Two medians across the pairs, worded as two (no one city and year has that pair), as the page's dek says them.
+        headline: `In the same city and year, the half always had *more women*. Typical shares: ${pct(half)} of half finishes, ${pct(marathon)} of marathon finishes.`,
         titleFallback: 'Women in the half and the marathon, by city',
         fallback: "Women's share of half and marathon finishes in the same city and year.",
       };

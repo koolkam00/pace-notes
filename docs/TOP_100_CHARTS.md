@@ -56,9 +56,9 @@ Four cards outside the hundred, from the half-marathon pages ([half marathons](H
 | Card | Page | Scope | Draws |
 | --- | --- | --- | --- |
 | `half-under-2` "Just over half broke 2:00" | `/half` | verified | a waffle of the half finishes under 2:00 (56%); the takeaway adds the recorded women's and men's shares |
-| `half-more-women` "More women in the half, city by city" | `/half` | verified | a dumbbell of the same-city, same-year pairs by city, the marathon as the ring and the half as the dot, under a signal row "Typical" at the two medians |
+| `half-more-women` "More women in the half, city by city" | `/half` | verified | a dumbbell of the same-city, same-year pairs by city, the marathon as the ring and the half as the dot, under a signal row "Typical" at the two medians (the takeaway words them as two: "Their share of finishes was typically 38% in the half and 24% in the marathon.") |
 | `half-double` "Double the half, plus 21 minutes" | `/stories/half-to-full` | linked | a waffle of the marathons under double the half (8%, signal), within 20 minutes over it (40%) and the rest |
-| `half-same-half` "Same half, fewer sustained slowdowns for women" | `/stories/half-to-full` | linked | a dumbbell of recorded women's and men's sustained-slowdown shares after halves near 1:30, 1:45, 2:00 and 2:15, the 1:45 band the signal row |
+| `half-same-half` "Same half, fewer sustained slowdowns for women" | `/stories/half-to-full` | linked | a dumbbell of recorded men's (the ring) and women's (the dot) sustained-slowdown shares after halves near 1:30, 1:45, 2:00 and 2:15, the 1:45 band the signal row, so its orange dot is the women's share the takeaway names |
 
 - **Data:** `public/data/half/cards.json` (`analysis/half_cards.py`; recounted by `scripts/verify-half-source.cjs` and checked against its family files by `scripts/verify-half.cjs`).
 - **Words:** `lib/charts/text/half.ts`, a registry of its own (`HALF_CARD_TEXT`, read through `halfCardWords`). Each guard is the page's nugget guard plus the card's own checks, so a card falls back exactly when its page does; `verify-half` holds the words to the rules above (titles ≤ 47 characters, one accent, the banned words) and requires "records linked by name" in a linked card's takeaway and nowhere else.

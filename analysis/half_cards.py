@@ -11,8 +11,10 @@ What each plot draws, as the pages draw it:
   page's key), under a signal row "Typical" at the two medians the takeaway quotes;
 - `half-double`: a waffle of the marathons under double the half (signal) and those within 20 minutes over it (ink), so
   the lit squares stop near the typical marathon's double plus 21 minutes;
-- `half-same-half`: a dumbbell of recorded women's and men's sustained-slowdown shares at four half bands, the
-  flagship's band (the 5-minute band nearest the pooled median half, as lib/nuggets/half.ts picks it) the signal row.
+- `half-same-half`: a dumbbell of recorded men's (the hollow ring) and women's (the filled dot) sustained-slowdown
+  shares at four half bands, the flagship's band (the 5-minute band nearest the pooled median half, as
+  lib/nuggets/half.ts picks it) the signal row. The dumbbell form lights its filled dot, so the signal lands on the
+  women's share the takeaway prints in orange, as the story's guess lights the women's answer (round 2 review).
 """
 from __future__ import annotations
 
@@ -63,7 +65,7 @@ def build(field: dict, women: dict, linked: dict) -> dict:
         f, m = window(linked, 'F', h), window(linked, 'M', h)
         if f is None or m is None:
             continue
-        rows.append({'label': label(h), 'a': f['sus'], 'b': m['sus'], **({'tone': 'signal'} if h == flagship else {})})
+        rows.append({'label': label(h), 'a': m['sus'], 'b': f['sus'], **({'tone': 'signal'} if h == flagship else {})})
         values[f'F_{h}'] = f['sus']
         values[f'M_{h}'] = m['sus']
     if len(rows) < 2:
@@ -91,7 +93,7 @@ def build(field: dict, women: dict, linked: dict) -> dict:
          'source': {'file': 'linked.json', 'path': 'overall.under_double_plus_min.0'}},
         {'slug': 'half-same-half', 'scope': 'linked',
          'plot': {'form': 'dumbbell', 'rows': rows, 'x': {'min': 0, 'max': 0.6, 'ticks': [0, 0.2, 0.4, 0.6], 'fmt': 'share'}, 'fmt': 'share',
-                  'a': 'Recorded women’s', 'b': 'Recorded men’s'},
+                  'a': 'Recorded men’s', 'b': 'Recorded women’s'},
          'values': values,
          'source': {'file': 'linked.json', 'path': 'windows.F[h].sus, windows.M[h].sus'}},
     ]

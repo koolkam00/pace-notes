@@ -440,7 +440,8 @@ function cards(fieldDoc, womenDoc, linkedDoc) {
   for (const h of [5400, 6300, 7200, 8100]) {
     const f = win('F', h), m = win('M', h);
     if (!f || !m) continue;
-    rows.push({ label: label(h / 60), a: f.sus, b: m.sus, ...(h === flagship ? { tone: 'signal' } : {}) });
+    // The men's share the ring, the women's the filled dot the signal row lights (analysis/half_cards.py).
+    rows.push({ label: label(h / 60), a: m.sus, b: f.sus, ...(h === flagship ? { tone: 'signal' } : {}) });
     values[`F_${h}`] = f.sus;
     values[`M_${h}`] = m.sus;
   }
@@ -459,7 +460,7 @@ function cards(fieldDoc, womenDoc, linkedDoc) {
       { slug: 'half-double', scope: 'linked',
         plot: { form: 'waffle', parts: [{ share: ud, tone: 'signal', label: 'under double' }, { share: D.sh(u20 - ud), tone: 'ink', label: '0–20 min over' }], rest: '20+ min over' },
         values: { under_double: ud, within_20: u20, pairs: linkedDoc.set.pairs, extra_p50_s: linkedDoc.overall.extra_s.p50 }, source: { file: 'linked.json', path: 'overall.under_double_plus_min.0' } },
-      { slug: 'half-same-half', scope: 'linked', plot: { form: 'dumbbell', rows, x: axis, fmt: 'share', a: 'Recorded women’s', b: 'Recorded men’s' },
+      { slug: 'half-same-half', scope: 'linked', plot: { form: 'dumbbell', rows, x: axis, fmt: 'share', a: 'Recorded men’s', b: 'Recorded women’s' },
         values, source: { file: 'linked.json', path: 'windows.F[h].sus, windows.M[h].sus' } },
     ],
   };

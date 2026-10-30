@@ -449,7 +449,10 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
   const rows = [5400, 6300, 7200, 8100].filter((h) => byH.F.has(h) && byH.M.has(h));
   const flag = Math.round(linked.checks.battery.pooled_half_p50_s / 300) * 300;
   eq(c4.scope, 'linked', 'card half-same-half: scope');
-  eq(c4.plot.rows, rows.map((h) => ({ a: byH.F.get(h).sus, b: byH.M.get(h).sus, label: D.clock(h), ...(h === flag ? { tone: 'signal' } : {}) })),
+  // The men's share is the ring and the women's the filled dot, which the signal row lights: the women's share the
+  // takeaway prints in orange is the orange mark (round 2 review).
+  eq([c4.plot.a, c4.plot.b], ['Recorded men’s', 'Recorded women’s'], 'card half-same-half: the ring is the men’s share, the filled dot the women’s');
+  eq(c4.plot.rows, rows.map((h) => ({ a: byH.M.get(h).sus, b: byH.F.get(h).sus, label: D.clock(h), ...(h === flag ? { tone: 'signal' } : {}) })),
     'card half-same-half: the windows at 1:30, 1:45, 2:00 and 2:15, the flagship band the signal row');
   eq(c4.values, Object.fromEntries(rows.flatMap((h) => [[`F_${h}`, byH.F.get(h).sus], [`M_${h}`, byH.M.get(h).sus]]).sort(([a], [b]) => (a < b ? -1 : 1))), 'card half-same-half: values');
 }

@@ -558,6 +558,9 @@ class Cards(unittest.TestCase):
         same = cards['half-same-half']['plot']['rows']
         self.assertEqual([r['label'] for r in same], ['1:30', '1:45', '2:00'], 'a band needs both recorded sexes')
         self.assertEqual([r.get('tone') for r in same], [None, 'signal', None], 'the band nearest the pooled median half is the signal')
+        plot = cards['half-same-half']['plot']
+        self.assertEqual((plot['a'], plot['b']), ('Recorded men’s', 'Recorded women’s'), 'the women’s share is the filled dot the signal lights')
+        self.assertEqual((same[1]['a'], same[1]['b']), (0.3, 0.1), 'the ring at the men’s share, the dot at the women’s')
 
     def test_flagship_band_rounds_like_the_site(self):
         import half_cards

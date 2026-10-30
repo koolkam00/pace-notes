@@ -618,7 +618,7 @@ The half marathon on Pace Notes: splithappens.run/half
 
 `half-more-women.png`
 
-In the same city and year, the half always had more women: typically 38% of finishes, against 24% in the marathon.
+In the same city and year, the half always had more women. Typical shares: 38% of half finishes, 24% of marathon finishes.
 
 The half marathon on Pace Notes: splithappens.run/half
 
