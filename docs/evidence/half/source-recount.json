@@ -4,20 +4,20 @@
  "date": "2026-10-30",
  "status": "pass",
  "mismatches": 0,
- "values_checked": 16556,
- "manifest_sha256": "a8af98b1f3020fbccac8c4fbdae8cfa3680100d4416788c0da412e37dd598919",
- "verify_half_source_sha256": "852e1dd4ca8a63959b6c67d46942e2b8007fad170241cc48d7bc80bfa6978d33",
+ "values_checked": 16816,
+ "manifest_sha256": "ba958ad12988b5647a8a3f9e8c5cc3579073b72db44d33c21215b598c774c1cf",
+ "verify_half_source_sha256": "60c6d3a63c07169343f22b3996d6f4ec9d630f813b850313a3dde489a119a48d",
  "recount_scripts": {
   "scripts/half/derive.cjs": "15c8885eeff04eaddbcb8530e9a32a51b04b5992d8e5243eb25744f03cddd71c",
-  "scripts/half/families.cjs": "1ca6daf775e775a7dfb2a746c0808ae374dbdc4da473a32d37c73a2d7101ac19",
+  "scripts/half/families.cjs": "c7b91d7f20bab9b7f01a1dea02e2b5ade78c2c22d98b983d4de76f267a0b09ed",
   "scripts/half/marathon.cjs": "0099e408bf084446f6fc60d91b362d5f761111128c9d5bb14b2de7aab08c5a4d",
   "scripts/half/policy.cjs": "64be8f311d9e527059033e654cc608ed384abf29c029ae9fefbb277c271f8646",
-  "scripts/verify-half-source.cjs": "852e1dd4ca8a63959b6c67d46942e2b8007fad170241cc48d7bc80bfa6978d33"
+  "scripts/verify-half-source.cjs": "60c6d3a63c07169343f22b3996d6f4ec9d630f813b850313a3dde489a119a48d"
  },
  "half_sqlite_sha256": "655a2d7efcdb6078f1743968bc4d4a2d2e020322855513aa633e153f6fa3673a",
  "links_extract_content_sha256": "95c37966a508c262cc7edc611b5aa6af1e6df0b76c5b5d7a329739b0640d3d75",
  "runner_manifest_sha256": "cd2c99d7140d3f32700200901ab21e6d1d10b6b450254a0739382a59e6db028c",
- "policy_sha256": "66120a98bd621fa8d4105d024933907dbb1a7ec5f1bdf4d4f6fc1b4bd6b9c756",
+ "policy_sha256": "da4b40bb0db9f49b0ca67a9113ff47456007ac4ca715865f688b3e6eeed84d7c",
  "weather_evidence_sha256": "6b27d16e6161b4409d52cc4846b615bed4907dcc12dbb64676afc172ff21cc8f",
  "marathon_release": "private-export-20261021-1050",
  "counts": {
@@ -72,11 +72,11 @@
    "mismatches": 0
   },
   "field.json": {
-   "values": 377,
+   "values": 427,
    "mismatches": 0
   },
   "linked.json": {
-   "values": 8143,
+   "values": 8353,
    "mismatches": 0
   },
   "tools/half-to-full.json": {

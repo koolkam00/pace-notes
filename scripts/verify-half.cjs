@@ -227,6 +227,19 @@ for (const m of field.marks) {
   eq([a.finishes, a.editions], [counts.use_finish.finishes, counts.use_finish.editions], 'field.checks.all_usable: the usable policy counts');
   ok(a.finishes >= field.cohort.finishes && [a.under_7200, a.under_6300].every((s) => D.isShareOf(s, a.finishes)), 'field.checks.all_usable: exact shares of the usable finishes');
   ok(int(e.editions, D.MIN_EDITIONS) && e.editions <= field.cohort.editions && e.min_finishes === 1000, 'field.checks.editions_equal: editions');
+  // /methodology only: every verified edition weighted equally, the same race in verified and unverified years, the
+  // verified finishes by country (source-only values; their floors and shapes here, their values in the recount).
+  const ea = field.checks.editions_equal_all;
+  eq(ea.editions, field.cohort.editions, 'field.checks.editions_equal_all: every verified edition');
+  ok(ea.under_7200 > 0 && ea.under_7200 < 1, 'field.checks.editions_equal_all: a share');
+  const sr = field.checks.same_race;
+  ok(int(sr.races, D.MIN_EDITIONS) && finite(sr.diff_s.p25) && sr.diff_s.p25 <= sr.diff_s.p50 && sr.diff_s.p50 <= sr.diff_s.p75, 'field.checks.same_race: races and ordered quartiles');
+  const cs = field.checks.countries;
+  ok(cs.length >= 1 && cs.every((c) => /^[A-Z]{2}$/.test(c.label) && int(c.editions, D.MIN_EDITIONS) && int(c.small_editions) && c.small_editions <= c.editions
+    && D.isShareOf(c.share, field.cohort.finishes) && Math.round(c.share * field.cohort.finishes) >= D.MIN_CELL), 'field.checks.countries: codes, floors and exact shares of the verified finishes');
+  ok(cs.every((c, i) => !i || c.share < cs[i - 1].share || (c.share === cs[i - 1].share && c.label > cs[i - 1].label)), 'field.checks.countries: by share');
+  ok(cs.reduce((a, c) => a + c.share, 0) <= 1 + 1e-9 && cs.reduce((a, c) => a + c.editions, 0) <= field.cohort.editions, 'field.checks.countries: within the verified finishes and editions');
+  eq(new Set(cs.map((c) => c.label)).size, cs.length, 'field.checks.countries: one row per country');
 }
 
 // ---------- 5. women.json: exact recounts; the same-city marathon side from the shards ----------
@@ -369,6 +382,35 @@ for (const m of Object.values(bat)) {
 ok(C.no_merge_people.pairs <= S.pairs && C.ns_keys_1.pairs <= S.pairs && C.other_marathons.pairs < S.pairs, 'linked.checks: subsets of set B');
 for (const k of ['verified', 'editions_equal', 'other_marathons', 'ns_keys_1', 'one_per_person']) ok(C[k].w105_under_14400 > 0 && C[k].w105_under_14400 < 1, `linked.checks.${k}: the 1:45 check share`);
 ok(C.battery.pooled_half_p50_s >= linked.windows.all[0].h && C.battery.pooled_half_p50_s <= linked.windows.all.at(-1).h, 'linked.checks.battery: the pooled median half lies in the published range');
+// /methodology only: the multiple by 5-minute band, the marathon cities, link coverage by city.
+{
+  const bands = C.multiple_by_band, all = linked.windows.all;
+  eq(bands.map((b) => b.h), all.filter((w) => w.h % 300 === 0).map((w) => w.h), 'linked.checks.multiple_by_band: every 5-minute band of the all-pairs range');
+  for (const b of bands) {
+    const w = all.find((x) => x.h === b.h);
+    // Every half in the window lies in [h − 150, h + 150), so the median multiple lies between the median marathon over those ends.
+    ok(w && b.ratio_p50 >= D.r(w.q[9] / (b.h + 150), 4) && b.ratio_p50 <= D.r(w.q[9] / (b.h - 150), 4), `linked.checks.multiple_by_band ${b.h}: within the bounds its window's median allows`);
+  }
+  const cities = C.by_city;
+  ok(cities.every((c) => int(c.pairs, D.MIN_CELL) && int(c.e, D.MIN_EDITIONS) && finite(c.multiple_p50) && finite(c.extra_p50_s) && D.isShareOf(c.under_double, c.pairs) && D.isShareOf(c.verified_half_share, c.pairs)
+    && (c.mid === null || (int(c.mid.pairs, D.MIN_CELL) && int(c.mid.e, D.MIN_EDITIONS) && c.mid.pairs <= c.pairs && c.mid.e <= c.e && finite(c.mid.extra_p50_s)))), 'linked.checks.by_city: floors and exact shares');
+  eq(cities.map((c) => c.city), cities.map((c) => c.city).sort(), 'linked.checks.by_city: in city order');
+  ok(cities.reduce((a, c) => a + c.pairs, 0) <= S.pairs && cities.length <= S.marathon_cities && cities.reduce((a, c) => a + c.e, 0) <= S.marathon_editions, 'linked.checks.by_city: within set B');
+  // The battery's city_equal member is the median over exactly these cities.
+  eq(bat.city_equal.n, cities.length, 'linked.checks.by_city: the city_equal member’s cities');
+  close(bat.city_equal.extra_p50_s, D.npMedian(cities.map((c) => c.extra_p50_s)), 0.05, 'linked.checks.by_city: city_equal’s minutes are the median city’s');
+  close(bat.city_equal.multiple_p50, D.npMedian(cities.map((c) => c.multiple_p50)), 5e-5, 'linked.checks.by_city: city_equal’s multiple is the median city’s');
+  close(bat.city_equal.under_double, D.npMedian(cities.map((c) => c.under_double)), 1e-9, 'linked.checks.by_city: city_equal’s under-double share is the median city’s');
+  const cov = C.coverage;
+  ok(Array.isArray(cov) && cov.length >= 2 && cov.every((c) => int(c.finishes, 1000) && D.isShareOf(c.share, c.finishes) && Math.round(c.share * c.finishes) >= D.MIN_CELL), 'linked.checks.coverage: floors (1,000 finishes, 100 linked) and exact shares');
+  ok(cov.every((c, i) => !i || c.share < cov[i - 1].share || (c.share === cov[i - 1].share && c.city > cov[i - 1].city)), 'linked.checks.coverage: by share');
+  if (cohort) {
+    const eligible = new Map();
+    for (let i = 0; i < cohort.n; i++) { const city = cohort.editions[cohort.edition[i]].city; eligible.set(city, (eligible.get(city) || 0) + 1); }
+    for (const c of cov) eq(c.finishes, eligible.get(c.city), `linked.checks.coverage ${c.city}: the eligible finishes, recounted from the runner shards`);
+    for (const c of cities) ok(eligible.has(c.city), `linked.checks.by_city ${c.city}: a marathon city of the adopted release`);
+  }
+}
 const guard = D.flagshipGuard(linked);
 console.log(JSON.stringify({ flagship_guard: guard }));
 

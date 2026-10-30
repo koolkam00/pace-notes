@@ -4,8 +4,11 @@ Every value comes from the 310 usable stamped editions after R7, finishes pooled
 marathon's field median is). Recorded sex only, and only in editions that pass the sex rule (`use_sex`). The round
 marks use the site's own smooth curve, `insights_round.local_fit` (Poisson log-cubic over ±25 minutes leaving out five
 minutes before and ten after the mark and short windows around other 10- and 15-minute marks) on a half minute matrix
-of 40 to 300 minutes, with a 200-draw whole-edition bootstrap (`insights_stats.SEED`). The scope checks (all usable
-editions pooled; verified editions of at least 1,000 finishes weighted equally) are for /methodology only.
+of 40 to 300 minutes, with a 200-draw whole-edition bootstrap (`insights_stats.SEED`). The scope checks are for
+/methodology only: all usable editions pooled; verified editions weighted equally (those of at least 1,000 finishes,
+and all of them); the same race in verified and unverified years (each kind's median of edition medians, per city
+label with both); and the verified finishes by country (the reviewed label map in the policy; groups of at least 3
+editions and 100 finishes).
 """
 from __future__ import annotations
 
@@ -31,7 +34,8 @@ WINDOW_MIN = 30
 EDITIONS_EQUAL_MIN = 1000
 BOOT_REPS = 200
 
-# fin columns: edition_id (int), verified (bool), sex ('F', 'M' or None), use_sex (bool), finish_s (float)
+# fin columns: edition_id (int), city (the edition's label), verified (bool), sex ('F', 'M' or None), use_sex (bool),
+# finish_s (float)
 
 
 @contextlib.contextmanager
@@ -81,7 +85,45 @@ def round_marks(minutes, edition):
     return out
 
 
-def build(fin, *, policy_sha256: str, module_sha256: str) -> dict:
+def same_race(fin):
+    """Per city label with both verified and unverified usable editions: the verified editions' median of edition
+    medians minus the unverified editions'; the quartiles of those differences over labels."""
+    rows = []
+    for (label, verified), g in fin.groupby(['city', 'verified'], observed=True, sort=True):
+        meds = [quantile(e.to_numpy(float), 0.5) for _, e in g.groupby('edition_id', sort=True).finish_s]
+        rows.append((str(label), bool(verified), float(np.median(meds))))
+    by = {}
+    for label, verified, med in rows:
+        by.setdefault(label, {})[verified] = med
+    diffs = [v[True] - v[False] for v in by.values() if True in v and False in v]
+    if len(diffs) < MIN_EDITIONS:
+        fail('field: too few races with both verified and unverified editions')
+    return {'races': len(diffs), 'diff_s': {f'p{int(p * 100)}': sec(quantile(diffs, p)) for p in (0.25, 0.5, 0.75)}}
+
+
+def countries(verified, label_countries):
+    """Verified finishes by country (the reviewed label map); groups under the floors are left out."""
+    labels = verified.city.astype(str)
+    missing = sorted(set(labels.unique()) - set(label_countries))
+    if missing:
+        fail(f'field: verified labels without a reviewed country: {missing[:5]}')
+    country = labels.map(label_countries).to_numpy(object)
+    edition = verified.edition_id.to_numpy(np.int64)
+    sizes = verified.groupby('edition_id').size()
+    small = set(sizes.index[sizes.to_numpy() < EDITIONS_EQUAL_MIN].tolist())
+    n = len(verified)
+    out = []
+    for code in sorted(set(country.tolist())):
+        s = country == code
+        eds = set(edition[s].tolist())
+        if s.sum() < MIN_CELL or len(eds) < MIN_EDITIONS:
+            continue
+        out.append({'label': code, 'editions': len(eds), 'small_editions': len(eds & small), 'share': sh(s.sum() / n)})
+    out.sort(key=lambda c: (-c['share'], c['label']))
+    return out
+
+
+def build(fin, *, policy_sha256: str, module_sha256: str, label_countries: dict | None = None) -> dict:
     verified = fin[fin.verified.to_numpy()]
     x = verified.finish_s.to_numpy(float)
     edition = verified.edition_id.to_numpy(np.int64)
@@ -110,9 +152,11 @@ def build(fin, *, policy_sha256: str, module_sha256: str) -> dict:
     if not (HIST_LO <= best and best + WINDOW_MIN <= HIST_HI):
         fail('field: the densest 30 minutes fall outside the published histogram')
     usable = fin.finish_s.to_numpy(float)
-    eq = verified.groupby('edition_id').finish_s.agg(['size', lambda s: (s < 7200).mean(), lambda s: (s < 6300).mean()])
-    eq.columns = ['size', 'u7200', 'u6300']
-    eq = eq[eq['size'] >= EDITIONS_EQUAL_MIN]
+    eq_all = verified.groupby('edition_id').finish_s.agg(['size', lambda s: (s < 7200).mean(), lambda s: (s < 6300).mean()])
+    eq_all.columns = ['size', 'u7200', 'u6300']
+    eq = eq_all[eq_all['size'] >= EDITIONS_EQUAL_MIN]
+    if label_countries is None:
+        fail('field: the reviewed label countries are required')
     return {
         'schema_version': 1, 'family': 'half-field', 'scope': 'verified',
         'cohort': {'finishes': int(n), 'editions': n_ed, 'sex_finishes': int(len(sexed)), 'sex_editions': int(sexed.edition_id.nunique())},
@@ -128,6 +172,9 @@ def build(fin, *, policy_sha256: str, module_sha256: str) -> dict:
                            'under_7200': sh((usable < 7200).mean()), 'under_6300': sh((usable < 6300).mean()), 'p50': q(usable, 0.5)},
             'editions_equal': {'min_finishes': EDITIONS_EQUAL_MIN, 'editions': int(len(eq)),
                                'under_7200': sh(float(np.median(eq.u7200))), 'under_6300': sh(float(np.median(eq.u6300)))},
+            'editions_equal_all': {'editions': int(len(eq_all)), 'under_7200': sh(float(np.median(eq_all.u7200)))},
+            'same_race': same_race(fin),
+            'countries': countries(verified, label_countries),
         },
         'policy': {'sha256': policy_sha256, 'module_sha256': module_sha256},
     }

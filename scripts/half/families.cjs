@@ -25,7 +25,43 @@ const shareUnder = (sorted, s) => { let lo = 0, hi = sorted.length; while (lo < 
 
 // ---------- field.json ----------
 
-function field({ fin, editions, policySha, moduleSha }) {
+/** Per city label with both verified and unverified editions: verified minus unverified median of edition medians. */
+function sameRace(fin, editions) {
+  const byEd = new Map();
+  for (let k = 0; k < fin.n; k++) {
+    if (fin.r7[k]) continue;
+    if (!byEd.has(fin.ed[k])) byEd.set(fin.ed[k], []);
+    byEd.get(fin.ed[k]).push(fin.finish[k]);
+  }
+  const byLabel = new Map();
+  for (const [e, values] of byEd) {
+    const ed = editions[e];
+    const key = ed.city;
+    if (!byLabel.has(key)) byLabel.set(key, { true: [], false: [] });
+    byLabel.get(key)[ed.group === 'verified'].push(D.quantile(values, 0.5));
+  }
+  const diffs = [];
+  for (const g of byLabel.values()) if (g.true.length && g.false.length) diffs.push(D.npMedian(g.true) - D.npMedian(g.false));
+  need(diffs.length >= MIN_EDITIONS, 'too few races with both verified and unverified editions');
+  return { races: diffs.length, diff_s: { p25: D.sec(D.quantile(diffs, 0.25)), p50: D.sec(D.quantile(diffs, 0.5)), p75: D.sec(D.quantile(diffs, 0.75)) } };
+}
+
+/** Verified finishes by country (the policy's reviewed label map); groups under the floors left out. */
+function countries(byEd, editions, labelCountries, n) {
+  const groups = new Map();
+  for (const [e, values] of byEd) {
+    const code = labelCountries[editions[e].city];
+    need(code, `a verified label without a reviewed country: ${editions[e].city}`);
+    if (!groups.has(code)) groups.set(code, { n: 0, eds: 0, small: 0 });
+    const g = groups.get(code);
+    g.n += values.length; g.eds++; if (values.length < 1000) g.small++;
+  }
+  return [...groups].filter(([, g]) => g.n >= MIN_CELL && g.eds >= MIN_EDITIONS)
+    .map(([label, g]) => ({ label, editions: g.eds, small_editions: g.small, share: D.sh(g.n / n) }))
+    .sort((a, b) => b.share - a.share || (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
+}
+
+function field({ fin, editions, policySha, moduleSha, labelCountries }) {
   const verified = [], all = [], byEd = new Map();
   const F = [], M = [];
   const sexEds = new Set(), eds = new Set();
@@ -74,6 +110,9 @@ function field({ fin, editions, policySha, moduleSha }) {
       all_usable: { finishes: xa.length, editions: new Set(Array.from(fin.ed).filter((_, k) => !fin.r7[k])).size,
         under_7200: D.sh(shareUnder(xa, 7200)), under_6300: D.sh(shareUnder(xa, 6300)), p50: q(xa, 0.5) },
       editions_equal: { min_finishes: 1000, editions: eq.length, under_7200: D.sh(D.npMedian(eq.map((v) => shareOf(v, 7200)))), under_6300: D.sh(D.npMedian(eq.map((v) => shareOf(v, 6300)))) },
+      editions_equal_all: { editions: byEd.size, under_7200: D.sh(D.npMedian([...byEd.values()].map((v) => shareOf(v, 7200)))) },
+      same_race: sameRace(fin, editions),
+      countries: countries(byEd, editions, labelCountries, x.length),
     },
     policy: { sha256: policySha, module_sha256: moduleSha },
   };
@@ -308,7 +347,43 @@ function checks(p) {
   };
 }
 
-function linked(P, { people, halfEditions }) {
+/** The median multiple in each 5-minute band of the published all-pairs range. */
+function multipleByBand(p, lo, hi) {
+  const out = [];
+  for (let H = lo; H <= hi; H++) {
+    if (H % 5) continue;
+    const r = [];
+    for (let i = 0; i < p.n; i++) if (p.h[i] >= 60 * H - 150 && p.h[i] < 60 * H + 150) r.push(p.m[i] / p.h[i]);
+    out.push({ h: 60 * H, ratio_p50: D.r(median50(r), 4) });
+  }
+  return out;
+}
+
+/** Marathon cities with at least 100 pairs from 3 editions, and their halves of 1:40 to 1:59 where those pass too. */
+function byCity(p) {
+  const by = new Map();
+  p.city.forEach((c, i) => { if (!by.has(c)) by.set(c, []); by.get(c).push(i); });
+  const out = [];
+  for (const city of [...by.keys()].sort()) {
+    const idx = by.get(city);
+    const eds = new Set(idx.map((i) => p.ed[i]));
+    if (idx.length < 100 || eds.size < 3) continue;
+    const mid = idx.filter((i) => p.h[i] >= 6000 && p.h[i] < 7200);
+    const midEds = new Set(mid.map((i) => p.ed[i]));
+    out.push({ city, pairs: idx.length, e: eds.size, multiple_p50: D.r(median50(idx.map((i) => p.m[i] / p.h[i])), 4),
+      extra_p50_s: D.sec(median50(idx.map((i) => p.extra[i]))), under_double: D.sh(idx.filter((i) => p.extra[i] < 0).length / idx.length),
+      verified_half_share: D.sh(idx.filter((i) => p.verified[i]).length / idx.length),
+      mid: mid.length >= MIN_CELL && midEds.size >= MIN_EDITIONS ? { pairs: mid.length, e: midEds.size, extra_p50_s: D.sec(median50(mid.map((i) => p.extra[i]))) } : null });
+  }
+  return out;
+}
+
+/** Link coverage by marathon city: at least 1,000 eligible finishes and 100 linked ones, by share. */
+const coverageRows = (rows) => rows.filter((c) => c.finishes >= 1000 && c.linked >= MIN_CELL)
+  .map((c) => ({ city: c.city, finishes: c.finishes, share: D.sh(c.linked / c.finishes) }))
+  .sort((a, b) => b.share - a.share || (a.city < b.city ? -1 : a.city > b.city ? 1 : 0));
+
+function linked(P, { people, halfEditions, coverage }) {
   const p = columns(P);
   need(p.n >= MIN_CELL, 'set B is under the floor');
   const windows = {}, ranges = {};
@@ -343,7 +418,7 @@ function linked(P, { people, halfEditions }) {
     windows: Object.fromEntries(Object.entries(windows).map(([g, ws]) => [g, ws.map(clean)])),
     sexes: { rule: 'half band x marathon city, >=20 pairs per sex', ...sexes(p) },
     goals,
-    checks: checks(p),
+    checks: { ...checks(p), multiple_by_band: multipleByBand(p, ...ranges.all), by_city: byCity(p), ...(coverage ? { coverage: coverageRows(coverage) } : {}) },
   };
   const tool = {
     schema_version: 1, family: 'half-tool', scope: 'linked', Q, window_s: 300,

@@ -80,10 +80,19 @@ export type HalfField = {
     all_usable: { finishes: number; editions: number; under_7200: number; under_6300: number; p50: number };
     /** Verified editions of at least `min_finishes`, each weighted equally. */
     editions_equal: { min_finishes: number; editions: number; under_7200: number; under_6300: number };
+    /** Every verified edition, each weighted equally (the median of the editions' shares). */
+    editions_equal_all: { editions: number; under_7200: number };
+    /** City labels with both verified and unverified editions: the quartiles of (verified − unverified) median of edition medians. */
+    same_race: { races: number; diff_s: { p25: number; p50: number; p75: number } };
+    /** Verified finishes by country (the policy's reviewed label map), groups of at least 3 editions and 100 finishes, by share. */
+    countries: HalfCountry[];
   };
   /** The frozen policy file and the policy module (analysis/half_quality.py). */
   policy: { sha256: string; module_sha256: string };
 };
+
+/** A country's share of the verified finishes; `label` is its ISO 3166 code, `small_editions` those under 1,000 finishes. */
+export type HalfCountry = { label: string; editions: number; small_editions: number; share: number };
 
 // ---------------------------------------------------------------------------------------------------------------
 // women.json (verified): women's share by finish time, and the same city's half and marathon
@@ -226,7 +235,19 @@ export type HalfLinked = {
     one_per_person: { pairs: number; w105_under_14400: number };
     no_merge_people: { pairs: number; extra_p50_s: number };
     battery: { pooled_half_p50_s: number; members: HalfBatteryMember[] };
+    /** The median multiple in each 5-minute band of the all-pairs range. */
+    multiple_by_band: { h: number; ratio_p50: number }[];
+    /** Marathon cities of at least 100 pairs from 3 editions (the battery's city_equal cities). */
+    by_city: HalfLinkedCity[];
+    /** Link coverage by marathon city: eligible finishes linked to someone with a usable half (1,000 finishes and 100 linked at least). */
+    coverage: { city: string; finishes: number; share: number }[];
   };
+};
+
+/** A marathon city's pairs; `mid` is the same reading within halves of 1:40 to 1:59, where that slice passes the floors. */
+export type HalfLinkedCity = {
+  city: string; pairs: number; e: number; multiple_p50: number; extra_p50_s: number; under_double: number; verified_half_share: number;
+  mid: { pairs: number; e: number; extra_p50_s: number } | null;
 };
 
 // ---------------------------------------------------------------------------------------------------------------

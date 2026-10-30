@@ -36,6 +36,8 @@ OTHER_THAN = ('Valencia', 'Warsaw')      # "other marathons": without the two ma
 CHECK_WINDOW = 105                       # the 1:45 window of the flagship's beat 1
 CHECK_GOAL = 14400
 GROUPS = ('all', 'F', 'M')
+MID_HALF_S = (6000, 7200)                # the halves of 1:40 to 1:59, where the cities' minutes over double are compared
+COVERAGE_MIN = {'finishes': 1000, 'linked': MIN_CELL}
 
 
 class Pairs:
@@ -181,6 +183,45 @@ def battery(p):
     return {'pooled_half_p50_s': sec(quantile(p.h, 0.5)), 'members': members}
 
 
+def multiple_by_band(p, lo, hi):
+    """The median multiple (marathon over half) in each 5-minute band of the published all-pairs range."""
+    out = []
+    for H in range(lo, hi + 1):
+        if H % 5:
+            continue
+        s = in_window(p, H)
+        out.append({'h': 60 * H, 'ratio_p50': r(quantile(p.m[s] / p.h[s], 0.5), 4)})
+    return out
+
+
+def by_city(p):
+    """Each marathon city with at least 100 pairs from at least 3 editions (the battery's city_equal cities): its pairs,
+    editions, median multiple, median minutes over double, under-double share and verified-half share; and the same
+    minutes within halves of 1:40 to 1:59 where that slice passes the floors too (else null)."""
+    out = []
+    for city in sorted(set(p.city.tolist())):
+        s = p.city == city
+        eds = set(p.ed[s].tolist())
+        if s.sum() < CITY_EQUAL['min_pairs'] or len(eds) < CITY_EQUAL['min_editions']:
+            continue
+        mid = s & (p.h >= MID_HALF_S[0]) & (p.h < MID_HALF_S[1])
+        mid_eds = set(p.ed[mid].tolist())
+        out.append({'city': str(city), 'pairs': int(s.sum()), 'e': len(eds), 'multiple_p50': r(quantile(p.m[s] / p.h[s], 0.5), 4),
+                    'extra_p50_s': sec(quantile(p.extra[s], 0.5)), 'under_double': sh((p.extra[s] < 0).mean()),
+                    'verified_half_share': sh(p.frame.verified.to_numpy(bool)[s].mean()),
+                    'mid': ({'pairs': int(mid.sum()), 'e': len(mid_eds), 'extra_p50_s': sec(quantile(p.extra[mid], 0.5))}
+                            if mid.sum() >= MIN_CELL and len(mid_eds) >= MIN_EDITIONS else None)})
+    return out
+
+
+def coverage_rows(rows):
+    """Link coverage by marathon city: cities with at least 1,000 eligible finishes and 100 linked ones, by share."""
+    out = [{'city': c['city'], 'finishes': c['finishes'], 'share': sh(c['linked'] / c['finishes'])} for c in rows
+           if c['finishes'] >= COVERAGE_MIN['finishes'] and c['linked'] >= COVERAGE_MIN['linked']]
+    out.sort(key=lambda c: (-c['share'], c['city']))
+    return out
+
+
 def checks(p):
     ver = p.subset(p.frame.verified.to_numpy(bool))
     eds = {}
@@ -227,8 +268,9 @@ def flagship_guard(linked: dict) -> bool:
             and all(m['under_double'] < 0.15 for m in members.values()))
 
 
-def build(frame):
-    """(linked.json, tools/half-to-full.json, the published ranges)."""
+def build(frame, coverage=None):
+    """(linked.json, tools/half-to-full.json, the published ranges). `coverage` (half_pairs.coverage) adds the link
+    coverage by marathon city to the checks; the builder always passes it."""
     p = Pairs(frame)
     if p.n < MIN_CELL:
         fail('linked: set B is under the floor')
@@ -260,7 +302,8 @@ def build(frame):
         'windows': {g: [clean(w) for w in windows[g]] for g in GROUPS},
         'sexes': {'rule': 'half band x marathon city, >=20 pairs per sex', **sexes(p)},
         'goals': goals,
-        'checks': checks(p),
+        'checks': {**checks(p), 'multiple_by_band': multiple_by_band(p, *ranges['all']), 'by_city': by_city(p),
+                   **({'coverage': coverage_rows(coverage)} if coverage is not None else {})},
     }
     tool = {
         'schema_version': 1, 'family': 'half-tool', 'scope': 'linked', 'Q': Q, 'window_s': WINDOW_S,

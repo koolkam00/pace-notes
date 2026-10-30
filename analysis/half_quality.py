@@ -113,7 +113,7 @@ SAME_CITY_LABELS = {
     'Warsaw': ['Warszawa', 'Warszawa: Półmaraton Warszawski'], 'Washington': ['Washington, DC: DC Half Races'],
 }
 
-from half_policy_lists import FROZEN_20261029_1133  # noqa: E402  (the reviewed lists, kept apart for length)
+from half_policy_lists import FROZEN_20261029_1133, LABEL_COUNTRIES_20261029_1133  # noqa: E402  (the reviewed lists, kept apart for length)
 
 EXPECTED_20261029_1133 = {
     'raw': 6_854_820, 'R1': 98_768, 'R2': 0, 'R3': 1_395, 'R4': 1_088, 'R5_fast': 152, 'R5_slow': 397, 'R6': 1_949,
@@ -132,6 +132,7 @@ REVIEWED_HALF_POLICIES = {
         'reviewed': '2026-10-29',
         'expected': EXPECTED_20261029_1133,
         'frozen': FROZEN_20261029_1133,
+        'label_countries': LABEL_COUNTRIES_20261029_1133,
     },
 }
 
@@ -179,6 +180,7 @@ def policy_document(tag: str = TAG) -> dict:
         'use_sex': USE_SEX,
         'date_suspects': [{'edition_id': e, 'city': c, 'year': y, 'reason': r} for e, c, y, r in DATE_SUSPECTS],
         'same_city_labels': SAME_CITY_LABELS,
+        'verified_label_countries': p['label_countries'],
         'expected': p['expected'],
     }
 

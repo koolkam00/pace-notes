@@ -71,10 +71,11 @@ def check_sources(pin: dict, half: Path, links: Path) -> None:
 
 
 def finishes(db):
-    """use_finish finishes after R7 as a pandas frame (edition_id, verified, sex, use_sex, finish_s)."""
+    """use_finish finishes after R7 as a pandas frame (edition_id, city label, verified, sex, use_sex, finish_s)."""
     db.execute("CREATE TYPE IF NOT EXISTS half_sex AS ENUM ('F', 'M')")
-    fin = db.execute("""SELECT edition_id, status_group = 'verified' AS verified, sex::half_sex AS sex, use_sex, finish_s
-        FROM hfin WHERE NOT r7_block ORDER BY edition_id, finish_s""").df()
+    db.execute("CREATE TYPE IF NOT EXISTS half_label AS ENUM (SELECT DISTINCT city FROM hfin WHERE city IS NOT NULL ORDER BY city)")
+    fin = db.execute("""SELECT edition_id, city::half_label AS city, status_group = 'verified' AS verified, sex::half_sex AS sex,
+        use_sex, finish_s FROM hfin WHERE NOT r7_block ORDER BY edition_id, finish_s""").df()
     return fin
 
 
@@ -155,14 +156,16 @@ def run(half: Path, links: Path, out: Path, accept_counts: bool = False) -> dict
     log(f'marathon side: {marathons.n:,} eligible finishes ({time.time() - started:.0f} s)')
     pairs = half_pairs.build(db, marathons, pin['links']['tag'])
     set_b = half_pairs.summary(pairs)
+    coverage = half_pairs.coverage(db, marathons)
     log(f"set B: {set_b['pairs']:,} pairs ({time.time() - started:.0f} s)")
     db.close()
 
     families = {
-        'field.json': half_field.build(fin, policy_sha256=policy_sha, module_sha256=module_sha),
+        'field.json': half_field.build(fin, policy_sha256=policy_sha, module_sha256=module_sha,
+                                       label_countries=half_quality.REVIEWED_HALF_POLICIES[half_quality.TAG]['label_countries']),
         'women.json': half_women.build(fin, policy.editions, marathons, half_quality.SAME_CITY_LABELS),
     }
-    families['linked.json'], families['tools/half-to-full.json'], _ = half_linked.build(pairs)
+    families['linked.json'], families['tools/half-to-full.json'], _ = half_linked.build(pairs, coverage=coverage)
     families['cards.json'] = half_cards.build(families['field.json'], families['women.json'], families['linked.json'])
     out_bytes = {}
     for name, value in families.items():

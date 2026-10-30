@@ -460,6 +460,51 @@ def synthetic_finishes(n_editions=40, per=400, seed=5):
     return pd.concat(rows, ignore_index=True)
 
 
+class MethodologyChecks(unittest.TestCase):
+    """The source-only values /methodology reads: by country, the same race in both kinds of year, by city, coverage."""
+
+    def test_countries_floors_and_unreviewed_labels(self):
+        fin = synthetic_finishes().assign(city=lambda f: np.where(f.edition_id < 12, 'Oslo Half', np.where(f.edition_id < 28, 'Paris', 'Graz')))
+        verified = fin[fin.verified]
+        rows = half_field.countries(verified, {'Oslo Half': 'NO', 'Paris': 'FR', 'Graz': 'AT'})
+        self.assertEqual([r['label'] for r in rows], ['FR', 'NO'], 'Graz has 2 verified editions here: under the floor, left out')
+        self.assertEqual([r['editions'] for r in rows], [16, 12])
+        self.assertAlmostEqual(sum(r['share'] for r in rows), 28 / 30)
+        hc.check_published({'countries': rows}, 'countries')
+        with self.assertRaisesRegex(hc.HalfError, 'without a reviewed country'):
+            half_field.countries(verified, {'Oslo Half': 'NO'})
+
+    def test_same_race_is_verified_minus_unverified(self):
+        fin = synthetic_finishes().assign(city=lambda f: 'R' + (f.edition_id % 5).astype(str))
+        fin.loc[~fin.verified, 'finish_s'] += 60              # unverified years a minute slower
+        sr = half_field.same_race(fin)
+        self.assertEqual(sr['races'], 5)
+        self.assertLess(sr['diff_s']['p50'], 0)
+        self.assertLessEqual(sr['diff_s']['p25'], sr['diff_s']['p50'])
+        with self.assertRaises(hc.HalfError):
+            half_field.same_race(fin[fin.verified])
+
+    def test_by_city_is_the_city_equal_member(self):
+        frame = synthetic_pairs()
+        linked, _, ranges = half_linked.build(frame)
+        cities = linked['checks']['by_city']
+        member = next(m for m in linked['checks']['battery']['members'] if m['id'] == 'city_equal')
+        self.assertEqual(len(cities), member['n'])
+        for c in cities:
+            self.assertGreaterEqual(c['pairs'], hc.MIN_CELL)
+            self.assertGreaterEqual(c['e'], hc.MIN_EDITIONS)
+            self.assertTrue(c['mid'] is None or (c['mid']['pairs'] >= hc.MIN_CELL and c['mid']['pairs'] <= c['pairs']))
+        bands = linked['checks']['multiple_by_band']
+        self.assertEqual([b['h'] for b in bands], [60 * H for H in range(ranges['all'][0], ranges['all'][1] + 1) if H % 5 == 0])
+        self.assertNotIn('coverage', linked['checks'], 'coverage only when the builder passes it')
+
+    def test_coverage_floors(self):
+        rows = half_linked.coverage_rows([{'city': 'A', 'finishes': 5000, 'linked': 2000}, {'city': 'B', 'finishes': 900, 'linked': 300},
+                                          {'city': 'C', 'finishes': 50000, 'linked': 99}, {'city': 'D', 'finishes': 20000, 'linked': 100}])
+        self.assertEqual([r['city'] for r in rows], ['A', 'D'], 'under 1,000 finishes or 100 linked: left out; by share')
+        self.assertEqual(rows[1]['share'], 0.005)
+
+
 class Determinism(unittest.TestCase):
     def test_two_builds_give_the_same_bytes(self):
         frame = synthetic_pairs()

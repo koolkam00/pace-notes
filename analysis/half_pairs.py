@@ -84,6 +84,23 @@ def build(db, marathons, links_tag: str, expected: dict | None = None, check: bo
     return pairs
 
 
+def coverage(db, marathons):
+    """Link coverage by marathon city (for /methodology only): each city's eligible marathon finishes, and how many of
+    them are linked (people as in rule 1) to someone with at least one usable half (any date, not R7). It depends on how
+    each source publishes age, not on runners' habits. Needs `hfin` and the links extract as `l`. A list of
+    {city, finishes, linked}, every city."""
+    tiers = ', '.join(f"'{t}'" for t in TIERS)
+    db.register('mar_df', marathons.frame())
+    rows = db.execute(f"""WITH pp AS (SELECT person_id FROM l.people WHERE confidence IN ({tiers}) AND ns_keys <= {NS_KEYS_MAX}),
+        wh AS (SELECT DISTINCT k.person_id FROM l.links k JOIN pp USING (person_id) JOIN hfin f ON f.record_id = k.record_id
+               WHERE k.db = 'half' AND NOT f.r7_block),
+        lk AS (SELECT DISTINCT k.record_id FROM l.links k JOIN wh USING (person_id) WHERE k.db = 'full')
+        SELECT m.m_city AS city, count(*) AS finishes, count(lk.record_id) AS linked
+        FROM mar_df m LEFT JOIN lk ON lk.record_id = m.m_record_id GROUP BY 1 ORDER BY 1""").fetchall()
+    db.unregister('mar_df')
+    return [{'city': c, 'finishes': int(n), 'linked': int(k)} for c, n, k in rows]
+
+
 def summary(pairs) -> dict:
     return {'pairs': int(len(pairs)), 'people': int(pairs.person_id.nunique()), 'marathon_editions': int(pairs.m_ed.nunique()),
             'marathon_cities': int(pairs.m_city.nunique()), 'half_editions': int(pairs.h_edition_id.nunique()),

@@ -201,13 +201,29 @@ for (const [p, mars] of marsOf) {
   }
 }
 const setB = { pairs: pairs.h.length, people: pairPeople.size, marathon_editions: new Set(pairs.ed).size, half_editions: halfEds.size };
+// Link coverage by marathon city: eligible marathon finishes linked to someone with at least one usable half (any
+// date, not R7), for /methodology.
+const coverage = [];
+{
+  const linkedMars = new Set();
+  for (const [p, mars] of marsOf) if ((halvesOf.get(p) || []).some((k) => !fin.r7[k])) for (const j of mars) linkedMars.add(j);
+  const byCity = new Map();
+  for (let j = 0; j < MAR.n; j++) {
+    const city = MAR.editions[MAR.edition[j]].city;
+    let c = byCity.get(city);
+    if (!c) { c = { city, finishes: 0, linked: 0 }; byCity.set(city, c); }
+    c.finishes++;
+    if (linkedMars.has(j)) c.linked++;
+  }
+  coverage.push(...[...byCity.values()].sort((a, b) => (a.city < b.city ? -1 : 1)));
+}
 compare('policy', 'set B (manifest)', publishedSetB, setB);
 log(`set B: ${setB.pairs.toLocaleString('en-US')} pairs, ${setB.people.toLocaleString('en-US')} people`);
 
 // ---------- The published files ----------
 log('rebuilding the published files');
 const moduleSha = sha(Buffer.concat(['analysis/half_quality.py', 'analysis/half_policy_lists.py'].map((p) => fs.readFileSync(rel(p)))));
-const fieldMine = Fam.field({ fin, editions: ED, policySha: sha(policyBytes), moduleSha });
+const fieldMine = Fam.field({ fin, editions: ED, policySha: sha(policyBytes), moduleSha, labelCountries: policy.verified_label_countries });
 const fieldPub = readHalf('field.json');
 compare('field.json', '', fieldPub, fieldMine, (where) => (/^marks\[\d+\]\.expected_minute_before$/.test(where) ? 0.05 : /^marks\[\d+\]\.(ratio|cliff)$/.test(where) ? 1e-4 : 0));
 for (const m of fieldPub.marks) {
@@ -217,7 +233,7 @@ for (const m of fieldPub.marks) {
 const chartBytes = fs.readFileSync(rel('public/data/charts/womens-share-by-finish-time.json'));
 const womenMine = Fam.women({ fin, editions: ED, marathons: MAR, labels: policy.same_city_labels, chart: JSON.parse(chartBytes), chartSha: sha(chartBytes) });
 compare('women.json', '', readHalf('women.json'), womenMine);
-const { linked: linkedMine, tool: toolMine } = Fam.linked(pairs, { people: setB.people, halfEditions: setB.half_editions });
+const { linked: linkedMine, tool: toolMine } = Fam.linked(pairs, { people: setB.people, halfEditions: setB.half_editions, coverage });
 compare('linked.json', '', readHalf('linked.json'), linkedMine);
 compare('tools/half-to-full.json', '', readHalf('tools/half-to-full.json'), toolMine);
 compare('cards.json', '', readHalf('cards.json'), Fam.cards(fieldMine, womenMine, linkedMine));
