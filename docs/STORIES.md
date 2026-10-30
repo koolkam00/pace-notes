@@ -98,11 +98,14 @@ python -m unittest discover -s analysis -p 'test_insights.py'
 python analysis/build_insights.py                      # all families → public/data/insights
 python analysis/download_release.py --bundle CORE --output /tmp/release
 python analysis/build_course_geometry.py --profiles /tmp/release/course_profiles.parquet
-python analysis/build_insights.py --only manifest      # re-bind course-geometry.json
+python analysis/build_course_terrain.py --profiles /tmp/release/course_profiles.parquet \
+    --corrections analysis/course_terrain/corrections.json \
+    --output public/data/insights/tools/course-terrain.json   # the terrain splits, same pass
+python analysis/build_insights.py --only manifest      # re-bind course-geometry.json and course-terrain.json
 node scripts/verify-insights.cjs                       # independent recount (≈30 s)
 ```
 
-`--only family,...` rebuilds selected families and keeps the others listed in the manifest only if their bytes still match. Family files contain no build timestamps, so a rebuild from the same shards is byte-identical. The **Story analyses** workflow (`.github/workflows/insights.yml`) rebuilds everything into a temporary directory, recounts it, and compares the family files byte for byte. `npm run verify:data` runs `verify-insights.cjs`.
+The full sequence, including a release change, is the [data story refresh](OPERATIONS.md#data-story-refresh). `--only family,...` rebuilds selected families and keeps the others listed in the manifest only if their bytes still match. Family files contain no build timestamps, so a rebuild from the same shards is byte-identical. The **Story analyses** workflow (`.github/workflows/insights.yml`) rebuilds everything into a temporary directory, recounts it, and compares the family files byte for byte. `npm run verify:data` runs `verify-insights.cjs`.
 
 ## Verifier
 
@@ -138,11 +141,11 @@ For every file it also checks provenance and structure: finite numbers, groups o
 
 Each item names the check that fails without it.
 
-1. **The builder and its file.** An `insights_<family>.py` module wired into `analysis/build_insights.py`, its JSON under `public/data/insights/`, bound by the manifest (script hash, bytes and SHA-256), with tests in `analysis/test_insights.py` and a recount in `scripts/verify-insights.cjs` (groups of at least 100, no names or identifiers, no release tags in copy).
-2. **The registry.** An entry in `lib/stories.ts` (slug, file, number, kicker, title, accent and `published`), and the slug in `STORY_SLUGS` in `lib/analytics-policy.ts` (`verify-analytics` compares the two lists).
+1. **The builder and its file.** An `insights_<family>.py` module wired into `analysis/build_insights.py`, its JSON under `public/data/insights/` with a `method` string (`/methodology#story-<slug>` prints it, `components/methods/MethodsStories.tsx`), bound by the manifest (script hash, bytes and SHA-256), with tests in `analysis/test_insights.py` and a recount in `scripts/verify-insights.cjs` (groups of at least 100, no names or identifiers, no release tags in copy).
+2. **The registry.** An entry in `lib/stories.ts` (slug, file, number, kicker, title, the required `dek` (the question under the H1), accent and `published`), and the slug in `STORY_SLUGS` in `lib/analytics-policy.ts` (`verify-analytics` compares the two lists).
 3. **The words.** Every sentence and figure a nugget in `lib/nuggets/stories.ts` with a guard and a neutral fallback, recounted in `scripts/nuggets/stories.cjs` (`verify-nuggets`), and every slot following the guard ([design system: copy checks](DESIGN_SYSTEM.md#copy-checks)).
-4. **The chapter.** A place in `lib/chapters.ts` (`verify-chapters` rule 4: every sitemap story appears exactly once) with a methods anchor, `/methodology#story-<slug>`, that the built page has (rule 5 with `--html`; `verify-seo` `methods-anchors`).
-5. **The page.** A body in `components/story/bodies/` on `StoryPage`, its beats marked for analytics with the generic section ids, and an S8 figure: a new story shares the story route's figure in `scripts/e2e/budget.json` unless it gets its own ([operations](OPERATIONS.md#first-load-budgets-s8)).
+4. **The chapter.** A place in `lib/chapters.ts` (`verify-chapters` rule 4: every sitemap story appears exactly once) with a methods anchor, `/methodology#story-<slug>`, that the built page has (rule 5 with `--html`; `verify-seo` `methods-anchors`): the stories topic on `/methodology` writes that anchor for every published marathon story from its registry entry and its file's `method` (a half story's method is written in `components/methods/MethodsStories.tsx` itself). Moving a story in the chain also moves its neighbours, so update the `nextOf` cases among the unit tests in `scripts/verify-chapters.cjs` (its rule 1).
+5. **The page.** A body in `components/story/bodies/` on `StoryPage`, added to `BODIES` in `app/stories/[slug]/page.tsx` (a story without one is not built), its beats marked for analytics with the generic section ids, and an S8 figure: a new story shares the story route's figure in `scripts/e2e/budget.json` unless it gets its own ([operations](OPERATIONS.md#first-load-budgets-s8)).
 6. **Search and sharing.** The share card `public/og/stories/<slug>.png` from `npm run og:images` (checked by `npm run og:check`, which no CI job runs), and on the merge day the story's `published` date and its `CONTENT_DATES` entry in `lib/seo-routes.ts` (`verify-seo --today` refuses a date after today; [SEO](SEO.md)).
 7. **Review.** Build, lint and capture its routes, and run the [visual review](DESIGN_SYSTEM.md#visual-review) until a fresh round finds no P1 or P2.
 

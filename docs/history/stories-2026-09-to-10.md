@@ -1,6 +1,6 @@
 # Data stories: earlier text (to October 30, 2026)
 
-> Moved here word for word on October 30, 2026 from [`docs/STORIES.md`](../STORIES.md) at commit `049470aa`, when that file was rewritten in the present tense. The line numbers are that commit's. Counts belong to the release they name; do not quote them as current. Its relative links are re-pointed for this folder.
+> Moved here word for word on October 30, 2026 from [`docs/STORIES.md`](../STORIES.md) at `main`'s commit `a2c6e507`, when that file was rewritten in the present tense. The line numbers are that commit's. Counts belong to the release they name; do not quote them as current. Its relative links are re-pointed for this folder.
 
 ## Cohorts and screens, as written for releases 1652 and 0934 (lines 7–17)
 

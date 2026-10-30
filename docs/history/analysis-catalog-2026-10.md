@@ -1,6 +1,6 @@
 # Analysis catalog: earlier text (to October 30, 2026)
 
-> Moved here word for word on October 30, 2026 from [`docs/ANALYSIS_CATALOG.md`](../ANALYSIS_CATALOG.md) at commit `9983029e`, when that file was brought to the adopted release. The line numbers are that commit's. Counts belong to the release they name; do not quote them as current. Relative links are re-pointed for this folder.
+> Moved here word for word on October 30, 2026 from [`docs/ANALYSIS_CATALOG.md`](../ANALYSIS_CATALOG.md) at `main`'s commit `a2c6e507`, when that file was brought to the adopted release. The line numbers are that commit's. Counts belong to the release they name; do not quote them as current. Relative links are re-pointed for this folder.
 
 ## Broader views and the 1652 rebuild (lines 5–7)
 

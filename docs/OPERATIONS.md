@@ -17,7 +17,7 @@ Two workflows run on every pull request, whatever it touches. **Website data val
 
 | Change | Run before pushing | CI that runs |
 | --- | --- | --- |
-| Documentation only (Markdown outside `analysis/`) | A link and anchor check of the changed files and `git diff --check`. Run `npm run verify:analytics` if `docs/ANALYTICS.md` changed, because it parses that file's event table. Run `npm run verify:autopilot` if `autopilot/metrics.md` changed, because the guard reads its `## 1. Definitions` table (only the owner edits that file). Never edit `docs/CHARTS_INSTAGRAM.md` by hand: `node scripts/build-chart-cards.cjs --captions` writes it. No full-data calculation is needed ([AGENTS.md](../AGENTS.md)). | Website data validation and Autopilot guard; Half marathon if `docs/evidence/half/**` changed |
+| Documentation only (Markdown outside `analysis/`) | The [link and anchor check](#the-link-and-anchor-check) and `git diff --check origin/main` (no trailing spaces, no blank line at the end of a file). Run `npm run verify:analytics` if `docs/ANALYTICS.md` changed, because it parses that file's event table. Run `npm run verify:autopilot` if `autopilot/metrics.md` changed, because the guard reads its `## 1. Definitions` table (only the owner edits that file). Never edit `docs/CHARTS_INSTAGRAM.md` by hand: `node scripts/build-chart-cards.cjs --captions` writes it. No full-data calculation is needed ([AGENTS.md](../AGENTS.md)). | Website data validation and Autopilot guard; Half marathon if `docs/evidence/half/**` changed |
 | Site code or copy (`app/`, `components/`, `lib/`, styles) | `npx tsc --noEmit -p .`, then the `verify` job's commands in its order, then `npm run autopilot:privacy`. For a visual change, build, capture the changed pages and look at them ([design system](DESIGN_SYSTEM.md)). | Website data validation. Also Top 100 charts for `lib/charts/**` and `components/charts/**`; Half marathon for `lib/half*`, `lib/tools/half-to-full.ts`, `lib/nuggets/half.ts`, `lib/charts/text/half.ts`, `components/half/**` and `app/half/**`; Runner context and peers for `lib/runner-context.ts` |
 | Anything a share card is stamped with: the chart drawing code, `app/styles/tokens.css`, `app/styles/fonts.css`, `app/styles/pages/charts.css`, `lib/units.ts`, `lib/nuggets/format.ts`, the three card fonts, and for the half cards also `lib/tools/half-to-full.ts`, `lib/nuggets/half.ts` and `lib/charts/text/half.ts` (the exact lists are `CODE` in `scripts/build-chart-cards.cjs` and `scripts/half/card-images.cjs`) | The row above, plus `node scripts/build-chart-cards.cjs` and `node scripts/build-chart-cards.cjs --set half`. Each redraws the cards whose stamp changed and needs Chromium. Open the changed PNGs, then run both `--check` commands. A colour-token change also needs `npm run og:check`, which checks the share images in `public/og/` (`npm run og:images` redraws them). | `verify:data` runs both card checks; Top 100 charts and Half marathon repeat their own |
 | Published data (`public/data/**`) | That family's sequence below: build into a fresh folder, run its verifier with `--input`, copy, then `npm run verify:data` and `npm run build`. | Website data validation and the family's workflow |
@@ -25,7 +25,7 @@ Two workflows run on every pull request, whatever it touches. **Website data val
 | Half files (pin, policy, builders, recount, half pages) | `python3 -I -m unittest discover -s analysis -p 'test_half.py'`, `node scripts/verify-half.cjs` and `node scripts/build-chart-cards.cjs --check --set half`. After any rebuild, also `npm run verify:half-source`, which writes the receipt, and after a build `node scripts/verify-half.cjs --html` ([half refresh](#half-refresh)). | Half marathon: `check` on every half pull request, and `source` when the pin, the policy, a builder, the downloader or the recount changes |
 | Analytics, replay or privacy code | `npm run verify:analytics` and `npm run autopilot:privacy` | Website data validation (`privacy-e2e`) |
 | Autopilot machinery (`scripts/autopilot-*.cjs`, its workflows) | `npm run verify:autopilot` | Website data validation (`verify`) |
-| A new page route or tool | The site-code row. A new route needs an S8 figure ([below](#first-load-budgets-s8)). A new tool also needs its typed-value case in S2 (`scripts/e2e/scenarios/s2-differential.cjs`) and its entry in `scripts/verify-tools.cjs` ([AUTOPILOT.md](AUTOPILOT.md#what-an-autopilot-pull-request-can-never-change)). | Website data validation |
+| A new page route or tool | The site-code row. A new route needs an S8 figure ([below](#first-load-budgets-s8)). A new tool also needs its typed-value case in S2 (`scripts/e2e/scenarios/s2-differential.cjs`) and its entry in `COMPONENT` in `scripts/verify-tools.cjs`, which checks the badges its component renders against `lib/tools/registry.ts` ([AUTOPILOT.md](AUTOPILOT.md#what-an-autopilot-pull-request-can-never-change)). | Website data validation |
 | A new release | [Release intake](#release-intake), then the refresh sequences below | All of the above |
 
 **Everything at once.** `npm run autopilot:check` runs the `verify` job's commands, then `npm run autopilot:privacy`, then the autopilot guard against `origin/main`. Commit first, because the guard reads commits. `npm run autopilot:quick` leaves out `verify:data` and the browser scenarios ([AUTOPILOT.md](AUTOPILOT.md#tools)).
@@ -53,6 +53,46 @@ S8 measures the gzipped bytes of every script a page's exported HTML names, for 
 
 `docs/evidence/half/source-recount.json` is the receipt of the local source recount. Run `npm run verify:half-source` (about 90 seconds and 1 GB) after any half rebuild, then commit the receipt with the data and the cards. `verify-half`, which runs in `verify:data` and in the Half marathon `check` job, fails while the receipt is stale. The `source` job repeats the recount from the public assets without writing a receipt.
 
+### The link and anchor check
+
+No script or CI job checks the documents' links yet (a CI check awaits the owner: [handoff](PROJECT_HANDOFF.md#open-for-the-owner), item 12). Run this from the repository root; it reads every tracked Markdown file, resolves each relative link and each `#anchor` the way GitHub writes heading anchors, skips fenced code, and exits 1 on any broken link:
+
+```bash
+python3 -I - $(git ls-files '*.md') <<'EOF'
+import os, re, sys, unicodedata
+def slug(h):  # GitHub's heading anchors
+    h = re.sub(r'<[^>]+>|`', '', h.strip().lower())
+    return ''.join(c for c in h if c in '-_ ' or unicodedata.category(c)[0] in 'LN').replace(' ', '-')
+def lines(path):  # skips fenced code blocks
+    fence = False
+    for n, line in enumerate(open(path, encoding='utf8'), 1):
+        if re.match(r'\s*```[\w+-]*\s*$', line): fence = not fence
+        elif not fence: yield n, line
+seen = {}
+def anchors(path):
+    if path not in seen:
+        found, count = set(), {}
+        for _, line in lines(path):
+            m = re.match(r'(#{1,6})\s+(.*?)\s*#*\s*$', line)
+            if m:
+                b = slug(m.group(2)); k = count.get(b, 0); count[b] = k + 1
+                found.add(b if k == 0 else f'{b}-{k}')
+            found.update(re.findall(r'<a (?:name|id)="([^"]+)"', line))
+        seen[path] = found
+    return seen[path]
+bad = 0
+for f in sys.argv[1:]:
+    for n, line in lines(f):
+        for url in re.findall(r'\]\(([^)\s]+)', line):
+            if re.match(r'[a-z]+:', url): continue
+            target, _, frag = url.partition('#')
+            t = os.path.normpath(os.path.join(os.path.dirname(f), target)) if target else f
+            if not os.path.exists(t) or (frag and t.endswith('.md') and frag not in anchors(t)):
+                print(f'{f}:{n}: broken link {url}'); bad += 1
+print('broken links:', bad); sys.exit(1 if bad else 0)
+EOF
+```
+
 ## Before you push
 
 1. **Commit only your own files.** Use `git add <paths>`. When other agents share the worktree, never use `git add -A` or a bare `git stash`. Never commit another agent's unfinished edits to satisfy a hook that asks you to commit: wait until their step has finished.
@@ -73,6 +113,16 @@ S8 measures the gzipped bytes of every script a page's exported HTML names, for 
 
 ## Pull requests, merging and deploying
 
+- **Who merges.** Merge an owner or agent pull request only when the owner has asked for that pull request to merge, and quote and date the request in it (for example "Can you also add options for paces per mile for each 5k and mile time then merge it", October 29, 2026, and "publish everything and full merge", October 30, 2026; [register](OWNER_DECISIONS.md)). Autopilot pull requests are merged only by the merge workflow ([constitution](../autopilot/CONSTITUTION.md) §4.3).
+- **Open and merge through REST.** `gh pr …` is refused here ([agent environment notes](#agent-environment-notes)), so use `gh api`:
+
+  ```bash
+  gh api repos/koolkam00/pace-notes/pulls -f title='<title>' -f head=<branch> -f base=main -F draft=true -F body=@<body file>
+  gh api repos/koolkam00/pace-notes/pulls/<n> --jq '{state, draft, mergeable_state, head: .head.sha}'
+  gh api -X PUT repos/koolkam00/pace-notes/pulls/<n>/merge -f merge_method=squash -f sha=<head sha>   # only on the owner's request
+  ```
+
+  Passing `sha` makes GitHub refuse the merge if the head moved after you checked it.
 - **Branch from current `main`:** `git fetch origin`, then `git worktree add -b <branch> <dir> origin/main`. An agent reads `AGENTS.md` from the commit it has checked out, so a stale clone gives it stale rules. Do not start an owner branch with `autopilot/`: the merge workflow treats every such branch as an autopilot pull request ([AUTOPILOT.md](AUTOPILOT.md#merge-gates)).
 - **The repository squash-merges.** Every first-parent commit on `main` since #57 is `Title (#N)` (22 of 22 on October 30, 2026). Merge commits and rebasing are also allowed, and branches are kept after a merge (`delete_branch_on_merge` is false).
 - **A pull request whose commits were merged into a feature branch is not marked merged when the feature branch squash-merges.** Merge it into `main` first, then bring `main` into the feature branch. On October 30, 2026, #84 was merged at 20:27:06 UTC, before #85 at 20:49:11 UTC.
@@ -87,7 +137,7 @@ S8 measures the gzipped bytes of every script a page's exported HTML names, for 
   npm run verify:seo:live
   ```
 
-  Behind a proxy, run the smoke test with `NODE_USE_ENV_PROXY=1`. `scripts/write-version.cjs` writes `version.json` at build time from `VERCEL_GIT_COMMIT_SHA`. Then update the current state in the [project handoff](PROJECT_HANDOFF.md), with the time in UTC. A documentation-only merge changes no page, so it needs no follow-up beyond reading `version.json`.
+  Behind a proxy, run the smoke test with `NODE_USE_ENV_PROXY=1`. `scripts/write-version.cjs` writes `version.json` at build time from `VERCEL_GIT_COMMIT_SHA`. Then, for a merge that changes a page, data, a contract or a workflow, record it in the [project handoff](PROJECT_HANDOFF.md#current-state)'s Current state in the next pull request, with the time in UTC ([AGENTS.md](../AGENTS.md) rule 19). A documentation-only or record-only merge changes no page: read `version.json` and record nothing more.
 
 ## Release intake
 
@@ -107,11 +157,20 @@ Releases come from two repositories:
 2. **A correction release supersedes the metadata it names.** `half-dataset-20261029-2157` says "243 verified (stamped) editions — supersedes half-dataset-20261029-1202, which said 314". It was published hours before the half pages merged and withdrew the verified label from 72 editions (869,551 finishes; [half marathons](HALF_MARATHON.md)). The pin keeps the 1202 snapshot and links and pins the correction's `csv-edition_meta.csv.zst` as `metadata_correction`, applied as "verified = stamped in both".
 3. **Pin the public release when there is one,** and keep a private tag as provenance (the half pin's `private_tag` and `provenance` fields).
 4. **Before joining corrected metadata to an older snapshot, check that the join key is stable between them.** Count the edition ids whose city or year differ. Never assume they match.
-5. **For a new marathon export,** nothing is calculated until its edition policy is reviewed (`REVIEWED_POLICIES` in `analysis/source_quality.py`). Download, inspect and audit it as in [reproduce and audit](#reproduce-and-audit-the-current-input), with `--previous` set to the previously adopted release's input folder.
+5. **For a new marathon export,** nothing is calculated until its edition policy is reviewed (`REVIEWED_POLICIES` in `analysis/source_quality.py`). Download, inspect and audit it as in [reproduce and audit](#reproduce-and-audit-the-current-input), with `export TAG=<new tag>` first (those commands read the pin's tag only when `TAG` is unset, and the pins change at step 8) and `--previous` set to the previously adopted release's input folder.
 6. **Check every new asset URL anonymously and date the result** ([access checks](#access-checks)). Then rewrite the top of [analysis/ACCESS.md](../analysis/ACCESS.md) (step 5 of [verify access and source state](#verify-access-and-source-state)).
-7. **Write `docs/REFRESH_<tag>.md`** (the [1050 record](REFRESH_20261021_1050.md) is the model), update the pins, and run the refresh sequences.
-8. **Sweep the documents for the previous release.** Use `git grep -n -E "<previous tag>|<its headline counts>" -- '*.md' ':!docs/history' ':!docs/REFRESH_*' ':!docs/evidence'`, then update each hit or label it with its release. PR #78 (1050) updated ten documents. On October 30, 2026, six it did not touch (STORIES, TOOLS, TOP_TEN_ANALYSES, ANALYSIS_CATALOG, WEBSITE_ARCHITECTURE and SEO) still named the 1652 tag or its eligible count.
-9. **A published release starts Marathon pacing analysis. Read its steps, not its colour.** The half-dataset releases gave skipped runs, because the job accepts only `private-export-` and `htw-db-` tags. The 0829 and 1050 releases gave failed runs on October 21, 2026: both stopped at "Download verified FULL export" (runs 39601391082 and 39623893354).
+7. **The half binds the marathon release.** `lib/half-server.ts` stops the site build ("Half data must use the adopted marathon release.") until the half pin's `marathon_release` names the adopted tag and the half data are rebuilt, and the link build must be redone for the new release, because link record ids follow the marathon release's canonical ids ([half refresh](#half-refresh)). Ask the producer for a link build on the new release before adoption; then follow the half refresh (the half pin, `EXPECTED` in `analysis/half_marathon.py`, `REVIEWED_MARATHON` in `scripts/verify-half-source.cjs`, a new receipt). Whether an adoption waits for that link build or the half is withdrawn meanwhile is for the owner; no decision is recorded ([handoff](PROJECT_HANDOFF.md#open-for-the-owner)).
+8. **Write `docs/REFRESH_<tag>.md`** (the [1050 record](REFRESH_20261021_1050.md) is the model), set `tag` in `analysis/release.json` and `analysis/weather-release.json` to the audited tag, update the code that names the adopted tag (below), and run the refresh sequences.
+9. **Sweep the documents for the previous release.** Use `git grep -n -E "<previous tag>|<its headline counts>" -- '*.md' ':!docs/history' ':!docs/REFRESH_*' ':!docs/evidence'`, then update each hit or label it with its release. PR #78 (1050) updated eleven existing documents and added two refresh records. On October 30, 2026, six it did not touch (STORIES, TOOLS, TOP_TEN_ANALYSES, ANALYSIS_CATALOG, WEBSITE_ARCHITECTURE and SEO) still named the 1652 tag or its eligible count.
+10. **A published release starts Marathon pacing analysis. Read its steps, not its colour.** The half-dataset releases gave skipped runs, because the job accepts only `private-export-` and `htw-db-` tags. The 0829 and 1050 releases gave failed runs on October 21, 2026: both stopped at "Download verified FULL export" (runs 39601391082 and 39623893354).
+
+**Code that names the adopted tag** (update it in the adoption pull request; each check fails until it is):
+
+- `REVIEWED_POLICIES` (and a `RULES_<stamp>` entry) in `analysis/source_quality.py`; `CANONICAL_ID_RELEASES` in `analysis/build_extended.py`; the accepted `input_export_id` values in `analysis/calculation_provenance.py`, `scripts/verify-research.cjs` and `scripts/verify-personalized.cjs`.
+- `lib/kept-holds.json` (the producer-held editions kept after review, by tag).
+- The half: `EXPECTED` in `analysis/half_marathon.py`, `REVIEWED_MARATHON` in `scripts/verify-half-source.cjs` and `marathon_release` in `analysis/half-release.json` (step 7).
+- The release dates kept out of visible copy: `RELEASE_LABEL` in `scripts/lib/words.cjs` and `BANNED` in `scripts/verify-courses.cjs`.
+- Owner-only: the current tag in `autopilot/CONSTITUTION.md` §2.1, its release dates in §3.4 and `BANNED` in `scripts/autopilot-guard.cjs`. PR #78 edited the constitution for 1050; propose such changes to the owner as the handoff's [Open for the owner](PROJECT_HANDOFF.md#open-for-the-owner) item 13 does.
 
 ## Access checks
 
@@ -127,7 +186,7 @@ Releases come from two repositories:
 - **A HEAD request is not a valid test.** `curl -I` answered 401 at the asset host through this proxy, even for that public asset.
 - **DOIs.** A 302 from `https://doi.org/<doi>` shows that the DOI resolves. figshare's pages answer scripted clients with a 202 challenge, so they prove neither access nor absence (both measured October 30, 2026).
 - **Stronger evidence** is a CI job with no token in its environment, or a signed-out browser. On October 30, 2026, the Half marathon `source` job downloaded every pinned half asset from github.com release URLs with no token (run 41126215052, on the #85 merge).
-- **Record the date, time (UTC), method, URL and result.** The current result goes in the [project handoff](PROJECT_HANDOFF.md#public-access-and-operations), and each release's result in [analysis/ACCESS.md](../analysis/ACCESS.md).
+- **Record the date, time (UTC), method, URL and result.** The current result goes in the [project handoff](PROJECT_HANDOFF.md#current-state)'s Current state, and each release's result in [analysis/ACCESS.md](../analysis/ACCESS.md).
 
 ## CI workflow map
 
@@ -190,11 +249,11 @@ Use [analysis/README.md](../analysis/README.md) for the complete calculation and
 
 ## Reproduce and audit the current input
 
-Run from the repository root with Python 3.12 and fresh output directories. The commands here and in the next two sections read the tag from the pin. `PREV` is the input folder of the previously adopted release, downloaded the same way (1050 was audited against `htw-db-2026-10-16-1652`). `LIVE_AS_OF` is the current compatibility-metadata timestamp, read from the live site as the pacing workflow does; it is context, not the source release.
+Run from the repository root with Python 3.12 and fresh output directories. The commands here and in the next two sections use `TAG`, which defaults to the pin's tag. For a candidate release, `export TAG=<new tag>` first ([release intake](#release-intake) step 5): the pins change only when the release is adopted (step 8). `PREV` is the input folder of the previously adopted release, downloaded the same way (1050 was audited against `htw-db-2026-10-16-1652`). `LIVE_AS_OF` is the current compatibility-metadata timestamp, read from the live site as the pacing workflow does; it is context, not the source release.
 
 ```bash
 python -m pip install -r analysis/requirements.txt
-TAG=$(python -c 'import json; print(json.load(open("analysis/release.json"))["tag"])')
+TAG=${TAG:-$(python -c 'import json; print(json.load(open("analysis/release.json"))["tag"])')}
 IN=/path/to/$TAG-input; CORE=/path/to/$TAG-core; WORK=/path/to/$TAG-work; PREV=/path/to/<previous tag>-input
 LIVE_AS_OF=$(curl -fsS https://splithappens.run/data/live.json | python -c 'import json, sys; print(json.load(sys.stdin)["as_of"])')
 python analysis/download_release.py --bundle FULL --tag "$TAG" --output "$IN"
@@ -247,7 +306,7 @@ npm run verify:data
 npm run build
 ```
 
-Review and copy the weather JSON to `public/data/weather/evidence.json` with its exact `analysis/weather-release.json` pin; update `analysis/release.json` with the validated main outputs. The weather file is outside the two ZIP importer contracts. Verify source/script/policy hashes, raw-to-eligible and weather-cohort reconciliation, all candidate gates, dynamic routes, exact source labels and display units. For the current audited release, `calculation_provenance.py` requires the exact reviewed builder and supporting-script hashes before either import; a valid-looking 64-character hash is insufficient. Website data validation repeats these checks on PRs and main. Review the full diff before committing or merging. Verify the deployed source tags and exact commit separately after publication.
+Review and copy the weather JSON to `public/data/weather/evidence.json` with its exact `analysis/weather-release.json` pin. Both pins hold only `repository` and `tag`; at adoption, set `tag` in both to the audited tag ([release intake](#release-intake) step 8). The weather file is outside the two ZIP importer contracts. Verify source/script/policy hashes, raw-to-eligible and weather-cohort reconciliation, all candidate gates, dynamic routes, exact source labels and display units. For the current audited release, `calculation_provenance.py` requires the exact reviewed builder and supporting-script hashes before either import; a valid-looking 64-character hash is insufficient. Website data validation repeats these checks on PRs and main. Review the full diff before committing or merging. Verify the deployed source tags and exact commit separately after publication.
 
 Every active analysis must now use the same adopted release. The supporting-study and runner importer replaces only `public/data/study`, `public/data/runners` and current `live.json` compatibility metadata. It validates every shard, every record and every eligible timing that the runner manifest counts (`raw_records` and `eligible_records` in `public/data/runners/manifest.json`: 5,327,504 and 4,108,749 under 1050), name-index membership and calculation/source hashes before import. Historical S/R/RN/P numerical files remain in Git history, outside deployed output. The source pin alone never certifies a refresh.
 
@@ -394,7 +453,9 @@ Then capture and read every half surface (`/half`, `/stories/half-to-full`, the 
 
 **CI.** The **Half marathon** workflow's `check` job runs the tests, `verify-half` and the card check on every change to the half files. Its `source` job repeats steps 1 and 2 anonymously from the public releases (download, rebuild into the runner's temp folder, byte comparison with `public/data/half/`, recount with `--no-write`) on `workflow_dispatch` and on pushes to `main` and pull requests that touch the pin, the policy JSON, a builder, the anonymous downloader (`analysis/download_half.py`) or `analysis/requirements.txt`, the recount or the workflow; otherwise it prints "skipped: this change touches no half pin, policy, builder, downloader or recount file". Before relying on a change to its steps, run them on a machine first (October 30, 2026: the first local run found the links SQLite's untyped columns, fixed in `half_links_extract.py`). The push that merged #85 ran the job in full from the public assets (run 41126215052, October 30, 2026, 20:49 to 20:55 UTC).
 
-**A new snapshot, link build or corrected metadata:** pin the new tags, asset sums and `sqlite_sha256` (and `private_tag` when the snapshot or link build has its own identity) in `analysis/half-release.json`; cut the extract with `--pin` (it writes `extract_content_sha256`); add a reviewed entry to `REVIEWED_HALF_POLICIES` in `analysis/half_quality.py`, print the recomputed lists with `python3 -I analysis/half_quality.py --discover --half <snapshot>` (local only; never commit its output), review every one (R3, R4, E2–E8, and the withdrawn and weaker-source stamps of a corrected metadata file, frozen in `half_policy_lists.py` with the file's sha256), freeze the entry with `--write-policy` under a new policy file name and confirm it with `--check --half <snapshot> --corrected-meta <file>`; build with `--accept-counts` only after reading every count change it prints, then set the reviewed `EXPECTED` counts from that run; rerun the source recount; check every new asset URL anonymously with a ranged GET and date it; rewrite the dated evidence and the owner questions in [half marathons](HALF_MARATHON.md).
+**A new snapshot or link build:** pin the new tags, asset sums and `sqlite_sha256` (and `private_tag` when the snapshot or link build has its own identity) in `analysis/half-release.json`; cut the extract with `--pin` (it writes `extract_content_sha256`); add a reviewed entry to `REVIEWED_HALF_POLICIES` in `analysis/half_quality.py`, keyed by the new snapshot tag, print the recomputed lists with `python3 -I analysis/half_quality.py --discover --half <snapshot>` (local only; never commit its output), review every one (R3, R4 and E2–E8), freeze the entry with `--write-policy` under a new policy file name, point the pin's `policy` at it and confirm it with `--check --half <snapshot> --corrected-meta <file>`; build with `--accept-counts` only after reading every count change it prints, then set the reviewed `EXPECTED` counts from that run; rerun the source recount; check every new asset URL anonymously with a ranged GET and date it; rewrite the dated evidence and the owner questions in [half marathons](HALF_MARATHON.md).
+
+**New corrected metadata for the snapshot already pinned** (the case of `half-dataset-20261029-2157`): the snapshot's entry in `REVIEWED_HALF_POLICIES` holds one `correction` and the pin one `metadata_correction`, so the newer file replaces the older one, and "verified" stays "stamped in both" the snapshot and the newest correction. Pin it in `metadata_correction` (`tag`, `asset`, `sha256`, `readme_sha256`, `applied`); add a `CORRECTION_<stamp>` block to `analysis/half_quality.py` and its withdrawn and weaker-source stamps to `analysis/half_policy_lists.py`, each list reviewed against the file; repoint that entry's `correction`, `corrected` date and `expected` counts; check that the edition ids join (count the ids whose city or year differ; [release intake](#release-intake) step 4); rewrite the same policy file with `--write-policy` (its name follows the snapshot, so the pin's `policy` is unchanged) and confirm it with `--check`; then build, recount and record as above, and update the docstrings that name the correction (`analysis/build_half.py`, `analysis/download_half.py`).
 
 ## Producer operations and missing information
 

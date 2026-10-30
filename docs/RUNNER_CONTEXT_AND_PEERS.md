@@ -52,7 +52,7 @@ The September 12, 2026 (1107) local calculation record that ended this document 
 
 ## History (earlier releases)
 
-Text moved here word for word on October 30, 2026 from this file at commit `b21095ae`, when the sections above were rewritten for 1050. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
+Text moved here word for word on October 30, 2026 from this file at commit `b21095ae`, a commit of this documentation pass on branch `docs/pass-2026-10` (at `main`'s `a2c6e507` the same lines are 3, 5, 80 and 86–90, line 5 with its link as it was before the moves), when the sections above were rewritten for 1050. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
 
 ### The source paragraph, as written on October 21–22, 2026 (line 3)
 

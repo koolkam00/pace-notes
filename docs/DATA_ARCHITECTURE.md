@@ -2,7 +2,7 @@
 
 How race data reaches the site: where each input lives, which identifiers name it, what counts as an eligible finish, how records join across files and races, and which overlays (weather, course profiles, the half-marathon source) are attached. Counts below name their release. The current refresh record is [REFRESH_20261021_1050.md](REFRESH_20261021_1050.md); what is deployed is in the [project handoff](PROJECT_HANDOFF.md#current-state).
 
-**Current source: `private-export-20261021-1050`** (repository `koolkam00/pace-notes`; manifest created `2026-10-21T15:02:30Z`). Both [analysis/release.json](../analysis/release.json) and [analysis/weather-release.json](../analysis/weather-release.json) name it in `tag`. It was adopted in PR #78, merged to `main` as `39f3057` on October 22, 2026 and live the same day ([refresh record](REFRESH_20261021_1050.md#deployed-october-22)); production `/data/live.json` still named it on October 30, 2026 at 21:45 UTC (`release_tag`, `as_of` `2026-10-21T16:10:31Z`). Earlier sources are in the [release history](#release-history).
+**Current source: `private-export-20261021-1050`** (repository `koolkam00/pace-notes`; manifest created `2026-10-21T15:02:30Z`). Both [analysis/release.json](../analysis/release.json) and [analysis/weather-release.json](../analysis/weather-release.json) name it in `tag`. It was adopted in PR #78, merged to `main` as `39f3057` on October 22, 2026 and live the same day ([refresh record](REFRESH_20261021_1050.md#deployed-october-22)); what production's `/data/live.json` names now is checked, with its date, in the handoff's [Current state](PROJECT_HANDOFF.md#current-state). Earlier sources are in the [release history](#release-history).
 
 ## Storage and transfer
 
@@ -139,7 +139,7 @@ The old `live.json` charts and S/R/RN/P calculations are retained in Git history
 
 ## History (earlier releases)
 
-Text moved here word for word on October 30, 2026 from this file at commit `b21095ae`, when the sections above were rewritten for 1050. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
+Text moved here word for word on October 30, 2026 from this file as it stood at `main`'s commit `a2c6e507`, when the sections above were rewritten for 1050. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
 
 ### The current-source line, as written on October 21–22, 2026 (line 3)
 

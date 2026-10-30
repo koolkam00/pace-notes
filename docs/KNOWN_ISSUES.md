@@ -82,7 +82,7 @@ Historical September 10 [archive](evidence/2026-09-11/archive-members-audit.json
 
 ## History
 
-Text moved here word for word on October 30, 2026 from this file at commit `b21095ae`, when the issue table gained its **Measured in** column and was brought up to date. Older versions are in Git history.
+Text moved here word for word on October 30, 2026 from this file as it stood at `main`'s commit `a2c6e507`, when the issue table gained its **Measured in** column and was brought up to date. Older versions are in Git history.
 
 ### The status line, as written on October 21–22, 2026 (line 7)
 

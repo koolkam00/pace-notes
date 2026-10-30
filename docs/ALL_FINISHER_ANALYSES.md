@@ -124,7 +124,7 @@ Record calculation output, tests, PR checks, merge and production checks separat
 
 ## History (earlier releases)
 
-Text moved here word for word on October 30, 2026 from this file at commit `b21095ae`, when the sections above were rewritten for 1050 and the redesigned site. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
+Text moved here word for word on October 30, 2026 from this file as it stood at `main`'s commit `a2c6e507`, when the sections above were rewritten for 1050 and the redesigned site. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
 
 ### The earlier-result mode and routes, as written before the redesign merged (lines 17, 21 and 23)
 

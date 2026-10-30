@@ -105,7 +105,7 @@ The defaults (the initial profile, the target range and the earlier-time bands) 
 
 ## History (earlier releases)
 
-Text moved here word for word on October 30, 2026 from this file at commit `049470aa`, when the sections above were rewritten in the present tense. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
+Text moved here word for word on October 30, 2026 from this file as it stood at `main`'s commit `a2c6e507`, when the sections above were rewritten in the present tense. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
 
 ### The opening sections, as written for release 1652 (lines 5–14)
 

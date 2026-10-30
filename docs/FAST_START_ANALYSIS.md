@@ -134,7 +134,7 @@ Refreshing the runner lookup requires regenerating **both** outputs against the 
 
 ## History (earlier releases)
 
-Text moved here word for word on October 30, 2026 from this file at commit `b21095ae`, when the sections above were rewritten for 1050. The three result sections keep their headings, one level lower. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
+Text moved here word for word on October 30, 2026 from this file as it stood at `main`'s commit `a2c6e507`, when the sections above were rewritten for 1050. The three result sections keep their headings, one level lower. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
 
 ### The opening and source paragraphs, as written for release 1652 (lines 3, 9 and 13)
 

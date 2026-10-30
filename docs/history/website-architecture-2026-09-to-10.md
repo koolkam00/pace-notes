@@ -1,6 +1,6 @@
 # Website architecture: earlier text (to October 30, 2026)
 
-> Moved here word for word on October 30, 2026 from [`docs/WEBSITE_ARCHITECTURE.md`](../WEBSITE_ARCHITECTURE.md) at commit `049470aa`, when that file was rewritten in the present tense. The line numbers are that commit's. Branch, merge and deploy states are as they were written; the current state is in the [project handoff](../PROJECT_HANDOFF.md#current-state). Relative links are re-pointed for this folder.
+> Moved here word for word on October 30, 2026 from [`docs/WEBSITE_ARCHITECTURE.md`](../WEBSITE_ARCHITECTURE.md) at commit `049470aa` on branch `docs/pass-2026-10` (the same line numbers at `main`'s `a2c6e507`, where one link still pointed to a section before it moved), when that file was rewritten in the present tense. The line numbers are that commit's. Branch, merge and deploy states are as they were written; the current state is in the [project handoff](../PROJECT_HANDOFF.md#current-state). Relative links are re-pointed for this folder.
 
 ## The half marathon: status line (line 5)
 

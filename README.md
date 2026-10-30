@@ -46,7 +46,7 @@ Open `http://localhost:3000`. `npm run build` writes the static site to `out/`. 
 
 Before a pull request, run the checks for your kind of change: they are listed in [operations: checks by change type](docs/OPERATIONS.md#checks-by-change-type), and CI's "Website data validation" workflow runs the site set (`verify` and `privacy-e2e`) on every pull request.
 
-**Deployment.** The public host is [Pace Notes](https://splithappens.run). Vercel's Git integration builds every pull request as a preview and deploys `main` to production when a pull request merges; `/version.json` names the deployed commit (October 30, 2026: #85 merged at 20:49:11 UTC, and production's `version.json` named that commit, built at 20:50:31 UTC). Check it before saying a change is live.
+**Deployment.** The public host is [Pace Notes](https://splithappens.run). Vercel's Git integration builds every pull request as a preview and deploys `main` to production when a pull request merges; `/version.json` names the deployed commit, and the dated check of it is in the handoff's [Current state](docs/PROJECT_HANDOFF.md#current-state). Check it before saying a change is live.
 
 ## Working on this repository
 
