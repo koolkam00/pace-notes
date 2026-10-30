@@ -114,7 +114,7 @@ export default function HalfBody() {
         {/* A wider value column than the form's (two shares per row), and none on a zoomed-in screen (half.css). */}
         <div className="half-cities">
           <Dumbbell rows={sc.cities.map((c) => ({ id: c.city, label: c.city, a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` }))}
-            domain={[0, 0.6]} ticks={[0, 0.3, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}
+            domain={[0, 0.6]} ticks={[0, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}
             label={`Women’s share of recorded finishes in the same city and year, marathon then half: ${sc.cities.map((c) => `${c.city} ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
         </div>
         <SaveImage slug="half-more-women" />
