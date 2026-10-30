@@ -151,7 +151,7 @@ export function halfExtraFrom(linked: HalfLinked): Nugget {
     headline: `After a half, the typical marathon took double it plus *${minutes} minutes*.`,
     fallback: 'The marathon after a half, against double the half.',
     figure,
-    key: figureOk ? 'of marathons came in under double the half before them' : 'over double the half, typical',
+    key: figureOk ? 'of marathons came in under double the half marathon before them' : 'over double the half marathon, typical',
   };
 }
 

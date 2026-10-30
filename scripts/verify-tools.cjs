@@ -1529,7 +1529,8 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     const from = t.evidence.length ? t.evidence.map((kind) => registry.EVIDENCE_LABEL[kind].toLowerCase()).join(' and ') : 'only your own inputs';
     assert.ok(note.includes(`${t.title.toLowerCase()} uses ${from}`), `The cohort note says the ${t.slug} tool uses ${from}: ${note}`);
   }
-  assert.equal(cohortNote.screenedPages(), `the stories, the course pages and ${dataPhrase}`);
+  // "the marathon stories" once the half story (which starts from half and marathon pairs) is in the build.
+  assert.equal(cohortNote.screenedPages(), `the ${fs.existsSync(path.join(__dirname, '..', 'public/data/half/linked.json')) ? 'marathon stories' : 'stories'}, the course pages and ${dataPhrase}`);
   const homeSource = fs.readFileSync(path.join(__dirname, '..', 'app/(home)/page.tsx'), 'utf8');
   const hubSource = fs.readFileSync(path.join(__dirname, '..', 'app/research/(hub)/page.tsx'), 'utf8');
   for (const [where, source] of [['home page', homeSource], ['/research', hubSource]]) {

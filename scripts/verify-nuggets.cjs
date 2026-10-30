@@ -118,7 +118,7 @@ ok(/^of races traced to their course by pacing shape alone, against \d+% by chan
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
 ok(/^of finishes (?:just over \d:\d\d|from \d:\d\d to \d:\d\d) had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
 ok(/^of finishes on even \d:\d\d pace at 30K still got under \d:\d\d$/.test(keys['checkpoint.under']), 'chapter 04 key');
-eq(keys['half.extra'], 'of marathons came in under double the half before them', 'chapter 11 key (the half story opens it, October 29, 2026)');
+eq(keys['half.extra'], 'of marathons came in under double the half marathon before them', 'chapter 11 key (the half story opens it, October 29, 2026)');
 eq(N.getNugget('gains.final').key, 'of the minutes improving finishes gained came after 30K', 'gains.final key (second in chapter 11)');
 
 // Every key stands alone as a short phrase a runner reads under its figure: never a bare figure jammed against a unit

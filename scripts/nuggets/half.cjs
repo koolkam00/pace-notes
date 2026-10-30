@@ -125,7 +125,7 @@ module.exports = function half({ json, eq, ok, core }) {
     const share = linked.overall.under_double_plus_min['0'];
     const figureOk = Object.values(battery).every((m) => m.under_double < 0.15) && Math.abs(share - battery.verified_halves.under_double) <= 0.03;
     eq(n.figure.value, figureOk ? String(Math.round(share * 100)) : `+${minutes}`, 'half.extra: the figure');
-    eq(n.key, figureOk ? 'of marathons came in under double the half before them' : 'over double the half, typical', 'half.extra: the key');
+    eq(n.key, figureOk ? 'of marathons came in under double the half marathon before them' : 'over double the half marathon, typical', 'half.extra: the key');
     ok(n.figure.value !== String(minutes) && !core.plain(shown(n)).includes(`${n.figure.value}%`), 'half.extra: the H1 accent and the figure are different numbers');
     eq(n.denominator, 'linked', 'half.extra: the linked family');
   };

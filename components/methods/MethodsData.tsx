@@ -73,7 +73,9 @@ export default function MethodsData() {
     <Topic id="totals" title="Which pages start from which total">
       <CohortNote />
       <HalfTotalsLine />
-      <p>Each page then applies its own screens, listed in its section below.{tools.whole ? <> The tools with Pace Notes data keep {n(tools.n)} of the {n(manifest.analysis_n)}: the editions without start delays or shifted mats (<a href="#tools-data">what the tool data includes</a>).</> : null}</p>
+      {/* The half panels take their marathons from every eligible finish (#tools-data), so the tools' screened total is
+          given with that exception wherever the half data is in the build. */}
+      <p>Each page then applies its own screens, listed in its section below.{tools.whole ? <> The tools with Pace Notes data keep {n(tools.n)} of the {n(manifest.analysis_n)}: the editions without start delays or shifted mats{half?.files['tools/half-to-full.json'] ? <>, except the predictor’s half panel and the goal pages’ half line, whose marathons come from every eligible finish</> : null} (<a href="#tools-data">what the tool data includes</a>).</> : null}</p>
     </Topic>
 
     <Topic id="copy-editions" title="Copy editions">
