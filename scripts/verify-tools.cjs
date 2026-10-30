@@ -1563,26 +1563,28 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     assert.ok(w155 && w155.h === H(1, 55) && w155.n === 2056 && w155.e === 79 && w155.q[9] === 15338.5, `1:55 all window: ${JSON.stringify(w155 && [w155.n, w155.e, w155.q[9]])}`); ok();
     assert.deepEqual(marksOf(w155), { 14400: 0.2154669261, 15300: 0.4892996109, 16200: 0.7490272374 }, '1:55 marks'); ok();
     assert.equal(w155.sus, 0.329766537, '1:55 sustained slowdown'); ok();
-    assert.equal(htf.linkedSentence(w155, Q), 'After a half near 1:55, the typical marathon 3 to 16 weeks later took *4:15*; the middle half of them took 4:01 to 4:30.'); ok();
+    // The sentence's range is the 10th to 90th percentile, the span the strip brackets ("8 in 10"), as on the story and
+    // the goal pages (round 2 review).
+    assert.equal(htf.linkedSentence(w155, Q), 'After a half near 1:55, the typical marathon 3 to 16 weeks later took *4:15*; 8 in 10 took 3:53 to 4:46.'); ok();
     assert.equal(htf.LINKED_LINE, 'Half and marathon records linked by name.'); ok();
     assert.equal(htf.slowdownSentence(w155), '33% of these marathons had a sustained slowdown.'); ok();
     assert.deepEqual(htf.markLabels(w155), ['22% under 4:00', '49% under 4:15', '75% under 4:30']); ok();
     const f155 = win(H(1, 55), 'F');
     assert.ok(f155 && f155.n === 694 && f155.e === 61 && f155.q[9] === 15212.5 && f155.sus === 0.1671469741, `1:55 women: ${JSON.stringify(f155 && [f155.n, f155.e, f155.q[9], f155.sus])}`); ok();
     assert.equal(win(H(1, 45)).q[9], 14056, '1:45 all median'); ok();
-    // The spec's example rows: pairs (editions), median, the middle half (p25–p75), marks, sustained slowdown.
+    // The spec's example rows: pairs (editions), median, 8 in 10 (p10–p90), marks, sustained slowdown.
     for (const [s, g, n, e, median, mid, marks, sus] of [
-      [H(1, 55), 'F', 694, 61, '4:13', '4:02 to 4:25', ['21%', '54%', '82%'], '17%'],
-      [H(1, 55), 'M', 1362, 69, '4:16', '4:01 to 4:32', ['22%', '46%', '71%'], '41%'],
-      [H(1, 45), 'all', 2573, 84, '3:54', '3:44 to 4:05', ['27% under 3:45', '67% under 4:00', '85% under 4:15'], '27%'],
-      [H(1, 45), 'F', 479, 63, '3:49', '3:42 to 3:57', ['37% under 3:45', '82% under 4:00'], '10%'],
-      [H(1, 30), 'all', 2154, 79, '3:17', '3:09 to 3:25', ['7% under 3:00', '43% under 3:15', '83% under 3:30'], '17%'],
-      [H(2, 15), 'all', 677, 55, '4:57', '4:37 to 5:16', ['32% under 4:45', '54% under 5:00', '73% under 5:15'], '37%'],
+      [H(1, 55), 'F', 694, 61, '4:13', '3:55 to 4:38', ['21%', '54%', '82%'], '17%'],
+      [H(1, 55), 'M', 1362, 69, '4:16', '3:51 to 4:49', ['22%', '46%', '71%'], '41%'],
+      [H(1, 45), 'all', 2573, 84, '3:54', '3:35 to 4:22', ['27% under 3:45', '67% under 4:00', '85% under 4:15'], '27%'],
+      [H(1, 45), 'F', 479, 63, '3:49', '3:35 to 4:06', ['37% under 3:45', '82% under 4:00'], '10%'],
+      [H(1, 30), 'all', 2154, 79, '3:17', '3:03 to 3:37', ['7% under 3:00', '43% under 3:15', '83% under 3:30'], '17%'],
+      [H(2, 15), 'all', 677, 55, '4:57', '4:10 to 5:32', ['32% under 4:45', '54% under 5:00', '73% under 5:15'], '37%'],
     ]) {
       const w = win(s, g);
       assert.ok(w && w.n === n && w.e === e, `${time.formatHM(s)} ${g}: ${w && w.n} (${w && w.e})`);
       const said = htf.linkedSentence(w, Q);
-      assert.ok(said.startsWith(`After a half near ${time.formatHM(Math.round(s / 60) * 60)}, `) && said.includes(`took *${median}*`) && said.endsWith(`; the middle half of them took ${mid}.`), `${time.formatHM(s)} ${g}: ${said}`);
+      assert.ok(said.startsWith(`After a half near ${time.formatHM(Math.round(s / 60) * 60)}, `) && said.includes(`took *${median}*`) && said.endsWith(`; 8 in 10 took ${mid}.`), `${time.formatHM(s)} ${g}: ${said}`);
       const labels = htf.markLabels(w);
       assert.ok(marks.every((m) => (m.includes(' under ') ? labels.includes(m) : labels.some((l) => l.startsWith(`${m} under `)))), `${time.formatHM(s)} ${g} marks: ${labels.join(', ')}`);
       assert.ok(htf.slowdownSentence(w).startsWith(`${sus} of these`), `${time.formatHM(s)} ${g}: ${htf.slowdownSentence(w)}`);
@@ -1612,11 +1614,12 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     // The readout's pace gap: the extra over double ÷ the marathon distance (+55 s/mi, +34 s/km at 1:45).
     const b105 = linked.windows.all.find((w) => w.h === H(1, 45));
     assert.equal(htf.paceGapText(b105.extra_p50, 'mi'), '+55 s/mi'); assert.equal(htf.paceGapText(b105.extra_p50, 'km'), '+34 s/km'); checks += 2;
-    // The goal pages' "The half before": every row of the spec's table, and forward-consistent with the predictor (the
-    // window at H has a median under the goal, the window a minute slower does not).
+    // The goal pages' "The half marathon before": every row of the spec's table, and forward-consistent with the
+    // predictor (the window at H has a median under the goal, the window a minute slower does not).
     // The lead names the share of the window's marathons under the goal (just over half: the window is where the
-    // typical marathon crosses the goal), from the window's published mark at the goal.
-    const sexLine = (G, F, M) => `The typical recorded women’s marathon came in under ${G} after halves up to about ${F}; the typical men’s, up to about ${M}.`;
+    // typical marathon crosses the goal), from the window's published mark at the goal. Every line says "half marathon"
+    // where it means the race (the page's hero prints the goal's halfway time), and the lead keeps to 12 words.
+    const sexLine = (G, F, M) => `The typical recorded women’s marathon came in under ${G} after half marathons up to about ${F}; the typical men’s, up to about ${M}.`;
     const GOALS = {
       10800: { H: '1:23', n: 1325, e: 76, q50: H(2, 58, 41), share: '60%', range: '8 in 10 took 2:49 to 3:14.', sexes: null },
       12600: { H: '1:35', n: 2327, e: 90, q50: H(3, 29, 18), share: '53%', range: '8 in 10 took 3:15 to 3:52.', sexes: sexLine('3:30', '1:37', '1:35') },
@@ -1628,13 +1631,16 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     for (const g of linked.goals) {
       const want = GOALS[g.goal_s];
       const lines = htf.goalLines(g, linked.windows.all.find((w) => w.h === g.all.h));
-      assert.equal(lines.lead, `After a half near *${want.H}*, ${want.share} of marathons came in under ${time.formatHM(g.goal_s)}.`);
-      assert.equal(htf.goalLines(g).lead, `After a half near *${want.H}*, the typical marathon came in just under ${time.formatHM(g.goal_s)}.`, `${g.goal_s}: without the window, the lead says just under`);
+      assert.equal(lines.lead, `After a *${want.H}* half marathon, ${want.share} of marathons came in under ${time.formatHM(g.goal_s)}.`);
+      assert.ok(lines.lead.replace(/\*/g, '').split(/\s+/).length <= 12, `${g.goal_s}: the lead is over 12 words`);
+      assert.equal(htf.goalLines(g).lead, `After a *${want.H}* half marathon, the typical marathon came in just under ${time.formatHM(g.goal_s)}.`, `${g.goal_s}: without the window, the lead says just under`);
       // The share is just over half (the window's median is under the goal), never a clear majority read as a promise.
       const mark = linked.windows.all.find((w) => w.h === g.all.h).marks.find(([t]) => t === g.goal_s);
       assert.ok(mark && mark[1] > 0.5 && mark[1] < 0.65, `${g.goal_s}: the share under the goal at ${want.H} is ${mark && mark[1]}`);
       assert.equal(lines.range, want.range); assert.equal(lines.sexes, want.sexes);
       assert.equal(lines.link, `/tools/predictor?d=half&t=${want.H}:00`);
+      assert.equal(lines.linkText, `The marathons after a ${want.H} half marathon`);
+      for (const line of [lines.lead, lines.sexes ?? '', lines.linkText]) assert.doesNotMatch(line, /\bhalf(?! marathon)\b/, `${g.goal_s}: a bare "half" on a goal page: ${line}`);
       assert.ok(g.all.n === want.n && g.all.e === want.e && Math.floor(g.all.q50) === want.q50, `${g.goal_s}: ${g.all.n} (${g.all.e}) ${g.all.q50}`);
       const at = win(g.all.h), slower = win(g.all.h + 60);
       assert.ok(at.q[9] < g.goal_s && (!slower || slower.q[9] >= g.goal_s), `${g.goal_s}: the predictor at ${want.H} is under the goal and a minute slower is not`);
@@ -1645,7 +1651,7 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
         // "After halves up to about H": every published window of that sex from its first to H has a median under the goal.
         for (let h = tool.groups[sex].from; h <= g[sex].h; h += 60) assert.ok(win(h, sex).q[9] < g.goal_s, `${g.goal_s} ${sex}: the ${time.formatHM(h)} window's median is under the goal, as "up to about" says`);
       }
-      checks += 9;
+      checks += 12;
     }
     // Wiring: the panel replaces the 20K panel only for a half inside the range (and the projector shard then does not
     // load); the sex choice travels as sx ('f' or 'm', absent for all), which the defaults leave out of the URL; the
@@ -1674,7 +1680,7 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     // as a node, so the goal pages ship none of its code as script.
     const goalSrc = fs.readFileSync(path.join(ROOT, 'components/half/HalfBefore.tsx'), 'utf8');
     assert.doesNotMatch(goalSrc, /^['"]use client['"]/m, 'The half before is a server component'); ok();
-    for (const needle of ['id="goal-pace-half"', 'data-half-scope="linked"', 'goalLines(goal, ', 'NOT_A_PREDICTION', '<ScopeTag />', 'records linked by name']) { assert.ok(goalSrc.includes(needle), `HalfBefore: ${needle}`); ok(); }
+    for (const needle of ['id="goal-pace-half"', 'data-half-scope="linked"', 'goalLines(goal, ', 'NOT_A_PREDICTION', '<ScopeTag />', 'records linked by name', 'The half marathon before', '{lines.linkText}']) { assert.ok(goalSrc.includes(needle), `HalfBefore: ${needle}`); ok(); }
     assert.doesNotMatch(goalSrc.slice(goalSrc.indexOf('function HalfBefore')), /\baim for\b|\bneed\b|\btarget\b/i, 'The half before never says aim for, need or target'); ok();
     const goalRoute = fs.readFileSync(path.join(ROOT, 'app/tools/marathon-pace/[goal]/page.tsx'), 'utf8');
     assert.match(goalRoute, /halfBefore=\{halfBefore \? <HalfBefore goal=\{halfBefore\} \/> : null\}/, 'The goal page hands the half before to its body'); ok();

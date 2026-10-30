@@ -94,12 +94,14 @@ export function markLabels(win: Pick<HalfToFullWindow, 'marks'>): string[] {
 
 /**
  * The predictor panel's sentence (one accent), the answer first: "After a half near 1:55, the typical marathon 3 to 16
- * weeks later took *4:15*; the middle half of them took 4:01 to 4:30." ("Half of them", never a bare "half", which on a
- * half-marathon panel reads as the race.) The panel names the records linked by name on the line under it.
+ * weeks later took *4:15*; 8 in 10 took 3:53 to 4:46." The range is the 10th to the 90th percentile, the one the strip
+ * brackets and the story's readout and the goal pages name ("8 in 10"), so one span reads the same everywhere and
+ * "half" means only the race (round 2 review, October 30, 2026). The panel names the records linked by name on the
+ * line under it.
  */
 export function linkedSentence(win: HalfToFullWindow, Q: number[]): string {
   return `After a half near ${floorHM(win.h)}, the typical marathon 3 to 16 weeks later took *${floorHM(win.q[9])}*; `
-    + `the middle half of them took ${floorHM(quantileAt(win, Q, 0.25))} to ${floorHM(quantileAt(win, Q, 0.75))}.`;
+    + `8 in 10 took ${floorHM(quantileAt(win, Q, 0.1))} to ${floorHM(quantileAt(win, Q, 0.9))}.`;
 }
 
 /** The panel's line under the sentence: whose marathons these are (the term links to /methodology#half-linking). */
@@ -141,19 +143,22 @@ export function paceGapText(extraSeconds: number, units: UnitSystem): string {
 }
 
 /**
- * A goal page's "The half before" lines (forward-consistent: H is the slowest published window whose median marathon is
- * under the goal, so the predictor at H shows a median under it and at H + 1 minute does not). The lead names the share
- * of that window's marathons under the goal (its published mark at the goal), so the boundary reads as what it is, just
- * over half, never as "a half near H makes the goal"; without that mark it says the typical marathon came in just under
- * the goal. The sexes' line names each sex's own boundary as a full sentence.
+ * A goal page's "The half marathon before" lines (forward-consistent: H is the slowest published window whose median
+ * marathon is under the goal, so the predictor at H shows a median under it and at H + 1 minute does not). The lead
+ * names the share of that window's marathons under the goal (its published mark at the goal), so the boundary reads as
+ * what it is, just over half, never as "a half near H makes the goal"; without that mark it says the typical marathon
+ * came in just under the goal. The sexes' line names each sex's own boundary as a full sentence. On a marathon pace page,
+ * whose hero prints the goal's own halfway time, every line says "half marathon" where it means the race, so "a 1:48
+ * half" is never read as reaching halfway in 1:48 (round 2 review, October 30, 2026); the lead keeps to 12 words.
  */
-export function goalLines(goal: HalfGoal, win?: Pick<HalfToFullWindow, 'h' | 'marks'> | null): { lead: string; range: string; sexes: string | null; link: string } {
+export function goalLines(goal: HalfGoal, win?: Pick<HalfToFullWindow, 'h' | 'marks'> | null): { lead: string; range: string; sexes: string | null; link: string; linkText: string } {
   const H = floorHM(goal.all.h), G = floorHM(goal.goal_s);
   const mark = win && win.h === goal.all.h ? win.marks.find(([t]) => t === goal.goal_s) : undefined;
   return {
-    lead: mark ? `After a half near *${H}*, ${sharePct(mark[1])} of marathons came in under ${G}.` : `After a half near *${H}*, the typical marathon came in just under ${G}.`,
+    lead: mark ? `After a *${H}* half marathon, ${sharePct(mark[1])} of marathons came in under ${G}.` : `After a *${H}* half marathon, the typical marathon came in just under ${G}.`,
     range: `8 in 10 took ${floorHM(goal.all.p10)} to ${floorHM(goal.all.p90)}.`,
-    sexes: goal.F && goal.M ? `The typical recorded women’s marathon came in under ${G} after halves up to about ${floorHM(goal.F.h)}; the typical men’s, up to about ${floorHM(goal.M.h)}.` : null,
+    sexes: goal.F && goal.M ? `The typical recorded women’s marathon came in under ${G} after half marathons up to about ${floorHM(goal.F.h)}; the typical men’s, up to about ${floorHM(goal.M.h)}.` : null,
     link: `/tools/predictor?d=half&t=${H}:00`,
+    linkText: `The marathons after a ${H} half marathon`,
   };
 }

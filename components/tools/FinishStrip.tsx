@@ -16,7 +16,10 @@ import { RangeBracket, bracketLayout } from './RangeBracket';
  * share under it ("22% under 4:00"), the bars under the one nearest the median in signal and its flag in the signal
  * ink. A flag never crosses another mark's line: where no placement keeps every flag clear (a phone at 200% zoom), the
  * flags shrink to their times and the shares move to one key line under the strip, or the lines go unlabelled and the
- * key line names them all. It never marks a research estimate.
+ * key line names them all. It never marks a research estimate. The half panel passes a `domain` shared by its three
+ * groups and the `signalAt` time of all marathons, so switching between all, recorded women's and men's keeps the axis
+ * and the orange question still while the bars move and narrow in place; its bracket is named "8 in 10" (the sentence
+ * above gives the range).
  */
 
 /** "4:12:03" over an hour, "50:10" under. */
@@ -102,8 +105,14 @@ function placeFlags(markers: Marker[], width: number, margin: number): Placed[] 
 /** A share of finishes as the strip's flags print it: "22%". */
 const flagPct = (share: number) => `${Math.round(share * 100)}%`;
 
-export function FinishStrip({ q, Q, est, marks, format = fmtShort }: {
+export function FinishStrip({ q, Q, est, marks, format = fmtShort, domain, signalAt, bracketName }: {
   q: number[]; Q: number[];
+  /** The times the axis must span (before its padding): one range for every group a panel switches between. */
+  domain?: [number, number];
+  /** The round time whose share is the signal, when it is one of `marks` (else the mark nearest the median). */
+  signalAt?: number;
+  /** The bracket's name without its range, when the sentence above gives the range ("8 in 10"). */
+  bracketName?: string;
   /** How the bracket and the flags print a time: the 20K panel's to the nearest minute (fmtShort); the half panel's
    *  whole minute at or below it, as every half page reads a time. Ticks are whole minutes either way. */
   format?: (seconds: number) => string;
@@ -118,10 +127,10 @@ export function FinishStrip({ q, Q, est, marks, format = fmtShort }: {
   const i10 = qIndex(Q, 0.1); const i50 = qIndex(Q, 0.5); const i90 = qIndex(Q, 0.9);
   const flags = marks ?? [];
   // The signal split: the estimate, or the round time nearest the median (ties to the earlier).
-  const nearest = flags.length ? flags.reduce((b, m) => (Math.abs(m.s - q[i50]) < Math.abs(b.s - q[i50]) ? m : b)) : null;
+  const nearest = flags.find((m) => m.s === signalAt) ?? (flags.length ? flags.reduce((b, m) => (Math.abs(m.s - q[i50]) < Math.abs(b.s - q[i50]) ? m : b)) : null);
   const split = est ?? nearest?.s ?? null;
-  const lo0 = Math.min(q[0], ...(est !== undefined ? [est] : []), ...flags.map((m) => m.s));
-  const hi0 = Math.max(q[q.length - 1], ...(est !== undefined ? [est] : []), ...flags.map((m) => m.s));
+  const lo0 = Math.min(q[0], ...(est !== undefined ? [est] : []), ...flags.map((m) => m.s), ...(domain ? [domain[0]] : []));
+  const hi0 = Math.max(q[q.length - 1], ...(est !== undefined ? [est] : []), ...flags.map((m) => m.s), ...(domain ? [domain[1]] : []));
   const pad = Math.max(hi0 - lo0, 900) * 0.06;
   const [lo, hi] = [lo0 - pad, hi0 + pad];
   const m = { l: 8, r: 8 };
@@ -146,7 +155,7 @@ export function FinishStrip({ q, Q, est, marks, format = fmtShort }: {
   const plotH = narrow ? 80 : 96;
   const base = top + plotH;
   const range = `${format(q[i10])}–${format(q[i90])}`;
-  const bracket = bracketLayout(x(q[i10]), x(q[i90]), `80% of finishes: ${range}`, width, m.l, `80%: ${range}`);
+  const bracket = bracketName ? bracketLayout(x(q[i10]), x(q[i90]), bracketName, width, m.l) : bracketLayout(x(q[i10]), x(q[i90]), `80% of finishes: ${range}`, width, m.l, `80%: ${range}`);
   const bracketY = base + 34;
   const H = bracketY + bracket.height;
   const dens = q.slice(0, -1).map((v, i) => 0.05 / Math.max(1, q[i + 1] - v));
