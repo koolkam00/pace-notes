@@ -80,7 +80,13 @@ const CASES = {
     await step(log, 'no 20K panel', async () => { if (await page.locator('#predictor-data').count()) throw new Error('the 20K panel shows beside the half panel'); });
     await step(log, 'recorded women', () => panel.getByRole('button', { name: 'Recorded women' }).click());
     await has('women at 1:45', '3:49');
+    // The chip's figures name recorded sex in the sentence itself, so a shared sx=f link never reads as all marathons.
+    await has('women named in the sentence', 'the typical recorded women’s marathon');
+    await has('women named in the slowdown line', 'of these recorded women’s marathons');
     await step(log, 'sx=f in the address', () => page.waitForURL(/[?&]sx=f(&|$)/, { timeout: 5000 }));
+    await step(log, 'recorded men', () => panel.getByRole('button', { name: 'Recorded men', exact: true }).click());
+    await has('men at 1:45', 'the typical recorded men’s marathon 3 to 16 weeks later took 3:55');
+    await step(log, 'sx=m in the address', () => page.waitForURL(/[?&]sx=m(&|$)/, { timeout: 5000 }));
     await step(log, '2:55:00', () => type(page, 'input[id$="-t1"]', '2:55:00'));
     await step(log, '20K panel at 2:55', () => page.locator('#predictor-data').waitFor({ timeout: 8000 }));
     await step(log, '10K chip', () => page.locator('.predictor-chips button', { hasText: /^10K$/ }).first().click());

@@ -22,7 +22,7 @@ function linkedText(text: string): ReactNode {
   return <>{withEm(text.slice(0, i))}<Link href="/methodology#half-linking" className="term-link">{LINKED}</Link>{withEm(text.slice(i + LINKED.length))}</>;
 }
 
-/** "33% of these marathons had a sustained slowdown.", the term linked. */
+/** "33% of these marathons had a sustained slowdown." (or "of these recorded women’s marathons"), the term linked. */
 function slowdownText(text: string): ReactNode {
   const i = text.indexOf(SLOWDOWN);
   if (i < 0) return text;
@@ -83,10 +83,10 @@ export default function LinkedPanel({ sha, seconds, group, onGroup }: {
       <DataState error={error} loading={!error && !tool}>
         {tool && win ? (
           <>
-            <p className="tool-nugget-text" id="predictor-linked-title">{withEm(linkedSentence(win, tool.Q))}</p>
+            <p className="tool-nugget-text" id="predictor-linked-title">{withEm(linkedSentence(win, tool.Q, group))}</p>
             <p className="tool-panel-meta">{linkedText(LINKED_LINE)}</p>
             <FinishStrip q={win.q} Q={tool.Q} marks={win.marks.map(([s, share]) => ({ s, share }))} format={floorHM} domain={domain} signalAt={signalAt} bracketName="8 in 10" />
-            <p className="predictor-linked-sus">{slowdownText(slowdownSentence(win))}</p>
+            <p className="predictor-linked-sus">{slowdownText(slowdownSentence(win, group))}</p>
           </>
         ) : tool ? (
           <>

@@ -1572,6 +1572,16 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     assert.deepEqual(htf.markLabels(w155), ['22% under 4:00', '49% under 4:15', '75% under 4:30']); ok();
     const f155 = win(H(1, 55), 'F');
     assert.ok(f155 && f155.n === 694 && f155.e === 61 && f155.q[9] === 15212.5 && f155.sus === 0.1671469741, `1:55 women: ${JSON.stringify(f155 && [f155.n, f155.e, f155.q[9], f155.sus])}`); ok();
+    // A recorded-sex chip names recorded sex in both sentences, so a shared sx=f or sx=m link never reads as all
+    // marathons (round 4 review, October 30, 2026: "the typical marathon … took 3:49" with the women's chip pressed).
+    assert.equal(htf.linkedSentence(f155, Q, 'F'), 'After a half near 1:55, the typical recorded women’s marathon 3 to 16 weeks later took *4:13*; 8 in 10 took 3:55 to 4:38.'); ok();
+    assert.equal(htf.slowdownSentence(f155, 'F'), '17% of these recorded women’s marathons had a sustained slowdown.'); ok();
+    const m155 = win(H(1, 55), 'M');
+    assert.equal(htf.linkedSentence(m155, Q, 'M'), 'After a half near 1:55, the typical recorded men’s marathon 3 to 16 weeks later took *4:16*; 8 in 10 took 3:51 to 4:49.'); ok();
+    assert.equal(htf.slowdownSentence(m155, 'M'), '41% of these recorded men’s marathons had a sustained slowdown.'); ok();
+    assert.equal(htf.linkedSentence(win(H(1, 45), 'F'), Q, 'F'), 'After a half near 1:45, the typical recorded women’s marathon 3 to 16 weeks later took *3:49*; 8 in 10 took 3:35 to 4:06.'); ok();
+    assert.equal(htf.slowdownSentence(win(H(1, 45), 'F'), 'F'), '10% of these recorded women’s marathons had a sustained slowdown.'); ok();
+    assert.equal(htf.linkedSentence(w155, Q, 'all'), htf.linkedSentence(w155, Q), 'All keeps its wording'); ok();
     assert.equal(win(H(1, 45)).q[9], 14056, '1:45 all median'); ok();
     // The spec's example rows: pairs (editions), median, 8 in 10 (p10–p90), marks, sustained slowdown.
     for (const [s, g, n, e, median, mid, marks, sus] of [
@@ -1584,11 +1594,11 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     ]) {
       const w = win(s, g);
       assert.ok(w && w.n === n && w.e === e, `${time.formatHM(s)} ${g}: ${w && w.n} (${w && w.e})`);
-      const said = htf.linkedSentence(w, Q);
-      assert.ok(said.startsWith(`After a half near ${time.formatHM(Math.round(s / 60) * 60)}, `) && said.includes(`took *${median}*`) && said.endsWith(`; 8 in 10 took ${mid}.`), `${time.formatHM(s)} ${g}: ${said}`);
+      const said = htf.linkedSentence(w, Q, g);
+      assert.ok(said.startsWith(`After a half near ${time.formatHM(Math.round(s / 60) * 60)}, the typical ${g === 'all' ? '' : `recorded ${g === 'F' ? 'women’s' : 'men’s'} `}marathon `) && said.includes(`took *${median}*`) && said.endsWith(`; 8 in 10 took ${mid}.`), `${time.formatHM(s)} ${g}: ${said}`);
       const labels = htf.markLabels(w);
       assert.ok(marks.every((m) => (m.includes(' under ') ? labels.includes(m) : labels.some((l) => l.startsWith(`${m} under `)))), `${time.formatHM(s)} ${g} marks: ${labels.join(', ')}`);
-      assert.ok(htf.slowdownSentence(w).startsWith(`${sus} of these`), `${time.formatHM(s)} ${g}: ${htf.slowdownSentence(w)}`);
+      assert.ok(htf.slowdownSentence(w, g) === `${sus} of these ${g === 'all' ? '' : `recorded ${g === 'F' ? 'women’s' : 'men’s'} `}marathons had a sustained slowdown.`, `${time.formatHM(s)} ${g}: ${htf.slowdownSentence(w, g)}`);
       checks += 4;
     }
     // Windows, not bands: the typed half's nearest whole minute (1:57:29 reads 1:57; 1:52:30 reads 1:53).
@@ -1612,9 +1622,18 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
       }
       checks += 1;
     }
-    // The readout's pace gap: the extra over double ÷ the marathon distance (+55 s/mi, +34 s/km at 1:45).
-    const b105 = linked.windows.all.find((w) => w.h === H(1, 45));
-    assert.equal(htf.paceGapText(b105.extra_p50, 'mi'), '+55 s/mi'); assert.equal(htf.paceGapText(b105.extra_p50, 'km'), '+34 s/km'); checks += 2;
+    // The story readout's minutes over double: the window's typical marathon as printed minus double its half, so the two
+    // add up on screen (3:54 after 1:45 is +24; 5:57 after 2:45 is +27, where the pairs' own median is +30; round 4
+    // review), and its pace gap from those minutes ÷ the marathon distance (+55 s/mi, +34 s/km at 1:45).
+    const b105 = linked.windows.all.find((w) => w.h === H(1, 45)), b165 = linked.windows.all.find((w) => w.h === H(2, 45));
+    assert.equal(htf.windowOverDouble(b105), 24); assert.equal(htf.windowOverDouble(b165), 27); checks += 2;
+    for (const w of linked.windows.all) {
+      const [hh, mm] = htf.floorHM(w.q[9]).split(':').map(Number);
+      assert.equal(hh * 60 + mm - (2 * w.h) / 60, htf.windowOverDouble(w), `${htf.floorHM(w.h)}: typical as printed minus double the half`);
+    }
+    checks += 1;
+    assert.equal(htf.paceGapText(htf.windowOverDouble(b105) * 60, 'mi'), '+55 s/mi'); assert.equal(htf.paceGapText(htf.windowOverDouble(b105) * 60, 'km'), '+34 s/km'); checks += 2;
+    assert.equal(htf.paceGapText(htf.windowOverDouble(b165) * 60, 'mi'), '+62 s/mi'); checks += 1;
     // The goal pages' "The half marathon before": every row of the spec's table, and forward-consistent with the
     // predictor (the window at H has a median under the goal, the window a minute slower does not).
     // The lead names the share of the window's marathons under the goal (just over half: the window is where the
@@ -1669,7 +1688,7 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     assert.match(pred, /\bimport\('\.\/LinkedPanel'\)\.then\(/, 'The half panel loads lazily'); ok();
     assert.doesNotMatch(pred, /^import\b[^\n]*['"]\.\/LinkedPanel['"]/m, 'The predictor never imports the half panel statically'); ok();
     const panel = fs.readFileSync(path.join(ROOT, 'components/tools/LinkedPanel.tsx'), 'utf8');
-    for (const needle of ['data-half-scope="linked"', 'id="predictor-linked"', '<EvidenceTag kind="data" /><ScopeTag />', 'linkedSentence(win, tool.Q)', 'linkedText(LINKED_LINE)', 'slowdownSentence(win)', 'tooFewSentence(tool, group, seconds)', 'NOT_A_PREDICTION', 'href="/stories/half-to-full#after"', 'loadHalf<HalfTool>(HALF_TOOL_FILE, sha)', 'marks={win.marks.map(']) {
+    for (const needle of ['data-half-scope="linked"', 'id="predictor-linked"', '<EvidenceTag kind="data" /><ScopeTag />', 'linkedSentence(win, tool.Q, group)', 'linkedText(LINKED_LINE)', 'slowdownSentence(win, group)', 'tooFewSentence(tool, group, seconds)', 'NOT_A_PREDICTION', 'href="/stories/half-to-full#after"', 'loadHalf<HalfTool>(HALF_TOOL_FILE, sha)', 'marks={win.marks.map(']) {
       assert.ok(panel.includes(needle), `LinkedPanel: ${needle}`); ok();
     }
     assert.doesNotMatch(panel, /track\(|capture\(|posthog/i, 'The half panel sends nothing to analytics (sx and the typed time never reach an event)'); ok();

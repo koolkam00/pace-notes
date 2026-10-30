@@ -93,23 +93,36 @@ export function markLabels(win: Pick<HalfToFullWindow, 'marks'>): string[] {
 }
 
 /**
+ * The group's words before "marathon": none for all marathons, "recorded women’s " or "recorded men’s " for a sex, so
+ * every sex-split sentence names recorded sex where it names the marathons (round 4 review, October 30, 2026: with the
+ * women's chip pressed the panel read "the typical marathon … took 3:49", which a shared sx=f link passed on as the
+ * reading for all marathons, 3:54).
+ */
+function groupWords(group: HalfGroup): string {
+  return group === 'all' ? '' : `recorded ${SEX_WORD[group]} `;
+}
+
+/**
  * The predictor panel's sentence (one accent), the answer first: "After a half near 1:55, the typical marathon 3 to 16
  * weeks later took *4:15*; 8 in 10 took 3:53 to 4:46." The range is the 10th to the 90th percentile, the one the strip
  * brackets and the story's readout and the goal pages name ("8 in 10"), so one span reads the same everywhere and
- * "half" means only the race (round 2 review, October 30, 2026). The panel names the records linked by name on the
- * line under it.
+ * "half" means only the race (round 2 review, October 30, 2026). A sex's window names it: "the typical recorded
+ * women’s marathon 3 to 16 weeks later took *4:13*". The panel names the records linked by name on the line under it.
  */
-export function linkedSentence(win: HalfToFullWindow, Q: number[]): string {
-  return `After a half near ${floorHM(win.h)}, the typical marathon 3 to 16 weeks later took *${floorHM(win.q[9])}*; `
+export function linkedSentence(win: HalfToFullWindow, Q: number[], group: HalfGroup = 'all'): string {
+  return `After a half near ${floorHM(win.h)}, the typical ${groupWords(group)}marathon 3 to 16 weeks later took *${floorHM(win.q[9])}*; `
     + `8 in 10 took ${floorHM(quantileAt(win, Q, 0.1))} to ${floorHM(quantileAt(win, Q, 0.9))}.`;
 }
 
 /** The panel's line under the sentence: whose marathons these are (the term links to /methodology#half-linking). */
 export const LINKED_LINE = 'Half and marathon records linked by name.';
 
-/** "33% of these marathons had a sustained slowdown." (the page links the term). */
-export function slowdownSentence(win: Pick<HalfToFullWindow, 'sus'>): string {
-  return `${sharePct(win.sus)} of these marathons had a sustained slowdown.`;
+/**
+ * "33% of these marathons had a sustained slowdown." (the page links the term); a sex's window names it: "17% of these
+ * recorded women’s marathons had a sustained slowdown."
+ */
+export function slowdownSentence(win: Pick<HalfToFullWindow, 'sus'>, group: HalfGroup = 'all'): string {
+  return `${sharePct(win.sus)} of these ${groupWords(group)}marathons had a sustained slowdown.`;
 }
 
 /**
@@ -129,6 +142,18 @@ export function tooFewSentence(tool: HalfTool, group: 'F' | 'M', seconds?: numbe
  */
 export function outOfRangeSentence(range: { from: number; to: number }): string {
   return `Marathons after a half are shown for halves from ${floorHM(range.from)} to ${floorHM(range.to)}.`;
+}
+
+/**
+ * A window's minutes over double as the story prints them: its typical marathon as printed (the whole minute at or
+ * below) minus double the window's half, so "Typical 5:57" and "double the half plus 27 min" add up after a 2:45 half
+ * (5:30 + 27). The window's `extra_p50` is the median of each pair's own difference instead, which runs higher in a slow
+ * window, whose halves run quicker than its centre (+30 at 2:45), so a reader adding it to the window's typical
+ * marathon found 6:00 against 5:57 (round 4 review, October 30, 2026). The pooled reading (the H1's 21, the ruler) keeps
+ * the pairs' own differences.
+ */
+export function windowOverDouble(win: Pick<HalfToFullWindow, 'h' | 'q'>): number {
+  return Math.floor(win.q[9] / 60 + 1e-9) - Math.round((2 * win.h) / 60);
 }
 
 /** How much slower per mile (or km) the typical marathon ran than its half: the extra over double ÷ the marathon distance. */
