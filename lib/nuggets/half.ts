@@ -11,7 +11,7 @@
  */
 import type { HalfField, HalfLinked, HalfWindow, HalfWomen } from '@/lib/half-types';
 import { readHalf } from '@/lib/half-server';
-import { floorHM, readoutMark } from '@/lib/tools/half-to-full';
+import { floorHM, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
 import { count, inWords, pct, ratio, spokenPct, spokenTime } from './format';
 import { shareFigure, type Builder } from './build';
 import type { Nugget } from './types';
@@ -243,9 +243,14 @@ export type HalfDeks = {
    */
   range: string | null;
   /**
-   * The story's reading, under the ruler: the minutes over double at the halves 15 minutes either side of the
-   * flagship's ("Fewer minutes over double after a quicker half, more after a slower one: +17 after a 1:30 half, +28
-   * after a 2:00."), so the H1's 21 reads as a typical value that grows with the half, next to the H1 it explains.
+   * The story's reading, under the ruler: the minutes over double 15 minutes quicker than the flagship's half, then the
+   * span of the 5-minute windows from 15 minutes slower on ("Fewer minutes over double after a quicker half: +17 after
+   * a 1:30 half, +23 to +30 from 2:00 to 2:45."), so the H1's 21 reads as a typical value that moves with
+   * the half, next to the H1 it explains, and says where it stops rising (round 4 review, October 30, 2026: "more after
+   * a slower one" promised a rise the windows from 2:00 to 2:45 do not show). Each value is the readout's own
+   * (windowOverDouble), so the needle finds it there. The span is stated only while it stays within 4 minutes of its first window's value and
+   * above the quicker half's; otherwise the two halves alone ("+17 after a 1:30 half, +27 after a 2:00."), and null
+   * when the quicker half's is not the lower.
    */
   scale: string | null;
   /** The guess: "After a 1:45 half, 30 of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?" */
@@ -272,7 +277,12 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
   const at = (group: 'all' | 'F' | 'M', h: number) => linked.windows[group].find((x) => x.h === h) ?? null;
   const side = w ? [w.h - 900, w.h + 900] : [];
   const [qa, qb] = side.map((h) => at('all', h));
-  const minutesOver = (x: HalfWindow) => Math.round(x.extra_p50 / 60);
+  const minutesOver = (x: HalfWindow) => windowOverDouble(x);
+  // The 5-minute windows from the slower half on, the readout's scrub points, and their span.
+  const slower = qb ? all.filter((x) => x.h % 300 === 0 && x.h >= qb.h) : [];
+  const after = slower.map(minutesOver);
+  const spanLo = Math.min(...after), spanHi = Math.max(...after);
+  const level = !!qb && after.length >= 3 && after.every((x) => Math.abs(x - minutesOver(qb)) <= 4) && !!qa && minutesOver(qa) < spanLo;
   const slide = `Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.`;
   const pairs = side.map((h) => [at('F', h), at('M', h)] as const);
   const lower = pairs.length === 2 && pairs.every(([pf, pm]) => !!pf && !!pm && pf.sus < pm.sus);
@@ -285,7 +295,9 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
     cities: `Women’s share of finishes was typically ${pct(s.half_median)} in the half and ${pct(s.marathon_median)} in the marathon.`,
     range: w ? `The typical one took ${clock(w.q[9])}. ${slide}` : null,
     scale: qa && qb && minutesOver(qa) < minutesOver(qb)
-      ? `Fewer minutes over double after a quicker half, more after a slower one: +${minutesOver(qa)} after a ${clock(qa.h)} half, +${minutesOver(qb)} after a ${clock(qb.h)}.`
+      ? `Fewer minutes over double after a quicker half: +${minutesOver(qa)} after a ${clock(qa.h)} half, ${level
+        ? `${spanLo === spanHi ? `+${spanLo}` : `+${spanLo} to +${spanHi}`} from ${clock(qb.h)} to\u00a0${clock(slower[slower.length - 1].h)}`
+        : `+${minutesOver(qb)} after a ${clock(qb.h)}`}.`
       : null,
     guess: f && m ? `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?` : null,
     guessMore: f && m && lower ? pairs.map(([pf, pm], k) => (k === 0

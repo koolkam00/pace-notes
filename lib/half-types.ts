@@ -78,7 +78,7 @@ export type HalfField = {
   checks: {
     /** Every usable edition (verified and unverified), finishes pooled. */
     all_usable: { finishes: number; editions: number; under_7200: number; under_6300: number; p50: number };
-    /** Verified editions of at least `min_finishes`, each weighted equally. */
+    /** Verified editions of at least `min_finishes`, each weighted equally: the median of the editions' shares. */
     editions_equal: { min_finishes: number; editions: number; under_7200: number; under_6300: number };
     /** Every verified edition, each weighted equally (the median of the editions' shares). */
     editions_equal_all: { editions: number; under_7200: number };

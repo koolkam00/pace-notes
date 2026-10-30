@@ -188,11 +188,23 @@ module.exports = function half({ json, eq, ok, core }) {
     // Beat 1's dek is the spec's: the typical marathon after the flagship's half, then the needle's range (round 2).
     const slide = `Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.`;
     eq(d.range, `The typical one took ${clock(w.q[9])}. ${slide}`, 'half deks: story beat 1');
-    // The reading's scale note: the minutes over double 15 minutes either side of the flagship's half, each the window's
-    // median extra in whole minutes (the H1's own rounding), only while the slower half's is the larger.
+    // The reading's scale note: the minutes over double 15 minutes quicker than the flagship's half, then the span of
+    // the 5-minute windows from 15 minutes slower on, each the readout's value (the window's typical marathon as printed,
+    // the whole minute at or below, minus double its half), only while the slower half's is the larger; the span only
+    // while every window in it is within 4 minutes of its first and above the quicker half's (round 4 review).
     const qa = win('all', w.h - 900), qb = win('all', w.h + 900);
-    const a = qa && Math.round(qa.extra_p50 / 60), b = qb && Math.round(qb.extra_p50 / 60);
-    eq(d.scale, qa && qb && a < b ? `Fewer minutes over double after a quicker half, more after a slower one: +${a} after a ${clock(qa.h)} half, +${b} after a ${clock(qb.h)}.` : null, 'half deks: the reading’s scale note');
+    const over = (x) => Math.floor(x.q[9] / 60 + 1e-9) - Math.round((2 * x.h) / 60);
+    const a = qa && over(qa), b = qb && over(qb);
+    const slower = qb ? all.filter((x) => x.h % 300 === 0 && x.h >= qb.h) : [];
+    const after = slower.map(over);
+    const lo = Math.min(...after), hi = Math.max(...after);
+    const level = qb && after.length >= 3 && after.every((x) => Math.abs(x - b) <= 4) && qa && a < lo;
+    eq(d.scale, qa && qb && a < b ? `Fewer minutes over double after a quicker half: +${a} after a ${clock(qa.h)} half, ${level ? `${lo === hi ? `+${lo}` : `+${lo} to +${hi}`} from ${clock(qb.h)} to\u00a0${clock(slower[slower.length - 1].h)}` : `+${b} after a ${clock(qb.h)}`}.` : null, 'half deks: the reading’s scale note');
+    // On this build the windows level off from 2:00: the note says so, and never that the minutes keep rising.
+    ok(!/more after a slower one/.test(d.scale || ''), 'half deks: the scale note promises no rise the windows do not show');
+    // Each readout value adds up with the two printed times: "Typical 5:57" after "2:45" is double plus 27.
+    const printed = (t) => { const [hh, mm] = clock(t).split(':').map(Number); return hh * 60 + mm; };
+    for (const x of all.filter((x) => x.h % 300 === 0)) eq(printed(x.q[9]) - 2 * printed(x.h), over(x), `half deks: ${clock(x.h)}: the readout's minutes over double add up with its printed times`);
     const m = flagship('M');
     eq(d.guess, `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?`, 'half deks: the guess');
     const sides = [w.h - 900, w.h + 900].map((h) => [win('F', h), win('M', h)]);

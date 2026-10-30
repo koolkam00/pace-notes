@@ -482,7 +482,9 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
   for (const g of ['all', 'F', 'M']) {
     for (const w of linked.windows[g]) {
       const win = T.fromLinked(w);
-      texts.push([`tool ${g} ${w.h}`, T.linkedSentence(win, Q)], [`tool ${g} ${w.h} slowdown`, T.slowdownSentence(win)], ...T.markLabels(win).map((s) => [`tool ${g} mark`, s]));
+      texts.push([`tool ${g} ${w.h}`, T.linkedSentence(win, Q, g)], [`tool ${g} ${w.h} slowdown`, T.slowdownSentence(win, g)], ...T.markLabels(win).map((s) => [`tool ${g} mark`, s]));
+      // A sex's sentences name recorded sex where they name the marathons (round 4 review, October 30, 2026).
+      if (g !== 'all') for (const said of [T.linkedSentence(win, Q, g), T.slowdownSentence(win, g)]) ok(said.includes(`recorded ${g === 'F' ? 'women’s' : 'men’s'} marathon`), `tool ${g} ${w.h}: names recorded sex: ${said}`);
     }
   }
   for (const g of ['F', 'M']) texts.push([`tool too few ${g}`, T.tooFewSentence(tool, g)], [`tool too few ${g} near a half`, T.tooFewSentence(tool, g, 5100)]);
@@ -517,6 +519,17 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
     ok(!/\bran\b/.test(plain(text)) || !/records/.test(plain(text)), `${where}: records are linked, they never ran: ${text}`);
   }
   ok(texts.length > 300, `words: ${texts.length} half sentences checked`);
+  // The client sources whose strings show on a half surface (the loader's messages, the predictor's half panel, the
+  // story's predictor link, the strip): their string literals and JSX text, comments removed, keep the status and
+  // verification words off, since --html sees only the server render (round 4 review, October 30, 2026: the loader's
+  // "could not be verified" showed under the chip on a digest mismatch).
+  for (const file of ['lib/half.ts', 'components/tools/LinkedPanel.tsx', 'components/half/PredictorLink.client.tsx', 'components/tools/FinishStrip.tsx']) {
+    const src = fs.readFileSync(rel(file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
+    const strings = [...src.matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`|>([^<>{}]*[A-Za-z][^<>{}]*)</g)]
+      .map((m) => m[1] ?? m[2] ?? m[3] ?? m[4]).filter((t) => /[A-Za-z]{2,}\s+[A-Za-z]/.test(t));
+    ok(strings.length > 0, `${file}: its client strings were read`);
+    for (const t of strings) for (const [re, what] of [...W.STATUS_WORDS, ...W.VERIFICATION_WORDS]) ok(!re.test(t), `${file}: ${what} in a string a half surface shows: ${t}`);
+  }
 }
 
 // ---------- 8. The source-recount receipt ----------
@@ -648,6 +661,19 @@ if (opt.html) {
     if (route === '/stories/half-to-full') {
       ok(at >= 0, `${route}: says "records linked by name"`);
       ok(textOf(main).includes('Not a prediction.'), `${route}: "Not a prediction." under the scrubbed chart`);
+      // The table's "Over double" adds up with its row: Typical − 2 × Half, in the printed whole minutes (round 4
+      // review, October 30, 2026: after a 2:45 half "5:57" beside "+30 min" made 6:00).
+      const bands = elements(html, /id="hf-bands"/)[0];
+      const minutesOf = (t) => { const m = /^(\d+):(\d\d)$/.exec(t.trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : NaN; };
+      const heads = bands ? [...bands.html.matchAll(/<th scope="col">([\s\S]*?)<\/th>/g)].map((m) => textOf(m[1]).trim()) : [];
+      const [hi, ti, xi] = ['Half', 'Typical', 'Over double'].map((h) => heads.indexOf(h));
+      const rows = bands ? [...bands.html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/g)].map((m) => [...m[1].matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/g)].map((c) => textOf(c[1]).trim())).filter((r) => r.length === heads.length && r[0] !== 'Half') : [];
+      ok(hi === 0 && ti > 0 && xi > 0 && rows.length >= 10, `${route}: the half-by-half table has its Half, Typical and Over double columns (${rows.length} rows)`);
+      for (const r of rows) {
+        const over = Number(r[xi].replace(/\s*min$/, '').replace('−', '-'));
+        ok(minutesOf(r[ti]) - 2 * minutesOf(r[hi]) === over, `${route}: after a ${r[hi]} half, Typical ${r[ti]} is double plus ${r[xi]}`);
+      }
+      ok(!/more after a slower one/.test(textOf(main)), `${route}: the scale note promises no rise the windows do not show`);
     }
     for (const el of elements(html, /id="goal-pace-half"/)) {
       ok(/data-half-scope="linked"/.test(el.tag), `${route}: the half-before panel is a linked surface`);

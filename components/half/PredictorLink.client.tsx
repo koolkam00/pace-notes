@@ -25,7 +25,7 @@ export default function PredictorLink({ halves, paces, extras, under, initial }:
   halves: string[];
   /** How much slower (or quicker) per mile and per km the typical marathon's pace was than that half's ("55 s/mi"). */
   paces: Record<'mi' | 'km', Pace[]>;
-  /** The typical marathon's whole minutes over double the half at each point (24). */
+  /** The window's typical marathon as printed minus double its half, whole minutes, at each point (24), so it adds up. */
   extras: number[];
   /** How many in 100 marathons came in under double the half at each point ("5 in 100"). */
   under: string[];

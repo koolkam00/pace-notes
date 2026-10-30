@@ -4,7 +4,7 @@ import { readHalf } from '@/lib/half-server';
 import { getNugget, sentenceOf } from '@/lib/nuggets';
 import { halfDeks } from '@/lib/nuggets/half';
 import { count, hm, pct } from '@/lib/nuggets/format';
-import { floorHM, paceGap, readoutMark } from '@/lib/tools/half-to-full';
+import { floorHM, paceGap, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
 import type { UnitSystem } from '@/lib/units';
 import { STORIES } from '@/lib/stories';
 import { ScopeTag } from '@/components/tools/EvidenceTag';
@@ -86,8 +86,11 @@ export default function HalfToFullBody() {
   // The plot holds the middle 8 in 10 and double the half, to the 10 minutes around them (no empty half hour above).
   const yDomain: [number, number] = [Math.floor(yLo / 600) * 600, Math.ceil(yHi / 600) * 600];
   // The chart is drawn on the server; the lines under it (the pace against the half, "Not a prediction." and the link
-  // into the predictor) follow its needle in the browser (PredictorLink).
-  const paces = (u: UnitSystem) => bands.map((w) => { const gap = paceGap(w.extra_p50, u); return { gap: `${Math.round(Math.abs(gap))} s/${u}`, word: gap < 0 ? 'quicker' as const : 'slower' as const }; });
+  // into the predictor) follow its needle in the browser (PredictorLink). Each window's minutes over double are its
+  // typical marathon as printed minus double its half (windowOverDouble), so the readout's "Typical" and "double the
+  // half plus N min", its pace against the half and the table's "Over double" add up with the times beside them.
+  const over = bands.map((w) => windowOverDouble(w));
+  const paces = (u: UnitSystem) => over.map((x) => { const gap = paceGap(x * 60, u); return { gap: `${Math.round(Math.abs(gap))} s/${u}`, word: gap < 0 ? 'quicker' as const : 'slower' as const }; });
   const profile: ComponentProps<typeof LineProfile> = {
     x: xs, xDomain: [lo, hi], yDomain,
     layers: [{
@@ -108,9 +111,10 @@ export default function HalfToFullBody() {
       .filter((s) => s > yDomain[0] && s < yDomain[1]).map((s) => ({ value: s, label: floorHM(s) })),
     gridMax: 4,
     gridSide: 'left',
-    // The key draws the wash as the plot does, and its lighter stretch where windows hold fewer than THIN pairs.
+    // The key draws the wash as the plot does, and its lighter stretch where windows hold fewer than THIN pairs, named as
+    // the same range with less behind it ("Fewer marathons" read as a third band of rarer finishes; round 4 review).
     keys: [{ label: 'Typical marathon', mark: 'line' }, { label: '8 in 10', mark: 'wash' },
-      ...(bands.some((w) => w.n < THIN) ? [{ label: 'Fewer marathons', mark: 'wash-thin' as const }] : []), { label: 'Double the half', mark: 'dash' }],
+      ...(bands.some((w) => w.n < THIN) ? [{ label: '8 in 10, from fewer marathons', mark: 'wash-thin' as const }] : []), { label: 'Double the half', mark: 'dash' }],
     axisTitle: { end: 'Half time' },
     scrub: {
       label: `Half time, ${floorHM(lo)} to ${floorHM(hi)}`,
@@ -133,7 +137,7 @@ export default function HalfToFullBody() {
     <div className="half-after-chart">
       <LineProfile {...profile} />
       <PredictorLink halves={bands.map((w) => floorHM(w.h))} paces={{ mi: paces('mi'), km: paces('km') }} initial={home}
-        extras={bands.map((w) => Math.round(w.extra_p50 / 60))} under={bands.map((w) => `${Math.round(w.under_double * 100)} in 100`)} />
+        extras={over} under={bands.map((w) => `${Math.round(w.under_double * 100)} in 100`)} />
     </div>
   );
 
@@ -151,7 +155,7 @@ export default function HalfToFullBody() {
         columns={[{ key: 'h', label: 'Half' }, { key: 't', label: 'Typical' }, { key: 'r80', label: '8 in 10' }, { key: 'r50', label: 'Half of them' },
           { key: 'x', label: 'Over double' }, { key: 'u', label: 'Under double' }, { key: 'm', label: 'Under a round time' }, { key: 'n', label: 'Pairs' }, { key: 'e', label: 'Marathon editions' }]}
         rows={bands.map((w, i) => [floorHM(w.h), floorHM(w.q[9]), `${floorHM(q(w, 0.1))}–${floorHM(q(w, 0.9))}`, `${floorHM(q(w, 0.25))}–${floorHM(q(w, 0.75))}`,
-          `${plus(w.extra_p50)} min`, pct(w.under_double, 1), markOf[i] ? `${floorHM(markOf[i]![0])}: ${pct(markOf[i]![1], 1)}` : '—', count(w.n), count(w.e)])}
+          `${plus(over[i] * 60)} min`, pct(w.under_double, 1), markOf[i] ? `${floorHM(markOf[i]![0])}: ${pct(markOf[i]![1], 1)}` : '—', count(w.n), count(w.e)])}
         reading={home} />,
       <Values key="double" bare id="hf-double" caption="Marathons under double the half, and within 10 to 40 minutes over it"
         columns={[{ key: 'w', label: 'Under' }, { key: 's', label: 'Share of marathons' }]}
