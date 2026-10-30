@@ -179,34 +179,38 @@ Read every headline that changed before publishing: a chart whose guard no longe
 
 ## Half refresh
 
-The half aggregates (`public/data/half/`, [half marathons](HALF_MARATHON.md)) come from two private releases in `koolkam00/pace-notes-db-backup` that stay outside the checkout, in `PACE_HALF_DIR` (default `~/data/half-1133`). Nothing below writes a half record into the repository or `public/`. Run the Python with `python3 -I`; DuckDB uses `PACE_HALF_DUCKDB_THREADS` (default 2), `PACE_HALF_DUCKDB_MEMORY` (default 4GB) and spills to `TMPDIR`, leaving no temp file behind.
+The half aggregates (`public/data/half/`, [half marathons](HALF_MARATHON.md)) come from the owner's public CC BY 4.0 releases in `koolkam00/pace-notes`: the snapshot and the link build from `half-dataset-20261029-1202` and the corrected edition metadata from `half-dataset-20261029-2157`, all pinned in `analysis/half-release.json`. The downloaded files live outside the checkout, in `PACE_HALF_DIR` (default `~/data/half-1133`); nothing below writes a half record into the repository or `public/`. Run the Python with `python3 -I`; DuckDB uses `PACE_HALF_DUCKDB_THREADS` (default 2), `PACE_HALF_DUCKDB_MEMORY` (default 4GB) and spills to `TMPDIR`, leaving no temp file behind.
 
 ```bash
 export PACE_HALF_DIR=~/data/half-1133
-# 1. The sources: the owner's `gh release download <tag> -R koolkam00/pace-notes-db-backup` folders, one per release...
-python3 -I analysis/download_half.py --from-dir <half folder> --from-dir <links folder>
-#    ...or a fine-grained read-only token in an environment variable (sent to api.github.com only, never written or printed):
-#    python3 -I analysis/download_half.py --token-env HALF_SOURCE_TOKEN
-#    Both check every asset against SHA256SUMS and the pin, reassemble platform_half.sqlite (integrity check, sha against
-#    the pin) and cut links-slim.sqlite from the 5.3 GB links SQLite, which is then deleted. About 9 GB of free disk.
+# 1. The sources, anonymously (github.com release URLs, no token, never api.github.com). Each release's SHA256SUMS
+#    must list every pinned asset with its pinned digest; platform_half.sqlite is reassembled (integrity check, sha
+#    against the pin), links-slim.sqlite is cut from the 5.3 GB links SQLite (put it on a larger disk with
+#    --links-work DIR; it is deleted afterwards) and the corrected metadata lands in $PACE_HALF_DIR/<its tag>/.
+#    About 10 GB of free disk at the peak.
+python3 -I analysis/download_half.py [--links-work DIR] [--only half|links|correction]
+#    Folders already filled from the releases (gh release download <tag> -R koolkam00/pace-notes, or curl), with their
+#    SHA256SUMS: python3 -I analysis/download_half.py --from-dir <folder> [--from-dir <folder>]
 #    Links that come as parquet tables instead: python3 -I analysis/half_links_extract.py --links-parquet <dir>
 # 2. Tests, build and the local source recount (writes the receipt docs/evidence/half/source-recount.json):
-python -m unittest discover -s analysis -p 'test_half.py'        # PACE_HALF_SOURCE_TESTS=1 also recomputes the frozen lists
-python3 -I analysis/build_half.py                                 # --half/--links default to $PACE_HALF_DIR; about 100 s
-npm run verify:half-source                                        # the same defaults; about 80 s and 0.9 GB
+python3 -I -m unittest discover -s analysis -p 'test_half.py'    # PACE_HALF_SOURCE_TESTS=1 also recomputes the frozen lists and stamps
+python3 -I analysis/build_half.py                                 # --half/--links/--corrected-meta default to $PACE_HALF_DIR; about 2 min
+npm run verify:half-source                                        # the same defaults; about 90 s and 1 GB
 # 3. The checks, the cards and the site:
 node scripts/verify-half.cjs
-node scripts/build-chart-cards.cjs --set half                     # redraws the half cards whose stamp changed (needs Chromium)
+node scripts/build-chart-cards.cjs --set half                     # redraws the half cards whose stamp changed and removes withdrawn ones (needs Chromium)
 node scripts/build-chart-cards.cjs --captions                     # docs/CHARTS_INSTAGRAM.md, both sections
 npm run verify:data && npm run build
 node scripts/verify-half.cjs --html
 ```
 
-Then capture and read every half surface (`/half`, `/stories/half-to-full`, the predictor with a half typed and each sex chip, the five marathon goal pages, the half pace chart, the four card images) before committing the data, the receipt and the cards together.
+Then capture and read every half surface (`/half`, `/stories/half-to-full`, the predictor with a half typed and each sex chip, the five marathon goal pages, the half pace chart, the `/methodology` half folds and downloads, each card image) at 390 and 1440 px in light and dark before committing the data, the receipt and the cards together. A moved number can turn a guard: read which readings fell back and which cards were withdrawn, re-judge each guard on its merits and record why in [half marathons](HALF_MARATHON.md#what-is-published); never loosen one to keep a headline.
 
-**When:** after a new half snapshot or link build; after any change to `analysis/release.json` or the runner manifest (`lib/half-server.ts` throws at build until the half data is rebuilt, and a new marathon release also needs a new link build from the producer); after a change to `analysis/weather-release.json` or the weather evidence; after a change to the cited `insights/finish-times.json` or `charts/womens-share-by-finish-time.json`; after any change to `analysis/half_*.py`, `analysis/build_half.py` or the policy. A change to `scripts/verify-half-source.cjs` or `scripts/half/{derive,policy,marathon,families}.cjs` needs only `npm run verify:half-source` and the new receipt. CI cannot read the sources: `verify-half` fails on a stale receipt, so never commit a rebuild without its recount.
+**When:** after a new half snapshot, link build or corrected metadata; after any change to `analysis/release.json` or the runner manifest (`lib/half-server.ts` throws at build until the half data is rebuilt, and a new marathon release also needs a new link build from the producer); after a change to `analysis/weather-release.json` or the weather evidence; after a change to the cited `insights/finish-times.json` or `charts/womens-share-by-finish-time.json`; after any change to `analysis/half_*.py`, `analysis/build_half.py` or the policy. A change to `scripts/verify-half-source.cjs` or `scripts/half/{derive,policy,marathon,families}.cjs` needs only `npm run verify:half-source` and the new receipt. `verify-half` fails on a stale receipt, so never commit a rebuild without its recount.
 
-**A new snapshot or link build:** pin the new tags, asset sums and `sqlite_sha256` in `analysis/half-release.json`; cut the extract with `--pin` (it writes `extract_content_sha256`); add a reviewed entry to `REVIEWED_HALF_POLICIES` in `analysis/half_quality.py`, print the recomputed lists with `python3 -I analysis/half_quality.py --discover --half <snapshot>` (local only; never commit its output), review every one (R3, R4, E2–E8), freeze the entry with `--write-policy` under a new policy file name and confirm it with `--check --half <snapshot>`; build with `--accept-counts` only after reading every count change it prints; rerun the source recount; rewrite the dated evidence and the owner questions in [half marathons](HALF_MARATHON.md). The optional manual `source` job of the **Half marathon** workflow repeats the build and the recount in CI only when the owner has stored `HALF_SOURCE_TOKEN` (owner question Q2, at its default: no such secret).
+**CI.** The **Half marathon** workflow's `check` job runs the tests, `verify-half` and the card check on every change to the half files. Its `source` job repeats steps 1 and 2 anonymously from the public releases (download, rebuild into the runner's temp folder, byte comparison with `public/data/half/`, recount with `--no-write`) on `workflow_dispatch` and on pushes to `main` and pull requests that touch the pin, the policy JSON, a builder, the recount or the workflow; otherwise it prints "skipped: this change touches no half pin, policy, builder or recount file". Before relying on a change to its steps, run them on a machine first (October 30, 2026: the first local run found the links SQLite's untyped columns, fixed in `half_links_extract.py`).
+
+**A new snapshot, link build or corrected metadata:** pin the new tags, asset sums and `sqlite_sha256` (and `private_tag` when the snapshot or link build has its own identity) in `analysis/half-release.json`; cut the extract with `--pin` (it writes `extract_content_sha256`); add a reviewed entry to `REVIEWED_HALF_POLICIES` in `analysis/half_quality.py`, print the recomputed lists with `python3 -I analysis/half_quality.py --discover --half <snapshot>` (local only; never commit its output), review every one (R3, R4, E2–E8, and the withdrawn and weaker-source stamps of a corrected metadata file, frozen in `half_policy_lists.py` with the file's sha256), freeze the entry with `--write-policy` under a new policy file name and confirm it with `--check --half <snapshot> --corrected-meta <file>`; build with `--accept-counts` only after reading every count change it prints, then set the reviewed `EXPECTED` counts from that run; rerun the source recount; check every new asset URL anonymously with a ranged GET and date it; rewrite the dated evidence and the owner questions in [half marathons](HALF_MARATHON.md).
 
 ## Producer operations and missing information
 
