@@ -391,16 +391,24 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
 {
   const u = field.under.find((x) => x.s === 7200);
   const c1 = card['half-under-2'];
-  eq([c1.scope, c1.source, c1.values, c1.plot.parts[0].share], ['verified', { file: 'field.json', path: 'under[s=7200].all' }, { editions: field.cohort.editions, finishes: field.cohort.finishes, under_7200: u.all }, u.all], 'card half-under-2');
+  eq([c1.scope, c1.source, c1.values, c1.plot.parts[0].share], ['verified', { file: 'field.json', path: 'under[s=7200].all' },
+    { editions: field.cohort.editions, finishes: field.cohort.finishes, men_under_7200: u.M, under_7200: u.all, women_under_7200: u.F }, u.all], 'card half-under-2');
   const c2 = card['half-more-women'];
-  eq([c2.scope, c2.plot.rows], ['verified', SC.cities.map((c) => ({ a: c.half, b: c.marathon, label: c.city }))], 'card half-more-women: the city rows');
+  // The marathon is the hollow ring and the half the filled dot (the page's key), under the two medians as a signal row.
+  eq([c2.scope, c2.plot.a, c2.plot.b, c2.plot.rows], ['verified', 'Marathon', 'Half',
+    [{ a: SC.summary.marathon_median, b: SC.summary.half_median, label: 'Typical', tone: 'signal' }, ...SC.cities.map((c) => ({ a: c.marathon, b: c.half, label: c.city }))]],
+  'card half-more-women: the typical row and the city rows');
   eq(c2.values, { cities: SC.summary.cities, half_higher: SC.summary.half_higher, half_median: SC.summary.half_median, marathon_median: SC.summary.marathon_median, pairs: SC.summary.pairs }, 'card half-more-women: values');
   const c3 = card['half-double'];
-  eq([c3.scope, c3.plot.parts[0].share, c3.values], ['linked', ov.under_double_plus_min['0'], { extra_p50_s: ov.extra_s.p50, pairs: S.pairs, under_double: ov.under_double_plus_min['0'] }], 'card half-double');
+  const [u0, u20] = [ov.under_double_plus_min['0'], ov.under_double_plus_min['20']];
+  eq([c3.scope, c3.plot.parts.map((p) => [p.share, p.tone]), c3.values], ['linked', [[u0, 'signal'], [D.sh(u20 - u0), 'ink']],
+    { extra_p50_s: ov.extra_s.p50, pairs: S.pairs, under_double: u0, within_20: u20 }], 'card half-double: under double, then within 20 minutes over it');
   const c4 = card['half-same-half'];
   const rows = [5400, 6300, 7200, 8100].filter((h) => byH.F.has(h) && byH.M.has(h));
+  const flag = Math.round(linked.checks.battery.pooled_half_p50_s / 300) * 300;
   eq(c4.scope, 'linked', 'card half-same-half: scope');
-  eq(c4.plot.rows, rows.map((h) => ({ a: byH.F.get(h).sus, b: byH.M.get(h).sus, label: D.clock(h) })), 'card half-same-half: the windows at 1:30, 1:45, 2:00 and 2:15');
+  eq(c4.plot.rows, rows.map((h) => ({ a: byH.F.get(h).sus, b: byH.M.get(h).sus, label: D.clock(h), ...(h === flag ? { tone: 'signal' } : {}) })),
+    'card half-same-half: the windows at 1:30, 1:45, 2:00 and 2:15, the flagship band the signal row');
   eq(c4.values, Object.fromEntries(rows.flatMap((h) => [[`F_${h}`, byH.F.get(h).sus], [`M_${h}`, byH.M.get(h).sus]]).sort(([a], [b]) => (a < b ? -1 : 1))), 'card half-same-half: values');
 }
 
@@ -433,7 +441,24 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
   for (const g of ['F', 'M']) texts.push([`tool too few ${g}`, T.tooFewSentence(tool, g)]);
   for (const goal of linked.goals) for (const [k, v] of Object.entries(T.goalLines(goal))) if (v && k !== 'link') texts.push([`goal ${goal.goal_s} ${k}`, v]);
   texts.push(['not a prediction', T.NOT_A_PREDICTION]);
-  const rules = [...W.BANNED, ...W.HALF_BANNED, ...W.STATUS_WORDS, ...W.VERIFICATION_WORDS];
+  // The words of the four "From the half" cards (lib/charts/text/half.ts), held to the Top 100's card rules: the guard
+  // holds for this build, titles fit 47 characters, one accent, a takeaway of at most 150 characters; a card of records
+  // linked by name says so (and its footer carries the chip, scripts/half/card-images.cjs); a verified card does not.
+  const CW = require(path.join(ROOT, 'lib/charts/text/half.ts'));
+  const docs = { field, women, linked };
+  for (const c of cards.cards) {
+    const said = CW.HALF_CARD_TEXT[c.slug].words(c.values, docs);
+    const words = CW.halfCardWords(c, docs);
+    ok(said.guard, `card ${c.slug}: the takeaway's guard no longer holds for this build; rewrite the card's words (${said.fallback})`);
+    for (const t of [said.title, said.titleFallback]) ok(t.length <= 47, `card ${c.slug}: the title "${t}" is over 47 characters`);
+    ok((said.headline.match(/\*/g) || []).length === 2, `card ${c.slug}: the takeaway has exactly one *…* accent`);
+    ok(words.plain.length <= 150, `card ${c.slug}: the takeaway is ${words.plain.length} characters (at most 150)`);
+    ok(/records linked by name/.test(words.plain) === (c.scope === 'linked'), `card ${c.slug}: "records linked by name" exactly when the card is linked`);
+    eq(words.chip, c.scope === 'linked' ? 'Includes unverified half results' : null, `card ${c.slug}: the chip only on a linked card`);
+    texts.push([`card ${c.slug} title`, said.title], [`card ${c.slug} title fallback`, said.titleFallback], [`card ${c.slug} takeaway`, said.headline],
+      [`card ${c.slug} fallback`, said.fallback], [`card ${c.slug} kicker`, `${words.kicker} ${words.theme}`]);
+  }
+  const rules =[...W.BANNED, ...W.HALF_BANNED, ...W.STATUS_WORDS, ...W.VERIFICATION_WORDS];
   for (const [where, text] of texts) {
     const found = W.wordProblems(plain(text), rules);
     ok(!found.length, `${where}: ${found.join(', ')}: ${text}`);

@@ -357,13 +357,15 @@ function linked(P, { people, halfEditions }) {
 function cards(fieldDoc, womenDoc, linkedDoc) {
   const under = fieldDoc.under.find((u) => u.s === 7200);
   const SC = womenDoc.same_city;
-  const ud = linkedDoc.overall.under_double_plus_min['0'];
+  const ud = linkedDoc.overall.under_double_plus_min['0'], u20 = linkedDoc.overall.under_double_plus_min['20'];
   const win = (g, h) => linkedDoc.windows[g].find((w) => w.h === h) || null;
+  // The flagship's band: the 5-minute band nearest the pooled median half (lib/nuggets/half.ts flagshipWindow).
+  const flagship = Math.round(linkedDoc.checks.battery.pooled_half_p50_s / 300) * 300;
   const rows = [], values = {};
   for (const h of [5400, 6300, 7200, 8100]) {
     const f = win('F', h), m = win('M', h);
     if (!f || !m) continue;
-    rows.push({ label: label(h / 60), a: f.sus, b: m.sus });
+    rows.push({ label: label(h / 60), a: f.sus, b: m.sus, ...(h === flagship ? { tone: 'signal' } : {}) });
     values[`F_${h}`] = f.sus;
     values[`M_${h}`] = m.sus;
   }
@@ -372,12 +374,16 @@ function cards(fieldDoc, womenDoc, linkedDoc) {
     schema_version: 1, family: 'half-cards',
     cards: [
       { slug: 'half-under-2', scope: 'verified', plot: { form: 'waffle', parts: [{ share: under.all, tone: 'signal', label: 'under 2:00' }], rest: '2:00 or slower' },
-        values: { under_7200: under.all, finishes: fieldDoc.cohort.finishes, editions: fieldDoc.cohort.editions }, source: { file: 'field.json', path: 'under[s=7200].all' } },
-      { slug: 'half-more-women', scope: 'verified', plot: { form: 'dumbbell', rows: SC.cities.map((c) => ({ label: c.city, a: c.half, b: c.marathon })), x: axis, fmt: 'share', a: 'Half', b: 'Marathon' },
+        values: { under_7200: under.all, women_under_7200: under.F, men_under_7200: under.M, finishes: fieldDoc.cohort.finishes, editions: fieldDoc.cohort.editions },
+        source: { file: 'field.json', path: 'under[s=7200].all' } },
+      { slug: 'half-more-women', scope: 'verified',
+        plot: { form: 'dumbbell', rows: [{ label: 'Typical', a: SC.summary.marathon_median, b: SC.summary.half_median, tone: 'signal' }, ...SC.cities.map((c) => ({ label: c.city, a: c.marathon, b: c.half }))],
+          x: axis, fmt: 'share', a: 'Marathon', b: 'Half' },
         values: { half_median: SC.summary.half_median, marathon_median: SC.summary.marathon_median, pairs: SC.summary.pairs, cities: SC.summary.cities, half_higher: SC.summary.half_higher },
         source: { file: 'women.json', path: 'same_city.cities' } },
-      { slug: 'half-double', scope: 'linked', plot: { form: 'waffle', parts: [{ share: ud, tone: 'signal', label: 'under double the half' }], rest: 'double the half or slower' },
-        values: { under_double: ud, pairs: linkedDoc.set.pairs, extra_p50_s: linkedDoc.overall.extra_s.p50 }, source: { file: 'linked.json', path: 'overall.under_double_plus_min.0' } },
+      { slug: 'half-double', scope: 'linked',
+        plot: { form: 'waffle', parts: [{ share: ud, tone: 'signal', label: 'under double' }, { share: D.sh(u20 - ud), tone: 'ink', label: 'up to +20 min' }], rest: '+20 min and up' },
+        values: { under_double: ud, within_20: u20, pairs: linkedDoc.set.pairs, extra_p50_s: linkedDoc.overall.extra_s.p50 }, source: { file: 'linked.json', path: 'overall.under_double_plus_min.0' } },
       { slug: 'half-same-half', scope: 'linked', plot: { form: 'dumbbell', rows, x: axis, fmt: 'share', a: 'Recorded women’s', b: 'Recorded men’s' },
         values, source: { file: 'linked.json', path: 'windows.F[h].sus, windows.M[h].sus' } },
     ],

@@ -486,6 +486,46 @@ class Determinism(unittest.TestCase):
                 build_half.check_sources(hc.load_pin(), wrong, wrong)
 
 
+class Cards(unittest.TestCase):
+    """analysis/half_cards.py: the card plots read their family files and draw what the pages draw."""
+
+    @staticmethod
+    def families(pooled_half=6318, under=(0.0772, 0.476)):
+        win = lambda h, sus: {'h': h, 'sus': sus}  # noqa: E731
+        field = {'under': [{'s': 7200, 'all': 0.56, 'F': 0.35, 'M': 0.68}], 'cohort': {'finishes': 1000, 'editions': 9}}
+        women = {'same_city': {'cities': [{'city': 'A', 'half': 0.4, 'marathon': 0.25}, {'city': 'B', 'half': 0.3, 'marathon': 0.2}],
+                               'summary': {'half_median': 0.35, 'marathon_median': 0.22, 'pairs': 12, 'cities': 2, 'half_higher': 12}}}
+        linked = {'overall': {'under_double_plus_min': {'0': under[0], '20': under[1]}, 'extra_s': {'p50': 1254}},
+                  'set': {'pairs': 500}, 'checks': {'battery': {'pooled_half_p50_s': pooled_half}},
+                  'windows': {'F': [win(h, 0.1) for h in (5400, 6300, 7200)], 'M': [win(h, 0.3) for h in (5400, 6300, 7200, 8100)]}}
+        return field, women, linked
+
+    def test_plots(self):
+        import half_cards
+        cards = {c['slug']: c for c in half_cards.build(*self.families())['cards']}
+        self.assertEqual(list(cards), ['half-under-2', 'half-more-women', 'half-double', 'half-same-half'])
+        self.assertEqual(cards['half-under-2']['values']['women_under_7200'], 0.35)
+        rows = cards['half-more-women']['plot']['rows']
+        self.assertEqual(rows[0], {'label': 'Typical', 'a': 0.22, 'b': 0.35, 'tone': 'signal'}, 'the medians first, the marathon the ring')
+        self.assertEqual(rows[1], {'label': 'A', 'a': 0.25, 'b': 0.4})
+        parts = cards['half-double']['plot']['parts']
+        self.assertEqual([p['share'] for p in parts], [0.0772, hc.sh(0.476 - 0.0772)])
+        same = cards['half-same-half']['plot']['rows']
+        self.assertEqual([r['label'] for r in same], ['1:30', '1:45', '2:00'], 'a band needs both recorded sexes')
+        self.assertEqual([r.get('tone') for r in same], [None, 'signal', None], 'the band nearest the pooled median half is the signal')
+
+    def test_flagship_band_rounds_like_the_site(self):
+        import half_cards
+        # 6150 s is exactly between the 1:40 and 1:45 bands: JavaScript's Math.round (the nuggets) takes 1:45.
+        self.assertEqual(half_cards.flagship_band(self.families(pooled_half=6150)[2]), 6300)
+        self.assertEqual(half_cards.flagship_band(self.families(pooled_half=6149)[2]), 6000)
+
+    def test_shares_out_of_order_refuse(self):
+        import half_cards
+        with self.assertRaises(hc.HalfError):
+            half_cards.build(*self.families(under=(0.5, 0.4)))
+
+
 class DownloadHalf(unittest.TestCase):
     """analysis/download_half.py on synthetic parts: SHA256SUMS and the pin, reassembly, the token's reach."""
 

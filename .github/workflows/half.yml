@@ -28,6 +28,9 @@ on:
       - 'scripts/half/**'
       - 'scripts/nuggets/half.cjs'
       - 'scripts/lib/words.cjs'
+      - 'scripts/build-chart-cards.cjs'
+      - 'lib/charts/text/half.ts'
+      - 'public/charts/cards/half-*'
       - 'docs/evidence/half/**'
       - '.github/workflows/half.yml'
   workflow_dispatch:
@@ -56,6 +59,8 @@ jobs:
         run: python -m unittest discover -s analysis -p 'test_half.py'
       - name: Verify the published half aggregates and the source-recount receipt
         run: node scripts/verify-half.cjs
+      - name: The four "From the half" card images are current (stamps, sizes, no orphans)
+        run: node scripts/build-chart-cards.cjs --check --set half
 
   source:
     if: github.event_name == 'workflow_dispatch'
