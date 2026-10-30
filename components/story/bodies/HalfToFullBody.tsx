@@ -4,7 +4,7 @@ import { readHalf } from '@/lib/half-server';
 import { getNugget, sentenceOf } from '@/lib/nuggets';
 import { halfDeks } from '@/lib/nuggets/half';
 import { count, hm, pct } from '@/lib/nuggets/format';
-import { floorHM, paceGap, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
+import { NOT_A_PREDICTION, floorHM, paceGap, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
 import type { UnitSystem } from '@/lib/units';
 import { STORIES } from '@/lib/stories';
 import { ScopeTag } from '@/components/tools/EvidenceTag';
@@ -137,7 +137,7 @@ export default function HalfToFullBody() {
     <div className="half-after-chart">
       <LineProfile {...profile} />
       <PredictorLink halves={bands.map((w) => floorHM(w.h))} paces={{ mi: paces('mi'), km: paces('km') }} initial={home}
-        extras={over} under={bands.map((w) => `${Math.round(w.under_double * 100)} in 100`)} />
+        extras={over} under={bands.map((w) => `${Math.round(w.under_double * 100)} in 100`)} not={NOT_A_PREDICTION} />
     </div>
   );
 
