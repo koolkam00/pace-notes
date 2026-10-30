@@ -177,6 +177,37 @@ npm run verify:data && npm run build
 
 Read every headline that changed before publishing: a chart whose guard no longer holds shows its neutral fallback. The **Top 100 charts** workflow rebuilds the charts in CI and requires the committed bytes. See [Top 100 charts](TOP_100_CHARTS.md).
 
+## Half refresh
+
+The half aggregates (`public/data/half/`, [half marathons](HALF_MARATHON.md)) come from two private releases in `koolkam00/pace-notes-db-backup` that stay outside the checkout, in `PACE_HALF_DIR` (default `~/data/half-1133`). Nothing below writes a half record into the repository or `public/`. Run the Python with `python3 -I`; DuckDB uses `PACE_HALF_DUCKDB_THREADS` (default 2), `PACE_HALF_DUCKDB_MEMORY` (default 4GB) and spills to `TMPDIR`, leaving no temp file behind.
+
+```bash
+export PACE_HALF_DIR=~/data/half-1133
+# 1. The sources: the owner's `gh release download <tag> -R koolkam00/pace-notes-db-backup` folders, one per release...
+python3 -I analysis/download_half.py --from-dir <half folder> --from-dir <links folder>
+#    ...or a fine-grained read-only token in an environment variable (sent to api.github.com only, never written or printed):
+#    python3 -I analysis/download_half.py --token-env HALF_SOURCE_TOKEN
+#    Both check every asset against SHA256SUMS and the pin, reassemble platform_half.sqlite (integrity check, sha against
+#    the pin) and cut links-slim.sqlite from the 5.3 GB links SQLite, which is then deleted. About 9 GB of free disk.
+#    Links that come as parquet tables instead: python3 -I analysis/half_links_extract.py --links-parquet <dir>
+# 2. Tests, build and the local source recount (writes the receipt docs/evidence/half/source-recount.json):
+python -m unittest discover -s analysis -p 'test_half.py'        # PACE_HALF_SOURCE_TESTS=1 also recomputes the frozen lists
+python3 -I analysis/build_half.py                                 # --half/--links default to $PACE_HALF_DIR; about 100 s
+npm run verify:half-source                                        # the same defaults; about 80 s and 0.9 GB
+# 3. The checks, the cards and the site:
+node scripts/verify-half.cjs
+node scripts/build-chart-cards.cjs --set half                     # redraws the half cards whose stamp changed (needs Chromium)
+node scripts/build-chart-cards.cjs --captions                     # docs/CHARTS_INSTAGRAM.md, both sections
+npm run verify:data && npm run build
+node scripts/verify-half.cjs --html
+```
+
+Then capture and read every half surface (`/half`, `/stories/half-to-full`, the predictor with a half typed and each sex chip, the five marathon goal pages, the half pace chart, the four card images) before committing the data, the receipt and the cards together.
+
+**When:** after a new half snapshot or link build; after any change to `analysis/release.json` or the runner manifest (`lib/half-server.ts` throws at build until the half data is rebuilt, and a new marathon release also needs a new link build from the producer); after a change to `analysis/weather-release.json` or the weather evidence; after a change to the cited `insights/finish-times.json` or `charts/womens-share-by-finish-time.json`; after any change to `analysis/half_*.py`, `analysis/build_half.py` or the policy. A change to `scripts/verify-half-source.cjs` or `scripts/half/{derive,policy,marathon,families}.cjs` needs only `npm run verify:half-source` and the new receipt. CI cannot read the sources: `verify-half` fails on a stale receipt, so never commit a rebuild without its recount.
+
+**A new snapshot or link build:** pin the new tags, asset sums and `sqlite_sha256` in `analysis/half-release.json`; cut the extract with `--pin` (it writes `extract_content_sha256`); add a reviewed entry to `REVIEWED_HALF_POLICIES` in `analysis/half_quality.py`, print the recomputed lists with `python3 -I analysis/half_quality.py --discover --half <snapshot>` (local only; never commit its output), review every one (R3, R4, E2–E8), freeze the entry with `--write-policy` under a new policy file name and confirm it with `--check --half <snapshot>`; build with `--accept-counts` only after reading every count change it prints; rerun the source recount; rewrite the dated evidence and the owner questions in [half marathons](HALF_MARATHON.md). The optional manual `source` job of the **Half marathon** workflow repeats the build and the recount in CI only when the owner has stored `HALF_SOURCE_TOKEN` (owner decision Q2: no such secret by default).
+
 ## Producer operations and missing information
 
 The live producer database, scheduled ingestion, retries and recovery scripts are external to this checkout. A consistent SQLite snapshot is made through SQLite's backup mechanism or an equivalent supported snapshot; do not blindly copy a changing database or replace ingestion with a downloaded backup. Publish checksummed full-record snapshots with anonymous opening instructions. Public snapshot access does not require exposing the live service or its credentials.

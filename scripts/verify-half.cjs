@@ -8,7 +8,7 @@
 //      without a rebuild fails); every published file's bytes and sha; the reviewed policy file.
 //   2. Floors and bans: identifier and name keys, strings only under allow-listed keys, no release labels, every shown
 //      group at least 100 finishes or pairs and 3 editions; the words list (scripts/lib/words.cjs) on every file string,
-//      nugget, dek and tool sentence.
+//      nugget, dek, tool sentence and card word (lib/charts/text/half.ts, with the card rules of the Top 100).
 //   3. Exact recounts from the published aggregates: every share under a time from the minute histogram and the sex
 //      bins, the quantiles against their bins, the densest 30 minutes, the round marks (the smooth curve refitted in
 //      Node within 0.05), the women's band medians and crossing, the same-city shares, and the marathon side of every
