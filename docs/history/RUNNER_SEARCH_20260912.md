@@ -1,6 +1,8 @@
+> **History.** Moved here on October 30, 2026 from `docs/CURRENT_SITE_AND_RUNNER_SEARCH.md` at `a2c6e507`, unchanged except that relative links point from this folder and follow sections that moved. Counts belong to the release they name; current state is in the [project handoff](../PROJECT_HANDOFF.md). Its verification contract is also in [runner search and the race report](../RUNNERS_AND_REPORT.md#verification). Index: [docs/history](README.md).
+
 # Current-source analyses and public runner search
 
-Implementation and verification record, September 12, 2026 UTC. Source release: **`private-export-20260911-1107`**. This follows the initial [1107 refresh](REFRESH_20260911_1107.md), which refreshed the main analyses but left historical supporting figures in place.
+Implementation and verification record, September 12, 2026 UTC. Source release: **`private-export-20260911-1107`**. This follows the initial [1107 refresh](../REFRESH_20260911_1107.md), which refreshed the main analyses but left historical supporting figures in place.
 
 ## Publication scope
 

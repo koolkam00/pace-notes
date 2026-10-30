@@ -84,6 +84,8 @@ Review and copy the weather JSON to `public/data/weather/evidence.json` with its
 
 Every active analysis must now use the same adopted release. The supporting-study and runner importer replaces only `public/data/study`, `public/data/runners` and current `live.json` compatibility metadata. It validates every shard, every record (4,915,355 in 1652), every eligible timing (3,871,767), name-index membership and calculation/source hashes before import. Historical S/R/RN/P numerical files remain in Git history, outside deployed output. The source pin alone never certifies a refresh.
 
+Forecast and validated course-adjustment outputs remain explicitly unavailable where the current inputs cannot support them. Historical outputs remain recoverable in Git history and are never relabeled as fresh. Weather publication follows the existing evidence rule. A previously published candidate can become withheld and vice versa; all three results remain in the downloadable audit. See [weather methods and decisions](WEATHER_ANALYSES.md).
+
 ## Runner context refresh
 
 The context builder uses `analysis/release.json` and requires the verified FULL directory containing `full.tar.gz`, `MANIFEST.json`, `provenance.json` and extracted inputs. It checks the source against the existing runner lookup. It explicitly supports the audited 1107, 0934, 1652 and 1050 policies; adopting a future tag requires reviewing the source/edition policy, rebuilding the lookup and updating the release-gated contracts together.
@@ -216,7 +218,7 @@ Then capture and read every half surface (`/half`, `/stories/half-to-full`, the 
 
 The live producer database, scheduled ingestion, retries and recovery scripts are external to this checkout. A consistent SQLite snapshot is made through SQLite's backup mechanism or an equivalent supported snapshot; do not blindly copy a changing database or replace ingestion with a downloaded backup. Publish checksummed full-record snapshots with anonymous opening instructions. Public snapshot access does not require exposing the live service or its credentials.
 
-Producer follow-up priorities are complete/reconcile held editions (1652: Chicago 2015, Oslo 2026, New York 2008 and Frankfurt 2019's engine force-drop), explain the in-place Paris 2014–2018 rewrite that left 25 km blank for about 99% of rows, restore the Washington course profile's race name, document exact-age and missing-field coverage, resolve ambiguous edition dates/start hours and provide historical route validity. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and [INGESTION_HANDOFF.md](INGESTION_HANDOFF.md). Never infer missing values to make a cohort larger.
+Producer follow-up priorities are complete/reconcile held editions (1652: Chicago 2015, Oslo 2026, New York 2008 and Frankfurt 2019's engine force-drop), explain the in-place Paris 2014–2018 rewrite that left 25 km blank for about 99% of rows, restore the Washington course profile's race name, document exact-age and missing-field coverage, resolve ambiguous edition dates/start hours and provide historical route validity. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and [the September 10 producer request](history/INGESTION_HANDOFF_20260910.md). Never infer missing values to make a cohort larger.
 
 ## Report statuses separately
 

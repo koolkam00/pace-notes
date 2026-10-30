@@ -87,3 +87,13 @@ Do not force the general forecast, paired-course or matched-opening results to o
 - **Returning to the same course:** implemented and useful, but lower immediate decision value than the selected ten and restricted to linked repeats. It remains in the twelve-question archive. It is not selected by target, and its paired change cannot isolate familiarity.
 
 The wider 35-question catalog, its 33 calculated packs, sustained-slowdown figures and compatibility URLs remain a research archive. The shared engine retains all 12 calculation paths; `summary.analyses` and metadata `analysis_count` intentionally remain 12. The full earlier guide remains at `/research/personalized`. `/your-race` forwards mapped hashes and profile parameters to the primary pages; downhill opens the new all-finisher route and return opens that archive. The ten-page selection does not remove those outputs. The earlier target-range expansion used September 7 input. The current 0934 refresh updates the source and calculation provenance, retains the same 90–720-minute target contract and adds explicitly reviewed edition exclusions without changing the pacing definitions.
+
+## Product and statistical contracts
+
+These came from the project handoff on October 30, 2026; its dated original is in [history](history/handoff-2026-09-to-10-13.md#product-and-statistical-contracts).
+
+The archive retains 35 broader questions: 33 calculated extension packs and two limited by missing group/start-offset measurements. These overlapping views are not independent studies.
+
+The sustained-slowdown calculation uses contiguous recorded sections totaling at least 5 km after 20 km; onset is a section boundary, not an exact moment. The definition remains at least 25% slowing for at least 5 km after 20 km relative to the 5–20 km baseline, with the neutral [published-method citation](https://doi.org/10.1371/journal.pone.0251513). Canonical record IDs are not verified cross-race identities: retain ambiguity, gender/birth-year and duplicate-edition checks, and exclude current/same-year results from prior benchmarks.
+
+The defaults (the initial profile, the target range and the earlier-time bands) are under [cold start and availability](#cold-start-and-availability) and [supported controls and counting rules](#supported-controls-and-counting-rules); units are under [display units](WEBSITE_ARCHITECTURE.md#display-units).
