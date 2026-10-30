@@ -281,9 +281,9 @@ On a preview, the host checks are skipped, and Vercel already sends `x-robots-ta
 
 Status on October 8, 2026, before this work was deployed: 3 of 13 checks pass (`/tools/`, `/tools.html` and `/data/live.json`), 9 fail and the sitemap-URL check is skipped because there is no sitemap yet. www answers 307, not 308 (an owner setting; see the checklist below). The old host, `/htw` and `/packs/smyth_htw` answer 200. `robots.txt` and `sitemap.xml` are 404. Neither `X-Robots-Tag` header is sent, and the home page has no canonical. All of those should pass once the integration branch is deployed and the www redirect is changed. **After the deploy (PR #53, `248487e`) and the www change to 308, all 13 checks passed; they passed again on October 13, 2026.**
 
-## Redirects and headers ([`vercel.json`](../vercel.json))
+## Redirects and headers (`vercel.json`)
 
-Next.js `redirects()` and `headers()` do not work with `output: 'export'`, so these live in `vercel.json`:
+Next.js `redirects()` and `headers()` do not work with `output: 'export'`, so these live in [`vercel.json`](../vercel.json):
 
 | Rule | Effect |
 | --- | --- |
