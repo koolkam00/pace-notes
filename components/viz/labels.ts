@@ -187,8 +187,9 @@ export function fitClass(width: number): string {
   return step ? `w${step}` : 'w-never';
 }
 
-/** `group`: ticks that show and hide together (the quarter hours between half hours), so the steps stay even. */
-export type Tick = { x: number; label: string; priority?: number; group?: string };
+/** `group`: ticks that show and hide together (the quarter hours between half hours), so the steps stay even. `from`:
+ *  a figure width (one of FIT_STEPS) below which the tick hides even where it would fit. */
+export type Tick = { x: number; label: string; priority?: number; group?: string; from?: number };
 export type LaidTick = Tick & { anchor: 'start' | 'middle' | 'end'; minWidth: number | null };
 
 /**
@@ -236,6 +237,7 @@ export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH, centred =
   };
   return ticks.map((t, i) => {
     const k = kept.find((x) => x.i === i)!;
-    return { ...t, anchor: k.anchor, minWidth: t.group ? groupMin(t.group) : k.min };
+    const min = t.group ? groupMin(t.group) : k.min;
+    return { ...t, anchor: k.anchor, minWidth: min === null || !t.from ? min : Math.max(min, t.from) };
   });
 }

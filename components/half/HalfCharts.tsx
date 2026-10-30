@@ -155,7 +155,10 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
     const anchor = i === 0 ? 'start' as const : i === last ? 'end' as const : 'middle' as const;
     return {
       id: `b${i}`, text: format(shares[i]), x: x(i + 0.5), y: y(shares[i]), priority: 3, tone: i === signal ? 'signal' as const : 'ink' as const,
-      size: i === signal ? 14 : 13, anchor, dx: anchor === 'start' ? -11 : anchor === 'end' ? 11 : 0, dy: -7, minWidth: 0,
+      // The signal's value ends at its narrow column's right edge (8 px past the centre) rather than centred: at 200% zoom
+      // the pitch is 20 px, and a centred 14 px "59%" ran into the taller column to its right (the earlier one is lower).
+      size: i === signal ? 14 : 13, anchor: i === signal && anchor === 'middle' ? 'end' as const : anchor,
+      dx: anchor === 'start' ? -11 : anchor === 'end' ? 11 : i === signal ? 8 : 0, dy: -7, minWidth: 0,
     };
   });
   const half = y(0.5);
@@ -185,7 +188,12 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
       <Annotation labels={labels} />
     </Plot>
   );
-  const ticks = bands.slice(1).map((b, i) => ({ x: x(i + 1), label: hm(b.lo_s / 60), priority: i + 1 === signal ? 4 : 1 }));
+  // Even steps at every width: the signal's edge (2:15) first, the edges 45 minutes either side of it next (1:30, 3:00),
+  // and the quarter hours between them only all together (a tick group), so 200% zoom never shows 1:30, 2:15, 2:45.
+  const ticks = bands.slice(1).map((b, i) => {
+    const k = i + 1, off = Math.abs(k - signal);
+    return { x: x(k), label: hm(b.lo_s / 60), priority: k === signal ? 4 : off % 3 === 0 ? 3 : 1, ...(k !== signal && off % 3 !== 0 ? { group: 'quarter' } : {}) };
+  });
   return <ChartFrame className="columns half-share" label={label} height={height} heightMd={230} plot={plot} axis={<Axis ticks={ticks} />} values={values} />;
 }
 

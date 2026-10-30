@@ -308,11 +308,16 @@
 /* Under the half-by-half profile: the scrubbed half's pace line, "Not a prediction." on its own line, the predictor link.
    The profile and those lines share one wrapper (the lines read the profile's needle), which keeps a beat's figure width. */
 .story-beat > .half-after-chart { max-width: var(--measure-figure); }
+/* The profile's 8-in-10 wash a step stronger than the generic band, and its thin stretch (windows of under 300 pairs)
+   at 1.15:1 against the page in light and 1.2:1 in dark, so it stays visible; the key's swatches use the same values. */
+.half-after-chart { --wash: .12; --wash-thin: .07; }
+[data-theme="dark"] .half-after-chart { --wash: .15; --wash-thin: .085; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .half-after-chart { --wash: .15; --wash-thin: .085; } }
 .half-pace-gap { margin: var(--s-4) 0 0; max-width: 34rem; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
-.half-pace-gap b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.half-pace-gap b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
 .half-not { margin: var(--s-3) 0 0; font-size: var(--t-small); font-weight: 600; line-height: 1.5; color: var(--ink); }
-.half-predictor { margin: var(--s-1) 0 0; }
-.half-predictor-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; color: var(--ink); }
+/* The predictor link: body-small and underlined like the panels' links (.arrow-line), so it reads as the beat's next
+   step, not a subheading (it was heading-size bold on two lines at 390 px). */
+.half-predictor { margin: var(--s-3) 0 0; font-size: var(--t-small); line-height: 1.5; }
 /* A figure-free way from a marathon beat to the half pages, at the beat's foot (components/half/HalfWays.tsx). */
 .story-way { margin: var(--s-4) 0 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
-.story-way a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; color: var(--ink); }

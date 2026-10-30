@@ -89,17 +89,25 @@ export default function HalfToFullBody() {
     x: xs, xDomain: [lo, hi], yDomain,
     layers: [{
       id: 'after', label: 'Marathons',
-      // The wash is faint where a window holds fewer than THIN pairs (2:30 to 2:45), so its noisy slow end stays quiet.
+      // The wash is lighter where a window holds fewer than THIN pairs (2:30 to 2:45), so its noisy slow end stays quiet;
+      // it fades into it from 2:25, and the key names it.
       band: { lo: bands.map((w) => q(w, 0.1)), hi: bands.map((w) => q(w, 0.9)), faint: bands.map((w) => w.n < THIN) },
       series: [{ id: 'median', values: bands.map((w) => w.q[9]), tone: 'ink' }, { id: 'double', values: xs.map((h) => 2 * h), dashed: true }],
     }],
-    xTicks: [4500, 5400, 6300, 7200, 8100, 9000, 9900].filter((h) => h >= lo && h <= hi).map((h) => ({ value: h, label: floorHM(h), priority: (h / 60) % 30 === 15 ? 3 : 1 })),
-    // Gridlines on the hour, the three slowest inside the plot (the forms' limit): 4:00, 5:00 and 6:00, so the H2's 4:00
-    // and the readout's 5:00 have their own lines and the slow end its 6:00 (the median line starts near 2:30, under them).
+    // The spec's ticks: 1:15, 1:45, 2:15 and 2:45 on a phone, the half hours between them from a 600 px figure (on a
+    // phone 2:30 crowded the end label, 2:45, set flush right).
+    xTicks: [4500, 5400, 6300, 7200, 8100, 9000, 9900].filter((h) => h >= lo && h <= hi)
+      .map((h) => ((h / 60) % 30 === 15 ? { value: h, label: floorHM(h), priority: 3 } : { value: h, label: floorHM(h), priority: 1, from: 600 })),
+    // Gridlines on every hour inside the plot, 3:00 to 6:00 (the spec's four; the forms' three-line limit lifted for this
+    // chart), so the quick end the first stops read (a 2:29 marathon after a 1:10 half) has 3:00 to read against. Their
+    // labels sit over the data on a halo of the page, so the dashed double-the-half never strikes one through.
     yTicks: Array.from({ length: Math.floor(yDomain[1] / 3600) - Math.ceil(yDomain[0] / 3600) + 1 }, (_, i) => (Math.ceil(yDomain[0] / 3600) + i) * 3600)
-      .filter((s) => s > yDomain[0] && s < yDomain[1]).slice(-3).map((s) => ({ value: s, label: floorHM(s) })),
+      .filter((s) => s > yDomain[0] && s < yDomain[1]).map((s) => ({ value: s, label: floorHM(s) })),
+    gridMax: 4,
     gridSide: 'left',
-    keys: [{ label: 'Typical marathon', mark: 'line' }, { label: '8 in 10', mark: 'band' }, { label: 'Double the half', mark: 'dash' }],
+    // The key draws the wash as the plot does, and its lighter stretch where windows hold fewer than THIN pairs.
+    keys: [{ label: 'Typical marathon', mark: 'line' }, { label: '8 in 10', mark: 'wash' },
+      ...(bands.some((w) => w.n < THIN) ? [{ label: 'Fewer marathons', mark: 'wash-thin' as const }] : []), { label: 'Double the half', mark: 'dash' }],
     axisTitle: { end: 'Half time' },
     scrub: {
       label: `Half time, ${floorHM(lo)} to ${floorHM(hi)}`,
@@ -134,9 +142,10 @@ export default function HalfToFullBody() {
 
   return (
     <StoryPage path={PATH} halfScope="linked" numbers={[
-      // The page's own words for the spreads ("8 in 10", "Middle half"), as ranges, not percentile codes.
+      // The page's own words for the spreads ("8 in 10", and "Half of them" as the ruler's key says it), as ranges, not
+      // percentile codes; "Middle half" read as a half-marathon range in a table whose first column is the half.
       <Values key="bands" bare id="hf-bands" caption="The marathon after each half time"
-        columns={[{ key: 'h', label: 'Half' }, { key: 't', label: 'Typical' }, { key: 'r80', label: '8 in 10' }, { key: 'r50', label: 'Middle half' },
+        columns={[{ key: 'h', label: 'Half' }, { key: 't', label: 'Typical' }, { key: 'r80', label: '8 in 10' }, { key: 'r50', label: 'Half of them' },
           { key: 'x', label: 'Over double' }, { key: 'u', label: 'Under double' }, { key: 'm', label: 'Under a round time' }, { key: 'n', label: 'Pairs' }, { key: 'e', label: 'Marathon editions' }]}
         rows={bands.map((w, i) => [floorHM(w.h), floorHM(w.q[9]), `${floorHM(q(w, 0.1))}–${floorHM(q(w, 0.9))}`, `${floorHM(q(w, 0.25))}–${floorHM(q(w, 0.75))}`,
           `${plus(w.extra_p50)} min`, pct(w.under_double, 1), markOf[i] ? `${floorHM(markOf[i]![0])}: ${pct(markOf[i]![1], 1)}` : '—', count(w.n), count(w.e)])}

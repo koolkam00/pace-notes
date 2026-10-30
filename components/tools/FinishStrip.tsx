@@ -64,14 +64,18 @@ function stackLabels(markers: Marker[], width: number, margin: number): Placed[]
   });
 }
 
-/** A placed flag: its box's left edge, row (0 the top) and width. */
-type Placed = Marker & { x0: number; row: number; w: number };
+/** A placed flag: its box's left edge, row (0 the top) and width; `end` when it hangs left of its line and is set
+ *  flush against it (text-anchor end, so it ends 6 px from its line whatever the font's real width). */
+type Placed = Marker & { x0: number; row: number; w: number; end?: boolean };
 
 /**
  * The half panel's flags (up to three marks): every placement of each flag, right or left of its line, in any row,
  * is tried, and the one with the fewest rows (then the fewest flags turned left) wins, among those where every flag
- * stays inside the chart, no two flags in a row touch and no flag crosses another mark's line (a line runs from its own
- * flag's row down to the baseline, so a flag in a lower row would cut it). Null when none does.
+ * stays inside the chart, no two flags in a row touch, no flag crosses another mark's line (a line runs from its own
+ * flag's row down to the baseline, so a flag in a lower row would cut it) and no two flags face each other across one
+ * gap in one column (the left line's flag to its right and the right line's to its left, in any rows, their left edges
+ * less than a third of a flag apart: on a phone they stacked into one column that read as hanging from the left line;
+ * staggered as on a desktop, each reads against its own line; half review, round 3). Null when none does.
  */
 function placeFlags(markers: Marker[], width: number, margin: number): Placed[] | null {
   const charW = 6.9;
@@ -83,13 +87,14 @@ function placeFlags(markers: Marker[], width: number, margin: number): Placed[] 
   const choice: { left: boolean; row: number }[] = [];
   const visit = (i: number) => {
     if (i === n) {
-      const placed = sorted.map((mk, k) => ({ ...mk, w: w[k], row: choice[k].row, x0: choice[k].left ? mk.x - 6 - w[k] : mk.x + 6 }));
+      const placed = sorted.map((mk, k) => ({ ...mk, w: w[k], row: choice[k].row, x0: choice[k].left ? mk.x - 6 - w[k] : mk.x + 6, end: choice[k].left }));
       for (const a of placed) {
         if (a.x0 < margin || a.x0 + a.w > width - margin) return;
         for (const b of placed) {
           if (a === b) continue;
           if (a.row === b.row && a.x0 < b.x0 + b.w + 10 && b.x0 < a.x0 + a.w + 10) return;
           if (a.row >= b.row && b.x >= a.x0 - 4 && b.x <= a.x0 + a.w + 4) return;
+          if (a.x < b.x && !a.end && b.end && a.x0 < b.x0 + b.w + 10 && b.x0 < a.x0 + a.w + 10 && b.x0 - a.x0 < Math.min(a.w, b.w) / 3) return;
         }
       }
       const cost = (Math.max(...placed.map((p) => p.row)) + 1) * 100 + placed.filter((_, k) => choice[k].left).length;
@@ -197,7 +202,7 @@ export function FinishStrip({ q, Q, est, marks, format = fmtShort, domain, signa
         {markers.filter((mk) => mk.label).map((mk) => (
           <g key={mk.key}>
             <rect x={mk.x0 - 3} y={14 + mk.row * 17 - 12} width={mk.w + 6} height={16} className="predictor-marker-halo" />
-            <text x={mk.x0} y={14 + mk.row * 17} className={`predictor-marker is-${mk.tone}${mk.signal ? ' is-signal' : ''}`}>{mk.label}</text>
+            <text x={mk.end ? mk.x - 6 : mk.x0} y={14 + mk.row * 17} textAnchor={mk.end ? 'end' : undefined} className={`predictor-marker is-${mk.tone}${mk.signal ? ' is-signal' : ''}`}>{mk.label}</text>
           </g>
         ))}
       </svg>
