@@ -61,6 +61,8 @@
 /* At 200% zoom the readings step down a size, so "20% · 44%" stays inside the column. */
 @media (max-width: 299.98px) {
   .chapter-list.is-expanded .chapter-heading .chapter-reading .big-number.is-s { font-size: 1.25rem; }
+  /* A two-figure reading ("20% · 45%") leaves its key no room beside it at 195 px: the key takes the next line. */
+  .page-reading { flex-wrap: wrap; }
 }
 
 /* ---------- The filtered lists (/stories, /analyses): the pages under their chapter's line, one hairline over each ----------
