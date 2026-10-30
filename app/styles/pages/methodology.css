@@ -111,6 +111,24 @@
 .methods-files li { margin: 0; padding: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .methods-files li + li { margin: 0; }
 .methods-files a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; overflow-wrap: anywhere; }
+/* A list whose lines wrap (the half totals): the file name is an inline link in its line of text, its 44 px reach from
+   padding that takes no line height (an inline-flex link made the first line 44 px tall, so a file's second line sat
+   as far below as the next file), the checksum chip on the text's own line height, and the files parted by more than
+   their lines, so each file, its description and its checksum read as one block. */
+.methods-files.is-wrapped a { display: inline; min-height: 0; padding-block: 12px; }
+.methods-files code { line-height: 1; padding-block: 0; vertical-align: baseline; }
+/* A long file name in a wrapped list breaks at the <wbr> after each '-', '.' or '/' (MethodsHalf breakable), and only
+   within a part when one part alone is wider than the line: "anywhere" broke "part00" one character from its end at
+   200% zoom (review, October 30, 2026). */
+.methods-files.is-wrapped a { overflow-wrap: break-word; }
+/* A full sha256 starts on its own line and wraps as one block (a table box hugs a short line and fills a narrow one),
+   so 64 characters never widen a phone's page and no fragment ("sha256 59") is left at the end of the description's
+   line (review, October 30, 2026). */
+.methods-files code.methods-sha { display: table; margin-top: 2px; overflow-wrap: anywhere; word-break: break-all; line-height: 1.45; }
+/* A DOI in running text breaks at its <wbr>s, so it never runs past a 195 px column. Marked by an attribute, not a
+   class, so it keeps the underline of a classless link in text (base.css). */
+.methods-page a[data-long] { overflow-wrap: break-word; }
+.methods-files.is-wrapped li + li { margin-top: var(--s-3); }
 .methods-packs { margin: var(--s-3) 0 0; padding: 0; list-style: none; }
 .methods-packs li { margin: 0; padding: var(--s-2) 0; border-top: 1px solid var(--rule); }
 .methods-pack-title { display: block; font-size: .9375rem; font-weight: 600; line-height: 1.35; color: var(--ink); }

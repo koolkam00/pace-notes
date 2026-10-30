@@ -104,15 +104,17 @@ const PACE_CHART_CARDS = [
   { slug: 'half-marathon-pace-chart', eyebrow: 'Runner tools · Pace charts', title: 'Half marathon pace chart', accent: TOKENS.blue },
 ];
 
-/** Top-level pages outside the sections, with their own card in public/og/pages/: the page's H1 (components/FinishTimeSummary.tsx, app/research/(hub)/page.tsx). */
+/** Top-level pages outside the sections, with their own card in public/og/pages/: the page's H1 (components/FinishTimeSummary.tsx, app/research/(hub)/page.tsx), or its name (/half). */
 const PAGE_CARDS = [
   { slug: 'finish-times', eyebrow: 'Finish times · Median and distribution', title: 'Marathon finish times', accent: TOKENS.orange },
   { slug: 'research', eyebrow: 'Research · Stories, analyses and open data', title: 'Explore the research', accent: TOKENS.violet },
+  // /half (app/half/page.tsx, components/half/HalfPage.tsx): off the chain, so a card of its own, not a section's.
+  { slug: 'half', eyebrow: 'Half marathon · Finish times', title: 'The half marathon', accent: TOKENS.orange },
 ];
 
 function cardSpecs() {
   loadTypeScript();
-  const { STORIES } = require(path.join(ROOT, 'lib/stories.ts'));
+  const { STORIES, storyPublished } = require(path.join(ROOT, 'lib/stories.ts'));
   const { TOOLS, toolBySlug } = require(path.join(ROOT, 'lib/tools/registry.ts'));
   const { GOAL_PAGE_MINUTES, goalLabel, goalPagePath } = require(path.join(ROOT, 'lib/tools/pace-chart.ts'));
   const { STANDARDS } = require(path.join(ROOT, 'lib/tools/qualifying.ts'));
@@ -124,7 +126,8 @@ function cardSpecs() {
   const summaries = manifest.files['courses.json'] ? readInsight('courses.json').courses : [];
   const slug = (value) => { if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) throw new Error(`Unsafe card slug: ${value}`); return value; };
   const cards = [];
-  for (const story of STORIES) {
+  // A published story only: a half story needs the half data in this build (lib/stories.ts storyPublished).
+  for (const story of STORIES.filter(storyPublished)) {
     cards.push({ file: `stories/${slug(story.slug)}.png`, eyebrow: `Data story · ${story.kicker}`, title: story.title, accent: story.accent });
   }
   for (const tool of TOOLS) {

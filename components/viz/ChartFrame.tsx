@@ -15,7 +15,8 @@ import Readout, { type ReadoutProps } from './Readout';
  * `status="error"` "This chart could not load" with a Retry link (role="alert"). An answer is never empty.
  */
 /** `none` is a key line with no swatch, for what holds for every mark ("Each dot ≈ 38,700 finishes"). */
-export type KeyItem = { label: string; mark: 'dot' | 'ring' | 'line' | 'dash' | 'square' | 'hollow' | 'band' | 'none'; tone?: 'ink' | 'signal' | 'quiet' };
+/** `wash` and `wash-thin`: a LineProfile band's two fills, drawn exactly as the plot draws them (--wash, --wash-thin). */
+export type KeyItem = { label: string; mark: 'dot' | 'ring' | 'line' | 'dash' | 'square' | 'hollow' | 'band' | 'wash' | 'wash-thin' | 'none'; tone?: 'ink' | 'signal' | 'quiet' };
 
 type Props = {
   /** The finding, said in full: the plot's accessible name. */

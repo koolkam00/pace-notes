@@ -14,6 +14,7 @@ import { countWord } from '@/lib/nuggets/format';
 import { WEATHER_QUESTIONS, weatherHref } from '@/lib/weather-catalog';
 import { getWeatherAnalyses, getWeatherEvidence } from '@/lib/weather-data';
 import { Detail, Topic, and, dataHref, day, n } from './shared';
+import { HalfFieldTopic } from './MethodsHalf';
 
 /** What each weather question can and cannot show (the caveats its page carried until October 16, 2026). */
 const WEATHER_LIMITS: Record<string, string> = {
@@ -181,5 +182,6 @@ export default function MethodsAnalyses() {
         {extra.sources.length > 0 && <p className="methods-links">{extra.sources.map((source) => <a href={source.href} key={source.href}>{source.label}</a>)}</p>}
       </Detail>)}
     </Topic>
+    <HalfFieldTopic />
   </>;
 }

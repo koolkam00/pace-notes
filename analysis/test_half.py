@@ -1,0 +1,1001 @@
+"""Tests for the half-marathon builders (spec 7.1): the record and edition rules, set B, the windows, the floors and
+determinism, the stamp correction, the anonymous downloader and the links extract, on synthetic sources built in a temp
+folder; and, when the owner's public sources are on this machine (PACE_HALF_DIR holds platform_half.sqlite,
+links-slim.sqlite and the corrected metadata) and PACE_HALF_SOURCE_TESTS=1, the frozen policy lists and stamps
+recomputed from the real snapshot. Run: python3 -I -m unittest discover -s analysis -p 'test_half.py'
+"""
+from __future__ import annotations
+
+import json
+import os
+import sqlite3
+import tempfile
+import unittest
+from datetime import date, timedelta
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+import half_common as hc
+import half_field
+import half_linked
+import half_pairs
+import half_quality as hq
+from half_marathon import Marathons, _dates
+
+ROOT = Path(__file__).resolve().parents[1]
+
+HALF_SCHEMA = """
+CREATE TABLE race_records (
+  id INTEGER PRIMARY KEY, race TEXT NOT NULL, year INTEGER NOT NULL, city TEXT NOT NULL,
+  distance_km REAL NOT NULL DEFAULT 21.0975,
+  runner TEXT, sex TEXT, age INTEGER, age_group TEXT, age_or_group TEXT,
+  split_5km TEXT, split_10km TEXT, split_15km TEXT, split_20km TEXT,
+  split_21_1km TEXT,
+  split_25km TEXT, split_30km TEXT, split_35km TEXT, split_40km TEXT, split_42_2km TEXT,
+  bib TEXT, source_runner_id TEXT,
+  source_url TEXT NOT NULL, ingested_at TEXT NOT NULL,
+  UNIQUE (race, year, distance_km, source_url)
+);
+CREATE TABLE edition_meta (
+  id INTEGER PRIMARY KEY, city TEXT NOT NULL, year INTEGER NOT NULL, distance_km REAL NOT NULL DEFAULT 21.0975,
+  race TEXT, race_date TEXT, official_finishers INTEGER, official_source_url TEXT, official_source_type TEXT,
+  official_checked_at TEXT, db_count_at_check INTEGER, checked_at TEXT,
+  completeness_status TEXT, completeness_reason TEXT, tolerance_pct REAL,
+  has_splits INTEGER, split_points TEXT,
+  winner_m TEXT, winner_m_time TEXT, winner_f TEXT, winner_f_time TEXT, winner_check TEXT, year_check TEXT,
+  timing_basis TEXT, course_notes TEXT, updated_at TEXT, count_check text,
+  UNIQUE(city, year, distance_km)
+);
+CREATE TABLE record_flags(record_id INTEGER NOT NULL, flag TEXT NOT NULL, reason TEXT, flagged_at TEXT NOT NULL, UNIQUE(record_id,flag));
+"""
+
+
+def hms(s):
+    s = int(s)
+    return f'{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}'
+
+
+class Source:
+    """A synthetic half snapshot with the real schema."""
+
+    def __init__(self, folder):
+        self.path = Path(folder) / 'platform_half.sqlite'
+        self.con = sqlite3.connect(self.path)
+        self.con.executescript(HALF_SCHEMA)
+        self.next_id = 1
+        self.next_edition = 1
+
+    def edition(self, city, year, status='stamped', official=None, source_type='independent results', race_date=None, race=None):
+        eid = self.next_edition
+        self.next_edition += 1
+        self.con.execute('INSERT INTO edition_meta (id, city, year, race, race_date, official_finishers, official_source_type, completeness_status) '
+                         'VALUES (?, ?, ?, ?, ?, ?, ?, ?)', (eid, city, year, race or f'{city} Half', race_date or f'{year}-04-01', official, source_type, status))
+        return eid
+
+    def record(self, city, year, finish, sex='M', race=None, runner=None, bib=None, flags=()):
+        rid = self.next_id
+        self.next_id += 1
+        text = finish if isinstance(finish, str) else hms(finish)
+        self.con.execute('INSERT INTO race_records (id, race, year, city, runner, sex, split_21_1km, bib, source_url, ingested_at) '
+                         'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                         (rid, race or f'{city} Half', year, city, runner if runner is not None else f'Runner Number{rid:05d}', sex, text, bib,
+                          f'fixture://{rid}', '2026-10-29'))
+        for flag in flags:
+            self.con.execute('INSERT INTO record_flags VALUES (?, ?, NULL, ?)', (rid, flag, '2026-10-29'))
+        return rid
+
+    def field(self, city, year, times, sexes=('M', 'F'), race=None):
+        return [self.record(city, year, t, sex=sexes[i % len(sexes)], race=race) for i, t in enumerate(times)]
+
+    def close(self):
+        self.con.commit()
+        self.con.close()
+
+
+def uniform(lo, hi, n):
+    return [int(lo + (hi - lo) * (i + 0.5) / n) for i in range(n)]
+
+
+class Parsing(unittest.TestCase):
+    def test_times(self):
+        self.assertEqual(hc.parse_time('01:23:45'), 5025.0)
+        self.assertEqual(hc.parse_time('1:23:45'), 5025.0)
+        self.assertEqual(hc.parse_time('1234:00:00'), 1234 * 3600.0)   # parses, then R5 (over 6:00:00) removes it
+        for bad in ('-1:00:00', '1:23', '1:23:45.5', '', None, '1:2:03'):
+            self.assertIsNone(hc.parse_time(bad), bad)
+
+    def test_sql_parser_matches_python(self):
+        db = hc.connect()
+        for text in ('01:23:45', '1:23:45', '1234:00:00', '-1:00:00', '1:23', 'DNF'):
+            got = db.execute(f"SELECT {hc.secs_sql('t')} FROM (SELECT ?::VARCHAR AS t)", [text]).fetchone()[0]
+            self.assertEqual(got, hc.parse_time(text), text)
+
+    def test_subrace_pattern_is_whole_word(self):
+        import re
+        pattern = re.compile(hq.NONRUN_SUBRACE_RE)
+        self.assertIsNone(pattern.search('media maratón de tordesillas'))
+        for name in ('10k sillas de ruedas', 'half wheelchair', 'mtb 21k', 'wch half marathon', 'categorías especiales'):
+            self.assertIsNotNone(pattern.search(name), name)
+        self.assertIsNone(pattern.search('mtbike club half'))
+
+
+class Rules(unittest.TestCase):
+    """Record rules R1–R7 and edition rules E0–E8 on a synthetic snapshot."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        s = Source(cls.tmp.name)
+        normal = uniform(5400, 10800, 300)
+        cls.ids = {}
+        s.edition('Alpha', 2022)
+        s.field('Alpha', 2022, normal)
+        s.edition('Beta', 2022, status='counts_internal_only', official=300, source_type='list rows (internal only)')
+        s.field('Beta', 2022, normal)
+        s.field('Gamma', 2022, normal)                                   # E0: no registry row
+        s.edition('Delta', 2022, status='held_for_review')
+        s.field('Delta', 2022, normal)                                   # E1
+        s.edition('Epsilon', 2022, status='counts_internal_only', official=100)
+        s.field('Epsilon', 2022, normal)                                 # E3: 300 rows against an independent 100
+        s.edition('Zeta', 2022, status='counts_internal_only')
+        s.field('Zeta', 2022, normal, sexes=('M',))                      # E4
+        s.edition("Zeta Women's Half", 2022, status='counts_internal_only')
+        s.field("Zeta Women's Half", 2022, normal, sexes=('F',))         # a single-sex event: kept
+        s.edition('Eta', 2022, status='counts_internal_only')
+        s.field('Eta', 2022, uniform(4700, 4900, 300))                    # E5: a top list
+        s.edition('Theta', 2022, status='counts_internal_only', source_type='list rows (internal only)')
+        s.field('Theta', 2022, uniform(5400, 10800, 500))                 # E6: exactly 500 rows
+        s.edition('Iota', 2022, status='counts_internal_only')
+        s.field('Iota', 2022, uniform(3500, 6500, 300))                   # E7 fast
+        s.edition('Kappa', 2022, status='counts_internal_only')
+        s.field('Kappa', 2022, uniform(9000, 20000, 300))                 # E7 slow
+        for year, (lo, hi) in zip((2019, 2020, 2021, 2022), ((5400, 9000), (5400, 9000), (5400, 9000), (6800, 11200))):
+            s.edition('Lambda', year, status='counts_internal_only')
+            s.field('Lambda', year, uniform(lo, hi, 200))                 # E8 for 2022 (+25% against the others)
+        # Record rules, in one stamped edition.
+        s.edition('Rho', 2022)
+        ids = cls.ids
+        ids['plain'] = s.record('Rho', 2022, '01:23:45')
+        ids['negative'] = s.record('Rho', 2022, '-1:00:00')
+        ids['four_digit'] = s.record('Rho', 2022, '1234:00:00')
+        ids['under_floor'] = s.record('Rho', 2022, 3401)
+        ids['at_floor'] = s.record('Rho', 2022, 3402)
+        ids['at_cap'] = s.record('Rho', 2022, 21600)
+        ids['over_cap'] = s.record('Rho', 2022, 21601)
+        ids['flagged'] = s.record('Rho', 2022, 7000, flags=('duplicate',))
+        ids['reconstructed'] = s.record('Rho', 2022, 7001, flags=('time_hour_reconstructed',))
+        ids['wheelchair'] = s.record('Rho', 2022, 7002, race='Rho Half — Sillas de ruedas')
+        ids['tordesillas'] = s.record('Rho', 2022, 7003, race='Tordesillas Half')
+        ids['elite'] = [s.record('Rho', 2022, t, race='Rho Elite') for t in (3300, 3350, 3500, 3600, 3700, 3800, 3900, 4000, 4100, 4200)]
+        big = [s.record('Rho', 2022, 6000 + i, race='Rho Big') for i in range(20)]
+        ids['dup_big'] = s.record('Rho', 2022, 7100, race='Rho Big', runner='Ann Lee', sex='F')
+        ids['dup_small'] = s.record('Rho', 2022, 7100, race='Rho Small', runner='Lee, Ann', sex='F')
+        ids['dup_tie_a'] = s.record('Rho', 2022, 7200, race='Rho Big', runner='Bo Diaz')
+        ids['dup_tie_b'] = s.record('Rho', 2022, 7200, race='Rho Big', runner='Diaz Bo')
+        ids['dup_other_sex'] = s.record('Rho', 2022, 7300, race='Rho Big', runner='Cy Ray', sex='M')
+        ids['dup_other_sex_b'] = s.record('Rho', 2022, 7300, race='Rho Small', runner='Ray Cy', sex='F')
+        ids['anonymous_a'] = s.record('Rho', 2022, 7400, runner='Anonimo')
+        ids['anonymous_b'] = s.record('Rho', 2022, 7400, runner='Anonimo')
+        del big
+        s.edition('Oslo Half', 2016)
+        s.edition('Oslo Half', 2015)
+        s.field('Oslo Half', 2016, uniform(5400, 10800, 120))
+        s.field('Oslo Half', 2015, uniform(5400, 10800, 120))
+        ids['bib'] = {b: s.record('Oslo Half', 2016, 7000, bib=str(b)) for b in (72999, 73000, 75999, 76000)}
+        ids['bib_2015'] = s.record('Oslo Half', 2015, 7000, bib='74000')
+        s.close()
+        cls.db = hc.connect(half=s.path)
+        cls.result = hq.apply(cls.db, compare=False)
+        cls.rule = dict(cls.db.execute('SELECT record_id, rule FROM hr').fetchall())
+        cls.r7 = dict(cls.db.execute('SELECT record_id, r7_block FROM hr').fetchall())
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.close()
+        cls.tmp.cleanup()
+
+    def test_record_rules(self):
+        r, ids = self.rule, self.ids
+        self.assertIsNone(r[ids['plain']])
+        self.assertEqual(r[ids['negative']], 'R2')
+        self.assertEqual(r[ids['four_digit']], 'R5_slow')
+        self.assertEqual(r[ids['under_floor']], 'R5_fast')
+        self.assertIsNone(r[ids['at_floor']])
+        self.assertIsNone(r[ids['at_cap']])
+        self.assertEqual(r[ids['over_cap']], 'R5_slow')
+        self.assertEqual(r[ids['flagged']], 'R1')
+        self.assertIsNone(r[ids['reconstructed']], 'time_hour_reconstructed alone never excludes')
+        self.assertEqual(r[ids['wheelchair']], 'R3')
+        self.assertIsNone(r[ids['tordesillas']], '"Tordesillas" is not the word "sillas"')
+        self.assertEqual({r[i] for i in ids['elite']}, {'R4'}, 'a sub-race with 2 of 10 finishes under 56:42')
+
+    def test_within_edition_duplicates(self):
+        r, ids = self.rule, self.ids
+        self.assertIsNone(r[ids['dup_big']], 'the copy from the larger sub-race list is kept')
+        self.assertEqual(r[ids['dup_small']], 'R6')
+        self.assertIsNone(r[ids['dup_tie_a']], 'same list: the lower id is kept')
+        self.assertEqual(r[ids['dup_tie_b']], 'R6')
+        self.assertIsNone(r[ids['dup_other_sex']])
+        self.assertIsNone(r[ids['dup_other_sex_b']], 'a different published sex is not a duplicate')
+        self.assertIsNone(r[ids['anonymous_a']])
+        self.assertIsNone(r[ids['anonymous_b']], 'anonymous names are never duplicates')
+
+    def test_oslo_bib_block(self):
+        bib = self.ids['bib']
+        self.assertEqual([self.r7[bib[b]] for b in (72999, 73000, 75999, 76000)], [False, True, True, False])
+        self.assertFalse(self.r7[self.ids['bib_2015']], 'R7 covers 2016–2025 only')
+        self.assertEqual(self.result.counts['R7'], 2)
+        self.assertEqual(self.result.counts['record_usable_after_R7'], self.result.counts['record_usable'] - 2)
+
+    def test_edition_rules_fire(self):
+        m = self.result.editions.set_index(['city', 'year'])
+        expect = {('Alpha', 2022): None, ('Beta', 2022): None, ('Gamma', 2022): 'E0', ('Delta', 2022): 'E1',
+                  ('Epsilon', 2022): 'E3', ('Zeta', 2022): 'E4', ("Zeta Women's Half", 2022): None, ('Eta', 2022): 'E5',
+                  ('Theta', 2022): 'E6', ('Iota', 2022): 'E7', ('Kappa', 2022): 'E7', ('Lambda', 2019): None, ('Lambda', 2022): 'E8'}
+        for key, rule in expect.items():
+            got = m.loc[key, 'rule']
+            self.assertEqual(None if pd.isna(got) else got, rule, key)
+        self.assertTrue(m.loc[('Alpha', 2022), 'use_sex'])
+        self.assertFalse(m.loc[("Zeta Women's Half", 2022), 'use_sex'], 'one-sex events stay out of sex comparisons')
+
+    def test_lists_and_counts(self):
+        rules = {e['rule'] for e in self.result.lists['editions']}
+        self.assertEqual(rules, {'E0', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'})
+        self.assertEqual([s['race'] for s in self.result.lists['R3']], ['Rho Half — Sillas de ruedas'])
+        self.assertEqual([s['race'] for s in self.result.lists['R4']], ['Rho Elite'])
+        c = self.result.counts
+        self.assertEqual(c['raw'], sum(c[k] for k in ('R1', 'R2', 'R3', 'R4', 'R5_fast', 'R5_slow', 'R6')) + c['record_usable'])
+        self.assertEqual(c['use_finish']['finishes'], self.db.execute('SELECT count(*) FROM hfin WHERE NOT r7_block').fetchone()[0])
+
+    def test_reviewed_policy_file_matches_module(self):
+        hq.check_policy_file()
+        doc = json.loads(hq.policy_path().read_text())
+        self.assertEqual(doc['record_rules']['R3']['pattern'], hq.NONRUN_SUBRACE_RE)
+        self.assertEqual(doc['expected'], hq.EXPECTED_20261029_1133)
+        self.assertEqual(len(doc['edition_rules']['editions']), 68)
+        self.assertEqual([doc['record_rules']['R7'][k] for k in ('city', 'years', 'bib')], ['Oslo Half', [2016, 2025], [73000, 75999]],
+                         'the frozen policy carries the R7 block itself, the Node recount reads it from there')
+
+
+class SetB(unittest.TestCase):
+    """The pairing rules on a synthetic links extract and marathon side."""
+
+    def build(self, people, halves, marathons):
+        """people: (person, sex, tier, ns_keys); halves: (person, record, date or None, flags); marathons: (person, record, date)."""
+        db = hc.connect()
+        db.execute("ATTACH ':memory:' AS l")
+        db.execute('CREATE TABLE l.people (person_id TEXT, sex TEXT, confidence TEXT, ns_keys INT, key_type TEXT, in_candidate_merge INT)')
+        db.execute('CREATE TABLE l.links (person_id TEXT, db TEXT, record_id BIGINT, confidence TEXT)')
+        for p, sex, tier, ns in people:
+            db.execute('INSERT INTO l.people VALUES (?, ?, ?, ?, ?, 0)', [p, sex, tier, ns, 'yob'])
+        db.execute("""CREATE TEMP TABLE hfin (record_id BIGINT, edition_id BIGINT, city VARCHAR, year INTEGER, race VARCHAR, race_date DATE,
+            status_group VARCHAR, sex VARCHAR, use_sex BOOLEAN, finish_s DOUBLE, r7_block BOOLEAN, date_suspect BOOLEAN)""")
+        for p, rid, day, flags in halves:
+            db.execute('INSERT INTO l.links VALUES (?, ?, ?, ?)', [p, 'half', rid, 'medium'])
+            db.execute('INSERT INTO hfin VALUES (?, ?, ?, ?, ?, ?, ?, NULL, false, ?, ?, ?)',
+                       [rid, rid, 'H', 2022, 'H', day, 'verified', 6300.0, 'r7' in flags, 'suspect' in flags])
+        editions, dates, ids, ed = [], {}, [], []
+        for i, (p, rid, day) in enumerate(marathons):
+            db.execute('INSERT INTO l.links VALUES (?, ?, ?, ?)', [p, 'full', rid, 'medium'])
+            editions.append({'city': f'M{i}', 'year': 2022, 'race': f'M{i}'})
+            dates[i] = day.isoformat()
+            ids.append(rid)
+            ed.append(i)
+        m = Marathons(np.array(ids, np.uint64), np.array(ed, np.int32), np.ones(len(ids), np.uint8), np.full(len(ids), 14000.0),
+                      np.zeros(len(ids), bool), editions, np.ones(len(ids), np.int64), dates, 'x', {}, 'y')
+        pairs = half_pairs.build(db, m, 'fixture', check=False)
+        return {(r.person_id, int(r.m_record_id)): int(r.h_record_id) for r in pairs.itertuples()}
+
+    def test_pairing_rules(self):
+        d = date(2022, 6, 1)
+        before = lambda days: d - timedelta(days=days)
+        people = [('p1', 'F', 'medium', 1), ('p2', 'M', 'high', 2), ('p3', 'M', 'medium', 1), ('p4', 'M', 'medium', 1),
+                  ('p5', 'F', 'medium', 3), ('p6', 'M', 'medium', 4), ('p7', 'M', 'low', 1), ('p8', 'F', 'medium', 1), ('p9', 'M', 'medium', 1)]
+        halves = [
+            ('p1', 11, before(21), ''), ('p1', 12, before(54), ''), ('p1', 13, before(20), ''),
+            ('p2', 21, before(112), ''), ('p2', 22, before(113), ''),
+            ('p3', 31, before(30), ''), ('p3', 32, before(30), ''),
+            ('p4', 41, before(31), ''),
+            ('p5', 51, before(40), 'suspect'), ('p5', 52, before(41), 'r7'),
+            ('p6', 61, before(30), ''), ('p7', 71, before(30), ''),
+            ('p8', 81, before(60), ''),
+            ('p9', 91, None, ''),
+        ]
+        marathons = [('p1', 101, d), ('p2', 201, d), ('p3', 301, d), ('p4', 401, d), ('p4', 402, before(31)), ('p5', 501, d),
+                     ('p6', 601, d), ('p7', 701, d), ('p8', 801, d), ('p8', 802, d - timedelta(days=30)), ('p9', 901, d)]
+        got = self.build(people, halves, marathons)
+        self.assertEqual(got[('p1', 101)], 11, 'the nearest earlier half from 21 days (20 days is out)')
+        self.assertEqual(got[('p2', 201)], 21, '112 days is in, 113 out')
+        self.assertNotIn(('p3', 301), got, 'two halves on one date: neither pairs')
+        self.assertNotIn(('p4', 401), got, 'a half on the date of one of the person’s marathons never pairs')
+        self.assertNotIn(('p5', 501), got, 'date suspects and the R7 block never pair')
+        self.assertNotIn(('p6', 601), got, 'ns_keys over 3 is out')
+        self.assertNotIn(('p7', 701), got, 'tiers other than high and medium are out')
+        self.assertEqual((got[('p8', 801)], got[('p8', 802)]), (81, 81), 'one pair per person and marathon; a half may serve two')
+        self.assertNotIn(('p9', 901), got, 'undated halves enter no window')
+        self.assertEqual(len(got), 4)
+
+    def test_marathon_dates_come_from_the_evidence(self):
+        editions = [{'city': 'A', 'year': 2022}, {'city': 'B', 'year': 2022}]
+        weather = {'editions': [{'city': 'A', 'year': 2022, 'date': '2022-10-09'}, {'city': 'B', 'year': 2022, 'date': '2022-04-03'}]}
+        self.assertEqual(_dates(editions, np.array([0, 1]), weather), {0: '2022-10-09', 1: '2022-04-03'})
+        with self.assertRaises(hc.HalfError):
+            _dates(editions, np.array([0, 1]), {'editions': [{'city': 'A', 'year': 2022, 'date': '2021-10-09'}]})
+
+
+def synthetic_pairs(n=16000, seed=3, multiple=2.2):
+    """Set B-shaped pairs: halves from 1:05 to 2:55, marathons about `multiple` × the half, 30 marathon editions."""
+    rng = np.random.default_rng(seed)
+    h = rng.uniform(3900, 10500, n).round()
+    m = (h * rng.normal(multiple, 0.08, n)).round()
+    sex = np.where(rng.random(n) < 0.3, 'F', 'M')
+    city = rng.choice(['Valencia', 'Warsaw', 'Berlin', 'Oslo', 'Paris'], n)
+    year = rng.choice([2022, 2023, 2024, 2025, 2026, 2019], n)
+    frame = pd.DataFrame({'person_id': [f'p{i % (n - 200)}' for i in range(n)], 'sex': sex, 'tier': 'medium', 'ns_keys': rng.choice([1, 2, 3], n),
+                          'in_candidate_merge': rng.random(n) < 0.05, 'h_record_id': np.arange(n), 'h_edition_id': rng.integers(0, 400, n),
+                          'h_status_group': np.where(rng.random(n) < 0.6, 'verified', 'unverified'), 'h_finish_s': h,
+                          'm_record_id': np.arange(n) + 10**6, 'm_city': city, 'm_year': year,
+                          'm_date': [date(int(y), 4, 1) + timedelta(days=int(k)) for y, k in zip(year, rng.integers(0, 200, n))],
+                          'm_finish_s': m, 'm_sustained': rng.random(n) < 0.25, 'days': 40})
+    frame['m_ed'] = frame.m_city + ' ' + frame.m_year.astype(str)
+    frame['verified'] = frame.h_status_group == 'verified'
+    return frame
+
+
+class Windows(unittest.TestCase):
+    def test_window_membership(self):
+        p = half_linked.Pairs(synthetic_pairs().head(10).assign(h_finish_s=[6150, 6449, 6450, 6509, 6510, 6000, 6300, 6600, 6750, 6749]))
+        self.assertTrue(half_linked.in_window(p, 105)[0], '1:42:30 is in the 1:45 window')
+        self.assertFalse(half_linked.in_window(p, 105)[2], '1:47:30 is not in the 1:45 window')
+        self.assertTrue(half_linked.in_window(p, 106)[2], '1:47:30 is in the 1:46 window')
+        self.assertTrue(half_linked.in_window(p, 110)[2], '1:47:30 is in the 1:50 band')
+        self.assertFalse(half_linked.in_window(p, 106)[4])
+
+    def test_marks(self):
+        values = np.array(uniform(13000, 17000, 400), float)
+        q = [hc.quantile(values, x) for x in half_linked.Q]
+        marks = half_linked.marks(values, q)
+        self.assertEqual([t for t, _ in marks], [14400, 15300, 16200])
+        for t, share in marks:
+            self.assertGreater(t, q[0])
+            self.assertLessEqual(t, q[-1])
+            self.assertEqual(share, hc.sh((values < t).mean()))
+        tie = [0] * 19
+        tie[0], tie[9], tie[18] = 13000, 14850, 17000            # 13500 and 16200 are both 1,350 s from the median
+        self.assertEqual([t for t, _ in half_linked.marks(values, tie)], [13500, 14400, 15300], 'ties go to the earlier mark')
+        tie[0], tie[18] = 14000, 15400                            # only 14400 and 15300 qualify; both kept
+        self.assertEqual([t for t, _ in half_linked.marks(values, tie)], [14400, 15300])
+
+    def test_published_range_is_the_longest_contiguous_run(self):
+        good = {'n': 200, 'e': 10, 'edge_min': 20}
+        ws = {H: dict(good) for H in range(65, 171)}
+        ws[100] = {'n': 99, 'e': 10, 'edge_min': 20}
+        self.assertEqual(half_linked.published(ws), (101, 165))
+        ws[130] = {'n': 300, 'e': 2, 'edge_min': 20}
+        self.assertEqual(half_linked.published(ws), (131, 165), 'the longer run (35 windows against 30 and 29)')
+        ws[140] = {'n': 300, 'e': 10, 'edge_min': 9}
+        self.assertEqual(half_linked.published(ws), (70, 99), 'an edge slice under 10 pairs clips the range')
+        self.assertEqual(half_linked.published({H: dict(good) for H in range(60, 200)}), (70, 165), 'clipped to 1:10–2:45')
+
+    def test_goal_inversion_and_clean_crossings(self):
+        rows = [{'h': 60 * H, 'n': 200, 'e': 9, 'q': [0] * 19, '_q': [0] * 9 + [10000 + 120 * i] + [0] * 9} for i, H in enumerate(range(80, 100))]
+        for w in rows:
+            w['q'] = w['_q']
+        row = half_linked.goal_row(rows, 10800, full=True)
+        self.assertEqual(row['h'], 60 * 86, 'the slowest window whose median is under the goal')
+        self.assertIsNone(half_linked.goal_row(rows, 9000, full=False), 'no window under the goal')
+        rows[6]['_q'][9] = 11000                  # 1:26 over the goal, 1:27 under it again: the crossing at 1:27 is not clean
+        with self.assertRaises(hc.HalfError):
+            half_linked.goal_row(rows, 10900, full=False)
+
+    def test_build_floors_and_guard(self):
+        frame = synthetic_pairs()
+        linked, tool, ranges = half_linked.build(frame)
+        for g in ('all', 'F', 'M'):
+            for w in linked['windows'][g]:
+                self.assertGreaterEqual(w['n'], hc.MIN_CELL)
+                self.assertGreaterEqual(w['e'], hc.MIN_EDITIONS)
+                self.assertGreaterEqual(w['edge_min'], hc.MIN_EDGE_SLICE)
+            hs = [w['h'] for w in linked['windows'][g]]
+            self.assertEqual(hs, list(range(hs[0], hs[-1] + 60, 60)), 'contiguous')
+            self.assertEqual(tool['groups'][g]['from'], hs[0])
+            self.assertEqual([w[0] for w in tool['groups'][g]['w']], [w['n'] for w in linked['windows'][g]])
+        self.assertEqual([m['id'] for m in linked['checks']['battery']['members']],
+                         ['pooled', 'verified_halves', 'other_marathons', 'ns_keys_1', 'one_per_person', 'editions_equal_20',
+                          'editions_equal_100', 'city_equal'])
+        hc.check_published(linked, 'linked')
+        self.assertTrue(half_linked.flagship_guard(linked))
+        moved = json.loads(json.dumps(linked))
+        moved['checks']['battery']['members'][3]['multiple_p50'] = 2.30
+        self.assertFalse(half_linked.flagship_guard(moved), 'one member outside [2.15, 2.25] fails the guard')
+        moved = json.loads(json.dumps(linked))
+        moved['checks']['battery']['members'][1]['extra_p50_s'] += 200
+        self.assertFalse(half_linked.flagship_guard(moved))
+
+    def test_sex_strata(self):
+        frame = synthetic_pairs()
+        frame.loc[frame.sex == 'F', 'm_sustained'] = False
+        s = half_linked.sexes(half_linked.Pairs(frame))
+        self.assertEqual(s['women_lower'], s['strata'])
+        self.assertEqual(s['women_std'], 0.0)
+
+
+class Floors(unittest.TestCase):
+    def test_identifier_keys_and_strings_are_refused(self):
+        for bad in ({'record_id': 1}, {'person_id': 'a'}, {'bib': 4}, {'name': 'x'}, {'rows': [{'edition_id': 3}]}, {'series_key': 'x'},
+                    {'note': 'free text'}, {'city': 'half-snapshot-20261029-1133'}, {'id': 'not-a-battery-member'}, {'x': float('nan')},
+                    {'sha256': 'abc'}, {'values': ['a']}, {'n': np.int64(3)}):
+            with self.assertRaises(hc.HalfError, msg=bad):
+                hc.check_published(bad, 'x')
+        hc.check_published({'city': 'Oslo', 'members': [{'id': 'pooled', 'n': 5}], 'rule': {'half': 'text'}, 'sha256': 'a' * 64}, 'ok')
+
+    def test_open_tails_hold_the_floor(self):
+        for bad in ({'F': {'under_lo': 16, 'at_or_over_hi': 500, 'counts': [200]}}, {'under_lo': 100, 'at_or_over_hi': 99, 'counts': []}):
+            with self.assertRaisesRegex(hc.HalfError, 'open tail', msg=bad):
+                hc.check_published(bad, 'x')
+        hc.check_published({'under_lo': 100, 'at_or_over_hi': 1363, 'counts': [183]}, 'ok')
+
+    def test_small_groups_are_left_out(self):
+        frame = synthetic_pairs(n=9000)
+        linked, _, ranges = half_linked.build(frame)
+        lo, hi = ranges['F']
+        everything = half_linked.Pairs(frame).group('F')
+        for H in (lo - 1, hi + 1):
+            w = half_linked.window(everything, H)
+            self.assertTrue(w is None or w['n'] < hc.MIN_CELL or w['e'] < hc.MIN_EDITIONS or w['edge_min'] < hc.MIN_EDGE_SLICE
+                            or not (half_linked.CLIP_MIN[0] <= H <= half_linked.CLIP_MIN[1]), H)
+
+    def test_womens_bands_need_twenty_editions(self):
+        # The band medians are published from at least 20 editions and are otherwise left out, never published from fewer
+        # (review, October 30, 2026: the floor had been lowered to 3 to keep 15 editions' columns on /half).
+        import half_women
+        self.assertEqual(half_women.MIN_BAND_EDITIONS, 20)
+        row = lambda f: {'n': [200] * 8, 'F': [round(200 * x) for x in f]}
+        rising = [0.1, 0.2, 0.3, 0.45, 0.6, 0.62, 0.64, 0.66]
+        few = half_women.band_fields([row(rising)] * 19)
+        self.assertEqual((few['band_editions'], few['median_share'], few['cross_s']), ([], [], None))
+        self.assertEqual((few['band_editions_qualifying'], few['min_band_editions']), (19, 20))
+        enough = half_women.band_fields([row(rising)] * 20)
+        self.assertEqual((len(enough['band_editions']), enough['cross_s'], enough['band_editions_qualifying']), (20, 8100, 20))
+        self.assertEqual(enough['median_share'][4], 0.6)
+        # Twenty editions whose crossing moves when one is left out fail loudly.
+        mixed = [row(rising)] * 10 + [row([0.1, 0.2, 0.3, 0.45, 0.45, 0.62, 0.64, 0.66])] * 10
+        with self.assertRaisesRegex(hc.HalfError, 'crossing'):
+            half_women.band_fields(mixed)
+
+    def test_quantile_parity_fixture(self):
+        fixture = json.loads((ROOT / 'scripts/half/fixtures/parity.json').read_text())
+        for case in fixture['cases']:
+            self.assertEqual([hc.quantile(case['values'], q) for q in fixture['levels']], case['quantiles'])
+            self.assertEqual([hc.sec(hc.quantile(case['values'], q)) for q in fixture['levels']], case['published'])
+        self.assertEqual(hc.sec(100.25), 100.2)
+        self.assertEqual(hc.sec(7040.0), 7040)
+        self.assertIsInstance(hc.sec(7040.0), int)
+
+
+def synthetic_finishes(n_editions=40, per=400, seed=5):
+    rng = np.random.default_rng(seed)
+    rows = []
+    for e in range(n_editions):
+        t = rng.normal(7100, 1000, per).clip(3500, 14000).round()
+        sex = rng.choice(['F', 'M', None], per, p=[0.38, 0.6, 0.02])
+        rows.append(pd.DataFrame({'edition_id': e, 'verified': e < 30, 'sex': sex, 'use_sex': [s is not None for s in sex], 'finish_s': t}))
+    return pd.concat(rows, ignore_index=True)
+
+
+class MethodologyChecks(unittest.TestCase):
+    """The source-only values /methodology reads: by country, the same race in both kinds of year, by city, coverage."""
+
+    def test_countries_floors_and_unreviewed_labels(self):
+        fin = synthetic_finishes().assign(city=lambda f: np.where(f.edition_id < 12, 'Oslo Half', np.where(f.edition_id < 28, 'Paris', 'Graz')))
+        verified = fin[fin.verified]
+        rows = half_field.countries(verified, {'Oslo Half': 'NO', 'Paris': 'FR', 'Graz': 'AT'})
+        self.assertEqual([r['label'] for r in rows], ['FR', 'NO'], 'Graz has 2 verified editions here: under the floor, left out')
+        self.assertEqual([r['editions'] for r in rows], [16, 12])
+        self.assertAlmostEqual(sum(r['share'] for r in rows), 28 / 30)
+        hc.check_published({'countries': rows}, 'countries')
+        with self.assertRaisesRegex(hc.HalfError, 'without a reviewed country'):
+            half_field.countries(verified, {'Oslo Half': 'NO'})
+
+    def test_same_race_is_verified_minus_unverified(self):
+        fin = synthetic_finishes().assign(city=lambda f: 'R' + (f.edition_id % 5).astype(str))
+        fin.loc[~fin.verified, 'finish_s'] += 60              # unverified years a minute slower
+        sr = half_field.same_race(fin)
+        self.assertEqual(sr['races'], 5)
+        self.assertLess(sr['diff_s']['p50'], 0)
+        self.assertLessEqual(sr['diff_s']['p25'], sr['diff_s']['p50'])
+        with self.assertRaises(hc.HalfError):
+            half_field.same_race(fin[fin.verified])
+
+    def test_by_city_is_the_city_equal_member(self):
+        frame = synthetic_pairs()
+        linked, _, ranges = half_linked.build(frame)
+        cities = linked['checks']['by_city']
+        member = next(m for m in linked['checks']['battery']['members'] if m['id'] == 'city_equal')
+        self.assertEqual(len(cities), member['n'])
+        for c in cities:
+            self.assertGreaterEqual(c['pairs'], hc.MIN_CELL)
+            self.assertGreaterEqual(c['e'], hc.MIN_EDITIONS)
+            self.assertTrue(c['mid'] is None or (c['mid']['pairs'] >= hc.MIN_CELL and c['mid']['pairs'] <= c['pairs']))
+        bands = linked['checks']['multiple_by_band']
+        self.assertEqual([b['h'] for b in bands], [60 * H for H in range(ranges['all'][0], ranges['all'][1] + 1) if H % 5 == 0])
+        self.assertNotIn('coverage', linked['checks'], 'coverage only when the builder passes it')
+
+    def test_coverage_floors(self):
+        rows = half_linked.coverage_rows([{'city': 'A', 'finishes': 5000, 'linked': 2000}, {'city': 'B', 'finishes': 900, 'linked': 300},
+                                          {'city': 'C', 'finishes': 50000, 'linked': 99}, {'city': 'D', 'finishes': 20000, 'linked': 100}])
+        self.assertEqual([r['city'] for r in rows], ['A', 'D'], 'under 1,000 finishes or 100 linked: left out; by share')
+        self.assertEqual(rows[1]['share'], 0.005)
+
+
+class Determinism(unittest.TestCase):
+    def test_two_builds_give_the_same_bytes(self):
+        frame = synthetic_pairs()
+        a = [hc.encode(x) for x in half_linked.build(frame)[:2]]
+        b = [hc.encode(x) for x in half_linked.build(frame.sample(frac=1, random_state=1))[:2]]
+        self.assertEqual(a, b, 'the row order of set B does not change a byte')
+        fin = synthetic_finishes(per=2000)
+        with self.assertRaises(hc.HalfError):
+            half_field.build(fin, policy_sha256='0' * 64, module_sha256='0' * 64)  # the tails of a small field are under 100 a minute
+
+    def test_encode_sorts_keys(self):
+        self.assertEqual(hc.encode({'b': 1, 'a': [2.5, 3]}), b'{"a":[2.5,3],"b":1}\n')
+
+    def test_refusals_name_what_is_missing(self):
+        import build_half
+        with self.assertRaisesRegex(hc.HalfError, 'missing'):
+            hc.connect(half=Path(tempfile.gettempdir()) / 'no-such-half.sqlite')
+        with self.assertRaisesRegex(hc.HalfError, 'inside the repository'):
+            build_half.check_sources(hc.load_pin(), ROOT / 'analysis' / 'half-release.json', ROOT / 'analysis' / 'release.json')
+        with tempfile.TemporaryDirectory() as folder:
+            wrong = Path(folder) / 'other.sqlite'
+            wrong.write_bytes(b'')
+            with self.assertRaisesRegex(hc.HalfError, 'pinned platform_half.sqlite'):
+                build_half.check_sources(hc.load_pin(), wrong, wrong)
+
+
+class Cards(unittest.TestCase):
+    """analysis/half_cards.py: the card plots read their family files and draw what the pages draw."""
+
+    @staticmethod
+    def families(pooled_half=6318, under=(0.0772, 0.476)):
+        win = lambda h, sus: {'h': h, 'sus': sus}  # noqa: E731
+        field = {'under': [{'s': 7200, 'all': 0.56, 'F': 0.35, 'M': 0.68}], 'cohort': {'finishes': 1000, 'editions': 9}}
+        women = {'same_city': {'cities': [{'city': 'A', 'half': 0.4, 'marathon': 0.25}, {'city': 'B', 'half': 0.3, 'marathon': 0.2}],
+                               'summary': {'half_median': 0.35, 'marathon_median': 0.22, 'pairs': 12, 'cities': 2, 'half_higher': 12}}}
+        linked = {'overall': {'under_double_plus_min': {'0': under[0], '20': under[1]}, 'extra_s': {'p50': 1254}},
+                  'set': {'pairs': 500}, 'checks': {'battery': {'pooled_half_p50_s': pooled_half}},
+                  'windows': {'F': [win(h, 0.1) for h in (5400, 6300, 7200)], 'M': [win(h, 0.3) for h in (5400, 6300, 7200, 8100)]}}
+        return field, women, linked
+
+    def test_plots(self):
+        import half_cards
+        cards = {c['slug']: c for c in half_cards.build(*self.families())['cards']}
+        self.assertEqual(list(cards), ['half-under-2', 'half-more-women', 'half-double', 'half-same-half'])
+        self.assertEqual(cards['half-under-2']['values']['women_under_7200'], 0.35)
+        rows = cards['half-more-women']['plot']['rows']
+        self.assertEqual(rows[0], {'label': 'Typical', 'a': 0.22, 'b': 0.35, 'tone': 'signal'}, 'the medians first, the marathon the ring')
+        self.assertEqual(rows[1], {'label': 'A', 'a': 0.25, 'b': 0.4})
+        parts = cards['half-double']['plot']['parts']
+        self.assertEqual([p['share'] for p in parts], [0.0772, hc.sh(0.476 - 0.0772)])
+        same = cards['half-same-half']['plot']['rows']
+        self.assertEqual([r['label'] for r in same], ['1:30', '1:45', '2:00'], 'a band needs both recorded sexes')
+        self.assertEqual([r.get('tone') for r in same], [None, 'signal', None], 'the band nearest the pooled median half is the signal')
+        plot = cards['half-same-half']['plot']
+        self.assertEqual((plot['a'], plot['b']), ('Recorded men’s', 'Recorded women’s'), 'the women’s share is the filled dot the signal lights')
+        self.assertEqual((same[1]['a'], same[1]['b']), (0.3, 0.1), 'the ring at the men’s share, the dot at the women’s')
+
+    def test_flagship_band_rounds_like_the_site(self):
+        import half_cards
+        # 6150 s is exactly between the 1:40 and 1:45 bands: JavaScript's Math.round (the nuggets) takes 1:45.
+        self.assertEqual(half_cards.flagship_band(self.families(pooled_half=6150)[2]), 6300)
+        self.assertEqual(half_cards.flagship_band(self.families(pooled_half=6149)[2]), 6000)
+
+    def test_shares_out_of_order_refuse(self):
+        import half_cards
+        with self.assertRaises(hc.HalfError):
+            half_cards.build(*self.families(under=(0.5, 0.4)))
+
+
+class StampCorrection(unittest.TestCase):
+    """The stamp correction (verified = stamped in the snapshot and in the corrected metadata) on a synthetic snapshot,
+    and the reviewed list frozen in the policy."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        s = Source(cls.tmp.name)
+        normal = uniform(5400, 10800, 300)
+        cls.ids = {}
+        for city, status in (('Withdrawn', 'stamped'), ('Kept', 'stamped'), ('Weaker', 'stamped'), ('Internal', 'counts_internal_only')):
+            cls.ids[city] = s.edition(city, 2024, status=status, official=300, source_type='list rows (internal only)')
+            s.field(city, 2024, normal)
+        s.close()
+        cls.db = hc.connect(half=s.path)
+        hq.record_rules(cls.db)
+        cls.correction = {
+            'withdrawn': [{'edition_id': cls.ids['Withdrawn'], 'city': 'Withdrawn', 'year': 2024, 'corrected_status': 'counts_internal_only',
+                           'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'}],
+            'weaker_source': [{'edition_id': cls.ids['Weaker'], 'city': 'Weaker', 'year': 2024, 'source': 'local press own finisher total — weaker than federation'}],
+        }
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.close()
+        cls.tmp.cleanup()
+
+    def rows(self, **status):
+        base = {'Withdrawn': ('counts_internal_only', 'db=300 listed=300 | unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent', 'x'),
+                'Kept': ('stamped', 'press 300 vs db 300', 'federation results list'),
+                'Weaker': ('stamped', 'press 300', 'local press own finisher total — weaker than federation'),
+                'Internal': ('counts_internal_only', 'db=300', 'list rows (internal only)')}
+        out = {}
+        for city, (st, why, src) in base.items():
+            out[self.ids[city]] = {'city': city, 'year': 2024, 'status': status.get(city, st), 'reason': why, 'source_type': src}
+        return out
+
+    def table(self, rows):
+        m = hq.edition_table(self.db)
+        applied = hq.apply_stamp_correction(m, self.correction, rows)
+        return hq.edition_rules(m), applied
+
+    def test_the_withdrawn_list_is_applied(self):
+        m, applied = self.table(self.rows())
+        hq.check_corrected_verified(m, self.correction, self.rows())
+        g = m.set_index('city')
+        self.assertEqual(applied, [self.ids['Withdrawn']])
+        self.assertEqual(g.loc['Withdrawn', 'status_group'], 'unverified')
+        self.assertTrue(g.loc['Withdrawn', 'use_finish'], 'a withdrawn stamp stays usable, as an unverified edition')
+        self.assertEqual(g.loc['Withdrawn', 'corrected_status'], 'counts_internal_only')
+        self.assertEqual([g.loc[c, 'status_group'] for c in ('Kept', 'Weaker', 'Internal')], ['verified', 'verified', 'unverified'])
+
+    def test_no_verified_edition_lacks_a_corrected_stamp(self):
+        # A stamp the metadata withdrew that the reviewed list misses fails the rederived list.
+        with self.assertRaisesRegex(hc.HalfError, 'differ from the corrected metadata'):
+            self.table(self.rows(Kept='counts_internal_only'))
+        # An edition stamped only in the corrected metadata: verified needs both stamps, so the check fails loudly.
+        m, _ = self.table(self.rows(Internal='stamped'))
+        with self.assertRaisesRegex(hc.HalfError, 'stamped in the corrected metadata but unverified'):
+            hq.check_corrected_verified(m, self.correction, self.rows(Internal='stamped'))
+        # A verified edition the corrected metadata does not stamp.
+        m, _ = self.table(self.rows())
+        rows = self.rows()
+        rows[self.ids['Kept']] = {**rows[self.ids['Kept']], 'status': 'counts_internal_only'}
+        with self.assertRaisesRegex(hc.HalfError, 'not stamped in the corrected metadata'):
+            hq.check_corrected_verified(m, self.correction, rows)
+
+    def test_the_weaker_source_stamps_stay_verified(self):
+        rows = self.rows()
+        rows[self.ids['Weaker']] = {**rows[self.ids['Weaker']], 'source_type': 'federation results list'}
+        with self.assertRaisesRegex(hc.HalfError, 'weaker-source stamp'):
+            self.table(rows)
+        with self.assertRaisesRegex(hc.HalfError, 'differ from the corrected metadata|weaker-source stamp'):
+            self.table(self.rows(Weaker='counts_internal_only'))
+        m, _ = self.table(self.rows())
+        self.assertEqual(m.set_index('city').loc['Weaker', 'status_group'], 'verified')
+
+    def test_the_corrected_metadata_must_be_the_pinned_file(self):
+        import shutil
+        import subprocess
+        if shutil.which('zstd') is None:
+            self.skipTest('the zstd command is not installed')
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'csv-edition_meta.csv.zst'
+            text = 'id,city,year,completeness_status,completeness_reason,official_source_type\n1,"A, B",2024,stamped,"x | y",z\n'
+            path.write_bytes(subprocess.run(['zstd', '-q', '-c'], input=text.encode(), check=True, capture_output=True).stdout)
+            with self.assertRaisesRegex(hc.HalfError, 'is not the reviewed corrected metadata'):
+                hq.read_correction(path, {'tag': 't', 'asset': path.name, 'sha256': '0' * 64})
+            rows = hq.read_correction(path, {'tag': 't', 'asset': path.name, 'sha256': hc.file_sha256(path)})
+            self.assertEqual(rows, {1: {'city': 'A, B', 'year': 2024, 'status': 'stamped', 'reason': 'x | y', 'source_type': 'z'}})
+        with self.assertRaisesRegex(hc.HalfError, 'missing the corrected metadata'):
+            hq.read_correction(Path(tempfile.gettempdir()) / 'no-such.csv.zst', hq.CORRECTION_20261029_2157)
+
+    def test_reasons_are_the_withdrawal_clause(self):
+        self.assertEqual(hq.correction_reason('db=1 | unstamped 2026-10-29 per user | later'), 'unstamped 2026-10-29 per user')
+        self.assertEqual(hq.correction_reason('stamped on derived count  2,782\n(newspaper)'), 'stamped on derived count 2,782 (newspaper)')
+        long = 'unstamped ' + 'word ' * 60
+        self.assertTrue(hq.correction_reason(long).endswith('…') and len(hq.correction_reason(long)) <= hq.REASON_MAX)
+
+    def test_the_reviewed_correction_in_the_policy(self):
+        doc = json.loads(hq.policy_path().read_text())
+        c = doc['stamp_correction']
+        self.assertEqual([c['tag'], c['asset'], c['sha256'], c['applied'], c['reviewed']],
+                         ['half-dataset-20261029-2157', 'csv-edition_meta.csv.zst', '2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842',
+                          'verified = stamped in both', '2026-10-30'])
+        self.assertEqual(doc['tag'], hq.TAG, 'the policy keeps the snapshot tag')
+        w = c['withdrawn']
+        self.assertEqual(len(w), 72)
+        self.assertEqual(len({x['edition_id'] for x in w}), 72)
+        self.assertEqual({x['corrected_status'] for x in w}, {'counts_internal_only', 'counts_internal_only_winner_ok'})
+        self.assertEqual(sum(x['corrected_status'] == 'counts_internal_only' for x in w), 46)
+        self.assertTrue({('Paris', 2017), ('Berlin', 2026), ('New York', 2025), ('Valencia', 2024)} <= {(x['city'], x['year']) for x in w})
+        weaker = {(x['city'], x['year']) for x in c['weaker_source']}
+        self.assertEqual(weaker, {('Kraków: Cracovia Półmaraton Królewski', 2022), ('Kraków', 2025), ('Szczecin', 2023), ('Szczecin', 2026), ('Piła', 2026), ('Lisbon', 2024)})
+        self.assertFalse(weaker & {(x['city'], x['year']) for x in w}, 'the six weaker-source stamps stay verified')
+        self.assertEqual(doc['expected']['verified'], {'finishes': 753_476, 'editions': 238})
+        self.assertEqual(doc['expected']['stamp_withdrawn'], {'finishes': 869_551, 'editions': 72})
+        self.assertEqual(doc['expected']['verified']['editions'] + doc['expected']['stamp_withdrawn']['editions'], 310,
+                         'every edition verified before the correction is either still verified or withdrawn')
+
+
+class DownloadHalf(unittest.TestCase):
+    """analysis/download_half.py on synthetic parts: SHA256SUMS and the pin, reassembly, anonymous public URLs only."""
+
+    def setUp(self):
+        import download_half
+        self.dh = download_half
+        self.tmp = tempfile.TemporaryDirectory()
+        self.folder = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def parts(self, name='half-20990101-0000.sqlite.zst', wal=False):
+        """A tiny SQLite, compressed with zstd and split into two parts; returns (sqlite sha, {part: sha})."""
+        import shutil
+        import subprocess
+        if shutil.which('zstd') is None:
+            self.skipTest('the zstd command is not installed')
+        db = self.folder / 'source.sqlite'
+        con = sqlite3.connect(db)
+        if wal:   # the links release is a WAL-mode SQLite: reading it leaves -wal and -shm files beside it
+            con.execute('PRAGMA journal_mode=WAL')
+        con.executescript('CREATE TABLE t (x INTEGER); ' + ' '.join(f'INSERT INTO t VALUES ({i});' for i in range(500)))
+        con.commit()
+        con.close()
+        packed = subprocess.run(['zstd', '-q', '-c', str(db)], check=True, capture_output=True).stdout
+        cut = len(packed) // 2
+        shas = {}
+        for i, chunk in enumerate((packed[:cut], packed[cut:])):
+            path = self.folder / f'{name}.part{i:02d}'
+            path.write_bytes(chunk)
+            shas[path.name] = hc.bytes_sha256(chunk)
+        sqlite_sha = hc.file_sha256(db)
+        db.unlink()
+        return sqlite_sha, shas
+
+    def spec(self, shas, sqlite_sha):
+        return {'key': 'half', 'tag': 'half-snapshot-20990101-0000', 'assets': dict(shas), 'parts': sorted(shas),
+                'target': 'platform_half.sqlite', 'target_sha256': sqlite_sha}
+
+    def test_sums_file(self):
+        good = self.folder / 'SHA256SUMS'
+        good.write_text(f"{'a' * 64}  one.md\n{'b' * 64} *two.zst.part00\n")
+        self.assertEqual(self.dh.read_sums(good), {'one.md': 'a' * 64, 'two.zst.part00': 'b' * 64})
+        good.write_text(f"{'a' * 64}  one.md\n{'a' * 64}  one.md\n")
+        with self.assertRaises(hc.HalfError):
+            self.dh.read_sums(good)
+
+    def test_the_real_pin_names_the_public_releases(self):
+        pin = hc.load_pin()
+        specs = self.dh.all_specs(pin)
+        self.assertEqual([s['key'] for s in specs], ['half', 'links', 'correction'])
+        self.assertEqual([s['tag'] for s in specs], ['half-dataset-20261029-1202', 'half-dataset-20261029-1202', 'half-dataset-20261029-2157'])
+        self.assertEqual(specs[0]['parts'], ['half-20261029-1133.sqlite.zst.part00'])
+        self.assertEqual(specs[0]['target_sha256'], pin['half']['sqlite_sha256'])
+        self.assertEqual(specs[2]['assets']['csv-edition_meta.csv.zst'], hq.CORRECTION_20261029_2157['sha256'])
+        self.assertEqual(pin['repository'], 'koolkam00/pace-notes')
+        self.assertEqual([pin['half']['private_tag'], pin['links']['private_tag']], [hq.TAG, 'runner-links-20261029-1156'])
+
+    def test_folder_check_and_reassembly(self):
+        sqlite_sha, shas = self.parts()
+        spec = self.spec(shas, sqlite_sha)
+        sums = self.folder / 'SHA256SUMS'
+        sums.write_text(''.join(f'{d}  {n}\n' for n, d in shas.items()))
+        found = self.dh.check_folder(self.folder, spec)
+        self.assertEqual(sorted(found), sorted(shas))
+        self.assertEqual(self.dh.identify(self.folder, [spec]), [spec])
+        out = self.folder / 'out'
+        out.mkdir()
+        record = self.dh.place(spec, found, out, downloaded=False, keep_links_sqlite=False, replace=False)
+        self.assertEqual(record['sqlite']['sha256'], sqlite_sha)
+        self.assertTrue(all(p.exists() for p in found.values()), 'an owner folder keeps its parts')
+        self.assertEqual(self.dh.place(spec, found, out, downloaded=False, keep_links_sqlite=False, replace=False)['sqlite']['kept'], True)
+        # A part that differs from SHA256SUMS, a SHA256SUMS that differs from the pin, a wrong decompressed digest.
+        first = self.folder / spec['parts'][0]
+        first.write_bytes(first.read_bytes()[:-1] + b'\0')
+        with self.assertRaisesRegex(hc.HalfError, 'does not match SHA256SUMS'):
+            self.dh.check_folder(self.folder, spec)
+        with self.assertRaisesRegex(hc.HalfError, 'with the digest pinned'):
+            self.dh.check_folder(self.folder, {**spec, 'assets': {**shas, spec['parts'][0]: 'c' * 64}})
+        sqlite_sha, shas = self.parts()
+        with self.assertRaisesRegex(hc.HalfError, 'not the pinned one'):
+            self.dh.reassemble([self.folder / n for n in sorted(shas)], out / 'again.sqlite', 'd' * 64)
+        self.assertFalse((out / 'again.sqlite').exists(), 'nothing is left behind after a refused decompress')
+
+    def test_downloaded_parts_are_deleted_after_a_verified_decompress(self):
+        sqlite_sha, shas = self.parts()
+        spec = self.spec(shas, sqlite_sha)
+        out = self.folder / 'out'
+        out.mkdir()
+        record = self.dh.place(spec, {n: self.folder / n for n in shas}, out, downloaded=True, keep_links_sqlite=False, replace=False)
+        self.assertEqual(record['parts'], 'downloaded, verified and deleted')
+        self.assertFalse(any((self.folder / n).exists() for n in shas))
+
+    def test_reassembly_leaves_no_sqlite_sidecar_files(self):
+        sqlite_sha, shas = self.parts(wal=True)
+        out = self.folder / 'out'
+        out.mkdir()
+        self.assertEqual(self.dh.reassemble([self.folder / n for n in sorted(shas)], out / 'links.sqlite', sqlite_sha), sqlite_sha)
+        self.assertEqual(sorted(p.name for p in out.iterdir()), ['links.sqlite'], 'no -wal or -shm file is left beside it')
+
+    def test_one_folder_holds_the_half_and_the_links(self):
+        a, b = 'a' * 64, 'b' * 64
+        (self.folder / 'SHA256SUMS').write_text(f'{a}  half.sqlite.zst.part00\n{b}  links.sqlite.zst.part00\n')
+        specs = [{'key': 'half', 'tag': 't', 'assets': {'half.sqlite.zst.part00': a}}, {'key': 'links', 'tag': 't', 'assets': {'links.sqlite.zst.part00': b}},
+                 {'key': 'correction', 'tag': 'u', 'assets': {'csv-edition_meta.csv.zst': 'c' * 64}}]
+        self.assertEqual([s['key'] for s in self.dh.identify(self.folder, specs)], ['half', 'links'])
+
+    def test_the_correction_lands_in_its_tag_folder(self):
+        csv = self.folder / 'csv-edition_meta.csv.zst'
+        csv.write_bytes(b'meta')
+        readme = self.folder / 'README.md'
+        readme.write_bytes(b'readme')
+        spec = {'key': 'correction', 'tag': 'half-dataset-20990101-0000', 'parts': [], 'target': csv.name,
+                'assets': {csv.name: hc.bytes_sha256(b'meta'), 'README.md': hc.bytes_sha256(b'readme')}}
+        out = self.folder / 'out'
+        out.mkdir()
+        record = self.dh.place(spec, {csv.name: csv, 'README.md': readme}, out, downloaded=False, keep_links_sqlite=False, replace=False)
+        self.assertEqual(record['file'], 'half-dataset-20990101-0000/csv-edition_meta.csv.zst')
+        self.assertEqual((out / 'half-dataset-20990101-0000' / csv.name).read_bytes(), b'meta')
+
+    def test_downloads_are_anonymous_public_release_urls(self):
+        from unittest.mock import patch
+        url = self.dh.public_url('koolkam00/pace-notes', 'half-dataset-20261029-1202', 'SHA256SUMS')
+        self.assertEqual(url, 'https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/SHA256SUMS')
+        request = self.dh.public_request(url)
+        self.assertNotIn('Authorization', request.headers)
+        self.assertNotIn('Authorization', request.unredirected_hdrs)
+        for bad in ('https://api.github.com/repos/koolkam00/pace-notes/releases/tags/x', 'http://github.com/o/r/releases/download/t/f',
+                    'https://github.com/o/r/archive/main.zip', 'https://example.com/o/r/releases/download/t/f'):
+            with self.assertRaises(hc.HalfError, msg=bad):
+                self.dh.public_request(bad)
+        with self.assertRaises(hc.HalfError):
+            self.dh.public_url('o/r/../x', 't', 'f')
+        body = b'part bytes'
+
+        class Response:
+            def __init__(self):
+                self.left = body
+
+            def read(self, n=-1):
+                out, self.left = (self.left, b'') if n < 0 else (self.left[:n], self.left[n:])
+                return out
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        seen = []
+
+        class Opener:
+            def open(self, req, timeout):
+                seen.append(req)
+                return Response()
+
+        with patch.object(self.dh, '_opener', return_value=Opener()):
+            self.dh.download(url, self.folder / 'x.part00', hc.bytes_sha256(body))
+            self.assertEqual((self.folder / 'x.part00').read_bytes(), body)
+            self.assertTrue(all('Authorization' not in r.headers and 'Authorization' not in r.unredirected_hdrs for r in seen))
+            with self.assertRaises(hc.HalfError):
+                self.dh.download(url, self.folder / 'z.part00', 'e' * 64)
+            self.assertFalse((self.folder / 'z.part00').exists(), 'nothing is left behind after a refused download')
+            spec = {'key': 'half', 'tag': 'half-dataset-20261029-1202', 'assets': {'x.part00': hc.bytes_sha256(body)}}
+            with self.assertRaisesRegex(hc.HalfError, 'SHA256SUMS does not list'):
+                self.dh.fetch_release(spec, 'koolkam00/pace-notes', self.folder / 'dl', {'x.part00': 'f' * 64})
+        source = Path(self.dh.__file__).read_text()
+        self.assertNotIn('api.github.com/repos', source, 'the downloader never asks the API')
+        self.assertNotIn('add_unredirected_header', source)
+
+    def test_refuses_an_output_inside_the_repository(self):
+        self.assertEqual(self.dh.main(['--from-dir', str(self.folder), '--out', str(ROOT / 'public' / 'data' / 'half')]), 1)
+
+
+# The release's runner_links.sqlite schema as published (half-dataset-20261029-1202): several columns carry no declared
+# type, which DuckDB's SQLite scanner reads as BLOB unless the extract casts them (found running the source job locally,
+# October 30, 2026).
+LINKS_SQLITE_SCHEMA = """
+CREATE TABLE runners(runner_id TEXT, canonical_name, name_norm TEXT, sex TEXT, age_key TEXT, n_halves, n_fulls, n_records,
+  first_year, last_year, birth_year_min, birth_year_max, ntok, ns_keys int, max_per_year int, confidence text, in_both int);
+CREATE TABLE runner_links(runner_id, db, record_id INT, match_key TEXT, match_rule, confidence TEXT, year INT, race_key TEXT,
+  linked_at);
+CREATE TABLE build_info(k text primary key, v text);
+CREATE TABLE candidate_merges(runner_id_a text, runner_id_b text, rule text, applied int default 0);
+"""
+
+
+class LinksExtract(unittest.TestCase):
+    """The links extract reads the release's SQLite and the parquet form of the same rows alike."""
+
+    def setUp(self):
+        import half_links_extract
+        self.hle = half_links_extract
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        runners = [('anna|f|1980', 'Anna', 'anna', 'F', '1980', 1, 1, 2, 2020, 2021, 1980, 1980, 1, 1, 1, 'high', 1),
+                   ('bo|m|40-44', 'Bo', 'bo', 'M', '40-44', 1, 1, 2, 2019, 2019, 1975, 1979, 1, 2, 1, 'medium', 1),
+                   ('cy|m|1990', 'Cy', 'cy', 'M', '1990', 1, 0, 1, 2022, 2022, 1990, 1990, 1, 1, 1, 'low', 0)]
+        links = [('anna|f|1980', 'half', 11, 'anna|f|1980', 'name_sex_yob', 'high', 2020, 'h1'),
+                 ('anna|f|1980', 'full', 21, 'anna|f|1980', 'name_sex_yob', 'high', 2021, 'm1'),
+                 ('bo|m|40-44', 'half', 12, 'bo|m|40-44', 'name_sex_age_bin', 'medium', 2019, 'h2'),
+                 ('bo|m|40-44', 'full', 22, 'bo|m|40-44', 'name_sex_age_bin', 'medium', 2019, 'm2'),
+                 ('cy|m|1990', 'half', 13, 'cy|m|1990', 'name_sex_yob', 'low', 2022, 'h3')]
+        merges = [('bo|m|40-44', 'cy|m|1990', 'yob_vs_bin', 0)]
+        self.sqlite = self.dir / 'runner_links.sqlite'
+        con = sqlite3.connect(self.sqlite)
+        con.executescript(LINKS_SQLITE_SCHEMA)
+        con.executemany(f"INSERT INTO runners VALUES ({', '.join('?' * 17)})", runners)
+        con.executemany("INSERT INTO runner_links VALUES (?, ?, ?, ?, ?, ?, ?, ?, '2026-10-29 15:00:00')", links)
+        con.executemany('INSERT INTO candidate_merges VALUES (?, ?, ?, ?)', merges)
+        con.execute("INSERT INTO build_info VALUES ('built_at', '2026-10-29 15:51:57')")
+        con.commit()
+        con.close()
+        self.parquet = self.dir / 'parquet'
+        self.parquet.mkdir()
+        import duckdb   # writes the parquet form (pandas alone would need pyarrow, which the requirements do not list)
+        out = duckdb.connect()
+        for table, rows in (('runners', runners), ('runner_links', links), ('candidate_merges', merges),
+                            ('build_info', [('built_at', '2026-10-29 15:51:57')])):
+            frame = pd.DataFrame(rows, columns=list(self.hle.SQLITE_COLUMNS[table]))
+            out.register('frame', frame)
+            out.execute(f"COPY (SELECT * FROM frame) TO '{(self.parquet / f'{table}.parquet').as_posix()}' (FORMAT parquet)")
+            out.unregister('frame')
+        out.close()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def people(self, parquet=None, sqlite=None):
+        db = self.hle.connect()
+        self.hle.open_source(db, parquet, sqlite)
+        self.hle.select_people(db)
+        out = (db.execute('SELECT person_id, sex, confidence, ns_keys, key_type, in_candidate_merge FROM p ORDER BY 1').fetchall(),
+               db.execute('SELECT person_id, db, record_id, confidence, key_type FROM pl ORDER BY 1, 2, 3').fetchall())
+        db.close()
+        return out
+
+    def test_the_sqlite_and_parquet_forms_give_the_same_people_and_links(self):
+        from_sqlite = self.people(sqlite=self.sqlite)
+        self.assertEqual(from_sqlite, self.people(parquet=self.parquet))
+        people, links = from_sqlite
+        self.assertEqual([(sex, conf, keys, kind, merge) for _, sex, conf, keys, kind, merge in people],
+                         [('F', 'high', 1, 'yob', 0), ('M', 'medium', 2, 'age_bin', 1)] if people[0][1] == 'F'
+                         else [('M', 'medium', 2, 'age_bin', 1), ('F', 'high', 1, 'yob', 0)])
+        self.assertEqual(sorted((d, r) for _, d, r, _, _ in links), [('full', 21), ('full', 22), ('half', 11), ('half', 12)])
+        self.assertTrue(all(isinstance(r, int) for _, _, r, _, _ in links), 'record ids stay integers')
+
+    def test_a_missing_column_fails(self):
+        con = sqlite3.connect(self.sqlite)
+        con.execute('ALTER TABLE runner_links DROP COLUMN match_rule')
+        con.commit()
+        con.close()
+        db = self.hle.connect()
+        with self.assertRaisesRegex(SystemExit, 'runner_links lacks match_rule'):
+            self.hle.open_source(db, None, self.sqlite)
+
+
+SOURCE_DIR = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1133')
+
+
+@unittest.skipUnless((SOURCE_DIR / 'platform_half.sqlite').is_file() and os.environ.get('PACE_HALF_SOURCE_TESTS') == '1',
+                     'the half snapshot is not on this machine (python3 -I analysis/download_half.py; set PACE_HALF_DIR and PACE_HALF_SOURCE_TESTS=1)')
+class RealSource(unittest.TestCase):
+    def test_frozen_lists_and_counts_recompute_from_the_snapshot(self):
+        db = hc.connect(half=SOURCE_DIR / 'platform_half.sqlite')
+        correction = hq.REVIEWED_HALF_POLICIES[hq.TAG]['correction']
+        rows = hq.read_correction(SOURCE_DIR / correction['tag'] / correction['asset'], correction)
+        result = hq.apply(db, correction_rows=rows)   # fails unless R3, R4, E0, E2–E8 and the withdrawn stamps equal the frozen lists
+        self.assertEqual(result.counts, hq.EXPECTED_20261029_1133)
+        m = result.editions
+        verified = m[m.use_finish & (m.status_group == 'verified')]
+        self.assertEqual(len(verified), 238)
+        self.assertTrue(all(rows[int(e)]['status'] == 'stamped' for e in verified.edition_id), 'no verified edition lacks a corrected stamp')
+        self.assertTrue({x['edition_id'] for x in correction['weaker_source']} <= set(verified.edition_id.astype(int)), 'the six weaker-source stamps stay verified')
+
+
+if __name__ == '__main__':
+    unittest.main()

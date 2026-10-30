@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getInsightsManifest } from '@/lib/insights-server';
-import { STORIES, storyHref, type StoryDefinition } from '@/lib/stories';
+import { STORIES, storyHref, storyPublished, type StoryDefinition } from '@/lib/stories';
 import { JsonLd, absoluteUrl, breadcrumbs, pageMetadata } from '@/lib/seo';
 import { sitemapEntries } from '@/lib/seo-routes';
 import { DEFAULT_OG_IMAGE, ogImageFor } from '@/lib/og-paths';
@@ -13,6 +12,7 @@ import DemographicsBody from '@/components/story/bodies/DemographicsBody';
 import CoursesBody from '@/components/story/bodies/CoursesBody';
 import KickBody from '@/components/story/bodies/KickBody';
 import RaceMorningBody from '@/components/story/bodies/RaceMorningBody';
+import HalfToFullBody from '@/components/story/bodies/HalfToFullBody';
 
 // Each story's body is a server component: it reads its data at build and hands its client islands only what they draw.
 // The islands of every story share this route's one page chunk (about 5 KB gzipped; every story loads 161.7 KB in all
@@ -20,11 +20,12 @@ import RaceMorningBody from '@/components/story/bodies/RaceMorningBody';
 const BODIES: Record<string, () => JSX.Element> = {
   'pacing-types': PacingTypesBody, 'round-numbers': RoundNumbersBody, 'race-replay': ReplayBody, places: PlacesBody,
   'who-holds-pace': DemographicsBody, courses: CoursesBody, 'final-kick': KickBody, 'race-morning': RaceMorningBody,
+  'half-to-full': HalfToFullBody,
 };
 
+/** The stories built here: those with a body whose data file is in their verified manifest (a half story's is the half one). */
 function available() {
-  const manifest = getInsightsManifest();
-  return STORIES.filter((s) => BODIES[s.slug] && manifest.files[s.file]);
+  return STORIES.filter((s) => BODIES[s.slug] && storyPublished(s));
 }
 
 /** The sitemap's lastmod for each story (the later of its CONTENT_DATES entry and the insights as_of day), read once per build. */

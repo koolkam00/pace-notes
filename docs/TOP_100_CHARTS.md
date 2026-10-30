@@ -49,6 +49,26 @@ A chart whose guard no longer holds shows its fallback sentence; read every head
 
 Analytics (`lib/analytics-policy.ts`) records `/charts` and `/charts/1` … `/charts/CHART_COUNT`; `verify-analytics` checks `CHART_COUNT` against the catalog, and any other `/charts/` path records as `/charts`. Search: every page is indexable and in the sitemap, its `lastmod` the charts manifest's date ([SEO](SEO.md)).
 
+## From the half cards
+
+Cards outside the hundred, from the half-marathon pages ([half marathons](HALF_MARATHON.md); owner question Q11 at its default, October 2026). A card is drawn only while its takeaway's guard holds: since the stamp correction of October 30, 2026, `half-under-2` and `half-same-half` are drawn and `half-more-women` and `half-double` are withdrawn (no image, no caption, no link; `/methodology#half-cards` names them). They use the same `ChartCard`, size, frame and stamp scheme, but they are not in `lib/charts/catalog.json`, so `CHART_COUNT` stays 100 and the numbered series is untouched:
+
+| Card | Page | Scope | Draws |
+| --- | --- | --- | --- |
+| `half-under-2` "Just over half broke 2:00" | `/half` | verified | a waffle of the half finishes under 2:00 (55%; 56% before the correction); the takeaway adds the recorded women's and men's shares (33% and 67%) |
+| `half-more-women` "More women in the half, city by city" (withdrawn: 9 pairs in 2 cities, under the page's 10 in 5) | `/half` | verified | a dumbbell of the same-city, same-year pairs by city, the marathon as the ring and the half as the dot, under a signal row "Typical" at the two medians (the takeaway words them as two: "Their share of finishes was typically 38% in the half and 24% in the marathon.") |
+| `half-double` "Double the half, plus 21 minutes" (withdrawn while the story's `half.extra` guard fails) | `/stories/half-to-full` | linked | a waffle of the marathons under double the half (8%, signal), within 20 minutes over it (40%) and the rest |
+| `half-same-half` "Same half, fewer sustained slowdowns for women" | `/stories/half-to-full` | linked | a dumbbell of recorded men's (the ring) and women's (the dot) sustained-slowdown shares after halves near 1:30, 1:45, 2:00 and 2:15, the 1:45 band the signal row, so its orange dot is the women's share the takeaway names |
+
+- **Data:** `public/data/half/cards.json` (`analysis/half_cards.py`; recounted by `scripts/verify-half-source.cjs` and checked against its family files by `scripts/verify-half.cjs`).
+- **Words:** `lib/charts/text/half.ts`, a registry of its own (`HALF_CARD_TEXT`, read through `halfCardWords`). Each guard is the page's nugget guard plus the card's own checks, so a card falls back exactly when its page does; `verify-half` holds the words to the rules above (titles ≤ 47 characters, one accent, the banned words) and requires "records linked by name" in a linked card's takeaway and nowhere else.
+- **Drawing:** `node scripts/build-chart-cards.cjs --set half` (`scripts/half/card-images.cjs`) writes `public/charts/cards/half-<…>.png` for each card whose guard holds and removes the image of a withdrawn one. The kicker reads "From the half" and a theme instead of "No. N of 100"; the footer names the page (`splithappens.run/half` or `/stories/half-to-full`), and a linked card prints the chip "Includes unverified half results" over it. The stamp binds the card code, `cards.json`, the family file the card reads, the title and the takeaway; `scripts/half/card-images.cjs` is outside the Top 100's code list, so a change there re-stamps the half cards only.
+- **Checks:** `node scripts/build-chart-cards.cjs --check --set half` (in `npm run verify:data` and the **Half marathon** workflow) works like the Top 100 check and owns every `half-*.png` file; the default check owns every other file in the folder.
+- **Captions:** `--captions` appends a "From the half (not numbered)" section to `docs/CHARTS_INSTAGRAM.md`.
+- The pages link the images with "Save the image" (`components/half/HalfCharts.tsx` `SaveImage`, shown only when the image is in the build).
+
+Adding the card sets changed `scripts/build-chart-cards.cjs`, which is in the Top 100 cards' code stamp, so on October 30, 2026 the hundred cards were re-rendered: their image data (IHDR and IDAT chunks) is byte-identical to the images of October 23, only the stamp chunk changed.
+
 ## Evidence
 
 Measured October 23, 2026 on the build worktree, against `private-export-20261021-1050` (4,108,749 eligible finishes in 215 editions of 27 cities; 3,970,364 in the 200 editions the start-offset screen keeps; 1,067,423 with an exact recorded age in 33 granular-age editions):

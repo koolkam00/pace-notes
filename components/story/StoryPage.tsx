@@ -13,30 +13,41 @@ import { readingOf, type Nugget, type NuggetText } from '@/lib/nuggets';
 
 type Track = (typeof TRACKED_SECTIONS)[number];
 
-const TERM = /\bsustained[ -]slowdowns?\b/i;
 export const TERM_HREF = '/methodology#sustained-slowdown';
+/**
+ * The half pages' term: half and marathon records linked by name, explained on /methodology#half-linking. Opt-in
+ * (`linked`), since the Top 100 charts use the same words for marathon records linked across races.
+ */
+export const LINKED_HREF = '/methodology#half-linking';
+/** The terms a sentence can link to their definitions on /methodology, each at its first use on the page. */
+const SLOWDOWN_TERM = { re: /\bsustained[ -]slowdowns?\b/i, href: TERM_HREF };
+const LINKED_TERM = { re: /\brecords linked by name\b/i, href: LINKED_HREF };
+type Term = typeof SLOWDOWN_TERM;
 
 /** A range ("35–40K", "2022–26") never breaks at its dash: a word joiner holds the two ends together. */
 export const keep = joinRanges;
 
+/** The text with the first use of each pending term linked to its definition (and taken off `pending`). */
+function linkTerms(body: string, pending: Term[]): ReactNode {
+  const hits = pending.map((t) => ({ t, m: t.re.exec(body) })).filter((h): h is { t: Term; m: RegExpExecArray } => !!h.m);
+  if (!hits.length) return body;
+  const { t, m } = hits.reduce((a, b) => (b.m.index < a.m.index ? b : a));
+  pending.splice(pending.indexOf(t), 1);
+  return <>{body.slice(0, m.index)}<Link href={t.href} className="term-link">{m[0]}</Link>{linkTerms(body.slice(m.index + m[0].length), pending)}</>;
+}
+
 /**
  * A sentence with its one *…* accent as <em>. With `term`, the first "sustained slowdown" in it links to its definition
- * on /methodology (.term-link): pages pass it once, at the term's first use (the redesign spec, section 3.10).
+ * on /methodology (.term-link); with `linked` (the half pages' linked figures), so does the first "records linked by
+ * name" (/methodology#half-linking). Pages pass them once, at the terms' first use (the redesign spec, section 3.10).
  */
-export function rich(text: string, { term = false, plain = false }: { term?: boolean; plain?: boolean } = {}): ReactNode {
+export function rich(text: string, { term = false, linked = false, plain = false }: { term?: boolean; linked?: boolean; plain?: boolean } = {}): ReactNode {
   const parts = keep(text).split(/(\*[^*]+\*)/).filter(Boolean);
-  let linked = !term;
+  const pending: Term[] = [...(term ? [SLOWDOWN_TERM] : []), ...(linked ? [LINKED_TERM] : [])];
   return parts.map((part, i) => {
     const accent = part.startsWith('*') && part.endsWith('*') && part.length > 2;
     const body = accent ? part.slice(1, -1) : part;
-    let node: ReactNode = body;
-    if (!linked) {
-      const m = TERM.exec(body);
-      if (m) {
-        linked = true;
-        node = <>{body.slice(0, m.index)}<Link href={TERM_HREF} className="term-link">{m[0]}</Link>{body.slice(m.index + m[0].length)}</>;
-      }
-    }
+    const node = linkTerms(body, pending);
     return accent && !plain ? <em key={i}>{node}</em> : <span key={i}>{node}</span>;
   });
 }
@@ -57,16 +68,22 @@ export function Say({ nugget, term = false }: { nugget: Nugget; term?: boolean }
  * disclosure holding every chart's table (`numbers`, each a `<Values bare …/>`), and the closing stack, with the chapter
  * rail beside them from 1180 px. Every section is a tracked beat: hero, chapter-1 … chapter-n, related.
  */
-export function StoryPage({ path, className, numbers = [], children }: { path: string; className?: string; numbers?: ReactNode[]; children: ReactNode }) {
+export function StoryPage({ path, className, numbers = [], halfScope, children }: {
+  path: string; className?: string; numbers?: ReactNode[];
+  /** A half-marathon story names the scope of its figures on its root for verify-half ("linked": records linked by name). */
+  halfScope?: 'verified' | 'linked';
+  children: ReactNode;
+}) {
   // The page's methods are the last line of its All numbers (they sit with the figures they explain), so the closing row
   // is the way back alone; a page with no tables keeps "How we know" in that row (round 6: one methods link per screen).
   const tables = numbers.some(Boolean);
+  const body = <>{children}<AllNumbers tables={numbers} className="story-numbers" how={howWeKnowOf(path) ?? undefined} /></>;
   return (
     <div className={`story-page with-rail${className ? ` ${className}` : ''}`} {...readingAttrs(path)}>
       <ChapterRail path={path} />
       <article className="story-flow">
-        {children}
-        <AllNumbers tables={numbers} className="story-numbers" how={howWeKnowOf(path) ?? undefined} />
+        {/* A half story's scope covers its own figures and tables, not the chapter end, whose next card is another page's. */}
+        {halfScope ? <div className="story-half-scope" data-half-scope={halfScope}>{body}</div> : body}
         <ChapterEnd path={path} readingOf={readingOf} how={!tables} />
       </article>
     </div>
@@ -79,21 +96,24 @@ export function StoryPage({ path, className, numbers = [], children }: { path: s
  * place (the pacing types' continuation of the home page's guess). With no figure, sentence or instrument (the race
  * replay, whose replay is its reading), the hairline under the H1 goes too, so the H1 sits straight over the children.
  */
-export function StoryHero({ path, title, dek, figure, figures, variant, unitLine, sentence, instrument, fallback, stacked = false, label = 'The reading', children }: {
+export function StoryHero({ path, title, dek, figure, figures, variant, unitLine, sentence, instrument, fallback, stacked = false, label = 'The reading', crumbs, children }: {
   path: string; title: ReactNode; dek?: ReactNode; figure?: Figure; figures?: [Figure, Figure]; variant?: 'figure' | 'pair';
   unitLine?: ReactNode; sentence?: ReactNode; instrument?: ReactNode; fallback?: boolean;
   /** The instrument runs under the figure across the whole column at every width, as on a phone: a scale (a ruler, a
    *  line) reads as one unit with the figure it draws (round 6: from 900 px a ruler floated small in an empty right
    *  half). A block instrument (a legend, a waffle) sits beside the figure from 900 px instead. */
   stacked?: boolean;
-  label?: string; children?: ReactNode;
+  label?: string;
+  /** The crumbs over the H1: the page's chapter (ChapterCrumbs) by default; a page off the chain (/half) passes its own. */
+  crumbs?: ReactNode;
+  children?: ReactNode;
 }) {
   const bare = !figure && !figures && !sentence && !instrument;
   return (
     <section className={`story-hero-beat${bare ? ' is-bare' : ''}`} data-track-section="hero" data-beat={label}>
       {/* Every page in the chain sets its H1 at one size (round 4: stories 84 px beside analyses' and tools' 68 px
           read as two sites in one chapter): the title size. */}
-      <Reading crumbs={<ChapterCrumbs path={path} />} title={typeof title === 'string' ? rich(title) : title} titleSize="title" dek={dek}
+      <Reading crumbs={crumbs ?? <ChapterCrumbs path={path} />} title={typeof title === 'string' ? rich(title) : title} titleSize="title" dek={dek}
         variant={variant ?? (figures ? 'pair' : 'figure')} figure={figure} figures={figures} unitLine={unitLine}
         sentence={sentence} instrument={instrument} fallback={fallback} stacked={stacked} />
       {children}

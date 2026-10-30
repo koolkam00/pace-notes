@@ -11,6 +11,7 @@ import { getStudyFigures } from '@/lib/study-figures';
 import { EVIDENCE_LABEL, EVIDENCE_TEXT, TOOLS, type ToolEvidence } from '@/lib/tools/registry';
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { Definition, Part, and, dataHref, n, pctText } from './shared';
+import { HalfEvidenceLines, HalfMultipleDefinition } from './MethodsHalf';
 
 type Archetypes = { cohort_n: number; classifier: { names: string[] }; archetypes: { slug: string; name: string; profile: number[] }[] };
 
@@ -116,8 +117,11 @@ export default function MethodsDefinitions() {
       </dl>}>
       {kinds.map((kind) => <p key={kind}><strong>{EVIDENCE_LABEL[kind]}.</strong> {kind === 'data' ? 'Every share is an observed share of complete finishes, not a forecast for any one runner.' : kind === 'research' ? 'Shown as ranges where studies differ, or as one cited method where a tool needs a single plan (the terrain splits); each method on its own, and kept apart from Pace Notes results.' : 'Kept apart from the data.'} Used by the {and(shown.filter((tool) => tool.evidence.includes(kind)).map((tool) => tool.title.toLowerCase()))}.</p>)}
       <p>Plain calculations from your own inputs carry no badge: even-pace splits and mile rows, pace charts, unit conversion and targets. They come straight from what you type and are not observations.</p>
+      <HalfEvidenceLines />
       <p>The race report and the course pages use the same badges. On the race report, Published research marks the published sustained-slowdown definition. A plan is worked out from your own goal. Where a course has <a href="#tools-terrain">terrain splits</a>, the band spreads that goal over the corrected route with one published grade curve, so it carries the Published research badge; the finishes near your goal, as they ran, carry the Pace Notes data badge in their own panel. The two are never one figure.</p>
     </Definition>
+
+    <HalfMultipleDefinition />
 
     <Definition id="percentiles" term="Percentiles and ranges"
       rule={<p>A percentile ranks finishes by time within a group: by the 10th, one finish in ten had come in. The median is the middle finish.</p>}>

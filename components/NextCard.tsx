@@ -19,8 +19,11 @@ const unbroken = (title: string) => title.split(/(\S+-\S+)/).map((part, i) => (i
 export default function NextCard({ next, reading }: { next: Next; reading?: ChapterReading | null }) {
   const { page, chapter, opensChapter } = next;
   const key = reading ? (reading.key ?? (opensChapter ? chapter.key : undefined)) : undefined;
+  // A half reading (records linked by name) repeated as a link to its own page, which carries the scope chip: marked for
+  // verify-half, which checks the card links to that page and holds no other half figure.
+  const half = reading && (opensChapter ? chapter.lead : page.nugget).startsWith('half.') ? { 'data-half-link': 'linked' } : {};
   return (
-    <ChapterLink href={page.href} className="next-card night">
+    <ChapterLink href={page.href} className="next-card night" {...half}>
       <span className="next-card-kicker t-kicker">
         {opensChapter
           ? <><MarkerBadge marker={chapter.marker} /><span>Next chapter · {chapter.title}<span className="sr-only"> (chapter {chapterNumber(chapter)})</span></span></>

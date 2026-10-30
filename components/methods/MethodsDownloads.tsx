@@ -3,9 +3,10 @@ import Arrow from '@/components/ui/Arrow';
 import { sourceReleaseHref } from '@/lib/data-source';
 import { getExtensions } from '@/lib/extension-data';
 import { getInsightsManifest } from '@/lib/insights-server';
-import { STORIES } from '@/lib/stories';
+import { STORIES, storyPublished } from '@/lib/stories';
 import { TOOLS } from '@/lib/tools/registry';
 import { Detail, Part, dataHref } from './shared';
+import { HalfDownloads } from './MethodsHalf';
 
 /** What each story's downloadable summary file holds. Every one is an aggregate; none holds a runner name or a single runner's record. */
 export const STORY_FILE_TOPICS: Record<string, string> = {
@@ -57,7 +58,8 @@ function Files({ files }: { files: { href: string; name: string; what?: string }
 export default function MethodsDownloads() {
   const manifest = getInsightsManifest();
   const sourceHref = sourceReleaseHref(release.tag);
-  const storyFiles = [...new Set(STORIES.filter((story) => manifest.files[story.file]).map((story) => story.file))];
+  // The marathon stories' files: a half story's aggregates are listed under #downloads-half, never as insights files.
+  const storyFiles = [...new Set(STORIES.filter((story) => story.source !== 'half' && storyPublished(story)).map((story) => story.file))];
   const toolFiles = [...new Set(TOOLS.filter((tool) => tool.file && manifest.files[tool.file]).map((tool) => tool.file as string))];
   const terrainFiles = manifest.files[TERRAIN_FILE] ? [
     { href: dataHref(`insights/${TERRAIN_FILE}`), name: 'course-terrain.json', what: `${TOOLS.filter((tool) => tool.slug === 'plan' || tool.slug === 'pace-band').map((tool) => tool.title).join(', ')}: the terrain splits, with each checked course’s corrected route` },
@@ -108,6 +110,9 @@ export default function MethodsDownloads() {
       </li>)}</ul>
     </Detail>}
 
-    <p className="methods-part-note">Every file except the full race records is an aggregate, and each one states its own cohort, screens and method.</p>
+    <HalfDownloads />
+
+    {/* Under the half fold too, so the line names what that fold holds besides race records (review, October 30, 2026). */}
+    <p className="methods-part-note">Every file except the full race records, the links between records and the scripts that built them is an aggregate, and each aggregate states its own cohort, screens and method.</p>
   </Part>;
 }

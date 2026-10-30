@@ -167,16 +167,19 @@ export const CHAPTERS: readonly Chapter[] = [
     ],
     children: ['/report'], back: '/runners',
     lead: 'splitcheck.share', key: 'of finishes at one finish time had a sustained slowdown' },
-  { n: 11, id: 'chapter-11', part: 3, marker: '11', title: 'The next one', subtitle: 'Improvement, your plan',
+  // The half opens the next one (October 29, 2026, docs/HALF_MARATHON.md): the marathons that followed a half, then
+  // where runners improve, then the plan. Its reading is the chapter's lead, as every opener's is.
+  { n: 11, id: 'chapter-11', part: 3, marker: '11', title: 'The next one', subtitle: 'The half, improvement, your plan',
     pages: [
+      story('half-to-full', 'Half marathon to full', 'half.extra'),
       analysis('finding-improvement', 'Where runners improve', 'gains.final'),
       tool('plan', 'Plan your race', 'Plan your race', 'plan.goal'),
     ],
     also: [{ href: '/tools/pace-band', label: 'Pace band' }, { href: '/tools/course-chooser', label: 'Course chooser' }, { href: '/tools/predictor', label: 'Finish-time predictor' }],
     // The chapter's tools lead on to the planner (their next card) and back to the chapter's opener, as every other
     // also-in-this-chapter page has a way back (round 6: theirs ended on "How we know" alone).
-    back: '/analyses/finding-improvement',
-    lead: 'gains.final', key: 'of the minutes improving finishes gained came after 30K' },
+    back: '/stories/half-to-full',
+    lead: 'half.extra', key: 'of marathons came in under double the half marathon before them' },
 ];
 
 /** The /methodology anchors of off-chain pages that end on a ChapterEnd. */

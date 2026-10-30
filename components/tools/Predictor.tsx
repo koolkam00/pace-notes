@@ -15,7 +15,37 @@ import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
-import { RangeBracket, bracketLayout } from './RangeBracket';
+import type { HalfGroup } from '@/lib/half-types';
+import { outOfRangeSentence } from '@/lib/tools/half-to-full';
+import { chunkLoadFailed, reloadAfterChunkError } from '@/lib/chunk-reload';
+import { trackFailure } from '@/lib/analytics';
+import { FinishStrip, fittingTicks, fmtShort, fmtTime, niceStep, qIndex } from './FinishStrip';
+
+/**
+ * The "After a half" panel (records linked by name), loaded only once a half input inside its published range exists,
+ * so every other visitor's page carries none of it. If its chunk fails the page reloads once as for any failed chunk;
+ * after that the panel says so and the estimates above stay. A plain dynamic import: next/dynamic's loader put about
+ * 1.2 KB more on this page's first load (S8, October 30, 2026).
+ */
+type LinkedPanelComponent = typeof import('./LinkedPanel').default;
+const LinkedPanelUnavailable = () => <p className="tool-state">The half data did not load. Reload the page to try again; the published estimates above are unaffected.</p>;
+const LinkedPanelLoading = () => <p className="tool-state" aria-hidden="true">Loading the data…</p>;
+function useLinkedPanel(wanted: boolean): LinkedPanelComponent | 'failed' | null {
+  const [panel, setPanel] = useState<LinkedPanelComponent | 'failed' | null>(null);
+  useEffect(() => {
+    if (!wanted || panel) return;
+    let live = true;
+    import('./LinkedPanel').then((module) => { if (live) setPanel(() => module.default); }).catch((error: Error) => {
+      if (!reloadAfterChunkError(error)) { if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('js_error'); }
+      if (live) setPanel('failed');
+    });
+    return () => { live = false; };
+  }, [wanted, panel]);
+  return panel;
+}
+
+/** Where the half panel applies: the published range of the "all" windows, and the file's verified sha. */
+export type HalfPanelInfo = { sha: string; from: number; to: number };
 
 /* ------------------------------------------------------------------ */
 /* Constants and pure helpers                                          */
@@ -54,20 +84,19 @@ const AGO = [
   { value: '3-6', label: '3 to 6 months ago' },
   { value: '6+', label: 'More than 6 months ago' },
 ];
-const DEFAULTS = { d: PREDICTOR_EXAMPLE.key as string, km: '', t: formatDuration(PREDICTOR_EXAMPLE.seconds, true), ago: '', to: 'marathon', d2: '', km2: '', t2: '', ago2: '', wk: '', tp: '' };
+// `sx` is the half panel's recorded-sex choice ('f' or 'm'; absent is all): never sent to analytics.
+const DEFAULTS = { d: PREDICTOR_EXAMPLE.key as string, km: '', t: formatDuration(PREDICTOR_EXAMPLE.seconds, true), ago: '', to: 'marathon', d2: '', km2: '', t2: '', ago2: '', wk: '', tp: '', sx: '' };
+const SX: Record<string, HalfGroup> = { f: 'F', m: 'M' };
+const SX_OF: Record<HalfGroup, string> = { all: '', F: 'f', M: 'm' };
 /** The whole minute at or below an estimate, the way every tool reads a time (4:11:41 is 4:11). */
 const goalMinute = (s: number) => Math.floor(Math.round(s) / 60) * 60;
 type Query = typeof DEFAULTS;
 /** The estimate the data beat follows: the card's median. */
 interface Look { key: 'median'; label: string; chip: string; seconds: number }
 
-const fmtTime = (s: number) => formatDuration(s, s >= 3600);
-/** "4:12" for times over an hour (to the minute), "50:10" under. */
-const fmtShort = (s: number) => (s >= 3600 ? formatHM(s) : formatDuration(s));
 const fmtPace = (secondsPerKm: number, units: UnitSystem) => `${formatDuration(perUnit(secondsPerKm, units))}/${units}`;
 const fmtKm = (km: number, units: UnitSystem) => `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(units === 'mi' ? km / KM_PER_MILE : km)} ${units}`;
 const pctText = (x: number) => (x > 0 && x < 0.01 ? 'under 1%' : `${Math.round(x * 100)}%`);
-const qIndex = (Q: number[], p: number) => Q.findIndex((v) => Math.abs(v - p) < 1e-9);
 
 function rangeText(lo: number, hi: number): [string, string] {
   const a = fmtShort(lo);
@@ -164,21 +193,6 @@ function checkRace(km: number | null, seconds: number | null, units: UnitSystem)
   if (pace < PACE_MIN) return { ok: false, message: `Read as ${spoken(seconds)}, which is ${paceWords(pace, units)}: faster than any world record. Check the time and distance.` };
   if (pace > PACE_MAX) return { ok: false, message: `Read as ${spoken(seconds)}, which is ${paceWords(pace, units)}: slower than this tool reads (${fmtPace(PACE_MAX, units)}). Check the time and distance.` };
   return { ok: true, km, seconds };
-}
-
-function niceStep(span: number, target: number, steps: number[]): number {
-  for (const s of steps) if (span / s <= target) return s;
-  return steps[steps.length - 1];
-}
-
-/** Axis ticks whose centred label (11px mono, about 6.7px a character) fits inside the chart. */
-function fittingTicks(lo: number, hi: number, step: number, x: (s: number) => number, width: number, text: (t: number) => string): number[] {
-  const ticks: number[] = [];
-  for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) {
-    const half = (text(t).length * 6.7) / 2 + 1;
-    if (x(t) - half >= 0 && x(t) + half <= width) ticks.push(t);
-  }
-  return ticks;
 }
 
 /* ------------------------------------------------------------------ */
@@ -514,99 +528,6 @@ function useProjector(sha: string | null, enabled: boolean) {
   return { ...state, retry: () => setAttempt((n) => n + 1) };
 }
 
-interface Marker { key: string; x: number; label: string; tone: 'est' | 'median' }
-
-/**
- * Each label is a flag beside its line: the leftmost marker's to the left, the others' to the right, flipped when the
- * chart's edge is in the way, and dropped a row when two would touch.
- */
-function stackLabels(markers: Marker[], width: number, margin: number) {
-  const charW = 6.9;
-  const rows: number[] = [];
-  return [...markers].sort((a, b) => a.x - b.x).map((mk, i) => {
-    const w = mk.label.length * charW;
-    const left = mk.x - 6 - w;
-    const right = mk.x + 6;
-    const wantLeft = i === 0 && markers.length > 1;
-    const x0 = wantLeft ? (left >= margin ? left : right) : (right + w <= width - margin ? right : Math.max(margin, left));
-    let row = rows.findIndex((end) => end + 12 < x0);
-    if (row < 0) { row = rows.length; rows.push(x0 + w); } else rows[row] = x0 + w;
-    return { ...mk, x0, row, w };
-  });
-}
-
-function FinishStrip({ q, Q, est }: { q: number[]; Q: number[]; est: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const width = useWidth(ref, 640);
-  const narrow = width < 480;
-  const i10 = qIndex(Q, 0.1); const i50 = qIndex(Q, 0.5); const i90 = qIndex(Q, 0.9);
-  const lo0 = Math.min(q[0], est);
-  const hi0 = Math.max(q[q.length - 1], est);
-  const pad = Math.max(hi0 - lo0, 900) * 0.06;
-  const [lo, hi] = [lo0 - pad, hi0 + pad];
-  const m = { l: 8, r: 8 };
-  const x = (s: number) => m.l + ((s - lo) / (hi - lo)) * (width - m.l - m.r);
-  const tiny = width < 300;
-  const markers = stackLabels([
-    // The marker is the whole minute the cohort is on pace for ("On 4:11 pace"), never the estimate's own label: the
-    // card above gives the estimate to the second.
-    { key: 'est', x: x(est), label: tiny ? fmtShort(est) : `On ${fmtShort(est)} pace`, tone: 'est' as const },
-    // The median in whole minutes, as the sentence above names it (one precision for one number).
-    { key: 'median', x: x(q[i50]), label: `Their median ${fmtShort(q[i50])}`, tone: 'median' as const },
-  ], width, m.l);
-  const labelRows = Math.max(1, ...markers.map((mk) => mk.row + 1));
-  const top = 8 + labelRows * 17;
-  const plotH = narrow ? 80 : 96;
-  const base = top + plotH;
-  const range = `${fmtShort(q[i10])}–${fmtShort(q[i90])}`;
-  const bracket = bracketLayout(x(q[i10]), x(q[i90]), `80% of finishes: ${range}`, width, m.l, `80%: ${range}`);
-  const bracketY = base + 34;
-  const H = bracketY + bracket.height;
-  const dens = q.slice(0, -1).map((v, i) => 0.05 / Math.max(1, q[i + 1] - v));
-  const maxD = Math.max(...dens);
-  const step = niceStep(hi - lo, narrow ? 4 : 7, [60, 120, 300, 600, 900, 1800, 3600]);
-  const ticks = fittingTicks(lo, hi, step, x, width, fmtShort);
-  const label = `Finish times of these finishes, in 5% slices: 10th percentile ${fmtTime(q[i10])}, median ${fmtTime(q[i50])}, 90th percentile ${fmtTime(q[i90])}. ${fmtShort(est)} pace is marked; the finishes under it are highlighted.`;
-  return (
-    <div ref={ref} className="viz predictor-strip">
-      <svg width={width} height={H} role="img" aria-label={label}>
-        {ticks.map((t) => (
-          <g key={t} className="grid">
-            <line x1={x(t)} x2={x(t)} y1={top - 2} y2={base} />
-            <text x={x(t)} y={base + 18} textAnchor="middle">{fmtShort(t)}</text>
-          </g>
-        ))}
-        {/* The share under the estimate is the reading: each 5% slice holds its finishes evenly, so the part of the bars
-            left of the dashed line, in the accent, is that share's area; the rest is quiet. */}
-        {dens.map((dv, i) => {
-          const h = (dv / maxD) * (plotH - 6);
-          const x0 = x(q[i]);
-          const x1 = Math.max(x0 + 0.5, x(q[i + 1]));
-          const xe = x(est);
-          if (x1 <= xe || x0 >= xe) return <rect key={i} x={x0} width={x1 - x0} y={base - h} height={h} className={`predictor-strip-bar${x1 <= xe ? ' is-under' : ''}`} />;
-          return (
-            <g key={i}>
-              <rect x={x0} width={xe - x0} y={base - h} height={h} className="predictor-strip-bar is-under" />
-              <rect x={xe} width={x1 - xe} y={base - h} height={h} className="predictor-strip-bar" />
-            </g>
-          );
-        })}
-        <line x1={m.l} x2={width - m.r} y1={base} y2={base} className="predictor-strip-base" />
-        <RangeBracket b={bracket} y={bracketY} />
-        {markers.map((mk) => (
-          <line key={mk.key} x1={mk.x} x2={mk.x} y1={14 + mk.row * 17 - 11} y2={base} className={`predictor-marker-line is-${mk.tone}`} />
-        ))}
-        {markers.map((mk) => (
-          <g key={mk.key}>
-            <rect x={mk.x0 - 3} y={14 + mk.row * 17 - 12} width={mk.w + 6} height={16} className="predictor-marker-halo" />
-            <text x={mk.x0} y={14 + mk.row * 17} className={`predictor-marker is-${mk.tone}`}>{mk.label}</text>
-          </g>
-        ))}
-      </svg>
-    </div>
-  );
-}
-
 type Projected = ReturnType<typeof useProjector>;
 
 /**
@@ -676,7 +597,7 @@ function ObservedPanel({ indexSha, proj, est, looks, units: _units }: {
 /* The tool                                                            */
 /* ------------------------------------------------------------------ */
 
-export default function Predictor({ indexSha }: { indexSha: string | null }) {
+export default function Predictor({ indexSha, half = null }: { indexSha: string | null; half?: HalfPanelInfo | null }) {
   const { units } = useUnits();
   const [q, setQuery, ready, fromUrl] = useQueryState<Query>(DEFAULTS);
   // The example note shows while every input is the untouched example; any change, or a link with values, hides it.
@@ -797,8 +718,16 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
     ? `Your recent race is already ${withArticle(target.name)}. Pick a shorter race, or predict another distance.`
     : (typing ? null : race1Error) ?? 'Enter the distance and finish time of a recent race to see the range.';
 
-  // The finishes on the chosen estimate's pace at 20 km: one load, read by the data beat.
-  const proj = useProjector(indexSha, !!est?.isMarathon);
+  // A recent half (or a distance within 0.5% of one) and a marathon to predict, typed to a whole minute inside the half
+  // panel's published range: the marathons after that half replace the 20K-pace reading (the research card is untouched).
+  const halfSeconds = est?.isMarathon && dist1.preset?.key === 'half' && shown ? shown.seconds : null;
+  const halfMinute = halfSeconds === null ? null : Math.round(halfSeconds / 60) * 60;
+  const linked = half !== null && halfMinute !== null && halfMinute >= half.from && halfMinute <= half.to;
+  const group: HalfGroup = SX[q.sx] ?? 'all';
+  const LinkedPanel = useLinkedPanel(linked);
+
+  // The finishes on the chosen estimate's pace at 20 km: one load, read by the data beat (not for a half the half panel reads).
+  const proj = useProjector(indexSha, !!est?.isMarathon && !linked);
 
   // One always-present status line for screen readers: a short summary, spoken once the inputs settle.
   const summary = est ? summaryText(est) : emptyText;
@@ -915,7 +844,13 @@ export default function Predictor({ indexSha }: { indexSha: string | null }) {
               {stale.length ? (
                 <p className="tool-note predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
-              <ObservedPanel indexSha={indexSha} proj={proj} est={est} looks={looks} units={units} />
+              {linked && half && halfSeconds !== null
+                ? (LinkedPanel === 'failed' ? <LinkedPanelUnavailable /> : LinkedPanel
+                  ? <LinkedPanel sha={half.sha} seconds={halfSeconds} group={group} onGroup={(g: HalfGroup) => setQ({ sx: SX_OF[g] })} />
+                  : <LinkedPanelLoading />)
+                : <ObservedPanel indexSha={indexSha} proj={proj} est={est} looks={looks} units={units} />}
+              {/* A half outside the half panel's range reads the 20K panel; this line says why the half reading is not there. */}
+              {!linked && half && halfSeconds !== null ? <p className="tool-note predictor-half-range">{outOfRangeSentence(half)}</p> : null}
               {/* One way forward: the chapter's next card (the planner); Copy link sits on the card. */}
             </>
           ) : null}

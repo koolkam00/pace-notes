@@ -346,7 +346,7 @@ function scan(value, where, key) {
   scannedValues++;
   if (typeof value === 'number') assert.ok(Number.isFinite(value), `${where}: finite number`);
   if (typeof value === 'string') {
-    if (key !== 'release_tag') assert.ok(!/private-export|20260912|htw-db-|20261016|20261021/.test(value), `${where}: copy cites an internal export label`);
+    if (key !== 'release_tag') assert.ok(!/private-export|20260912|htw-db-|20261016|20261021|half-snapshot-|runner-links-/.test(value), `${where}: copy cites an internal export label`);
     const normalised = normaliseName(value);
     if (normalised) copyStrings.set(normalised, where);
   }

@@ -1,0 +1,109 @@
+{
+ "schema_version": 1,
+ "family": "half-source-recount",
+ "date": "2026-10-30",
+ "status": "pass",
+ "mismatches": 0,
+ "values_checked": 16237,
+ "manifest_sha256": "d55a92cbfa26dd3b91d0753cc483beef363aa3db8631b1de404625eb87567201",
+ "verify_half_source_sha256": "81a8603f84a742bd26c85d9c67a90a052d300dc8b00bd0ba2b04c56f2223563e",
+ "recount_scripts": {
+  "scripts/half/derive.cjs": "59d0983679b39263b6e21ee8dba2584419f59882bbb57502f0e5e045e40d4aed",
+  "scripts/half/families.cjs": "1ce23c89884c99d79d2272eff989a2730f06aebd9f0a4ecd02f6dbbc904ea20f",
+  "scripts/half/marathon.cjs": "0099e408bf084446f6fc60d91b362d5f761111128c9d5bb14b2de7aab08c5a4d",
+  "scripts/half/policy.cjs": "c125e84c3f590dd72a5efe6e9ceeaa2399a4b76ceca2c15d773404dc816bd981",
+  "scripts/verify-half-source.cjs": "81a8603f84a742bd26c85d9c67a90a052d300dc8b00bd0ba2b04c56f2223563e"
+ },
+ "half_sqlite_sha256": "655a2d7efcdb6078f1743968bc4d4a2d2e020322855513aa633e153f6fa3673a",
+ "links_extract_content_sha256": "95c37966a508c262cc7edc611b5aa6af1e6df0b76c5b5d7a329739b0640d3d75",
+ "corrected_meta_sha256": "2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842",
+ "runner_manifest_sha256": "cd2c99d7140d3f32700200901ab21e6d1d10b6b450254a0739382a59e6db028c",
+ "policy_sha256": "6e8c71f2507d900278eb18b70231e4faab22be1c2d8ddade1d34eff2fd8d75e6",
+ "weather_evidence_sha256": "6b27d16e6161b4409d52cc4846b615bed4907dcc12dbb64676afc172ff21cc8f",
+ "marathon_release": "private-export-20261021-1050",
+ "counts": {
+  "raw": 6854820,
+  "R1": 98768,
+  "R2": 0,
+  "R3": 1395,
+  "R4": 1088,
+  "R5_fast": 152,
+  "R5_slow": 397,
+  "R6": 1949,
+  "record_usable": 6751071,
+  "R7": 606,
+  "record_usable_after_R7": 6750465,
+  "E0_editions": 2,
+  "E0_finishes": 1080,
+  "E1_held_editions": 614,
+  "E1_held_finishes": 702694,
+  "E2_E8_editions": 66,
+  "E2_E8_finishes": 133940,
+  "use_finish": {
+   "finishes": 5912751,
+   "editions": 8019
+  },
+  "verified": {
+   "finishes": 753476,
+   "editions": 238
+  },
+  "verified_use_sex": {
+   "finishes": 734301,
+   "editions": 231
+  },
+  "undated": {
+   "finishes": 820515,
+   "editions": 251
+  },
+  "stamp_withdrawn": {
+   "finishes": 869551,
+   "editions": 72
+  },
+  "set_b": {
+   "pairs": 23929,
+   "people": 20234,
+   "marathon_editions": 107,
+   "half_editions": 1045
+  },
+  "marathon": {
+   "eligible": 4108749,
+   "sustained": 1266780,
+   "dated_editions": 215
+  }
+ },
+ "files": {
+  "cards.json": {
+   "values": 98,
+   "mismatches": 0
+  },
+  "field.json": {
+   "values": 388,
+   "mismatches": 0
+  },
+  "linked.json": {
+   "values": 8353,
+   "mismatches": 0
+  },
+  "tools/half-to-full.json": {
+   "values": 6993,
+   "mismatches": 0
+  },
+  "women.json": {
+   "values": 131,
+   "mismatches": 0
+  }
+ },
+ "policy_checks": {
+  "values": 274,
+  "mismatches": 0
+ },
+ "python_only": [
+  "field.json marks[].ratio_ci95: the 200-draw whole-edition bootstrap (numpy generator); the recount checks each published ratio lies inside it"
+ ],
+ "tolerances": {
+  "field.json marks[].expected_minute_before": 0.05,
+  "field.json marks[].ratio": 0.0001,
+  "field.json marks[].cliff": 0.0001,
+  "other": "exact"
+ }
+}

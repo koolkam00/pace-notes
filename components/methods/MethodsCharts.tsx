@@ -2,6 +2,7 @@ import { Detail, Topic } from './shared';
 import { count } from '@/lib/nuggets/format';
 import { chartWords } from '@/lib/charts/registry';
 import { CATALOG, getChartsManifest, readChart } from '@/lib/charts-server';
+import { HalfCardsDetail } from './MethodsHalf';
 
 const WEIGHTING = { pooled: 'Finishes pooled across editions.', 'editions-equal': 'Each edition counted equally.', pairs: 'Pairs of linked records, one pair per consecutive race.' } as const;
 
@@ -24,6 +25,7 @@ export default function MethodsCharts() {
           </Detail>
         );
       })}
+      <HalfCardsDetail />
     </Topic>
   );
 }

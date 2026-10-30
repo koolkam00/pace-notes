@@ -836,11 +836,53 @@ async function reloadedPage(h) {
   }
 }
 
+// The half pages (October 30, 2026): /half marks its reading, its beats and its close, and the half-to-full story its
+// reading, two beats and its close, each once and in page order as the reader scrolls (the generic hero, chapter-1 …
+// chapter-4 and related ids). The story's one guess, locked in, reveals its answer and keeps its state in the
+// component: it writes no storage key and sends no event of its own (I2 and I6 check every event and key as well).
+async function halfSections(h) {
+  const run = await h.run('half sections', { ...PHONE });
+  const page = await run.newPage();
+  const read = async pathname => {
+    await page.goto(SITE + pathname, { waitUntil: 'load' });
+    await page.waitForSelector('.story-page', { timeout: 30000 });
+    await page.waitForTimeout(1200);
+    const order = await page.evaluate(() => [...document.querySelectorAll('[data-track-section]')].map(el => el.dataset.trackSection));
+    for (let i = 0; i < 80 && await page.evaluate(() => scrollY + innerHeight < document.documentElement.scrollHeight - 2); i++) { await page.mouse.wheel(0, 500); await page.waitForTimeout(120); }
+    await page.waitForTimeout(800);
+    return order;
+  };
+  const halfOrder = await read('/half');
+  const storyOrder = await read('/stories/half-to-full');
+  const keys = () => page.evaluate(() => ({ local: Object.keys(localStorage).sort(), session: Object.keys(sessionStorage).sort() }));
+  const before = await keys();
+  const eventsBefore = props(run).length;
+  const guess = page.locator('.guess').first();
+  await guess.scrollIntoViewIfNeeded();
+  await guess.locator('button:has-text("Lock it in")').click();
+  await waitFor(() => guess.evaluate(el => el.classList.contains('is-revealed')), 6000, 200);
+  const verdict = (await guess.locator('.guess-verdict').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  await page.waitForTimeout(800);
+  const after = await keys();
+  const sinceGuess = props(run).slice(eventsBefore).filter(p => !['$pageview', '$pageleave', '$web_vitals', 'section_viewed'].includes(p.event));
+  await run.close();
+  const sections = pathname => named(run, 'section_viewed').filter(p => p.$pathname === pathname).map(p => p.section);
+  // Beat 3 (chapter-3, the women's columns) is drawn only while women.json publishes the band medians (20 editions; 15
+  // qualify since the stamp correction, October 30, 2026); the other beats keep their ids.
+  const women = JSON.parse(require('node:fs').readFileSync(path.join(ROOT, 'public/data/half/women.json'), 'utf8'));
+  const halfIds = ['hero', 'chapter-1', 'chapter-2', ...(women.band_editions.length >= women.min_band_editions ? ['chapter-3'] : []), 'chapter-4', 'related'];
+  h.check(`/half marks ${halfIds.join(', ')}, each once, in page order`, JSON.stringify(halfOrder) === JSON.stringify(halfIds) && JSON.stringify(sections('/half')) === JSON.stringify(halfOrder), { page: halfOrder, sent: sections('/half') });
+  h.check('/stories/half-to-full marks hero, chapter-1, chapter-2 and related, each once, in page order', JSON.stringify(storyOrder) === JSON.stringify(['hero', 'chapter-1', 'chapter-2', 'related']) && JSON.stringify(sections('/stories/half-to-full')) === JSON.stringify(storyOrder), { page: storyOrder, sent: sections('/stories/half-to-full') });
+  h.check('the half-to-full guess reveals its answer ("1 in 10")', /1 in 10/.test(verdict), verdict);
+  h.check('the guess writes no storage key and sends no event of its own', JSON.stringify(before) === JSON.stringify(after) && !sinceGuess.length, { before, after, events: shown(sinceGuess) });
+}
+
 // Every page that fetches data, with each of its data requests failing. Tools are taken from the registry.
 const ERROR_STATE = '.tool-state.is-error, .projector-quick-text.is-error, [role="alert"], .feedback-error, .guide-error';
 const OTHER_DATA_PAGES = [
   { path: '/', label: 'home page race replay' },
   { path: '/stories/race-replay' },
+  { path: '/tools/predictor?d=half&t=1:45:00', label: 'the predictor with a half typed' },
   { path: '/report?s=0:25:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31&course=berlin', label: 'the race report' },
   { path: '/runners', act: async page => { await page.locator('#runner-name').fill('Smith'); await page.keyboard.press('Enter'); } },
   { path: '/analyses/pacing-pattern', label: 'an analysis after a filter change', act: async page => { await page.locator('.miy-chip').first().click(); await page.locator('.profile-refinements summary').click(); await page.getByLabel('Age group', { exact: false }).first().selectOption({ index: 3 }); await page.getByRole('button', { name: /Update comparison/ }).click(); } },
@@ -885,6 +927,7 @@ module.exports = {
       { name: 'planner splits choice', weight: 6, run: plannerSplits },
       { name: 'terrain figures', weight: 8, run: terrainFigures },
       { name: 'stretch paces', weight: 6, run: stretchPaces },
+      { name: 'half sections and the guess', weight: 8, run: halfSections },
       { name: 'race report exports', weight: 8, run: raceReport },
       { name: 'back-forward cache', weight: 16, run: restored },
       { name: 'experiment before first paint', weight: 14, run: paintOrder },

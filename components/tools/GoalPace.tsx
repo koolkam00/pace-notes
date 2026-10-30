@@ -63,7 +63,11 @@ export function GoalPaceDek({ goal, observed }: { goal: number; observed: GoalOb
 /** The pile-up's minutes as a table: each minute's finishes and the smooth curve's expectation, the reading row marked. */
 export interface PileupTable { caption: string; rows: [string, string, string][]; reading: number }
 
-export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable, how }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
+export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable, how, halfBefore = null }: { goal: number; observed: GoalObserved | null; bunching: GoalBunching | null; peers?: GoalPeer[];
+  /** "The half before" (components/half/HalfBefore.tsx, drawn on the server: records linked by name, linked.json
+   *  `goals`), or nothing when the half data has none for this goal. A node, so none of its code reaches this client
+   *  component's chunk on the five goal pages. */
+  halfBefore?: ReactNode;
   /** The page's methods anchor, the last line of its "All numbers" (ToolEnd `numbers`). */
   how?: string;
   /** The pile-up's figure, drawn on the server (a mini minute histogram). */
@@ -138,6 +142,10 @@ export function GoalPaceBody({ goal, observed, bunching, pileup, pileupTable, ho
           <p className="tool-state">The observed mat times are not available in this build. The even-pace splits still apply.</p>
         </section>
       ) : null}
+
+      {/* The half before (Pace Notes data, records linked by name, with the scope chip): the half near which the typical
+          marathon came in under this goal. Forward-consistent with the predictor (lib/tools/half-to-full.ts goalLines). */}
+      {halfBefore}
 
       {/* Section 00, cut 7: the page's tables in one disclosure at its foot, each with its caption, not a Values row under
           every beat. */}

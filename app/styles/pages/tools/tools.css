@@ -176,6 +176,10 @@
 .tool-note strong { color: var(--ink-2); font-weight: 600; }
 .tool-note a, .tool-panel-meta a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: .18em; }
 .tool-note a:hover, .tool-panel-meta a:hover { text-decoration-color: var(--ink); }
+/* A term in a panel's meta line keeps the term link's dotted underline (the goal pages' "records linked by name", as on
+   the story and the predictor's panel). */
+.tool-note .term-link, .tool-panel-meta .term-link { text-decoration-style: dotted; }
+.tool-note .term-link:hover, .tool-panel-meta .term-link:hover { text-decoration-style: solid; }
 .tool-state { margin: 0; padding: var(--s-4) 0; font-size: .9375rem; line-height: 1.5; color: var(--ink-3); }
 .tool-state.is-error { color: var(--signal-ink); }
 .tool-empty { margin: 0; padding: var(--s-4) 0; font-size: .9375rem; line-height: 1.55; color: var(--ink-2); }
@@ -401,3 +405,11 @@
 .tool-page .range-bracket line { stroke: var(--ink-2); stroke-width: 1.5; }
 .tool-page svg .range-bracket text { font-family: var(--sans); font-size: 12px; font-weight: 500; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
 
+
+/* ---------- A marathon goal page's "The half before" (records linked by name; components/tools/GoalPace.tsx) ---------- */
+/* When the badge and the chip wrap onto two lines, 24 px between them keeps their 44 px hit areas apart. */
+.goal-pace-half-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 24px var(--s-3); }
+.goal-pace-half-kicker { font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; line-height: 1.4; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.goal-pace-half-lines { max-width: var(--measure); font-size: var(--t-small); line-height: 1.6; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.goal-pace-half-not { font-size: var(--t-small); font-weight: 600; line-height: 1.5; color: var(--ink); }
+.goal-pace-half-more { font-size: var(--t-small); line-height: 1.5; }

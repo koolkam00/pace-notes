@@ -35,7 +35,8 @@ export type ScrubPoints = {
   dot?: number[];
   keys: string[];
   values: string[];
-  side?: { label: string; values: string[] }[];
+  /** Up to two side values; `labels` gives a row a key per point ("Under 4:00", "Under 4:30"), else `label` keys them all. */
+  side?: { label: string; labels?: string[]; values: string[] }[];
 };
 
 type Props = {
@@ -78,7 +79,7 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
   const last = useRef(index);
 
   const text = useCallback((i: number) => {
-    const side = points.side?.map((s) => `${s.label} ${s.values[i]}`).join(', ');
+    const side = points.side?.map((s) => `${s.labels?.[i] ?? s.label} ${s.values[i]}`).join(', ');
     return `${points.keys[i]}: ${points.values[i]}${side ? `, ${side}` : ''}`;
   }, [points]);
 
@@ -217,7 +218,7 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
   return (
     <div ref={root} className={`scrub is-${mode}${dragging ? ' is-dragging' : ''}${touched ? ' is-touched' : ''}${index !== clamp(home ?? initial) ? ' is-away' : ''}`}>
       {waiting ? <Readout hidden keyText={prompt} value="" />
-        : <Readout hidden keyText={points.keys[index]} value={points.values[index]} tone={tone} side={points.side?.map((s) => ({ label: s.label, value: s.values[index] }))} />}
+        : <Readout hidden keyText={points.keys[index]} value={points.values[index]} tone={tone} side={points.side?.map((s) => ({ label: s.labels?.[index] ?? s.label, value: s.values[index] }))} />}
       <p className="sr-only" aria-live="polite">{settled}</p>
       <div className="scrub-area" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={(e) => end(e, false)} onPointerCancel={(e) => end(e, true)} onPointerLeave={onPointerLeave}>
         <div ref={plot} className="viz-plot scrub-plot" role="slider" tabIndex={0} aria-label={label}

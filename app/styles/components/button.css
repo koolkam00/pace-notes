@@ -4,6 +4,13 @@
 
 .arrow-icon { display: inline-block; flex: none; width: 1em; height: 1em; vertical-align: -.125em; }
 
+/* A line that ends on a text link with an arrow (components/ui/ArrowTail.tsx): the link stays inline, so it wraps as
+   text with the arrow after its last word (never alone at the column's edge), and 14 px of padding above and below
+   gives a 14 px line its 44 px reach without changing the line box. */
+.arrow-line a { display: inline; padding-block: 14px; font-weight: 600; color: var(--ink); }
+.arrow-tail { white-space: nowrap; }
+.arrow-tail .arrow-icon { margin-left: .3em; }
+
 .btn {
   position: relative;
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;

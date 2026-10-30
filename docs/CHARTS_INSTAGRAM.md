@@ -601,3 +601,23 @@ Chart 99 of 100 from Pace Notes. Every chart, its numbers and how it was made: s
 126 records linked by name finished 16 New York editions, and 1,621 at least 10.
 
 Chart 100 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/100
+
+## From the half (not numbered)
+
+Two cards outside the hundred, from the half-marathon pages (a card whose takeaway no longer holds is withdrawn, not reworded to fit). Each is `public/charts/cards/<slug>.png` (1080 × 1350), drawn by `node scripts/build-chart-cards.cjs --set half`.
+
+### Just over half broke 2:00
+
+`half-under-2.png`
+
+55% of half marathon finishes came in under 2:00: recorded women’s 33%, men’s 67%.
+
+The half marathon on Pace Notes: splithappens.run/half
+
+### Same half, fewer sustained slowdowns for women
+
+`half-same-half.png`
+
+Of records linked by name with a half near 1:45, 10% of recorded women’s marathons had a sustained slowdown, against 30% of men’s.
+
+Includes unverified half results. From the half to the marathon, on Pace Notes: splithappens.run/stories/half-to-full

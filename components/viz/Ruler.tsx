@@ -13,7 +13,9 @@ import { linear, pc } from './scale';
  * two lines (the name, then its value), each turned away from the reading (a mark left of it reads leftwards, one right
  * of it rightwards), so long names ("Recorded women" / "4:30") fit beside each other. A label that would leave the plot
  * at a narrow width hides there (it stays in the sentence). An optional `band` lays a range (the middle 80% of
- * finishes) on the line as a quiet bar under the marks.
+ * finishes) on the line as a quiet bar under the marks. An optional `shade` thickens the line over a stretch the page's
+ * figure counts (the marathons under double the half: everything left of the "Double" mark), in the quiet mark tone,
+ * so the figure has a place on the scale; the page names it in its key.
  */
 export type RulerMark = { value: number; kind: 'reading' | 'typical' | 'compare' | 'you'; label?: string };
 
@@ -25,8 +27,10 @@ const TIGHT = 46;
 const TIGHT_TRACK = 38;
 const SIZE = 13;
 
-export default function Ruler({ min, max, ticks, marks, label, className, band }: {
+export default function Ruler({ min, max, ticks, marks, label, className, band, shade }: {
   min: number; max: number; ticks: { value: number; label: string }[]; marks: RulerMark[]; label: string; className?: string;
+  /** A stretch of the line the page's figure counts, drawn as a 4 px quiet run under the band and the marks. */
+  shade?: { lo: number; hi: number };
   /** A range drawn on the line under the marks (lo and hi on the scale's own values), named above its middle when it has
    *  a label (in quiet ink: the reading keeps the one accent). */
   band?: { lo: number; hi: number; label?: string; tone?: 'quiet' | 'signal' };
@@ -61,6 +65,7 @@ export default function Ruler({ min, max, ticks, marks, label, className, band }
       plot={(
         <Plot>
           <rect className="ruler-track" x="0" y={pc(TRACK_Y)} width="100%" height="1" />
+          {shade ? <rect className="ruler-shade" x={pc(Math.max(0, x(shade.lo)))} y={pc(TRACK_Y)} width={pc(Math.max(0, Math.min(1, x(shade.hi)) - Math.max(0, x(shade.lo))))} height={4} transform="translate(0 -1.5)" /> : null}
           {band ? <rect className={signalBand ? 'a-band is-signal' : 'a-band'} x={pc(Math.max(0, x(band.lo)))} y={pc(TRACK_Y)} width={pc(Math.max(0, Math.min(1, x(band.hi)) - Math.max(0, x(band.lo))))}
             height={signalBand ? 4 : 10} rx={signalBand ? 2 : 5} transform={signalBand ? 'translate(0 -1.5)' : 'translate(0 -4.5)'} /> : null}
           {[...marks].sort((a, b) => order[a.kind] - order[b.kind]).map((m, i) => {

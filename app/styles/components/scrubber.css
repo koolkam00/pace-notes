@@ -25,6 +25,10 @@
 }
 /* A label naming the point under the needle hides while the needle is there (Scrubber's is-under): the readout says it. */
 .viz-frame .scrub .is-under { visibility: hidden; }
+/* Gridline labels the needle would run through at the plot's edge move to the other end of their lines while it stands
+   there (Gridlines flipAt): the copy there shows only then, so the scale stays named. */
+.viz-frame .grid-label.is-flip { visibility: hidden; }
+.viz-frame .scrub .is-under .grid-label.is-flip { visibility: visible; }
 /* Away from the headline's point, the reading mark is ink: the needle is the one orange mark. */
 .viz-frame .scrub.is-away .m-signal.is-reading { fill: var(--ink); }
 /* Where the needle crosses the subject line (LineProfile's scrub.follow), shown only while it is away from the
@@ -32,8 +36,10 @@
 .viz-frame .scrub-dot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 2px var(--paper); pointer-events: none; visibility: hidden; }
 .viz-frame .scrub.is-away .scrub-dot { visibility: visible; }
 
-/* Detents: small dots on the baseline at the values that matter; the one the needle reaches flashes. */
-.viz-frame .scrub-detents { position: absolute; left: 0; right: 0; top: 100%; height: 0; pointer-events: none; }
+/* Detents: small dots on the baseline at the values that matter; the one the needle reaches flashes. They sit over the
+   axis under the plot, so a tick mark there starts at a dot's edge instead of running up through it (round 4 review,
+   October 30, 2026). */
+.viz-frame .scrub-detents { position: absolute; z-index: 1; left: 0; right: 0; top: 100%; height: 0; pointer-events: none; }
 .viz-frame .scrub-detents i { position: absolute; top: -2.5px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--ink-3); }
 .viz-frame .scrub-detents i.is-on { background: var(--signal); }
 .viz-frame .scrub-detents i.is-flash { animation: scrub-flash calc(220ms * var(--motion)) var(--ease-out); }

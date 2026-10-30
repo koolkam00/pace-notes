@@ -12,6 +12,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { assertCohortTotals } from '@/components/CohortNote';
 import HomeDoors from '@/components/home/HomeDoors';
 import InfoNext from '@/components/InfoNext';
+import { HalfWay } from '@/components/half/HalfWays';
 import UnitSentence from '@/components/home/UnitSentence.client';
 import HeroReplay from '@/components/story/HeroReplay';
 import ChapterList from '@/components/ui/ChapterList';
@@ -108,6 +109,8 @@ export default function Page() {
         <p className="home-guide-dek">{chapterCount.charAt(0).toUpperCase() + chapterCount.slice(1)} chapters, from the gun through the <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link> to the finish line.</p>
       </div>
       <ChapterList variant="full" readingOf={readingOf} label="The chapters, start to finish" className="home-chapters" />
+      {/* The half marathon's page, off the chain: one line under the chapters, below the first screen. */}
+      <HalfWay className="home-guide-half" lead="Running a half?">The half marathon</HalfWay>
       {/* The guide ends on the way in, in the words the finish card answers ("Back to the gun"). */}
       <InfoNext className="home-guide-start" />
     </section>

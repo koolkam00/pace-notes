@@ -1,4 +1,4 @@
-/* Evidence badges (components/tools/EvidenceTag.tsx, the only file that draws them): a glyph and a word in --ink-2,
+/* Evidence badges and the scope chip (components/tools/EvidenceTag.tsx, the only file that draws them): a glyph and a word in --ink-2,
    with no hue, outline or fill. ● Pace Notes data, ◆ Published research, ■ Official standards. The glyph is drawn by
    CSS, so the markup (the classes, the link to /methodology#evidence) is unchanged. As a link it has a 44 px hit area. */
 
@@ -18,4 +18,24 @@ a.evidence-badge:hover { color: var(--ink); text-decoration: underline; text-und
 a.evidence-badge:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
 @media (forced-colors: active) {
   .evidence-badge::before { background: CanvasText; }
+}
+
+/* The scope chip (ScopeTag): "Includes unverified half results", a quiet outlined pill beside a data badge or under a
+   linked half figure's dek. It qualifies the badge, so it is quieter than a control: --ink-2 text, a --rule-strong
+   1 px edge, no fill. As a link it has a 44 px hit area drawn by ::after, as a badge's; on a narrow screen it wraps
+   inside the column rather than run past it (195 CSS px at 200% zoom). */
+.scope-chip {
+  display: inline-flex; align-items: center; max-width: 100%; min-height: 24px; padding: 2px 10px;
+  font-family: var(--sans); font-size: var(--t-label); font-weight: 500; line-height: 1.3; letter-spacing: 0; text-transform: none;
+  color: var(--ink-2); background: none; border: 1px solid var(--rule-strong); border-radius: var(--r-pill);
+  white-space: normal; overflow-wrap: anywhere; text-align: left;
+}
+/* After a dek's sentence (the half story's hero): a little air above it when it wraps to a line of its own. */
+.reading-dek .scope-chip { margin-top: 6px; vertical-align: middle; }
+a.scope-chip { position: relative; text-decoration: none; }
+a.scope-chip::after { content: ''; position: absolute; left: -2px; right: -2px; top: 50%; height: 44px; min-height: 100%; transform: translateY(-50%); }
+a.scope-chip:hover { color: var(--ink); border-color: var(--ink-2); text-decoration: underline; text-underline-offset: .2em; }
+a.scope-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (forced-colors: active) {
+  .scope-chip { border-color: CanvasText; }
 }

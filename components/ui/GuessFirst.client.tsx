@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { UnitLink } from '@/components/UnitsProvider';
 import Arrow from './Arrow';
 import { withEm } from './withEm';
@@ -16,7 +16,10 @@ import { withEm } from './withEm';
  * H1 already states.
  *
  * `marks`: "ruler" (a 0 to max scale) or "dots" (100 finishes, for a share out of 100). Values are on the slider's
- * scale (0 to 100 for a share).
+ * scale (0 to 100 for a share). With dots, a `compare` is a second 100 beside the guess's from the start (the question
+ * gives it), its lit dots in ink, each grid named under it (`truthName` names the guess's); the reveal then shows the two
+ * side by side. `after` (a line, a card's link) shows only once the answer is out, so nothing before the guess gives it
+ * away.
  */
 type Props = {
   question: string;
@@ -24,6 +27,13 @@ type Props = {
   answer: string;
   truthLabel?: string;
   compare?: { value: number; label: string };
+  /** Dots with a compare: the guess's own grid's name ("Recorded women’s"), with the truth's count once revealed, and
+   *  the compare grid's name when it is not `compare.label`. Nodes, so the server can mark the words a narrow column
+   *  puts on their own line in both grids (`.guess-dots-name-head`, guess.css), and the two names break alike. */
+  truthName?: ReactNode;
+  compareName?: ReactNode;
+  /** What shows under the verdict once the answer is out (a further comparison, a card that prints the answer). */
+  after?: ReactNode;
   marks?: 'ruler' | 'dots';
   min?: number;
   max?: number;
@@ -35,7 +45,7 @@ type Props = {
 
 type State = 'asking' | 'locked' | 'revealed' | 'skipped';
 
-export default function GuessFirst({ question, truth, answer, truthLabel, compare, marks = 'ruler', min = 0, max = 100, step = 1, initial, unit = '%', next }: Props) {
+export default function GuessFirst({ question, truth, answer, truthLabel, compare, truthName, compareName, after, marks = 'ruler', min = 0, max = 100, step = 1, initial, unit = '%', next }: Props) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [guess, setGuess] = useState(initial ?? Math.round((min + max) / 2 / step) * step);
   const [state, setState] = useState<State>('asking');
@@ -88,14 +98,29 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
       <div className="guess-marks">
         {marks === 'dots' ? (
           <>
-            <ol className="guess-dots" aria-hidden="true">
-              {Array.from({ length: 100 }, (_, i) => (
-                <li key={i} className={`guess-dot${revealed && i < Math.round(truth) ? ' is-lit' : ''}${state !== 'skipped' && i < Math.round(guess) ? ' is-you' : ''}`} style={{ ['--i' as string]: i }} />
-              ))}
-            </ol>
+            <div className={`guess-dots-set${compare ? ' has-compare' : ''}`}>
+              <div className="guess-dots-fig">
+                <ol className="guess-dots" aria-hidden="true">
+                  {Array.from({ length: 100 }, (_, i) => (
+                    <li key={i} className={`guess-dot${revealed && i < Math.round(truth) ? ' is-lit' : ''}${state !== 'skipped' && i < Math.round(guess) ? ' is-you' : ''}`} style={{ ['--i' as string]: i }} />
+                  ))}
+                </ol>
+                {compare ? <p className="guess-dots-name is-truth" aria-hidden="true">{truthName}{revealed ? <>: <b>{Math.round(truth)}</b></> : null}</p> : null}
+              </div>
+              {compare ? (
+                <div className="guess-dots-fig is-compare">
+                  <ol className="guess-dots" aria-hidden="true">
+                    {Array.from({ length: 100 }, (_, i) => <li key={i} className={`guess-dot${i < Math.round(compare.value) ? ' is-compare' : ''}`} />)}
+                  </ol>
+                  <p className="guess-dots-name" aria-hidden="true">{compareName ?? compare.label}: <b>{Math.round(compare.value)}</b></p>
+                </div>
+              ) : null}
+            </div>
             <div className="guess-dots-key" aria-hidden="true">
               {state !== 'skipped' ? <span><i className="is-you" />You</span> : null}
-              {revealed ? <span><i className="is-lit" />{truthLabel ?? 'Recorded finishes'}</span> : null}
+              {/* With a comparison, both grids' filled dots mean the same thing: the key shows both tones (the truth's
+                  orange, the comparison's ink) before the one label. */}
+              {revealed ? <span><i className="is-lit" />{compare ? <i className="is-compare" /> : null}{truthLabel ?? 'Recorded finishes'}</span> : null}
             </div>
           </>
         ) : (
@@ -130,6 +155,7 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
         </div>
       ) : null}
       <p className="guess-verdict t-sentence" aria-live="polite">{verdict ? withEm(verdict) : null}</p>
+      {revealed && after ? <div className="guess-after">{after}</div> : null}
       {revealed && next ? <UnitLink className="guess-next" href={next.href}>{next.label}<Arrow /></UnitLink> : null}
     </div>
   );

@@ -27,7 +27,12 @@ export type NuggetFigure = {
   spoken?: string;
 };
 
-export type Denominator = 'eligible' | 'story' | 'shape' | 'kick' | 'demographics' | 'positions' | 'course' | 'tool' | 'none';
+/**
+ * The count family a sentence uses. `half`: half finishes in verified results (/half, the half pace chart's panel).
+ * `linked`: pairs of half and marathon records linked by name (the half story, the predictor's half panel, the goal
+ * pages' half line). The half families never share a surface with a marathon family.
+ */
+export type Denominator = 'eligible' | 'story' | 'shape' | 'kick' | 'demographics' | 'positions' | 'course' | 'tool' | 'half' | 'linked' | 'none';
 
 export type Nugget<V extends Record<string, number | string> = Record<string, number | string>> = {
   id: NuggetId;

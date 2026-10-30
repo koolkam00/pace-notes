@@ -196,3 +196,11 @@
   .home-cta-inner { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
   .home-chapters .chapter-reading .big-number.is-s { font-size: 2.5rem; }
 }
+
+/* The half marathon's line under the chapters (components/half/HalfWays.tsx): a plain sentence whose last words link to
+   /half, never a door (.home-door-link) and below the first screen. Its bottom margin keeps the link's 14 px tap padding
+   (.arrow-line a) and some air clear of the rule above "Start at the gun" (round 4 review, October 30, 2026: with no
+   margin the underline sat 3 px over the rule and read as a doubled line). */
+.home-guide-half { margin: var(--s-4) 0 var(--s-5); font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
+/* Beside the sticky heading it sits under the chapters, in their column; the way in keeps its place on the left. */
+@media (min-width: 900px) { .home-guide-half { grid-column: 2; grid-row: 2; } }

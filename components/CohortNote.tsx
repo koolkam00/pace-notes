@@ -2,7 +2,7 @@ import { copyEditions, type CopyEdition } from '@/lib/duplicate-editions';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { getStudyEvidence } from '@/lib/research-data';
-import { capital, countWord } from '@/lib/stories';
+import { STORIES, capital, countWord, storyPublished } from '@/lib/stories';
 import { TEN_ANALYSES } from '@/lib/ten-analyses';
 import { EVIDENCE_LABEL, TOOLS, type ToolDefinition } from '@/lib/tools/registry';
 import { count } from '@/lib/viz/format';
@@ -35,10 +35,15 @@ function toolsByEvidence() {
   return { data, other: shown.filter((tool) => !tool.evidence.includes('data')) };
 }
 
-/** What starts from the screened total: the stories, the course pages and "the seven tools that use Pace Notes data". */
+/**
+ * What starts from the screened total: the stories, the course pages and "the seven tools that use Pace Notes data".
+ * With the half story in the build they are "the marathon stories": that one starts from half and marathon pairs, which
+ * the half line under this note names.
+ */
 function screenedList(data: ToolDefinition[]): string[] {
   const tools = `the ${countWord(data.length) ?? data.length} ${data.length === 1 ? 'tool that uses' : 'tools that use'} ${EVIDENCE_LABEL.data}`;
-  return ['the stories', 'the course pages', ...(data.length ? [tools] : [])];
+  const stories = STORIES.some((s) => s.source === 'half' && storyPublished(s)) ? 'the marathon stories' : 'the stories';
+  return [stories, 'the course pages', ...(data.length ? [tools] : [])];
 }
 
 /**

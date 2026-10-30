@@ -21,7 +21,7 @@ export default function Readout({ keyText, value, side, tone = 'ink', hidden }: 
       </div>
       {side?.length ? (
         <dl className="readout-side">
-          {side.slice(0, 2).map((s) => <div key={s.label}><dt>{s.label}</dt><dd>{s.value}</dd></div>)}
+          {side.slice(0, 2).map((s, i) => <div key={i}><dt>{s.label}</dt><dd>{s.value}</dd></div>)}
         </dl>
       ) : null}
     </div>

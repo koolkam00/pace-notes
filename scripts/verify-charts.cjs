@@ -97,19 +97,9 @@ for (const c of scope(catalog)) {
 // ---------- 3. Structure and copy ----------
 const identityKey = /^(ids?|rids?|record_?ids?|profile_?ids?|runners?|runner_?ids?|bibs?|bib_?(no|number)|names?|(full|first|last|given|family)_?names?|participants?|participant_?ids?|persons?|person_?ids?)$/i;
 const groupKey = (key) => key === 'n' || /^(women|men|young|older)_n$/.test(key) || key === 'n_comparison' || key === 'matched_weight';
-const RELEASE_LABEL = /private-export|20260912|htw-db-|20261016|20261021/;
-// The union of the site's word rules (verify-nuggets, verify-seo, verify-tools, verify-weather): no causal verbs, no
-// promise or odds, no "fastest", counts are finishes, the owner's banned words, no halfway, DNF, goal or "chased" claims.
-const BANNED = [
-  [/arithmetic/i, 'the word "arithmetic"'], [/\bthe\s+wall\b/i, '"the wall"'], [/\byour\s+(?:[\p{L}\p{N}’'-]+\s+){0,2}chances?\b/iu, '"your chance"'],
-  [/\byour odds\b|\byou will\b|\bpredict/i, 'odds, a promise or a prediction'], [/\bfastest\b/i, '"fastest"'],
-  [/\b\d[\d,.]*\s+(?:million\s+)?runners\b/i, 'a count of runners (counts are finishes)'],
-  [/\b(?:causes?|caused|costs?|leads? to|led to|because|came from|due to|results? in|makes?|affects?|improves?|produces?|helps?)\b/i, 'a causal verb'],
-  [/\bhalfway\b|\bhalf-way\b|\bhalf marathon split\b/i, 'a halfway claim (the data have 20K and 25K, not 21.1K)'],
-  [/\bDNFs?\b|\bdropp?ed out\b|\bdid not finish\b|\bquit\b/i, 'a non-finisher claim'],
-  [/\bchas(?:e|ed|ing)\b|\baim(?:ed|ing)? for\b|\btarget(?:ed|ing)?\b|\bgoals?\b/i, 'a goal claim (goals are not recorded)'],
-  [/\bhumid/i, 'humidity (withheld)'], [/\btoughest\b|\bhardest\b|\beasiest\b|\bharder\b|\beasier\b/i, 'a course-difficulty ranking'],
-];
+// The words every title and takeaway may not use, and the release labels copy may not cite: scripts/lib/words.cjs,
+// shared with scripts/verify-half.cjs.
+const { BANNED, RELEASE_LABEL } = require('./lib/words.cjs');
 const strings = new Map();
 function scan(value, where, key) {
   if (Array.isArray(value)) return value.forEach((v, i) => scan(v, `${where}[${i}]`, key));

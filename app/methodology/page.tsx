@@ -12,7 +12,7 @@ import MethodsTools from '@/components/methods/MethodsTools';
 import { Part, Topic } from '@/components/methods/shared';
 import { readingAttrs } from '@/lib/chapters';
 import { getInsightsManifest } from '@/lib/insights-server';
-import { STORIES, courseSpan } from '@/lib/stories';
+import { STORIES, courseSpan, halfManifest, storyPublished } from '@/lib/stories';
 import { JsonLd, absoluteUrl, pageMetadata } from '@/lib/seo';
 import { dataDate } from '@/lib/seo-routes';
 
@@ -36,7 +36,7 @@ const PARTS: { id: string; label: string }[] = [
 function storyDataset() {
   const manifest = getInsightsManifest();
   const span = courseSpan();
-  const files = STORIES.filter((s) => manifest.files[s.file] && STORY_FILE_TOPICS[s.file]).map((s) => s.file);
+  const files = STORIES.filter((s) => s.source !== 'half' && storyPublished(s) && STORY_FILE_TOPICS[s.file]).map((s) => s.file);
   if (!span || !files.length) return null;
   const topics = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' }).format(files.map((f) => STORY_FILE_TOPICS[f]));
   return {
@@ -81,6 +81,7 @@ const additions = [
  */
 export default function MethodologyPage() {
   const dataset = storyDataset();
+  const half = halfManifest();
   return <div className="methods-page with-rail" {...readingAttrs('/methodology', 'How we know')}>
     <aside className="rail methods-rail">
       <nav aria-label="On this page">
@@ -96,10 +97,12 @@ export default function MethodologyPage() {
       <section className="methods-short" aria-labelledby="methods-short-title">
         <h2 id="methods-short-title" className="sr-only">In short</h2>
         <ul className="info-facts">
-          <li>Findings come from <a href="#sources">recorded results of big-city marathons</a>, down to each finish’s 5K splits, with modeled weather and each course’s route as context. The tools also use <a href="#evidence">published research and official standards</a>, each labelled.</li>
+          <li>Findings come from <a href="#sources">recorded results of big-city marathons</a>, down to each finish’s 5K splits, with modeled weather and each course’s route as context{half ? <>, and, on the half-marathon pages, <a href="#half-data">recorded half-marathon results</a>, some linked to marathons by name</> : null}. The tools also use <a href="#evidence">published research and official standards</a>, each labelled.</li>
           <li>Percentages describe what past finishes did: <a href="#interpretation">an association, not a forecast</a>.</li>
           <li>A new data release reaches the pages only after every calculation is <a href="#release">rerun and checked</a>.</li>
-          <li>Every file is public, with no account or key: <a href="#downloads">the full records, every release and the code</a>.</li>
+          {half
+            ? <li>Every file is public, with no account or key: <a href="#downloads">the full records, every release and the code</a>, and the owner’s <a href="#downloads-half">half-marathon releases</a>; the half pages show totals.</li>
+            : <li>Every file is public, with no account or key: <a href="#downloads">the full records, every release and the code</a>.</li>}
         </ul>
       </section>
       <nav className="methods-jump" aria-label="Jump to a part">
@@ -122,12 +125,14 @@ export default function MethodologyPage() {
           <p>Each analysis shows its actual comparison group, and names any broader comparison it used when a narrow selection had too few records. Missing ages, splits and route history stay missing; nothing is filled in.</p>
           <p>Predictions must use only what is known at the checkpoint being studied and be tested on unseen race editions. Declared goals are kept apart from inferred time landmarks. An absence from the database does not show that a runner stopped racing.</p>
           <p>Splits measure time and pace. Effort, fuelling, intentions and training need other evidence. Terrain-adjusted pace is an estimated proxy, especially when a 5 km section has both climbs and descents.</p>
+          {half ? <p>On the half pages, records linked by name are candidates, not verified people; the marathons are finishes with every mat; most pairs come from the Valencia and Warsaw marathons; and a half run as training rather than raced lowers the multiple of the half. These are limits of the data, never claims about any runner (<a href="#story-half-to-full">the half-to-full method</a>).</p> : null}
         </Topic>
         <Topic id="follow-up" title="Return and missing follow-up">
           <p>The near-miss analysis includes runners who have no later observed race. It needs two later years of observed editions in the original city and leaves out the latest two years as index races. Return means an eligible linked appearance anywhere in the export in the next two calendar years. Missing follow-up is never called retirement.</p>
         </Topic>
         <Topic id="additional-data" title="Data that could strengthen the study">
           <p>Start with dated course routes, hourly weather and start times. These are proposed sources for extending and checking the dataset; listing one here does not mean it has already been joined.</p>
+          {half ? <p>For the half marathon, pace after 10K and race-morning weather wait on the producer: a valid 10 km mat in more verified results, and half results placed and timed correctly enough to match weather to them. Neither is shown yet.</p> : null}
           {additions.map((item) => <section key={item.name}>
             <h4>{item.name}</h4>
             <p>{item.fields} {item.benefit}</p>
