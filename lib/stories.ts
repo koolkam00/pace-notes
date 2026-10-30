@@ -236,7 +236,7 @@ export const STORIES: StoryDefinition[] = [
     title: 'From the half to the marathon',
     get heading() { return headingOf('half.extra', this.title); },
     dek: 'What did the marathon take after a half?', accent: '#F4B23E',
-    published: '2026-10-29',
+    published: '2026-10-30',
     get seoTitle() {
       const n = getNugget('half.extra');
       return n.guard ? `Half to Marathon: Double It Plus ${n.values.extra_min} Minutes | Pace Notes` : 'From the Half to the Marathon | Pace Notes';

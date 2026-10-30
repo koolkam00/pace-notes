@@ -113,11 +113,12 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // start and how it is made, /methodology opens on the short version and says how to open the full records, and
   // /research says what stories and analyses are.
   // October 23: /research links the Top 100 charts and /methodology holds their methods (#top-charts).
-  // October 29: the half marathon: /half and the story that opens chapter 11 (/stories/half-to-full).
+  // October 30 (merge day): the half marathon: /half and the story that opens chapter 11 (/stories/half-to-full), and
+  // /methodology's half folds and downloads.
   '/': '2026-10-22',
   '/research': '2026-10-23',
   '/about': '2026-10-22',
-  '/methodology': '2026-10-23',
+  '/methodology': '2026-10-30',
   '/stories': '2026-10-19',
   '/tools': '2026-10-19',
   '/tools/pace-calculator': '2026-10-19',
@@ -133,8 +134,8 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/stories/courses': '2026-10-19',
   '/stories/who-holds-pace': '2026-10-19',
   '/stories/race-morning': '2026-10-19',
-  '/half': '2026-10-29',
-  '/stories/half-to-full': '2026-10-29',
+  '/half': '2026-10-30',
+  '/stories/half-to-full': '2026-10-30',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };
