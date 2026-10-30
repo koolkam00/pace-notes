@@ -22,12 +22,19 @@ export default function Cdf({ points, you, youLabel = 'You', ticks, scrub, label
   const x = linear([points[0].x, points[points.length - 1].x]);
   const y = yScale(0, 1, { top: 0.06 });
   const you_ = you === undefined ? null : points.reduce((b, p) => (Math.abs(p.x - you) < Math.abs(b.x - you) ? p : b));
+  // Paint order: the baseline and the gridlines first, then the curve over them, so where the curve runs along the
+  // baseline (the first minutes of the scale) it reads as one solid line, not a light core between two dark edges
+  // (round 4 review, October 30, 2026: the baseline was drawn over it).
   const plot = (
-    <Plot paths={<path className="l-ink" d={linePath(points.map((p) => [x(p.x), y(p.share)]))} />}>
+    <Plot>
+      <Baseline />
       {/* The gridline labels sit at the plot's left edge: while the needle stands on a point there (the first minutes of
           the scale), they move to the right ends of their lines, under the risen curve, so the needle never runs through
           "75%" and the scale keeps its names. */}
       <Gridlines lines={[0.25, 0.5, 0.75].map((v) => ({ y: y(v), label: `${v * 100}%` }))} flipAt={scrub.points.x.flatMap((px, i) => (px * REF_WIDTH <= 30 ? [i] : []))} />
+      <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
+        <path className="l-ink" d={linePath(points.map((p) => [x(p.x), y(p.share)]))} />
+      </svg>
       {you_ ? (
         <g>
           {/* The visitor's own time is an orange ring ("You"); a page's example time is an ink ring with its name, so the
@@ -40,7 +47,6 @@ export default function Cdf({ points, you, youLabel = 'You', ticks, scrub, label
             : <text className="viz-label" x={pc(x(you_.x))} y={pc(y(you_.share))} dx={-12} dy={4} textAnchor="end">{youLabel}</text>}
         </g>
       ) : null}
-      <Baseline />
     </Plot>
   );
   const axis = <Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority, group: t.group }))} />;

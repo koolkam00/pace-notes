@@ -125,8 +125,9 @@ export function RatioColumns({ marks, signal, ink, label, values }: {
       <Annotation labels={labels} />
     </Plot>
   );
-  // The columns are named by the H2 and their axis; the key says what they stand on and names the whisker.
-  const keys: KeyItem[] = [{ label: 'Each column rises from the smooth curve, 1×', mark: 'none' }, { label: '95% interval', mark: 'line' }];
+  // The columns are named by the H2 and their axis; the key says what they stand on and names the whisker. "curve, 1×"
+  // is bound by a no-break space, so the baseline's value never wraps to a line of its own (320 px, round 4 review).
+  const keys: KeyItem[] = [{ label: 'Each column rises from the smooth curve,\u00a01×', mark: 'none' }, { label: '95% interval', mark: 'line' }];
   return (
     <ChartFrame className="columns half-ratio" label={label} height={height} heightMd={210} plot={plot}
       axis={<Axis ticks={marks.map((m, i) => ({ x: x(i + 0.5), label: m.mark, priority: tone(m) === 'signal' ? 4 : 2 }))} />}
@@ -229,6 +230,8 @@ export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, heigh
   const placed = placeLabels(items, { height, boxes: gridBoxes, avoid: [...marks.map((m) => ({ x: x(m.x), y: y(m.y), r: 7 })), ...along] });
   const plot = (
     <Plot>
+      {/* The baseline under the curve, which starts along it at 1:05 (drawn over it, the line read hollow there). */}
+      <Baseline />
       {/* Below 240 px of plot (200% zoom) the gridline labels give way: the round times' own shares name the scale. */}
       <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label, className: 'w240' }))} side="left" />
       <g>
@@ -238,7 +241,6 @@ export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, heigh
         {marks.map((m, i) => <circle key={i} className={m.signal ? 'm-signal is-reading' : 'm-ink is-compare'} cx={pc(x(m.x))} cy={pc(y(m.y))} r={m.signal ? 5.5 : 4} />)}
         <Annotation labels={placed} />
       </g>
-      <Baseline />
     </Plot>
   );
   return <ChartFrame label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority, group: t.group }))} />} />;
