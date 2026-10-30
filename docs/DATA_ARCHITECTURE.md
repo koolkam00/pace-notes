@@ -1,6 +1,8 @@
 # Data architecture
 
-Current full-refresh source: **`private-export-20261021-1050`** (repository `koolkam00/pace-notes`), manifest created `2026-10-21T15:02:30Z`, adopted on branch `data/release-1050` on October 21, 2026 (weather-dependent outputs rebuilt October 22); deployment is recorded in the [project handoff](PROJECT_HANDOFF.md). The [refresh record](REFRESH_20261021_1050.md) distinguishes verified inputs, calculations, imported files and production. The [1652 record](REFRESH_20261016_1652.md), the [0934 record](REFRESH_20260912_0934.md) and older inspections below are historical evidence.
+How race data reaches the site: where each input lives, which identifiers name it, what counts as an eligible finish, how records join across files and races, and which overlays (weather, course profiles, the half-marathon source) are attached. Counts below name their release. The current refresh record is [REFRESH_20261021_1050.md](REFRESH_20261021_1050.md); what is deployed is in the [project handoff](PROJECT_HANDOFF.md#current-state).
+
+**Current source: `private-export-20261021-1050`** (repository `koolkam00/pace-notes`; manifest created `2026-10-21T15:02:30Z`). Both [analysis/release.json](../analysis/release.json) and [analysis/weather-release.json](../analysis/weather-release.json) name it in `tag`. It was adopted in PR #78, merged to `main` as `39f3057` on October 22, 2026 and live the same day ([refresh record](REFRESH_20261021_1050.md#deployed-october-22)); production `/data/live.json` still named it on October 30, 2026 at 21:45 UTC (`release_tag`, `as_of` `2026-10-21T16:10:31Z`). Earlier sources are in the [release history](#release-history).
 
 ## Storage and transfer
 
@@ -22,15 +24,26 @@ Current full-refresh source: **`private-export-20261021-1050`** (repository `koo
 | Half aggregates | `public/data/half/manifest.json` and five family files | Totals (every shown group at least 100 finishes or pairs, a reliability rule), bound to the half pin, the corrected metadata, the policy, the adopted release, the exact runner manifest, the weather evidence, the cited marathon files and every builder script |
 | Website data | [public/data](../public/data) | Static JSON/CSV consumed during build or fetched by charts; no live SQLite queries |
 
-Backups (`htw-db-*`), exports (`private-export-*`) and pack bundle IDs (`private-*`) are different identifiers. Their legacy names do not determine access. The current policy makes source code, full records, overlays and snapshots publicly downloadable as ordinary unencrypted files; gzip is compression. Prefer Release assets for large files. [ACCESS.md](../analysis/ACCESS.md) gives exact downloads and checksums. Operational credentials are not research data. The one exception is the half-marathon source and its links (owner question Q1, applied at its default in October 2026 and awaiting the owner's explicit confirmation): they stay in a private repository and only their totals are published ([below](#half-marathon-source-public-releases-pages-show-aggregates)).
+Backups (`htw-db-*`), exports (`private-export-*`), half releases (`half-dataset-*`) and pack bundle IDs (`private-*`) are different identifiers ([below](#identifiers)). Their legacy names do not determine access. The current policy makes source code, full records, overlays and snapshots publicly downloadable as ordinary unencrypted files; gzip and zstd are compression. Prefer Release assets for large files. [ACCESS.md](../analysis/ACCESS.md) gives exact downloads and checksums. Operational credentials are not research data. The half-marathon source and its links follow the same policy: they are the owner's public CC BY 4.0 releases (owner decision, October 30, 2026, "publish everything and full merge"; [register](OWNER_DECISIONS.md)), and the pages publish aggregates of them ([below](#half-marathon-source-public-releases-pages-show-aggregates)).
 
-## Verified 1652 input
+## Identifiers
 
-The htw-db CORE/FULL archives have exactly 12/14 members (the eight base files plus `EDITIONS.json`, `CHANGE-REPORT.md`, `SHA256SUMS.txt` and `ID-CONTRACT.md`; FULL adds `features.parquet` and `FEATURE-FIELD-NOTES.md`), byte-identical shared files, and every `SHA256SUMS.txt` line matches. The raw and feature tables each contain **4,915,355 rows**, spanning **34 cities and 287 city/year editions**; 4,831,672 have a 5 km split. There are 288 weather rows and 33 supplied course profiles (Vienna's is new; Melbourne has none). `EDITIONS.json` and `races_summary.json` match the parquet edition by edition. Relative to `private-export-20260912-0934` the raw snapshot adds 569,263 records, deletes 116,287 (all of Chicago 2018, Chicago 2019 and Frankfurt 2019, reloaded with new IDs) and changes 242,649 in place (Paris 2014–2018 checkpoints, Valencia 2022–2024 recorded gender from F- category labels, Warsaw 2015–2018 race labels): unlike 0934 against 1107, it is not append-only.
+| Identifier | What it names | Archives and files | Where it is recorded |
+| --- | --- | --- | --- |
+| `private-export-YYYYMMDD-HHMM` | A CORE/FULL export release in `koolkam00/pace-notes`. Adopted: 1107, 0934 and 1050; reviewed and not adopted: 0829 | 1107 and 0934: `htw-private-export-CORE-…` and `-FULL-….tar.gz` (8 and 9 members), the loose members and a SQLite snapshot. From 0829: `pace-notes-CORE-…` and `-FULL-….tar.gz` (16 and 17 members; 17 and 18 from 1050, with `MATCHING.md`). 1050's FULL comes in two parts checked against `RELEASE-SHA256SUMS-20261021-1050.txt`; that release has no SQLite snapshot and is also on Figshare (DOI 10.6084/m9.figshare.33965155.v3) | `tag` in both pins; `release_tag` in every output manifest and in `/data/live.json` |
+| `htw-db-YYYY-MM-DD-HHMM` | The 1652 release, `htw-db-2026-10-16-1652` | `htw-db-CORE-20261016-1652.tar.gz` and `-FULL-` (12 and 14 members), the loose members and `_snapshot_platform_20261016-1652-freeze.sqlite.gz` | The same fields, while 1652 was adopted |
+| `htw-db-YYYY-MM-DD` | Database backups made between September 1 and 28, 2026, and `htw-db-2026-10-08-pre-ffm-cleanup` | SQLite backups | Never an analysis input |
+| `private-YYYYMMDD-HHMM` | The packs' bundle ID (`input_export_id`): `build_pacing.py` changes `private-export-` to `private-`, and an `htw-db-*` tag stays as it is | The pack and personalized ZIPs | `--expected-export` of `import_packs.py` and `import_personalized.py` ([operations](OPERATIONS.md#validate-import-and-publish)) |
+| `half-dataset-YYYYMMDD-HHMM` | The owner's public half releases in `koolkam00/pace-notes` (CC BY 4.0): `half-dataset-20261029-1202` (the half snapshot, the link build and its scripts, CSV tables; doi:10.6084/m9.figshare.34858428.v1) and `half-dataset-20261029-2157` (the corrected edition metadata the pages use, with a newer snapshot and CSV tables they do not use) | `….sqlite.zst.part00`, `csv-*.csv.zst`, `SHA256SUMS` and a README | `half.tag`, `links.tag` and `metadata_correction.tag` in [analysis/half-release.json](../analysis/half-release.json) and the half manifest |
+| `half-snapshot-*`, `runner-links-*` | The first, private releases of the same half snapshot and link build, in `koolkam00/pace-notes-db-backup` | — | `private_tag` in the half pin: the identity the policy, the links extract and the reviewed counts are keyed by |
 
-Raw `id` and feature `record_id` are unique, non-null and have identical sets. Joined edition labels, names and ages agree exactly; 701 raw `X` values normalize to null feature sex. Comparable finish and cumulative timings agree within 1 ms after converting feature minutes to raw seconds. The audit establishes record alignment, not the validity of cross-race identities. [audit_release.py](../analysis/audit_release.py) reproduces these checks and the delta against a previous snapshot. The producer's `ID-CONTRACT.md` and `FEATURE-FIELD-NOTES.md` still name the 1107 freeze, so the contract was verified at run time, not taken from the text.
+Assets and member counts were read from the GitHub releases and the archive audits on October 30, 2026. `koolkam00/pace-notes-db-backup` is not public: an asset there answered 404 to an anonymous ranged GET on October 30, 2026 ([access checks](OPERATIONS.md#access-checks)). That day it also listed `backup-20261021`, `half-snapshot-20261030-1356` and `person-ids-v2`, `-v3` and `-v4` (all 20261030), which no pin names and which were not read.
 
-The SQLite snapshot (679 MB compressed) was not downloaded in full or opened for this refresh; under 0934 it passed checksum and read-only integrity checks. Snapshot integrity would not prove that each race field was fully ingested in any case: Chicago 2015 was mid-load at this freeze.
+## Verified input (current: private-export-20261021-1050)
+
+Measured on October 21, 2026 by `analysis/audit_release.py` against `htw-db-2026-10-16-1652` ([release contract](evidence/2026-10-21/release-1050/release-contract.json); [refresh record](REFRESH_20261021_1050.md#verified-source)). CORE has 17 members and FULL 18; the 17 shared members are byte-identical, and all 17 lines of `SHA256SUMS.txt` match. FULL's two parts are joined and the joined archive's SHA-256 must be listed in `RELEASE-SHA256SUMS-20261021-1050.txt`. The raw and feature tables each hold **5,327,504 rows** in **34 cities and 298 city/year editions**; 5,241,428 have a 5 km split. `EDITIONS.json` has 299 rows, the virtual Amsterdam 2020 marked excluded, and agrees with the parquet and `races_summary.json` edition by edition. There are 299 weather rows (the 298 editions and Amsterdam 2020) and 33 supplied course profiles; `course_profiles.parquet` is byte-identical to 1652's. Against 1652 the raw records add 412,943, delete 794 (Amsterdam 2020) and change none in place.
+
+Raw `id` and feature `record_id` are unique, non-null and the same set; city, year, race, recorded name and age agree on every row, and all nine cumulative timings agree within 1 ms. 701 raw `X` values become null feature sex. The audit establishes record alignment, not cross-race identity: the producer's `runner_id` (rules in `MATCHING.md`) covers 4,653,487 records and 3,522,317 candidate runners, and 29,265 ambiguous records get none. The 1652 input is in [history](#history-earlier-releases).
 
 ## Measurement and eligibility
 
@@ -38,33 +51,36 @@ Raw checkpoints are elapsed H:MM:SS or M:SS strings parsed into seconds. The nin
 
 The shared parser requires all nine increasing checkpoints, a finish from 90 minutes through 12 hours and each section from 2 through 20 min/km. It does not interpolate missing splits or actual halfway readings. Equivalent records are deduplicated without using database IDs, ingestion timestamps or URLs as distinguishing fields.
 
-The [reviewed source policy](../analysis/source_quality.py) then excludes 30 explicitly audited editions in 1652 (eleven in 0934) for invalid or mixed-basis grids, mats that stopped recording, a virtual edition, incomplete ingestion, unresolved HOLD status or selected fields ([review](evidence/2026-10-16/refresh-1652/edition-policy-review.json)). It applies only to the named release and removes timing-valid records after other checks to avoid double counting. These editions cannot become earlier benchmarks. Do not infer that every small edition is incomplete.
+The [reviewed source policy](../analysis/source_quality.py) then excludes the editions it names for each release: **41 in 1050** (`RULES_1050`: 18 invalid or mixed-basis split grids, 13 unreconciled holds, 6 selected fields and 4 incomplete ingestions; [edition policy](REFRESH_20261021_1050.md#edition-policy)), 30 in 1652 and eleven in 0934. Reasons include mats that stopped recording or sat in the wrong place, a checkpoint missing selectively by finish time, unresolved producer holds and finisher sets cut off by a stopped race. It applies only to the named release and removes timing-valid records after other checks to avoid double counting. These editions cannot become earlier benchmarks. Do not infer that every small edition is incomplete.
 
-| Population or exclusion | 1652 | 0934 (historical) |
-| --- | ---: | ---: |
-| Raw results | 4,915,355 | 4,462,379 |
-| Missing or unparsed checkpoints | 851,059 | 632,168 |
-| Non-increasing checkpoints | 25,072 | 225,218 |
-| Outside timing/pace bounds | 12,180 | 9,567 |
-| Exact duplicates removed | 0 | 0 |
-| Timing-eligible before reviewed exclusions | 4,027,044 | 3,595,426 |
-| Timing-valid records in reviewed excluded editions | 155,277 | 78,090 |
-| Final eligible finishes | 3,871,767 | 3,517,336 |
-| Feature `valid_splits` | 4,007,503 | 3,558,154 |
-| Eligible linked finishes | 3,540,833 | 3,194,070 |
-| Recent earlier-year benchmarks | 592,241 | 555,437 |
-| Consecutive cross-year pairs | 616,749 | 583,670 |
-| Linked finishes with supplied date | 3,540,833 | 3,185,321 |
+| Population or exclusion | 1050 | 1652 (historical) | 0934 (historical) |
+| --- | ---: | ---: | ---: |
+| Raw editions | 298 | 287 | 256 |
+| Raw results | 5,327,504 | 4,915,355 | 4,462,379 |
+| Missing or unparsed checkpoints | 882,266 | 851,059 | 632,168 |
+| Non-increasing checkpoints | 25,098 | 25,072 | 225,218 |
+| Outside timing/pace bounds | 12,430 | 12,180 | 9,567 |
+| Exact duplicates removed | 0 | 0 | 0 |
+| Timing-eligible before reviewed exclusions | 4,407,710 | 4,027,044 | 3,595,426 |
+| Reviewed excluded editions | 41 | 30 | 11 |
+| Timing-valid records in reviewed excluded editions | 298,961 | 155,277 | 78,090 |
+| Final eligible finishes | 4,108,749 | 3,871,767 | 3,517,336 |
+| Editions with eligible finishes | 215 | 211 | 196 |
+| Feature `valid_splits` | 4,388,397 | 4,007,503 | 3,558,154 |
+| Eligible linked finishes | 3,777,174 | 3,540,833 | 3,194,070 |
+| Recent earlier-year benchmarks | 648,914 | 592,241 | 555,437 |
+| Consecutive cross-year pairs | 681,266 | 616,749 | 583,670 |
+| Linked finishes with supplied date | 3,777,174 | 3,540,833 | 3,185,321 |
 
-The feature and analysis populations differ by design. Missing recorded gender does not invalidate usable timing: 21,160 final eligible finishes with other/unrecorded gender remain in All (36,161 under 0934, before Valencia 2022–2024's recorded F- labels filled most of that gap). Men and Women contain 2,559,176 and 1,291,431 respectively. The eligible exact-age count is read from the personalized summary; raw age is null in 3,263,720 records. Never treat an age-group label as an exact age.
+The feature and analysis populations differ by design. Missing recorded gender does not invalidate usable timing. Of the 4,108,749 final eligible finishes in 1050, 2,689,659 are recorded men, 1,400,937 recorded women and 18,153 other or not recorded, all of which stay in All; 1,288,687 have an exact age (`cohort` in [the stories manifest](../public/data/insights/manifest.json); the personalized summary gives the same exact-age count). Raw age is null in 3,675,869 records. Never treat an age-group label as an exact age. The 1652 and 0934 figures are in [history](#history-earlier-releases).
 
 ## Identity and chronology
 
-The audited canonical record join (1107, 0934 and 1652) checks unique matching IDs and labels at runtime, then agrees on finish and all nine section durations rounded to milliseconds. Legacy September 7 reproduction retains a one-to-one edition/name/full-timing match because its numeric ID namespaces are incompatible. Never join by row position or apply a newer release contract retroactively.
+The audited canonical record join (`CANONICAL_ID_RELEASES` in `analysis/build_extended.py`: 1107, 0934, 1652 and 1050) checks unique matching IDs and labels at runtime, then agrees on finish and all nine section durations rounded to milliseconds. 0829 was audited but not adopted and is not in that set. Legacy September 7 reproduction retains a one-to-one edition/name/full-timing match because its numeric ID namespaces are incompatible. Never join by row position or apply a newer release contract retroactively.
 
 Candidate cross-race identities must be non-ambiguous, have consistent recorded gender, inferred birth-year span at most two years and no duplicate edition. These checks reduce false links without independently proving identity. Recent best uses only the two strictly earlier calendar years; best-improvement uses all strictly earlier years. Supplied PB, ability and next-race fields cannot be treated as pre-race measurements.
 
-All feature race dates remain null; eleven feature names are null. Dated history uses unique supplied edition dates, with complete date coverage for the relevant identity group. The date-based spacing analysis can use ordered same-year observations; the year-based benchmark analyses cannot. Missing later races do not prove that a runner stopped racing.
+In 1050, as before, all feature race dates are null and eleven feature names are null. Dated history uses unique supplied edition dates, with complete date coverage for the relevant identity group. The date-based spacing analysis can use ordered same-year observations; the year-based benchmark analyses cannot. Missing later races do not prove that a runner stopped racing.
 
 ## Weather and terrain overlays
 
@@ -72,9 +88,9 @@ Weather records contain local scheduled start, observed hour, timezone, modeled 
 
 Scheduled-start archive weather is a proxy for personal exposure. It does not establish each runner's actual wave start, heat load, headwind or gust exposure. Source URLs establish supplied units; they do not establish a single named reanalysis model across all editions.
 
-Course profiles and segments contain supplied geometry, distance, elevation gain/loss/net, coordinates and provenance. In 1652 there are 33 profiles; 32 have null historical validity years and Warsaw's (the autumn PZU race) is valid from 2019 (under 0934 all 32 were null). A current supplied route is not a verified historical route, and net elevation can hide mixed climbs and descents. Course and terrain findings remain descriptive proxies.
+Course profiles and segments contain supplied geometry, distance, elevation gain/loss/net, coordinates and provenance. 1050 carries the same 33 profiles as 1652 (`course_profiles.parquet` is byte-identical): 32 have null historical validity years and Warsaw's (the autumn PZU race) is valid from 2019; Melbourne has none. A current supplied route is not a verified historical route, and net elevation can hide mixed climbs and descents. Course and terrain findings remain descriptive proxies.
 
-The [runner-context audit](RUNNER_CONTEXT_AND_PEERS.md) validates five exact weather hours and source units, preserving nulls/reasons for missing or conflicting fields. Under `private-export-20261021-1050` (October 22, 2026; branch `data/release-1050`) valid weather covers all 298 raw editions (297 on October 21, before Chicago 2025's reading was accepted) and terrain 281. Under `htw-db-2026-10-16-1652` (October 16–17, 2026; historical) valid weather covered 286 of 287 raw editions (only the virtual Amsterdam 2020 has no row) and terrain 270 (none for Melbourne 2015, Warsaw 2015–2018 or the twelve Washington editions; see [known issues](KNOWN_ISSUES.md)). Under 0934 (historical) weather covered 249 raw editions, with Helsinki 2025 failing its supplied start-hour check and six editions lacking rows, and terrain 254. Whole-profile ascent/descent differs from section sums for every supplied course, and net change is independently reported rather than calculated as gain minus loss. Runner context sums the nine supplied section fields separately, retains whole-profile totals and distances separately, and labels historical validity unknown. Profile points are never rescaled or extended to match nominal timing labels.
+The [runner-context audit](RUNNER_CONTEXT_AND_PEERS.md) validates five exact weather hours and source units, preserving nulls/reasons for missing or conflicting fields. Under 1050 valid weather covers all 298 raw editions (since October 22, 2026, when Chicago 2025's 07:00 reading for its 07:35 start was accepted; 297 on October 21) and terrain 281. The 17 editions without terrain are Melbourne 2015 (no profile), Warsaw 2015–2018 (the spring race: the profile is the autumn PZU race, valid from 2019, and its race name does not match) and twelve Washington editions, 2008–2018 and 2023 (the producer renamed the profile "Marine Corps Marathon" while the records keep "Washington Marathon", so the exact race-name rule refuses it); see [known issues](KNOWN_ISSUES.md). Whole-profile ascent/descent differs from section sums for every attached course, and net change is independently reported rather than calculated as gain minus loss. Runner context sums the nine supplied section fields separately, retains whole-profile totals and distances separately, and labels historical validity unknown. Profile points are never rescaled or extended to match nominal timing labels. Earlier releases' coverage is in [history](#history-earlier-releases).
 
 ## Supporting study and name-search contract
 
@@ -90,6 +106,8 @@ Name search can find a record whose incomplete timings prevent analysis. Origina
 
 `scripts/verify-duplicate-editions.cjs`, the last step of `npm run verify:data` (added October 15, 2026), checks every runner shard's size and SHA-256 against `public/data/runners/manifest.json` and the story manifest's binding to those exact bytes. It then compares every pair of editions of one city: the number of distinct nine-checkpoint tuples (exact recorded times, from every record with nine numeric times, eligible or not) found in both. A pair is flagged at max(100, 1% of the smaller edition's records). The run fails on a flagged pair that `duplicate_edition_screen` in `public/data/insights/manifest.json` does not cover (one edition listed with `duplicate_of` the other, or both listed with the same `duplicate_of`), on a listed entry whose pair is no longer flagged, and on a listed edition or source missing from the runner manifest. Synthetic self-tests run first (`--self-test` runs only them), including an injected unlisted twin pair, an injected stale entry, a small edition repeated inside a large one (1% of the smaller), a new twin of a listed copy (a listed copy covers only the pair with its source) and a copy later than its source. Under 0934 it flagged exactly the three Chicago pairs (2018–2019: 51,333 shared tuples; 2018–2024: 51,346; 2019–2024: 51,188), all covered, the same counts as the October 15 discovery scan. On 1652 it flags no pair (the Chicago copies were reloaded as the real races) and the screen is empty. It takes about 23 s. The screen itself is written by the story builder (`analysis/insights_data.py`); the verifier only reads it.
 
+On 1050 the guard flags no pair among 1,629 same-city pairs ([site checks](REFRESH_20261021_1050.md#site-checks), October 22, 2026), and the screen is still empty (`duplicate_edition_screen: []`, read October 30, 2026).
+
 ## Half-marathon source (public releases; pages show aggregates)
 
 The half pages read `public/data/half/`, never a half record; the records themselves are the owner's public releases (owner decision, October 30, 2026), linked with their checksums from `/methodology#downloads-half`. `analysis/build_half.py` builds the aggregates from the half snapshot, the links extract and the corrected edition metadata named in `analysis/half-release.json`, after checking all three against the pin and requiring `marathon_release` to equal `analysis/release.json`; `lib/half-server.ts` repeats every binding at site build and throws on a mismatch. The marathon side (eligible finishes, record ids, mat times, recorded sex, sustained slowdowns) comes from the public runner shards, and marathon race dates from the pinned weather evidence.
@@ -98,8 +116,55 @@ The half pages read `public/data/half/`, never a half record; the records themse
 - **Links:** `links-slim.sqlite` holds only people with high or medium confidence who are in both databases (person keys hashed from the link build's runner ids, no names) and their record ids. Set B pairs each eligible marathon with the nearest earlier usable, dated half 21–112 days before it: 23,929 pairs from 20,234 link identities, 107 marathon editions, 1,045 half editions. A link is a candidate match by name and age key, never a verified person; the link record ids are the 1050 release's canonical `race_records.id`, so a new marathon release needs a new link build.
 - **Verification:** `scripts/verify-half.cjs` recounts every half-only value from the published aggregates and the marathon side from the public shards, checks the linked aggregates for consistency and requires the receipt `docs/evidence/half/source-recount.json`, written locally by the independent Node recount `scripts/verify-half-source.cjs`, to bind the current manifest. The **Half marathon** workflow's `source` job downloads the public sources anonymously, rebuilds, compares the bytes and recounts when the pin, policy, builders or recount change. The contract, the counts and the dated evidence are in [half marathons](HALF_MARATHON.md).
 
+## Release history
+
+Publication times are the GitHub release times (UTC). Counts are each release's own; the refresh records hold the evidence.
+
+| Release | Published | Raw records | Editions | Eligible finishes | Status | Record |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| `private-export-20260907-1318` | September 7, 2026 | 3,451,055 | — | 2,739,842 (the original extension cohort) | The first source; raw and feature IDs incompatible, so its reproduction keeps the natural-key join | [below](#historical-inspections) |
+| `private-export-20260910-1412` | September 10 | 3,580,279 | — | — | Not adopted: extra archive members and missing consumer fields | [below](#historical-inspections) |
+| `private-export-20260911-0336` | September 11 | — | — | — | Superseded the same day by 1107, which added 228,796 records and changed none | [1107 record](REFRESH_20260911_1107.md) |
+| `private-export-20260911-1107` | September 11 | 4,207,456 | 240 | 3,328,159 | Adopted (PR #35, merged September 12) | [1107 record](REFRESH_20260911_1107.md) |
+| `private-export-20260912-0934` | September 12 | 4,462,379 | 256 | 3,517,336 | Adopted (PR #39, merged September 12) | [0934 record](REFRESH_20260912_0934.md) |
+| `htw-db-2026-10-16-1652` | October 16 | 4,915,355 | 287 | 3,871,767 | Adopted (PR #70, merged October 17) | [1652 record](REFRESH_20261016_1652.md) |
+| `private-export-20261021-0829` | October 21 | 5,327,504 | 298 | — | Reviewed, not adopted: its FULL had lost the runner identities. Draft PR #77 still open on October 30 | [0829 review](REFRESH_20261021_0829.md) |
+| `private-export-20261021-1050` | October 21 | 5,327,504 | 298 | 4,108,749 | Adopted (PR #78, merged October 22); current | [1050 record](REFRESH_20261021_1050.md) |
+
 ## Historical inspections
 
 September 7 supplied 3,451,055 raw rows, 3,382,000 feature rows and incompatible raw/feature ID namespaces; its original extension cohort had 2,739,842 eligible finishes. September 10 supplied 3,580,279 aligned raw/feature records, but its extra archive members and missing consumer fields blocked that vintage's adoption at the initial takeover. Those are dated compatibility findings, not current blockers. See the [historical archive audit](evidence/2026-09-11/archive-members-audit.json), [ID audit](evidence/2026-09-11/id-contract-audit.json) and [timing audit](evidence/2026-09-11/timing-unit-contract-audit.json).
 
 The old `live.json` charts and S/R/RN/P calculations are retained in Git history. The deployed `live.json` becomes current-release compatibility metadata only, with no old charts. They are no longer website data sources in the current implementation. Current supporting calculations are recomputed by `build_public_explorer.py`; matching route aliases use the adopted current extensions, and unsupported forecast/course-adjustment outputs remain unavailable. This changes the active calculation path without claiming the old undocumented formulas were reproduced.
+
+## History (earlier releases)
+
+Text moved here word for word on October 30, 2026 from this file at commit `b21095ae`, when the sections above were rewritten for 1050. Counts belong to the release they name; do not quote them as current. Older versions are in Git history.
+
+### The current-source line, as written on October 21–22, 2026 (line 3)
+
+Current full-refresh source: **`private-export-20261021-1050`** (repository `koolkam00/pace-notes`), manifest created `2026-10-21T15:02:30Z`, adopted on branch `data/release-1050` on October 21, 2026 (weather-dependent outputs rebuilt October 22); deployment is recorded in the [project handoff](PROJECT_HANDOFF.md). The [refresh record](REFRESH_20261021_1050.md) distinguishes verified inputs, calculations, imported files and production. The [1652 record](REFRESH_20261016_1652.md), the [0934 record](REFRESH_20260912_0934.md) and older inspections below are historical evidence.
+
+### Identifiers and access, as written before the half source became public (line 25)
+
+Backups (`htw-db-*`), exports (`private-export-*`) and pack bundle IDs (`private-*`) are different identifiers. Their legacy names do not determine access. The current policy makes source code, full records, overlays and snapshots publicly downloadable as ordinary unencrypted files; gzip is compression. Prefer Release assets for large files. [ACCESS.md](../analysis/ACCESS.md) gives exact downloads and checksums. Operational credentials are not research data. The one exception is the half-marathon source and its links (owner question Q1, applied at its default in October 2026 and awaiting the owner's explicit confirmation): they stay in a private repository and only their totals are published ([below](#half-marathon-source-public-releases-pages-show-aggregates)).
+
+### Verified 1652 input, as written for release 1652 (lines 29–33)
+
+The htw-db CORE/FULL archives have exactly 12/14 members (the eight base files plus `EDITIONS.json`, `CHANGE-REPORT.md`, `SHA256SUMS.txt` and `ID-CONTRACT.md`; FULL adds `features.parquet` and `FEATURE-FIELD-NOTES.md`), byte-identical shared files, and every `SHA256SUMS.txt` line matches. The raw and feature tables each contain **4,915,355 rows**, spanning **34 cities and 287 city/year editions**; 4,831,672 have a 5 km split. There are 288 weather rows and 33 supplied course profiles (Vienna's is new; Melbourne has none). `EDITIONS.json` and `races_summary.json` match the parquet edition by edition. Relative to `private-export-20260912-0934` the raw snapshot adds 569,263 records, deletes 116,287 (all of Chicago 2018, Chicago 2019 and Frankfurt 2019, reloaded with new IDs) and changes 242,649 in place (Paris 2014–2018 checkpoints, Valencia 2022–2024 recorded gender from F- category labels, Warsaw 2015–2018 race labels): unlike 0934 against 1107, it is not append-only.
+
+Raw `id` and feature `record_id` are unique, non-null and have identical sets. Joined edition labels, names and ages agree exactly; 701 raw `X` values normalize to null feature sex. Comparable finish and cumulative timings agree within 1 ms after converting feature minutes to raw seconds. The audit establishes record alignment, not the validity of cross-race identities. [audit_release.py](../analysis/audit_release.py) reproduces these checks and the delta against a previous snapshot. The producer's `ID-CONTRACT.md` and `FEATURE-FIELD-NOTES.md` still name the 1107 freeze, so the contract was verified at run time, not taken from the text.
+
+The SQLite snapshot (679 MB compressed) was not downloaded in full or opened for this refresh; under 0934 it passed checksum and read-only integrity checks. Snapshot integrity would not prove that each race field was fully ingested in any case: Chicago 2015 was mid-load at this freeze.
+
+### The policy and gender notes, as written for release 1652 (lines 41 and 59)
+
+The [reviewed source policy](../analysis/source_quality.py) then excludes 30 explicitly audited editions in 1652 (eleven in 0934) for invalid or mixed-basis grids, mats that stopped recording, a virtual edition, incomplete ingestion, unresolved HOLD status or selected fields ([review](evidence/2026-10-16/refresh-1652/edition-policy-review.json)). It applies only to the named release and removes timing-valid records after other checks to avoid double counting. These editions cannot become earlier benchmarks. Do not infer that every small edition is incomplete.
+
+The feature and analysis populations differ by design. Missing recorded gender does not invalidate usable timing: 21,160 final eligible finishes with other/unrecorded gender remain in All (36,161 under 0934, before Valencia 2022–2024's recorded F- labels filled most of that gap). Men and Women contain 2,559,176 and 1,291,431 respectively. The eligible exact-age count is read from the personalized summary; raw age is null in 3,263,720 records. Never treat an age-group label as an exact age.
+
+### Course profiles and context coverage, as written for release 1652 (lines 75 and 77)
+
+Course profiles and segments contain supplied geometry, distance, elevation gain/loss/net, coordinates and provenance. In 1652 there are 33 profiles; 32 have null historical validity years and Warsaw's (the autumn PZU race) is valid from 2019 (under 0934 all 32 were null). A current supplied route is not a verified historical route, and net elevation can hide mixed climbs and descents. Course and terrain findings remain descriptive proxies.
+
+The [runner-context audit](RUNNER_CONTEXT_AND_PEERS.md) validates five exact weather hours and source units, preserving nulls/reasons for missing or conflicting fields. Under `private-export-20261021-1050` (October 22, 2026; branch `data/release-1050`) valid weather covers all 298 raw editions (297 on October 21, before Chicago 2025's reading was accepted) and terrain 281. Under `htw-db-2026-10-16-1652` (October 16–17, 2026; historical) valid weather covered 286 of 287 raw editions (only the virtual Amsterdam 2020 has no row) and terrain 270 (none for Melbourne 2015, Warsaw 2015–2018 or the twelve Washington editions; see [known issues](KNOWN_ISSUES.md)). Under 0934 (historical) weather covered 249 raw editions, with Helsinki 2025 failing its supplied start-hour check and six editions lacking rows, and terrain 254. Whole-profile ascent/descent differs from section sums for every supplied course, and net change is independently reported rather than calculated as gain minus loss. Runner context sums the nine supplied section fields separately, retains whole-profile totals and distances separately, and labels historical validity unknown. Profile points are never rescaled or extended to match nominal timing labels.
