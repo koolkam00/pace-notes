@@ -430,6 +430,12 @@ class Floors(unittest.TestCase):
                 hc.check_published(bad, 'x')
         hc.check_published({'city': 'Oslo', 'members': [{'id': 'pooled', 'n': 5}], 'rule': {'half': 'text'}, 'sha256': 'a' * 64}, 'ok')
 
+    def test_open_tails_hold_the_floor(self):
+        for bad in ({'F': {'under_lo': 16, 'at_or_over_hi': 500, 'counts': [200]}}, {'under_lo': 100, 'at_or_over_hi': 99, 'counts': []}):
+            with self.assertRaisesRegex(hc.HalfError, 'open tail', msg=bad):
+                hc.check_published(bad, 'x')
+        hc.check_published({'under_lo': 100, 'at_or_over_hi': 1363, 'counts': [183]}, 'ok')
+
     def test_small_groups_are_left_out(self):
         frame = synthetic_pairs(n=9000)
         linked, _, ranges = half_linked.build(frame)

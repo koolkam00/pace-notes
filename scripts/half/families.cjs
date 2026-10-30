@@ -100,7 +100,7 @@ function field({ fin, editions, policySha, moduleSha, labelCountries }) {
     schema_version: 1, family: 'half-field', scope: 'verified',
     cohort: { finishes: x.length, editions: eds.size, sex_finishes: xf.length + xm.length, sex_editions: sexEds.size },
     minutes: { lo: 65, hi: 210, ...hist },
-    sex_bins: { bin_s: 300, lo_s: 3900, hi_s: 12600, F: tailed(F, 3900, 12600, 300), M: tailed(M, 3900, 12600, 300) },
+    sex_bins: { bin_s: 300, lo_s: 4200, hi_s: 12600, F: tailed(F, 4200, 12600, 300), M: tailed(M, 4200, 12600, 300) },
     quantiles: { all: { p10: q(x, 0.1), p25: q(x, 0.25), p50: q(x, 0.5), p75: q(x, 0.75), p90: q(x, 0.9) },
       F: { p25: q(xf, 0.25), p50: q(xf, 0.5), p75: q(xf, 0.75) }, M: { p25: q(xm, 0.25), p50: q(xm, 0.5), p75: q(xm, 0.75) } },
     under,

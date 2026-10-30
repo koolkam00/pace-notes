@@ -61,7 +61,7 @@ export type HalfField = {
   cohort: { finishes: number; editions: number; sex_finishes: number; sex_editions: number };
   /** Whole-minute counts of all verified finishes: counts[i] holds finishes in minute lo + i (65…209). */
   minutes: HalfTailedCounts & { lo: number; hi: number };
-  /** Recorded women's and men's finishes in `bin_s` bins from lo_s to hi_s (29 bins of 5 minutes, 1:05–3:30). */
+  /** Recorded women's and men's finishes in `bin_s` bins from lo_s to hi_s (28 bins of 5 minutes, 1:10–3:30; from 1:10, the first published mark, so each tail holds at least 100). */
   sex_bins: { bin_s: number; lo_s: number; hi_s: number; F: HalfTailedCounts; M: HalfTailedCounts };
   /** Finish-time quantiles, seconds (`insights_stats.quantile`, linear). */
   quantiles: {

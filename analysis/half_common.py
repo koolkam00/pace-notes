@@ -176,9 +176,13 @@ RELEASE_LABEL = re.compile(r'private-export|half-snapshot-|runner-links-|htw-db-
 
 
 def check_published(value, where: str, *, in_rule: bool = False, extra_string_keys: frozenset = frozenset()) -> None:
-    """Finite numbers; no identifier keys; strings only under allow-listed keys; no release labels. The floors (at
-    least MIN_CELL finishes or pairs, MIN_EDITIONS editions) are checked by each builder where it forms a group."""
+    """Finite numbers; no identifier keys; strings only under allow-listed keys; no release labels; the open tails of
+    every binned count (`under_lo`, `at_or_over_hi`) at least MIN_CELL. The other floors (at least MIN_CELL finishes or
+    pairs, MIN_EDITIONS editions) are checked by each builder where it forms a group."""
     if isinstance(value, dict):
+        for tail in ('under_lo', 'at_or_over_hi'):
+            if tail in value and not (isinstance(value[tail], int) and value[tail] >= MIN_CELL):
+                fail(f'{where}.{tail}: an open tail under {MIN_CELL} ({value[tail]!r})')
         for key, item in value.items():
             if not isinstance(key, str):
                 fail(f'{where}: a non-string key')

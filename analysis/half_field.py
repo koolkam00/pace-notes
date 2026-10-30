@@ -26,7 +26,7 @@ from half_common import MIN_CELL, MIN_EDITIONS, SEED, fail, quantile, sec, sh  #
 from insights_stats import r  # noqa: E402
 
 HIST_LO, HIST_HI = 65, 210              # minutes published: 1:05 to 3:29, tails kept apart
-SEX_BIN_S, SEX_LO_S, SEX_HI_S = 300, 3900, 12600
+SEX_BIN_S, SEX_LO_S, SEX_HI_S = 300, 4200, 12600   # from 1:10, the first published mark, so the tails hold 100
 UNDER_FROM_S, UNDER_TO_S, UNDER_STEP_S = 4200, 10800, 300
 FIT_M0, FIT_M1 = 40, 300                 # the minute matrix of the round-mark fits
 MARKS = (90, 105, 120, 135, 150)
@@ -139,11 +139,15 @@ def build(fin, *, policy_sha256: str, module_sha256: str, label_countries: dict 
     hist = tailed(minutes, HIST_LO, HIST_HI, 1)
     if min(hist['counts']) < MIN_CELL:
         fail(f'field: a published minute holds under {MIN_CELL} finishes')
+    if min(hist['under_lo'], hist['at_or_over_hi']) < MIN_CELL:
+        fail(f'field: a tail of the minute histogram holds under {MIN_CELL} finishes')
     sex_bins = {'bin_s': SEX_BIN_S, 'lo_s': SEX_LO_S, 'hi_s': SEX_HI_S}
     for g, v in by_sex.items():
         sex_bins[g] = tailed(v, SEX_LO_S, SEX_HI_S, SEX_BIN_S)
         if min(sex_bins[g]['counts']) < MIN_CELL:
             fail(f'field: a published 5-minute bin of recorded {g} finishes holds under {MIN_CELL}')
+        if min(sex_bins[g]['under_lo'], sex_bins[g]['at_or_over_hi']) < MIN_CELL:
+            fail(f'field: a tail of the recorded {g} 5-minute bins holds under {MIN_CELL} finishes')
     q = lambda v, p: sec(quantile(v, p))
     under = [{'s': s, 'all': sh((x < s).mean()), 'F': sh((by_sex['F'] < s).mean()), 'M': sh((by_sex['M'] < s).mean())}
              for s in range(UNDER_FROM_S, UNDER_TO_S + 1, UNDER_STEP_S)]

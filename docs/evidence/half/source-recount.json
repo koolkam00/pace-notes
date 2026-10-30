@@ -4,12 +4,12 @@
  "date": "2026-10-30",
  "status": "pass",
  "mismatches": 0,
- "values_checked": 16816,
- "manifest_sha256": "a42f42b302d06e9f7ea078d6dedd5379519da2a7f4a66d341ac421f2c5caef71",
+ "values_checked": 16814,
+ "manifest_sha256": "0da0230d9dee9a802073792596d31a974950a598ec21f28bcbd8cd69bb5d0cc5",
  "verify_half_source_sha256": "60c6d3a63c07169343f22b3996d6f4ec9d630f813b850313a3dde489a119a48d",
  "recount_scripts": {
   "scripts/half/derive.cjs": "15c8885eeff04eaddbcb8530e9a32a51b04b5992d8e5243eb25744f03cddd71c",
-  "scripts/half/families.cjs": "ac995360b3bef7eea62f942102393d0267d3677e6fd1fdb0d02974c3e46bc7f2",
+  "scripts/half/families.cjs": "99ff6cb071048c702677364cc1b5a452484cf169eed0610cdf36bc7905a9b51c",
   "scripts/half/marathon.cjs": "0099e408bf084446f6fc60d91b362d5f761111128c9d5bb14b2de7aab08c5a4d",
   "scripts/half/policy.cjs": "64be8f311d9e527059033e654cc608ed384abf29c029ae9fefbb277c271f8646",
   "scripts/verify-half-source.cjs": "60c6d3a63c07169343f22b3996d6f4ec9d630f813b850313a3dde489a119a48d"
@@ -72,7 +72,7 @@
    "mismatches": 0
   },
   "field.json": {
-   "values": 427,
+   "values": 425,
    "mismatches": 0
   },
   "linked.json": {

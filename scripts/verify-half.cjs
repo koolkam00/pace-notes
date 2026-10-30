@@ -174,15 +174,17 @@ const M = field.minutes;
 eq([M.lo, M.hi, M.counts.length], [65, 210, 145], 'field: the minute histogram spans 1:05 to 3:29');
 eq(D.tailedTotal(M), field.cohort.finishes, 'field: the histogram holds every verified finish');
 ok(M.counts.every((c) => int(c, D.MIN_CELL)), 'field: every published minute holds at least 100 finishes');
+ok(int(M.under_lo, D.MIN_CELL) && int(M.at_or_over_hi, D.MIN_CELL), `field: both tails of the minute histogram hold at least 100 finishes (${M.under_lo}, ${M.at_or_over_hi})`);
 ok(int(field.cohort.finishes, D.MIN_CELL) && int(field.cohort.editions, D.MIN_EDITIONS) && int(field.cohort.sex_editions, D.MIN_EDITIONS), 'field: the cohort floors');
 eq([field.cohort.finishes, field.cohort.editions], [counts.verified.finishes, counts.verified.editions], 'field: the cohort is the verified policy count');
 eq([field.cohort.sex_finishes, field.cohort.sex_editions], [counts.verified_use_sex.finishes, counts.verified_use_sex.editions], 'field: the sex cohort is the policy count');
 const B = field.sex_bins;
-eq([B.bin_s, B.lo_s, B.hi_s], [300, 3900, 12600], 'field: the 5-minute sex bins');
+eq([B.bin_s, B.lo_s, B.hi_s], [300, 4200, 12600], 'field: the 5-minute sex bins (from 1:10, the first published mark)');
 eq(D.tailedTotal(B.F) + D.tailedTotal(B.M), field.cohort.sex_finishes, 'field: the sex bins hold every recorded finish of the sex editions');
 for (const g of ['F', 'M']) {
   eq(B[g].counts.length, (B.hi_s - B.lo_s) / B.bin_s, `field: ${g} bins`);
   ok(B[g].counts.every((c) => int(c, D.MIN_CELL)), `field: every published ${g} bin holds at least 100 finishes`);
+  ok(int(B[g].under_lo, D.MIN_CELL) && int(B[g].at_or_over_hi, D.MIN_CELL), `field: both tails of the ${g} bins hold at least 100 finishes (${B[g].under_lo}, ${B[g].at_or_over_hi})`);
 }
 const nAll = D.tailedTotal(M), nF = D.tailedTotal(B.F), nM = D.tailedTotal(B.M);
 eq(field.under.map((u) => u.s), Array.from({ length: (10800 - 4200) / 300 + 1 }, (_, i) => 4200 + 300 * i), 'field: a share under every 5 minutes from 1:10 to 3:00');
