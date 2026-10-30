@@ -295,7 +295,9 @@
 .half-ruler-key li { display: inline-flex; align-items: flex-start; gap: 8px; margin: 0; }
 .half-ruler-key i { flex: none; width: 18px; height: 10px; margin-top: calc((1.4em - 10px) / 2); border-radius: 5px; background: var(--ink); opacity: .1; }
 .half-ruler-key b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
-/* Under the half-by-half profile: the scrubbed half's pace line, "Not a prediction." on its own line, the predictor link. */
+/* Under the half-by-half profile: the scrubbed half's pace line, "Not a prediction." on its own line, the predictor link.
+   The profile and those lines share one wrapper (the lines read the profile's needle), which keeps a beat's figure width. */
+.story-beat > .half-after-chart { max-width: var(--measure-figure); }
 .half-pace-gap { margin: var(--s-4) 0 0; max-width: 34rem; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
 .half-pace-gap b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
 .half-not { margin: var(--s-3) 0 0; font-size: var(--t-small); font-weight: 600; line-height: 1.5; color: var(--ink); }
