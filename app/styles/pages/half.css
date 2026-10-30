@@ -45,6 +45,7 @@
 /* A round time's interval: a 1.5 px whisker with 9 px caps over its column, in the second ink (never the column's own
    fill or outline, which it would inherit from the column's group). */
 .half-page .viz-frame .half-whisker { fill: var(--ink-2); stroke: none; }
+.half-page .viz-frame .half-whisker-halo { fill: var(--paper); stroke: none; }
 /* The same city's half and marathon: each row's two shares ("26% · 45%") need a wider value column than the form's
    4.5rem, and the city names need only their own width ("Amsterdam"), so the track gets the rest (about 170 px on a
    390 px phone). In a figure under 300 px (a 320 px phone, 200% zoom), where the form

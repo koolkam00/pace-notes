@@ -71,9 +71,12 @@ export default function HalfBody() {
         columns={[{ key: 'b', label: 'Finish band' }, { key: 's', label: 'Women’s share' }]}
         rows={women.bands.map((b, i) => [b.hi_s === null ? `${hm(b.lo_s / 60)} and over` : b.lo_s === 0 ? `Under ${hm(b.hi_s / 60)}` : `${hm(b.lo_s / 60)} to ${hm(b.hi_s / 60 - 1)}:59`, pct(women.median_share[i], 1)])}
         reading={cross} />,
-      <Values key="cities" bare id="hf-cities" caption="Women’s share of recorded finishes, the same city and year"
-        columns={[{ key: 'c', label: 'City', text: true }, { key: 'y', label: 'Year' }, { key: 'h', label: 'Half' }, { key: 'm', label: 'Marathon' }]}
-        rows={[...sc.pairs].sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year).map((p) => [p.city, String(p.year), pct(womenShare(p.half), 1), pct(womenShare(p.marathon), 1)])} />,
+      // Each pair's gap in points, and in the caption the typical gap within a pair (the dumbbell's Typical row joins the
+      // two medians, whose gap is wider than the typical pair's).
+      <Values key="cities" bare id="hf-cities" caption={`Women’s share of recorded finishes, the same city and year: within a pair, the half’s share was typically ${sc.summary.diff_median_points.toFixed(1)} points higher`}
+        columns={[{ key: 'c', label: 'City', text: true }, { key: 'y', label: 'Year' }, { key: 'h', label: 'Half' }, { key: 'm', label: 'Marathon' }, { key: 'd', label: 'Gap, points' }]}
+        rows={[...sc.pairs].sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year).map((p) => [p.city, String(p.year), pct(womenShare(p.half), 1), pct(womenShare(p.marathon), 1),
+          `+${((womenShare(p.half) - womenShare(p.marathon)) * 100).toFixed(1)}`])} />,
     ]}>
       <StoryHero path={HALF_PATH} crumbs={<HalfCrumbs />} title={sentenceOf(reading)} stacked fallback={!reading.guard}
         figure={figure ? { value: figure.value, unit: figure.unit, sr: figure.sr } : undefined}
@@ -88,9 +91,10 @@ export default function HalfBody() {
       {/* The dek says how to use the chart: the recorded women's and men's shares are the readout's own side rows, so
           the dek's version of them (deks.under) would put the same two numbers twice on one screen. */}
       <Beat id="your-time" track="chapter-1" label="Your time" title={under} dek={`Slide to any time from ${hm(first)} to ${hm(last)}.`}>
-        {/* Ticks every 15 minutes to 2:45, the half hours first: a phone keeps 1:30, 2:00 and 2:30 evenly and a wider
-            screen adds the quarters (an end tick at 3:00 crowded out 2:45 alone, so the steps looked uneven). */}
-        <Cdf points={curve} ticks={[75, 90, 105, 120, 135, 150, 165].map((m) => ({ value: m, label: hm(m), priority: m % 30 === 0 ? 3 : 1 }))}
+        {/* Ticks every 15 minutes to the scale's end (3:00, turned to end at the plot's edge, so the last stop has its
+            time), the half hours first: the quarters show and hide together (a tick group), so where 2:45 would touch
+            3:00 a phone keeps 1:30, 2:00, 2:30 and 3:00 evenly, and a wider screen adds every quarter. */}
+        <Cdf points={curve} ticks={Array.from({ length: Math.floor((last - 75) / 15) + 1 }, (_, i) => 75 + i * 15).map((m) => ({ value: m, label: hm(m), priority: m % 30 === 0 ? 3 : 1, group: m % 30 === 0 ? undefined : 'quarters' }))}
           scrub={{
             label: `Half finish time, ${hm(first)} to ${hm(last)}`,
             points: {
@@ -117,9 +121,9 @@ export default function HalfBody() {
       </Beat>
 
       <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities}>
-        {/* The key first, in the order every row prints its pair (marathon · half), then the typical city and year (the
-            dek's two medians) as the one signal row, as the share card draws it, then each city. A value column sized to
-            its pairs, and none on a zoomed-in screen (half.css). */}
+        {/* The key first, in the order every row prints its pair (marathon · half), then the two typical shares (the
+            dek's two medians across the pairs, worded as two) as the one signal row, as the share card draws it, then
+            each city. A value column sized to its pairs, and none on a zoomed-in screen (half.css). */}
         <div className="half-cities">
           <Dumbbell keyFirst rows={[
             { id: 'typical', label: 'Typical', a: sc.summary.marathon_median, b: sc.summary.half_median, display: `${pct(sc.summary.marathon_median)} · ${pct(sc.summary.half_median)}`, highlight: true },

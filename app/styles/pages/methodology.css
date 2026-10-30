@@ -111,6 +111,11 @@
 .methods-files li { margin: 0; padding: 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
 .methods-files li + li { margin: 0; }
 .methods-files a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; overflow-wrap: anywhere; }
+/* A checksum chip in a file's line sits on the text's own line height (the device monospace inflated its line box to
+   about 32 px, as far below as the next file), and a list whose lines wrap (the half totals) parts its files by more
+   than its lines, so each file, its description and its checksum read as one block. */
+.methods-files code { line-height: 1; padding-block: 0; vertical-align: baseline; }
+.methods-files.is-wrapped li + li { margin-top: var(--s-2); }
 .methods-packs { margin: var(--s-3) 0 0; padding: 0; list-style: none; }
 .methods-packs li { margin: 0; padding: var(--s-2) 0; border-top: 1px solid var(--rule); }
 .methods-pack-title { display: block; font-size: .9375rem; font-weight: 600; line-height: 1.35; color: var(--ink); }

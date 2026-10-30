@@ -202,7 +202,7 @@ export function HalfToolNotes({ tool }: { tool: 'predictor' | 'goal-pages' | 'pa
     return <p><strong>The half panel.</strong> For a recent half (or a distance within 0.5% of one) and a marathon to predict, the Pace Notes data panel shows the marathons of records linked by name 3 to 16 weeks after a half near the typed half’s whole minute (<a href="#story-half-to-full">the story’s method</a>), in place of the 20 km reading, from {floorHM(g.all.from)} to {floorHM(g.all.to)}; recorded women’s from {floorHM(g.F.from)} to {floorHM(g.F.to)} and recorded men’s from {floorHM(g.M.from)} to {floorHM(g.M.to)}. Its marks are quarter-hour times inside the window’s 5th to 95th percentile, never the estimate above. Outside those ranges, or for any other distance, the 20 km panel shows. The median multiple of the half, {ratio.toFixed(2)}, matches a half-to-full exponent of about {exponent.toFixed(2)}; the classic formula’s 1.06 assumes {(2 ** 1.06).toFixed(3)}, and the training-log exponents above (1.09 to 1.15) give {multiple(1.09)} to {multiple(1.15)}. Those comparisons are made here only, never in the tool, where the two kinds of evidence stay apart.</p>;
   }
   if (tool === 'goal-pages') {
-    return <p><strong>The half before.</strong> Each goal page names the slowest half window whose typical marathon (records linked by name) came in under the goal, so the predictor at that half shows a typical marathon under the goal and a minute slower does not. Recorded women’s and men’s halves are named where both sexes have a window there.</p>;
+    return <p><strong>The half marathon before.</strong> Each goal page names the slowest half window whose typical marathon (records linked by name) came in under the goal, so the predictor at that half shows a typical marathon under the goal and a minute slower does not. Recorded women’s and men’s halves are named where both sexes have a window there.</p>;
   }
   return <p><strong>The half marathon pace chart’s data panel</strong> shows the share of half finishes in verified results under each time from 1:10 to 3:00 (<a href="#half-field">how it is worked out</a>), kept apart from the chart’s even-pace columns, which stay plain calculations.</p>;
 }
@@ -226,7 +226,7 @@ export function HalfDownloads() {
   return (
     <Detail id="downloads-half" title="The half pages’ totals">
       <p>The half-marathon results and the links between records are not published as files. The page totals are:</p>
-      <ul className="methods-files">
+      <ul className="methods-files is-wrapped">
         {Object.entries(m.files).map(([file, meta]) => <li key={file}><a href={dataHref(`half/${file}`)}>{file.replace(/^tools\//, '')}</a><span> · {HALF_FILE_TOPICS[file] ?? 'totals'}, sha256 <code>{meta.sha256.slice(0, 12)}</code></span></li>)}
         <li><a href={dataHref('half/manifest.json')}>manifest.json</a><span> · the snapshot, link build and policy behind them, and every file’s checksum</span></li>
       </ul>

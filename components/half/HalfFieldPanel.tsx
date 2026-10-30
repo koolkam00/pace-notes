@@ -43,7 +43,10 @@ export default function HalfFieldPanel() {
         // Each round time's share sits left of its dot, above the curve (the time is the tick under it), so all five fit
         // on the narrowest phone ("1:30 · 7%" beside its dot did not, at the curve's foot).
         marks={marks.map((u) => ({ x: u.s / 60, y: u.all, text: pct(u.all), signal: u.s === READING * 60 }))}
-        xTicks={[...MARKS, last].filter((m) => m >= first && m <= last).map((m) => ({ value: m, label: hm(m), priority: m === READING ? 3 : 2 }))}
+        // Every 15 minutes from 1:15 to the scale's end (3:00), the half hours first and the quarters showing and hiding
+        // together, so the steps stay even at every width (a lone gap from 2:30 to 3:00 read as a broken scale).
+        xTicks={Array.from({ length: Math.floor((last - 75) / 15) + 1 }, (_, i) => 75 + i * 15).filter((m) => m >= first && m <= last)
+          .map((m) => ({ value: m, label: hm(m), priority: m === READING ? 4 : m % 30 === 0 ? 3 : 1, group: m % 30 === 0 ? undefined : 'quarters' }))}
         yTicks={[0.25, 0.5, 0.75].map((v) => ({ value: v, label: pct(v) }))}
         label={`The share of half marathon finishes under each time from ${hm(under[0].s / 60)} to ${hm(last)}: ${marks.map((u) => `${pct(u.all)} under ${hm(u.s / 60)}`).join(', ')}.`} />
       <p className="half-field-more"><Link href="/half">The half marathon<Arrow /></Link></p>

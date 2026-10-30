@@ -106,6 +106,13 @@ export function RatioColumns({ marks, signal, ink, label, values }: {
           <g key={m.mark} className={`column ${cls}`}>
             <rect x={cx} width={22} transform="translate(-11 0)" y={pc(y(m.ratio))} height={pc(Math.max(0.004, base - y(m.ratio)))} rx={3} />
             <rect className="column-foot" x={cx} width={22} transform="translate(-11 -3)" y={pc(base)} height={3} />
+            {/* The whisker over a 1.5 px halo of the page on each side, so it reads on any column fill in both themes
+                (the mid-tone 1:30 column hid an ink whisker by day and a light one by night). */}
+            <g className="half-whisker-halo">
+              <rect x={cx} width={4.5} transform="translate(-2.25 0)" y={pc(y(m.ratio_ci95[1]))} height={pc(y(m.ratio_ci95[0]) - y(m.ratio_ci95[1]))} />
+              <rect x={cx} width={12} transform="translate(-6 -2.25)" y={pc(y(m.ratio_ci95[1]))} height={4.5} />
+              <rect x={cx} width={12} transform="translate(-6 -2.25)" y={pc(y(m.ratio_ci95[0]))} height={4.5} />
+            </g>
             <g className="half-whisker">
               <rect x={cx} width={1.5} transform="translate(-0.75 0)" y={pc(y(m.ratio_ci95[1]))} height={pc(y(m.ratio_ci95[0]) - y(m.ratio_ci95[1]))} />
               <rect x={cx} width={9} transform="translate(-4.5 -0.75)" y={pc(y(m.ratio_ci95[1]))} height={1.5} />
@@ -192,7 +199,7 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
 export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, height = 200, heightMd = 240 }: {
   curve: { x: number; y: number }[]; xDomain: [number, number];
   marks: { x: number; y: number; text: string; signal?: boolean }[];
-  xTicks: { value: number; label: string; priority?: number }[]; yTicks: { value: number; label: string }[];
+  xTicks: { value: number; label: string; priority?: number; group?: string }[]; yTicks: { value: number; label: string }[];
   label: string; height?: number; heightMd?: number;
 }) {
   const x = linear(xDomain);
@@ -206,7 +213,9 @@ export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, heigh
     const n = Math.max(2, Math.ceil(Math.hypot((x1 - x0) * REF_WIDTH, (y1 - y0) * height) / 5));
     return Array.from({ length: n }, (_, k) => ({ x: x0 + ((x1 - x0) * k) / n, y: y0 + ((y1 - y0) * k) / n, r: k ? 2 : 3 }));
   });
-  const items: LabelItem[] = marks.map((m, i) => ({ id: `mark-${i}`, text: m.text, x: x(m.x), y: y(m.y), priority: m.signal ? 3 : 2, tone: m.signal ? 'signal' : 'ink', prefer: 'left', gap: 9 }));
+  // Above-left of each dot first: on the rising curve that place stays clear of the line at every width (a label beside
+  // its dot, clear on a phone, met the flatter curve of a wide screen).
+  const items: LabelItem[] = marks.map((m, i) => ({ id: `mark-${i}`, text: m.text, x: x(m.x), y: y(m.y), priority: m.signal ? 3 : 2, tone: m.signal ? 'signal' : 'ink', prefer: 'above-left', gap: 9 }));
   // The gridline labels sit on the left, as on /half's curve (one layout for one form); the marks' labels keep clear of them.
   const gridBoxes = yTicks.map((t) => ({ x0: 0, x1: (textWidth(t.label, 12, 500) + 6) / REF_WIDTH, y0: y(t.value) - 18 / height, y1: y(t.value) }));
   const placed = placeLabels(items, { height, boxes: gridBoxes, avoid: [...marks.map((m) => ({ x: x(m.x), y: y(m.y), r: 7 })), ...along] });
@@ -224,7 +233,7 @@ export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, heigh
       <Baseline />
     </Plot>
   );
-  return <ChartFrame label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority }))} />} />;
+  return <ChartFrame label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority, group: t.group }))} />} />;
 }
 
 /**
