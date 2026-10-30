@@ -118,7 +118,10 @@ ok(/^of races traced to their course by pacing shape alone, against \d+% by chan
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
 ok(/^of finishes (?:just over \d:\d\d|from \d:\d\d to \d:\d\d) had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
 ok(/^of finishes on even \d:\d\d pace at 30K still got under \d:\d\d$/.test(keys['checkpoint.under']), 'chapter 04 key');
-eq(keys['half.extra'], 'of marathons came in under double the half marathon before them', 'chapter 11 key (the half story opens it, October 29, 2026)');
+// Since the stamp correction (October 30, 2026) the flagship's verified-halves checks fail (2,024 verified pairs: +16 minutes
+// and 14% under double, against +21 and 8% pooled), so the share is not its figure and the opener shows the minutes.
+eq(keys['half.extra'], N.getNugget('half.extra').values.figure_is_share === 1 ? 'of marathons came in under double the half marathon before them' : 'over double the half marathon, typical',
+  'chapter 11 key (the half story opens it, October 29, 2026): the share while its checks hold, the minutes otherwise');
 eq(N.getNugget('gains.final').key, 'of the minutes improving finishes gained came after 30K', 'gains.final key (second in chapter 11)');
 
 // Every key stands alone as a short phrase a runner reads under its figure: never a bare figure jammed against a unit

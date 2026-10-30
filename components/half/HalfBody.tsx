@@ -42,8 +42,8 @@ export default function HalfBody() {
   const at = (s: number) => field.under.find((u) => u.s === s)!;
   const total = field.cohort.finishes;
 
-  // The share under every whole minute from 1:10 to 3:00, from the minute histogram (finishes under minute m are the
-  // tail under 1:05 and every minute before m), and the scrubber's 23 five-minute marks.
+  // The share under every whole minute from the first mark (1:15) to 3:00, from the minute histogram (finishes under
+  // minute m are the tail under its first minute and every minute before m), and the scrubber's five-minute marks.
   const { lo, counts, under_lo: tail } = field.minutes;
   const first = field.under[0].s / 60, last = field.under[field.under.length - 1].s / 60;
   const curve = Array.from({ length: last - first + 1 }, (_, i) => first + i).map((m) => ({
@@ -70,7 +70,7 @@ export default function HalfBody() {
       <Values key="women" bare id="hf-women" caption={`Women’s share of recorded half finishes in each band: the median of ${women.band_editions.length} editions`}
         columns={[{ key: 'b', label: 'Finish band' }, { key: 's', label: 'Women’s share' }]}
         rows={women.bands.map((b, i) => [b.hi_s === null ? `${hm(b.lo_s / 60)} and over` : b.lo_s === 0 ? `Under ${hm(b.hi_s / 60)}` : `${hm(b.lo_s / 60)} to ${hm(b.hi_s / 60 - 1)}:59`, pct(women.median_share[i], 1)])}
-        reading={cross} />,
+        reading={womenN.guard ? cross : undefined} />,
       // Each pair's gap in points, and in the caption the typical gap within a pair (the dumbbell's Typical row joins the
       // two medians, whose gap is wider than the typical pair's).
       <Values key="cities" bare id="hf-cities" caption={`Women’s share of recorded finishes, the same city and year: within a pair, the half’s share was typically ${sc.summary.diff_median_points.toFixed(1)} points higher`}
@@ -116,7 +116,7 @@ export default function HalfBody() {
       </Beat>
 
       <Beat id="women" track="chapter-3" label="Women and men" title={womenN} dek={deks.women}>
-        <ShareColumns bands={women.bands} shares={women.median_share} signal={cross} format={(s) => pct(s)}
+        <ShareColumns bands={women.bands} shares={women.median_share} signal={womenN.guard ? cross : -1} format={(s) => pct(s)}
           label={`Women’s share of recorded half finishes by finish band, the median of ${women.band_editions.length} editions: ${women.bands.map((b, i) => `${b.label} ${nearHalf(women.median_share[i])}`).join(', ')}.`} />
       </Beat>
 

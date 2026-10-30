@@ -15,7 +15,7 @@ const READING = 120;
 /**
  * The half marathon pace chart's observed panel (Pace Notes data, half finishes in verified results; no scope chip),
  * kept apart from the chart's pace columns, which stay unbadged calculations: the share of half finishes under each
- * time from 1:10 to 3:00, five round times named on the curve, the field reading as its sentence with the recorded
+ * time from the first published mark (1:15) to 3:00, five round times named on the curve, the field reading as its sentence with the recorded
  * women's and men's shares under 2:00, and the way to /half. Server-drawn, so the page ships no chart script. Nothing
  * shows when the half data is not in this build.
  */
@@ -27,7 +27,7 @@ export default function HalfFieldPanel() {
   const at = (minutes: number) => under.find((u) => u.s === minutes * 60);
   const two = at(READING);
   const last = under[under.length - 1].s / 60;
-  // The curve starts at the histogram's first minute (1:05, the share under it from its tail), so the first round
+  // The curve starts at the histogram's first minute (1:10, the share under it from its tail), so the first round
   // time's share has room to its left on the narrowest screens.
   const { lo, under_lo: tail } = field.minutes;
   const first = lo;

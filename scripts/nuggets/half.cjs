@@ -177,7 +177,7 @@ module.exports = function half({ json, eq, ok, core }) {
   const deks = (H) => {
     const d = H.halfDeks();
     eq(d.fieldUnit, `the median half finish; recorded women’s ${clock(field.quantiles.F.p50)}, men’s ${clock(field.quantiles.M.p50)}`, 'half deks: the reading’s unit line');
-    eq(d.under, `Recorded women’s: ${pct(underSex('F', 6300))}. Men’s: ${pct(underSex('M', 6300))}. Slide to any time from 1:10 to 3:00.`, 'half deks: beat 1');
+    eq(d.under, `Recorded women’s: ${pct(underSex('F', 6300))}. Men’s: ${pct(underSex('M', 6300))}. Slide to any time from ${clock(field.under[0].s)} to ${clock(field.under[field.under.length - 1].s)}.`, 'half deks: beat 1 (the range the shares are published for: 1:15 to 3:00 since the stamp correction)');
     eq(d.women, `Under 1:30, ${pct(bandShares[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.`, 'half deks: beat 3');
     const share = (c) => c.F / (c.F + c.M);
     // Two medians across the pairs, worded as two: never "the typical city and year", which no pair is (round 2).

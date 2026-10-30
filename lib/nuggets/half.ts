@@ -218,13 +218,13 @@ export function halfSexesGuessFrom(linked: HalfLinked): Nugget {
 // ---------- The deks with numbers (pages print these, never their own figures) ----------
 
 export type HalfDeks = {
-  /** /half reading's unit line: "the median half finish; recorded women’s 2:07, men’s 1:51". */
+  /** /half reading's unit line: "the median half finish; recorded women’s 2:08, men’s 1:52". */
   fieldUnit: string;
-  /** /half beat 1: "Recorded women’s: 9%. Men’s: 36%. Slide to any time from 1:10 to 3:00." */
+  /** /half beat 1: "Recorded women’s: 9%. Men’s: 35%. Slide to any time from 1:15 to 3:00." */
   under: string;
   /**
-   * /half beat 2: the minute before 2:00 in finishes against the curve ("37,490 finishes came in at 1:59, where the
-   * smooth curve expects about 30,400."), then, while its guard holds, the other marks ("The minute before 1:30 held
+   * /half beat 2: the minute before 2:00 in finishes against the curve ("16,949 finishes came in at 1:59, where the
+   * smooth curve expects about 14,000."), then, while its guard holds, the other marks ("The minute before 1:30 held
    * 1.2× too; before 1:45, 2:15 and 2:30, about 1.05×."). Null without a 2:00 mark.
    */
   crowd: string | null;

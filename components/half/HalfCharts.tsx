@@ -17,21 +17,24 @@ import type { HalfField, HalfRoundMark } from '@/lib/half-types';
  * that stand on a 1× line with their intervals, and columns whose 50% rule is named on the clear (left) side.
  */
 
-/** The value of one minute of the histogram: minute m (65 … 209) and its finishes. */
+/** The value of one minute of the histogram: minute m (field.minutes.lo … hi − 1, 70 … 199 today) and its finishes. */
 type Bin = { m: number; n: number };
 
 /**
- * The reading's instrument on /half: every whole minute of verified half finishes from 1:05 to 3:29 as one silhouette,
+ * The reading's instrument on /half: every whole minute of verified half finishes the file publishes (1:10 to 3:19 since
+ * the stamp correction, October 30, 2026) as one silhouette,
  * the minutes under `mark` (2:00) in the signal tone and named with their share, the rest quiet; the two tails drawn as
- * one bar each past a one-minute gap ("<1:05", "3:30+"). Ticks every 15 minutes where they fit (every 30 on a
+ * one bar each past a one-minute gap ("<1:10", "3:20+"). Ticks every 15 minutes where they fit (every 30 on a
  * phone).
  */
 export function FieldHistogram({ field, mark, share, label, height = 120, heightMd = 170 }: {
   field: HalfField; mark: number; share: string; label: string; height?: number; heightMd?: number;
 }) {
   const { lo, hi, counts, under_lo: under, at_or_over_hi: over } = field.minutes;
-  // The tails stand one minute clear of the histogram on either side, so they read as totals, not minutes.
-  const x0 = lo - 2, x1 = hi + 2;
+  // The tails stand one minute clear of the histogram on either side, so they read as totals, not minutes, and the
+  // axis keeps a minute beyond each, where the tails' names sit at its ends: with the 1:10 to 3:19 range (stamp
+  // correction, October 30, 2026) names centred on the tails crowded 1:30 and 3:00 and hid on a phone.
+  const x0 = lo - 3, x1 = hi + 3;
   const x = linear([x0, x1]);
   const w = 1 / (x1 - x0);
   const bins: Bin[] = counts.map((n, i) => ({ m: lo + i, n }));
@@ -61,9 +64,9 @@ export function FieldHistogram({ field, mark, share, label, height = 120, height
   const ticks = [
     ...Array.from({ length: Math.floor((hi - 75) / 15) + 1 }, (_, i) => 75 + i * 15).filter((m) => m < hi)
       .map((m) => ({ x: x(m), label: hm(m), priority: m % 30 === 0 ? 3 : 1 })),
-    // The tails in a short, matched pair, so both keep their names on a phone (a long "Under 1:05" lost its own there).
-    { x: x(lo - 1.5), label: `<${hm(lo)}`, priority: 2 },
-    { x: x(hi + 1.5), label: `${hm(hi)}+`, priority: 2 },
+    // The tails in a short, matched pair, so both keep their names on a phone (a long "Under 1:10" lost its own there).
+    { x: x(x0), label: `<${hm(lo)}`, priority: 2 },
+    { x: x(x1), label: `${hm(hi)}+`, priority: 2 },
   ];
   return <ChartFrame className="half-histogram" label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis ticks={ticks} />} />;
 }
@@ -150,9 +153,11 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
   const height = 190;
   const y = yScale(0, Math.max(0.75, Math.ceil(Math.max(...shares) * 10) / 10), { top: 0.14 });
   const x = linear([0, bands.length]);
-  const tone = (i: number) => (i === signal ? 'signal' : i > signal ? 'over' : 'quiet');
+  // No signal (signal < 0: the page's sentence about the crossing has fallen back) draws every column quiet, so the
+  // chart never marks a band its heading does not name.
+  const tone = (i: number) => (signal < 0 ? 'quiet' : i === signal ? 'signal' : i > signal ? 'over' : 'quiet');
   const last = bands.length - 1;
-  const labels: PlacedLabel[] = [0, signal, last].filter((i, k, a) => a.indexOf(i) === k).map((i) => {
+  const labels: PlacedLabel[] = [0, signal, last].filter((i, k, a) => i >= 0 && a.indexOf(i) === k).map((i) => {
     const anchor = i === 0 ? 'start' as const : i === last ? 'end' as const : 'middle' as const;
     return {
       id: `b${i}`, text: format(shares[i]), x: x(i + 0.5), y: y(shares[i]), priority: 3, tone: i === signal ? 'signal' as const : 'ink' as const,
@@ -191,8 +196,9 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
   );
   // Even steps at every width: the signal's edge (2:15) first, the edges 45 minutes either side of it next (1:30, 3:00),
   // and the quarter hours between them only all together (a tick group), so 200% zoom never shows 1:30, 2:15, 2:45.
+  const steps = signal >= 0 ? signal : Math.floor(bands.length / 2);
   const ticks = bands.slice(1).map((b, i) => {
-    const k = i + 1, off = Math.abs(k - signal);
+    const k = i + 1, off = Math.abs(k - steps);
     return { x: x(k), label: hm(b.lo_s / 60), priority: k === signal ? 4 : off % 3 === 0 ? 3 : 1, ...(k !== signal && off % 3 !== 0 ? { group: 'quarter' } : {}) };
   });
   return <ChartFrame className="columns half-share" label={label} height={height} heightMd={230} plot={plot} axis={<Axis ticks={ticks} />} values={values} />;
@@ -230,7 +236,7 @@ export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, heigh
   const placed = placeLabels(items, { height, boxes: gridBoxes, avoid: [...marks.map((m) => ({ x: x(m.x), y: y(m.y), r: 7 })), ...along] });
   const plot = (
     <Plot>
-      {/* The baseline under the curve, which starts along it at 1:05 (drawn over it, the line read hollow there). */}
+      {/* The baseline under the curve, which starts along it at the first published minute (drawn over it, the line read hollow there). */}
       <Baseline />
       {/* Below 240 px of plot (200% zoom) the gridline labels give way: the round times' own shares name the scale. */}
       <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label, className: 'w240' }))} side="left" />
