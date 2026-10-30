@@ -457,7 +457,7 @@ function cards(fieldDoc, womenDoc, linkedDoc) {
         values: { half_median: SC.summary.half_median, marathon_median: SC.summary.marathon_median, pairs: SC.summary.pairs, cities: SC.summary.cities, half_higher: SC.summary.half_higher },
         source: { file: 'women.json', path: 'same_city.cities' } },
       { slug: 'half-double', scope: 'linked',
-        plot: { form: 'waffle', parts: [{ share: ud, tone: 'signal', label: 'under double' }, { share: D.sh(u20 - ud), tone: 'ink', label: 'up to +20 min' }], rest: '+20 min and up' },
+        plot: { form: 'waffle', parts: [{ share: ud, tone: 'signal', label: 'under double' }, { share: D.sh(u20 - ud), tone: 'ink', label: '0–20 min over' }], rest: '20+ min over' },
         values: { under_double: ud, within_20: u20, pairs: linkedDoc.set.pairs, extra_p50_s: linkedDoc.overall.extra_s.p50 }, source: { file: 'linked.json', path: 'overall.under_double_plus_min.0' } },
       { slug: 'half-same-half', scope: 'linked', plot: { form: 'dumbbell', rows, x: axis, fmt: 'share', a: 'Recorded women’s', b: 'Recorded men’s' },
         values, source: { file: 'linked.json', path: 'windows.F[h].sus, windows.M[h].sus' } },

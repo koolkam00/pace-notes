@@ -5,11 +5,11 @@
  "status": "pass",
  "mismatches": 0,
  "values_checked": 16816,
- "manifest_sha256": "ba958ad12988b5647a8a3f9e8c5cc3579073b72db44d33c21215b598c774c1cf",
+ "manifest_sha256": "b8c280d3f4099e3d6134362959aac4d48298a827efc5ae7afb57f498547e7f61",
  "verify_half_source_sha256": "60c6d3a63c07169343f22b3996d6f4ec9d630f813b850313a3dde489a119a48d",
  "recount_scripts": {
   "scripts/half/derive.cjs": "15c8885eeff04eaddbcb8530e9a32a51b04b5992d8e5243eb25744f03cddd71c",
-  "scripts/half/families.cjs": "c7b91d7f20bab9b7f01a1dea02e2b5ade78c2c22d98b983d4de76f267a0b09ed",
+  "scripts/half/families.cjs": "c3ba37b6ab88487d29e552567a2f79e23bf6f3eb65b6587313c2fd765bffd327",
   "scripts/half/marathon.cjs": "0099e408bf084446f6fc60d91b362d5f761111128c9d5bb14b2de7aab08c5a4d",
   "scripts/half/policy.cjs": "64be8f311d9e527059033e654cc608ed384abf29c029ae9fefbb277c271f8646",
   "scripts/verify-half-source.cjs": "60c6d3a63c07169343f22b3996d6f4ec9d630f813b850313a3dde489a119a48d"
