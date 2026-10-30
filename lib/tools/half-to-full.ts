@@ -82,29 +82,51 @@ export function nearestMark(win: Pick<HalfToFullWindow, 'q' | 'marks'>): [number
   return win.marks.reduce((best, m) => (Math.abs(m[0] - median) < Math.abs(best[0] - median) ? m : best));
 }
 
-/** "4:00 · 22%" for each published mark. */
+/** A mark's label, the share first and what it is under ("22% under 4:00"), so it reads alone on the strip. */
+export function markLabel(t: number, share: number): string {
+  return `${sharePct(share)} under ${floorHM(t)}`;
+}
+
+/** "22% under 4:00" for each published mark. */
 export function markLabels(win: Pick<HalfToFullWindow, 'marks'>): string[] {
-  return win.marks.map(([t, share]) => `${floorHM(t)} · ${sharePct(share)}`);
+  return win.marks.map(([t, share]) => markLabel(t, share));
 }
 
 /**
- * The predictor panel's sentence (one accent): "Of records linked by name with a half near 1:55, the typical marathon
- * 3 to 16 weeks later took *4:15*; half took 4:01 to 4:30."
+ * The predictor panel's sentence (one accent), the answer first: "After a half near 1:55, the typical marathon 3 to 16
+ * weeks later took *4:15*; the middle half of them took 4:01 to 4:30." ("Half of them", never a bare "half", which on a
+ * half-marathon panel reads as the race.) The panel names the records linked by name on the line under it.
  */
 export function linkedSentence(win: HalfToFullWindow, Q: number[]): string {
-  return `Of records linked by name with a half near ${floorHM(win.h)}, the typical marathon 3 to 16 weeks later took *${floorHM(win.q[9])}*; `
-    + `half took ${floorHM(quantileAt(win, Q, 0.25))} to ${floorHM(quantileAt(win, Q, 0.75))}.`;
+  return `After a half near ${floorHM(win.h)}, the typical marathon 3 to 16 weeks later took *${floorHM(win.q[9])}*; `
+    + `the middle half of them took ${floorHM(quantileAt(win, Q, 0.25))} to ${floorHM(quantileAt(win, Q, 0.75))}.`;
 }
+
+/** The panel's line under the sentence: whose marathons these are (the term links to /methodology#half-linking). */
+export const LINKED_LINE = 'Half and marathon records linked by name.';
 
 /** "33% of these marathons had a sustained slowdown." (the page links the term). */
 export function slowdownSentence(win: Pick<HalfToFullWindow, 'sus'>): string {
   return `${sharePct(win.sus)} of these marathons had a sustained slowdown.`;
 }
 
-/** The too-few state for a sex whose window near this half is not published, naming the range that has enough. */
-export function tooFewSentence(tool: HalfTool, group: 'F' | 'M'): string {
+/**
+ * The too-few state for a sex whose window near the typed half is not published, naming the range that has enough:
+ * "Too few recorded women’s marathons after a half near 1:25 to show; recorded women’s halves from 1:26 to 2:40 have
+ * enough." Without a half, "near this half".
+ */
+export function tooFewSentence(tool: HalfTool, group: 'F' | 'M', seconds?: number): string {
   const word = SEX_WORD[group];
-  return `Too few recorded ${word} pairs near this half to show; recorded ${word} halves from ${rangeText(tool, group)} have enough.`;
+  const near = seconds !== undefined && Number.isFinite(seconds) && seconds > 0 ? `a half near ${floorHM(Math.round(seconds / 60) * 60)}` : 'this half';
+  return `Too few recorded ${word} marathons after ${near} to show; recorded ${word} halves from ${rangeText(tool, group)} have enough.`;
+}
+
+/**
+ * The predictor's line for a half outside the panel's published range, where the 20K panel shows instead: "Marathons
+ * after a half are shown for halves from 1:10 to 2:45."
+ */
+export function outOfRangeSentence(range: { from: number; to: number }): string {
+  return `Marathons after a half are shown for halves from ${floorHM(range.from)} to ${floorHM(range.to)}.`;
 }
 
 /** How much slower per mile (or km) the typical marathon ran than its half: the extra over double ÷ the marathon distance. */
@@ -120,14 +142,18 @@ export function paceGapText(extraSeconds: number, units: UnitSystem): string {
 
 /**
  * A goal page's "The half before" lines (forward-consistent: H is the slowest published window whose median marathon is
- * under the goal, so the predictor at H shows a median under it and at H + 1 minute does not).
+ * under the goal, so the predictor at H shows a median under it and at H + 1 minute does not). The lead names the share
+ * of that window's marathons under the goal (its published mark at the goal), so the boundary reads as what it is, just
+ * over half, never as "a half near H makes the goal"; without that mark it says the typical marathon came in just under
+ * the goal. The sexes' line names each sex's own boundary as a full sentence.
  */
-export function goalLines(goal: HalfGoal): { lead: string; range: string; sexes: string | null; link: string } {
-  const H = floorHM(goal.all.h);
+export function goalLines(goal: HalfGoal, win?: Pick<HalfToFullWindow, 'h' | 'marks'> | null): { lead: string; range: string; sexes: string | null; link: string } {
+  const H = floorHM(goal.all.h), G = floorHM(goal.goal_s);
+  const mark = win && win.h === goal.all.h ? win.marks.find(([t]) => t === goal.goal_s) : undefined;
   return {
-    lead: `After a half near *${H}*, the typical marathon came in under ${floorHM(goal.goal_s)}.`,
+    lead: mark ? `After a half near *${H}*, ${sharePct(mark[1])} of marathons came in under ${G}.` : `After a half near *${H}*, the typical marathon came in just under ${G}.`,
     range: `8 in 10 took ${floorHM(goal.all.p10)} to ${floorHM(goal.all.p90)}.`,
-    sexes: goal.F && goal.M ? `Recorded women’s: near ${floorHM(goal.F.h)} · men’s: near ${floorHM(goal.M.h)}.` : null,
+    sexes: goal.F && goal.M ? `The typical recorded women’s marathon came in under ${G} after halves up to about ${floorHM(goal.F.h)}; the typical men’s, up to about ${floorHM(goal.M.h)}.` : null,
     link: `/tools/predictor?d=half&t=${H}:00`,
   };
 }

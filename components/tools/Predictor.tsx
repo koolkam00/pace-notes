@@ -16,6 +16,7 @@ import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
 import type { HalfGroup } from '@/lib/half-types';
+import { outOfRangeSentence } from '@/lib/tools/half-to-full';
 import { chunkLoadFailed, reloadAfterChunkError } from '@/lib/chunk-reload';
 import { trackFailure } from '@/lib/analytics';
 import { FinishStrip, fittingTicks, fmtShort, fmtTime, niceStep, qIndex } from './FinishStrip';
@@ -848,6 +849,8 @@ export default function Predictor({ indexSha, half = null }: { indexSha: string 
                   ? <LinkedPanel sha={half.sha} seconds={halfSeconds} group={group} onGroup={(g: HalfGroup) => setQ({ sx: SX_OF[g] })} />
                   : <LinkedPanelLoading />)
                 : <ObservedPanel indexSha={indexSha} proj={proj} est={est} looks={looks} units={units} />}
+              {/* A half outside the half panel's range reads the 20K panel; this line says why the half reading is not there. */}
+              {!linked && half && halfSeconds !== null ? <p className="tool-note predictor-half-range">{outOfRangeSentence(half)}</p> : null}
               {/* One way forward: the chapter's next card (the planner); Copy link sits on the card. */}
             </>
           ) : null}

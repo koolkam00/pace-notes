@@ -176,6 +176,10 @@
 .tool-note strong { color: var(--ink-2); font-weight: 600; }
 .tool-note a, .tool-panel-meta a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: .18em; }
 .tool-note a:hover, .tool-panel-meta a:hover { text-decoration-color: var(--ink); }
+/* A term in a panel's meta line keeps the term link's dotted underline (the goal pages' "records linked by name", as on
+   the story and the predictor's panel). */
+.tool-note .term-link, .tool-panel-meta .term-link { text-decoration-style: dotted; }
+.tool-note .term-link:hover, .tool-panel-meta .term-link:hover { text-decoration-style: solid; }
 .tool-state { margin: 0; padding: var(--s-4) 0; font-size: .9375rem; line-height: 1.5; color: var(--ink-3); }
 .tool-state.is-error { color: var(--signal-ink); }
 .tool-empty { margin: 0; padding: var(--s-4) 0; font-size: .9375rem; line-height: 1.55; color: var(--ink-2); }

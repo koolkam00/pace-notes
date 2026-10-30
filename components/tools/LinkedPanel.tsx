@@ -8,14 +8,14 @@ import { withEm } from '@/components/ui/withEm';
 import { Choice, DataState } from '@/components/tools/ui';
 import { loadHalf } from '@/lib/half';
 import type { HalfGroup, HalfTool } from '@/lib/half-types';
-import { HALF_TOOL_FILE, NOT_A_PREDICTION, floorHM, linkedSentence, slowdownSentence, tooFewSentence, windowFor } from '@/lib/tools/half-to-full';
+import { HALF_TOOL_FILE, LINKED_LINE, NOT_A_PREDICTION, floorHM, linkedSentence, slowdownSentence, tooFewSentence, windowFor } from '@/lib/tools/half-to-full';
 import { FinishStrip } from './FinishStrip';
 
 /** The term the sentence links at its first use on the page (/methodology#half-linking says what it is). */
 const LINKED = 'records linked by name';
 const SLOWDOWN = 'sustained slowdown';
 
-/** A tool sentence with its one *…* accent, and its first "records linked by name" linked to its definition. */
+/** A tool line with its one *…* accent, and its "records linked by name" linked to its definition. */
 function linkedText(text: string): ReactNode {
   const i = text.indexOf(LINKED);
   if (i < 0) return withEm(text);
@@ -72,12 +72,16 @@ export default function LinkedPanel({ sha, seconds, group, onGroup }: {
       <DataState error={error} loading={!error && !tool}>
         {tool && win ? (
           <>
-            <p className="tool-nugget-text" id="predictor-linked-title">{linkedText(linkedSentence(win, tool.Q))}</p>
+            <p className="tool-nugget-text" id="predictor-linked-title">{withEm(linkedSentence(win, tool.Q))}</p>
+            <p className="tool-panel-meta">{linkedText(LINKED_LINE)}</p>
             <FinishStrip q={win.q} Q={tool.Q} marks={win.marks.map(([s, share]) => ({ s, share }))} format={floorHM} />
             <p className="predictor-linked-sus">{slowdownText(slowdownSentence(win))}</p>
           </>
         ) : tool ? (
-          <p className="tool-state" id="predictor-linked-title">{group === 'all' ? 'Too few pairs near this half to show.' : tooFewSentence(tool, group)}</p>
+          <>
+            <p className="tool-state" id="predictor-linked-title">{group === 'all' ? `Too few marathons after a half near ${floorHM(Math.round(seconds / 60) * 60)} to show.` : tooFewSentence(tool, group, seconds)}</p>
+            <p className="tool-panel-meta">{linkedText(LINKED_LINE)}</p>
+          </>
         ) : null}
       </DataState>
       {error ? (

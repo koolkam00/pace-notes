@@ -79,6 +79,11 @@
 .predictor-strip svg .predictor-marker { font-size: 12px; font-weight: 600; }
 .predictor-strip svg .predictor-marker.is-median { fill: var(--ink); }
 .predictor-strip svg .predictor-marker.is-est { fill: var(--ink); }
+/* The half panel's mark nearest the median: its flag in the signal ink, as the bars under it are the signal. */
+.predictor-strip svg .predictor-marker.is-signal { fill: var(--signal-ink); }
+/* Where the flags would cross another mark's line (a phone at 200% zoom), the shares go to one line under the strip. */
+.predictor-strip-key { display: flex; flex-wrap: wrap; gap: 2px var(--s-4); margin: var(--s-2) 0 0; font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--ink); font-variant-numeric: tabular-nums; }
+.predictor-strip-key .is-signal { color: var(--signal-ink); }
 .predictor-retry { justify-self: start; }
 
 /* A half-typed finish time keeps the last result on screen, dimmed, until the time reads again. */
