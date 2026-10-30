@@ -7,7 +7,11 @@
 // missing, changed, oversized or orphaned card, so a served image never shows numbers the adopted release does not.
 // `--captions` writes docs/CHARTS_INSTAGRAM.md, a caption per chart for the series.
 //
-//   node scripts/build-chart-cards.cjs [--check] [--force] [--only 12] [--captions]
+// `--set half` works on the four unnumbered "From the half" cards instead (scripts/half/card-images.cjs): the same
+// card, size and stamp scheme, in public/charts/cards/half-<…>.png. Each set checks only its own files; a file neither
+// set owns is an orphan of the default set. `--captions` appends the half cards' captions under their own heading.
+//
+//   node scripts/build-chart-cards.cjs [--set half] [--check] [--force] [--only 12|slug] [--captions]
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), Module = require('node:module');
 const { createHash } = require('node:crypto');
 const { stampPng, readPng } = require('./lib/png-stamp.cjs');
@@ -81,24 +85,45 @@ function stampOf({ item, file, words }, code) {
   return { chart: item.number, slug: item.slug, title: words.title, hash: sha([code, data, words.title, words.headline].join('\n')).slice(0, 20) };
 }
 
-function check() {
-  const code = codeHash();
+/** The half cards' files (scripts/half/card-images.cjs); every other file in the folder belongs to the Top 100. */
+const isHalfCard = (f) => f.startsWith('half-');
+
+/** The Top 100 as a card set: one card per catalog row, `<number>.png`. */
+function topSet() {
+  return {
+    name: 'top100', label: 'chart cards', owns: (f) => !isHalfCard(f), orphan: 'no chart has this number', code: codeHash,
+    items: () => CATALOG.filter((item) => !previewDir || fs.existsSync(path.join(previewDir, `${item.slug}.json`)))
+      .map((item) => ({ id: item.number, slug: item.slug, file: previewDir ? `${item.number}-${item.slug}.png` : `${item.number}.png`, inputs: cardInputs(item) })),
+    html: cardHtml, stamp: stampOf, title: (inputs) => inputs.words.title,
+  };
+}
+
+/** The four unnumbered half cards as a card set (loaded only with --set half, so the Top 100 never reads half data). */
+function halfSet() {
+  const set = require('./half/card-images.cjs')({ React, renderToStaticMarkup, ChartCard, accent, frame: STYLE, root: ROOT, sha, topCode: codeHash });
+  return { ...set, label: 'half cards', owns: isHalfCard, orphan: 'no half card has this name', title: (inputs) => inputs.words.title,
+    items: () => set.items().map((it) => ({ ...it, slug: it.id })) };
+}
+
+function check(set) {
+  const code = set.code();
   const problems = [];
-  const wanted = new Set(CATALOG.map((c) => `${c.number}.png`));
-  for (const item of CATALOG) {
-    const target = path.join(OUT, `${item.number}.png`);
-    if (!fs.existsSync(target)) { problems.push(`missing  ${item.number}.png (${item.slug})`); continue; }
+  const items = set.items();
+  const wanted = new Set(items.map((it) => it.file));
+  for (const it of items) {
+    const target = path.join(OUT, it.file);
+    if (!fs.existsSync(target)) { problems.push(`missing  ${it.file} (${it.slug})`); continue; }
     const bytes = fs.readFileSync(target);
     let info;
-    try { info = readPng(bytes, KEY); } catch (error) { problems.push(`invalid  ${item.number}.png: ${error.message}`); continue; }
-    if (info.width !== WIDTH || info.height !== HEIGHT) problems.push(`size     ${item.number}.png is ${info.width}x${info.height}`);
-    if (bytes.length > MAX_BYTES) problems.push(`too big  ${item.number}.png is ${(bytes.length / 1024).toFixed(1)} KB`);
-    const expected = stampOf(cardInputs(item), code);
-    if (!info.stamp || info.stamp.hash !== expected.hash) problems.push(`changed  ${item.number}.png: ${info.stamp ? `was "${info.stamp.title}"` : 'no stamp'}, now "${expected.title}"`);
+    try { info = readPng(bytes, KEY); } catch (error) { problems.push(`invalid  ${it.file}: ${error.message}`); continue; }
+    if (info.width !== WIDTH || info.height !== HEIGHT) problems.push(`size     ${it.file} is ${info.width}x${info.height}`);
+    if (bytes.length > MAX_BYTES) problems.push(`too big  ${it.file} is ${(bytes.length / 1024).toFixed(1)} KB`);
+    const expected = set.stamp(it.inputs, code);
+    if (!info.stamp || info.stamp.hash !== expected.hash) problems.push(`changed  ${it.file}: ${info.stamp ? `was "${info.stamp.title}"` : 'no stamp'}, now "${expected.title}"`);
   }
-  const orphans = fs.existsSync(OUT) ? fs.readdirSync(OUT).filter((f) => !wanted.has(f)) : [];
-  for (const f of orphans) problems.push(`orphan   ${f} (no chart has this number; delete it)`);
-  return problems;
+  const orphans = fs.existsSync(OUT) ? fs.readdirSync(OUT).filter((f) => set.owns(f) && !wanted.has(f)) : [];
+  for (const f of orphans) problems.push(`orphan   ${f} (${set.orphan}; delete it)`);
+  return { problems, count: items.length };
 }
 
 function loadPlaywright() {
@@ -108,33 +133,32 @@ function loadPlaywright() {
   throw new Error('Playwright is not installed. Install it outside the project (npm i -g playwright && npx playwright install chromium) or set NODE_PATH, then re-run.');
 }
 
-async function render({ force, only, out = OUT }) {
+async function render(set, { force, only, out = OUT }) {
   const { chromium } = loadPlaywright();
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: CSS_W, height: CSS_H }, deviceScaleFactor: SCALE });
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pace-notes-chart-card-'));
-  const code = codeHash();
+  const code = set.code();
   fs.mkdirSync(out, { recursive: true });
   const results = [];
   try {
-    for (const item of CATALOG) {
-      if (only && !only.split(',').some((o) => o === String(item.number) || o === item.slug)) continue;
-      if (previewDir && !fs.existsSync(path.join(previewDir, `${item.slug}.json`))) continue;
-      const inputs = cardInputs(item);
-      const target = path.join(out, previewDir ? `${item.number}-${item.slug}.png` : `${item.number}.png`);
-      const expected = stampOf(inputs, code);
+    for (const it of set.items()) {
+      if (only && !only.split(',').some((o) => o === String(it.id) || o === it.slug)) continue;
+      const { inputs } = it;
+      const target = path.join(out, it.file);
+      const expected = set.stamp(inputs, code);
       if (!force && fs.existsSync(target)) {
-        try { if (readPng(fs.readFileSync(target), KEY).stamp?.hash === expected.hash) { results.push({ chart: item.number, skipped: true }); continue; } } catch { /* re-render */ }
+        try { if (readPng(fs.readFileSync(target), KEY).stamp?.hash === expected.hash) { results.push({ chart: it.id, skipped: true }); continue; } } catch { /* re-render */ }
       }
       const htmlFile = path.join(temp, 'card.html');
       // Pass 1: the card without its plot, to measure the height the plot may take.
-      fs.writeFileSync(htmlFile, cardHtml(inputs, undefined).replace(/<svg class="cx"[\s\S]*<\/svg>/, ''));
+      fs.writeFileSync(htmlFile, set.html(inputs, undefined).replace(/<svg class="cx"[\s\S]*<\/svg>/, ''));
       await page.goto('file://' + htmlFile, { waitUntil: 'load' });
       await page.evaluate(() => document.fonts.ready);
       const box = await page.evaluate(() => { const r = document.querySelector('.chart-card-plot').getBoundingClientRect(); return { w: r.width, h: r.height }; });
       const fit = Math.floor(((box.h - 2) * 340) / box.w);
       // Pass 2: the chart laid out to fill it.
-      fs.writeFileSync(htmlFile, cardHtml(inputs, fit));
+      fs.writeFileSync(htmlFile, set.html(inputs, fit));
       await page.goto('file://' + htmlFile, { waitUntil: 'load' });
       await page.evaluate(() => document.fonts.ready);
       const m = await page.evaluate(() => {
@@ -144,14 +168,14 @@ async function render({ force, only, out = OUT }) {
         return { title: lines(document.querySelector('.chart-card-title')), take: lines(document.querySelector('.chart-card-take')), over: card.scrollHeight - card.clientHeight,
           svg: svg.getBoundingClientRect().height, plot: plot.getBoundingClientRect().height, faces };
       });
-      for (const face of ['Inter Variable', 'Fraunces Variable']) if (!m.faces.includes(face)) throw new Error(`${item.number}: the ${face} font did not load`);
-      if (m.title > 2) throw new Error(`${item.number}: the title "${inputs.words.title}" takes ${m.title} lines on the card (at most 2); shorten it.`);
-      if (m.take > 3) throw new Error(`${item.number}: the takeaway takes ${m.take} lines on the card (at most 3); shorten it.`);
-      if (m.over > 0 || m.svg > m.plot + 1) throw new Error(`${item.number}: the chart is ${Math.round(m.svg)} px tall in a ${Math.round(m.plot)} px plot; it needs fewer rows or a shorter spec.`);
+      for (const face of ['Inter Variable', 'Fraunces Variable']) if (!m.faces.includes(face)) throw new Error(`${it.id}: the ${face} font did not load`);
+      if (m.title > 2) throw new Error(`${it.id}: the title "${set.title(inputs)}" takes ${m.title} lines on the card (at most 2); shorten it.`);
+      if (m.take > 3) throw new Error(`${it.id}: the takeaway takes ${m.take} lines on the card (at most 3); shorten it.`);
+      if (m.over > 0 || m.svg > m.plot + 1) throw new Error(`${it.id}: the chart is ${Math.round(m.svg)} px tall in a ${Math.round(m.plot)} px plot; it needs fewer rows or a shorter spec.`);
       const png = stampPng(await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: CSS_W, height: CSS_H } }), KEY, expected);
-      if (png.length > MAX_BYTES) throw new Error(`${item.number}: ${(png.length / 1024).toFixed(1)} KB is over the ${MAX_BYTES / 1024} KB limit.`);
+      if (png.length > MAX_BYTES) throw new Error(`${it.id}: ${(png.length / 1024).toFixed(1)} KB is over the ${MAX_BYTES / 1024} KB limit.`);
       fs.writeFileSync(target, png);
-      results.push({ chart: item.number, bytes: png.length, fit });
+      results.push({ chart: it.id, bytes: png.length, fit });
     }
   } finally {
     await browser.close();
@@ -166,32 +190,39 @@ function captions() {
     const { words } = cardInputs(item);
     lines.push(`## ${item.number}. ${words.title}`, '', `${words.plain}`, '', `Chart ${item.number} of ${CATALOG.length} from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/${item.number}`, '');
   }
-  fs.writeFileSync(path.join(ROOT, 'docs/CHARTS_INSTAGRAM.md'), lines.join('\n'));
-  console.log(`docs/CHARTS_INSTAGRAM.md: ${CATALOG.length} captions`);
+  const half = halfSet().captions();
+  fs.writeFileSync(path.join(ROOT, 'docs/CHARTS_INSTAGRAM.md'), lines.concat(half).join('\n'));
+  console.log(`docs/CHARTS_INSTAGRAM.md: ${CATALOG.length} captions${half.length ? ' and the half cards' : ''}`);
 }
 
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes('--captions')) return captions();
+  const si = args.indexOf('--set');
+  const setName = si >= 0 ? args[si + 1] : 'top100';
+  if (!['top100', 'half'].includes(setName)) throw new Error(`Unknown card set "${setName}" (top100 or half).`);
   const pv = args.indexOf('--preview');
   if (pv >= 0) {
-    // node scripts/build-chart-cards.cjs --preview <charts folder> <out folder> [--only slug,slug]
+    // node scripts/build-chart-cards.cjs --preview <charts folder> <out folder> [--only slug,slug] (the Top 100 only)
+    if (setName !== 'top100') throw new Error('--preview draws Top 100 charts from a folder; the half cards render from public/data/half.');
     previewDir = path.resolve(args[pv + 1]);
     const at = args.indexOf('--only');
-    const results = await render({ force: true, only: at >= 0 ? args[at + 1] : null, out: path.resolve(args[pv + 2]) });
+    const results = await render(topSet(), { force: true, only: at >= 0 ? args[at + 1] : null, out: path.resolve(args[pv + 2]) });
     for (const r of results) console.log(JSON.stringify(r));
     return;
   }
+  const set = setName === 'half' ? halfSet() : topSet();
+  const run = set.name === 'half' ? 'node scripts/build-chart-cards.cjs --set half' : 'node scripts/build-chart-cards.cjs';
   if (args.includes('--check')) {
-    const problems = check();
-    if (problems.length) { console.error(problems.join('\n')); console.error(`\n${problems.length} card problem(s). Run: node scripts/build-chart-cards.cjs`); process.exit(1); }
-    console.log(`chart cards: ${CATALOG.length} current`);
+    const { problems, count } = check(set);
+    if (problems.length) { console.error(problems.join('\n')); console.error(`\n${problems.length} card problem(s). Run: ${run}`); process.exit(1); }
+    console.log(`${set.label}: ${count} current`);
     return;
   }
   const at = args.indexOf('--only');
-  const results = await render({ force: args.includes('--force'), only: at >= 0 ? args[at + 1] : null });
+  const results = await render(set, { force: args.includes('--force'), only: at >= 0 ? args[at + 1] : null });
   for (const r of results) console.log(JSON.stringify(r));
-  const problems = check();
+  const { problems } = check(set);
   if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
 }
 
