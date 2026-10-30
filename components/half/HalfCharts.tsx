@@ -212,7 +212,8 @@ export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, heigh
   const placed = placeLabels(items, { height, boxes: gridBoxes, avoid: [...marks.map((m) => ({ x: x(m.x), y: y(m.y), r: 7 })), ...along] });
   const plot = (
     <Plot>
-      <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side="left" />
+      {/* Below 240 px of plot (200% zoom) the gridline labels give way: the round times' own shares name the scale. */}
+      <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label, className: 'w240' }))} side="left" />
       <g>
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
           <path className="l-ink" d={linePath(pts)} />
