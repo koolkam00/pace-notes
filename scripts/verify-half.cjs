@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
-// Layer 1 of the half-marathon verification (docs/HALF_MARATHON.md; spec 1.6). CI cannot read the private half
-// snapshot or its links, so this checks what it can from the repository alone, without importing the Python builders:
+// Layer 1 of the half-marathon verification (docs/HALF_MARATHON.md; spec 1.6). It runs from the repository alone, without
+// the half snapshot or its links (the owner's public releases, which the workflow's `source` job and the local source
+// recount read) and without importing the Python builders:
 //
 //   1. Provenance: the manifest against the pin (analysis/half-release.json), the adopted marathon release, the runner
 //      manifest, the weather evidence and the cited marathon files; every builder script's sha (a changed builder
@@ -13,13 +14,13 @@
 //      bins, the quantiles against their bins, the densest 30 minutes, the round marks (the smooth curve refitted in
 //      Node within 0.05), the women's band medians and crossing, the same-city shares, and the marathon side of every
 //      same-city pair recounted from the public runner shards (scripts/charts/cohort.cjs) under the charts' sex rule.
-//   4. Consistency of the linked aggregates (their source is private): floors, monotone quantiles, mark shares inside
+//   4. Consistency of the linked aggregates (their source rows are not in the repository): floors, monotone quantiles, mark shares inside
 //      the bounds their quantile levels allow, exact share fractions, contiguous ranges, edge slices, sexes summing to
 //      all, the goal rows recomputed from the windows with clean crossings, the battery against the checks, the tool
 //      file equal to linked.json window for window, the cards equal to their sources.
 //   5. The source-recount receipt (docs/evidence/half/source-recount.json, written by scripts/verify-half-source.cjs
-//      from the private files): status pass, no mismatches, and bound to the current manifest, recount scripts, half
-//      snapshot, links extract, runner manifest and policy. A rebuild or a changed recount without a fresh local recount
+//      from the source files): status pass, no mismatches, and bound to the current manifest, recount scripts, half
+//      snapshot, links extract, corrected metadata, runner manifest and policy. A rebuild or a changed recount without a fresh local recount
 //      fails.
 //   6. `--html` (after `npm run build`): the scope chip and status words (spec 9), the reading links, "records linked by
 //      name" as a term link, "Not a prediction.", and every /methodology#half-* anchor.
@@ -528,7 +529,7 @@ const withdrawnCards = [];
     for (const [k, v] of Object.entries(T.goalLines(goal, at))) if (v && k !== 'link') texts.push([`goal ${goal.goal_s} ${k}`, v]);
   }
   texts.push(['not a prediction', T.NOT_A_PREDICTION]);
-  // The words of the four "From the half" cards (lib/charts/text/half.ts), held to the Top 100's card rules: the guard
+  // The words of the "From the half" cards (lib/charts/text/half.ts), held to the Top 100's card rules: the guard
   // holds for this build, titles fit 47 characters, one accent, a takeaway of at most 150 characters; a card of records
   // linked by name says so (and its footer carries the chip, scripts/half/card-images.cjs); a verified card does not.
   // A card whose takeaway's guard fails for this build is withdrawn, never drawn with words its page has fallen back

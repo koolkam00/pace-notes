@@ -1,7 +1,8 @@
 """Tests for the half-marathon builders (spec 7.1): the record and edition rules, set B, the windows, the floors and
-determinism, on synthetic sources built in a temp folder; and, when the private sources are on this machine
-(PACE_HALF_DIR holds platform_half.sqlite and links-slim.sqlite), the frozen policy lists recomputed from the real
-snapshot. Run: python -m unittest discover -s analysis -p 'test_half.py'
+determinism, the stamp correction, the anonymous downloader and the links extract, on synthetic sources built in a temp
+folder; and, when the owner's public sources are on this machine (PACE_HALF_DIR holds platform_half.sqlite,
+links-slim.sqlite and the corrected metadata) and PACE_HALF_SOURCE_TESTS=1, the frozen policy lists and stamps
+recomputed from the real snapshot. Run: python3 -I -m unittest discover -s analysis -p 'test_half.py'
 """
 from __future__ import annotations
 
@@ -713,7 +714,7 @@ class DownloadHalf(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def parts(self, name='half-20990101-0000.sqlite.zst'):
+    def parts(self, name='half-20990101-0000.sqlite.zst', wal=False):
         """A tiny SQLite, compressed with zstd and split into two parts; returns (sqlite sha, {part: sha})."""
         import shutil
         import subprocess
@@ -721,6 +722,8 @@ class DownloadHalf(unittest.TestCase):
             self.skipTest('the zstd command is not installed')
         db = self.folder / 'source.sqlite'
         con = sqlite3.connect(db)
+        if wal:   # the links release is a WAL-mode SQLite: reading it leaves -wal and -shm files beside it
+            con.execute('PRAGMA journal_mode=WAL')
         con.executescript('CREATE TABLE t (x INTEGER); ' + ' '.join(f'INSERT INTO t VALUES ({i});' for i in range(500)))
         con.commit()
         con.close()
@@ -792,6 +795,13 @@ class DownloadHalf(unittest.TestCase):
         record = self.dh.place(spec, {n: self.folder / n for n in shas}, out, downloaded=True, keep_links_sqlite=False, replace=False)
         self.assertEqual(record['parts'], 'downloaded, verified and deleted')
         self.assertFalse(any((self.folder / n).exists() for n in shas))
+
+    def test_reassembly_leaves_no_sqlite_sidecar_files(self):
+        sqlite_sha, shas = self.parts(wal=True)
+        out = self.folder / 'out'
+        out.mkdir()
+        self.assertEqual(self.dh.reassemble([self.folder / n for n in sorted(shas)], out / 'links.sqlite', sqlite_sha), sqlite_sha)
+        self.assertEqual(sorted(p.name for p in out.iterdir()), ['links.sqlite'], 'no -wal or -shm file is left beside it')
 
     def test_one_folder_holds_the_half_and_the_links(self):
         a, b = 'a' * 64, 'b' * 64

@@ -8,8 +8,8 @@
  "manifest_sha256": "1abffacb376bac34655e8adb29dbdb8ffa68585a43042b4d9ccdedcaea37791d",
  "verify_half_source_sha256": "81a8603f84a742bd26c85d9c67a90a052d300dc8b00bd0ba2b04c56f2223563e",
  "recount_scripts": {
-  "scripts/half/derive.cjs": "15c8885eeff04eaddbcb8530e9a32a51b04b5992d8e5243eb25744f03cddd71c",
-  "scripts/half/families.cjs": "68d6218910b03ce8b800d2cfb206c7472ec9c4a4cbabf6da9736d4aae3dfbfbb",
+  "scripts/half/derive.cjs": "59d0983679b39263b6e21ee8dba2584419f59882bbb57502f0e5e045e40d4aed",
+  "scripts/half/families.cjs": "318a5fa0d034ba488e2b0d0cd9ecd942963489a4ecbbd357d246902d15de73c3",
   "scripts/half/marathon.cjs": "0099e408bf084446f6fc60d91b362d5f761111128c9d5bb14b2de7aab08c5a4d",
   "scripts/half/policy.cjs": "c125e84c3f590dd72a5efe6e9ceeaa2399a4b76ceca2c15d773404dc816bd981",
   "scripts/verify-half-source.cjs": "81a8603f84a742bd26c85d9c67a90a052d300dc8b00bd0ba2b04c56f2223563e"

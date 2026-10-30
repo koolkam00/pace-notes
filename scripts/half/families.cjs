@@ -1,5 +1,5 @@
 'use strict';
-// The published half families rebuilt from the private sources for the source recount (scripts/verify-half-source.cjs),
+// The published half families rebuilt from the source files for the source recount (scripts/verify-half-source.cjs),
 // independently of the Python builders (analysis/half_field.py, half_women.py, half_linked.py, half_cards.py): each
 // function takes the recount's own arrays and returns the file in its published shape, so the recount compares them
 // value for value. The whole-edition bootstrap of the round-mark intervals is Python-only (numpy's generator); the

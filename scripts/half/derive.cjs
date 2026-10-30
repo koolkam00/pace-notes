@@ -1,6 +1,6 @@
 'use strict';
 // Pure derivations for the half-marathon checks (docs/HALF_MARATHON.md), shared by scripts/verify-half.cjs (layer 1,
-// from the published aggregates), scripts/verify-half-source.cjs (layer 2, from the private sources),
+// from the published aggregates), scripts/verify-half-source.cjs (layer 2, from the source files),
 // scripts/nuggets/half.cjs (the nugget recount) and scripts/verify-tools.cjs (the half panels). Nothing here reads a
 // file: every function takes values and returns values.
 //

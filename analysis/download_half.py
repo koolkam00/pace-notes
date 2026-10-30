@@ -149,6 +149,12 @@ def integrity_ok(path: Path) -> bool:
         con.close()
 
 
+def remove_sidecars(path: Path) -> None:
+    """The -wal and -shm files a read of a WAL-mode SQLite leaves beside it (the links release is one)."""
+    for suffix in ('-wal', '-shm'):
+        path.with_name(path.name + suffix).unlink(missing_ok=True)
+
+
 def reassemble(parts: list[Path], target: Path, expected_sha256: str | None) -> str:
     """Stream the parts in order through `zstd -d` into `target`, check integrity and the digest; return the digest."""
     if shutil.which('zstd') is None:
@@ -171,10 +177,12 @@ def reassemble(parts: list[Path], target: Path, expected_sha256: str | None) -> 
         digest = file_sha256(tmp)
         if expected_sha256 is not None and digest != expected_sha256:
             fail(f'{target.name}: the decompressed file is not the pinned one (sha256 {digest})')
+        remove_sidecars(tmp)
         os.replace(tmp, target)
         return digest
     finally:
         tmp.unlink(missing_ok=True)
+        remove_sidecars(tmp)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -283,6 +291,7 @@ def place(spec: dict, assets: dict[str, Path], out: Path, *, downloaded: bool, k
         if code:
             fail('the links extract differs from the pin')
         record['extract'] = {'file': 'links-slim.sqlite', 'extract_content_sha256': load_pin()['links']['extract_content_sha256']}
+        remove_sidecars(target)
         if not keep_links_sqlite:
             target.unlink()
             record['links_sqlite'] = 'deleted after the extract was cut'
