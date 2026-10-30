@@ -51,7 +51,7 @@ Analytics (`lib/analytics-policy.ts`) records `/charts` and `/charts/1` … `/ch
 
 ## From the half cards
 
-Four cards outside the hundred, from the half-marathon pages ([half marathons](HALF_MARATHON.md); owner decision Q11, October 2026). They use the same `ChartCard`, size, frame and stamp scheme, but they are not in `lib/charts/catalog.json`, so `CHART_COUNT` stays 100 and the numbered series is untouched:
+Four cards outside the hundred, from the half-marathon pages ([half marathons](HALF_MARATHON.md); owner question Q11 at its default, October 2026). They use the same `ChartCard`, size, frame and stamp scheme, but they are not in `lib/charts/catalog.json`, so `CHART_COUNT` stays 100 and the numbered series is untouched:
 
 | Card | Page | Scope | Draws |
 | --- | --- | --- | --- |
