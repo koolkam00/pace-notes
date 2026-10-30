@@ -3,9 +3,9 @@ import path from 'node:path';
 import type { ReactNode } from 'react';
 import ChartFrame, { type KeyItem } from '@/components/viz/ChartFrame';
 import Axis from '@/components/viz/Axis';
-import Plot, { Baseline, Gridlines, RefLine } from '@/components/viz/Plot';
+import Plot, { Baseline, Gridlines } from '@/components/viz/Plot';
 import Annotation from '@/components/viz/Annotation';
-import { REF_WIDTH, placeLabels, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
+import { REF_WIDTH, placeLabels, textWidth, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
 import { linePath, linear, pc, stepEdge, stepPath, yScale } from '@/components/viz/scale';
 import { hm } from '@/lib/nuggets/format';
 import type { HalfField, HalfRoundMark } from '@/lib/half-types';
@@ -23,7 +23,7 @@ type Bin = { m: number; n: number };
 /**
  * The reading's instrument on /half: every whole minute of verified half finishes from 1:05 to 3:29 as one silhouette,
  * the minutes under `mark` (2:00) in the signal tone and named with their share, the rest quiet; the two tails drawn as
- * one bar each past a one-minute gap ("Under 1:05", "3:30+"). Ticks every 15 minutes where they fit (every 30 on a
+ * one bar each past a one-minute gap ("<1:05", "3:30+"). Ticks every 15 minutes where they fit (every 30 on a
  * phone).
  */
 export function FieldHistogram({ field, mark, share, label, height = 120, heightMd = 170 }: {
@@ -61,7 +61,8 @@ export function FieldHistogram({ field, mark, share, label, height = 120, height
   const ticks = [
     ...Array.from({ length: Math.floor((hi - 75) / 15) + 1 }, (_, i) => 75 + i * 15).filter((m) => m < hi)
       .map((m) => ({ x: x(m), label: hm(m), priority: m % 30 === 0 ? 3 : 1 })),
-    { x: x(lo - 1.5), label: `Under ${hm(lo)}`, priority: 2 },
+    // The tails in a short, matched pair, so both keep their names on a phone (a long "Under 1:05" lost its own there).
+    { x: x(lo - 1.5), label: `<${hm(lo)}`, priority: 2 },
     { x: x(hi + 1.5), label: `${hm(hi)}+`, priority: 2 },
   ];
   return <ChartFrame className="half-histogram" label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis ticks={ticks} />} />;
@@ -69,29 +70,37 @@ export function FieldHistogram({ field, mark, share, label, height = 120, height
 
 /**
  * /half's round times: for each mark, the minute before it against the smooth curve, as a column standing on the curve's
- * own line (1×) up to its ratio, with its interval as a whisker. The mark the sentence names is the signal, the one the
- * dek names with it ink, the rest quiet. Each column carries its ratio.
+ * own line (1×, the plot's foot, so the times sit right under their columns) up to its ratio, with its interval as a
+ * whisker. The mark the sentence names is the signal, one the dek names with it a step up from quiet (the mid tone, so
+ * the signal reads first in both themes), the rest quiet. Each column carries its ratio over its whisker; below 240 px
+ * (200% zoom) only the signal's and the named ones' do, and the first column's turns to start at its left edge. The key
+ * says what the foot is. The figure keeps a column's width at any screen, so it is capped on a wide one.
  */
 export function RatioColumns({ marks, signal, ink, label, values }: {
   marks: HalfRoundMark[]; signal: number; ink: number[]; label: string; values?: ReactNode;
 }) {
-  const height = 190;
+  const height = 170;
   const top = Math.max(...marks.map((m) => m.ratio_ci95[1]));
-  // The 1× line sits above the plot's foot, so its name reads under it, clear of the columns that stand on it.
-  const y = yScale(0.94, top, { top: 0.2 });
+  const y = yScale(1, top, { top: 0.22 });
   const x = linear([0, marks.length]);
   const base = y(1);
-  const tone = (m: HalfRoundMark) => (m.minutes === signal ? 'signal' : ink.includes(m.minutes) ? 'ink' : 'quiet');
-  const items: LabelItem[] = marks.map((m, i) => ({
-    id: m.mark, text: `${m.ratio.toFixed(2)}×`, x: x(i + 0.5), y: y(m.ratio_ci95[1]), priority: tone(m) === 'signal' ? 3 : 2,
-    tone: tone(m) === 'signal' ? 'signal' : tone(m) === 'quiet' ? 'quiet' : 'ink', size: tone(m) === 'signal' ? 14 : 13, gap: 6, prefer: 'above',
-  }));
-  const placed = placeLabels(items, { height, boxes: marks.map((m, i) => ({ x0: x(i + 0.5) - 12 / 288, x1: x(i + 0.5) + 12 / 288, y0: y(m.ratio_ci95[1]), y1: base })) });
+  const tone = (m: HalfRoundMark) => (m.minutes === signal ? 'signal' : ink.includes(m.minutes) ? 'named' : 'quiet');
+  // Each column's ratio over its whisker, placed by hand (each in its own column): at the plot's left and right ends the
+  // label turns to the column's outer edge, so it never leaves the plot at any width.
+  const labels: PlacedLabel[] = marks.map((m, i) => {
+    const t = tone(m);
+    const anchor = i === 0 ? 'start' as const : i === marks.length - 1 ? 'end' as const : 'middle' as const;
+    return {
+      id: m.mark, text: `${m.ratio.toFixed(2)}×`, x: x(i + 0.5), y: y(m.ratio_ci95[1]), priority: t === 'quiet' ? 1 : 3,
+      tone: t === 'signal' ? 'signal' : t === 'quiet' ? 'quiet' : 'ink', size: t === 'signal' ? 14 : 13,
+      anchor, dx: anchor === 'start' ? -11 : anchor === 'end' ? 11 : 0, dy: -8, minWidth: t === 'quiet' ? 240 : 0,
+    };
+  });
   const plot = (
     <Plot>
       {marks.map((m, i) => {
         const t = tone(m);
-        const cls = t === 'signal' ? 'm-signal' : t === 'ink' ? 'm-ink' : 'm-quiet';
+        const cls = t === 'signal' ? 'm-signal' : t === 'named' ? 'm-context' : 'm-quiet';
         const cx = pc(x(i + 0.5));
         return (
           <g key={m.mark} className={`column ${cls}`}>
@@ -105,15 +114,14 @@ export function RatioColumns({ marks, signal, ink, label, values }: {
           </g>
         );
       })}
-      <RefLine y={base} label="The curve" below side="left" />
-      <Annotation labels={placed} />
+      <Baseline />
+      <Annotation labels={labels} />
     </Plot>
   );
-  // The columns are named by the H2 and their axis; the key names only the whisker (a single swatch for three tones of
-  // column read as one of them).
-  const keys: KeyItem[] = [{ label: '95% interval', mark: 'line' }];
+  // The columns are named by the H2 and their axis; the key says what they stand on and names the whisker.
+  const keys: KeyItem[] = [{ label: 'Each column rises from the smooth curve, 1×', mark: 'none' }, { label: '95% interval', mark: 'line' }];
   return (
-    <ChartFrame className="columns half-ratio" label={label} height={height} heightMd={230} plot={plot}
+    <ChartFrame className="columns half-ratio" label={label} height={height} heightMd={210} plot={plot}
       axis={<Axis ticks={marks.map((m, i) => ({ x: x(i + 0.5), label: m.mark, priority: tone(m) === 'signal' ? 4 : 2 }))} />}
       keys={keys} values={values} />
   );
@@ -121,9 +129,11 @@ export function RatioColumns({ marks, signal, ink, label, values }: {
 
 /**
  * /half's women's share by finish band: one column per 15-minute band on a zero baseline, the 50% rule named on the
- * left (where the early bands stand short of it), the band the sentence names in signal, the later ones ink, the
- * earlier ones quiet. The ticks sit on the band edges, as a histogram's do, so the first column reads as under 1:30 and
- * the last as 3:00 and over. The first, the signal and the last columns carry their values.
+ * left (where the early bands stand short of it), the band the sentence names in signal, the later ones (also over
+ * half) a step up from quiet in the mid tone, so the one signal reads first in both themes, the earlier ones quiet. The
+ * ticks sit on the band edges, as a histogram's do, so the first column reads as under 1:30 and the last as 3:00 and
+ * over. The first, the signal and the last columns carry their values at every width, the end ones turned to their
+ * column's outer edge. Below 240 px (200% zoom) the columns narrow to 16 px, so eight keep a gap between them.
  */
 export function ShareColumns({ bands, shares, signal, label, format, values }: {
   bands: { lo_s: number; hi_s: number | null; label: string }[]; shares: number[]; signal: number; label: string;
@@ -132,33 +142,40 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
   const height = 190;
   const y = yScale(0, Math.max(0.75, Math.ceil(Math.max(...shares) * 10) / 10), { top: 0.14 });
   const x = linear([0, bands.length]);
-  const tone = (i: number) => (i === signal ? 'signal' : i > signal ? 'ink' : 'quiet');
-  const named = new Set([0, signal, bands.length - 1]);
-  const items: LabelItem[] = shares.flatMap((s, i) => (named.has(i) ? [{
-    id: `b${i}`, text: format(s), x: x(i + 0.5), y: y(s), priority: i === signal ? 3 : 2, tone: i === signal ? 'signal' as const : 'ink' as const,
-    size: i === signal ? 14 : 13, gap: 6, prefer: 'above' as const,
-  }] : []));
+  const tone = (i: number) => (i === signal ? 'signal' : i > signal ? 'over' : 'quiet');
+  const last = bands.length - 1;
+  const labels: PlacedLabel[] = [0, signal, last].filter((i, k, a) => a.indexOf(i) === k).map((i) => {
+    const anchor = i === 0 ? 'start' as const : i === last ? 'end' as const : 'middle' as const;
+    return {
+      id: `b${i}`, text: format(shares[i]), x: x(i + 0.5), y: y(shares[i]), priority: 3, tone: i === signal ? 'signal' as const : 'ink' as const,
+      size: i === signal ? 14 : 13, anchor, dx: anchor === 'start' ? -11 : anchor === 'end' ? 11 : 0, dy: -7, minWidth: 0,
+    };
+  });
   const half = y(0.5);
-  // The 50% rule's name is the gridline's own label at its left end, where the early bands stand short of it; the
-  // values keep clear of its box.
-  const ruleBox = { x0: 0, x1: 34 / 288, y0: half - 20 / height, y1: half };
-  const placed = placeLabels(items, { height, boxes: [ruleBox, ...shares.map((s, i) => ({ x0: x(i + 0.5) - 12 / 288, x1: x(i + 0.5) + 12 / 288, y0: y(s), y1: 1 }))] });
+  const bar = (i: number, s: number, w: number, cls: string) => {
+    const h = Math.max(0.004, 1 - y(s));
+    return (
+      <g key={`${cls}${i}`} className={cls}>
+        <rect x={pc(x(i + 0.5))} width={w} transform={`translate(${-w / 2} 0)`} y={pc(1 - h)} height={pc(h)} rx={3} />
+        <rect className="column-foot" x={pc(x(i + 0.5))} width={w} transform={`translate(${-w / 2} -3)`} y="100%" height={3} />
+      </g>
+    );
+  };
   const plot = (
     <Plot>
       <Gridlines lines={[{ y: half, label: '50%' }]} side="left" />
       {shares.map((s, i) => {
         const t = tone(i);
-        const cls = t === 'signal' ? 'm-signal' : t === 'ink' ? 'm-ink' : 'm-quiet';
-        const h = Math.max(0.004, 1 - y(s));
+        const cls = t === 'signal' ? 'm-signal' : t === 'over' ? 'm-context' : 'm-quiet';
         return (
           <g key={i} className={`column ${cls}`}>
-            <rect x={pc(x(i + 0.5))} width={22} transform="translate(-11 0)" y={pc(1 - h)} height={pc(h)} rx={3} />
-            <rect className="column-foot" x={pc(x(i + 0.5))} width={22} transform="translate(-11 -3)" y="100%" height={3} />
+            {bar(i, s, 22, 'half-col-wide')}
+            {bar(i, s, 16, 'half-col-narrow')}
           </g>
         );
       })}
       <Baseline />
-      <Annotation labels={placed} />
+      <Annotation labels={labels} />
     </Plot>
   );
   const ticks = bands.slice(1).map((b, i) => ({ x: x(i + 1), label: hm(b.lo_s / 60), priority: i + 1 === signal ? 4 : 1 }));
@@ -167,7 +184,8 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
 
 /**
  * The half pace chart's data panel: the share of half finishes under each time as one ink curve from a share of 0 to
- * 1, the round times as dots with their shares (the one the sentence names in signal), gridlines on the right. It is
+ * 1, the round times as dots with their shares (the one the sentence names in signal), gridlines labelled on the left
+ * as on /half's curve. It is
  * LineProfile's single-curve drawing without the needle or the lens: LineProfile imports its two client islands
  * (Scrubber, Lens) wherever it is used, which put 3.6 KB of chart script on a page that runs none (S8, October 30, 2026).
  */
@@ -189,10 +207,12 @@ export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, heigh
     return Array.from({ length: n }, (_, k) => ({ x: x0 + ((x1 - x0) * k) / n, y: y0 + ((y1 - y0) * k) / n, r: k ? 2 : 3 }));
   });
   const items: LabelItem[] = marks.map((m, i) => ({ id: `mark-${i}`, text: m.text, x: x(m.x), y: y(m.y), priority: m.signal ? 3 : 2, tone: m.signal ? 'signal' : 'ink', prefer: 'left', gap: 9 }));
-  const placed = placeLabels(items, { height, avoid: [...marks.map((m) => ({ x: x(m.x), y: y(m.y), r: 7 })), ...along] });
+  // The gridline labels sit on the left, as on /half's curve (one layout for one form); the marks' labels keep clear of them.
+  const gridBoxes = yTicks.map((t) => ({ x0: 0, x1: (textWidth(t.label, 12, 500) + 6) / REF_WIDTH, y0: y(t.value) - 18 / height, y1: y(t.value) }));
+  const placed = placeLabels(items, { height, boxes: gridBoxes, avoid: [...marks.map((m) => ({ x: x(m.x), y: y(m.y), r: 7 })), ...along] });
   const plot = (
     <Plot>
-      <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side="right" />
+      <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side="left" />
       <g>
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
           <path className="l-ink" d={linePath(pts)} />

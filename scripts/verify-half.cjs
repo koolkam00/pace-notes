@@ -473,15 +473,19 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
     if (n.figure) texts.push([`${id} figure`, `${n.figure.value} ${n.figure.sr || ''}`]);
     ok((String(n.headline).match(/\*/g) || []).length <= 2, `${id}: at most one accent`);
   }
-  for (const [k, v] of Object.entries(N.halfDeks())) if (v) texts.push([`deks.${k}`, v]);
+  for (const [k, v] of Object.entries(N.halfDeks())) if (typeof v === 'string') texts.push([`deks.${k}`, v]);
   for (const g of ['all', 'F', 'M']) {
     for (const w of linked.windows[g]) {
       const win = T.fromLinked(w);
       texts.push([`tool ${g} ${w.h}`, T.linkedSentence(win, Q)], [`tool ${g} ${w.h} slowdown`, T.slowdownSentence(win)], ...T.markLabels(win).map((s) => [`tool ${g} mark`, s]));
     }
   }
-  for (const g of ['F', 'M']) texts.push([`tool too few ${g}`, T.tooFewSentence(tool, g)]);
-  for (const goal of linked.goals) for (const [k, v] of Object.entries(T.goalLines(goal))) if (v && k !== 'link') texts.push([`goal ${goal.goal_s} ${k}`, v]);
+  for (const g of ['F', 'M']) texts.push([`tool too few ${g}`, T.tooFewSentence(tool, g)], [`tool too few ${g} near a half`, T.tooFewSentence(tool, g, 5100)]);
+  texts.push(['tool linked line', T.LINKED_LINE], ['tool out of range', T.outOfRangeSentence(tool.groups.all)]);
+  for (const goal of linked.goals) {
+    const at = linked.windows.all.find((w) => w.h === goal.all.h) ?? null;
+    for (const [k, v] of Object.entries(T.goalLines(goal, at))) if (v && k !== 'link') texts.push([`goal ${goal.goal_s} ${k}`, v]);
+  }
   texts.push(['not a prediction', T.NOT_A_PREDICTION]);
   // The words of the four "From the half" cards (lib/charts/text/half.ts), held to the Top 100's card rules: the guard
   // holds for this build, titles fit 47 characters, one accent, a takeaway of at most 150 characters; a card of records

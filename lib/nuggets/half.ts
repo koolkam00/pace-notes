@@ -12,7 +12,7 @@
 import type { HalfField, HalfLinked, HalfWindow, HalfWomen } from '@/lib/half-types';
 import { readHalf } from '@/lib/half-server';
 import { floorHM, readoutMark } from '@/lib/tools/half-to-full';
-import { inWords, pct, ratio, spokenPct, spokenTime } from './format';
+import { count, inWords, pct, ratio, spokenPct, spokenTime } from './format';
 import { shareFigure, type Builder } from './build';
 import type { Nugget } from './types';
 
@@ -67,7 +67,7 @@ export function halfUnderFrom(field: HalfField): Nugget {
   };
 }
 
-/** /half beat 2: the minute before 2:00 held 1.2× the finishes the smooth curve expects. */
+/** /half beat 2: the minute before 2:00 held 1.2× the finishes a smooth curve expects (the goal pages' wording). */
 export function halfCrowdFrom(field: HalfField): Nugget {
   const m = field.marks.find((x) => x.minutes === 120);
   const guard = !!m && m.ratio >= 1.15 && m.ratio_ci95[0] > 1 && m.minute_before >= MIN_CELL;
@@ -76,7 +76,7 @@ export function halfCrowdFrom(field: HalfField): Nugget {
     values: { ratio: m?.ratio ?? NaN, ratio_lo: m?.ratio_ci95[0] ?? NaN, ratio_hi: m?.ratio_ci95[1] ?? NaN,
       minute_before: m?.minute_before ?? NaN, expected_minute_before: m?.expected_minute_before ?? NaN },
     guard,
-    headline: m ? `The minute before 2:00 held *${ratio(m.ratio, 1)}* the finishes the curve expects.` : '',
+    headline: m ? `The minute before 2:00 held *${ratio(m.ratio, 1)}* the finishes a smooth curve expects.` : '',
     fallback: 'Finishes in the minute before each round time.',
     figure: null,
   };
@@ -222,16 +222,33 @@ export type HalfDeks = {
   fieldUnit: string;
   /** /half beat 1: "Recorded women’s: 9%. Men’s: 36%. Slide to any time from 1:10 to 3:00." */
   under: string;
-  /** /half beat 2, or null when its guard fails (the dek then names only 2:00, which the H2 already does). */
+  /**
+   * /half beat 2: the minute before 2:00 in finishes against the curve ("37,490 finishes came in at 1:59, where the
+   * smooth curve expects about 30,400."), then, while its guard holds, the other marks ("The minute before 1:30 held
+   * 1.2× too; before 1:45, 2:15 and 2:30, about 1.05×."). Null without a 2:00 mark.
+   */
   crowd: string | null;
-  /** /half beat 3: "Under 1:30, 7% were. In the marathon, women’s finishes pass half only from 5:15." */
+  /** The marks beat 2's dek names besides 2:00, in minutes ([90] while its guard holds): the chart draws them a step up. */
+  crowdNamed: number[];
+  /** /half beat 3: "Under 1:30, 7% were. In the marathon, women’s finishes are the majority only from 5:15." */
   women: string;
-  /** /half beat 4: "In the typical pair, 38% of half finishes were women’s, against 24% of the marathon’s." */
+  /** /half beat 4: "In the typical city and year, 38% of half finishes were women’s, against 24% of the marathon’s." */
   cities: string;
-  /** Story beat 1: "The typical one took 3:54. Slide to any half from 1:10 to 2:45." */
+  /**
+   * Story beat 1: the minutes over double at the halves 15 minutes either side of the flagship's ("After a 1:30 half,
+   * the typical marathon took double it plus 17 minutes; after a 2:00, plus 28."), so the H1's rule reads as a typical
+   * value that moves with the half, then how to use the needle. The readout carries the 1:45 values, so the dek repeats
+   * none of them.
+   */
   range: string | null;
   /** The guess: "After a 1:45 half, 30 of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?" */
   guess: string | null;
+  /**
+   * After the guess's reveal: the same comparison 15 minutes either side ("After a 1:30 half: 7% of recorded women’s,
+   * against 17% of men’s. After a 2:00 half: 22% against 44%."), only while recorded women's share is the lower at both.
+   * Null otherwise.
+   */
+  guessMore: string | null;
 };
 
 export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLinked): HalfDeks {
@@ -239,18 +256,31 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
   const marks = Object.fromEntries(field.marks.map((m) => [m.minutes, m]));
   const others = [105, 135, 150].map((k) => marks[k]?.ratio ?? NaN);
   const crowdOk = !!marks[90] && marks[90].ratio_ci95[0] > 1.1 && others.every((r) => r < 1.1);
+  const two = marks[120];
   const s = women.same_city.summary;
   const w = flagshipWindow(linked), f = flagshipWindow(linked, 'F'), m = flagshipWindow(linked, 'M');
   const all = linked.windows.all;
   const first = field.under[0].s, last = field.under[field.under.length - 1].s;
+  // The halves 15 minutes either side of the flagship's (1:30 and 2:00), in each group.
+  const at = (group: 'all' | 'F' | 'M', h: number) => linked.windows[group].find((x) => x.h === h) ?? null;
+  const side = w ? [w.h - 900, w.h + 900] : [];
+  const [qa, qb] = side.map((h) => at('all', h));
+  const minutesOver = (x: HalfWindow) => Math.round(x.extra_p50 / 60);
+  const slide = `Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.`;
+  const pairs = side.map((h) => [at('F', h), at('M', h)] as const);
+  const lower = pairs.length === 2 && pairs.every(([pf, pm]) => !!pf && !!pm && pf.sus < pm.sus);
   return {
     fieldUnit: `the median half finish; recorded women’s ${clock(field.quantiles.F.p50)}, men’s ${clock(field.quantiles.M.p50)}`,
     under: `Recorded women’s: ${pct(u.F)}. Men’s: ${pct(u.M)}. Slide to any time from ${clock(first)} to ${clock(last)}.`,
-    crowd: crowdOk ? `The minute before 1:30 held ${ratio(marks[90].ratio, 1)} too; before 1:45, 2:15 and 2:30, about ${ratio(median(others), 2)}.` : null,
-    women: `Under 1:30, ${pct(women.median_share[0])} were. In the marathon, women’s finishes pass half only from ${clock(women.marathon.cross_s)}.`,
-    cities: `In the typical pair, ${pct(s.half_median)} of half finishes were women’s, against ${pct(s.marathon_median)} of the marathon’s.`,
-    range: w ? `The typical one took ${clock(w.q[9])}. Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.` : null,
+    crowd: two ? `${count(two.minute_before)} finishes came in at ${clock(two.minutes * 60 - 60)}, where the smooth curve expects about ${count(Math.round(two.expected_minute_before / 100) * 100)}.${crowdOk ? ` The minute before 1:30 held ${ratio(marks[90].ratio, 1)} too; before 1:45, 2:15 and 2:30, about ${ratio(median(others), 2)}.` : ''}` : null,
+    crowdNamed: crowdOk ? [90] : [],
+    women: `Under 1:30, ${pct(women.median_share[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.`,
+    cities: `In the typical city and year, ${pct(s.half_median)} of half finishes were women’s, against ${pct(s.marathon_median)} of the marathon’s.`,
+    range: w ? (qa && qb ? `After a ${clock(qa.h)} half, the typical marathon took double it plus ${minutesOver(qa)} minutes; after a ${clock(qb.h)}, plus ${minutesOver(qb)}. ${slide}` : slide) : null,
     guess: f && m ? `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?` : null,
+    guessMore: f && m && lower ? pairs.map(([pf, pm], k) => (k === 0
+      ? `After a ${clock(pf!.h)} half: ${pct(pf!.sus)} of recorded women’s, against ${pct(pm!.sus)} of men’s.`
+      : `After a ${clock(pf!.h)} half: ${pct(pf!.sus)} against ${pct(pm!.sus)}.`)).join(' ') : null,
   };
 }
 

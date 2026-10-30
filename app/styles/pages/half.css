@@ -7,6 +7,10 @@
 .half-crumb-sep { color: var(--ink-3); }
 .half-crumb-here { color: var(--ink-2); }
 
+/* ---------- The rail (from 1180 px): the page's name and its beats, no chapter ---------- */
+/* The beats sit straight under the name, not indented under a page row as a chapter's are. */
+.half-rail .half-rail-beats .rail-beats .rail-link { padding-left: 22px; }
+
 /* ---------- The closing stack ---------- */
 /* The half's tools as plain rows (the tool pages' handoff rows, components/tools/Handoffs.tsx, whose sheet is the tools
    section's): a kicker, then one 52 px row per tool, hairlines between, the arrow at the right. */
@@ -28,15 +32,26 @@
 }
 
 /* ---------- The figures (components/half/HalfCharts.tsx) ---------- */
+/* Columns keep their 22 px width at every screen, so a few columns across a desktop column read as a sparse strip: the
+   two column figures stop at about a phone and a half (five and eight columns). */
+.half-page .viz-frame.half-ratio, .half-page .viz-frame.half-share { max-width: 36rem; }
+/* The share columns draw each band twice, 22 px and 16 px wide: below 240 px of plot (a phone at 200% zoom) the narrow
+   ones show, so eight columns keep a gap between them. */
+.half-page .viz-frame.half-share .half-col-narrow { display: none; }
+@container (max-width: 239.98px) {
+  .half-page .viz-frame.half-share .half-col-wide { display: none; }
+  .half-page .viz-frame.half-share .half-col-narrow { display: inline; }
+}
 /* A round time's interval: a 1.5 px whisker with 9 px caps over its column, in the second ink (never the column's own
    fill or outline, which it would inherit from the column's group). */
 .half-page .viz-frame .half-whisker { fill: var(--ink-2); stroke: none; }
 /* The same city's half and marathon: each row's two shares ("26% · 45%") need a wider value column than the form's
-   4.5rem, so the city names take a little less. In a figure under 300 px (a 320 px phone, 200% zoom), where the form
+   4.5rem, and the city names need only their own width ("Amsterdam"), so the track gets the rest (about 170 px on a
+   390 px phone). In a figure under 300 px (a 320 px phone, 200% zoom), where the form
    gives each name a line of its own, the two shares move up beside the city's name (the dense flow puts each row's value
    in the hole its label leaves) and the track takes the whole width below them. */
 .half-cities { max-width: var(--measure-figure); }
-.half-cities .viz-frame.dumbbell .dumbbell-rows, .half-cities .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 30%) minmax(0, 1fr) 5.5rem; }
+.half-cities .viz-frame.dumbbell .dumbbell-rows, .half-cities .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: 5.25rem minmax(0, 1fr) 4.75rem; }
 @container (max-width: 299.98px) {
   .half-cities .viz-frame.dumbbell .dumbbell-rows { grid-template-columns: minmax(0, 1fr) auto; grid-auto-flow: row dense; }
   .half-cities .viz-frame.dumbbell .dumbbell-label { grid-column: 1; }

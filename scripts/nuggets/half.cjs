@@ -178,16 +178,29 @@ module.exports = function half({ json, eq, ok, core }) {
     const d = H.halfDeks();
     eq(d.fieldUnit, `the median half finish; recorded women’s ${clock(field.quantiles.F.p50)}, men’s ${clock(field.quantiles.M.p50)}`, 'half deks: the reading’s unit line');
     eq(d.under, `Recorded women’s: ${pct(underSex('F', 6300))}. Men’s: ${pct(underSex('M', 6300))}. Slide to any time from 1:10 to 3:00.`, 'half deks: beat 1');
-    eq(d.women, `Under 1:30, ${pct(bandShares[0])} were. In the marathon, women’s finishes pass half only from ${clock(women.marathon.cross_s)}.`, 'half deks: beat 3');
+    eq(d.women, `Under 1:30, ${pct(bandShares[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.`, 'half deks: beat 3');
     const share = (c) => c.F / (c.F + c.M);
-    eq(d.cities, `In the typical pair, ${pct(median(women.same_city.pairs.map((p) => share(p.half))))} of half finishes were women’s, against ${pct(median(women.same_city.pairs.map((p) => share(p.marathon))))} of the marathon’s.`, 'half deks: beat 4');
+    eq(d.cities, `In the typical city and year, ${pct(median(women.same_city.pairs.map((p) => share(p.half))))} of half finishes were women’s, against ${pct(median(women.same_city.pairs.map((p) => share(p.marathon))))} of the marathon’s.`, 'half deks: beat 4');
     const w = flagship('all'), all = linked.windows.all;
-    eq(d.range, `The typical one took ${clock(w.q[9])}. Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.`, 'half deks: story beat 1');
+    const win = (g, h) => linked.windows[g].find((x) => x.h === h);
+    // The minutes over double 15 minutes either side of the flagship's half, each the window's median extra in whole
+    // minutes (the H1's own rounding), recounted from the window's quantiles of the extra: never from the readout.
+    const qa = win('all', w.h - 900), qb = win('all', w.h + 900);
+    const slide = `Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.`;
+    eq(d.range, qa && qb ? `After a ${clock(qa.h)} half, the typical marathon took double it plus ${Math.round(qa.extra_p50 / 60)} minutes; after a ${clock(qb.h)}, plus ${Math.round(qb.extra_p50 / 60)}. ${slide}` : slide, 'half deks: story beat 1');
+    ok(!d.range.includes(clock(w.q[9])), `half deks: story beat 1 does not repeat the readout's typical ${clock(w.q[9])}`);
     const m = flagship('M');
     eq(d.guess, `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?`, 'half deks: the guess');
+    const sides = [w.h - 900, w.h + 900].map((h) => [win('F', h), win('M', h)]);
+    const lower = sides.every(([pf, pm]) => pf && pm && pf.sus < pm.sus);
+    eq(d.guessMore, lower ? sides.map(([pf, pm], k) => (k === 0 ? `After a ${clock(pf.h)} half: ${pct(pf.sus)} of recorded women’s, against ${pct(pm.sus)} of men’s.` : `After a ${clock(pf.h)} half: ${pct(pf.sus)} against ${pct(pm.sus)}.`)).join(' ') : null, 'half deks: after the guess, women lower at both neighbouring halves');
     const marks = Object.fromEntries(field.marks.map((x) => [x.minutes, x]));
     const crowdOk = marks[90].ratio_ci95[0] > 1.1 && [105, 135, 150].every((k) => marks[k].ratio < 1.1);
-    eq(d.crowd === null, !crowdOk, 'half deks: beat 2 only while 1:30 stands out and the others do not');
+    const two = marks[120];
+    const others = [105, 135, 150].map((k) => marks[k].ratio);
+    const fmtCount = (v) => v.toLocaleString('en-US');
+    eq(d.crowd, `${fmtCount(two.minute_before)} finishes came in at 1:59, where the smooth curve expects about ${fmtCount(Math.round(two.expected_minute_before / 100) * 100)}.${crowdOk ? ` The minute before 1:30 held ${marks[90].ratio.toFixed(1)}× too; before 1:45, 2:15 and 2:30, about ${median(others).toFixed(2)}×.` : ''}`, 'half deks: beat 2, the minute before 2:00 against the curve, then the other marks while 1:30 stands out and the others do not');
+    eq(JSON.stringify(d.crowdNamed), JSON.stringify(crowdOk ? [90] : []), 'half deks: beat 2 draws 1:30 a step up only while its dek names it');
     for (const text of Object.values(d).filter(Boolean)) ok(!/\b(?:fastest|chance|predict|goal|target|because|verified|unverified)\b/i.test(text), `half deks: banned word in "${text}"`);
   };
 

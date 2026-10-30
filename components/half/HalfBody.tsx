@@ -17,6 +17,8 @@ const DETENTS = [90, 105, 120, 135, 150];
 const W = 'Recorded women’s', M = 'Recorded men’s';
 /** A readout share in whole percent, but never "0%" or "100%" for a share that is neither (the site's "<1%" rule). */
 const readPct = (share: number) => (share > 0 && share < 0.005 ? '<1%' : share < 1 && share >= 0.995 ? '>99%' : pct(share));
+/** A share for a spoken label: one decimal within a point of one half (2:00's 49.6% is not "50%" beside "most from 2:15"). */
+const nearHalf = (share: number) => pct(share, Math.abs(share - 0.5) < 0.01 ? 1 : 0);
 /** A women's share of the recorded finishes on one side of a same-city pair. */
 const womenShare = (side: { F: number; M: number }) => side.F / (side.F + side.M);
 
@@ -58,8 +60,8 @@ export default function HalfBody() {
   const histLabel = `Half marathon finishes in each minute from ${hm(lo)} to ${hm(field.minutes.hi - 1)}: the median ${hm(Math.floor(field.quantiles.all.p50 / 60))}, ${pct(at(READING_MARK * 60).all)} under ${hm(READING_MARK)}.`;
   return (
     <HalfPage scope="verified" how="/methodology#half-field" numbers={[
-      <Values key="under" bare id="hf-under" caption="Half finishes under each time"
-        columns={[{ key: 't', label: 'Under' }, { key: 'a', label: 'All' }, { key: 'f', label: W }, { key: 'm', label: M }]}
+      <Values key="under" bare id="hf-under" caption="Half finishes under each time: all, recorded women’s and recorded men’s"
+        columns={[{ key: 't', label: 'Under' }, { key: 'a', label: 'All' }, { key: 'f', label: 'Women’s' }, { key: 'm', label: 'Men’s' }]}
         rows={marks.map((u) => [hm(u.s / 60), pct(u.all, 1), pct(u.F, 1), pct(u.M, 1)])} reading={markIndex(OPEN_MARK)} />,
       <Values key="crowd" bare id="hf-crowd" caption="The minute before each round time, against the smooth curve"
         columns={[{ key: 'k', label: 'Before' }, { key: 'r', label: '× curve' }, { key: 'b', label: 'Minute before' }, { key: 'e', label: 'Curve' }, { key: 'a', label: 'Minute after' }, { key: 'c', label: '95% interval' }]}
@@ -86,7 +88,9 @@ export default function HalfBody() {
       {/* The dek says how to use the chart: the recorded women's and men's shares are the readout's own side rows, so
           the dek's version of them (deks.under) would put the same two numbers twice on one screen. */}
       <Beat id="your-time" track="chapter-1" label="Your time" title={under} dek={`Slide to any time from ${hm(first)} to ${hm(last)}.`}>
-        <Cdf points={curve} ticks={[75, 90, 105, 120, 135, 150, 165, 180].map((m) => ({ value: m, label: hm(m) }))}
+        {/* Ticks every 15 minutes to 2:45, the half hours first: a phone keeps 1:30, 2:00 and 2:30 evenly and a wider
+            screen adds the quarters (an end tick at 3:00 crowded out 2:45 alone, so the steps looked uneven). */}
+        <Cdf points={curve} ticks={[75, 90, 105, 120, 135, 150, 165].map((m) => ({ value: m, label: hm(m), priority: m % 30 === 0 ? 3 : 1 }))}
           scrub={{
             label: `Half finish time, ${hm(first)} to ${hm(last)}`,
             points: {
@@ -103,21 +107,26 @@ export default function HalfBody() {
       </Beat>
 
       <Beat id="crowd" track="chapter-2" label="Round times" title={crowd} dek={deks.crowd ?? undefined}>
-        <RatioColumns marks={field.marks} signal={READING_MARK} ink={deks.crowd ? [90] : []}
+        <RatioColumns marks={field.marks} signal={READING_MARK} ink={deks.crowdNamed}
           label={`Finishes in the minute before each round time, against the smooth curve: ${field.marks.map((m) => `${m.mark} ${ratio(m.ratio, 2)}`).join(', ')}.`} />
       </Beat>
 
       <Beat id="women" track="chapter-3" label="Women and men" title={womenN} dek={deks.women}>
         <ShareColumns bands={women.bands} shares={women.median_share} signal={cross} format={(s) => pct(s)}
-          label={`Women’s share of recorded half finishes by finish band, the median of ${women.band_editions.length} editions: ${women.bands.map((b, i) => `${b.label} ${pct(women.median_share[i])}`).join(', ')}.`} />
+          label={`Women’s share of recorded half finishes by finish band, the median of ${women.band_editions.length} editions: ${women.bands.map((b, i) => `${b.label} ${nearHalf(women.median_share[i])}`).join(', ')}.`} />
       </Beat>
 
       <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities}>
-        {/* A wider value column than the form's (two shares per row), and none on a zoomed-in screen (half.css). */}
+        {/* The key first, in the order every row prints its pair (marathon · half), then the typical city and year (the
+            dek's two medians) as the one signal row, as the share card draws it, then each city. A value column sized to
+            its pairs, and none on a zoomed-in screen (half.css). */}
         <div className="half-cities">
-          <Dumbbell rows={sc.cities.map((c) => ({ id: c.city, label: c.city, a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` }))}
+          <Dumbbell keyFirst rows={[
+            { id: 'typical', label: 'Typical', a: sc.summary.marathon_median, b: sc.summary.half_median, display: `${pct(sc.summary.marathon_median)} · ${pct(sc.summary.half_median)}`, highlight: true },
+            ...sc.cities.map((c) => ({ id: c.city, label: c.city, a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` })),
+          ]}
             domain={[0, 0.6]} ticks={[0, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}
-            label={`Women’s share of recorded finishes in the same city and year, marathon then half: ${sc.cities.map((c) => `${c.city} ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
+            label={`Women’s share of recorded finishes in the same city and year, marathon then half: typically ${pct(sc.summary.marathon_median)} and ${pct(sc.summary.half_median)}; ${sc.cities.map((c) => `${c.city} ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
         </div>
         <SaveImage slug="half-more-women" />
       </Beat>

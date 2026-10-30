@@ -289,11 +289,17 @@
 /* Both half pages load this sheet (/half through app/half/layout.tsx). "Save the image" under a figure that has a
    "From the half" card: a plain link at a 44 px target. */
 .half-save { margin: var(--s-2) 0 0; font-family: var(--sans); font-size: var(--t-small); font-weight: 600; }
+/* After the guess: the same comparison at the halves either side, in the page's small text. */
+.half-guess-more { max-width: 34rem; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.guess-after .half-save { margin: 0; }
 .half-save a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); }
 /* The reading's ruler names its band in a key under it (the band's own label has no room beside "Typical" on a phone). */
 .half-ruler-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--s-3) 0 0; padding: 0; list-style: none; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
 .half-ruler-key li { display: inline-flex; align-items: flex-start; gap: 8px; margin: 0; }
-.half-ruler-key i { flex: none; width: 18px; height: 10px; margin-top: calc((1.4em - 10px) / 2); border-radius: 5px; background: var(--ink); opacity: .1; }
+.half-ruler-key i { flex: none; width: 18px; height: 10px; margin-top: calc((1.4em - 10px) / 2); border-radius: 5px; background: var(--ink); opacity: .2; }
+/* The ruler's "Half of them" band one step stronger than the generic band (.1), so it and its swatch read in both
+   themes. */
+.viz-frame.half-ruler .a-band { opacity: .2; }
 .half-ruler-key b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
 /* Under the half-by-half profile: the scrubbed half's pace line, "Not a prediction." on its own line, the predictor link.
    The profile and those lines share one wrapper (the lines read the profile's needle), which keeps a beat's figure width. */

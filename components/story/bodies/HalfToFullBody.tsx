@@ -4,7 +4,7 @@ import { readHalf } from '@/lib/half-server';
 import { getNugget, sentenceOf } from '@/lib/nuggets';
 import { halfDeks } from '@/lib/nuggets/half';
 import { count, hm, pct } from '@/lib/nuggets/format';
-import { floorHM, paceGap, readoutMark } from '@/lib/tools/half-to-full';
+import { floorHM, paceGap, readoutMark, sharePct } from '@/lib/tools/half-to-full';
 import type { UnitSystem } from '@/lib/units';
 import { STORIES } from '@/lib/stories';
 import { ScopeTag } from '@/components/tools/EvidenceTag';
@@ -49,11 +49,13 @@ export default function HalfToFullBody() {
 
   // The reading's ruler: minutes over double the half, typical and the middle half of marathons.
   const e = linked.overall.extra_s;
-  // The band's own label has no room beside "Typical" on a phone, so a key under the ruler names it.
+  // The band's own label has no room beside "Typical" on a phone, so a key under the ruler names it. The scale's zero is
+  // double the half, named on the axis itself ("Double"), so the ink dot there keeps its name at every width (a label
+  // above it lost its place to "Typical" at 200% zoom).
   const ruler = (
     <>
-      <Ruler min={-20} max={60} ticks={[0, 15, 30, 45].map((v) => ({ value: v, label: v ? `+${v} min` : '0' }))}
-        marks={[{ value: 0, kind: 'compare', label: 'Double the half' }, { value: minutes(e.p50), kind: 'reading', label: 'Typical' }]}
+      <Ruler className="half-ruler" min={-20} max={60} ticks={[0, 15, 30, 45].map((v) => ({ value: v, label: v ? `+${v} min` : 'Double' }))}
+        marks={[{ value: 0, kind: 'compare' }, { value: minutes(e.p50), kind: 'reading', label: 'Typical' }]}
         band={{ lo: minutes(e.p25), hi: minutes(e.p75) }}
         label={`Minutes over double the half: typical plus ${Math.round(e.p50 / 60)}; half of these marathons between plus ${Math.round(e.p25 / 60)} and plus ${Math.round(e.p75 / 60)}.`} />
       <ul className="half-ruler-key" aria-hidden="true"><li><i />Half of them: <b>{plus(e.p25)} to {plus(e.p75)} min</b></li></ul>
@@ -80,7 +82,8 @@ export default function HalfToFullBody() {
       series: [{ id: 'median', values: bands.map((w) => w.q[9]), tone: 'ink' }, { id: 'double', values: xs.map((h) => 2 * h), dashed: true }],
     }],
     xTicks: [4500, 5400, 6300, 7200, 8100, 9000, 9900].filter((h) => h >= lo && h <= hi).map((h) => ({ value: h, label: floorHM(h), priority: (h / 60) % 30 === 15 ? 3 : 1 })),
-    yTicks: [10800, 14400, 18000].filter((s) => s > yDomain[0] && s < yDomain[1]).map((s) => ({ value: s, label: floorHM(s) })),
+    // Three gridlines (the forms' limit) every 90 minutes, so the slow end has its own line (6:00) as well as the quick end.
+    yTicks: [10800, 16200, 21600].filter((s) => s > yDomain[0] && s < yDomain[1]).map((s) => ({ value: s, label: floorHM(s) })),
     gridSide: 'left',
     keys: [{ label: 'Typical marathon', mark: 'line' }, { label: '8 in 10', mark: 'band' }, { label: 'Double the half', mark: 'dash' }],
     axisTitle: { end: 'Half time' },
@@ -92,7 +95,8 @@ export default function HalfToFullBody() {
         values: bands.map((w) => floorHM(w.q[9])),
         side: [
           { label: '8 in 10', values: bands.map((w) => `${floorHM(q(w, 0.1))}–${floorHM(q(w, 0.9))}`) },
-          { label: 'Under', values: bands.map((w, i) => (markOf[i] ? `${floorHM(markOf[i]![0])}: ${pct(markOf[i]![1])}` : '—')) },
+          // Keyed per point ("Under 4:00" over "67%"), as /half's readout keys its time and leaves the share bare.
+          { label: 'Under', labels: bands.map((_, i) => (markOf[i] ? `Under ${floorHM(markOf[i]![0])}` : 'Under')), values: bands.map((_, i) => (markOf[i] ? pct(markOf[i]![1]) : '—')) },
         ],
       },
       initial: home, detents: DETENTS.map((h) => bands.findIndex((w) => w.h === h)).filter((i) => i >= 0), follow: 'median',
@@ -103,7 +107,8 @@ export default function HalfToFullBody() {
   const chart = (
     <div className="half-after-chart">
       <LineProfile {...profile} />
-      <PredictorLink halves={bands.map((w) => floorHM(w.h))} paces={{ mi: paces('mi'), km: paces('km') }} initial={home} />
+      <PredictorLink halves={bands.map((w) => floorHM(w.h))} paces={{ mi: paces('mi'), km: paces('km') }} initial={home}
+        extras={bands.map((w) => Math.round(w.extra_p50 / 60))} under={bands.map((w) => sharePct(w.under_double))} />
     </div>
   );
 
@@ -143,15 +148,18 @@ export default function HalfToFullBody() {
 
       <Beat id="women-men" track="chapter-2" label="Women and men" title={<Say nugget={sexes} term />}>
         {hasGuess && women && men ? (
+          // The men's 100 stand beside the guess from the start (the question gives them), so the reveal shows the two
+          // side by side. The other halves' comparison and the card (which prints the answer) come only after it.
           <GuessFirst marks="dots" unit="of 100" initial={Number(guess.values.men_of_100)}
-            question={deks.guess!} truth={women.sus * 100} truthLabel="had a sustained slowdown"
-            compare={{ value: men.sus * 100, label: M }} answer={sentenceOf(guess)} />
+            question={deks.guess!} truth={women.sus * 100} truthLabel="had a sustained slowdown" truthName="Recorded women’s"
+            compare={{ value: men.sus * 100, label: M }} answer={sentenceOf(guess)}
+            after={<>{deks.guessMore ? <p className="half-guess-more">{deks.guessMore}</p> : null}<SaveImage slug="half-same-half" /></>} />
         ) : (
           <Dumbbell rows={both.map(({ h, f, m }) => ({ id: String(h), label: `${floorHM(h)} half`, a: m.sus, b: f.sus, display: `${pct(f.sus)} · ${pct(m.sus)}` }))}
             domain={[0, 0.6]} ticks={[0, 0.2, 0.4, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Recorded men’s', b: 'Recorded women’s' }}
             label={`Sustained slowdowns after the same half, recorded women’s and men’s marathons: ${both.map(({ h, f, m }) => `${hm(minutes(h))} ${pct(f.sus)} and ${pct(m.sus)}`).join('; ')}.`} />
         )}
-        <SaveImage slug="half-same-half" />
+        {hasGuess && women && men ? null : <SaveImage slug="half-same-half" />}
       </Beat>
     </StoryPage>
   );
