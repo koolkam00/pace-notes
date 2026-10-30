@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import ArrowTail from '@/components/ui/ArrowTail';
+import Arrow from '@/components/ui/Arrow';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { NOT_A_PREDICTION } from '@/lib/tools/half-to-full';
 
@@ -59,7 +59,8 @@ export default function PredictorLink({ halves, paces, extras, under, initial }:
       ) : null}
       <p className="half-not">{NOT_A_PREDICTION}</p>
       <p className="half-predictor arrow-line">
-        <Link href={`/tools/predictor?d=half&t=${half}:00`}><ArrowTail text="Your own half in the Finish-time predictor" /></Link>
+        {/* ArrowTail's markup written out: its module would add to every story page's first-load script (S8). */}
+        <Link href={`/tools/predictor?d=half&t=${half}:00`}>Your own half in the Finish-time <span className="arrow-tail">predictor<Arrow /></span></Link>
       </p>
     </div>
   );

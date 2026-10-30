@@ -27,8 +27,11 @@ type Props = {
   answer: string;
   truthLabel?: string;
   compare?: { value: number; label: string };
-  /** Dots with a compare: the guess's own grid's name ("Recorded women’s"), with the truth's count once revealed. */
-  truthName?: string;
+  /** Dots with a compare: the guess's own grid's name ("Recorded women’s"), with the truth's count once revealed, and
+   *  the compare grid's name when it is not `compare.label`. Nodes, so the server can mark the words a narrow column
+   *  puts on their own line in both grids (`.guess-dots-name-head`, guess.css), and the two names break alike. */
+  truthName?: ReactNode;
+  compareName?: ReactNode;
   /** What shows under the verdict once the answer is out (a further comparison, a card that prints the answer). */
   after?: ReactNode;
   marks?: 'ruler' | 'dots';
@@ -42,17 +45,7 @@ type Props = {
 
 type State = 'asking' | 'locked' | 'revealed' | 'skipped';
 
-/**
- * A grid's name with its count: the last word and the count never part, and in a column too narrow for the longer name
- * the words before it take their own line in both grids (guess.css), so the two names break the same way ("Recorded" /
- * "women’s: 10" beside "Recorded" / "men’s: 30") and the answer never sits alone on a line (320 px, round 3).
- */
-function gridName(name: string, count: ReactNode) {
-  const at = name.lastIndexOf(' ');
-  return <>{at < 0 ? null : <span className="guess-dots-name-head">{name.slice(0, at + 1)}</span>}<span className="nowrap">{name.slice(at + 1)}{count}</span></>;
-}
-
-export default function GuessFirst({ question, truth, answer, truthLabel, compare, truthName, after, marks = 'ruler', min = 0, max = 100, step = 1, initial, unit = '%', next }: Props) {
+export default function GuessFirst({ question, truth, answer, truthLabel, compare, truthName, compareName, after, marks = 'ruler', min = 0, max = 100, step = 1, initial, unit = '%', next }: Props) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [guess, setGuess] = useState(initial ?? Math.round((min + max) / 2 / step) * step);
   const [state, setState] = useState<State>('asking');
@@ -112,14 +105,14 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
                     <li key={i} className={`guess-dot${revealed && i < Math.round(truth) ? ' is-lit' : ''}${state !== 'skipped' && i < Math.round(guess) ? ' is-you' : ''}`} style={{ ['--i' as string]: i }} />
                   ))}
                 </ol>
-                {compare ? <p className="guess-dots-name is-truth" aria-hidden="true">{gridName(truthName ?? '', revealed ? <>: <b>{Math.round(truth)}</b></> : null)}</p> : null}
+                {compare ? <p className="guess-dots-name is-truth" aria-hidden="true">{truthName}{revealed ? <>: <b>{Math.round(truth)}</b></> : null}</p> : null}
               </div>
               {compare ? (
                 <div className="guess-dots-fig is-compare">
                   <ol className="guess-dots" aria-hidden="true">
                     {Array.from({ length: 100 }, (_, i) => <li key={i} className={`guess-dot${i < Math.round(compare.value) ? ' is-compare' : ''}`} />)}
                   </ol>
-                  <p className="guess-dots-name" aria-hidden="true">{gridName(compare.label, <>: <b>{Math.round(compare.value)}</b></>)}</p>
+                  <p className="guess-dots-name" aria-hidden="true">{compareName ?? compare.label}: <b>{Math.round(compare.value)}</b></p>
                 </div>
               ) : null}
             </div>

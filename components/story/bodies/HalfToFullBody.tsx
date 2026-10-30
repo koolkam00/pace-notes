@@ -26,6 +26,9 @@ const M = 'Recorded men’s';
 /** A window's 8-in-10 wash is drawn at full strength from this many pairs; thinner windows (the slow end) are faint. */
 const THIN = 300;
 const minutes = (s: number) => s / 60;
+/** A guess grid's name with its leading words marked, so a column too narrow for "Recorded women’s: 10" puts "Recorded"
+ *  on its own line in both grids and the two names break alike (guess.css; 320 px, round 3 review). */
+const gridName = (name: string) => { const at = name.lastIndexOf(' '); return <><span className="guess-dots-name-head">{name.slice(0, at + 1)}</span>{name.slice(at + 1)}</>; };
 /** "+21" minutes, from seconds, one decimal where the ruler needs it. */
 const plus = (s: number) => `${s >= 0 ? '+' : '−'}${Math.round(Math.abs(s) / 60)}`;
 
@@ -176,7 +179,7 @@ export default function HalfToFullBody() {
           // The men's 100 stand beside the guess from the start (the question gives them), so the reveal shows the two
           // side by side. The other halves' comparison and the card (which prints the answer) come only after it.
           <GuessFirst marks="dots" unit="of 100" initial={Number(guess.values.men_of_100)}
-            question={deks.guess!} truth={women.sus * 100} truthLabel="had a sustained slowdown" truthName="Recorded women’s"
+            question={deks.guess!} truth={women.sus * 100} truthLabel="had a sustained slowdown" truthName={gridName('Recorded women’s')} compareName={gridName(M)}
             compare={{ value: men.sus * 100, label: M }} answer={sentenceOf(guess)}
             after={<>{deks.guessMore ? <p className="half-guess-more">{deks.guessMore}</p> : null}<SaveImage slug="half-same-half" /></>} />
         ) : (

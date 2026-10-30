@@ -82,9 +82,9 @@
 .guess-dots-fig { display: grid; align-content: start; gap: 6px; min-width: 0; margin: 0; }
 .guess-dots-name { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
 /* Side by side, the names break the same way: under 150 px a column cannot hold "Recorded women’s: 10" (144 px at 13 px),
-   so both grids put "Recorded" on its own line (GuessFirst gridName). */
-.guess-dots-set.has-compare .guess-dots-fig { container-type: inline-size; }
-@container (max-width: 149.98px) { .guess-dots-name-head { display: block; } }
+   so both grids put the marked leading words on their own line (`.guess-dots-name-head`, from the page's gridName). */
+.guess-dots-set.has-compare .guess-dots-fig { container: guess-grid / inline-size; }
+@container guess-grid (max-width: 149.98px) { .guess-dots-name-head { display: block; } }
 .guess-dots-name b { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
 .guess.is-revealed .guess-dots-name.is-truth b { color: var(--signal-ink); }
 .guess-dots-set.has-compare .guess-dots { gap: clamp(3px, 1.2vw, 8px); }
