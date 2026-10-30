@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { EvidenceTag, ScopeTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import Arrow from '@/components/ui/Arrow';
+import ArrowTail from '@/components/ui/ArrowTail';
 import { withEm } from '@/components/ui/withEm';
 import { Choice, DataState } from '@/components/tools/ui';
 import { loadHalf } from '@/lib/half';
@@ -108,7 +108,7 @@ export default function LinkedPanel({ sha, seconds, group, onGroup }: {
         </div>
       )}
       <p className="predictor-linked-not">{NOT_A_PREDICTION}</p>
-      <p className="predictor-linked-more"><Link href="/stories/half-to-full#after">From the half to the marathon<Arrow /></Link></p>
+      <p className="predictor-linked-more arrow-line"><Link href="/stories/half-to-full#after"><ArrowTail text="From the half to the marathon" /></Link></p>
     </section>
   );
 }

@@ -200,6 +200,5 @@
 /* The half marathon's line under the chapters (components/half/HalfWays.tsx): a plain sentence whose last words link to
    /half, never a door (.home-door-link) and below the first screen. */
 .home-guide-half { margin: var(--s-4) 0 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
-.home-guide-half a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; color: var(--ink); }
 /* Beside the sticky heading it sits under the chapters, in their column; the way in keeps its place on the left. */
 @media (min-width: 900px) { .home-guide-half { grid-column: 2; grid-row: 2; } }

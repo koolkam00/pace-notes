@@ -109,4 +109,4 @@
   .predictor-linked-group .seg-btn[aria-pressed='true'] { background: var(--control-thumb); box-shadow: var(--shadow-raise), 0 0 0 1px var(--rule); }
 }
 .predictor-linked-not { font-size: var(--t-small); font-weight: 600; line-height: 1.5; color: var(--ink); }
-.predictor-linked-more a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: var(--t-small); font-weight: 600; color: var(--ink); }
+.predictor-linked-more { font-size: var(--t-small); line-height: 1.5; }

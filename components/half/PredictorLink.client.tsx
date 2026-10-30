@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Arrow from '@/components/ui/Arrow';
+import ArrowTail from '@/components/ui/ArrowTail';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { NOT_A_PREDICTION } from '@/lib/tools/half-to-full';
 
@@ -58,8 +58,8 @@ export default function PredictorLink({ halves, paces, extras, under, initial }:
         </p>
       ) : null}
       <p className="half-not">{NOT_A_PREDICTION}</p>
-      <p className="half-predictor">
-        <Link href={`/tools/predictor?d=half&t=${half}:00`} className="half-predictor-link">Your own half in the Finish-time predictor<Arrow /></Link>
+      <p className="half-predictor arrow-line">
+        <Link href={`/tools/predictor?d=half&t=${half}:00`}><ArrowTail text="Your own half in the Finish-time predictor" /></Link>
       </p>
     </div>
   );

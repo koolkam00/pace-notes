@@ -1,6 +1,6 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { EvidenceTag, ScopeTag } from '@/components/tools/EvidenceTag';
-import Arrow from '@/components/ui/Arrow';
+import ArrowTail from '@/components/ui/ArrowTail';
 import { withEm } from '@/components/ui/withEm';
 import type { HalfGoal } from '@/lib/half-types';
 import { readHalf } from '@/lib/half-server';
@@ -26,7 +26,7 @@ export default function HalfBefore({ goal }: { goal: HalfGoal }) {
       <p className="goal-pace-half-lines">{lines.range}</p>
       {lines.sexes ? <p className="goal-pace-half-lines">{lines.sexes}</p> : null}
       <p className="goal-pace-half-not">{NOT_A_PREDICTION}</p>
-      <p className="goal-pace-half-more"><Link href={lines.link}>{lines.linkText}<Arrow /></Link></p>
+      <p className="goal-pace-half-more arrow-line"><Link href={lines.link}><ArrowTail text={lines.linkText} /></Link></p>
     </section>
   );
 }
