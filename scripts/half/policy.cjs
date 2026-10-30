@@ -109,6 +109,8 @@ function checkPolicyText(policy) {
   need(R.R7.city === R7.city && JSON.stringify(R.R7.years) === JSON.stringify(R7.years) && JSON.stringify(R.R7.bib) === JSON.stringify(R7.bib), 'the R7 block');
   need(['verified', 'unverified', 'held'].every((g) => JSON.stringify(policy.statuses[g]) === JSON.stringify(STATUS[g])) && Object.keys(policy.statuses).length === 3, 'the status groups');
   need(JSON.stringify(policy.edition_rules.order) === JSON.stringify(['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8']), 'edition rule order');
+  const C = policy.stamp_correction;
+  need(!!C && C.applied === 'verified = stamped in both' && Array.isArray(C.withdrawn) && Array.isArray(C.weaker_source), 'the stamp correction');
 }
 
 /**
@@ -272,6 +274,20 @@ function applyPolicy(db, policy, log = () => {}) {
       single_sex: SINGLE_SEX.test(`${x.city ?? ''} ${m && m.race !== null ? m.race : ''}`.toLowerCase()),
     };
   });
+  // The stamp correction (policy.stamp_correction): verified = stamped in this snapshot and in the corrected metadata. The
+  // frozen withdrawn stamps become unverified before the screens, exactly like the other internal-only editions; the
+  // recount itself rederives the list from the corrected metadata (verify-half-source.cjs) and compares it.
+  const withdrawn = new Map(policy.stamp_correction.withdrawn.map((w) => [w.edition_id, w]));
+  const withdrawnEds = new Set();
+  for (const r of ET) {
+    const w = r.edition_id === null ? undefined : withdrawn.get(r.edition_id);
+    if (!w) continue;
+    need(r.city === w.city && r.year === w.year && r.status === 'stamped', `withdrawn stamp ${w.edition_id} is not the stamped ${w.city} ${w.year} of this snapshot`);
+    r.group = 'unverified';
+    r.corrected_status = w.corrected_status;
+    withdrawnEds.add(r.e);
+  }
+  need(withdrawnEds.size === withdrawn.size, `${withdrawn.size - withdrawnEds.size} withdrawn stamps are not editions of this snapshot`);
   // The edition screens in the reviewed order (half_quality._edition_rule), recomputed.
   const T = 0.02;
   for (const r of ET) {
@@ -356,9 +372,73 @@ function applyPolicy(db, policy, log = () => {}) {
     verified: tally((k) => ET[fin.ed[k]].group === 'verified'),
     verified_use_sex: tally((k) => ET[fin.ed[k]].group === 'verified' && ET[fin.ed[k]].use_sex && fin.sex[k] > 0),
     undated: tally((k) => Number.isNaN(ET[fin.ed[k]].day)),
+    stamp_withdrawn: tally((k) => withdrawnEds.has(fin.ed[k])),
   };
   const recomputed = { E0: E0.length, E1: E1.length, E2_E8: E28.length, E2_E8_finishes: sum(E28), duplicate_groups: groups };
   return { counts, lists, recomputed, editions: ET, fin };
 }
 
-module.exports = { applyPolicy, parseTime, tryInt, nameKey, hash53, dateDay, quantileSeg, PRODUCER_EXCLUDE, NONRUN, STATUS };
+// ---------- The corrected metadata (the stamp correction), read without the Python builders ----------
+
+/** half_quality.trim_text: runs of ASCII whitespace made one space; over `limit`, cut at the last space and ended "…". */
+function trimText(text, limit = 160) {
+  const s = String(text ?? '').replace(/[ \t\r\n]+/g, ' ').trim();
+  if (s.length <= limit) return s;
+  const cut = s.slice(0, limit - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > 0 ? cut.slice(0, space) : cut).replace(/[ ,;:]+$/, '')}…`;
+}
+
+/** half_quality.correction_reason: the withdrawal clause of a corrected completeness_reason. */
+function correctionReason(text) {
+  const parts = String(text ?? '').split(' | ').map((p) => p.trim()).filter(Boolean);
+  if (!parts.length) return '';
+  return trimText(parts.find((p) => p.includes('unstamped')) ?? parts[0]);
+}
+
+/** RFC 4180 rows (quoted fields, doubled quotes, commas and line breaks inside quotes). */
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', i = 0, quoted = false;
+  while (i < text.length) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i += 2; continue; } quoted = false; i++; continue; }
+      field += c; i++; continue;
+    }
+    if (c === '"' && field === '') { quoted = true; i++; continue; }
+    if (c === ',') { row.push(field); field = ''; i++; continue; }
+    if (c === '\r' && text[i + 1] === '\n') { i++; continue; }
+    if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+    field += c; i++;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+/** The corrected edition registry from its zstd CSV: Map(edition_id → {city, year, status, reason, source_type}). */
+function readCorrection(bytes) {
+  const zlib = require('node:zlib');
+  let text;
+  if (typeof zlib.zstdDecompressSync === 'function') text = zlib.zstdDecompressSync(bytes).toString('utf8');
+  else {
+    const out = require('node:child_process').spawnSync('zstd', ['-dc', '-q'], { input: bytes, maxBuffer: 1 << 28 });
+    need(out.status === 0, 'zstd could not read the corrected metadata');
+    text = out.stdout.toString('utf8');
+  }
+  const [head, ...rows] = parseCsv(text);
+  const col = Object.fromEntries(head.map((h, k) => [h, k]));
+  for (const c of ['id', 'city', 'year', 'completeness_status', 'completeness_reason', 'official_source_type']) need(c in col, `the corrected metadata has no ${c} column`);
+  const out = new Map();
+  for (const r of rows) {
+    if (r.length === 1 && r[0] === '') continue;
+    need(r.length === head.length, 'a corrected metadata row with the wrong number of fields');
+    const eid = Number(r[col.id]);
+    need(Number.isSafeInteger(eid) && !out.has(eid), `edition ${r[col.id]} twice or malformed in the corrected metadata`);
+    out.set(eid, { city: r[col.city], year: Number(r[col.year]), status: r[col.completeness_status], reason: r[col.completeness_reason], source_type: r[col.official_source_type] });
+  }
+  return out;
+}
+
+module.exports = { applyPolicy, parseTime, tryInt, nameKey, hash53, dateDay, quantileSeg, PRODUCER_EXCLUDE, NONRUN, STATUS,
+  trimText, correctionReason, parseCsv, readCorrection };

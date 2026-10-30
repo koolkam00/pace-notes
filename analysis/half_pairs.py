@@ -26,10 +26,12 @@ WINDOW_DAYS = (21, 112)
 LINK_RULES = {'tiers': list(TIERS), 'ns_keys_max': NS_KEYS_MAX, 'window_days': list(WINDOW_DAYS),
               'pairing': 'nearest prior half, one pair per person and marathon', 'candidate_merges': 'not applied'}
 
-# The reviewed set B of runner-links-20261029-1156 with half-snapshot-20261029-1133 (link audit and spec 1.3).
+# The reviewed set B of runner-links-20261029-1156 with half-snapshot-20261029-1133 (link audit and spec 1.3). The stamp
+# correction (2026-10-30, verified = stamped in the snapshot and in the corrected metadata) leaves every pair as it was
+# and moves only the halves that count as verified: 14,321 before, 2,024 after.
 EXPECTED = {
     'runner-links-20261029-1156': {'pairs': 23_929, 'people': 20_234, 'marathon_editions': 107, 'marathon_cities': 21,
-                                   'half_editions': 1_045, 'women_pairs': 5_947, 'men_pairs': 17_982, 'verified_halves': 14_321},
+                                   'half_editions': 1_045, 'women_pairs': 5_947, 'men_pairs': 17_982, 'verified_halves': 2_024},
 }
 
 

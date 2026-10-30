@@ -1,30 +1,29 @@
-"""Fetch and verify the private half snapshot and its link build (docs/HALF_MARATHON.md; spec 1.2).
+"""Fetch and verify the half snapshot, its link build and the corrected edition metadata (docs/HALF_MARATHON.md).
 
+    python3 -I analysis/download_half.py [--out DIR] [--links-work DIR] [--only half|links|correction]
     python3 -I analysis/download_half.py --from-dir DIR [--from-dir DIR] [--out DIR]
-    python3 -I analysis/download_half.py --token-env HALF_SOURCE_TOKEN [--out DIR]
 
-Both sources live in a private repository (analysis/half-release.json `repository`), so this is not the public
-downloader: analysis/download_release.py stays anonymous and public-only. Nothing here writes under the repository or
-`public/`: the files go to `--out`, default `$PACE_HALF_DIR` (itself defaulting to `~/data/half-1133`).
+All three come from the owner's public CC BY 4.0 releases in the repository analysis/half-release.json names
+(`repository`): the snapshot and the link build from `half.tag` and `links.tag` (one release, half-dataset-20261029-1202),
+the corrected `csv-edition_meta.csv.zst` from `metadata_correction.tag` (half-dataset-20261029-2157). No account, token
+or signed URL is needed: every request goes anonymously to
+`https://github.com/{repository}/releases/download/{tag}/{asset}`, never to api.github.com, and carries no
+Authorization header. Nothing is written under the repository or `public/`: the files go to `--out`, default
+`$PACE_HALF_DIR` (itself defaulting to `~/data/half-1133`). The pages publish aggregates of these files only.
 
-`--from-dir DIR` takes a folder the owner filled with `gh release download <tag> -R <repository>`, once per release
-(give `--from-dir` once per folder). The folder's own `SHA256SUMS` names its release: every asset the pin lists must be
-in it with the pinned digest, and every listed file that is present must match its line. Parts are read in place and
-never deleted (they are the owner's files).
+Each release's own `SHA256SUMS` is fetched first; every asset the pin lists must be in it with the pinned digest, so the
+pin, the release and the downloaded bytes agree. Every downloaded file is checked against its digest as it streams.
+`--from-dir DIR` takes a folder already filled from a release (`gh release download <tag> -R <repository>` or curl, with
+its `SHA256SUMS`) instead; give it once per folder. Parts read from such a folder are never deleted.
 
-`--token-env NAME` reads a fine-grained, read-only token from the environment variable NAME (owner question Q2; no such
-secret is stored by default). It asks `https://api.github.com/repos/{repository}/releases/tags/{tag}` for each release
-and fetches every pinned asset from its API URL with `Accept: application/octet-stream`. The `Authorization` header
-goes to api.github.com only: it is an unredirected header, so the redirect to the asset host carries no credential
-(the rule of analysis/download_release.py). The token is never printed, logged or written. Downloaded parts are
-deleted once their decompressed file is verified.
-
-Reassembly streams the parts in order into `zstd -d`, then runs `PRAGMA integrity_check` and compares the
-decompressed SQLite's sha256 with the pin (`half.sqlite_sha256`). The links release has no pinned SQLite digest; its
-SQLite is cut at once into `links-slim.sqlite` by analysis/half_links_extract.py, whose content digest must equal the
-pin (`links.extract_content_sha256`), and the 5.3 GB SQLite is then deleted unless `--keep-links-sqlite`. A file
-already in place with the pinned digest is kept as it is. `provenance.json` (local only, never committed) records what
-was checked. Needs the `zstd` command and about 9 GB of free disk for both sources (3.7 GB half, 5.3 GB links).
+Reassembly streams the parts in order into `zstd -d`, then runs `PRAGMA integrity_check` and compares the decompressed
+SQLite's sha256 with the pin (`half.sqlite_sha256`). The links release has no pinned SQLite digest; its SQLite is cut at
+once into `links-slim.sqlite` by analysis/half_links_extract.py, whose content digest must equal the pin
+(`links.extract_content_sha256`); the 5.3 GB SQLite is written under `--links-work` (default `--out`, so a larger disk can
+take it) and deleted unless `--keep-links-sqlite`. The corrected metadata lands at `<out>/<correction tag>/<asset>`, where
+analysis/build_half.py and the source recount look for it. A file already in place with the pinned digest is kept.
+`provenance.json` (local only, never committed) records what was checked. Needs the `zstd` command and about 10 GB of free
+disk at the peak (3.7 GB half SQLite, 0.8 GB links part, 5.3 GB links SQLite).
 """
 from __future__ import annotations
 
@@ -39,8 +38,8 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path
-from urllib.parse import urlsplit
-from urllib.request import Request
+from urllib.parse import quote, urlsplit
+from urllib.request import Request, build_opener
 
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -52,26 +51,31 @@ LINKS_SQLITE = 'runner_links.sqlite'
 # Rough decompressed sizes (bytes) for the free-disk check.
 SIZES = {'half': 3_744_944_128, 'links': 5_270_000_000}
 USER_AGENT = 'pace-notes-half-download'
+DOWNLOAD_HOST = 'github.com'
 
 
 def read_sums(path: Path) -> dict[str, str]:
     """A `sha256sum` file: {file name: digest}."""
+    return parse_sums(path.read_text(), str(path))
+
+
+def parse_sums(text: str, where: str = 'SHA256SUMS') -> dict[str, str]:
     listed = {}
-    for line in path.read_text().splitlines():
+    for line in text.splitlines():
         if not line.strip():
             continue
         parts = line.split(maxsplit=1)
         if len(parts) != 2:
-            fail(f'{path}: malformed line')
+            fail(f'{where}: malformed line')
         digest, name = parts[0], parts[1].strip().lstrip('*')
         if not re.fullmatch(r'[0-9a-f]{64}', digest) or '/' in name or name in listed:
-            fail(f'{path}: malformed or repeated line for {name!r}')
+            fail(f'{where}: malformed or repeated line for {name!r}')
         listed[name] = digest
     return listed
 
 
 def releases(pin: dict) -> list[dict]:
-    """The two pinned releases: their tags, pinned assets, parts in order, and what they decompress to."""
+    """The pinned half and links specs: their tags, pinned assets, parts in order, and what they decompress to."""
     out = []
     for key, target, sha in (('half', pin['half']['sqlite'], pin['half']['sqlite_sha256']), ('links', LINKS_SQLITE, None)):
         assets = dict(pin[key]['assets'])
@@ -82,13 +86,27 @@ def releases(pin: dict) -> list[dict]:
             fail(f'the pinned {key} parts belong to more than one file')
         for name, digest in assets.items():
             if not re.fullmatch(r'[0-9a-f]{64}', digest) or '/' in name:
-                fail(f'the pin lists a malformed {key} asset {name!r}')
+                fail(f'the pinned {key} release lists a malformed asset {name!r}')
         out.append({'key': key, 'tag': pin[key]['tag'], 'assets': assets, 'parts': parts, 'target': target, 'target_sha256': sha})
     return out
 
 
+def correction_spec(pin: dict) -> dict:
+    """The pinned metadata correction as a spec: its CSV and README, no parts."""
+    mc = pin['metadata_correction']
+    assets = {mc['asset']: mc['sha256'], 'README.md': mc['readme_sha256']}
+    for name, digest in assets.items():
+        if not re.fullmatch(r'[0-9a-f]{64}', digest) or '/' in name:
+            fail(f'the pinned metadata correction lists a malformed asset {name!r}')
+    return {'key': 'correction', 'tag': mc['tag'], 'assets': assets, 'parts': [], 'target': mc['asset'], 'target_sha256': mc['sha256']}
+
+
+def all_specs(pin: dict) -> list[dict]:
+    return releases(pin) + [correction_spec(pin)]
+
+
 def check_folder(folder: Path, spec: dict) -> dict[str, Path]:
-    """The pinned assets in an owner's download folder, each checked against the folder's SHA256SUMS and the pin."""
+    """The pinned assets in a download folder, each checked against the folder's SHA256SUMS and the pin."""
     sums_path = folder / 'SHA256SUMS'
     if not sums_path.is_file():
         fail(f'{folder} has no SHA256SUMS')
@@ -103,24 +121,24 @@ def check_folder(folder: Path, spec: dict) -> dict[str, Path]:
             if name in spec['assets']:
                 fail(f'{path} is missing')
             continue
-        got = file_sha256(path)
-        if got != digest:
+        if name not in spec['assets']:
+            continue
+        if file_sha256(path) != digest:
             fail(f'{path} does not match SHA256SUMS')
-        if name in spec['assets']:
-            found[name] = path
+        found[name] = path
     return found
 
 
-def identify(folder: Path, specs: list[dict]) -> dict:
-    """The pinned release a folder holds, from the asset names its SHA256SUMS lists."""
+def identify(folder: Path, specs: list[dict]) -> list[dict]:
+    """The pinned specs a folder holds (one release can hold the half and the links), from its SHA256SUMS."""
     sums = folder / 'SHA256SUMS'
     if not sums.is_file():
         fail(f'{folder} has no SHA256SUMS')
-    listed = set(read_sums(sums))
-    hits = [s for s in specs if set(s['parts']) <= listed]
-    if len(hits) != 1:
-        fail(f'{folder} does not hold exactly one pinned release (its SHA256SUMS lists {sorted(listed)[:6]})')
-    return hits[0]
+    listed = read_sums(sums)
+    hits = [s for s in specs if all(listed.get(n) == d for n, d in s['assets'].items())]
+    if not hits:
+        fail(f'{folder} holds no pinned release (its SHA256SUMS lists {sorted(listed)[:6]})')
+    return hits
 
 
 def integrity_ok(path: Path) -> bool:
@@ -160,67 +178,84 @@ def reassemble(parts: list[Path], target: Path, expected_sha256: str | None) -> 
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# The API (owner question Q2): a token only on api.github.com, never on the asset host.
+# Anonymous public downloads: github.com release URLs only, no Authorization header, ever.
 # ---------------------------------------------------------------------------------------------------------------
 
+def public_url(repo: str, tag: str, name: str) -> str:
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo) or not re.fullmatch(r'[A-Za-z0-9_.-]+', tag):
+        fail(f'not a public release address: {repo} {tag}')
+    return f'https://{DOWNLOAD_HOST}/{repo}/releases/download/{tag}/{quote(name)}'
+
+
+def public_request(url: str) -> Request:
+    parts = urlsplit(url)
+    if parts.scheme != 'https' or parts.hostname != DOWNLOAD_HOST or '/releases/download/' not in parts.path:
+        fail(f'{url}: downloads go to public github.com release URLs only')
+    return Request(url, headers={'User-Agent': USER_AGENT, 'Accept': 'application/octet-stream'})
+
+
 def _opener():
-    from download_release import _OPENER
-    return _OPENER
+    return build_opener()
 
 
-def api_request(url: str, token: str, accept: str) -> Request:
-    request = Request(url, headers={'Accept': accept, 'User-Agent': USER_AGENT})
-    # Unredirected: urllib does not copy it onto a redirect, and download_release.GitHubApiRedirect re-adds it only
-    # while the redirect stays on https://api.github.com.
-    request.add_unredirected_header('Authorization', f'Bearer {token}')
-    return request
+def fetch_sums(repo: str, tag: str) -> dict[str, str]:
+    """A release's own SHA256SUMS, fetched anonymously."""
+    url = public_url(repo, tag, 'SHA256SUMS')
+    with _opener().open(public_request(url), timeout=60) as response:
+        return parse_sums(response.read().decode('utf-8'), url)
 
 
-def api_release(repo: str, tag: str, token: str) -> dict:
-    url = f'https://api.github.com/repos/{repo}/releases/tags/{tag}'
-    with _opener().open(api_request(url, token, 'application/vnd.github+json'), timeout=60) as response:
-        return json.load(response)
-
-
-def download_api_asset(asset: dict, token: str, destination: Path, expected_sha256: str) -> None:
-    url = asset['url']
-    if urlsplit(url).scheme != 'https' or urlsplit(url).hostname != 'api.github.com':
-        fail(f"{asset['name']}: expected an api.github.com asset URL")
-    digest, size = hashlib.sha256(), 0
+def download(url: str, destination: Path, expected_sha256: str) -> None:
+    """Stream one public asset to `destination`, checking its sha256; nothing is left behind on a mismatch."""
+    digest = hashlib.sha256()
     tmp = destination.with_name(destination.name + '.download')
     try:
-        with _opener().open(api_request(url, token, 'application/octet-stream'), timeout=120) as response, tmp.open('wb') as out:
+        with _opener().open(public_request(url), timeout=120) as response, tmp.open('wb') as out:
             while chunk := response.read(1 << 20):
                 out.write(chunk)
                 digest.update(chunk)
-                size += len(chunk)
-        published = asset.get('digest') or ''
-        if size != asset.get('size') or digest.hexdigest() != expected_sha256 or (published.startswith('sha256:') and published[7:] != expected_sha256):
-            fail(f"{asset['name']}: size or checksum differs from the pin")
+        if digest.hexdigest() != expected_sha256:
+            fail(f'{destination.name}: the downloaded bytes differ from the pinned sha256')
         os.replace(tmp, destination)
     finally:
         tmp.unlink(missing_ok=True)
 
 
-def fetch_release(spec: dict, repo: str, token: str, folder: Path) -> dict[str, Path]:
-    release = api_release(repo, spec['tag'], token)
-    by_name = {a['name']: a for a in release.get('assets', [])}
+def fetch_release(spec: dict, repo: str, folder: Path, sums: dict[str, str]) -> dict[str, Path]:
+    """Every pinned asset of one spec, downloaded into `folder` after the release's SHA256SUMS agreed with the pin."""
+    for name, digest in spec['assets'].items():
+        if sums.get(name) != digest:
+            fail(f"release {spec['tag']}: its SHA256SUMS does not list {name} with the pinned digest")
+    folder.mkdir(parents=True, exist_ok=True)
     found = {}
     for name, digest in spec['assets'].items():
-        if name not in by_name:
-            fail(f"release {spec['tag']} has no asset {name}")
         path = folder / name
-        download_api_asset(by_name[name], token, path, digest)
+        if path.is_file() and file_sha256(path) == digest:
+            found[name] = path
+            continue
+        download(public_url(repo, spec['tag'], name), path, digest)
         found[name] = path
     return found
 
 
 # ---------------------------------------------------------------------------------------------------------------
 
-def place(spec: dict, assets: dict[str, Path], out: Path, *, downloaded: bool, keep_links_sqlite: bool, replace: bool) -> dict:
-    """Decompress one release's SQLite into `out` (or keep a verified copy already there) and, for the links, cut the
-    extract. Returns its provenance."""
+def place(spec: dict, assets: dict[str, Path], out: Path, *, downloaded: bool, keep_links_sqlite: bool, replace: bool,
+          links_work: Path | None = None) -> dict:
+    """Put one spec's file in place in `out`: decompress a SQLite (or keep a verified copy already there), cut the links
+    extract, or put the corrected metadata in its folder. Returns its provenance."""
     record = {'tag': spec['tag'], 'assets': {name: spec['assets'][name] for name in sorted(spec['assets'])}}
+    if spec['key'] == 'correction':
+        folder = out / spec['tag']
+        folder.mkdir(parents=True, exist_ok=True)
+        for name, path in assets.items():
+            target = folder / name
+            if path.resolve() != target.resolve():
+                shutil.copyfile(path, target)
+            if file_sha256(target) != spec['assets'][name]:
+                fail(f'{target} is not the pinned {name}')
+        record['file'] = f"{spec['tag']}/{spec['target']}"
+        return record
     parts = [assets[name] for name in spec['parts']]
     if spec['key'] == 'half':
         target = out / spec['target']
@@ -236,9 +271,11 @@ def place(spec: dict, assets: dict[str, Path], out: Path, *, downloaded: bool, k
             digest = reassemble(parts, target, spec['target_sha256'])
             record['sqlite'] = {'file': target.name, 'sha256': digest, 'integrity_check': 'ok'}
     else:
-        target = out / spec['target']
-        if shutil.disk_usage(out).free < SIZES['links'] + (1 << 28) and not target.exists():
-            fail(f'{out} has too little free disk for the {SIZES["links"] / 1e9:.1f} GB links SQLite')
+        work = links_work or out
+        work.mkdir(parents=True, exist_ok=True)
+        target = work / spec['target']
+        if shutil.disk_usage(work).free < SIZES['links'] + (1 << 28) and not target.exists():
+            fail(f'{work} has too little free disk for the {SIZES["links"] / 1e9:.1f} GB links SQLite (use --links-work)')
         if not target.exists() or replace:
             reassemble(parts, target, None)
         import half_links_extract
@@ -260,11 +297,10 @@ def place(spec: dict, assets: dict[str, Path], out: Path, *, downloaded: bool, k
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument('--from-dir', type=Path, action='append', help='an owner `gh release download` folder (once per release)')
-    source.add_argument('--token-env', metavar='NAME', help='the environment variable that holds a read-only token')
+    parser.add_argument('--from-dir', type=Path, action='append', help='a folder filled from a pinned release, with its SHA256SUMS (once per folder)')
     parser.add_argument('--out', type=Path, default=Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1133'))
-    parser.add_argument('--only', choices=['half', 'links'], help='fetch one release only')
+    parser.add_argument('--links-work', type=Path, default=None, help='where the 5.3 GB links SQLite is decompressed and deleted (default --out)')
+    parser.add_argument('--only', choices=['half', 'links', 'correction'], help='fetch one of the three only')
     parser.add_argument('--keep-links-sqlite', action='store_true', help='keep the 5.3 GB runner_links.sqlite after the extract')
     parser.add_argument('--replace', action='store_true', help='replace a file already in --out')
     args = parser.parse_args(argv)
@@ -272,35 +308,39 @@ def main(argv=None) -> int:
         pin = load_pin()
         out = args.out.expanduser().resolve()
         if inside(out, ROOT):
-            fail(f'{out} is inside the repository; the half sources are private and stay outside it')
+            fail(f'{out} is inside the repository; record-level files stay outside it (pages publish aggregates)')
+        links_work = args.links_work.expanduser().resolve() if args.links_work else None
+        if links_work is not None and inside(links_work, ROOT):
+            fail(f'{links_work} is inside the repository')
         out.mkdir(parents=True, exist_ok=True)
-        specs = [s for s in releases(pin) if args.only in (None, s['key'])]
+        specs = [s for s in all_specs(pin) if args.only in (None, s['key'])]
         provenance = {'written_by': 'analysis/download_half.py', 'date': date.today().isoformat(),
-                      'pin_sha256': file_sha256(PIN_PATH), 'repository': pin['repository']}
+                      'pin_sha256': file_sha256(PIN_PATH), 'repository': pin['repository'], 'access': pin['access']}
+        kw = {'keep_links_sqlite': args.keep_links_sqlite, 'replace': args.replace, 'links_work': links_work}
         if args.from_dir:
             folders = {}
             for folder in args.from_dir:
                 folder = folder.expanduser().resolve()
-                spec = identify(folder, releases(pin))
-                if spec['key'] in folders:
-                    fail(f"two folders hold {spec['tag']}")
-                folders[spec['key']] = folder
+                for spec in identify(folder, all_specs(pin)):
+                    folders.setdefault(spec['key'], folder)
             for spec in specs:
                 if spec['key'] not in folders:
-                    fail(f"no --from-dir folder holds {spec['tag']}")
+                    fail(f"no --from-dir folder holds the pinned {spec['key']} assets of {spec['tag']}")
                 assets = check_folder(folders[spec['key']], spec)
-                provenance[spec['key']] = place(spec, assets, out, downloaded=False, keep_links_sqlite=args.keep_links_sqlite, replace=args.replace)
-                print(f"{spec['tag']}: verified from {folders[spec['key']]}")
+                provenance[spec['key']] = place(spec, assets, out, downloaded=False, **kw)
+                print(f"{spec['key']} ({spec['tag']}): verified from {folders[spec['key']]}")
             provenance['source'] = 'from-dir'
         else:
-            token = os.environ.get(args.token_env or '')
-            if not token:
-                fail(f'the environment variable {args.token_env} is empty')
+            sums = {}
             for spec in specs:
-                assets = fetch_release(spec, pin['repository'], token, out)
-                provenance[spec['key']] = place(spec, assets, out, downloaded=True, keep_links_sqlite=args.keep_links_sqlite, replace=args.replace)
-                print(f"{spec['tag']}: downloaded and verified")
-            provenance['source'] = 'api'
+                if spec['tag'] not in sums:
+                    sums[spec['tag']] = fetch_sums(pin['repository'], spec['tag'])
+                    print(f"{spec['tag']}: SHA256SUMS fetched anonymously from {DOWNLOAD_HOST}")
+                folder = out / spec['tag'] if spec['key'] == 'correction' else out
+                assets = fetch_release(spec, pin['repository'], folder, sums[spec['tag']])
+                provenance[spec['key']] = place(spec, assets, out, downloaded=spec['key'] != 'correction', **kw)
+                print(f"{spec['key']} ({spec['tag']}): downloaded anonymously and verified")
+            provenance['source'] = 'public release download (anonymous)'
         (out / 'provenance.json').write_text(json.dumps(provenance, indent=2, sort_keys=True) + '\n')
         print(f'wrote {out / "provenance.json"}')
     except HalfError as error:

@@ -1,5 +1,5 @@
 'use strict';
-// The four unnumbered "From the half" cards (spec 3.5) as a card set of scripts/build-chart-cards.cjs (`--set half`):
+// The unnumbered "From the half" cards (spec 3.5; four plots, each drawn only while its takeaway holds) as a card set of scripts/build-chart-cards.cjs (`--set half`):
 // public/charts/cards/<slug>.png (the slugs start with "half-"), drawn by the Top 100 ChartCard at the same size and
 // with the same stamp scheme. The words come from lib/charts/text/half.ts (halfCardWords), the plots and values from
 // public/data/half/cards.json, both read through the verified half manifest (lib/half-server.ts). Differences from a
@@ -38,7 +38,10 @@ module.exports = function halfCardSet(kit) {
   function items() {
     if (!halfPublished('cards.json')) return [];
     const docs = { field: readHalf('field.json'), women: readHalf('women.json'), linked: readHalf('linked.json') };
-    return readHalf('cards.json').cards.map((card) => ({ id: card.slug, file: `${card.slug}.png`, inputs: { card, words: halfCardWords(card, docs) } }));
+    // A card whose takeaway's guard fails for this build is withdrawn: not drawn (a leftover PNG is an orphan for --check)
+    // and so not linked from its page (SaveImage links only an existing PNG). verify-half holds the two together.
+    return readHalf('cards.json').cards.map((card) => ({ id: card.slug, file: `${card.slug}.png`, inputs: { card, words: halfCardWords(card, docs) } }))
+      .filter((it) => it.inputs.words.guard);
   }
 
   function html({ card, words }, fit) {
@@ -73,7 +76,8 @@ module.exports = function halfCardSet(kit) {
   function captions() {
     const list = items();
     if (!list.length) return [];
-    const lines = ['## From the half (not numbered)', '', 'Four cards outside the hundred, from the half-marathon pages. Each is `public/charts/cards/<slug>.png` (1080 × 1350), drawn by `node scripts/build-chart-cards.cjs --set half`.', ''];
+    const words = ['', 'One', 'Two', 'Three', 'Four'][list.length] || String(list.length);
+    const lines = ['## From the half (not numbered)', '', `${words} card${list.length === 1 ? '' : 's'} outside the hundred, from the half-marathon pages (a card whose takeaway no longer holds is withdrawn, not reworded to fit). Each is \`public/charts/cards/<slug>.png\` (1080 × 1350), drawn by \`node scripts/build-chart-cards.cjs --set half\`.`, ''];
     for (const { inputs: { card, words } } of list) {
       lines.push(`### ${words.title}`, '', `\`${card.slug}.png\``, '', words.plain, '');
       const where = words.page === '/half' ? 'The half marathon on Pace Notes' : 'From the half to the marathon, on Pace Notes';

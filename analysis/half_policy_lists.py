@@ -4,8 +4,15 @@ Reviewed 2026-10-29 for half-snapshot-20261029-1133 against the data audit (unde
 R3, the sub-races the non-running name pattern removes (54); R4, the sub-races with at least 5% (and at least 2)
 finishes under 56:42 (10); and every edition E0 and E2-E8 remove, with the reason the rule gives (68 editions:
 E0 2, E2 9, E3 5, E4 2, E5 0, E6 8, E7 30, E8 12). The builder recomputes each list from the source and fails
-unless it equals this one. Also the country of each verified usable edition's city label (107 labels), for the
-/methodology description of where the verified results come from.
+unless it equals this one. Also the country of each verified usable edition's city label (107 labels, reviewed before
+the stamp correction; a superset of the labels still verified), for the /methodology description of where the verified
+results come from.
+
+Reviewed 2026-10-30 for the stamp correction (half_quality.CORRECTION_20261029_2157): the 72 stamps of this snapshot that
+the corrected metadata of half-dataset-20261029-2157 withdrew (46 now counts_internal_only, 26
+counts_internal_only_winner_ok), each with its corrected status and the withdrawal clause of its corrected reason, and
+the six weaker-source stamps the corrected release's README names, which stay verified. The builder rederives the
+withdrawn list from the corrected metadata and fails unless it equals this one.
 """
 
 FROZEN_20261029_1133 = {
@@ -262,3 +269,91 @@ LABEL_COUNTRIES_20261029_1133 = {
     'Praia de Cortegaça': 'PT',
     'Graz': 'AT',
 }
+
+
+# The stamp correction: the stamps of this snapshot that the producer's corrected metadata withdrew
+# (half-dataset-20261029-2157, csv-edition_meta.csv.zst, sha256 2b8ad110…e842; reviewed 2026-10-30).
+WITHDRAWN_STAMPS_20261029_2157 = [
+    {'edition_id': 12, 'city': 'Amsterdam', 'year': 2025, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 96, 'city': 'Antwerp', 'year': 2025, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 95, 'city': 'Antwerp', 'year': 2026, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 3107, 'city': 'Berlin', 'year': 2026, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user (edge 2)'},
+    {'edition_id': 1350, 'city': 'Białystok: PKO Białystok Półmaraton', 'year': 2024, 'corrected_status': 'counts_internal_only', 'reason': 'stamped on derived count 2,782 (newspaper comparison); replace with published total if found'},
+    {'edition_id': 17, 'city': 'Cologne', 'year': 2019, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 15, 'city': 'Cologne', 'year': 2023, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 14, 'city': 'Cologne', 'year': 2024, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 13, 'city': 'Cologne', 'year': 2025, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 93, 'city': 'Eindhoven', 'year': 2026, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 51, 'city': 'Freiburg', 'year': 2019, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 53, 'city': 'Freiburg', 'year': 2022, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 54, 'city': 'Freiburg', 'year': 2023, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 56, 'city': 'Freiburg', 'year': 2024, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 57, 'city': 'Freiburg', 'year': 2025, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 58, 'city': 'Freiburg', 'year': 2026, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 8643, 'city': 'Gniezno', 'year': 2026, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user: only count source is a Biegowe repost'},
+    {'edition_id': 83, 'city': 'Graz', 'year': 2021, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 85, 'city': 'Graz', 'year': 2023, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 86, 'city': 'Graz', 'year': 2024, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 131, 'city': 'Karlsruhe', 'year': 2019, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 132, 'city': 'Karlsruhe', 'year': 2022, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 133, 'city': 'Karlsruhe', 'year': 2023, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 134, 'city': 'Karlsruhe', 'year': 2024, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 135, 'city': 'Karlsruhe', 'year': 2025, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 43, 'city': 'Lyon', 'year': 2021, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 42, 'city': 'Lyon', 'year': 2022, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 41, 'city': 'Lyon', 'year': 2023, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 40, 'city': 'Lyon', 'year': 2024, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 39, 'city': 'Lyon', 'year': 2025, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 118, 'city': 'Magdeburg', 'year': 2016, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 119, 'city': 'Magdeburg', 'year': 2017, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 120, 'city': 'Magdeburg', 'year': 2018, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 121, 'city': 'Magdeburg', 'year': 2019, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 91, 'city': 'Mainz', 'year': 2025, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 8749, 'city': 'New York', 'year': 2025, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 reconcile: platform-internal count is not an independent total'},
+    {'edition_id': 101, 'city': 'Oberelbe', 'year': 2016, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 102, 'city': 'Oberelbe', 'year': 2017, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 103, 'city': 'Oberelbe', 'year': 2018, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 104, 'city': 'Oberelbe', 'year': 2019, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 144, 'city': 'Oberelbe', 'year': 2022, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 34, 'city': 'Paris', 'year': 2017, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 31, 'city': 'Paris', 'year': 2019, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 28, 'city': 'Paris', 'year': 2022, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 27, 'city': 'Paris', 'year': 2023, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 26, 'city': 'Paris', 'year': 2024, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 25, 'city': 'Paris', 'year': 2025, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 24, 'city': 'Paris', 'year': 2026, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 8728, 'city': 'Szczecin', 'year': 2025, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user: only count source is a Biegowe repost'},
+    {'edition_id': 139, 'city': 'Ulm', 'year': 2022, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'db=2717 timed finishers; list 2744 = 2717 + 27 DNF/DSQ/a.k.; matches de.wikipedia Zieleinlauf 2744 incl. status rows'},
+    {'edition_id': 140, 'city': 'Ulm', 'year': 2023, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user (edge 1)'},
+    {'edition_id': 141, 'city': 'Ulm', 'year': 2024, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'db=4142 timed finishers; list 4181 = 4142 + 39 DNF/DNS/a.k.; de.wikipedia 4181'},
+    {'edition_id': 11, 'city': 'Valencia', 'year': 2016, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 9, 'city': 'Valencia', 'year': 2017, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 8, 'city': 'Valencia', 'year': 2018, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 5, 'city': 'Valencia', 'year': 2021, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 4, 'city': 'Valencia', 'year': 2022, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 3, 'city': 'Valencia', 'year': 2023, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 2, 'city': 'Valencia', 'year': 2024, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 1, 'city': 'Valencia', 'year': 2025, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 10, 'city': 'Valencia', 'year': 2026, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 7993, 'city': 'Vartdalsstranda Half', 'year': 2025, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user: source label says not an independent count'},
+    {'edition_id': 122, 'city': 'Venlo', 'year': 2025, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 124, 'city': 'Venlo', 'year': 2026, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'},
+    {'edition_id': 8675, 'city': 'Warszawa', 'year': 2025, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user: only count source is a Biegowe repost'},
+    {'edition_id': 8705, 'city': 'Warszawa', 'year': 2026, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user: only count source is a Biegowe repost'},
+    {'edition_id': 1259, 'city': 'Warszawa: Nocny Półmaraton Praski', 'year': 2024, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 8709, 'city': 'Warszawa: Półmaraton Warszawski', 'year': 2024, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user: hdsports-only count'},
+    {'edition_id': 641, 'city': 'Wałbrzych: Toyota Eko Półmaraton Wałbrzych', 'year': 2026, 'corrected_status': 'counts_internal_only_winner_ok', 'reason': 'unstamped 2026-10-29 per user (edge 3)'},
+    {'edition_id': 114, 'city': 'Zurich', 'year': 2022, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 115, 'city': 'Zurich', 'year': 2024, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+    {'edition_id': 116, 'city': 'Zurich', 'year': 2025, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform list / aggregator / Wikipedia is not an independent total'},
+]
+# The six stamps the corrected release's README names as weaker-source (an organiser or local-press count rather than
+# a federation count). They stay stamped, so they stay verified; /methodology names them.
+WEAKER_SOURCE_20261029_2157 = [
+    {'edition_id': 8710, 'city': 'Kraków', 'year': 2025, 'source': 'organiser published finisher total (cracoviapolmaraton.pl, 14,129) — weaker than federation'},
+    {'edition_id': 1890, 'city': 'Kraków: Cracovia Półmaraton Królewski', 'year': 2022, 'source': 'organiser press release (ZIS Kraków, 16.10.2022: 5,807 of 5,844 starters finished) — weaker than federation'},
+    {'edition_id': 275, 'city': 'Lisbon', 'year': 2024, 'source': 'club race report: 13,221 + 68 elite finishers (AIMS: >13,000)'},
+    {'edition_id': 8652, 'city': 'Piła', 'year': 2026, 'source': 'local press (Piła Online, own text: "Bieg ukończyło 879") — weaker than federation'},
+    {'edition_id': 8748, 'city': 'Szczecin', 'year': 2023, 'source': 'local press (Kamienskie.info) own finisher total 1,280 — weaker than federation'},
+    {'edition_id': 8725, 'city': 'Szczecin', 'year': 2026, 'source': 'local press (24Kurier own count 4,533; dzienniknarodowy also 4,533) — weaker than federation; Biegowe/sport.co.pl 4,535 not used'},
+]

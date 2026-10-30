@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 'use strict';
 // Layer 2 of the half-marathon verification (docs/HALF_MARATHON.md; spec 1.6): an independent Node recount of every
-// published half value from the private sources, run locally by whoever rebuilds the half data. It never imports the
-// Python builders and shares only their inputs:
+// published half value from the record-level sources (the owner's public CC BY 4.0 releases, fetched anonymously by
+// analysis/download_half.py), run by whoever rebuilds the half data and by the Half marathon workflow's `source` job. It
+// never imports the Python builders and shares only their inputs:
 //
 //   - the half snapshot and the links extract, opened read-only with node:sqlite and checked against the pin
 //     (analysis/half-release.json): the snapshot's sha256, the extract's canonical content digest and link build;
+//   - the corrected edition metadata (half-dataset-20261029-2157, csv-edition_meta.csv.zst; its sha256 pinned): the
+//     recount rederives the withdrawn stamps from it and compares them with the frozen list (verified = stamped in both);
 //   - the frozen policy (analysis/half-policy-<stamp>.json), whose rule text must equal this recount's own constants;
 //   - the marathon side from the public runner shards and the weather evidence (scripts/half/marathon.cjs).
 //
@@ -17,10 +20,10 @@
 // lies inside it. It then writes the receipt docs/evidence/half/source-recount.json (a date, the bound digests, the
 // counts it checked and the mismatches; no rows), which scripts/verify-half.cjs requires in CI.
 //
-//   npm run verify:half-source -- [--half platform_half.sqlite] [--links links-slim.sqlite] [--no-write]
+//   npm run verify:half-source -- [--half platform_half.sqlite] [--links links-slim.sqlite] [--corrected-meta FILE] [--no-write]
 //
-// Defaults: $PACE_HALF_DIR/platform_half.sqlite and $PACE_HALF_DIR/links-slim.sqlite (PACE_HALF_DIR defaults to
-// ~/data/half-1133). About 80 s and under 1 GB of memory (typed arrays for 6.9 million records and 4.1 million marathon
+// Defaults: $PACE_HALF_DIR/platform_half.sqlite, $PACE_HALF_DIR/links-slim.sqlite and
+// $PACE_HALF_DIR/<correction tag>/csv-edition_meta.csv.zst (PACE_HALF_DIR defaults to ~/data/half-1133). About 80 s and under 1 GB of memory (typed arrays for 6.9 million records and 4.1 million marathon
 // finishes); the sha256 of the 3.7 GB snapshot is read once.
 const fs = require('node:fs');
 const os = require('node:os');
@@ -28,12 +31,12 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 const emitWarning = process.emitWarning;
-process.emitWarning = (warning, ...rest) => (String(warning).includes('SQLite') ? undefined : emitWarning.call(process, warning, ...rest));
+process.emitWarning = (warning, ...rest) => (/SQLite|[Zz]std/.test(String(warning)) ? undefined : emitWarning.call(process, warning, ...rest));
 const { DatabaseSync } = require('node:sqlite');
 
 const ROOT = path.resolve(__dirname, '..');
 const D = require('./half/derive.cjs');
-const { applyPolicy, dateDay } = require('./half/policy.cjs');
+const { applyPolicy, dateDay, readCorrection, correctionReason, trimText } = require('./half/policy.cjs');
 const { loadMarathons } = require('./half/marathon.cjs');
 const Fam = require('./half/families.cjs');
 
@@ -41,12 +44,15 @@ const started = Date.now();
 const log = (message) => console.log(`[${Math.round((Date.now() - started) / 1000)} s] ${message}`);
 const argv = process.argv.slice(2);
 const halfDir = process.env.PACE_HALF_DIR || path.join(os.homedir(), 'data', 'half-1133');
-const opt = { half: path.join(halfDir, 'platform_half.sqlite'), links: path.join(halfDir, 'links-slim.sqlite'), write: true };
+const pinFor = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'analysis', 'half-release.json'), 'utf8'));
+const opt = { half: path.join(halfDir, 'platform_half.sqlite'), links: path.join(halfDir, 'links-slim.sqlite'),
+  corrected: path.join(halfDir, pinFor.metadata_correction.tag, pinFor.metadata_correction.asset), write: true };
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--half' && argv[i + 1]) opt.half = path.resolve(argv[++i]);
   else if (argv[i] === '--links' && argv[i + 1]) opt.links = path.resolve(argv[++i]);
+  else if (argv[i] === '--corrected-meta' && argv[i + 1]) opt.corrected = path.resolve(argv[++i]);
   else if (argv[i] === '--no-write') opt.write = false;
-  else throw new Error('Usage: node scripts/verify-half-source.cjs [--half platform_half.sqlite] [--links links-slim.sqlite] [--no-write]');
+  else throw new Error('Usage: node scripts/verify-half-source.cjs [--half platform_half.sqlite] [--links links-slim.sqlite] [--corrected-meta FILE] [--no-write]');
 }
 const rel = (p) => path.join(ROOT, p);
 const sha = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -62,10 +68,12 @@ const manifest = JSON.parse(manifestBytes);
 const policyBytes = fs.readFileSync(rel(pin.policy));
 const policy = JSON.parse(policyBytes);
 if (pin.marathon_release !== release.tag) fail('the pin binds another marathon release');
-if (policy.tag !== pin.half.tag) fail('the policy is not the pinned snapshot’s');
-for (const [p, what] of [[opt.half, '--half'], [opt.links, '--links']]) {
+if (policy.tag !== pin.half.private_tag) fail('the policy is not the pinned snapshot’s');
+const MC = pin.metadata_correction, SC = policy.stamp_correction;
+if (!MC || !SC || MC.tag !== SC.tag || MC.asset !== SC.asset || MC.sha256 !== SC.sha256 || MC.applied !== SC.applied) fail('the pin and the policy name different stamp corrections');
+for (const [p, what] of [[opt.half, '--half'], [opt.links, '--links'], [opt.corrected, '--corrected-meta']]) {
   if (!fs.existsSync(p)) fail(`${what}: missing ${p}`);
-  if (inside(p)) fail(`${what}: ${p} is inside the repository; the half sources are private and stay outside it`);
+  if (inside(p)) fail(`${what}: ${p} is inside the repository; record-level sources stay outside it`);
 }
 if (path.basename(opt.half) !== pin.half.sqlite || path.basename(opt.links) !== pin.links.extract) fail('the sources must be the pinned files');
 
@@ -94,8 +102,12 @@ let linksSha;
   linksSha = hash.digest('hex');
 }
 if (linksSha !== pin.links.extract_content_sha256 || build.extract_content_sha256 !== linksSha) fail(`${opt.links} is not the pinned extract (content sha256 ${linksSha})`);
-if (build.links_tag !== pin.links.tag || build.pairs_with !== pin.half.tag || build.marathon_release !== release.tag) fail('the extract was cut from another link build');
-log('sources match the pin');
+if (build.links_tag !== pin.links.private_tag || build.pairs_with !== pin.half.private_tag || build.marathon_release !== release.tag) fail('the extract was cut from another link build');
+const correctedBytes = fs.readFileSync(opt.corrected);
+const correctedSha = sha(correctedBytes);
+if (correctedSha !== MC.sha256) fail(`${opt.corrected} is not the pinned corrected metadata (sha256 ${correctedSha})`);
+const corrected = readCorrection(correctedBytes);
+log('sources and the corrected metadata match the pin');
 
 // ---------- Comparison ----------
 const mismatches = [];
@@ -143,6 +155,33 @@ compare('policy', 'R4 sub-races', sorted(policy.record_rules.R4.subraces), sorte
 const EK = ['edition_id', 'city', 'year', 'rule', 'category', 'finishes'];
 compare('policy', 'E0, E2–E8 editions (recomputed screens)', sorted(pick(policy.edition_rules.editions, EK)), sorted(pick(P.lists.editions, EK)));
 log(`policy compared: ${P.recomputed.duplicate_groups} duplicate groups, ${P.lists.editions.length} listed editions recomputed`);
+
+// The stamp correction, rederived from the corrected metadata: every stamped edition of the snapshot whose corrected
+// status is not stamped (the frozen list, with its trimmed reason), the weaker-source stamps, and the verified scope.
+{
+  const derived = [];
+  let missing = 0;
+  for (const r of P.editions) {
+    if (r.status !== 'stamped' || r.edition_id === null) continue;
+    const c = corrected.get(r.edition_id);
+    if (!c || c.city !== r.city || c.year !== r.year) { missing++; continue; }
+    if (c.status !== 'stamped') derived.push({ edition_id: r.edition_id, city: r.city, year: r.year, corrected_status: c.status, reason: correctionReason(c.reason) });
+  }
+  compare('policy', 'stamp correction: stamped editions missing from or renamed in the corrected metadata', 0, missing);
+  compare('policy', 'stamp correction: withdrawn stamps (from the corrected metadata)', sorted(SC.withdrawn), sorted(derived));
+  const weaker = SC.weaker_source.map((x) => { const c = corrected.get(x.edition_id); return c && c.status === 'stamped' ? { edition_id: x.edition_id, city: c.city, year: c.year, source: trimText(c.source_type) } : null; });
+  compare('policy', 'stamp correction: weaker-source stamps stay stamped', sorted(SC.weaker_source), sorted(weaker.filter(Boolean)));
+  let wrong = 0, weakVerified = 0;
+  const weakIds = new Set(SC.weaker_source.map((x) => x.edition_id));
+  for (const r of P.editions) {
+    if (!r.use_finish || r.edition_id === null) continue;
+    const stamped = corrected.get(r.edition_id)?.status === 'stamped';
+    if (stamped !== (r.group === 'verified')) wrong++;
+    if (weakIds.has(r.edition_id) && r.group === 'verified') weakVerified++;
+  }
+  compare('policy', 'stamp correction: usable editions verified exactly when stamped in both', 0, wrong);
+  compare('policy', 'stamp correction: weaker-source stamps verified', weakIds.size, weakVerified);
+}
 
 // ---------- The marathon side ----------
 log('reading the runner shards');
@@ -262,7 +301,7 @@ const receipt = {
   date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
   status: total === 0 ? 'pass' : 'fail', mismatches: total, values_checked: values,
   manifest_sha256: sha(manifestBytes), verify_half_source_sha256: scripts['scripts/verify-half-source.cjs'], recount_scripts: scripts,
-  half_sqlite_sha256: halfSha, links_extract_content_sha256: linksSha, runner_manifest_sha256: MAR.manifestSha,
+  half_sqlite_sha256: halfSha, links_extract_content_sha256: linksSha, corrected_meta_sha256: correctedSha, runner_manifest_sha256: MAR.manifestSha,
   policy_sha256: sha(policyBytes), weather_evidence_sha256: MAR.weatherSha, marathon_release: release.tag,
   counts: { ...P.counts, set_b: setB, marathon: { eligible: MAR.n, sustained: MAR.slowdowns, dated_editions: MAR.datedEditions } },
   files: Object.fromEntries(Object.keys(manifest.files).sort().map((f) => [f, tally[f] || { values: 0, mismatches: 0 }])),

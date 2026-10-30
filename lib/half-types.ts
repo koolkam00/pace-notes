@@ -59,9 +59,9 @@ export type HalfField = {
   scope: 'verified';
   /** Verified finishes and editions; `sex_*` the editions that pass the sex rule (use_sex) and their M or F finishes. */
   cohort: { finishes: number; editions: number; sex_finishes: number; sex_editions: number };
-  /** Whole-minute counts of all verified finishes: counts[i] holds finishes in minute lo + i (65…209). */
+  /** Whole-minute counts of all verified finishes: counts[i] holds finishes in minute lo + i (70…199 since the stamp correction). */
   minutes: HalfTailedCounts & { lo: number; hi: number };
-  /** Recorded women's and men's finishes in `bin_s` bins from lo_s to hi_s (28 bins of 5 minutes, 1:10–3:30; from 1:10, the first published mark, so each tail holds at least 100). */
+  /** Recorded women's and men's finishes in `bin_s` bins from lo_s to hi_s (27 bins of 5 minutes, 1:15–3:30; from 1:15, the first published mark, so each tail holds at least 100). */
   sex_bins: { bin_s: number; lo_s: number; hi_s: number; F: HalfTailedCounts; M: HalfTailedCounts };
   /** Finish-time quantiles, seconds (`insights_stats.quantile`, linear). */
   quantiles: {
@@ -69,7 +69,7 @@ export type HalfField = {
     F: { p25: number; p50: number; p75: number };
     M: { p25: number; p50: number; p75: number };
   };
-  /** Shares of finishes strictly under `s`, every 300 s from 4200 (1:10) to 10800 (3:00). */
+  /** Shares of finishes strictly under `s`, every 300 s from 4500 (1:15) to 10800 (3:00). */
   under: { s: number; all: number; F: number; M: number }[];
   /** The densest 30 whole minutes: they start at `lo_minute` and hold `share` of all finishes. */
   window30: { lo_minute: number; share: number };
@@ -321,6 +321,8 @@ export type HalfPolicyCounts = {
   verified_use_sex: HalfFinishesEditions;
   /** use_finish editions with no race date (they enter no date window), and their finishes after R7. */
   undated: HalfFinishesEditions;
+  /** The editions stamped in the snapshot whose stamp the corrected metadata withdrew (now unverified), and their finishes after R7. */
+  stamp_withdrawn: HalfFinishesEditions;
   set_b: { pairs: number; people: number; marathon_editions: number; half_editions: number };
 };
 
@@ -334,8 +336,15 @@ export type HalfManifest = {
   schema_version: 1;
   family: 'half';
   as_of: string;
-  half: { tag: string; sqlite_sha256: string };
-  links: { tag: string; extract_content_sha256: string };
+  /** The pinned source's repository, licence and access sentence (analysis/half-release.json). */
+  repository: string;
+  license: string;
+  access: string;
+  /** `tag` is the public release the files come from; `private_tag` the snapshot's or link build's own name. */
+  half: { tag: string; private_tag: string; sqlite_sha256: string };
+  links: { tag: string; private_tag: string; extract_content_sha256: string };
+  /** The corrected edition metadata the verified scope is taken from: verified = stamped in both. */
+  metadata_correction: HalfMetadataCorrection;
   marathon: {
     release_tag: string;
     runner_manifest_sha256: string;
@@ -363,16 +372,33 @@ export type HalfManifest = {
   files: Record<string, HalfFileMeta>;
 };
 
-/** analysis/half-release.json: the separate pin of the half snapshot and its link build. */
+/** The policy's reviewed stamp correction (analysis/half-policy-<stamp>.json `stamp_correction`). */
+export type HalfStampCorrection = HalfMetadataCorrection & {
+  repository: string; readme_sha256: string; reviewed: string; rule: string;
+  withdrawn: { edition_id: number; city: string; year: number; corrected_status: string; reason: string }[];
+  weaker_source: { edition_id: number; city: string; year: number; source: string }[];
+};
+
+/** The producer's corrected edition metadata (a later public release of the same edition ids). */
+export type HalfMetadataCorrection = { tag: string; asset: string; sha256: string; applied: 'verified = stamped in both' };
+
+/**
+ * analysis/half-release.json: the separate pin of the half snapshot and its link build, both from the owner's public CC
+ * BY 4.0 release (`tag`), first released privately under `private_tag` (the name the policy, the links extract and the
+ * reviewed counts carry), and the corrected metadata the verified scope is taken from.
+ */
 export type HalfReleasePin = {
-  schema_version: 1;
+  schema_version: 2;
   access: string;
   repository: string;
-  half: { tag: string; assets: Record<string, string>; sqlite: string; sqlite_sha256: string };
+  license: string;
+  half: { tag: string; doi: string; private_tag: string; assets: Record<string, string>; sqlite: string; sqlite_sha256: string };
   links: {
-    tag: string; pairs_with: string; built_at: string; assets: Record<string, string>;
+    tag: string; private_tag: string; pairs_with: string; built_at: string; assets: Record<string, string>;
     extract: string; extract_content_sha256: string;
   };
+  metadata_correction: HalfMetadataCorrection & { readme_sha256: string };
+  provenance: { private_repository: string; note: string; private_readme_sha256: Record<string, string> };
   /** Must equal analysis/release.json `tag`. */
   marathon_release: string;
   /** The frozen policy file (path from the repository root). */

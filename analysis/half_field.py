@@ -1,7 +1,7 @@
 """field.json (verified): where half-marathon finish times sit (spec 2.2, /half beats 1 and 2).
 
-Every value comes from the 310 usable stamped editions after R7, finishes pooled (the claim is about finishes, as the
-marathon's field median is). Recorded sex only, and only in editions that pass the sex rule (`use_sex`). The round
+Every value comes from the verified usable editions after R7 (stamped in the snapshot and in the corrected metadata:
+238 editions), finishes pooled (the claim is about finishes, as the marathon's field median is). Recorded sex only, and only in editions that pass the sex rule (`use_sex`). The round
 marks use the site's own smooth curve, `insights_round.local_fit` (Poisson log-cubic over ±25 minutes leaving out five
 minutes before and ten after the mark and short windows around other 10- and 15-minute marks) on a half minute matrix
 of 40 to 300 minutes, with a 200-draw whole-edition bootstrap (`insights_stats.SEED`). The scope checks are for
@@ -25,9 +25,13 @@ import insights_round  # noqa: E402
 from half_common import MIN_CELL, MIN_EDITIONS, SEED, fail, quantile, sec, sh  # noqa: E402
 from insights_stats import r  # noqa: E402
 
-HIST_LO, HIST_HI = 65, 210              # minutes published: 1:05 to 3:29, tails kept apart
-SEX_BIN_S, SEX_LO_S, SEX_HI_S = 300, 4200, 12600   # from 1:10, the first published mark, so the tails hold 100
-UNDER_FROM_S, UNDER_TO_S, UNDER_STEP_S = 4200, 10800, 300
+# The published ranges keep every minute, bin and open tail at MIN_CELL or more. Since the stamp correction (238
+# verified editions, 2026-10-30): minutes 1:10 to 3:19 (1:05 held 82 finishes, 3:27 held 91; before it, 1:05 to 3:29);
+# recorded-sex bins and the shares under each mark from 1:15 (the recorded women's tail under 1:10 held 44, under 1:15
+# 183; before it, from 1:10).
+HIST_LO, HIST_HI = 70, 200              # minutes published: 1:10 to 3:19, tails kept apart
+SEX_BIN_S, SEX_LO_S, SEX_HI_S = 300, 4500, 12600   # from 1:15, the first published mark, so the tails hold 100
+UNDER_FROM_S, UNDER_TO_S, UNDER_STEP_S = 4500, 10800, 300
 FIT_M0, FIT_M1 = 40, 300                 # the minute matrix of the round-mark fits
 MARKS = (90, 105, 120, 135, 150)
 WINDOW_MIN = 30

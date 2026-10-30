@@ -29,7 +29,7 @@ const VERIFICATION_WORDS = [[/\b(?:un)?verified\b/i, '"verified" or "unverified"
 const ALLOWED = ['Not a prediction.', 'Finish-time predictor'];
 
 // Release tags and export stamps never reach copy or a published family file.
-const RELEASE_LABEL = /private-export|20260912|htw-db-|20261016|20261021|half-snapshot-|runner-links-/;
+const RELEASE_LABEL = /private-export|20260912|htw-db-|20261016|20261021|half-snapshot-|half-dataset-|runner-links-/;
 
 /** The rules a text breaks, as [description] (allow-listed strings removed first). */
 function wordProblems(text, rules = BANNED) {

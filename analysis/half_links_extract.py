@@ -3,8 +3,9 @@
     python3 -I analysis/half_links_extract.py --links-parquet DIR [--out FILE] [--pin]
     python3 -I analysis/half_links_extract.py --links-sqlite runner_links.sqlite [--out FILE] [--pin]
 
-The source is private and stays outside the repository: either the release's `runner_links.sqlite` or the parquet
-tables extracted from it (`runner_links`, `runners`, `candidate_merges`, `build_info`). The extract is written next
+The source (the owner's public CC BY 4.0 release half-dataset-20261029-1202, first released privately as
+runner-links-20261029-1156) stays outside the repository, as every record-level file does: either the release's
+`runner_links.sqlite` or the parquet tables extracted from it (`runner_links`, `runners`, `candidate_merges`, `build_info`). The extract is written next
 to the half snapshot (default `$PACE_HALF_DIR/links-slim.sqlite`, `PACE_HALF_DIR` defaulting to `~/data/half-1133`)
 and never under the repository.
 
@@ -260,14 +261,14 @@ def main(argv: list[str] | None = None) -> int:
 
     out = args.out.expanduser()
     if inside(out, ROOT):
-        fail(f'{out} is inside the repository; the extract is private and lives next to the half snapshot')
+        fail(f'{out} is inside the repository; the extract is record-level and lives next to the half snapshot')
     if not out.parent.is_dir():
         fail(f'missing folder {out.parent}')
     pin = json.loads(PIN.read_text())
-    tag = pin['links']['tag']
+    tag = pin['links']['private_tag']
     if tag not in EXPECTED:
         fail(f'no reviewed counts for links build {tag}')
-    if pin['links']['pairs_with'] != pin['half']['tag']:
+    if pin['links']['pairs_with'] != pin['half']['private_tag']:
         fail('the pinned link build does not pair with the pinned half snapshot')
     if out.name != pin['links']['extract']:
         fail(f"the extract must be named {pin['links']['extract']}")

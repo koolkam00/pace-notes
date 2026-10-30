@@ -79,12 +79,20 @@ const manifest = JSON.parse(manifestBytes);
 
 // ---------- 1. Provenance ----------
 eq([manifest.schema_version, manifest.family], [1, 'half'], 'half manifest schema');
-eq([manifest.half.tag, manifest.half.sqlite_sha256], [pin.half.tag, pin.half.sqlite_sha256], 'the manifest binds the pinned half snapshot');
-eq([manifest.links.tag, manifest.links.extract_content_sha256], [pin.links.tag, pin.links.extract_content_sha256], 'the manifest binds the pinned links extract');
+eq([manifest.half.tag, manifest.half.private_tag, manifest.half.sqlite_sha256], [pin.half.tag, pin.half.private_tag, pin.half.sqlite_sha256], 'the manifest binds the pinned half snapshot');
+eq([manifest.links.tag, manifest.links.private_tag, manifest.links.extract_content_sha256], [pin.links.tag, pin.links.private_tag, pin.links.extract_content_sha256], 'the manifest binds the pinned links extract');
 ok(/^[0-9a-f]{64}$/.test(pin.links.extract_content_sha256), 'the pin holds the links extract digest');
-eq(pin.links.pairs_with, pin.half.tag, 'the pinned link build pairs with the pinned half snapshot');
+eq(pin.links.pairs_with, pin.half.private_tag, 'the pinned link build pairs with the pinned half snapshot');
+// The source is the owner's public release (owner decision, October 30, 2026: "publish everything and full merge").
+eq([pin.schema_version, pin.repository, pin.license, pin.access], [2, 'koolkam00/pace-notes', 'CC BY 4.0', 'public (CC BY 4.0), owner releases; pages publish aggregates'], 'the pin names the owner’s public release and its access');
+eq([manifest.repository, manifest.license, manifest.access], [pin.repository, pin.license, pin.access], 'the manifest names the pinned public source');
+ok([pin.half, pin.links].every((x) => /^half-dataset-\d{8}-\d{4}$/.test(x.tag) && Object.values(x.assets).every((d) => /^[0-9a-f]{64}$/.test(d))), 'the pin names public release tags and asset digests');
+eq(pin.provenance.private_repository, 'koolkam00/pace-notes-db-backup', 'the pin keeps the original private release as provenance');
+const MC = pin.metadata_correction || {};
+eq(manifest.metadata_correction, { applied: MC.applied, asset: MC.asset, sha256: MC.sha256, tag: MC.tag }, 'the manifest binds the pinned metadata correction');
+eq([MC.applied, /^half-dataset-\d{8}-\d{4}$/.test(MC.tag || ''), /^[0-9a-f]{64}$/.test(MC.sha256 || '')], ['verified = stamped in both', true, true], 'the metadata correction: verified = stamped in both, a public release and a digest');
 eq([pin.marathon_release, manifest.marathon.release_tag], [release.tag, release.tag], 'the half data use the adopted marathon release');
-const stamp = /(\d{4})(\d{2})(\d{2})-\d{4}$/.exec(pin.half.tag);
+const stamp = /(\d{4})(\d{2})(\d{2})-\d{4}$/.exec(pin.half.private_tag);
 eq(manifest.as_of, stamp && `${stamp[1]}-${stamp[2]}-${stamp[3]}`, 'as_of is the snapshot date');
 const runnerBytes = fs.readFileSync(rel('public/data/runners/manifest.json'));
 const runners = JSON.parse(runnerBytes);
@@ -99,7 +107,16 @@ for (const [name, digest] of Object.entries(manifest.marathon.inputs)) eq(digest
 const policyBytes = fs.readFileSync(rel(pin.policy));
 const policy = JSON.parse(policyBytes);
 eq([manifest.policy.file, manifest.policy.sha256], [pin.policy, sha(policyBytes)], 'the reviewed half policy file');
-eq(policy.tag, pin.half.tag, 'the policy is the snapshot’s');
+eq(policy.tag, pin.half.private_tag, 'the policy is the snapshot’s');
+{
+  // The stamp correction in the policy: the pinned source, a reviewed list of withdrawn stamps (each turned into an
+  // unverified status, none of them a weaker-source stamp), and the counts it moved.
+  const SC = policy.stamp_correction;
+  eq([SC.tag, SC.asset, SC.sha256, SC.applied, SC.readme_sha256], [MC.tag, MC.asset, MC.sha256, MC.applied, MC.readme_sha256], 'the policy’s stamp correction is the pinned one');
+  ok(SC.withdrawn.every((w) => policy.statuses.unverified.includes(w.corrected_status) && Number.isSafeInteger(w.edition_id) && typeof w.reason === 'string' && w.reason.length > 0 && w.reason.length <= 160), 'the withdrawn stamps: an unverified corrected status and a reason each');
+  eq(new Set(SC.withdrawn.map((w) => w.edition_id)).size, SC.withdrawn.length, 'the withdrawn stamps: one row per edition');
+  ok(SC.weaker_source.length > 0 && SC.weaker_source.every((x) => !SC.withdrawn.some((w) => w.edition_id === x.edition_id)), 'the weaker-source stamps stay stamped (none is withdrawn)');
+}
 eq(manifest.policy.module_sha256, sha(Buffer.concat(['analysis/half_quality.py', 'analysis/half_policy_lists.py'].map((p) => fs.readFileSync(rel(p))))), 'the policy modules');
 const counts = manifest.policy.counts;
 const { set_b: setB, ...policyCounts } = counts;
@@ -171,7 +188,7 @@ for (const [where, v] of fileStrings) {
 
 // ---------- 4. field.json: exact recounts ----------
 const M = field.minutes;
-eq([M.lo, M.hi, M.counts.length], [65, 210, 145], 'field: the minute histogram spans 1:05 to 3:29');
+eq([M.lo, M.hi, M.counts.length], [70, 200, 130], 'field: the minute histogram spans 1:10 to 3:19 (every minute and both tails at least 100 since the stamp correction)');
 eq(D.tailedTotal(M), field.cohort.finishes, 'field: the histogram holds every verified finish');
 ok(M.counts.every((c) => int(c, D.MIN_CELL)), 'field: every published minute holds at least 100 finishes');
 ok(int(M.under_lo, D.MIN_CELL) && int(M.at_or_over_hi, D.MIN_CELL), `field: both tails of the minute histogram hold at least 100 finishes (${M.under_lo}, ${M.at_or_over_hi})`);
@@ -179,7 +196,7 @@ ok(int(field.cohort.finishes, D.MIN_CELL) && int(field.cohort.editions, D.MIN_ED
 eq([field.cohort.finishes, field.cohort.editions], [counts.verified.finishes, counts.verified.editions], 'field: the cohort is the verified policy count');
 eq([field.cohort.sex_finishes, field.cohort.sex_editions], [counts.verified_use_sex.finishes, counts.verified_use_sex.editions], 'field: the sex cohort is the policy count');
 const B = field.sex_bins;
-eq([B.bin_s, B.lo_s, B.hi_s], [300, 4200, 12600], 'field: the 5-minute sex bins (from 1:10, the first published mark)');
+eq([B.bin_s, B.lo_s, B.hi_s], [300, 4500, 12600], 'field: the 5-minute sex bins (from 1:15, the first published mark)');
 eq(D.tailedTotal(B.F) + D.tailedTotal(B.M), field.cohort.sex_finishes, 'field: the sex bins hold every recorded finish of the sex editions');
 for (const g of ['F', 'M']) {
   eq(B[g].counts.length, (B.hi_s - B.lo_s) / B.bin_s, `field: ${g} bins`);
@@ -187,7 +204,7 @@ for (const g of ['F', 'M']) {
   ok(int(B[g].under_lo, D.MIN_CELL) && int(B[g].at_or_over_hi, D.MIN_CELL), `field: both tails of the ${g} bins hold at least 100 finishes (${B[g].under_lo}, ${B[g].at_or_over_hi})`);
 }
 const nAll = D.tailedTotal(M), nF = D.tailedTotal(B.F), nM = D.tailedTotal(B.M);
-eq(field.under.map((u) => u.s), Array.from({ length: (10800 - 4200) / 300 + 1 }, (_, i) => 4200 + 300 * i), 'field: a share under every 5 minutes from 1:10 to 3:00');
+eq(field.under.map((u) => u.s), Array.from({ length: (10800 - 4500) / 300 + 1 }, (_, i) => 4500 + 300 * i), 'field: a share under every 5 minutes from 1:15 to 3:00');
 for (const u of field.under) {
   eq(u.all, D.sh(D.underMinutes(M, u.s) / nAll), `field.under ${u.s}: all, from the histogram`);
   eq(u.F, D.sh(D.underBins(B, B.F, u.s) / nF), `field.under ${u.s}: recorded women’s, from the bins`);
@@ -215,11 +232,20 @@ for (const [g, levels] of [['all', [0.1, 0.25, 0.5, 0.75, 0.9]], ['F', [0.25, 0.
 }
 eq(field.marks.map((m) => m.minutes), [90, 105, 120, 135, 150], 'field: the five round marks');
 const count = (m) => (m >= M.lo && m < M.hi ? M.counts[m - M.lo] : NaN);
+// A mark whose 50-minute fit window (25 either side) reaches under the published minutes cannot be refitted here: those
+// minutes sit in the open tail because each holds under 100 finishes (1:05 held 82 after the stamp correction). Its
+// expected count is recounted by the source recount instead, and section 8 requires a fresh passing receipt for it.
+const sourceOnlyFits = [];
 for (const m of field.marks) {
   eq(m.mark, D.clock(60 * m.minutes), `field.marks ${m.minutes}: label`);
   eq([m.minute_before, m.minute_after], [count(m.minutes - 1), count(m.minutes)], `field.marks ${m.mark}: the minutes either side, from the histogram`);
-  const fit = D.localFit(count, m.minutes);
-  close(m.expected_minute_before, fit.exp_pre1, 0.05, `field.marks ${m.mark}: the smooth curve refitted in Node`);
+  if (m.minutes - 25 >= M.lo && m.minutes + 24 < M.hi) {
+    const fit = D.localFit(count, m.minutes);
+    close(m.expected_minute_before, fit.exp_pre1, 0.05, `field.marks ${m.mark}: the smooth curve refitted in Node`);
+  } else {
+    ok(m.minutes - 25 < M.lo && m.minutes + 24 < M.hi && M.lo - (m.minutes - 25) <= 5, `field.marks ${m.mark}: only the first minutes of its fit window lie under the published histogram`);
+    sourceOnlyFits.push(m.mark);
+  }
   close(m.ratio, m.minute_before / m.expected_minute_before, 6e-5, `field.marks ${m.mark}: the ratio is the minute over its expectation`);
   ok(m.ratio_ci95[0] <= m.ratio && m.ratio <= m.ratio_ci95[1] && m.ratio_ci95[0] > 0, `field.marks ${m.mark}: the ratio lies in its bootstrap interval`);
   close(m.cliff, D.r(D.cliffIndex(count, m.minutes), 4), 1e-4, `field.marks ${m.mark}: the cliff index from the histogram`);
@@ -247,7 +273,14 @@ for (const m of field.marks) {
 // ---------- 5. women.json: exact recounts; the same-city marathon side from the shards ----------
 eq(women.bands.map((b) => [b.lo_s, b.hi_s, b.label]), [[0, 5400, 'Under 1:30'], [5400, 6300, '1:30'], [6300, 7200, '1:45'], [7200, 8100, '2:00'], [8100, 9000, '2:15'], [9000, 9900, '2:30'], [9900, 10800, '2:45'], [10800, null, '3:00+']], 'women: the bands');
 eq(women.band_rule, { max_unrecorded: 0.02, min_finishes: 2000, min_recorded_per_band: 100 }, 'women: the band rule');
-ok(women.band_editions.length >= 20 && women.band_editions.length <= field.cohort.editions, `women: ${women.band_editions.length} band editions (at least 20)`);
+// Published from at least 3 editions (the contract's floor behind a claim across editions) and only while the crossing
+// holds with any one edition left out; the /half sentence that names it needs 20 (lib/nuggets/half.ts halfWomenFrom).
+ok(women.band_editions.length >= D.MIN_EDITIONS && women.band_editions.length <= field.cohort.editions, `women: ${women.band_editions.length} band editions (at least ${D.MIN_EDITIONS})`);
+{
+  const medians = (rows) => women.bands.map((_, j) => D.npMedian(rows.map((row) => row.F[j] / row.n[j])));
+  const cross = D.crossing(medians(women.band_editions), women.bands);
+  ok(women.band_editions.every((_, i) => D.crossing(medians(women.band_editions.filter((__, k) => k !== i)), women.bands) === cross), 'women: the crossing holds with any one band edition left out');
+}
 for (const [i, row] of women.band_editions.entries()) {
   ok(row.n.length === 8 && row.F.length === 8 && row.n.every((v, j) => int(v, women.band_rule.min_recorded_per_band) && int(row.F[j]) && row.F[j] <= v), `women.band_editions[${i}]: eight bands, each at least 100 recorded finishes`);
   ok(row.n.reduce((a, b) => a + b, 0) >= women.band_rule.min_finishes * (1 - women.band_rule.max_unrecorded), `women.band_editions[${i}]: an edition of at least 2,000 finishes`);
@@ -459,6 +492,7 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
   eq(c4.values, Object.fromEntries(rows.flatMap((h) => [[`F_${h}`, byH.F.get(h).sus], [`M_${h}`, byH.M.get(h).sus]]).sort(([a], [b]) => (a < b ? -1 : 1))), 'card half-same-half: values');
 }
 
+const withdrawnCards = [];
 // ---------- 7. Words: the half nuggets, deks and tool sentences ----------
 {
   const ts = require('typescript');
@@ -497,12 +531,18 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
   // The words of the four "From the half" cards (lib/charts/text/half.ts), held to the Top 100's card rules: the guard
   // holds for this build, titles fit 47 characters, one accent, a takeaway of at most 150 characters; a card of records
   // linked by name says so (and its footer carries the chip, scripts/half/card-images.cjs); a verified card does not.
+  // A card whose takeaway's guard fails for this build is withdrawn, never drawn with words its page has fallen back
+  // from: no PNG (scripts/half/card-images.cjs draws only holding cards; --check reports a leftover as an orphan) and no
+  // "Save the image" link (--html, section 9).
   const CW = require(path.join(ROOT, 'lib/charts/text/half.ts'));
   const docs = { field, women, linked };
   for (const c of cards.cards) {
     const said = CW.HALF_CARD_TEXT[c.slug].words(c.values, docs);
     const words = CW.halfCardWords(c, docs);
-    ok(said.guard, `card ${c.slug}: the takeaway's guard no longer holds for this build; rewrite the card's words (${said.fallback})`);
+    const png = fs.existsSync(rel(`public/charts/cards/${c.slug}.png`));
+    ok(said.guard === png, said.guard ? `card ${c.slug}: its guard holds but public/charts/cards/${c.slug}.png is missing (node scripts/build-chart-cards.cjs --set half)`
+      : `card ${c.slug}: the takeaway's guard fails for this build, so the card is withdrawn; delete public/charts/cards/${c.slug}.png or rewrite the card's words (${said.fallback})`);
+    if (!said.guard) withdrawnCards.push(c.slug);
     for (const t of [said.title, said.titleFallback]) ok(t.length <= 47, `card ${c.slug}: the title "${t}" is over 47 characters`);
     ok((said.headline.match(/\*/g) || []).length === 2, `card ${c.slug}: the takeaway has exactly one *…* accent`);
     ok(words.plain.length <= 150, `card ${c.slug}: the takeaway is ${words.plain.length} characters (at most 150)`);
@@ -546,6 +586,10 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
     for (const [name, digest] of Object.entries(receipt.recount_scripts || {})) ok(fs.existsSync(rel(name)) && digest === fileSha(name), stale(`${name} changed`));
     ok(receipt.half_sqlite_sha256 === pin.half.sqlite_sha256, stale('another half snapshot'));
     ok(receipt.links_extract_content_sha256 === pin.links.extract_content_sha256, stale('another links extract'));
+    ok(receipt.corrected_meta_sha256 === (pin.metadata_correction || {}).sha256, stale('another corrected metadata'));
+    // The marks whose fit windows reach under the published minutes are recounted only there (section 4).
+    if (sourceOnlyFits.length) ok(receipt.files && receipt.files['field.json'] && receipt.files['field.json'].mismatches === 0 && receipt.tolerances && receipt.tolerances['field.json marks[].expected_minute_before'] === 0.05,
+      `field.marks ${sourceOnlyFits.join(', ')}: the source recount refits their smooth curve within 0.05`);
     ok(receipt.runner_manifest_sha256 === sha(runnerBytes), stale('the runner manifest changed'));
     ok(receipt.policy_sha256 === sha(policyBytes), stale('the policy changed'));
     ok(int(receipt.values_checked, 1000), 'the receipt counts the values it checked');
@@ -608,6 +652,7 @@ if (opt.html) {
     const raw = fs.readFileSync(file, 'utf8');
     const html = noScripts(raw);
     for (const m of html.matchAll(/href="\/methodology#((?:story-)?half-[\w-]+)"/g)) ok(ids.has(m[1]), `${route}: links /methodology#${m[1]}, which /methodology does not have`);
+    for (const slug of withdrawnCards) ok(!html.includes(`/charts/cards/${slug}.png`), `${route}: links the withdrawn card ${slug}`);
     const scoped = elements(html, /data-half-scope="(?:verified|linked)"/);
     const links = elements(html, /data-half-link="linked"/);
     for (const el of links) {

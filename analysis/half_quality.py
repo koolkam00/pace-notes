@@ -15,20 +15,33 @@ Half bib block (same-day marathon finishers listed under the half): a range rule
 Edition rules (an edition supplies nothing if any applies; computed on the record-usable rows before R7, the order
 the reviewed lists were made in): E0 no registry row; E1 a held status; E2 the reviewed duplicates, overlaps and
 non-half distances; E3 count screens; E4 one-sex lists; E5 truncated top lists; E6 round-number caps without an
-independent count; E7 atypical fields; E8 the same-race median screen. The rest are `use_finish`; `stamped` editions are
-the verified scope. `use_sex` keeps editions whose sex is at least 95% published with each sex at least 3%.
+independent count; E7 atypical fields; E8 the same-race median screen. The rest are `use_finish`. `use_sex` keeps
+editions whose sex is at least 95% published with each sex at least 3%.
+
+The verified scope (stamp correction, reviewed 2026-10-30): an edition is verified only if it is `stamped` in this
+snapshot AND in the producer's corrected metadata (release half-dataset-20261029-2157, `csv-edition_meta.csv.zst`, which
+withdrew the stamps whose count came from a non-independent source). The records stay this snapshot's. The reviewed,
+frozen list of the 72 withdrawn stamps (half_policy_lists.py) turns those editions into unverified ones before the edition
+rules, exactly like the other internal-only editions; the builder reads the corrected metadata, checks its sha256 and fails
+unless the list equals what the metadata gives and every usable edition stamped there is verified here.
 
 Names, bibs and URLs never leave SQL: the R6 key is a digest computed in DuckDB and R7 is a boolean computed there.
 
     python3 -I analysis/half_quality.py --write-policy      freeze REVIEWED_HALF_POLICIES as the policy JSON
-    python3 -I analysis/half_quality.py --check --half FILE  recompute the screens and every count from the source
+    python3 -I analysis/half_quality.py --check --half FILE [--corrected-meta FILE]
+                                                            recompute the screens and every count from the source
 """
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import math
+import os
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -113,7 +126,28 @@ SAME_CITY_LABELS = {
     'Warsaw': ['Warszawa', 'Warszawa: Półmaraton Warszawski'], 'Washington': ['Washington, DC: DC Half Races'],
 }
 
-from half_policy_lists import FROZEN_20261029_1133, LABEL_COUNTRIES_20261029_1133  # noqa: E402  (the reviewed lists, kept apart for length)
+# The stamp correction (owner decision 2026-10-30: "publish everything and full merge"). The producer's corrected release
+# supersedes the metadata of the snapshot this policy reviews; its edition ids are this snapshot's (0 city or year
+# mismatches). Verified = stamped in this snapshot and in the corrected metadata.
+CORRECTION_20261029_2157 = {
+    'repository': 'koolkam00/pace-notes', 'tag': 'half-dataset-20261029-2157', 'asset': 'csv-edition_meta.csv.zst',
+    'sha256': '2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842',
+    'readme_sha256': '3ba5ed96096bab048da5d81d3bd0428962661ccc494aa99963efa505e7506332',
+    'applied': 'verified = stamped in both', 'reviewed': '2026-10-30',
+    'rule': ('an edition stamped in this snapshot whose corrected completeness_status is not stamped is unverified (it keeps '
+             'its records and passes through the edition rules like any internal-only edition); an edition stamped only in the '
+             'corrected metadata is not verified (no usable edition of this snapshot is)'),
+    'reason_rule': ("the first ' | '-separated part of the corrected completeness_reason that contains 'unstamped', else the "
+                    "first part; runs of spaces, tabs and newlines made one space; over 160 characters, cut to the last space "
+                    "within the first 159 and ended with '…'"),
+    'weaker_source_rule': ("the six stamps the corrected release's README names as resting on an organiser or local-press "
+                           "count rather than a federation count; they stay verified; `source` is the corrected "
+                           "official_source_type under the reason rule's length cut"),
+}
+REASON_MAX = 160
+
+from half_policy_lists import (  # noqa: E402  (the reviewed lists, kept apart for length)
+    FROZEN_20261029_1133, LABEL_COUNTRIES_20261029_1133, WEAKER_SOURCE_20261029_2157, WITHDRAWN_STAMPS_20261029_2157)
 
 EXPECTED_20261029_1133 = {
     'raw': 6_854_820, 'R1': 98_768, 'R2': 0, 'R3': 1_395, 'R4': 1_088, 'R5_fast': 152, 'R5_slow': 397, 'R6': 1_949,
@@ -121,18 +155,24 @@ EXPECTED_20261029_1133 = {
     'E0_editions': 2, 'E0_finishes': 1_080, 'E1_held_editions': 614, 'E1_held_finishes': 702_694,
     'E2_E8_editions': 66, 'E2_E8_finishes': 133_940,
     'use_finish': {'finishes': 5_912_751, 'editions': 8_019},
-    'verified': {'finishes': 1_623_027, 'editions': 310},
-    'verified_use_sex': {'finishes': 1_558_344, 'editions': 299},
+    # Verified = stamped here and in the corrected metadata (2026-10-30). Before the correction: 1,623,027 finishes in
+    # 310 editions; with recorded sex 1,558,344 in 299 (Git history and docs/HALF_MARATHON.md keep the earlier figures).
+    'verified': {'finishes': 753_476, 'editions': 238},
+    'verified_use_sex': {'finishes': 734_301, 'editions': 231},
     'undated': {'finishes': 820_515, 'editions': 251},
+    'stamp_withdrawn': {'finishes': 869_551, 'editions': 72},
 }
 
 REVIEWED_HALF_POLICIES = {
     TAG: {
         'file': 'analysis/half-policy-20261029-1133.json',
         'reviewed': '2026-10-29',
+        'corrected': '2026-10-30',
         'expected': EXPECTED_20261029_1133,
         'frozen': FROZEN_20261029_1133,
         'label_countries': LABEL_COUNTRIES_20261029_1133,
+        'correction': {**CORRECTION_20261029_2157, 'withdrawn': WITHDRAWN_STAMPS_20261029_2157,
+                       'weaker_source': WEAKER_SOURCE_20261029_2157},
     },
 }
 
@@ -147,6 +187,7 @@ def policy_document(tag: str = TAG) -> dict:
         'schema_version': 1,
         'tag': tag,
         'reviewed': p['reviewed'],
+        'corrected': p['corrected'],
         'record_rules': {
             'order': ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7'],
             'R1': {'flags': list(PRODUCER_EXCLUDE), 'never_alone': ['time_hour_reconstructed']},
@@ -178,6 +219,7 @@ def policy_document(tag: str = TAG) -> dict:
             'editions': frozen['editions'],
         },
         'use_sex': USE_SEX,
+        'stamp_correction': p['correction'],
         'date_suspects': [{'edition_id': e, 'city': c, 'year': y, 'reason': r} for e, c, y, r in DATE_SUSPECTS],
         'same_city_labels': SAME_CITY_LABELS,
         'verified_label_countries': p['label_countries'],
@@ -403,6 +445,124 @@ def edition_list(m) -> list:
     return out
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# The stamp correction (the corrected metadata of half-dataset-20261029-2157)
+# ---------------------------------------------------------------------------------------------------------------
+
+def trim_text(text, limit: int = REASON_MAX) -> str:
+    """Runs of ASCII whitespace made one space; over `limit` characters, cut at the last space within `limit - 1` and
+    ended with an ellipsis (the policy's reason rule; scripts/half/policy.cjs `trimText` is the same)."""
+    s = re.sub(r'[ \t\r\n]+', ' ', text or '').strip()
+    if len(s) <= limit:
+        return s
+    cut = s[:limit - 1]
+    space = cut.rfind(' ')
+    return (cut[:space] if space > 0 else cut).rstrip(' ,;:') + '…'
+
+
+def correction_reason(text) -> str:
+    """The withdrawal clause of a corrected completeness_reason (the policy's reason rule)."""
+    parts = [p.strip() for p in (text or '').split(' | ') if p.strip()]
+    if not parts:
+        return ''
+    return trim_text(next((p for p in parts if 'unstamped' in p), parts[0]))
+
+
+def read_correction(path: Path, correction: dict) -> dict:
+    """The corrected edition registry, {edition_id: {city, year, status, reason, source_type}}, after its sha256 is
+    checked against the reviewed correction (and so against the pin). Fails loudly on any other file."""
+    from half_common import file_sha256 as _sha
+    path = Path(path)
+    if not path.is_file():
+        fail(f"missing the corrected metadata {path} ({correction['tag']}/{correction['asset']}); fetch it with "
+             'python3 -I analysis/download_half.py')
+    got = _sha(path)
+    if got != correction['sha256']:
+        fail(f"{path} is not the reviewed corrected metadata of {correction['tag']} (sha256 {got}, reviewed {correction['sha256']})")
+    if shutil.which('zstd') is None:
+        fail('the zstd command is required to read the corrected metadata')
+    raw = subprocess.run(['zstd', '-dc', '-q', str(path)], check=True, capture_output=True).stdout
+    rows = {}
+    for r in csv.DictReader(io.StringIO(raw.decode('utf-8'), newline='')):
+        eid = int(r['id'])
+        if eid in rows:
+            fail(f'the corrected metadata lists edition {eid} twice')
+        rows[eid] = {'city': r['city'], 'year': int(r['year']), 'status': r['completeness_status'],
+                     'reason': r['completeness_reason'], 'source_type': r['official_source_type']}
+    return rows
+
+
+def default_correction_path(tag: str = TAG) -> Path:
+    """Where download_half.py puts the corrected metadata: $PACE_HALF_DIR/<correction tag>/<asset>."""
+    c = REVIEWED_HALF_POLICIES[tag]['correction']
+    half_dir = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1133').expanduser()
+    return half_dir / c['tag'] / c['asset']
+
+
+def apply_stamp_correction(m, correction: dict, rows: dict | None, *, compare: bool = True):
+    """Turns the reviewed withdrawn stamps into unverified editions (before the edition rules). With the corrected
+    metadata (`rows`), fails unless the reviewed list equals what the metadata gives and the six weaker-source stamps are
+    stamped there. Returns the edition ids it changed."""
+    withdrawn = {w['edition_id']: w for w in correction['withdrawn']}
+    m['corrected_status'] = None
+    applied = []
+    for idx in m.index[m.edition_id.notna()]:
+        eid = int(m.at[idx, 'edition_id'])
+        w = withdrawn.get(eid)
+        if w is None:
+            continue
+        here = (m.at[idx, 'city'], int(m.at[idx, 'year']), m.at[idx, 'completeness_status'])
+        if here != (w['city'], w['year'], 'stamped'):
+            if compare:
+                fail(f"withdrawn stamp {eid} ({w['city']} {w['year']}) is {here} in this snapshot, not a stamped edition of that name")
+            continue
+        m.at[idx, 'status_group'] = 'unverified'
+        m.at[idx, 'corrected_status'] = w['corrected_status']
+        applied.append(eid)
+    if compare and len(applied) != len(withdrawn):
+        fail(f'{len(withdrawn) - len(applied)} reviewed withdrawn stamps are not editions of this snapshot')
+    if rows is not None:
+        derived = []
+        for r in m[(m.completeness_status == 'stamped') & m.edition_id.notna()].itertuples(index=False):
+            eid = int(r.edition_id)
+            c = rows.get(eid)
+            if c is None:
+                fail(f'stamped edition {eid} ({r.city} {int(r.year)}) is missing from the corrected metadata')
+            if (c['city'], c['year']) != (r.city, int(r.year)):
+                fail(f"edition {eid} is {r.city} {int(r.year)} here and {c['city']} {c['year']} in the corrected metadata")
+            if c['status'] != 'stamped':
+                derived.append({'edition_id': eid, 'city': r.city, 'year': int(r.year), 'corrected_status': c['status'],
+                                'reason': correction_reason(c['reason'])})
+        derived.sort(key=lambda x: (x['city'], x['year'], x['edition_id']))
+        if derived != correction['withdrawn']:
+            got = {json.dumps(x, sort_keys=True, ensure_ascii=False) for x in derived}
+            want = {json.dumps(x, sort_keys=True, ensure_ascii=False) for x in correction['withdrawn']}
+            fail(f'the withdrawn stamps differ from the corrected metadata; new {sorted(got - want)[:3]}, gone {sorted(want - got)[:3]}')
+        for x in correction['weaker_source']:
+            c = rows.get(x['edition_id'])
+            if c is None or (c['city'], c['year'], c['status']) != (x['city'], x['year'], 'stamped') or trim_text(c['source_type']) != x['source']:
+                fail(f"weaker-source stamp {x['edition_id']} ({x['city']} {x['year']}) is not stamped with that source in the corrected metadata")
+    return applied
+
+
+def check_corrected_verified(m, correction: dict, rows: dict | None) -> None:
+    """After the edition rules: every usable edition stamped in the corrected metadata is verified here, every verified
+    edition is stamped there, and the weaker-source stamps stay verified."""
+    usable = m[m.use_finish & m.edition_id.notna()]
+    if rows is not None:
+        for r in usable.itertuples(index=False):
+            c = rows.get(int(r.edition_id))
+            stamped_there = c is not None and c['status'] == 'stamped'
+            if stamped_there and r.status_group != 'verified':
+                fail(f'{r.city} {int(r.year)} is stamped in the corrected metadata but unverified in the build')
+            if r.status_group == 'verified' and not stamped_there:
+                fail(f'{r.city} {int(r.year)} is verified in the build but not stamped in the corrected metadata')
+    ids = set(usable[usable.status_group == 'verified'].edition_id.astype(int))
+    for x in correction['weaker_source']:
+        if x['edition_id'] not in ids:
+            fail(f"weaker-source stamp {x['city']} {x['year']} is not a verified usable edition of the build")
+
+
 class PolicyResult:
     """The applied policy: counts (spec 1.3), the edition table and the computed lists."""
 
@@ -412,16 +572,23 @@ class PolicyResult:
         self.lists = lists
 
 
-def apply(db, tag: str = TAG, *, compare: bool = True) -> PolicyResult:
+def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | None = None) -> PolicyResult:
     """Apply the policy; leave temp tables `hr` (every record and its rule) and `hfin` (use_finish finishes after R7,
-    plus the R7 rows flagged) in `db`; return the counts. Fails when a computed list or count differs from the review."""
+    plus the R7 rows flagged) in `db`; return the counts. Fails when a computed list or count differs from the review.
+    `correction_rows` is the corrected metadata (read_correction); a comparing run requires it."""
     import pandas as pd
     if tag not in REVIEWED_HALF_POLICIES:
         fail(f'no reviewed half policy for {tag}')
     reviewed = REVIEWED_HALF_POLICIES[tag]
+    if compare and correction_rows is None:
+        fail('the corrected metadata is required (read_correction; build_half.py --corrected-meta)')
     record_rules(db)
     subs = subrace_lists(db)
-    m = edition_rules(edition_table(db))
+    m = edition_table(db)
+    withdrawn_ids = apply_stamp_correction(m, reviewed['correction'], correction_rows, compare=compare)
+    m = edition_rules(m)
+    if compare:
+        check_corrected_verified(m, reviewed['correction'], correction_rows)
     lists = {'R3': subs['R3'], 'R4': subs['R4'], 'editions': edition_list(m)}
     if compare:
         for key in ('R3', 'R4', 'editions'):
@@ -453,6 +620,7 @@ def apply(db, tag: str = TAG, *, compare: bool = True) -> PolicyResult:
     e28 = m[m.rule.isin(['E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'])]
     fin = lambda where: q(f'SELECT count(*), count(DISTINCT edition_id) FROM hfin WHERE NOT r7_block AND {where}')
     uf, vf, vs, nd = fin('TRUE'), fin("status_group = 'verified'"), fin("status_group = 'verified' AND use_sex"), fin('race_date IS NULL')
+    wd = fin(f"edition_id IN ({', '.join(str(e) for e in withdrawn_ids) or 'NULL'})")
     counts = {
         'raw': raw, 'R1': by_rule.get('R1', 0), 'R2': by_rule.get('R2', 0), 'R3': by_rule.get('R3', 0), 'R4': by_rule.get('R4', 0),
         'R5_fast': by_rule.get('R5_fast', 0), 'R5_slow': by_rule.get('R5_slow', 0), 'R6': by_rule.get('R6', 0),
@@ -464,6 +632,7 @@ def apply(db, tag: str = TAG, *, compare: bool = True) -> PolicyResult:
         'verified': {'finishes': vf[0], 'editions': vf[1]},
         'verified_use_sex': {'finishes': vs[0], 'editions': vs[1]},
         'undated': {'finishes': nd[0], 'editions': nd[1]},
+        'stamp_withdrawn': {'finishes': wd[0], 'editions': wd[1]},
     }
     if compare and counts != reviewed['expected']:
         diff = {k: (counts.get(k), reviewed['expected'].get(k)) for k in set(counts) | set(reviewed['expected']) if counts.get(k) != reviewed['expected'].get(k)}
@@ -477,6 +646,8 @@ def main(argv=None) -> int:
     parser.add_argument('--check', action='store_true', help='recompute the screens and counts from --half')
     parser.add_argument('--discover', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--half', type=Path)
+    parser.add_argument('--corrected-meta', type=Path, default=None,
+                        help='the corrected edition_meta CSV (default $PACE_HALF_DIR/<correction tag>/csv-edition_meta.csv.zst)')
     args = parser.parse_args(argv)
     if args.write_policy:
         print(f'wrote {write_policy().relative_to(ROOT)}')
@@ -485,7 +656,8 @@ def main(argv=None) -> int:
         if args.half is None:
             fail('--half is required')
         db = connect(half=args.half)
-        result = apply(db, compare=not args.discover)
+        rows = read_correction(args.corrected_meta or default_correction_path(), REVIEWED_HALF_POLICIES[TAG]['correction'])
+        result = apply(db, compare=not args.discover, correction_rows=rows)
         if args.discover:
             print(json.dumps({'counts': result.counts, 'lists': result.lists}, ensure_ascii=False, indent=1))
         else:

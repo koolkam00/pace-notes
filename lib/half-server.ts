@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import release from '@/analysis/release.json';
 import pin from '@/analysis/half-release.json';
-import type { HalfDataFile, HalfFiles, HalfManifest, HalfReleasePin } from '@/lib/half-types';
+import type { HalfDataFile, HalfFiles, HalfManifest, HalfReleasePin, HalfStampCorrection } from '@/lib/half-types';
 
 /**
  * The half-marathon aggregates (public/data/half/, analysis/build_half.py), verified once per process at build time.
@@ -28,8 +28,10 @@ export function getHalfManifest(): HalfManifest {
   if (verified?.key === key) return verified.manifest;
   const manifest = JSON.parse(fs.readFileSync(file).toString()) as HalfManifest;
   if (manifest.schema_version !== 1 || manifest.family !== 'half') throw new Error('Half data: unexpected manifest.');
-  if (manifest.half.tag !== PIN.half.tag || manifest.half.sqlite_sha256 !== PIN.half.sqlite_sha256) throw new Error('Half data must be rebuilt for the pinned half snapshot.');
-  if (manifest.links.tag !== PIN.links.tag || manifest.links.extract_content_sha256 !== PIN.links.extract_content_sha256) throw new Error('Half data must be rebuilt for the pinned link build.');
+  if (manifest.half.tag !== PIN.half.tag || manifest.half.private_tag !== PIN.half.private_tag || manifest.half.sqlite_sha256 !== PIN.half.sqlite_sha256) throw new Error('Half data must be rebuilt for the pinned half snapshot.');
+  if (manifest.links.tag !== PIN.links.tag || manifest.links.private_tag !== PIN.links.private_tag || manifest.links.extract_content_sha256 !== PIN.links.extract_content_sha256) throw new Error('Half data must be rebuilt for the pinned link build.');
+  const mc = PIN.metadata_correction;
+  if (manifest.metadata_correction?.tag !== mc.tag || manifest.metadata_correction.sha256 !== mc.sha256 || manifest.metadata_correction.applied !== mc.applied) throw new Error('Half data must be rebuilt for the pinned metadata correction.');
   if (PIN.marathon_release !== release.tag || manifest.marathon.release_tag !== release.tag) throw new Error('Half data must use the adopted marathon release.');
   if (manifest.policy.file !== PIN.policy || manifest.policy.sha256 !== sha256(fs.readFileSync(path.join(process.cwd(), PIN.policy)))) throw new Error('Half data must be rebuilt for the reviewed half policy.');
   if (manifest.marathon.runner_manifest_sha256 !== sha256(fs.readFileSync(path.join(DATA(), 'runners/manifest.json')))) throw new Error('Half data must be rebuilt for the current runner records.');
@@ -65,4 +67,18 @@ export function halfSha(name: HalfDataFile): string {
   const meta = getHalfManifest().files[name];
   if (!meta) throw new Error(`Unknown or unpublished half data file: ${name}`);
   return meta.sha256;
+}
+
+/** The pin (analysis/half-release.json): the public releases the half sources come from, for /methodology#downloads-half. */
+export function halfPin(): HalfReleasePin {
+  getHalfManifest();
+  return PIN;
+}
+
+/** The reviewed stamp correction from the frozen policy file, read only after the manifest binds that file's sha256. */
+export function halfStampCorrection(): HalfStampCorrection {
+  const manifest = getHalfManifest();
+  const bytes = fs.readFileSync(path.join(process.cwd(), manifest.policy.file));
+  if (sha256(bytes) !== manifest.policy.sha256) throw new Error('Half policy changed after the half data were built.');
+  return (JSON.parse(bytes.toString()) as { stamp_correction: HalfStampCorrection }).stamp_correction;
 }

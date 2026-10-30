@@ -79,10 +79,11 @@ function field({ fin, editions, policySha, moduleSha, labelCountries }) {
   }
   const x = D.ascending(verified), xf = D.ascending(F), xm = D.ascending(M), xa = D.ascending(all);
   const minutes = verified.map((v) => Math.floor(v / 60));
-  const hist = tailed(minutes, 65, 210, 1);
+  // The published ranges (analysis/half_field.py): minutes 1:10 to 3:19; recorded-sex bins and shares from 1:15.
+  const hist = tailed(minutes, 70, 200, 1);
   const q = (a, p) => D.sec(D.quantileSorted(a, p));
   const under = [];
-  for (let s = 4200; s <= 10800; s += 300) under.push({ s, all: D.sh(shareUnder(x, s)), F: D.sh(shareUnder(xf, s)), M: D.sh(shareUnder(xm, s)) });
+  for (let s = 4500; s <= 10800; s += 300) under.push({ s, all: D.sh(shareUnder(x, s)), F: D.sh(shareUnder(xf, s)), M: D.sh(shareUnder(xm, s)) });
   const counts = new Array(330).fill(0);
   for (const m of minutes) if (m < counts.length) counts[m]++;
   let best = 40, bestSum = -1;
@@ -99,8 +100,8 @@ function field({ fin, editions, policySha, moduleSha, labelCountries }) {
   return {
     schema_version: 1, family: 'half-field', scope: 'verified',
     cohort: { finishes: x.length, editions: eds.size, sex_finishes: xf.length + xm.length, sex_editions: sexEds.size },
-    minutes: { lo: 65, hi: 210, ...hist },
-    sex_bins: { bin_s: 300, lo_s: 4200, hi_s: 12600, F: tailed(F, 4200, 12600, 300), M: tailed(M, 4200, 12600, 300) },
+    minutes: { lo: 70, hi: 200, ...hist },
+    sex_bins: { bin_s: 300, lo_s: 4500, hi_s: 12600, F: tailed(F, 4500, 12600, 300), M: tailed(M, 4500, 12600, 300) },
     quantiles: { all: { p10: q(x, 0.1), p25: q(x, 0.25), p50: q(x, 0.5), p75: q(x, 0.75), p90: q(x, 0.9) },
       F: { p25: q(xf, 0.25), p50: q(xf, 0.5), p75: q(xf, 0.75) }, M: { p25: q(xm, 0.25), p50: q(xm, 0.5), p75: q(xm, 0.75) } },
     under,
@@ -143,8 +144,13 @@ function women({ fin, editions, marathons, labels, chart, chartSha }) {
     rows.push({ n, F: f });
   }
   rows.sort((a, b) => b.n.reduce((s, v) => s + v, 0) - a.n.reduce((s, v) => s + v, 0) || cmpLists(a.n, b.n) || cmpLists(a.F, b.F));
-  need(rows.length >= 20, `${rows.length} band editions`);
-  const shares = BANDS.map((_, j) => D.npMedian(rows.map((r) => r.F[j] / r.n[j])));
+  // Published from at least 3 editions (the contract's floor), and only while the crossing holds with any one edition
+  // left out (analysis/half_women.py stable_crossing); the /half sentence itself needs 20 (lib/nuggets/half.ts).
+  need(rows.length >= 3, `${rows.length} band editions`);
+  const mediansOf = (rs) => BANDS.map((_, j) => D.npMedian(rs.map((r) => r.F[j] / r.n[j])));
+  const crossOf = (sh) => D.crossing(sh, BANDS.map(([lo_s, hi_s, l]) => ({ lo_s, hi_s, label: l })));
+  need(rows.every((_, i) => crossOf(mediansOf(rows.filter((__, k) => k !== i))) === crossOf(mediansOf(rows))), 'the band crossing moves when one edition is left out');
+  const shares = mediansOf(rows);
   const bands = BANDS.map(([lo_s, hi_s, l]) => ({ lo_s, hi_s, label: l }));
   // Same city, same year.
   const labelCity = new Map();

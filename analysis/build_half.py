@@ -1,11 +1,13 @@
 """Build the half-marathon aggregates, public/data/half/ (docs/HALF_MARATHON.md; spec 2).
 
     python3 -I analysis/build_half.py --half "$PACE_HALF_DIR/platform_half.sqlite" --links "$PACE_HALF_DIR/links-slim.sqlite" \
-        [--out public/data/half] [--accept-counts]
+        [--corrected-meta "$PACE_HALF_DIR/half-dataset-20261029-2157/csv-edition_meta.csv.zst"] [--out public/data/half] [--accept-counts]
 
-Reads the private half snapshot and the links extract read-only (both outside the repository, checked against
-analysis/half-release.json), the frozen policy (analysis/half-policy-20261029-1133.json, checked against
-analysis/half_quality.py), and the marathon side from public files only (the runner shards and the weather evidence).
+Reads the half snapshot and the links extract read-only (the owner's public CC BY 4.0 release half-dataset-20261029-1202,
+fetched by analysis/download_half.py outside the repository and checked against analysis/half-release.json), the
+corrected edition metadata of half-dataset-20261029-2157 (verified = stamped in both; its sha256 is pinned), the frozen
+policy (analysis/half-policy-20261029-1133.json, checked against analysis/half_quality.py), and the marathon side from
+public files only (the runner shards and the weather evidence).
 Writes aggregates only: field.json and women.json (verified half finishes), linked.json and tools/half-to-full.json
 (half and marathon records linked by name), cards.json (the four card plots, read from those files), then
 manifest.json, which binds every file to the pin, the policy, the adopted marathon release, the runner manifest, the
@@ -49,7 +51,7 @@ def check_sources(pin: dict, half: Path, links: Path) -> None:
         if not path.is_file():
             fail(f'{what}: missing {path}')
         if half_common.inside(path, ROOT):
-            fail(f'{what}: {path} is inside the repository; the half sources are private and stay outside it')
+            fail(f'{what}: {path} is inside the repository; record-level sources stay outside it (pages publish aggregates)')
     if half.name != pin['half']['sqlite']:
         fail(f"--half must be the pinned {pin['half']['sqlite']}")
     if links.name != pin['links']['extract']:
@@ -66,7 +68,7 @@ def check_sources(pin: dict, half: Path, links: Path) -> None:
         con.close()
     if digest != pin['links']['extract_content_sha256'] or build.get('extract_content_sha256') != digest:
         fail(f'{links} is not the pinned links extract (content sha256 {digest})')
-    if build.get('links_tag') != pin['links']['tag'] or build.get('pairs_with') != pin['half']['tag']:
+    if build.get('links_tag') != pin['links']['private_tag'] or build.get('pairs_with') != pin['half']['private_tag']:
         fail(f'{links} was cut from another link build')
 
 
@@ -80,9 +82,9 @@ def finishes(db):
 
 
 def as_of(pin: dict) -> str:
-    m = re.search(r'(\d{4})(\d{2})(\d{2})-\d{4}$', pin['half']['tag'])
+    m = re.search(r'(\d{4})(\d{2})(\d{2})-\d{4}$', pin['half']['private_tag'])
     if not m:
-        fail(f"cannot read a date from the half tag {pin['half']['tag']}")
+        fail(f"cannot read a date from the half snapshot tag {pin['half']['private_tag']}")
     return f'{m.group(1)}-{m.group(2)}-{m.group(3)}'
 
 
@@ -91,8 +93,11 @@ def manifest(pin, policy_sha, module_sha, counts, set_b, marathons, files, out_b
     from half_pairs import LINK_RULES
     return {
         'schema_version': 1, 'family': 'half', 'as_of': as_of(pin),
-        'half': {'tag': pin['half']['tag'], 'sqlite_sha256': pin['half']['sqlite_sha256']},
-        'links': {'tag': pin['links']['tag'], 'extract_content_sha256': pin['links']['extract_content_sha256']},
+        'access': pin['access'], 'repository': pin['repository'], 'license': pin['license'],
+        'half': {'tag': pin['half']['tag'], 'private_tag': pin['half']['private_tag'], 'sqlite_sha256': pin['half']['sqlite_sha256']},
+        'links': {'tag': pin['links']['tag'], 'private_tag': pin['links']['private_tag'],
+                  'extract_content_sha256': pin['links']['extract_content_sha256']},
+        'metadata_correction': {k: pin['metadata_correction'][k] for k in ('tag', 'asset', 'sha256', 'applied')},
         'marathon': {'release_tag': runner_manifest['release_tag'], 'runner_manifest_sha256': marathons.manifest_sha256,
                      'runner_manifest_as_of': runner_manifest['as_of'], 'weather_evidence_sha256': marathons.weather_sha256,
                      'inputs': {name: file_sha256(ROOT / 'public/data' / name) for name in MARATHON_INPUTS}},
@@ -131,7 +136,17 @@ def write(path: Path, data: bytes) -> None:
     tmp.replace(path)
 
 
-def run(half: Path, links: Path, out: Path, accept_counts: bool = False) -> dict:
+def check_correction_pin(pin: dict, correction: dict) -> None:
+    """The pin's metadata correction must be the one the policy reviewed."""
+    mc = pin.get('metadata_correction') or {}
+    for key in ('tag', 'asset', 'sha256', 'readme_sha256', 'applied'):
+        if mc.get(key) != correction[key]:
+            fail(f'analysis/half-release.json metadata_correction.{key} differs from the reviewed stamp correction')
+    if correction['repository'] != pin['repository']:
+        fail('the reviewed stamp correction names another repository than the pin')
+
+
+def run(half: Path, links: Path, out: Path, accept_counts: bool = False, corrected_meta: Path | None = None) -> dict:
     started = time.time()
     import half_cards
     import half_field
@@ -141,20 +156,23 @@ def run(half: Path, links: Path, out: Path, accept_counts: bool = False) -> dict
     import half_quality
     import half_women
     pin = load_pin()
-    if pin['half']['tag'] != half_quality.TAG or pin['policy'] != half_quality.REVIEWED_HALF_POLICIES[half_quality.TAG]['file']:
+    if pin['half']['private_tag'] != half_quality.TAG or pin['policy'] != half_quality.REVIEWED_HALF_POLICIES[half_quality.TAG]['file']:
         fail('the pin and the reviewed policy name different snapshots or policy files')
     policy_sha = half_quality.check_policy_file(half_quality.TAG)
     module_sha = half_quality.module_sha256()
+    correction = half_quality.REVIEWED_HALF_POLICIES[half_quality.TAG]['correction']
+    check_correction_pin(pin, correction)
     check_sources(pin, half, links)
-    log(f'sources match the pin ({time.time() - started:.0f} s)')
+    rows = half_quality.read_correction(corrected_meta or half_quality.default_correction_path(), correction)
+    log(f'sources and the corrected metadata match the pin ({time.time() - started:.0f} s)')
 
     db = half_common.connect(half=half, links=links)
-    policy = half_quality.apply(db, half_quality.TAG)
+    policy = half_quality.apply(db, half_quality.TAG, correction_rows=rows)
     fin = finishes(db)
     log(f"policy applied: {policy.counts['use_finish']['finishes']:,} usable finishes ({time.time() - started:.0f} s)")
     marathons = half_marathon.load()
     log(f'marathon side: {marathons.n:,} eligible finishes ({time.time() - started:.0f} s)')
-    pairs = half_pairs.build(db, marathons, pin['links']['tag'])
+    pairs = half_pairs.build(db, marathons, pin['links']['private_tag'])
     set_b = half_pairs.summary(pairs)
     coverage = half_pairs.coverage(db, marathons)
     log(f"set B: {set_b['pairs']:,} pairs ({time.time() - started:.0f} s)")
@@ -185,11 +203,14 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     parser.add_argument('--half', type=Path, default=half_dir / 'platform_half.sqlite', help='the half snapshot (platform_half.sqlite)')
     parser.add_argument('--links', type=Path, default=half_dir / 'links-slim.sqlite', help='the links extract (links-slim.sqlite)')
+    parser.add_argument('--corrected-meta', type=Path, default=None,
+                        help='the corrected edition_meta CSV of the pinned metadata correction (default $PACE_HALF_DIR/<tag>/<asset>)')
     parser.add_argument('--out', type=Path, default=OUTPUT)
     parser.add_argument('--accept-counts', action='store_true', help='accept reviewed count changes (a refresh only)')
     args = parser.parse_args(argv)
     try:
-        run(args.half.expanduser(), args.links.expanduser(), args.out, args.accept_counts)
+        run(args.half.expanduser(), args.links.expanduser(), args.out, args.accept_counts,
+            args.corrected_meta.expanduser() if args.corrected_meta else None)
     except HalfError as error:
         print(f'build_half: {error}', file=sys.stderr)
         return 1

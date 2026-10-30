@@ -580,8 +580,129 @@ class Cards(unittest.TestCase):
             half_cards.build(*self.families(under=(0.5, 0.4)))
 
 
+class StampCorrection(unittest.TestCase):
+    """The stamp correction (verified = stamped in the snapshot and in the corrected metadata) on a synthetic snapshot,
+    and the reviewed list frozen in the policy."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        s = Source(cls.tmp.name)
+        normal = uniform(5400, 10800, 300)
+        cls.ids = {}
+        for city, status in (('Withdrawn', 'stamped'), ('Kept', 'stamped'), ('Weaker', 'stamped'), ('Internal', 'counts_internal_only')):
+            cls.ids[city] = s.edition(city, 2024, status=status, official=300, source_type='list rows (internal only)')
+            s.field(city, 2024, normal)
+        s.close()
+        cls.db = hc.connect(half=s.path)
+        hq.record_rules(cls.db)
+        cls.correction = {
+            'withdrawn': [{'edition_id': cls.ids['Withdrawn'], 'city': 'Withdrawn', 'year': 2024, 'corrected_status': 'counts_internal_only',
+                           'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'}],
+            'weaker_source': [{'edition_id': cls.ids['Weaker'], 'city': 'Weaker', 'year': 2024, 'source': 'local press own finisher total — weaker than federation'}],
+        }
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.close()
+        cls.tmp.cleanup()
+
+    def rows(self, **status):
+        base = {'Withdrawn': ('counts_internal_only', 'db=300 listed=300 | unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent', 'x'),
+                'Kept': ('stamped', 'press 300 vs db 300', 'federation results list'),
+                'Weaker': ('stamped', 'press 300', 'local press own finisher total — weaker than federation'),
+                'Internal': ('counts_internal_only', 'db=300', 'list rows (internal only)')}
+        out = {}
+        for city, (st, why, src) in base.items():
+            out[self.ids[city]] = {'city': city, 'year': 2024, 'status': status.get(city, st), 'reason': why, 'source_type': src}
+        return out
+
+    def table(self, rows):
+        m = hq.edition_table(self.db)
+        applied = hq.apply_stamp_correction(m, self.correction, rows)
+        return hq.edition_rules(m), applied
+
+    def test_the_withdrawn_list_is_applied(self):
+        m, applied = self.table(self.rows())
+        hq.check_corrected_verified(m, self.correction, self.rows())
+        g = m.set_index('city')
+        self.assertEqual(applied, [self.ids['Withdrawn']])
+        self.assertEqual(g.loc['Withdrawn', 'status_group'], 'unverified')
+        self.assertTrue(g.loc['Withdrawn', 'use_finish'], 'a withdrawn stamp stays usable, as an unverified edition')
+        self.assertEqual(g.loc['Withdrawn', 'corrected_status'], 'counts_internal_only')
+        self.assertEqual([g.loc[c, 'status_group'] for c in ('Kept', 'Weaker', 'Internal')], ['verified', 'verified', 'unverified'])
+
+    def test_no_verified_edition_lacks_a_corrected_stamp(self):
+        # A stamp the metadata withdrew that the reviewed list misses fails the rederived list.
+        with self.assertRaisesRegex(hc.HalfError, 'differ from the corrected metadata'):
+            self.table(self.rows(Kept='counts_internal_only'))
+        # An edition stamped only in the corrected metadata: verified needs both stamps, so the check fails loudly.
+        m, _ = self.table(self.rows(Internal='stamped'))
+        with self.assertRaisesRegex(hc.HalfError, 'stamped in the corrected metadata but unverified'):
+            hq.check_corrected_verified(m, self.correction, self.rows(Internal='stamped'))
+        # A verified edition the corrected metadata does not stamp.
+        m, _ = self.table(self.rows())
+        rows = self.rows()
+        rows[self.ids['Kept']] = {**rows[self.ids['Kept']], 'status': 'counts_internal_only'}
+        with self.assertRaisesRegex(hc.HalfError, 'not stamped in the corrected metadata'):
+            hq.check_corrected_verified(m, self.correction, rows)
+
+    def test_the_weaker_source_stamps_stay_verified(self):
+        rows = self.rows()
+        rows[self.ids['Weaker']] = {**rows[self.ids['Weaker']], 'source_type': 'federation results list'}
+        with self.assertRaisesRegex(hc.HalfError, 'weaker-source stamp'):
+            self.table(rows)
+        with self.assertRaisesRegex(hc.HalfError, 'differ from the corrected metadata|weaker-source stamp'):
+            self.table(self.rows(Weaker='counts_internal_only'))
+        m, _ = self.table(self.rows())
+        self.assertEqual(m.set_index('city').loc['Weaker', 'status_group'], 'verified')
+
+    def test_the_corrected_metadata_must_be_the_pinned_file(self):
+        import shutil
+        import subprocess
+        if shutil.which('zstd') is None:
+            self.skipTest('the zstd command is not installed')
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'csv-edition_meta.csv.zst'
+            text = 'id,city,year,completeness_status,completeness_reason,official_source_type\n1,"A, B",2024,stamped,"x | y",z\n'
+            path.write_bytes(subprocess.run(['zstd', '-q', '-c'], input=text.encode(), check=True, capture_output=True).stdout)
+            with self.assertRaisesRegex(hc.HalfError, 'is not the reviewed corrected metadata'):
+                hq.read_correction(path, {'tag': 't', 'asset': path.name, 'sha256': '0' * 64})
+            rows = hq.read_correction(path, {'tag': 't', 'asset': path.name, 'sha256': hc.file_sha256(path)})
+            self.assertEqual(rows, {1: {'city': 'A, B', 'year': 2024, 'status': 'stamped', 'reason': 'x | y', 'source_type': 'z'}})
+        with self.assertRaisesRegex(hc.HalfError, 'missing the corrected metadata'):
+            hq.read_correction(Path(tempfile.gettempdir()) / 'no-such.csv.zst', hq.CORRECTION_20261029_2157)
+
+    def test_reasons_are_the_withdrawal_clause(self):
+        self.assertEqual(hq.correction_reason('db=1 | unstamped 2026-10-29 per user | later'), 'unstamped 2026-10-29 per user')
+        self.assertEqual(hq.correction_reason('stamped on derived count  2,782\n(newspaper)'), 'stamped on derived count 2,782 (newspaper)')
+        long = 'unstamped ' + 'word ' * 60
+        self.assertTrue(hq.correction_reason(long).endswith('…') and len(hq.correction_reason(long)) <= hq.REASON_MAX)
+
+    def test_the_reviewed_correction_in_the_policy(self):
+        doc = json.loads(hq.policy_path().read_text())
+        c = doc['stamp_correction']
+        self.assertEqual([c['tag'], c['asset'], c['sha256'], c['applied'], c['reviewed']],
+                         ['half-dataset-20261029-2157', 'csv-edition_meta.csv.zst', '2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842',
+                          'verified = stamped in both', '2026-10-30'])
+        self.assertEqual(doc['tag'], hq.TAG, 'the policy keeps the snapshot tag')
+        w = c['withdrawn']
+        self.assertEqual(len(w), 72)
+        self.assertEqual(len({x['edition_id'] for x in w}), 72)
+        self.assertEqual({x['corrected_status'] for x in w}, {'counts_internal_only', 'counts_internal_only_winner_ok'})
+        self.assertEqual(sum(x['corrected_status'] == 'counts_internal_only' for x in w), 46)
+        self.assertTrue({('Paris', 2017), ('Berlin', 2026), ('New York', 2025), ('Valencia', 2024)} <= {(x['city'], x['year']) for x in w})
+        weaker = {(x['city'], x['year']) for x in c['weaker_source']}
+        self.assertEqual(weaker, {('Kraków: Cracovia Półmaraton Królewski', 2022), ('Kraków', 2025), ('Szczecin', 2023), ('Szczecin', 2026), ('Piła', 2026), ('Lisbon', 2024)})
+        self.assertFalse(weaker & {(x['city'], x['year']) for x in w}, 'the six weaker-source stamps stay verified')
+        self.assertEqual(doc['expected']['verified'], {'finishes': 753_476, 'editions': 238})
+        self.assertEqual(doc['expected']['stamp_withdrawn'], {'finishes': 869_551, 'editions': 72})
+        self.assertEqual(doc['expected']['verified']['editions'] + doc['expected']['stamp_withdrawn']['editions'], 310,
+                         'every edition verified before the correction is either still verified or withdrawn')
+
+
 class DownloadHalf(unittest.TestCase):
-    """analysis/download_half.py on synthetic parts: SHA256SUMS and the pin, reassembly, the token's reach."""
+    """analysis/download_half.py on synthetic parts: SHA256SUMS and the pin, reassembly, anonymous public URLs only."""
 
     def setUp(self):
         import download_half
@@ -626,11 +747,16 @@ class DownloadHalf(unittest.TestCase):
         with self.assertRaises(hc.HalfError):
             self.dh.read_sums(good)
 
-    def test_the_real_pin_names_both_releases(self):
-        specs = self.dh.releases(hc.load_pin())
-        self.assertEqual([s['key'] for s in specs], ['half', 'links'])
+    def test_the_real_pin_names_the_public_releases(self):
+        pin = hc.load_pin()
+        specs = self.dh.all_specs(pin)
+        self.assertEqual([s['key'] for s in specs], ['half', 'links', 'correction'])
+        self.assertEqual([s['tag'] for s in specs], ['half-dataset-20261029-1202', 'half-dataset-20261029-1202', 'half-dataset-20261029-2157'])
         self.assertEqual(specs[0]['parts'], ['half-20261029-1133.sqlite.zst.part00'])
-        self.assertEqual(specs[0]['target_sha256'], hc.load_pin()['half']['sqlite_sha256'])
+        self.assertEqual(specs[0]['target_sha256'], pin['half']['sqlite_sha256'])
+        self.assertEqual(specs[2]['assets']['csv-edition_meta.csv.zst'], hq.CORRECTION_20261029_2157['sha256'])
+        self.assertEqual(pin['repository'], 'koolkam00/pace-notes')
+        self.assertEqual([pin['half']['private_tag'], pin['links']['private_tag']], [hq.TAG, 'runner-links-20261029-1156'])
 
     def test_folder_check_and_reassembly(self):
         sqlite_sha, shas = self.parts()
@@ -639,7 +765,7 @@ class DownloadHalf(unittest.TestCase):
         sums.write_text(''.join(f'{d}  {n}\n' for n, d in shas.items()))
         found = self.dh.check_folder(self.folder, spec)
         self.assertEqual(sorted(found), sorted(shas))
-        self.assertIs(self.dh.identify(self.folder, [spec]), spec)
+        self.assertEqual(self.dh.identify(self.folder, [spec]), [spec])
         out = self.folder / 'out'
         out.mkdir()
         record = self.dh.place(spec, found, out, downloaded=False, keep_links_sqlite=False, replace=False)
@@ -667,26 +793,47 @@ class DownloadHalf(unittest.TestCase):
         self.assertEqual(record['parts'], 'downloaded, verified and deleted')
         self.assertFalse(any((self.folder / n).exists() for n in shas))
 
-    def test_the_token_never_leaves_api_github_com(self):
-        from unittest.mock import patch
-        from urllib.request import Request
-        import download_release
-        request = self.dh.api_request('https://api.github.com/repos/o/r/releases/assets/1', 'secret-token', 'application/octet-stream')
-        self.assertNotIn('Authorization', request.headers, 'the token is not an ordinary (redirected) header')
-        self.assertEqual(request.unredirected_hdrs['Authorization'], 'Bearer secret-token')
-        handler = download_release.GitHubApiRedirect()
-        for target, carries in (('https://objects.githubusercontent.com/x?sig=1', False), ('https://api.github.com/repositories/9/releases/assets/1', True)):
-            new = handler.redirect_request(request, None, 302, 'Found', {}, target)
-            self.assertEqual('Authorization' in new.unredirected_hdrs or 'Authorization' in new.headers, carries, target)
+    def test_one_folder_holds_the_half_and_the_links(self):
+        a, b = 'a' * 64, 'b' * 64
+        (self.folder / 'SHA256SUMS').write_text(f'{a}  half.sqlite.zst.part00\n{b}  links.sqlite.zst.part00\n')
+        specs = [{'key': 'half', 'tag': 't', 'assets': {'half.sqlite.zst.part00': a}}, {'key': 'links', 'tag': 't', 'assets': {'links.sqlite.zst.part00': b}},
+                 {'key': 'correction', 'tag': 'u', 'assets': {'csv-edition_meta.csv.zst': 'c' * 64}}]
+        self.assertEqual([s['key'] for s in self.dh.identify(self.folder, specs)], ['half', 'links'])
 
+    def test_the_correction_lands_in_its_tag_folder(self):
+        csv = self.folder / 'csv-edition_meta.csv.zst'
+        csv.write_bytes(b'meta')
+        readme = self.folder / 'README.md'
+        readme.write_bytes(b'readme')
+        spec = {'key': 'correction', 'tag': 'half-dataset-20990101-0000', 'parts': [], 'target': csv.name,
+                'assets': {csv.name: hc.bytes_sha256(b'meta'), 'README.md': hc.bytes_sha256(b'readme')}}
+        out = self.folder / 'out'
+        out.mkdir()
+        record = self.dh.place(spec, {csv.name: csv, 'README.md': readme}, out, downloaded=False, keep_links_sqlite=False, replace=False)
+        self.assertEqual(record['file'], 'half-dataset-20990101-0000/csv-edition_meta.csv.zst')
+        self.assertEqual((out / 'half-dataset-20990101-0000' / csv.name).read_bytes(), b'meta')
+
+    def test_downloads_are_anonymous_public_release_urls(self):
+        from unittest.mock import patch
+        url = self.dh.public_url('koolkam00/pace-notes', 'half-dataset-20261029-1202', 'SHA256SUMS')
+        self.assertEqual(url, 'https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/SHA256SUMS')
+        request = self.dh.public_request(url)
+        self.assertNotIn('Authorization', request.headers)
+        self.assertNotIn('Authorization', request.unredirected_hdrs)
+        for bad in ('https://api.github.com/repos/koolkam00/pace-notes/releases/tags/x', 'http://github.com/o/r/releases/download/t/f',
+                    'https://github.com/o/r/archive/main.zip', 'https://example.com/o/r/releases/download/t/f'):
+            with self.assertRaises(hc.HalfError, msg=bad):
+                self.dh.public_request(bad)
+        with self.assertRaises(hc.HalfError):
+            self.dh.public_url('o/r/../x', 't', 'f')
         body = b'part bytes'
 
         class Response:
             def __init__(self):
                 self.left = body
 
-            def read(self, n):
-                out, self.left = self.left[:n], self.left[n:]
+            def read(self, n=-1):
+                out, self.left = (self.left, b'') if n < 0 else (self.left[:n], self.left[n:])
                 return out
 
             def __enter__(self):
@@ -702,18 +849,19 @@ class DownloadHalf(unittest.TestCase):
                 seen.append(req)
                 return Response()
 
-        asset = {'name': 'x.part00', 'url': 'https://api.github.com/repos/o/r/releases/assets/1', 'size': len(body),
-                 'digest': 'sha256:' + hc.bytes_sha256(body)}
         with patch.object(self.dh, '_opener', return_value=Opener()):
-            self.dh.download_api_asset(asset, 'secret-token', self.folder / 'x.part00', hc.bytes_sha256(body))
+            self.dh.download(url, self.folder / 'x.part00', hc.bytes_sha256(body))
             self.assertEqual((self.folder / 'x.part00').read_bytes(), body)
-            self.assertEqual(seen[0].get_header('Accept'), 'application/octet-stream')
+            self.assertTrue(all('Authorization' not in r.headers and 'Authorization' not in r.unredirected_hdrs for r in seen))
             with self.assertRaises(hc.HalfError):
-                self.dh.download_api_asset({**asset, 'url': 'https://example.com/x'}, 'secret-token', self.folder / 'y', hc.bytes_sha256(body))
-            with self.assertRaises(hc.HalfError):
-                self.dh.download_api_asset(asset, 'secret-token', self.folder / 'z.part00', 'e' * 64)
-        self.assertFalse((self.folder / 'z.part00').exists())
-        self.assertIsInstance(request, Request)
+                self.dh.download(url, self.folder / 'z.part00', 'e' * 64)
+            self.assertFalse((self.folder / 'z.part00').exists(), 'nothing is left behind after a refused download')
+            spec = {'key': 'half', 'tag': 'half-dataset-20261029-1202', 'assets': {'x.part00': hc.bytes_sha256(body)}}
+            with self.assertRaisesRegex(hc.HalfError, 'SHA256SUMS does not list'):
+                self.dh.fetch_release(spec, 'koolkam00/pace-notes', self.folder / 'dl', {'x.part00': 'f' * 64})
+        source = Path(self.dh.__file__).read_text()
+        self.assertNotIn('api.github.com/repos', source, 'the downloader never asks the API')
+        self.assertNotIn('add_unredirected_header', source)
 
     def test_refuses_an_output_inside_the_repository(self):
         self.assertEqual(self.dh.main(['--from-dir', str(self.folder), '--out', str(ROOT / 'public' / 'data' / 'half')]), 1)
@@ -723,12 +871,19 @@ SOURCE_DIR = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'hal
 
 
 @unittest.skipUnless((SOURCE_DIR / 'platform_half.sqlite').is_file() and os.environ.get('PACE_HALF_SOURCE_TESTS') == '1',
-                     'the private half snapshot is not on this machine (set PACE_HALF_DIR and PACE_HALF_SOURCE_TESTS=1)')
+                     'the half snapshot is not on this machine (python3 -I analysis/download_half.py; set PACE_HALF_DIR and PACE_HALF_SOURCE_TESTS=1)')
 class RealSource(unittest.TestCase):
     def test_frozen_lists_and_counts_recompute_from_the_snapshot(self):
         db = hc.connect(half=SOURCE_DIR / 'platform_half.sqlite')
-        result = hq.apply(db)                     # fails unless R3, R4, E0 and E2–E8 equal the frozen lists
+        correction = hq.REVIEWED_HALF_POLICIES[hq.TAG]['correction']
+        rows = hq.read_correction(SOURCE_DIR / correction['tag'] / correction['asset'], correction)
+        result = hq.apply(db, correction_rows=rows)   # fails unless R3, R4, E0, E2–E8 and the withdrawn stamps equal the frozen lists
         self.assertEqual(result.counts, hq.EXPECTED_20261029_1133)
+        m = result.editions
+        verified = m[m.use_finish & (m.status_group == 'verified')]
+        self.assertEqual(len(verified), 238)
+        self.assertTrue(all(rows[int(e)]['status'] == 'stamped' for e in verified.edition_id), 'no verified edition lacks a corrected stamp')
+        self.assertTrue({x['edition_id'] for x in correction['weaker_source']} <= set(verified.edition_id.astype(int)), 'the six weaker-source stamps stay verified')
 
 
 if __name__ == '__main__':

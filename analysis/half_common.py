@@ -1,7 +1,8 @@
 """Shared helpers for the half-marathon builders (docs/HALF_MARATHON.md).
 
-The half snapshot and its links are private sources that stay outside the repository. Every builder reads them
-read-only through DuckDB and publishes aggregates only (public/data/half/): every shown group holds at least
+The half snapshot and its links (the owner's public CC BY 4.0 release half-dataset-20261029-1202) are record-level
+files that stay outside the repository. Every builder reads them read-only through DuckDB and publishes aggregates only
+(public/data/half/): every shown group holds at least
 `MIN_CELL` finishes or pairs and at least `MIN_EDITIONS` editions behind any claim that crosses editions.
 
 This module holds what every builder shares: the DuckDB connection (`ATTACH … (TYPE sqlite, READ_ONLY)`), the finish
@@ -68,7 +69,7 @@ def load_pin() -> dict:
     release = json.loads(RELEASE_PATH.read_text())
     if pin['marathon_release'] != release['tag']:
         fail(f"analysis/half-release.json binds marathon release {pin['marathon_release']}, but the adopted release is {release['tag']}")
-    if pin['links']['pairs_with'] != pin['half']['tag']:
+    if pin['links']['pairs_with'] != pin['half']['private_tag']:
         fail('the pinned link build does not pair with the pinned half snapshot')
     return pin
 
@@ -107,7 +108,7 @@ def connect(half: Path | None = None, links: Path | None = None):
         if not path.is_file():
             fail(f'missing {path}')
         if inside(path, ROOT):
-            fail(f'{path} is inside the repository; the half sources are private and stay outside it')
+            fail(f'{path} is inside the repository; record-level sources stay outside it (pages publish aggregates)')
         quoted = path.as_posix().replace("'", "''")
         db.execute(f"ATTACH '{quoted}' AS {alias} (TYPE sqlite, READ_ONLY)")
     return db
@@ -172,7 +173,7 @@ DIGEST_KEYS = {'sha256', 'module_sha256'}
 # `id` is allowed only for the flagship's battery members (spec 2.4), never a record or person id.
 BATTERY_IDS = {'pooled', 'verified_halves', 'other_marathons', 'ns_keys_1', 'one_per_person', 'editions_equal_20',
                'editions_equal_100', 'city_equal'}
-RELEASE_LABEL = re.compile(r'private-export|half-snapshot-|runner-links-|htw-db-|20260912|20261016|20261021|20261029')
+RELEASE_LABEL = re.compile(r'private-export|half-snapshot-|half-dataset-|runner-links-|htw-db-|20260912|20261016|20261021|20261029')
 
 
 def check_published(value, where: str, *, in_rule: bool = False, extra_string_keys: frozenset = frozenset()) -> None:
