@@ -20,7 +20,7 @@ Reasons:
 - **Moved addresses** answer a 308 on Vercel; their stubs exist only for a host that cannot redirect.
 - **`/runners`** looks up recorded names. Runner profiles must never be indexable.
 - **`/your-race`** is a client-side redirect (a moved address with no 308, so it can read old `#guide-*` links). **`/request-analysis`** is an email form.
-- **`/report`** (October 16, 2026; repository state, not yet deployed) is one race's report, read from the nine times in its own address: no canonical, no structured data, no share card of its own (it uses the default words-only card) and not in the sitemap.
+- **`/report`** (October 16, 2026) is one race's report, read from the nine times in its own address: no canonical, no structured data, no share card of its own (it uses the default words-only card) and not in the sitemap.
 
 Query strings (`?units=`, `?race=`, `?goal=` and so on) never appear in a canonical, an `og:url` or the sitemap. The static export serves the same HTML for every query, so the canonical on the clean path covers all of them. Runner names, birth dates, labels and search text never go in a URL, the sitemap, structured data or analytics.
 
