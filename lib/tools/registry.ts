@@ -56,7 +56,7 @@ export const TOOLS: ToolDefinition[] = [
   { slug: 'course-chooser', title: 'Course chooser', short: 'How your goal pace held up, course by course', group: 'race', evidence: ['data'], accent: '#0FA3A3', file: 'tools/course-goal.json',
     dek: 'How finishes on your goal pace held up, course by course.' },
   { slug: 'predictor', title: 'Finish-time predictor', heading: 'Marathon time predictor', short: 'A marathon range from a recent race', group: 'race', evidence: ['data', 'research'], accent: '#7A4DFF', file: 'tools/projector.json',
-    dek: 'A marathon range from a recent race, and where finishes on that pace ended.' },
+    dek: 'A marathon range from a recent race, and where marathons on that pace, or after that half, ended.' },
   { slug: 'weather-match', title: 'Weather match', short: 'Past race mornings like your forecast', group: 'race', evidence: ['data', 'research'], accent: '#F4B23E', file: 'tools/weather-match.json',
     dek: 'Past race mornings like your forecast, and how finishes at your pace held up.' },
   { slug: 'projector', title: 'Race-day projector', heading: 'Marathon race-day projector', short: 'A finish range from a tracker time at any mat', group: 'race', evidence: ['data'], accent: '#E2416B', file: 'tools/projector.json',
