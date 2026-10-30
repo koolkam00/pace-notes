@@ -1644,7 +1644,9 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     assert.match(pred, /useProjector\(indexSha, !!est\?\.isMarathon && !linked\)/, 'The 20K shard is not loaded for a half the half panel reads'); ok();
     const card = pred.slice(pred.indexOf('function Headline('));
     assert.doesNotMatch(card, /LinkedPanel|predictor-linked/, 'No half panel text inside the research card'); ok();
-    assert.match(pred, /dynamic\(\(\) => import\('\.\/LinkedPanel'\)/, 'The half panel loads lazily'); ok();
+    // A dynamic import only (no static import of the panel), so a page without a half input loads none of it.
+    assert.match(pred, /\bimport\('\.\/LinkedPanel'\)\.then\(/, 'The half panel loads lazily'); ok();
+    assert.doesNotMatch(pred, /^import\b[^\n]*['"]\.\/LinkedPanel['"]/m, 'The predictor never imports the half panel statically'); ok();
     const panel = fs.readFileSync(path.join(ROOT, 'components/tools/LinkedPanel.tsx'), 'utf8');
     for (const needle of ['data-half-scope="linked"', 'id="predictor-linked"', '<EvidenceTag kind="data" /><ScopeTag />', 'linkedSentence(win, tool.Q)', 'slowdownSentence(win)', 'tooFewSentence(tool, group)', 'NOT_A_PREDICTION', 'href="/stories/half-to-full#after"', 'loadHalf<HalfTool>(HALF_TOOL_FILE, sha)', 'marks={win.marks.map(']) {
       assert.ok(panel.includes(needle), `LinkedPanel: ${needle}`); ok();
@@ -1654,9 +1656,15 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     assert.match(pred, /<FinishStrip q=\{q\} Q=\{Q\} est=\{T\} \/>/, 'The 20K panel draws the moved strip as before'); ok();
     assert.doesNotMatch(pred, /function FinishStrip/, 'The strip lives in components/tools/FinishStrip.tsx only'); ok();
     assert.match(strip, /export function FinishStrip/); ok();
-    const goalSrc = fs.readFileSync(path.join(ROOT, 'components/tools/GoalPace.tsx'), 'utf8');
-    for (const needle of ['id="goal-pace-half"', 'data-half-scope="linked"', 'goalLines(goal)', 'NOT_A_PREDICTION', '<ScopeTag />', 'records linked by name']) { assert.ok(goalSrc.includes(needle), `GoalPace: ${needle}`); ok(); }
+    // "The half before" is drawn on the server (components/half/HalfBefore.tsx) and handed to the client GoalPaceBody
+    // as a node, so the goal pages ship none of its code as script.
+    const goalSrc = fs.readFileSync(path.join(ROOT, 'components/half/HalfBefore.tsx'), 'utf8');
+    assert.doesNotMatch(goalSrc, /^['"]use client['"]/m, 'The half before is a server component'); ok();
+    for (const needle of ['id="goal-pace-half"', 'data-half-scope="linked"', 'goalLines(goal)', 'NOT_A_PREDICTION', '<ScopeTag />', 'records linked by name']) { assert.ok(goalSrc.includes(needle), `HalfBefore: ${needle}`); ok(); }
     assert.doesNotMatch(goalSrc.slice(goalSrc.indexOf('function HalfBefore')), /\baim for\b|\bneed\b|\btarget\b/i, 'The half before never says aim for, need or target'); ok();
+    const goalRoute = fs.readFileSync(path.join(ROOT, 'app/tools/marathon-pace/[goal]/page.tsx'), 'utf8');
+    assert.match(goalRoute, /halfBefore=\{halfBefore \? <HalfBefore goal=\{halfBefore\} \/> : null\}/, 'The goal page hands the half before to its body'); ok();
+    assert.match(fs.readFileSync(path.join(ROOT, 'components/tools/GoalPace.tsx'), 'utf8'), /\{halfBefore\}/, 'GoalPaceBody places the half before after the slowdown panel'); ok();
     const calc = fs.readFileSync(path.join(ROOT, 'components/tools/PaceCalculator.tsx'), 'utf8');
     assert.match(calc, /<ToolHandoffs label="With this half time" links=\{\[\{\s*href: `\/tools\/predictor\?d=half&t=\$\{formatDuration\(shownSeconds!, true\)\}`,\s*title: 'Finish-time predictor', text: `The marathons after a \$\{formatHM\(Math\.floor\(shownSeconds! \/ 60\) \* 60\)\} half`,/, 'The calculator hands a half time to the predictor'); ok();
     assert.equal(`/tools/predictor?d=half&t=${time.formatDuration(H(1, 45), true)}`, '/tools/predictor?d=half&t=1:45:00'); ok();

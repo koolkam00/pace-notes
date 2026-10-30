@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
-import dynamic from 'next/dynamic';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import { Choice, DataState, DurationField, EvidencePanel, ExampleNote, ReadingFoot, Stat } from '@/components/tools/ui';
@@ -24,13 +23,25 @@ import { FinishStrip, fittingTicks, fmtShort, fmtTime, niceStep, qIndex } from '
 /**
  * The "After a half" panel (records linked by name), loaded only once a half input inside its published range exists,
  * so every other visitor's page carries none of it. If its chunk fails the page reloads once as for any failed chunk;
- * after that the panel says so and the estimates above stay.
+ * after that the panel says so and the estimates above stay. A plain dynamic import: next/dynamic's loader put about
+ * 1.2 KB more on this page's first load (S8, October 30, 2026).
  */
+type LinkedPanelComponent = typeof import('./LinkedPanel').default;
 const LinkedPanelUnavailable = () => <p className="tool-state">The half data did not load. Reload the page to try again; the published estimates above are unaffected.</p>;
-const LinkedPanel = dynamic(() => import('./LinkedPanel').catch((error: Error) => {
-  if (!reloadAfterChunkError(error)) { if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('js_error'); }
-  return { default: LinkedPanelUnavailable };
-}), { ssr: false, loading: () => <p className="tool-state" aria-hidden="true">Loading the data…</p> });
+const LinkedPanelLoading = () => <p className="tool-state" aria-hidden="true">Loading the data…</p>;
+function useLinkedPanel(wanted: boolean): LinkedPanelComponent | 'failed' | null {
+  const [panel, setPanel] = useState<LinkedPanelComponent | 'failed' | null>(null);
+  useEffect(() => {
+    if (!wanted || panel) return;
+    let live = true;
+    import('./LinkedPanel').then((module) => { if (live) setPanel(() => module.default); }).catch((error: Error) => {
+      if (!reloadAfterChunkError(error)) { if (chunkLoadFailed(error)) trackFailure('chunk_load'); else trackFailure('js_error'); }
+      if (live) setPanel('failed');
+    });
+    return () => { live = false; };
+  }, [wanted, panel]);
+  return panel;
+}
 
 /** Where the half panel applies: the published range of the "all" windows, and the file's verified sha. */
 export type HalfPanelInfo = { sha: string; from: number; to: number };
@@ -712,6 +723,7 @@ export default function Predictor({ indexSha, half = null }: { indexSha: string 
   const halfMinute = halfSeconds === null ? null : Math.round(halfSeconds / 60) * 60;
   const linked = half !== null && halfMinute !== null && halfMinute >= half.from && halfMinute <= half.to;
   const group: HalfGroup = SX[q.sx] ?? 'all';
+  const LinkedPanel = useLinkedPanel(linked);
 
   // The finishes on the chosen estimate's pace at 20 km: one load, read by the data beat (not for a half the half panel reads).
   const proj = useProjector(indexSha, !!est?.isMarathon && !linked);
@@ -832,7 +844,9 @@ export default function Predictor({ indexSha, half = null }: { indexSha: string 
                 <p className="tool-note predictor-stale"><strong>{stale.join(' and ')} {stale.length > 1 ? 'were' : 'was'} more than 6 months ago.</strong> A recent race predicts better.</p>
               ) : null}
               {linked && half && halfSeconds !== null
-                ? <LinkedPanel sha={half.sha} seconds={halfSeconds} group={group} onGroup={(g: HalfGroup) => setQ({ sx: SX_OF[g] })} />
+                ? (LinkedPanel === 'failed' ? <LinkedPanelUnavailable /> : LinkedPanel
+                  ? <LinkedPanel sha={half.sha} seconds={halfSeconds} group={group} onGroup={(g: HalfGroup) => setQ({ sx: SX_OF[g] })} />
+                  : <LinkedPanelLoading />)
                 : <ObservedPanel indexSha={indexSha} proj={proj} est={est} looks={looks} units={units} />}
               {/* One way forward: the chapter's next card (the planner); Copy link sits on the card. */}
             </>

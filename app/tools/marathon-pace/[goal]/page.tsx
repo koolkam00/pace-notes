@@ -9,6 +9,7 @@ import Annotation from '@/components/viz/Annotation';
 import { placeLabels } from '@/components/viz/labels';
 import { linear, pc, stepEdge, stepPath, u, yScale } from '@/components/viz/scale';
 import { GoalPaceBody, GoalPaceDek, type GoalBunching, type GoalObserved, type PileupTable } from '@/components/tools/GoalPace';
+import HalfBefore from '@/components/half/HalfBefore';
 import { ToolEnd, ToolPageHeader } from '@/components/tools/ToolShell';
 import type { FinishTimes } from '@/lib/insights';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
@@ -195,6 +196,7 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
   const bunching = bunchingFor(minute);
   const peers = goalPeers();
   const pileup = bunching ? pileupFigure(minute, bunching) : null;
+  const halfBefore = halfBeforeFor(minute);
 
   // In the chain's frame (the chapter rail from 1180 px), as every page with a chapter crumb is (critic round 5).
   return (
@@ -206,7 +208,7 @@ export default function GoalPacePage({ params }: { params: { goal: string } }) {
         <p className="print-only goal-chart-print-note">Pace Notes {label} marathon pace. splithappens.run{goalPagePath(minute)}</p>
       </ToolPageHeader>
       <div className="goal-pace-stack">
-        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={pileup?.figure ?? null} pileupTable={pileup?.table ?? null} how="/methodology#tools-goal-pages" halfBefore={halfBeforeFor(minute)} />
+        <GoalPaceBody goal={minute} observed={observed} bunching={bunching} peers={peers} pileup={pileup?.figure ?? null} pileupTable={pileup?.table ?? null} how="/methodology#tools-goal-pages" halfBefore={halfBefore ? <HalfBefore goal={halfBefore} /> : null} />
       </div>
       <ToolEnd path={goalPagePath(minute)} how="/methodology#tools-goal-pages" numbers />
     </div></ChainFrame>
