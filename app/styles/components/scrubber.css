@@ -25,6 +25,10 @@
 }
 /* A label naming the point under the needle hides while the needle is there (Scrubber's is-under): the readout says it. */
 .viz-frame .scrub .is-under { visibility: hidden; }
+/* Gridline labels the needle would run through at the plot's edge move to the other end of their lines while it stands
+   there (Gridlines flipAt): the copy there shows only then, so the scale stays named. */
+.viz-frame .grid-label.is-flip { visibility: hidden; }
+.viz-frame .scrub .is-under .grid-label.is-flip { visibility: visible; }
 /* Away from the headline's point, the reading mark is ink: the needle is the one orange mark. */
 .viz-frame .scrub.is-away .m-signal.is-reading { fill: var(--ink); }
 /* Where the needle crosses the subject line (LineProfile's scrub.follow), shown only while it is away from the

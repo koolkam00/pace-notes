@@ -39,8 +39,12 @@ export type LabelItem = {
   /** Higher is placed first: the subject and the finding before extremes, extremes before context. */
   priority: number;
   size?: number;
-  /** Where to try first. */
-  prefer?: 'above' | 'below' | 'right' | 'left';
+  /**
+   * Where to try first. `above-left` puts the text above the point and ending at it, first: on a rising curve that
+   * place stays clear of the line at every plot width (the line left of the point is lower, and it climbs away to the
+   * right), where a label beside the point, clear on a phone, can meet the flatter line of a wide screen.
+   */
+  prefer?: 'above' | 'below' | 'right' | 'left' | 'above-left';
   /** Gap between the point and the text, px. */
   gap?: number;
   tone?: 'ink' | 'signal' | 'quiet';
@@ -90,7 +94,9 @@ function candidates(l: LabelItem): { anchor: PlacedLabel['anchor']; dx: number; 
   const nudges = [0, 4, -4, 8, -8, 12, -12, 16, -16];
   const vertical = (dy: number) => (['middle', 'start', 'end'] as const).flatMap((anchor) => nudges.map((n) => ({ anchor, dx: n + (anchor === 'start' ? -4 : anchor === 'end' ? 4 : 0), dy })));
   const side = (dir: 1 | -1) => [0, -6, 6, -12, 12].map((n) => ({ anchor: dir > 0 ? ('start' as const) : ('end' as const), dx: dir * gap, dy: size * 0.35 + n }));
-  const order = { above: [vertical(above), vertical(below), side(1), side(-1)], below: [vertical(below), vertical(above), side(1), side(-1)], right: [side(1), side(-1), vertical(above), vertical(below)], left: [side(-1), side(1), vertical(above), vertical(below)] };
+  const aboveLeft = [0, -4, -8, -12, -16].map((n) => ({ anchor: 'end' as const, dx: 4 + n, dy: above }));
+  const order = { above: [vertical(above), vertical(below), side(1), side(-1)], below: [vertical(below), vertical(above), side(1), side(-1)], right: [side(1), side(-1), vertical(above), vertical(below)], left: [side(-1), side(1), vertical(above), vertical(below)],
+    'above-left': [aboveLeft, side(-1), vertical(above), vertical(below), side(1)] };
   if (l.only === 'above') {
     const w = textWidth(l.text, size);
     return vertical(above).filter((c) => {
@@ -181,7 +187,8 @@ export function fitClass(width: number): string {
   return step ? `w${step}` : 'w-never';
 }
 
-export type Tick = { x: number; label: string; priority?: number };
+/** `group`: ticks that show and hide together (the quarter hours between half hours), so the steps stay even. */
+export type Tick = { x: number; label: string; priority?: number; group?: string };
 export type LaidTick = Tick & { anchor: 'start' | 'middle' | 'end'; minWidth: number | null };
 
 /**
@@ -221,8 +228,14 @@ export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH, centred =
     }
     kept.push({ i, t, anchor, min });
   }
+  // A group shows from the widest of its members' widths (and not at all if one never fits), so no step goes missing
+  // alone. Ticks outside the group were placed clear of every member at its own width, so they stay clear.
+  const groupMin = (g: string) => {
+    const mins = kept.filter((k) => k.t.group === g).map((k) => k.min);
+    return mins.some((m) => m === null) ? null : Math.max(...(mins as number[]));
+  };
   return ticks.map((t, i) => {
     const k = kept.find((x) => x.i === i)!;
-    return { ...t, anchor: k.anchor, minWidth: k.min };
+    return { ...t, anchor: k.anchor, minWidth: t.group ? groupMin(t.group) : k.min };
   });
 }

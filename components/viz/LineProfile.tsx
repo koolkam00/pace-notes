@@ -26,8 +26,12 @@ export type ProfileLayer = {
   id: string;
   label: string;
   series: ProfileSeries[];
-  /** A p10–p90 (or p25–p75) band; `edge` draws its two edges as 1.5 px --mark-quiet lines. */
-  band?: { lo: number[]; hi: number[]; edge?: boolean };
+  /**
+   * A p10–p90 (or p25–p75) band; `edge` draws its two edges as 1.5 px --mark-quiet lines. `faint` marks the points
+   * whose band rests on few finishes: every stretch touching one is drawn at half strength, so a thin end's noisy edge
+   * never draws the eye from the line the sentence is about (the readout keeps its exact values).
+   */
+  band?: { lo: number[]; hi: number[]; edge?: boolean; faint?: boolean[] };
   /** The span the sentence names, as a signal bracket at `x` from `y0` to `y1`, its label on the inside (left). */
   bracket?: { x: number; y0: number; y1: number; label: string };
   labels?: { x: number; y: number; text: string; tone?: 'ink' | 'signal' | 'quiet'; priority?: number; prefer?: LabelItem['prefer']; gap?: number }[];
@@ -55,7 +59,10 @@ type Props = {
    * `follow` names the series (by id) whose value at each scrub point the needle marks with a dot while it is away from
    * the headline's point, so a scrubbed needle always shows where it crosses the subject line.
    */
-  scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string; follow?: string };
+  scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string; follow?: string;
+    /** While the needle stands where it would run through the gridline labels (at the plot's edge on their side), the
+     *  labels move to the other end of their lines instead of hiding (Gridlines flipAt), as on the half curve. */
+    flipGrid?: boolean };
   axisTitle?: { start?: string; end?: string };
   /** A quiet direction cue at the plot's top left, where a y axis is read ("faster ↑"), for a scale drawn against habit
    * (slower down). */
@@ -81,7 +88,17 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     // Values outside the domain (a wide band) are held at its edge, so nothing spills out of the plot.
     const [d0, d1] = y.domain;
     const clamp = (v: number) => Math.max(Math.min(d0, d1), Math.min(Math.max(d0, d1), v));
-    const pts = (values: number[]) => values.map((v, i) => [x(xs[i]), y(clamp(v))] as [number, number]);
+    const pts = (values: number[], from = 0) => values.map((v, i) => [x(xs[from + i]), y(clamp(v))] as [number, number]);
+    // The band in runs of equal strength: a stretch is faint where either of its ends is.
+    const bandRuns = (b: NonNullable<ProfileLayer['band']>) => {
+      const runs: { from: number; to: number; faint: boolean }[] = [];
+      for (let i = 0; i < b.lo.length - 1; i++) {
+        const faint = !!(b.faint?.[i] || b.faint?.[i + 1]);
+        const last = runs[runs.length - 1];
+        if (last && last.faint === faint) last.to = i + 1; else runs.push({ from: i, to: i + 1, faint });
+      }
+      return runs;
+    };
     const items: LabelItem[] = (layer.labels ?? []).map((l, i) => ({ id: `${layer.id}-${i}`, text: l.text, x: x(l.x), y: y(l.y), priority: l.priority ?? (l.tone === 'signal' ? 3 : 2), tone: l.tone, prefer: l.prefer, gap: l.gap }));
     // Labels keep clear of the points and of every line: its vertices and points along each segment.
     const along = (values: number[]) => values.flatMap((v, i) => {
@@ -111,7 +128,9 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     return (
       <g key={layer.id} data-layer={lensOn ? layer.id : undefined} className={lensOn && layer.id !== current ? 'is-off' : undefined}>
         <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
-          {layer.band ? <path className="a-band" d={areaPath(pts(layer.band.hi), pts(layer.band.lo))} /> : null}
+          {layer.band ? bandRuns(layer.band).map((r) => (
+            <path key={`band-${r.from}`} className={r.faint ? 'a-band is-faint' : 'a-band'} d={areaPath(pts(layer.band!.hi.slice(r.from, r.to + 1), r.from), pts(layer.band!.lo.slice(r.from, r.to + 1), r.from))} />
+          )) : null}
           {layer.band?.edge ? <><path className="a-edge" d={linePath(pts(layer.band.hi))} /><path className="a-edge" d={linePath(pts(layer.band.lo))} /></> : null}
           {layer.series.filter((s) => s.fillAbove !== undefined).map((s) => (
             <path key={`fill-${s.id}`} className={s.fillTone === 'quiet' ? 'a-silhouette' : 'a-signal'} d={areaPath(pts(s.values.map((v) => Math.max(v, s.fillAbove!))), pts(s.values.map(() => s.fillAbove!)))} />
@@ -150,6 +169,10 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
     for (const w of WIDTH_STEPS) { const n = needleAt(w), b = box(w); if (b.x0 < n.x1 + 2 && n.x0 < b.x1 + 2) min = WIDTH_STEPS.find((s) => s > w) ?? REF_WIDTH; }
     return min ? `w${min}` : undefined;
   };
+  // The scrub points whose needle runs through the gridline labels' column at the narrowest phone plot: there the labels
+  // move to the other end of their lines (scrub.flipGrid).
+  const gridW = Math.max(0, ...yTicks.map((t) => textWidth(t.label, 12, 500) + 6));
+  const gridFlip = scrub?.flipGrid ? scrub.points.x.flatMap((px, i) => ((gridSide === 'left' ? px : 1 - px) * REF_WIDTH <= gridW ? [i] : [])) : [];
   // A bracket on the plot's right edge keeps a 12 px gutter free of a right-end label (its line and caps).
   const gutter = layers.some((l) => l.bracket && x(l.bracket.x) > 0.95) ? 12 : 0;
   const refSpot = (r: { value: number; label?: string }): { side?: 'left' | 'right'; at?: number; below?: boolean; inset?: number } => {
@@ -198,7 +221,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
       <Gridlines lines={yTicks.map((t) => {
         const gw = textWidth(t.label, 12, 500) + 4;
         return { y: y(t.value), label: t.label, className: clearOfNeedle((pw) => (gridSide === 'left' ? { x0: 0, x1: gw } : { x0: pw - gw, x1: pw })) };
-      })} side={gridSide} />
+      })} side={gridSide} flipAt={gridFlip} />
       {yCue ? <text className="tick" x="0" y="0" dy={13}>{yCue}</text> : null}
       {refs.map((r) => {
         const spot = refSpot(r), rw = r.label ? textWidth(r.label, 13) + 4 : 0;

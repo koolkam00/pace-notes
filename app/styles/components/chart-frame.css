@@ -54,6 +54,8 @@
 .viz-frame .a-silhouette { fill: var(--fill-quiet); }
 .viz-frame .a-edge { fill: none; stroke: var(--mark-quiet); stroke-width: 1.5; stroke-linejoin: round; }
 .viz-frame .a-band { fill: var(--ink); opacity: .1; }
+/* A band's stretch that rests on few finishes (LineProfile band.faint): half strength, so its noisy edge stays quiet. */
+.viz-frame .a-band.is-faint { opacity: .045; }
 .viz-frame .a-wash { fill: var(--ink); opacity: .028; }
 .viz-frame .a-signal { fill: var(--signal-wash); }
 /* A bracket on the span a sentence names (LineProfile's `bracket`). */

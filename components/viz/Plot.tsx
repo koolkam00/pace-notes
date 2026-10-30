@@ -19,16 +19,23 @@ export default function Plot({ paths, children, className }: { paths?: ReactNode
  * Horizontal hairlines at y fractions (at most three), each labelled inside the plot on the clear side. A label's
  * `className` is a width class (`w240`) when it hides below some plot width. `labelAt` names the scrubber points whose
  * needle runs through the labels' column: while the needle stands on one, the labels hide (the Scrubber's is-under).
+ * `flipAt` does the same, but the labels move to the other end of their lines instead of hiding, so the scale stays
+ * named while the needle stands at the plot's edge (one rule for every needle chart).
  */
-export function Gridlines({ lines, side = 'left', labelAt = [] }: { lines: { y: number; label?: string; className?: string }[]; side?: 'left' | 'right'; labelAt?: number[] }) {
-  // One wrapper per point, nested, so the label hides under any of them (visibility is inherited).
-  const wrap = (node: ReactNode) => labelAt.reduceRight<ReactNode>((inner, i) => <g data-scrub-i={i}>{inner}</g>, node);
+export function Gridlines({ lines, side = 'left', labelAt = [], flipAt = [] }: { lines: { y: number; label?: string; className?: string }[]; side?: 'left' | 'right'; labelAt?: number[]; flipAt?: number[] }) {
+  // One wrapper per point, nested, so the label hides under any of them (visibility is inherited); a flipped copy at the
+  // other end shows only under them (chart-frame.css: .grid-label.is-flip).
+  const at = [...labelAt, ...flipAt.filter((i) => !labelAt.includes(i))];
+  const wrap = (node: ReactNode) => at.reduceRight<ReactNode>((inner, i) => <g data-scrub-i={i}>{inner}</g>, node);
+  const flipWrap = (node: ReactNode) => flipAt.reduceRight<ReactNode>((inner, i) => <g data-scrub-i={i}>{inner}</g>, node);
+  const left = side === 'left';
   return (
     <g className="viz-grid">
       {lines.slice(0, 3).map((l) => (
         <g key={l.y}>
           <rect className="grid-line" x="0" y={pc(l.y)} width="100%" height="1" />
-          {l.label ? wrap(<text className={`tick grid-label${l.className ? ` ${l.className}` : ''}`} x={side === 'left' ? '0' : '100%'} y={pc(l.y)} dy={-5} textAnchor={side === 'left' ? 'start' : 'end'}>{l.label}</text>) : null}
+          {l.label ? wrap(<text className={`tick grid-label${l.className ? ` ${l.className}` : ''}`} x={left ? '0' : '100%'} y={pc(l.y)} dy={-5} textAnchor={left ? 'start' : 'end'}>{l.label}</text>) : null}
+          {l.label && flipAt.length ? flipWrap(<text className="tick grid-label is-flip" x={left ? '100%' : '0'} y={pc(l.y)} dy={-5} textAnchor={left ? 'end' : 'start'}>{l.label}</text>) : null}
         </g>
       ))}
     </g>

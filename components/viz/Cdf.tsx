@@ -16,7 +16,7 @@ export type CdfPoint = { x: number; share: number };
 export default function Cdf({ points, you, youLabel = 'You', ticks, scrub, label, values, height = 200, heightMd = 260 }: {
   points: CdfPoint[]; you?: number;
   /** The ring's label: "You" when the time is the visitor's own, else the time itself (a page's example goal). */
-  youLabel?: string; ticks: { value: number; label: string; priority?: number }[];
+  youLabel?: string; ticks: { value: number; label: string; priority?: number; group?: string }[];
   scrub: { points: ScrubPoints; initial: number; detents: number[]; label: string }; label: string; values?: ReactNode; height?: number; heightMd?: number;
 }) {
   const x = linear([points[0].x, points[points.length - 1].x]);
@@ -25,8 +25,9 @@ export default function Cdf({ points, you, youLabel = 'You', ticks, scrub, label
   const plot = (
     <Plot paths={<path className="l-ink" d={linePath(points.map((p) => [x(p.x), y(p.share)]))} />}>
       {/* The gridline labels sit at the plot's left edge: while the needle stands on a point there (the first minutes of
-          the scale), they hide, so the needle never runs through "75%". */}
-      <Gridlines lines={[0.25, 0.5, 0.75].map((v) => ({ y: y(v), label: `${v * 100}%` }))} labelAt={scrub.points.x.flatMap((px, i) => (px * REF_WIDTH <= 30 ? [i] : []))} />
+          the scale), they move to the right ends of their lines, under the risen curve, so the needle never runs through
+          "75%" and the scale keeps its names. */}
+      <Gridlines lines={[0.25, 0.5, 0.75].map((v) => ({ y: y(v), label: `${v * 100}%` }))} flipAt={scrub.points.x.flatMap((px, i) => (px * REF_WIDTH <= 30 ? [i] : []))} />
       {you_ ? (
         <g>
           {/* The visitor's own time is an orange ring ("You"); a page's example time is an ink ring with its name, so the
@@ -42,7 +43,7 @@ export default function Cdf({ points, you, youLabel = 'You', ticks, scrub, label
       <Baseline />
     </Plot>
   );
-  const axis = <Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority }))} />;
+  const axis = <Axis ticks={ticks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority, group: t.group }))} />;
   return (
     <ChartFrame className="cdf" label={label} height={height} heightMd={heightMd}
       scrub={<Scrubber points={scrub.points} initial={scrub.initial} detents={scrub.detents} label={scrub.label} axis={axis}>{plot}</Scrubber>}
