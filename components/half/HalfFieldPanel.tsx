@@ -3,7 +3,7 @@ import { hm, pct } from '@/lib/nuggets/format';
 import { readHalf } from '@/lib/half-server';
 import { halfManifest } from '@/lib/stories';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
-import LineProfile from '@/components/viz/LineProfile';
+import { ShareCurve } from './HalfCharts';
 import Arrow from '@/components/ui/Arrow';
 import { withEm } from '@/components/ui/withEm';
 import { UnitLink as Link } from '@/components/UnitsProvider';
@@ -39,19 +39,13 @@ export default function HalfFieldPanel() {
     <section className="tool-panel half-field" id="half-field" data-half-scope="verified" aria-labelledby="half-field-title">
       <EvidenceTag kind="data" />
       <h2 className="tool-nugget-text" id="half-field-title">{reading.guard ? withEm(sentence) : sentence.replace(/\*/g, '')}</h2>
-      <LineProfile x={curve.map((p) => p.x)} xDomain={[first, last]} yDomain={[0, 1]}
-        layers={[{
-          id: 'under', label: 'Under',
-          series: [{ id: 'share', values: curve.map((p) => p.y), tone: 'ink' }],
-          points: marks.map((u) => ({ x: u.s / 60, y: u.all, kind: u.s === READING * 60 ? 'reading' as const : 'compare' as const })),
-          // Each round time's share sits left of its dot, above the curve (the time is the tick under it), so all five fit
-          // on the narrowest phone ("1:30 · 7%" beside its dot did not, at the curve's foot).
-          labels: marks.map((u) => ({ x: u.s / 60, y: u.all, text: pct(u.all), tone: u.s === READING * 60 ? 'signal' as const : 'ink' as const, priority: u.s === READING * 60 ? 3 : 2, prefer: 'left' as const, gap: 9 })),
-        }]}
+      <ShareCurve curve={curve} xDomain={[first, last]}
+        // Each round time's share sits left of its dot, above the curve (the time is the tick under it), so all five fit
+        // on the narrowest phone ("1:30 · 7%" beside its dot did not, at the curve's foot).
+        marks={marks.map((u) => ({ x: u.s / 60, y: u.all, text: pct(u.all), signal: u.s === READING * 60 }))}
         xTicks={[...MARKS, last].filter((m) => m >= first && m <= last).map((m) => ({ value: m, label: hm(m), priority: m === READING ? 3 : 2 }))}
-        yTicks={[0.25, 0.5, 0.75].map((v) => ({ value: v, label: pct(v) }))} gridSide="right"
-        label={`The share of half marathon finishes under each time from ${hm(under[0].s / 60)} to ${hm(last)}: ${marks.map((u) => `${pct(u.all)} under ${hm(u.s / 60)}`).join(', ')}.`}
-        height={200} heightMd={240} />
+        yTicks={[0.25, 0.5, 0.75].map((v) => ({ value: v, label: pct(v) }))}
+        label={`The share of half marathon finishes under each time from ${hm(under[0].s / 60)} to ${hm(last)}: ${marks.map((u) => `${pct(u.all)} under ${hm(u.s / 60)}`).join(', ')}.`} />
       <p className="half-field-more"><Link href="/half">The half marathon<Arrow /></Link></p>
     </section>
   );

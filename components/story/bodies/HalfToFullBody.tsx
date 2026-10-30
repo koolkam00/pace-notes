@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import type { HalfWindow } from '@/lib/half-types';
 import { readHalf } from '@/lib/half-server';
 import { getNugget, sentenceOf } from '@/lib/nuggets';
@@ -8,9 +9,9 @@ import type { UnitSystem } from '@/lib/units';
 import { STORIES } from '@/lib/stories';
 import { ScopeTag } from '@/components/tools/EvidenceTag';
 import Ruler from '@/components/viz/Ruler';
+import LineProfile from '@/components/viz/LineProfile';
 import Dumbbell from '@/components/viz/Dumbbell';
 import GuessFirst from '@/components/ui/GuessFirst.client';
-import ByUnits from '@/components/ui/ByUnits.client';
 import Values from '@/components/ui/Values';
 import PredictorLink from '@/components/half/PredictorLink.client';
 import { SaveImage } from '@/components/half/HalfCharts';
@@ -68,37 +69,42 @@ export default function HalfToFullBody() {
   const yLo = Math.min(...bands.map((w) => Math.min(q(w, 0.1), 2 * w.h))), yHi = Math.max(...bands.map((w) => Math.max(q(w, 0.9), 2 * w.h)));
   // The plot holds the middle 8 in 10 and double the half, to the 10 minutes around them (no empty half hour above).
   const yDomain: [number, number] = [Math.floor(yLo / 600) * 600, Math.ceil(yHi / 600) * 600];
-  const chart = (u: UnitSystem) => (
-    <PredictorLink key={u} halves={bands.map((w) => floorHM(w.h))}
-      paces={bands.map((w) => { const gap = paceGap(w.extra_p50, u); return { gap: `${Math.round(Math.abs(gap))} s/${u}`, word: gap < 0 ? 'quicker' : 'slower' }; })}
-      chart={{
-        x: xs, xDomain: [lo, hi], yDomain,
-        layers: [{
-          id: 'after', label: 'Marathons',
-          band: { lo: bands.map((w) => q(w, 0.1)), hi: bands.map((w) => q(w, 0.9)) },
-          series: [{ id: 'median', values: bands.map((w) => w.q[9]), tone: 'ink' }, { id: 'double', values: xs.map((h) => 2 * h), dashed: true }],
-        }],
-        xTicks: [4500, 5400, 6300, 7200, 8100, 9000, 9900].filter((h) => h >= lo && h <= hi).map((h) => ({ value: h, label: floorHM(h), priority: (h / 60) % 30 === 15 ? 3 : 1 })),
-        yTicks: [10800, 14400, 18000].filter((s) => s > yDomain[0] && s < yDomain[1]).map((s) => ({ value: s, label: floorHM(s) })),
-        gridSide: 'left',
-        keys: [{ label: 'Typical marathon', mark: 'line' }, { label: '8 in 10', mark: 'band' }, { label: 'Double the half', mark: 'dash' }],
-        axisTitle: { end: 'Half time' },
-        scrub: {
-          label: `Half time, ${floorHM(lo)} to ${floorHM(hi)}`,
-          points: {
-            x: xs.map((h) => (h - lo) / (hi - lo)),
-            keys: bands.map((w) => `After a ${floorHM(w.h)} half`),
-            values: bands.map((w) => floorHM(w.q[9])),
-            side: [
-              { label: '8 in 10', values: bands.map((w) => `${floorHM(q(w, 0.1))}–${floorHM(q(w, 0.9))}`) },
-              { label: 'Under', values: bands.map((w, i) => (markOf[i] ? `${floorHM(markOf[i]![0])}: ${pct(markOf[i]![1])}` : '—')) },
-            ],
-          },
-          initial: home, detents: DETENTS.map((h) => bands.findIndex((w) => w.h === h)).filter((i) => i >= 0), follow: 'median',
-        },
-        label: `The marathon after each half time, ${floorHM(lo)} to ${floorHM(hi)}: the typical marathon and the middle 8 in 10, against double the half. ${sentenceOf(range).replace(/\*/g, '')}`,
-        height: 220, heightMd: 280,
-      }} />
+  // The chart is drawn on the server; the lines under it (the pace against the half, "Not a prediction." and the link
+  // into the predictor) follow its needle in the browser (PredictorLink).
+  const paces = (u: UnitSystem) => bands.map((w) => { const gap = paceGap(w.extra_p50, u); return { gap: `${Math.round(Math.abs(gap))} s/${u}`, word: gap < 0 ? 'quicker' as const : 'slower' as const }; });
+  const profile: ComponentProps<typeof LineProfile> = {
+    x: xs, xDomain: [lo, hi], yDomain,
+    layers: [{
+      id: 'after', label: 'Marathons',
+      band: { lo: bands.map((w) => q(w, 0.1)), hi: bands.map((w) => q(w, 0.9)) },
+      series: [{ id: 'median', values: bands.map((w) => w.q[9]), tone: 'ink' }, { id: 'double', values: xs.map((h) => 2 * h), dashed: true }],
+    }],
+    xTicks: [4500, 5400, 6300, 7200, 8100, 9000, 9900].filter((h) => h >= lo && h <= hi).map((h) => ({ value: h, label: floorHM(h), priority: (h / 60) % 30 === 15 ? 3 : 1 })),
+    yTicks: [10800, 14400, 18000].filter((s) => s > yDomain[0] && s < yDomain[1]).map((s) => ({ value: s, label: floorHM(s) })),
+    gridSide: 'left',
+    keys: [{ label: 'Typical marathon', mark: 'line' }, { label: '8 in 10', mark: 'band' }, { label: 'Double the half', mark: 'dash' }],
+    axisTitle: { end: 'Half time' },
+    scrub: {
+      label: `Half time, ${floorHM(lo)} to ${floorHM(hi)}`,
+      points: {
+        x: xs.map((h) => (h - lo) / (hi - lo)),
+        keys: bands.map((w) => `After a ${floorHM(w.h)} half`),
+        values: bands.map((w) => floorHM(w.q[9])),
+        side: [
+          { label: '8 in 10', values: bands.map((w) => `${floorHM(q(w, 0.1))}–${floorHM(q(w, 0.9))}`) },
+          { label: 'Under', values: bands.map((w, i) => (markOf[i] ? `${floorHM(markOf[i]![0])}: ${pct(markOf[i]![1])}` : '—')) },
+        ],
+      },
+      initial: home, detents: DETENTS.map((h) => bands.findIndex((w) => w.h === h)).filter((i) => i >= 0), follow: 'median',
+    },
+    label: `The marathon after each half time, ${floorHM(lo)} to ${floorHM(hi)}: the typical marathon and the middle 8 in 10, against double the half. ${sentenceOf(range).replace(/\*/g, '')}`,
+    height: 220, heightMd: 280,
+  };
+  const chart = (
+    <div className="half-after-chart">
+      <LineProfile {...profile} />
+      <PredictorLink halves={bands.map((w) => floorHM(w.h))} paces={{ mi: paces('mi'), km: paces('km') }} initial={home} />
+    </div>
   );
 
   // Beat 2: the guess at the flagship's half, or (without both sexes there) the bands side by side.
@@ -131,7 +137,7 @@ export default function HalfToFullBody() {
         instrument={extra.guard ? ruler : undefined} />
 
       <Beat id="after" track="chapter-1" label="Half by half" title={range} dek={deks.range ?? undefined}>
-        <ByUnits mi={chart('mi')} km={chart('km')} />
+        {chart}
         <SaveImage slug="half-double" />
       </Beat>
 

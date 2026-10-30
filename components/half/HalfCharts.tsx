@@ -5,8 +5,8 @@ import ChartFrame, { type KeyItem } from '@/components/viz/ChartFrame';
 import Axis from '@/components/viz/Axis';
 import Plot, { Baseline, Gridlines, RefLine } from '@/components/viz/Plot';
 import Annotation from '@/components/viz/Annotation';
-import { placeLabels, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
-import { linear, pc, stepEdge, stepPath, yScale } from '@/components/viz/scale';
+import { REF_WIDTH, placeLabels, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
+import { linePath, linear, pc, stepEdge, stepPath, yScale } from '@/components/viz/scale';
 import { hm } from '@/lib/nuggets/format';
 import type { HalfField, HalfRoundMark } from '@/lib/half-types';
 
@@ -163,6 +163,47 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
   );
   const ticks = bands.slice(1).map((b, i) => ({ x: x(i + 1), label: hm(b.lo_s / 60), priority: i + 1 === signal ? 4 : 1 }));
   return <ChartFrame className="columns half-share" label={label} height={height} heightMd={230} plot={plot} axis={<Axis ticks={ticks} />} values={values} />;
+}
+
+/**
+ * The half pace chart's data panel: the share of half finishes under each time as one ink curve from a share of 0 to
+ * 1, the round times as dots with their shares (the one the sentence names in signal), gridlines on the right. It is
+ * LineProfile's single-curve drawing without the needle or the lens: LineProfile imports its two client islands
+ * (Scrubber, Lens) wherever it is used, which put 3.6 KB of chart script on a page that runs none (S8, October 30, 2026).
+ */
+export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, height = 200, heightMd = 240 }: {
+  curve: { x: number; y: number }[]; xDomain: [number, number];
+  marks: { x: number; y: number; text: string; signal?: boolean }[];
+  xTicks: { value: number; label: string; priority?: number }[]; yTicks: { value: number; label: string }[];
+  label: string; height?: number; heightMd?: number;
+}) {
+  const x = linear(xDomain);
+  const y = yScale(0, 1, { top: 0.12, bottom: 0 });
+  const pts = curve.map((p) => [x(p.x), y(p.y)] as [number, number]);
+  // Each label keeps clear of the dots and of the curve (its vertices and points along each segment), placed for the
+  // narrowest phone plot.
+  const along = pts.flatMap(([x0, y0], i) => {
+    if (i === pts.length - 1) return [{ x: x0, y: y0, r: 3 }];
+    const [x1, y1] = pts[i + 1];
+    const n = Math.max(2, Math.ceil(Math.hypot((x1 - x0) * REF_WIDTH, (y1 - y0) * height) / 5));
+    return Array.from({ length: n }, (_, k) => ({ x: x0 + ((x1 - x0) * k) / n, y: y0 + ((y1 - y0) * k) / n, r: k ? 2 : 3 }));
+  });
+  const items: LabelItem[] = marks.map((m, i) => ({ id: `mark-${i}`, text: m.text, x: x(m.x), y: y(m.y), priority: m.signal ? 3 : 2, tone: m.signal ? 'signal' : 'ink', prefer: 'left', gap: 9 }));
+  const placed = placeLabels(items, { height, avoid: [...marks.map((m) => ({ x: x(m.x), y: y(m.y), r: 7 })), ...along] });
+  const plot = (
+    <Plot>
+      <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} side="right" />
+      <g>
+        <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
+          <path className="l-ink" d={linePath(pts)} />
+        </svg>
+        {marks.map((m, i) => <circle key={i} className={m.signal ? 'm-signal is-reading' : 'm-ink is-compare'} cx={pc(x(m.x))} cy={pc(y(m.y))} r={m.signal ? 5.5 : 4} />)}
+        <Annotation labels={placed} />
+      </g>
+      <Baseline />
+    </Plot>
+  );
+  return <ChartFrame label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority }))} />} />;
 }
 
 /**
