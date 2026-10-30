@@ -16,6 +16,7 @@ on:
     paths:
       - 'analysis/*half*'
       - 'analysis/half-*.json'
+      - 'analysis/requirements.txt'
       - 'analysis/release.json'
       - 'analysis/weather-release.json'
       - 'public/data/half/**'
@@ -40,6 +41,7 @@ on:
     paths:
       - 'analysis/*half*'
       - 'analysis/half-*.json'
+      - 'analysis/requirements.txt'
       - 'analysis/release.json'
       - 'analysis/weather-release.json'
       - 'public/data/half/**'
@@ -96,7 +98,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Does this change touch the half pin, policy, builders or recount?
+      - name: Does this change touch the half pin, policy, builders, downloader or recount?
         id: scope
         env:
           EVENT: ${{ github.event_name }}
@@ -105,10 +107,10 @@ jobs:
         run: |
           if [ "$EVENT" = workflow_dispatch ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "$BASE" "$HEAD" | grep -Eq '^(analysis/half-release\.json|analysis/half-policy-[0-9-]+\.json|analysis/build_half\.py|analysis/half_[a-z_]+\.py|scripts/verify-half-source\.cjs|scripts/half/(derive|policy|marathon|families)\.cjs|\.github/workflows/half\.yml)$'; then
+          if git diff --name-only "$BASE" "$HEAD" | grep -Eq '^(analysis/half-release\.json|analysis/half-policy-[0-9-]+\.json|analysis/build_half\.py|analysis/half_[a-z_]+\.py|analysis/download_half\.py|analysis/requirements\.txt|scripts/verify-half-source\.cjs|scripts/half/(derive|policy|marathon|families)\.cjs|\.github/workflows/half\.yml)$'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
-            echo "skipped: this change touches no half pin, policy, builder or recount file"
+            echo "skipped: this change touches no half pin, policy, builder, downloader or recount file"
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/setup-python@v5
