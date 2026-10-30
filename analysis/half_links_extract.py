@@ -46,6 +46,17 @@ ROOT = Path(__file__).resolve().parent.parent
 PIN = ROOT / 'analysis' / 'half-release.json'
 SOURCE_TABLES = ('runner_links', 'runners', 'candidate_merges', 'build_info')
 TIERS = ('high', 'medium')
+# The columns read from the release's SQLite, with the DuckDB type of each (the types of the parquet form).
+_V, _I = 'VARCHAR', 'BIGINT'
+SQLITE_COLUMNS = {
+    'runner_links': {'runner_id': _V, 'db': _V, 'record_id': _I, 'match_key': _V, 'match_rule': _V, 'confidence': _V,
+                     'year': _I, 'race_key': _V},
+    'runners': {'runner_id': _V, 'canonical_name': _V, 'name_norm': _V, 'sex': _V, 'age_key': _V, 'n_halves': _I,
+                'n_fulls': _I, 'n_records': _I, 'first_year': _I, 'last_year': _I, 'birth_year_min': _I,
+                'birth_year_max': _I, 'ntok': _I, 'ns_keys': _I, 'max_per_year': _I, 'confidence': _V, 'in_both': _I},
+    'candidate_merges': {'runner_id_a': _V, 'runner_id_b': _V, 'rule': _V, 'applied': _I},
+    'build_info': {'k': _V, 'v': _V},
+}
 
 # Counts of the reviewed link build (link audit, 2026-10-29). A new build fails here until its counts are reviewed.
 EXPECTED = {
@@ -112,9 +123,19 @@ def open_source(db, parquet_dir: Path | None, sqlite_path: Path | None) -> dict[
         fail(f'missing {sqlite_path}')
     db.execute('INSTALL sqlite')
     db.execute('LOAD sqlite')
+    # The release's SQLite declares no type for several columns (runner_links.runner_id, db and match_rule; most of
+    # runners), which DuckDB's scanner reads as BLOB, so `match_rule LIKE` and the runner_id join fail. Every column is
+    # read as text and cast to the type the parquet form carries (SQLITE_COLUMNS), so both forms give the same views
+    # (found by running the workflow's source job locally, October 30, 2026).
+    db.execute('SET sqlite_all_varchar = true')
     db.execute(f"ATTACH '{sqlite_path.as_posix()}' AS src (TYPE sqlite, READ_ONLY)")
     for table in SOURCE_TABLES:
-        db.execute(f'CREATE VIEW src_{table} AS SELECT * FROM src.{table}')
+        present = {row[0] for row in db.execute(f'DESCRIBE src.{table}').fetchall()}
+        missing = [c for c in SQLITE_COLUMNS[table] if c not in present]
+        if missing:
+            fail(f'{sqlite_path.name}: table {table} lacks {", ".join(missing)}')
+        cols = ', '.join(f'CAST("{c}" AS {t}) AS "{c}"' if t != 'VARCHAR' else f'"{c}"' for c, t in SQLITE_COLUMNS[table].items())
+        db.execute(f'CREATE VIEW src_{table} AS SELECT {cols} FROM src.{table}')
     return {sqlite_path.name: file_sha256(sqlite_path)}
 
 

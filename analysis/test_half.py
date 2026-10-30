@@ -867,6 +867,89 @@ class DownloadHalf(unittest.TestCase):
         self.assertEqual(self.dh.main(['--from-dir', str(self.folder), '--out', str(ROOT / 'public' / 'data' / 'half')]), 1)
 
 
+# The release's runner_links.sqlite schema as published (half-dataset-20261029-1202): several columns carry no declared
+# type, which DuckDB's SQLite scanner reads as BLOB unless the extract casts them (found running the source job locally,
+# October 30, 2026).
+LINKS_SQLITE_SCHEMA = """
+CREATE TABLE runners(runner_id TEXT, canonical_name, name_norm TEXT, sex TEXT, age_key TEXT, n_halves, n_fulls, n_records,
+  first_year, last_year, birth_year_min, birth_year_max, ntok, ns_keys int, max_per_year int, confidence text, in_both int);
+CREATE TABLE runner_links(runner_id, db, record_id INT, match_key TEXT, match_rule, confidence TEXT, year INT, race_key TEXT,
+  linked_at);
+CREATE TABLE build_info(k text primary key, v text);
+CREATE TABLE candidate_merges(runner_id_a text, runner_id_b text, rule text, applied int default 0);
+"""
+
+
+class LinksExtract(unittest.TestCase):
+    """The links extract reads the release's SQLite and the parquet form of the same rows alike."""
+
+    def setUp(self):
+        import half_links_extract
+        self.hle = half_links_extract
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        runners = [('anna|f|1980', 'Anna', 'anna', 'F', '1980', 1, 1, 2, 2020, 2021, 1980, 1980, 1, 1, 1, 'high', 1),
+                   ('bo|m|40-44', 'Bo', 'bo', 'M', '40-44', 1, 1, 2, 2019, 2019, 1975, 1979, 1, 2, 1, 'medium', 1),
+                   ('cy|m|1990', 'Cy', 'cy', 'M', '1990', 1, 0, 1, 2022, 2022, 1990, 1990, 1, 1, 1, 'low', 0)]
+        links = [('anna|f|1980', 'half', 11, 'anna|f|1980', 'name_sex_yob', 'high', 2020, 'h1'),
+                 ('anna|f|1980', 'full', 21, 'anna|f|1980', 'name_sex_yob', 'high', 2021, 'm1'),
+                 ('bo|m|40-44', 'half', 12, 'bo|m|40-44', 'name_sex_age_bin', 'medium', 2019, 'h2'),
+                 ('bo|m|40-44', 'full', 22, 'bo|m|40-44', 'name_sex_age_bin', 'medium', 2019, 'm2'),
+                 ('cy|m|1990', 'half', 13, 'cy|m|1990', 'name_sex_yob', 'low', 2022, 'h3')]
+        merges = [('bo|m|40-44', 'cy|m|1990', 'yob_vs_bin', 0)]
+        self.sqlite = self.dir / 'runner_links.sqlite'
+        con = sqlite3.connect(self.sqlite)
+        con.executescript(LINKS_SQLITE_SCHEMA)
+        con.executemany(f"INSERT INTO runners VALUES ({', '.join('?' * 17)})", runners)
+        con.executemany("INSERT INTO runner_links VALUES (?, ?, ?, ?, ?, ?, ?, ?, '2026-10-29 15:00:00')", links)
+        con.executemany('INSERT INTO candidate_merges VALUES (?, ?, ?, ?)', merges)
+        con.execute("INSERT INTO build_info VALUES ('built_at', '2026-10-29 15:51:57')")
+        con.commit()
+        con.close()
+        self.parquet = self.dir / 'parquet'
+        self.parquet.mkdir()
+        import duckdb   # writes the parquet form (pandas alone would need pyarrow, which the requirements do not list)
+        out = duckdb.connect()
+        for table, rows in (('runners', runners), ('runner_links', links), ('candidate_merges', merges),
+                            ('build_info', [('built_at', '2026-10-29 15:51:57')])):
+            frame = pd.DataFrame(rows, columns=list(self.hle.SQLITE_COLUMNS[table]))
+            out.register('frame', frame)
+            out.execute(f"COPY (SELECT * FROM frame) TO '{(self.parquet / f'{table}.parquet').as_posix()}' (FORMAT parquet)")
+            out.unregister('frame')
+        out.close()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def people(self, parquet=None, sqlite=None):
+        db = self.hle.connect()
+        self.hle.open_source(db, parquet, sqlite)
+        self.hle.select_people(db)
+        out = (db.execute('SELECT person_id, sex, confidence, ns_keys, key_type, in_candidate_merge FROM p ORDER BY 1').fetchall(),
+               db.execute('SELECT person_id, db, record_id, confidence, key_type FROM pl ORDER BY 1, 2, 3').fetchall())
+        db.close()
+        return out
+
+    def test_the_sqlite_and_parquet_forms_give_the_same_people_and_links(self):
+        from_sqlite = self.people(sqlite=self.sqlite)
+        self.assertEqual(from_sqlite, self.people(parquet=self.parquet))
+        people, links = from_sqlite
+        self.assertEqual([(sex, conf, keys, kind, merge) for _, sex, conf, keys, kind, merge in people],
+                         [('F', 'high', 1, 'yob', 0), ('M', 'medium', 2, 'age_bin', 1)] if people[0][1] == 'F'
+                         else [('M', 'medium', 2, 'age_bin', 1), ('F', 'high', 1, 'yob', 0)])
+        self.assertEqual(sorted((d, r) for _, d, r, _, _ in links), [('full', 21), ('full', 22), ('half', 11), ('half', 12)])
+        self.assertTrue(all(isinstance(r, int) for _, _, r, _, _ in links), 'record ids stay integers')
+
+    def test_a_missing_column_fails(self):
+        con = sqlite3.connect(self.sqlite)
+        con.execute('ALTER TABLE runner_links DROP COLUMN match_rule')
+        con.commit()
+        con.close()
+        db = self.hle.connect()
+        with self.assertRaisesRegex(SystemExit, 'runner_links lacks match_rule'):
+            self.hle.open_source(db, None, self.sqlite)
+
+
 SOURCE_DIR = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1133')
 
 
