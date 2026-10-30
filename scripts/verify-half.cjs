@@ -274,21 +274,29 @@ for (const m of field.marks) {
 // ---------- 5. women.json: exact recounts; the same-city marathon side from the shards ----------
 eq(women.bands.map((b) => [b.lo_s, b.hi_s, b.label]), [[0, 5400, 'Under 1:30'], [5400, 6300, '1:30'], [6300, 7200, '1:45'], [7200, 8100, '2:00'], [8100, 9000, '2:15'], [9000, 9900, '2:30'], [9900, 10800, '2:45'], [10800, null, '3:00+']], 'women: the bands');
 eq(women.band_rule, { max_unrecorded: 0.02, min_finishes: 2000, min_recorded_per_band: 100 }, 'women: the band rule');
-// Published from at least 3 editions (the contract's floor behind a claim across editions) and only while the crossing
-// holds with any one edition left out; the /half sentence that names it needs 20 (lib/nuggets/half.ts halfWomenFrom).
-ok(women.band_editions.length >= D.MIN_EDITIONS && women.band_editions.length <= field.cohort.editions, `women: ${women.band_editions.length} band editions (at least ${D.MIN_EDITIONS})`);
-{
+// The band medians are published from at least 20 editions (analysis/half_women.py MIN_BAND_EDITIONS) and then only
+// while the crossing holds with any one edition left out; with fewer qualifying they are left out, never published from
+// fewer (15 qualify since the stamp correction, October 30, 2026; review of that day: the floor had been lowered to 3).
+eq(women.min_band_editions, 20, 'women: the band medians need 20 editions');
+ok(int(women.band_editions_qualifying) && women.band_editions_qualifying <= field.cohort.editions, `women: ${women.band_editions_qualifying} qualifying band editions`);
+const bandsPublished = women.band_editions_qualifying >= women.min_band_editions;
+if (bandsPublished) {
+  eq(women.band_editions.length, women.band_editions_qualifying, `women: all ${women.band_editions_qualifying} qualifying band editions are published`);
   const medians = (rows) => women.bands.map((_, j) => D.npMedian(rows.map((row) => row.F[j] / row.n[j])));
   const cross = D.crossing(medians(women.band_editions), women.bands);
   ok(women.band_editions.every((_, i) => D.crossing(medians(women.band_editions.filter((__, k) => k !== i)), women.bands) === cross), 'women: the crossing holds with any one band edition left out');
+} else {
+  eq([women.band_editions.length, women.median_share.length, women.cross_s], [0, 0, null], `women: ${women.band_editions_qualifying} band editions are under the 20 the medians need, so none is published`);
 }
 for (const [i, row] of women.band_editions.entries()) {
   ok(row.n.length === 8 && row.F.length === 8 && row.n.every((v, j) => int(v, women.band_rule.min_recorded_per_band) && int(row.F[j]) && row.F[j] <= v), `women.band_editions[${i}]: eight bands, each at least 100 recorded finishes`);
   ok(row.n.reduce((a, b) => a + b, 0) >= women.band_rule.min_finishes * (1 - women.band_rule.max_unrecorded), `women.band_editions[${i}]: an edition of at least 2,000 finishes`);
 }
-const bandShares = women.bands.map((_, j) => D.npMedian(women.band_editions.map((row) => row.F[j] / row.n[j])));
-eq(women.median_share, bandShares.map(D.sh), 'women: the median share of each band from the unnamed rows');
-eq(women.cross_s, D.crossing(bandShares, women.bands), 'women: the crossing from the band medians');
+if (bandsPublished) {
+  const bandShares = women.bands.map((_, j) => D.npMedian(women.band_editions.map((row) => row.F[j] / row.n[j])));
+  eq(women.median_share, bandShares.map(D.sh), 'women: the median share of each band from the unnamed rows');
+  eq(women.cross_s, D.crossing(bandShares, women.bands), 'women: the crossing from the band medians');
+}
 const womensChart = readJson(`public/data/${women.marathon.file}`);
 eq([women.marathon.file, women.marathon.sha256], ['charts/womens-share-by-finish-time.json', manifest.marathon.inputs['charts/womens-share-by-finish-time.json']], 'women: the cited marathon chart');
 eq([women.marathon.cross_s, women.marathon.sub3], [womensChart.values.cross, womensChart.values.sub3], 'women: the marathon values equal the cited chart');

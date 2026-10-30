@@ -3,7 +3,9 @@ and 4).
 
 Bands: the median over a fixed set of verified editions (at least 2,000 finishes, at most 2% unrecorded sex, at least
 100 recorded finishes in every band) of each edition's women's share of recorded finishes, every edition counting once
-(the marathon chart's rule, charts/womens-share-by-finish-time.json). Rows are published unnamed.
+(the marathon chart's rule, charts/womens-share-by-finish-time.json). Rows are published unnamed, and only when at least
+MIN_BAND_EDITIONS (20) editions qualify: with fewer the bands are left out (empty rows and medians, no crossing), never
+published from fewer, as every group under a floor is (docs/HALF_MARATHON.md).
 
 Same city, same year: a half edition (use_finish and use_sex, at least 1,000 finishes and 100 recorded women's and
 men's) under a reviewed label of the marathon city (analysis/half_quality.py SAME_CITY_LABELS), paired with that city's
@@ -23,16 +25,16 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 import numpy as np  # noqa: E402
 
 from charts_common import GENDER_GAP_EDITIONS  # noqa: E402
-from half_common import MIN_CELL, MIN_EDITIONS, ROOT, fail, file_sha256, sh  # noqa: E402
+from half_common import MIN_CELL, ROOT, fail, file_sha256, sh  # noqa: E402
 
 BANDS = [(0, 5400, 'Under 1:30'), (5400, 6300, '1:30'), (6300, 7200, '1:45'), (7200, 8100, '2:00'), (8100, 9000, '2:15'),
          (9000, 9900, '2:30'), (9900, 10800, '2:45'), (10800, None, '3:00+')]
 BAND_RULE = {'min_finishes': 2000, 'max_unrecorded': 0.02, 'min_recorded_per_band': 100}
-# The band medians are published from at least MIN_EDITIONS editions (the contract's floor behind a claim across
-# editions), and only while the crossing is the same with any one edition left out (`stable_crossing`). The /half
-# sentence that names the crossing needs at least 20 (lib/nuggets/half.ts halfWomenFrom), so with fewer the page keeps
-# the chart under its neutral heading. Thirty editions qualified before the stamp correction; 15 after it (2026-10-30).
-MIN_BAND_EDITIONS = MIN_EDITIONS
+# The band medians are published from at least 20 editions (the specification's floor for them, 2026-10-29), and then
+# only while the crossing is the same with any one edition left out (`stable_crossing`). Thirty editions qualified before
+# the stamp correction and 15 after it (2026-10-30), so the bands are left out: the floor narrows what is published and
+# never moves to keep a chart (review, 2026-10-30, which found it had been lowered to 3 to keep the /half columns).
+MIN_BAND_EDITIONS = 20
 MARATHON_FILE = 'charts/womens-share-by-finish-time.json'
 PAIR_HALF = {'min_finishes': 1000, 'min_per_sex': 100}
 PAIR_MARATHON = {'max_unrecorded': 0.02, 'min_kept_of_raw': 0.8, 'min_finishes': 1000, 'min_per_sex': 100}
@@ -81,6 +83,17 @@ def stable_crossing(rows) -> bool:
     """The crossing of the band medians is the same with any one edition left out (verify-half recounts it)."""
     cross = crossing(band_medians(rows))
     return all(crossing(band_medians(rows[:i] + rows[i + 1:])) == cross for i in range(len(rows)))
+
+
+def band_fields(rows) -> dict:
+    """The published band fields: the rows, medians and crossing from at least MIN_BAND_EDITIONS editions, else none."""
+    out = {'min_band_editions': MIN_BAND_EDITIONS, 'band_editions_qualifying': len(rows)}
+    if len(rows) < MIN_BAND_EDITIONS:
+        return {**out, 'band_editions': [], 'median_share': [], 'cross_s': None}
+    if not stable_crossing(rows):
+        fail('women: the crossing of the band medians moves when one edition is left out')
+    shares = band_medians(rows)
+    return {**out, 'band_editions': rows, 'median_share': [sh(s) for s in shares], 'cross_s': crossing(shares)}
 
 
 def marathon_counts(marathons):
@@ -142,11 +155,6 @@ def summarize(pairs):
 def build(fin, editions, marathons, labels) -> dict:
     verified = fin[fin.verified.to_numpy()]
     rows = bands(verified)
-    if len(rows) < MIN_BAND_EDITIONS:
-        fail(f'women: {len(rows)} band editions, under {MIN_BAND_EDITIONS}')
-    if not stable_crossing(rows):
-        fail('women: the crossing of the band medians moves when one edition is left out')
-    shares = band_medians(rows)
     chart = json.loads((ROOT / 'public' / 'data' / MARATHON_FILE).read_text())
     pairs = same_city(fin, editions, marathons, labels, verified_only=True)
     every = same_city(fin, editions, marathons, labels, verified_only=False)
@@ -164,9 +172,7 @@ def build(fin, editions, marathons, labels) -> dict:
         'schema_version': 1, 'family': 'half-women', 'scope': 'verified',
         'bands': [{'lo_s': lo, 'hi_s': hi, 'label': label} for lo, hi, label in BANDS],
         'band_rule': BAND_RULE,
-        'band_editions': rows,
-        'median_share': [sh(s) for s in shares],
-        'cross_s': crossing(shares),
+        **band_fields(rows),
         'marathon': {'file': MARATHON_FILE, 'sha256': file_sha256(ROOT / 'public' / 'data' / MARATHON_FILE),
                      'cross_s': int(chart['values']['cross']), 'sub3': chart['values']['sub3']},
         'same_city': {

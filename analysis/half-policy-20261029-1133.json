@@ -54,7 +54,8 @@
   "E8": {
    "max_abs_log_ratio": 0.15,
    "min_editions": 3,
-   "min_finishes": 100
+   "min_finishes": 100,
+   "reference": "the median of the edition medians of the label's other editions with at least 100 record-usable finishes (counted before R7) and a verified, unverified or held status, held (E1) editions and editions an earlier rule removes included; the label needs at least 3 such editions, the edition itself counted, and the screen applies only to editions no earlier rule removes"
   },
   "categories": {
    "atypical_fast_field": "E7",

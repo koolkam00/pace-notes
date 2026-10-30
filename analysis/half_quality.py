@@ -214,7 +214,13 @@ def policy_document(tag: str = TAG) -> dict:
             'E5': TRUNCATED,
             'E6': {'caps': list(ROUND_CAPS)},
             'E7': ATYPICAL,
-            'E8': MEDIAN_SCREEN,
+            # The reference set, said in words, so an independent recount follows the frozen list (review, October 30,
+            # 2026: read without held editions, the screen also flags Graz 2024).
+            'E8': {**MEDIAN_SCREEN, 'reference': (
+                "the median of the edition medians of the label's other editions with at least 100 record-usable finishes "
+                '(counted before R7) and a verified, unverified or held status, held (E1) editions and editions an earlier '
+                'rule removes included; the label needs at least 3 such editions, the edition itself counted, and the screen '
+                'applies only to editions no earlier rule removes')},
             'categories': CATEGORY_RULE,
             'editions': frozen['editions'],
         },

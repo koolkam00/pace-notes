@@ -86,14 +86,19 @@ module.exports = function half({ json, eq, ok, core }) {
     if (n.guard) has(n, `*${m.ratio.toFixed(1)}×*`, 'half.crowd names the ratio');
   };
 
-  const bandShares = women.bands.map((_, j) => median(women.band_editions.map((r) => r.F[j] / r.n[j])));
+  // The band medians are published only from at least 20 editions (analysis/half_women.py; 15 qualify since the stamp
+  // correction, October 30, 2026, so none is): with none, the heading falls back and the page draws no columns.
+  const bandsPublished = women.band_editions.length >= 20 && women.band_editions.length === women.band_editions_qualifying;
+  const bandShares = bandsPublished ? women.bands.map((_, j) => median(women.band_editions.map((r) => r.F[j] / r.n[j]))) : [];
   R['half.women'] = (n) => {
-    women.bands.forEach((_, j) => close(women.median_share[j], bandShares[j], `half.women: band ${j} median from the unnamed rows`));
+    eq(women.min_band_editions, 20, 'half.women: the band medians need 20 editions');
+    if (!bandsPublished) eq([women.band_editions.length, women.median_share.length, women.cross_s], [0, 0, null], `half.women: ${women.band_editions_qualifying} qualifying editions publish no band medians`);
+    bandShares.forEach((v, j) => close(women.median_share[j], v, `half.women: band ${j} median from the unnamed rows`));
     for (const row of women.band_editions) ok(row.n.every((v) => v >= 100), 'half.women: every band row holds at least 100 recorded finishes');
     let cross = null;
     for (let j = 1; j < bandShares.length; j++) if (bandShares[j - 1] <= 0.5 && bandShares.slice(j).every((s) => s > 0.5)) { cross = women.bands[j].lo_s; break; }
     eq(women.cross_s, cross, 'half.women: the crossing from the medians');
-    eq(n.guard, cross !== null && women.band_editions.length >= 20, 'half.women: guard');
+    eq(n.guard, bandsPublished && cross !== null && women.band_editions.length >= 20, 'half.women: guard');
     if (n.guard) eq(shown(n), `From *${clock(cross)}* on, most half finishes were women’s.`, 'half.women: the H2');
     const chart = json(`public/data/${women.marathon.file}`);
     eq([women.marathon.cross_s, women.marathon.sub3], [chart.values.cross, chart.values.sub3], 'half.women: the cited marathon values equal their file');
@@ -124,8 +129,14 @@ module.exports = function half({ json, eq, ok, core }) {
     if (n.guard) eq(shown(n), `After a half, the typical marathon took double it plus *${minutes} minutes*.`, 'half.extra: the H1');
     const share = linked.overall.under_double_plus_min['0'];
     const figureOk = Object.values(battery).every((m) => m.under_double < 0.15) && Math.abs(share - battery.verified_halves.under_double) <= 0.03;
-    eq(n.figure.value, figureOk ? String(Math.round(share * 100)) : `+${minutes}`, 'half.extra: the figure');
-    eq(n.key, figureOk ? 'of marathons came in under double the half marathon before them' : 'over double the half marathon, typical', 'half.extra: the key');
+    // The figure states a reading only under a guard of its own: the share while its check holds, the minutes while the
+    // H1's does, else the count of pairs (review, October 30, 2026: the minutes stood in the figure after the H1's guard
+    // had rejected them).
+    const asMinutes = !figureOk && n.guard;
+    eq(n.figure.value, figureOk ? String(Math.round(share * 100)) : asMinutes ? `+${minutes}` : linked.set.pairs.toLocaleString('en-US'), 'half.extra: the figure');
+    eq(n.key, figureOk ? 'of marathons came in under double the half marathon before them' : asMinutes ? 'over double the half marathon, typical' : 'pairs of a half and the marathon after it', 'half.extra: the key');
+    eq([n.values.figure_is_share, n.values.figure_is_minutes], [figureOk ? 1 : 0, asMinutes ? 1 : 0], 'half.extra: what the figure is');
+    if (!n.guard && !figureOk) ok(!/double|over|under|typical|\+/.test(`${n.figure.value} ${n.key}`), 'half.extra: with both guards failing, the figure and its key state no reading');
     ok(n.figure.value !== String(minutes) && !core.plain(shown(n)).includes(`${n.figure.value}%`), 'half.extra: the H1 accent and the figure are different numbers');
     eq(n.denominator, 'linked', 'half.extra: the linked family');
   };
@@ -178,16 +189,21 @@ module.exports = function half({ json, eq, ok, core }) {
     const d = H.halfDeks();
     eq(d.fieldUnit, `the median half finish; recorded women’s ${clock(field.quantiles.F.p50)}, men’s ${clock(field.quantiles.M.p50)}`, 'half deks: the reading’s unit line');
     eq(d.under, `Recorded women’s: ${pct(underSex('F', 6300))}. Men’s: ${pct(underSex('M', 6300))}. Slide to any time from ${clock(field.under[0].s)} to ${clock(field.under[field.under.length - 1].s)}.`, 'half deks: beat 1 (the range the shares are published for: 1:15 to 3:00 since the stamp correction)');
-    eq(d.women, `Under 1:30, ${pct(bandShares[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.`, 'half deks: beat 3');
+    // A dek that states a direction shows only while its heading holds: under the plain heading it is null (review,
+    // October 30, 2026: the beat 3 and beat 4 deks still compared the half with the marathon after their headings fell
+    // back).
+    const womenNugget = H.halfWomenFrom(women), citiesNugget = H.halfCitiesFrom(women);
+    eq(d.women, womenNugget.guard ? `Under 1:30, ${pct(bandShares[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.` : null, 'half deks: beat 3, only under its heading');
     const share = (c) => c.F / (c.F + c.M);
     // Two medians across the pairs, worded as two: never "the typical city and year", which no pair is (round 2).
-    eq(d.cities, `Women’s share of finishes was typically ${pct(median(women.same_city.pairs.map((p) => share(p.half))))} in the half and ${pct(median(women.same_city.pairs.map((p) => share(p.marathon))))} in the marathon.`, 'half deks: beat 4');
-    ok(!/typical city|typical pair/.test(d.cities), 'half deks: beat 4 never names one typical city and year');
+    eq(d.cities, citiesNugget.guard ? `Women’s share of finishes was typically ${pct(median(women.same_city.pairs.map((p) => share(p.half))))} in the half and ${pct(median(women.same_city.pairs.map((p) => share(p.marathon))))} in the marathon.` : null, 'half deks: beat 4, only under its heading');
+    ok(!/typical city|typical pair/.test(d.cities || ''), 'half deks: beat 4 never names one typical city and year');
     const w = flagship('all'), all = linked.windows.all;
     const win = (g, h) => linked.windows[g].find((x) => x.h === h);
-    // Beat 1's dek is the spec's: the typical marathon after the flagship's half, then the needle's range (round 2).
+    // Beat 1's dek is the spec's: the typical marathon after the flagship's half, then the needle's range (round 2);
+    // under the plain heading "the typical one" names no half, so the dek is the needle's range alone.
     const slide = `Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.`;
-    eq(d.range, `The typical one took ${clock(w.q[9])}. ${slide}`, 'half deks: story beat 1');
+    eq(d.range, H.halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}. ${slide}` : slide, 'half deks: story beat 1');
     // The reading's scale note: the minutes over double 15 minutes quicker than the flagship's half, then the span of
     // the 5-minute windows from 15 minutes slower on, each the readout's value (the window's typical marathon as printed,
     // the whole minute at or below, minus double its half), only while the slower half's is the larger; the span only
@@ -226,7 +242,9 @@ module.exports = function half({ json, eq, ok, core }) {
     const f1 = clone(field); f1.checks.all_usable.under_7200 = 0.45;
     const f2 = clone(field); f2.checks.editions_equal.under_6300 = field.under.find((u) => u.s === 6300).all - 0.05;
     const f3 = clone(field); f3.marks.find((m) => m.minutes === 120).ratio_ci95[0] = 0.99;
-    const w1 = clone(women); w1.band_editions = w1.band_editions.slice(0, 10);
+    // A band file published from 20 editions whose shares never pass one half (the bands are left out on this build).
+    const w1 = clone(women); w1.band_editions = Array.from({ length: 20 }, () => ({ n: women.bands.map(() => 200), F: women.bands.map(() => 80) }));
+    w1.band_editions_qualifying = 20; w1.median_share = women.bands.map(() => 0.4); w1.cross_s = null;
     const w2 = clone(women); w2.same_city.summary.half_higher -= 1;
     const l1 = clone(linked); l1.checks.battery.members.find((m) => m.id === 'ns_keys_1').multiple_p50 = 2.3;
     const l2 = clone(linked); l2.checks.verified.w105_under_14400 = 0.5;

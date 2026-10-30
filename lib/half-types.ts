@@ -123,12 +123,20 @@ export type HalfWomen = {
   bands: HalfBand[];
   /** Which editions enter the bands: finishes, the unrecorded-sex share, recorded finishes in every band. */
   band_rule: { min_finishes: number; max_unrecorded: number; min_recorded_per_band: number };
+  /**
+   * The editions a band median needs (20). With fewer qualifying, the bands are left out, never published from fewer:
+   * `band_editions` and `median_share` are empty and `cross_s` is null (15 qualify since the stamp correction, October 30,
+   * 2026, so /half draws no women's columns).
+   */
+  min_band_editions: number;
+  /** How many verified editions pass the band rule, published or not. */
+  band_editions_qualifying: number;
   /** One unnamed row per edition: recorded finishes (`n`) and recorded women's finishes (`F`) in each band. */
   band_editions: { n: number[]; F: number[] }[];
   /** Per band, the median over editions of the women's share. */
   median_share: number[];
-  /** The band start from which every median share is over 0.5 (8100 s = 2:15). */
-  cross_s: number;
+  /** The band start from which every median share is over 0.5 (8100 s = 2:15), or null. */
+  cross_s: number | null;
   /** The cited marathon values, read from that file (verify-half asserts equality). */
   marathon: { file: string; sha256: string; cross_s: number; sub3: number };
   same_city: {

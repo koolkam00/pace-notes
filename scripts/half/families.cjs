@@ -144,13 +144,15 @@ function women({ fin, editions, marathons, labels, chart, chartSha }) {
     rows.push({ n, F: f });
   }
   rows.sort((a, b) => b.n.reduce((s, v) => s + v, 0) - a.n.reduce((s, v) => s + v, 0) || cmpLists(a.n, b.n) || cmpLists(a.F, b.F));
-  // Published from at least 3 editions (the contract's floor), and only while the crossing holds with any one edition
-  // left out (analysis/half_women.py stable_crossing); the /half sentence itself needs 20 (lib/nuggets/half.ts).
-  need(rows.length >= 3, `${rows.length} band editions`);
+  // Published from at least 20 editions (analysis/half_women.py MIN_BAND_EDITIONS), and then only while the crossing
+  // holds with any one edition left out (stable_crossing); with fewer the bands are left out (15 qualify since the stamp
+  // correction, October 30, 2026).
+  const MIN_BAND_EDITIONS = 20;
+  const published = rows.length >= MIN_BAND_EDITIONS;
   const mediansOf = (rs) => BANDS.map((_, j) => D.npMedian(rs.map((r) => r.F[j] / r.n[j])));
   const crossOf = (sh) => D.crossing(sh, BANDS.map(([lo_s, hi_s, l]) => ({ lo_s, hi_s, label: l })));
-  need(rows.every((_, i) => crossOf(mediansOf(rows.filter((__, k) => k !== i))) === crossOf(mediansOf(rows))), 'the band crossing moves when one edition is left out');
-  const shares = mediansOf(rows);
+  if (published) need(rows.every((_, i) => crossOf(mediansOf(rows.filter((__, k) => k !== i))) === crossOf(mediansOf(rows))), 'the band crossing moves when one edition is left out');
+  const shares = published ? mediansOf(rows) : [];
   const bands = BANDS.map(([lo_s, hi_s, l]) => ({ lo_s, hi_s, label: l }));
   // Same city, same year.
   const labelCity = new Map();
@@ -191,9 +193,11 @@ function women({ fin, editions, marathons, labels, chart, chartSha }) {
   return {
     schema_version: 1, family: 'half-women', scope: 'verified', bands,
     band_rule: { min_finishes: 2000, max_unrecorded: 0.02, min_recorded_per_band: 100 },
-    band_editions: rows,
+    min_band_editions: MIN_BAND_EDITIONS,
+    band_editions_qualifying: rows.length,
+    band_editions: published ? rows : [],
     median_share: shares.map(D.sh),
-    cross_s: D.crossing(shares, bands),
+    cross_s: published ? D.crossing(shares, bands) : null,
     marathon: { file: 'charts/womens-share-by-finish-time.json', sha256: chartSha, cross_s: Math.trunc(chart.values.cross), sub3: chart.values.sub3 },
     same_city: {
       rule: { half: 'use_sex, >=1,000 finishes, >=100 recorded women and men', marathon: 'not a gender-gap edition, <=2% unrecorded, >=80% of raw records kept, >=1,000 finishes, >=100 of each sex' },

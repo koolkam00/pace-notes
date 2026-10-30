@@ -836,7 +836,7 @@ async function reloadedPage(h) {
   }
 }
 
-// The half pages (October 30, 2026): /half marks its reading, its four beats and its close, and the half-to-full story its
+// The half pages (October 30, 2026): /half marks its reading, its beats and its close, and the half-to-full story its
 // reading, two beats and its close, each once and in page order as the reader scrolls (the generic hero, chapter-1 …
 // chapter-4 and related ids). The story's one guess, locked in, reveals its answer and keeps its state in the
 // component: it writes no storage key and sends no event of its own (I2 and I6 check every event and key as well).
@@ -867,7 +867,11 @@ async function halfSections(h) {
   const sinceGuess = props(run).slice(eventsBefore).filter(p => !['$pageview', '$pageleave', '$web_vitals', 'section_viewed'].includes(p.event));
   await run.close();
   const sections = pathname => named(run, 'section_viewed').filter(p => p.$pathname === pathname).map(p => p.section);
-  h.check('/half marks hero, chapter-1 to chapter-4 and related, each once, in page order', JSON.stringify(halfOrder) === JSON.stringify(['hero', 'chapter-1', 'chapter-2', 'chapter-3', 'chapter-4', 'related']) && JSON.stringify(sections('/half')) === JSON.stringify(halfOrder), { page: halfOrder, sent: sections('/half') });
+  // Beat 3 (chapter-3, the women's columns) is drawn only while women.json publishes the band medians (20 editions; 15
+  // qualify since the stamp correction, October 30, 2026); the other beats keep their ids.
+  const women = JSON.parse(require('node:fs').readFileSync(path.join(ROOT, 'public/data/half/women.json'), 'utf8'));
+  const halfIds = ['hero', 'chapter-1', 'chapter-2', ...(women.band_editions.length >= women.min_band_editions ? ['chapter-3'] : []), 'chapter-4', 'related'];
+  h.check(`/half marks ${halfIds.join(', ')}, each once, in page order`, JSON.stringify(halfOrder) === JSON.stringify(halfIds) && JSON.stringify(sections('/half')) === JSON.stringify(halfOrder), { page: halfOrder, sent: sections('/half') });
   h.check('/stories/half-to-full marks hero, chapter-1, chapter-2 and related, each once, in page order', JSON.stringify(storyOrder) === JSON.stringify(['hero', 'chapter-1', 'chapter-2', 'related']) && JSON.stringify(sections('/stories/half-to-full')) === JSON.stringify(storyOrder), { page: storyOrder, sent: sections('/stories/half-to-full') });
   h.check('the half-to-full guess reveals its answer ("1 in 10")', /1 in 10/.test(verdict), verdict);
   h.check('the guess writes no storage key and sends no event of its own', JSON.stringify(before) === JSON.stringify(after) && !sinceGuess.length, { before, after, events: shown(sinceGuess) });

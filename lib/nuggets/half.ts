@@ -82,11 +82,14 @@ export function halfCrowdFrom(field: HalfField): Nugget {
   };
 }
 
+/** Whether women.json publishes the band medians: at least `min_band_editions` (20) editions qualify (analysis/half_women.py). */
+export const womenBandsPublished = (women: HalfWomen) => women.band_editions.length >= women.min_band_editions && women.median_share.length === women.bands.length;
+
 /** /half beat 3: from the band where every median share passes one half (2:15), most half finishes were women's. */
 export function halfWomenFrom(women: HalfWomen): Nugget {
   const shares = women.median_share;
   const j = women.bands.findIndex((b) => b.lo_s === women.cross_s);
-  const guard = women.cross_s !== null && j > 0 && shares[j - 1] <= 0.5 && shares.slice(j).every((s) => s > 0.5) && women.band_editions.length >= 20;
+  const guard = womenBandsPublished(women) && women.cross_s !== null && j > 0 && shares[j - 1] <= 0.5 && shares.slice(j).every((s) => s > 0.5) && women.band_editions.length >= 20;
   return {
     id: 'half.women', page: '/half#women', denominator: 'half',
     values: { cross_s: women.cross_s ?? NaN, editions: women.band_editions.length, before_cross: j > 0 ? shares[j - 1] : NaN,
@@ -134,24 +137,42 @@ export function flagshipGuard(linked: HalfLinked): boolean {
     && all.every((x) => x.under_double < 0.15);
 }
 
-/** Story H1 (chapter 11's lead): after a half, the typical marathon took double it plus 21 minutes; figure 8%. */
+/** The neutral key of the flagship's figure while it states no reading: what the count counts. */
+export const HALF_PAIRS_KEY = 'pairs of a half and the marathon after it';
+
+/**
+ * Story H1 (chapter 11's lead): after a half, the typical marathon took double it plus 21 minutes; figure 8%.
+ *
+ * The figure, which the chapter 11 row, the next cards and the /half night card repeat, states a reading only under a
+ * guard of its own: the share under double while its check holds (spec 3.2), else the minutes over double while the H1's
+ * guard holds (the spec's fallback, the H1's own reading), else the count of pairs, which states none. Since the stamp
+ * correction (October 30, 2026) both checks fail on the verified-halves member (+16.3 minutes and 14.0% under double,
+ * against +20.9 and 7.7% pooled), so the story and every place that repeats its figure show the 23,929 pairs: the minutes
+ * the H1's guard rejected never stand in its place (review, October 30, 2026).
+ */
 export function halfExtraFrom(linked: HalfLinked): Nugget {
   const m = members(linked), pooled = m.pooled;
   const extra = linked.overall.extra_s.p50;
   const minutes = Math.round(extra / 60);
   const under = linked.overall.under_double_plus_min['0'];
+  const pairs = linked.set.pairs;
   const guard = flagshipGuard(linked) && pooled?.extra_p50_s === extra;
   const figureOk = !!pooled && Object.values(m).every((x) => x.under_double < 0.15) && !!m.verified_halves && Math.abs(under - m.verified_halves.under_double) <= 0.03;
-  const figure = figureOk ? shareFigure(under) : { value: `+${minutes}`, unit: ' min', sr: `plus ${minutes} minutes` };
+  const asMinutes = !figureOk && guard;
+  const figure = figureOk ? shareFigure(under)
+    : asMinutes ? { value: `+${minutes}`, unit: '\u00a0min', sr: `plus ${minutes} minutes` }
+      // Always drawn with its key ("pairs of a half and …"), so the spoken figure is the number alone.
+      : { value: count(pairs), sr: count(pairs) };
   return {
     id: 'half.extra', page: '/stories/half-to-full', denominator: 'linked',
-    values: { extra_s: extra, extra_min: minutes, under_double: under, pairs: linked.set.pairs, marathon_editions: linked.set.marathon_editions,
-      multiple_p50: linked.overall.ratio_p50, pooled_half_s: linked.checks.battery.pooled_half_p50_s, figure_is_share: figureOk ? 1 : 0 },
+    values: { extra_s: extra, extra_min: minutes, under_double: under, pairs, marathon_editions: linked.set.marathon_editions,
+      multiple_p50: linked.overall.ratio_p50, pooled_half_s: linked.checks.battery.pooled_half_p50_s, figure_is_share: figureOk ? 1 : 0,
+      figure_is_minutes: asMinutes ? 1 : 0 },
     guard,
     headline: `After a half, the typical marathon took double it plus *${minutes} minutes*.`,
     fallback: 'The marathon after a half, against double the half.',
     figure,
-    key: figureOk ? 'of marathons came in under double the half marathon before them' : 'over double the half marathon, typical',
+    key: figureOk ? 'of marathons came in under double the half marathon before them' : asMinutes ? 'over double the half marathon, typical' : HALF_PAIRS_KEY,
   };
 }
 
@@ -230,16 +251,23 @@ export type HalfDeks = {
   crowd: string | null;
   /** The marks beat 2's dek names besides 2:00, in minutes ([90] while its guard holds): the chart draws them a step up. */
   crowdNamed: number[];
-  /** /half beat 3: "Under 1:30, 7% were. In the marathon, women’s finishes are the majority only from 5:15." */
-  women: string;
   /**
-   * /half beat 4: "Women’s share of finishes was typically 38% in the half and 24% in the marathon." Two medians across
-   * the pairs, worded as two (no one city and year has that pair; the typical gap within a pair is the methodology's).
+   * /half beat 3, while its heading holds: "Under 1:30, 7% were. In the marathon, women’s finishes are the majority only
+   * from 5:15." Under the plain heading (half.women fails) the comparison with the marathon is a direction the heading
+   * withdrew, so the dek is null; so it is while women.json publishes no band medians (fewer than 20 editions).
    */
-  cities: string;
+  women: string | null;
+  /**
+   * /half beat 4, while its heading holds: "Women’s share of finishes was typically 38% in the half and 24% in the
+   * marathon." Two medians across the pairs, worded as two (no one city and year has that pair; the typical gap within a
+   * pair is the methodology's). Null under the plain heading (half.cities fails): two medians side by side state the
+   * direction the heading withdrew (review, October 30, 2026).
+   */
+  cities: string | null;
   /**
    * Story beat 1, the spec's dek: the typical marathon after the flagship's half, then how to use the needle ("The
-   * typical one took 3:54. Slide to any half from 1:10 to 2:45."): the sentence a runner of that half wants first.
+   * typical one took 3:54. Slide to any half from 1:10 to 2:45."): the sentence a runner of that half wants first. Under
+   * the plain heading (half.range fails) "the typical one" names no half, so the dek is how to use the needle alone.
    */
   range: string | null;
   /**
@@ -291,9 +319,9 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
     under: `Recorded women’s: ${pct(u.F)}. Men’s: ${pct(u.M)}. Slide to any time from ${clock(first)} to ${clock(last)}.`,
     crowd: two ? `${count(two.minute_before)} finishes came in at ${clock(two.minutes * 60 - 60)}, where the smooth curve expects about ${count(Math.round(two.expected_minute_before / 100) * 100)}.${crowdOk ? ` The minute before 1:30 held ${ratio(marks[90].ratio, 1)} too; before 1:45, 2:15 and 2:30, about ${ratio(median(others), 2)}.` : ''}` : null,
     crowdNamed: crowdOk ? [90] : [],
-    women: `Under 1:30, ${pct(women.median_share[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.`,
-    cities: `Women’s share of finishes was typically ${pct(s.half_median)} in the half and ${pct(s.marathon_median)} in the marathon.`,
-    range: w ? `The typical one took ${clock(w.q[9])}. ${slide}` : null,
+    women: halfWomenFrom(women).guard ? `Under 1:30, ${pct(women.median_share[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.` : null,
+    cities: halfCitiesFrom(women).guard ? `Women’s share of finishes was typically ${pct(s.half_median)} in the half and ${pct(s.marathon_median)} in the marathon.` : null,
+    range: w ? (halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}. ${slide}` : slide) : null,
     scale: qa && qb && minutesOver(qa) < minutesOver(qb)
       ? `Fewer minutes over double after a quicker half: +${minutesOver(qa)} after a ${clock(qa.h)} half, ${level
         ? `${spanLo === spanHi ? `+${spanLo}` : `+${spanLo} to +${spanHi}`} from ${clock(qb.h)} to\u00a0${clock(slower[slower.length - 1].h)}`

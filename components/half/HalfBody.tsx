@@ -1,5 +1,5 @@
 import { getNugget, sentenceOf } from '@/lib/nuggets';
-import { halfDeks } from '@/lib/nuggets/half';
+import { halfDeks, womenBandsPublished } from '@/lib/nuggets/half';
 import { count, hm, pct, ratio } from '@/lib/nuggets/format';
 import { readHalf } from '@/lib/half-server';
 import { Beat, StoryHero } from '@/components/story/StoryPage';
@@ -31,6 +31,10 @@ const womenShare = (side: { F: number; M: number }) => side.F / (side.F + side.M
  * The reading (just over half under 2:00, the median 1:57, every minute as a histogram), then four beats: where any time
  * sits (the share under it, scrubbable), the crowd in the minute before 2:00, women the majority of finishes from 2:15,
  * and the same city's half and marathon. One All numbers fold at the foot holds every chart's table.
+ *
+ * Beat 3 and its table are drawn only while women.json publishes the band medians (at least 20 editions; 15 qualify since
+ * the stamp correction, October 30, 2026, so the page has three beats and the others keep their track ids). A beat whose
+ * heading falls back states nothing anywhere else either: no dek, no caption and no table reading that says a direction.
  */
 export default function HalfBody() {
   const field = readHalf('field.json');
@@ -53,7 +57,8 @@ export default function HalfBody() {
   const markIndex = (minutes: number) => marks.findIndex((u) => u.s === minutes * 60);
   const span = last - first;
 
-  // Beat 3: the band whose median share first passes one half and stays over it.
+  // Beat 3: the band whose median share first passes one half and stays over it, while the medians are published.
+  const bands = womenBandsPublished(women);
   const cross = women.bands.findIndex((b) => b.lo_s === women.cross_s);
   const sc = women.same_city;
 
@@ -67,13 +72,18 @@ export default function HalfBody() {
         columns={[{ key: 'k', label: 'Before' }, { key: 'r', label: '× curve' }, { key: 'b', label: 'Minute before' }, { key: 'e', label: 'Curve' }, { key: 'a', label: 'Minute after' }, { key: 'c', label: '95% interval' }]}
         rows={field.marks.map((m) => [m.mark, ratio(m.ratio, 2), count(m.minute_before), count(m.expected_minute_before), count(m.minute_after), `${ratio(m.ratio_ci95[0], 2)} to ${ratio(m.ratio_ci95[1], 2)}`])}
         reading={field.marks.findIndex((m) => m.minutes === READING_MARK)} />,
-      <Values key="women" bare id="hf-women" caption={`Women’s share of recorded half finishes in each band: the median of ${women.band_editions.length} editions`}
-        columns={[{ key: 'b', label: 'Finish band' }, { key: 's', label: 'Women’s share' }]}
-        rows={women.bands.map((b, i) => [b.hi_s === null ? `${hm(b.lo_s / 60)} and over` : b.lo_s === 0 ? `Under ${hm(b.hi_s / 60)}` : `${hm(b.lo_s / 60)} to ${hm(b.hi_s / 60 - 1)}:59`, pct(women.median_share[i], 1)])}
-        reading={womenN.guard ? cross : undefined} />,
-      // Each pair's gap in points, and in the caption the typical gap within a pair (the dumbbell's Typical row joins the
-      // two medians, whose gap is wider than the typical pair's).
-      <Values key="cities" bare id="hf-cities" caption={`Women’s share of recorded finishes, the same city and year: within a pair, the half’s share was typically ${sc.summary.diff_median_points.toFixed(1)} points higher`}
+      ...(bands ? [
+        <Values key="women" bare id="hf-women" caption={`Women’s share of recorded half finishes in each band: the median of ${women.band_editions.length} editions`}
+          columns={[{ key: 'b', label: 'Finish band' }, { key: 's', label: 'Women’s share' }]}
+          rows={women.bands.map((b, i) => [b.hi_s === null ? `${hm(b.lo_s / 60)} and over` : b.lo_s === 0 ? `Under ${hm(b.hi_s / 60)}` : `${hm(b.lo_s / 60)} to ${hm(b.hi_s / 60 - 1)}:59`, pct(women.median_share[i], 1)])}
+          reading={womenN.guard ? cross : undefined} />,
+      ] : []),
+      // Each pair's gap in points, and, while the beat's heading holds, the typical gap within a pair in the caption (the
+      // dumbbell's Typical row joins the two medians, whose gap is wider than the typical pair's). Under the plain heading
+      // the caption says what the columns are and states no direction (review, October 30, 2026).
+      <Values key="cities" bare id="hf-cities" caption={cities.guard
+        ? `Women’s share of recorded finishes, the same city and year: within a pair, the half’s share was typically ${sc.summary.diff_median_points.toFixed(1)} points higher`
+        : 'Women’s share of recorded finishes, the same city and year, and the gap within each pair in points'}
         columns={[{ key: 'c', label: 'City', text: true }, { key: 'y', label: 'Year' }, { key: 'h', label: 'Half' }, { key: 'm', label: 'Marathon' }, { key: 'd', label: 'Gap, points' }]}
         rows={[...sc.pairs].sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year).map((p) => [p.city, String(p.year), pct(womenShare(p.half), 1), pct(womenShare(p.marathon), 1),
           `+${((womenShare(p.half) - womenShare(p.marathon)) * 100).toFixed(1)}`])} />,
@@ -115,12 +125,14 @@ export default function HalfBody() {
           label={`Finishes in the minute before each round time, against the smooth curve: ${field.marks.map((m) => `${m.mark} ${ratio(m.ratio, 2)}`).join(', ')}.`} />
       </Beat>
 
-      <Beat id="women" track="chapter-3" label="Women and men" title={womenN} dek={deks.women}>
-        <ShareColumns bands={women.bands} shares={women.median_share} signal={womenN.guard ? cross : -1} format={(s) => pct(s)}
-          label={`Women’s share of recorded half finishes by finish band, the median of ${women.band_editions.length} editions: ${women.bands.map((b, i) => `${b.label} ${nearHalf(women.median_share[i])}`).join(', ')}.`} />
-      </Beat>
+      {bands ? (
+        <Beat id="women" track="chapter-3" label="Women and men" title={womenN} dek={deks.women ?? undefined}>
+          <ShareColumns bands={women.bands} shares={women.median_share} signal={womenN.guard ? cross : -1} format={(s) => pct(s)}
+            label={`Women’s share of recorded half finishes by finish band, the median of ${women.band_editions.length} editions: ${women.bands.map((b, i) => `${b.label} ${nearHalf(women.median_share[i])}`).join(', ')}.`} />
+        </Beat>
+      ) : null}
 
-      <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities}>
+      <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities ?? undefined}>
         {/* The key first, in the order every row prints its pair (marathon · half), then the two typical shares (the
             dek's two medians across the pairs, worded as two) as the one signal row, as the share card draws it, then
             each city. While the beat's heading falls back (too few pairs or cities for a direction, October 30, 2026)

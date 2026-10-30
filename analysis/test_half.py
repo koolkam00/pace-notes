@@ -447,6 +447,24 @@ class Floors(unittest.TestCase):
             self.assertTrue(w is None or w['n'] < hc.MIN_CELL or w['e'] < hc.MIN_EDITIONS or w['edge_min'] < hc.MIN_EDGE_SLICE
                             or not (half_linked.CLIP_MIN[0] <= H <= half_linked.CLIP_MIN[1]), H)
 
+    def test_womens_bands_need_twenty_editions(self):
+        # The band medians are published from at least 20 editions and are otherwise left out, never published from fewer
+        # (review, October 30, 2026: the floor had been lowered to 3 to keep 15 editions' columns on /half).
+        import half_women
+        self.assertEqual(half_women.MIN_BAND_EDITIONS, 20)
+        row = lambda f: {'n': [200] * 8, 'F': [round(200 * x) for x in f]}
+        rising = [0.1, 0.2, 0.3, 0.45, 0.6, 0.62, 0.64, 0.66]
+        few = half_women.band_fields([row(rising)] * 19)
+        self.assertEqual((few['band_editions'], few['median_share'], few['cross_s']), ([], [], None))
+        self.assertEqual((few['band_editions_qualifying'], few['min_band_editions']), (19, 20))
+        enough = half_women.band_fields([row(rising)] * 20)
+        self.assertEqual((len(enough['band_editions']), enough['cross_s'], enough['band_editions_qualifying']), (20, 8100, 20))
+        self.assertEqual(enough['median_share'][4], 0.6)
+        # Twenty editions whose crossing moves when one is left out fail loudly.
+        mixed = [row(rising)] * 10 + [row([0.1, 0.2, 0.3, 0.45, 0.45, 0.62, 0.64, 0.66])] * 10
+        with self.assertRaisesRegex(hc.HalfError, 'crossing'):
+            half_women.band_fields(mixed)
+
     def test_quantile_parity_fixture(self):
         fixture = json.loads((ROOT / 'scripts/half/fixtures/parity.json').read_text())
         for case in fixture['cases']:

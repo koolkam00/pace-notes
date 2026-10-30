@@ -48,6 +48,8 @@ export default function HalfToFullBody() {
   const linked = readHalf('linked.json');
   const deks = halfDeks();
   const extra = getNugget('half.extra'), range = getNugget('half.range'), sexes = getNugget('half.sexes'), guess = getNugget('half.sexesGuess');
+  // The hero's figure is the nugget's: a reading only under a guard of its own, else the count of pairs (lib/nuggets/half.ts
+  // halfExtraFrom). A table row is marked as the page's reading only while that reading is stated (review, October 30, 2026).
   const figure = extra.figure;
   const Q = linked.Q;
   const q = (w: HalfWindow, level: number) => w.q[Q.findIndex((x) => Math.abs(x - level) < 1e-9)];
@@ -156,11 +158,11 @@ export default function HalfToFullBody() {
           { key: 'x', label: 'Over double' }, { key: 'u', label: 'Under double' }, { key: 'm', label: 'Under a round time' }, { key: 'n', label: 'Pairs' }, { key: 'e', label: 'Marathon editions' }]}
         rows={bands.map((w, i) => [floorHM(w.h), floorHM(w.q[9]), `${floorHM(q(w, 0.1))}–${floorHM(q(w, 0.9))}`, `${floorHM(q(w, 0.25))}–${floorHM(q(w, 0.75))}`,
           `${plus(over[i] * 60)} min`, pct(w.under_double, 1), markOf[i] ? `${floorHM(markOf[i]![0])}: ${pct(markOf[i]![1], 1)}` : '—', count(w.n), count(w.e)])}
-        reading={home} />,
+        reading={range.guard ? home : undefined} />,
       <Values key="double" bare id="hf-double" caption="Marathons under double the half, and within 10 to 40 minutes over it"
         columns={[{ key: 'w', label: 'Under' }, { key: 's', label: 'Share of marathons' }]}
         rows={(['0', '10', '20', '30', '40'] as const).map((k) => [k === '0' ? 'Double the half' : `Double the half + ${k} min`, pct(linked.overall.under_double_plus_min[k], 1)])}
-        reading={0} />,
+        reading={shaded ? 0 : undefined} />,
       // The two shares first under short headers, so recorded women's and men's sit side by side on a phone.
       <Values key="sexes" bare id="hf-sexes" caption="Recorded women’s and men’s marathons after the same half: the share with a sustained slowdown, then the typical marathon and the pairs"
         columns={[{ key: 'h', label: 'Half' }, { key: 'fs', label: 'Women’s' }, { key: 'ms', label: 'Men’s' },
