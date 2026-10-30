@@ -123,10 +123,11 @@ export default function HalfBody() {
       <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities}>
         {/* The key first, in the order every row prints its pair (marathon · half), then the two typical shares (the
             dek's two medians across the pairs, worded as two) as the one signal row, as the share card draws it, then
-            each city. A value column sized to its pairs, and none on a zoomed-in screen (half.css). */}
+            each city. While the beat's heading falls back (too few pairs or cities for a direction, October 30, 2026)
+            the typical row is drawn quiet like the cities, as the women's columns are. A value column sized to its pairs, and none on a zoomed-in screen (half.css). */}
         <div className="half-cities">
           <Dumbbell keyFirst rows={[
-            { id: 'typical', label: 'Typical', a: sc.summary.marathon_median, b: sc.summary.half_median, display: `${pct(sc.summary.marathon_median)} · ${pct(sc.summary.half_median)}`, highlight: true },
+            { id: 'typical', label: 'Typical', a: sc.summary.marathon_median, b: sc.summary.half_median, display: `${pct(sc.summary.marathon_median)} · ${pct(sc.summary.half_median)}`, highlight: cities.guard },
             ...sc.cities.map((c) => ({ id: c.city, label: c.city, a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` })),
           ]}
             domain={[0, 0.6]} ticks={[0, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}

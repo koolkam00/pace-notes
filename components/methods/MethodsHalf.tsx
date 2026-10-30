@@ -5,7 +5,7 @@ import { halfCardWords } from '@/lib/charts/text/half';
 import { flagshipGuard } from '@/lib/nuggets/half';
 import { STORIES, halfManifest, storyHref } from '@/lib/stories';
 import { floorHM } from '@/lib/tools/half-to-full';
-import { Definition, Detail, Topic, and, dataHref, day, n, pctText } from './shared';
+import { Definition, Detail, Topic, and, dataHref, day, editionList, n, pctText } from './shared';
 
 /**
  * The half-marathon parts of /methodology (spec section 5): what the half results are, verified and unverified results,
@@ -80,15 +80,10 @@ export function HalfDataTopics() {
   const cov = linked.checks.coverage;
   const covHi = cov[0], covLo = cov[cov.length - 1];
   const correction = halfStampCorrection();
-  // The largest withdrawn races by name, each with its years (the full list is in the policy file).
-  const byRace = new Map<string, number[]>();
-  for (const w of correction.withdrawn) byRace.set(w.city, [...(byRace.get(w.city) ?? []), w.year]);
-  const named = ['Paris', 'Valencia', 'Berlin', 'New York'].filter((city) => byRace.has(city));
-  const years = (ys: number[]) => { const s = [...ys].sort(); return s.length > 2 && s[s.length - 1] - s[0] === s.length - 1 ? `${s[0]} to ${s[s.length - 1]}` : and(s.map(String)); };
-  const withdrawnNamed = named.map((city) => `${city} ${years(byRace.get(city)!)}`);
-  const byWeaker = new Map<string, number[]>();
-  for (const x of correction.weaker_source) byWeaker.set(raceName(x.city), [...(byWeaker.get(raceName(x.city)) ?? []), x.year]);
-  const weaker = [...byWeaker].map(([race, ys]) => `${race} ${and([...ys].sort().map(String))}`);
+  // The largest withdrawn races by name, each with its runs of years (the full list is in the policy file).
+  const NAMED = ['Paris', 'Valencia', 'Berlin', 'New York'];
+  const withdrawnNamed = editionList(NAMED.flatMap((city) => correction.withdrawn.filter((w) => w.city === city)));
+  const weaker = editionList(correction.weaker_source.map((x) => ({ city: raceName(x.city), year: x.year })));
   return <>
     <Topic id="half-data" title="The half-marathon results">
       <p>The half-marathon pages use a separate snapshot of recorded half-marathon results, taken {day(m.as_of)}. A row is one finish: a race, a year, a finish time and, where the source published it, a recorded sex (never inferred). Times mix chip and gun timing as each race published them. The results, the links between records and the scripts that built the links are the owner’s public releases under CC BY 4.0, downloadable without an account (<a href="#downloads-half">Downloads</a>). Pages show only totals, and so that each estimate rests on enough results, every group a page shows holds at least 100 finishes or pairs and any claim across editions rests on at least 3 editions.</p>
@@ -105,7 +100,7 @@ export function HalfDataTopics() {
     </Topic>
 
     <Topic id="half-coverage" title="Verified and unverified half results">
-      <p>A verified result is one the producer stamped twice: in this snapshot, and again in the producer’s corrected edition metadata (<a href="#downloads-half">Downloads</a>). A stamp means the finisher count is within 0.5% of an independent published total and the year and both winners are confirmed. The corrected metadata withdrew the stamps whose count came from a source that is not independent (an aggregator, a timing platform’s own list or total, or a republished result): {n(c.stamp_withdrawn.editions)} editions of this snapshot, {n(c.stamp_withdrawn.finishes)} finishes, among them {and(withdrawnNamed)}. They stay in as unverified results. {countWord(correction.weaker_source.length)} stamps rest on an organiser’s or a local paper’s count rather than a federation’s, so the producer marks them as weaker: {and(weaker)}. They stay verified.</p>
+      <p>A verified result is one the producer stamped twice: in this snapshot, and again in the producer’s corrected edition metadata (<a href="#downloads-half">Downloads</a>). A stamp means the finisher count is within 0.5% of an independent published total and the year and both winners are confirmed. The corrected metadata withdrew the stamps whose count came from a source that is not independent (an aggregator, a timing platform’s own list or total, or a republished result): {n(c.stamp_withdrawn.editions)} editions of this snapshot, {n(c.stamp_withdrawn.finishes)} finishes, among them {withdrawnNamed}. They stay in as unverified results. {countWord(correction.weaker_source.length)} stamps rest on an organiser’s or a local paper’s count rather than a federation’s, so the producer marks them as weaker: {weaker}. They stay verified.</p>
       <p>{n(c.verified.editions)} usable editions are verified, with {n(c.verified.finishes)} finishes, mostly in {and(top.map((x) => `${countryName(x.label)} (${pct0(x.share)}${x === top[0] ? ' of their finishes' : ''})`))}. Within the same race, verified and unverified years look alike: in the {n(sr.races)} races with both, the verified years’ median finish differed from the unverified years’ by a median {min1(sr.diff_s.p50)} minutes (the middle half of races from {min1(sr.diff_s.p25)} to {min1(sr.diff_s.p75)}). The pooled sets differ mainly because they hold different races.</p>
       <p>The half-only figures on <Link href="/half">The half marathon</Link> and the half pace chart use verified results only and carry no label. The figures of records linked by name (the half-to-full story, the predictor’s half panel and the goal pages’ half line) also use unverified halves: {pct0(linked.set.verified_half_share)} of their halves are verified. They carry one chip, “Includes unverified half results”, which links here.</p>
       <p>Scope checks: across every usable result, verified or not, {pctText(field.checks.all_usable.under_7200)} of finishes came in under 2:00 and {pctText(field.checks.all_usable.under_6300)} under 1:45; taking each verified edition’s own share, the median of the {n(field.checks.editions_equal.editions)} editions of at least {n(field.checks.editions_equal.min_finishes)} finishes is {pctText(field.checks.editions_equal.under_7200)} under 2:00 and {pctText(field.checks.editions_equal.under_6300)} under 1:45, and the median of all {n(ea.editions)} is {pctText(ea.under_7200)} under 2:00{small > 0 ? `: the ${n(small)} editions under ${n(field.checks.editions_equal.min_finishes)} finishes${smallTop ? `, ${n(smallTop.small_editions)} of them ${COUNTRY_ADJECTIVE[smallTop.label] ?? `in ${countryName(smallTop.label)}`}` : ''}, ${ea.under_7200 > field.checks.editions_equal.under_7200 ? 'raise' : 'lower'} it` : ''}. The pages pool finishes, because their claims are about finishes and many small races would otherwise weigh as much as the largest.</p>
