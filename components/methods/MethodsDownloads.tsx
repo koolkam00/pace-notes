@@ -112,6 +112,7 @@ export default function MethodsDownloads() {
 
     <HalfDownloads />
 
-    <p className="methods-part-note">Every file except the full race records is an aggregate, and each one states its own cohort, screens and method.</p>
+    {/* Under the half fold too, so the line names what that fold holds besides race records (review, October 30, 2026). */}
+    <p className="methods-part-note">Every file except the full race records, the links between records and the scripts that built them is an aggregate, and each aggregate states its own cohort, screens and method.</p>
   </Part>;
 }

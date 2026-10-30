@@ -117,8 +117,17 @@
    their lines, so each file, its description and its checksum read as one block. */
 .methods-files.is-wrapped a { display: inline; min-height: 0; padding-block: 12px; }
 .methods-files code { line-height: 1; padding-block: 0; vertical-align: baseline; }
-/* A full sha256 wraps anywhere, so 64 characters never widen a phone's page. */
-.methods-files code.methods-sha { overflow-wrap: anywhere; word-break: break-all; line-height: 1.45; }
+/* A long file name in a wrapped list breaks at the <wbr> after each '-', '.' or '/' (MethodsHalf breakable), and only
+   within a part when one part alone is wider than the line: "anywhere" broke "part00" one character from its end at
+   200% zoom (review, October 30, 2026). */
+.methods-files.is-wrapped a { overflow-wrap: break-word; }
+/* A full sha256 starts on its own line and wraps as one block (a table box hugs a short line and fills a narrow one),
+   so 64 characters never widen a phone's page and no fragment ("sha256 59") is left at the end of the description's
+   line (review, October 30, 2026). */
+.methods-files code.methods-sha { display: table; margin-top: 2px; overflow-wrap: anywhere; word-break: break-all; line-height: 1.45; }
+/* A DOI in running text breaks at its <wbr>s, so it never runs past a 195 px column. Marked by an attribute, not a
+   class, so it keeps the underline of a classless link in text (base.css). */
+.methods-page a[data-long] { overflow-wrap: break-word; }
 .methods-files.is-wrapped li + li { margin-top: var(--s-3); }
 .methods-packs { margin: var(--s-3) 0 0; padding: 0; list-style: none; }
 .methods-packs li { margin: 0; padding: var(--s-2) 0; border-top: 1px solid var(--rule); }

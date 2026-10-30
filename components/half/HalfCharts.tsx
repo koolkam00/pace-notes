@@ -64,9 +64,12 @@ export function FieldHistogram({ field, mark, share, label, height = 120, height
   const ticks = [
     ...Array.from({ length: Math.floor((hi - 75) / 15) + 1 }, (_, i) => 75 + i * 15).filter((m) => m < hi)
       .map((m) => ({ x: x(m), label: hm(m), priority: m % 30 === 0 ? 3 : 1 })),
-    // The tails in a short, matched pair, so both keep their names on a phone (a long "Under 1:10" lost its own there).
+    // The tails in a short, matched pair (a long "Under 1:10" lost its own on a phone). The right one first of all: its
+    // bar holds every finish from 3:20 and stands over the minutes beside it, so unnamed it read as a spike at 3:20; at
+    // 320 px and 200% zoom the 3:00 tick gives way to it (review, October 30, 2026). The left one, a short bar, keeps
+    // its name where it fits beside 1:30.
     { x: x(x0), label: `<${hm(lo)}`, priority: 2 },
-    { x: x(x1), label: `${hm(hi)}+`, priority: 2 },
+    { x: x(x1), label: `${hm(hi)}+`, priority: 4 },
   ];
   return <ChartFrame className="half-histogram" label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis ticks={ticks} />} />;
 }
