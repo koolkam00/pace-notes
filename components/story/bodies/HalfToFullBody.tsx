@@ -4,7 +4,7 @@ import { readHalf } from '@/lib/half-server';
 import { getNugget, sentenceOf } from '@/lib/nuggets';
 import { halfDeks } from '@/lib/nuggets/half';
 import { count, hm, pct } from '@/lib/nuggets/format';
-import { floorHM, paceGap, readoutMark, sharePct } from '@/lib/tools/half-to-full';
+import { floorHM, paceGap, readoutMark } from '@/lib/tools/half-to-full';
 import type { UnitSystem } from '@/lib/units';
 import { STORIES } from '@/lib/stories';
 import { ScopeTag } from '@/components/tools/EvidenceTag';
@@ -23,6 +23,8 @@ const DETENTS = [5400, 6300, 7200, 8100];
 /** The five-minute windows the chart and its readout step through (the 5-minute bands centred on round times). */
 const BAND_S = 300;
 const M = 'Recorded men’s';
+/** A window's 8-in-10 wash is drawn at full strength from this many pairs; thinner windows (the slow end) are faint. */
+const THIN = 300;
 const minutes = (s: number) => s / 60;
 /** "+21" minutes, from seconds, one decimal where the ruler needs it. */
 const plus = (s: number) => `${s >= 0 ? '+' : '−'}${Math.round(Math.abs(s) / 60)}`;
@@ -49,16 +51,25 @@ export default function HalfToFullBody() {
 
   // The reading's ruler: minutes over double the half, typical and the middle half of marathons.
   const e = linked.overall.extra_s;
+  const underDouble = linked.overall.under_double_plus_min['0'];
+  // The hero's figure (8% under double) has its place on the scale: the line left of "Double" is thickened in the quiet
+  // tone and keyed with the figure, while the figure is that share (its own guard); orange stays the typical dot alone.
+  const shaded = extra.values.figure_is_share === 1;
   // The band's own label has no room beside "Typical" on a phone, so a key under the ruler names it. The scale's zero is
   // double the half, named on the axis itself ("Double"), so the ink dot there keeps its name at every width (a label
-  // above it lost its place to "Typical" at 200% zoom).
+  // above it lost its place to "Typical" at 200% zoom). Under the key, the note that the minutes grow with the half, next
+  // to the H1 whose 21 it qualifies.
   const ruler = (
     <>
       <Ruler className="half-ruler" min={-20} max={60} ticks={[0, 15, 30, 45].map((v) => ({ value: v, label: v ? `+${v} min` : 'Double' }))}
         marks={[{ value: 0, kind: 'compare' }, { value: minutes(e.p50), kind: 'reading', label: 'Typical' }]}
-        band={{ lo: minutes(e.p25), hi: minutes(e.p75) }}
-        label={`Minutes over double the half: typical plus ${Math.round(e.p50 / 60)}; half of these marathons between plus ${Math.round(e.p25 / 60)} and plus ${Math.round(e.p75 / 60)}.`} />
-      <ul className="half-ruler-key" aria-hidden="true"><li><i />Half of them: <b>{plus(e.p25)} to {plus(e.p75)} min</b></li></ul>
+        band={{ lo: minutes(e.p25), hi: minutes(e.p75) }} shade={shaded ? { lo: -20, hi: 0 } : undefined}
+        label={`Minutes over double the half: typical plus ${Math.round(e.p50 / 60)}; half of these marathons between plus ${Math.round(e.p25 / 60)} and plus ${Math.round(e.p75 / 60)}${shaded ? `; ${pct(underDouble)} under double` : ''}.`} />
+      <ul className="half-ruler-key" aria-hidden="true">
+        {shaded ? <li><i className="is-shade" />Under double: <b>{pct(underDouble)}</b></li> : null}
+        <li><i />Half of them: <b>{plus(e.p25)} to {plus(e.p75)} min</b></li>
+      </ul>
+      {deks.scale ? <p className="half-ruler-note">{deks.scale}</p> : null}
     </>
   );
 
@@ -78,12 +89,15 @@ export default function HalfToFullBody() {
     x: xs, xDomain: [lo, hi], yDomain,
     layers: [{
       id: 'after', label: 'Marathons',
-      band: { lo: bands.map((w) => q(w, 0.1)), hi: bands.map((w) => q(w, 0.9)) },
+      // The wash is faint where a window holds fewer than THIN pairs (2:30 to 2:45), so its noisy slow end stays quiet.
+      band: { lo: bands.map((w) => q(w, 0.1)), hi: bands.map((w) => q(w, 0.9)), faint: bands.map((w) => w.n < THIN) },
       series: [{ id: 'median', values: bands.map((w) => w.q[9]), tone: 'ink' }, { id: 'double', values: xs.map((h) => 2 * h), dashed: true }],
     }],
     xTicks: [4500, 5400, 6300, 7200, 8100, 9000, 9900].filter((h) => h >= lo && h <= hi).map((h) => ({ value: h, label: floorHM(h), priority: (h / 60) % 30 === 15 ? 3 : 1 })),
-    // Three gridlines (the forms' limit) every 90 minutes, so the slow end has its own line (6:00) as well as the quick end.
-    yTicks: [10800, 16200, 21600].filter((s) => s > yDomain[0] && s < yDomain[1]).map((s) => ({ value: s, label: floorHM(s) })),
+    // Gridlines on the hour, the three slowest inside the plot (the forms' limit): 4:00, 5:00 and 6:00, so the H2's 4:00
+    // and the readout's 5:00 have their own lines and the slow end its 6:00 (the median line starts near 2:30, under them).
+    yTicks: Array.from({ length: Math.floor(yDomain[1] / 3600) - Math.ceil(yDomain[0] / 3600) + 1 }, (_, i) => (Math.ceil(yDomain[0] / 3600) + i) * 3600)
+      .filter((s) => s > yDomain[0] && s < yDomain[1]).slice(-3).map((s) => ({ value: s, label: floorHM(s) })),
     gridSide: 'left',
     keys: [{ label: 'Typical marathon', mark: 'line' }, { label: '8 in 10', mark: 'band' }, { label: 'Double the half', mark: 'dash' }],
     axisTitle: { end: 'Half time' },
@@ -99,7 +113,7 @@ export default function HalfToFullBody() {
           { label: 'Under', labels: bands.map((_, i) => (markOf[i] ? `Under ${floorHM(markOf[i]![0])}` : 'Under')), values: bands.map((_, i) => (markOf[i] ? pct(markOf[i]![1]) : '—')) },
         ],
       },
-      initial: home, detents: DETENTS.map((h) => bands.findIndex((w) => w.h === h)).filter((i) => i >= 0), follow: 'median',
+      initial: home, detents: DETENTS.map((h) => bands.findIndex((w) => w.h === h)).filter((i) => i >= 0), follow: 'median', flipGrid: true,
     },
     label: `The marathon after each half time, ${floorHM(lo)} to ${floorHM(hi)}: the typical marathon and the middle 8 in 10, against double the half. ${sentenceOf(range).replace(/\*/g, '')}`,
     height: 220, heightMd: 280,
@@ -108,7 +122,7 @@ export default function HalfToFullBody() {
     <div className="half-after-chart">
       <LineProfile {...profile} />
       <PredictorLink halves={bands.map((w) => floorHM(w.h))} paces={{ mi: paces('mi'), km: paces('km') }} initial={home}
-        extras={bands.map((w) => Math.round(w.extra_p50 / 60))} under={bands.map((w) => sharePct(w.under_double))} />
+        extras={bands.map((w) => Math.round(w.extra_p50 / 60))} under={bands.map((w) => `${Math.round(w.under_double * 100)} in 100`)} />
     </div>
   );
 
@@ -120,18 +134,20 @@ export default function HalfToFullBody() {
 
   return (
     <StoryPage path={PATH} halfScope="linked" numbers={[
+      // The page's own words for the spreads ("8 in 10", "Middle half"), as ranges, not percentile codes.
       <Values key="bands" bare id="hf-bands" caption="The marathon after each half time"
-        columns={[{ key: 'h', label: 'Half' }, { key: 't', label: 'Typical' }, { key: 'p10', label: 'p10' }, { key: 'p25', label: 'p25' }, { key: 'p75', label: 'p75' }, { key: 'p90', label: 'p90' },
+        columns={[{ key: 'h', label: 'Half' }, { key: 't', label: 'Typical' }, { key: 'r80', label: '8 in 10' }, { key: 'r50', label: 'Middle half' },
           { key: 'x', label: 'Over double' }, { key: 'u', label: 'Under double' }, { key: 'm', label: 'Under a round time' }, { key: 'n', label: 'Pairs' }, { key: 'e', label: 'Marathon editions' }]}
-        rows={bands.map((w, i) => [floorHM(w.h), floorHM(w.q[9]), floorHM(q(w, 0.1)), floorHM(q(w, 0.25)), floorHM(q(w, 0.75)), floorHM(q(w, 0.9)),
+        rows={bands.map((w, i) => [floorHM(w.h), floorHM(w.q[9]), `${floorHM(q(w, 0.1))}–${floorHM(q(w, 0.9))}`, `${floorHM(q(w, 0.25))}–${floorHM(q(w, 0.75))}`,
           `${plus(w.extra_p50)} min`, pct(w.under_double, 1), markOf[i] ? `${floorHM(markOf[i]![0])}: ${pct(markOf[i]![1], 1)}` : '—', count(w.n), count(w.e)])}
         reading={home} />,
       <Values key="double" bare id="hf-double" caption="Marathons under double the half, and within 10 to 40 minutes over it"
         columns={[{ key: 'w', label: 'Under' }, { key: 's', label: 'Share of marathons' }]}
         rows={(['0', '10', '20', '30', '40'] as const).map((k) => [k === '0' ? 'Double the half' : `Double the half + ${k} min`, pct(linked.overall.under_double_plus_min[k], 1)])}
         reading={0} />,
-      <Values key="sexes" bare id="hf-sexes" caption="Recorded women’s and men’s marathons after the same half"
-        columns={[{ key: 'h', label: 'Half' }, { key: 'fs', label: 'Women’s, sustained slowdown' }, { key: 'ms', label: 'Men’s, sustained slowdown' },
+      // The two shares first under short headers, so recorded women's and men's sit side by side on a phone.
+      <Values key="sexes" bare id="hf-sexes" caption="Recorded women’s and men’s marathons after the same half: the share with a sustained slowdown, then the typical marathon and the pairs"
+        columns={[{ key: 'h', label: 'Half' }, { key: 'fs', label: 'Women’s' }, { key: 'ms', label: 'Men’s' },
           { key: 'ft', label: 'Women’s typical' }, { key: 'mt', label: 'Men’s typical' }, { key: 'fn', label: 'Women’s pairs' }, { key: 'mn', label: 'Men’s pairs' }]}
         rows={both.map(({ h, f, m }) => [floorHM(h), pct(f.sus, 1), pct(m.sus, 1), floorHM(f.q[9]), floorHM(m.q[9]), count(f.n), count(m.n)])}
         reading={both.findIndex((b) => b.h === guess.values.h)} />,

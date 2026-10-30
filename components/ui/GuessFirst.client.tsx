@@ -115,7 +115,9 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
             </div>
             <div className="guess-dots-key" aria-hidden="true">
               {state !== 'skipped' ? <span><i className="is-you" />You</span> : null}
-              {revealed ? <span><i className="is-lit" />{truthLabel ?? 'Recorded finishes'}</span> : null}
+              {/* With a comparison, both grids' filled dots mean the same thing: the key shows both tones (the truth's
+                  orange, the comparison's ink) before the one label. */}
+              {revealed ? <span><i className="is-lit" />{compare ? <i className="is-compare" /> : null}{truthLabel ?? 'Recorded finishes'}</span> : null}
             </div>
           </>
         ) : (

@@ -232,15 +232,22 @@ export type HalfDeks = {
   crowdNamed: number[];
   /** /half beat 3: "Under 1:30, 7% were. In the marathon, women’s finishes are the majority only from 5:15." */
   women: string;
-  /** /half beat 4: "In the typical city and year, 38% of half finishes were women’s, against 24% of the marathon’s." */
+  /**
+   * /half beat 4: "Women’s share of finishes was typically 38% in the half and 24% in the marathon." Two medians across
+   * the pairs, worded as two (no one city and year has that pair; the typical gap within a pair is the methodology's).
+   */
   cities: string;
   /**
-   * Story beat 1: the minutes over double at the halves 15 minutes either side of the flagship's ("After a 1:30 half,
-   * the typical marathon took double it plus 17 minutes; after a 2:00, plus 28."), so the H1's rule reads as a typical
-   * value that moves with the half, then how to use the needle. The readout carries the 1:45 values, so the dek repeats
-   * none of them.
+   * Story beat 1, the spec's dek: the typical marathon after the flagship's half, then how to use the needle ("The
+   * typical one took 3:54. Slide to any half from 1:10 to 2:45."): the sentence a runner of that half wants first.
    */
   range: string | null;
+  /**
+   * The story's reading, under the ruler: the minutes over double at the halves 15 minutes either side of the
+   * flagship's ("Fewer minutes over double after a quicker half, more after a slower one: +17 after a 1:30 half, +28
+   * after a 2:00."), so the H1's 21 reads as a typical value that grows with the half, next to the H1 it explains.
+   */
+  scale: string | null;
   /** The guess: "After a 1:45 half, 30 of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?" */
   guess: string | null;
   /**
@@ -275,8 +282,11 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
     crowd: two ? `${count(two.minute_before)} finishes came in at ${clock(two.minutes * 60 - 60)}, where the smooth curve expects about ${count(Math.round(two.expected_minute_before / 100) * 100)}.${crowdOk ? ` The minute before 1:30 held ${ratio(marks[90].ratio, 1)} too; before 1:45, 2:15 and 2:30, about ${ratio(median(others), 2)}.` : ''}` : null,
     crowdNamed: crowdOk ? [90] : [],
     women: `Under 1:30, ${pct(women.median_share[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.`,
-    cities: `In the typical city and year, ${pct(s.half_median)} of half finishes were women’s, against ${pct(s.marathon_median)} of the marathon’s.`,
-    range: w ? (qa && qb ? `After a ${clock(qa.h)} half, the typical marathon took double it plus ${minutesOver(qa)} minutes; after a ${clock(qb.h)}, plus ${minutesOver(qb)}. ${slide}` : slide) : null,
+    cities: `Women’s share of finishes was typically ${pct(s.half_median)} in the half and ${pct(s.marathon_median)} in the marathon.`,
+    range: w ? `The typical one took ${clock(w.q[9])}. ${slide}` : null,
+    scale: qa && qb && minutesOver(qa) < minutesOver(qb)
+      ? `Fewer minutes over double after a quicker half, more after a slower one: +${minutesOver(qa)} after a ${clock(qa.h)} half, +${minutesOver(qb)} after a ${clock(qb.h)}.`
+      : null,
     guess: f && m ? `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?` : null,
     guessMore: f && m && lower ? pairs.map(([pf, pm], k) => (k === 0
       ? `After a ${clock(pf!.h)} half: ${pct(pf!.sus)} of recorded women’s, against ${pct(pm!.sus)} of men’s.`

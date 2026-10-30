@@ -8,9 +8,10 @@ import { NOT_A_PREDICTION } from '@/lib/tools/half-to-full';
 type Pace = { gap: string; word: 'slower' | 'quicker' };
 
 /**
- * The lines under the flagship's half-by-half chart that follow its needle: at the scrubbed half, the typical marathon's
- * minutes over double the half and its pace against the half (in the reader's units), so the H1's "double it plus 21
- * minutes" reads as a typical value that moves with the half; the share that came in under double there; "Not a
+ * The lines under the flagship's half-by-half chart that follow its needle: at the scrubbed half, one sentence with the
+ * typical marathon's minutes over double the half, its pace against the half (in the reader's units) and how many in
+ * 100 came in under double there ("Typical: double the half plus 24 min (55 s/mi slower than the half); 5 in 100 came
+ * in under double."), so the H1's "double it plus 21 minutes" reads as a typical value that moves with the half; "Not a
  * prediction." on its own line; and the link into the predictor at that half (the half's whole minute, `t=H:MM:00`).
  * Every value arrives built on the server, one per scrub point.
  *
@@ -26,7 +27,7 @@ export default function PredictorLink({ halves, paces, extras, under, initial }:
   paces: Record<'mi' | 'km', Pace[]>;
   /** The typical marathon's whole minutes over double the half at each point (24). */
   extras: number[];
-  /** The share of marathons under double the half at each point ("5%"). */
+  /** How many in 100 marathons came in under double the half at each point ("5 in 100"). */
   under: string[];
   /** The scrub point the chart opens on. */
   initial: number;
@@ -53,8 +54,7 @@ export default function PredictorLink({ halves, paces, extras, under, initial }:
     <div ref={foot} className="half-after-foot">
       {pace && extra !== undefined ? (
         <p className="half-pace-gap">
-          Typical: double the half {extra >= 0 ? 'plus' : 'minus'} <b>{Math.abs(extra)} min</b>, a pace <b>{pace.gap}</b> {pace.word} than the half.
-          {under[index] ? <> Under double: <b>{under[index]}</b>.</> : null}
+          Typical: double the half {extra >= 0 ? 'plus' : 'minus'} <b>{Math.abs(extra)} min</b> (<b>{pace.gap}</b> {pace.word} than the half){under[index] ? <>; <b>{under[index]}</b> came in under double.</> : '.'}
         </p>
       ) : null}
       <p className="half-not">{NOT_A_PREDICTION}</p>

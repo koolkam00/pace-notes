@@ -180,15 +180,19 @@ module.exports = function half({ json, eq, ok, core }) {
     eq(d.under, `Recorded women’s: ${pct(underSex('F', 6300))}. Men’s: ${pct(underSex('M', 6300))}. Slide to any time from 1:10 to 3:00.`, 'half deks: beat 1');
     eq(d.women, `Under 1:30, ${pct(bandShares[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.`, 'half deks: beat 3');
     const share = (c) => c.F / (c.F + c.M);
-    eq(d.cities, `In the typical city and year, ${pct(median(women.same_city.pairs.map((p) => share(p.half))))} of half finishes were women’s, against ${pct(median(women.same_city.pairs.map((p) => share(p.marathon))))} of the marathon’s.`, 'half deks: beat 4');
+    // Two medians across the pairs, worded as two: never "the typical city and year", which no pair is (round 2).
+    eq(d.cities, `Women’s share of finishes was typically ${pct(median(women.same_city.pairs.map((p) => share(p.half))))} in the half and ${pct(median(women.same_city.pairs.map((p) => share(p.marathon))))} in the marathon.`, 'half deks: beat 4');
+    ok(!/typical city|typical pair/.test(d.cities), 'half deks: beat 4 never names one typical city and year');
     const w = flagship('all'), all = linked.windows.all;
     const win = (g, h) => linked.windows[g].find((x) => x.h === h);
-    // The minutes over double 15 minutes either side of the flagship's half, each the window's median extra in whole
-    // minutes (the H1's own rounding), recounted from the window's quantiles of the extra: never from the readout.
-    const qa = win('all', w.h - 900), qb = win('all', w.h + 900);
+    // Beat 1's dek is the spec's: the typical marathon after the flagship's half, then the needle's range (round 2).
     const slide = `Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.`;
-    eq(d.range, qa && qb ? `After a ${clock(qa.h)} half, the typical marathon took double it plus ${Math.round(qa.extra_p50 / 60)} minutes; after a ${clock(qb.h)}, plus ${Math.round(qb.extra_p50 / 60)}. ${slide}` : slide, 'half deks: story beat 1');
-    ok(!d.range.includes(clock(w.q[9])), `half deks: story beat 1 does not repeat the readout's typical ${clock(w.q[9])}`);
+    eq(d.range, `The typical one took ${clock(w.q[9])}. ${slide}`, 'half deks: story beat 1');
+    // The reading's scale note: the minutes over double 15 minutes either side of the flagship's half, each the window's
+    // median extra in whole minutes (the H1's own rounding), only while the slower half's is the larger.
+    const qa = win('all', w.h - 900), qb = win('all', w.h + 900);
+    const a = qa && Math.round(qa.extra_p50 / 60), b = qb && Math.round(qb.extra_p50 / 60);
+    eq(d.scale, qa && qb && a < b ? `Fewer minutes over double after a quicker half, more after a slower one: +${a} after a ${clock(qa.h)} half, +${b} after a ${clock(qb.h)}.` : null, 'half deks: the reading’s scale note');
     const m = flagship('M');
     eq(d.guess, `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?`, 'half deks: the guess');
     const sides = [w.h - 900, w.h + 900].map((h) => [win('F', h), win('M', h)]);
