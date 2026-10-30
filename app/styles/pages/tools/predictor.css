@@ -99,10 +99,10 @@
 .predictor-linked-sus { max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
 .predictor-linked-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }
 .predictor-linked-group > .tool-choice.seg { flex: 0 1 auto; width: auto; min-width: 0; grid-auto-columns: auto; }
-/* Below 260 px (a phone at 200% zoom) "All · Recorded women · Recorded men" cannot share a row: each option takes its
-   own full-width line, the pressed one raised, so no choice is cut off or scrolled out of view (as the analyses'
-   comparison switch does). */
-@media (max-width: 259.98px) {
+/* Under 300 px (a phone at 200% zoom; a 320 px phone still fits the row) "All · Recorded women · Recorded men"
+   cannot share a row: each option takes its own full-width line, the pressed one raised, so no choice is cut off or
+   scrolled out of view (as the analyses' comparison switch does). */
+@media (max-width: 299.98px) {
   .predictor-linked-group > .tool-choice.seg { display: flex; flex-direction: column; flex: 1 1 100%; width: 100%; overflow: visible; border-radius: var(--r-md); }
   .predictor-linked-group .seg-btn { width: 100%; min-width: 0; min-height: 44px; white-space: normal; text-align: center; }
   .predictor-linked-group .seg-btn::after { inset: 0; }
