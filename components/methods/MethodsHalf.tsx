@@ -89,7 +89,7 @@ export function HalfDataTopics() {
     </Topic>
 
     <Topic id="half-coverage" title="Verified and unverified half results">
-      <p>A verified result is one the producer stamped: its finisher count is within 0.5% of an independent published total, and its year and both winners are confirmed. {n(c.verified.editions)} usable editions are verified, with {n(c.verified.finishes)} finishes, mostly in {and(top.map((x) => `${countryName(x.label)} (${pct0(x.share)}${x === top[0] ? ' of their finishes' : ''})`))}; the United States has one (New York 2025). Within the same race, verified and unverified years look alike: in the {n(sr.races)} races with both, the verified years’ median finish differed from the unverified years’ by a median {min1(sr.diff_s.p50)} minutes (the middle half of races from {min1(sr.diff_s.p25)} to {min1(sr.diff_s.p75)}). The pooled sets differ mainly because they hold different races.</p>
+      <p>A verified result is one the producer stamped: its finisher count is within 0.5% of an independent published total, and its year and both winners are confirmed. {n(c.verified.editions)} usable editions are verified, with {n(c.verified.finishes)} finishes, mostly in {and(top.map((x) => `${countryName(x.label)} (${pct0(x.share)}${x === top[0] ? ' of their finishes' : ''})`))}. Within the same race, verified and unverified years look alike: in the {n(sr.races)} races with both, the verified years’ median finish differed from the unverified years’ by a median {min1(sr.diff_s.p50)} minutes (the middle half of races from {min1(sr.diff_s.p25)} to {min1(sr.diff_s.p75)}). The pooled sets differ mainly because they hold different races.</p>
       <p>The half-only figures on <Link href="/half">The half marathon</Link> and the half pace chart use verified results only and carry no label. The figures of records linked by name (the half-to-full story, the predictor’s half panel and the goal pages’ half line) also use unverified halves: {pct0(linked.set.verified_half_share)} of their halves are verified. They carry one chip, “Includes unverified half results”, which links here.</p>
       <p>Scope checks: across every usable result, verified or not, {pctText(field.checks.all_usable.under_7200)} of finishes came in under 2:00 and {pctText(field.checks.all_usable.under_6300)} under 1:45; across the {n(field.checks.editions_equal.editions)} verified editions of at least {n(field.checks.editions_equal.min_finishes)} finishes, each weighted equally, {pctText(field.checks.editions_equal.under_7200)} and {pctText(field.checks.editions_equal.under_6300)}; across all {n(ea.editions)} verified editions weighted equally, {pctText(ea.under_7200)} under 2:00{small > 0 ? `: the ${n(small)} editions under ${n(field.checks.editions_equal.min_finishes)} finishes${smallTop ? `, ${n(smallTop.small_editions)} of them ${COUNTRY_ADJECTIVE[smallTop.label] ?? `in ${countryName(smallTop.label)}`}` : ''}, ${ea.under_7200 > field.checks.editions_equal.under_7200 ? 'raise' : 'lower'} it` : ''}. The pages pool finishes, because their claims are about finishes and many small races would otherwise weigh as much as the largest.</p>
     </Topic>
@@ -124,7 +124,7 @@ export function HalfMultipleDefinition() {
 /** Part 2 #evidence: what the data badge means on the half panels, and the chip. */
 export function HalfEvidenceLines() {
   if (!useHalf()) return null;
-  return <p>On the predictor’s half panel and the goal pages’ half line, Pace Notes data means marathon finishes of records linked by name to a half 3 to 16 weeks before; on the half pages, half finishes in verified results. The chip “Includes unverified half results” qualifies a Pace Notes data badge; it is not a kind of evidence (<a href="#half-coverage">verified and unverified half results</a>).</p>;
+  return <p>On the predictor’s half panel and the goal pages’ half line, Pace Notes data means marathon finishes of records linked by name to a half 3 to 16 weeks before; on the half marathon pace chart’s panel, half finishes in verified results. The chip “Includes unverified half results” qualifies a Pace Notes data badge; it is not a kind of evidence (<a href="#half-coverage">verified and unverified half results</a>).</p>;
 }
 
 /** Part 3: how /half's figures are worked out. */
@@ -138,7 +138,7 @@ export function HalfFieldTopic() {
     <Topic id="half-field" title="The half marathon’s figures">
       <p>The figures on <Link href="/half">The half marathon</Link> pool the {n(field.cohort.finishes)} finishes of the {n(field.cohort.editions)} verified editions. Shares under a time count finishes strictly under it, from whole-minute counts; recorded women’s and men’s shares use the {n(field.cohort.sex_editions)} editions where at least 95% of finishes carry a recorded sex and each sex is at least 3% ({n(field.cohort.sex_finishes)} finishes).</p>
       <p>Round times: the minute before each mark is compared with a smooth curve fitted to the minutes around it (a local cubic in the log of the counts, 25 minutes wide, the five minutes before and ten after each mark left out of the fit), the method of the round-number story. Its interval comes from 200 resamples of whole editions.</p>
-      <p>Women’s share by finish band is the median over {n(women.band_editions.length)} verified editions with at least {n(women.band_rule.min_finishes)} finishes, at most {pct0(women.band_rule.max_unrecorded)} without a recorded sex and at least {n(women.band_rule.min_recorded_per_band)} recorded finishes in every band. The marathon’s comparison (women pass half of finishes from {floorHM(women.marathon.cross_s)}) is the Top 100 chart’s, from <a href={dataHref(women.marathon.file)}>{women.marathon.file}</a>.</p>
+      <p>Women’s share by finish band is the median over {n(women.band_editions.length)} verified editions with at least {n(women.band_rule.min_finishes)} finishes, at most {pct0(women.band_rule.max_unrecorded)} without a recorded sex and at least {n(women.band_rule.min_recorded_per_band)} recorded finishes in every band. The marathon’s comparison (women’s finishes are the majority from {floorHM(women.marathon.cross_s)}) is the Top 100 chart’s, from <a href={dataHref(women.marathon.file)}>{women.marathon.file}</a>.</p>
       <p>Same city, same year: a half edition (verified, with at least 1,000 finishes and 100 recorded women and men) is paired with that city’s marathon in the same year when the marathon is not a gender-gap edition, has at most 2% without a recorded sex, kept at least 80% of its raw records and has at least 1,000 finishes and 100 of each sex. That gives {n(sc.summary.pairs)} pairs in {n(sc.summary.cities)} cities; the half had the larger women’s share in {n(sc.summary.half_higher)} of them, by a median {sc.summary.diff_median_points.toFixed(1)} points (from {sc.summary.diff_min_points.toFixed(1)} to {sc.summary.diff_max_points.toFixed(1)}). London’s 2025 and 2026 marathons and Berlin’s 2025 marathon publish too many finishes without a recorded sex, so they have no pair. Over every usable half edition, verified or not, the half was higher in {n(sc.all_scope_check.half_higher)} of {n(sc.all_scope_check.pairs)} pairs. A city’s row is the mean of its pairs. These are the fields that entered each race, not anyone’s choice.</p>
       <p className="methods-links"><Link href="/half">Read the page</Link><a href={dataHref('half/field.json')}>half/field.json</a><a href={dataHref('half/women.json')}>half/women.json</a></p>
     </Topic>
@@ -174,6 +174,18 @@ export function HalfStoryDetail() {
       <p className="methods-links"><Link href={storyHref(story)}>Read the story</Link><a href={dataHref('half/linked.json')}>half/linked.json</a></p>
     </Detail>
   );
+}
+
+/**
+ * Part 3 #tools-data: the half panels' own bases, beside the marathon tool groups' screens. The predictor's half panel
+ * and the goal pages' half line use every eligible marathon finish (no start-delay or mat-grid screen: those screens
+ * are the pace band's), paired with a half of a record linked by name; the half pace chart's panel counts half finishes
+ * in verified results, which have no checkpoint rule. Counts from the half manifest.
+ */
+export function HalfToolData() {
+  const m = useHalf();
+  if (!m) return null;
+  return <p>The half panels have bases of their own. The predictor’s half panel and the goal pages’ half line use every eligible marathon finish, the editions left out above included, paired with a half of a record linked by name: {n(m.cohort.linked.pairs)} pairs in {n(m.cohort.linked.marathon_editions)} marathon editions (<a href="#half-linking">how records are linked</a>). The half marathon pace chart’s panel counts {n(m.cohort.verified.finishes)} half finishes in {n(m.cohort.verified.editions)} verified results, where no checkpoint rule applies (<a href="#half-field">the half figures</a>).</p>;
 }
 
 /** Part 3 runner tools: what the predictor's half panel, the goal pages' half line and the pace chart's panel show. */
