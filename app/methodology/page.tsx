@@ -101,7 +101,7 @@ export default function MethodologyPage() {
           <li>Percentages describe what past finishes did: <a href="#interpretation">an association, not a forecast</a>.</li>
           <li>A new data release reaches the pages only after every calculation is <a href="#release">rerun and checked</a>.</li>
           {half
-            ? <li>Every marathon file is public, with no account or key: <a href="#downloads">the full records, every release and the code</a>. Half-marathon results appear only as totals (<a href="#half-data">the half-marathon results</a>).</li>
+            ? <li>Every file is public, with no account or key: <a href="#downloads">the full records, every release and the code</a>, and the owner’s <a href="#downloads-half">half-marathon releases</a>; the half pages show totals.</li>
             : <li>Every file is public, with no account or key: <a href="#downloads">the full records, every release and the code</a>.</li>}
         </ul>
       </section>

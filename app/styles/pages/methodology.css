@@ -117,6 +117,8 @@
    their lines, so each file, its description and its checksum read as one block. */
 .methods-files.is-wrapped a { display: inline; min-height: 0; padding-block: 12px; }
 .methods-files code { line-height: 1; padding-block: 0; vertical-align: baseline; }
+/* A full sha256 wraps anywhere, so 64 characters never widen a phone's page. */
+.methods-files code.methods-sha { overflow-wrap: anywhere; word-break: break-all; line-height: 1.45; }
 .methods-files.is-wrapped li + li { margin-top: var(--s-3); }
 .methods-packs { margin: var(--s-3) 0 0; padding: 0; list-style: none; }
 .methods-packs li { margin: 0; padding: var(--s-2) 0; border-top: 1px solid var(--rule); }

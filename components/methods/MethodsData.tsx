@@ -52,7 +52,7 @@ export default function MethodsData() {
         <li><strong>Routes and elevation.</strong> Each race’s current route file, supplied with the data, with elevation from a digital elevation model. Whether earlier editions ran the same route is not known.</li>
         <li><strong>Official standards.</strong> Qualifying times, age rules, windows and dates, transcribed from each race’s own pages and dated by when they were last checked.</li>
         <li><strong>Published research.</strong> Published models and studies, cited in full under <a href="#tools">Runner tools</a>. None is fitted to Pace Notes data.</li>
-        {half ? <li><strong>Half-marathon results.</strong> A separate snapshot of recorded half-marathon results, shown only as totals, with the producer’s links between half and marathon records (<a href="#half-data">the half-marathon results</a>).</li> : null}
+        {half ? <li><strong>Half-marathon results.</strong> A separate snapshot of recorded half-marathon results, with the producer’s links between half and marathon records, both public releases of the owner; the pages show totals (<a href="#half-data">the half-marathon results</a>).</li> : null}
       </ul>
       <p>Counts are finishes, not runners: one runner can appear in several races. Runners who did not finish are not in the data.</p>
     </Topic>
