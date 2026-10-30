@@ -15,6 +15,8 @@ const OPEN_MARK = 105;
 /** The beat-1 readout's detents: the half's round times. */
 const DETENTS = [90, 105, 120, 135, 150];
 const W = 'Recorded women’s', M = 'Recorded men’s';
+/** A readout share in whole percent, but never "0%" or "100%" for a share that is neither (the site's "<1%" rule). */
+const readPct = (share: number) => (share > 0 && share < 0.005 ? '<1%' : share < 1 && share >= 0.995 ? '>99%' : pct(share));
 /** A women's share of the recorded finishes on one side of a same-city pair. */
 const womenShare = (side: { F: number; M: number }) => side.F / (side.F + side.M);
 
@@ -92,8 +94,8 @@ export default function HalfBody() {
               // Where the needle meets the curve, on Cdf's own scale (yScale(0, 1, { top: 0.06 })).
               dot: marks.map((u) => 1 - u.all * 0.94),
               keys: marks.map((u) => `Under ${hm(u.s / 60)}`),
-              values: marks.map((u) => pct(u.all)),
-              side: [{ label: W, values: marks.map((u) => pct(u.F)) }, { label: M, values: marks.map((u) => pct(u.M)) }],
+              values: marks.map((u) => readPct(u.all)),
+              side: [{ label: W, values: marks.map((u) => readPct(u.F)) }, { label: M, values: marks.map((u) => readPct(u.M)) }],
             },
             initial: markIndex(OPEN_MARK), detents: DETENTS.map(markIndex).filter((i) => i >= 0),
           }}
