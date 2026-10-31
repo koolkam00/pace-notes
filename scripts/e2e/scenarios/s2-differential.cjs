@@ -19,6 +19,15 @@ const NEEDLES = Object.fromEntries(Object.entries(V).map(([id, v]) => [id, [...n
   .map(value => new RegExp('(^|[^0-9a-z:.-])' + value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^0-9a-z:.-])', 'i'))]));
 
 const label = (page, text, exact = true) => page.getByLabel(text, { exact }).first();
+// The predictor's half panel at 1:45: each group's typical marathon as the panel prints it (the window's median, floored
+// to the minute), read from the published half file, so a rebuilt half release leaves no typed time behind (v4
+// adoption, October 31, 2026: the women's 3:49 of the 1133 build had become 3:50).
+const HALF_TOOL = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../public/data/half/tools/half-to-full.json'), 'utf8'));
+const typicalAt = (group, h) => {
+  const G = HALF_TOOL.groups[group], w = G.w[(h - G.from) / 60], q = w && w[3][HALF_TOOL.Q.indexOf(0.5)];
+  if (!Number.isFinite(q)) throw new Error(`no published ${group} window at ${h} s`);
+  return `${Math.floor(q / 3600)}:${String(Math.floor((q % 3600) / 60)).padStart(2, '0')}`;
+};
 // Optional fields sit in a closed <details> until the visitor opens it.
 const open = (page, selector) => page.locator(selector).evaluateAll(all => all.forEach(details => { details.open = true; }));
 async function step(log, name, fn) { try { await fn(); log.push('ok ' + name); } catch (error) { log.push('FAIL ' + name + ': ' + String(error).split('\n')[0].slice(0, 160)); } }
@@ -75,17 +84,17 @@ const CASES = {
     await step(log, 'own half', () => type(page, 'input[id$="-t1"]', v.half));
     await has('panel for the own half', 'records linked by name');
     await step(log, '1:45:00', () => type(page, 'input[id$="-t1"]', '1:45:00'));
-    await has('1:45 typical', '3:54');
+    await has('1:45 typical', typicalAt('all', 6300));
     await has('not a prediction', 'Not a prediction.');
     await step(log, 'no 20K panel', async () => { if (await page.locator('#predictor-data').count()) throw new Error('the 20K panel shows beside the half panel'); });
     await step(log, 'recorded women', () => panel.getByRole('button', { name: 'Recorded women' }).click());
-    await has('women at 1:45', '3:49');
+    await has('women at 1:45', typicalAt('F', 6300));
     // The chip's figures name recorded sex in the sentence itself, so a shared sx=f link never reads as all marathons.
     await has('women named in the sentence', 'the typical recorded women’s marathon');
     await has('women named in the slowdown line', 'of these recorded women’s marathons');
     await step(log, 'sx=f in the address', () => page.waitForURL(/[?&]sx=f(&|$)/, { timeout: 5000 }));
     await step(log, 'recorded men', () => panel.getByRole('button', { name: 'Recorded men', exact: true }).click());
-    await has('men at 1:45', 'the typical recorded men’s marathon 3 to 16 weeks later took 3:55');
+    await has('men at 1:45', `the typical recorded men’s marathon 3 to 16 weeks later took ${typicalAt('M', 6300)}`);
     await step(log, 'sx=m in the address', () => page.waitForURL(/[?&]sx=m(&|$)/, { timeout: 5000 }));
     await step(log, '2:55:00', () => type(page, 'input[id$="-t1"]', '2:55:00'));
     await step(log, '20K panel at 2:55', () => page.locator('#predictor-data').waitFor({ timeout: 8000 }));

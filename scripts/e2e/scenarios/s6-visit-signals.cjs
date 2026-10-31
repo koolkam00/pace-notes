@@ -873,7 +873,13 @@ async function halfSections(h) {
   const halfIds = ['hero', 'chapter-1', 'chapter-2', ...(women.band_editions.length >= women.min_band_editions ? ['chapter-3'] : []), 'chapter-4', 'related'];
   h.check(`/half marks ${halfIds.join(', ')}, each once, in page order`, JSON.stringify(halfOrder) === JSON.stringify(halfIds) && JSON.stringify(sections('/half')) === JSON.stringify(halfOrder), { page: halfOrder, sent: sections('/half') });
   h.check('/stories/half-to-full marks hero, chapter-1, chapter-2 and related, each once, in page order', JSON.stringify(storyOrder) === JSON.stringify(['hero', 'chapter-1', 'chapter-2', 'related']) && JSON.stringify(sections('/stories/half-to-full')) === JSON.stringify(storyOrder), { page: storyOrder, sent: sections('/stories/half-to-full') });
-  h.check('the half-to-full guess reveals its answer ("1 in 10")', /1 in 10/.test(verdict), verdict);
+  // The answer is the recorded women's share at the flagship half (the window the guess asks about), in either of the
+  // nugget's forms ("About 1 in 10" or "14%"), read from linked.json so a rebuilt half release leaves no typed answer
+  // behind (v4 adoption, October 31, 2026: "1 in 10" on the 1133 build, "14%" on the 1904 build).
+  const linked = JSON.parse(require('node:fs').readFileSync(path.join(ROOT, 'public/data/half/linked.json'), 'utf8'));
+  const flagF = linked.windows.F.find((w) => w.h === Math.round(linked.checks.battery.pooled_half_p50_s / 300) * 300);
+  const answers = flagF ? [`${Math.round(flagF.sus * 100)}%`, `${Math.round(flagF.sus * 10)} in 10`] : [];
+  h.check(`the half-to-full guess reveals its answer (${answers.join(' or ')})`, answers.some((a) => verdict.includes(a)), verdict);
   h.check('the guess writes no storage key and sends no event of its own', JSON.stringify(before) === JSON.stringify(after) && !sinceGuess.length, { before, after, events: shown(sinceGuess) });
 }
 
