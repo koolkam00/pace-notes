@@ -10,6 +10,7 @@ import { STORIES } from '@/lib/stories';
 import { ScopeTag } from '@/components/tools/EvidenceTag';
 import Ruler from '@/components/viz/Ruler';
 import LineProfile from '@/components/viz/LineProfile';
+import { crowdedFlipLabels } from '@/components/viz/grid-crowded';
 import Dumbbell from '@/components/viz/Dumbbell';
 import GuessFirst from '@/components/ui/GuessFirst.client';
 import Values from '@/components/ui/Values';
@@ -134,8 +135,11 @@ export default function HalfToFullBody() {
         values: bands.map((w) => floorHM(w.q[9])),
         side: [
           { label: '8 in 10', values: bands.map((w) => `${floorHM(q(w, 0.1))}–${floorHM(q(w, 0.9))}`) },
-          // Keyed per point ("Under 4:00" over "67%"), as /half's readout keys its time and leaves the share bare.
-          { label: 'Under', labels: bands.map((_, i) => (markOf[i] ? `Under ${floorHM(markOf[i]![0])}` : 'Under')), values: bands.map((_, i) => (markOf[i] ? pct(markOf[i]![1]) : '—')) },
+          // The round time rides in the value ("67% under 4:00") under a fixed key: keyed per point ("Under 4:00" over
+          // "67%"), the time changed in the small grey key at each half-hour switch and the share jumped up as the half
+          // got slower, 41% under 4:00 at 1:50 then 75% under 4:30 at 1:55, read as the slower half doing better
+          // (post-merge review, round 5, October 31, 2026). The words are the slider's own ("67% under 4:00").
+          { label: 'Round time', values: bands.map((_, i) => (markOf[i] ? `${pct(markOf[i]![1])} under ${floorHM(markOf[i]![0])}` : '—')) },
         ],
         // The slider's words name each value's measure, which the readout leaves to the chart's key (aria-hidden): "After
         // a 1:45 half: typical marathon 3:54; 8 in 10 marathons 3:35 to 4:22; 67% under 4:00" (post-merge review, round
@@ -150,6 +154,10 @@ export default function HalfToFullBody() {
     label: `The marathon after each half time, ${floorHM(lo)} to ${floorHM(hi)}: the typical marathon and the middle 8 in 10, against double the half.${range.guard ? ` ${sentenceOf(range).replace(/\*/g, '')}` : ''}`,
     height: 220, heightMd: 280,
   };
+  // At the needle's first stops a gridline label whose place past the needle meets the data is left out there ("3:00"
+  // sat on the typical line and the band; round 5 review): grid-crowded.ts, worked out on the server.
+  const crowded = crowdedFlipLabels(profile);
+  profile.yTicks = profile.yTicks?.map((t) => (crowded.has(t.value) ? { ...t, crowded: true } : t));
   const chart = (
     <div className="half-after-chart">
       <LineProfile {...profile} />
@@ -189,11 +197,12 @@ export default function HalfToFullBody() {
       <StoryHero path={PATH} title={story.heading ?? story.title} stacked fallback={!extra.guard}
         // The dek says what the page pairs and where to look, and states no reading, so it reads the same under the
         // plain H1 (review, October 30, 2026: the old verbless dek was written to qualify the reading H1).
-        dek={<>{rich(deks.hero, { linked: true })} <ScopeTag /></>}
+        // "Find your half below." is said only with JavaScript: a static page's needle cannot move (round 5 review).
+        dek={<>{rich(deks.hero, { linked: true })}<span className="js-only"> {deks.find}</span> <ScopeTag /></>}
         figure={figure ? { value: figure.value, unit: figure.unit, sr: figure.sr } : undefined} unitLine={figure ? extra.key : undefined}
         instrument={extra.guard ? ruler : undefined} />
 
-      <Beat id="after" track="chapter-1" label="Half by half" title={range} dek={deks.range ?? undefined}>
+      <Beat id="after" track="chapter-1" label="Half by half" title={range} dek={deks.rangeLead ?? undefined} how={deks.storySlide || undefined}>
         {chart}
         <SaveImage slug="half-double" />
       </Beat>

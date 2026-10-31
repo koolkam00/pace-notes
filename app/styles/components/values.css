@@ -12,7 +12,9 @@
 .values > summary::-webkit-details-marker { display: none; }
 .values > summary::marker { content: ''; }
 .values > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
-.values-count { margin-left: 8px; font-weight: 400; color: var(--ink-3); }
+/* The count opens on a real space (Values.tsx), so the gap stays about 8 px, the name reads "All numbers 3 tables" and a
+   narrow line breaks before the count, with no indent on its second line (the space ends the first). */
+.values-count { margin-left: 4px; font-weight: 400; color: var(--ink-3); }
 .values-glyph { position: relative; flex: none; width: 22px; height: 22px; }
 .values-glyph::before, .values-glyph::after { content: ''; position: absolute; left: 50%; top: 50%; width: 12px; height: 1.5px; border-radius: 1px; background: var(--ink); transform: translate(-50%, -50%); transition: transform var(--d-toggle) var(--spring); }
 .values-glyph::after { transform: translate(-50%, -50%) rotate(90deg); }

@@ -174,17 +174,20 @@ export function paceGapText(extraSeconds: number, units: UnitSystem): string {
  * 1:48 half marathon, 51% of marathons came in under 4:00."), a reading with no guard of its own, in the form the story
  * withdrew at 1:45 when the verified halves' share missed the pooled one by more than 5 points; at the goal pages' halves
  * the verified halves' shares are 63% to 75% against 51% to 60% (round 4 review, October 31, 2026). The window's typical
- * marathon and its 8 in 10 follow as the instrument's values, the ones the predictor at H shows. The sexes' line names
- * each sex's own boundary as a full sentence. On a marathon pace page, whose hero prints the goal's own halfway time,
+ * marathon and its 8 in 10 follow as the instrument's values, the ones the predictor at H shows. No line sets recorded
+ * women's boundary beside men's: "The typical recorded women's marathon came in under 4:00 after half marathons up to
+ * about 1:49; the typical men's, up to about 1:47." read as a sex difference in the half a goal takes, from window
+ * medians a few seconds either side of the goal (women's 1:50 window is 4:00:00 exactly), in an order that reversed on
+ * the 5:00 page, with no guard of its own (post-merge review, round 5, October 31, 2026); the predictor's "Marathons of"
+ * choice, one link away, shows either group's window. On a marathon pace page, whose hero prints the goal's own halfway time,
  * every line says "half marathon" where it means the race, so "a 1:48 half" is never read as reaching halfway in 1:48
  * (round 2 review, October 30, 2026).
  */
-export function goalLines(goal: HalfGoal): { lead: string; range: string; sexes: string | null; link: string; linkText: string } {
-  const H = floorHM(goal.all.h), G = floorHM(goal.goal_s);
+export function goalLines(goal: HalfGoal): { lead: string; range: string; link: string; linkText: string } {
+  const H = floorHM(goal.all.h);
   return {
     lead: `Marathons after a *${H}* half marathon.`,
     range: `The typical one took ${floorHM(goal.all.q50)}; 8 in 10 took ${floorHM(goal.all.p10)} to ${floorHM(goal.all.p90)}.`,
-    sexes: goal.F && goal.M ? `The typical recorded women’s marathon came in under ${G} after half marathons up to about ${floorHM(goal.F.h)}; the typical men’s, up to about ${floorHM(goal.M.h)}.` : null,
     link: `/tools/predictor?d=half&t=${H}:00`,
     // Not the heading's words again: the link names the tool it opens and the half it opens on.
     linkText: `A ${H} half marathon in the Finish-time predictor`,

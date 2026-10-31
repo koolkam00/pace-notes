@@ -638,7 +638,7 @@ function ResultRest({ times, reading, units, gender, compareOptions, compareOpen
       <details className="values split-check-compare-options" id="split-check-sections" open={compareOpen || undefined}
         onToggle={(e) => onCompareToggle(e.currentTarget.open)}>
         <summary>
-          <span>All numbers<span className="values-count">9 rows</span></span>
+          <span>All numbers<span className="values-count"> 9 rows</span></span>
           <span className="values-glyph" aria-hidden="true" />
         </summary>
         <div className="values-body split-check-numbers">

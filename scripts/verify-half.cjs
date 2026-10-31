@@ -672,6 +672,26 @@ if (opt.html) {
     const plain = noScripts(methodology).replace(/<style\b[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, '');
     const hit = /half-dataset-|half-snapshot-|runner-links-|half-policy-/.exec(plain);
     ok(!hit, `/methodology: a half release tag or the policy file's dated name in visible copy: …${hit ? plain.slice(Math.max(0, hit.index - 60), hit.index + 40) : ''}…`);
+    // Nor a file name that carries a pinned release's date stamp ("half-20261029-1133.sqlite.zst.part00"; round 5: the
+    // source files' names were link text). The stamps are read from every tag and asset name in the pin.
+    const stamps = [...new Set([pin.half.tag, pin.half.private_tag, pin.links.tag, pin.links.private_tag, pin.links.pairs_with, (pin.metadata_correction || {}).tag,
+      ...Object.keys(pin.half.assets || {}), ...Object.keys(pin.links.assets || {}), (pin.metadata_correction || {}).asset]
+      .flatMap((name) => String(name || '').match(/20\d{6}/g) || []))];
+    ok(stamps.length > 0, '/methodology: the pin names its date stamps');
+    for (const stamp of stamps) {
+      const at = plain.indexOf(stamp);
+      ok(at < 0, `/methodology: a half release's date stamp ${stamp} in visible copy: …${at >= 0 ? plain.slice(Math.max(0, at - 60), at + 40) : ''}…`);
+    }
+    // While half.cities falls back, the methodology sentence about /half's same-city beat states no direction either
+    // (AGENTS.md rule 13; round 5: it gave "the half had the larger women's share in 9 of them, by a median 16.8
+    // points" and "the half was higher in 42 of 42 pairs" under /half's plain heading).
+    if (pageGuards.cities === false) {
+      const field = elements(noScripts(methodology), /id="half-field"/)[0];
+      const said = field ? textOf(field.html) : '';
+      ok(field && /same city, same year/i.test(said), '/methodology: #half-field has its same-city paragraph');
+      const hitCity = /larger women’s share in \d|half was higher|half had the larger|by a median [\d.]+ points|more women/i.exec(said);
+      ok(!hitCity, `/methodology: the same-city sentence states a direction while half.cities falls back: …${hitCity ? said.slice(Math.max(0, hitCity.index - 60), hitCity.index + 60) : ''}…`);
+    }
   }
   let surfaces = 0, readings = 0;
   for (const file of pages) {

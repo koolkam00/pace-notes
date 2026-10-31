@@ -48,7 +48,9 @@ type Props = {
   /** `from`: a tick that shows only from that figure width (a phone's quarter hours, the spec's half-hour steps from
    *  600 px), so a phone's steps stay even. */
   xTicks: { value: number; label: string; priority?: number; from?: number; turn?: 'start' | 'end' }[];
-  yTicks?: { value: number; label: string }[];
+  /** `crowded`: with flipGrid 'needle', this label has no copy at the flipped stops, where it would meet the data
+   *  (grid-crowded.ts); its gridline stays. */
+  yTicks?: { value: number; label: string; crowded?: boolean }[];
   /** Which side the gridline labels sit on: the clear one (default right). */
   gridSide?: 'left' | 'right';
   /** More gridlines than the forms' three, for a scale the sentence reads against (the half profile's 3:00 to 6:00);
@@ -242,7 +244,8 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
 
   const gridLines = yTicks.map((t) => {
     const gw = textWidth(t.label, 12, 500) + 4;
-    return { y: y(t.value), label: t.label, className: clearOfNeedle((pw) => (gridSide === 'left' ? { x0: 0, x1: gw } : { x0: pw - gw, x1: pw })) };
+    // The tick's own fields ride along (label, and `crowded` for Gridlines).
+    return { ...t, y: y(t.value), className: clearOfNeedle((pw) => (gridSide === 'left' ? { x0: 0, x1: gw } : { x0: pw - gw, x1: pw })) };
   });
   const plot = (
     <Plot>

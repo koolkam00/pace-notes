@@ -111,7 +111,7 @@ export function halfCitiesFrom(women: HalfWomen): Nugget {
       diff_median_points: s.diff_median_points, all_pairs: all.pairs, all_half_higher: all.half_higher },
     guard,
     headline: 'In the same city and year, the half always had *more women*.',
-    fallback: 'Women’s share of half and marathon finishes, same city and year.',
+    fallback: 'Women’s share of marathon and half finishes, same city and year.',
     figure: null,
   };
 }
@@ -284,12 +284,21 @@ export type HalfDeks = {
    */
   range: string | null;
   /**
-   * The story's hero dek, under any H1: what the page pairs and for whom, then where to look, as a sentence that states
-   * no reading ("Each half here is paired with the marathon 3 to 16 weeks after it, for records linked by name. Find
-   * your half below."). The weeks are set B's window. Under the plain H1 the old verbless dek, written to qualify the
-   * reading H1, told a first-time reader nothing (review, October 30, 2026).
+   * Story beat 1's dek in its two parts, as the page sets them: the reading's line while half.range holds ("The typical
+   * one took 3:54.", else null) and how to use the needle ("Slide from a 1:10 half …"), which the page says only with
+   * JavaScript, since a static page's needle cannot move (round 5 review, October 31, 2026). `range` is the two joined.
+   */
+  rangeLead: string | null;
+  storySlide: string;
+  /**
+   * The story's hero dek, under any H1: what the page pairs and for whom, as a sentence that states no reading ("Each
+   * half here is paired with the marathon 3 to 16 weeks after it, for records linked by name."), then where to look
+   * (`find`, "Find your half below.", said only with JavaScript; round 5 review). The weeks are set B's window. Under the
+   * plain H1 the old verbless dek, written to qualify the reading H1, told a first-time reader nothing (review, October
+   * 30, 2026).
    */
   hero: string;
+  find: string;
   /**
    * The story's reading, under the ruler: the minutes over double 15 minutes quicker than the flagship's half, then the
    * span of the 5-minute windows from 15 minutes slower on ("Fewer minutes over double after a quicker half: +17 after
@@ -345,6 +354,7 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
   const taller = !!two && !!marks[90] && Number(marks[90].ratio.toFixed(2)) > Number(two.ratio.toFixed(2));
   const [fromWeeks, toWeeks] = linked.set.window_days.map((d) => d / 7);
   const span = Number.isInteger(fromWeeks) && Number.isInteger(toWeeks) ? `${fromWeeks} to ${toWeeks} weeks` : `${linked.set.window_days[0]} to ${linked.set.window_days[1]} days`;
+  const rangeLead = w && halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}.` : null;
   return {
     fieldUnit: `the median half finish; recorded women’s ${clock(field.quantiles.F.p50)}, men’s ${clock(field.quantiles.M.p50)}`,
     slide: fieldSlide,
@@ -357,8 +367,11 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
     crowdNamed: crowdOk ? [90] : [],
     women: halfWomenFrom(women).guard ? `Under 1:30, ${pct(women.median_share[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.` : null,
     cities: halfCitiesFrom(women).guard ? `Women’s share of finishes was typically ${pct(s.half_median)} in the half and ${pct(s.marathon_median)} in the marathon.` : null,
-    range: w && slide ? (halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}. ${slide}` : slide) : null,
-    hero: `Each half here is paired with the marathon ${span} after it, for records linked by name. Find your half below.`,
+    range: w && slide ? (rangeLead ? `${rangeLead} ${slide}` : slide) : null,
+    rangeLead: w && slide ? rangeLead : null,
+    storySlide: slide,
+    hero: `Each half here is paired with the marathon ${span} after it, for records linked by name.`,
+    find: 'Find your half below.',
     scale: qa && qb && minutesOver(qa) < minutesOver(qb)
       ? `Fewer minutes over double after a quicker half: +${minutesOver(qa)} after a ${clock(qa.h)} half, ${level
         ? `${spanLo === spanHi ? `+${spanLo}` : `+${spanLo} to +${spanHi}`} from ${clock(qb.h)} to\u00a0${clock(slower[slower.length - 1].h)}`
