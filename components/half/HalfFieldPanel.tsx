@@ -2,6 +2,7 @@ import { getNugget, sentenceOf } from '@/lib/nuggets';
 import { hm, pct } from '@/lib/nuggets/format';
 import { readHalf } from '@/lib/half-server';
 import { halfManifest } from '@/lib/stories';
+import { floorHM } from '@/lib/tools/half-to-full';
 import { EvidenceTag } from '@/components/tools/EvidenceTag';
 import { ShareCurve } from './HalfCharts';
 import Arrow from '@/components/ui/Arrow';
@@ -65,8 +66,9 @@ export default function HalfFieldPanel() {
         label={`The share of half marathon finishes under each time from ${hm(under[0].s / 60)} to ${hm(last)}: ${marks.map((u) => `${pct(u.all)} under ${hm(u.s / 60)}`).join(', ')}.`} />
       <p className="half-field-more"><Link href="/half">The half marathon<Arrow /></Link></p>
       {/* The question a half runner who lands here asks next, one hop away (review, October 30, 2026: it took two). The
-          tool carries its own badge and chip; this line has no figure. */}
-      <p className="half-field-next arrow-line">The marathon after a half? <Link href="/tools/predictor?d=half"><ArrowTail text="Finish-time predictor" /></Link></p>
+          tool carries its own badge and chip; this line has no figure. The predictor opens on the median half, as /half's
+          row does (only d=half opened its built-in example without the example's label; post-merge review, round 3). */}
+      <p className="half-field-next arrow-line">The marathon after a half? <Link href={`/tools/predictor?d=half&t=${floorHM(field.quantiles.all.p50)}:00`}><ArrowTail text="Finish-time predictor" /></Link></p>
     </section>
   );
 }

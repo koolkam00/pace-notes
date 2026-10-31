@@ -241,11 +241,14 @@ export const STORIES: StoryDefinition[] = [
       const n = getNugget('half.extra');
       return n.guard ? `Half to Marathon: Double It Plus ${n.values.extra_min} Minutes | Pace Notes` : 'From the Half to the Marathon | Pace Notes';
     },
+    // Under the plain H1 the description carries the story's reading that holds, half.sexes's, under its own guard (the
+    // weather story's does the same); with neither, the neutral line (post-merge review, round 3, October 31, 2026: search
+    // got a story with no finding while half.sexes held).
     get seoDescription() {
-      const n = getNugget('half.extra');
-      return n.guard
-        ? `After a half, the typical marathon took double it plus ${n.values.extra_min} minutes. See the marathons that followed each half time, 3 to 16 weeks later.`
-        : 'The marathons that followed a half 3 to 16 weeks later, half time by half time.';
+      const n = getNugget('half.extra'), sexes = getNugget('half.sexes');
+      if (n.guard) return `After a half, the typical marathon took double it plus ${n.values.extra_min} minutes. See the marathons that followed each half time, 3 to 16 weeks later.`;
+      if (sexes.guard) return `${sentenceOf(sexes).replace(/\*/g, '').replace(/\.$/, '')}, for records linked by name with a marathon 3 to 16 weeks later.`;
+      return 'The marathons that followed a half 3 to 16 weeks later, half time by half time.';
     } },
 ];
 

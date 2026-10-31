@@ -19,11 +19,12 @@ import Readout from './Readout';
  * waffles. No needle and no crown. With `prompt`, nothing is ringed or read out until the reader picks a point (a tap,
  * a key, or on desktop a hover): the readout holds the prompt in its reserved space, so nothing moves when it fills.
  *
- * Keyboard: role="slider"; arrows step one point, PageUp and PageDown go to the next and previous detent, Home and End
- * to the ends. The readout redraws every frame; its sr-only live line (a literal aria-live="polite") updates once the
- * value has settled for 150 ms, and only once the reader has moved the needle: on load it stays empty, so a screen
- * reader hears the page's own words first, not a reading before its H1 (the predictor's status line waits the same way;
- * a scrolly's 'scrub-to' moves the needle without speaking). The default position is the detent the headline names, so
+ * Keyboard: role="slider"; arrows step one point, PageUp and PageDown go to the next and previous detent (with none that
+ * way, ten points toward that end, as the ARIA slider pattern's larger step), Home and End to the ends. The readout
+ * redraws every frame; its sr-only live line (a literal aria-live="polite") updates once the value has settled for
+ * 150 ms, and only once the reader has moved the needle: on load it stays empty, so a screen reader hears the page's own
+ * words first, not a reading before its H1 (the predictor's status line waits the same way; a scrolly's 'scrub-to'
+ * moves the needle without speaking). The default position is the detent the headline names, so
  * the H1 and the readout agree.
  */
 export type ScrubPoints = {
@@ -211,8 +212,10 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
     let next: number | null = null;
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = clamp(index + 1);
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = clamp(index - 1);
-    else if (e.key === 'PageUp') next = sorted.find((d) => d > index) ?? (sorted.length ? sorted[sorted.length - 1] : clamp(index + 10));
-    else if (e.key === 'PageDown') next = [...sorted].reverse().find((d) => d < index) ?? (sorted.length ? sorted[0] : clamp(index - 10));
+    // With no detent in the pressed direction the needle still moves that way, never back: PageDown at the start went
+    // forward to the first detent and PageUp at the end back to the last (post-merge review, round 3, October 31, 2026).
+    else if (e.key === 'PageUp') next = sorted.find((d) => d > index) ?? clamp(index + 10);
+    else if (e.key === 'PageDown') next = [...sorted].reverse().find((d) => d < index) ?? clamp(index - 10);
     else if (e.key === 'Home') next = 0;
     else if (e.key === 'End') next = n - 1;
     if (next === null) return;

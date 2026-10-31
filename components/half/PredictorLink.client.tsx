@@ -11,7 +11,10 @@ type Pace = { gap: string; word: 'slower' | 'quicker' };
  * typical marathon's minutes over double the half, its pace against the half (in the reader's units) and how many in
  * 100 came in under double there ("Typical: double the half plus 24 min (55 s/mi slower than the half); 5 in 100 came
  * in under double."), so the H1's "double it plus 21 minutes" reads as a typical value that moves with the half; "Not a
- * prediction." on its own line; and the link into the predictor at that half (the half's whole minute, `t=H:MM:00`).
+ * prediction." on its own line; and the link into the predictor at that half (the half's whole minute, `t=H:MM:00`),
+ * named by it ("Your 1:45 half in the Finish-time predictor"): on desktop a hover moves the needle and leaving the plot
+ * returns it to the last tap, so a link that named no half could open another than the one last read (post-merge review,
+ * round 3, October 31, 2026).
  * The sentence states the H1's reading, so the page passes its values (`paces`, `extras`, `under`) only while that
  * reading's guard holds (half.extra); without them the foot is "Not a prediction." and the link (post-merge review,
  * round 2, October 31, 2026).
@@ -66,7 +69,7 @@ export default function PredictorLink({ halves, paces, extras, under, initial, n
       <p className="half-not">{not}</p>
       <p className="half-predictor arrow-line">
         {/* ArrowTail's markup written out: its module would add to every story page's first-load script (S8). */}
-        <Link href={`/tools/predictor?d=half&t=${half}:00`}>Your own half in the Finish-time <span className="arrow-tail">predictor<Arrow /></span></Link>
+        <Link href={`/tools/predictor?d=half&t=${half}:00`}>Your {half} half in the Finish-time <span className="arrow-tail">predictor<Arrow /></span></Link>
       </p>
     </div>
   );

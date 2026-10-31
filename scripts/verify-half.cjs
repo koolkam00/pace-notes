@@ -525,7 +525,7 @@ const pageGuards = {};
   }
   for (const [k, v] of Object.entries(N.halfDeks())) if (typeof v === 'string') texts.push([`deks.${k}`, v]);
   const sexes = N.halfSexesFrom(linked);
-  Object.assign(pageGuards, { cities: N.halfCitiesFrom(women).guard, extra: N.halfExtraFrom(linked).guard, sexesHeadline: plain(sexes.headline), sexesFallback: plain(sexes.fallback),
+  Object.assign(pageGuards, { cities: N.halfCitiesFrom(women).guard, extra: N.halfExtraFrom(linked).guard, sexes: sexes.guard, sexesHeadline: plain(sexes.headline), sexesFallback: plain(sexes.fallback),
     guess: N.halfSexesGuessFrom(linked).guard && N.halfDeks().guess !== null });
   for (const g of ['all', 'F', 'M']) {
     for (const w of linked.windows[g]) {
@@ -674,11 +674,12 @@ if (opt.html) {
     const raw = fs.readFileSync(file, 'utf8');
     const html = noScripts(raw);
     for (const m of html.matchAll(/href="\/methodology#((?:story-)?half-[\w-]+)"/g)) ok(ids.has(m[1]), `${route}: links /methodology#${m[1]}, which /methodology does not have`);
-    // A link that opens the pace calculator on a half names the time too: without one the calculator showed its marathon
-    // default, a half marathon in 4:00:00 (post-merge review, round 2, October 31, 2026).
-    for (const m of html.matchAll(/href="(\/tools\/pace-calculator\?[^"]*)"/g)) {
+    // A link that opens the pace calculator or the predictor on a half names the time too: without one the calculator
+    // showed its marathon default, a half marathon in 4:00:00 (post-merge review, round 2, October 31, 2026), and the
+    // predictor its built-in example half without the example's label (round 3).
+    for (const m of html.matchAll(/href="(\/tools\/(?:pace-calculator|predictor)\?[^"]*)"/g)) {
       const q = new URLSearchParams(m[1].split('?')[1].replace(/&amp;/g, '&'));
-      if (q.get('d') === 'half') ok(/^\d:\d\d:\d\d$/.test(q.get('t') || ''), `${route}: the pace calculator link ${m[1]} opens on a half with no time (t=H:MM:SS)`);
+      if (q.get('d') === 'half') ok(/^\d:\d\d:\d\d$/.test(q.get('t') || ''), `${route}: the tool link ${m[1]} opens on a half with no time (t=H:MM:SS)`);
     }
     for (const slug of withdrawnCards) ok(!html.includes(`/charts/cards/${slug}.png`), `${route}: links the withdrawn card ${slug}`);
     const scoped = elements(html, /data-half-scope="(?:verified|linked)"/);
@@ -764,11 +765,42 @@ if (opt.html) {
       ok(beat && !/typically/i.test(beat.html) && !/>Typical</.test(beat.html) && !/is-highlight|is-signal/.test(beat.html), `${route}: the same-city beat states no reading while half.cities falls back`);
     }
     // The guess's heading never gives its answer away: while the guess is up, the beat's H2 is half.sexes's neutral
-    // line, and its reading comes with the reveal (post-merge review, October 30, 2026).
+    // line, and its reading comes with the reveal (post-merge review, October 30, 2026). The static page carries that
+    // reveal too, in a <noscript>, while half.sexes holds (round 3: without JavaScript no element held the reading).
     if (route === '/stories/half-to-full' && pageGuards.guess) {
       const h2 = /<h2\b[^>]*id="women-men-title"[^>]*>([\s\S]*?)<\/h2>/.exec(html);
       const said = h2 ? textOf(h2[1]).replace(/\s+/g, ' ').trim() : '';
       ok(said === pageGuards.sexesFallback && said !== pageGuards.sexesHeadline, `${route}: the guess's heading is the neutral line, not the reading ("${said}")`);
+      const quiet = [...html.matchAll(/<noscript>([\s\S]*?)<\/noscript>/g)].map((m) => textOf(m[1]).trim()).join(' ');
+      ok(quiet.includes(pageGuards.sexesHeadline) === pageGuards.sexes, `${route}: the guess's no-script answer carries half.sexes's reading exactly while its guard holds (${pageGuards.sexes})`);
+    }
+    // The story's search description: half.extra's reading only under its guard, then half.sexes's under its own, else
+    // the neutral line; a linked reading there names its scope (post-merge review, round 3, October 31, 2026).
+    if (route === '/stories/half-to-full') {
+      const meta = /<meta name="description" content="([^"]*)"/.exec(raw);
+      const desc = meta ? textOf(meta[1]) : '';
+      if (pageGuards.extra === false) ok(!/double it plus|over double|under double/i.test(desc), `${route}: no half.extra reading in the description while it falls back ("${desc}")`);
+      if (pageGuards.extra === false) {
+        const stated = desc.startsWith(pageGuards.sexesHeadline.replace(/\.$/, ''));
+        ok(stated === pageGuards.sexes && (!stated || /records linked by name/.test(desc)) && (pageGuards.sexes || !/fewer|more/i.test(desc)), `${route}: the description states half.sexes's reading, with its scope, exactly while its guard holds (${pageGuards.sexes}): "${desc}"`);
+      }
+    }
+    // Who holds pace's way into the half story states a direction ("fewer sustained slowdowns after the same half
+    // marathon, too"), naming its measure and, as its term link before it, its scope, only while the H1's reading
+    // (holds.title), the beat's (holds.unmask) and half.sexes's guards all hold, recounted here from demographics.json;
+    // otherwise it is a pointer with no direction (post-merge review, round 3, October 31, 2026: the link followed no guard).
+    if (route === '/stories/who-holds-pace') {
+      const o = readJson('public/data/insights/demographics.json').overall;
+      const pooled = o.pooled_men_block - o.pooled_women_block, matched = o.men_block - o.women_block;
+      const stateIt = o.women_slowdown > 0 && o.men_slowdown > 1.5 * o.women_slowdown && pooled > 0 && matched > 0 && matched / pooled >= 2 && pageGuards.sexes;
+      const ways = links.map((el) => textOf(el.html).trim());
+      ok(ways.length === 1, `${route}: one way into the half story (${JSON.stringify(ways)})`);
+      for (const way of ways) {
+        if (stateIt) {
+          const line = elements(html, /data-half-said="stated"/)[0];
+          ok(/sustained slowdowns/.test(way) && /\btoo\b/.test(way) && line && /<a\b[^>]*href="\/methodology#half-linking"[^>]*>records linked by name<\/a>/.test(line.html), `${route}: the stated way names its measure and its scope ("${way}")`);
+        } else ok(!/\b(?:too|fewer|more|less|far)\b/i.test(way) && !elements(html, /data-half-said="stated"/).length, `${route}: a guard fails, so the way into the half story states no direction ("${way}")`);
+      }
     }
   }
   ok(surfaces >= 2 && readings >= 1, `--html: ${surfaces} half surfaces and ${readings} reading links found`);

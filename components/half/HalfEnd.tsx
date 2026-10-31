@@ -18,9 +18,10 @@ const NEXT_SLUG = 'half-to-full';
  * once the half data has it published), the half's tools as plain rows (no figures and no badges: the tools carry their
  * own), the way back to the contents, then "Was this useful?". Its methods are the foot of the page's All numbers.
  *
- * The pace calculator opens on the page's median half (field.json, the hero's figure) at its whole minute, the form every
- * cross-tool time takes: without a time it fell back to its marathon default and showed a half marathon in 4:00:00, at
- * walking pace and outside the predictor's half range (post-merge review, round 2, October 31, 2026).
+ * The pace calculator and the predictor open on the page's median half (field.json, the hero's figure) at its whole
+ * minute, the form every cross-tool time takes: without a time the calculator fell back to its marathon default and showed
+ * a half marathon in 4:00:00, at walking pace and outside the predictor's half range (post-merge review, round 2, October
+ * 31, 2026), and the predictor its own example half unlabelled (round 3).
  */
 export default function HalfEnd() {
   const story = STORIES.find((s) => s.slug === NEXT_SLUG);
@@ -41,7 +42,9 @@ export default function HalfEnd() {
         </nav>
       ) : null}
       <ToolHandoffs label="For your half" links={[
-        { href: '/tools/predictor?d=half', title: 'Finish-time predictor', text: 'A marathon range from a half' },
+        // The predictor opens on the same half as the calculator row: with only d=half it showed its built-in 1:55 example
+        // without the example's label (post-merge review, round 3, October 31, 2026).
+        { href: `/tools/predictor?d=half&t=${floorHM(median)}:00`, title: 'Finish-time predictor', text: 'A marathon range from a half' },
         // The chart's rows are goals 5 minutes apart, so the row says "goal" and reads the chart's own range, as the chart's
         // dek and the tools hub do ("Every time" promised a 1:52 row the chart does not have; post-merge review, round 3,
         // October 31, 2026).

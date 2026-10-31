@@ -8,8 +8,10 @@ import { MARATHON_KM } from '@/lib/units';
 import LineProfile from '@/components/viz/LineProfile';
 import Ruler from '@/components/viz/Ruler';
 import Values from '@/components/ui/Values';
+import ArrowTail from '@/components/ui/ArrowTail';
 import PairBars from '../charts/PairBars';
-import { HalfWay } from '@/components/half/HalfWays';
+import { HalfWay, halfStoryLive } from '@/components/half/HalfWays';
+import { UnitLink as Link } from '@/components/UnitsProvider';
 import { Beat, Say, StoryHero, StoryPage, rich } from '../StoryPage';
 
 const PATH = '/stories/who-holds-pace';
@@ -31,6 +33,13 @@ export default function DemographicsBody() {
   const data = readInsight<Demographics>('demographics.json');
   const story = STORIES.find((s) => s.slug === 'who-holds-pace')!;
   const gender = getNugget('holds.gender'), unmask = getNugget('holds.unmask'), ghost = getNugget('holds.ghost');
+  // The link into the half story states a direction ("fewer sustained slowdowns …, too") only while the three readings it
+  // leans on hold: the H1's (holds.title, the measure "too" points back to), this beat's (holds.unmask) and the half
+  // story's own (half.sexes); it names its measure, so "too" is not read as the second-20K bars above it, and its
+  // scope, records linked by name, as every linked reading does. Otherwise a pointer with no direction (post-merge
+  // review, round 3, October 31, 2026: "After the same half marathon, too" followed no guard; verify-half --html checks
+  // both forms).
+  const halfSaid = halfStoryLive() && getNugget('holds.title').guard && unmask.guard && getNugget('half.sexes').guard;
   const w = Number(gender.values.women), m = Number(gender.values.men);
   const o = data.overall;
 
@@ -81,9 +90,13 @@ export default function DemographicsBody() {
             { id: 'pooled', label: 'All finishes', bars: [{ label: 'Recorded women', value: o.pooled_women_block, display: slower(o.pooled_women_block) }, { label: 'Recorded men', value: o.pooled_men_block, display: slower(o.pooled_men_block) }], gap: pointsApart(Number(unmask.values.pooled_gap)) },
           ]}
           label={`Second 20K against the first. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}. All finishes: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}.`} />
-        {/* A pointer that makes no claim of its own (spec 3.4), so it never says about people what only records linked by
-            name show; it names the race, and verify-half checks it as a reading link (data-half-link). */}
-        <HalfWay className="story-way" href="/stories/half-to-full#women-men" reading>After the same half marathon, too</HalfWay>
+        {/* The way into the half story, checked by verify-half as a reading link (data-half-link): one link to a linked
+            page, no chip, no half figure. Stated, it carries "records linked by name" as the term link before it. */}
+        {halfSaid ? (
+          <p className="story-way arrow-line" data-half-said="stated">For <Link href="/methodology#half-linking" className="term-link">records linked by name</Link>:{' '}
+            <Link href="/stories/half-to-full#women-men" data-half-link="linked"><ArrowTail text="fewer sustained slowdowns after the same half marathon, too" /></Link>
+          </p>
+        ) : <HalfWay className="story-way" href="/stories/half-to-full#women-men" reading>Recorded women and men after the same half marathon</HalfWay>}
       </Beat>
 
       {/* The gap at every finish time restated the opener's finding (at the same finish times), so it is cut; its
