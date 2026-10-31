@@ -9,7 +9,7 @@
  * and proves its fallback on a fixture. Fallbacks never assert a direction. The deks with numbers are built here too
  * (`halfDeks`), so a page types no number.
  */
-import type { HalfBatteryMember, HalfField, HalfLeaveOutClause, HalfLeaveOutParent, HalfLeaveOutVariant, HalfLeaveOutWorstKey, HalfLinked, HalfWindow, HalfWomen } from '@/lib/half-types';
+import type { HalfBatteryId, HalfBatteryMember, HalfField, HalfLeaveOutClause, HalfLeaveOutParent, HalfLeaveOutVariant, HalfLeaveOutWorstKey, HalfLinked, HalfWindow, HalfWomen } from '@/lib/half-types';
 import { readHalf } from '@/lib/half-server';
 import { floorHM, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
 import { count, inWords, pct, ratio, spokenPct, spokenTime } from './format';
@@ -182,18 +182,56 @@ export function figureGuard(linked: HalfLinked): boolean {
     && variants && Math.abs(share - m.verified_halves.under_double) <= 0.03;
 }
 
+/** The flagship guard's thresholds, for the /methodology sentence that states them (never typed there). */
+export const FLAGSHIP_CLAUSES = { multiple_band: MULTIPLE_BAND, gap_s: GAP_S, under_double_max: UNDER_DOUBLE_MAX } as const;
+
+/**
+ * What fails the flagship guard, clause by clause, for the /methodology sentence about the story (AGENTS rule 13: that
+ * sentence states why the story falls back, from the values, never a reason typed for an earlier build): the members
+ * whose own clauses fail, the leave-out members with failing reruns (with their worst rerun of each failing clause),
+ * and whether the set itself is under its floors. Empty lists and `set: false` exactly when every clause passes.
+ */
+export type FlagshipFailures = {
+  set: boolean;
+  members: { id: HalfBatteryId; clauses: ('multiple' | 'reexpressed' | 'under_double' | 'extra')[] }[];
+  leaveOuts: { id: HalfLeaveOutParent; variants: number; failed: number; under_floor: number;
+    clauses: { clause: HalfLeaveOutClause; failing: number; worst: HalfLeaveOutVariant | null }[] }[];
+};
+export function flagshipFailures(linked: HalfLinked): FlagshipFailures {
+  const b = linked.checks.battery, m = members(linked), pooled = m.pooled;
+  const extra = pooled?.extra_p50_s ?? NaN, half = b.pooled_half_p50_s;
+  const set = !(pooled && linked.set.pairs >= MIN_CELL && linked.set.marathon_editions >= MIN_EDITIONS && extra >= 600 && extra <= 3600);
+  const out: FlagshipFailures['members'] = [];
+  for (const x of b.members) {
+    const clauses = (['multiple', 'reexpressed', 'under_double'] as const).filter((c) => !passes(c, x, extra, half)) as FlagshipFailures['members'][number]['clauses'];
+    if ((x.id === 'verified_halves' || x.id === 'one_per_person') && !passes('extra', x, extra, half)) clauses.push('extra');
+    if (clauses.length) out.push({ id: x.id, clauses });
+  }
+  const leaveOuts: FlagshipFailures['leaveOuts'] = [];
+  for (const [id, clauses] of Object.entries(LEAVE_OUTS) as [HalfLeaveOutParent, HalfLeaveOutClause[]][]) {
+    const x = b.leave_outs?.[id];
+    if (!x) { leaveOuts.push({ id, variants: 0, failed: 0, under_floor: 0, clauses: [] }); continue; }
+    const failing = clauses.filter((c) => !WORST[c].every((k) => { const w = x.worst[k]; return !!w && passes(c, w, extra, half); }))
+      .map((c) => ({ clause: c, failing: x.failing[c] ?? 0, worst: WORST[c].map((k) => x.worst[k] ?? null).find((w) => !w || !passes(c, w, extra, half)) ?? null }));
+    if (failing.length || x.under_floor > 0 || x.variants === 0) leaveOuts.push({ id, variants: x.variants, failed: x.failed, under_floor: x.under_floor, clauses: failing });
+  }
+  return { set, members: out, leaveOuts };
+}
+
 /** The neutral key of the flagship's figure while it states no reading: what the count counts. */
 export const HALF_PAIRS_KEY = 'pairs of a half and the marathon after it';
 
 /**
  * Story H1 (chapter 11's lead): after a half, the typical marathon took double it plus 21 minutes; figure 8%.
  *
- * The figure, which the chapter 11 row, the next cards and the /half night card repeat, states a reading only under a
- * guard of its own: the share under double while its check holds (spec 3.2), else the minutes over double while the H1's
- * guard holds (the spec's fallback, the H1's own reading), else the count of pairs, which states none. Since the stamp
- * correction (October 30, 2026) both checks fail on the verified-halves member (+16.3 minutes and 14.0% under double,
- * against +20.9 and 7.7% pooled), so the story and every place that repeats its figure show the 23,929 pairs: the minutes
- * the H1's guard rejected never stand in its place (review, October 30, 2026).
+ * The figure, which the chapter 11 row, the next cards and the /half night card repeat, states a reading only while the
+ * H1's guard holds and, on top of it, a guard of its own: the share under double while its check holds too (spec 3.2),
+ * else the minutes over double (the H1's own reading), else the count of pairs, which states none. While the H1 falls
+ * back, the figure is the count whatever its own check says: a fallback states no reading in any slot, the hero figure
+ * and its key included (AGENTS rule 13; lead rulings G, October 31, 2026, "the fallback stays in every slot, exactly as
+ * on main", recorded before any value of the 1904 build was read). Since the stamp correction (October 30, 2026) the
+ * H1's guard has failed, so the story and every place that repeats its figure show the number of pairs: the minutes and
+ * the share the H1's guard rejected never stand in its place (review, October 30, 2026).
  */
 export function halfExtraFrom(linked: HalfLinked): Nugget {
   const m = members(linked), pooled = m.pooled;
@@ -202,7 +240,7 @@ export function halfExtraFrom(linked: HalfLinked): Nugget {
   const under = linked.overall.under_double_plus_min['0'];
   const pairs = linked.set.pairs;
   const guard = flagshipGuard(linked) && pooled?.extra_p50_s === extra;
-  const figureOk = figureGuard(linked);
+  const figureOk = guard && figureGuard(linked);
   const asMinutes = !figureOk && guard;
   const figure = figureOk ? shareFigure(under)
     : asMinutes ? { value: `+${minutes}`, unit: '\u00a0min', sr: `plus ${minutes} minutes` }

@@ -447,6 +447,20 @@ export type HalfStamps = {
   weaker_source: { edition_id: number; city: string; year: number; source: string }[];
 };
 
+/** The policy's link-build editions (analysis/half-policy-<stamp>.json `link_editions`, policy schema 2): editions that
+ * straddle the link build's half coverage boundary, and editions re-timed after it, supply no linked half. */
+export type HalfLinkEditions = {
+  link_build: string; half_max_record_id: number; conflicts: string; link_partial_rule: string; retimed_rule: string;
+  link_partial: { edition_id: number; city: string; year: number; rows_covered: number; rows_uncovered: number }[];
+  retimed: { edition_id: number; city: string; year: number; rows: number }[];
+};
+
+/** The producer's hand review (MATCHING_V4.md): its last rounds' missed-link and false-merge shares, per cell of `n_per_cell`. */
+export type HalfProducerReview = {
+  source: string; claim: string; n_per_cell: number; zero_of_n_upper95: number;
+  last_rounds: { round: string; rare_missed: number; common_missed: number; rare_false_merge: number; common_false_merge: number }[];
+};
+
 /**
  * analysis/half-release.json (schema 3): the separate pin of the half snapshot and its person links, both from the
  * owner's public CC BY 4.0 release (`tag`). `key` names each (the identity the policy, the links extract and the reviewed
@@ -465,9 +479,18 @@ export type HalfReleasePin = {
   links: {
     tag: string; key: string; private_tag: string | null; version: string; applies_to: string; applies_to_rule: string;
     coverage: HalfLinkCoverage & { producer_build_info: string }; assets: Record<string, string>;
+    /** The producer's hand review of the link build, transcribed from the pinned MATCHING_V4.md: a claim, not recounted. */
+    producer_review?: HalfProducerReview;
     extract: string; extract_content_sha256: string | null;
   };
-  stamps: { rule: HalfStampRule; reference: { tag: string; asset: string; sha256: string; readme_sha256: string; sha256sums_sha256: string } };
+  stamps: {
+    rule: HalfStampRule;
+    reference: {
+      tag: string; asset: string; sha256: string; readme_sha256: string; sha256sums_sha256: string;
+      /** The archive of the reference release and of the version whose metadata it corrected (claims; null when none). */
+      doi?: string | null; supersedes_doi?: string | null; doi_note?: string;
+    };
+  };
   provenance: { private_repository: string; note: string; private_readme_sha256: Record<string, string>; history: string };
   /** Must equal analysis/release.json `tag`. */
   marathon_release: string;

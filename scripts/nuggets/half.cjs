@@ -129,16 +129,18 @@ module.exports = function half({ json, eq, ok, core }) {
     if (n.guard) eq(shown(n), `After a half, the typical marathon took double it plus *${minutes} minutes*.`, 'half.extra: the H1');
     const share = linked.overall.under_double_plus_min['0'];
     // Every member and every one-edition leave-out variant under 15% under double (none under 100 pairs), and the
-    // verified halves within 3 points of the pooled share (lead rulings A1 and A2, October 31, 2026).
-    const figureOk = D.figureGuard(linked);
-    // The figure states a reading only under a guard of its own: the share while its check holds, the minutes while the
-    // H1's does, else the count of pairs (review, October 30, 2026: the minutes stood in the figure after the H1's guard
-    // had rejected them).
+    // verified halves within 3 points of the pooled share (lead rulings A1 and A2, October 31, 2026), on top of the H1's
+    // guard: while the H1 falls back the figure states no reading, whatever its own check says (AGENTS rule 13; lead
+    // rulings G, October 31, 2026: "the fallback stays in every slot").
+    const figureOk = flagshipOk() && D.figureGuard(linked);
+    // The figure states a reading only under the H1's guard and one of its own: the share while its check holds, the
+    // minutes while only the H1's does, else the count of pairs (review, October 30, 2026: the minutes stood in the
+    // figure after the H1's guard had rejected them).
     const asMinutes = !figureOk && n.guard;
     eq(n.figure.value, figureOk ? String(Math.round(share * 100)) : asMinutes ? `+${minutes}` : linked.set.pairs.toLocaleString('en-US'), 'half.extra: the figure');
     eq(n.key, figureOk ? 'of marathons came in under double the half marathon before them' : asMinutes ? 'over double the half marathon, typical' : 'pairs of a half and the marathon after it', 'half.extra: the key');
     eq([n.values.figure_is_share, n.values.figure_is_minutes], [figureOk ? 1 : 0, asMinutes ? 1 : 0], 'half.extra: what the figure is');
-    if (!n.guard && !figureOk) ok(!/double|over|under|typical|\+/.test(`${n.figure.value} ${n.key}`), 'half.extra: with both guards failing, the figure and its key state no reading');
+    if (!n.guard) ok(!/double|over|under|typical|\+/.test(`${n.figure.value} ${n.key}`) && n.values.figure_is_share === 0 && n.values.figure_is_minutes === 0, 'half.extra: while the H1 falls back, the figure and its key state no reading');
     ok(n.figure.value !== String(minutes) && !core.plain(shown(n)).includes(`${n.figure.value}%`), 'half.extra: the H1 accent and the figure are different numbers');
     eq(n.denominator, 'linked', 'half.extra: the linked family');
   };
@@ -305,6 +307,13 @@ module.exports = function half({ json, eq, ok, core }) {
       ok(!D.figureGuard(fixture) && !H.figureGuard(fixture), `half fixtures: ${what} fails the figure guard`);
       ok(x.values.figure_is_share === 0 && x.key !== 'of marathons came in under double the half marathon before them', `half fixtures: ${what}: the figure is not the share under double`);
     }
+    // The figure's own guard never outlives the H1's (AGENTS rule 13; lead rulings G, October 31, 2026): one verified_halves
+    // variant 4 minutes off the pooled minutes fails the H1's guard alone, the figure's check still holds, and the figure
+    // is the count of pairs with its neutral key.
+    const g3 = clone(g0); g3.checks.battery.leave_outs.verified_halves.worst.extra.extra_p50_s = g3.checks.battery.members.find((m) => m.id === 'pooled').extra_p50_s - 240;
+    const x3 = H.halfExtraFrom(g3);
+    ok(!D.flagshipGuard(g3) && !H.flagshipGuard(g3) && D.figureGuard(g3) && H.figureGuard(g3), 'half fixtures: a leave-out 4 minutes off fails the H1 guard and not the figure check');
+    eq([x3.guard, x3.values.figure_is_share, x3.values.figure_is_minutes, x3.figure.value, x3.key], [false, 0, 0, g3.set.pairs.toLocaleString('en-US'), 'pairs of a half and the marathon after it'], 'half fixtures: under a fallen H1 the figure is the count of pairs, whatever its own check says');
     return [
       [H.halfFieldFrom(f1), 'Half marathon finishes by finish time.'],
       [H.halfUnderFrom(f2), 'Half finishes under 1:45.'],

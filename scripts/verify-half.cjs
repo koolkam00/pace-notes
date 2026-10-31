@@ -94,6 +94,16 @@ eq([manifest.repository, manifest.license, manifest.access], [pin.repository, pi
 ok([pin.half, pin.links].every((x) => /^half-dataset-\d{8}-\d{4}$/.test(x.tag) && /^[a-z0-9]+(-[a-z0-9]+)+$/.test(x.key) && Object.values(x.assets).every((d) => /^[0-9a-f]{64}$/.test(d))), 'the pin names public release tags, keys and asset digests');
 ok([pin.half, pin.links].every((x) => x.private_tag === null || /^[a-z0-9]+(-[a-z0-9]+)+$/.test(x.private_tag)) && (pin.half.doi === null || typeof pin.half.doi === 'string'), 'private_tag and doi are a name or null');
 eq(pin.provenance.private_repository, 'koolkam00/pace-notes-db-backup', 'the pin keeps the private releases as provenance');
+// The archives /methodology#downloads-half names, and the producer's hand review it cites: claims transcribed from the
+// pinned READMEs and MATCHING_V4.md (analysis/test_half.py compares the review with the file where it is on disk).
+const DOI = /^10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+$/;
+ok(['doi', 'supersedes_doi'].every((k) => pin.stamps.reference[k] == null || DOI.test(pin.stamps.reference[k])), 'stamps.reference.doi and supersedes_doi: a DOI or null');
+{
+  const rv = pin.links.producer_review;
+  ok(rv == null || (pin.links.assets[rv.source] && int(rv.n_per_cell, 1) && finite(rv.zero_of_n_upper95) && rv.zero_of_n_upper95 > 0 && rv.zero_of_n_upper95 < 1 && Array.isArray(rv.last_rounds) && rv.last_rounds.length > 0
+    && rv.last_rounds.every((r) => typeof r.round === 'string' && ['rare_missed', 'common_missed', 'rare_false_merge', 'common_false_merge'].every((k) => finite(r[k]) && r[k] >= 0 && r[k] <= 1))),
+  'links.producer_review: a pinned source file, a cell size, and shares for each of its last rounds');
+}
 const REF = pin.stamps?.reference || {};
 eq(manifest.stamps, { reference: { asset: REF.asset, sha256: REF.sha256, tag: REF.tag }, rule: pin.stamps?.rule }, 'the manifest binds the pinned stamp reference');
 eq([/^half-dataset-\d{8}-\d{4}$/.test(REF.tag || ''), /^[0-9a-f]{64}$/.test(REF.sha256 || ''), pin.stamps?.rule], [true, true, 'verified = stamped in this snapshot\'s own edition_meta, equal to the policy\'s reviewed list'], 'the stamp rule and its reference: a public release and a digest');
@@ -729,6 +739,56 @@ if (opt.html) {
   const methodology = fs.existsSync(path.join(opt.out, 'methodology.html')) ? fs.readFileSync(path.join(opt.out, 'methodology.html'), 'utf8') : '';
   const ids = new Set([...methodology.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
   for (const id of ['half-data', 'half-coverage', 'half-linking', 'half-multiple', 'half-field', 'story-half-to-full', 'downloads-half', 'half-cards', 'evidence', 'sustained-slowdown']) ok(ids.has(id), `/methodology has #${id} (spec 5)`);
+  // /methodology's half sentences, recounted from the files they read (v4 adoption, October 31, 2026).
+  {
+    const mtext = textOf(noScripts(methodology));
+    const section = (id) => { const at = methodology.search(new RegExp(`\\sid="${id}"`)); return at < 0 ? '' : textOf(noScripts(elementAt(methodology, methodology.lastIndexOf('<', at)))); };
+    // AGENTS rule 17: no release tag, no person-ids- name and no snapshot stamp in the page's visible text (the links keep
+    // the names in their hrefs; the round-3 review found the half downloads printing them).
+    ok(!W.RELEASE_LABEL.test(mtext) && !/\b20\d{6}-\d{4}\b/.test(mtext), `/methodology: a release tag or a snapshot stamp in the visible text (${(mtext.match(W.RELEASE_LABEL) || mtext.match(/\b20\d{6}-\d{4}\b/) || [''])[0]})`);
+    const andList = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+    const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+    const word = (k) => WORDS[k] ?? k.toLocaleString('en-US');
+    // Where the pairs come from (the limits sentence, twice): the fewest cities of by_city, largest first, holding more
+    // than half of all pairs ("most pairs are from the Valencia and Warsaw marathons" was runner links v1's reading).
+    const byPairs = [...C.by_city].sort((a, b) => b.pairs - a.pairs || a.city.localeCompare(b.city, 'en'));
+    const top = []; let held = 0;
+    for (const c of byPairs) { if (held * 2 > S.pairs) break; top.push(c.city); held += c.pairs; }
+    const from = held * 2 > S.pairs ? `more than half of the pairs are from ${top.length === 1 ? 'one marathon' : `${word(top.length)} marathons`} (${andList(top)})` : 'the pairs come unevenly from the marathons';
+    eq(mtext.split(from).length - 1, 2, `/methodology: the two limits sentences say "${from}"`);
+    ok(!/most pairs (?:are|come) from/.test(mtext), '/methodology: no "most pairs are from" left from an earlier link build');
+    // The story's method: while the flagship guard fails, the sentence names the clauses that fail, not an earlier build's.
+    const story = section('story-half-to-full');
+    const pooledM = C.battery.members.find((x) => x.id === 'pooled'), vh = C.battery.members.find((x) => x.id === 'verified_halves');
+    if (!D.flagshipGuard(linked)) {
+      ok(/so the story shows the pairs under a plain heading and states no reading of its own: its figure is the number of pairs\./.test(story), '#story-half-to-full: the fallback sentence, with the figure as the count');
+      eq(/with verified halves only \(/.test(story), !D.passes('extra', vh, pooledM.extra_p50_s, C.battery.pooled_half_p50_s), '#story-half-to-full: names the verified-halves minutes as a reason exactly when that clause fails');
+      for (const [id, clauses] of Object.entries(D.LEAVE_OUTS)) {
+        const x = C.battery.leave_outs[id];
+        for (const c of clauses) {
+          const fails = !D.WORST[c].every((k) => x.worst[k] && D.passes(c, x.worst[k], pooledM.extra_p50_s, C.battery.pooled_half_p50_s));
+          eq(story.includes(`${x.failing[c].toLocaleString('en-US')} of the ${x.variants.toLocaleString('en-US')} reruns of`) && fails, fails, `#story-half-to-full: names the failing reruns of ${id} (${c}) exactly when they fail`);
+        }
+      }
+    } else ok(/The story states only the pooled reading\./.test(story), '#story-half-to-full: the holding guard\'s sentence');
+    // How records are linked: the link-build editions, the two set B signals (review R6) and the producer's hand review.
+    const linking = section('half-linking');
+    const policyJson = readJson(manifest.policy.file);
+    const le = policyJson.link_editions;
+    if (le) {
+      const k = le.link_partial.length, r = le.retimed.length;
+      if (k) ok(linking.includes(`${word(k).replace(/^./, (c) => c.toUpperCase())} edition${k === 1 ? '' : 's'} loaded partly before the link build and partly after it`), '#half-linking: the link-partial editions, counted');
+      if (r) ok(linking.includes(`${word(r)} edition${r === 1 ? '' : 's'} whose finish times were reloaded after it`), '#half-linking: the re-timed editions, counted');
+      ok(!le.link_partial.concat(le.retimed).some((x) => linking.includes(String(x.edition_id))), '#half-linking: no edition id');
+    }
+    const sb = manifest.policy.counts.set_b;
+    const closeDays = Number(/^CLOSE_MARATHON_DAYS = (\d+)$/m.exec(fs.readFileSync(rel('analysis/half_pairs.py'), 'utf8'))?.[1]);
+    ok(linking.includes(`${sb.halves_in_two_or_more_pairs.toLocaleString('en-US')} halves are in two or more pairs, and ${sb.pairs_with_a_close_marathon.toLocaleString('en-US')} pairs have another eligible marathon of the record within ${closeDays} days`), '#half-linking: the two set B signals (review R6) with the builder\'s window');
+    ok(/accepted or rejected some merges on how a half time fits a marathon time, so the tails of the multiple partly reflect the link build/.test(linking), '#half-linking: the time-screened links (review R5)');
+    ok(!/1\.85|outside .{0,20}3\.0|false links? (?:at|of) about/.test(linking), '#half-linking: no ratio-based false-link figure (review R5)');
+    const rv = pin.links.producer_review;
+    if (rv) for (const r of rv.last_rounds) ok(linking.includes(`${(r.rare_missed * 100).toFixed(1)}%`), `#half-linking: the producer's rare-name missed links of round ${r.round}`);
+  }
   let surfaces = 0, readings = 0;
   for (const file of pages) {
     const route = routeOf(file);

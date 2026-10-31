@@ -6,6 +6,7 @@ import MethodsData from '@/components/methods/MethodsData';
 import MethodsDefinitions from '@/components/methods/MethodsDefinitions';
 import MethodsDownloads, { STORY_FILE_TOPICS } from '@/components/methods/MethodsDownloads';
 import MethodsHash from '@/components/methods/MethodsHash.client';
+import { HalfLimitsLine } from '@/components/methods/MethodsHalf';
 import MethodsPages from '@/components/methods/MethodsPages';
 import MethodsStories from '@/components/methods/MethodsStories';
 import MethodsTools from '@/components/methods/MethodsTools';
@@ -125,7 +126,7 @@ export default function MethodologyPage() {
           <p>Each analysis shows its actual comparison group, and names any broader comparison it used when a narrow selection had too few records. Missing ages, splits and route history stay missing; nothing is filled in.</p>
           <p>Predictions must use only what is known at the checkpoint being studied and be tested on unseen race editions. Declared goals are kept apart from inferred time landmarks. An absence from the database does not show that a runner stopped racing.</p>
           <p>Splits measure time and pace. Effort, fuelling, intentions and training need other evidence. Terrain-adjusted pace is an estimated proxy, especially when a 5 km section has both climbs and descents.</p>
-          {half ? <p>On the half pages, records linked by name are candidates, not verified people; the marathons are finishes with every mat; most pairs come from the Valencia and Warsaw marathons; and a half run as training rather than raced lowers the multiple of the half. These are limits of the data, never claims about any runner (<a href="#story-half-to-full">the half-to-full method</a>).</p> : null}
+          {half ? <HalfLimitsLine /> : null}
         </Topic>
         <Topic id="follow-up" title="Return and missing follow-up">
           <p>The near-miss analysis includes runners who have no later observed race. It needs two later years of observed editions in the original city and leaves out the latest two years as index races. Return means an eligible linked appearance anywhere in the export in the next two calendar years. Missing follow-up is never called retirement.</p>

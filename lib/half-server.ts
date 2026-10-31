@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import release from '@/analysis/release.json';
 import pin from '@/analysis/half-release.json';
-import type { HalfDataFile, HalfFiles, HalfManifest, HalfReleasePin, HalfStamps } from '@/lib/half-types';
+import type { HalfDataFile, HalfFiles, HalfLinkEditions, HalfManifest, HalfReleasePin, HalfStamps } from '@/lib/half-types';
 
 /**
  * The half-marathon aggregates (public/data/half/, analysis/build_half.py), verified once per process at build time.
@@ -77,10 +77,20 @@ export function halfPin(): HalfReleasePin {
   return PIN;
 }
 
-/** The reviewed stamp check from the frozen policy file, read only after the manifest binds that file's sha256. */
-export function halfStamps(): HalfStamps {
+/** The frozen policy file, read only after the manifest binds its sha256. */
+function halfPolicy(): { stamps: HalfStamps; link_editions?: HalfLinkEditions } {
   const manifest = getHalfManifest();
   const bytes = fs.readFileSync(path.join(process.cwd(), manifest.policy.file));
   if (sha256(bytes) !== manifest.policy.sha256) throw new Error('Half policy changed after the half data were built.');
-  return (JSON.parse(bytes.toString()) as { stamps: HalfStamps }).stamps;
+  return JSON.parse(bytes.toString()) as { stamps: HalfStamps; link_editions?: HalfLinkEditions };
+}
+
+/** The reviewed stamp check from the frozen policy file. */
+export function halfStamps(): HalfStamps {
+  return halfPolicy().stamps;
+}
+
+/** The reviewed link-build editions from the frozen policy file (link-partial and re-timed editions), or null. */
+export function halfLinkEditions(): HalfLinkEditions | null {
+  return halfPolicy().link_editions ?? null;
 }

@@ -123,6 +123,13 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // guess's answer without JavaScript, /research's and /stories' hub lines, /methodology's half-multiple text, who holds
   // pace's way into the half story, round numbers' guess answer without JavaScript, /half and the half story. The
   // predictor and the half pace chart take HALF_TEXT_REWRITTEN below.
+  // October 31 (the merge day of feat/half-v4, the half pages on half-dataset-20261030-1904 with person links v4): the
+  // pages whose built text that branch changes against fix/half-followups (cf882440), found by diffing the two builds'
+  // visible text: the home guide's and /research's chapter 11 row and /stories' half row (the count of pairs), /half
+  // (its shares, the round-time counts and its night card), the half story (its figure, windows, guess and table),
+  // /methodology's half folds, limits and downloads, and the five goal pages (HALF_TEXT_REWRITTEN below). /report and
+  // /runners repeat the chapter 11 next card too; they are noindex and carry no lastmod. The predictor's and the half
+  // pace chart's half panels render in the browser, so their built text did not change (they already take the 31st).
   '/': '2026-10-31',
   '/research': '2026-10-31',
   '/about': '2026-10-30',
@@ -253,12 +260,19 @@ export const HALF_TEXT_WRITTEN = '2026-10-30';
 /**
  * The host pages whose half text was rewritten after that, with the day the rewrite merged: October 31, 2026
  * (fix/half-followups): the predictor (its half panel's no-script line in place of a "Loading the data…" that never
- * ended) and the half pace chart (its panel's sentence and its link into the predictor). The goal pages and
- * /finish-times keep HALF_TEXT_WRITTEN: their half text did not change.
+ * ended) and the half pace chart (its panel's sentence and its link into the predictor); October 31, 2026 too
+ * (feat/half-v4): the five goal pages, whose "The half marathon before" lines and windows moved with the v4 person IDs
+ * (found by diffing the built text against fix/half-followups). /finish-times keeps HALF_TEXT_WRITTEN: its half text did
+ * not change.
  */
 export const HALF_TEXT_REWRITTEN: Readonly<Record<string, string>> = {
   '/tools/predictor': '2026-10-31',
   '/tools/half-marathon-pace-chart': '2026-10-31',
+  '/tools/marathon-pace/3-00': '2026-10-31',
+  '/tools/marathon-pace/3-30': '2026-10-31',
+  '/tools/marathon-pace/4-00': '2026-10-31',
+  '/tools/marathon-pace/4-30': '2026-10-31',
+  '/tools/marathon-pace/5-00': '2026-10-31',
 };
 
 /** HALF_TEXT_WRITTEN (or the page's later rewrite, HALF_TEXT_REWRITTEN) in a build with the half data, else undefined. */

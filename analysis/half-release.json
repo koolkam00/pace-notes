@@ -39,6 +39,28 @@
       "checks.txt": "ccf75c8756158172209f7e981a07b4ed8c9c8c680a055479b24c14b35d3803c3",
       "code.tgz": "d4ebc559b240c16aa21a710c39cdead1d5611132aa1b9ec8b2330e07e5147d50"
     },
+    "producer_review": {
+      "source": "MATCHING_V4.md",
+      "claim": "the producer's hand review of each link build round (a release-note claim, transcribed from the pinned MATCHING_V4.md; not recounted here): per round, 150 same-name pairs with different person IDs (missed links) and 150 merged persons (false merges) in each of the rare-name and common-name cells, a fresh seed each round; the loop stopped after two consecutive rounds met its targets (rare false under 1%, common false under 3%, rare missed under 5%); 0 of 150 has an upper 95% bound of about 2%",
+      "n_per_cell": 150,
+      "zero_of_n_upper95": 0.02,
+      "last_rounds": [
+        {
+          "round": "r6",
+          "rare_missed": 0.027,
+          "common_missed": 0.007,
+          "rare_false_merge": 0,
+          "common_false_merge": 0
+        },
+        {
+          "round": "r7",
+          "rare_missed": 0.02,
+          "common_missed": 0.013,
+          "rare_false_merge": 0,
+          "common_false_merge": 0
+        }
+      ]
+    },
     "extract": "links-v4.sqlite",
     "extract_content_sha256": "1c86602ee4d6cda09beae033a33e926d45137b5ec719e17b8d449b65636262df"
   },
@@ -49,7 +71,10 @@
       "asset": "csv-edition_meta.csv.zst",
       "sha256": "2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842",
       "readme_sha256": "3ba5ed96096bab048da5d81d3bd0428962661ccc494aa99963efa505e7506332",
-      "sha256sums_sha256": "fe72490f32557e4464cb5fa9577726b663a8d7c125f7456944bad6a84e4051b6"
+      "sha256sums_sha256": "fe72490f32557e4464cb5fa9577726b663a8d7c125f7456944bad6a84e4051b6",
+      "doi": "10.6084/m9.figshare.34858428.v2",
+      "supersedes_doi": "10.6084/m9.figshare.34858428.v1",
+      "doi_note": "claims: the 1904 README calls this release \"Figshare 34858428 v2\"; its own README says it supersedes the metadata of half-dataset-20261029-1202 / Figshare v1 (doi:10.6084/m9.figshare.34858428 v1), which overstated the verified count; both DOIs answered 302 at doi.org on 2026-10-31T08:51Z"
     }
   },
   "provenance": {

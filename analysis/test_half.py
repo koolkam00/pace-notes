@@ -1479,6 +1479,50 @@ class Pin(unittest.TestCase):
                 hc.connect(half=path)
 
 
+V4_DIR = Path(os.environ.get('PACE_HALF_V4_DIR') or Path.home() / 'data' / 'v4')
+
+
+class ProducerClaims(unittest.TestCase):
+    """The producer's claims /methodology cites from the pin (v4 adoption, October 31, 2026): the hand review of the link
+    build, transcribed from the pinned MATCHING_V4.md, and the two archive DOIs of the stamp reference. The transcription
+    is compared with the file itself wherever it is on disk with the pinned digest (PACE_HALF_V4_DIR, default ~/data/v4)."""
+
+    def setUp(self):
+        self.pin = json.loads(hc.PIN_PATH.read_text())
+
+    def test_the_review_and_the_dois_have_their_shape(self):
+        rv = self.pin['links']['producer_review']
+        self.assertIn(rv['source'], self.pin['links']['assets'])
+        self.assertGreater(rv['n_per_cell'], 0)
+        self.assertTrue(rv['last_rounds'])
+        for r in rv['last_rounds']:
+            for k in ('rare_missed', 'common_missed', 'rare_false_merge', 'common_false_merge'):
+                self.assertTrue(0 <= r[k] <= 1, (r['round'], k))
+        ref = self.pin['stamps']['reference']
+        for k in ('doi', 'supersedes_doi'):
+            self.assertRegex(ref[k], r'^10\.\d{4,9}/\S+\.v\d+$')
+        self.assertNotEqual(ref['doi'], ref['supersedes_doi'])
+
+    @unittest.skipUnless((V4_DIR / 'MATCHING_V4.md').is_file(), 'MATCHING_V4.md is not on this machine (set PACE_HALF_V4_DIR)')
+    def test_the_review_is_the_files_last_rounds(self):
+        rv = self.pin['links']['producer_review']
+        data = (V4_DIR / rv['source']).read_bytes()
+        self.assertEqual(hc.bytes_sha256(data), self.pin['links']['assets'][rv['source']], 'the file on disk is the pinned one')
+        text = data.decode('utf-8')
+        rows = re.findall(r'^\| (r\d+) \([^)]*\) \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$', text, re.M)
+        self.assertGreaterEqual(len(rows), len(rv['last_rounds']))
+
+        def share(cell):
+            cell = cell.strip()
+            return 0.0 if cell == '0' else round(float(cell.rstrip('%')) / 100, 6)
+        last = rows[-len(rv['last_rounds']):]
+        self.assertEqual([[r[0], *map(share, r[1:])] for r in last],
+                         [[x['round'], x['rare_missed'], x['common_missed'], x['rare_false_merge'], x['common_false_merge']] for x in rv['last_rounds']])
+        self.assertIn(f"n={rv['n_per_cell']} per cell", text)
+        self.assertIn(f"0/{rv['n_per_cell']} means an upper 95% bound of about {round(rv['zero_of_n_upper95'] * 100)}%", text)
+        self.assertIn('met in two consecutive rounds', text)
+
+
 class StampCheck(unittest.TestCase):
     """The 1904 stamp check (half_quality.check_stamps): verified = stamped in the snapshot's own edition_meta, equal to the
     reviewed list, the reference, never_stamp and the release's CSV."""
