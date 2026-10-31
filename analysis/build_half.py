@@ -17,7 +17,8 @@ weather evidence, the cited marathon files and every builder script. The output 
 
 Every count of the policy, the marathon side and set B is asserted by its module. A rebuild whose policy counts or
 cohort differ from the manifest already in --out prints the change and fails unless --accept-counts (a reviewed refresh
-only). DuckDB settings: PACE_HALF_DUCKDB_THREADS (default 2), PACE_HALF_DUCKDB_MEMORY (default 4GB), TMPDIR for spill.
+only). DuckDB settings: PACE_HALF_DUCKDB_THREADS (default 2), PACE_HALF_DUCKDB_MEMORY (default 4GB),
+PACE_HALF_DUCKDB_MAX_TEMP (the spill cap, default 4GB), TMPDIR for spill.
 """
 from __future__ import annotations
 

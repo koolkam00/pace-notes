@@ -269,7 +269,7 @@ export type HalfLinked = {
     other_marathons: { pairs: number; extra_p50_s: number; w105_under_14400: number };
     ns_keys_1: { pairs: number; w105_under_14400: number };
     one_per_person: { pairs: number; w105_under_14400: number };
-    no_merge_people: { pairs: number; extra_p50_s: number };
+    no_union_people: { pairs: number; extra_p50_s: number };
     battery: { pooled_half_p50_s: number; members: HalfBatteryMember[]; leave_outs: Record<HalfLeaveOutParent, HalfLeaveOuts> };
     /** The median multiple in each 5-minute band of the all-pairs range. */
     multiple_by_band: { h: number; ratio_p50: number }[];

@@ -149,6 +149,12 @@ for (const [name, digest] of Object.entries(manifest.scripts)) ok(digest === fil
 // The v4 link rule (lead rulings L, October 31, 2026; analysis/half_pairs.py LINK_RULES).
 eq(manifest.link_rules, { conflicts: 'over every linked row of the person, whatever its confidence', link_editions: "the policy's link-partial and re-timed editions supply no linked half", ns_keys: 'distinct age keys per normalized name and published sex over every row of the link build; a person takes the largest over the rows that may pair', ns_keys_max: 3, pairing: 'nearest prior half, one pair per person and marathon', row_tiers: ['high_elite', 'high', 'medium'], tiers: ['high_elite', 'high', 'medium'], unions: 'applied by the link build', window_days: [21, 112] }, 'the link rules (spec 1.3)');
 eq(manifest.cohort, { linked: { half_editions: setB.half_editions, marathon_editions: setB.marathon_editions, pairs: setB.pairs }, usable: counts.use_finish, verified: counts.verified }, 'the manifest cohort is its policy counts');
+// Set B's reviewed counts (analysis/half_pairs.EXPECTED), with review R6's two signals, counted and never excluded (lead
+// rulings, October 31, 2026): halves that serve two or more pairs, and pairs whose person has another eligible marathon
+// within 13 days. Each is a count of set B and at most what it counts.
+eq(Object.keys(setB).sort(), ['half_editions', 'halves_in_two_or_more_pairs', 'marathon_editions', 'pairs', 'pairs_with_a_close_marathon', 'people'], 'set B: its reviewed counts and the two R6 signals');
+ok(Object.values(setB).every((v) => int(v)) && setB.people <= setB.pairs && setB.half_editions <= setB.pairs && 2 * setB.halves_in_two_or_more_pairs <= setB.pairs
+  && setB.pairs_with_a_close_marathon <= setB.pairs, 'set B: counts within the pairs (a half serving two pairs counts once)');
 // The policy counts add up.
 eq(counts.raw - counts.R1 - counts.R2 - counts.R3 - counts.R4 - counts.R5_fast - counts.R5_slow - counts.R6, counts.record_usable, 'R1–R6 leave the record-usable rows');
 eq(counts.record_usable - counts.R7, counts.record_usable_after_R7, 'R7 leaves the record-usable rows after R7');
@@ -478,7 +484,7 @@ ok(!!bat.verified_federation && !!bat.verified_road && bat.verified_federation.n
     if (x.worst.multiple_low && x.worst.multiple_high) ok(x.worst.multiple_low.multiple_p50 <= x.worst.multiple_high.multiple_p50, `battery.leave_outs.${id}: the band's two sides in order`);
   }
 }
-ok(C.no_merge_people.pairs <= S.pairs && C.ns_keys_1.pairs <= S.pairs && C.other_marathons.pairs < S.pairs, 'linked.checks: subsets of set B');
+ok(C.no_union_people.pairs <= S.pairs && C.ns_keys_1.pairs <= S.pairs && C.other_marathons.pairs < S.pairs, 'linked.checks: subsets of set B');
 for (const k of ['verified', 'editions_equal', 'other_marathons', 'ns_keys_1', 'one_per_person']) ok(C[k].w105_under_14400 > 0 && C[k].w105_under_14400 < 1, `linked.checks.${k}: the 1:45 check share`);
 ok(C.battery.pooled_half_p50_s >= linked.windows.all[0].h && C.battery.pooled_half_p50_s <= linked.windows.all.at(-1).h, 'linked.checks.battery: the pooled median half lies in the published range');
 // /methodology only: the multiple by 5-minute band, the marathon cities, link coverage by city.

@@ -146,8 +146,9 @@ function checkPolicyText(policy) {
 }
 
 /**
- * Reads the snapshot and applies R1–R7 and the editions. Returns the counts, the computed lists and the usable finishes
- * (`fin`: typed arrays in record id order) with their editions.
+ * Reads the snapshot and applies R1–R7 and the editions. Returns the counts, the computed lists, the usable finishes
+ * (`fin`: typed arrays in record id order) with their editions, and every record (`rows`: id, edition, parsed finish and
+ * published sex as written, in id order) for the link build's join checks.
  */
 function applyPolicy(db, policy, log = () => {}) {
   checkPolicyText(policy);
@@ -159,6 +160,14 @@ function applyPolicy(db, policy, log = () => {}) {
 
   const id = new Uint32Array(total), ed = new Int32Array(total), sub = new Int32Array(total), finish = new Float64Array(total);
   const sexPub = new Uint8Array(total), flag = new Uint8Array(total), keyHash = new Float64Array(total).fill(NaN);
+  // The published sex exactly as written (no merging of null and '?'), for the link build's join checks.
+  const sexRaw = new Uint8Array(total), rawSexCodes = new Map(), rawSexNames = [];
+  const rawSexCode = (s) => {
+    const k = s === null || s === undefined ? '\u0000null' : String(s);
+    let c = rawSexCodes.get(k);
+    if (c === undefined) { c = rawSexNames.length; need(c < 256, 'too many published sex values'); rawSexCodes.set(k, c); rawSexNames.push(s === undefined ? null : s); }
+    return c;
+  };
   const edIndex = new Map(), editions = [];
   const subIndex = new Map(), subs = [];
   const sexCodes = new Map([['\u0000null', 0]]), sexNames = [null];
@@ -189,6 +198,7 @@ function applyPolicy(db, policy, log = () => {}) {
     const t = parseTime(r.split_21_1km);
     finish[i] = t === null ? NaN : t;
     sexPub[i] = sexCode(r.sex);
+    sexRaw[i] = rawSexCode(r.sex);
     // bit 1: producer exclusion; bit 2: the R7 bib block; bit 4: published sex 'M'; bit 8: published sex 'F'.
     let f = excluded[r.id] ? 1 : 0;
     const bib = tryInt(r.bib);
@@ -430,7 +440,9 @@ function applyPolicy(db, policy, log = () => {}) {
     };
   } else counts.stamp_withdrawn = tally((k) => withdrawnEds.has(fin.ed[k]));
   const recomputed = { E0: E0.length, E1: E1.length, E2_E8: E28.length, E2_E8_finishes: sum(E28), duplicate_groups: groups };
-  return { counts, lists, recomputed, editions: ET, fin };
+  // rows: every record in id order (its edition, parsed finish, published sex as written), for the link build's joins.
+  const rows = { n: total, id, ed, finish, sex: sexRaw, sexNames: rawSexNames };
+  return { counts, lists, recomputed, editions: ET, fin, rows };
 }
 
 // ---------- The corrected metadata (the stamp correction), read without the Python builders ----------

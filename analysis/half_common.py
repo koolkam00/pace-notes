@@ -148,18 +148,22 @@ def inside(path, parent) -> bool:
 def connect(half: Path | None = None, links: Path | None = None):
     """A DuckDB connection with the half snapshot attached as `h` and the links extract as `l`, both read-only.
 
-    Settings come from the environment: PACE_HALF_DUCKDB_THREADS (default 2), PACE_HALF_DUCKDB_MEMORY (default 4GB)
-    and TMPDIR for spill files (no temp file the builder leaves behind).
+    Settings come from the environment: PACE_HALF_DUCKDB_THREADS (default 2), PACE_HALF_DUCKDB_MEMORY (default 4GB),
+    PACE_HALF_DUCKDB_MAX_TEMP (the spill cap, default 4GB, as in analysis/half_links_extract.py; review R13) and TMPDIR
+    for spill files (no temp file the builder leaves behind).
     """
     import duckdb
     db = duckdb.connect()
     db.execute(f"SET threads={int(os.environ.get('PACE_HALF_DUCKDB_THREADS', '2'))}")
-    memory = os.environ.get('PACE_HALF_DUCKDB_MEMORY', '4GB')
-    if not re.fullmatch(r'\d+(\.\d+)?\s*[KMGT]i?B', memory):
-        fail(f'PACE_HALF_DUCKDB_MEMORY must look like 4GB, not {memory!r}')
-    db.execute(f"SET memory_limit='{memory}'")
+    sizes = {}
+    for name in ('PACE_HALF_DUCKDB_MEMORY', 'PACE_HALF_DUCKDB_MAX_TEMP'):
+        sizes[name] = os.environ.get(name, '4GB')
+        if not re.fullmatch(r'\d+(\.\d+)?\s*[KMGT]i?B', sizes[name]):
+            fail(f'{name} must look like 4GB, not {sizes[name]!r}')
+    db.execute(f"SET memory_limit='{sizes['PACE_HALF_DUCKDB_MEMORY']}'")
     spill = (os.environ.get('TMPDIR') or tempfile.gettempdir()).replace("'", "''")
     db.execute(f"SET temp_directory='{spill}'")
+    db.execute(f"SET max_temp_directory_size='{sizes['PACE_HALF_DUCKDB_MAX_TEMP']}'")
     db.execute('SET preserve_insertion_order=false')
     if half is not None or links is not None:
         db.execute('INSTALL sqlite')

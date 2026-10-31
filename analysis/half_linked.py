@@ -310,9 +310,9 @@ def checks(p, weaker_source, off_road_labels):
     other = p.subset(~np.isin(p.city, OTHER_THAN))
     ns1 = p.subset(p.frame.ns_keys.to_numpy() == 1)
     one = latest_per_person(p)
-    # People none of whose rows joined through one of the link build's unions (v4; with runner links v1, people in no
-    # candidate merge). The published key keeps its name until the copy and verifiers move with it.
-    no_merge = p.subset(~p.frame.in_union.to_numpy(bool))
+    # People none of whose rows joined through one of the link build's unions (v4 applies its own middle-name and
+    # nationality unions; with runner links v1 this was `no_merge_people`, people in no candidate merge).
+    no_union = p.subset(~p.frame.in_union.to_numpy(bool))
     vs = sexes(ver)
     return {
         'verified': {'pairs': int(ver.n), 'extra_p50_s': sec(quantile(ver.extra, 0.5)), 'under_double': sh((ver.extra < 0).mean()),
@@ -324,7 +324,7 @@ def checks(p, weaker_source, off_road_labels):
         'other_marathons': {'pairs': int(other.n), 'extra_p50_s': sec(quantile(other.extra, 0.5)), 'w105_under_14400': under_goal_at(other)},
         'ns_keys_1': {'pairs': int(ns1.n), 'w105_under_14400': under_goal_at(ns1)},
         'one_per_person': {'pairs': int(one.n), 'w105_under_14400': under_goal_at(one)},
-        'no_merge_people': {'pairs': int(no_merge.n), 'extra_p50_s': sec(quantile(no_merge.extra, 0.5))},
+        'no_union_people': {'pairs': int(no_union.n), 'extra_p50_s': sec(quantile(no_union.extra, 0.5))},
         'battery': battery(p, weaker_source, off_road_labels),
     }
 

@@ -211,7 +211,7 @@ function women({ fin, editions, marathons, labels, chart, chartSha }) {
 
 const Q = Array.from({ length: 19 }, (_, i) => D.pyRound(0.05 * (i + 1), 2));
 
-/** Set B as columns. `P` holds h, m (seconds), sex ('F'|'M'), ed (marathon edition key), city, sus, verified, nsKeys, inMerge, person, mDay, mId, hEd (the half's edition id) and hLabel (its edition label). */
+/** Set B as columns. `P` holds h, m (seconds), sex ('F'|'M'), ed (marathon edition key), city, sus, verified, nsKeys, inUnion (a row of the person joined by one of the link build's unions), person, mDay, mId, hEd (the half's edition id) and hLabel (its edition label). */
 function subset(P, keep) {
   const out = {};
   for (const [k, v] of Object.entries(P)) if (Array.isArray(v)) out[k] = v.filter((_, i) => keep[i]);
@@ -392,7 +392,7 @@ function checks(p, lists) {
   const other = columns(subset(p, p.city.map((c) => !['Valencia', 'Warsaw'].includes(c))));
   const ns1 = columns(subset(p, p.nsKeys.map((k) => k === 1)));
   const one = latestPerPerson(p);
-  const noMerge = columns(subset(p, p.inMerge.map((x) => !x)));
+  const noUnion = columns(subset(p, p.inUnion.map((x) => !x)));
   const vs = sexes(ver);
   return {
     verified: { pairs: ver.n, extra_p50_s: D.sec(median50(ver.extra)), under_double: D.sh(ver.extra.filter((x) => x < 0).length / ver.n), w105_under_14400: underGoalAt(ver), sexes: { strata: vs.strata, women_lower: vs.women_lower, diff_points: vs.diff_points } },
@@ -400,7 +400,7 @@ function checks(p, lists) {
     other_marathons: { pairs: other.n, extra_p50_s: D.sec(median50(other.extra)), w105_under_14400: underGoalAt(other) },
     ns_keys_1: { pairs: ns1.n, w105_under_14400: underGoalAt(ns1) },
     one_per_person: { pairs: one.n, w105_under_14400: underGoalAt(one) },
-    no_merge_people: { pairs: noMerge.n, extra_p50_s: D.sec(median50(noMerge.extra)) },
+    no_union_people: { pairs: noUnion.n, extra_p50_s: D.sec(median50(noUnion.extra)) },
     battery: battery(p, lists),
   };
 }
