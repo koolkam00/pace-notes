@@ -71,8 +71,30 @@ def check_sources(pin: dict, half: Path, links: Path) -> None:
         con.close()
     if digest != pinned or build.get('extract_content_sha256') != digest:
         fail(f'{links} is not the pinned links extract (content sha256 {digest})')
+    check_extract_build(pin, links, build)
+
+
+def check_extract_build(pin: dict, links: Path, build: dict) -> None:
+    """The extract's `build` table names what it was cut from and checked against; each must be what this build reads
+    now, else the extract is re-cut (verify round 2, October 31, 2026: the runner manifest its marathon join checks ran
+    on, the frozen ns_keys and k SQL, the marathon release, the snapshot key and the source digests were written and
+    never compared here; the Node recount compares the same keys)."""
+    import half_links_extract
     if build.get('links_key') != pin['links']['key'] or build.get('applies_to') != pin['links']['applies_to']:
         fail(f'{links} was cut from another link build or for another snapshot')
+    release = json.loads(half_common.RELEASE_PATH.read_text())['tag']
+    if build.get('marathon_release') != pin['marathon_release'] or build.get('marathon_release') != release or build.get('half_key') != pin['half']['key']:
+        fail(f'{links} was cut for another marathon release or half snapshot; re-cut it (analysis/half_links_extract.py)')
+    sources = {pin['half']['sqlite']: pin['half']['sqlite_sha256'], **pin['links']['assets']}
+    if any(build.get(f'source_sha256:{name}') != sha for name, sha in sources.items()):
+        fail(f'{links} was cut from other sources than the pin names; re-cut it (analysis/half_links_extract.py)')
+    runner_sha = file_sha256(ROOT / 'public' / 'data' / 'runners' / 'manifest.json')
+    if build.get('runner_manifest_sha256') != runner_sha:
+        fail(f'{links} ran its marathon join checks against another runner manifest ({build.get("runner_manifest_sha256")}, '
+             f'now {runner_sha}); re-cut it (analysis/half_links_extract.py)')
+    for key, sql in (('ns_keys_sql_sha256', half_links_extract.NS_KEYS_SQL), ('k_sql_sha256', half_links_extract.K_SQL)):
+        if build.get(key) != half_links_extract.sql_sha256(sql):
+            fail(f'{links} was cut with another frozen {key.removesuffix("_sql_sha256")} SQL than analysis/half_links_extract.py holds; re-cut it')
 
 
 def finishes(db):

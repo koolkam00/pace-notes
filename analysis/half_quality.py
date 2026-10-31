@@ -212,6 +212,33 @@ VIRTUAL_RULE_20261030_1904 = {
                    "before its first ':' with surrounding spaces trimmed"),
     'order': 'after the reviewed E2 decisions and before E3, on editions no earlier rule removes',
 }
+# The count each edition screen compares, and E3's three conditions, in words (verify round 2, October 31, 2026: the policy
+# said every screen ran on record-usable rows before R7 and held only E3's patterns and tolerance, so a recount from the
+# text flagged 103 E3 editions, not 5, and one more E6 cap; the screens themselves are main's, unchanged, and every count
+# stays equal). R6's no-key clause states what the builder and the Node recount already did with a name that has no
+# a-z or 0-9 character left. Written for the 1904 entry only, so the 1133 policy bytes stay as frozen (review R9).
+POLICY_WORDS_20261030_1904 = {
+    'computed_on': (
+        "named per screen. n_db is every race_records row of the edition's city and year, whatever record rule removes it "
+        "(all rows loaded); n_usable is the edition's record-usable rows before R7 (rows no record rule R1–R6 removes, R7 "
+        "not applied), and the edition's median, 99th percentile, share under 1:05 and recorded-sex counts are over those "
+        "rows. E3 count_excess_vs_independent, E3 rows_short_of_source_list and E6 compare n_db; E3 "
+        "count_shortfall_vs_independent, E4, E5, E7 and E8 use n_usable"),
+    'E3': {
+        'independent': ('official_source_type, lowercased (a null as empty), matches independent_pattern and does not '
+                        'match not_independent_pattern'),
+        'count_excess_vs_independent': ("the source is independent, the edition's status group is not verified, "
+                                        'official_finishers is present, and n_db > (1 + tolerance) × official_finishers'),
+        'count_shortfall_vs_independent': ("the source is independent, the edition's status group is not verified, "
+                                           'official_finishers is present, and n_usable < (1 - tolerance) × official_finishers'),
+        'rows_short_of_source_list': ('the source is not independent (any status group), official_finishers is present '
+                                      'and above 0, and n_db < (1 - tolerance) × official_finishers'),
+        'order': 'the first of the three that applies, in this order; every inequality is strict',
+    },
+    'E6': "the edition's status group is not verified and n_db equals one of caps exactly",
+    'R6_no_key': ('a name with no a-z or 0-9 character left after this normalisation has no key and is never compared, so '
+                  'it is never an R6 duplicate'),
+}
 BATTERY_RULES_20261030_1904 = {
     'verified_federation': 'the verified halves without the weaker-source stamps (stamps.weaker_source, by edition id)',
     'verified_road': 'the verified halves whose edition label is not one of off_road_labels',
@@ -291,7 +318,7 @@ REVIEWED_HALF_POLICIES = {
             'category_rule': CATEGORY_RULE_20261029_1133, 'reviewed_e2': REVIEWED_E2_20261029_1133,
             'reviewed_e2_by_key': REVIEWED_E2_BY_KEY_20261029_1133, 'date_suspects': DATE_SUSPECTS_20261029_1133,
             'same_city_labels': SAME_CITY_LABELS_20261029_1133, 'battery_rules': BATTERY_RULES_20261029_1133,
-            'unknown_status': None, 'partial_loads': (), 'virtual': None, 'not_virtual': (),
+            'unknown_status': None, 'partial_loads': (), 'virtual': None, 'not_virtual': (), 'policy_words': None,
         },
     },
 }
@@ -342,6 +369,7 @@ REVIEWED_HALF_POLICIES[TAG] = {
         'same_city_labels': SAME_CITY_LABELS_20261030_1904, 'battery_rules': BATTERY_RULES_20261030_1904,
         'unknown_status': 'fail', 'partial_loads': tuple(KNOWN_PARTIAL_LOADS_20261030_1904),
         'virtual': VIRTUAL_RULE_20261030_1904, 'not_virtual': tuple(NOT_VIRTUAL_20261030_1904),
+        'policy_words': POLICY_WORDS_20261030_1904,
     },
 }
 
@@ -392,6 +420,11 @@ def _edition_rules_doc(p: dict) -> dict:
         doc['E1'] = {'rule': ('a held status supplies nothing; a removed status (the producer deleted the rows of a double '
                               'load) supplies nothing and must hold no rows, else the build fails'),
                      'held': list(rules['statuses']['held']), 'removed': list(rules['statuses']['removed'])}
+    words = rules['policy_words']
+    if words:
+        doc['computed_on'] = words['computed_on']
+        doc['E3'] = {**doc['E3'], 'conditions': words['E3']}
+        doc['E6'] = {**doc['E6'], 'condition': words['E6']}
     if rules['virtual']:
         doc['E2'] = {'virtual_event': {**rules['virtual'], 'not_virtual': [{'edition_id': e, 'reason': r} for e, r in rules['not_virtual']],
                                        'reason': 'A virtual race: self-timed efforts, not a race field.'}}
@@ -433,6 +466,8 @@ def policy_document(tag: str = TAG) -> dict:
         'battery': {**rules['battery_rules'], **p['battery']},
         'expected': p['expected'],
     }
+    if rules['policy_words']:
+        doc['record_rules']['R6']['no_key'] = rules['policy_words']['R6_no_key']
     if 'correction' in p:
         doc['corrected'] = p['corrected']
         doc['stamp_correction'] = p['correction']
@@ -501,12 +536,14 @@ def record_rules(db, rules: dict | None = None) -> None:
     db.execute(f"""CREATE OR REPLACE TEMP TABLE hr0 AS SELECT r.id AS record_id, r.city, r.year::INTEGER AS year, r.race,
         CASE WHEN r.sex IN ('M', 'F') THEN r.sex END AS sex, r.sex AS sex_published, {secs_sql('r.split_21_1km')} AS finish_s,
         coalesce(f.producer_excluded, false) AS producer_excluded,
-        CASE WHEN r.runner IS NOT NULL AND length(trim(r.runner)) > 3 AND NOT regexp_matches(lower(r.runner), '{NAME_ANONYMOUS_RE}')
-          THEN md5(array_to_string(list_sort(list_filter(string_split(regexp_replace(lower(strip_accents(replace(r.runner, ',', ' '))),
-               '[^a-z0-9 ]', ' ', 'g'), ' '), x -> x <> '')), ' ')) END AS name_key,
+        CASE WHEN r.name_ok AND len(r.name_tokens) > 0 THEN md5(array_to_string(r.name_tokens, ' ')) END AS name_key,
         coalesce(r.city = '{R7['city']}' AND r.year BETWEEN {y0} AND {y1} AND try_cast(r.bib AS INTEGER) BETWEEN {lo} AND {hi}, false) AS r7_block,
         r.distance_km
-        FROM h.race_records r LEFT JOIN hfl f ON f.record_id = r.id""")
+        FROM (SELECT id, city, year, race, sex, split_21_1km, bib, distance_km,
+            runner IS NOT NULL AND length(trim(runner)) > 3 AND NOT regexp_matches(lower(runner), '{NAME_ANONYMOUS_RE}') AS name_ok,
+            CASE WHEN runner IS NOT NULL THEN list_sort(list_filter(string_split(regexp_replace(lower(strip_accents(replace(runner, ',', ' '))),
+              '[^a-z0-9 ]', ' ', 'g'), ' '), x -> x <> '')) END AS name_tokens
+          FROM h.race_records) r LEFT JOIN hfl f ON f.record_id = r.id""")
     db.execute(f"""CREATE OR REPLACE TEMP TABLE hsub AS SELECT city, year, race, count(*) AS n,
         count(*) FILTER (WHERE finish_s < {WR_FLOOR_S}) AS n_fast,
         regexp_matches(lower(race), '{nonrun.replace("'", "''")}') AS name_nonrun

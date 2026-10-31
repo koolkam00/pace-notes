@@ -154,6 +154,18 @@ class Rules(unittest.TestCase):
         s.field('Iota', 2022, uniform(3500, 6500, 300))                   # E7 fast
         s.edition('Kappa', 2022, status='counts_internal_only')
         s.field('Kappa', 2022, uniform(9000, 20000, 300))                 # E7 slow
+        # Each screen's count, as the policy names it (verify round 2, October 31, 2026): E3's excess and rows-short screens
+        # and E6 compare every row loaded (n_db), E3's shortfall the record-usable rows (n_usable). Each edition below is
+        # decided by that basis alone: three or 20 R1-flagged rows move only the count the other basis would read.
+        flagged = lambda city, n, t=7000: [s.record(city, 2022, t + i, flags=('duplicate',)) for i in range(n)]
+        s.edition('Mu', 2022, status='counts_internal_only', official=100)
+        s.field('Mu', 2022, uniform(5400, 10800, 100)); flagged('Mu', 3)          # E3 excess: 103 rows > 102; 100 usable
+        s.edition('Nu', 2022, status='counts_internal_only', source_type='list rows (internal only)')
+        s.field('Nu', 2022, uniform(5400, 10800, 495)); flagged('Nu', 5)          # E6: exactly 500 rows, 495 usable
+        s.edition('Xi', 2022, status='counts_internal_only', official=300, source_type='list rows (internal only)')
+        s.field('Xi', 2022, uniform(5400, 10800, 280)); flagged('Xi', 20)         # kept: 300 rows of a 300-row list, 280 usable
+        s.edition('Omicron', 2022, status='counts_internal_only', official=300)
+        s.field('Omicron', 2022, uniform(5400, 10800, 280)); flagged('Omicron', 20)  # E3 shortfall: 280 usable < 294
         for year, (lo, hi) in zip((2019, 2020, 2021, 2022), ((5400, 9000), (5400, 9000), (5400, 9000), (6800, 11200))):
             s.edition('Lambda', year, status='counts_internal_only')
             s.field('Lambda', year, uniform(lo, hi, 200))                 # E8 for 2022 (+25% against the others)
@@ -181,6 +193,11 @@ class Rules(unittest.TestCase):
         ids['dup_other_sex_b'] = s.record('Rho', 2022, 7300, race='Rho Small', runner='Ray Cy', sex='F')
         ids['anonymous_a'] = s.record('Rho', 2022, 7400, runner='Anonimo')
         ids['anonymous_b'] = s.record('Rho', 2022, 7400, runner='Anonimo')
+        # A name with no a-z or 0-9 character left has no key and is never compared (policy R6 no_key; verify round 2).
+        ids['no_key_a'] = s.record('Rho', 2022, 7500, runner='Иван Петров')
+        ids['no_key_b'] = s.record('Rho', 2022, 7500, runner='Иван Петров')
+        ids['no_key_c'] = s.record('Rho', 2022, 7600, runner='?? ?')
+        ids['no_key_d'] = s.record('Rho', 2022, 7600, runner='?? ?')
         del big
         s.edition('Oslo Half', 2016)
         s.edition('Oslo Half', 2015)
@@ -226,6 +243,8 @@ class Rules(unittest.TestCase):
         self.assertIsNone(r[ids['dup_other_sex_b']], 'a different published sex is not a duplicate')
         self.assertIsNone(r[ids['anonymous_a']])
         self.assertIsNone(r[ids['anonymous_b']], 'anonymous names are never duplicates')
+        for key in ('no_key_a', 'no_key_b', 'no_key_c', 'no_key_d'):
+            self.assertIsNone(r[ids[key]], f'{key}: a name with no a-z or 0-9 character left is never compared')
 
     def test_oslo_bib_block(self):
         bib = self.ids['bib']
@@ -244,10 +263,16 @@ class Rules(unittest.TestCase):
         m = self.result.editions.set_index(['city', 'year'])
         expect = {('Alpha', 2022): None, ('Beta', 2022): None, ('Gamma', 2022): 'E0', ('Delta', 2022): 'E1',
                   ('Epsilon', 2022): 'E3', ('Zeta', 2022): 'E4', ("Zeta Women's Half", 2022): None, ('Eta', 2022): 'E5',
-                  ('Theta', 2022): 'E6', ('Iota', 2022): 'E7', ('Kappa', 2022): 'E7', ('Lambda', 2019): None, ('Lambda', 2022): 'E8'}
+                  ('Theta', 2022): 'E6', ('Iota', 2022): 'E7', ('Kappa', 2022): 'E7', ('Lambda', 2019): None, ('Lambda', 2022): 'E8',
+                  ('Mu', 2022): 'E3', ('Nu', 2022): 'E6', ('Xi', 2022): None, ('Omicron', 2022): 'E3'}
         for key, rule in expect.items():
             got = m.loc[key, 'rule']
             self.assertEqual(None if pd.isna(got) else got, rule, key)
+        # The count basis each screen names in the policy (edition_rules.computed_on, E3.conditions, E6.condition).
+        self.assertEqual(m.loc[('Mu', 2022), 'category'], 'count_excess_vs_independent')
+        self.assertEqual(m.loc[('Omicron', 2022), 'category'], 'count_shortfall_vs_independent')
+        self.assertEqual(m.loc[('Nu', 2022), 'category'], 'round_count_cap')
+        self.assertEqual([int(m.loc[('Nu', 2022), c]) for c in ('n_db', 'n_usable')], [500, 495])
         self.assertTrue(m.loc[('Alpha', 2022), 'use_sex'])
         self.assertFalse(m.loc[("Zeta Women's Half", 2022), 'use_sex'], 'one-sex events stay out of sex comparisons')
 
@@ -1219,6 +1244,7 @@ class V4Source:
         self.snapshot_only = []   # snapshot rows the link build does not cover
         self.overrides = {}       # record_id -> snapshot fields that differ from the v4 row
         self.persons_over = {}    # person_id -> persons.parquet fields to replace
+        self.unloaded = set()     # half record ids the link build has but the snapshot does not
         self.eligible = []        # (record_id, city, year, gender, finish)
 
     def row(self, person, db, record_id, *, confidence='medium', method='merged', name='anna berg', sex='F', age=None,
@@ -1262,7 +1288,7 @@ class V4Source:
         snap = folder / 'platform_half.sqlite'
         sq = sqlite3.connect(snap)
         sq.executescript(HALF_SCHEMA)
-        for r in [x for x in self.rows if x['source_db'] == 'half'] + self.snapshot_only:
+        for r in [x for x in self.rows if x['source_db'] == 'half' and x['record_id'] not in self.unloaded] + self.snapshot_only:
             o = {'id': r['record_id'], 'race': r['race'], 'year': r['year'], 'city': r['city'], 'runner': r.get('name_raw'),
                  'sex': r['sex'], 'age': r.get('age'), 'split_21_1km': r['finish_raw'], **self.overrides.get(r['record_id'], {})}
             sq.execute('INSERT INTO race_records (id, race, year, city, runner, sex, age, split_21_1km, source_url, ingested_at) '
@@ -1412,11 +1438,51 @@ class LinksExtract(unittest.TestCase):
             (lambda s: s.persons_over.setdefault(pid(2), {}).update(sex='F'), 'persons.parquet and the linked rows disagree'),
             (lambda s: row(s, 1).update(age_key='1980'), 'age keys of another form'),
             (lambda s: row(s, 5).update(name_norm=None), 'without a normalized name'),
+            # verify round 2 (October 31, 2026): checks that had no failing fixture
+            (lambda s: s.overrides.setdefault(5, {}).update(race='Other'), 'city, year or race differ'),
+            (lambda s: s.unloaded.add(8), 'v4 half rows without a snapshot row'),
+            (lambda s: s.persons_over.setdefault(pid(2), {}).update(n_halves=2), 'persons.parquet and the linked rows disagree'),
+            (lambda s: s.persons_over.setdefault(pid(2), {}).update(n_marathons=1), 'persons.parquet and the linked rows disagree'),
         ]
         for change, message in cases:
             with self.subTest(message):
                 with self.assertRaisesRegex(SystemExit, re.escape(message)):
                     self.run_checks(broken(change))
+
+    def test_main_refuses_link_editions_of_another_build_or_boundary(self):
+        """The policy's link_editions must name the pinned link build and coverage boundary, before anything is read
+        (verify round 2, October 31, 2026: the check had no failing fixture)."""
+        from unittest import mock
+        pin = hc.load_pin()
+        entry = hq.REVIEWED_HALF_POLICIES[pin['half']['key']]
+        args = ['--v4-dir', str(self.dir / 'v4'), '--half', str(self.dir / 'platform_half.sqlite'), '--out', str(self.dir / pin['links']['extract'])]
+        for change in ({'link_build': 'person-ids-v3-20261030-0000'}, {'half_max_record_id': pin['links']['coverage']['half_max_record_id'] + 1}):
+            with self.subTest(change), mock.patch.dict(entry, {'link_editions': {**entry['link_editions'], **change}}):
+                with self.assertRaisesRegex(SystemExit, 'link_editions were reviewed for another link build or coverage boundary'):
+                    self.hle.main(args)
+
+    def test_the_build_table_must_name_what_the_build_reads(self):
+        """build_half.check_sources compares every provenance key of the extract's build table (verify round 2, October 31,
+        2026): the link build and its snapshot, the marathon release, the snapshot key, the source digests, the runner
+        manifest its marathon joins ran on and the frozen ns_keys and k SQL. One key off fails."""
+        import build_half
+        pin = hc.load_pin()
+        good = {'links_key': pin['links']['key'], 'applies_to': pin['links']['applies_to'], 'marathon_release': pin['marathon_release'],
+                'half_key': pin['half']['key'], f"source_sha256:{pin['half']['sqlite']}": pin['half']['sqlite_sha256'],
+                **{f'source_sha256:{n}': d for n, d in pin['links']['assets'].items()},
+                'runner_manifest_sha256': hc.file_sha256(ROOT / 'public' / 'data' / 'runners' / 'manifest.json'),
+                'ns_keys_sql_sha256': self.hle.sql_sha256(self.hle.NS_KEYS_SQL), 'k_sql_sha256': self.hle.sql_sha256(self.hle.K_SQL)}
+        links = self.dir / pin['links']['extract']
+        build_half.check_extract_build(pin, links, good)
+        for key, message in (('links_key', 'another link build'), ('applies_to', 'another link build'), ('marathon_release', 'another marathon release'),
+                             ('half_key', 'another marathon release or half snapshot'), (f"source_sha256:{pin['half']['sqlite']}", 'other sources'),
+                             ('source_sha256:persons.parquet', 'other sources'), ('runner_manifest_sha256', 'another runner manifest'),
+                             ('ns_keys_sql_sha256', 'frozen ns_keys SQL'), ('k_sql_sha256', 'frozen k SQL')):
+            with self.subTest(key):
+                with self.assertRaisesRegex(hc.HalfError, message):
+                    build_half.check_extract_build(pin, links, {**good, key: 'x'})
+                with self.assertRaisesRegex(hc.HalfError, message):
+                    build_half.check_extract_build(pin, links, {k: v for k, v in good.items() if k != key})
 
     def test_the_coverage_must_equal_the_pin(self):
         pin = {'links': {'coverage': {**V4_PIN['links']['coverage'], 'half_max_record_id': 14}}}
@@ -1513,6 +1579,43 @@ class Pin(unittest.TestCase):
             Path(f'{path}-wal').write_bytes(b'uncommitted pages')
             with self.assertRaisesRegex(hc.HalfError, 'is not empty'):
                 hc.connect(half=path)
+
+    def test_a_symlinked_snapshot_is_checked_beside_its_target(self):
+        """SQLite follows a symlinked database to its target and reads the target's -wal, so every guard looks there too
+        (verify round 2, October 31, 2026: the builders', the downloader's and the Node recount's guards looked only
+        beside the link, and the link passed while the target's -wal held rows the pinned bytes do not)."""
+        import shutil
+        import subprocess
+        import download_half
+        with tempfile.TemporaryDirectory() as folder:
+            a, b = Path(folder) / 'a', Path(folder) / 'b'
+            a.mkdir()
+            b.mkdir()
+            target = a / 'platform_half.sqlite'
+            con = sqlite3.connect(target)
+            con.execute('CREATE TABLE t (x INTEGER)')
+            con.commit()
+            con.close()
+            link = b / 'platform_half.sqlite'
+            link.symlink_to(target)
+            hc.check_no_wal(link)
+            Path(f'{target}-wal').write_bytes(b'uncommitted pages')
+            self.assertFalse(Path(f'{link}-wal').exists(), 'nothing beside the link itself')
+            for check in (hc.check_no_wal, hc.connect):
+                with self.assertRaisesRegex(hc.HalfError, 'is not empty', msg=check.__name__):
+                    check(link) if check is hc.check_no_wal else check(half=link)
+            with self.assertRaisesRegex(hc.HalfError, 'is not empty'):
+                download_half.check_sidecars(link)
+            node = shutil.which('node')
+            if node:
+                # The Node recount refuses before it reads anything (its sources need only exist for this check).
+                ref, meta = Path(folder) / 'ref.csv.zst', Path(folder) / 'meta.csv.zst'
+                ref.write_bytes(b'')
+                meta.write_bytes(b'')
+                run = subprocess.run([node, str(ROOT / 'scripts' / 'verify-half-source.cjs'), '--half', str(link), '--stamp-reference', str(ref),
+                                      '--edition-meta', str(meta), '--policy-only'], capture_output=True, text=True, timeout=60)
+                self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+                self.assertIn(f'{target}-wal is not empty', run.stderr)
 
 
 V4_DIR = Path(os.environ.get('PACE_HALF_V4_DIR') or Path.home() / 'data' / 'v4')
@@ -1805,6 +1908,19 @@ class PolicyFiles(unittest.TestCase):
         self.assertEqual([le['link_build'], le['half_max_record_id']], ['person-ids-v4-20261030-1150', 7411867])
         self.assertEqual([x['edition_id'] for x in le['link_partial']], [9895])
         self.assertEqual([x['edition_id'] for x in le['retimed']], [9055])
+        # Verify round 2 (October 31, 2026): each edition screen's count and E3's conditions are said in words, and R6's
+        # no-key clause; the 1133 file, frozen before, keeps its one-line count basis (R9).
+        er = doc['edition_rules']
+        self.assertIn('E3 count_excess_vs_independent, E3 rows_short_of_source_list and E6 compare n_db', er['computed_on'])
+        self.assertIn('E3 count_shortfall_vs_independent, E4, E5, E7 and E8 use n_usable', er['computed_on'])
+        self.assertEqual(set(er['E3']['conditions']), {'independent', 'count_excess_vs_independent', 'count_shortfall_vs_independent',
+                                                      'rows_short_of_source_list', 'order'})
+        self.assertIn('n_db equals one of caps', er['E6']['condition'])
+        self.assertIn('never compared', doc['record_rules']['R6']['no_key'])
+        old = json.loads(hq.policy_path(hq.TAG_1133).read_text())
+        self.assertEqual(old['edition_rules']['computed_on'], 'record-usable rows before R7')
+        self.assertNotIn('conditions', old['edition_rules']['E3'])
+        self.assertNotIn('no_key', old['record_rules']['R6'])
         self.assertEqual(doc['expected']['stamp_check'], {'stamped': 243, 'verified_usable': doc['expected']['verified']['editions'],
                                                           'withdrawn_unstamped': 72, 'never_stamp': 78})
 

@@ -189,9 +189,10 @@ def remove_sidecars(path: Path) -> None:
 def check_sidecars(path: Path) -> None:
     """A snapshot in place may carry the empty -wal and the -shm of an earlier read (removed here); a non-empty -wal holds
     pages the pinned file does not, so it is refused."""
-    wal = path.with_name(path.name + '-wal')
-    if wal.exists() and wal.stat().st_size > 0:
-        fail(f'{wal} is not empty: the snapshot beside it is not the pinned one; move both away or pass --replace')
+    # Beside the path and beside the file a symlink resolves to, where SQLite reads it (verify round 2, October 31, 2026).
+    for wal in dict.fromkeys([path.with_name(path.name + '-wal'), Path(f'{path.resolve()}-wal')]):
+        if wal.exists() and wal.stat().st_size > 0:
+            fail(f'{wal} is not empty: the snapshot beside it is not the pinned one; move both away or pass --replace')
     remove_sidecars(path)
 
 

@@ -37,6 +37,29 @@ const STATUS_2 = { ...STATUS, removed: ['duplicate_deleted'], empty: ['no_rows']
 // before the first colon, starts with the placeholder `Anywhere`.
 const VIRTUAL = { label: /virtual|virtuel/, place: /^anywhere\b/ };
 const VIRTUAL_POLICY = { label_pattern: 'virtual|virtuel', placeholder_place_pattern: '^anywhere\\b' };
+// The words a schema 2 policy must say for the screens this recount computes (verify round 2, October 31, 2026): which
+// count each edition screen compares (all rows loaded, n_db, or record-usable rows before R7, n_usable), E3's three
+// conditions, E6's and R6's no-key clause. They describe the code below; a policy that says anything else needs a
+// reviewed recount first. The E3 tolerance is this recount's T.
+const COUNT_TOLERANCE = 0.02;
+const POLICY_WORDS_2 = {
+  computed_on: "named per screen. n_db is every race_records row of the edition's city and year, whatever record rule removes it "
+    + "(all rows loaded); n_usable is the edition's record-usable rows before R7 (rows no record rule R1–R6 removes, R7 "
+    + "not applied), and the edition's median, 99th percentile, share under 1:05 and recorded-sex counts are over those "
+    + 'rows. E3 count_excess_vs_independent, E3 rows_short_of_source_list and E6 compare n_db; E3 '
+    + 'count_shortfall_vs_independent, E4, E5, E7 and E8 use n_usable',
+  E3: {
+    independent: 'official_source_type, lowercased (a null as empty), matches independent_pattern and does not match not_independent_pattern',
+    count_excess_vs_independent: "the source is independent, the edition's status group is not verified, official_finishers is present, and n_db > (1 + tolerance) × official_finishers",
+    count_shortfall_vs_independent: "the source is independent, the edition's status group is not verified, official_finishers is present, and n_usable < (1 - tolerance) × official_finishers",
+    rows_short_of_source_list: 'the source is not independent (any status group), official_finishers is present and above 0, and n_db < (1 - tolerance) × official_finishers',
+    order: 'the first of the three that applies, in this order; every inequality is strict',
+  },
+  E6: "the edition's status group is not verified and n_db equals one of caps exactly",
+  R6: 'a name with no a-z or 0-9 character left after this normalisation has no key and is never compared, so it is never an R6 duplicate',
+};
+/** Key-order-free equality of two JSON values (the policy is written with sorted keys). */
+const sameJson = (a, b) => JSON.stringify(a, Object.keys(a ?? {}).sort()) === JSON.stringify(b, Object.keys(b ?? {}).sort());
 const isVirtualLabel = (label) => {
   if (typeof label !== 'string') return false;
   const low = label.toLowerCase();
@@ -125,6 +148,7 @@ function checkPolicyText(policy) {
   need(R.R6.anonymous_pattern === ANONYMOUS.source, 'the R6 anonymous pattern');
   need(R.R7.city === R7.city && JSON.stringify(R.R7.years) === JSON.stringify(R7.years) && JSON.stringify(R.R7.bib) === JSON.stringify(R7.bib), 'the R7 block');
   need(JSON.stringify(policy.edition_rules.order) === JSON.stringify(['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8']), 'edition rule order');
+  need(policy.edition_rules.E3.tolerance === COUNT_TOLERANCE, 'the E3 tolerance differs from this recount');
   if (policy.schema_version === 1) {
     need(['verified', 'unverified', 'held'].every((g) => JSON.stringify(policy.statuses[g]) === JSON.stringify(STATUS[g])) && Object.keys(policy.statuses).length === 3, 'the status groups');
     const C = policy.stamp_correction;
@@ -137,6 +161,11 @@ function checkPolicyText(policy) {
   need(typeof policy.unknown_status === 'string', 'an unknown status fails');
   need(typeof policy.empty_status === 'string', 'an empty status holds no record-usable rows');
   const ER = policy.edition_rules;
+  // Each screen's count and E3's conditions said in words (verify round 2), so a recount from the text reproduces the list.
+  need(ER.computed_on === POLICY_WORDS_2.computed_on, 'the policy names another count basis for the edition screens than this recount computes');
+  need(!!ER.E3.conditions && sameJson(ER.E3.conditions, POLICY_WORDS_2.E3), "the policy's E3 conditions differ from this recount's");
+  need(ER.E6.condition === POLICY_WORDS_2.E6, "the policy's E6 condition differs from this recount's");
+  need(R.R6.no_key === POLICY_WORDS_2.R6, "the policy's R6 no-key clause differs from this recount's (nameKey)");
   need(Array.isArray(ER.E0?.partial_loads) && ER.E0.partial_loads.every((x) => typeof x.city === 'string' && Number.isSafeInteger(x.year)), 'the partial loads');
   need(JSON.stringify(ER.E1?.removed) === JSON.stringify(STATUS_2.removed), 'the removed status');
   const V = ER.E2?.virtual_event;
@@ -342,7 +371,7 @@ function applyPolicy(db, policy, log = () => {}) {
   }
   need(withdrawnEds.size === withdrawn.size, `${withdrawn.size - withdrawnEds.size} withdrawn stamps are not editions of this snapshot`);
   // The edition screens in the reviewed order (half_quality._edition_rule), recomputed.
-  const T = 0.02;
+  const T = COUNT_TOLERANCE;
   for (const r of ET) {
     r.category = null;
     const hasOff = Number.isFinite(r.official);

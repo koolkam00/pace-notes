@@ -99,8 +99,9 @@ for (const [p, what] of sources) {
   if (inside(p)) fail(`${what}: ${p} is inside the repository; record-level sources stay outside it`);
 }
 if (path.basename(opt.half) !== pin.half.sqlite || (!opt.policyOnly && path.basename(opt.links) !== pin.links.extract)) fail('the sources must be the pinned files');
-{
-  const wal = `${opt.half}-wal`;
+// Beside the path given and beside the file a symlink resolves to, where node:sqlite reads it (verify round 2, October 31,
+// 2026: a symlinked snapshot whose target had a non-empty -wal passed a check that looked only beside the link).
+for (const wal of new Set([`${opt.half}-wal`, `${fs.realpathSync(opt.half)}-wal`])) {
   if (fs.existsSync(wal) && fs.statSync(wal).size > 0) fail(`${wal} is not empty: the snapshot has uncommitted pages beside it`);
 }
 
@@ -188,6 +189,20 @@ let linksSha;
 if (!pin.links.extract_content_sha256 || linksSha !== pin.links.extract_content_sha256 || build.extract_content_sha256 !== linksSha) fail(`${opt.links} is not the pinned extract (content sha256 ${linksSha})`);
 if (build.links_key !== pin.links.key || build.applies_to !== pin.links.applies_to || build.marathon_release !== release.tag || build.half_key !== pin.half.key) fail('the extract was cut from another link build');
 if (build[`source_sha256:${pin.half.sqlite}`] !== pin.half.sqlite_sha256 || Object.entries(pin.links.assets).some(([name, d]) => build[`source_sha256:${name}`] !== d)) fail('the extract was cut from other sources than the pin names');
+// The frozen ns_keys and k SQL the extract was cut with must be the ones analysis/half_links_extract.py holds now (verify
+// round 2, October 31, 2026: the shas were written and never compared). Read from the module's text, the tier list put in
+// as the module does; a module this cannot read fails, as a changed SQL does.
+{
+  const py = fs.readFileSync(rel('analysis/half_links_extract.py'), 'utf8');
+  const strong = /^STRONG = \(([^)]*)\)/m.exec(py);
+  const block = (name, f) => new RegExp(`^${name} = ${f ? 'f' : ''}"""([\\s\\S]*?)"""`, 'm').exec(py)?.[1];
+  const tiers = strong ? [...strong[1].matchAll(/'([a-z_]+)'/g)].map((m) => `'${m[1]}'`).join(', ') : null;
+  const ns = block('NS_KEYS_SQL', true), k = block('K_SQL', false);
+  if (!tiers || ns === undefined || k === undefined || !ns.includes('{_STRONG_SQL}')) fail('cannot read the frozen NS_KEYS_SQL and K_SQL from analysis/half_links_extract.py');
+  const nsText = ns.replaceAll('{_STRONG_SQL}', tiers);
+  if (/[{}]/.test(nsText) || /[{}]/.test(k)) fail('the frozen SQL in analysis/half_links_extract.py holds a placeholder this recount does not fill');
+  if (build.ns_keys_sql_sha256 !== sha(Buffer.from(nsText, 'utf8')) || build.k_sql_sha256 !== sha(Buffer.from(k, 'utf8'))) fail('the extract was cut with other frozen ns_keys or k SQL than analysis/half_links_extract.py holds; re-cut it');
+}
 log('the links extract matches the pin');
 
 // ---------- Comparison ----------
@@ -246,6 +261,9 @@ const MAR = loadMarathons(ROOT);
 const REVIEWED_MARATHON = { 'private-export-20261021-1050': { eligible: 4108749, sustained: 1266780, dated_editions: 215 } };
 compare('policy', 'marathon side', REVIEWED_MARATHON[MAR.releaseTag] || null, { eligible: MAR.n, sustained: MAR.slowdowns, dated_editions: MAR.datedEditions });
 if (MAR.manifestSha !== manifest.marathon.runner_manifest_sha256) fail('the runner manifest changed after the half build');
+// The extract's marathon join checks (review R3) ran against one runner manifest; a changed one needs a re-cut (verify
+// round 2, October 31, 2026).
+if (build.runner_manifest_sha256 !== MAR.manifestSha) fail(`the links extract checked its marathon joins against another runner manifest (${build.runner_manifest_sha256}); re-cut it`);
 if (MAR.weatherSha !== manifest.marathon.weather_evidence_sha256) fail('the weather evidence changed after the half build');
 
 // ---------- The links extract against its sources, and set B ----------

@@ -78,6 +78,13 @@
    }
   },
   "E3": {
+   "conditions": {
+    "count_excess_vs_independent": "the source is independent, the edition's status group is not verified, official_finishers is present, and n_db > (1 + tolerance) × official_finishers",
+    "count_shortfall_vs_independent": "the source is independent, the edition's status group is not verified, official_finishers is present, and n_usable < (1 - tolerance) × official_finishers",
+    "independent": "official_source_type, lowercased (a null as empty), matches independent_pattern and does not match not_independent_pattern",
+    "order": "the first of the three that applies, in this order; every inequality is strict",
+    "rows_short_of_source_list": "the source is not independent (any status group), official_finishers is present and above 0, and n_db < (1 - tolerance) × official_finishers"
+   },
    "independent_pattern": "independent|organiser|press|kondis|ffa federation|wikipedia|rfea|club|race report|media guide|racenerd|official results pdf|racecast|marathon4you|uitslagen|enduhub|aggregator",
    "not_independent_pattern": "not independent|internal only|derived",
    "tolerance": 0.02
@@ -99,7 +106,8 @@
     2000,
     5000,
     10000
-   ]
+   ],
+   "condition": "the edition's status group is not verified and n_db equals one of caps exactly"
   },
   "E7": {
    "fast_median_s": 4500,
@@ -132,7 +140,7 @@
    "truncated_top_list": "E5",
    "virtual_event": "E2"
   },
-  "computed_on": "record-usable rows before R7",
+  "computed_on": "named per screen. n_db is every race_records row of the edition's city and year, whatever record rule removes it (all rows loaded); n_usable is the edition's record-usable rows before R7 (rows no record rule R1–R6 removes, R7 not applied), and the edition's median, 99th percentile, share under 1:05 and recorded-sex counts are over those rows. E3 count_excess_vs_independent, E3 rows_short_of_source_list and E6 compare n_db; E3 count_shortfall_vs_independent, E4, E5, E7 and E8 use n_usable",
   "edition": "city and year; registry rows from edition_meta joined on city and year",
   "editions": [
    {
@@ -1792,7 +1800,8 @@
    "anonymous_pattern": "anonim|anonym|unknown|zawodnik",
    "keep": "the copy from the largest sub-race list (R3 and R4 counts), then the lowest record id",
    "key": "city, year, md5 of the name lowercased with accents stripped, commas and every character outside a-z0-9 and space made spaces, split on spaces, empty tokens dropped, tokens sorted and joined by one space; finish; published sex (null as ?)",
-   "name_required": "trim(name) longer than 3 characters and not matching the anonymous pattern"
+   "name_required": "trim(name) longer than 3 characters and not matching the anonymous pattern",
+   "no_key": "a name with no a-z or 0-9 character left after this normalisation has no key and is never compared, so it is never an R6 duplicate"
   },
   "R7": {
    "applies_to": "record-usable rows",

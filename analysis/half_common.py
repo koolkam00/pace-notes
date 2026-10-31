@@ -41,7 +41,7 @@ MIN_EDGE_SLICE = 10     # pairs in each one-minute edge slice of a published lin
 
 __all__ = ['ANALYSIS', 'ROOT', 'PIN_PATH', 'RELEASE_PATH', 'OUTPUT', 'MIN_CELL', 'MIN_EDITIONS', 'MIN_EDGE_SLICE', 'SEED',
            'SHARE_DIGITS', 'quantile', 'HalfError', 'fail', 'file_sha256', 'bytes_sha256', 'load_pin', 'check_pin', 'pinned_digest',
-           'snapshot_date', 'check_no_wal', 'connect',
+           'snapshot_date', 'check_no_wal', 'wal_paths', 'connect',
            'TIME_PATTERN', 'secs_sql', 'parse_time', 'sh', 'sec', 'encode', 'check_published', 'inside']
 
 
@@ -129,12 +129,20 @@ def snapshot_date(pin: dict) -> str:
     return f'{m.group(1)}-{m.group(2)}-{m.group(3)}'
 
 
+def wal_paths(path) -> list[Path]:
+    """The -wal files a read of `path` may use: beside the path given and, when it is a symlink, beside the file it
+    resolves to, which is where SQLite (DuckDB's scanner and node:sqlite alike) looks (verify round 2, October 31, 2026:
+    a symlinked snapshot whose target had a non-empty -wal passed a guard that looked only beside the link)."""
+    given, real = Path(path), Path(path).resolve()
+    return [Path(f'{p}-wal') for p in dict.fromkeys([given, real])]
+
+
 def check_no_wal(path) -> None:
     """A WAL-mode SQLite with a non-empty -wal beside it holds rows the main file does not; DuckDB's sqlite scanner cannot
-    open it immutable, so a builder refuses it (review R13, 2026-10-31)."""
-    wal = Path(f'{Path(path)}-wal')
-    if wal.exists() and wal.stat().st_size > 0:
-        fail(f'{wal} is not empty: the snapshot has uncommitted pages beside it; restore the pinned file (download_half.py)')
+    open it immutable, so a builder refuses it (review R13, 2026-10-31), wherever a symlink leads."""
+    for wal in wal_paths(path):
+        if wal.exists() and wal.stat().st_size > 0:
+            fail(f'{wal} is not empty: the snapshot has uncommitted pages beside it; restore the pinned file (download_half.py)')
 
 
 def inside(path, parent) -> bool:

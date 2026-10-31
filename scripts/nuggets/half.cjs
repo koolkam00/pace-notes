@@ -298,6 +298,42 @@ module.exports = function half({ json, eq, ok, core }) {
     for (const [fixture, what] of [[l5, 'a pre-registered member outside the band'], [l6, 'one leave-out variant at 15% under double']]) {
       ok(!D.flagshipGuard(fixture) && !H.flagshipGuard(fixture), `half fixtures: ${what} fails the flagship guard`);
     }
+    // Every other clause of the H1's guard, each moved alone from `pass` (verify round 2, October 31, 2026: lead rulings
+    // A2, the band's upper side and the members' minutes could be dropped from lib/nuggets/half.ts with every check
+    // passing). A value 1 s or 0.0001 past a bar fails; the bar itself passes, since every bar is inclusive but the
+    // under-double one.
+    {
+      const P = pass.checks.battery, pooledExtra = pooled.extra_p50_s, half = P.pooled_half_p50_s;
+      const moved = (what, change) => { const x = clone(pass); change(x.checks.battery, x); return [x, what]; };
+      const member = (b, id) => b.members.find((m) => m.id === id);
+      const failing = [
+        ...Object.keys(P.leave_outs).map((id) => moved(`${id}: one variant under 100 pairs (lead rulings A2)`, (b) => { b.leave_outs[id].under_floor = 1; })),
+        ...Object.keys(P.leave_outs).flatMap((id) => [
+          moved(`${id}: its highest-multiple variant at 2.2501`, (b) => { b.leave_outs[id].worst.multiple_high.multiple_p50 = 2.2501; }),
+          moved(`${id}: its lowest-multiple variant at 2.1499`, (b) => { b.leave_outs[id].worst.multiple_low.multiple_p50 = 2.1499; }),
+          moved(`${id}: its re-expressed variant 181 s off at the pooled median half`, (b) => { b.leave_outs[id].worst.reexpressed.multiple_p50 = 2 + (pooledExtra + 181) / half; }),
+          moved(`${id}: no variant at all`, (b) => { b.leave_outs[id].variants = 0; }),
+        ]),
+        moved('verified_halves: a variant\'s minutes 181 s from the pooled', (b) => { b.leave_outs.verified_halves.worst.extra.extra_p50_s = pooledExtra - 181; }),
+        moved('one_per_person: its minutes 181 s from the pooled', (b) => { member(b, 'one_per_person').extra_p50_s = pooledExtra + 181; }),
+        moved('verified_halves: its minutes 181 s from the pooled', (b) => { member(b, 'verified_halves').extra_p50_s = pooledExtra - 181; }),
+        moved('a member re-expressed 181 s off', (b) => { member(b, 'other_marathons').multiple_p50 = 2 + (pooledExtra - 181) / half; }),
+        moved('a member at 15% under double', (b) => { member(b, 'city_equal').under_double = 0.15; }),
+        moved('no verified_road member', (b) => { b.members = b.members.filter((m) => m.id !== 'verified_road'); }),
+      ];
+      for (const [fixture, what] of failing) ok(!D.flagshipGuard(fixture) && !H.flagshipGuard(fixture), `half fixtures: ${what} fails the flagship guard (TS and Node)`);
+      const holding = [
+        moved('both leave-outs\' band variants at 2.25 and 2.15', (b) => { for (const x of Object.values(b.leave_outs)) { x.worst.multiple_high.multiple_p50 = 2.25; x.worst.multiple_low.multiple_p50 = 2.15; } }),
+        moved('one_per_person and verified_halves 180 s from the pooled', (b) => { member(b, 'one_per_person').extra_p50_s = pooledExtra + 180; member(b, 'verified_halves').extra_p50_s = pooledExtra - 180; }),
+      ];
+      for (const [fixture, what] of holding) ok(D.flagshipGuard(fixture) && H.flagshipGuard(fixture), `half fixtures: ${what} still holds the flagship guard (TS and Node)`);
+      // The TS guard's bars are analysis/half_linked.py's, read from its source.
+      const py = fs.readFileSync(path.join(__dirname, '..', '..', 'analysis', 'half_linked.py'), 'utf8');
+      const num = (re) => Number(re.exec(py)?.[1]);
+      eq([H.FLAGSHIP_CLAUSES.multiple_band[0], H.FLAGSHIP_CLAUSES.multiple_band[1], H.FLAGSHIP_CLAUSES.gap_s, H.FLAGSHIP_CLAUSES.under_double_max],
+        [num(/^MULTIPLE_BAND = \(([\d.]+), /m), num(/^MULTIPLE_BAND = \([\d.]+, ([\d.]+)\)/m), num(/^GAP_S = (\d+)$/m), num(/^UNDER_DOUBLE_MAX = ([\d.]+)$/m)],
+        'half fixtures: the TS flagship bars are half_linked.py\'s MULTIPLE_BAND, GAP_S and UNDER_DOUBLE_MAX');
+    }
     // The figure's own guard follows the variants too (lead rulings A1 and A2, October 31, 2026): with every member and
     // variant at the pooled reading and the verified halves on the pooled share it holds; one variant at 15% under double,
     // or one variant under 100 pairs, and the figure is the count of pairs again, whatever the members say.
