@@ -1631,18 +1631,18 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
       checks += 1;
     }
     // The story readout's minutes over double: the window's typical marathon as printed minus double its half, so the two
-    // add up on screen (3:54 after 1:45 is +24; 5:58 after 2:45 is +28 (2026-10-31, v4 person IDs; it was 5:57 and +27),
-    // where the pairs' own median is +29; round 4 review), and its pace gap from those minutes ÷ the marathon distance
-    // (+55 s/mi, +34 s/km at 1:45).
+    // add up on screen (3:54 after 1:45 is +24; 5:57 after 2:45 is +27, where the pairs' own median is +29 (2026-10-31,
+    // v4 person IDs; it was +30); round 4 review), and its pace gap from those minutes ÷ the marathon distance (+55 s/mi,
+    // +34 s/km at 1:45).
     const b105 = linked.windows.all.find((w) => w.h === H(1, 45)), b165 = linked.windows.all.find((w) => w.h === H(2, 45));
-    assert.equal(htf.windowOverDouble(b105), 24); assert.equal(htf.windowOverDouble(b165), 28); checks += 2;
+    assert.equal(htf.windowOverDouble(b105), 24); assert.equal(htf.windowOverDouble(b165), 27); checks += 2;
     for (const w of linked.windows.all) {
       const [hh, mm] = htf.floorHM(w.q[9]).split(':').map(Number);
       assert.equal(hh * 60 + mm - (2 * w.h) / 60, htf.windowOverDouble(w), `${htf.floorHM(w.h)}: typical as printed minus double the half`);
     }
     checks += 1;
     assert.equal(htf.paceGapText(htf.windowOverDouble(b105) * 60, 'mi'), '+55 s/mi'); assert.equal(htf.paceGapText(htf.windowOverDouble(b105) * 60, 'km'), '+34 s/km'); checks += 2;
-    assert.equal(htf.paceGapText(htf.windowOverDouble(b165) * 60, 'mi'), '+64 s/mi'); checks += 1;
+    assert.equal(htf.paceGapText(htf.windowOverDouble(b165) * 60, 'mi'), '+62 s/mi'); checks += 1;
     // The goal pages' "The half marathon before": every row of the spec's table, and forward-consistent with the
     // predictor (the window at H has a median under the goal, the window a minute slower does not).
     // The lead names the share of the window's marathons under the goal (just over half: the window is where the
