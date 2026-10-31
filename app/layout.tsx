@@ -36,9 +36,10 @@ export const viewport = {
   ],
 };
 
-// Without JavaScript the header's Menu and Chapters buttons and the footer's Motion switch cannot work, so they are
-// hidden and a plain link to the contents stands in for Menu on a phone (components/SiteHeader.tsx, .nav-fallback).
-const NO_SCRIPT_STYLE = '<style>.nav-toggle,.chapters-toggle,.motion-toggle{display:none!important}@media (max-width:1179.98px){.nav-fallback{display:inline-flex!important}}</style>';
+// Without JavaScript the header's Menu and Chapters buttons, the footer's Motion switch and a guess's Lock it in and Skip
+// cannot work, so they are hidden: a plain link to the contents stands in for Menu on a phone (components/SiteHeader.tsx,
+// .nav-fallback), and a guess shows its answer from a <noscript> (components/ui/GuessFirst.client.tsx).
+const NO_SCRIPT_STYLE = '<style>.nav-toggle,.chapters-toggle,.motion-toggle,.guess-actions{display:none!important}@media (max-width:1179.98px){.nav-fallback{display:inline-flex!important}}</style>';
 
 // The two faces every page sets first (Fraunces headings, Inter text), self-hosted under the base path (spec 6.3).
 const FONT_BASE = process.env.NEXT_PUBLIC_BASE_PATH || '';

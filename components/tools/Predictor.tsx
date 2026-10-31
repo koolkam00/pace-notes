@@ -29,7 +29,13 @@ import { FinishStrip, fittingTicks, fmtShort, fmtTime, niceStep, qIndex } from '
  */
 type LinkedPanelComponent = typeof import('./LinkedPanel').default;
 const LinkedPanelUnavailable = () => <p className="tool-state">The half data did not load. Reload the page to try again; the published estimates above are unaffected.</p>;
-const LinkedPanelLoading = () => <p className="tool-state" aria-hidden="true">Loading the data…</p>;
+/**
+ * Until the page has hydrated (and so for good with JavaScript off) the panel cannot load: the static page points to the
+ * story instead of a "Loading the data…" that never ends (post-merge review, round 3, October 31, 2026).
+ */
+const LinkedPanelLoading = ({ ready }: { ready: boolean }) => (ready
+  ? <p className="tool-state" aria-hidden="true">Loading the data…</p>
+  : <noscript><p className="tool-state">The marathons after a half need JavaScript here. The story shows them half by half: <Link href="/stories/half-to-full#after">Half marathon to full</Link>.</p></noscript>);
 function useLinkedPanel(wanted: boolean): LinkedPanelComponent | 'failed' | null {
   const [panel, setPanel] = useState<LinkedPanelComponent | 'failed' | null>(null);
   useEffect(() => {
@@ -604,6 +610,18 @@ export default function Predictor({ indexSha, half = null }: { indexSha: string 
   const [edited, setEdited] = useState(false);
   const setQ = useCallback((patch: Partial<Query>) => { setEdited(true); setQuery(patch); }, [setQuery]);
   const isExample = !edited && fromUrl.size === 0;
+  // Off the example (a link with values, or an edit), the address keeps the race it shows even where that equals the
+  // example's (useQueryState leaves defaults out), so a reload or a copied link shows the label the sender saw: a link to
+  // ?d=half&t=1:55:00 became /tools/predictor, and its reload read "Example ·" (post-merge review, round 3, October 31, 2026).
+  useEffect(() => {
+    if (!ready || isExample) return;
+    const url = new URL(window.location.href);
+    let dirty = false;
+    for (const key of ['d', 't'] as const) if (!url.searchParams.has(key)) { url.searchParams.set(key, q[key]); dirty = true; }
+    if (!dirty) return;
+    const search = url.searchParams.toString().replace(/%3A/gi, ':').replace(/%2C/gi, ',');
+    window.history.replaceState(window.history.state, '', url.pathname + (search ? `?${search}` : '') + url.hash);
+  }, [ready, isExample, q]);
   const [converted, setConverted] = useState<string | null>(null);
   const [open2, setOpen2] = useState(false);
   const [openT, setOpenT] = useState(false);
@@ -847,7 +865,7 @@ export default function Predictor({ indexSha, half = null }: { indexSha: string 
               {linked && half && halfSeconds !== null
                 ? (LinkedPanel === 'failed' ? <LinkedPanelUnavailable /> : LinkedPanel
                   ? <LinkedPanel sha={half.sha} seconds={halfSeconds} group={group} onGroup={(g: HalfGroup) => setQ({ sx: SX_OF[g] })} />
-                  : <LinkedPanelLoading />)
+                  : <LinkedPanelLoading ready={ready} />)
                 : <ObservedPanel indexSha={indexSha} proj={proj} est={est} looks={looks} units={units} />}
               {/* A half outside the half panel's range reads the 20K panel; this line says why the half reading is not there. */}
               {!linked && half && halfSeconds !== null ? <p className="tool-note predictor-half-range">{outOfRangeSentence(half)}</p> : null}

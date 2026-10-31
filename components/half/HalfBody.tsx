@@ -6,6 +6,9 @@ import { Beat, StoryHero } from '@/components/story/StoryPage';
 import Cdf from '@/components/viz/Cdf';
 import Dumbbell from '@/components/viz/Dumbbell';
 import Values from '@/components/ui/Values';
+import ArrowTail from '@/components/ui/ArrowTail';
+import { UnitLink as Link } from '@/components/UnitsProvider';
+import { STORIES, storyHref, storyPublished } from '@/lib/stories';
 import HalfPage, { HALF_PATH, HalfCrumbs } from './HalfPage';
 import { FieldHistogram, RatioColumns, SaveImage, ShareColumns } from './HalfCharts';
 
@@ -49,6 +52,8 @@ export default function HalfBody() {
   const women = readHalf('women.json');
   const deks = halfDeks();
   const reading = getNugget('half.field'), under = getNugget('half.under'), crowd = getNugget('half.crowd');
+  const roundStory = STORIES.find((st) => st.slug === 'round-numbers');
+  const roundNumbers = roundStory && storyPublished(roundStory) ? roundStory : null;
   const womenN = getNugget('half.women'), cities = getNugget('half.cities');
   const figure = reading.figure;
   const at = (s: number) => field.under.find((u) => u.s === s)!;
@@ -133,6 +138,10 @@ export default function HalfBody() {
       <Beat id="crowd" track="chapter-2" label="Round times" title={crowd} dek={deks.crowd ?? undefined}>
         <RatioColumns marks={field.marks} signal={READING_MARK} ink={deks.crowdNamed}
           label={`Finishes in the minute before each round time, against the smooth curve: ${field.marks.map((m) => `${m.mark} ${ratio(m.ratio, 2)}`).join(', ')}.`} />
+        {/* The way on to the marathon's round times, a pointer with no figure of its own (spec 3.4), as the half story's
+            line to this page is (post-merge review, round 3, October 31, 2026: a marathoner asking "is 2:00 like 4:00?"
+            had no way there but the menu). */}
+        {roundNumbers ? <p className="story-way arrow-line">Round times in the marathon: <Link href={storyHref(roundNumbers)}><ArrowTail text="Round numbers" /></Link></p> : null}
       </Beat>
 
       {bands ? (
