@@ -183,7 +183,8 @@ def run(half: Path, links: Path, out: Path, accept_counts: bool = False, correct
                                        label_countries=half_quality.REVIEWED_HALF_POLICIES[half_quality.TAG]['label_countries']),
         'women.json': half_women.build(fin, policy.editions, marathons, half_quality.SAME_CITY_LABELS),
     }
-    families['linked.json'], families['tools/half-to-full.json'], _ = half_linked.build(pairs, coverage=coverage)
+    families['linked.json'], families['tools/half-to-full.json'], _ = half_linked.build(pairs, coverage=coverage,
+                                                                                    **half_quality.battery_lists(half_quality.TAG))
     families['cards.json'] = half_cards.build(families['field.json'], families['women.json'], families['linked.json'])
     out_bytes = {}
     for name, value in families.items():

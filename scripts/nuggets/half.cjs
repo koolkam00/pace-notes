@@ -273,6 +273,23 @@ module.exports = function half({ json, eq, ok, core }) {
     const l2 = clone(linked); l2.checks.verified.w105_under_14400 = 0.5;
     const l3 = clone(linked); l3.sexes.women_lower = Math.floor(l3.sexes.strata * 0.5);
     const l4 = clone(linked); l4.windows.F = l4.windows.F.filter((w) => w.h !== 6300);
+    // The flagship guard with every member and every leave-out variant set to the pooled reading holds; the two copies
+    // below move one value each from there, so each fails on that value alone: a pre-registered member (verified_road)
+    // outside the band, and one variant of verified_federation (one verified half edition left out) at 15% under double.
+    const pass = clone(linked);
+    const pooled = pass.checks.battery.members.find((m) => m.id === 'pooled');
+    const at = { multiple_p50: pooled.multiple_p50, extra_p50_s: pooled.extra_p50_s, under_double: pooled.under_double };
+    for (const m of pass.checks.battery.members) Object.assign(m, at);
+    for (const x of Object.values(pass.checks.battery.leave_outs)) {
+      Object.assign(x, { under_floor: 0, failed: 0, failing: Object.fromEntries(Object.keys(x.failing).map((c) => [c, 0])) });
+      for (const k of Object.keys(x.worst)) x.worst[k] = { half_edition: 1, left_out: 1, n: 1000, ...at };
+    }
+    ok(D.flagshipGuard(pass) && H.flagshipGuard(pass) && H.halfExtraFrom(pass).guard, 'half fixtures: with every member and leave-out at the pooled reading, the flagship guard holds');
+    const l5 = clone(pass); l5.checks.battery.members.find((m) => m.id === 'verified_road').multiple_p50 = 2.3;
+    const l6 = clone(pass); l6.checks.battery.leave_outs.verified_federation.worst.under_double.under_double = 0.15;
+    for (const [fixture, what] of [[l5, 'a pre-registered member outside the band'], [l6, 'one leave-out variant at 15% under double']]) {
+      ok(!D.flagshipGuard(fixture) && !H.flagshipGuard(fixture), `half fixtures: ${what} fails the flagship guard`);
+    }
     return [
       [H.halfFieldFrom(f1), 'Half marathon finishes by finish time.'],
       [H.halfUnderFrom(f2), 'Half finishes under 1:45.'],
@@ -280,6 +297,8 @@ module.exports = function half({ json, eq, ok, core }) {
       [H.halfWomenFrom(w1), 'Women’s share of half finishes, by finish time.'],
       [H.halfCitiesFrom(w2), 'Women’s share of half and marathon finishes, same city and year.'],
       [H.halfExtraFrom(l1), 'The marathon after a half, against double the half.'],
+      [H.halfExtraFrom(l5), 'The marathon after a half, against double the half.'],
+      [H.halfExtraFrom(l6), 'The marathon after a half, against double the half.'],
       [H.halfRangeFrom(l2), 'The marathon after each half time.'],
       [H.halfSexesFrom(l3), 'Sustained slowdowns in recorded women’s and men’s marathons after the same half.'],
       [H.halfSexesGuessFrom(l4), 'Recorded women’s and men’s marathons after the same half.'],

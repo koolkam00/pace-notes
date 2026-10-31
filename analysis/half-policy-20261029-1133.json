@@ -1,4 +1,15 @@
 {
+ "battery": {
+  "leave_outs": "for verified_halves and for verified_federation, one variant per verified half edition with a pair in the member, that edition left out; every variant must pass each clause its member must pass (its median multiple within [2.15, 2.25]; that multiple at the pooled median half within 180 s of the pooled minutes over double; under double under 15%; for verified_halves also its own minutes over double within 180 s of the pooled), with no minimum edition size and no exemption; a variant under 100 pairs cannot pass",
+  "off_road_labels": [
+   "Kystleden Half",
+   "Nordmarka Skogsmaraton Half",
+   "Trondheim Skogsmaraton Half"
+  ],
+  "reviewed": "2026-10-30",
+  "verified_federation": "the verified halves without the weaker-source stamps (stamp_correction.weaker_source, by edition id)",
+  "verified_road": "the verified halves whose edition label is not one of off_road_labels"
+ },
  "corrected": "2026-10-30",
  "date_suspects": [
   {

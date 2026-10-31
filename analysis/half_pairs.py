@@ -45,7 +45,7 @@ def build(db, marathons, links_tag: str, expected: dict | None = None, check: bo
     db.execute(f"""CREATE OR REPLACE TEMP TABLE pp AS SELECT person_id, sex, confidence AS tier, ns_keys, key_type,
         in_candidate_merge = 1 AS in_candidate_merge FROM l.people WHERE confidence IN ({tiers}) AND ns_keys <= {NS_KEYS_MAX}""")
     db.execute("""CREATE OR REPLACE TEMP TABLE ph AS SELECT p.person_id, f.record_id AS h_record_id, f.edition_id AS h_edition_id,
-        f.race_date AS h_date, f.status_group AS h_status_group, f.finish_s AS h_finish_s, f.r7_block, f.date_suspect
+        f.city AS h_label, f.race_date AS h_date, f.status_group AS h_status_group, f.finish_s AS h_finish_s, f.r7_block, f.date_suspect
         FROM pp p JOIN l.links k ON k.person_id = p.person_id AND k.db = 'half' JOIN hfin f ON f.record_id = k.record_id""")
     db.execute("""CREATE OR REPLACE TEMP TABLE pm AS SELECT p.person_id, m.*
         FROM pp p JOIN l.links k ON k.person_id = p.person_id AND k.db = 'full' JOIN mar m ON m.m_record_id = k.record_id""")
@@ -59,7 +59,7 @@ def build(db, marathons, links_tag: str, expected: dict | None = None, check: bo
     lo, hi = WINDOW_DAYS
     db.execute(f"""CREATE OR REPLACE TEMP TABLE setb AS SELECT * FROM (
         SELECT m.person_id, p.sex, p.tier, p.ns_keys, p.key_type, p.in_candidate_merge,
-          h.h_record_id, h.h_edition_id, h.h_date, h.h_status_group, h.h_finish_s,
+          h.h_record_id, h.h_edition_id, h.h_label, h.h_date, h.h_status_group, h.h_finish_s,
           m.m_record_id, m.m_edition, m.m_city, m.m_year, m.m_date, m.m_gender, m.m_finish_s, m.m_sustained,
           date_diff('day', h.h_date, m.m_date) AS days,
           row_number() OVER (PARTITION BY m.person_id, m.m_record_id ORDER BY date_diff('day', h.h_date, m.m_date), h.h_record_id) AS k
@@ -67,7 +67,7 @@ def build(db, marathons, links_tag: str, expected: dict | None = None, check: bo
         WHERE h.h_date IS NOT NULL AND date_diff('day', h.h_date, m.m_date) BETWEEN {lo} AND {hi}
           AND NOT h.r7_block AND NOT h.date_suspect AND NOT h.same_date_conflict AND NOT h.sameday_marathon)
         WHERE k = 1""")
-    pairs = db.execute("""SELECT person_id, sex, tier, ns_keys, in_candidate_merge, h_record_id, h_edition_id, h_date,
+    pairs = db.execute("""SELECT person_id, sex, tier, ns_keys, in_candidate_merge, h_record_id, h_edition_id, h_label, h_date,
         h_status_group, h_finish_s, m_record_id, m_edition, m_city, m_year, m_date, m_finish_s, m_sustained, days
         FROM setb ORDER BY m_record_id, person_id""").df()
     for t in ('pp', 'ph', 'pm', 'ph2', 'setb', 'mar'):

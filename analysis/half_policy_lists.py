@@ -13,6 +13,10 @@ the corrected metadata of half-dataset-20261029-2157 withdrew (46 now counts_int
 counts_internal_only_winner_ok), each with its corrected status and the withdrawal clause of its corrected reason, and
 the six weaker-source stamps the corrected release's README names, which stay verified. The builder rederives the
 withdrawn list from the corrected metadata and fails unless it equals this one.
+
+Reviewed 2026-10-30 for the flagship battery (the post-correction decision's pre-registration, recorded at 20:33 UTC,
+before the next half release existed): the off-road verified half labels the `verified_road` member leaves out, exactly
+as the snapshot's edition_meta writes them. The builder fails unless each is the label of a verified usable edition.
 """
 
 FROZEN_20261029_1133 = {
@@ -357,3 +361,8 @@ WEAKER_SOURCE_20261029_2157 = [
     {'edition_id': 8748, 'city': 'Szczecin', 'year': 2023, 'source': 'local press (Kamienskie.info) own finisher total 1,280 — weaker than federation'},
     {'edition_id': 8725, 'city': 'Szczecin', 'year': 2026, 'source': 'local press (24Kurier own count 4,533; dzienniknarodowy also 4,533) — weaker than federation; Biegowe/sport.co.pl 4,535 not used'},
 ]
+# The off-road halves among the verified labels (two forest halves and a coastal-trail half), exactly as the snapshot's
+# edition_meta writes them, for the flagship battery's `verified_road` member: verified halves without these labels.
+# Reviewed 2026-10-30 as the post-correction decision's pre-registration, before any later snapshot's data was seen; a new
+# snapshot reviews its own list.
+OFF_ROAD_LABELS_20261029_1133 = ['Kystleden Half', 'Nordmarka Skogsmaraton Half', 'Trondheim Skogsmaraton Half']

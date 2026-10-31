@@ -9,7 +9,7 @@
  * and proves its fallback on a fixture. Fallbacks never assert a direction. The deks with numbers are built here too
  * (`halfDeks`), so a page types no number.
  */
-import type { HalfField, HalfLinked, HalfWindow, HalfWomen } from '@/lib/half-types';
+import type { HalfBatteryMember, HalfField, HalfLeaveOutClause, HalfLeaveOutParent, HalfLeaveOutVariant, HalfLeaveOutWorstKey, HalfLinked, HalfWindow, HalfWomen } from '@/lib/half-types';
 import { readHalf } from '@/lib/half-server';
 import { floorHM, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
 import { count, inWords, pct, ratio, spokenPct, spokenTime } from './format';
@@ -120,21 +120,48 @@ export function halfCitiesFrom(women: HalfWomen): Nugget {
 
 const members = (linked: HalfLinked) => Object.fromEntries(linked.checks.battery.members.map((m) => [m.id, m]));
 
+/** The flagship guard's member clauses (analysis/half_linked.py MULTIPLE_BAND, GAP_S, UNDER_DOUBLE_MAX). */
+const MULTIPLE_BAND = [2.15, 2.25] as const, GAP_S = 180, UNDER_DOUBLE_MAX = 0.15;
+/**
+ * The one-verified-half-edition-out variants (pre-registered October 30, 2026, before the next half release existed):
+ * the clauses each member's variants must pass, as the member does, and the worst variant kept for each clause.
+ */
+const LEAVE_OUTS: Record<HalfLeaveOutParent, HalfLeaveOutClause[]> = {
+  verified_halves: ['multiple', 'reexpressed', 'under_double', 'extra'],
+  verified_federation: ['multiple', 'reexpressed', 'under_double'],
+};
+const WORST: Record<HalfLeaveOutClause, HalfLeaveOutWorstKey[]> = {
+  multiple: ['multiple_low', 'multiple_high'], reexpressed: ['reexpressed'], under_double: ['under_double'], extra: ['extra'],
+};
+type Judged = Pick<HalfBatteryMember, 'multiple_p50' | 'extra_p50_s' | 'under_double'> | HalfLeaveOutVariant;
+/** One member clause on a member's or a variant's values, against the pooled minutes over double and median half. */
+function passes(clause: HalfLeaveOutClause, v: Judged, extra: number, half: number): boolean {
+  if (clause === 'multiple') return v.multiple_p50 >= MULTIPLE_BAND[0] && v.multiple_p50 <= MULTIPLE_BAND[1];
+  if (clause === 'reexpressed') return Math.abs((v.multiple_p50 - 2) * half - extra) <= GAP_S;
+  if (clause === 'under_double') return v.under_double < UNDER_DOUBLE_MAX;
+  return Math.abs(extra - v.extra_p50_s) <= GAP_S;
+}
+
 /**
  * The flagship H1's guard (spec 3.2; analysis/half_linked.py flagship_guard): enough pairs and marathon editions; the
  * pooled minutes over double between 10 and 60; every battery member's multiple within [2.15, 2.25] and, re-expressed
  * at the pooled median half, within 3 minutes of the pooled minutes; the verified-halves and one-pair-per-person minutes
- * within 3 minutes of it; every member's under-double share under 15%.
+ * within 3 minutes of it; every member's under-double share under 15%; and every one-verified-half-edition-out variant
+ * of verified_halves and verified_federation passing the clauses its member must pass (none under 100 pairs).
  */
 export function flagshipGuard(linked: HalfLinked): boolean {
   const b = linked.checks.battery, m = members(linked), pooled = m.pooled;
-  if (!pooled || !m.verified_halves || !m.one_per_person) return false;
+  if (!pooled || !m.verified_halves || !m.verified_federation || !m.verified_road || !m.one_per_person) return false;
   const extra = pooled.extra_p50_s, half = b.pooled_half_p50_s, all = Object.values(m);
+  const leaveOuts = (Object.entries(LEAVE_OUTS) as [HalfLeaveOutParent, HalfLeaveOutClause[]][]).every(([id, clauses]) => {
+    const x = b.leave_outs?.[id];
+    return !!x && x.under_floor === 0 && x.variants > 0
+      && clauses.every((c) => WORST[c].every((k) => { const w = x.worst[k]; return !!w && passes(c, w, extra, half); }));
+  });
   return linked.set.pairs >= MIN_CELL && linked.set.marathon_editions >= MIN_EDITIONS && extra >= 600 && extra <= 3600
-    && all.every((x) => x.multiple_p50 >= 2.15 && x.multiple_p50 <= 2.25)
-    && all.every((x) => Math.abs((x.multiple_p50 - 2) * half - extra) <= 180)
-    && Math.abs(extra - m.verified_halves.extra_p50_s) <= 180 && Math.abs(extra - m.one_per_person.extra_p50_s) <= 180
-    && all.every((x) => x.under_double < 0.15);
+    && all.every((x) => passes('multiple', x, extra, half) && passes('reexpressed', x, extra, half) && passes('under_double', x, extra, half))
+    && passes('extra', m.verified_halves, extra, half) && passes('extra', m.one_per_person, extra, half)
+    && leaveOuts;
 }
 
 /** The neutral key of the flagship's figure while it states no reading: what the count counts. */

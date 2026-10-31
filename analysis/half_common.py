@@ -170,9 +170,14 @@ IDENTITY_KEY = re.compile(r'^(ids?|rids?|record_?ids?|profile_?ids?|runners?|run
 # Strings are allowed only under these keys (and anywhere inside a `rule`); `sha256`-like keys must hold a digest.
 STRING_KEYS = {'city', 'label', 'mark', 'scope', 'family', 'file', 'weighting', 'id', 'slug', 'path'}
 DIGEST_KEYS = {'sha256', 'module_sha256'}
-# `id` is allowed only for the flagship's battery members (spec 2.4), never a record or person id.
-BATTERY_IDS = {'pooled', 'verified_halves', 'other_marathons', 'ns_keys_1', 'one_per_person', 'editions_equal_20',
-               'editions_equal_100', 'city_equal'}
+# `id` is allowed only for the flagship's battery members (spec 2.4), never a record or person id. verified_federation
+# and verified_road were pre-registered on 2026-10-30 (analysis/half_quality.BATTERY_RULES).
+BATTERY_IDS = {'pooled', 'verified_halves', 'verified_federation', 'verified_road', 'other_marathons', 'ns_keys_1',
+               'one_per_person', 'editions_equal_20', 'editions_equal_100', 'city_equal'}
+# The one place a published file names an edition: the worst one-verified-half-edition-out variant of each clause, by the
+# snapshot's integer edition id (no label), under linked.json checks.battery.leave_outs.<member>.worst.<clause>.
+HALF_EDITION_KEY = 'half_edition'
+HALF_EDITION_AT = re.compile(r'\.checks\.battery\.leave_outs\.(verified_halves|verified_federation)\.worst\.[a-z_]+$')
 RELEASE_LABEL = re.compile(r'private-export|half-snapshot-|half-dataset-|runner-links-|htw-db-|20260912|20261016|20261021|20261029')
 
 
@@ -190,6 +195,9 @@ def check_published(value, where: str, *, in_rule: bool = False, extra_string_ke
             if key == 'id':
                 if item not in BATTERY_IDS:
                     fail(f'{where}.id: only the battery member ids may use the key "id" ({item!r})')
+            elif key == HALF_EDITION_KEY:
+                if not (type(item) is int and item >= 0 and HALF_EDITION_AT.search(where)):
+                    fail(f'{where}.{key}: an edition id is allowed only as an integer naming a worst leave-out variant ({item!r})')
             elif IDENTITY_KEY.match(key):
                 fail(f'{where}.{key}: an identifier or name key')
             if isinstance(item, str):

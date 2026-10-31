@@ -147,7 +147,22 @@ CORRECTION_20261029_2157 = {
 REASON_MAX = 160
 
 from half_policy_lists import (  # noqa: E402  (the reviewed lists, kept apart for length)
-    FROZEN_20261029_1133, LABEL_COUNTRIES_20261029_1133, WEAKER_SOURCE_20261029_2157, WITHDRAWN_STAMPS_20261029_2157)
+    FROZEN_20261029_1133, LABEL_COUNTRIES_20261029_1133, OFF_ROAD_LABELS_20261029_1133, WEAKER_SOURCE_20261029_2157,
+    WITHDRAWN_STAMPS_20261029_2157)
+
+# The flagship battery's verified-half members and leave-outs (analysis/half_linked.py), pre-registered 2026-10-30 at
+# 20:33 UTC by the post-correction decision, before the next half release existed, and stated here in words so a recount
+# follows them without reading the code. Each policy entry names its own off-road labels; the weaker-source stamps are
+# its correction's.
+BATTERY_RULES = {
+    'verified_federation': 'the verified halves without the weaker-source stamps (stamp_correction.weaker_source, by edition id)',
+    'verified_road': 'the verified halves whose edition label is not one of off_road_labels',
+    'leave_outs': ('for verified_halves and for verified_federation, one variant per verified half edition with a pair in the '
+                   'member, that edition left out; every variant must pass each clause its member must pass (its median '
+                   'multiple within [2.15, 2.25]; that multiple at the pooled median half within 180 s of the pooled minutes '
+                   'over double; under double under 15%; for verified_halves also its own minutes over double within 180 s '
+                   'of the pooled), with no minimum edition size and no exemption; a variant under 100 pairs cannot pass'),
+}
 
 EXPECTED_20261029_1133 = {
     'raw': 6_854_820, 'R1': 98_768, 'R2': 0, 'R3': 1_395, 'R4': 1_088, 'R5_fast': 152, 'R5_slow': 397, 'R6': 1_949,
@@ -173,6 +188,7 @@ REVIEWED_HALF_POLICIES = {
         'label_countries': LABEL_COUNTRIES_20261029_1133,
         'correction': {**CORRECTION_20261029_2157, 'withdrawn': WITHDRAWN_STAMPS_20261029_2157,
                        'weaker_source': WEAKER_SOURCE_20261029_2157},
+        'battery': {'reviewed': '2026-10-30', 'off_road_labels': OFF_ROAD_LABELS_20261029_1133},
     },
 }
 
@@ -229,6 +245,7 @@ def policy_document(tag: str = TAG) -> dict:
         'date_suspects': [{'edition_id': e, 'city': c, 'year': y, 'reason': r} for e, c, y, r in DATE_SUSPECTS],
         'same_city_labels': SAME_CITY_LABELS,
         'verified_label_countries': p['label_countries'],
+        'battery': {**BATTERY_RULES, **p['battery']},
         'expected': p['expected'],
     }
 
@@ -569,6 +586,24 @@ def check_corrected_verified(m, correction: dict, rows: dict | None) -> None:
             fail(f"weaker-source stamp {x['city']} {x['year']} is not a verified usable edition of the build")
 
 
+def battery_lists(tag: str = TAG) -> dict:
+    """What the flagship battery's verified-half members leave out (BATTERY_RULES): the weaker-source stamps' edition ids
+    and the reviewed off-road labels of the policy entry."""
+    p = REVIEWED_HALF_POLICIES[tag]
+    return {'weaker_source': frozenset(int(x['edition_id']) for x in p['correction']['weaker_source']),
+            'off_road_labels': frozenset(p['battery']['off_road_labels'])}
+
+
+def check_battery_lists(m, tag: str = TAG) -> None:
+    """After the edition rules: every reviewed off-road label is the label of a verified usable edition (the list names
+    labels exactly as the snapshot writes them, so a renamed or unverified label fails instead of leaving nothing out)."""
+    usable = m[m.use_finish & (m.status_group == 'verified')]
+    labels = set(usable.city.tolist())
+    for label in REVIEWED_HALF_POLICIES[tag]['battery']['off_road_labels']:
+        if label not in labels:
+            fail(f'off-road label {label!r} is not the label of a verified usable edition of the build')
+
+
 class PolicyResult:
     """The applied policy: counts (spec 1.3), the edition table and the computed lists."""
 
@@ -595,6 +630,7 @@ def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | N
     m = edition_rules(m)
     if compare:
         check_corrected_verified(m, reviewed['correction'], correction_rows)
+        check_battery_lists(m, tag)
     lists = {'R3': subs['R3'], 'R4': subs['R4'], 'editions': edition_list(m)}
     if compare:
         for key in ('R3', 'R4', 'editions'):

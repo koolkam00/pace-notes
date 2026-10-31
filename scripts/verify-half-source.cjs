@@ -213,7 +213,7 @@ for (const r of ldb.prepare('SELECT person_id, db, record_id FROM links').iterat
   else if (r.db === 'full') { const j = findSorted(marIds, r.record_id); if (j >= 0) push(marsOf, p, marOrder[j]); }
 }
 const ED = P.editions;
-const pairs = { h: [], m: [], sex: [], ed: [], city: [], sus: [], verified: [], nsKeys: [], inMerge: [], person: [], mDay: [], mId: [] };
+const pairs = { h: [], m: [], sex: [], ed: [], city: [], sus: [], verified: [], nsKeys: [], inMerge: [], person: [], mDay: [], mId: [], hEd: [], hLabel: [] };
 const pairPeople = new Set(), halfEds = new Set();
 for (const [p, mars] of marsOf) {
   const halves = halvesOf.get(p) || [];
@@ -235,7 +235,7 @@ for (const [p, mars] of marsOf) {
     pairs.h.push(fin.finish[best]); pairs.m.push(MAR.finish[j]); pairs.sex.push(personSex[p]);
     pairs.ed.push(`${med.city} ${med.year}`); pairs.city.push(med.city); pairs.sus.push(MAR.sustained[j] === 1);
     pairs.verified.push(ED[fin.ed[best]].group === 'verified'); pairs.nsKeys.push(personNs[p]); pairs.inMerge.push(personMerge[p]);
-    pairs.person.push(p); pairs.mDay.push(mDay); pairs.mId.push(MAR.id[j]);
+    pairs.person.push(p); pairs.mDay.push(mDay); pairs.mId.push(MAR.id[j]); pairs.hEd.push(ED[fin.ed[best]].edition_id); pairs.hLabel.push(ED[fin.ed[best]].city);
     pairPeople.add(p); halfEds.add(fin.ed[best]);
   }
 }
@@ -257,6 +257,15 @@ const coverage = [];
   coverage.push(...[...byCity.values()].sort((a, b) => (a.city < b.city ? -1 : 1)));
 }
 compare('policy', 'set B (manifest)', publishedSetB, setB);
+// The flagship battery's verified-half members (the policy's `battery`, pre-registered October 30, 2026): the
+// weaker-source stamps by edition id, and the reviewed off-road labels, each the label of a verified usable edition.
+const BAT = policy.battery;
+if (!BAT || !Array.isArray(BAT.off_road_labels) || !BAT.off_road_labels.length || !BAT.off_road_labels.every((l) => typeof l === 'string')) fail('the policy names no off-road labels for the battery');
+const battery = { weakerSource: new Set(SC.weaker_source.map((x) => x.edition_id)), offRoad: new Set(BAT.off_road_labels) };
+{
+  const verifiedLabels = new Set(P.editions.filter((r) => r.use_finish && r.group === 'verified').map((r) => r.city));
+  compare('policy', 'battery: the off-road labels, each a verified usable edition’s label', BAT.off_road_labels, BAT.off_road_labels.filter((l) => verifiedLabels.has(l)));
+}
 log(`set B: ${setB.pairs.toLocaleString('en-US')} pairs, ${setB.people.toLocaleString('en-US')} people`);
 
 // ---------- The published files ----------
@@ -272,7 +281,7 @@ for (const m of fieldPub.marks) {
 const chartBytes = fs.readFileSync(rel('public/data/charts/womens-share-by-finish-time.json'));
 const womenMine = Fam.women({ fin, editions: ED, marathons: MAR, labels: policy.same_city_labels, chart: JSON.parse(chartBytes), chartSha: sha(chartBytes) });
 compare('women.json', '', readHalf('women.json'), womenMine);
-const { linked: linkedMine, tool: toolMine } = Fam.linked(pairs, { people: setB.people, halfEditions: setB.half_editions, coverage });
+const { linked: linkedMine, tool: toolMine } = Fam.linked(pairs, { people: setB.people, halfEditions: setB.half_editions, coverage, ...battery });
 compare('linked.json', '', readHalf('linked.json'), linkedMine);
 compare('tools/half-to-full.json', '', readHalf('tools/half-to-full.json'), toolMine);
 compare('cards.json', '', readHalf('cards.json'), Fam.cards(fieldMine, womenMine, linkedMine));

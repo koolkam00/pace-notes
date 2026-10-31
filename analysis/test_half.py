@@ -257,6 +257,21 @@ class Rules(unittest.TestCase):
         self.assertEqual(len(doc['edition_rules']['editions']), 68)
         self.assertEqual([doc['record_rules']['R7'][k] for k in ('city', 'years', 'bib')], ['Oslo Half', [2016, 2025], [73000, 75999]],
                          'the frozen policy carries the R7 block itself, the Node recount reads it from there')
+        self.assertEqual(doc['battery']['off_road_labels'], ['Kystleden Half', 'Nordmarka Skogsmaraton Half', 'Trondheim Skogsmaraton Half'],
+                         'the off-road labels pre-registered on 2026-10-30, exactly as the snapshot writes them')
+        self.assertEqual(doc['battery']['reviewed'], '2026-10-30')
+        self.assertEqual(set(doc['battery']), {'reviewed', 'off_road_labels', 'verified_federation', 'verified_road', 'leave_outs'})
+        lists = hq.battery_lists()
+        self.assertEqual(lists['weaker_source'], {x['edition_id'] for x in doc['stamp_correction']['weaker_source']})
+        self.assertEqual(lists['off_road_labels'], set(doc['battery']['off_road_labels']))
+
+    def test_off_road_labels_must_be_verified_labels(self):
+        labels = hq.REVIEWED_HALF_POLICIES[hq.TAG]['battery']['off_road_labels']
+        m = pd.DataFrame({'city': [*labels, 'Oslo Half'], 'use_finish': True, 'status_group': 'verified'})
+        hq.check_battery_lists(m)
+        for broken in (m.iloc[1:], m.assign(status_group=['unverified'] + ['verified'] * len(labels)), m.assign(use_finish=[False] + [True] * len(labels))):
+            with self.assertRaisesRegex(hc.HalfError, 'off-road label'):
+                hq.check_battery_lists(broken)
 
 
 class SetB(unittest.TestCase):
@@ -339,9 +354,22 @@ def synthetic_pairs(n=16000, seed=3, multiple=2.2):
                           'm_record_id': np.arange(n) + 10**6, 'm_city': city, 'm_year': year,
                           'm_date': [date(int(y), 4, 1) + timedelta(days=int(k)) for y, k in zip(year, rng.integers(0, 200, n))],
                           'm_finish_s': m, 'm_sustained': rng.random(n) < 0.25, 'days': 40})
+    frame['h_label'] = np.where(frame.h_edition_id % 40 == 7, 'Trail Half', 'H' + (frame.h_edition_id % 25).astype(str))
     frame['m_ed'] = frame.m_city + ' ' + frame.m_year.astype(str)
     frame['verified'] = frame.h_status_group == 'verified'
     return frame
+
+
+# The battery lists of the synthetic sets: two weaker-source editions and one off-road label (half_quality.battery_lists).
+LISTS = {'weaker_source': frozenset({11, 12}), 'off_road_labels': frozenset({'Trail Half'})}
+
+
+def build_linked(frame, **kw):
+    return half_linked.build(frame, **LISTS, **kw)
+
+
+def member(linked, id_):
+    return next(m for m in linked['checks']['battery']['members'] if m['id'] == id_)
 
 
 class Windows(unittest.TestCase):
@@ -392,7 +420,7 @@ class Windows(unittest.TestCase):
 
     def test_build_floors_and_guard(self):
         frame = synthetic_pairs()
-        linked, tool, ranges = half_linked.build(frame)
+        linked, tool, ranges = build_linked(frame)
         for g in ('all', 'F', 'M'):
             for w in linked['windows'][g]:
                 self.assertGreaterEqual(w['n'], hc.MIN_CELL)
@@ -403,16 +431,113 @@ class Windows(unittest.TestCase):
             self.assertEqual(tool['groups'][g]['from'], hs[0])
             self.assertEqual([w[0] for w in tool['groups'][g]['w']], [w['n'] for w in linked['windows'][g]])
         self.assertEqual([m['id'] for m in linked['checks']['battery']['members']],
-                         ['pooled', 'verified_halves', 'other_marathons', 'ns_keys_1', 'one_per_person', 'editions_equal_20',
-                          'editions_equal_100', 'city_equal'])
+                         ['pooled', 'verified_halves', 'verified_federation', 'verified_road', 'other_marathons', 'ns_keys_1',
+                          'one_per_person', 'editions_equal_20', 'editions_equal_100', 'city_equal'])
+        self.assertEqual({m['id'] for m in linked['checks']['battery']['members']}, hc.BATTERY_IDS)
         hc.check_published(linked, 'linked')
         self.assertTrue(half_linked.flagship_guard(linked))
         moved = json.loads(json.dumps(linked))
-        moved['checks']['battery']['members'][3]['multiple_p50'] = 2.30
+        member(moved, 'ns_keys_1')['multiple_p50'] = 2.30
         self.assertFalse(half_linked.flagship_guard(moved), 'one member outside [2.15, 2.25] fails the guard')
         moved = json.loads(json.dumps(linked))
-        moved['checks']['battery']['members'][1]['extra_p50_s'] += 200
+        member(moved, 'verified_halves')['extra_p50_s'] += 200
         self.assertFalse(half_linked.flagship_guard(moved))
+
+    def test_verified_federation_and_verified_road(self):
+        frame = synthetic_pairs()
+        linked, _, _ = build_linked(frame)
+        v = frame.verified.to_numpy(bool)
+        weak = frame.h_edition_id.isin(LISTS['weaker_source']).to_numpy(bool)
+        trail = (frame.h_label == 'Trail Half').to_numpy(bool)
+        self.assertTrue((v & weak).any() and (v & trail).any(), 'the synthetic set holds both kinds of verified half')
+        m, h = frame.m_finish_s.to_numpy(float), frame.h_finish_s.to_numpy(float)
+        for id_, keep in (('verified_halves', v), ('verified_federation', v & ~weak), ('verified_road', v & ~trail)):
+            self.assertEqual(member(linked, id_), {'id': id_, **half_linked.member_values(m[keep], h[keep])}, id_)
+        self.assertLess(member(linked, 'verified_federation')['n'], member(linked, 'verified_halves')['n'])
+        self.assertLess(member(linked, 'verified_road')['n'], member(linked, 'verified_halves')['n'])
+        for id_ in ('verified_federation', 'verified_road'):
+            for change in ({'multiple_p50': 2.30}, {'multiple_p50': 2.149}, {'under_double': 0.15}, {'multiple_p50': 2.25 + 0.1}):
+                moved = json.loads(json.dumps(linked))
+                member(moved, id_).update(change)
+                self.assertFalse(half_linked.flagship_guard(moved), f'{id_} {change}: the new members carry every member clause')
+            moved = json.loads(json.dumps(linked))
+            moved['checks']['battery']['members'] = [x for x in moved['checks']['battery']['members'] if x['id'] != id_]
+            self.assertFalse(half_linked.flagship_guard(moved), f'a battery without {id_} cannot pass')
+
+    def test_one_verified_half_edition_out(self):
+        frame = synthetic_pairs()
+        linked, _, _ = build_linked(frame)
+        b = linked['checks']['battery']
+        pooled = member(linked, 'pooled')
+        extra, half = pooled['extra_p50_s'], b['pooled_half_p50_s']
+        v = frame.verified.to_numpy(bool)
+        weak = frame.h_edition_id.isin(LISTS['weaker_source']).to_numpy(bool)
+        m, h, ed = frame.m_finish_s.to_numpy(float), frame.h_finish_s.to_numpy(float), frame.h_edition_id.to_numpy('int64')
+        self.assertEqual(list(b['leave_outs']), ['verified_halves', 'verified_federation'])
+        for id_, keep in (('verified_halves', v), ('verified_federation', v & ~weak)):
+            x = b['leave_outs'][id_]
+            eds = sorted(set(ed[keep].tolist()))
+            self.assertEqual(x['variants'], len(eds), 'one variant per verified half edition with a pair in the member')
+            self.assertEqual(x['under_floor'], 0)
+            variants = [{'half_edition': e, 'left_out': int((keep & (ed == e)).sum()), **half_linked.member_values(m[keep & (ed != e)], h[keep & (ed != e)])}
+                        for e in eds]
+            clauses = half_linked.LEAVE_OUTS[id_]
+            self.assertEqual(set(x['worst']), {k for c in clauses for k in half_linked.WORST[c]})
+            self.assertEqual(x['worst']['multiple_low'], min(variants, key=lambda q: (q['multiple_p50'], q['half_edition'])))
+            self.assertEqual(x['worst']['multiple_high'], min(variants, key=lambda q: (-q['multiple_p50'], q['half_edition'])))
+            self.assertEqual(x['worst']['under_double'], min(variants, key=lambda q: (-q['under_double'], q['half_edition'])))
+            gap = lambda q: abs((q['multiple_p50'] - 2) * half - extra)  # noqa: E731
+            self.assertEqual(x['worst']['reexpressed'], min(variants, key=lambda q: (-gap(q), q['half_edition'])))
+            for w in x['worst'].values():
+                self.assertEqual(w['n'] + w['left_out'], member(linked, id_)['n'])
+            self.assertEqual(x['failing'], {c: 0 for c in clauses})
+            self.assertEqual(x['failed'], 0)
+        self.assertIn('extra', b['leave_outs']['verified_halves']['worst'], 'verified-halves variants also carry the minutes clause')
+        self.assertNotIn('extra', b['leave_outs']['verified_federation']['worst'])
+        self.assertTrue(half_linked.flagship_guard(linked))
+        for id_, key, change in (('verified_halves', 'multiple_low', {'multiple_p50': 2.149}), ('verified_halves', 'multiple_high', {'multiple_p50': 2.2501}),
+                                 ('verified_halves', 'under_double', {'under_double': 0.15}), ('verified_halves', 'extra', {'extra_p50_s': extra - 181}),
+                                 ('verified_federation', 'reexpressed', {'multiple_p50': 2 + (extra + 181) / half}),
+                                 ('verified_federation', 'under_double', {'under_double': 0.2})):
+            moved = json.loads(json.dumps(linked))
+            moved['checks']['battery']['leave_outs'][id_]['worst'][key].update(change)
+            self.assertFalse(half_linked.flagship_guard(moved), f'{id_} {key} {change}: one failing variant fails the guard')
+        for id_ in ('verified_halves', 'verified_federation'):
+            moved = json.loads(json.dumps(linked))
+            moved['checks']['battery']['leave_outs'][id_]['under_floor'] = 1
+            self.assertFalse(half_linked.flagship_guard(moved), 'a variant under the floor cannot pass')
+            moved = json.loads(json.dumps(linked))
+            del moved['checks']['battery']['leave_outs'][id_]
+            self.assertFalse(half_linked.flagship_guard(moved), 'without its leave-outs the guard cannot pass')
+
+    def test_a_leave_out_catches_what_its_member_hides(self):
+        # Verified halves at about 2.13 times the half, one edition of 30% of them at 2.40: the member's median sits over
+        # 2.15, and without that edition it falls under the band. No minimum edition size, no exemption.
+        frame = synthetic_pairs()
+        rng = np.random.default_rng(9)
+        v = frame.verified.to_numpy(bool)
+        big = v & (frame.h_edition_id.to_numpy() % 10 < 3)
+        mult = np.where(big, 2.40, rng.normal(2.13, 0.05, len(frame)))
+        frame.loc[v, 'h_edition_id'] = np.where(big[v], 500, frame.h_edition_id[v])
+        frame.loc[v, 'm_finish_s'] = (frame.h_finish_s[v] * mult[v]).round()
+        linked, _, _ = build_linked(frame)
+        self.assertGreaterEqual(member(linked, 'verified_halves')['multiple_p50'], 2.15)
+        x = linked['checks']['battery']['leave_outs']['verified_halves']
+        self.assertEqual(x['worst']['multiple_low']['half_edition'], 500)
+        self.assertLess(x['worst']['multiple_low']['multiple_p50'], 2.15)
+        self.assertEqual(x['failing']['multiple'], 1)
+        self.assertFalse(half_linked.flagship_guard(linked))
+        hc.check_published(linked, 'linked')
+
+    def test_a_member_of_one_edition_leaves_nothing_to_judge(self):
+        frame = synthetic_pairs()
+        v = frame.verified.to_numpy(bool)
+        frame.loc[v, 'h_edition_id'] = 600
+        linked, _, _ = build_linked(frame)
+        x = linked['checks']['battery']['leave_outs']['verified_halves']
+        self.assertEqual((x['variants'], x['under_floor'], x['failed']), (1, 1, 1))
+        self.assertEqual(set(x['worst'].values()), {None})
+        self.assertFalse(half_linked.flagship_guard(linked))
 
     def test_sex_strata(self):
         frame = synthetic_pairs()
@@ -431,6 +556,17 @@ class Floors(unittest.TestCase):
                 hc.check_published(bad, 'x')
         hc.check_published({'city': 'Oslo', 'members': [{'id': 'pooled', 'n': 5}], 'rule': {'half': 'text'}, 'sha256': 'a' * 64}, 'ok')
 
+    def test_an_edition_id_only_names_a_worst_leave_out(self):
+        ok = {'checks': {'battery': {'leave_outs': {'verified_federation': {'worst': {'multiple_low': {'half_edition': 8671, 'n': 1372}}}}}}}
+        hc.check_published(ok, 'linked.json')
+        for bad in ({'checks': {'battery': {'leave_outs': {'verified_federation': {'worst': {'multiple_low': {'half_edition': '8671'}}}}}}},
+                    {'checks': {'battery': {'leave_outs': {'verified_federation': {'worst': {'multiple_low': {'half_edition': 86.0}}}}}}},
+                    {'checks': {'battery': {'leave_outs': {'verified_road': {'worst': {'multiple_low': {'half_edition': 8671}}}}}}},
+                    {'checks': {'by_city': [{'half_edition': 8671}]}}, {'half_edition': 3},
+                    {'checks': {'battery': {'leave_outs': {'verified_halves': {'worst': {'multiple_low': {'edition_id': 8671}}}}}}}):
+            with self.assertRaises(hc.HalfError, msg=bad):
+                hc.check_published(bad, 'linked.json')
+
     def test_open_tails_hold_the_floor(self):
         for bad in ({'F': {'under_lo': 16, 'at_or_over_hi': 500, 'counts': [200]}}, {'under_lo': 100, 'at_or_over_hi': 99, 'counts': []}):
             with self.assertRaisesRegex(hc.HalfError, 'open tail', msg=bad):
@@ -439,7 +575,7 @@ class Floors(unittest.TestCase):
 
     def test_small_groups_are_left_out(self):
         frame = synthetic_pairs(n=9000)
-        linked, _, ranges = half_linked.build(frame)
+        linked, _, ranges = build_linked(frame)
         lo, hi = ranges['F']
         everything = half_linked.Pairs(frame).group('F')
         for H in (lo - 1, hi + 1):
@@ -511,7 +647,7 @@ class MethodologyChecks(unittest.TestCase):
 
     def test_by_city_is_the_city_equal_member(self):
         frame = synthetic_pairs()
-        linked, _, ranges = half_linked.build(frame)
+        linked, _, ranges = build_linked(frame)
         cities = linked['checks']['by_city']
         member = next(m for m in linked['checks']['battery']['members'] if m['id'] == 'city_equal')
         self.assertEqual(len(cities), member['n'])
@@ -533,8 +669,8 @@ class MethodologyChecks(unittest.TestCase):
 class Determinism(unittest.TestCase):
     def test_two_builds_give_the_same_bytes(self):
         frame = synthetic_pairs()
-        a = [hc.encode(x) for x in half_linked.build(frame)[:2]]
-        b = [hc.encode(x) for x in half_linked.build(frame.sample(frac=1, random_state=1))[:2]]
+        a = [hc.encode(x) for x in build_linked(frame)[:2]]
+        b = [hc.encode(x) for x in build_linked(frame.sample(frac=1, random_state=1))[:2]]
         self.assertEqual(a, b, 'the row order of set B does not change a byte')
         fin = synthetic_finishes(per=2000)
         with self.assertRaises(hc.HalfError):

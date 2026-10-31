@@ -194,7 +194,7 @@ export type HalfGoal = {
 };
 
 export type HalfBatteryId =
-  | 'pooled' | 'verified_halves' | 'other_marathons' | 'ns_keys_1' | 'one_per_person'
+  | 'pooled' | 'verified_halves' | 'verified_federation' | 'verified_road' | 'other_marathons' | 'ns_keys_1' | 'one_per_person'
   | 'editions_equal_20' | 'editions_equal_100' | 'city_equal';
 
 /**
@@ -203,6 +203,34 @@ export type HalfBatteryId =
  * each group's median multiple, median extra and under-double share (`n` editions or cities).
  */
 export type HalfBatteryMember = { id: HalfBatteryId; n: number; multiple_p50: number; extra_p50_s: number; under_double: number };
+
+/** The members whose one-verified-half-edition-out variants the flagship guard judges (pre-registered October 30, 2026). */
+export type HalfLeaveOutParent = 'verified_halves' | 'verified_federation';
+/** A guard clause a leave-out variant must pass, as its member does; `extra` (its own minutes) for verified_halves only. */
+export type HalfLeaveOutClause = 'multiple' | 'reexpressed' | 'under_double' | 'extra';
+/** The worst variant kept for each clause (the multiple's band has two sides). */
+export type HalfLeaveOutWorstKey = 'multiple_low' | 'multiple_high' | 'reexpressed' | 'under_double' | 'extra';
+
+/**
+ * One variant of a member without one verified half edition: that edition's id in the snapshot (no label), the pairs
+ * left out, and the member's values on the pairs kept (at least 100).
+ */
+export type HalfLeaveOutVariant = {
+  half_edition: number; left_out: number; n: number; multiple_p50: number; extra_p50_s: number; under_double: number;
+};
+
+/**
+ * A member's one-verified-half-edition-out variants: how many (one per verified half edition with a pair in it), how
+ * many fall under the 100-pair floor (they cannot pass), how many fail each clause and any clause, and the worst for each
+ * clause (null when no variant holds 100 pairs).
+ */
+export type HalfLeaveOuts = {
+  variants: number;
+  under_floor: number;
+  failing: Partial<Record<HalfLeaveOutClause, number>>;
+  failed: number;
+  worst: Partial<Record<HalfLeaveOutWorstKey, HalfLeaveOutVariant | null>>;
+};
 
 export type HalfLinked = {
   schema_version: 1;
@@ -242,7 +270,7 @@ export type HalfLinked = {
     ns_keys_1: { pairs: number; w105_under_14400: number };
     one_per_person: { pairs: number; w105_under_14400: number };
     no_merge_people: { pairs: number; extra_p50_s: number };
-    battery: { pooled_half_p50_s: number; members: HalfBatteryMember[] };
+    battery: { pooled_half_p50_s: number; members: HalfBatteryMember[]; leave_outs: Record<HalfLeaveOutParent, HalfLeaveOuts> };
     /** The median multiple in each 5-minute band of the all-pairs range. */
     multiple_by_band: { h: number; ratio_p50: number }[];
     /** Marathon cities of at least 100 pairs from 3 editions (the battery's city_equal cities). */

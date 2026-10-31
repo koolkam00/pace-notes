@@ -109,6 +109,11 @@ const policyBytes = fs.readFileSync(rel(pin.policy));
 const policy = JSON.parse(policyBytes);
 eq([manifest.policy.file, manifest.policy.sha256], [pin.policy, sha(policyBytes)], 'the reviewed half policy file');
 eq(policy.tag, pin.half.private_tag, 'the policy is the snapshot’s');
+// The flagship battery's pre-registered verified-half members (October 30, 2026): the rules in words and the reviewed
+// off-road labels; the weaker-source stamps are the stamp correction's.
+eq(Object.keys(policy.battery || {}).sort(), ['leave_outs', 'off_road_labels', 'reviewed', 'verified_federation', 'verified_road'], 'the policy states the battery’s verified-half members and leave-outs');
+ok(Array.isArray(policy.battery?.off_road_labels) && policy.battery.off_road_labels.length > 0 && policy.battery.off_road_labels.every((l) => typeof l === 'string' && l.length > 0)
+  && new Set(policy.battery.off_road_labels).size === policy.battery.off_road_labels.length, 'the policy’s off-road labels: distinct label strings');
 {
   // The stamp correction in the policy: the pinned source, a reviewed list of withdrawn stamps (each turned into an
   // unverified status, none of them a weaker-source stamp), and the counts it moved.
@@ -160,7 +165,10 @@ eq(field.policy, { sha256: manifest.policy.sha256, module_sha256: manifest.polic
 const IDENTITY_KEY = /^(ids?|rids?|record_?ids?|profile_?ids?|runners?|runner_?ids?|bibs?|bib_?(no|number)|names?|(full|first|last|given|family)_?names?|participants?|participant_?ids?|persons?|person_?ids?|edition_?ids?|h_record_id|m_record_id|series_key|urls?|source_url)$/i;
 const STRING_KEYS = new Set(['city', 'label', 'mark', 'scope', 'family', 'file', 'weighting', 'id', 'slug', 'path']);
 const PLOT_STRING_KEYS = new Set(['form', 'tone', 'rest', 'fmt', 'a', 'b']);
-const BATTERY_IDS = new Set(['pooled', 'verified_halves', 'other_marathons', 'ns_keys_1', 'one_per_person', 'editions_equal_20', 'editions_equal_100', 'city_equal']);
+// verified_federation and verified_road were pre-registered on October 30, 2026 (the policy's `battery`).
+const BATTERY_IDS = new Set(['pooled', 'verified_halves', 'verified_federation', 'verified_road', 'other_marathons', 'ns_keys_1', 'one_per_person', 'editions_equal_20', 'editions_equal_100', 'city_equal']);
+// The one place a family file names an edition: a worst leave-out variant, by its integer edition id (no label).
+const HALF_EDITION_AT = /^linked\.json\.checks\.battery\.leave_outs\.(verified_halves|verified_federation)\.worst\.[a-z_]+$/;
 const fileStrings = [];
 function scan(value, where, { inRule = false, plot = false } = {}) {
   if (Array.isArray(value)) {
@@ -168,6 +176,7 @@ function scan(value, where, { inRule = false, plot = false } = {}) {
   } else if (value && typeof value === 'object') {
     for (const [k, v] of Object.entries(value)) {
       if (k === 'id') ok(BATTERY_IDS.has(v), `${where}.id: only the battery members may use "id" (${JSON.stringify(v)})`);
+      else if (k === 'half_edition') ok(Number.isSafeInteger(v) && v >= 0 && HALF_EDITION_AT.test(where), `${where}.half_edition: an edition id only as an integer naming a worst leave-out variant (${JSON.stringify(v)})`);
       else ok(!IDENTITY_KEY.test(k), `${where}.${k}: an identifier or name key`);
       if (typeof v === 'string') {
         if (k === 'sha256' || k === 'module_sha256') ok(/^[0-9a-f]{64}$/.test(v), `${where}.${k}: not a sha256 digest`);
@@ -409,7 +418,7 @@ close(sx.diff_points, 100 * (sx.men_std - sx.women_std), 1e-6, 'linked.sexes: th
 const C = linked.checks;
 ok(C.verified.sexes.women_lower <= C.verified.sexes.strata && C.verified.sexes.strata <= sx.strata, 'linked.checks.verified.sexes: a subset of strata');
 const bat = Object.fromEntries(C.battery.members.map((m) => [m.id, m]));
-eq(Object.keys(bat), [...BATTERY_IDS], 'linked.checks.battery: the eight weighting members (spec 2.4)');
+eq(Object.keys(bat), [...BATTERY_IDS], 'linked.checks.battery: the ten weighting members (spec 2.4; verified_federation and verified_road pre-registered October 30, 2026)');
 eq([bat.pooled.n, bat.pooled.extra_p50_s, bat.pooled.multiple_p50, bat.pooled.under_double], [S.pairs, ov.extra_s.p50, ov.ratio_p50, ov.under_double_plus_min['0']], 'battery: the pooled member is the overall reading');
 eq([bat.verified_halves.n, bat.verified_halves.extra_p50_s, bat.verified_halves.under_double], [C.verified.pairs, C.verified.extra_p50_s, C.verified.under_double], 'battery: verified halves are the verified check');
 eq([bat.other_marathons.n, bat.other_marathons.extra_p50_s], [C.other_marathons.pairs, C.other_marathons.extra_p50_s], 'battery: other marathons');
@@ -422,6 +431,36 @@ for (const m of Object.values(bat)) {
   if (m.id !== 'pooled' && !m.id.startsWith('editions') && m.id !== 'city_equal') ok(m.n < bat.pooled.n, `battery ${m.id}: a subset of the pairs`);
   ok(finite(m.multiple_p50) && finite(m.extra_p50_s) && m.under_double >= 0 && m.under_double < 1, `battery ${m.id}: values`);
   if (!m.id.startsWith('editions') && m.id !== 'city_equal') ok(D.isShareOf(m.under_double, m.n), `battery ${m.id}: an exact share of its pairs`);
+}
+ok(!!bat.verified_federation && !!bat.verified_road && bat.verified_federation.n <= bat.verified_halves.n && bat.verified_road.n <= bat.verified_halves.n, 'battery: verified_federation and verified_road are subsets of the verified halves');
+// The one-verified-half-edition-out variants of verified_halves and verified_federation (pre-registered October 30,
+// 2026): the clauses each must pass, as its member does; counts that add up; the worst variant of each clause is the
+// member without one edition, at or over the floor, an exact share of its pairs; a clause no variant fails is one its worst
+// variant passes, and one some variant fails is one its worst variant fails.
+{
+  const LO = C.battery.leave_outs || {};
+  eq(Object.keys(LO).sort(), Object.keys(D.LEAVE_OUTS).sort(), 'battery.leave_outs: verified_halves and verified_federation');
+  const pooledExtra = bat.pooled.extra_p50_s, half = C.battery.pooled_half_p50_s;
+  for (const [id, clauses] of Object.entries(D.LEAVE_OUTS)) {
+    const x = LO[id];
+    if (!ok(x && typeof x === 'object' && bat[id], `battery.leave_outs.${id}: present, with its member`)) continue;
+    const keys = clauses.flatMap((c) => D.WORST[c]);
+    eq([Object.keys(x.failing).sort(), Object.keys(x.worst).sort()], [[...clauses].sort(), [...keys].sort()], `battery.leave_outs.${id}: its clauses and worst variants`);
+    ok(int(x.variants, 1) && int(x.under_floor) && x.under_floor <= x.variants && int(x.failed) && x.failed <= x.variants && x.failed >= x.under_floor, `battery.leave_outs.${id}: counts`);
+    ok(x.variants <= bat[id].n && x.variants <= S.half_editions, `battery.leave_outs.${id}: at most one variant per half edition of the member`);
+    for (const c of clauses) {
+      ok(int(x.failing[c]) && x.failing[c] <= x.failed - x.under_floor, `battery.leave_outs.${id}: failing ${c}`);
+      for (const k of D.WORST[c]) {
+        const w = x.worst[k];
+        if (w === null) { ok(x.under_floor === x.variants && x.failing[c] === 0, `battery.leave_outs.${id}.worst.${k}: null only when every variant is under the floor`); continue; }
+        ok(int(w.half_edition) && int(w.left_out, 1) && int(w.n, D.MIN_CELL) && w.n + w.left_out === bat[id].n, `battery.leave_outs.${id}.worst.${k}: the member without one edition, at or over the floor`);
+        ok(finite(w.multiple_p50) && finite(w.extra_p50_s) && D.isShareOf(w.under_double, w.n), `battery.leave_outs.${id}.worst.${k}: values, an exact share of its pairs`);
+      }
+      const worst = D.WORST[c].map((k) => x.worst[k]);
+      if (worst.every(Boolean)) eq(worst.every((w) => D.passes(c, w, pooledExtra, half)), x.failing[c] === 0, `battery.leave_outs.${id}: its worst variants pass ${c} exactly when no variant fails it`);
+    }
+    if (x.worst.multiple_low && x.worst.multiple_high) ok(x.worst.multiple_low.multiple_p50 <= x.worst.multiple_high.multiple_p50, `battery.leave_outs.${id}: the band's two sides in order`);
+  }
 }
 ok(C.no_merge_people.pairs <= S.pairs && C.ns_keys_1.pairs <= S.pairs && C.other_marathons.pairs < S.pairs, 'linked.checks: subsets of set B');
 for (const k of ['verified', 'editions_equal', 'other_marathons', 'ns_keys_1', 'one_per_person']) ok(C[k].w105_under_14400 > 0 && C[k].w105_under_14400 < 1, `linked.checks.${k}: the 1:45 check share`);
