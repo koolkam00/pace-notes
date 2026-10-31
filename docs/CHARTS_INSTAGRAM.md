@@ -610,7 +610,7 @@ Two cards outside the hundred, from the half-marathon pages (a card whose takeaw
 
 `half-under-2.png`
 
-55% of half marathon finishes came in under 2:00: 33% of recorded women’s finishes and 67% of men’s.
+55% of half marathon finishes came in under 2:00, as did 33% of recorded women’s finishes and 67% of men’s.
 
 The half marathon on Pace Notes: splithappens.run/half
 

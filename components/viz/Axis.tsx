@@ -20,12 +20,22 @@ export default function Axis({ ticks, title, refWidth, centred = false, gap }: {
   return (
     <div className="viz-axis">
       <svg className="viz-axis-svg" width="100%" height="24" aria-hidden="true">
-        {laid.map((t) => (t.minWidth === null ? null : (
-          <g key={`${t.label}-${t.x}`} className={widthClass(t.minWidth) || undefined}>
-            <rect className="tick-mark" x={pc(t.x)} y={0} width={1} height={4} transform="translate(-0.5 0)" />
-            <text className="tick" x={pc(t.x)} y={18} textAnchor={t.anchor}>{t.label}</text>
-          </g>
-        )))}
+        {laid.map((t) => {
+          const mark = t.markWidth === undefined ? t.minWidth : t.markWidth;
+          if (t.minWidth === null && mark === null) return null;
+          const tick = <rect className="tick-mark" x={pc(t.x)} y={0} width={1} height={4} transform="translate(-0.5 0)" />;
+          const text = <text className={`tick${t.turned ? ` turn-${t.turned}` : ''}`} x={pc(t.x)} y={18} textAnchor={t.anchor}>{t.label}</text>;
+          // A mark that keeps a width of its own (a group's) hides apart from its label.
+          if (mark !== t.minWidth) {
+            return (
+              <g key={`${t.label}-${t.x}`}>
+                {mark === null ? null : <g className={widthClass(mark) || undefined}>{tick}</g>}
+                {t.minWidth === null ? null : <g className={widthClass(t.minWidth) || undefined}>{text}</g>}
+              </g>
+            );
+          }
+          return <g key={`${t.label}-${t.x}`} className={widthClass(t.minWidth) || undefined}>{tick}{text}</g>;
+        })}
       </svg>
       {title ? <div className="viz-axis-title" aria-hidden="true"><span>{title.start}</span><span>{title.end}</span></div> : null}
     </div>

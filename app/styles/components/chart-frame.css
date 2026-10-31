@@ -166,6 +166,8 @@
 @container (max-width: 359.98px) { .viz-frame .w360 { display: none; } }
 @container (max-width: 319.98px) { .viz-frame .w320 { display: none; } }
 @container (max-width: 287.98px) { .viz-frame .w288 { display: none; } }
+/* A tick centred at the reference width turns at the plot's edge below it rather than hiding (Tick `turn`, labels.ts). */
+@container (max-width: 287.98px) { .viz-frame .tick.turn-start { text-anchor: start; } .viz-frame .tick.turn-end { text-anchor: end; } }
 @container (max-width: 239.98px) { .viz-frame .w240 { display: none; } }
 @container (max-width: 199.98px) { .viz-frame .w200 { display: none; } }
 @container (max-width: 159.98px) { .viz-frame .w160 { display: none; } }

@@ -109,9 +109,11 @@ export default function HalfToFullBody() {
       series: [{ id: 'median', values: bands.map((w) => w.q[9]), tone: 'ink' }, { id: 'double', values: xs.map((h) => 2 * h), dashed: true }],
     }],
     // The spec's ticks: 1:15, 1:45, 2:15 and 2:45 on a phone, the half hours between them from a 600 px figure (on a
-    // phone 2:30 crowded the end label, 2:45, set flush right).
+    // phone 2:30 crowded the end label, 2:45, set flush right). The first turns to start at the plot's edge on a phone
+    // at 200% zoom, where centred it ran past the edge and hid, leaving the stops from 1:10 to 1:45 with no time under
+    // them (post-merge review, round 3, October 31, 2026).
     xTicks: [4500, 5400, 6300, 7200, 8100, 9000, 9900].filter((h) => h >= lo && h <= hi)
-      .map((h) => ((h / 60) % 30 === 15 ? { value: h, label: floorHM(h), priority: 3 } : { value: h, label: floorHM(h), priority: 1, from: 600 })),
+      .map((h, i) => ((h / 60) % 30 === 15 ? { value: h, label: floorHM(h), priority: 3, ...(i === 0 ? { turn: 'start' as const } : {}) } : { value: h, label: floorHM(h), priority: 1, from: 600 })),
     // Gridlines on every hour inside the plot, 3:00 to 6:00 (the spec's four; the forms' three-line limit lifted for this
     // chart), so the quick end the first stops read (a 2:29 marathon after a 1:10 half) has 3:00 to read against. Their
     // labels sit over the data on a halo of the page, so the dashed double-the-half never strikes one through.
@@ -138,7 +140,8 @@ export default function HalfToFullBody() {
       },
       initial: home, detents: DETENTS.map((h) => bands.findIndex((w) => w.h === h)).filter((i) => i >= 0), follow: 'median', flipGrid: true,
     },
-    label: `The marathon after each half time, ${floorHM(lo)} to ${floorHM(hi)}: the typical marathon and the middle 8 in 10, against double the half. ${sentenceOf(range).replace(/\*/g, '')}`,
+    // The beat's reading closes the label only while it holds: its plain heading is the label's own first words.
+    label: `The marathon after each half time, ${floorHM(lo)} to ${floorHM(hi)}: the typical marathon and the middle 8 in 10, against double the half.${range.guard ? ` ${sentenceOf(range).replace(/\*/g, '')}` : ''}`,
     height: 220, heightMd: 280,
   };
   const chart = (

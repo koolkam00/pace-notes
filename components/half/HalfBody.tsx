@@ -14,7 +14,13 @@ const READING_MARK = 120;
 const OPEN_MARK = 105;
 /** The beat-1 readout's detents: the half's round times. */
 const DETENTS = [90, 105, 120, 135, 150];
-const W = 'Recorded women’s', M = 'Recorded men’s';
+/**
+ * The readout's side labels name each share's denominator: each is that sex's own finishes under the time. Bare
+ * ("Recorded women’s 33%, Recorded men’s 67%" beside "Under 2:00 55%") the pair added up to 100 at 2:00 and read as a
+ * split of the finishes under 2:00, of which women's were 22% (post-merge review, round 3, October 31, 2026; the card
+ * and the pace chart's panel name them the same way).
+ */
+const W = 'Of recorded women’s', M = 'Of recorded men’s';
 /** A readout share in whole percent, but never "0%" or "100%" for a share that is neither (the site's "<1%" rule). */
 const readPct = (share: number) => (share > 0 && share < 0.005 ? '<1%' : share < 1 && share >= 0.995 ? '>99%' : pct(share));
 /** A share for a spoken label: one decimal within a point of one half (2:00's 49.6% is not "50%" beside "most from 2:15"). */
@@ -117,6 +123,7 @@ export default function HalfBody() {
               keys: marks.map((u) => `Under ${hm(u.s / 60)}`),
               values: marks.map((u) => readPct(u.all)),
               side: [{ label: W, values: marks.map((u) => readPct(u.F)) }, { label: M, values: marks.map((u) => readPct(u.M)) }],
+              spoken: marks.map((u) => `Under ${hm(u.s / 60)}: ${readPct(u.all)} of half finishes, ${readPct(u.F)} of recorded women’s, ${readPct(u.M)} of recorded men’s`),
             },
             initial: markIndex(OPEN_MARK), detents: DETENTS.map(markIndex).filter((i) => i >= 0),
           }}

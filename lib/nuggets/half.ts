@@ -198,7 +198,9 @@ export function halfRangeFrom(linked: HalfLinked): Nugget {
       verified_share: c.verified.w105_under_14400, editions_equal_share: c.editions_equal.w105_under_14400 },
     guard,
     headline: w && mark ? `After a ${clock(w.h)} half, *${pct(share)}* of marathons came in under ${clock(mark[0])}.` : '',
-    fallback: 'Marathons after a half, half time by half time.',
+    // The plain heading says what the chart shows, as its table's caption does ("Marathons after a half, half time by
+    // half time." said "half" three times in nine words; post-merge review, round 3, October 31, 2026).
+    fallback: 'The marathon after each half time.',
     figure: null,
   };
 }

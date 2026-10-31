@@ -7,6 +7,7 @@ import { readHalf } from '@/lib/half-server';
 import { settledReadingOf } from '@/lib/nuggets';
 import { STORIES, storyHref, storyPublished } from '@/lib/stories';
 import { floorHM } from '@/lib/tools/half-to-full';
+import { HALF_CHART, goalLabel } from '@/lib/tools/pace-chart';
 import HalfNext from './HalfNext';
 
 /** The story /half hands on to: the half and the marathon after it, chapter 11's opener. */
@@ -41,7 +42,10 @@ export default function HalfEnd() {
       ) : null}
       <ToolHandoffs label="For your half" links={[
         { href: '/tools/predictor?d=half', title: 'Finish-time predictor', text: 'A marathon range from a half' },
-        { href: '/tools/half-marathon-pace-chart', title: 'Half marathon pace chart', text: 'Every time from 1:10 to 3:00' },
+        // The chart's rows are goals 5 minutes apart, so the row says "goal" and reads the chart's own range, as the chart's
+        // dek and the tools hub do ("Every time" promised a 1:52 row the chart does not have; post-merge review, round 3,
+        // October 31, 2026).
+        { href: '/tools/half-marathon-pace-chart', title: 'Half marathon pace chart', text: `Every goal from ${goalLabel(HALF_CHART.goals[0])} to ${goalLabel(HALF_CHART.goals[HALF_CHART.goals.length - 1])}` },
         { href: `/tools/pace-calculator?d=half&t=${floorHM(median)}:00`, title: 'Pace calculator', text: 'Splits for any half time' },
       ]} />
       <p className="chapter-end-links">

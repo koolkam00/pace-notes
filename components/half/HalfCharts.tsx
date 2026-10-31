@@ -217,7 +217,7 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
 export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, tickGap, height = 200, heightMd = 240 }: {
   curve: { x: number; y: number }[]; xDomain: [number, number];
   marks: { x: number; y: number; text: string; signal?: boolean }[];
-  xTicks: { value: number; label: string; priority?: number; group?: string }[]; yTicks: { value: number; label: string }[];
+  xTicks: { value: number; label: string; priority?: number; group?: string; markGroup?: string }[]; yTicks: { value: number; label: string }[];
   label: string;
   /** The clear space between two tick labels (Axis `gap`). */
   tickGap?: number;
@@ -255,7 +255,7 @@ export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, tickG
       </g>
     </Plot>
   );
-  return <ChartFrame label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis gap={tickGap} ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority, group: t.group }))} />} />;
+  return <ChartFrame label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis gap={tickGap} ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority, group: t.group, markGroup: t.markGroup }))} />} />;
 }
 
 /**

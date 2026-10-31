@@ -280,7 +280,7 @@ module.exports = function half({ json, eq, ok, core }) {
       [H.halfWomenFrom(w1), 'Women’s share of half finishes, by finish time.'],
       [H.halfCitiesFrom(w2), 'Women’s share of half and marathon finishes, same city and year.'],
       [H.halfExtraFrom(l1), 'The marathon after a half, against double the half.'],
-      [H.halfRangeFrom(l2), 'Marathons after a half, half time by half time.'],
+      [H.halfRangeFrom(l2), 'The marathon after each half time.'],
       [H.halfSexesFrom(l3), 'Sustained slowdowns in recorded women’s and men’s marathons after the same half.'],
       [H.halfSexesGuessFrom(l4), 'Recorded women’s and men’s marathons after the same half.'],
     ];
