@@ -1,0 +1,295 @@
+name: Berlin 2026 intake
+
+on:
+  push:
+    branches: [codex/berlin-2026-intake]
+    paths:
+      - 'ingestion/berlin2026/**'
+      - '.github/workflows/berlin-2026-intake.yml'
+  pull_request:
+    paths:
+      - 'ingestion/berlin2026/**'
+      - '.github/workflows/berlin-2026-intake.yml'
+  workflow_dispatch:
+    inputs:
+      input_release_tag:
+        description: 'Optional same-repository release containing normalized.jsonl and collection-audit.json; blank resumes the source collector'
+        required: false
+        type: string
+      max_details:
+        description: 'Maximum new details per manual collection run; cache resumes later runs'
+        default: '5000'
+        required: true
+        type: string
+      delay_seconds:
+        description: 'Minimum delay between source requests'
+        default: '1'
+        required: true
+        type: string
+      publish_release:
+        description: 'Publish a separate provisional dataset release after every completeness and integrity check passes'
+        default: true
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: berlin-2026-intake-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: ingestion/berlin2026
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install collector dependencies
+        run: python -m pip install -r ingestion/berlin2026/requirements.txt
+      - name: Run offline collector and database tests
+        run: python -m unittest discover -s ingestion/berlin2026 -p 'test_*.py'
+
+  prepare:
+    if: github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      INPUT_RELEASE_TAG: ${{ inputs.input_release_tag }}
+      MAX_DETAILS: ${{ inputs.max_details }}
+      COLLECT_DELAY: ${{ inputs.delay_seconds }}
+      BASE_TAG: htw-db-2026-09-27
+      BASE_FILE: htw-db-2026-09-27.sqlite.gz
+      BASE_SHA256: 16cf4c4ad8b6d4db75d9aafa8194df41f1f7fb4906d428701b5e8c4654ea4c73
+      BASE_BYTES: '538742266'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: ingestion/berlin2026
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install collector dependencies
+        run: python -m pip install -r ingestion/berlin2026/requirements.txt
+      - name: Validate manual inputs and available disk
+        run: |
+          python - <<'PY'
+          import os, re, shutil
+          count = int(os.environ['MAX_DETAILS'])
+          delay = float(os.environ['COLLECT_DELAY'])
+          assert 1 <= count <= 10000, 'max_details must be between 1 and 10000'
+          assert 1 <= delay <= 10, 'delay_seconds must be between 1 and 10'
+          assert count * delay < 18000, 'Choose a batch that fits the runner time limit'
+          tag = os.environ.get('INPUT_RELEASE_TAG', '')
+          assert not tag or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', tag), 'Invalid input release tag'
+          assert shutil.disk_usage(os.environ['RUNNER_TEMP']).free >= 9 * 1024**3, 'Need 9 GiB of temporary disk'
+          PY
+      - name: Restore resumable public-source cache
+        if: inputs.input_release_tag == ''
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/berlin-collected
+          key: berlin-2026-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: berlin-2026-v1-
+      - name: Collect a bounded batch with ordinary source requests
+        id: collect
+        if: inputs.input_release_tag == ''
+        continue-on-error: true
+        run: |
+          python ingestion/berlin2026/collect_berlin.py \
+            --output "$RUNNER_TEMP/berlin-collected" \
+            --delay "$COLLECT_DELAY" --max-details "$MAX_DETAILS"
+      - name: Save progress, including incomplete runs
+        if: always() && inputs.input_release_tag == '' && steps.collect.outcome != 'skipped'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/berlin-collected
+          key: berlin-2026-v1-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Download a supplied export from this repository
+        if: inputs.input_release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/berlin-collected"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$INPUT_RELEASE_TAG" > "$RUNNER_TEMP/input-release.json"
+          gh release download "$INPUT_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern normalized.jsonl --pattern collection-audit.json \
+            --dir "$RUNNER_TEMP/berlin-collected"
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          release = json.loads((root / 'input-release.json').read_text())
+          assets = {a['name']: a for a in release['assets']}
+          for name in ('normalized.jsonl', 'collection-audit.json'):
+              path = root / 'berlin-collected' / name
+              asset = assets[name]
+              assert path.stat().st_size == asset['size'], f'Size mismatch: {name}'
+              digest = 'sha256:' + hashlib.file_digest(path.open('rb'), 'sha256').hexdigest()
+              assert asset.get('digest') == digest, f'Missing or mismatched GitHub digest: {name}'
+          PY
+      - name: Require full collection reconciliation before modifying a database copy
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'berlin-collected'
+          audit = json.loads((root / 'collection-audit.json').read_text())
+          assert audit['status'] == 'complete', 'Blocked or incomplete collection: no dataset release will be published'
+          assert audit['listing_complete'] is True, 'Result listing is incomplete'
+          assert audit['event_id'] == 'BML_HCH3C0OH37C' and int(audit['year']) == 2026
+          assert audit['missing_details'] in (0, []), 'Some athlete details are missing'
+          listed, fetched = int(audit['listed_count']), int(audit['fetched_count'])
+          assert listed >= 50000, 'Expected the observed full field of at least 50,000 results; a sample cannot publish'
+          assert listed == fetched, 'Listing and detail totals differ'
+          rows = sum(1 for line in (root / 'normalized.jsonl').open() if line.strip())
+          assert rows == listed, 'Normalized records do not reconcile with source results'
+          digest = hashlib.file_digest((root / 'normalized.jsonl').open('rb'), 'sha256').hexdigest()
+          assert audit.get('normalized_sha256') == digest, 'Collection audit is not bound to these normalized records'
+          print(f'Complete observed source population: {rows} records; source finality remains as recorded.')
+          PY
+      - name: Package the Berlin-only dataset
+        run: |
+          python ingestion/berlin2026/package_berlin.py package \
+            --input "$RUNNER_TEMP/berlin-collected/normalized.jsonl" \
+            --collector-report "$RUNNER_TEMP/berlin-collected/collection-audit.json" \
+            --output "$RUNNER_TEMP/berlin-release"
+          cp "$RUNNER_TEMP/berlin-collected/collection-audit.json" "$RUNNER_TEMP/berlin-release/collection-audit.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'berlin-release'
+          source = json.loads((root / 'collection-audit.json').read_text())
+          package = json.loads((root / 'MANIFEST.json').read_text())
+          assert package['audit']['unique_records'] == source['listed_count'], 'Package dropped or duplicated source records'
+          assert package['audit']['identical_duplicate_input_rows'] == 0, 'Resolve duplicate source keys before publication'
+          PY
+      - name: Download and verify the immutable baseline snapshot
+        run: |
+          curl --fail --location --silent --show-error \
+            "https://github.com/koolkam00/pace-notes/releases/download/$BASE_TAG/$BASE_FILE" \
+            --output "$RUNNER_TEMP/$BASE_FILE"
+          python - <<'PY'
+          import gzip, hashlib, json, os, shutil
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          archive = root / os.environ['BASE_FILE']
+          assert archive.stat().st_size == int(os.environ['BASE_BYTES']), 'Baseline compressed size mismatch'
+          actual = hashlib.file_digest(archive.open('rb'), 'sha256').hexdigest()
+          assert actual == os.environ['BASE_SHA256'], 'Baseline compressed checksum mismatch'
+          snapshot = root / 'baseline.sqlite'
+          with gzip.open(archive, 'rb') as src, snapshot.open('xb') as dst:
+              shutil.copyfileobj(src, dst)
+          raw_digest = hashlib.file_digest(snapshot.open('rb'), 'sha256').hexdigest()
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write('BASE_SQLITE_SHA256=' + raw_digest + '\n')
+          metadata = {'baseline_release': os.environ['BASE_TAG'], 'archive_name': archive.name,
+                      'archive_sha256': actual, 'sqlite_sha256': raw_digest,
+                      'sqlite_bytes': snapshot.stat().st_size}
+          (root / 'berlin-release' / 'baseline-provenance.json').write_text(json.dumps(metadata, indent=2) + '\n')
+          archive.unlink()
+          PY
+      - name: Append to a separate snapshot and verify preserved records
+        run: |
+          python ingestion/berlin2026/package_berlin.py merge \
+            --input "$RUNNER_TEMP/berlin-collected/normalized.jsonl" \
+            --snapshot "$RUNNER_TEMP/baseline.sqlite" \
+            --snapshot-sha256 "$BASE_SQLITE_SHA256" \
+            --output "$RUNNER_TEMP/berlin-release/platform-with-berlin-2026.sqlite"
+          gzip -n "$RUNNER_TEMP/berlin-release/platform-with-berlin-2026.sqlite"
+      - name: Write publication inventory and source limitations
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'berlin-release'
+          files = sorted(p for p in root.iterdir() if p.is_file())
+          rows = [{'name': p.name, 'bytes': p.stat().st_size,
+                   'sha256': hashlib.file_digest(p.open('rb'), 'sha256').hexdigest()} for p in files]
+          inventory = {'schema_version': 1, 'kind': 'derived-public-snapshot',
+                       'source_commit': os.environ['GITHUB_SHA'], 'files': rows,
+                       'live_ingestion_database_modified': False, 'website_updated': False,
+                       'features_regenerated': False, 'synchronized_core_full_export': False}
+          (root / 'RELEASE-INVENTORY.json').write_text(json.dumps(inventory, indent=2) + '\n')
+          (root / 'RELEASE-NOTES.md').write_text(
+              '# Berlin Marathon 2026 — provisional data intake\n\n'
+              'Contains the complete result population observed by the collector, with source status and collection audit. '
+              'The timing provider may revise unofficial results. Missing splits and exact ages remain missing.\n\n'
+              'Includes a Berlin-only SQLite/CSV/JSONL package and a separate derived platform snapshot based on '
+              '`htw-db-2026-09-27`. Existing records and IDs are preserved by the merge audit. '
+              'The derived database adds raw results and their source registration; existing feature and overlay tables '
+              'are preserved and are not rebuilt for this edition. This is not a synchronized CORE/FULL export. '
+              'This release does not replace any live ingestion database or historical backup. '
+              'Existing feature tables remain at the baseline and do not cover the added records; '
+              'this is a raw-data intake, not a synchronized CORE/FULL analytical export. '
+              'Website analysis pins and deployed data are unchanged.\n\n'
+              'See the package manifest, collection audit, merge audit, baseline provenance and release inventory for verification.\n')
+          PY
+      - name: Preserve the complete verified publication files
+        uses: actions/upload-artifact@v4
+        with:
+          name: berlin-2026-verified-release
+          path: ${{ runner.temp }}/berlin-release/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Preserve the collection audit even if collection is blocked
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: berlin-2026-collection-audit
+          path: ${{ runner.temp }}/berlin-collected/collection-audit.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: berlin-2026-intake-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: berlin-2026-verified-release
+          path: ${{ runner.temp }}/berlin-release
+      - name: Create a distinct draft release and upload audited assets
+        run: |
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --draft --latest=false \
+            --title 'Berlin Marathon 2026 — provisional data intake' \
+            --notes-file "$RUNNER_TEMP/berlin-release/RELEASE-NOTES.md"
+          gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/berlin-release/"* --repo "$GITHUB_REPOSITORY"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$RUNNER_TEMP/uploaded-release.json"
+      - name: Check every uploaded asset before publication
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          release = json.loads((root / 'uploaded-release.json').read_text())
+          assert release['draft'] is True
+          assets = {a['name']: a for a in release['assets']}
+          local = {p.name: p for p in (root / 'berlin-release').iterdir() if p.is_file()}
+          assert set(assets) == set(local), 'Published asset set differs from verified files'
+          for name, path in local.items():
+              assert assets[name]['size'] == path.stat().st_size, name
+              digest = 'sha256:' + hashlib.file_digest(path.open('rb'), 'sha256').hexdigest()
+              assert assets[name].get('digest') == digest, f'GitHub digest mismatch: {name}'
+          PY
+      - name: Publish the immutable additive release
+        run: |
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
+          printf 'Published: https://github.com/%s/releases/tag/%s\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"

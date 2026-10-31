@@ -1,0 +1,44 @@
+name: Berlin 2026 source probe
+
+on:
+  push:
+    branches: [codex/berlin-2026-intake]
+    paths:
+      - '.github/workflows/berlin-2026-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read public results from the GitHub runner
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,pathlib,urllib.error,urllib.request
+          out=pathlib.Path('source-probe'); out.mkdir()
+          url='https://berlin.r.mikatiming.com/2026/?event=BML_HCH3C0OH37C&num_results=100&pid=search&search%5Bsex%5D=%25&search%5Bage_class%5D=%25&search_sort=place_nosex'
+          report={'url':url,'status':'not_requested','bulk_collection':False}
+          try:
+              with urllib.request.urlopen(url,timeout=30) as response:
+                  body=response.read()
+                  report.update(http_status=response.status,bytes=len(body),sha256=hashlib.sha256(body).hexdigest(),status='retrieved')
+                  (out/'list.html').write_bytes(body)
+          except urllib.error.HTTPError as error:
+              report.update(http_status=error.code,status='source_rejected_request')
+          except Exception as error:
+              report.update(status='request_failed',error=str(error))
+          (out/'report.json').write_text(json.dumps(report,indent=2))
+          print(json.dumps(report,indent=2))
+          if report['status'] != 'retrieved':
+              raise SystemExit('Source access unavailable; no retries, bypass, import or publication.')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: berlin-2026-source-probe
+          path: source-probe/
+          retention-days: 14
