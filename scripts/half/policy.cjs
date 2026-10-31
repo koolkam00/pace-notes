@@ -8,7 +8,8 @@
 // Two policy schemas: 1 (half-snapshot-20261029-1133: the stamp correction turns the frozen withdrawn stamps into
 // unverified editions) and 2 (half-dataset-20261030-1904: verified = stamped in the snapshot's own edition_meta, checked by
 // `checkStamps` against the frozen list, the 2157 reference, never_stamp and the release's CSV; partial loads (E0), removed
-// statuses (E1, no rows), the virtual-event screen (E2, recomputed here) and an unknown status fails).
+// statuses (E1, no rows), the virtual-event screen (E2, recomputed here), an unknown status fails and so does an empty
+// status holding record-usable rows). In both, every record-usable finish after R7 is used or removed by one edition rule.
 //
 // One pass over race_records in id order keeps per-row numbers in typed arrays (no names: a name enters only as a
 // 53-bit hash of its duplicate key; the few rows whose keys collide are reread by id to compare the keys themselves).
@@ -134,6 +135,7 @@ function checkPolicyText(policy) {
   need(JSON.stringify(Object.keys(policy.statuses).sort()) === JSON.stringify(Object.keys(STATUS_2).sort())
     && Object.keys(STATUS_2).every((g) => JSON.stringify(policy.statuses[g]) === JSON.stringify(STATUS_2[g])), 'the status groups');
   need(typeof policy.unknown_status === 'string', 'an unknown status fails');
+  need(typeof policy.empty_status === 'string', 'an empty status holds no record-usable rows');
   const ER = policy.edition_rules;
   need(Array.isArray(ER.E0?.partial_loads) && ER.E0.partial_loads.every((x) => typeof x.city === 'string' && Number.isSafeInteger(x.year)), 'the partial loads');
   need(JSON.stringify(ER.E1?.removed) === JSON.stringify(STATUS_2.removed), 'the removed status');
@@ -377,6 +379,9 @@ function applyPolicy(db, policy, log = () => {}) {
   }
   for (const r of ET) r.rule = r.category ? (rx.categories[r.category] || null) : null;
   for (const r of ET) if (r.group === 'removed') need(r.n_db === 0, `${r.city} ${r.year}: a removed edition still holds ${r.n_db} rows`);
+  // The producer's empty placeholder status has no edition rule, so record-usable rows in it would leave every count
+  // unnoticed: they fail instead (verify round 1, October 31, 2026; policy.empty_status).
+  if (v2) for (const r of ET) if (STATUS_2.empty.includes(r.status)) need(r.n_usable === 0, `${r.city} ${r.year}: an edition with an empty status holds ${r.n_usable} record-usable rows`);
   lists.editions = ET.filter((r) => r.rule && r.rule !== 'E1').map((r) => ({ edition_id: r.edition_id, city: r.city, year: r.year, rule: r.rule, category: r.category, finishes: r.n_usable }));
 
   // ---------- The editions removed, as the frozen policy lists them ----------
@@ -439,6 +444,9 @@ function applyPolicy(db, policy, log = () => {}) {
       never_stamp: db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'never_stamp'").get().n ? db.prepare('SELECT count(*) AS n FROM never_stamp').get().n : 0,
     };
   } else counts.stamp_withdrawn = tally((k) => withdrawnEds.has(fin.ed[k]));
+  // Every record-usable finish after R7 is used or removed by exactly one edition rule.
+  const accounted = counts.use_finish.finishes + counts.E0_finishes + counts.E1_held_finishes + counts.E2_E8_finishes;
+  need(accounted === counts.record_usable_after_R7, `${counts.record_usable_after_R7 - accounted} record-usable finishes after R7 are neither used nor removed by an edition rule`);
   const recomputed = { E0: E0.length, E1: E1.length, E2_E8: E28.length, E2_E8_finishes: sum(E28), duplicate_groups: groups };
   // rows: every record in id order (its edition, parsed finish, published sex as written), for the link build's joins.
   const rows = { n: total, id, ed, finish, sex: sexRaw, sexNames: rawSexNames };

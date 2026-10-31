@@ -275,6 +275,11 @@ export type HalfLinked = {
     multiple_by_band: { h: number; ratio_p50: number }[];
     /** Marathon cities of at least 100 pairs from 3 editions (the battery's city_equal cities). */
     by_city: HalfLinkedCity[];
+    /**
+     * Where the pairs come from (the limits sentences): the fewest marathon cities, most pairs first, that together hold
+     * more than half of the pairs, over every marathon city of set B; null when one of them holds under 100 pairs.
+     */
+    pairs_from: { cities: { city: string; pairs: number; e: number }[]; pairs: number } | null;
     /** Link coverage by marathon city: eligible finishes linked to someone with a usable half (1,000 finishes and 100 linked at least). */
     coverage: { city: string; finishes: number; share: number }[];
   };

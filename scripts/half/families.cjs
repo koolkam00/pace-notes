@@ -436,6 +436,24 @@ function byCity(p) {
   return out;
 }
 
+/**
+ * Where the pairs come from (half_linked.pairs_from): the fewest marathon cities, most pairs first (ties by name), that
+ * together hold more than half of the pairs, over every marathon city; null when one of them holds under 100 pairs.
+ */
+function pairsFrom(p) {
+  const by = new Map();
+  p.city.forEach((c, i) => { let x = by.get(c); if (!x) by.set(c, (x = { n: 0, eds: new Set() })); x.n++; x.eds.add(p.ed[i]); });
+  const order = [...by.entries()].sort((a, b) => b[1].n - a[1].n || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const cities = [];
+  let held = 0;
+  for (const [city, x] of order) {
+    if (2 * held > p.n) break;
+    cities.push({ city, pairs: x.n, e: x.eds.size });
+    held += x.n;
+  }
+  return cities.some((c) => c.pairs < MIN_CELL) ? null : { cities, pairs: held };
+}
+
 /** Link coverage by marathon city: at least 1,000 eligible finishes and 100 linked ones, by share. */
 const coverageRows = (rows) => rows.filter((c) => c.finishes >= 1000 && c.linked >= MIN_CELL)
   .map((c) => ({ city: c.city, finishes: c.finishes, share: D.sh(c.linked / c.finishes) }))
@@ -476,7 +494,7 @@ function linked(P, { people, halfEditions, coverage, weakerSource, offRoad }) {
     windows: Object.fromEntries(Object.entries(windows).map(([g, ws]) => [g, ws.map(clean)])),
     sexes: { rule: 'half band x marathon city, >=20 pairs per sex', ...sexes(p) },
     goals,
-    checks: { ...checks(p, { weakerSource, offRoad }), multiple_by_band: multipleByBand(p, ...ranges.all), by_city: byCity(p), ...(coverage ? { coverage: coverageRows(coverage) } : {}) },
+    checks: { ...checks(p, { weakerSource, offRoad }), multiple_by_band: multipleByBand(p, ...ranges.all), by_city: byCity(p), pairs_from: pairsFrom(p), ...(coverage ? { coverage: coverageRows(coverage) } : {}) },
   };
   const tool = {
     schema_version: 1, family: 'half-tool', scope: 'linked', Q, window_s: 300,

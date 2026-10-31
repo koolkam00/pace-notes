@@ -1255,6 +1255,7 @@
    "E8"
   ]
  },
+ "empty_status": "an edition whose completeness_status is in the empty group (the producer's placeholder for an edition with nothing loaded) must hold no record-usable rows, else the build fails",
  "expected": {
   "E0_editions": 7,
   "E0_finishes": 18576,

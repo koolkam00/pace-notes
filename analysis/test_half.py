@@ -188,6 +188,8 @@ class Rules(unittest.TestCase):
         s.field('Oslo Half', 2015, uniform(5400, 10800, 120))
         ids['bib'] = {b: s.record('Oslo Half', 2016, 7000, bib=str(b)) for b in (72999, 73000, 75999, 76000)}
         ids['bib_2015'] = s.record('Oslo Half', 2015, 7000, bib='74000')
+        ids['bib_none'] = s.record('Oslo Half', 2016, 7001)                 # no bib: outside the block
+        ids['bib_text'] = s.record('Oslo Half', 2016, 7002, bib='A12')      # a bib that is no integer: outside too
         s.close()
         cls.db = hc.connect(half=s.path)
         cls.result = hq.apply(cls.db, compare=False)
@@ -231,6 +233,12 @@ class Rules(unittest.TestCase):
         self.assertFalse(self.r7[self.ids['bib_2015']], 'R7 covers 2016–2025 only')
         self.assertEqual(self.result.counts['R7'], 2)
         self.assertEqual(self.result.counts['record_usable_after_R7'], self.result.counts['record_usable'] - 2)
+        # Verify round 1 (October 31, 2026): a missing or non-integer bib is outside the range (false, never null), so the
+        # record stays usable in every count; a null here once dropped the Oslo Half's unbibbed rows from use_finish.
+        for key in ('bib_none', 'bib_text'):
+            self.assertIs(self.r7[self.ids[key]], False, key)
+            self.assertEqual(self.db.execute('SELECT count(*) FROM hfin WHERE record_id = ? AND NOT r7_block', [self.ids[key]]).fetchone()[0], 1, key)
+        self.assertEqual(self.db.execute('SELECT count(*) FROM hr WHERE r7_block IS NULL').fetchone()[0], 0)
 
     def test_edition_rules_fire(self):
         m = self.result.editions.set_index(['city', 'year'])
@@ -393,7 +401,7 @@ class SetB(unittest.TestCase):
         _, _, cov = self.build(people, halves, marathons, coverage=True)
         linked = {c['city']: c['linked'] for c in cov}
         self.assertEqual(linked, {'M0': 1, 'M1': 0, 'M2': 0, 'M3': 0, 'M4': 0},
-                         'only a marathon row that may pair, of a person with a half that may pair, counts as linked')
+                         'only a strong marathon row, of a person with a strong row on a usable half, counts as linked')
 
     def test_marathon_dates_come_from_the_evidence(self):
         editions = [{'city': 'A', 'year': 2022}, {'city': 'B', 'year': 2022}]
@@ -721,6 +729,32 @@ class MethodologyChecks(unittest.TestCase):
         bands = linked['checks']['multiple_by_band']
         self.assertEqual([b['h'] for b in bands], [60 * H for H in range(ranges['all'][0], ranges['all'][1] + 1) if H % 5 == 0])
         self.assertNotIn('coverage', linked['checks'], 'coverage only when the builder passes it')
+
+    def test_pairs_from_counts_every_marathon_city(self):
+        # Verify round 1 (October 31, 2026): the limits sentence's cities come from every marathon city, so a city under
+        # by_city's 3-edition rule is named when it holds many pairs.
+        frame = synthetic_pairs()
+        frame.loc[frame.m_city == 'Paris', 'm_year'] = 2024                  # Paris: one edition, out of by_city
+        frame['m_ed'] = frame.m_city + ' ' + frame.m_year.astype(str)
+        frame.loc[frame.index[:6000], ['m_city', 'm_ed']] = ['Paris', 'Paris 2024']
+        linked, _, _ = build_linked(frame)
+        self.assertNotIn('Paris', [c['city'] for c in linked['checks']['by_city']])
+        counts = frame.groupby('m_city').size().sort_values(ascending=False)
+        want, held = [], 0
+        for city in sorted(counts.index, key=lambda c: (-counts[c], c)):
+            if 2 * held > len(frame):
+                break
+            want.append(city)
+            held += int(counts[city])
+        got = linked['checks']['pairs_from']
+        self.assertEqual([c['city'] for c in got['cities']], want)
+        self.assertEqual(got['cities'][0], {'city': 'Paris', 'pairs': int(counts['Paris']), 'e': 1})
+        self.assertEqual(got['pairs'], held)
+        self.assertGreater(2 * got['pairs'], len(frame))
+        self.assertLessEqual(2 * (got['pairs'] - got['cities'][-1]['pairs']), len(frame), 'the fewest cities')
+        # A city under 100 pairs among them: no list (the sentence falls back to "unevenly").
+        spread = frame.assign(m_city=['C%03d' % (i % 200) for i in range(len(frame))])
+        self.assertIsNone(half_linked.pairs_from(half_linked.Pairs(spread)))
 
     def test_coverage_floors(self):
         rows = half_linked.coverage_rows([{'city': 'A', 'finishes': 5000, 'linked': 2000}, {'city': 'B', 'finishes': 900, 'linked': 300},
@@ -1374,6 +1408,8 @@ class LinksExtract(unittest.TestCase):
             (lambda s: row(s, 108, 'full').update(record_id=107), 'repeated (source_db, record_id)'),
             (lambda s: row(s, 2).update(confidence='medium', method='merged'), 'more than one tier'),
             (lambda s: s.persons_over.setdefault(pid(2), {}).update(n_results=9), 'persons.parquet and the linked rows disagree'),
+            # verify round 1 (October 31, 2026): every pair takes persons.parquet's sex, so it must be the rows' sex
+            (lambda s: s.persons_over.setdefault(pid(2), {}).update(sex='F'), 'persons.parquet and the linked rows disagree'),
             (lambda s: row(s, 1).update(age_key='1980'), 'age keys of another form'),
             (lambda s: row(s, 5).update(name_norm=None), 'without a normalized name'),
         ]
@@ -1671,6 +1707,34 @@ class Policy1904(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:   # the 1133 entry knew no such rule: the same status falls to no_rows
             m = self.editions(self.source(folder, extra=[('Odd', 2024, 'awaiting_review', 50)]), hq.rules_of(hq.TAG_1133))
             self.assertEqual(m.loc[('Odd', 2024), 'category'], 'no_usable_rows')
+
+    def test_an_empty_status_with_rows_fails_and_the_counts_add_up(self):
+        # Verify round 1 (October 31, 2026): the producer's empty placeholder has no edition rule, so its rows would leave
+        # every count unnoticed. It fails like a removed status with rows, and apply checks that every record-usable
+        # finish after R7 is used or removed by one edition rule.
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(hc.HalfError, 'empty status hold record-usable rows'):
+                self.editions(self.source(folder, extra=[('Loaded Late', 2024, 'no_rows', 300)]))
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.source(folder)
+            db = hc.connect(half=path)
+            try:
+                c = hq.apply(db, hq.TAG, compare=False).counts
+            finally:
+                db.close()
+            self.assertEqual(c['use_finish']['finishes'] + c['E0_finishes'] + c['E1_held_finishes'] + c['E2_E8_finishes'], c['record_usable_after_R7'])
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.source(folder, extra=[('Loaded Late', 2024, 'no_rows', 300)])
+            saved = hq.REVIEWED_HALF_POLICIES[hq.TAG]['rules']
+            db = hc.connect(half=path)
+            try:   # without the empty group (and with unknown statuses allowed) the rows fall to no rule: apply refuses
+                hq.REVIEWED_HALF_POLICIES[hq.TAG]['rules'] = {**saved, 'unknown_status': None,
+                                                             'statuses': {g: v for g, v in saved['statuses'].items() if g != 'empty'}}
+                with self.assertRaisesRegex(hc.HalfError, '300 record-usable finishes after R7 are neither used nor removed'):
+                    hq.apply(db, hq.TAG, compare=False)
+            finally:
+                hq.REVIEWED_HALF_POLICIES[hq.TAG]['rules'] = saved
+                db.close()
 
     def test_the_link_partial_editions(self):
         with tempfile.TemporaryDirectory() as folder:

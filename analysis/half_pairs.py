@@ -4,9 +4,10 @@ The link rule, like for like with runner links v1 (lead rulings L, October 31, 2
 links-v4.sqlite (analysis/half_links_extract.py):
 1. People: a v4 person_id (`^p4_[0-9a-f]{16}$`, asserted) whose tier is high_elite, high or medium (high_elite and high
    count as high), with `ns_keys` at most 3 (the distinct age keys of the person's name and published sex, the largest
-   over the rows that may pair). The producer's own unions are applied; there are no candidate merges.
-2. Rows that may pair: both records of a pair carry their own confidence high_elite, high or medium, so a record the
-   link build attached without an age or a sex (low_noage, low_noage_series, low_nosex) or a low one never pairs.
+   over the person's strong rows: rows whose own confidence is high_elite, high or medium, of either distance, whatever
+   the status of their record). The producer's own unions are applied; there are no candidate merges.
+2. Strong rows only: both records of a pair carry their own confidence high_elite, high or medium, so a record the link
+   build attached without an age or a sex (low_noage, low_noage_series, low_nosex) or a low one never pairs.
 3. Their halves: `use_finish` finishes, dated, not in the R7 bib block, not in a date-suspect edition, not in one of the
    policy's link editions (`link_editions`: an edition with rows on both sides of the link build's coverage boundary,
    or one re-timed after the build); no other usable half of the person on the same date, and no eligible marathon of
@@ -39,7 +40,9 @@ WINDOW_DAYS = (21, 112)
 CLOSE_MARATHON_DAYS = 13
 PERSON_ID = r'^p4_[0-9a-f]{16}$'
 LINK_RULES = {'tiers': list(TIERS), 'row_tiers': list(TIERS), 'ns_keys_max': NS_KEYS_MAX,
-              'ns_keys': 'distinct age keys per normalized name and published sex over every row of the link build; a person takes the largest over the rows that may pair',
+              'ns_keys': ("distinct age keys per normalized name and published sex over every row of the link build; a person takes "
+                          "the largest over the person's rows whose own confidence is high_elite, high or medium (either distance, "
+                          "whatever the record's status)"),
               'window_days': list(WINDOW_DAYS), 'pairing': 'nearest prior half, one pair per person and marathon',
               'conflicts': 'over every linked row of the person, whatever its confidence',
               'link_editions': "the policy's link-partial and re-timed editions supply no linked half",
@@ -83,7 +86,7 @@ def build(db, marathons, links_tag: str, *, link_editions: dict, expected: dict 
         FROM pp p JOIN l.links k ON k.person_id = p.person_id AND k.db = 'half' JOIN hfin f ON f.record_id = k.record_id""")
     db.execute("""CREATE OR REPLACE TEMP TABLE pmc AS SELECT DISTINCT p.person_id, m.m_record_id, m.m_date
         FROM pp p JOIN l.links k ON k.person_id = p.person_id AND k.db = 'full' JOIN mar m ON m.m_record_id = k.record_id""")
-    # The rows that may pair.
+    # The strong rows that may form a pair (halves: use_finish, outside the link editions; marathons: eligible).
     db.execute(f"""CREATE OR REPLACE TEMP TABLE ph AS SELECT p.person_id, f.record_id AS h_record_id, f.edition_id AS h_edition_id,
         f.city AS h_label, f.race_date AS h_date, f.status_group AS h_status_group, f.finish_s AS h_finish_s, f.r7_block, f.date_suspect
         FROM pp p JOIN l.links k ON k.person_id = p.person_id AND k.db = 'half' AND k.confidence IN ({tiers})
@@ -135,9 +138,10 @@ def build(db, marathons, links_tag: str, *, link_editions: dict, expected: dict 
 
 def coverage(db, marathons, *, link_editions: dict):
     """Link coverage by marathon city (for /methodology only): each city's eligible marathon finishes, and how many of
-    them are linked, by a row that may pair, to a person as in rule 1 with at least one usable half that may pair (any
-    date, not R7, not in a link edition). It depends on how each source publishes age, not on runners' habits. Needs
-    `hfin` and the links extract as `l`. A list of {city, finishes, linked}, every city."""
+    them are linked, on a strong row (own confidence high_elite, high or medium), to a person who passes rule 1 and has
+    a strong row on a usable half outside the link editions and the R7 block, dated or not and date-suspect or not (so a
+    half that cannot itself pair still counts). It depends on how each source publishes age, not on runners' habits.
+    Needs `hfin` and the links extract as `l`. A list of {city, finishes, linked}, every city."""
     tiers = ', '.join(f"'{t}'" for t in TIERS)
     no_link = no_link_sql(link_editions)
     db.register('mar_df', marathons.frame())

@@ -22,7 +22,7 @@ Checks (each fails loudly; the reviewed counts are EXPECTED[pin links.key], the 
   person_id that does not match `^p4_[0-9a-f]{16}$` (so an ID that carries a name fails); a linked row without a
   confidence or an unlinked one with one; a person with more than one of the tiers high_elite, high, medium and low; an age
   key that is not `yob:<digits>` or `ag:<bin>` (a few yob keys carry years of under four digits, from the source's
-  ages; they count as keys like any other); a finish in seconds with a fraction; a row that may pair without a normalized
+  ages; they count as keys like any other); a finish in seconds with a fraction; a strong row (below) without a normalized
   name or a published sex M or F. persons.parquet must hold exactly the linked persons, each with the rows', half rows' and
   marathon rows' counts and the rows' published sex (review R16), and only sex M or F.
 - Half rows against the snapshot: every snapshot row with an id up to the coverage boundary has a v4 row and no v4 half row
@@ -39,11 +39,12 @@ Checks (each fails loudly; the reviewed counts are EXPECTED[pin links.key], the 
 Tables written:
 - `people(person_id, sex, tier, ns_keys, key_type, in_union, k, k_block)`: every v4 person whose tier is high_elite,
   high or medium, whose persons.parquet sex is M or F, and who has at least one half row and one marathon row of that
-  own confidence (the rows that may pair). `tier` is the single value among high_elite, high, medium and low the person's
-  rows carry. `ns_keys` follows the v1 link rule like for like (lead rulings L.4, review R1; NS_KEYS_SQL, frozen): the
-  number of distinct `age_key` values per (`name_norm`, published sex M or F), counted over every v4 row of either
-  distance that has an age key, linked or not; each row takes its own block's count (0 when no row of the block has an
-  age key), and a person takes the largest over the rows that may pair. `key_type` says which age keys those rows carry:
+  own confidence (the strong rows: rows whose own confidence is high_elite, high or medium, whatever the status of
+  their record). `tier` is the single value among high_elite, high, medium and low the person's rows carry. `ns_keys`
+  follows the v1 link rule like for like (lead rulings L.4, review R1; NS_KEYS_SQL, frozen): the number of distinct
+  `age_key` values per (`name_norm`, published sex M or F), counted over every v4 row of either distance that has an age
+  key, linked or not; each row takes its own block's count (0 when no row of the block has an age key), and a person
+  takes the largest over the person's strong rows of either distance. `key_type` says which age keys those rows carry:
   `yob`, `age_bin`, `mixed` or `none`. `in_union` is 1 when a row of the person was joined by one of the producer's
   unions (method `+middle_name_union` or `+natdiff_union`). `k` (evidence only, never a filter or a battery member; lead
   rulings L) rebuilds the producer's block size the way code.tgz's final3.sql builds it, made deterministic (K_SQL,
@@ -104,8 +105,9 @@ PERSONS_COLUMNS = {'person_id': 'VARCHAR', 'sex': 'VARCHAR', 'n_results': 'BIGIN
 
 # ns_keys, like for like with runner links v1 (lead rulings L.4; review R1): distinct age keys per normalized name and
 # published sex over every v4 row with one; each linked row's block count (0 when its block holds no age key, NULL when
-# the row has no name or no published M or F sex); a person's value, the largest over the rows that may pair. Frozen:
-# its sha256 is in the build table.
+# the row has no name or no published M or F sex); a person's value, the largest over the person's strong rows (own
+# confidence high_elite, high or medium; either distance, whatever the record's status). Frozen: its sha256 is in the
+# build table.
 NS_KEYS_SQL = f"""
 CREATE TEMP TABLE ns_block AS
   SELECT name_norm, sex, count(DISTINCT age_key) AS ns_keys FROM rrl
@@ -149,12 +151,12 @@ EXPECTED = {
             'half_finish_unparsed': 6,
             # the published sex differs only where the snapshot says X and the link build has none
             'half_sex': [{'snapshot': 'X', 'v4': None, 'rows': 137}],
-            # the v4 normalized name shares no token with the snapshot's name (review R3: one row, "LoL²")
+            # the v4 normalized name shares no token with the snapshot's name (review R3: one row, Luebeck 2025)
             'half_name_no_shared_token': [{'city': 'Luebeck', 'year': 2025, 'rows': 1}],
             'marathons': 4_108_749,
         },
-        # 2026-10-31: people with a tier and a half and a marathon row that may pair; ns_keys_0 are those whose rows that
-        # may pair all sit in name-and-sex blocks without an age key (they pass ns_keys <= 3 and are not in ns_keys_1)
+        # 2026-10-31: people with a tier and a strong half row and a strong marathon row; ns_keys_0 are those whose strong
+        # rows all sit in name-and-sex blocks without an age key (they pass ns_keys <= 3 and are not in ns_keys_1)
         'people': {'F': 181_617, 'M': 320_677, 'all': 502_294, 'high': 280_463, 'high_elite': 1_072, 'in_union': 159,
                    'medium': 220_759, 'ns_keys_0': 3_225},
         'links': {'full': 1_188_333, 'half': 1_260_231},
@@ -274,7 +276,7 @@ def check_source(db, pin: dict) -> dict:
             GROUP BY 1 HAVING count(DISTINCT confidence) FILTER (WHERE confidence IN ({tiers})) > 1)""",
         'age keys of another form': "SELECT count(*) FROM rrl WHERE age_key IS NOT NULL AND NOT regexp_full_match(age_key, '(yob:[0-9]+|ag:.+)')",
         'finishes in seconds with a fraction': 'SELECT count(*) FROM rrl WHERE finish_seconds IS NOT NULL AND finish_seconds <> round(finish_seconds)',
-        'rows that may pair without a normalized name or a published sex M or F': f"""SELECT count(*) FROM rrl WHERE confidence IN ({strong})
+        'strong rows without a normalized name or a published sex M or F': f"""SELECT count(*) FROM rrl WHERE confidence IN ({strong})
             AND (name_norm IS NULL OR trim(name_norm) = '' OR sex IS NULL OR sex NOT IN ('M', 'F'))""",
     })
     # persons.parquet against the rows (review R16)

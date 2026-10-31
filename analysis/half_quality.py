@@ -21,7 +21,9 @@ whether or not a registry row appears); E1 a held status (and, from 1904 on, a r
 E2 the reviewed duplicates, overlaps and non-half distances (and, from 1904 on, virtual events); E3 count screens; E4
 one-sex lists; E5 truncated top lists; E6 round-number caps without an independent count; E7 atypical fields; E8 the
 same-race median screen. The rest are `use_finish`. `use_sex` keeps editions whose sex is at least 95% published with
-each sex at least 3%. From 1904 on, a status in no group fails the build.
+each sex at least 3%. From 1904 on, a status in no group fails the build, and so does an edition in the producer's empty
+placeholder status that holds record-usable rows. Every record-usable finish after R7 is used or removed by exactly one
+edition rule (use_finish + E0 + E1 held + E2–E8 = record-usable after R7), else the build fails.
 
 The verified scope.
 - half-snapshot-20261029-1133 (stamp correction, reviewed 2026-10-30): an edition is verified only if it is `stamped` in
@@ -438,6 +440,9 @@ def policy_document(tag: str = TAG) -> dict:
         doc['stamps'] = p['stamps']
     if rules['unknown_status'] == 'fail':
         doc['unknown_status'] = 'a completeness_status in none of the status groups fails the build'
+    if 'empty' in rules['statuses']:
+        doc['empty_status'] = ('an edition whose completeness_status is in the empty group (the producer\'s placeholder for an '
+                               'edition with nothing loaded) must hold no record-usable rows, else the build fails')
     if 'link_editions' in p:
         doc['link_editions'] = p['link_editions']
     return doc
@@ -499,7 +504,7 @@ def record_rules(db, rules: dict | None = None) -> None:
         CASE WHEN r.runner IS NOT NULL AND length(trim(r.runner)) > 3 AND NOT regexp_matches(lower(r.runner), '{NAME_ANONYMOUS_RE}')
           THEN md5(array_to_string(list_sort(list_filter(string_split(regexp_replace(lower(strip_accents(replace(r.runner, ',', ' '))),
                '[^a-z0-9 ]', ' ', 'g'), ' '), x -> x <> '')), ' ')) END AS name_key,
-        (r.city = '{R7['city']}' AND r.year BETWEEN {y0} AND {y1} AND try_cast(r.bib AS INTEGER) BETWEEN {lo} AND {hi}) AS r7_block,
+        coalesce(r.city = '{R7['city']}' AND r.year BETWEEN {y0} AND {y1} AND try_cast(r.bib AS INTEGER) BETWEEN {lo} AND {hi}, false) AS r7_block,
         r.distance_km
         FROM h.race_records r LEFT JOIN hfl f ON f.record_id = r.id""")
     db.execute(f"""CREATE OR REPLACE TEMP TABLE hsub AS SELECT city, year, race, count(*) AS n,
@@ -684,6 +689,12 @@ def edition_rules(m, rules: dict | None = None):
     if len(removed_rows):
         fail(f'{len(removed_rows)} editions with a removed status still hold rows: '
              f'{sorted(int(e) for e in removed_rows.edition_id)[:5]}')
+    # The producer's empty placeholder (the `empty` status group, from 1904 on) means nothing was loaded: such an edition
+    # has no E rule, so record-usable rows in it would leave every count unnoticed (verify round 1, October 31, 2026).
+    empty_rows = m[m.completeness_status.isin(rules['statuses'].get('empty', ())) & (m.n_usable > 0)]
+    if len(empty_rows):
+        fail(f'{len(empty_rows)} editions with an empty status hold record-usable rows: '
+             f'{sorted(int(e) for e in empty_rows.edition_id)[:5]}')
     for city, year, _ in rules['partial_loads']:
         hit = m[(m.city == city) & (m.year == year)]
         if len(hit) and (hit.use_finish.any() or not (hit.category == 'partial_load').all()):
@@ -1089,6 +1100,13 @@ def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | N
         counts['E1_removed_editions'] = len(removed)
     if has_stamps:
         counts['stamp_check'] = stamp_counts(m, never_stamp, reviewed['stamps'])
+    # Every record-usable finish after R7 is either used or removed by exactly one edition rule (E0, E1 held, E2–E8): a
+    # status or category without a rule would otherwise drop finishes silently (verify round 1, October 31, 2026).
+    accounted = counts['use_finish']['finishes'] + counts['E0_finishes'] + counts['E1_held_finishes'] + counts['E2_E8_finishes']
+    if accounted != counts['record_usable_after_R7']:
+        fail(f"{counts['record_usable_after_R7'] - accounted} record-usable finishes after R7 are neither used nor removed by an "
+             f'edition rule (used {counts["use_finish"]["finishes"]}, E0 {counts["E0_finishes"]}, E1 {counts["E1_held_finishes"]}, '
+             f'E2–E8 {counts["E2_E8_finishes"]})')
     if compare and counts != reviewed['expected']:
         diff = {k: (counts.get(k), reviewed['expected'].get(k)) for k in set(counts) | set(reviewed['expected']) if counts.get(k) != reviewed['expected'].get(k)}
         fail(f'policy counts differ from the reviewed ones (got, reviewed): {diff}')

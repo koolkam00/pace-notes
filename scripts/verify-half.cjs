@@ -157,7 +157,7 @@ const halfModules = fs.readdirSync(rel('analysis')).filter((n) => /^(half_.*|bui
 eq(Object.keys(manifest.scripts).sort(), halfModules, 'every half builder module is bound to the manifest');
 for (const [name, digest] of Object.entries(manifest.scripts)) ok(digest === fileSha(name), `stale half data: ${name} changed after the build (rerun analysis/build_half.py)`);
 // The v4 link rule (lead rulings L, October 31, 2026; analysis/half_pairs.py LINK_RULES).
-eq(manifest.link_rules, { conflicts: 'over every linked row of the person, whatever its confidence', link_editions: "the policy's link-partial and re-timed editions supply no linked half", ns_keys: 'distinct age keys per normalized name and published sex over every row of the link build; a person takes the largest over the rows that may pair', ns_keys_max: 3, pairing: 'nearest prior half, one pair per person and marathon', row_tiers: ['high_elite', 'high', 'medium'], tiers: ['high_elite', 'high', 'medium'], unions: 'applied by the link build', window_days: [21, 112] }, 'the link rules (spec 1.3)');
+eq(manifest.link_rules, { conflicts: 'over every linked row of the person, whatever its confidence', link_editions: "the policy's link-partial and re-timed editions supply no linked half", ns_keys: "distinct age keys per normalized name and published sex over every row of the link build; a person takes the largest over the person's rows whose own confidence is high_elite, high or medium (either distance, whatever the record's status)", ns_keys_max: 3, pairing: 'nearest prior half, one pair per person and marathon', row_tiers: ['high_elite', 'high', 'medium'], tiers: ['high_elite', 'high', 'medium'], unions: 'applied by the link build', window_days: [21, 112] }, 'the link rules (spec 1.3)');
 eq(manifest.cohort, { linked: { half_editions: setB.half_editions, marathon_editions: setB.marathon_editions, pairs: setB.pairs }, usable: counts.use_finish, verified: counts.verified }, 'the manifest cohort is its policy counts');
 // Set B's reviewed counts (analysis/half_pairs.EXPECTED), with review R6's two signals, counted and never excluded (lead
 // rulings, October 31, 2026): halves that serve two or more pairs, and pairs whose person has another eligible marathon
@@ -168,6 +168,10 @@ ok(Object.values(setB).every((v) => int(v)) && setB.people <= setB.pairs && setB
 // The policy counts add up.
 eq(counts.raw - counts.R1 - counts.R2 - counts.R3 - counts.R4 - counts.R5_fast - counts.R5_slow - counts.R6, counts.record_usable, 'R1–R6 leave the record-usable rows');
 eq(counts.record_usable - counts.R7, counts.record_usable_after_R7, 'R7 leaves the record-usable rows after R7');
+// Every record-usable finish after R7 is used or removed by one edition rule (verify round 1, October 31, 2026: a status
+// without a rule, such as the producer's empty placeholder holding rows, would otherwise drop finishes unnoticed).
+eq(counts.use_finish.finishes + counts.E0_finishes + counts.E1_held_finishes + counts.E2_E8_finishes, counts.record_usable_after_R7, 'the editions account for every record-usable finish after R7 (used, E0, E1 held, E2–E8)');
+ok(typeof policy.empty_status === 'string', 'the policy states that an empty status holds no record-usable rows');
 ok(counts.verified.finishes <= counts.use_finish.finishes && counts.verified_use_sex.finishes <= counts.verified.finishes, 'verified ⊂ usable, sex ⊂ verified');
 const frozen = policy.edition_rules.editions;
 eq(frozen.filter((e) => e.rule !== 'E0').length, counts.E2_E8_editions, 'the frozen E2–E8 list');
@@ -516,6 +520,22 @@ ok(C.battery.pooled_half_p50_s >= linked.windows.all[0].h && C.battery.pooled_ha
   close(bat.city_equal.extra_p50_s, D.npMedian(cities.map((c) => c.extra_p50_s)), 0.05, 'linked.checks.by_city: city_equal’s minutes are the median city’s');
   close(bat.city_equal.multiple_p50, D.npMedian(cities.map((c) => c.multiple_p50)), 5e-5, 'linked.checks.by_city: city_equal’s multiple is the median city’s');
   close(bat.city_equal.under_double, D.npMedian(cities.map((c) => c.under_double)), 1e-9, 'linked.checks.by_city: city_equal’s under-double share is the median city’s');
+  // Where the pairs come from (verify round 1, October 31, 2026), over every marathon city: the fewest cities, most pairs
+  // first (ties by name), holding more than half of the pairs, each at least 100 pairs, no more pairs or editions than set
+  // B, and a city that is also in by_city carries by_city's pairs and editions. Minimal: without the last city they hold
+  // half or less, and no city outside them holds more pairs than the last (the list is the largest ones).
+  const PF = C.pairs_from;
+  if (PF !== null) {
+    ok(Array.isArray(PF.cities) && PF.cities.length > 0 && PF.cities.length <= S.marathon_cities && PF.cities.every((c) => typeof c.city === 'string' && int(c.pairs, D.MIN_CELL) && int(c.e, 1))
+      && new Set(PF.cities.map((c) => c.city)).size === PF.cities.length, 'linked.checks.pairs_from: distinct cities of at least 100 pairs');
+    eq(PF.pairs, PF.cities.reduce((a, c) => a + c.pairs, 0), 'linked.checks.pairs_from: its pairs are its cities’');
+    ok(PF.cities.every((c, i) => !i || c.pairs < PF.cities[i - 1].pairs || (c.pairs === PF.cities[i - 1].pairs && c.city > PF.cities[i - 1].city)), 'linked.checks.pairs_from: most pairs first, ties by name');
+    ok(2 * PF.pairs > S.pairs && 2 * (PF.pairs - PF.cities.at(-1).pairs) <= S.pairs && PF.pairs <= S.pairs && PF.cities.reduce((a, c) => a + c.e, 0) <= S.marathon_editions, 'linked.checks.pairs_from: the fewest cities holding more than half of the pairs');
+    for (const c of PF.cities) { const b = cities.find((x) => x.city === c.city); if (b) eq([c.pairs, c.e], [b.pairs, b.e], `linked.checks.pairs_from ${c.city}: by_city’s pairs and editions`); }
+    // A by_city city not in the list holds no more pairs than the list's last (the list takes the largest first).
+    ok(cities.every((b) => PF.cities.some((c) => c.city === b.city) || b.pairs < PF.cities.at(-1).pairs || (b.pairs === PF.cities.at(-1).pairs && b.city > PF.cities.at(-1).city)), 'linked.checks.pairs_from: no city of by_city outside it holds more pairs than its last');
+    if (cohort) for (const c of PF.cities) ok(cohort.editions.some((e) => e.city === c.city), `linked.checks.pairs_from ${c.city}: a marathon city of the adopted release`);
+  }
   const cov = C.coverage;
   ok(Array.isArray(cov) && cov.length >= 2 && cov.every((c) => int(c.finishes, 1000) && D.isShareOf(c.share, c.finishes) && Math.round(c.share * c.finishes) >= D.MIN_CELL), 'linked.checks.coverage: floors (1,000 finishes, 100 linked) and exact shares');
   ok(cov.every((c, i) => !i || c.share < cov[i - 1].share || (c.share === cov[i - 1].share && c.city > cov[i - 1].city)), 'linked.checks.coverage: by share');
@@ -746,12 +766,12 @@ if (opt.html) {
     const andList = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
     const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
     const word = (k) => WORDS[k] ?? k.toLocaleString('en-US');
-    // Where the pairs come from (the limits sentence, twice): the fewest cities of by_city, largest first, holding more
-    // than half of all pairs ("most pairs are from the Valencia and Warsaw marathons" was runner links v1's reading).
-    const byPairs = [...C.by_city].sort((a, b) => b.pairs - a.pairs || a.city.localeCompare(b.city, 'en'));
-    const top = []; let held = 0;
-    for (const c of byPairs) { if (held * 2 > S.pairs) break; top.push(c.city); held += c.pairs; }
-    const from = held * 2 > S.pairs ? `more than half of the pairs are from ${top.length === 1 ? 'one marathon' : `${word(top.length)} marathons`} (${andList(top)})` : 'the pairs come unevenly from the marathons';
+    // Where the pairs come from (the limits sentence, twice): linked.checks.pairs_from, the fewest marathon cities, over
+    // every marathon city, holding more than half of all pairs ("most pairs are from the Valencia and Warsaw marathons" was
+    // runner links v1's reading; verify round 1, October 31, 2026: by_city's cities alone left out the second-largest).
+    const PFH = C.pairs_from;
+    const top = PFH ? PFH.cities.map((c) => c.city) : [];
+    const from = PFH && PFH.pairs * 2 > S.pairs && top.length ? `more than half of the pairs are from ${top.length === 1 ? 'one marathon' : `${word(top.length)} marathons`} (${andList(top)})` : 'the pairs come unevenly from the marathons';
     eq(mtext.split(from).length - 1, 2, `/methodology: the two limits sentences say "${from}"`);
     ok(!/most pairs (?:are|come) from/.test(mtext), '/methodology: no "most pairs are from" left from an earlier link build');
     // The story's method: while the flagship guard fails, the sentence names the clauses that fail, not an earlier build's.

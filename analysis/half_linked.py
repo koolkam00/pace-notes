@@ -290,6 +290,27 @@ def by_city(p):
     return out
 
 
+def pairs_from(p):
+    """Where the pairs come from, for /methodology's limits sentence: the fewest marathon cities, most pairs first (ties by
+    name), that together hold more than half of the pairs, counted over every marathon city of set B (a count of pairs,
+    not a per-city reading, so no edition floor; verify round 1, October 31, 2026: by_city's 3-edition rule left out the
+    second-largest source). Each city's pairs and marathon editions; null when one of them holds under 100 pairs."""
+    counts = {}
+    for city, ed in zip(p.city.tolist(), p.ed.tolist()):
+        c = counts.setdefault(str(city), [0, set()])
+        c[0] += 1
+        c[1].add(ed)
+    cities, held = [], 0
+    for city, (n, eds) in sorted(counts.items(), key=lambda kv: (-kv[1][0], kv[0])):
+        if 2 * held > p.n:
+            break
+        cities.append({'city': city, 'pairs': n, 'e': len(eds)})
+        held += n
+    if any(c['pairs'] < MIN_CELL for c in cities):
+        return None
+    return {'cities': cities, 'pairs': held}
+
+
 def coverage_rows(rows):
     """Link coverage by marathon city: cities with at least 1,000 eligible finishes and 100 linked ones, by share."""
     out = [{'city': c['city'], 'finishes': c['finishes'], 'share': sh(c['linked'] / c['finishes'])} for c in rows
@@ -401,7 +422,7 @@ def build(frame, coverage=None, *, weaker_source, off_road_labels):
         'sexes': {'rule': 'half band x marathon city, >=20 pairs per sex', **sexes(p)},
         'goals': goals,
         'checks': {**checks(p, weaker_source, off_road_labels), 'multiple_by_band': multiple_by_band(p, *ranges['all']), 'by_city': by_city(p),
-                   **({'coverage': coverage_rows(coverage)} if coverage is not None else {})},
+                   'pairs_from': pairs_from(p), **({'coverage': coverage_rows(coverage)} if coverage is not None else {})},
     }
     tool = {
         'schema_version': 1, 'family': 'half-tool', 'scope': 'linked', 'Q': Q, 'window_s': WINDOW_S,

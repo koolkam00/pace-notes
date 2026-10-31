@@ -71,17 +71,16 @@ const HALF_FILE_TOPICS: Record<string, string> = {
 };
 
 /**
- * Where the pairs come from, for the limits sentences: the fewest marathon cities (of those with at least 100 pairs from
- * 3 editions, largest first) that together hold more than half of all pairs, else a plain "unevenly". Recounted by
+ * Where the pairs come from, for the limits sentences: `checks.pairs_from`, the fewest marathon cities (over every
+ * marathon city, most pairs first) that together hold more than half of all pairs, else a plain "unevenly". Recounted by
  * verify-half --html (review, October 31, 2026: "most pairs are from the Valencia and Warsaw marathons" was runner links
- * v1's reading and stopped being true with the v4 person IDs).
+ * v1's reading and stopped being true with the v4 person IDs; verify round 1, October 31, 2026: counted over by_city's
+ * cities only, the sentence left out the second-largest source, a marathon with two editions).
  */
 export function halfPairsFrom(linked: HalfLinked): string {
-  const cities = [...linked.checks.by_city].sort((a, b) => b.pairs - a.pairs || a.city.localeCompare(b.city, 'en'));
-  const top: string[] = [];
-  let held = 0;
-  for (const c of cities) { if (held * 2 > linked.set.pairs) break; top.push(c.city); held += c.pairs; }
-  if (held * 2 <= linked.set.pairs) return 'the pairs come unevenly from the marathons';
+  const from = linked.checks.pairs_from;
+  if (!from || from.pairs * 2 <= linked.set.pairs || !from.cities.length) return 'the pairs come unevenly from the marathons';
+  const top = from.cities.map((c) => c.city);
   return `more than half of the pairs are from ${top.length === 1 ? 'one marathon' : `${lowerWord(top.length)} marathons`} (${and(top)})`;
 }
 

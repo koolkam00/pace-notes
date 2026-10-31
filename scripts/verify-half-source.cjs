@@ -157,9 +157,10 @@ const manifestBytes = fs.readFileSync(rel('public/data/half/manifest.json'));
 const manifest = JSON.parse(manifestBytes);
 // The link rule of set B, restated here (analysis/half_pairs.py LINK_RULES; lead rulings L, October 31, 2026): a changed
 // rule needs a reviewed recount. People: a v4 person id whose tier is high_elite, high or medium, with ns_keys at most 3.
-// Rows that may pair: their own confidence high_elite, high or medium. Halves: usable, dated, not R7, not date-suspect,
-// not in a link edition, with no other usable half and no eligible marathon of the person on its date over every linked
-// row of the person (any confidence). Pairs: the nearest prior half 21 to 112 days before each eligible marathon.
+// Strong rows: their own confidence high_elite, high or medium; only they pair. Halves: usable, dated, not R7, not
+// date-suspect, not in a link edition, with no other usable half and no eligible marathon of the person on its date over
+// every linked row of the person (any confidence). Pairs: the nearest prior half 21 to 112 days before each eligible
+// marathon.
 const STRONG = ['high_elite', 'high', 'medium'];
 const LINK = { tiers: STRONG, row_tiers: STRONG, ns_keys_max: 3, window_days: [21, 112] };
 const CLOSE_MARATHON_DAYS = 13;   // review R6: counted, never excluded
@@ -250,8 +251,9 @@ if (MAR.weatherSha !== manifest.marathon.weather_evidence_sha256) fail('the weat
 // ---------- The links extract against its sources, and set B ----------
 // One pass over the extract's people, then one over its link rows grouped by person (ordered by person_id): every row is
 // joined to the snapshot (half) or the runner shards (eligible marathons) and its link-build finish, sex, city and year
-// re-verified (review R3); each person's ns_keys is recounted from the rows that may pair (lead rulings L.4); the k blocks
-// are checked (review R17); and set B, its R6 signals and the link coverage are rebuilt person by person.
+// re-verified (review R3); each person's ns_keys is recounted from its strong rows (own confidence high_elite, high or
+// medium; lead rulings L.4) and its sex against its rows' published sex (review R16); the k blocks are checked (review
+// R17); and set B, its R6 signals and the link coverage are rebuilt person by person.
 log('rebuilding set B from the links extract');
 const findSorted = (arr, v) => { let lo = 0, hi = arr.length - 1; while (lo <= hi) { const m = (lo + hi) >> 1; if (arr[m] === v) return m; if (arr[m] < v) lo = m + 1; else hi = m - 1; } return -1; };
 const fin = P.fin, ED = P.editions, ROWS = P.rows;
@@ -297,16 +299,19 @@ const eligiblePerson = (p) => STRONG.includes(personTier[p]) && personNs[p] <= L
 const pairs = { h: [], m: [], sex: [], ed: [], city: [], sus: [], verified: [], nsKeys: [], inUnion: [], person: [], mDay: [], mId: [], hEd: [], hLabel: [], hId: [], close: [] };
 const pairPeople = new Set(), halfEds = new Set();
 const linkedMar = new Uint8Array(MAR.n);
-let nsMismatch = 0, withoutStrongPair = 0, orphanRows = 0, badRows = 0, persons = 0;
+let nsMismatch = 0, sexMismatch = 0, withoutStrongPair = 0, orphanRows = 0, badRows = 0, persons = 0;
 const [W_LO, W_HI] = LINK.window_days;
 function person(p, halves, fulls) {
   persons++;
-  // ns_keys: the largest block count over the rows that may pair (lead rulings L.4).
+  // ns_keys: the largest block count over the person's strong rows, either distance (lead rulings L.4).
   let ns = -1, strongHalf = false, strongFull = false;
   for (const r of [...halves, ...fulls]) if (r.strong) { if (r.ns === null) badRows++; else ns = Math.max(ns, r.ns); }
   for (const r of halves) if (r.strong) strongHalf = true;
   for (const r of fulls) if (r.strong) strongFull = true;
   if (ns !== personNs[p]) nsMismatch++;
+  // Review R16: the person's sex (persons.parquet's, which every pair takes) is the published sex of each of its rows
+  // that has one (verify round 1, October 31, 2026: only the extract's own check compared them).
+  if ([...halves, ...fulls].some((r) => r.sex !== null && r.sex !== personSex[p])) sexMismatch++;
   if (!strongHalf || !strongFull) withoutStrongPair++;
   if (!eligiblePerson(p)) return;
   // Conflicts over every linked row of the person, whatever its confidence (the R7 rows and the link editions included).
@@ -315,7 +320,7 @@ function person(p, halves, fulls) {
   const marDays = [];
   for (const r of fulls) if (r.j >= 0) marDays.push([MAR.id[r.j], MAR.day[MAR.edition[r.j]]]);
   const marDaySet = new Set(marDays.map(([, d]) => d));
-  // The halves that may pair: own confidence strong, a usable finish, not in a link edition.
+  // The candidate halves: a strong row, a usable finish, not in a link edition.
   const cand = halves.filter((r) => r.strong && r.k >= 0 && !linkEditionIds.has(ED[fin.ed[r.k]].edition_id)).map((r) => r.k);
   if (cand.some((k) => !fin.r7[k])) for (const r of fulls) if (r.strong && r.j >= 0) linkedMar[r.j] = 1;
   for (const r of fulls) {
@@ -367,7 +372,7 @@ function person(p, halves, fulls) {
       if (retimedIds.has(e.edition_id)) joins.half_rows_retimed++;
       else if (!Number.isNaN(ROWS.finish[i])) { if (r.finish_s === null || Math.abs(r.finish_s - ROWS.finish[i]) > 0.5) joins.half_finish++; }
       else { joins.half_rows_unparsed++; if (r.finish_s !== null && r.finish_s >= 0) joins.half_finish++; }
-      halves.push({ strong, ns: r.ns_keys, k: findSorted(fin.id, r.record_id) });
+      halves.push({ strong, ns: r.ns_keys, sex: r.sex, k: findSorted(fin.id, r.record_id) });
     } else if (r.db === 'full') {
       joins.marathon_rows++;
       const at = findSorted(marIds, r.record_id);
@@ -380,16 +385,17 @@ function person(p, halves, fulls) {
         const g = MAR.gender[j];
         if (!(g === 1 ? r.sex === 'M' : g === 2 ? r.sex === 'F' : r.sex === null || !['M', 'F'].includes(r.sex))) joins.marathon_sex++;
       }
-      fulls.push({ strong, ns: r.ns_keys, j });
+      fulls.push({ strong, ns: r.ns_keys, sex: r.sex, j });
     } else badRows++;
   }
   flush();
 }
 if (persons !== people.size) flagProblem(`${people.size - persons} people without a link row`);
 if (orphanRows) flagProblem(`${orphanRows} link rows without a person`);
-if (badRows) flagProblem(`${badRows} link rows with a malformed field, or a row that may pair without ns_keys`);
-if (nsMismatch) flagProblem(`${nsMismatch} people whose ns_keys is not the largest over their rows that may pair`);
-if (withoutStrongPair) flagProblem(`${withoutStrongPair} people without a half and a marathon row that may pair`);
+if (badRows) flagProblem(`${badRows} link rows with a malformed field, or a strong row without ns_keys`);
+if (nsMismatch) flagProblem(`${nsMismatch} people whose ns_keys is not the largest over their strong rows`);
+if (sexMismatch) flagProblem(`${sexMismatch} people whose sex differs from the published sex of one of their link rows`);
+if (withoutStrongPair) flagProblem(`${withoutStrongPair} people without a strong half row and a strong marathon row`);
 for (const k of ['half_missing', 'half_beyond_boundary', 'half_city_year', 'half_sex', 'half_finish', 'marathon_city_year', 'marathon_finish', 'marathon_sex']) if (joins[k]) flagProblem(`link rows against their sources: ${joins[k]} ${k.replace(/_/g, ' ')}`);
 for (const m of extractProblems) compare('policy', `links extract: ${m}`, 'pass', 'fail');
 tally.policy.values++;
@@ -399,8 +405,9 @@ const setB = { pairs: pairs.h.length, people: pairPeople.size, marathon_editions
   halves_in_two_or_more_pairs: [...reuse.values()].filter((n) => n >= 2).length, pairs_with_a_close_marathon: pairs.close.filter(Boolean).length };
 delete pairs.hId; delete pairs.close;
 log(`links extract: ${people.size.toLocaleString('en-US')} people, ${(joins.half_rows + joins.marathon_rows).toLocaleString('en-US')} link rows re-verified against the snapshot and the shards`);
-// Link coverage by marathon city: eligible marathon finishes linked, by a row that may pair, to a person of set B's rule
-// with at least one half that may pair (any date, not R7, not in a link edition), for /methodology.
+// Link coverage by marathon city: eligible marathon finishes linked, on a strong row, to a person of set B's rule with a
+// strong row on a usable half outside the link editions and the R7 block (dated or not, date-suspect or not), for
+// /methodology.
 const coverage = [];
 {
   const byCity = new Map();
