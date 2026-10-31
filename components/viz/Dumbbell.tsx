@@ -7,7 +7,9 @@ import { extent, linear, pc } from './scale';
  * the typical or other value and a filled one for the observed or subject value, joined by a line; the gap is signal
  * only on the row the sentence is about. Each row shows its values, so nothing hides behind a tap.
  */
-export type DumbbellRow = { id: string; label: string; a: number; b: number; display: string; highlight?: boolean };
+export type DumbbellRow = { id: string; label: string; a: number; b: number; display: string; highlight?: boolean;
+  /** A quiet second line under the label, saying what the row pools ("6 years"). */
+  note?: string };
 
 export default function Dumbbell({ rows, domain, ticks, label, keyLabels, values, bare = false, keyFirst = false }: {
   rows: DumbbellRow[]; domain?: [number, number]; ticks: { value: number; label: string }[]; label: string;
@@ -34,7 +36,7 @@ export default function Dumbbell({ rows, domain, ticks, label, keyLabels, values
           const xa = x(r.a), xb = x(r.b);
           return (
             <li key={r.id} className={r.highlight ? 'is-highlight' : undefined}>
-              <span className="dumbbell-label">{r.label}</span>
+              <span className="dumbbell-label">{r.label}{r.note ? <span className="dumbbell-note">{r.note}</span> : null}</span>
               <svg className="dumbbell-track" width="100%" height="44" aria-hidden="true">
                 <rect className="grid-line" x="0" y="22" width="100%" height="1" transform="translate(0 -0.5)" />
                 <rect className={r.highlight ? 'dumbbell-gap is-signal' : 'dumbbell-gap'} x={pc(Math.min(xa, xb))} y="21" width={pc(Math.abs(xb - xa))} height="2" />

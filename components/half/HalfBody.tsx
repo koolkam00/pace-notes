@@ -6,6 +6,9 @@ import { Beat, StoryHero } from '@/components/story/StoryPage';
 import Cdf from '@/components/viz/Cdf';
 import Dumbbell from '@/components/viz/Dumbbell';
 import Values from '@/components/ui/Values';
+import ArrowTail from '@/components/ui/ArrowTail';
+import { UnitLink as Link } from '@/components/UnitsProvider';
+import { STORIES, storyHref, storyPublished } from '@/lib/stories';
 import HalfPage, { HALF_PATH, HalfCrumbs } from './HalfPage';
 import { FieldHistogram, RatioColumns, SaveImage, ShareColumns } from './HalfCharts';
 
@@ -14,13 +17,21 @@ const READING_MARK = 120;
 const OPEN_MARK = 105;
 /** The beat-1 readout's detents: the half's round times. */
 const DETENTS = [90, 105, 120, 135, 150];
-const W = 'Recorded women’s', M = 'Recorded men’s';
+/**
+ * The readout's side labels name each share's denominator: each is that sex's own finishes under the time. Bare
+ * ("Recorded women’s 33%, Recorded men’s 67%" beside "Under 2:00 55%") the pair added up to 100 at 2:00 and read as a
+ * split of the finishes under 2:00, of which women's were 22% (post-merge review, round 3, October 31, 2026; the card
+ * and the pace chart's panel name them the same way).
+ */
+const W = 'Of recorded women’s', M = 'Of recorded men’s';
 /** A readout share in whole percent, but never "0%" or "100%" for a share that is neither (the site's "<1%" rule). */
 const readPct = (share: number) => (share > 0 && share < 0.005 ? '<1%' : share < 1 && share >= 0.995 ? '>99%' : pct(share));
 /** A share for a spoken label: one decimal within a point of one half (2:00's 49.6% is not "50%" beside "most from 2:15"). */
 const nearHalf = (share: number) => pct(share, Math.abs(share - 0.5) < 0.01 ? 1 : 0);
 /** A women's share of the recorded finishes on one side of a same-city pair. */
 const womenShare = (side: { F: number; M: number }) => side.F / (side.F + side.M);
+/** How many years a same-city row pools (each pair is one city and year). */
+const years = (n: number) => `${n} year${n === 1 ? '' : 's'}`;
 
 /**
  * /half, "The half marathon": where half marathon finish times sit, from half finishes in verified results (field.json,
@@ -41,6 +52,8 @@ export default function HalfBody() {
   const women = readHalf('women.json');
   const deks = halfDeks();
   const reading = getNugget('half.field'), under = getNugget('half.under'), crowd = getNugget('half.crowd');
+  const roundStory = STORIES.find((st) => st.slug === 'round-numbers');
+  const roundNumbers = roundStory && storyPublished(roundStory) ? roundStory : null;
   const womenN = getNugget('half.women'), cities = getNugget('half.cities');
   const figure = reading.figure;
   const at = (s: number) => field.under.find((u) => u.s === s)!;
@@ -78,14 +91,14 @@ export default function HalfBody() {
           rows={women.bands.map((b, i) => [b.hi_s === null ? `${hm(b.lo_s / 60)} and over` : b.lo_s === 0 ? `Under ${hm(b.hi_s / 60)}` : `${hm(b.lo_s / 60)} to ${hm(b.hi_s / 60 - 1)}:59`, pct(women.median_share[i], 1)])}
           reading={womenN.guard ? cross : undefined} />,
       ] : []),
-      // Each pair's gap in points, and, while the beat's heading holds, the typical gap within a pair in the caption (the
+      // Marathon then half, the order the dumbbell's key and every row print the pair in. Each pair's gap in points, and, while the beat's heading holds, the typical gap within a pair in the caption (the
       // dumbbell's Typical row joins the two medians, whose gap is wider than the typical pair's). Under the plain heading
       // the caption says what the columns are and states no direction (review, October 30, 2026).
       <Values key="cities" bare id="hf-cities" caption={cities.guard
         ? `Women’s share of recorded finishes, the same city and year: within a pair, the half’s share was typically ${sc.summary.diff_median_points.toFixed(1)} points higher`
         : 'Women’s share of recorded finishes, the same city and year, and the gap within each pair in points'}
-        columns={[{ key: 'c', label: 'City', text: true }, { key: 'y', label: 'Year' }, { key: 'h', label: 'Half' }, { key: 'm', label: 'Marathon' }, { key: 'd', label: 'Gap, points' }]}
-        rows={[...sc.pairs].sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year).map((p) => [p.city, String(p.year), pct(womenShare(p.half), 1), pct(womenShare(p.marathon), 1),
+        columns={[{ key: 'c', label: 'City', text: true }, { key: 'y', label: 'Year' }, { key: 'm', label: 'Marathon' }, { key: 'h', label: 'Half' }, { key: 'd', label: 'Gap, points' }]}
+        rows={[...sc.pairs].sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year).map((p) => [p.city, String(p.year), pct(womenShare(p.marathon), 1), pct(womenShare(p.half), 1),
           `+${((womenShare(p.half) - womenShare(p.marathon)) * 100).toFixed(1)}`])} />,
     ]}>
       <StoryHero path={HALF_PATH} crumbs={<HalfCrumbs />} title={sentenceOf(reading)} stacked fallback={!reading.guard}
@@ -98,9 +111,10 @@ export default function HalfBody() {
           </>
         )} />
 
-      {/* The dek says how to use the chart: the recorded women's and men's shares are the readout's own side rows, so
-          the dek's version of them (deks.under) would put the same two numbers twice on one screen. */}
-      <Beat id="your-time" track="chapter-1" label="Your time" title={under} dek={`Slide to any time from ${hm(first)} to ${hm(last)}.`}>
+      {/* The dek says how to use the chart, step included (the needle stops on the published marks only): the recorded
+          women's and men's shares are the readout's own side rows, so the dek's version of them (deks.under) would put
+          the same two numbers twice on one screen. */}
+      <Beat id="your-time" track="chapter-1" label="Your time" title={under} dek={deks.slide}>
         {/* Ticks every 15 minutes to the scale's end (3:00, turned to end at the plot's edge, so the last stop has its
             time), the half hours first: the quarters show and hide together (a tick group), so where 2:45 would touch
             3:00 a phone keeps 1:30, 2:00, 2:30 and 3:00 evenly, and a wider screen adds every quarter. */}
@@ -114,6 +128,7 @@ export default function HalfBody() {
               keys: marks.map((u) => `Under ${hm(u.s / 60)}`),
               values: marks.map((u) => readPct(u.all)),
               side: [{ label: W, values: marks.map((u) => readPct(u.F)) }, { label: M, values: marks.map((u) => readPct(u.M)) }],
+              spoken: marks.map((u) => `Under ${hm(u.s / 60)}: ${readPct(u.all)} of half finishes, ${readPct(u.F)} of recorded women’s, ${readPct(u.M)} of recorded men’s`),
             },
             initial: markIndex(OPEN_MARK), detents: DETENTS.map(markIndex).filter((i) => i >= 0),
           }}
@@ -123,6 +138,10 @@ export default function HalfBody() {
       <Beat id="crowd" track="chapter-2" label="Round times" title={crowd} dek={deks.crowd ?? undefined}>
         <RatioColumns marks={field.marks} signal={READING_MARK} ink={deks.crowdNamed}
           label={`Finishes in the minute before each round time, against the smooth curve: ${field.marks.map((m) => `${m.mark} ${ratio(m.ratio, 2)}`).join(', ')}.`} />
+        {/* The way on to the marathon's round times, a pointer with no figure of its own (spec 3.4), as the half story's
+            line to this page is (post-merge review, round 3, October 31, 2026: a marathoner asking "is 2:00 like 4:00?"
+            had no way there but the menu). */}
+        {roundNumbers ? <p className="story-way arrow-line">Round times in the marathon: <Link href={storyHref(roundNumbers)}><ArrowTail text="Round numbers" /></Link></p> : null}
       </Beat>
 
       {bands ? (
@@ -133,17 +152,22 @@ export default function HalfBody() {
       ) : null}
 
       <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities ?? undefined}>
-        {/* The key first, in the order every row prints its pair (marathon · half), then the two typical shares (the
-            dek's two medians across the pairs, worded as two) as the one signal row, as the share card draws it, then
-            each city. While the beat's heading falls back (too few pairs or cities for a direction, October 30, 2026)
-            the typical row is drawn quiet like the cities, as the women's columns are. A value column sized to its pairs, and none on a zoomed-in screen (half.css). */}
+        {/* The key first, in the order every row prints its pair (marathon · half), then, while the beat's heading holds,
+            the two typical shares (the dek's two medians across the pairs, worded as two) as the one signal row, as the
+            share card draws it, then each city, with the years its row pools under its name (a row is the mean of that
+            city's pairs, and "Oslo" alone read as one race in one year; post-merge review, round 2, October 31, 2026).
+            While the heading falls back (too few pairs or cities for a direction,
+            October 30, 2026) the typical row and its "typically" in the label are left out with the dek: two medians
+            side by side state the direction the heading withdrew (review, October 30, 2026: the row and the label
+            still did). The cities stay, as a chart keeps its values. A value column sized to its pairs, and none on a
+            zoomed-in screen (half.css). */}
         <div className="half-cities">
           <Dumbbell keyFirst rows={[
-            { id: 'typical', label: 'Typical', a: sc.summary.marathon_median, b: sc.summary.half_median, display: `${pct(sc.summary.marathon_median)} · ${pct(sc.summary.half_median)}`, highlight: cities.guard },
-            ...sc.cities.map((c) => ({ id: c.city, label: c.city, a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` })),
+            ...(cities.guard ? [{ id: 'typical', label: 'Typical', a: sc.summary.marathon_median, b: sc.summary.half_median, display: `${pct(sc.summary.marathon_median)} · ${pct(sc.summary.half_median)}`, highlight: true }] : []),
+            ...sc.cities.map((c) => ({ id: c.city, label: c.city, note: years(c.pairs), a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` })),
           ]}
             domain={[0, 0.6]} ticks={[0, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}
-            label={`Women’s share of recorded finishes in the same city and year, marathon then half: typically ${pct(sc.summary.marathon_median)} and ${pct(sc.summary.half_median)}; ${sc.cities.map((c) => `${c.city} ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
+            label={`Women’s share of recorded finishes in the same city and year, marathon then half: ${cities.guard ? `typically ${pct(sc.summary.marathon_median)} and ${pct(sc.summary.half_median)}; ` : ''}${sc.cities.map((c) => `${c.city} over ${years(c.pairs)}, ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
         </div>
         <SaveImage slug="half-more-women" />
       </Beat>

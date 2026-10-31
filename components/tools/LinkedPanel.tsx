@@ -77,9 +77,25 @@ export default function LinkedPanel({ sha, seconds, group, onGroup }: {
     : undefined;
   const allWin = tool ? windowFor(tool, seconds, 'all') : null;
   const signalAt = allWin ? nearestMark(allWin)?.[0] : undefined;
+  // The panel's own sentence, spoken politely once it settles after the chips or the half change; the predictor's status
+  // line speaks only the research estimate, so the new answer here was silent (post-merge review, round 3, October 31,
+  // 2026). Its first sentence is not spoken: it arrives with the page or the half that opened the panel.
+  const tooFew = group === 'all' ? `Too few marathons after a half near ${floorHM(Math.round(seconds / 60) * 60)} to show.` : tool ? tooFewSentence(tool, group, seconds) : '';
+  const said = tool ? (win ? linkedSentence(win, tool.Q, group).replace(/\*/g, '') : tooFew) : '';
+  const [announce, setAnnounce] = useState('');
+  const firstSaid = useRef<string | null>(null);
+  useEffect(() => {
+    if (!said) return undefined;
+    if (firstSaid.current === null) { firstSaid.current = said; return undefined; }
+    if (said === firstSaid.current && !announce) return undefined;
+    const id = window.setTimeout(() => setAnnounce(said), 1100);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [said]);
   return (
     <section className="tool-panel predictor-linked" id="predictor-linked" data-half-scope="linked" aria-labelledby="predictor-linked-title" ref={panel} tabIndex={-1}>
       <p className="predictor-linked-tags"><EvidenceTag kind="data" /><ScopeTag /></p>
+      <p className="sr-only" aria-live="polite">{announce}</p>
       <DataState error={error} loading={!error && !tool}>
         {tool && win ? (
           <>
@@ -90,7 +106,7 @@ export default function LinkedPanel({ sha, seconds, group, onGroup }: {
           </>
         ) : tool ? (
           <>
-            <p className="tool-state" id="predictor-linked-title">{group === 'all' ? `Too few marathons after a half near ${floorHM(Math.round(seconds / 60) * 60)} to show.` : tooFewSentence(tool, group, seconds)}</p>
+            <p className="tool-state" id="predictor-linked-title">{tooFew}</p>
             <p className="tool-panel-meta">{linkedText(LINKED_LINE)}</p>
           </>
         ) : null}
@@ -108,7 +124,9 @@ export default function LinkedPanel({ sha, seconds, group, onGroup }: {
         </div>
       )}
       <p className="predictor-linked-not">{NOT_A_PREDICTION}</p>
-      <p className="predictor-linked-more arrow-line"><Link href="/stories/half-to-full#after"><ArrowTail text="From the half to the marathon" /></Link></p>
+      {/* The story's name in the chain (lib/chapters.ts), as the chapter's back link under this panel names it: one page,
+          one name on the predictor (review, October 30, 2026). */}
+      <p className="predictor-linked-more arrow-line"><Link href="/stories/half-to-full#after"><ArrowTail text="Half marathon to full" /></Link></p>
     </section>
   );
 }

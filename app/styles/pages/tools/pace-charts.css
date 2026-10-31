@@ -46,3 +46,5 @@
 /* ---------- The half pace chart's observed panel (components/half/HalfFieldPanel.tsx) ---------- */
 .half-field .viz-frame { max-width: var(--measure-figure); }
 .half-field-more a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: var(--t-small); font-weight: 600; color: var(--ink); }
+/* The way on to the predictor: a lead in the panel's quiet ink, then the link (.arrow-line a pads it to 44 px). */
+.half-field-next { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }

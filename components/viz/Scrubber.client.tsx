@@ -19,9 +19,13 @@ import Readout from './Readout';
  * waffles. No needle and no crown. With `prompt`, nothing is ringed or read out until the reader picks a point (a tap,
  * a key, or on desktop a hover): the readout holds the prompt in its reserved space, so nothing moves when it fills.
  *
- * Keyboard: role="slider"; arrows step one point, PageUp and PageDown go to the next and previous detent, Home and End
- * to the ends. The readout redraws every frame; its sr-only live line (a literal aria-live="polite") updates once the
- * value has settled for 150 ms. The default position is the detent the headline names, so the H1 and the readout agree.
+ * Keyboard: role="slider"; arrows step one point, PageUp and PageDown go to the next and previous detent (with none that
+ * way, ten points toward that end, as the ARIA slider pattern's larger step), Home and End to the ends. The readout
+ * redraws every frame; its sr-only live line (a literal aria-live="polite") updates once the value has settled for
+ * 150 ms, and only once the reader has moved the needle: on load it stays empty, so a screen reader hears the page's own
+ * words first, not a reading before its H1 (the predictor's status line waits the same way; a scrolly's 'scrub-to'
+ * moves the needle without speaking). The default position is the detent the headline names, so
+ * the H1 and the readout agree.
  */
 export type ScrubPoints = {
   /** x of each point as a fraction of the plot (0 left, 1 right), in reading order. */
@@ -37,6 +41,10 @@ export type ScrubPoints = {
   values: string[];
   /** Up to two side values; `labels` gives a row a key per point ("Under 4:00", "Under 4:30"), else `label` keys them all. */
   side?: { label: string; labels?: string[]; values: string[] }[];
+  /** The slider's words at each point (its aria-valuetext and live line), where the readout's keys and values run
+   *  together would not say what each value is a share of ("Under 2:00: 55% of half finishes, 33% of recorded women’s,
+   *  67% of recorded men’s"). Without it, "key: value, side label side value". */
+  spoken?: string[];
 };
 
 type Props = {
@@ -77,17 +85,23 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const flashTimer = useRef<ReturnType<typeof setTimeout>>();
   const last = useRef(index);
+  // Whether the reader has yet to move the needle (a drag, a tap, a key or a hover): until then the live line is silent.
+  const quiet = useRef(true);
 
   const text = useCallback((i: number) => {
+    if (points.spoken?.[i]) return points.spoken[i];
     const side = points.side?.map((s) => `${s.labels?.[i] ?? s.label} ${s.values[i]}`).join(', ');
     return `${points.keys[i]}: ${points.values[i]}${side ? `, ${side}` : ''}`;
   }, [points]);
 
-  // The live line settles 150 ms after the last change, so a screen reader hears one value, not every frame.
+  // The live line settles 150 ms after the last change, so a screen reader hears one value, not every frame; it says
+  // nothing on load (the effect's first run) or for a move the reader did not make (post-merge review, round 3, October
+  // 31, 2026: both half pages spoke a reading about 0.3 s after load, before anyone touched the chart).
   useEffect(() => {
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => setSettled(text(index)), 150);
     onIndex?.(index);
+    if (quiet.current) return undefined;
+    timer.current = setTimeout(() => setSettled(text(index)), 150);
     return () => clearTimeout(timer.current);
   }, [index, text, onIndex]);
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(flashTimer.current); }, []);
@@ -119,6 +133,7 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
   const move = useCallback((i: number, haptic: boolean) => {
     if (i === last.current) return;
     last.current = i;
+    quiet.current = false;
     setIndex(i);
     if (detents.includes(i)) {
       setFlash(i);
@@ -197,8 +212,10 @@ export default function Scrubber({ points, initial, home, detents = [], label, m
     let next: number | null = null;
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = clamp(index + 1);
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = clamp(index - 1);
-    else if (e.key === 'PageUp') next = sorted.find((d) => d > index) ?? (sorted.length ? sorted[sorted.length - 1] : clamp(index + 10));
-    else if (e.key === 'PageDown') next = [...sorted].reverse().find((d) => d < index) ?? (sorted.length ? sorted[0] : clamp(index - 10));
+    // With no detent in the pressed direction the needle still moves that way, never back: PageDown at the start went
+    // forward to the first detent and PageUp at the end back to the last (post-merge review, round 3, October 31, 2026).
+    else if (e.key === 'PageUp') next = sorted.find((d) => d > index) ?? clamp(index + 10);
+    else if (e.key === 'PageDown') next = [...sorted].reverse().find((d) => d < index) ?? clamp(index - 10);
     else if (e.key === 'Home') next = 0;
     else if (e.key === 'End') next = n - 1;
     if (next === null) return;

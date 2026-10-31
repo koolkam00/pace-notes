@@ -47,7 +47,7 @@ type Props = {
   yDomain?: [number, number];
   /** `from`: a tick that shows only from that figure width (a phone's quarter hours, the spec's half-hour steps from
    *  600 px), so a phone's steps stay even. */
-  xTicks: { value: number; label: string; priority?: number; from?: number }[];
+  xTicks: { value: number; label: string; priority?: number; from?: number; turn?: 'start' | 'end' }[];
   yTicks?: { value: number; label: string }[];
   /** Which side the gridline labels sit on: the clear one (default right). */
   gridSide?: 'left' | 'right';
@@ -260,7 +260,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
       <Baseline />
     </Plot>
   );
-  const axis = <Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority, from: t.from }))} title={axisTitle} />;
+  const axis = <Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority, from: t.from, turn: t.turn }))} title={axisTitle} />;
   // The followed series' value under each scrub point (one value per point, in order), as a fraction from the top.
   const followed = (sc: NonNullable<Props['scrub']>): ScrubPoints => {
     const series = sc.follow ? layers.flatMap((l) => l.series).find((sr) => sr.id === sc.follow) : undefined;

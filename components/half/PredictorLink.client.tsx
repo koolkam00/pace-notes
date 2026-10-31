@@ -11,7 +11,13 @@ type Pace = { gap: string; word: 'slower' | 'quicker' };
  * typical marathon's minutes over double the half, its pace against the half (in the reader's units) and how many in
  * 100 came in under double there ("Typical: double the half plus 24 min (55 s/mi slower than the half); 5 in 100 came
  * in under double."), so the H1's "double it plus 21 minutes" reads as a typical value that moves with the half; "Not a
- * prediction." on its own line; and the link into the predictor at that half (the half's whole minute, `t=H:MM:00`).
+ * prediction." on its own line; and the link into the predictor at that half (the half's whole minute, `t=H:MM:00`),
+ * named by it ("Your 1:45 half in the Finish-time predictor"): on desktop a hover moves the needle and leaving the plot
+ * returns it to the last tap, so a link that named no half could open another than the one last read (post-merge review,
+ * round 3, October 31, 2026).
+ * The sentence states the H1's reading, so the page passes its values (`paces`, `extras`, `under`) only while that
+ * reading's guard holds (half.extra); without them the foot is "Not a prediction." and the link (post-merge review,
+ * round 2, October 31, 2026).
  * Every value arrives built on the server, one per scrub point, and so does "Not a prediction." (`not`, the page's
  * NOT_A_PREDICTION): importing lib/tools/half-to-full.ts here put the whole module in every story page's first-load
  * script (S8, round 4 review, October 30, 2026).
@@ -25,11 +31,11 @@ export default function PredictorLink({ halves, paces, extras, under, initial, n
   /** The half at each scrub point, h:mm. */
   halves: string[];
   /** How much slower (or quicker) per mile and per km the typical marathon's pace was than that half's ("55 s/mi"). */
-  paces: Record<'mi' | 'km', Pace[]>;
+  paces?: Record<'mi' | 'km', Pace[]>;
   /** The window's typical marathon as printed minus double its half, whole minutes, at each point (24), so it adds up. */
-  extras: number[];
+  extras?: number[];
   /** How many in 100 marathons came in under double the half at each point ("5 in 100"). */
-  under: string[];
+  under?: string[];
   /** The scrub point the chart opens on. */
   initial: number;
   /** "Not a prediction." (lib/tools/half-to-full.ts NOT_A_PREDICTION, passed from the server). */
@@ -51,19 +57,19 @@ export default function PredictorLink({ halves, paces, extras, under, initial, n
     return () => observer.disconnect();
   }, [halves.length]);
   const half = halves[index] ?? halves[initial];
-  const pace = paces[units === 'km' ? 'km' : 'mi'][index];
-  const extra = extras[index];
+  const pace = paces?.[units === 'km' ? 'km' : 'mi'][index];
+  const extra = extras?.[index];
   return (
     <div ref={foot} className="half-after-foot">
       {pace && extra !== undefined ? (
         <p className="half-pace-gap">
-          Typical: double the half {extra >= 0 ? 'plus' : 'minus'} <b>{Math.abs(extra)} min</b> (<b>{pace.gap}</b> {pace.word} than the half){under[index] ? <>; <b>{under[index]}</b> came in under double.</> : '.'}
+          Typical: double the half {extra >= 0 ? 'plus' : 'minus'} <b>{Math.abs(extra)} min</b> (<b>{pace.gap}</b> {pace.word} than the half){under?.[index] ? <>; <b>{under[index]}</b> came in under double.</> : '.'}
         </p>
       ) : null}
       <p className="half-not">{not}</p>
       <p className="half-predictor arrow-line">
         {/* ArrowTail's markup written out: its module would add to every story page's first-load script (S8). */}
-        <Link href={`/tools/predictor?d=half&t=${half}:00`}>Your own half in the Finish-time <span className="arrow-tail">predictor<Arrow /></span></Link>
+        <Link href={`/tools/predictor?d=half&t=${half}:00`}>Your {half} half in the Finish-time <span className="arrow-tail">predictor<Arrow /></span></Link>
       </p>
     </div>
   );

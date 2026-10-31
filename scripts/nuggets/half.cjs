@@ -188,7 +188,14 @@ module.exports = function half({ json, eq, ok, core }) {
   const deks = (H) => {
     const d = H.halfDeks();
     eq(d.fieldUnit, `the median half finish; recorded women’s ${clock(field.quantiles.F.p50)}, men’s ${clock(field.quantiles.M.p50)}`, 'half deks: the reading’s unit line');
-    eq(d.under, `Recorded women’s: ${pct(underSex('F', 6300))}. Men’s: ${pct(underSex('M', 6300))}. Slide to any time from ${clock(field.under[0].s)} to ${clock(field.under[field.under.length - 1].s)}.`, 'half deks: beat 1 (the range the shares are published for: 1:15 to 3:00 since the stamp correction)');
+    // The needle stops on the published marks only, so the dek names their step, never "any time" (review, October 30,
+    // 2026: a 1:52 runner could not set 1:52).
+    const step = (field.under[1].s - field.under[0].s) / 60;
+    ok(field.under.every((u, i) => !i || u.s - field.under[i - 1].s === step * 60), 'half deks: the published marks are evenly spaced');
+    const fieldSlide = `Slide from ${clock(field.under[0].s)} to ${clock(field.under[field.under.length - 1].s)}, ${step} minutes at a time.`;
+    eq(d.slide, fieldSlide, 'half deks: beat 1, how to use the needle (the range the shares are published for: 1:15 to 3:00 since the stamp correction)');
+    eq(d.under, `Recorded women’s: ${pct(underSex('F', 6300))}. Men’s: ${pct(underSex('M', 6300))}. ${fieldSlide}`, 'half deks: beat 1 with the shares');
+    ok(!/\bany (?:time|half)\b/.test(`${d.slide} ${d.range}`), 'half deks: no needle promises any time');
     // A dek that states a direction shows only while its heading holds: under the plain heading it is null (review,
     // October 30, 2026: the beat 3 and beat 4 deks still compared the half with the marathon after their headings fell
     // back).
@@ -202,8 +209,15 @@ module.exports = function half({ json, eq, ok, core }) {
     const win = (g, h) => linked.windows[g].find((x) => x.h === h);
     // Beat 1's dek is the spec's: the typical marathon after the flagship's half, then the needle's range (round 2);
     // under the plain heading "the typical one" names no half, so the dek is the needle's range alone.
-    const slide = `Slide to any half from ${clock(all[0].h)} to ${clock(all[all.length - 1].h)}.`;
+    const stops = all.filter((x) => x.h % 300 === 0);
+    const slide = `Slide from a ${clock(stops[0].h)} half to a ${clock(stops[stops.length - 1].h)} half, 5 minutes at a time.`;
     eq(d.range, H.halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}. ${slide}` : slide, 'half deks: story beat 1');
+    // The story's hero dek: what the page pairs (set B's window, in whole weeks) and where to look; no reading, so it
+    // stands under the plain H1 too (review, October 30, 2026).
+    const [wa, wb] = linked.set.window_days;
+    ok(wa % 7 === 0 && wb % 7 === 0, `half deks: set B's window is whole weeks (${wa} to ${wb} days)`);
+    eq(d.hero, `Each half here is paired with the marathon ${wa / 7} to ${wb / 7} weeks after it, for records linked by name. Find your half below.`, 'half deks: the story’s hero dek');
+    ok(!/\b(?:double|typical|under|over|more|fewer|took)\b/i.test(d.hero), 'half deks: the hero dek states no reading');
     // The reading's scale note: the minutes over double 15 minutes quicker than the flagship's half, then the span of
     // the 5-minute windows from 15 minutes slower on, each the readout's value (the window's typical marathon as printed,
     // the whole minute at or below, minus double its half), only while the slower half's is the larger; the span only
@@ -231,7 +245,16 @@ module.exports = function half({ json, eq, ok, core }) {
     const two = marks[120];
     const others = [105, 135, 150].map((k) => marks[k].ratio);
     const fmtCount = (v) => v.toLocaleString('en-US');
-    eq(d.crowd, `${fmtCount(two.minute_before)} finishes came in at 1:59, where the smooth curve expects about ${fmtCount(Math.round(two.expected_minute_before / 100) * 100)}.${crowdOk ? ` The minute before 1:30 held ${marks[90].ratio.toFixed(1)}× too; before 1:45, 2:15 and 2:30, about ${median(others).toFixed(2)}×.` : ''}`, 'half deks: beat 2, the minute before 2:00 against the curve, then the other marks while 1:30 stands out and the others do not');
+    // 2:00 is the beat's subject: while its minute holds the most finishes over the curve of the five, the dek says so;
+    // where 1:30's column stands taller (as the columns print the ratios), the dek says that too, with both decimals
+    // (review, October 30, 2026: since the stamp correction 1:30 is the taller column, and the dek did not say why 2:00).
+    const excess = (x) => x.minute_before - x.expected_minute_before;
+    const most = field.marks.every((x) => x === two || excess(x) < excess(two));
+    const taller = Number(marks[90].ratio.toFixed(2)) > Number(two.ratio.toFixed(2));
+    const rest = taller
+      ? ` The minute before 1:30 stood a little taller against its curve, ${marks[90].ratio.toFixed(2)}×; before 1:45, 2:15 and 2:30, about ${median(others).toFixed(2)}×.`
+      : ` The minute before 1:30 held ${marks[90].ratio.toFixed(1)}× too; before 1:45, 2:15 and 2:30, about ${median(others).toFixed(2)}×.`;
+    eq(d.crowd, `${fmtCount(two.minute_before)} finishes came in at 1:59, where the smooth curve expects about ${fmtCount(Math.round(two.expected_minute_before / 100) * 100)}${most ? ': the most extra finishes before any round time' : ''}.${crowdOk ? rest : ''}`, 'half deks: beat 2, the minute before 2:00 against the curve, then the other marks while 1:30 stands out and the others do not');
     eq(JSON.stringify(d.crowdNamed), JSON.stringify(crowdOk ? [90] : []), 'half deks: beat 2 draws 1:30 a step up only while its dek names it');
     for (const text of Object.values(d).filter(Boolean)) ok(!/\b(?:fastest|chance|predict|goal|target|because|verified|unverified)\b/i.test(text), `half deks: banned word in "${text}"`);
   };
@@ -257,8 +280,8 @@ module.exports = function half({ json, eq, ok, core }) {
       [H.halfWomenFrom(w1), 'Women’s share of half finishes, by finish time.'],
       [H.halfCitiesFrom(w2), 'Women’s share of half and marathon finishes, same city and year.'],
       [H.halfExtraFrom(l1), 'The marathon after a half, against double the half.'],
-      [H.halfRangeFrom(l2), 'Marathons after a half, half time by half time.'],
-      [H.halfSexesFrom(l3), 'Sustained slowdowns in women’s and men’s marathons after the same half.'],
+      [H.halfRangeFrom(l2), 'The marathon after each half time.'],
+      [H.halfSexesFrom(l3), 'Sustained slowdowns in recorded women’s and men’s marathons after the same half.'],
       [H.halfSexesGuessFrom(l4), 'Recorded women’s and men’s marathons after the same half.'],
     ];
   };
