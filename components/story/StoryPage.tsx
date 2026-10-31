@@ -125,16 +125,21 @@ export function StoryHero({ path, title, dek, figure, figures, variant, unitLine
  * One beat: its finding as the H2, at most one short dek, one figure. `label` names it in the rail and the reading bar;
  * `aliases` keep the ids of beats folded into this one, so old links still land here.
  */
-export function Beat({ id, track, label, title, dek, aliases = [], className, children }: {
-  id: string; track: Track; label: string; title: Nugget | ReactNode; dek?: ReactNode; aliases?: string[]; className?: string; children: ReactNode;
+export function Beat({ id, track, label, title, dek, how, aliases = [], className, children }: {
+  id: string; track: Track; label: string; title: Nugget | ReactNode; dek?: ReactNode;
+  /** How to use the beat's control ("Slide from 1:15 to 3:00, 5 minutes at a time."), after the dek: said only with
+   *  JavaScript (.js-only, app/layout.tsx), since a static page's needle cannot move (round 5 review, October 31, 2026). */
+  how?: string; aliases?: string[]; className?: string; children: ReactNode;
 }) {
   const heading = title && typeof title === 'object' && 'guard' in (title as Nugget) ? <Say nugget={title as Nugget} /> : (title as ReactNode);
+  const said = typeof dek === 'string' ? keep(dek) : dek;
   return (
     <section id={id} className={`beat story-beat${className ? ` ${className}` : ''}`} aria-labelledby={`${id}-title`} data-beat={label} {...{ 'data-track-section': track }}>
       {aliases.map((alias) => <span key={alias} id={alias} className="beat-alias" aria-hidden="true" />)}
       <div className="beat-head">
         <h2 id={`${id}-title`} className="t-h2 story-beat-title">{heading}</h2>
-        {dek ? <p className="story-beat-dek">{typeof dek === 'string' ? keep(dek) : dek}</p> : null}
+        {dek ? <p className="story-beat-dek">{said}{how ? <span className="js-only"> {keep(how)}</span> : null}</p>
+          : how ? <p className="story-beat-dek js-only">{keep(how)}</p> : null}
       </div>
       {children}
     </section>

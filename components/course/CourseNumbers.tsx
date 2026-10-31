@@ -31,7 +31,7 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
   return (
     <details className="values course-numbers" id="all-numbers">
       <summary>
-        <span>All numbers<span className="values-count">{tables} tables</span></span>
+        <span>All numbers<span className="values-count"> {tables} tables</span></span>
         <span className="values-glyph" aria-hidden="true" />
       </summary>
       <div className="values-body course-numbers-body">

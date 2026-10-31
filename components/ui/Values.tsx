@@ -75,7 +75,9 @@ export default function Values({ id, caption, columns, rows, reading, count, ope
   return (
     <details className={`values${className ? ` ${className}` : ''}`} id={id} open={open || undefined}>
       <summary>
-        <span>All numbers{typeof n === 'number' ? <span className="values-count">{name ? `${name} · ` : ''}{n.toLocaleString('en-US')} {n === 1 ? 'row' : 'rows'}</span> : null}</span>
+        {/* A real space opens the count, so the name reads "All numbers 9 rows" (it ran together as "All numbers9 rows")
+            and a narrow line breaks before the count, not inside "All numbers" (round 5 review). */}
+        <span>All numbers{typeof n === 'number' ? <span className="values-count"> {name ? `${name} · ` : ''}{n.toLocaleString('en-US')} {n === 1 ? 'row' : 'rows'}</span> : null}</span>
         <span className="values-glyph" aria-hidden="true" />
       </summary>
       <div className="values-body">{body}{how ? <HowLink href={how} /> : null}</div>
@@ -94,7 +96,9 @@ export function AllNumbers({ tables, id = 'all-numbers', className, how }: { tab
   return (
     <details className={`values all-numbers${className ? ` ${className}` : ''}`} id={id}>
       <summary>
-        <span>All numbers<span className="values-count">{list.length}{'\u00a0'}{list.length === 1 ? 'table' : 'tables'}</span></span>
+        {/* A real space opens the count: the name reads "All numbers 3 tables" (it ran together as "All numbers3
+            tables"), and at 200% zoom the line breaks there, not inside "All numbers" (round 5 review). */}
+        <span>All numbers<span className="values-count"> {list.length}{'\u00a0'}{list.length === 1 ? 'table' : 'tables'}</span></span>
         <span className="values-glyph" aria-hidden="true" />
       </summary>
       <div className="values-body all-numbers-body">{list.map((t, i) => <Fragment key={i}>{t}</Fragment>)}{how ? <HowLink href={how} /> : null}</div>

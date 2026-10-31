@@ -41,9 +41,12 @@ export const viewport = {
 // .nav-fallback; under 300 px, 200% zoom, without its side padding, so it ends at the gutter instead of 3 px past the
 // screen), and a guess shows itself as Skip would (components/ui/GuessFirst.client.tsx): its answer from a <noscript>,
 // the truth's dots lit (.is-truth-ns) and its ruler mark shown, with no readout, slider or You rings for a guess nobody
-// made. A scrubber's "‹ drag ›" promises a move that cannot happen, so it goes too (round 4 review, October 31, 2026).
+// made. A scrubber's "‹ drag ›" promises a move that cannot happen, so it goes too (round 4 review, October 31, 2026), and
+// so do its crown under the axis and the words that say how to slide it (.js-only: a beat's `how`, the half story's
+// "Find your half below."); the needle stays as a still marker over its readout, and the slider is no focus stop until
+// its island runs (round 5 review).
 const NO_SCRIPT_STYLE = '<style>'
-  + '.nav-toggle,.chapters-toggle,.motion-toggle,.guess-actions,.guess-ask,.guess-range,.guess-key-you,.guess .guess-mark.is-you,.guess .guess-mark-label.is-you,.scrub-hint{display:none!important}'
+  + '.nav-toggle,.chapters-toggle,.motion-toggle,.guess-actions,.guess-ask,.guess-range,.guess-key-you,.guess .guess-mark.is-you,.guess .guess-mark-label.is-you,.scrub-crown-row,.js-only{display:none!important}'
   + '@media (max-width:1179.98px){.nav-fallback{display:inline-flex!important}}@media (max-width:299.98px){.nav-fallback{padding:0!important}}'
   + '.guess .guess-dot.is-you{box-shadow:none!important}.guess .guess-dot.is-truth-ns{border-color:var(--signal)!important;background:var(--signal)!important}'
   + '.guess .guess-mark.is-truth,.guess .guess-mark.is-compare{opacity:1!important;transform:none!important}.guess .guess-mark-label.is-truth,.guess .guess-key{opacity:1!important}'

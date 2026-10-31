@@ -216,11 +216,15 @@ module.exports = function half({ json, eq, ok, core }) {
     const stops = all.filter((x) => x.h % 300 === 0);
     const slide = `Slide from a ${clock(stops[0].h)} half to a ${clock(stops[stops.length - 1].h)} half, 5 minutes at a time.`;
     eq(d.range, H.halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}. ${slide}` : slide, 'half deks: story beat 1');
+    // The page sets the dek's two parts apart, the needle's how-to said only with JavaScript (round 5 review).
+    eq(d.rangeLead, H.halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}.` : null, 'half deks: story beat 1, the reading part');
+    eq(d.storySlide, slide, 'half deks: story beat 1, how to use the needle');
     // The story's hero dek: what the page pairs (set B's window, in whole weeks) and where to look; no reading, so it
     // stands under the plain H1 too (review, October 30, 2026).
     const [wa, wb] = linked.set.window_days;
     ok(wa % 7 === 0 && wb % 7 === 0, `half deks: set B's window is whole weeks (${wa} to ${wb} days)`);
-    eq(d.hero, `Each half here is paired with the marathon ${wa / 7} to ${wb / 7} weeks after it, for records linked by name. Find your half below.`, 'half deks: the story’s hero dek');
+    eq(d.hero, `Each half here is paired with the marathon ${wa / 7} to ${wb / 7} weeks after it, for records linked by name.`, 'half deks: the story’s hero dek');
+    eq(d.find, 'Find your half below.', 'half deks: the hero’s pointer to the needle (said only with JavaScript)');
     ok(!/\b(?:double|typical|under|over|more|fewer|took)\b/i.test(d.hero), 'half deks: the hero dek states no reading');
     // The reading's scale note: the minutes over double 15 minutes quicker than the flagship's half, then the span of
     // the 5-minute windows from 15 minutes slower on, each the readout's value (the window's typical marathon as printed,
@@ -319,7 +323,7 @@ module.exports = function half({ json, eq, ok, core }) {
       [H.halfUnderFrom(f2), 'Half finishes under 1:45.'],
       [H.halfCrowdFrom(f3), 'Finishes in the minute before each round time.'],
       [H.halfWomenFrom(w1), 'Women’s share of half finishes, by finish time.'],
-      [H.halfCitiesFrom(w2), 'Women’s share of half and marathon finishes, same city and year.'],
+      [H.halfCitiesFrom(w2), 'Women’s share of marathon and half finishes, same city and year.'],
       [H.halfExtraFrom(l1), 'The marathon after a half, against double the half.'],
       [H.halfExtraFrom(l5), 'The marathon after a half, against double the half.'],
       [H.halfExtraFrom(l6), 'The marathon after a half, against double the half.'],

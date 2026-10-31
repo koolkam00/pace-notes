@@ -514,7 +514,7 @@ async function stretchPaces(h) {
   const NOTE = 'Under each 5K mat: the pace of the 5K before it (Finish: the last 2.2 km). Under each mile: that mile’s pace.';
   h.check('stretch paces: the planner opens without paces; ticking the box puts 12:01/mi under 5K, 12:04/mi under the finish and 12:50/mi under Mi 1, none at halfway, with the line saying what each pace is and the fold named',
     before.count === 0 && before.note === '' && after.at5k === '12:01/mi' && after.finish === '12:04/mi' && after.mile1 === '12:50/mi' && after.count === 9 + 26 && after.half.length === 1 && after.half[0] === 0
-      && after.paces === '1' && after.fold === 'Every 5K and every mile: time and pace' && after.summary === 'All numberseach 5K and mile · 36 rows' && after.note === NOTE && after.head === 'Stretch · Time · Pace', { before, after });
+      && after.paces === '1' && after.fold === 'Every 5K and every mile: time and pace' && after.summary === 'All numbers each 5K and mile · 36 rows' && after.note === NOTE && after.head === 'Stretch · Time · Pace', { before, after });
   h.check('stretch paces: the box is the planner\'s one edit, then Copy link a copied link, the watch the pace band\'s, the example\'s box the example page\'s; every action is one the policy allows',
     JSON.stringify(used) === '["/tools/plan:edit","/tools/plan:copy_link","/tools/pace-band:edit","/tools/plan:edit"]' && named(run, 'tool_used').every((p) => ['edit', 'print', 'copy_link'].includes(p.action)), used);
   h.check('stretch paces: on the pace band a watch that reads 1% long shows the watch\'s paces (11:54/mi under 5K, 12:42/mi under Mi 1, its time still 12:50) and says so',
@@ -527,7 +527,7 @@ async function stretchPaces(h) {
   h.check('stretch paces: the copied link gains paces=1 beside the course, goal and units', link && link.pathname === '/tools/plan' && JSON.stringify([...link.searchParams].sort()) === JSON.stringify([['course', 'new-york'], ['goal', '5:15'], ['paces', '1'], ['units', 'mi']]), copied);
   h.check('stretch paces: on the pace band a link with paces=1 opens the print options, the box ticked, and the paces show',
     band.open && band.ticked === true && band.label === 'Add each stretch’s pace (per mile)' && band.at5k === '12:01/mi' && band.mile1 === '12:50/mi' && band.count === 9 + 26 && band.paces === '1'
-      && band.note === NOTE && band.summary === 'All numberseach 5K and mile · 36 rows', band);
+      && band.note === NOTE && band.summary === 'All numbers each 5K and mile · 36 rows', band);
   h.check('stretch paces: paces=yes leaves the address, with no paces and the print options closed', junk.paces === null && junk.count === 0 && !junk.open, junk);
 }
 

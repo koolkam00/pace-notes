@@ -2,7 +2,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { halfLinkEditions, halfPin, halfStamps, readHalf } from '@/lib/half-server';
 import type { HalfBatteryId, HalfLinked, HalfManifest } from '@/lib/half-types';
 import { halfCardWords } from '@/lib/charts/text/half';
-import { FLAGSHIP_CLAUSES, flagshipFailures, flagshipGuard, halfExtraFrom, womenBandsPublished } from '@/lib/nuggets/half';
+import { FLAGSHIP_CLAUSES, flagshipFailures, flagshipGuard, halfCitiesFrom, halfExtraFrom, womenBandsPublished } from '@/lib/nuggets/half';
 import { STORIES, halfManifest, storyHref } from '@/lib/stories';
 import { floorHM } from '@/lib/tools/half-to-full';
 import { Definition, Detail, Topic, and, dataHref, day, editionList, n, pctText } from './shared';
@@ -232,6 +232,15 @@ export function HalfFieldTopic() {
   const field = readHalf('field.json');
   const women = readHalf('women.json');
   const sc = women.same_city;
+  // While /half's same-city heading falls back (half.cities), this sentence states no reading either: the counts and
+  // the floor they miss, not which distance had the larger women's share or by how much (AGENTS.md rule 13: the
+  // methodology sentence about the page is one of the fallback's slots; post-merge review, round 5, October 31, 2026).
+  const few = sc.summary.pairs < 10 || sc.summary.cities < 5;
+  const citiesSaid = halfCitiesFrom(women).guard
+    ? `That gives ${n(sc.summary.pairs)} pairs in ${n(sc.summary.cities)} cities; the half had the larger women’s share in ${n(sc.summary.half_higher)} of them, by a median ${sc.summary.diff_median_points.toFixed(1)} points (from ${sc.summary.diff_min_points.toFixed(1)} to ${sc.summary.diff_max_points.toFixed(1)}), and in ${n(sc.all_scope_check.half_higher)} of ${n(sc.all_scope_check.pairs)} pairs over every usable half edition, verified or not.`
+    : few
+      ? `That gives ${n(sc.summary.pairs)} pairs in ${n(sc.summary.cities)} ${sc.summary.cities === 1 ? 'city' : 'cities'}, under the 10 pairs in 5 cities a stated direction needs, so the page draws them under a plain heading.`
+      : `That gives ${n(sc.summary.pairs)} pairs in ${n(sc.summary.cities)} cities. The page states a direction only when one distance had the larger women’s share in every pair, verified or not, so it draws them under a plain heading.`;
   return (
     <Topic id="half-field" title="The half marathon’s figures">
       <p>The figures on <Link href="/half">The half marathon</Link> pool the {n(field.cohort.finishes)} finishes of the {n(field.cohort.editions)} verified editions. Shares under a time count finishes strictly under it, from whole-minute counts; recorded women’s and men’s shares use the {n(field.cohort.sex_editions)} editions where at least 95% of finishes carry a recorded sex and each sex is at least 3% ({n(field.cohort.sex_finishes)} finishes).</p>
@@ -239,7 +248,7 @@ export function HalfFieldTopic() {
       {womenBandsPublished(women)
         ? <p>Women’s share by finish band is the median over {n(women.band_editions.length)} verified editions with at least {n(women.band_rule.min_finishes)} finishes, at most {pct0(women.band_rule.max_unrecorded)} without a recorded sex and at least {n(women.band_rule.min_recorded_per_band)} recorded finishes in every band; the band where the shares pass one half is the same with any one edition left out. The marathon’s comparison (women’s finishes are the majority from {floorHM(women.marathon.cross_s)}) is the Top 100 chart’s, from <a href={dataHref(women.marathon.file)}>{women.marathon.file}</a>.</p>
         : <p>Women’s share by finish band would be the median over the verified editions with at least {n(women.band_rule.min_finishes)} finishes, at most {pct0(women.band_rule.max_unrecorded)} without a recorded sex and at least {n(women.band_rule.min_recorded_per_band)} recorded finishes in every band, every edition counting once, as the marathon’s chart counts them. The medians need at least {n(women.min_band_editions)} such editions; {n(women.band_editions_qualifying)} qualify, so the page leaves the bands out until a snapshot has enough.</p>}
-      <p>Same city, same year: a half edition (verified, with at least 1,000 finishes and 100 recorded women and men) is paired with that city’s marathon in the same year when the marathon is not a gender-gap edition, has at most 2% without a recorded sex, kept at least 80% of its raw records and has at least 1,000 finishes and 100 of each sex. That gives {n(sc.summary.pairs)} pairs in {n(sc.summary.cities)} cities; the half had the larger women’s share in {n(sc.summary.half_higher)} of them, by a median {sc.summary.diff_median_points.toFixed(1)} points (from {sc.summary.diff_min_points.toFixed(1)} to {sc.summary.diff_max_points.toFixed(1)}). London’s 2025 and 2026 marathons and Berlin’s 2025 marathon publish too many finishes without a recorded sex, so they have no pair. Over every usable half edition, verified or not, the half was higher in {n(sc.all_scope_check.half_higher)} of {n(sc.all_scope_check.pairs)} pairs.{sc.summary.pairs < 10 || sc.summary.cities < 5 ? ` The page states a direction only with at least 10 verified pairs in 5 cities, so its ${n(sc.summary.pairs)} pairs in ${n(sc.summary.cities)} cities are drawn under a plain heading.` : ''} A city’s row is the mean of its pairs. These are the fields that entered each race, not anyone’s choice.</p>
+      <p>Same city, same year: a half edition (verified, with at least 1,000 finishes and 100 recorded women and men) is paired with that city’s marathon in the same year when the marathon is not a gender-gap edition, has at most 2% without a recorded sex, kept at least 80% of its raw records and has at least 1,000 finishes and 100 of each sex. {citiesSaid} London’s 2025 and 2026 marathons and Berlin’s 2025 marathon publish too many finishes without a recorded sex, so they have no pair. A city’s row is the mean of its pairs. These are the fields that entered each race, not anyone’s choice.</p>
       <p className="methods-links"><Link href="/half">Read the page</Link><a href={dataHref('half/field.json')}>half/field.json</a><a href={dataHref('half/women.json')}>half/women.json</a></p>
     </Topic>
   );
@@ -310,7 +319,7 @@ export function HalfToolNotes({ tool }: { tool: 'predictor' | 'goal-pages' | 'pa
     return <p><strong>The half panel.</strong> For a recent half (or a distance within 0.5% of one) and a marathon to predict, the Pace Notes data panel shows the marathons of records linked by name 3 to 16 weeks after a half near the typed half’s whole minute (<a href="#story-half-to-full">the story’s method</a>), in place of the 20 km reading, from {floorHM(g.all.from)} to {floorHM(g.all.to)}; recorded women’s from {floorHM(g.F.from)} to {floorHM(g.F.to)} and recorded men’s from {floorHM(g.M.from)} to {floorHM(g.M.to)}. Its marks are quarter-hour times inside the window’s 5th to 95th percentile, never the estimate above. Outside those ranges, or for any other distance, the 20 km panel shows. The median multiple of the half, {ratio.toFixed(2)}, matches a half-to-full exponent of about {exponent.toFixed(2)}; the classic formula’s 1.06 assumes {(2 ** 1.06).toFixed(3)}, and the training-log exponents above (1.09 to 1.15) give {multiple(1.09)} to {multiple(1.15)}. Those comparisons are made here only, never in the tool, where the two kinds of evidence stay apart.</p>;
   }
   if (tool === 'goal-pages') {
-    return <p><strong>The half marathon before.</strong> Each goal page names the slowest half window whose typical marathon (records linked by name) came in under the goal, so the predictor at that half shows a typical marathon under the goal and a minute slower does not. Recorded women’s and men’s halves are named where both sexes have a window there.</p>;
+    return <p><strong>The half marathon before.</strong> Each goal page names the slowest half window whose typical marathon (records linked by name) came in under the goal, so the predictor at that half shows a typical marathon under the goal and a minute slower does not.</p>;
   }
   const under = readHalf('field.json').under;
   return <p><strong>The half marathon pace chart’s data panel</strong> shows the share of half finishes in verified results under each time from {floorHM(under[0].s)} to {floorHM(under[under.length - 1].s)} (<a href="#half-field">how it is worked out</a>), kept apart from the chart’s even-pace columns, which stay plain calculations.</p>;
@@ -331,9 +340,9 @@ export function HalfCardsDetail() {
 }
 
 /**
- * A file name, tag or DOI with a line-break opportunity after each '-', '.', '/' and '_', so on a narrow phone it wraps
- * between its parts ("half-20261029-1133.sqlite.zst." / "part00") rather than one character from its end (200% zoom,
- * review, October 30, 2026).
+ * A file name or DOI with a line-break opportunity after each '-', '.', '/' and '_', so on a narrow phone it wraps
+ * between its parts ("race_results_" / "linked.parquet", "doi:10.6084/" / "m9.figshare.34858428") rather than one
+ * character from its end (200% zoom, review, October 30, 2026).
  */
 function breakable(text: string) {
   // Each part ends on its separator (no lookbehind: Safari before 16.4 cannot parse one, verify-browser-compat).

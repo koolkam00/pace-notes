@@ -115,10 +115,10 @@ export default function HalfBody() {
           </>
         )} />
 
-      {/* The dek says how to use the chart, step included (the needle stops on the published marks only): the recorded
-          women's and men's shares are the readout's own side rows, so the dek's version of them (deks.under) would put
-          the same two numbers twice on one screen. */}
-      <Beat id="your-time" track="chapter-1" label="Your time" title={under} dek={deks.slide}>
+      {/* The dek says how to use the chart, step included (the needle stops on the published marks only), and only with
+          JavaScript (Beat how; round 5 review): the recorded women's and men's shares are the readout's own side rows,
+          so the dek's version of them (deks.under) would put the same two numbers twice on one screen. */}
+      <Beat id="your-time" track="chapter-1" label="Your time" title={under} how={deks.slide}>
         {/* Ticks every 15 minutes to the scale's end (3:00, turned to end at the plot's edge, so the last stop has its
             time), the half hours first: the quarters show and hide together (a tick group), so where 2:45 would touch
             3:00 a phone keeps 1:30, 2:00, 2:30 and 3:00 evenly, and a wider screen adds every quarter. */}
