@@ -146,7 +146,8 @@ eq(policyCounts, policy.expected, 'the manifest’s policy counts are the review
 const halfModules = fs.readdirSync(rel('analysis')).filter((n) => /^(half_.*|build_half)\.py$/.test(n)).map((n) => `analysis/${n}`).sort();
 eq(Object.keys(manifest.scripts).sort(), halfModules, 'every half builder module is bound to the manifest');
 for (const [name, digest] of Object.entries(manifest.scripts)) ok(digest === fileSha(name), `stale half data: ${name} changed after the build (rerun analysis/build_half.py)`);
-eq(manifest.link_rules, { candidate_merges: 'not applied', ns_keys_max: 3, pairing: 'nearest prior half, one pair per person and marathon', tiers: ['high', 'medium'], window_days: [21, 112] }, 'the link rules (spec 1.3)');
+// The v4 link rule (lead rulings L, October 31, 2026; analysis/half_pairs.py LINK_RULES).
+eq(manifest.link_rules, { conflicts: 'over every linked row of the person, whatever its confidence', link_editions: "the policy's link-partial and re-timed editions supply no linked half", ns_keys: 'distinct age keys per normalized name and published sex over every row of the link build; a person takes the largest over the rows that may pair', ns_keys_max: 3, pairing: 'nearest prior half, one pair per person and marathon', row_tiers: ['high_elite', 'high', 'medium'], tiers: ['high_elite', 'high', 'medium'], unions: 'applied by the link build', window_days: [21, 112] }, 'the link rules (spec 1.3)');
 eq(manifest.cohort, { linked: { half_editions: setB.half_editions, marathon_editions: setB.marathon_editions, pairs: setB.pairs }, usable: counts.use_finish, verified: counts.verified }, 'the manifest cohort is its policy counts');
 // The policy counts add up.
 eq(counts.raw - counts.R1 - counts.R2 - counts.R3 - counts.R4 - counts.R5_fast - counts.R5_slow - counts.R6, counts.record_usable, 'R1–R6 leave the record-usable rows');

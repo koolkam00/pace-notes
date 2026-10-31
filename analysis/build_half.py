@@ -102,7 +102,8 @@ def manifest(pin, policy_sha, module_sha, counts, set_b, marathons, files, out_b
                      'runner_manifest_as_of': runner_manifest['as_of'], 'weather_evidence_sha256': marathons.weather_sha256,
                      'inputs': {name: file_sha256(ROOT / 'public/data' / name) for name in MARATHON_INPUTS}},
         'policy': {'file': pin['policy'], 'sha256': policy_sha, 'module_sha256': module_sha,
-                   'counts': {**counts, 'set_b': {k: set_b[k] for k in ('pairs', 'people', 'marathon_editions', 'half_editions')}}},
+                   'counts': {**counts, 'set_b': {k: set_b[k] for k in ('pairs', 'people', 'marathon_editions', 'half_editions',
+                                                                     'halves_in_two_or_more_pairs', 'pairs_with_a_close_marathon')}}},
         'link_rules': LINK_RULES,
         'scripts': {f'analysis/{name}': file_sha256(ANALYSIS / name) for name in SCRIPTS},
         'cohort': {'verified': counts['verified'], 'usable': counts['use_finish'],
@@ -181,9 +182,10 @@ def run(half: Path, links: Path, out: Path, accept_counts: bool = False, stamp_r
     log(f"policy applied: {policy.counts['use_finish']['finishes']:,} usable finishes ({time.time() - started:.0f} s)")
     marathons = half_marathon.load()
     log(f'marathon side: {marathons.n:,} eligible finishes ({time.time() - started:.0f} s)')
-    pairs = half_pairs.build(db, marathons, pin['links']['key'])
+    link_editions = half_quality.link_editions(key)
+    pairs = half_pairs.build(db, marathons, pin['links']['key'], link_editions=link_editions)
     set_b = half_pairs.summary(pairs)
-    coverage = half_pairs.coverage(db, marathons)
+    coverage = half_pairs.coverage(db, marathons, link_editions=link_editions)
     log(f"set B: {set_b['pairs']:,} pairs ({time.time() - started:.0f} s)")
     db.close()
 

@@ -40,7 +40,7 @@
       "code.tgz": "d4ebc559b240c16aa21a710c39cdead1d5611132aa1b9ec8b2330e07e5147d50"
     },
     "extract": "links-v4.sqlite",
-    "extract_content_sha256": null
+    "extract_content_sha256": "1c86602ee4d6cda09beae033a33e926d45137b5ec719e17b8d449b65636262df"
   },
   "stamps": {
     "rule": "verified = stamped in this snapshot's own edition_meta, equal to the policy's reviewed list",

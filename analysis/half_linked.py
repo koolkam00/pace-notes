@@ -310,7 +310,9 @@ def checks(p, weaker_source, off_road_labels):
     other = p.subset(~np.isin(p.city, OTHER_THAN))
     ns1 = p.subset(p.frame.ns_keys.to_numpy() == 1)
     one = latest_per_person(p)
-    no_merge = p.subset(~p.frame.in_candidate_merge.to_numpy(bool))
+    # People none of whose rows joined through one of the link build's unions (v4; with runner links v1, people in no
+    # candidate merge). The published key keeps its name until the copy and verifiers move with it.
+    no_merge = p.subset(~p.frame.in_union.to_numpy(bool))
     vs = sexes(ver)
     return {
         'verified': {'pairs': int(ver.n), 'extra_p50_s': sec(quantile(ver.extra, 0.5)), 'under_double': sh((ver.extra < 0).mean()),

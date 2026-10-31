@@ -362,8 +362,14 @@ export type HalfPolicyCounts = {
   /** The stamp check (policy schema 2): stamped editions, the verified usable ones, the reference's withdrawn stamps
    * that are unstamped here, and the snapshot's never_stamp rows. */
   stamp_check: { stamped: number; verified_usable: number; withdrawn_unstamped: number; never_stamp: number };
-  set_b: { pairs: number; people: number; marathon_editions: number; half_editions: number };
+  /** Set B's reviewed counts, with review R6's two signals (counted, never excluded): halves serving two or more pairs,
+   * and pairs whose person has another eligible marathon within 13 days. */
+  set_b: { pairs: number; people: number; marathon_editions: number; half_editions: number; halves_in_two_or_more_pairs: number;
+    pairs_with_a_close_marathon: number };
 };
+
+/** The link build's confidence tiers that may pair (high_elite counts as high). */
+export type HalfLinkTier = 'high_elite' | 'high' | 'medium';
 
 export type HalfScript =
   | 'analysis/build_half.py' | 'analysis/half_common.py' | 'analysis/half_quality.py' | 'analysis/half_policy_lists.py'
@@ -397,12 +403,18 @@ export type HalfManifest = {
     inputs: { 'insights/finish-times.json': string; 'charts/womens-share-by-finish-time.json': string };
   };
   policy: { file: string; sha256: string; module_sha256: string; counts: HalfPolicyCounts };
+  /** analysis/half_pairs.py LINK_RULES (the v4 link rule, lead rulings L): the person tiers and each paired row's own
+   * confidence, the name-and-sex age-key bound, the window, the pairing and the conflict scope, in words. */
   link_rules: {
-    tiers: ('high' | 'medium')[];
+    tiers: HalfLinkTier[];
+    row_tiers: HalfLinkTier[];
     ns_keys_max: number;
+    ns_keys: string;
     window_days: [number, number];
     pairing: string;
-    candidate_merges: string;
+    conflicts: string;
+    link_editions: string;
+    unions: string;
   };
   /** sha256 of every builder module (verify-half fails when a repository file differs). */
   scripts: Record<HalfScript, string>;

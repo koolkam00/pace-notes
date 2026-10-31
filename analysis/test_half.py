@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import tempfile
 import unittest
@@ -276,63 +277,123 @@ class Rules(unittest.TestCase):
                 hq.check_battery_lists(broken)
 
 
-class SetB(unittest.TestCase):
-    """The pairing rules on a synthetic links extract and marathon side."""
+def pid(i: int) -> str:
+    """A v4 person id (^p4_[0-9a-f]{16}$)."""
+    return f'p4_{i:016x}'
 
-    def build(self, people, halves, marathons):
-        """people: (person, sex, tier, ns_keys); halves: (person, record, date or None, flags); marathons: (person, record, date)."""
+
+class SetB(unittest.TestCase):
+    """The pairing rules (lead rulings L) on a synthetic links extract and marathon side."""
+
+    def build(self, people, halves, marathons, link_editions=None, coverage=False):
+        """people: (person, sex, tier, ns_keys); halves: (person, record, date or None, flags) with flags 'r7', 'suspect',
+        'noage' (the row's own confidence low_noage), 'link' (a link edition); marathons: (person, record, date[, flags])
+        with flag 'noage'."""
         db = hc.connect()
         db.execute("ATTACH ':memory:' AS l")
-        db.execute('CREATE TABLE l.people (person_id TEXT, sex TEXT, confidence TEXT, ns_keys INT, key_type TEXT, in_candidate_merge INT)')
-        db.execute('CREATE TABLE l.links (person_id TEXT, db TEXT, record_id BIGINT, confidence TEXT)')
+        db.execute('CREATE TABLE l.people (person_id TEXT, sex TEXT, tier TEXT, ns_keys INT, key_type TEXT, in_union INT, k INT, k_block TEXT)')
+        db.execute('CREATE TABLE l.links (person_id TEXT, db TEXT, record_id BIGINT, confidence TEXT, finish_s BIGINT, sex TEXT, city TEXT, year INT, ns_keys INT)')
         for p, sex, tier, ns in people:
-            db.execute('INSERT INTO l.people VALUES (?, ?, ?, ?, ?, 0)', [p, sex, tier, ns, 'yob'])
+            db.execute('INSERT INTO l.people VALUES (?, ?, ?, ?, ?, 0, 1, ?)', [p, sex, tier, ns, 'yob', 'b' * 16])
         db.execute("""CREATE TEMP TABLE hfin (record_id BIGINT, edition_id BIGINT, city VARCHAR, year INTEGER, race VARCHAR, race_date DATE,
             status_group VARCHAR, sex VARCHAR, use_sex BOOLEAN, finish_s DOUBLE, r7_block BOOLEAN, date_suspect BOOLEAN)""")
+        link = set()
         for p, rid, day, flags in halves:
-            db.execute('INSERT INTO l.links VALUES (?, ?, ?, ?)', [p, 'half', rid, 'medium'])
+            db.execute('INSERT INTO l.links VALUES (?, ?, ?, ?, 6300, NULL, ?, 2022, 1)', [p, 'half', rid, 'low_noage' if 'noage' in flags else 'medium', 'H'])
             db.execute('INSERT INTO hfin VALUES (?, ?, ?, ?, ?, ?, ?, NULL, false, ?, ?, ?)',
                        [rid, rid, 'H', 2022, 'H', day, 'verified', 6300.0, 'r7' in flags, 'suspect' in flags])
+            if 'link' in flags:
+                link.add(rid)
         editions, dates, ids, ed = [], {}, [], []
-        for i, (p, rid, day) in enumerate(marathons):
-            db.execute('INSERT INTO l.links VALUES (?, ?, ?, ?)', [p, 'full', rid, 'medium'])
+        for i, row in enumerate(marathons):
+            p, rid, day = row[:3]
+            flags = row[3] if len(row) > 3 else ''
+            db.execute('INSERT INTO l.links VALUES (?, ?, ?, ?, 14000, NULL, ?, 2022, 1)', [p, 'full', rid, 'low_noage' if 'noage' in flags else 'high', f'M{i}'])
             editions.append({'city': f'M{i}', 'year': 2022, 'race': f'M{i}'})
             dates[i] = day.isoformat()
             ids.append(rid)
             ed.append(i)
         m = Marathons(np.array(ids, np.uint64), np.array(ed, np.int32), np.ones(len(ids), np.uint8), np.full(len(ids), 14000.0),
                       np.zeros(len(ids), bool), editions, np.ones(len(ids), np.int64), dates, 'x', {}, 'y')
-        pairs = half_pairs.build(db, m, 'fixture', check=False)
-        return {(r.person_id, int(r.m_record_id)): int(r.h_record_id) for r in pairs.itertuples()}
+        le = link_editions or {'link_partial': frozenset(link), 'retimed': frozenset()}
+        pairs = half_pairs.build(db, m, 'fixture', link_editions=le, check=False)
+        got = {(r.person_id, int(r.m_record_id)): int(r.h_record_id) for r in pairs.itertuples()}
+        if coverage:
+            return got, pairs, half_pairs.coverage(db, m, link_editions=le)
+        return got, pairs
 
     def test_pairing_rules(self):
         d = date(2022, 6, 1)
         before = lambda days: d - timedelta(days=days)
-        people = [('p1', 'F', 'medium', 1), ('p2', 'M', 'high', 2), ('p3', 'M', 'medium', 1), ('p4', 'M', 'medium', 1),
-                  ('p5', 'F', 'medium', 3), ('p6', 'M', 'medium', 4), ('p7', 'M', 'low', 1), ('p8', 'F', 'medium', 1), ('p9', 'M', 'medium', 1)]
+        P = {i: pid(i) for i in range(1, 30)}
+        people = [(P[1], 'F', 'medium', 1), (P[2], 'M', 'high', 2), (P[3], 'M', 'medium', 1), (P[4], 'M', 'medium', 1),
+                  (P[5], 'F', 'medium', 3), (P[6], 'M', 'medium', 4), (P[7], 'M', 'low', 1), (P[8], 'F', 'medium', 1), (P[9], 'M', 'medium', 1),
+                  (P[10], 'M', 'medium', 1), (P[11], 'F', 'high', 1), (P[12], 'M', 'medium', 0), (P[13], 'M', 'medium', 1),
+                  (P[14], 'F', 'medium', 1), (P[15], 'M', 'high', 1), (P[16], 'F', 'high_elite', 1), (P[17], 'M', 'medium', 2), (P[18], 'F', 'medium', 1)]
         halves = [
-            ('p1', 11, before(21), ''), ('p1', 12, before(54), ''), ('p1', 13, before(20), ''),
-            ('p2', 21, before(112), ''), ('p2', 22, before(113), ''),
-            ('p3', 31, before(30), ''), ('p3', 32, before(30), ''),
-            ('p4', 41, before(31), ''),
-            ('p5', 51, before(40), 'suspect'), ('p5', 52, before(41), 'r7'),
-            ('p6', 61, before(30), ''), ('p7', 71, before(30), ''),
-            ('p8', 81, before(60), ''),
-            ('p9', 91, None, ''),
+            (P[1], 11, before(21), ''), (P[1], 12, before(54), ''), (P[1], 13, before(20), ''),
+            (P[2], 21, before(112), ''), (P[2], 22, before(113), ''),
+            (P[3], 31, before(30), ''), (P[3], 32, before(30), ''),
+            (P[4], 41, before(31), ''),
+            (P[5], 51, before(40), 'suspect'), (P[5], 52, before(41), 'r7'),
+            (P[6], 61, before(30), ''), (P[7], 71, before(30), ''),
+            (P[8], 81, before(60), ''),
+            (P[9], 91, None, ''),
+            (P[10], 101, before(30), 'noage'),
+            (P[11], 111, before(30), ''), (P[11], 112, before(30), 'noage'),
+            (P[12], 121, before(30), ''),
+            (P[13], 131, before(30), 'link'),
+            (P[14], 141, before(30), ''), (P[14], 142, before(30), 'link'),
+            (P[15], 151, before(30), ''),
+            (P[16], 161, before(30), ''),
+            (P[17], 171, before(40), ''),
+            (P[18], 181, before(40), ''),
         ]
-        marathons = [('p1', 101, d), ('p2', 201, d), ('p3', 301, d), ('p4', 401, d), ('p4', 402, before(31)), ('p5', 501, d),
-                     ('p6', 601, d), ('p7', 701, d), ('p8', 801, d), ('p8', 802, d - timedelta(days=30)), ('p9', 901, d)]
-        got = self.build(people, halves, marathons)
-        self.assertEqual(got[('p1', 101)], 11, 'the nearest earlier half from 21 days (20 days is out)')
-        self.assertEqual(got[('p2', 201)], 21, '112 days is in, 113 out')
-        self.assertNotIn(('p3', 301), got, 'two halves on one date: neither pairs')
-        self.assertNotIn(('p4', 401), got, 'a half on the date of one of the person’s marathons never pairs')
-        self.assertNotIn(('p5', 501), got, 'date suspects and the R7 block never pair')
-        self.assertNotIn(('p6', 601), got, 'ns_keys over 3 is out')
-        self.assertNotIn(('p7', 701), got, 'tiers other than high and medium are out')
-        self.assertEqual((got[('p8', 801)], got[('p8', 802)]), (81, 81), 'one pair per person and marathon; a half may serve two')
-        self.assertNotIn(('p9', 901), got, 'undated halves enter no window')
-        self.assertEqual(len(got), 4)
+        marathons = [(P[1], 101, d), (P[2], 201, d), (P[3], 301, d), (P[4], 401, d), (P[4], 402, before(31)), (P[5], 501, d),
+                     (P[6], 601, d), (P[7], 701, d), (P[8], 801, d), (P[8], 802, d - timedelta(days=30)), (P[9], 901, d),
+                     (P[10], 1001, d), (P[11], 1101, d), (P[12], 1201, d), (P[12], 1202, before(30), 'noage'), (P[13], 1301, d),
+                     (P[14], 1401, d), (P[15], 1501, d, 'noage'), (P[16], 1601, d), (P[17], 1701, d), (P[17], 1702, d + timedelta(days=10)),
+                     (P[18], 1801, d), (P[18], 1802, d - timedelta(days=5), 'noage')]
+        got, pairs = self.build(people, halves, marathons)
+        self.assertEqual(got[(P[1], 101)], 11, 'the nearest earlier half from 21 days (20 days is out)')
+        self.assertEqual(got[(P[2], 201)], 21, '112 days is in, 113 out')
+        self.assertNotIn((P[3], 301), got, 'two halves on one date: neither pairs')
+        self.assertNotIn((P[4], 401), got, 'a half on the date of one of the person’s marathons never pairs')
+        self.assertNotIn((P[5], 501), got, 'date suspects and the R7 block never pair')
+        self.assertNotIn((P[6], 601), got, 'ns_keys over 3 is out')
+        self.assertNotIn((P[7], 701), got, 'the low tier is out')
+        self.assertEqual((got[(P[8], 801)], got[(P[8], 802)]), (81, 81), 'one pair per person and marathon; a half may serve two')
+        self.assertNotIn((P[9], 901), got, 'undated halves enter no window')
+        self.assertNotIn((P[10], 1001), got, 'a half attached without an age never pairs')
+        self.assertNotIn((P[11], 1101), got, 'a second half on the date blocks, whatever its own confidence')
+        self.assertNotIn((P[12], 1201), got, 'a marathon on the half’s date blocks, whatever its own confidence')
+        self.assertNotIn((P[13], 1301), got, 'a half in a link edition never pairs')
+        self.assertNotIn((P[14], 1401), got, 'a half in a link edition on the same date still blocks')
+        self.assertNotIn((P[15], 1501), got, 'a marathon attached without an age never pairs')
+        self.assertEqual(got[(P[16], 1601)], 161, 'high_elite counts as high')
+        self.assertEqual((got[(P[17], 1701)], got[(P[17], 1702)]), (171, 171))
+        self.assertEqual(got[(P[18], 1801)], 181)
+        self.assertEqual(len(got), 8)
+        s = half_pairs.summary(pairs)
+        self.assertEqual(s['halves_in_two_or_more_pairs'], 2, 'halves 81 and 171 each serve two pairs')
+        self.assertEqual(s['pairs_with_a_close_marathon'], 3, '1701 and 1702 are 10 days apart; 1802 (attached without an age) is 5 days from 1801')
+        self.assertEqual([s['pairs'], s['people'], s['women_pairs'], s['men_pairs']], [8, 6, 5, 3])
+        self.assertEqual(set(pairs.tier), {'medium', 'high', 'high_elite'})
+
+    def test_the_link_rule_refuses_ids_that_are_not_v4(self):
+        with self.assertRaisesRegex(hc.HalfError, 'without a v4 person id'):
+            self.build([('p1', 'F', 'medium', 1)], [('p1', 11, date(2022, 5, 1), '')], [('p1', 101, date(2022, 6, 1))])
+
+    def test_coverage_counts_rows_that_may_pair(self):
+        d = date(2022, 6, 1)
+        people = [(pid(1), 'F', 'medium', 1), (pid(2), 'M', 'medium', 1), (pid(3), 'M', 'medium', 5), (pid(4), 'F', 'high', 1)]
+        halves = [(pid(1), 11, d - timedelta(days=300), ''), (pid(2), 21, d - timedelta(days=30), 'noage'), (pid(3), 31, d, ''),
+                  (pid(4), 41, d, 'link')]
+        marathons = [(pid(1), 101, d), (pid(2), 201, d), (pid(3), 301, d), (pid(4), 401, d), (pid(1), 102, d, 'noage')]
+        _, _, cov = self.build(people, halves, marathons, coverage=True)
+        linked = {c['city']: c['linked'] for c in cov}
+        self.assertEqual(linked, {'M0': 1, 'M1': 0, 'M2': 0, 'M3': 0, 'M4': 0},
+                         'only a marathon row that may pair, of a person with a half that may pair, counts as linked')
 
     def test_marathon_dates_come_from_the_evidence(self):
         editions = [{'city': 'A', 'year': 2022}, {'city': 'B', 'year': 2022}]
@@ -351,7 +412,7 @@ def synthetic_pairs(n=16000, seed=3, multiple=2.2):
     city = rng.choice(['Valencia', 'Warsaw', 'Berlin', 'Oslo', 'Paris'], n)
     year = rng.choice([2022, 2023, 2024, 2025, 2026, 2019], n)
     frame = pd.DataFrame({'person_id': [f'p{i % (n - 200)}' for i in range(n)], 'sex': sex, 'tier': 'medium', 'ns_keys': rng.choice([1, 2, 3], n),
-                          'in_candidate_merge': rng.random(n) < 0.05, 'h_record_id': np.arange(n), 'h_edition_id': rng.integers(0, 400, n),
+                          'in_union': rng.random(n) < 0.05, 'h_record_id': np.arange(n), 'h_edition_id': rng.integers(0, 400, n),
                           'h_status_group': np.where(rng.random(n) < 0.6, 'verified', 'unverified'), 'h_finish_s': h,
                           'm_record_id': np.arange(n) + 10**6, 'm_city': city, 'm_year': year,
                           'm_date': [date(int(y), 4, 1) + timedelta(days=int(k)) for y, k in zip(year, rng.integers(0, 200, n))],
@@ -1101,87 +1162,259 @@ class DownloadHalf(unittest.TestCase):
         self.assertEqual(self.dh.main(['--from-dir', str(self.folder), '--out', str(ROOT / 'public' / 'data' / 'half')]), 1)
 
 
-# The release's runner_links.sqlite schema as published (half-dataset-20261029-1202): several columns carry no declared
-# type, which DuckDB's SQLite scanner reads as BLOB unless the extract casts them (found running the source job locally,
-# October 30, 2026).
-LINKS_SQLITE_SCHEMA = """
-CREATE TABLE runners(runner_id TEXT, canonical_name, name_norm TEXT, sex TEXT, age_key TEXT, n_halves, n_fulls, n_records,
-  first_year, last_year, birth_year_min, birth_year_max, ntok, ns_keys int, max_per_year int, confidence text, in_both int);
-CREATE TABLE runner_links(runner_id, db, record_id INT, match_key TEXT, match_rule, confidence TEXT, year INT, race_key TEXT,
-  linked_at);
-CREATE TABLE build_info(k text primary key, v text);
-CREATE TABLE candidate_merges(runner_id_a text, runner_id_b text, rule text, applied int default 0);
-"""
+# The release's own schema of half-dataset-20261030-1904's v4 person links (COLUMNS_V4.md and the parquet types), so the
+# fixtures are read the way the real files are (the October 30, 2026 lesson: a fixture in another form hid a type bug).
+RRL_SCHEMA = [('person_id', 'VARCHAR'), ('confidence', 'VARCHAR'), ('method', 'VARCHAR'), ('unlinked_reason', 'VARCHAR'),
+              ('person_id_v2', 'VARCHAR'), ('person_id_v3', 'VARCHAR'), ('runner_id_v1', 'VARCHAR'), ('distance', 'VARCHAR'),
+              ('distance_km', 'DOUBLE'), ('race_series', 'VARCHAR'), ('race', 'VARCHAR'), ('year', 'BIGINT'), ('city', 'VARCHAR'),
+              ('finish_seconds', 'DOUBLE'), ('finish_raw', 'VARCHAR'), ('sex', 'VARCHAR'), ('age', 'BIGINT'), ('age_group', 'VARCHAR'),
+              ('age_key', 'VARCHAR'), ('nationality', 'VARCHAR'), ('name_raw', 'VARCHAR'), ('name_norm', 'VARCHAR'),
+              ('source_db', 'VARCHAR'), ('record_id', 'BIGINT'), ('record_flags', 'VARCHAR'), ('finish_time_only_tier', 'BOOLEAN'),
+              ('course_shortened_suspect', 'BOOLEAN'), ('excluded_by_record_flag', 'BOOLEAN'), ('noage_tier', 'BOOLEAN')]
+PERSONS_SCHEMA = [('person_id', 'VARCHAR'), ('name_norm_example', 'VARCHAR'), ('sex', 'VARCHAR'), ('n_results', 'BIGINT'),
+                  ('n_halves', 'BIGINT'), ('n_marathons', 'BIGINT'), ('n_series', 'BIGINT'), ('first_year', 'BIGINT'),
+                  ('last_year', 'BIGINT'), ('n_runner_ids_v1', 'BIGINT'), ('n_person_ids_v2', 'BIGINT'), ('n_person_ids_v3', 'BIGINT'),
+                  ('confidences', 'VARCHAR'), ('nationality_example', 'VARCHAR')]
+
+
+class V4Source:
+    """A synthetic v4 link build (the two parquet files), its half snapshot and the eligible marathons."""
+
+    def __init__(self):
+        self.rows = []
+        self.snapshot_only = []   # snapshot rows the link build does not cover
+        self.overrides = {}       # record_id -> snapshot fields that differ from the v4 row
+        self.persons_over = {}    # person_id -> persons.parquet fields to replace
+        self.eligible = []        # (record_id, city, year, gender, finish)
+
+    def row(self, person, db, record_id, *, confidence='medium', method='merged', name='anna berg', sex='F', age=None,
+            age_key='yob:1980', finish=6300, finish_raw=None, city=None, year=2022, race=None, eligible=True):
+        city = city or ('Halfton' if db == 'half' else 'Fullton')
+        r = {'person_id': person, 'confidence': confidence if person else None, 'method': method if person else None,
+             'distance': 'half' if db == 'half' else 'marathon', 'distance_km': 21.0975 if db == 'half' else 42.195,
+             'race_series': city, 'race': race or f'{city} {db} {record_id}', 'year': year, 'city': city,
+             'finish_seconds': float(finish), 'finish_raw': finish_raw or hms(finish), 'sex': sex, 'age': age,
+             'age_key': age_key, 'name_raw': name.title() if name else None, 'name_norm': name, 'source_db': db,
+             'record_id': record_id, 'finish_time_only_tier': True, 'course_shortened_suspect': False,
+             'excluded_by_record_flag': False, 'noage_tier': confidence.startswith('low_noage') if person else None}
+        self.rows.append(r)
+        if db == 'full' and eligible:
+            self.eligible.append((record_id, city, year, {'M': 1, 'F': 2}.get(sex, 0), float(finish)))
+        return r
+
+    def write(self, folder):
+        import duckdb
+        folder = Path(folder)
+        v4 = folder / 'v4'
+        v4.mkdir(exist_ok=True)
+        con = duckdb.connect()
+        con.execute(f"CREATE TABLE rrl ({', '.join(f'{c} {t}' for c, t in RRL_SCHEMA)})")
+        cols = [c for c, _ in RRL_SCHEMA]
+        con.executemany(f"INSERT INTO rrl VALUES ({', '.join('?' for _ in cols)})", [[r.get(c) for c in cols] for r in self.rows])
+        con.execute(f"COPY rrl TO '{(v4 / 'race_results_linked.parquet').as_posix()}' (FORMAT parquet)")
+        con.execute(f"CREATE TABLE persons ({', '.join(f'{c} {t}' for c, t in PERSONS_SCHEMA)})")
+        people = {}
+        for r in self.rows:
+            if r['person_id']:
+                x = people.setdefault(r['person_id'], {'person_id': r['person_id'], 'sex': None, 'n_results': 0, 'n_halves': 0, 'n_marathons': 0})
+                x['n_results'] += 1
+                x['n_halves' if r['source_db'] == 'half' else 'n_marathons'] += 1
+                x['sex'] = x['sex'] or r['sex']
+        pcols = [c for c, _ in PERSONS_SCHEMA]
+        con.executemany(f"INSERT INTO persons VALUES ({', '.join('?' for _ in pcols)})",
+                        [[{**x, **self.persons_over.get(x['person_id'], {})}.get(c) for c in pcols] for x in people.values()])
+        con.execute(f"COPY persons TO '{(v4 / 'persons.parquet').as_posix()}' (FORMAT parquet)")
+        con.close()
+        snap = folder / 'platform_half.sqlite'
+        sq = sqlite3.connect(snap)
+        sq.executescript(HALF_SCHEMA)
+        for r in [x for x in self.rows if x['source_db'] == 'half'] + self.snapshot_only:
+            o = {'id': r['record_id'], 'race': r['race'], 'year': r['year'], 'city': r['city'], 'runner': r.get('name_raw'),
+                 'sex': r['sex'], 'age': r.get('age'), 'split_21_1km': r['finish_raw'], **self.overrides.get(r['record_id'], {})}
+            sq.execute('INSERT INTO race_records (id, race, year, city, runner, sex, age, split_21_1km, source_url, ingested_at) '
+                       "VALUES (:id, :race, :year, :city, :runner, :sex, :age, :split_21_1km, 'fixture://' || :id, '2026-10-30')", o)
+        sq.commit()
+        sq.close()
+        editions = sorted({(c, y) for _, c, y, _, _ in self.eligible})
+        index = {e: i for i, e in enumerate(editions)}
+        n = len(self.eligible)
+        m = Marathons(np.array([e[0] for e in self.eligible], np.uint64), np.array([index[(e[1], e[2])] for e in self.eligible], np.int32),
+                      np.array([e[3] for e in self.eligible], np.uint8), np.array([e[4] for e in self.eligible]), np.zeros(n, bool),
+                      [{'city': c, 'year': y, 'race': c} for c, y in editions], np.ones(len(editions), np.int64),
+                      {i: f'{y}-10-01' for i, (c, y) in enumerate(editions)}, 'manifest-sha', {}, 'weather-sha')
+        return v4, snap, m
+
+
+def v4_source():
+    """The reference fixture: people of each kind, the checks' reviewed exceptions, a snapshot row beyond the boundary."""
+    s = V4Source()
+    A, B, C, D, E, F, G, H = (pid(i) for i in range(1, 9))
+    # A: high, yob; a half row attached without an age stays in links; the unlinked row and H's row share A's name and sex.
+    s.row(A, 'half', 1, confidence='high', name='anna berg', age=42, age_key='yob:1980')
+    s.row(A, 'half', 2, confidence='low_noage', method='noage_attach', name='anna berg', age_key=None)
+    s.row(A, 'full', 101, confidence='high', name='anna berg', age_key='yob:1980', finish=14000)
+    s.row(None, 'half', 3, name='anna berg', age_key='ag:40-44')
+    s.row(H, 'half', 4, confidence='low', method='new', name='berg anna', age_key='yob:1985')
+    # B: medium, age bins only.
+    s.row(B, 'half', 5, name='bo li', sex='M', age_key='ag:40-44')
+    s.row(B, 'full', 102, name='bo li', sex='M', age_key='ag:40-44', finish=13000)
+    # C: high, a union person (two names; the smallest sorted name is its block), yob and bin keys.
+    s.row(C, 'half', 6, confidence='high', method='merged+middle_name_union', name='carl de jong', sex='M', age_key='yob:1970')
+    s.row(C, 'full', 103, confidence='high', method='merged', name='carl jong', sex='M', age_key='ag:50-54', finish=12000)
+    # D: low tier; E: medium without a marathon row that may pair; G: medium in a block with no age key.
+    s.row(D, 'half', 7, confidence='low', method='new', name='dan ek', sex='M')
+    s.row(D, 'full', 104, confidence='low', method='new', name='dan ek', sex='M', finish=15000)
+    s.row(E, 'half', 8, name='eva ros')
+    s.row(E, 'full', 105, confidence='low_noage', method='noage_attach', name='eva ros', age_key=None, finish=16000)
+    s.row(G, 'half', 9, name='zed', sex='M', age_key=None)
+    s.row(G, 'full', 106, name='zed', sex='M', age_key=None, finish=13500)
+    # F: a marathon only (not in people) and an ineligible marathon of B.
+    s.row(F, 'full', 107, name='fay ng', finish=14100)
+    s.row(B, 'full', 108, name='bo li', sex='M', age_key='ag:40-44', finish=13100, eligible=False)
+    # The reviewed exceptions: a re-timed edition, an unparsed equal text, an X sex, a name sharing no token.
+    s.row(None, 'half', 10, name='rex', city='Retimed City', year=2024, finish=5000)
+    s.overrides[10] = {'split_21_1km': hms(5100)}
+    s.row(None, 'half', 11, name='neg', finish=-3600, finish_raw='-1:00:00')
+    s.row(None, 'half', 12, name='sam', sex=None)
+    s.overrides[12] = {'sex': 'X'}
+    s.row(None, 'half', 13, name='lol')
+    s.overrides[13] = {'runner': 'Somebody Else'}
+    s.snapshot_only.append({'record_id': 20, 'race': 'Late Half', 'year': 2026, 'city': 'Late', 'name_raw': 'Late Runner', 'sex': 'M',
+                            'finish_raw': hms(6000)})
+    return s
+
+
+V4_PIN = {'links': {'coverage': {'half_rows': 13, 'half_max_record_id': 13, 'marathon_rows': 8, 'producer_build_info': 'x'}}}
+V4_LINK_EDITIONS = {'link_build': 'fixture', 'half_max_record_id': 13,
+                    'retimed': [{'edition_id': 1, 'city': 'Retimed City', 'year': 2024, 'rows': 1}], 'link_partial': []}
 
 
 class LinksExtract(unittest.TestCase):
-    """The links extract reads the release's SQLite and the parquet form of the same rows alike."""
+    """links-v4.sqlite from synthetic v4 parquet files in the release's own schema: the source and join checks, the people
+    and their rows (ns_keys, k, unions), the content digest."""
 
     def setUp(self):
         import half_links_extract
         self.hle = half_links_extract
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)
-        runners = [('anna|f|1980', 'Anna', 'anna', 'F', '1980', 1, 1, 2, 2020, 2021, 1980, 1980, 1, 1, 1, 'high', 1),
-                   ('bo|m|40-44', 'Bo', 'bo', 'M', '40-44', 1, 1, 2, 2019, 2019, 1975, 1979, 1, 2, 1, 'medium', 1),
-                   ('cy|m|1990', 'Cy', 'cy', 'M', '1990', 1, 0, 1, 2022, 2022, 1990, 1990, 1, 1, 1, 'low', 0)]
-        links = [('anna|f|1980', 'half', 11, 'anna|f|1980', 'name_sex_yob', 'high', 2020, 'h1'),
-                 ('anna|f|1980', 'full', 21, 'anna|f|1980', 'name_sex_yob', 'high', 2021, 'm1'),
-                 ('bo|m|40-44', 'half', 12, 'bo|m|40-44', 'name_sex_age_bin', 'medium', 2019, 'h2'),
-                 ('bo|m|40-44', 'full', 22, 'bo|m|40-44', 'name_sex_age_bin', 'medium', 2019, 'm2'),
-                 ('cy|m|1990', 'half', 13, 'cy|m|1990', 'name_sex_yob', 'low', 2022, 'h3')]
-        merges = [('bo|m|40-44', 'cy|m|1990', 'yob_vs_bin', 0)]
-        self.sqlite = self.dir / 'runner_links.sqlite'
-        con = sqlite3.connect(self.sqlite)
-        con.executescript(LINKS_SQLITE_SCHEMA)
-        con.executemany(f"INSERT INTO runners VALUES ({', '.join('?' * 17)})", runners)
-        con.executemany("INSERT INTO runner_links VALUES (?, ?, ?, ?, ?, ?, ?, ?, '2026-10-29 15:00:00')", links)
-        con.executemany('INSERT INTO candidate_merges VALUES (?, ?, ?, ?)', merges)
-        con.execute("INSERT INTO build_info VALUES ('built_at', '2026-10-29 15:51:57')")
-        con.commit()
-        con.close()
-        self.parquet = self.dir / 'parquet'
-        self.parquet.mkdir()
-        import duckdb   # writes the parquet form (pandas alone would need pyarrow, which the requirements do not list)
-        out = duckdb.connect()
-        for table, rows in (('runners', runners), ('runner_links', links), ('candidate_merges', merges),
-                            ('build_info', [('built_at', '2026-10-29 15:51:57')])):
-            frame = pd.DataFrame(rows, columns=list(self.hle.SQLITE_COLUMNS[table]))
-            out.register('frame', frame)
-            out.execute(f"COPY (SELECT * FROM frame) TO '{(self.parquet / f'{table}.parquet').as_posix()}' (FORMAT parquet)")
-            out.unregister('frame')
-        out.close()
 
     def tearDown(self):
         self.tmp.cleanup()
 
-    def people(self, parquet=None, sqlite=None):
+    def run_checks(self, s, pin=V4_PIN, le=V4_LINK_EDITIONS):
+        folder = Path(tempfile.mkdtemp(dir=self.dir))
+        v4, snap, m = s.write(folder)
         db = self.hle.connect()
-        self.hle.open_source(db, parquet, sqlite)
+        self.hle.open_v4(db, v4)
+        self.hle.attach_half(db, snap)
+        self.hle.register_marathons(db, m)
+        got = {'source': self.hle.check_source(db, pin), 'joins': self.hle.check_half_join(db, pin, le)}
+        got['joins']['marathons'] = self.hle.check_marathon_join(db)
         self.hle.select_people(db)
-        out = (db.execute('SELECT person_id, sex, confidence, ns_keys, key_type, in_candidate_merge FROM p ORDER BY 1').fetchall(),
-               db.execute('SELECT person_id, db, record_id, confidence, key_type FROM pl ORDER BY 1, 2, 3').fetchall())
-        db.close()
-        return out
+        got.update(self.hle.counts(db))
+        return db, got, folder
 
-    def test_the_sqlite_and_parquet_forms_give_the_same_people_and_links(self):
-        from_sqlite = self.people(sqlite=self.sqlite)
-        self.assertEqual(from_sqlite, self.people(parquet=self.parquet))
-        people, links = from_sqlite
-        self.assertEqual([(sex, conf, keys, kind, merge) for _, sex, conf, keys, kind, merge in people],
-                         [('F', 'high', 1, 'yob', 0), ('M', 'medium', 2, 'age_bin', 1)] if people[0][1] == 'F'
-                         else [('M', 'medium', 2, 'age_bin', 1), ('F', 'high', 1, 'yob', 0)])
-        self.assertEqual(sorted((d, r) for _, d, r, _, _ in links), [('full', 21), ('full', 22), ('half', 11), ('half', 12)])
-        self.assertTrue(all(isinstance(r, int) for _, _, r, _, _ in links), 'record ids stay integers')
-
-    def test_a_missing_column_fails(self):
-        con = sqlite3.connect(self.sqlite)
-        con.execute('ALTER TABLE runner_links DROP COLUMN match_rule')
-        con.commit()
+    def test_people_links_and_counts(self):
+        db, got, folder = self.run_checks(v4_source())
+        A, B, C, G = pid(1), pid(2), pid(3), pid(7)
+        people = db.execute(f"SELECT {', '.join(self.hle.PEOPLE_COLUMNS)} FROM pe ORDER BY person_id").fetchall()
+        block = lambda ns, sx: hc.bytes_sha256(f'{ns}\t{sx}'.encode())[:16]
+        self.assertEqual(people, [
+            (A, 'F', 'high', 2, 'yob', 0, 2, block('anna berg', 'F')),
+            (B, 'M', 'medium', 1, 'age_bin', 0, 1, block('bo li', 'M')),
+            (C, 'M', 'high', 1, 'mixed', 1, 1, block('carl de jong', 'M')),
+            (G, 'M', 'medium', 0, 'none', 0, 1, block('zed', 'M')),
+        ], 'ns_keys counts every row with an age key, linked or not; k counts the aged persons of the sorted-name block')
+        links = db.execute(f"SELECT {', '.join(self.hle.LINKS_COLUMNS)} FROM le ORDER BY person_id, db, record_id").fetchall()
+        self.assertEqual([(r[0], r[1], r[2], r[3]) for r in links if r[0] == A],
+                         [(A, 'full', 101, 'high'), (A, 'half', 1, 'high'), (A, 'half', 2, 'low_noage')], 'every linked row of a person')
+        self.assertEqual([r[4:] for r in links if r[2] == 101], [(14000, 'F', 'Fullton', 2022, 2)], 'finish, sex, city, year and the row’s block count')
+        self.assertEqual(sorted(r[2] for r in links if r[0] == B), [5, 102, 108])
+        self.assertEqual(got['joins'], {'half_finish_unparsed': 1, 'half_sex': [{'snapshot': 'X', 'v4': None, 'rows': 1}],
+                                        'half_name_no_shared_token': [{'city': 'Halfton', 'year': 2022, 'rows': 1}], 'marathons': 7})
+        self.assertEqual(got['people'], {'F': 1, 'M': 3, 'all': 4, 'high': 2, 'in_union': 1, 'medium': 2, 'ns_keys_0': 1})
+        self.assertEqual(got['links'], {'full': 5, 'half': 5})
+        self.assertEqual(got['k'], {'high_k_not_1': 1}, 'A is high but shares its block with the aged H')
+        self.assertEqual(got['source']['confidence'], {'high': 4, 'low': 3, 'low_noage': 2, 'medium': 7, 'null': 5})
+        out = folder / 'links-v4.sqlite'
+        digest, rows = self.hle.write_extract(db, out, {'links_key': 'fixture'})
+        self.assertEqual(rows, {'people': 4, 'links': 10})
+        con = sqlite3.connect(out)
+        text = ''.join('\t'.join('\\N' if v is None else str(v) for v in row) + '\n'
+                       for table, cols in (('people', self.hle.PEOPLE_COLUMNS), ('links', self.hle.LINKS_COLUMNS))
+                       for row in con.execute(f"SELECT {', '.join(cols)} FROM {table} ORDER BY {', '.join(cols)}"))
+        build = dict(con.execute('SELECT k, v FROM build').fetchall())
         con.close()
-        db = self.hle.connect()
-        with self.assertRaisesRegex(SystemExit, 'runner_links lacks match_rule'):
-            self.hle.open_source(db, None, self.sqlite)
+        self.assertEqual(digest, hc.bytes_sha256(text.encode()), 'the canonical TSV digest')
+        self.assertEqual(build['extract_content_sha256'], digest)
+        again = folder / 'again'
+        again.mkdir()
+        db2, _, _ = self.run_checks(v4_source())
+        self.assertEqual(self.hle.write_extract(db2, again / 'links-v4.sqlite', {'links_key': 'fixture'})[0], digest, 'two cuts give one digest')
+
+    def test_each_check_fails_loudly(self):
+        def broken(change):
+            s = v4_source()
+            change(s)
+            return s
+        row = lambda s, rid, db='half': next(r for r in s.rows if r['record_id'] == rid and r['source_db'] == db)
+        cases = [
+            (lambda s: s.overrides.setdefault(5, {}).update(city='Elsewhere'), 'city, year or race differ'),
+            (lambda s: s.overrides.setdefault(5, {}).update(age=33), 'age differs'),
+            (lambda s: s.overrides.setdefault(5, {}).update(split_21_1km=hms(6400)), 're-timed editions'),
+            (lambda s: row(s, 5).update(finish_seconds=6302.0), 'seconds differ'),
+            (lambda s: s.snapshot_only.append({'record_id': 0, 'race': 'x', 'year': 2022, 'city': 'x', 'sex': 'M', 'finish_raw': '1:40:00'}),
+             'inside the coverage boundary without a v4 row'),
+            (lambda s: row(s, 101, 'full').update(finish_seconds=14001.0), 'finish differs by more than 0.5 s'),
+            (lambda s: s.eligible.__setitem__(1, (102, 'Fullton', 2022, 2, 13000.0)), 'does not map'),
+            (lambda s: s.eligible.append((999, 'Fullton', 2022, 2, 14000.0)), 'eligible marathons without a v4 row'),
+            (lambda s: row(s, 1).update(person_id='p4_ANNA'), 'person ids not matching'),
+            (lambda s: row(s, 2).update(sex='M'), 'two published sexes'),
+            (lambda s: row(s, 108, 'full').update(record_id=107), 'repeated (source_db, record_id)'),
+            (lambda s: row(s, 2).update(confidence='medium', method='merged'), 'more than one tier'),
+            (lambda s: s.persons_over.setdefault(pid(2), {}).update(n_results=9), 'persons.parquet and the linked rows disagree'),
+            (lambda s: row(s, 1).update(age_key='1980'), 'age keys of another form'),
+            (lambda s: row(s, 5).update(name_norm=None), 'without a normalized name'),
+        ]
+        for change, message in cases:
+            with self.subTest(message):
+                with self.assertRaisesRegex(SystemExit, re.escape(message)):
+                    self.run_checks(broken(change))
+
+    def test_the_coverage_must_equal_the_pin(self):
+        pin = {'links': {'coverage': {**V4_PIN['links']['coverage'], 'half_max_record_id': 14}}}
+        with self.assertRaisesRegex(SystemExit, 'coverage'):
+            self.run_checks(v4_source(), pin=pin)
+
+    def test_a_column_of_another_type_fails(self):
+        s = v4_source()
+        folder = Path(tempfile.mkdtemp(dir=self.dir))
+        v4, _, _ = s.write(folder)
+        import duckdb
+        con = duckdb.connect()
+        path = (v4 / 'race_results_linked.parquet').as_posix()
+        con.execute(f"COPY (SELECT * REPLACE (CAST(record_id AS VARCHAR) AS record_id) FROM read_parquet('{path}')) TO '{path}.x' (FORMAT parquet)")
+        con.close()
+        os.replace(f'{path}.x', path)
+        with self.assertRaisesRegex(SystemExit, 'record_id'):
+            self.hle.open_v4(self.hle.connect(), v4)
+
+    def test_the_pinned_link_build_has_reviewed_counts(self):
+        pin = hc.load_pin()
+        key = pin['links']['key']
+        self.assertTrue(all(v is not None for v in self.hle.EXPECTED[key].values()), 'every extract count is reviewed')
+        want = half_pairs.EXPECTED[key]
+        self.assertEqual(set(want), set(half_pairs.summary(pd.DataFrame({c: [] for c in ('h_record_id', 'person_id', 'm_ed', 'm_city', 'h_edition_id', 'sex', 'verified', 'm_close_marathon')}))))
+        self.assertEqual(want['women_pairs'] + want['men_pairs'], want['pairs'])
+        self.assertRegex(pin['links']['extract_content_sha256'] or '', '^[0-9a-f]{64}$')
+
+    def test_the_frozen_rules_are_hashed(self):
+        self.assertEqual(self.hle.sql_sha256(self.hle.NS_KEYS_SQL), hc.bytes_sha256(self.hle.NS_KEYS_SQL.encode()))
+        self.assertIn("count(DISTINCT age_key)", self.hle.NS_KEYS_SQL)
+        self.assertIn("WHERE age_key IS NOT NULL AND name_norm IS NOT NULL AND sex IN ('M', 'F')", self.hle.NS_KEYS_SQL)
+        self.assertIn("max(ns_keys) AS ns_keys FROM lr WHERE confidence IN ('high_elite', 'high', 'medium') GROUP BY person_id", self.hle.NS_KEYS_SQL)
+        self.assertIn('min(array_to_string(list_sort(string_split(l.name_norm', self.hle.K_SQL)
 
 
 class Pin(unittest.TestCase):
@@ -1488,6 +1721,23 @@ class RealSource(unittest.TestCase):
         self.assertTrue(set(verified.edition_id.astype(int)) <= set(stamps['stamped']))
         self.assertTrue({x['edition_id'] for x in stamps['weaker_source']} <= set(verified.edition_id.astype(int)), 'the weaker-source stamps stay verified')
         self.assertEqual(result.lists['link_partial'], hq.entry()['link_editions']['link_partial'])
+
+    def test_the_links_extract_is_the_pinned_one(self):
+        import half_links_extract
+        path = SOURCE_DIR / 'links-v4.sqlite'
+        if not path.is_file():
+            self.skipTest('no links-v4.sqlite beside the snapshot (python3 -I analysis/half_links_extract.py)')
+        pin = hc.load_pin()
+        con = sqlite3.connect(f'file:{path.as_posix()}?mode=ro', uri=True)
+        try:
+            build = dict(con.execute('SELECT k, v FROM build').fetchall())
+            self.assertEqual(half_links_extract.content_sha256(con), pin['links']['extract_content_sha256'])
+            people = con.execute('SELECT count(*) FROM people').fetchone()[0]
+        finally:
+            con.close()
+        self.assertEqual([build['links_key'], build['applies_to'], build['extract_content_sha256']],
+                         [pin['links']['key'], pin['links']['applies_to'], pin['links']['extract_content_sha256']])
+        self.assertEqual(people, half_links_extract.EXPECTED[pin['links']['key']]['people']['all'])
 
 
 if __name__ == '__main__':
