@@ -1,7 +1,8 @@
 name: Half marathon
 
-# The half-marathon aggregates (docs/HALF_MARATHON.md). The half snapshot, its links and the corrected edition metadata
-# are the owner's public CC BY 4.0 releases (analysis/half-release.json), downloaded anonymously: no secret is needed.
+# The half-marathon aggregates (docs/HALF_MARATHON.md). The half snapshot, its person links and the stamp reference (the
+# producer's earlier corrected edition metadata) are the owner's public CC BY 4.0 releases (analysis/half-release.json),
+# downloaded anonymously: no secret is needed.
 #
 # `check` verifies what the repository alone can show (scripts/verify-half.cjs: provenance, floors and bans, exact
 # recounts of the half-only values, consistency of the linked aggregates, and the source-recount receipt written by

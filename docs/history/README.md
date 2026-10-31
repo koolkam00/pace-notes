@@ -12,7 +12,7 @@ Dated records that no longer describe the project as it is, kept so that earlier
 
 ## Files
 
-All moves are dated October 30, 2026. Line numbers are the source file's at the source commit.
+Moves are dated October 30, 2026, unless the row says otherwise. Line numbers are the source file's at the source commit.
 
 | File | Source | Source commit | Lines | What it holds |
 | --- | --- | --- | --- | --- |
@@ -31,6 +31,8 @@ All moves are dated October 30, 2026. Line numbers are the source file's at the 
 | [analytics-2026-10.md](analytics-2026-10.md) | `docs/ANALYTICS.md` | `30b906aa` (branch `docs/pass-2026-10`; the same line numbers at `a2c6e507`); `0c3cda0e` (branch) for its last section | 3–9, 19, 48–49, 65, 106–135, 139, 143, 152, 163, 179, 195–207 | Status lines and traffic of October 7, configuration and event rows as first written, the home-section history, the half status line, experiments, verification, S8 and the measurements of October 13–14 |
 | [seo-2026-10.md](seo-2026-10.md) | `docs/SEO.md` | `a2c6e507`; `0c3cda0e` (branch `docs/pass-2026-10`) for its last section | 3, 14, 58, 88–138, 146, 179, 189, 247–249, 282 | The opening line, the noindex row, the sitemap counts of October 8–18, the course pages from 1652 back to October 16 with their review rounds, the half status line, share cards, the moved addresses of October 20 and the live check of October 8 and 13 |
 | [analysis-catalog-2026-10.md](analysis-catalog-2026-10.md) | `docs/ANALYSIS_CATALOG.md` | `a2c6e507` | 5–7, 11, 12, 18, 20, 26, 772–774, 782–784, 788, 794, 872, 898–900, 904, and two lines of each pack entry (79–80 to 752–753) | The 1652 rebuild text, the catalog's 1652 counts and timestamps, every pack's state and n lines as written for 1652, and the source-quality bullet every pack carried before the 1050 policy |
+| [half-marathon-2026-10-29-to-31.md](half-marathon-2026-10-29-to-31.md) | `docs/HALF_MARATHON.md` | `f761311a` (branch `feat/half-v4`, which carries `fix/half-followups` at `b35da73e`) | all (215) | Moved October 31, 2026: the half contract as it stood for the first pin (`half-snapshot-20261029-1133`, `runner-links-20261029-1156` and the 2157 stamp correction), with its status, policy, set B, readings, evidence and producer list, before the rewrite for `half-dataset-20261030-1904` with the person IDs v4 |
+| [half-v4-docs-2026-10-31.md](half-v4-docs-2026-10-31.md) | `AGENTS.md`, `analysis/README.md`, `analysis/ACCESS.md`, `docs/OPERATIONS.md`, `docs/PROJECT_HANDOFF.md`, `docs/STORIES.md`, `docs/TOOLS.md`, `docs/SEO.md`, `docs/WEBSITE_ARCHITECTURE.md`, `docs/TOP_100_CHARTS.md` | `f8869591` (`main`) or `f761311a` (branch `feat/half-v4`), as each section says | as each section says | Moved October 31, 2026: the half lines of the other documents (rule 4, the half refresh and release intake, the analysis notes, the handoff's half note and owner item, the tools' and story's examples) as written for the first pin |
 | [redesign-2026-10/DESIGN-SPEC.md](redesign-2026-10/DESIGN-SPEC.md) | `docs/redesign-work/DESIGN-SPEC.md` | `b1fe7761` (branch `feat/redesign`) | all (2,718) | The redesign spec of October 17, 2026. `6279e4b5` deleted it before #71 was squash-merged, so `main` never held it; code comments that cite "the redesign spec, section N" mean this file |
 
 ## Where the rest went
