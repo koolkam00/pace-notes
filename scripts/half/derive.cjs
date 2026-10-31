@@ -406,6 +406,24 @@ function flagshipGuard(linked) {
     && leaveOuts;
 }
 
+/**
+ * The story figure's own guard (lib/nuggets/half.ts figureGuard): every battery member and every one-verified-half-edition-out
+ * variant (none under 100 pairs) under 15% under double, and the verified halves within 3 points of the pooled share (that
+ * check is the figure's own, not the variants'; lead rulings A1 and A2, October 31, 2026).
+ */
+function figureGuard(linked) {
+  const battery = linked.checks.battery;
+  const members = Object.fromEntries(battery.members.map((m) => [m.id, m]));
+  const share = linked.overall.under_double_plus_min['0'];
+  const variants = Object.keys(LEAVE_OUTS).every((id) => {
+    const x = (battery.leave_outs || {})[id];
+    const w = x && x.worst.under_double;
+    return !!x && x.under_floor === 0 && x.variants > 0 && !!w && passes('under_double', w, 0, 0);
+  });
+  return !!members.pooled && !!members.verified_halves && Object.values(members).every((m) => passes('under_double', m, 0, 0))
+    && variants && Math.abs(share - members.verified_halves.under_double) <= 0.03;
+}
+
 module.exports = {
   SHARE_DIGITS, MIN_CELL, MIN_EDITIONS, MIN_EDGE_SLICE,
   pyRound, sh, r, sec, quantileSorted, quantile, ascending, pairwiseSum, npMean, npMedian, isShareOf,
@@ -413,5 +431,5 @@ module.exports = {
   tailedTotal, underMinutes, underBins, binOfRank, quantileBounds, densest,
   poissonPolyFit, localFit, cliffIndex,
   womenShare, crossing, sameCitySummary, cityRows,
-  markTimes, shareBounds, windowFor, readoutMark, goalRow, flagshipGuard, passes, LEAVE_OUTS, WORST,
+  markTimes, shareBounds, windowFor, readoutMark, goalRow, flagshipGuard, figureGuard, passes, LEAVE_OUTS, WORST,
 };

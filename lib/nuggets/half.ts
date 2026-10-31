@@ -164,6 +164,24 @@ export function flagshipGuard(linked: HalfLinked): boolean {
     && leaveOuts;
 }
 
+/**
+ * The story figure's own guard (spec 3.2): the share under double states a reading only while every battery member and
+ * every one-verified-half-edition-out variant of verified_halves and verified_federation (none under 100 pairs) is under
+ * 15% under double, and the verified halves are within 3 points of the pooled share. The variants follow the figure's
+ * under-15% clause as they follow the H1's (lead rulings A1 and A2, October 31, 2026, made before any value of the
+ * 1904 build was read); the 3-point check is the figure's own and does not apply to them.
+ */
+export function figureGuard(linked: HalfLinked): boolean {
+  const b = linked.checks.battery, m = members(linked);
+  const share = linked.overall.under_double_plus_min['0'];
+  const variants = (Object.keys(LEAVE_OUTS) as HalfLeaveOutParent[]).every((id) => {
+    const x = b.leave_outs?.[id], w = x?.worst.under_double;
+    return !!x && x.under_floor === 0 && x.variants > 0 && !!w && w.under_double < UNDER_DOUBLE_MAX;
+  });
+  return !!m.pooled && !!m.verified_halves && Object.values(m).every((x) => x.under_double < UNDER_DOUBLE_MAX)
+    && variants && Math.abs(share - m.verified_halves.under_double) <= 0.03;
+}
+
 /** The neutral key of the flagship's figure while it states no reading: what the count counts. */
 export const HALF_PAIRS_KEY = 'pairs of a half and the marathon after it';
 
@@ -184,7 +202,7 @@ export function halfExtraFrom(linked: HalfLinked): Nugget {
   const under = linked.overall.under_double_plus_min['0'];
   const pairs = linked.set.pairs;
   const guard = flagshipGuard(linked) && pooled?.extra_p50_s === extra;
-  const figureOk = !!pooled && Object.values(m).every((x) => x.under_double < 0.15) && !!m.verified_halves && Math.abs(under - m.verified_halves.under_double) <= 0.03;
+  const figureOk = figureGuard(linked);
   const asMinutes = !figureOk && guard;
   const figure = figureOk ? shareFigure(under)
     : asMinutes ? { value: `+${minutes}`, unit: '\u00a0min', sr: `plus ${minutes} minutes` }

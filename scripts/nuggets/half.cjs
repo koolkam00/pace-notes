@@ -128,7 +128,9 @@ module.exports = function half({ json, eq, ok, core }) {
     eq(n.guard, flagshipOk(), 'half.extra: guard (the weighting battery)');
     if (n.guard) eq(shown(n), `After a half, the typical marathon took double it plus *${minutes} minutes*.`, 'half.extra: the H1');
     const share = linked.overall.under_double_plus_min['0'];
-    const figureOk = Object.values(battery).every((m) => m.under_double < 0.15) && Math.abs(share - battery.verified_halves.under_double) <= 0.03;
+    // Every member and every one-edition leave-out variant under 15% under double (none under 100 pairs), and the
+    // verified halves within 3 points of the pooled share (lead rulings A1 and A2, October 31, 2026).
+    const figureOk = D.figureGuard(linked);
     // The figure states a reading only under a guard of its own: the share while its check holds, the minutes while the
     // H1's does, else the count of pairs (review, October 30, 2026: the minutes stood in the figure after the H1's guard
     // had rejected them).
@@ -289,6 +291,19 @@ module.exports = function half({ json, eq, ok, core }) {
     const l6 = clone(pass); l6.checks.battery.leave_outs.verified_federation.worst.under_double.under_double = 0.15;
     for (const [fixture, what] of [[l5, 'a pre-registered member outside the band'], [l6, 'one leave-out variant at 15% under double']]) {
       ok(!D.flagshipGuard(fixture) && !H.flagshipGuard(fixture), `half fixtures: ${what} fails the flagship guard`);
+    }
+    // The figure's own guard follows the variants too (lead rulings A1 and A2, October 31, 2026): with every member and
+    // variant at the pooled reading and the verified halves on the pooled share it holds; one variant at 15% under double,
+    // or one variant under 100 pairs, and the figure is the count of pairs again, whatever the members say.
+    const g0 = clone(pass);
+    g0.checks.battery.members.find((m) => m.id === 'verified_halves').under_double = g0.overall.under_double_plus_min['0'];
+    ok(D.figureGuard(g0) && H.figureGuard(g0) && H.halfExtraFrom(g0).values.figure_is_share === 1, 'half fixtures: the figure guard holds with every member and variant at the pooled share');
+    const g1 = clone(g0); g1.checks.battery.leave_outs.verified_halves.worst.under_double.under_double = 0.15;
+    const g2 = clone(g0); g2.checks.battery.leave_outs.verified_federation.under_floor = 1;
+    for (const [fixture, what] of [[g1, 'one verified_halves variant at 15% under double'], [g2, 'one verified_federation variant under 100 pairs']]) {
+      const x = H.halfExtraFrom(fixture);
+      ok(!D.figureGuard(fixture) && !H.figureGuard(fixture), `half fixtures: ${what} fails the figure guard`);
+      ok(x.values.figure_is_share === 0 && x.key !== 'of marathons came in under double the half marathon before them', `half fixtures: ${what}: the figure is not the share under double`);
     }
     return [
       [H.halfFieldFrom(f1), 'Half marathon finishes by finish time.'],
