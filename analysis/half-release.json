@@ -1,47 +1,65 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "access": "public (CC BY 4.0), owner releases; pages publish aggregates",
   "repository": "koolkam00/pace-notes",
   "license": "CC BY 4.0",
   "half": {
-    "tag": "half-dataset-20261029-1202",
-    "doi": "10.6084/m9.figshare.34858428.v1",
-    "private_tag": "half-snapshot-20261029-1133",
+    "tag": "half-dataset-20261030-1904",
+    "key": "half-dataset-20261030-1904",
+    "private_tag": null,
+    "doi": null,
+    "snapshot": "2026-10-30 19:04 ET",
+    "sha256sums_sha256": "9a9759bf6aff47a2dbc5c53f97d295dd55d440392e492cca9fec6a1bc06d9446",
     "assets": {
-      "half-20261029-1133.sqlite.zst.part00": "59043a603ee5938d2143f233adbdebcdbdc83244de0aa52eb4c8070bffcb68a4",
-      "README.md": "1cf9cbd05eaf53c138cfe3611c6f2afda438c5ef5ecd544ce9806a515bba9585"
+      "half-20261030-1904.sqlite.zst.part00": "748a33d2d1605da3c42be8cbaf9776713796cc4131442d1f26eea5da14819892",
+      "csv-edition_meta.csv.zst": "a0f48f1501fe1a17a669c98f0e497d16a7e52722b61c7dad3936e056724a9abe",
+      "README.md": "8747dc6431a5842572a2dc8b589f2a67090d7546213ba4e358d7dee0280baec1"
     },
     "sqlite": "platform_half.sqlite",
-    "sqlite_sha256": "655a2d7efcdb6078f1743968bc4d4a2d2e020322855513aa633e153f6fa3673a"
+    "sqlite_sha256": "c8f31c59b4446482c14626717eabadcecbf6dfacffab42d63bf7881181342b91"
   },
   "links": {
-    "tag": "half-dataset-20261029-1202",
-    "private_tag": "runner-links-20261029-1156",
-    "pairs_with": "half-snapshot-20261029-1133",
-    "built_at": "2026-10-29T15:51:57",
-    "assets": {
-      "runner_links-20261029-1156.sqlite.zst.part00": "7195eba8eac3aa3a1d85ffd28b38f04ca0abff448afccc4ec59d4aa5eb8de9d7",
-      "MATCHING_HALF.md": "7acb6ce59ba58140d44b8f84282158a6739fea56e5ebf9a8e22692023a48f030",
-      "linking-scripts-20261029-1156.tar.gz": "29c1ca0cc1cc37a55e62ea6639c93e90d547ce238e4a471be2003e826ee930d3"
+    "tag": "half-dataset-20261030-1904",
+    "key": "person-ids-v4-20261030-1150",
+    "private_tag": "person-ids-v4-20261030-1150",
+    "version": "v4, build 7 (cluster5 build 6 + R22 + R23)",
+    "applies_to": "half-dataset-20261030-1904",
+    "applies_to_rule": "the half snapshot (half.key) whose race_records ids the link build's half record_id values are; the link build was clustered on an earlier snapshot of 2026-10-30, so it covers only this snapshot's half rows inside `coverage`, and the policy's link_editions (editions straddling the boundary, editions re-timed after the build) supply no linked half",
+    "coverage": {
+      "half_rows": 7384970,
+      "half_max_record_id": 7411867,
+      "marathon_rows": 5328337,
+      "producer_build_info": "rows 7371490 max id 7398387 (~08:47 EDT 2026-10-30)"
     },
-    "extract": "links-slim.sqlite",
-    "extract_content_sha256": "95c37966a508c262cc7edc611b5aa6af1e6df0b76c5b5d7a329739b0640d3d75"
+    "assets": {
+      "race_results_linked.parquet": "07c5d13c39886a31ee03d0b2de3847bf00a03022a7629d223950c4bd2884cf77",
+      "persons.parquet": "7c95d07c48959eff3d22a2aaffc65cfa67db9ee698acb24ce2886ca862d1ed8d",
+      "MATCHING_V4.md": "ab53ce56c491858cbc6a69b8ee5fa2b919ab7990f1b9da0e1c6e6a30f23364dd",
+      "COLUMNS_V4.md": "684f9bbf21fc1bef9ab8850e06f5d328eadcd064510bb1c91ad4a8b5a6a205fd",
+      "checks.txt": "ccf75c8756158172209f7e981a07b4ed8c9c8c680a055479b24c14b35d3803c3",
+      "code.tgz": "d4ebc559b240c16aa21a710c39cdead1d5611132aa1b9ec8b2330e07e5147d50"
+    },
+    "extract": "links-v4.sqlite",
+    "extract_content_sha256": null
   },
-  "metadata_correction": {
-    "tag": "half-dataset-20261029-2157",
-    "asset": "csv-edition_meta.csv.zst",
-    "sha256": "2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842",
-    "readme_sha256": "3ba5ed96096bab048da5d81d3bd0428962661ccc494aa99963efa505e7506332",
-    "applied": "verified = stamped in both"
+  "stamps": {
+    "rule": "verified = stamped in this snapshot's own edition_meta, equal to the policy's reviewed list",
+    "reference": {
+      "tag": "half-dataset-20261029-2157",
+      "asset": "csv-edition_meta.csv.zst",
+      "sha256": "2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842",
+      "readme_sha256": "3ba5ed96096bab048da5d81d3bd0428962661ccc494aa99963efa505e7506332",
+      "sha256sums_sha256": "fe72490f32557e4464cb5fa9577726b663a8d7c125f7456944bad6a84e4051b6"
+    }
   },
   "provenance": {
     "private_repository": "koolkam00/pace-notes-db-backup",
-    "note": "The snapshot and the link build were first released privately as half-snapshot-20261029-1133 and runner-links-20261029-1156; the owner republished the same assets publicly (half-dataset-20261029-1202, CC BY 4.0). The private tags stay as the snapshot and link-build names the policy, the links extract and the reviewed counts are keyed by.",
+    "note": "The 19:04 snapshot has no private twin, so half.private_tag is null and the snapshot's identity is half.key; half-snapshot-20261030-1356 in the private repository is an earlier, different snapshot, read and not used. person-ids-v4-20261030-1150 in the private repository is the same v4 build: on 2026-10-31 its race_results_linked.parquet, persons.parquet, person_ids_v4.sqlite.zst, checks.txt, code.tgz, MATCHING_V4.md and split_rates.txt carried the public assets' digests and its COLUMNS.md the digest of the public COLUMNS_V4.md (an authenticated read for content; it proves nothing about access). The private tag is kept as the link build's name: links.key, which the extract's and set B's reviewed counts are keyed by.",
     "private_readme_sha256": {
-      "half-snapshot-20261029-1133": "16384533a60b4e1a3dc5109eccf79e5bd72413d9a7dee1d805ea9566a410de83",
-      "runner-links-20261029-1156": "e21cb07288409a247c62ba3944175c06e5f5dc854ad365db56935d8dbe9ee61c"
-    }
+      "person-ids-v4-20261030-1150": "5e54d96268b735eb9b76229b6301f5179b9248aa0bda21f78410178b35f6afec"
+    },
+    "history": "Schema 2 pinned half-dataset-20261029-1202 (the snapshot half-snapshot-20261029-1133 and the link build runner-links-20261029-1156, both keyed by private_tag) with the metadata correction half-dataset-20261029-2157; Git history keeps it, and analysis/half-policy-20261029-1133.json stays as its frozen policy."
   },
   "marathon_release": "private-export-20261021-1050",
-  "policy": "analysis/half-policy-20261029-1133.json"
+  "policy": "analysis/half-policy-20261030-1904.json"
 }

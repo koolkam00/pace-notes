@@ -5,6 +5,11 @@
 // screens E3–E8 are recomputed only to compare with the frozen lists, and the editions are then removed exactly as the
 // frozen policy JSON lists them (E0, E2–E8) plus the held statuses (E1).
 //
+// Two policy schemas: 1 (half-snapshot-20261029-1133: the stamp correction turns the frozen withdrawn stamps into
+// unverified editions) and 2 (half-dataset-20261030-1904: verified = stamped in the snapshot's own edition_meta, checked by
+// `checkStamps` against the frozen list, the 2157 reference, never_stamp and the release's CSV; partial loads (E0), removed
+// statuses (E1, no rows), the virtual-event screen (E2, recomputed here) and an unknown status fails).
+//
 // One pass over race_records in id order keeps per-row numbers in typed arrays (no names: a name enters only as a
 // 53-bit hash of its duplicate key; the few rows whose keys collide are reread by id to compare the keys themselves).
 
@@ -24,6 +29,17 @@ const STATUS = {
   verified: ['stamped'],
   unverified: ['counts_internal_only', 'counts_internal_only_winner_ok', 'counts_reconciled_winner_pending'],
   held: ['held_for_review', 'held_for_andrew_decision', 'duplicate_held_for_review'],
+};
+// Schema 2 adds the producer's removed status (a deleted double load: E1, no rows allowed) and its empty placeholder.
+const STATUS_2 = { ...STATUS, removed: ['duplicate_deleted'], empty: ['no_rows'] };
+// The virtual-event screen of schema 2 (E2): the label contains `virtual` or `virtuel` (any case), or its place, the label
+// before the first colon, starts with the placeholder `Anywhere`.
+const VIRTUAL = { label: /virtual|virtuel/, place: /^anywhere\b/ };
+const VIRTUAL_POLICY = { label_pattern: 'virtual|virtuel', placeholder_place_pattern: '^anywhere\\b' };
+const isVirtualLabel = (label) => {
+  if (typeof label !== 'string') return false;
+  const low = label.toLowerCase();
+  return VIRTUAL.label.test(low) || VIRTUAL.place.test(low.split(':')[0].trim());
 };
 
 const need = (cond, message) => { if (!cond) throw new Error(`half policy: ${message}`); };
@@ -107,10 +123,26 @@ function checkPolicyText(policy) {
   need(R.R5.min_s === WR_FLOOR_S && R.R5.max_s === SLOW_CAP_S, 'the R5 bounds');
   need(R.R6.anonymous_pattern === ANONYMOUS.source, 'the R6 anonymous pattern');
   need(R.R7.city === R7.city && JSON.stringify(R.R7.years) === JSON.stringify(R7.years) && JSON.stringify(R.R7.bib) === JSON.stringify(R7.bib), 'the R7 block');
-  need(['verified', 'unverified', 'held'].every((g) => JSON.stringify(policy.statuses[g]) === JSON.stringify(STATUS[g])) && Object.keys(policy.statuses).length === 3, 'the status groups');
   need(JSON.stringify(policy.edition_rules.order) === JSON.stringify(['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8']), 'edition rule order');
-  const C = policy.stamp_correction;
-  need(!!C && C.applied === 'verified = stamped in both' && Array.isArray(C.withdrawn) && Array.isArray(C.weaker_source), 'the stamp correction');
+  if (policy.schema_version === 1) {
+    need(['verified', 'unverified', 'held'].every((g) => JSON.stringify(policy.statuses[g]) === JSON.stringify(STATUS[g])) && Object.keys(policy.statuses).length === 3, 'the status groups');
+    const C = policy.stamp_correction;
+    need(!!C && C.applied === 'verified = stamped in both' && Array.isArray(C.withdrawn) && Array.isArray(C.weaker_source), 'the stamp correction');
+    return;
+  }
+  need(policy.schema_version === 2, `policy schema ${policy.schema_version} is not one this recount reads`);
+  need(JSON.stringify(Object.keys(policy.statuses).sort()) === JSON.stringify(Object.keys(STATUS_2).sort())
+    && Object.keys(STATUS_2).every((g) => JSON.stringify(policy.statuses[g]) === JSON.stringify(STATUS_2[g])), 'the status groups');
+  need(typeof policy.unknown_status === 'string', 'an unknown status fails');
+  const ER = policy.edition_rules;
+  need(Array.isArray(ER.E0?.partial_loads) && ER.E0.partial_loads.every((x) => typeof x.city === 'string' && Number.isSafeInteger(x.year)), 'the partial loads');
+  need(JSON.stringify(ER.E1?.removed) === JSON.stringify(STATUS_2.removed), 'the removed status');
+  const V = ER.E2?.virtual_event;
+  need(!!V && V.label_pattern === VIRTUAL_POLICY.label_pattern && V.placeholder_place_pattern === VIRTUAL_POLICY.placeholder_place_pattern && Array.isArray(V.not_virtual), 'the virtual-event rule differs from this recount');
+  need(ER.categories.partial_load === 'E0' && ER.categories.removed_by_producer === 'E1' && ER.categories.virtual_event === 'E2', 'the schema 2 categories');
+  const S = policy.stamps;
+  need(!!S && Array.isArray(S.stamped) && Array.isArray(S.never_stamp) && Array.isArray(S.weaker_source) && Array.isArray(S.reference?.withdrawn) && Array.isArray(S.reference?.weaker_source)
+    && /^[0-9a-f]{64}$/.test(S.reference.sha256 || '') && /^[0-9a-f]{64}$/.test(S.edition_meta_csv?.sha256 || ''), 'the stamp check');
 }
 
 /**
@@ -119,6 +151,7 @@ function checkPolicyText(policy) {
  */
 function applyPolicy(db, policy, log = () => {}) {
   checkPolicyText(policy);
+  const v2 = policy.schema_version === 2;
   const exclude = new Set(PRODUCER_EXCLUDE);
   const { max: maxId, n: total } = db.prepare('SELECT max(id) AS max, count(*) AS n FROM race_records').get();
   const excluded = new Uint8Array(maxId + 1);
@@ -256,9 +289,16 @@ function applyPolicy(db, policy, log = () => {}) {
   const INDEPENDENT = new RegExp(rx.E3.independent_pattern), NOT_INDEPENDENT = new RegExp(rx.E3.not_independent_pattern);
   const SINGLE_SEX = new RegExp(rx.E4.single_sex_event_pattern);
   // E2 is a reviewed decision (duplicates, overlaps, other distances), not a computed screen: it comes from the frozen
-  // list and, in the reviewed order, preempts the screens after it.
-  const reviewedE2 = new Map(rx.editions.filter((x) => x.rule === 'E2').map((x) => [`${x.city}\u0000${x.year}`, x.category]));
-  const group = (status) => (STATUS.held.includes(status) ? 'held' : STATUS.unverified.includes(status) ? 'unverified' : STATUS.verified.includes(status) ? 'verified' : 'no_rows');
+  // list and, in the reviewed order, preempts the screens after it. The virtual-event screen (schema 2) is recomputed.
+  const reviewedE2 = new Map(rx.editions.filter((x) => x.rule === 'E2' && x.category !== 'virtual_event').map((x) => [`${x.city}\u0000${x.year}`, x.category]));
+  const partial = new Set(v2 ? rx.E0.partial_loads.map((x) => `${x.city}\u0000${x.year}`) : []);
+  const notVirtual = new Set(v2 ? rx.E2.virtual_event.not_virtual.map((x) => x.edition_id) : []);
+  const group = (status) => (STATUS.held.includes(status) ? 'held' : STATUS.unverified.includes(status) ? 'unverified' : STATUS.verified.includes(status) ? 'verified'
+    : v2 && STATUS_2.removed.includes(status) ? 'removed' : 'no_rows');
+  if (v2) {
+    const known = new Set(Object.values(STATUS_2).flat());
+    for (const m of meta.values()) need(known.has(m.completeness_status), `completeness_status ${JSON.stringify(m.completeness_status)} is in no status group`);
+  }
   const ET = editions.map((x, e) => {
     const m = meta.get(`${x.city}\u0000${x.year}`);
     const med = quantileSeg(sorted, start[e], start[e + 1], 0.5);
@@ -274,10 +314,11 @@ function applyPolicy(db, policy, log = () => {}) {
       single_sex: SINGLE_SEX.test(`${x.city ?? ''} ${m && m.race !== null ? m.race : ''}`.toLowerCase()),
     };
   });
-  // The stamp correction (policy.stamp_correction): verified = stamped in this snapshot and in the corrected metadata. The
-  // frozen withdrawn stamps become unverified before the screens, exactly like the other internal-only editions; the
-  // recount itself rederives the list from the corrected metadata (verify-half-source.cjs) and compares it.
-  const withdrawn = new Map(policy.stamp_correction.withdrawn.map((w) => [w.edition_id, w]));
+  // The stamp correction (schema 1, policy.stamp_correction): verified = stamped in this snapshot and in the corrected
+  // metadata. The frozen withdrawn stamps become unverified before the screens, exactly like the other internal-only
+  // editions; the recount itself rederives the list from the corrected metadata (verify-half-source.cjs) and compares it.
+  // Schema 2 has no overlay: the snapshot's own stamps are checked by checkStamps.
+  const withdrawn = new Map(v2 ? [] : policy.stamp_correction.withdrawn.map((w) => [w.edition_id, w]));
   const withdrawnEds = new Set();
   for (const r of ET) {
     const w = r.edition_id === null ? undefined : withdrawn.get(r.edition_id);
@@ -293,10 +334,13 @@ function applyPolicy(db, policy, log = () => {}) {
   for (const r of ET) {
     r.category = null;
     const hasOff = Number.isFinite(r.official);
-    if (r.group === 'no_edition_meta') r.category = 'no_edition_meta';
+    if (partial.has(`${r.city}\u0000${r.year}`)) r.category = 'partial_load';
+    else if (r.group === 'no_edition_meta') r.category = 'no_edition_meta';
+    else if (r.group === 'removed') r.category = 'removed_by_producer';
     else if (r.group === 'no_rows' || (r.n_usable === 0 && r.group !== 'held')) r.category = 'no_usable_rows';
     else if (r.group === 'held') r.category = 'held_by_producer';
     else if (reviewedE2.has(`${r.city}\u0000${r.year}`)) r.category = reviewedE2.get(`${r.city}\u0000${r.year}`);
+    else if (v2 && isVirtualLabel(r.city) && !notVirtual.has(r.edition_id)) r.category = 'virtual_event';
     else if (r.independent && r.group !== 'verified' && hasOff && r.n_db > (1 + T) * r.official) r.category = 'count_excess_vs_independent';
     else if (r.independent && r.group !== 'verified' && hasOff && r.n_usable < (1 - T) * r.official) r.category = 'count_shortfall_vs_independent';
     else if (!r.independent && hasOff && r.official > 0 && r.n_db < (1 - T) * r.official) r.category = 'rows_short_of_source_list';
@@ -322,6 +366,7 @@ function applyPolicy(db, policy, log = () => {}) {
     }
   }
   for (const r of ET) r.rule = r.category ? (rx.categories[r.category] || null) : null;
+  for (const r of ET) if (r.group === 'removed') need(r.n_db === 0, `${r.city} ${r.year}: a removed edition still holds ${r.n_db} rows`);
   lists.editions = ET.filter((r) => r.rule && r.rule !== 'E1').map((r) => ({ edition_id: r.edition_id, city: r.city, year: r.year, rule: r.rule, category: r.category, finishes: r.n_usable }));
 
   // ---------- The editions removed, as the frozen policy lists them ----------
@@ -329,7 +374,7 @@ function applyPolicy(db, policy, log = () => {}) {
   const suspects = new Set(policy.date_suspects.map((x) => x.edition_id));
   const sexRule = policy.use_sex;
   for (const r of ET) {
-    r.removed = frozen.has(`${r.city}\u0000${r.year}`) || r.group === 'held';
+    r.removed = frozen.has(`${r.city}\u0000${r.year}`) || r.group === 'held' || r.group === 'removed';
     r.use_finish = !r.removed && r.n_usable > 0 && (r.group === 'verified' || r.group === 'unverified');
     r.use_sex = r.use_finish && r.sex_coverage >= sexRule.min_coverage && r.women_share >= sexRule.min_share && r.women_share <= sexRule.max_share;
     r.date_suspect = r.edition_id !== null && suspects.has(r.edition_id);
@@ -351,6 +396,7 @@ function applyPolicy(db, policy, log = () => {}) {
   let r7In = 0;
   for (let k = 0; k < nFin; k++) r7In += fin.r7[k];
   need(r7In === r7All, `${r7All - r7In} R7 rows sit outside use_finish editions`);
+  for (const r of ET) if (partial.has(`${r.city}\u0000${r.year}`)) need(!r.use_finish && r.rule === 'E0', `the partial load ${r.city} ${r.year} supplies finishes`);
   const tally = (pred) => {
     let n = 0;
     const eds = new Set();
@@ -372,8 +418,17 @@ function applyPolicy(db, policy, log = () => {}) {
     verified: tally((k) => ET[fin.ed[k]].group === 'verified'),
     verified_use_sex: tally((k) => ET[fin.ed[k]].group === 'verified' && ET[fin.ed[k]].use_sex && fin.sex[k] > 0),
     undated: tally((k) => Number.isNaN(ET[fin.ed[k]].day)),
-    stamp_withdrawn: tally((k) => withdrawnEds.has(fin.ed[k])),
   };
+  if (v2) {
+    counts.E1_removed_editions = ET.filter((r) => r.group === 'removed').length;
+    const S = policy.stamps, byId = new Map(ET.filter((r) => r.edition_id !== null).map((r) => [r.edition_id, r]));
+    counts.stamp_check = {
+      stamped: ET.filter((r) => r.status === 'stamped').length,
+      verified_usable: ET.filter((r) => r.use_finish && r.group === 'verified').length,
+      withdrawn_unstamped: S.reference.withdrawn.filter((w) => byId.has(w.edition_id) && byId.get(w.edition_id).status !== 'stamped').length,
+      never_stamp: db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'never_stamp'").get().n ? db.prepare('SELECT count(*) AS n FROM never_stamp').get().n : 0,
+    };
+  } else counts.stamp_withdrawn = tally((k) => withdrawnEds.has(fin.ed[k]));
   const recomputed = { E0: E0.length, E1: E1.length, E2_E8: E28.length, E2_E8_finishes: sum(E28), duplicate_groups: groups };
   return { counts, lists, recomputed, editions: ET, fin };
 }
@@ -440,5 +495,70 @@ function readCorrection(bytes) {
   return out;
 }
 
-module.exports = { applyPolicy, parseTime, tryInt, nameKey, hash53, dateDay, quantileSeg, PRODUCER_EXCLUDE, NONRUN, STATUS,
-  trimText, correctionReason, parseCsv, readCorrection };
+// ---------- Schema 2: the stamp check and the link-build editions, read without the Python builders ----------
+
+/**
+ * The snapshot's stamps (policy.stamps.reads): its edition_meta against the frozen stamped list, the 2157 reference file,
+ * the reference's withdrawn stamps, the snapshot's never_stamp table (verbatim) and the release's own edition_meta CSV;
+ * after the editions, the verified group is the stamped list and every weaker-source stamp a verified usable edition.
+ * Returns the problems found (none when every check holds).
+ */
+function checkStamps(db, policy, P, reference, releaseMeta) {
+  const S = policy.stamps, problems = [];
+  const fail = (m) => problems.push(m);
+  const text = (v) => (v === null || v === undefined ? '' : String(v));
+  const meta = new Map();
+  for (const m of db.prepare('SELECT id, city, year, completeness_status, completeness_reason, official_source_type FROM edition_meta').iterate()) {
+    meta.set(m.id, { city: m.city, year: m.year, status: text(m.completeness_status), reason: text(m.completeness_reason), source_type: text(m.official_source_type) });
+  }
+  const stamped = new Set([...meta].filter(([, m]) => m.status === 'stamped').map(([e]) => e));
+  const same = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
+  if (!same(stamped, new Set(S.stamped))) fail('the stamped editions differ from the reviewed list');
+  const refStamped = new Set([...reference].filter(([, r]) => r.status === 'stamped').map(([e]) => e));
+  if (!same(stamped, refStamped)) fail('the stamped editions differ from the stamp reference');
+  for (const e of stamped) { const r = reference.get(e), m = meta.get(e); if (!r || r.city !== m.city || r.year !== m.year) fail(`stamped edition ${e} is another edition in the reference`); }
+  const hasNs = db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'never_stamp'").get().n > 0;
+  const ns = hasNs ? db.prepare('SELECT edition_id, reason, added_at FROM never_stamp ORDER BY edition_id').all() : [];
+  if (JSON.stringify(ns.map((r) => [r.edition_id, r.reason, r.added_at])) !== JSON.stringify(S.never_stamp.map((r) => [r.edition_id, r.reason, r.added_at]))) fail('the never_stamp table differs from the reviewed rows');
+  const nsIds = new Set(ns.map((r) => r.edition_id));
+  for (const e of nsIds) if (stamped.has(e)) fail(`never_stamp edition ${e} is stamped`);
+  for (const w of S.reference.withdrawn) {
+    const m = meta.get(w.edition_id);
+    if (!m || m.city !== w.city || m.year !== w.year) fail(`withdrawn stamp ${w.edition_id} is not that edition here`);
+    else if (m.status !== w.corrected_status) fail(`withdrawn stamp ${w.edition_id} is ${m.status}, not ${w.corrected_status}`);
+    if (!nsIds.has(w.edition_id)) fail(`withdrawn stamp ${w.edition_id} is missing from never_stamp`);
+  }
+  if (!same(new Set(releaseMeta.keys()), new Set(meta.keys()))) fail('the release edition_meta CSV and the SQLite hold different editions');
+  let differ = 0;
+  for (const [e, m] of meta) {
+    const c = releaseMeta.get(e);
+    if (c && (c.city !== m.city || c.year !== m.year || text(c.status) !== m.status || text(c.reason) !== m.reason || text(c.source_type) !== m.source_type)) differ++;
+  }
+  if (differ) fail(`the release edition_meta CSV differs from the SQLite for ${differ} editions`);
+  for (const x of [...S.weaker_source, ...S.reference.weaker_source]) {
+    const m = meta.get(x.edition_id);
+    if (!m || m.city !== x.city || m.year !== x.year || m.status !== 'stamped' || trimText(m.source_type) !== x.source) fail(`weaker-source stamp ${x.edition_id} is not stamped with that source`);
+  }
+  const verified = new Set(P.editions.filter((r) => r.group === 'verified' && r.edition_id !== null).map((r) => r.edition_id));
+  if (!same(verified, new Set(S.stamped))) fail('the verified group is not the reviewed stamped list');
+  const usable = new Set(P.editions.filter((r) => r.use_finish && r.group === 'verified').map((r) => r.edition_id));
+  for (const x of S.weaker_source) if (!usable.has(x.edition_id)) fail(`weaker-source stamp ${x.edition_id} is not a verified usable edition`);
+  return problems;
+}
+
+/** The link-partial editions: use_finish editions with record-usable rows on both sides of the link build's half id
+ * boundary (policy.link_editions), with their covered and uncovered rows, in label and year order. */
+function linkPartial(P, boundary) {
+  const by = new Map();
+  for (let k = 0; k < P.fin.n; k++) {
+    const e = P.fin.ed[k];
+    let c = by.get(e);
+    if (!c) { c = { covered: 0, uncovered: 0 }; by.set(e, c); }
+    if (P.fin.id[k] <= boundary) c.covered++; else c.uncovered++;
+  }
+  return [...by].filter(([, c]) => c.covered > 0 && c.uncovered > 0).map(([e, c]) => ({ edition_id: P.editions[e].edition_id, city: P.editions[e].city, year: P.editions[e].year, rows_covered: c.covered, rows_uncovered: c.uncovered }))
+    .sort((a, b) => (a.city < b.city ? -1 : a.city > b.city ? 1 : a.year - b.year));
+}
+
+module.exports = { applyPolicy, parseTime, tryInt, nameKey, hash53, dateDay, quantileSeg, PRODUCER_EXCLUDE, NONRUN, STATUS, STATUS_2,
+  isVirtualLabel, trimText, correctionReason, parseCsv, readCorrection, checkStamps, linkPartial };

@@ -124,21 +124,23 @@ jobs:
           cache: npm
       - if: steps.scope.outputs.run == 'true'
         run: python -m pip install -r analysis/requirements.txt && npm ci && zstd --version
-      - name: Room for the sources (3.7 GB half SQLite here; the 5.3 GB links SQLite on the runner's second disk)
+      - name: Room for the sources (4.5 GB half SQLite here; the 0.81 GB of v4 parquet files and the extract's spill on the runner's second disk)
         if: steps.scope.outputs.run == 'true'
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          sudo mkdir -p /mnt/half-links && sudo chown "$(id -u):$(id -g)" /mnt/half-links
+          sudo mkdir -p /mnt/half-work && sudo chown "$(id -u):$(id -g)" /mnt/half-work
           df -h "$RUNNER_TEMP" /mnt
       - name: Download and verify the pinned public assets (anonymous github.com release URLs, no token)
         if: steps.scope.outputs.run == 'true'
-        run: python -I analysis/download_half.py --out "$RUNNER_TEMP/half" --links-work /mnt/half-links
+        env:
+          TMPDIR: /mnt/half-work
+        run: python -I analysis/download_half.py --out "$RUNNER_TEMP/half" --work /mnt/half-work
       - name: Rebuild the half aggregates from the downloaded sources
         if: steps.scope.outputs.run == 'true'
         env:
           TMPDIR: ${{ runner.temp }}
           PACE_HALF_DIR: ${{ runner.temp }}/half
-        run: python -I analysis/build_half.py --half "$PACE_HALF_DIR/platform_half.sqlite" --links "$PACE_HALF_DIR/links-slim.sqlite" --out "$RUNNER_TEMP/half-out"
+        run: python -I analysis/build_half.py --half "$PACE_HALF_DIR/platform_half.sqlite" --links "$PACE_HALF_DIR/links-v4.sqlite" --out "$RUNNER_TEMP/half-out"
       - name: The rebuilt files must equal the published bytes
         if: steps.scope.outputs.run == 'true'
         run: |
@@ -151,4 +153,4 @@ jobs:
         if: steps.scope.outputs.run == 'true'
         env:
           PACE_HALF_DIR: ${{ runner.temp }}/half
-        run: node scripts/verify-half-source.cjs --half "$PACE_HALF_DIR/platform_half.sqlite" --links "$PACE_HALF_DIR/links-slim.sqlite" --no-write
+        run: node scripts/verify-half-source.cjs --half "$PACE_HALF_DIR/platform_half.sqlite" --links "$PACE_HALF_DIR/links-v4.sqlite" --no-write

@@ -6,9 +6,11 @@
 // never imports the Python builders and shares only their inputs:
 //
 //   - the half snapshot and the links extract, opened read-only with node:sqlite and checked against the pin
-//     (analysis/half-release.json): the snapshot's sha256, the extract's canonical content digest and link build;
-//   - the corrected edition metadata (half-dataset-20261029-2157, csv-edition_meta.csv.zst; its sha256 pinned): the
-//     recount rederives the withdrawn stamps from it and compares them with the frozen list (verified = stamped in both);
+//     (analysis/half-release.json, schema 3): the snapshot's sha256 (a non-empty -wal beside it is refused), the
+//     extract's canonical content digest and link build;
+//   - the stamp reference (half-dataset-20261029-2157, csv-edition_meta.csv.zst) and the release's own
+//     csv-edition_meta.csv.zst, both sha256 pinned: the recount checks the snapshot's stamps against the frozen list, the
+//     reference, the withdrawn stamps, never_stamp and that CSV (verified = stamped in the snapshot's own edition_meta);
 //   - the frozen policy (analysis/half-policy-<stamp>.json), whose rule text must equal this recount's own constants;
 //   - the marathon side from the public runner shards and the weather evidence (scripts/half/marathon.cjs).
 //
@@ -20,11 +22,14 @@
 // lies inside it. It then writes the receipt docs/evidence/half/source-recount.json (a date, the bound digests, the
 // counts it checked and the mismatches; no rows), which scripts/verify-half.cjs requires in CI.
 //
-//   npm run verify:half-source -- [--half platform_half.sqlite] [--links links-slim.sqlite] [--corrected-meta FILE] [--no-write]
+//   npm run verify:half-source -- [--half platform_half.sqlite] [--links links-v4.sqlite] [--stamp-reference FILE]
+//                                 [--edition-meta FILE] [--no-write] [--policy-only]
 //
-// Defaults: $PACE_HALF_DIR/platform_half.sqlite, $PACE_HALF_DIR/links-slim.sqlite and
-// $PACE_HALF_DIR/<correction tag>/csv-edition_meta.csv.zst (PACE_HALF_DIR defaults to ~/data/half-1133). About 80 s and under 1 GB of memory (typed arrays for 6.9 million records and 4.1 million marathon
-// finishes); the sha256 of the 3.7 GB snapshot is read once.
+// Defaults: $PACE_HALF_DIR/platform_half.sqlite, $PACE_HALF_DIR/links-v4.sqlite,
+// $PACE_HALF_DIR/<reference tag>/csv-edition_meta.csv.zst and $PACE_HALF_DIR/csv-edition_meta.csv.zst (PACE_HALF_DIR
+// defaults to ~/data/half-1904). `--policy-only` stops after the policy and the stamp check (a new snapshot's review,
+// before any extract or figure exists): it never writes the receipt. About 80 s and under 1 GB of memory for 6.9
+// million records (typed arrays); the sha256 of the snapshot is read once.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -36,23 +41,27 @@ const { DatabaseSync } = require('node:sqlite');
 
 const ROOT = path.resolve(__dirname, '..');
 const D = require('./half/derive.cjs');
-const { applyPolicy, dateDay, readCorrection, correctionReason, trimText } = require('./half/policy.cjs');
+const { applyPolicy, dateDay, readCorrection, checkStamps, linkPartial } = require('./half/policy.cjs');
 const { loadMarathons } = require('./half/marathon.cjs');
 const Fam = require('./half/families.cjs');
 
 const started = Date.now();
 const log = (message) => console.log(`[${Math.round((Date.now() - started) / 1000)} s] ${message}`);
 const argv = process.argv.slice(2);
-const halfDir = process.env.PACE_HALF_DIR || path.join(os.homedir(), 'data', 'half-1133');
+const halfDir = process.env.PACE_HALF_DIR || path.join(os.homedir(), 'data', 'half-1904');
 const pinFor = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'analysis', 'half-release.json'), 'utf8'));
-const opt = { half: path.join(halfDir, 'platform_half.sqlite'), links: path.join(halfDir, 'links-slim.sqlite'),
-  corrected: path.join(halfDir, pinFor.metadata_correction.tag, pinFor.metadata_correction.asset), write: true };
+const REF = pinFor.stamps.reference;
+const opt = { half: path.join(halfDir, pinFor.half.sqlite), links: path.join(halfDir, pinFor.links.extract),
+  reference: path.join(halfDir, REF.tag, REF.asset), editionMeta: path.join(halfDir, 'csv-edition_meta.csv.zst'), write: true, policyOnly: false };
+const USAGE = 'Usage: node scripts/verify-half-source.cjs [--half platform_half.sqlite] [--links links-v4.sqlite] [--stamp-reference FILE] [--edition-meta FILE] [--no-write] [--policy-only]';
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--half' && argv[i + 1]) opt.half = path.resolve(argv[++i]);
   else if (argv[i] === '--links' && argv[i + 1]) opt.links = path.resolve(argv[++i]);
-  else if (argv[i] === '--corrected-meta' && argv[i + 1]) opt.corrected = path.resolve(argv[++i]);
+  else if (argv[i] === '--stamp-reference' && argv[i + 1]) opt.reference = path.resolve(argv[++i]);
+  else if (argv[i] === '--edition-meta' && argv[i + 1]) opt.editionMeta = path.resolve(argv[++i]);
   else if (argv[i] === '--no-write') opt.write = false;
-  else throw new Error('Usage: node scripts/verify-half-source.cjs [--half platform_half.sqlite] [--links links-slim.sqlite] [--corrected-meta FILE] [--no-write]');
+  else if (argv[i] === '--policy-only') { opt.policyOnly = true; opt.write = false; }
+  else throw new Error(USAGE);
 }
 const rel = (p) => path.join(ROOT, p);
 const sha = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -63,19 +72,27 @@ const fail = (message) => { console.error(`verify-half-source: ${message}`); pro
 // ---------- Inputs and their pins ----------
 const pin = readJson('analysis/half-release.json');
 const release = readJson('analysis/release.json');
-const manifestBytes = fs.readFileSync(rel('public/data/half/manifest.json'));
-const manifest = JSON.parse(manifestBytes);
 const policyBytes = fs.readFileSync(rel(pin.policy));
 const policy = JSON.parse(policyBytes);
+if (pin.schema_version !== 3) fail(`the pin is schema ${pin.schema_version}; this recount reads schema 3`);
 if (pin.marathon_release !== release.tag) fail('the pin binds another marathon release');
-if (policy.tag !== pin.half.private_tag) fail('the policy is not the pinned snapshot’s');
-const MC = pin.metadata_correction, SC = policy.stamp_correction;
-if (!MC || !SC || MC.tag !== SC.tag || MC.asset !== SC.asset || MC.sha256 !== SC.sha256 || MC.applied !== SC.applied) fail('the pin and the policy name different stamp corrections');
-for (const [p, what] of [[opt.half, '--half'], [opt.links, '--links'], [opt.corrected, '--corrected-meta']]) {
+if (policy.tag !== pin.half.key || policy.schema_version !== 2) fail('the policy is not the pinned snapshot’s (schema 2, keyed by half.key)');
+if (pin.links.applies_to !== pin.half.key) fail('the pinned link build does not apply to the pinned snapshot');
+const PS = policy.stamps;
+if (!PS || ['tag', 'asset', 'sha256', 'readme_sha256'].some((k) => PS.reference[k] !== REF[k]) || PS.rule !== pin.stamps.rule) fail('the pin and the policy name different stamp references or rules');
+if (pin.half.assets[PS.edition_meta_csv.asset] !== PS.edition_meta_csv.sha256) fail('the pin and the policy name different edition_meta CSVs');
+const LE = policy.link_editions;
+if (!LE || LE.link_build !== pin.links.key || LE.half_max_record_id !== pin.links.coverage.half_max_record_id) fail('the policy’s link-build editions name another link build or boundary than the pin');
+const sources = [[opt.half, '--half'], [opt.reference, '--stamp-reference'], [opt.editionMeta, '--edition-meta'], ...(opt.policyOnly ? [] : [[opt.links, '--links']])];
+for (const [p, what] of sources) {
   if (!fs.existsSync(p)) fail(`${what}: missing ${p}`);
   if (inside(p)) fail(`${what}: ${p} is inside the repository; record-level sources stay outside it`);
 }
-if (path.basename(opt.half) !== pin.half.sqlite || path.basename(opt.links) !== pin.links.extract) fail('the sources must be the pinned files');
+if (path.basename(opt.half) !== pin.half.sqlite || (!opt.policyOnly && path.basename(opt.links) !== pin.links.extract)) fail('the sources must be the pinned files');
+{
+  const wal = `${opt.half}-wal`;
+  if (fs.existsSync(wal) && fs.statSync(wal).size > 0) fail(`${wal} is not empty: the snapshot has uncommitted pages beside it`);
+}
 
 function fileSha(p) {
   const hash = crypto.createHash('sha256');
@@ -87,7 +104,47 @@ function fileSha(p) {
 log('checking the half snapshot’s sha256');
 const halfSha = fileSha(opt.half);
 if (halfSha !== pin.half.sqlite_sha256) fail(`${opt.half} is not the pinned snapshot (sha256 ${halfSha})`);
+const referenceBytes = fs.readFileSync(opt.reference), referenceSha = sha(referenceBytes);
+if (referenceSha !== REF.sha256) fail(`${opt.reference} is not the pinned stamp reference (sha256 ${referenceSha})`);
+const editionMetaBytes = fs.readFileSync(opt.editionMeta), editionMetaSha = sha(editionMetaBytes);
+if (editionMetaSha !== PS.edition_meta_csv.sha256) fail(`${opt.editionMeta} is not the pinned edition_meta CSV (sha256 ${editionMetaSha})`);
+const reference = readCorrection(referenceBytes), releaseMeta = readCorrection(editionMetaBytes);
+log('the snapshot, the stamp reference and the edition_meta CSV match the pin');
 
+// ---------- The policy alone (--policy-only): R1–R7, the editions, the stamp check, the link-build editions ----------
+function policyChecks(P) {
+  const problems = [];
+  const sortedRows = (rows) => rows.map((r) => JSON.stringify(Object.keys(r).sort().map((k) => [k, r[k]]))).sort();
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
+  if (!same(canon(P.counts), canon(policy.expected))) problems.push(`counts differ from the reviewed ones: ${JSON.stringify(canon(P.counts))} vs ${JSON.stringify(canon(policy.expected))}`);
+  if (!same(sortedRows(P.lists.R3), sortedRows(policy.record_rules.R3.subraces))) problems.push('R3 sub-races differ from the frozen list');
+  if (!same(sortedRows(P.lists.R4), sortedRows(policy.record_rules.R4.subraces))) problems.push('R4 sub-races differ from the frozen list');
+  const EK = ['edition_id', 'city', 'year', 'rule', 'category', 'finishes'];
+  const pickRows = (rows) => rows.map((r) => Object.fromEntries(EK.map((k) => [k, r[k]])));
+  if (!same(sortedRows(pickRows(P.lists.editions)), sortedRows(pickRows(policy.edition_rules.editions)))) problems.push('the E0, E2–E8 editions differ from the frozen list');
+  problems.push(...checkStamps(hdb, policy, P, reference, releaseMeta));
+  if (!same(canon(linkPartial(P, LE.half_max_record_id)), canon(LE.link_partial))) problems.push(`the link-partial editions differ: ${JSON.stringify(linkPartial(P, LE.half_max_record_id))}`);
+  const usable = new Map(P.editions.filter((r) => r.use_finish).map((r) => [r.edition_id, r]));
+  for (const x of LE.retimed) { const r = usable.get(x.edition_id); if (!r || r.city !== x.city || r.year !== x.year) problems.push(`re-timed edition ${x.edition_id} is not a usable edition`); }
+  const offRoad = new Set(P.editions.filter((r) => r.use_finish && r.group === 'verified').map((r) => r.city));
+  for (const l of policy.battery.off_road_labels) if (!offRoad.has(l)) problems.push(`off-road label ${l} is not a verified usable label`);
+  return problems;
+}
+
+const hdb = new DatabaseSync(opt.half, { readOnly: true });
+if (opt.policyOnly) {
+  log('applying R1–R7 and the editions (policy only)');
+  const P = applyPolicy(hdb, policy, log);
+  const problems = policyChecks(P);
+  for (const m of problems) console.error(`  policy: ${m}`);
+  console.log(JSON.stringify({ status: problems.length ? 'fail' : 'pass', problems: problems.length, counts: P.counts,
+    lists: { R3: P.lists.R3.length, R4: P.lists.R4.length, editions: P.lists.editions.length, link_partial: linkPartial(P, LE.half_max_record_id) },
+    duplicate_groups: P.recomputed.duplicate_groups, seconds: Math.round((Date.now() - started) / 1000) }));
+  process.exit(problems.length ? 1 : 0);
+}
+const manifestBytes = fs.readFileSync(rel('public/data/half/manifest.json'));
+const manifest = JSON.parse(manifestBytes);
 // The links extract: its canonical content digest (analysis/half_links_extract.py docstring), computed here.
 const ldb = new DatabaseSync(opt.links, { readOnly: true });
 const build = Object.fromEntries(ldb.prepare('SELECT k, v FROM build').all().map((r) => [r.k, r.v]));
@@ -101,13 +158,9 @@ let linksSha;
   }
   linksSha = hash.digest('hex');
 }
-if (linksSha !== pin.links.extract_content_sha256 || build.extract_content_sha256 !== linksSha) fail(`${opt.links} is not the pinned extract (content sha256 ${linksSha})`);
-if (build.links_tag !== pin.links.private_tag || build.pairs_with !== pin.half.private_tag || build.marathon_release !== release.tag) fail('the extract was cut from another link build');
-const correctedBytes = fs.readFileSync(opt.corrected);
-const correctedSha = sha(correctedBytes);
-if (correctedSha !== MC.sha256) fail(`${opt.corrected} is not the pinned corrected metadata (sha256 ${correctedSha})`);
-const corrected = readCorrection(correctedBytes);
-log('sources and the corrected metadata match the pin');
+if (!pin.links.extract_content_sha256 || linksSha !== pin.links.extract_content_sha256 || build.extract_content_sha256 !== linksSha) fail(`${opt.links} is not the pinned extract (content sha256 ${linksSha})`);
+if (build.links_key !== pin.links.key || build.applies_to !== pin.links.applies_to || build.marathon_release !== release.tag) fail('the extract was cut from another link build');
+log('the links extract matches the pin');
 
 // ---------- Comparison ----------
 const mismatches = [];
@@ -142,7 +195,6 @@ for (const [name, meta] of Object.entries(manifest.files)) {
 
 // ---------- The half snapshot: R1–R7, the editions, the policy counts ----------
 log('applying R1–R7 and the editions');
-const hdb = new DatabaseSync(opt.half, { readOnly: true });
 const P = applyPolicy(hdb, policy, log);
 log(`policy applied: ${P.counts.use_finish.finishes.toLocaleString('en-US')} usable finishes in ${P.counts.use_finish.editions.toLocaleString('en-US')} editions`);
 const { set_b: publishedSetB, ...publishedCounts } = manifest.policy.counts;
@@ -156,32 +208,9 @@ const EK = ['edition_id', 'city', 'year', 'rule', 'category', 'finishes'];
 compare('policy', 'E0, E2–E8 editions (recomputed screens)', sorted(pick(policy.edition_rules.editions, EK)), sorted(pick(P.lists.editions, EK)));
 log(`policy compared: ${P.recomputed.duplicate_groups} duplicate groups, ${P.lists.editions.length} listed editions recomputed`);
 
-// The stamp correction, rederived from the corrected metadata: every stamped edition of the snapshot whose corrected
-// status is not stamped (the frozen list, with its trimmed reason), the weaker-source stamps, and the verified scope.
-{
-  const derived = [];
-  let missing = 0;
-  for (const r of P.editions) {
-    if (r.status !== 'stamped' || r.edition_id === null) continue;
-    const c = corrected.get(r.edition_id);
-    if (!c || c.city !== r.city || c.year !== r.year) { missing++; continue; }
-    if (c.status !== 'stamped') derived.push({ edition_id: r.edition_id, city: r.city, year: r.year, corrected_status: c.status, reason: correctionReason(c.reason) });
-  }
-  compare('policy', 'stamp correction: stamped editions missing from or renamed in the corrected metadata', 0, missing);
-  compare('policy', 'stamp correction: withdrawn stamps (from the corrected metadata)', sorted(SC.withdrawn), sorted(derived));
-  const weaker = SC.weaker_source.map((x) => { const c = corrected.get(x.edition_id); return c && c.status === 'stamped' ? { edition_id: x.edition_id, city: c.city, year: c.year, source: trimText(c.source_type) } : null; });
-  compare('policy', 'stamp correction: weaker-source stamps stay stamped', sorted(SC.weaker_source), sorted(weaker.filter(Boolean)));
-  let wrong = 0, weakVerified = 0;
-  const weakIds = new Set(SC.weaker_source.map((x) => x.edition_id));
-  for (const r of P.editions) {
-    if (!r.use_finish || r.edition_id === null) continue;
-    const stamped = corrected.get(r.edition_id)?.status === 'stamped';
-    if (stamped !== (r.group === 'verified')) wrong++;
-    if (weakIds.has(r.edition_id) && r.group === 'verified') weakVerified++;
-  }
-  compare('policy', 'stamp correction: usable editions verified exactly when stamped in both', 0, wrong);
-  compare('policy', 'stamp correction: weaker-source stamps verified', weakIds.size, weakVerified);
-}
+// The stamp check (policy.stamps.reads) and the link-build editions, recounted: every problem is a mismatch.
+for (const m of policyChecks(P).filter((x) => !/^counts differ|^R3 |^R4 |^the E0, E2/.test(x))) compare('policy', `stamp and link-build checks: ${m}`, 'pass', 'fail');
+tally.policy.values++;
 
 // ---------- The marathon side ----------
 log('reading the runner shards');
@@ -261,7 +290,7 @@ compare('policy', 'set B (manifest)', publishedSetB, setB);
 // weaker-source stamps by edition id, and the reviewed off-road labels, each the label of a verified usable edition.
 const BAT = policy.battery;
 if (!BAT || !Array.isArray(BAT.off_road_labels) || !BAT.off_road_labels.length || !BAT.off_road_labels.every((l) => typeof l === 'string')) fail('the policy names no off-road labels for the battery');
-const battery = { weakerSource: new Set(SC.weaker_source.map((x) => x.edition_id)), offRoad: new Set(BAT.off_road_labels) };
+const battery = { weakerSource: new Set(PS.weaker_source.map((x) => x.edition_id)), offRoad: new Set(BAT.off_road_labels) };
 {
   const verifiedLabels = new Set(P.editions.filter((r) => r.use_finish && r.group === 'verified').map((r) => r.city));
   compare('policy', 'battery: the off-road labels, each a verified usable edition’s label', BAT.off_road_labels, BAT.off_road_labels.filter((l) => verifiedLabels.has(l)));
@@ -310,7 +339,7 @@ const receipt = {
   date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
   status: total === 0 ? 'pass' : 'fail', mismatches: total, values_checked: values,
   manifest_sha256: sha(manifestBytes), verify_half_source_sha256: scripts['scripts/verify-half-source.cjs'], recount_scripts: scripts,
-  half_sqlite_sha256: halfSha, links_extract_content_sha256: linksSha, corrected_meta_sha256: correctedSha, runner_manifest_sha256: MAR.manifestSha,
+  half_sqlite_sha256: halfSha, links_extract_content_sha256: linksSha, stamp_reference_sha256: referenceSha, edition_meta_csv_sha256: editionMetaSha, runner_manifest_sha256: MAR.manifestSha,
   policy_sha256: sha(policyBytes), weather_evidence_sha256: MAR.weatherSha, marathon_release: release.tag,
   counts: { ...P.counts, set_b: setB, marathon: { eligible: MAR.n, sustained: MAR.slowdowns, dated_editions: MAR.datedEditions } },
   files: Object.fromEntries(Object.keys(manifest.files).sort().map((f) => [f, tally[f] || { values: 0, mismatches: 0 }])),

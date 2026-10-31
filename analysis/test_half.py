@@ -1,8 +1,10 @@
 """Tests for the half-marathon builders (spec 7.1): the record and edition rules, set B, the windows, the floors and
-determinism, the stamp correction, the anonymous downloader and the links extract, on synthetic sources built in a temp
-folder; and, when the owner's public sources are on this machine (PACE_HALF_DIR holds platform_half.sqlite,
-links-slim.sqlite and the corrected metadata) and PACE_HALF_SOURCE_TESTS=1, the frozen policy lists and stamps
-recomputed from the real snapshot. Run: python3 -I -m unittest discover -s analysis -p 'test_half.py'
+determinism, the stamp correction (1133) and the stamp check (1904), the pin (schema 3), the anonymous downloader and the
+links extract, on synthetic sources built in a temp folder; and, when the owner's public sources are on this machine
+(PACE_HALF_DIR, default ~/data/half-1904, holds platform_half.sqlite and csv-edition_meta.csv.zst, and the 2157 stamp
+reference sits at $PACE_HALF_DIR/half-dataset-20261029-2157/ or at $PACE_HALF_STAMP_REFERENCE) and
+PACE_HALF_SOURCE_TESTS=1, the frozen 1904 policy lists, counts and stamps recomputed from the real snapshot.
+Run: python3 -I -m unittest discover -s analysis -p 'test_half.py'
 """
 from __future__ import annotations
 
@@ -114,7 +116,7 @@ class Parsing(unittest.TestCase):
 
     def test_subrace_pattern_is_whole_word(self):
         import re
-        pattern = re.compile(hq.NONRUN_SUBRACE_RE)
+        pattern = re.compile(hq.rules_of()['nonrun_subrace_re'])
         self.assertIsNone(pattern.search('media maratón de tordesillas'))
         for name in ('10k sillas de ruedas', 'half wheelchair', 'mtb 21k', 'wch half marathon', 'categorías especiales'):
             self.assertIsNotNone(pattern.search(name), name)
@@ -250,9 +252,9 @@ class Rules(unittest.TestCase):
         self.assertEqual(c['use_finish']['finishes'], self.db.execute('SELECT count(*) FROM hfin WHERE NOT r7_block').fetchone()[0])
 
     def test_reviewed_policy_file_matches_module(self):
-        hq.check_policy_file()
-        doc = json.loads(hq.policy_path().read_text())
-        self.assertEqual(doc['record_rules']['R3']['pattern'], hq.NONRUN_SUBRACE_RE)
+        hq.check_policy_file(hq.TAG_1133)
+        doc = json.loads(hq.policy_path(hq.TAG_1133).read_text())
+        self.assertEqual(doc['record_rules']['R3']['pattern'], hq.NONRUN_SUBRACE_RE_20261029_1133)
         self.assertEqual(doc['expected'], hq.EXPECTED_20261029_1133)
         self.assertEqual(len(doc['edition_rules']['editions']), 68)
         self.assertEqual([doc['record_rules']['R7'][k] for k in ('city', 'years', 'bib')], ['Oslo Half', [2016, 2025], [73000, 75999]],
@@ -261,7 +263,7 @@ class Rules(unittest.TestCase):
                          'the off-road labels pre-registered on 2026-10-30, exactly as the snapshot writes them')
         self.assertEqual(doc['battery']['reviewed'], '2026-10-30')
         self.assertEqual(set(doc['battery']), {'reviewed', 'off_road_labels', 'verified_federation', 'verified_road', 'leave_outs'})
-        lists = hq.battery_lists()
+        lists = hq.battery_lists(hq.TAG_1133)
         self.assertEqual(lists['weaker_source'], {x['edition_id'] for x in doc['stamp_correction']['weaker_source']})
         self.assertEqual(lists['off_road_labels'], set(doc['battery']['off_road_labels']))
 
@@ -750,7 +752,8 @@ class StampCorrection(unittest.TestCase):
             s.field(city, 2024, normal)
         s.close()
         cls.db = hc.connect(half=s.path)
-        hq.record_rules(cls.db)
+        cls.rules = hq.rules_of(hq.TAG_1133)   # the stamp correction is the 1133 entry's
+        hq.record_rules(cls.db, cls.rules)
         cls.correction = {
             'withdrawn': [{'edition_id': cls.ids['Withdrawn'], 'city': 'Withdrawn', 'year': 2024, 'corrected_status': 'counts_internal_only',
                            'reason': 'unstamped 2026-10-29 per user standing rule: timing-platform internal total is not independent'}],
@@ -773,9 +776,9 @@ class StampCorrection(unittest.TestCase):
         return out
 
     def table(self, rows):
-        m = hq.edition_table(self.db)
+        m = hq.edition_table(self.db, self.rules)
         applied = hq.apply_stamp_correction(m, self.correction, rows)
-        return hq.edition_rules(m), applied
+        return hq.edition_rules(m, self.rules), applied
 
     def test_the_withdrawn_list_is_applied(self):
         m, applied = self.table(self.rows())
@@ -835,12 +838,12 @@ class StampCorrection(unittest.TestCase):
         self.assertTrue(hq.correction_reason(long).endswith('…') and len(hq.correction_reason(long)) <= hq.REASON_MAX)
 
     def test_the_reviewed_correction_in_the_policy(self):
-        doc = json.loads(hq.policy_path().read_text())
+        doc = json.loads(hq.policy_path(hq.TAG_1133).read_text())
         c = doc['stamp_correction']
         self.assertEqual([c['tag'], c['asset'], c['sha256'], c['applied'], c['reviewed']],
                          ['half-dataset-20261029-2157', 'csv-edition_meta.csv.zst', '2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842',
                           'verified = stamped in both', '2026-10-30'])
-        self.assertEqual(doc['tag'], hq.TAG, 'the policy keeps the snapshot tag')
+        self.assertEqual(doc['tag'], hq.TAG_1133, 'the policy keeps the snapshot tag')
         w = c['withdrawn']
         self.assertEqual(len(w), 72)
         self.assertEqual(len({x['edition_id'] for x in w}), 72)
@@ -907,13 +910,22 @@ class DownloadHalf(unittest.TestCase):
     def test_the_real_pin_names_the_public_releases(self):
         pin = hc.load_pin()
         specs = self.dh.all_specs(pin)
-        self.assertEqual([s['key'] for s in specs], ['half', 'links', 'correction'])
-        self.assertEqual([s['tag'] for s in specs], ['half-dataset-20261029-1202', 'half-dataset-20261029-1202', 'half-dataset-20261029-2157'])
-        self.assertEqual(specs[0]['parts'], ['half-20261029-1133.sqlite.zst.part00'])
+        self.assertEqual([s['key'] for s in specs], ['half', 'links', 'stamps'])
+        self.assertEqual([s['tag'] for s in specs], ['half-dataset-20261030-1904', 'half-dataset-20261030-1904', 'half-dataset-20261029-2157'])
+        self.assertEqual(specs[0]['parts'], ['half-20261030-1904.sqlite.zst.part00'])
         self.assertEqual(specs[0]['target_sha256'], pin['half']['sqlite_sha256'])
+        self.assertEqual(specs[0]['assets']['csv-edition_meta.csv.zst'], hq.entry()['stamps']['edition_meta_csv']['sha256'])
+        self.assertEqual(specs[1]['parts'], [], 'the v4 links are parquet files, not SQLite parts')
+        self.assertTrue({'race_results_linked.parquet', 'persons.parquet', 'MATCHING_V4.md', 'code.tgz'} <= set(specs[1]['assets']))
+        self.assertEqual(specs[1]['target'], 'links-v4.sqlite')
         self.assertEqual(specs[2]['assets']['csv-edition_meta.csv.zst'], hq.CORRECTION_20261029_2157['sha256'])
         self.assertEqual(pin['repository'], 'koolkam00/pace-notes')
-        self.assertEqual([pin['half']['private_tag'], pin['links']['private_tag']], [hq.TAG, 'runner-links-20261029-1156'])
+        self.assertEqual([pin['half']['key'], pin['links']['key']], [hq.TAG, 'person-ids-v4-20261030-1150'])
+        self.assertEqual([pin['half']['private_tag'], pin['links']['private_tag'], pin['half']['doi']], [None, 'person-ids-v4-20261030-1150', None],
+                         'no private twin of the 19:04 snapshot; the v4 build\'s private twin matched the public digests (2026-10-31); no DOI')
+        sums = self.dh.sums_digests(pin)
+        self.assertEqual(sums, {'half-dataset-20261030-1904': '9a9759bf6aff47a2dbc5c53f97d295dd55d440392e492cca9fec6a1bc06d9446',
+                                'half-dataset-20261029-2157': 'fe72490f32557e4464cb5fa9577726b663a8d7c125f7456944bad6a84e4051b6'})
 
     def test_folder_check_and_reassembly(self):
         sqlite_sha, shas = self.parts()
@@ -925,10 +937,24 @@ class DownloadHalf(unittest.TestCase):
         self.assertEqual(self.dh.identify(self.folder, [spec]), [spec])
         out = self.folder / 'out'
         out.mkdir()
-        record = self.dh.place(spec, found, out, downloaded=False, keep_links_sqlite=False, replace=False)
+        record = self.dh.place(spec, found, out, downloaded=False, replace=False)
         self.assertEqual(record['sqlite']['sha256'], sqlite_sha)
         self.assertTrue(all(p.exists() for p in found.values()), 'an owner folder keeps its parts')
-        self.assertEqual(self.dh.place(spec, found, out, downloaded=False, keep_links_sqlite=False, replace=False)['sqlite']['kept'], True)
+        self.assertEqual(self.dh.place(spec, found, out, downloaded=False, replace=False)['sqlite']['kept'], True)
+        # A snapshot in place with an empty -wal and a -shm (an earlier read) is kept and its sidecars removed; a non-empty
+        # -wal holds pages the pinned file does not, so it is refused.
+        (out / 'platform_half.sqlite-wal').write_bytes(b'')
+        (out / 'platform_half.sqlite-shm').write_bytes(b'x' * 64)
+        self.assertEqual(self.dh.place(spec, found, out, downloaded=False, replace=False)['sqlite']['kept'], True)
+        self.assertEqual(sorted(p.name for p in out.iterdir()), ['platform_half.sqlite'])
+        (out / 'platform_half.sqlite-wal').write_bytes(b'pages')
+        with self.assertRaisesRegex(hc.HalfError, 'is not empty'):
+            self.dh.place(spec, found, out, downloaded=False, replace=False)
+        (out / 'platform_half.sqlite-wal').unlink()
+        # The release's SHA256SUMS itself must be the pinned one.
+        with self.assertRaisesRegex(hc.HalfError, 'not the pinned SHA256SUMS'):
+            self.dh.check_folder(self.folder, spec, 'e' * 64)
+        self.assertEqual(sorted(self.dh.check_folder(self.folder, spec, hc.file_sha256(sums))), sorted(shas))
         # A part that differs from SHA256SUMS, a SHA256SUMS that differs from the pin, a wrong decompressed digest.
         first = self.folder / spec['parts'][0]
         first.write_bytes(first.read_bytes()[:-1] + b'\0')
@@ -946,7 +972,7 @@ class DownloadHalf(unittest.TestCase):
         spec = self.spec(shas, sqlite_sha)
         out = self.folder / 'out'
         out.mkdir()
-        record = self.dh.place(spec, {n: self.folder / n for n in shas}, out, downloaded=True, keep_links_sqlite=False, replace=False)
+        record = self.dh.place(spec, {n: self.folder / n for n in shas}, out, downloaded=True, replace=False)
         self.assertEqual(record['parts'], 'downloaded, verified and deleted')
         self.assertFalse(any((self.folder / n).exists() for n in shas))
 
@@ -961,19 +987,19 @@ class DownloadHalf(unittest.TestCase):
         a, b = 'a' * 64, 'b' * 64
         (self.folder / 'SHA256SUMS').write_text(f'{a}  half.sqlite.zst.part00\n{b}  links.sqlite.zst.part00\n')
         specs = [{'key': 'half', 'tag': 't', 'assets': {'half.sqlite.zst.part00': a}}, {'key': 'links', 'tag': 't', 'assets': {'links.sqlite.zst.part00': b}},
-                 {'key': 'correction', 'tag': 'u', 'assets': {'csv-edition_meta.csv.zst': 'c' * 64}}]
+                 {'key': 'stamps', 'tag': 'u', 'assets': {'csv-edition_meta.csv.zst': 'c' * 64}}]
         self.assertEqual([s['key'] for s in self.dh.identify(self.folder, specs)], ['half', 'links'])
 
-    def test_the_correction_lands_in_its_tag_folder(self):
+    def test_the_stamp_reference_lands_in_its_tag_folder(self):
         csv = self.folder / 'csv-edition_meta.csv.zst'
         csv.write_bytes(b'meta')
         readme = self.folder / 'README.md'
         readme.write_bytes(b'readme')
-        spec = {'key': 'correction', 'tag': 'half-dataset-20990101-0000', 'parts': [], 'target': csv.name,
+        spec = {'key': 'stamps', 'tag': 'half-dataset-20990101-0000', 'parts': [], 'target': csv.name,
                 'assets': {csv.name: hc.bytes_sha256(b'meta'), 'README.md': hc.bytes_sha256(b'readme')}}
         out = self.folder / 'out'
         out.mkdir()
-        record = self.dh.place(spec, {csv.name: csv, 'README.md': readme}, out, downloaded=False, keep_links_sqlite=False, replace=False)
+        record = self.dh.place(spec, {csv.name: csv, 'README.md': readme}, out, downloaded=False, replace=False)
         self.assertEqual(record['file'], 'half-dataset-20990101-0000/csv-edition_meta.csv.zst')
         self.assertEqual((out / 'half-dataset-20990101-0000' / csv.name).read_bytes(), b'meta')
 
@@ -1014,6 +1040,8 @@ class DownloadHalf(unittest.TestCase):
                 return Response()
 
         with patch.object(self.dh, '_opener', return_value=Opener()):
+            with self.assertRaisesRegex(hc.HalfError, 'not the pinned one'):
+                self.dh.fetch_sums('koolkam00/pace-notes', 'half-dataset-20261029-1202', 'f' * 64)
             self.dh.download(url, self.folder / 'x.part00', hc.bytes_sha256(body))
             self.assertEqual((self.folder / 'x.part00').read_bytes(), body)
             self.assertTrue(all('Authorization' not in r.headers and 'Authorization' not in r.unredirected_hdrs for r in seen))
@@ -1026,6 +1054,48 @@ class DownloadHalf(unittest.TestCase):
         source = Path(self.dh.__file__).read_text()
         self.assertNotIn('api.github.com/repos', source, 'the downloader never asks the API')
         self.assertNotIn('add_unredirected_header', source)
+
+    def test_the_links_are_cut_from_the_v4_files_beside_the_snapshot(self):
+        pin = hc.load_pin()
+        spec = self.dh.releases(pin)[1]
+        out = self.folder / 'out'
+        out.mkdir()
+        v4 = self.folder / 'v4'
+        v4.mkdir()
+        assets = {name: v4 / name for name in spec['assets']}
+        for path in assets.values():
+            path.write_bytes(b'x')
+        with self.assertRaisesRegex(hc.HalfError, 'reads the snapshot'):
+            self.dh.place(spec, assets, out, downloaded=True, replace=False)
+        (out / pin['half']['sqlite']).write_bytes(b'')
+        from unittest.mock import patch
+        import half_links_extract
+        seen = []
+        with patch.object(half_links_extract, 'main', side_effect=lambda argv: seen.append(argv) or 0):
+            record = self.dh.place(spec, assets, out, downloaded=True, replace=False)
+        self.assertEqual(seen, [['--v4-dir', str(v4), '--half', str(out / pin['half']['sqlite']), '--out', str(out / 'links-v4.sqlite')]])
+        self.assertEqual(record['parquet'], 'downloaded, verified, cut and deleted')
+        self.assertFalse((v4 / 'race_results_linked.parquet').exists() or (v4 / 'persons.parquet').exists())
+        self.assertTrue((v4 / 'MATCHING_V4.md').exists(), 'only the two parquet files are deleted')
+        for name in ('race_results_linked.parquet', 'persons.parquet'):
+            (v4 / name).write_bytes(b'x')
+        def refuse(argv):
+            raise SystemExit(2)
+        with patch.object(half_links_extract, 'main', side_effect=refuse):
+            with self.assertRaisesRegex(hc.HalfError, 'could not be cut'):
+                self.dh.place(spec, assets, out, downloaded=False, replace=False)
+        self.assertTrue((v4 / 'persons.parquet').exists(), 'files read in place are never deleted')
+
+    def test_the_v4_links_spec_names_the_parquet_files(self):
+        import copy
+        pin = copy.deepcopy(hc.load_pin())
+        pin['links']['assets'].pop('persons.parquet')
+        with self.assertRaisesRegex(hc.HalfError, 'persons.parquet'):
+            self.dh.releases(pin)
+        pin = copy.deepcopy(hc.load_pin())
+        pin['stamps']['reference']['sha256sums_sha256'] = None
+        with self.assertRaisesRegex(hc.HalfError, 'no SHA256SUMS digest'):
+            self.dh.sums_digests(pin)
 
     def test_refuses_an_output_inside_the_repository(self):
         self.assertEqual(self.dh.main(['--from-dir', str(self.folder), '--out', str(ROOT / 'public' / 'data' / 'half')]), 1)
@@ -1114,7 +1184,291 @@ class LinksExtract(unittest.TestCase):
             self.hle.open_source(db, None, self.sqlite)
 
 
-SOURCE_DIR = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1133')
+class Pin(unittest.TestCase):
+    """analysis/half-release.json schema 3 (half_common.check_pin) and the snapshot sidecar rule."""
+
+    def setUp(self):
+        self.pin = json.loads(hc.PIN_PATH.read_text())
+        self.release = json.loads(hc.RELEASE_PATH.read_text())['tag']
+
+    def test_the_pin_is_schema_3(self):
+        pin = hc.load_pin()
+        self.assertEqual(pin['schema_version'], 3)
+        self.assertEqual(hc.snapshot_date(pin), '2026-10-30', 'the date comes from half.key (private_tag is null)')
+        self.assertEqual(pin['links']['applies_to'], pin['half']['key'])
+        self.assertEqual(pin['policy'], hq.entry()['file'])
+        self.assertEqual(pin['half']['key'], hq.TAG)
+        self.assertEqual(pin['stamps']['rule'], hq.entry()['stamps']['rule'])
+        self.assertEqual({k: pin['stamps']['reference'][k] for k in ('tag', 'asset', 'sha256', 'readme_sha256')},
+                         {k: hq.entry()['stamps']['reference'][k] for k in ('tag', 'asset', 'sha256', 'readme_sha256')})
+        self.assertEqual(pin['links']['coverage']['half_max_record_id'], hq.entry()['link_editions']['half_max_record_id'])
+        self.assertNotIn('metadata_correction', pin)
+        self.assertNotIn('pairs_with', pin['links'])
+        self.assertNotIn('built_at', pin['links'])
+
+    def test_broken_pins_fail(self):
+        import copy
+        cases = [
+            (lambda p: p.update(schema_version=2), 'schema'),
+            (lambda p: p['links'].update(applies_to='half-dataset-20261029-1202'), 'does not apply'),
+            (lambda p: p['half'].pop('key'), 'a tag and a key'),
+            (lambda p: p['links'].update(private_tag='Not A Tag'), 'private_tag'),
+            (lambda p: p['half']['assets'].update({'x.md': 'nope'}), 'assets'),
+            (lambda p: p['links'].update(extract_content_sha256='abc'), 'extract_content_sha256'),
+            (lambda p: p['links']['coverage'].pop('half_max_record_id'), 'coverage'),
+            (lambda p: p['stamps']['reference'].pop('sha256'), 'stamps.reference'),
+            (lambda p: p.update(marathon_release='private-export-20261021-0829'), 'marathon release'),
+        ]
+        for change, what in cases:
+            pin = copy.deepcopy(self.pin)
+            change(pin)
+            with self.assertRaisesRegex(hc.HalfError, what, msg=what):
+                hc.check_pin(pin, self.release)
+        pin = copy.deepcopy(self.pin)
+        pin['links']['extract_content_sha256'] = None
+        hc.check_pin(pin, self.release)
+        with self.assertRaisesRegex(hc.HalfError, 'no links extract digest'):
+            hc.pinned_digest(pin)
+        pin['half']['doi'] = '10.6084/m9.figshare.1.v2'
+        hc.check_pin(pin, self.release)
+
+    def test_a_non_empty_wal_beside_the_snapshot_is_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'platform_half.sqlite'
+            con = sqlite3.connect(path)
+            con.execute('CREATE TABLE t (x INTEGER)')
+            con.commit()
+            con.close()
+            Path(f'{path}-wal').write_bytes(b'')
+            hc.connect(half=path).close()
+            Path(f'{path}-wal').write_bytes(b'uncommitted pages')
+            with self.assertRaisesRegex(hc.HalfError, 'is not empty'):
+                hc.connect(half=path)
+
+
+class StampCheck(unittest.TestCase):
+    """The 1904 stamp check (half_quality.check_stamps): verified = stamped in the snapshot's own edition_meta, equal to the
+    reviewed list, the reference, never_stamp and the release's CSV."""
+
+    def setUp(self):
+        import copy
+        self.meta = {
+            1: {'city': 'A', 'year': 2024, 'status': 'stamped', 'reason': 'federation 300 vs db 300', 'source_type': 'federation results list'},
+            2: {'city': 'B', 'year': 2024, 'status': 'stamped', 'reason': 'press 300', 'source_type': 'local press own total — weaker than federation'},
+            3: {'city': 'C', 'year': 2024, 'status': 'counts_internal_only', 'reason': 'db=300 | unstamped 2026-10-29 reconcile', 'source_type': 'list rows'},
+            4: {'city': 'D', 'year': 2024, 'status': 'counts_internal_only_winner_ok', 'reason': None, 'source_type': None},
+            5: {'city': 'E', 'year': 2024, 'status': 'held_for_review', 'reason': 'trail', 'source_type': 'runsignup rows'},
+        }
+        self.never_stamp = [(3, 'unstamped 2026-10-29: (NOT independent) list rows', '2026-10-29 17:31:08'),
+                            (4, 'unstamped 2026-10-29: (NOT independent) press repost', '2026-10-29 17:31:08')]
+        self.stamps = {
+            'stamped': [1, 2],
+            'never_stamp': [{'edition_id': e, 'reason': r, 'added_at': a} for e, r, a in self.never_stamp],
+            'reference': {'tag': 'half-dataset-20990101-0000',
+                          'withdrawn': [{'edition_id': 3, 'city': 'C', 'year': 2024, 'corrected_status': 'counts_internal_only', 'reason': 'unstamped 2026-10-29 reconcile'}],
+                          'weaker_source': [{'edition_id': 2, 'city': 'B', 'year': 2024, 'source': 'local press own total — weaker than federation'}]},
+            'weaker_source': [{'edition_id': 2, 'city': 'B', 'year': 2024, 'source': 'local press own total — weaker than federation'}],
+        }
+        blank = lambda r: {k: ('' if v is None else v) for k, v in r.items()}   # a CSV writes NULL as an empty field
+        self.inputs = {'reference': copy.deepcopy(self.meta), 'edition_meta': {e: blank(r) for e, r in self.meta.items()}}
+
+    def check(self, meta=None, never_stamp=None, stamps=None, inputs=None):
+        hq.check_stamps(meta or self.meta, self.never_stamp if never_stamp is None else never_stamp, stamps or self.stamps, inputs or self.inputs)
+
+    def test_a_consistent_snapshot_passes(self):
+        self.check()
+
+    def test_every_difference_fails(self):
+        import copy
+        def changed(fn):
+            meta, ns, stamps, inputs = copy.deepcopy(self.meta), list(self.never_stamp), copy.deepcopy(self.stamps), copy.deepcopy(self.inputs)
+            fn(meta, ns, stamps, inputs)
+            return {'meta': meta, 'never_stamp': ns, 'stamps': stamps, 'inputs': inputs}
+        def restamp(meta, ns, stamps, inputs):   # a withdrawn stamp stamped again, everywhere but never_stamp
+            meta[3]['status'] = 'stamped'
+            inputs['reference'][3]['status'] = 'stamped'
+            inputs['edition_meta'][3]['status'] = 'stamped'
+            stamps['stamped'].append(3)
+        cases = [
+            (lambda m, n, s, i: m[5].update(status='stamped'), 'differ from the reviewed list'),
+            (restamp, 'never_stamp editions are stamped'),
+            (lambda m, n, s, i: i['reference'][2].update(status='counts_internal_only'), 'stamp reference'),
+            (lambda m, n, s, i: i['reference'][1].update(city='Z'), 'in the reference'),
+            (lambda m, n, s, i: n.pop(), 'never_stamp table differs'),
+            (lambda m, n, s, i: (n.pop(0), s['never_stamp'].pop(0)), 'missing from the never_stamp table'),
+            (lambda m, n, s, i: n.__setitem__(0, (3, n[0][1] + ' (edited)', n[0][2])), 'never_stamp table differs'),
+            (lambda m, n, s, i: (m[3].update(status='held_for_review'), i['edition_meta'][3].update(status='held_for_review')), 'held_for_review here'),
+            (lambda m, n, s, i: i['edition_meta'][1].update(reason='another reason'), 'csv-edition_meta differs'),
+            (lambda m, n, s, i: i['edition_meta'].pop(5), 'different editions'),
+            (lambda m, n, s, i: (m[2].update(source_type='federation list'), i['edition_meta'][2].update(source_type='federation list'),
+                                 i['reference'][2].update(source_type='federation list')), 'weaker-source stamp'),
+        ]
+        for fn, what in cases:
+            with self.assertRaisesRegex(hc.HalfError, what, msg=what):
+                self.check(**changed(fn))
+
+    def test_after_the_editions_the_weaker_stamps_are_verified_usable(self):
+        m = pd.DataFrame({'edition_id': pd.array([1, 2, 3], dtype='Int64'), 'status_group': ['verified', 'verified', 'unverified'],
+                          'use_finish': [True, True, True]})
+        hq.check_stamps_verified(m, self.stamps)
+        with self.assertRaisesRegex(hc.HalfError, 'weaker-source stamp'):
+            hq.check_stamps_verified(m.assign(use_finish=[True, False, True]), self.stamps)
+        with self.assertRaisesRegex(hc.HalfError, 'not the reviewed stamped list'):
+            hq.check_stamps_verified(m.assign(status_group=['verified', 'verified', 'verified']), self.stamps)
+
+
+class Policy1904(unittest.TestCase):
+    """The 1904 entry's own rules on a synthetic snapshot: partial loads (E0), removed statuses (E1, no rows), virtual events
+    (E2), an unknown status fails, and the link-partial editions."""
+
+    @staticmethod
+    def source(folder, extra=()):
+        s = Source(folder)
+        normal = uniform(5400, 10800, 300)
+        s.edition('Alpha', 2022, status='counts_internal_only')
+        s.field('Alpha', 2022, normal)
+        s.field('New York', 2022, normal[:80])                                        # a partial load without a registry row
+        s.edition('New York', 2018, status='counts_internal_only')
+        s.field('New York', 2018, normal)                                             # a partial load with one: still E0
+        s.edition('Gone', 2024, status='duplicate_deleted')                           # removed, no rows: E1
+        s.edition('Austin, TX: 2020 Decker Challenge Virtual Half Marathon', 2020, status='counts_internal_only')
+        s.field('Austin, TX: 2020 Decker Challenge Virtual Half Marathon', 2020, normal)
+        s.edition('Anywhere USA, OH: Columbus Half Marathon 10K + 5K', 2015, status='counts_internal_only')
+        s.field('Anywhere USA, OH: Columbus Half Marathon 10K + 5K', 2015, normal)
+        s.edition('Phalempin:  Semi-Marathon de Phalempin Virtuel', 2021, status='held_for_review')
+        s.field('Phalempin:  Semi-Marathon de Phalempin Virtuel', 2021, normal)
+        s.edition('Homestead, FL: Gobbler 5K, 10K, & Half Marathon', 2023, status='counts_internal_only')
+        s.field('Homestead, FL: Gobbler 5K, 10K, & Half Marathon', 2023, normal)
+        for city, year, status, n in extra:
+            s.edition(city, year, status=status)
+            s.field(city, year, normal[:n])
+        s.close()
+        return s.path
+
+    def editions(self, path, rules=None):
+        db = hc.connect(half=path)
+        rules = rules or hq.rules_of(hq.TAG)
+        hq.record_rules(db, rules)
+        m = hq.edition_rules(hq.edition_table(db, rules), rules)
+        db.close()
+        return m.set_index(['city', 'year'])
+
+    def test_partial_loads_removed_and_virtual(self):
+        with tempfile.TemporaryDirectory() as folder:
+            m = self.editions(self.source(folder))
+        rule = lambda key: (None if pd.isna(m.loc[key, 'category']) else m.loc[key, 'category'], m.loc[key, 'rule'] if isinstance(m.loc[key, 'rule'], str) else None)
+        self.assertEqual(rule(('Alpha', 2022)), (None, None))
+        self.assertEqual(rule(('New York', 2022)), ('partial_load', 'E0'))
+        self.assertEqual(rule(('New York', 2018)), ('partial_load', 'E0'), 'a partial load stays out when a registry row appears')
+        self.assertEqual(rule(('Gone', 2024)), ('removed_by_producer', 'E1'))
+        self.assertEqual(rule(('Austin, TX: 2020 Decker Challenge Virtual Half Marathon', 2020)), ('virtual_event', 'E2'))
+        self.assertEqual(rule(('Anywhere USA, OH: Columbus Half Marathon 10K + 5K', 2015)), ('virtual_event', 'E2'))
+        self.assertEqual(rule(('Phalempin:  Semi-Marathon de Phalempin Virtuel', 2021)), ('held_by_producer', 'E1'), 'a held status comes first')
+        self.assertEqual(rule(('Homestead, FL: Gobbler 5K, 10K, & Half Marathon', 2023)), (None, None))
+        self.assertFalse(m.loc[('New York', 2018), 'use_finish'])
+
+    def test_the_virtual_rule_and_its_exceptions(self):
+        rule = hq.rules_of(hq.TAG)['virtual']
+        for label, want in (('Anywhere USA, OH: Columbus Half Marathon 10K + 5K', True), ('anywhere: x', True),
+                            ('Houston, TX: Koala Health & Wellness Houston VIRTUAL Half Marathon & 10K', True),
+                            ('Phalempin:  Semi-Marathon de Phalempin Virtuel', True), ('Berlin: Virtuelle Halbmarathon', True),
+                            ('Stockholm', False), ('Homestead, FL: Gobbler 5K', False), ('Boston: Run Anywhere Half', False),
+                            ('Anywheresville, KS: Half', False), (None, False)):
+            self.assertEqual(hq.is_virtual_label(label, rule), want, label)
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.source(folder)
+            db = hc.connect(half=path)
+            eid = db.execute("SELECT id FROM h.edition_meta WHERE city LIKE 'Austin%'").fetchone()[0]
+            db.close()
+            rules = {**hq.rules_of(hq.TAG), 'not_virtual': ((eid, 'reviewed: a road race'),)}
+            m = self.editions(path, rules)
+        self.assertTrue(pd.isna(m.loc[('Austin, TX: 2020 Decker Challenge Virtual Half Marathon', 2020), 'category']), 'a reviewed exception is not virtual')
+
+    def test_an_unknown_status_and_a_removed_edition_with_rows_fail(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(hc.HalfError, 'in no status group'):
+                self.editions(self.source(folder, extra=[('Odd', 2024, 'awaiting_review', 50)]))
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(hc.HalfError, 'removed status still hold rows'):
+                self.editions(self.source(folder, extra=[('Gone Again', 2024, 'duplicate_deleted', 20)]))
+        with tempfile.TemporaryDirectory() as folder:   # the 1133 entry knew no such rule: the same status falls to no_rows
+            m = self.editions(self.source(folder, extra=[('Odd', 2024, 'awaiting_review', 50)]), hq.rules_of(hq.TAG_1133))
+            self.assertEqual(m.loc[('Odd', 2024), 'category'], 'no_usable_rows')
+
+    def test_the_link_partial_editions(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.source(folder)
+            db = hc.connect(half=path)
+            result = hq.apply(db, hq.TAG, compare=False)
+            ids = dict(((c, y), int(e)) for e, c, y in db.execute('SELECT DISTINCT edition_id, city, year FROM hfin').fetchall())
+            alpha = db.execute("SELECT min(record_id), max(record_id), count(*) FROM hfin WHERE city = 'Alpha'").fetchone()
+            boundary = alpha[0] + 99
+            saved = hq.REVIEWED_HALF_POLICIES[hq.TAG]['link_editions']
+            try:
+                hq.REVIEWED_HALF_POLICIES[hq.TAG]['link_editions'] = {
+                    **saved, 'half_max_record_id': boundary, 'retimed': [],
+                    'link_partial': [{'edition_id': ids[('Alpha', 2022)], 'city': 'Alpha', 'year': 2022, 'rows_covered': 100, 'rows_uncovered': alpha[2] - 100}]}
+                got = hq.check_link_editions(db, result.editions)
+                self.assertEqual([x['city'] for x in got], ['Alpha'], 'only the edition with rows on both sides of the boundary')
+                hq.REVIEWED_HALF_POLICIES[hq.TAG]['link_editions']['link_partial'] = []
+                with self.assertRaisesRegex(hc.HalfError, 'link-partial editions differ'):
+                    hq.check_link_editions(db, result.editions)
+                hq.REVIEWED_HALF_POLICIES[hq.TAG]['link_editions'].update(
+                    link_partial=got, retimed=[{'edition_id': 99999, 'city': 'Nowhere', 'year': 2020, 'rows': 1}])
+                with self.assertRaisesRegex(hc.HalfError, 're-timed edition'):
+                    hq.check_link_editions(db, result.editions)
+            finally:
+                hq.REVIEWED_HALF_POLICIES[hq.TAG]['link_editions'] = saved
+                db.close()
+        self.assertEqual(result.counts['E1_removed_editions'], 1)
+        self.assertNotIn('stamp_withdrawn', result.counts)
+        self.assertEqual(set(result.counts['stamp_check']), {'stamped', 'verified_usable', 'withdrawn_unstamped', 'never_stamp'})
+
+
+class PolicyFiles(unittest.TestCase):
+    """The frozen policy files: 1133 reproduced byte for byte by its own entry, 1904 equal to its entry, and the 1904
+    review's decisions."""
+
+    def test_the_1133_policy_is_reproduced_byte_for_byte(self):
+        self.assertEqual(hq.policy_bytes(hq.TAG_1133), (ROOT / 'analysis' / 'half-policy-20261029-1133.json').read_bytes(),
+                         'a later entry changed a rule the 1133 entry uses')
+
+    def test_the_1904_policy_file_matches_its_entry(self):
+        hq.check_policy_file(hq.TAG)
+        doc = json.loads(hq.policy_path(hq.TAG).read_text())
+        self.assertEqual([doc['tag'], doc['schema_version']], [hq.TAG, 2])
+        self.assertNotIn('stamp_correction', doc)
+        self.assertEqual(doc['expected'], hq.EXPECTED_20261030_1904)
+        self.assertEqual(set(doc['statuses']), {'verified', 'unverified', 'held', 'removed', 'empty'})
+        self.assertIn('fails', doc['unknown_status'])
+        self.assertNotIn('nyrr_api', doc['edition_rules']['E3']['independent_pattern'])
+        self.assertIn('nyrr_api', json.loads(hq.policy_path(hq.TAG_1133).read_text())['edition_rules']['E3']['independent_pattern'])
+        self.assertEqual([(x['city'], x['year']) for x in doc['edition_rules']['E0']['partial_loads']],
+                         [('New York', 2018), ('New York', 2022), ('New York', 2023), ('New York', 2024)])
+        self.assertEqual(doc['edition_rules']['E2']['virtual_event']['not_virtual'], [])
+        st = doc['stamps']
+        self.assertEqual(len(st['stamped']), 243)
+        self.assertEqual(len(st['never_stamp']), 78)
+        self.assertEqual(len({r['edition_id'] for r in st['never_stamp']}), 78)
+        self.assertEqual(len(st['reference']['withdrawn']), 72)
+        self.assertTrue({w['edition_id'] for w in st['reference']['withdrawn']} <= {r['edition_id'] for r in st['never_stamp']})
+        self.assertFalse(set(st['stamped']) & {r['edition_id'] for r in st['never_stamp']})
+        self.assertEqual(set(st['reads']), {'stamped', 'reference', 'withdrawn', 'never_stamp', 'edition_meta_csv', 'weaker_source'})
+        weaker = {x['edition_id'] for x in st['weaker_source']}
+        self.assertEqual(weaker, {x['edition_id'] for x in st['reference']['weaker_source']} | {8823}, 'the six 2157 stamps and Belém 2024')
+        self.assertTrue(weaker <= set(st['stamped']))
+        self.assertEqual(doc['battery']['off_road_labels'], ['Kystleden Half', 'Nordmarka Skogsmaraton Half', 'Trondheim Skogsmaraton Half'])
+        self.assertEqual(hq.battery_lists(hq.TAG)['weaker_source'], weaker)
+        self.assertEqual(doc['verified_label_countries']['belém: GENERALI TRANQUILIDADE MEIA MARATONA DESCOBRIMENTOS'], 'PT')
+        le = doc['link_editions']
+        self.assertEqual([le['link_build'], le['half_max_record_id']], ['person-ids-v4-20261030-1150', 7411867])
+        self.assertEqual([x['edition_id'] for x in le['link_partial']], [9895])
+        self.assertEqual([x['edition_id'] for x in le['retimed']], [9055])
+        self.assertEqual(doc['expected']['stamp_check'], {'stamped': 243, 'verified_usable': doc['expected']['verified']['editions'],
+                                                          'withdrawn_unstamped': 72, 'never_stamp': 78})
+
+
+SOURCE_DIR = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1904')
 
 
 @unittest.skipUnless((SOURCE_DIR / 'platform_half.sqlite').is_file() and os.environ.get('PACE_HALF_SOURCE_TESTS') == '1',
@@ -1122,15 +1476,18 @@ SOURCE_DIR = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'hal
 class RealSource(unittest.TestCase):
     def test_frozen_lists_and_counts_recompute_from_the_snapshot(self):
         db = hc.connect(half=SOURCE_DIR / 'platform_half.sqlite')
-        correction = hq.REVIEWED_HALF_POLICIES[hq.TAG]['correction']
-        rows = hq.read_correction(SOURCE_DIR / correction['tag'] / correction['asset'], correction)
-        result = hq.apply(db, correction_rows=rows)   # fails unless R3, R4, E0, E2–E8 and the withdrawn stamps equal the frozen lists
-        self.assertEqual(result.counts, hq.EXPECTED_20261029_1133)
+        reference = os.environ.get('PACE_HALF_STAMP_REFERENCE')
+        inputs = hq.read_stamp_inputs(hq.TAG, Path(reference) if reference else None, SOURCE_DIR / 'csv-edition_meta.csv.zst')
+        # fails unless R3, R4, E0, E2–E8, the stamps, never_stamp, the CSV and the link-partial editions equal the review
+        result = hq.apply(db, stamp_inputs=inputs)
+        self.assertEqual(result.counts, hq.EXPECTED_20261030_1904)
         m = result.editions
         verified = m[m.use_finish & (m.status_group == 'verified')]
-        self.assertEqual(len(verified), 238)
-        self.assertTrue(all(rows[int(e)]['status'] == 'stamped' for e in verified.edition_id), 'no verified edition lacks a corrected stamp')
-        self.assertTrue({x['edition_id'] for x in correction['weaker_source']} <= set(verified.edition_id.astype(int)), 'the six weaker-source stamps stay verified')
+        stamps = hq.entry()['stamps']
+        self.assertEqual(len(verified), result.counts['stamp_check']['verified_usable'])
+        self.assertTrue(set(verified.edition_id.astype(int)) <= set(stamps['stamped']))
+        self.assertTrue({x['edition_id'] for x in stamps['weaker_source']} <= set(verified.edition_id.astype(int)), 'the weaker-source stamps stay verified')
+        self.assertEqual(result.lists['link_partial'], hq.entry()['link_editions']['link_partial'])
 
 
 if __name__ == '__main__':

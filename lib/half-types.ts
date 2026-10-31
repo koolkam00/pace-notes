@@ -357,8 +357,11 @@ export type HalfPolicyCounts = {
   verified_use_sex: HalfFinishesEditions;
   /** use_finish editions with no race date (they enter no date window), and their finishes after R7. */
   undated: HalfFinishesEditions;
-  /** The editions stamped in the snapshot whose stamp the corrected metadata withdrew (now unverified), and their finishes after R7. */
-  stamp_withdrawn: HalfFinishesEditions;
+  /** Editions the producer deleted as double loads (E1, no rows). */
+  E1_removed_editions: number;
+  /** The stamp check (policy schema 2): stamped editions, the verified usable ones, the reference's withdrawn stamps
+   * that are unstamped here, and the snapshot's never_stamp rows. */
+  stamp_check: { stamped: number; verified_usable: number; withdrawn_unstamped: number; never_stamp: number };
   set_b: { pairs: number; people: number; marathon_editions: number; half_editions: number };
 };
 
@@ -369,18 +372,22 @@ export type HalfScript =
   | 'analysis/half_linked.py' | 'analysis/half_cards.py';
 
 export type HalfManifest = {
-  schema_version: 1;
+  schema_version: 2;
   family: 'half';
   as_of: string;
   /** The pinned source's repository, licence and access sentence (analysis/half-release.json). */
   repository: string;
   license: string;
   access: string;
-  /** `tag` is the public release the files come from; `private_tag` the snapshot's or link build's own name. */
-  half: { tag: string; private_tag: string; sqlite_sha256: string };
-  links: { tag: string; private_tag: string; extract_content_sha256: string };
-  /** The corrected edition metadata the verified scope is taken from: verified = stamped in both. */
-  metadata_correction: HalfMetadataCorrection;
+  /** `tag` is the public release the files come from; `key` the snapshot's or link build's identity; `private_tag` a
+   * private twin's name, or null when there is none. */
+  half: { tag: string; key: string; private_tag: string | null; sqlite_sha256: string };
+  links: {
+    tag: string; key: string; private_tag: string | null; applies_to: string; extract_content_sha256: string;
+    coverage: HalfLinkCoverage;
+  };
+  /** The verified rule and the pinned file its stamps are cross-checked against. */
+  stamps: { rule: HalfStampRule; reference: { tag: string; asset: string; sha256: string } };
   marathon: {
     release_tag: string;
     runner_manifest_sha256: string;
@@ -408,33 +415,48 @@ export type HalfManifest = {
   files: Record<string, HalfFileMeta>;
 };
 
-/** The policy's reviewed stamp correction (analysis/half-policy-<stamp>.json `stamp_correction`). */
-export type HalfStampCorrection = HalfMetadataCorrection & {
-  repository: string; readme_sha256: string; reviewed: string; rule: string;
-  withdrawn: { edition_id: number; city: string; year: number; corrected_status: string; reason: string }[];
+export type HalfStampRule = "verified = stamped in this snapshot's own edition_meta, equal to the policy's reviewed list";
+
+/** The link build's half coverage (pin `links.coverage`): half rows above the id boundary have no person ID. */
+export type HalfLinkCoverage = { half_rows: number; half_max_record_id: number; marathon_rows: number };
+
+/** The policy's reviewed stamp check (analysis/half-policy-<stamp>.json `stamps`, policy schema 2). */
+export type HalfStamps = {
+  rule: HalfStampRule; reviewed: string; reads: Record<string, string>; reason_rule: string; weaker_source_rule: string;
+  stamped: number[];
+  never_stamp: { edition_id: number; reason: string; added_at: string }[];
+  reference: {
+    repository: string; tag: string; asset: string; sha256: string; readme_sha256: string;
+    /** The stamps the reference withdrew on 2026-10-29 (unstamped here, in never_stamp). */
+    withdrawn: { edition_id: number; city: string; year: number; corrected_status: string; reason: string }[];
+    weaker_source: { edition_id: number; city: string; year: number; source: string }[];
+  };
+  edition_meta_csv: { asset: string; sha256: string };
   weaker_source: { edition_id: number; city: string; year: number; source: string }[];
 };
 
-/** The producer's corrected edition metadata (a later public release of the same edition ids). */
-export type HalfMetadataCorrection = { tag: string; asset: string; sha256: string; applied: 'verified = stamped in both' };
-
 /**
- * analysis/half-release.json: the separate pin of the half snapshot and its link build, both from the owner's public CC
- * BY 4.0 release (`tag`), first released privately under `private_tag` (the name the policy, the links extract and the
- * reviewed counts carry), and the corrected metadata the verified scope is taken from.
+ * analysis/half-release.json (schema 3): the separate pin of the half snapshot and its person links, both from the
+ * owner's public CC BY 4.0 release (`tag`). `key` names each (the identity the policy, the links extract and the reviewed
+ * counts are keyed by); `private_tag` is a private twin's name, and `doi` an archive's, or null; `stamps.reference` is the
+ * pinned file the verified stamps are cross-checked against.
  */
 export type HalfReleasePin = {
-  schema_version: 2;
+  schema_version: 3;
   access: string;
   repository: string;
   license: string;
-  half: { tag: string; doi: string; private_tag: string; assets: Record<string, string>; sqlite: string; sqlite_sha256: string };
-  links: {
-    tag: string; private_tag: string; pairs_with: string; built_at: string; assets: Record<string, string>;
-    extract: string; extract_content_sha256: string;
+  half: {
+    tag: string; key: string; private_tag: string | null; doi: string | null; snapshot: string; sha256sums_sha256: string;
+    assets: Record<string, string>; sqlite: string; sqlite_sha256: string;
   };
-  metadata_correction: HalfMetadataCorrection & { readme_sha256: string };
-  provenance: { private_repository: string; note: string; private_readme_sha256: Record<string, string> };
+  links: {
+    tag: string; key: string; private_tag: string | null; version: string; applies_to: string; applies_to_rule: string;
+    coverage: HalfLinkCoverage & { producer_build_info: string }; assets: Record<string, string>;
+    extract: string; extract_content_sha256: string | null;
+  };
+  stamps: { rule: HalfStampRule; reference: { tag: string; asset: string; sha256: string; readme_sha256: string; sha256sums_sha256: string } };
+  provenance: { private_repository: string; note: string; private_readme_sha256: Record<string, string>; history: string };
   /** Must equal analysis/release.json `tag`. */
   marathon_release: string;
   /** The frozen policy file (path from the repository root). */

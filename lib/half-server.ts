@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import release from '@/analysis/release.json';
 import pin from '@/analysis/half-release.json';
-import type { HalfDataFile, HalfFiles, HalfManifest, HalfReleasePin, HalfStampCorrection } from '@/lib/half-types';
+import type { HalfDataFile, HalfFiles, HalfManifest, HalfReleasePin, HalfStamps } from '@/lib/half-types';
 
 /**
  * The half-marathon aggregates (public/data/half/, analysis/build_half.py), verified once per process at build time.
@@ -27,11 +27,13 @@ export function getHalfManifest(): HalfManifest {
   const key = `${stat.size}:${stat.mtimeMs}`;
   if (verified?.key === key) return verified.manifest;
   const manifest = JSON.parse(fs.readFileSync(file).toString()) as HalfManifest;
-  if (manifest.schema_version !== 1 || manifest.family !== 'half') throw new Error('Half data: unexpected manifest.');
-  if (manifest.half.tag !== PIN.half.tag || manifest.half.private_tag !== PIN.half.private_tag || manifest.half.sqlite_sha256 !== PIN.half.sqlite_sha256) throw new Error('Half data must be rebuilt for the pinned half snapshot.');
-  if (manifest.links.tag !== PIN.links.tag || manifest.links.private_tag !== PIN.links.private_tag || manifest.links.extract_content_sha256 !== PIN.links.extract_content_sha256) throw new Error('Half data must be rebuilt for the pinned link build.');
-  const mc = PIN.metadata_correction;
-  if (manifest.metadata_correction?.tag !== mc.tag || manifest.metadata_correction.sha256 !== mc.sha256 || manifest.metadata_correction.applied !== mc.applied) throw new Error('Half data must be rebuilt for the pinned metadata correction.');
+  if (manifest.schema_version !== 2 || manifest.family !== 'half' || PIN.schema_version !== 3) throw new Error('Half data: unexpected manifest or pin schema.');
+  const h = manifest.half, l = manifest.links;
+  if (h.tag !== PIN.half.tag || h.key !== PIN.half.key || h.private_tag !== PIN.half.private_tag || h.sqlite_sha256 !== PIN.half.sqlite_sha256) throw new Error('Half data must be rebuilt for the pinned half snapshot.');
+  if (!PIN.links.extract_content_sha256 || l.tag !== PIN.links.tag || l.key !== PIN.links.key || l.private_tag !== PIN.links.private_tag || l.applies_to !== PIN.links.applies_to
+    || l.extract_content_sha256 !== PIN.links.extract_content_sha256 || l.coverage?.half_max_record_id !== PIN.links.coverage.half_max_record_id) throw new Error('Half data must be rebuilt for the pinned link build.');
+  const ref = PIN.stamps.reference;
+  if (manifest.stamps?.rule !== PIN.stamps.rule || manifest.stamps.reference.tag !== ref.tag || manifest.stamps.reference.asset !== ref.asset || manifest.stamps.reference.sha256 !== ref.sha256) throw new Error('Half data must be rebuilt for the pinned stamp reference.');
   if (PIN.marathon_release !== release.tag || manifest.marathon.release_tag !== release.tag) throw new Error('Half data must use the adopted marathon release.');
   if (manifest.policy.file !== PIN.policy || manifest.policy.sha256 !== sha256(fs.readFileSync(path.join(process.cwd(), PIN.policy)))) throw new Error('Half data must be rebuilt for the reviewed half policy.');
   if (manifest.marathon.runner_manifest_sha256 !== sha256(fs.readFileSync(path.join(DATA(), 'runners/manifest.json')))) throw new Error('Half data must be rebuilt for the current runner records.');
@@ -75,10 +77,10 @@ export function halfPin(): HalfReleasePin {
   return PIN;
 }
 
-/** The reviewed stamp correction from the frozen policy file, read only after the manifest binds that file's sha256. */
-export function halfStampCorrection(): HalfStampCorrection {
+/** The reviewed stamp check from the frozen policy file, read only after the manifest binds that file's sha256. */
+export function halfStamps(): HalfStamps {
   const manifest = getHalfManifest();
   const bytes = fs.readFileSync(path.join(process.cwd(), manifest.policy.file));
   if (sha256(bytes) !== manifest.policy.sha256) throw new Error('Half policy changed after the half data were built.');
-  return (JSON.parse(bytes.toString()) as { stamp_correction: HalfStampCorrection }).stamp_correction;
+  return (JSON.parse(bytes.toString()) as { stamps: HalfStamps }).stamps;
 }

@@ -1,11 +1,12 @@
 """Shared helpers for the half-marathon builders (docs/HALF_MARATHON.md).
 
-The half snapshot and its links (the owner's public CC BY 4.0 release half-dataset-20261029-1202) are record-level
-files that stay outside the repository. Every builder reads them read-only through DuckDB and publishes aggregates only
+The half snapshot and its person links (the owner's public CC BY 4.0 release half-dataset-20261030-1904) are
+record-level files that stay outside the repository. Every builder reads them read-only through DuckDB and publishes aggregates only
 (public/data/half/): every shown group holds at least
 `MIN_CELL` finishes or pairs and at least `MIN_EDITIONS` editions behind any claim that crosses editions.
 
-This module holds what every builder shares: the DuckDB connection (`ATTACH … (TYPE sqlite, READ_ONLY)`), the finish
+This module holds what every builder shares: the pin reader, the DuckDB connection (`ATTACH … (TYPE sqlite, READ_ONLY)`,
+refused when a non-empty -wal sits beside the file, since DuckDB cannot open a SQLite immutable), the finish
 time parser, the repository quantile, the publication rounding, the deterministic JSON encoding and the scan that
 keeps identifiers, names and stray strings out of the published files.
 
@@ -39,7 +40,8 @@ MIN_EDITIONS = 3        # editions behind any claim that crosses editions
 MIN_EDGE_SLICE = 10     # pairs in each one-minute edge slice of a published linked window (spec 1.5)
 
 __all__ = ['ANALYSIS', 'ROOT', 'PIN_PATH', 'RELEASE_PATH', 'OUTPUT', 'MIN_CELL', 'MIN_EDITIONS', 'MIN_EDGE_SLICE', 'SEED',
-           'SHARE_DIGITS', 'quantile', 'HalfError', 'fail', 'file_sha256', 'bytes_sha256', 'load_pin', 'connect',
+           'SHARE_DIGITS', 'quantile', 'HalfError', 'fail', 'file_sha256', 'bytes_sha256', 'load_pin', 'check_pin', 'pinned_digest',
+           'snapshot_date', 'check_no_wal', 'connect',
            'TIME_PATTERN', 'secs_sql', 'parse_time', 'sh', 'sec', 'encode', 'check_published', 'inside']
 
 
@@ -63,15 +65,76 @@ def file_sha256(path) -> str:
     return digest.hexdigest()
 
 
+PIN_SCHEMA = 3
+_KEY = re.compile(r'[a-z0-9]+(-[a-z0-9]+)+')
+_DIGEST = re.compile(r'[0-9a-f]{64}')
+
+
+def check_pin(pin: dict, release_tag: str) -> dict:
+    """Schema 3 of the half pin (analysis/half-release.json): `half.key` and `links.key` name the snapshot and the link
+    build (the identities the policy and the reviewed counts are keyed by); `private_tag` and `doi` are provenance and may
+    be null; `links.applies_to` is the snapshot the link build's half record ids are joined to; `stamps.reference` is the
+    pinned cross-check of the verified stamps; `links.extract_content_sha256` is null until the extract is cut and pinned
+    (a builder then refuses). Returns the pin."""
+    if pin.get('schema_version') != PIN_SCHEMA:
+        fail(f"analysis/half-release.json is schema {pin.get('schema_version')}, the builders read schema {PIN_SCHEMA}")
+    if pin['marathon_release'] != release_tag:
+        fail(f"analysis/half-release.json binds marathon release {pin['marathon_release']}, but the adopted release is {release_tag}")
+    for part in ('half', 'links'):
+        x = pin[part]
+        if not (isinstance(x.get('key'), str) and _KEY.fullmatch(x['key']) and isinstance(x.get('tag'), str) and _KEY.fullmatch(x['tag'])):
+            fail(f'analysis/half-release.json {part}: a tag and a key are required')
+        if x.get('private_tag') is not None and not (isinstance(x['private_tag'], str) and _KEY.fullmatch(x['private_tag'])):
+            fail(f'analysis/half-release.json {part}.private_tag: a release name or null')
+        if not x.get('assets') or not all(isinstance(d, str) and _DIGEST.fullmatch(d) and '/' not in n for n, d in x['assets'].items()):
+            fail(f'analysis/half-release.json {part}.assets: names and sha256 digests')
+    if pin['half'].get('doi') is not None and not isinstance(pin['half']['doi'], str):
+        fail('analysis/half-release.json half.doi: a DOI or null')
+    if not _DIGEST.fullmatch(pin['half'].get('sqlite_sha256') or ''):
+        fail('analysis/half-release.json half.sqlite_sha256: a sha256 digest')
+    if pin['links']['applies_to'] != pin['half']['key']:
+        fail('the pinned link build does not apply to the pinned half snapshot (links.applies_to is not half.key)')
+    cov = pin['links'].get('coverage') or {}
+    if not all(isinstance(cov.get(k), int) and cov[k] > 0 for k in ('half_rows', 'half_max_record_id', 'marathon_rows')):
+        fail('analysis/half-release.json links.coverage: the link build\'s half rows, half record id boundary and marathon rows')
+    digest = pin['links'].get('extract_content_sha256')
+    if digest is not None and not _DIGEST.fullmatch(digest):
+        fail('analysis/half-release.json links.extract_content_sha256: a sha256 digest or null')
+    ref = (pin.get('stamps') or {}).get('reference') or {}
+    if not (_KEY.fullmatch(ref.get('tag') or '') and ref.get('asset') and all(_DIGEST.fullmatch(ref.get(k) or '') for k in ('sha256', 'readme_sha256'))):
+        fail('analysis/half-release.json stamps.reference: a release tag, asset, sha256 and readme_sha256')
+    return pin
+
+
 def load_pin() -> dict:
-    """The half pin, checked against the adopted marathon release (the link record ids follow that release)."""
+    """The half pin, checked (check_pin) and bound to the adopted marathon release (the link record ids follow it)."""
     pin = json.loads(PIN_PATH.read_text())
     release = json.loads(RELEASE_PATH.read_text())
-    if pin['marathon_release'] != release['tag']:
-        fail(f"analysis/half-release.json binds marathon release {pin['marathon_release']}, but the adopted release is {release['tag']}")
-    if pin['links']['pairs_with'] != pin['half']['private_tag']:
-        fail('the pinned link build does not pair with the pinned half snapshot')
-    return pin
+    return check_pin(pin, release['tag'])
+
+
+def pinned_digest(pin: dict, key: str = 'extract_content_sha256') -> str:
+    """links.extract_content_sha256, refusing a pin that has none yet."""
+    digest = pin['links'].get(key)
+    if digest is None:
+        fail('the pin holds no links extract digest yet: cut the extract with python3 -I analysis/half_links_extract.py --pin')
+    return digest
+
+
+def snapshot_date(pin: dict) -> str:
+    """The snapshot's date, YYYY-MM-DD, from half.key (…-YYYYMMDD-HHMM)."""
+    m = re.search(r'(\d{4})(\d{2})(\d{2})-\d{4}$', pin['half']['key'])
+    if not m:
+        fail(f"cannot read a date from the half snapshot key {pin['half']['key']}")
+    return f'{m.group(1)}-{m.group(2)}-{m.group(3)}'
+
+
+def check_no_wal(path) -> None:
+    """A WAL-mode SQLite with a non-empty -wal beside it holds rows the main file does not; DuckDB's sqlite scanner cannot
+    open it immutable, so a builder refuses it (review R13, 2026-10-31)."""
+    wal = Path(f'{Path(path)}-wal')
+    if wal.exists() and wal.stat().st_size > 0:
+        fail(f'{wal} is not empty: the snapshot has uncommitted pages beside it; restore the pinned file (download_half.py)')
 
 
 def inside(path, parent) -> bool:
@@ -109,6 +172,7 @@ def connect(half: Path | None = None, links: Path | None = None):
             fail(f'missing {path}')
         if inside(path, ROOT):
             fail(f'{path} is inside the repository; record-level sources stay outside it (pages publish aggregates)')
+        check_no_wal(path)
         quoted = path.as_posix().replace("'", "''")
         db.execute(f"ATTACH '{quoted}' AS {alias} (TYPE sqlite, READ_ONLY)")
     return db
@@ -178,7 +242,7 @@ BATTERY_IDS = {'pooled', 'verified_halves', 'verified_federation', 'verified_roa
 # snapshot's integer edition id (no label), under linked.json checks.battery.leave_outs.<member>.worst.<clause>.
 HALF_EDITION_KEY = 'half_edition'
 HALF_EDITION_AT = re.compile(r'\.checks\.battery\.leave_outs\.(verified_halves|verified_federation)\.worst\.[a-z_]+$')
-RELEASE_LABEL = re.compile(r'private-export|half-snapshot-|half-dataset-|runner-links-|htw-db-|20260912|20261016|20261021|20261029')
+RELEASE_LABEL = re.compile(r'private-export|half-snapshot-|half-dataset-|runner-links-|person-ids-|htw-db-|20260912|20261016|20261021|20261029|20261030')
 
 
 def check_published(value, where: str, *, in_rule: bool = False, extra_string_keys: frozenset = frozenset()) -> None:

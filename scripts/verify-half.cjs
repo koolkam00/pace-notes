@@ -20,7 +20,7 @@
 //      file equal to linked.json window for window, the cards equal to their sources.
 //   5. The source-recount receipt (docs/evidence/half/source-recount.json, written by scripts/verify-half-source.cjs
 //      from the source files): status pass, no mismatches, and bound to the current manifest, recount scripts, half
-//      snapshot, links extract, corrected metadata, runner manifest and policy. A rebuild or a changed recount without a fresh local recount
+//      snapshot, links extract, stamp reference and edition_meta CSV, runner manifest and policy. A rebuild or a changed recount without a fresh local recount
 //      fails.
 //   6. `--html` (after `npm run build`): the scope chip and status words (spec 9), the reading links, "records linked by
 //      name" as a term link, "Not a prediction.", and every /methodology#half-* anchor.
@@ -79,22 +79,27 @@ const manifest = JSON.parse(manifestBytes);
 }
 
 // ---------- 1. Provenance ----------
-eq([manifest.schema_version, manifest.family], [1, 'half'], 'half manifest schema');
-eq([manifest.half.tag, manifest.half.private_tag, manifest.half.sqlite_sha256], [pin.half.tag, pin.half.private_tag, pin.half.sqlite_sha256], 'the manifest binds the pinned half snapshot');
-eq([manifest.links.tag, manifest.links.private_tag, manifest.links.extract_content_sha256], [pin.links.tag, pin.links.private_tag, pin.links.extract_content_sha256], 'the manifest binds the pinned links extract');
-ok(/^[0-9a-f]{64}$/.test(pin.links.extract_content_sha256), 'the pin holds the links extract digest');
-eq(pin.links.pairs_with, pin.half.private_tag, 'the pinned link build pairs with the pinned half snapshot');
+// Pin schema 3: `key` names the snapshot and the link build (what the policy and the reviewed counts are keyed by);
+// `private_tag` and `doi` are provenance, null where none exists; `stamps.reference` is the stamp cross-check.
+eq([manifest.schema_version, manifest.family], [2, 'half'], 'half manifest schema');
+eq([manifest.half.tag, manifest.half.key, manifest.half.private_tag, manifest.half.sqlite_sha256], [pin.half.tag, pin.half.key, pin.half.private_tag, pin.half.sqlite_sha256], 'the manifest binds the pinned half snapshot');
+eq([manifest.links.tag, manifest.links.key, manifest.links.private_tag, manifest.links.applies_to, manifest.links.extract_content_sha256],
+  [pin.links.tag, pin.links.key, pin.links.private_tag, pin.links.applies_to, pin.links.extract_content_sha256], 'the manifest binds the pinned links extract');
+eq(manifest.links.coverage, { half_max_record_id: pin.links.coverage.half_max_record_id, half_rows: pin.links.coverage.half_rows, marathon_rows: pin.links.coverage.marathon_rows }, 'the manifest binds the link build’s coverage');
+ok(/^[0-9a-f]{64}$/.test(pin.links.extract_content_sha256 || ''), 'the pin holds the links extract digest');
+eq(pin.links.applies_to, pin.half.key, 'the pinned link build applies to the pinned half snapshot');
 // The source is the owner's public release (owner decision, October 30, 2026: "publish everything and full merge").
-eq([pin.schema_version, pin.repository, pin.license, pin.access], [2, 'koolkam00/pace-notes', 'CC BY 4.0', 'public (CC BY 4.0), owner releases; pages publish aggregates'], 'the pin names the owner’s public release and its access');
+eq([pin.schema_version, pin.repository, pin.license, pin.access], [3, 'koolkam00/pace-notes', 'CC BY 4.0', 'public (CC BY 4.0), owner releases; pages publish aggregates'], 'the pin names the owner’s public release and its access');
 eq([manifest.repository, manifest.license, manifest.access], [pin.repository, pin.license, pin.access], 'the manifest names the pinned public source');
-ok([pin.half, pin.links].every((x) => /^half-dataset-\d{8}-\d{4}$/.test(x.tag) && Object.values(x.assets).every((d) => /^[0-9a-f]{64}$/.test(d))), 'the pin names public release tags and asset digests');
-eq(pin.provenance.private_repository, 'koolkam00/pace-notes-db-backup', 'the pin keeps the original private release as provenance');
-const MC = pin.metadata_correction || {};
-eq(manifest.metadata_correction, { applied: MC.applied, asset: MC.asset, sha256: MC.sha256, tag: MC.tag }, 'the manifest binds the pinned metadata correction');
-eq([MC.applied, /^half-dataset-\d{8}-\d{4}$/.test(MC.tag || ''), /^[0-9a-f]{64}$/.test(MC.sha256 || '')], ['verified = stamped in both', true, true], 'the metadata correction: verified = stamped in both, a public release and a digest');
+ok([pin.half, pin.links].every((x) => /^half-dataset-\d{8}-\d{4}$/.test(x.tag) && /^[a-z0-9]+(-[a-z0-9]+)+$/.test(x.key) && Object.values(x.assets).every((d) => /^[0-9a-f]{64}$/.test(d))), 'the pin names public release tags, keys and asset digests');
+ok([pin.half, pin.links].every((x) => x.private_tag === null || /^[a-z0-9]+(-[a-z0-9]+)+$/.test(x.private_tag)) && (pin.half.doi === null || typeof pin.half.doi === 'string'), 'private_tag and doi are a name or null');
+eq(pin.provenance.private_repository, 'koolkam00/pace-notes-db-backup', 'the pin keeps the private releases as provenance');
+const REF = pin.stamps?.reference || {};
+eq(manifest.stamps, { reference: { asset: REF.asset, sha256: REF.sha256, tag: REF.tag }, rule: pin.stamps?.rule }, 'the manifest binds the pinned stamp reference');
+eq([/^half-dataset-\d{8}-\d{4}$/.test(REF.tag || ''), /^[0-9a-f]{64}$/.test(REF.sha256 || ''), pin.stamps?.rule], [true, true, 'verified = stamped in this snapshot\'s own edition_meta, equal to the policy\'s reviewed list'], 'the stamp rule and its reference: a public release and a digest');
 eq([pin.marathon_release, manifest.marathon.release_tag], [release.tag, release.tag], 'the half data use the adopted marathon release');
-const stamp = /(\d{4})(\d{2})(\d{2})-\d{4}$/.exec(pin.half.private_tag);
-eq(manifest.as_of, stamp && `${stamp[1]}-${stamp[2]}-${stamp[3]}`, 'as_of is the snapshot date');
+const stamp = /(\d{4})(\d{2})(\d{2})-\d{4}$/.exec(pin.half.key);
+eq(manifest.as_of, stamp && `${stamp[1]}-${stamp[2]}-${stamp[3]}`, 'as_of is the snapshot date (from half.key)');
 const runnerBytes = fs.readFileSync(rel('public/data/runners/manifest.json'));
 const runners = JSON.parse(runnerBytes);
 eq(runners.release_tag, release.tag, 'the runner shards are the adopted release');
@@ -108,20 +113,30 @@ for (const [name, digest] of Object.entries(manifest.marathon.inputs)) eq(digest
 const policyBytes = fs.readFileSync(rel(pin.policy));
 const policy = JSON.parse(policyBytes);
 eq([manifest.policy.file, manifest.policy.sha256], [pin.policy, sha(policyBytes)], 'the reviewed half policy file');
-eq(policy.tag, pin.half.private_tag, 'the policy is the snapshot’s');
+eq([policy.tag, policy.schema_version], [pin.half.key, 2], 'the policy is the snapshot’s');
 // The flagship battery's pre-registered verified-half members (October 30, 2026): the rules in words and the reviewed
-// off-road labels; the weaker-source stamps are the stamp correction's.
+// off-road labels; the weaker-source stamps are the policy's stamps.weaker_source.
 eq(Object.keys(policy.battery || {}).sort(), ['leave_outs', 'off_road_labels', 'reviewed', 'verified_federation', 'verified_road'], 'the policy states the battery’s verified-half members and leave-outs');
 ok(Array.isArray(policy.battery?.off_road_labels) && policy.battery.off_road_labels.length > 0 && policy.battery.off_road_labels.every((l) => typeof l === 'string' && l.length > 0)
   && new Set(policy.battery.off_road_labels).size === policy.battery.off_road_labels.length, 'the policy’s off-road labels: distinct label strings');
 {
-  // The stamp correction in the policy: the pinned source, a reviewed list of withdrawn stamps (each turned into an
-  // unverified status, none of them a weaker-source stamp), and the counts it moved.
-  const SC = policy.stamp_correction;
-  eq([SC.tag, SC.asset, SC.sha256, SC.applied, SC.readme_sha256], [MC.tag, MC.asset, MC.sha256, MC.applied, MC.readme_sha256], 'the policy’s stamp correction is the pinned one');
-  ok(SC.withdrawn.every((w) => policy.statuses.unverified.includes(w.corrected_status) && Number.isSafeInteger(w.edition_id) && typeof w.reason === 'string' && w.reason.length > 0 && w.reason.length <= 160), 'the withdrawn stamps: an unverified corrected status and a reason each');
-  eq(new Set(SC.withdrawn.map((w) => w.edition_id)).size, SC.withdrawn.length, 'the withdrawn stamps: one row per edition');
-  ok(SC.weaker_source.length > 0 && SC.weaker_source.every((x) => !SC.withdrawn.some((w) => w.edition_id === x.edition_id)), 'the weaker-source stamps stay stamped (none is withdrawn)');
+  // The stamp check in the policy (schema 2): the pinned reference and edition_meta CSV, the reviewed stamped list, the
+  // never_stamp rows, the reference's withdrawn stamps (each now an unverified status, none stamped) and the
+  // weaker-source stamps (each stamped, none withdrawn), with the counts the recount asserts.
+  const PS = policy.stamps || {};
+  eq([PS.reference?.tag, PS.reference?.asset, PS.reference?.sha256, PS.reference?.readme_sha256, PS.rule], [REF.tag, REF.asset, REF.sha256, REF.readme_sha256, pin.stamps?.rule], 'the policy’s stamp reference is the pinned one');
+  eq(PS.edition_meta_csv?.sha256, pin.half.assets[PS.edition_meta_csv?.asset], 'the policy’s edition_meta CSV is the pinned one');
+  const stampedIds = new Set(PS.stamped || []);
+  eq(stampedIds.size, (PS.stamped || []).length, 'the stamped list: one entry per edition');
+  ok((PS.reference?.withdrawn || []).every((w) => policy.statuses.unverified.includes(w.corrected_status) && !stampedIds.has(w.edition_id) && typeof w.reason === 'string' && w.reason.length > 0 && w.reason.length <= 160), 'the withdrawn stamps: an unverified status, never stamped, a reason each');
+  ok((PS.never_stamp || []).every((r) => Number.isSafeInteger(r.edition_id) && !stampedIds.has(r.edition_id) && typeof r.reason === 'string' && typeof r.added_at === 'string'), 'the never_stamp rows: none stamped');
+  ok((PS.reference?.withdrawn || []).every((w) => (PS.never_stamp || []).some((r) => r.edition_id === w.edition_id)), 'every withdrawn stamp is in never_stamp');
+  ok((PS.weaker_source || []).length > 0 && PS.weaker_source.every((x) => stampedIds.has(x.edition_id)), 'the weaker-source stamps are stamped');
+  ok((PS.reference?.weaker_source || []).every((x) => PS.weaker_source.some((y) => y.edition_id === x.edition_id && y.source === x.source)), 'the reference’s weaker-source stamps stay weaker-source');
+  eq(policy.expected?.stamp_check && [policy.expected.stamp_check.stamped, policy.expected.stamp_check.never_stamp, policy.expected.stamp_check.withdrawn_unstamped],
+    [stampedIds.size, (PS.never_stamp || []).length, (PS.reference?.withdrawn || []).length], 'the stamp_check counts are the policy’s lists');
+  const LE = policy.link_editions || {};
+  eq([LE.link_build, LE.half_max_record_id], [pin.links.key, pin.links.coverage.half_max_record_id], 'the policy’s link-build editions are the pinned link build’s');
 }
 eq(manifest.policy.module_sha256, sha(Buffer.concat(['analysis/half_quality.py', 'analysis/half_policy_lists.py'].map((p) => fs.readFileSync(rel(p))))), 'the policy modules');
 const counts = manifest.policy.counts;
@@ -647,7 +662,7 @@ const pageGuards = {};
     for (const [name, digest] of Object.entries(receipt.recount_scripts || {})) ok(fs.existsSync(rel(name)) && digest === fileSha(name), stale(`${name} changed`));
     ok(receipt.half_sqlite_sha256 === pin.half.sqlite_sha256, stale('another half snapshot'));
     ok(receipt.links_extract_content_sha256 === pin.links.extract_content_sha256, stale('another links extract'));
-    ok(receipt.corrected_meta_sha256 === (pin.metadata_correction || {}).sha256, stale('another corrected metadata'));
+    ok(receipt.stamp_reference_sha256 === REF.sha256 && receipt.edition_meta_csv_sha256 === pin.half.assets['csv-edition_meta.csv.zst'], stale('another stamp reference or edition_meta CSV'));
     // The marks whose fit windows reach under the published minutes are recounted only there (section 4).
     if (sourceOnlyFits.length) ok(receipt.files && receipt.files['field.json'] && receipt.files['field.json'].mismatches === 0 && receipt.tolerances && receipt.tolerances['field.json marks[].expected_minute_before'] === 0.05,
       `field.marks ${sourceOnlyFits.join(', ')}: the source recount refits their smooth curve within 0.05`);

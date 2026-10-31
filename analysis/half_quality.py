@@ -1,10 +1,13 @@
 """The reviewed record and edition policy for the half-marathon snapshot (docs/HALF_MARATHON.md; spec 1.3).
 
 Mirrors analysis/source_quality.py `REVIEWED_POLICIES`: a release-specific policy, reviewed by a person, with every
-count asserted. `REVIEWED_HALF_POLICIES[tag]` holds the rules, thresholds and the reviewed edition and sub-race lists;
-`--write-policy` freezes it as analysis/half-policy-<stamp>.json, the single policy input of the independent Node
-source recount (shared inputs, not shared code). The builder recomputes every computed screen (R3, R4, E0, E2–E8)
-from the source and fails unless it equals the frozen lists, so a new snapshot fails here until its lists are reviewed.
+count asserted. `REVIEWED_HALF_POLICIES[key]` holds the rules, thresholds and the reviewed edition and sub-race lists of
+one snapshot, keyed by the pin's `half.key`; `--write-policy` freezes it as analysis/half-policy-<stamp>.json, the single
+policy input of the independent Node source recount (shared inputs, not shared code). The builder recomputes every
+computed screen (R3, R4, E0, E2–E8) from the source and fails unless it equals the frozen lists, so a new snapshot fails
+here until its lists are reviewed. Each entry carries its own rule constants (patterns, status groups, categories, the
+reviewed E2 decisions, the same-city labels, the battery rules), so an earlier entry keeps producing its frozen file
+byte for byte (analysis/test_half.py) after a later snapshot changes a rule.
 
 Record rules (first match wins): R1 a producer exclusion flag; R2 an unparsed or non-positive finish; R3 a sub-race on
 the reviewed non-running name list; R4 a sub-race with at least 5% (and at least 2) finishes under 56:42; R5 a finish
@@ -13,22 +16,30 @@ from the largest sub-race list is kept, then the lowest id). The rows left are r
 Half bib block (same-day marathon finishers listed under the half): a range rule, never a list of people.
 
 Edition rules (an edition supplies nothing if any applies; computed on the record-usable rows before R7, the order
-the reviewed lists were made in): E0 no registry row; E1 a held status; E2 the reviewed duplicates, overlaps and
-non-half distances; E3 count screens; E4 one-sex lists; E5 truncated top lists; E6 round-number caps without an
-independent count; E7 atypical fields; E8 the same-race median screen. The rest are `use_finish`. `use_sex` keeps
-editions whose sex is at least 95% published with each sex at least 3%.
+the reviewed lists were made in): E0 no registry row (and, from 1904 on, a partial load the producer's README names,
+whether or not a registry row appears); E1 a held status (and, from 1904 on, a removed status, which must have no rows);
+E2 the reviewed duplicates, overlaps and non-half distances (and, from 1904 on, virtual events); E3 count screens; E4
+one-sex lists; E5 truncated top lists; E6 round-number caps without an independent count; E7 atypical fields; E8 the
+same-race median screen. The rest are `use_finish`. `use_sex` keeps editions whose sex is at least 95% published with
+each sex at least 3%. From 1904 on, a status in no group fails the build.
 
-The verified scope (stamp correction, reviewed 2026-10-30): an edition is verified only if it is `stamped` in this
-snapshot AND in the producer's corrected metadata (release half-dataset-20261029-2157, `csv-edition_meta.csv.zst`, which
-withdrew the stamps whose count came from a non-independent source). The records stay this snapshot's. The reviewed,
-frozen list of the 72 withdrawn stamps (half_policy_lists.py) turns those editions into unverified ones before the edition
-rules, exactly like the other internal-only editions; the builder reads the corrected metadata, checks its sha256 and fails
-unless the list equals what the metadata gives and every usable edition stamped there is verified here.
+The verified scope.
+- half-snapshot-20261029-1133 (stamp correction, reviewed 2026-10-30): an edition is verified only if it is `stamped` in
+  that snapshot AND in the producer's corrected metadata (release half-dataset-20261029-2157, `csv-edition_meta.csv.zst`,
+  which withdrew the stamps whose count came from a non-independent source); the reviewed list of the 72 withdrawn stamps
+  turns those editions into unverified ones before the edition rules.
+- half-dataset-20261030-1904 (reviewed 2026-10-31): the snapshot's own edition_meta carries the producer's correction, so
+  an edition is verified when it is `stamped` there and the stamped set equals the reviewed list. The builder fails if
+  the stamped set differs from the list or from the stamped set of the pinned 2157 reference file, if any of the 72
+  stamps withdrawn on 2026-10-29 is stamped again, missing from the snapshot's never_stamp table or in another status,
+  if any never_stamp edition is stamped, if never_stamp differs from the frozen 78 rows, if this release's
+  csv-edition_meta.csv.zst differs from the SQLite edition_meta, or if a weaker-source stamp is not a verified usable
+  edition.
 
 Names, bibs and URLs never leave SQL: the R6 key is a digest computed in DuckDB and R7 is a boolean computed there.
 
-    python3 -I analysis/half_quality.py --write-policy      freeze REVIEWED_HALF_POLICIES as the policy JSON
-    python3 -I analysis/half_quality.py --check --half FILE [--corrected-meta FILE]
+    python3 -I analysis/half_quality.py --write-policy [--key KEY]   freeze REVIEWED_HALF_POLICIES[KEY] as its policy JSON
+    python3 -I analysis/half_quality.py --check --half FILE [--stamp-reference FILE] [--edition-meta FILE]
                                                             recompute the screens and every count from the source
 """
 from __future__ import annotations
@@ -50,10 +61,12 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 
 from half_common import ANALYSIS, ROOT, encode, fail, file_sha256, secs_sql  # noqa: E402
 
-TAG = 'half-snapshot-20261029-1133'
+TAG = 'half-dataset-20261030-1904'          # the pinned snapshot's key (analysis/half-release.json half.key)
+TAG_1133 = 'half-snapshot-20261029-1133'    # the previous pin's snapshot, kept as history (its policy file is frozen)
 
 # ---------------------------------------------------------------------------------------------------------------
-# Rules and thresholds (fixed before the editions were read)
+# Rules and thresholds shared by every reviewed entry (fixed before the editions were read; an entry that changed one
+# would version it below, and the 1133 file's byte-for-byte test catches a shared change)
 # ---------------------------------------------------------------------------------------------------------------
 
 PRODUCER_EXCLUDE = ('duplicate', 'duplicate_load', 'duplicate_subset_list', 'wrong_year_copy', 'not_running',
@@ -61,48 +74,48 @@ PRODUCER_EXCLUDE = ('duplicate', 'duplicate_load', 'duplicate_subset_list', 'wro
                     'implausible_time', 'slow_outlier', 'disqualified', 'suspect_result_set')
 WR_FLOOR_S = 3402        # 56:42, the men's half-marathon world record (Kiplimo, Barcelona, 16 February 2025)
 SLOW_CAP_S = 21600       # 6:00:00 = 17:04 min/km, the marathon pipeline's 12-hour bound per km
-# Reviewed sub-race names of other sports and assisted or combined classifications, matched on lower(race) (RE2 and
-# JavaScript agree on this pattern; \b is an ASCII word boundary, so "Tordesillas" does not match).
-NONRUN_SUBRACE_RE = (r'(rullaluistelu|patinaje|patines|\bmtb\b|sillas?\s+de\s+rueda|\bsillas?\b|wheelchair|\bwch\b|'
-                     r'veh[ií]culo adaptado|pmrs?-puolimaraton|jo[eë]lette|combinata|half duathlon|'
-                     r'discapacitad|discapacidad|capacidades (especiales|diferentes)|categor[ií]as especiales)')
 SUBRACE_FAST_SHARE = 0.05
 SUBRACE_FAST_MIN = 2
 NAME_ANONYMOUS_RE = 'anonim|anonym|unknown|zawodnik'
 R7 = {'city': 'Oslo Half', 'years': [2016, 2025], 'bib': [73000, 75999],
       'reason': 'Same-day Oslo marathon finishers listed under the half in a bib block.'}
-
-VERIFIED = ('stamped',)
-UNVERIFIED = ('counts_internal_only', 'counts_internal_only_winner_ok', 'counts_reconciled_winner_pending')
-HELD = ('held_for_review', 'held_for_andrew_decision', 'duplicate_held_for_review')
-
 SINGLE_SEX_EVENT_RE = (r"(?:women|woman|womens|girl|mujer|femme|filly|mother|divas|pink series|ladies|dames|frauen|damer|"
                        r"kvinn|men's half|mens half|herren)")
 ROUND_CAPS = (500, 1000, 2000, 5000, 10000)
-INDEPENDENT_RE = (r'independent|organiser|press|kondis|ffa federation|wikipedia|rfea|club|race report|media guide|racenerd|'
-                  r'official results pdf|nyrr_api|racecast|marathon4you|uitslagen|enduhub|aggregator')
-NOT_INDEPENDENT_RE = r'not independent|internal only|derived'
 COUNT_TOLERANCE = 0.02
 ONE_SEX = {'min_finishes': 50, 'min_coverage': 0.9, 'min_share': 0.03}
 TRUNCATED = {'min_finishes': 200, 'max_p99_over_median': 1.20}
 ATYPICAL = {'fast_share_under_s': 3900, 'fast_share': 0.03, 'fast_median_s': 4500, 'slow_median_s': 12600}
 MEDIAN_SCREEN = {'min_finishes': 100, 'min_editions': 3, 'max_abs_log_ratio': 0.15}
 USE_SEX = {'min_coverage': 0.95, 'min_share': 0.03, 'max_share': 0.97}
-DATE_SUSPECTS = (
-    (8712, 'Gdańsk', 2026, 'Dated 2026-09-27, the Warsaw marathon date; 126 linked people finished both.'),
-    (7565, 'Ribera', 2019, 'Ribera 2019 and Gela 2019 are both dated 2019-12-01; 209 linked people finished both with different times.'),
-    (7677, 'Gela', 2019, 'Ribera 2019 and Gela 2019 are both dated 2019-12-01; 209 linked people finished both with different times.'),
-)
+REASON_MAX = 160
 
-CATEGORY_RULE = {
+# ---------------------------------------------------------------------------------------------------------------
+# half-snapshot-20261029-1133 (reviewed 2026-10-29, stamp correction 2026-10-30): its own rule constants
+# ---------------------------------------------------------------------------------------------------------------
+
+# Reviewed sub-race names of other sports and assisted or combined classifications, matched on lower(race) (RE2 and
+# JavaScript agree on this pattern; \b is an ASCII word boundary, so "Tordesillas" does not match).
+NONRUN_SUBRACE_RE_20261029_1133 = (
+    r'(rullaluistelu|patinaje|patines|\bmtb\b|sillas?\s+de\s+rueda|\bsillas?\b|wheelchair|\bwch\b|'
+    r'veh[ií]culo adaptado|pmrs?-puolimaraton|jo[eë]lette|combinata|half duathlon|'
+    r'discapacitad|discapacidad|capacidades (especiales|diferentes)|categor[ií]as especiales)')
+STATUSES_20261029_1133 = {
+    'verified': ('stamped',),
+    'unverified': ('counts_internal_only', 'counts_internal_only_winner_ok', 'counts_reconciled_winner_pending'),
+    'held': ('held_for_review', 'held_for_andrew_decision', 'duplicate_held_for_review'),
+}
+INDEPENDENT_RE_20261029_1133 = (r'independent|organiser|press|kondis|ffa federation|wikipedia|rfea|club|race report|media guide|racenerd|'
+                                r'official results pdf|nyrr_api|racecast|marathon4you|uitslagen|enduhub|aggregator')
+NOT_INDEPENDENT_RE_20261029_1133 = r'not independent|internal only|derived'
+CATEGORY_RULE_20261029_1133 = {
     'no_edition_meta': 'E0', 'held_by_producer': 'E1', 'cross_edition_duplicate': 'E2', 'cross_edition_overlap_hold': 'E2',
     'not_half_distance': 'E2', 'count_excess_vs_independent': 'E3', 'count_shortfall_vs_independent': 'E3',
     'rows_short_of_source_list': 'E3', 'one_sex_list': 'E4', 'truncated_top_list': 'E5', 'round_count_cap': 'E6',
     'atypical_fast_field': 'E7', 'atypical_slow_field': 'E7', 'series_median_shift': 'E8',
 }
-
 # The reviewed E2 decisions (audit 2026-10-29, understand/half-audit.md 1.7), by registry id or by city and year.
-REVIEWED_E2 = (
+REVIEWED_E2_20261029_1133 = (
     (6690, 'cross_edition_duplicate', "Same 564 results (names and times) as Celina, OH: Grand Lake Half Marathon 5k/Kid's Run 2015 (id 2860), loaded from a second RunSignup race id."),
     (3707, 'cross_edition_duplicate', 'Same results as Valparaiso, IN: Valparaiso Half Marathon 2014 (id 3559): 365 of 365 finish times and 359 names shared, same race date.'),
     (7854, 'cross_edition_duplicate', 'All 318 rows repeat names and times from Southport 2016 (id 7860, 1,154 rows): a subset list of the same race.'),
@@ -112,12 +125,16 @@ REVIEWED_E2 = (
     (6740, 'cross_edition_overlap_hold', 'Run Holden Beach 2017 shares 193 identical finish times and 314 of 372 names with Run Ocean Isle Beach 2017, a race three weeks later: one list contains rows of the other.'),
     (7012, 'cross_edition_overlap_hold', 'Run Ocean Isle Beach 2017 shares 193 identical finish times and 314 names with Run Holden Beach 2017 (see id 6740).'),
 )
-REVIEWED_E2_BY_KEY = (
+REVIEWED_E2_BY_KEY_20261029_1133 = (
     ('Brunico: 3/4 Mezza Maratona', 2013, 'not_half_distance', 'The race is a three-quarter half marathon (about 15.8 km), not a half marathon.'),
 )
-
+DATE_SUSPECTS_20261029_1133 = (
+    (8712, 'Gdańsk', 2026, 'Dated 2026-09-27, the Warsaw marathon date; 126 linked people finished both.'),
+    (7565, 'Ribera', 2019, 'Ribera 2019 and Gela 2019 are both dated 2019-12-01; 209 linked people finished both with different times.'),
+    (7677, 'Gela', 2019, 'Ribera 2019 and Gela 2019 are both dated 2019-12-01; 209 linked people finished both with different times.'),
+)
 # Same city, same year (women.json): half city labels for each marathon city (frozen with the policy).
-SAME_CITY_LABELS = {
+SAME_CITY_LABELS_20261029_1133 = {
     'Amsterdam': ['Amsterdam'], 'Berlin': ['Berlin'], 'Cologne': ['Cologne'], 'Copenhagen': ['Copenhagen Half'],
     'Eindhoven': ['Eindhoven'], 'Hamburg': ['Hamburg'], 'Helsinki': ['Helsinki Half'], 'London': ['London Big Half'],
     'Madrid': ['Madrid: XXII Movistar Madrid Medio Maratón'], 'New York': ['New York'], 'Oslo': ['Oslo Half'],
@@ -144,25 +161,100 @@ CORRECTION_20261029_2157 = {
                            "count rather than a federation count; they stay verified; `source` is the corrected "
                            "official_source_type under the reason rule's length cut"),
 }
-REASON_MAX = 160
-
-from half_policy_lists import (  # noqa: E402  (the reviewed lists, kept apart for length)
-    FROZEN_20261029_1133, LABEL_COUNTRIES_20261029_1133, OFF_ROAD_LABELS_20261029_1133, WEAKER_SOURCE_20261029_2157,
-    WITHDRAWN_STAMPS_20261029_2157)
 
 # The flagship battery's verified-half members and leave-outs (analysis/half_linked.py), pre-registered 2026-10-30 at
 # 20:33 UTC by the post-correction decision, before the next half release existed, and stated here in words so a recount
-# follows them without reading the code. Each policy entry names its own off-road labels; the weaker-source stamps are
-# its correction's.
-BATTERY_RULES = {
-    'verified_federation': 'the verified halves without the weaker-source stamps (stamp_correction.weaker_source, by edition id)',
-    'verified_road': 'the verified halves whose edition label is not one of off_road_labels',
-    'leave_outs': ('for verified_halves and for verified_federation, one variant per verified half edition with a pair in the '
+# follows them without reading the code. Each policy entry names its own off-road labels and weaker-source stamps.
+LEAVE_OUTS_RULE = ('for verified_halves and for verified_federation, one variant per verified half edition with a pair in the '
                    'member, that edition left out; every variant must pass each clause its member must pass (its median '
                    'multiple within [2.15, 2.25]; that multiple at the pooled median half within 180 s of the pooled minutes '
                    'over double; under double under 15%; for verified_halves also its own minutes over double within 180 s '
-                   'of the pooled), with no minimum edition size and no exemption; a variant under 100 pairs cannot pass'),
+                   'of the pooled), with no minimum edition size and no exemption; a variant under 100 pairs cannot pass')
+BATTERY_RULES_20261029_1133 = {
+    'verified_federation': 'the verified halves without the weaker-source stamps (stamp_correction.weaker_source, by edition id)',
+    'verified_road': 'the verified halves whose edition label is not one of off_road_labels',
+    'leave_outs': LEAVE_OUTS_RULE,
 }
+BATTERY_RULES = BATTERY_RULES_20261029_1133   # compatibility name (half_linked.py cites it)
+
+# ---------------------------------------------------------------------------------------------------------------
+# half-dataset-20261030-1904 (reviewed 2026-10-31): the rules it changes, versioned; the rest are the shared ones
+# ---------------------------------------------------------------------------------------------------------------
+
+NONRUN_SUBRACE_RE_20261030_1904 = NONRUN_SUBRACE_RE_20261029_1133   # unchanged: R3 matches the same 54 sub-races
+# The producer's own status vocabulary in this snapshot. `duplicate_deleted` (the producer deleted a double load) maps to
+# E1 and must hold no rows; `no_rows` is the producer's placeholder for an edition with nothing loaded. A status in no
+# group fails the build.
+STATUSES_20261030_1904 = {
+    'verified': ('stamped',),
+    'unverified': ('counts_internal_only', 'counts_internal_only_winner_ok', 'counts_reconciled_winner_pending'),
+    'held': ('held_for_review', 'held_for_andrew_decision', 'duplicate_held_for_review'),
+    'removed': ('duplicate_deleted',),
+    'empty': ('no_rows',),
+}
+# nyrr_api is dropped: the producer labels nyrr_api_totalItems a platform-internal count (edition 8749's source text).
+INDEPENDENT_RE_20261030_1904 = (r'independent|organiser|press|kondis|ffa federation|wikipedia|rfea|club|race report|media guide|racenerd|'
+                                r'official results pdf|racecast|marathon4you|uitslagen|enduhub|aggregator')
+NOT_INDEPENDENT_RE_20261030_1904 = NOT_INDEPENDENT_RE_20261029_1133
+CATEGORY_RULE_20261030_1904 = {**CATEGORY_RULE_20261029_1133, 'partial_load': 'E0', 'removed_by_producer': 'E1',
+                               'virtual_event': 'E2'}
+SAME_CITY_LABELS_20261030_1904 = SAME_CITY_LABELS_20261029_1133   # unchanged (New York 2019 now enters the all-usable check)
+DATE_SUSPECTS_20261030_1904 = DATE_SUSPECTS_20261029_1133         # the same three, ids and dates unchanged in 1904
+# A virtual race is self-timed efforts, not a race field (review R10, 2026-10-31): the edition's label contains `virtual`
+# or `virtuel` (any case), or its place (the label before the first colon) is a placeholder that starts with
+# `Anywhere`. The reviewed not-virtual exceptions are frozen in half_policy_lists.py.
+VIRTUAL_RULE_20261030_1904 = {
+    'label_pattern': 'virtual|virtuel',
+    'placeholder_place_pattern': '^anywhere\\b',
+    'applies_to': ("the edition label (edition_meta.city, as race_records writes it), lowercased; the place is the label "
+                   "before its first ':' with surrounding spaces trimmed"),
+    'order': 'after the reviewed E2 decisions and before E3, on editions no earlier rule removes',
+}
+BATTERY_RULES_20261030_1904 = {
+    'verified_federation': 'the verified halves without the weaker-source stamps (stamps.weaker_source, by edition id)',
+    'verified_road': 'the verified halves whose edition label is not one of off_road_labels',
+    'leave_outs': LEAVE_OUTS_RULE,
+}
+STAMP_RULE_20261030_1904 = {
+    'rule': "verified = stamped in this snapshot's own edition_meta, equal to the policy's reviewed list",
+    'reviewed': '2026-10-31',
+    'reads': {
+        'stamped': "this snapshot's SQLite edition_meta.completeness_status = 'stamped' (edition ids), equal to `stamped`",
+        'reference': ("completeness_status of the reference file (stamps.reference: release half-dataset-20261029-2157, "
+                      "csv-edition_meta.csv.zst, sha256 pinned): its stamped ids equal this snapshot's, each with this "
+                      "snapshot's city and year"),
+        'withdrawn': ("for each row of stamps.reference.withdrawn (the 72 stamps withdrawn on 2026-10-29, frozen from the 2157 "
+                      "file): this snapshot's edition_meta city, year and completeness_status (equal to corrected_status, "
+                      "never stamped) and the edition id in this snapshot's never_stamp table; the frozen reasons are the "
+                      "2157 file's clauses and are not reread from this snapshot"),
+        'never_stamp': ("this snapshot's never_stamp table (edition_id, reason, added_at) verbatim, equal to `never_stamp`; "
+                        "no never_stamp edition is stamped"),
+        'edition_meta_csv': ("this release's csv-edition_meta.csv.zst (sha256 pinned) against the SQLite edition_meta: the same "
+                             "ids, and for each id city, year, completeness_status, completeness_reason and "
+                             "official_source_type exactly"),
+        'weaker_source': ("official_source_type of each weaker-source stamp in this snapshot's SQLite edition_meta, under the "
+                          "reason rule's length cut, equal to `source`; each stamp a verified usable edition"),
+    },
+    'reason_rule': CORRECTION_20261029_2157['reason_rule'],
+    'weaker_source_rule': (
+        "the stamps the release's README names as resting on an organiser or local-press count rather than a federation "
+        "count (the same six names as the README of half-dataset-20261029-2157: Cracovia 2022, Kraków (Cracovia) 2025, "
+        "Szczecin 2023, Szczecin 2026, Piła 2026 and Lisbon 2024), each name taken as every stamped edition in that city and "
+        "year: 'Lisbon 2024' denotes two, the EDP Lisbon Half (edition 275) and the Meia Maratona dos Descobrimentos in "
+        "Lisbon's Belém district (edition 8823, its 2015, 2018 and 2025 editions labelled Lisboa), whose own source text "
+        "reads 'labelled weaker press'; every other name denotes one. They stay verified; `source` is official_source_type "
+        "under the reason rule's length cut. Reviewed 2026-10-31 on the release's README and edition_meta, before any 1904 "
+        "figure was built; the producer is asked to confirm"),
+}
+
+from half_policy_lists import (  # noqa: E402  (the reviewed lists, kept apart for length)
+    FROZEN_20261029_1133, FROZEN_20261030_1904, KNOWN_PARTIAL_LOADS_20261030_1904, LABEL_COUNTRIES_20261029_1133,
+    LABEL_COUNTRIES_20261030_1904, LINK_EDITIONS_20261030_1904, NEVER_STAMP_20261030_1904, NOT_VIRTUAL_20261030_1904,
+    OFF_ROAD_LABELS_20261029_1133, OFF_ROAD_LABELS_20261030_1904, REVIEWED_E2_ADDED_20261030_1904, STAMPED_20261030_1904,
+    WEAKER_SOURCE_20261029_2157, WEAKER_SOURCE_20261030_1904, WITHDRAWN_STAMPS_20261029_2157)
+
+REVIEWED_E2_20261030_1904 = REVIEWED_E2_20261029_1133 + tuple(REVIEWED_E2_ADDED_20261030_1904)
+REVIEWED_E2_BY_KEY_20261030_1904 = REVIEWED_E2_BY_KEY_20261029_1133
 
 EXPECTED_20261029_1133 = {
     'raw': 6_854_820, 'R1': 98_768, 'R2': 0, 'R3': 1_395, 'R4': 1_088, 'R5_fast': 152, 'R5_slow': 397, 'R6': 1_949,
@@ -178,9 +270,11 @@ EXPECTED_20261029_1133 = {
     'stamp_withdrawn': {'finishes': 869_551, 'editions': 72},
 }
 
+
 REVIEWED_HALF_POLICIES = {
-    TAG: {
+    TAG_1133: {
         'file': 'analysis/half-policy-20261029-1133.json',
+        'schema_version': 1,
         'reviewed': '2026-10-29',
         'corrected': '2026-10-30',
         'expected': EXPECTED_20261029_1133,
@@ -189,26 +283,134 @@ REVIEWED_HALF_POLICIES = {
         'correction': {**CORRECTION_20261029_2157, 'withdrawn': WITHDRAWN_STAMPS_20261029_2157,
                        'weaker_source': WEAKER_SOURCE_20261029_2157},
         'battery': {'reviewed': '2026-10-30', 'off_road_labels': OFF_ROAD_LABELS_20261029_1133},
+        'rules': {
+            'nonrun_subrace_re': NONRUN_SUBRACE_RE_20261029_1133, 'statuses': STATUSES_20261029_1133,
+            'independent_re': INDEPENDENT_RE_20261029_1133, 'not_independent_re': NOT_INDEPENDENT_RE_20261029_1133,
+            'category_rule': CATEGORY_RULE_20261029_1133, 'reviewed_e2': REVIEWED_E2_20261029_1133,
+            'reviewed_e2_by_key': REVIEWED_E2_BY_KEY_20261029_1133, 'date_suspects': DATE_SUSPECTS_20261029_1133,
+            'same_city_labels': SAME_CITY_LABELS_20261029_1133, 'battery_rules': BATTERY_RULES_20261029_1133,
+            'unknown_status': None, 'partial_loads': (), 'virtual': None, 'not_virtual': (),
+        },
     },
 }
+
+# Reviewed 2026-10-31 from the real run of this entry against the 1904 snapshot, after every list entry was read against
+# its written rule (docs/HALF_MARATHON.md). Against 1133 with the 2157 correction: 810,397 more rows; verified editions
+# are 1133's 238 plus Belém 2024 (238 -> 239, 753,476 -> 757,985 finishes); E0 holds the producer's four partial NYRR
+# loads and three editions without a registry row (2 -> 7); E1 gains the RunSignup trail and eco holds of 2157 (614 ->
+# 1,518 held) and the producer's 13 deleted double loads (no rows); E2-E8 gain 35 duplicate loads and copies, 8 virtual
+# events and 9 screen entries, and lose the 6 editions now held (66 -> 116). `stamp_withdrawn` (the 1133 overlay) is
+# replaced by `stamp_check`.
+EXPECTED_20261030_1904 = {
+    'raw': 7_665_217, 'R1': 99_056, 'R2': 0, 'R3': 1_395, 'R4': 1_180, 'R5_fast': 157, 'R5_slow': 451, 'R6': 3_292,
+    'record_usable': 7_559_686, 'R7': 606, 'record_usable_after_R7': 7_559_080,
+    'E0_editions': 7, 'E0_finishes': 18_576, 'E1_held_editions': 1_518, 'E1_held_finishes': 744_406, 'E1_removed_editions': 13,
+    'E2_E8_editions': 116, 'E2_E8_finishes': 173_476,
+    'use_finish': {'finishes': 6_622_622, 'editions': 8_200},
+    'verified': {'finishes': 757_985, 'editions': 239},
+    'verified_use_sex': {'finishes': 738_809, 'editions': 232},
+    'undated': {'finishes': 845_780, 'editions': 262},
+    'stamp_check': {'stamped': 243, 'verified_usable': 239, 'withdrawn_unstamped': 72, 'never_stamp': 78},
+}
+
+REVIEWED_HALF_POLICIES[TAG] = {
+    'file': 'analysis/half-policy-20261030-1904.json',
+    'schema_version': 2,
+    'reviewed': '2026-10-31',
+    'expected': EXPECTED_20261030_1904,
+    'frozen': FROZEN_20261030_1904,
+    'label_countries': LABEL_COUNTRIES_20261030_1904,
+    'stamps': {
+        **STAMP_RULE_20261030_1904,
+        'stamped': list(STAMPED_20261030_1904),
+        'never_stamp': [{'edition_id': e, 'reason': r, 'added_at': a} for e, r, a in NEVER_STAMP_20261030_1904],
+        'reference': {**{k: CORRECTION_20261029_2157[k] for k in ('repository', 'tag', 'asset', 'sha256', 'readme_sha256')},
+                      'withdrawn': WITHDRAWN_STAMPS_20261029_2157, 'weaker_source': WEAKER_SOURCE_20261029_2157},
+        'edition_meta_csv': {'asset': 'csv-edition_meta.csv.zst',
+                             'sha256': 'a0f48f1501fe1a17a669c98f0e497d16a7e52722b61c7dad3936e056724a9abe'},
+        'weaker_source': WEAKER_SOURCE_20261030_1904,
+    },
+    'battery': {'reviewed': '2026-10-31', 'off_road_labels': OFF_ROAD_LABELS_20261030_1904},
+    'link_editions': LINK_EDITIONS_20261030_1904,
+    'rules': {
+        'nonrun_subrace_re': NONRUN_SUBRACE_RE_20261030_1904, 'statuses': STATUSES_20261030_1904,
+        'independent_re': INDEPENDENT_RE_20261030_1904, 'not_independent_re': NOT_INDEPENDENT_RE_20261030_1904,
+        'category_rule': CATEGORY_RULE_20261030_1904, 'reviewed_e2': REVIEWED_E2_20261030_1904,
+        'reviewed_e2_by_key': REVIEWED_E2_BY_KEY_20261030_1904, 'date_suspects': DATE_SUSPECTS_20261030_1904,
+        'same_city_labels': SAME_CITY_LABELS_20261030_1904, 'battery_rules': BATTERY_RULES_20261030_1904,
+        'unknown_status': 'fail', 'partial_loads': tuple(KNOWN_PARTIAL_LOADS_20261030_1904),
+        'virtual': VIRTUAL_RULE_20261030_1904, 'not_virtual': tuple(NOT_VIRTUAL_20261030_1904),
+    },
+}
+
+# Compatibility names for the pinned entry (the builders read them; every rule they name is the pinned entry's).
+SAME_CITY_LABELS = REVIEWED_HALF_POLICIES[TAG]['rules']['same_city_labels']
+
+
+def entry(tag: str = TAG) -> dict:
+    if tag not in REVIEWED_HALF_POLICIES:
+        fail(f'no reviewed half policy for {tag}')
+    return REVIEWED_HALF_POLICIES[tag]
+
+
+def rules_of(tag: str = TAG) -> dict:
+    return entry(tag)['rules']
+
+
+def _edition_rules_doc(p: dict) -> dict:
+    """The edition-rule block of the policy JSON (E3–E8 thresholds and the reviewed list), the entry's own patterns."""
+    rules, frozen = p['rules'], p['frozen']
+    doc = {
+        'order': ['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'],
+        'edition': 'city and year; registry rows from edition_meta joined on city and year',
+        'computed_on': 'record-usable rows before R7',
+        'E3': {'independent_pattern': rules['independent_re'], 'not_independent_pattern': rules['not_independent_re'],
+               'tolerance': COUNT_TOLERANCE},
+        'E4': {**ONE_SEX, 'single_sex_event_pattern': SINGLE_SEX_EVENT_RE},
+        'E5': TRUNCATED,
+        'E6': {'caps': list(ROUND_CAPS)},
+        'E7': ATYPICAL,
+        # The reference set, said in words, so an independent recount follows the frozen list (review, October 30,
+        # 2026: read without held editions, the screen also flags Graz 2024).
+        'E8': {**MEDIAN_SCREEN, 'reference': (
+            "the median of the edition medians of the label's other editions with at least 100 record-usable finishes "
+            '(counted before R7) and a verified, unverified or held status, held (E1) editions and editions an earlier '
+            'rule removes included; the label needs at least 3 such editions, the edition itself counted, and the screen '
+            'applies only to editions no earlier rule removes')},
+        'categories': rules['category_rule'],
+        'editions': frozen['editions'],
+    }
+    if rules['partial_loads']:
+        doc['E0'] = {
+            'rule': ('a city and year with records but no registry row; and, first, every partial load the producer\'s README '
+                     'names (keyed by city and year), whether or not a registry row appears: it supplies nothing'),
+            'partial_loads': [{'city': c, 'year': y, 'reason': r} for c, y, r in rules['partial_loads']],
+        }
+    if 'removed' in rules['statuses']:
+        doc['E1'] = {'rule': ('a held status supplies nothing; a removed status (the producer deleted the rows of a double '
+                              'load) supplies nothing and must hold no rows, else the build fails'),
+                     'held': list(rules['statuses']['held']), 'removed': list(rules['statuses']['removed'])}
+    if rules['virtual']:
+        doc['E2'] = {'virtual_event': {**rules['virtual'], 'not_virtual': [{'edition_id': e, 'reason': r} for e, r in rules['not_virtual']],
+                                       'reason': 'A virtual race: self-timed efforts, not a race field.'}}
+    return doc
 
 
 def policy_document(tag: str = TAG) -> dict:
     """The frozen policy JSON: every rule, threshold, reviewed list and expected count the recount needs."""
-    if tag not in REVIEWED_HALF_POLICIES:
-        fail(f'no reviewed half policy for {tag}')
-    p = REVIEWED_HALF_POLICIES[tag]
-    frozen = p['frozen']
-    return {
-        'schema_version': 1,
+    p = entry(tag)
+    rules, frozen = p['rules'], p['frozen']
+    if p['expected'] is None:
+        fail(f'the policy for {tag} has no reviewed counts yet (review the real run, then set its EXPECTED)')
+    doc = {
+        'schema_version': p['schema_version'],
         'tag': tag,
         'reviewed': p['reviewed'],
-        'corrected': p['corrected'],
         'record_rules': {
             'order': ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7'],
             'R1': {'flags': list(PRODUCER_EXCLUDE), 'never_alone': ['time_hour_reconstructed']},
             'R2': {'column': 'split_21_1km', 'pattern': '^[0-9]+:[0-9]{2}:[0-9]{2}$', 'min_s_exclusive': 0},
-            'R3': {'pattern': NONRUN_SUBRACE_RE, 'applies_to': 'lower(race), on rows passing R1 and R2', 'subraces': frozen['R3']},
+            'R3': {'pattern': rules['nonrun_subrace_re'], 'applies_to': 'lower(race), on rows passing R1 and R2', 'subraces': frozen['R3']},
             'R4': {'floor_s': WR_FLOOR_S, 'min_share': SUBRACE_FAST_SHARE, 'min_count': SUBRACE_FAST_MIN,
                    'applies_to': 'sub-races (city, year, race) counted on rows passing R1 and R2', 'subraces': frozen['R4']},
             'R5': {'min_s': WR_FLOOR_S, 'max_s': SLOW_CAP_S},
@@ -220,43 +422,38 @@ def policy_document(tag: str = TAG) -> dict:
                    'keep': 'the copy from the largest sub-race list (R3 and R4 counts), then the lowest record id'},
             'R7': {**R7, 'applies_to': 'record-usable rows', 'bib_rule': 'try_cast(bib AS INTEGER) in the range, inclusive'},
         },
-        'statuses': {'verified': list(VERIFIED), 'unverified': list(UNVERIFIED), 'held': list(HELD)},
-        'edition_rules': {
-            'order': ['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'],
-            'edition': 'city and year; registry rows from edition_meta joined on city and year',
-            'computed_on': 'record-usable rows before R7',
-            'E3': {'independent_pattern': INDEPENDENT_RE, 'not_independent_pattern': NOT_INDEPENDENT_RE, 'tolerance': COUNT_TOLERANCE},
-            'E4': {**ONE_SEX, 'single_sex_event_pattern': SINGLE_SEX_EVENT_RE},
-            'E5': TRUNCATED,
-            'E6': {'caps': list(ROUND_CAPS)},
-            'E7': ATYPICAL,
-            # The reference set, said in words, so an independent recount follows the frozen list (review, October 30,
-            # 2026: read without held editions, the screen also flags Graz 2024).
-            'E8': {**MEDIAN_SCREEN, 'reference': (
-                "the median of the edition medians of the label's other editions with at least 100 record-usable finishes "
-                '(counted before R7) and a verified, unverified or held status, held (E1) editions and editions an earlier '
-                'rule removes included; the label needs at least 3 such editions, the edition itself counted, and the screen '
-                'applies only to editions no earlier rule removes')},
-            'categories': CATEGORY_RULE,
-            'editions': frozen['editions'],
-        },
+        'statuses': {g: list(v) for g, v in rules['statuses'].items()},
+        'edition_rules': _edition_rules_doc(p),
         'use_sex': USE_SEX,
-        'stamp_correction': p['correction'],
-        'date_suspects': [{'edition_id': e, 'city': c, 'year': y, 'reason': r} for e, c, y, r in DATE_SUSPECTS],
-        'same_city_labels': SAME_CITY_LABELS,
+        'date_suspects': [{'edition_id': e, 'city': c, 'year': y, 'reason': r} for e, c, y, r in rules['date_suspects']],
+        'same_city_labels': rules['same_city_labels'],
         'verified_label_countries': p['label_countries'],
-        'battery': {**BATTERY_RULES, **p['battery']},
+        'battery': {**rules['battery_rules'], **p['battery']},
         'expected': p['expected'],
     }
+    if 'correction' in p:
+        doc['corrected'] = p['corrected']
+        doc['stamp_correction'] = p['correction']
+    if 'stamps' in p:
+        doc['stamps'] = p['stamps']
+    if rules['unknown_status'] == 'fail':
+        doc['unknown_status'] = 'a completeness_status in none of the status groups fails the build'
+    if 'link_editions' in p:
+        doc['link_editions'] = p['link_editions']
+    return doc
+
+
+def policy_bytes(tag: str = TAG) -> bytes:
+    return json.dumps(policy_document(tag), ensure_ascii=False, indent=1, sort_keys=True).encode() + b'\n'
 
 
 def policy_path(tag: str = TAG) -> Path:
-    return ROOT / REVIEWED_HALF_POLICIES[tag]['file']
+    return ROOT / entry(tag)['file']
 
 
 def write_policy(tag: str = TAG) -> Path:
     path = policy_path(tag)
-    path.write_bytes(json.dumps(policy_document(tag), ensure_ascii=False, indent=1, sort_keys=True).encode() + b'\n')
+    path.write_bytes(policy_bytes(tag))
     return path
 
 
@@ -265,8 +462,7 @@ def check_policy_file(tag: str = TAG) -> str:
     path = policy_path(tag)
     if not path.is_file():
         fail(f'missing {path.relative_to(ROOT)}; write it with python3 -I analysis/half_quality.py --write-policy')
-    expected = json.dumps(policy_document(tag), ensure_ascii=False, indent=1, sort_keys=True).encode() + b'\n'
-    if path.read_bytes() != expected:
+    if path.read_bytes() != policy_bytes(tag):
         fail(f'{path.relative_to(ROOT)} differs from REVIEWED_HALF_POLICIES[{tag!r}]; review, then rerun --write-policy')
     return file_sha256(path)
 
@@ -288,8 +484,10 @@ def _sql_list(values) -> str:
     return ', '.join("'" + v.replace("'", "''") + "'" for v in values)
 
 
-def record_rules(db) -> None:
+def record_rules(db, rules: dict | None = None) -> None:
     """Temp table `hr`: one row per race_records row with its first record rule (NULL = record-usable) and R7 flag."""
+    rules = rules or rules_of()
+    nonrun = rules['nonrun_subrace_re']
     excl = _sql_list(PRODUCER_EXCLUDE)
     db.execute(f"""CREATE OR REPLACE TEMP TABLE hfl AS SELECT record_id, bool_or(flag IN ({excl})) AS producer_excluded
                    FROM h.record_flags GROUP BY record_id""")
@@ -306,7 +504,7 @@ def record_rules(db) -> None:
         FROM h.race_records r LEFT JOIN hfl f ON f.record_id = r.id""")
     db.execute(f"""CREATE OR REPLACE TEMP TABLE hsub AS SELECT city, year, race, count(*) AS n,
         count(*) FILTER (WHERE finish_s < {WR_FLOOR_S}) AS n_fast,
-        regexp_matches(lower(race), '{NONRUN_SUBRACE_RE.replace("'", "''")}') AS name_nonrun
+        regexp_matches(lower(race), '{nonrun.replace("'", "''")}') AS name_nonrun
         FROM hr0 WHERE NOT producer_excluded AND finish_s IS NOT NULL AND finish_s > 0 GROUP BY city, year, race""")
     db.execute(f"""CREATE OR REPLACE TEMP TABLE hsub2 AS SELECT city, year, race, n AS sub_n,
         CASE WHEN name_nonrun THEN 'R3' WHEN n_fast >= {SUBRACE_FAST_MIN} AND n_fast >= {SUBRACE_FAST_SHARE} * n THEN 'R4' END AS sub_rule
@@ -344,9 +542,10 @@ def subrace_lists(db) -> dict:
     return out
 
 
-def edition_table(db):
+def edition_table(db, rules: dict | None = None):
     """Per city-year metrics on the record-usable rows (before R7), joined to the registry; pandas DataFrame."""
     import pandas as pd
+    rules = rules or rules_of()
     dist = db.execute("SELECT count(*) FROM hr WHERE abs(distance_km - 21.0975) > 1e-9").fetchone()[0]
     if dist:
         fail(f'{dist} race_records rows are not 21.0975 km')
@@ -372,13 +571,21 @@ def edition_table(db):
     for col in ('n_db', 'n_usable', 'n_m', 'n_f'):
         m[col] = m[col].astype('int64')
     st = m.completeness_status.fillna('')
+    groups = rules['statuses']
     m['status_group'] = 'no_rows'
-    m.loc[st.isin(HELD), 'status_group'] = 'held'
-    m.loc[st.isin(UNVERIFIED), 'status_group'] = 'unverified'
-    m.loc[st.isin(VERIFIED), 'status_group'] = 'verified'
+    m.loc[st.isin(groups['held']), 'status_group'] = 'held'
+    m.loc[st.isin(groups['unverified']), 'status_group'] = 'unverified'
+    m.loc[st.isin(groups['verified']), 'status_group'] = 'verified'
+    if 'removed' in groups:
+        m.loc[st.isin(groups['removed']), 'status_group'] = 'removed'
     m.loc[m.edition_id.isna(), 'status_group'] = 'no_edition_meta'
+    if rules['unknown_status'] == 'fail':
+        known = {s for g in groups.values() for s in g}
+        unknown = sorted(set(st[m.edition_id.notna()]) - known)
+        if unknown:
+            fail(f'completeness_status in no status group of the reviewed policy: {unknown}')
     t = m.official_source_type.fillna('').str.lower()
-    m['independent'] = t.str.contains(INDEPENDENT_RE) & ~t.str.contains(NOT_INDEPENDENT_RE)
+    m['independent'] = t.str.contains(rules['independent_re']) & ~t.str.contains(rules['not_independent_re'])
     sexed = m.n_m + m.n_f
     m['sex_coverage'] = (sexed / m.n_usable.where(m.n_usable > 0)).astype(float)
     m['women_share'] = (m.n_f / sexed.where(sexed > 0)).astype(float)
@@ -387,10 +594,26 @@ def edition_table(db):
     return m
 
 
-def _edition_rule(r, by_id, by_key):
+def is_virtual_label(label, rule: dict | None) -> bool:
+    """The virtual-event rule (VIRTUAL_RULE_20261030_1904): the label contains `virtual` or `virtuel`, or its place (the
+    label before the first colon) starts with the placeholder `Anywhere`."""
+    if not rule or not isinstance(label, str):
+        return False
+    low = label.lower()
+    place = low.split(':', 1)[0].strip()
+    return bool(re.search(rule['label_pattern'], low) or re.search(rule['placeholder_place_pattern'], place))
+
+
+def _edition_rule(r, by_id, by_key, rules=None):
     """(category, reason) of the first edition rule that applies before E8, or (None, None)."""
+    rules = rules or rules_of()
+    partial = {(c, y): reason for c, y, reason in rules['partial_loads']}
+    if (r.city, int(r.year)) in partial:
+        return ('partial_load', partial[(r.city, int(r.year))])
     if r.status_group == 'no_edition_meta':
         return ('no_edition_meta', 'Records exist for this city and year but the edition registry has no row: no count, date or status; not verified.')
+    if r.status_group == 'removed':
+        return ('removed_by_producer', f'Producer status {r.completeness_status}: the producer deleted the rows of a double load.')
     if r.status_group == 'no_rows' or (r.n_usable == 0 and r.status_group != 'held'):
         return ('no_usable_rows', 'No usable finish rows.')
     if r.status_group == 'held':
@@ -400,6 +623,8 @@ def _edition_rule(r, by_id, by_key):
         return by_id[eid]
     if (r.city, int(r.year)) in by_key:
         return by_key[(r.city, int(r.year))]
+    if is_virtual_label(r.city, rules['virtual']) and eid not in {e for e, _ in rules['not_virtual']}:
+        return ('virtual_event', 'A virtual race: self-timed efforts, not a race field.')
     off = r.official_finishers
     has_off = off is not None and not (isinstance(off, float) and math.isnan(off))
     tol = COUNT_TOLERANCE
@@ -424,15 +649,16 @@ def _edition_rule(r, by_id, by_key):
     return (None, None)
 
 
-def edition_rules(m):
+def edition_rules(m, rules: dict | None = None):
     """Adds `category`, `reason`, `rule` (E0–E8) and the use flags to the edition table."""
     import numpy as np
     import pandas as pd
-    by_id = {e: (c, r) for e, c, r in REVIEWED_E2}
-    by_key = {(city, year): (c, r) for city, year, c, r in REVIEWED_E2_BY_KEY}
-    rules = [_edition_rule(r, by_id, by_key) for r in m.itertuples(index=False)]
-    m['category'] = [c for c, _ in rules]
-    m['reason'] = [r for _, r in rules]
+    rules = rules or rules_of()
+    by_id = {e: (c, r) for e, c, r in rules['reviewed_e2']}
+    by_key = {(city, year): (c, r) for city, year, c, r in rules['reviewed_e2_by_key']}
+    rows = [_edition_rule(r, by_id, by_key, rules) for r in m.itertuples(index=False)]
+    m['category'] = [c for c, _ in rows]
+    m['reason'] = [r for _, r in rows]
     s_ok = (m.n_usable >= MEDIAN_SCREEN['min_finishes']) & m.status_group.isin(['verified', 'unverified', 'held'])
     others = pd.Series(np.nan, index=m.index)
     n_eds = pd.Series(0, index=m.index)
@@ -448,12 +674,20 @@ def edition_rules(m):
     m.loc[shift, 'reason'] = [
         f"Median finish {med / 60:.0f} min against {oth / 60:.0f} min in the same race’s other editions ({(math.exp(dev) - 1) * 100:+.0f}%): the time column may include the start delay or another contest."
         for med, oth, dev in zip(m.loc[shift, 'med_s'], others[shift], log_dev[shift])]
-    m['rule'] = m.category.map(CATEGORY_RULE)
+    m['rule'] = m.category.map(rules['category_rule'])
     m['use_finish'] = m.category.isna() & (m.n_usable > 0) & m.status_group.isin(['verified', 'unverified'])
     m['use_sex'] = (m.use_finish & (m.sex_coverage >= USE_SEX['min_coverage'])
                     & m.women_share.between(USE_SEX['min_share'], USE_SEX['max_share']))
-    suspects = {e for e, *_ in DATE_SUSPECTS}
+    suspects = {e for e, *_ in rules['date_suspects']}
     m['date_suspect'] = m.edition_id.isin(suspects).fillna(False).astype(bool)
+    removed_rows = m[(m.status_group == 'removed') & (m.n_db > 0)]
+    if len(removed_rows):
+        fail(f'{len(removed_rows)} editions with a removed status still hold rows: '
+             f'{sorted(int(e) for e in removed_rows.edition_id)[:5]}')
+    for city, year, _ in rules['partial_loads']:
+        hit = m[(m.city == city) & (m.year == year)]
+        if len(hit) and (hit.use_finish.any() or not (hit.category == 'partial_load').all()):
+            fail(f'the partial load {city} {year} supplies finishes')
     return m
 
 
@@ -469,7 +703,7 @@ def edition_list(m) -> list:
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# The stamp correction (the corrected metadata of half-dataset-20261029-2157)
+# Edition metadata files (the 2157 corrected metadata; the 1904 release's own CSV)
 # ---------------------------------------------------------------------------------------------------------------
 
 def trim_text(text, limit: int = REASON_MAX) -> str:
@@ -491,36 +725,66 @@ def correction_reason(text) -> str:
     return trim_text(next((p for p in parts if 'unstamped' in p), parts[0]))
 
 
-def read_correction(path: Path, correction: dict) -> dict:
-    """The corrected edition registry, {edition_id: {city, year, status, reason, source_type}}, after its sha256 is
-    checked against the reviewed correction (and so against the pin). Fails loudly on any other file."""
-    from half_common import file_sha256 as _sha
+def read_meta_csv(path: Path, sha256: str, what: str) -> dict:
+    """An edition_meta CSV (zstd), {edition_id: {city, year, status, reason, source_type}}, after its sha256 is checked
+    against the reviewed digest. Fails loudly on any other file."""
     path = Path(path)
     if not path.is_file():
-        fail(f"missing the corrected metadata {path} ({correction['tag']}/{correction['asset']}); fetch it with "
-             'python3 -I analysis/download_half.py')
-    got = _sha(path)
-    if got != correction['sha256']:
-        fail(f"{path} is not the reviewed corrected metadata of {correction['tag']} (sha256 {got}, reviewed {correction['sha256']})")
+        fail(f'missing {what} {path}; fetch it with python3 -I analysis/download_half.py')
+    got = file_sha256(path)
+    if got != sha256:
+        fail(f'{path} is not the reviewed {what} (sha256 {got}, reviewed {sha256})')
     if shutil.which('zstd') is None:
-        fail('the zstd command is required to read the corrected metadata')
+        fail(f'the zstd command is required to read the {what}')
     raw = subprocess.run(['zstd', '-dc', '-q', str(path)], check=True, capture_output=True).stdout
     rows = {}
     for r in csv.DictReader(io.StringIO(raw.decode('utf-8'), newline='')):
         eid = int(r['id'])
         if eid in rows:
-            fail(f'the corrected metadata lists edition {eid} twice')
+            fail(f'the {what} lists edition {eid} twice')
         rows[eid] = {'city': r['city'], 'year': int(r['year']), 'status': r['completeness_status'],
                      'reason': r['completeness_reason'], 'source_type': r['official_source_type']}
     return rows
 
 
-def default_correction_path(tag: str = TAG) -> Path:
-    """Where download_half.py puts the corrected metadata: $PACE_HALF_DIR/<correction tag>/<asset>."""
-    c = REVIEWED_HALF_POLICIES[tag]['correction']
-    half_dir = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1133').expanduser()
-    return half_dir / c['tag'] / c['asset']
+def read_correction(path: Path, correction: dict) -> dict:
+    """The corrected edition registry of a stamp correction (or the 1904 policy's stamp reference)."""
+    if not Path(path).is_file():
+        fail(f"missing the corrected metadata {path} ({correction['tag']}/{correction['asset']}); fetch it with "
+             'python3 -I analysis/download_half.py')
+    return read_meta_csv(path, correction['sha256'], f"corrected metadata of {correction['tag']}")
 
+
+def half_dir() -> Path:
+    """$PACE_HALF_DIR, defaulting to ~/data/half-1904 (where download_half.py puts the pinned sources)."""
+    return Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1904').expanduser()
+
+
+def default_correction_path(tag: str = TAG) -> Path:
+    """Where download_half.py puts the 2157 metadata: $PACE_HALF_DIR/<its tag>/<asset> (the 1133 correction, the 1904
+    stamp reference)."""
+    p = entry(tag)
+    c = p['correction'] if 'correction' in p else p['stamps']['reference']
+    return half_dir() / c['tag'] / c['asset']
+
+
+def default_edition_meta_path(tag: str = TAG) -> Path:
+    """This release's own edition_meta CSV: $PACE_HALF_DIR/<asset>."""
+    return half_dir() / entry(tag)['stamps']['edition_meta_csv']['asset']
+
+
+def read_stamp_inputs(tag: str = TAG, reference: Path | None = None, edition_meta: Path | None = None) -> dict:
+    """The two files the 1904 stamp check reads, each checked against its reviewed sha256."""
+    s = entry(tag)['stamps']
+    return {'reference': read_meta_csv(reference or default_correction_path(tag), s['reference']['sha256'],
+                                       f"stamp reference of {s['reference']['tag']}"),
+            'edition_meta': read_meta_csv(edition_meta or default_edition_meta_path(tag), s['edition_meta_csv']['sha256'],
+                                          "release's csv-edition_meta")}
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# The stamp correction (half-snapshot-20261029-1133 only)
+# ---------------------------------------------------------------------------------------------------------------
 
 def apply_stamp_correction(m, correction: dict, rows: dict | None, *, compare: bool = True):
     """Turns the reviewed withdrawn stamps into unverified editions (before the edition rules). With the corrected
@@ -586,12 +850,106 @@ def check_corrected_verified(m, correction: dict, rows: dict | None) -> None:
             fail(f"weaker-source stamp {x['city']} {x['year']} is not a verified usable edition of the build")
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# The stamp check (half-dataset-20261030-1904 on): verified = stamped in the snapshot's own edition_meta
+# ---------------------------------------------------------------------------------------------------------------
+
+def snapshot_meta(db) -> dict:
+    """This snapshot's edition_meta as {edition_id: {city, year, status, reason, source_type}} (the CSV reader's shape)."""
+    return {int(e): {'city': c, 'year': int(y), 'status': s, 'reason': r, 'source_type': t} for e, c, y, s, r, t in db.execute(
+        'SELECT id, city, year, completeness_status, completeness_reason, official_source_type FROM h.edition_meta').fetchall()}
+
+
+def snapshot_never_stamp(db) -> list:
+    """This snapshot's never_stamp table, verbatim, as [(edition_id, reason, added_at)] by edition id; [] without one."""
+    tables = {r[0] for r in db.execute("SELECT table_name FROM duckdb_tables() WHERE database_name = 'h'").fetchall()}
+    if 'never_stamp' not in tables:
+        return []
+    return [(int(e), r, a) for e, r, a in db.execute('SELECT edition_id, reason, added_at FROM h.never_stamp ORDER BY edition_id').fetchall()]
+
+
+def _diff(got, want) -> str:
+    got, want = set(got), set(want)
+    return f'new {sorted(got - want)[:5]}, gone {sorted(want - got)[:5]}'
+
+
+def check_stamps(meta: dict, never_stamp: list, stamps: dict, inputs: dict) -> None:
+    """Before the edition rules: the snapshot's stamps against the reviewed list, the 2157 reference, the withdrawn stamps,
+    never_stamp and this release's CSV (STAMP_RULE_20261030_1904 `reads`). Fails loudly on any difference."""
+    stamped = {e for e, r in meta.items() if r['status'] == 'stamped'}
+    if stamped != set(stamps['stamped']):
+        fail(f'the stamped editions differ from the reviewed list: {_diff(stamped, stamps["stamped"])}')
+    ref = inputs['reference']
+    ref_stamped = {e for e, r in ref.items() if r['status'] == 'stamped'}
+    if stamped != ref_stamped:
+        fail(f"the stamped editions differ from the stamp reference {stamps['reference']['tag']}: {_diff(stamped, ref_stamped)}")
+    for e in sorted(stamped):
+        if (ref[e]['city'], ref[e]['year']) != (meta[e]['city'], meta[e]['year']):
+            fail(f"stamped edition {e} is {meta[e]['city']} {meta[e]['year']} here and {ref[e]['city']} {ref[e]['year']} in the reference")
+    frozen_ns = [(x['edition_id'], x['reason'], x['added_at']) for x in stamps['never_stamp']]
+    if never_stamp != frozen_ns:
+        fail(f'the snapshot never_stamp table differs from the reviewed rows: {_diff(never_stamp, frozen_ns)}')
+    ns_ids = {e for e, _, _ in never_stamp}
+    if ns_ids & stamped:
+        fail(f'never_stamp editions are stamped: {sorted(ns_ids & stamped)[:5]}')
+    for w in stamps['reference']['withdrawn']:
+        here = meta.get(w['edition_id'])
+        if here is None or (here['city'], here['year']) != (w['city'], w['year']):
+            fail(f"withdrawn stamp {w['edition_id']} ({w['city']} {w['year']}) is not that edition in this snapshot")
+        if here['status'] != w['corrected_status']:
+            fail(f"withdrawn stamp {w['edition_id']} ({w['city']} {w['year']}) is {here['status']} here, not {w['corrected_status']}")
+        if w['edition_id'] not in ns_ids:
+            fail(f"withdrawn stamp {w['edition_id']} ({w['city']} {w['year']}) is missing from the never_stamp table")
+    csv_rows = inputs['edition_meta']
+    if set(csv_rows) != set(meta):
+        fail(f"this release's csv-edition_meta and the SQLite edition_meta hold different editions: {_diff(csv_rows, meta)}")
+    text = lambda row: {k: ('' if v is None else v) for k, v in row.items()}   # a NULL in SQLite is an empty CSV field
+    bad = sorted(e for e in meta if text(csv_rows[e]) != text(meta[e]))
+    if bad:
+        fail(f"this release's csv-edition_meta differs from the SQLite edition_meta (city, year, status, reason or source) for {len(bad)} editions: {bad[:5]}")
+    for x in (*stamps['weaker_source'], *stamps['reference']['weaker_source']):
+        here = meta.get(x['edition_id'])
+        if here is None or (here['city'], here['year'], here['status']) != (x['city'], x['year'], 'stamped') or trim_text(here['source_type']) != x['source']:
+            fail(f"weaker-source stamp {x['edition_id']} ({x['city']} {x['year']}) is not stamped with that source in this snapshot")
+
+
+def check_stamps_verified(m, stamps: dict) -> None:
+    """After the edition rules: verified editions are exactly the stamped ones, and every weaker-source stamp is a
+    verified usable edition."""
+    verified = m[m.status_group == 'verified']
+    if set(verified.edition_id.astype(int)) != set(stamps['stamped']):
+        fail('the verified status group is not the reviewed stamped list')
+    usable = set(m[m.use_finish & (m.status_group == 'verified')].edition_id.astype(int))
+    for x in stamps['weaker_source']:
+        if x['edition_id'] not in usable:
+            fail(f"weaker-source stamp {x['city']} {x['year']} is not a verified usable edition of the build")
+
+
+def stamp_counts(m, never_stamp: list, stamps: dict) -> dict:
+    """The stamp_check counts: stamped editions, the verified usable ones, the reference's withdrawn stamps that are
+    unstamped here, and the never_stamp rows."""
+    by_id = {int(r.edition_id): r for r in m[m.edition_id.notna()].itertuples(index=False)}
+    withdrawn = sum(1 for w in stamps['reference']['withdrawn']
+                    if w['edition_id'] in by_id and by_id[w['edition_id']].completeness_status != 'stamped')
+    return {'stamped': int((m.completeness_status == 'stamped').sum()),
+            'verified_usable': int((m.use_finish & (m.status_group == 'verified')).sum()),
+            'withdrawn_unstamped': withdrawn, 'never_stamp': len(never_stamp)}
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# The flagship battery's lists and the link-build edition lists
+# ---------------------------------------------------------------------------------------------------------------
+
+def weaker_source(tag: str = TAG) -> list:
+    p = entry(tag)
+    return p['stamps']['weaker_source'] if 'stamps' in p else p['correction']['weaker_source']
+
+
 def battery_lists(tag: str = TAG) -> dict:
-    """What the flagship battery's verified-half members leave out (BATTERY_RULES): the weaker-source stamps' edition ids
-    and the reviewed off-road labels of the policy entry."""
-    p = REVIEWED_HALF_POLICIES[tag]
-    return {'weaker_source': frozenset(int(x['edition_id']) for x in p['correction']['weaker_source']),
-            'off_road_labels': frozenset(p['battery']['off_road_labels'])}
+    """What the flagship battery's verified-half members leave out (the entry's battery rules): the weaker-source stamps'
+    edition ids and the reviewed off-road labels of the policy entry."""
+    return {'weaker_source': frozenset(int(x['edition_id']) for x in weaker_source(tag)),
+            'off_road_labels': frozenset(entry(tag)['battery']['off_road_labels'])}
 
 
 def check_battery_lists(m, tag: str = TAG) -> None:
@@ -599,9 +957,43 @@ def check_battery_lists(m, tag: str = TAG) -> None:
     labels exactly as the snapshot writes them, so a renamed or unverified label fails instead of leaving nothing out)."""
     usable = m[m.use_finish & (m.status_group == 'verified')]
     labels = set(usable.city.tolist())
-    for label in REVIEWED_HALF_POLICIES[tag]['battery']['off_road_labels']:
+    for label in entry(tag)['battery']['off_road_labels']:
         if label not in labels:
             fail(f'off-road label {label!r} is not the label of a verified usable edition of the build')
+
+
+def link_editions(tag: str = TAG) -> dict:
+    """The editions that supply no linked half (link_editions of the policy): the link-partial and re-timed edition ids,
+    and the link build's half coverage boundary."""
+    le = entry(tag).get('link_editions')
+    if not le:
+        return {'link_partial': frozenset(), 'retimed': frozenset(), 'half_max_record_id': None, 'link_build': None}
+    return {'link_partial': frozenset(x['edition_id'] for x in le['link_partial']),
+            'retimed': frozenset(x['edition_id'] for x in le['retimed']),
+            'half_max_record_id': le['half_max_record_id'], 'link_build': le['link_build']}
+
+
+def check_link_editions(db, m, tag: str = TAG) -> list:
+    """The link-partial editions recomputed from the snapshot (use_finish editions with record-usable rows on both sides
+    of the link build's coverage boundary) must equal the frozen list; every re-timed edition must be a use_finish
+    edition of this snapshot with the frozen city and year (its rows are compared with the link build by the links
+    extract). Returns the computed link-partial list."""
+    le = entry(tag).get('link_editions')
+    if not le:
+        return []
+    b = int(le['half_max_record_id'])
+    rows = db.execute(f"""SELECT edition_id, city, year, count(*) FILTER (WHERE record_id <= {b}) AS covered,
+        count(*) FILTER (WHERE record_id > {b}) AS uncovered FROM hfin GROUP BY 1, 2, 3
+        HAVING covered > 0 AND uncovered > 0 ORDER BY 2, 3""").fetchall()
+    got = [{'edition_id': int(e), 'city': c, 'year': int(y), 'rows_covered': int(cv), 'rows_uncovered': int(uc)} for e, c, y, cv, uc in rows]
+    if got != le['link_partial']:
+        fail(f"the link-partial editions differ from the reviewed list: {got} against {le['link_partial']}")
+    usable = {int(r.edition_id): r for r in m[m.use_finish & m.edition_id.notna()].itertuples(index=False)}
+    for x in le['retimed']:
+        r = usable.get(x['edition_id'])
+        if r is None or (r.city, int(r.year)) != (x['city'], x['year']):
+            fail(f"re-timed edition {x['edition_id']} ({x['city']} {x['year']}) is not a usable edition of this snapshot")
+    return got
 
 
 class PolicyResult:
@@ -613,23 +1005,37 @@ class PolicyResult:
         self.lists = lists
 
 
-def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | None = None) -> PolicyResult:
+def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | None = None,
+          stamp_inputs: dict | None = None) -> PolicyResult:
     """Apply the policy; leave temp tables `hr` (every record and its rule) and `hfin` (use_finish finishes after R7,
     plus the R7 rows flagged) in `db`; return the counts. Fails when a computed list or count differs from the review.
-    `correction_rows` is the corrected metadata (read_correction); a comparing run requires it."""
-    import pandas as pd
-    if tag not in REVIEWED_HALF_POLICIES:
-        fail(f'no reviewed half policy for {tag}')
-    reviewed = REVIEWED_HALF_POLICIES[tag]
-    if compare and correction_rows is None:
-        fail('the corrected metadata is required (read_correction; build_half.py --corrected-meta)')
-    record_rules(db)
+    A comparing run needs the entry's metadata files: `correction_rows` (read_correction) for the 1133 entry, and
+    `stamp_inputs` (read_stamp_inputs) for an entry with a stamp check."""
+    reviewed = entry(tag)
+    rules = reviewed['rules']
+    has_correction, has_stamps = 'correction' in reviewed, 'stamps' in reviewed
+    if compare and has_correction and correction_rows is None:
+        fail('the corrected metadata is required (read_correction; build_half.py --stamp-reference)')
+    if compare and has_stamps and stamp_inputs is None:
+        fail('the stamp reference and the release edition_meta CSV are required (read_stamp_inputs)')
+    if compare and reviewed['expected'] is None:
+        fail(f'no reviewed counts for {tag} yet')
+    record_rules(db, rules)
     subs = subrace_lists(db)
-    m = edition_table(db)
-    withdrawn_ids = apply_stamp_correction(m, reviewed['correction'], correction_rows, compare=compare)
-    m = edition_rules(m)
+    m = edition_table(db, rules)
+    withdrawn_ids, never_stamp = [], []
+    if has_correction:
+        withdrawn_ids = apply_stamp_correction(m, reviewed['correction'], correction_rows, compare=compare)
+    if has_stamps:
+        never_stamp = snapshot_never_stamp(db)
+        if compare:
+            check_stamps(snapshot_meta(db), never_stamp, reviewed['stamps'], stamp_inputs)
+    m = edition_rules(m, rules)
     if compare:
-        check_corrected_verified(m, reviewed['correction'], correction_rows)
+        if has_correction:
+            check_corrected_verified(m, reviewed['correction'], correction_rows)
+        if has_stamps:
+            check_stamps_verified(m, reviewed['stamps'])
         check_battery_lists(m, tag)
     lists = {'R3': subs['R3'], 'R4': subs['R4'], 'editions': edition_list(m)}
     if compare:
@@ -650,6 +1056,7 @@ def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | N
         e.status_group, r.sex, (e.use_sex AND r.sex IS NOT NULL) AS use_sex, r.finish_s, r.r7_block, e.date_suspect
         FROM hr r JOIN hed e ON e.city = r.city AND e.year = r.year
         WHERE r.rule IS NULL AND e.use_finish""")
+    lists['link_partial'] = check_link_editions(db, m, tag) if compare else []
     q = lambda sql: db.execute(sql).fetchone()
     raw = q('SELECT count(*) FROM hr')[0]
     usable = by_rule.get('usable', 0)
@@ -657,12 +1064,12 @@ def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | N
     r7_outside = q('SELECT count(*) FROM hfin WHERE r7_block')[0]
     if r7_outside != r7:
         fail(f'{r7 - r7_outside} R7 rows sit outside use_finish editions; the rule was reviewed on use_finish editions only')
-    held = m[m.rule == 'E1']
+    held = m[(m.rule == 'E1') & (m.status_group == 'held')]
+    removed = m[(m.rule == 'E1') & (m.status_group == 'removed')]
     e0 = m[m.rule == 'E0']
     e28 = m[m.rule.isin(['E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'])]
     fin = lambda where: q(f'SELECT count(*), count(DISTINCT edition_id) FROM hfin WHERE NOT r7_block AND {where}')
     uf, vf, vs, nd = fin('TRUE'), fin("status_group = 'verified'"), fin("status_group = 'verified' AND use_sex"), fin('race_date IS NULL')
-    wd = fin(f"edition_id IN ({', '.join(str(e) for e in withdrawn_ids) or 'NULL'})")
     counts = {
         'raw': raw, 'R1': by_rule.get('R1', 0), 'R2': by_rule.get('R2', 0), 'R3': by_rule.get('R3', 0), 'R4': by_rule.get('R4', 0),
         'R5_fast': by_rule.get('R5_fast', 0), 'R5_slow': by_rule.get('R5_slow', 0), 'R6': by_rule.get('R6', 0),
@@ -674,8 +1081,14 @@ def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | N
         'verified': {'finishes': vf[0], 'editions': vf[1]},
         'verified_use_sex': {'finishes': vs[0], 'editions': vs[1]},
         'undated': {'finishes': nd[0], 'editions': nd[1]},
-        'stamp_withdrawn': {'finishes': wd[0], 'editions': wd[1]},
     }
+    if has_correction:
+        wd = fin(f"edition_id IN ({', '.join(str(e) for e in withdrawn_ids) or 'NULL'})")
+        counts['stamp_withdrawn'] = {'finishes': wd[0], 'editions': wd[1]}
+    if 'removed' in rules['statuses']:
+        counts['E1_removed_editions'] = len(removed)
+    if has_stamps:
+        counts['stamp_check'] = stamp_counts(m, never_stamp, reviewed['stamps'])
     if compare and counts != reviewed['expected']:
         diff = {k: (counts.get(k), reviewed['expected'].get(k)) for k in set(counts) | set(reviewed['expected']) if counts.get(k) != reviewed['expected'].get(k)}
         fail(f'policy counts differ from the reviewed ones (got, reviewed): {diff}')
@@ -684,27 +1097,35 @@ def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | N
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    parser.add_argument('--write-policy', action='store_true', help='freeze REVIEWED_HALF_POLICIES as the policy JSON')
+    parser.add_argument('--write-policy', action='store_true', help='freeze REVIEWED_HALF_POLICIES[--key] as its policy JSON')
     parser.add_argument('--check', action='store_true', help='recompute the screens and counts from --half')
     parser.add_argument('--discover', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--key', default=TAG, help=f'the reviewed entry (default {TAG}, the pinned snapshot)')
     parser.add_argument('--half', type=Path)
-    parser.add_argument('--corrected-meta', type=Path, default=None,
-                        help='the corrected edition_meta CSV (default $PACE_HALF_DIR/<correction tag>/csv-edition_meta.csv.zst)')
+    parser.add_argument('--stamp-reference', '--corrected-meta', dest='reference', type=Path, default=None,
+                        help='the 2157 csv-edition_meta.csv.zst (default $PACE_HALF_DIR/half-dataset-20261029-2157/csv-edition_meta.csv.zst)')
+    parser.add_argument('--edition-meta', type=Path, default=None,
+                        help="this release's csv-edition_meta.csv.zst (default $PACE_HALF_DIR/csv-edition_meta.csv.zst)")
     args = parser.parse_args(argv)
     if args.write_policy:
-        print(f'wrote {write_policy().relative_to(ROOT)}')
+        print(f'wrote {write_policy(args.key).relative_to(ROOT)}')
     if args.check or args.discover:
         from half_common import connect
         if args.half is None:
             fail('--half is required')
+        p = entry(args.key)
         db = connect(half=args.half)
-        rows = read_correction(args.corrected_meta or default_correction_path(), REVIEWED_HALF_POLICIES[TAG]['correction'])
-        result = apply(db, compare=not args.discover, correction_rows=rows)
+        kw = {}
+        if 'correction' in p:
+            kw['correction_rows'] = read_correction(args.reference or default_correction_path(args.key), p['correction'])
+        if 'stamps' in p:
+            kw['stamp_inputs'] = read_stamp_inputs(args.key, args.reference, args.edition_meta)
+        result = apply(db, args.key, compare=not args.discover, **kw)
         if args.discover:
             print(json.dumps({'counts': result.counts, 'lists': result.lists}, ensure_ascii=False, indent=1))
         else:
             print(json.dumps(result.counts))
-            print(f'policy {check_policy_file()} matches the source')
+            print(f'policy {check_policy_file(args.key)} matches the source')
     return 0
 
 

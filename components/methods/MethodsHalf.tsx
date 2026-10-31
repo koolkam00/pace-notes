@@ -1,5 +1,5 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { halfPin, halfStampCorrection, readHalf } from '@/lib/half-server';
+import { halfPin, halfStamps, readHalf } from '@/lib/half-server';
 import type { HalfBatteryId, HalfManifest } from '@/lib/half-types';
 import { halfCardWords } from '@/lib/charts/text/half';
 import { flagshipGuard, halfExtraFrom, womenBandsPublished } from '@/lib/nuggets/half';
@@ -85,11 +85,11 @@ export function HalfDataTopics() {
   const smallTop = [...field.checks.countries].sort((a, b) => b.small_editions - a.small_editions)[0];
   const cov = linked.checks.coverage;
   const covHi = cov[0], covLo = cov[cov.length - 1];
-  const correction = halfStampCorrection();
+  const stamps = halfStamps();
   // The largest withdrawn races by name, each with its runs of years (the full list is in the policy file).
   const NAMED = ['Paris', 'Valencia', 'Berlin', 'New York'];
-  const withdrawnNamed = editionList(NAMED.flatMap((city) => correction.withdrawn.filter((w) => w.city === city)));
-  const weaker = editionList(correction.weaker_source.map((x) => ({ city: cityName(x.city), year: x.year })));
+  const withdrawnNamed = editionList(NAMED.flatMap((city) => stamps.reference.withdrawn.filter((w) => w.city === city)));
+  const weaker = editionList(stamps.weaker_source.map((x) => ({ city: cityName(x.city), year: x.year })));
   return <>
     <Topic id="half-data" title="The half-marathon results">
       <p>The half-marathon pages use a separate snapshot of recorded half-marathon results, taken {day(m.as_of)}. A row is one finish: a race, a year, a finish time and, where the source published it, a recorded sex (never inferred). Times mix chip and gun timing as each race published them. The results, the links between records and the scripts that built the links are the owner’s public releases under CC BY 4.0, downloadable without an account (<a href="#downloads-half">Downloads</a>). Pages show only totals, and so that each estimate rests on enough results, every group a page shows holds at least 100 finishes or pairs and any claim across editions rests on at least 3 editions.</p>
@@ -106,7 +106,7 @@ export function HalfDataTopics() {
     </Topic>
 
     <Topic id="half-coverage" title="Verified and unverified half results">
-      <p>A verified result is one the producer stamped twice: in this snapshot, and again in the producer’s corrected edition metadata (<a href="#downloads-half">Downloads</a>). A stamp means the finisher count is within 0.5% of an independent published total and the year and both winners are confirmed. The corrected metadata withdrew the stamps whose count came from a source that is not independent (an aggregator, a timing platform’s own list or total, or a republished result): {n(c.stamp_withdrawn.editions)} editions of this snapshot, {n(c.stamp_withdrawn.finishes)} finishes, among them {withdrawnNamed}. They stay in as unverified results. {countWord(correction.weaker_source.length)} stamps rest on an organiser’s or a local paper’s count rather than a federation’s, so the producer marks them as weaker: {weaker}. They stay verified.</p>
+      <p>A verified result is one the producer stamps in this snapshot’s edition metadata, and the pages check every stamp against the producer’s earlier corrected metadata (<a href="#downloads-half">Downloads</a>). A stamp means the finisher count is within 0.5% of an independent published total and the year and both winners are confirmed. The producer withdrew the stamps whose count came from a source that is not independent (an aggregator, a timing platform’s own list or total, or a republished result) and lists them so they are never stamped again: {n(c.stamp_check.withdrawn_unstamped)} editions, among them {withdrawnNamed}. They stay in as unverified results. {countWord(stamps.weaker_source.length)} stamps rest on an organiser’s or a press count rather than a federation’s, so the producer marks them as weaker: {weaker}. They stay verified.</p>
       <p>{n(c.verified.editions)} usable editions are verified, with {n(c.verified.finishes)} finishes, mostly in {and(top.map((x) => `${countryName(x.label)} (${pct0(x.share)}${x === top[0] ? ' of their finishes' : ''})`))}. Within the same race, verified and unverified years look alike: in the {n(sr.races)} races with both, the verified years’ median finish differed from the unverified years’ by a median {min1(sr.diff_s.p50)} minutes (the middle half of races from {min1(sr.diff_s.p25)} to {min1(sr.diff_s.p75)}). The pooled sets differ mainly because they hold different races.</p>
       <p>The half-only figures on <Link href="/half">The half marathon</Link> and the half pace chart use verified results only and carry no label. The figures of records linked by name (the half-to-full story, the predictor’s half panel and the goal pages’ half line) also use unverified halves: {pct0(linked.set.verified_half_share)} of their halves are verified. They carry one chip, “Includes unverified half results”, which links here.</p>
       <p>Scope checks: across every usable result, verified or not, {pctText(field.checks.all_usable.under_7200)} of finishes came in under 2:00 and {pctText(field.checks.all_usable.under_6300)} under 1:45; taking each verified edition’s own share, the median of the {n(field.checks.editions_equal.editions)} editions of at least {n(field.checks.editions_equal.min_finishes)} finishes is {pctText(field.checks.editions_equal.under_7200)} under 2:00 and {pctText(field.checks.editions_equal.under_6300)} under 1:45, and the median of all {n(ea.editions)} is {pctText(ea.under_7200)} under 2:00{small > 0 ? `: the ${n(small)} editions under ${n(field.checks.editions_equal.min_finishes)} finishes${smallTop ? `, ${n(smallTop.small_editions)} of them ${COUNTRY_ADJECTIVE[smallTop.label] ?? `in ${countryName(smallTop.label)}`}` : ''}, ${ea.under_7200 > field.checks.editions_equal.under_7200 ? 'raise' : 'lower'} it` : ''}. The pages pool finishes, because their claims are about finishes and many small races would otherwise weigh as much as the largest.</p>
@@ -275,26 +275,30 @@ export function HalfDownloads() {
   const pin = halfPin();
   const releaseUrl = (tag: string) => `https://github.com/${pin.repository}/releases/tag/${tag}`;
   const assetUrl = (tag: string, name: string) => `https://github.com/${pin.repository}/releases/download/${tag}/${name}`;
-  const doi = pin.half.doi.replace(/\.v(\d+)$/, '');
-  const version = /\.v(\d+)$/.exec(pin.half.doi)?.[1];
+  // The DOI line only when the pin names an archive (a release may have none: doi is null).
+  const doi = pin.half.doi ? pin.half.doi.replace(/\.v(\d+)$/, '') : null;
+  const version = pin.half.doi ? /\.v(\d+)$/.exec(pin.half.doi)?.[1] : undefined;
+  const ref = pin.stamps.reference;
   const sources: [string, string, string][] = [
     [pin.half.tag, Object.keys(pin.half.assets).find((a) => a.includes('.sqlite.zst.part'))!, 'the half-marathon results as one SQLite database, zstd-compressed'],
-    [pin.links.tag, Object.keys(pin.links.assets).find((a) => a.includes('.sqlite.zst.part'))!, 'the links between half and marathon records, as a SQLite database'],
-    [pin.links.tag, 'MATCHING_HALF.md', 'how the links are built, their confidence tiers and their audit'],
-    [pin.links.tag, Object.keys(pin.links.assets).find((a) => a.endsWith('.tar.gz'))!, 'the scripts that built the links'],
-  ];
+    [pin.half.tag, 'csv-edition_meta.csv.zst', 'the edition metadata, one row per race and year, with the producer’s stamps'],
+    [pin.links.tag, 'race_results_linked.parquet', 'every half and marathon result row with the producer’s person ID, the links between records'],
+    [pin.links.tag, 'persons.parquet', 'one row per linked person'],
+    [pin.links.tag, 'MATCHING_V4.md', 'how the person IDs are built, their rules and the producer’s hand review'],
+    [pin.links.tag, 'code.tgz', 'the scripts that built the person IDs'],
+  ].filter(([tag, name]) => (tag === pin.half.tag && pin.half.assets[name]) || pin.links.assets[name]) as [string, string, string][];
   const digest = (tag: string, name: string) => (tag === pin.half.tag && pin.half.assets[name]) || pin.links.assets[name];
   return (
     <Detail id="downloads-half" title="The half-marathon files">
       <p>The half-marathon results and the links between records are the owner’s public releases, under {pin.license}, downloadable without an account or key. The pages read this snapshot and these links, with the verified status from the corrected edition metadata below:</p>
       <ul className="methods-files is-wrapped">
         {sources.map(([tag, name, what]) => <li key={name}><a href={assetUrl(tag, name)}>{breakable(name)}</a><span> · {what}, sha256 <code className="methods-sha">{digest(tag, name)}</code></span></li>)}
-        <li><a href={assetUrl(pin.metadata_correction.tag, pin.metadata_correction.asset)}>{breakable(pin.metadata_correction.asset)}</a><span> · the corrected edition metadata the pages take verified status from, sha256 <code className="methods-sha">{pin.metadata_correction.sha256}</code></span></li>
+        <li><a href={assetUrl(ref.tag, ref.asset)}>{breakable(ref.asset)}</a><span> · the producer’s earlier corrected edition metadata, which every stamp is checked against, sha256 <code className="methods-sha">{ref.sha256}</code></span></li>
       </ul>
-      <p>The first {countWord(sources.length).toLowerCase()} files are in the release <a href={releaseUrl(pin.half.tag)}>{pin.half.tag}</a>, archived as <a data-long="" href={`https://doi.org/${pin.half.doi}`}>{breakable(`doi:${doi}`)}{version ? ` version ${version}` : ''}</a>, with its own README, comma-separated tables and SHA256SUMS. That version’s edition metadata overstated the verified editions; the release <a href={releaseUrl(pin.metadata_correction.tag)}>{pin.metadata_correction.tag}</a> supersedes it, and the pages use its corrected metadata only (its newer results are not in the pages yet). The page totals are:</p>
+      <p>The first {countWord(sources.length).toLowerCase()} files are in the release <a href={releaseUrl(pin.half.tag)}>{pin.half.tag}</a>{doi ? <>, archived as <a data-long="" href={`https://doi.org/${pin.half.doi}`}>{breakable(`doi:${doi}`)}{version ? ` version ${version}` : ''}</a></> : null}, with its own README, comma-separated tables and SHA256SUMS. The last is in the release <a href={releaseUrl(ref.tag)}>{ref.tag}</a>, whose corrected metadata withdrew the stamps an earlier version overstated. The page totals are:</p>
       <ul className="methods-files is-wrapped">
         {Object.entries(m.files).map(([file, meta]) => <li key={file}><a href={dataHref(`half/${file}`)}>{file.replace(/^tools\//, '')}</a><span> · {file === 'women.json' && !womenBandsPublished(readHalf('women.json')) ? 'women’s share of finishes in the same city’s half and marathon' : HALF_FILE_TOPICS[file] ?? 'totals'}, sha256 <code>{meta.sha256.slice(0, 12)}</code></span></li>)}
-        <li><a href={dataHref('half/manifest.json')}>manifest.json</a><span> · the snapshot, link build, corrected metadata and policy behind them, and every file’s checksum</span></li>
+        <li><a href={dataHref('half/manifest.json')}>manifest.json</a><span> · the snapshot, link build, stamp reference and policy behind them, and every file’s checksum</span></li>
       </ul>
     </Detail>
   );

@@ -6,7 +6,7 @@
 The source (the owner's public CC BY 4.0 release half-dataset-20261029-1202, first released privately as
 runner-links-20261029-1156) stays outside the repository, as every record-level file does: either the release's
 `runner_links.sqlite` or the parquet tables extracted from it (`runner_links`, `runners`, `candidate_merges`, `build_info`). The extract is written next
-to the half snapshot (default `$PACE_HALF_DIR/links-slim.sqlite`, `PACE_HALF_DIR` defaulting to `~/data/half-1133`)
+to the half snapshot (default `$PACE_HALF_DIR/links-slim.sqlite`, `PACE_HALF_DIR` defaulting to `~/data/half-1904`)
 and never under the repository.
 
 Tables written:
@@ -275,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument('--links-parquet', type=Path, help='folder with runner_links, runners, candidate_merges and build_info .parquet')
     source.add_argument('--links-sqlite', type=Path, help="the release's runner_links.sqlite")
-    half_dir = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1133')
+    half_dir = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1904')
     parser.add_argument('--out', type=Path, default=half_dir / 'links-slim.sqlite')
     parser.add_argument('--pin', action='store_true', help='write extract_content_sha256 into analysis/half-release.json')
     args = parser.parse_args(argv)
@@ -286,11 +286,11 @@ def main(argv: list[str] | None = None) -> int:
     if not out.parent.is_dir():
         fail(f'missing folder {out.parent}')
     pin = json.loads(PIN.read_text())
-    tag = pin['links']['private_tag']
+    tag = pin['links']['key']   # pin schema 3: the link build's identity (private_tag is provenance and may be null)
     if tag not in EXPECTED:
         fail(f'no reviewed counts for links build {tag}')
-    if pin['links']['pairs_with'] != pin['half']['private_tag']:
-        fail('the pinned link build does not pair with the pinned half snapshot')
+    if pin['links']['applies_to'] != pin['half']['key']:
+        fail('the pinned link build does not apply to the pinned half snapshot')
     if out.name != pin['links']['extract']:
         fail(f"the extract must be named {pin['links']['extract']}")
     release = json.loads((ROOT / 'analysis' / 'release.json').read_text())
@@ -330,7 +330,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f'wrote extract_content_sha256 into {PIN.relative_to(ROOT)}')
         else:
             print(f'{PIN.relative_to(ROOT)} already pins this extract')
-    elif re.fullmatch(r'[0-9a-f]{64}', pinned) and pinned != digest:
+    elif pinned is not None and re.fullmatch(r'[0-9a-f]{64}', pinned) and pinned != digest:
         print(f'the pin holds {pinned}; review the change, then rerun with --pin', file=sys.stderr)
         return 1
     elif pinned != digest:
