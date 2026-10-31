@@ -169,21 +169,24 @@ export function paceGapText(extraSeconds: number, units: UnitSystem): string {
 
 /**
  * A goal page's "The half marathon before" lines (forward-consistent: H is the slowest published window whose median
- * marathon is under the goal, so the predictor at H shows a median under it and at H + 1 minute does not). The lead
- * names the share of that window's marathons under the goal (its published mark at the goal), so the boundary reads as
- * what it is, just over half, never as "a half near H makes the goal"; without that mark it says the typical marathon
- * came in just under the goal. The sexes' line names each sex's own boundary as a full sentence. On a marathon pace page,
- * whose hero prints the goal's own halfway time, every line says "half marathon" where it means the race, so "a 1:48
- * half" is never read as reaching halfway in 1:48 (round 2 review, October 30, 2026); the lead keeps to 12 words.
+ * marathon is under the goal, so the predictor at H shows a median under it and at H + 1 minute does not). The heading
+ * names the half and states no reading. It had led with the share of that window's marathons under the goal ("After a
+ * 1:48 half marathon, 51% of marathons came in under 4:00."), a reading with no guard of its own, in the form the story
+ * withdrew at 1:45 when the verified halves' share missed the pooled one by more than 5 points; at the goal pages' halves
+ * the verified halves' shares are 63% to 75% against 51% to 60% (round 4 review, October 31, 2026). The window's typical
+ * marathon and its 8 in 10 follow as the instrument's values, the ones the predictor at H shows. The sexes' line names
+ * each sex's own boundary as a full sentence. On a marathon pace page, whose hero prints the goal's own halfway time,
+ * every line says "half marathon" where it means the race, so "a 1:48 half" is never read as reaching halfway in 1:48
+ * (round 2 review, October 30, 2026).
  */
-export function goalLines(goal: HalfGoal, win?: Pick<HalfToFullWindow, 'h' | 'marks'> | null): { lead: string; range: string; sexes: string | null; link: string; linkText: string } {
+export function goalLines(goal: HalfGoal): { lead: string; range: string; sexes: string | null; link: string; linkText: string } {
   const H = floorHM(goal.all.h), G = floorHM(goal.goal_s);
-  const mark = win && win.h === goal.all.h ? win.marks.find(([t]) => t === goal.goal_s) : undefined;
   return {
-    lead: mark ? `After a *${H}* half marathon, ${sharePct(mark[1])} of marathons came in under ${G}.` : `After a *${H}* half marathon, the typical marathon came in just under ${G}.`,
-    range: `8 in 10 took ${floorHM(goal.all.p10)} to ${floorHM(goal.all.p90)}.`,
+    lead: `Marathons after a *${H}* half marathon.`,
+    range: `The typical one took ${floorHM(goal.all.q50)}; 8 in 10 took ${floorHM(goal.all.p10)} to ${floorHM(goal.all.p90)}.`,
     sexes: goal.F && goal.M ? `The typical recorded women’s marathon came in under ${G} after half marathons up to about ${floorHM(goal.F.h)}; the typical men’s, up to about ${floorHM(goal.M.h)}.` : null,
     link: `/tools/predictor?d=half&t=${H}:00`,
-    linkText: `The marathons after a ${H} half marathon`,
+    // Not the heading's words again: the link names the tool it opens and the half it opens on.
+    linkText: `A ${H} half marathon in the Finish-time predictor`,
   };
 }

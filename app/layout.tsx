@@ -38,8 +38,17 @@ export const viewport = {
 
 // Without JavaScript the header's Menu and Chapters buttons, the footer's Motion switch and a guess's Lock it in and Skip
 // cannot work, so they are hidden: a plain link to the contents stands in for Menu on a phone (components/SiteHeader.tsx,
-// .nav-fallback), and a guess shows its answer from a <noscript> (components/ui/GuessFirst.client.tsx).
-const NO_SCRIPT_STYLE = '<style>.nav-toggle,.chapters-toggle,.motion-toggle,.guess-actions{display:none!important}@media (max-width:1179.98px){.nav-fallback{display:inline-flex!important}}</style>';
+// .nav-fallback; under 300 px, 200% zoom, without its side padding, so it ends at the gutter instead of 3 px past the
+// screen), and a guess shows itself as Skip would (components/ui/GuessFirst.client.tsx): its answer from a <noscript>,
+// the truth's dots lit (.is-truth-ns) and its ruler mark shown, with no readout, slider or You rings for a guess nobody
+// made. A scrubber's "‹ drag ›" promises a move that cannot happen, so it goes too (round 4 review, October 31, 2026).
+const NO_SCRIPT_STYLE = '<style>'
+  + '.nav-toggle,.chapters-toggle,.motion-toggle,.guess-actions,.guess-ask,.guess-range,.guess-key-you,.guess .guess-mark.is-you,.guess .guess-mark-label.is-you,.scrub-hint{display:none!important}'
+  + '@media (max-width:1179.98px){.nav-fallback{display:inline-flex!important}}@media (max-width:299.98px){.nav-fallback{padding:0!important}}'
+  + '.guess .guess-dot.is-you{box-shadow:none!important}.guess .guess-dot.is-truth-ns{border-color:var(--signal)!important;background:var(--signal)!important}'
+  + '.guess .guess-mark.is-truth,.guess .guess-mark.is-compare{opacity:1!important;transform:none!important}.guess .guess-mark-label.is-truth,.guess .guess-key{opacity:1!important}'
+  + '.guess .guess-dots-name.is-truth b{color:var(--signal-ink)}'
+  + '</style>';
 
 // The two faces every page sets first (Fraunces headings, Inter text), self-hosted under the base path (spec 6.3).
 const FONT_BASE = process.env.NEXT_PUBLIC_BASE_PATH || '';

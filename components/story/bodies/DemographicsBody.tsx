@@ -91,10 +91,12 @@ export default function DemographicsBody() {
           ]}
           label={`Second 20K against the first. Same race and finish minute: women ${slower(o.women_block)}, men ${slower(o.men_block)}. All finishes: women ${slower(o.pooled_women_block)}, men ${slower(o.pooled_men_block)}.`} />
         {/* The way into the half story, checked by verify-half as a reading link (data-half-link): one link to a linked
-            page, no chip, no half figure. Stated, it carries "records linked by name" as the term link before it. */}
+            page, no chip, no half figure. Stated, it carries "records linked by name" as the term link before it, and it
+            names whose marathons had fewer: under the H2's recorded men a bare "fewer … too" had no subject (round 4
+            review, October 31, 2026). */}
         {halfSaid ? (
           <p className="story-way arrow-line" data-half-said="stated">For <Link href="/methodology#half-linking" className="term-link">records linked by name</Link>:{' '}
-            <Link href="/stories/half-to-full#women-men" data-half-link="linked"><ArrowTail text="fewer sustained slowdowns after the same half marathon, too" /></Link>
+            <Link href="/stories/half-to-full#women-men" data-half-link="linked"><ArrowTail text="recorded women’s marathons had fewer sustained slowdowns after the same half marathon, too" /></Link>
           </p>
         ) : <HalfWay className="story-way" href="/stories/half-to-full#women-men" reading>Recorded women and men after the same half marathon</HalfWay>}
       </Beat>

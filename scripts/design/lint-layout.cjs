@@ -28,7 +28,10 @@
 //      passed because nothing was cut off). Tool routes are linted at 1024 px too (a tablet held sideways).
 //
 //   node scripts/design/lint-layout.cjs --routes=<comma list | @file> [--widths=195,320,390,1440] [--dir=out]
-//        [--json=<file>] [--only=1,2,3] [--max=12]
+//        [--json=<file>] [--only=1,2,3] [--max=12] [--nojs]
+//
+// --nojs loads every page with JavaScript off, as the static export reads without it (the no-script style in
+// app/layout.tsx; round 4 review, October 31, 2026: at 195 px the header's "Contents" stand-in ran 3 px past the screen).
 //
 // Pages are served from the export like shoot.cjs does (no port, no other host). Exits 1 when anything fails and
 // writes the full findings as JSON (default: pace-notes-design-lint.json in the system temp folder).
@@ -341,11 +344,12 @@ async function lintOne(browser, route, width, opts) {
   const mobile = width < 900;
   const context = await browser.newContext({
     viewport: { width, height: HEIGHTS[width] || (mobile ? 844 : 900) },
-    deviceScaleFactor: 1, isMobile: mobile, hasTouch: mobile, reducedMotion: 'reduce',
+    deviceScaleFactor: 1, isMobile: mobile, hasTouch: mobile, reducedMotion: 'reduce', javaScriptEnabled: !opts.nojs,
   });
   await serve(context, opts.dir, foreign);
   const page = await context.newPage();
-  const { status, errors } = await open(page, route, { noScroll: false });
+  // Without JavaScript nothing reveals on scroll, and the page's timers never fire, so it is not scrolled through.
+  const { status, errors } = await open(page, route, { noScroll: !!opts.nojs });
   const isHome = route.split('?')[0] === '/';
   const { findings, candidates } = await page.evaluate(inspect, { isHome });
   const small = opts.only.has(2) ? await probeTargets(page, candidates) : [];
@@ -385,11 +389,11 @@ async function main() {
   try {
     for (const route of routes) {
       for (const width of widths) {
-        const r = await lintOne(browser, route, width, { dir, only });
+        const r = await lintOne(browser, route, width, { dir, only, nojs: !!a.nojs });
         results.push(r);
         const failed = Object.entries(r.checks).filter(([, list]) => list.length);
         failures += failed.length;
-        console.log(`${failed.length ? 'FAIL' : 'ok  '} ${String(width).padStart(4)} ${route}`);
+        console.log(`${failed.length ? 'FAIL' : 'ok  '} ${String(width).padStart(4)} ${route}${a.nojs ? ' (no JavaScript)' : ''}`);
         for (const [k, list] of failed) {
           console.log(`       ${k}. ${NAMES[k]} (${list.length})`);
           for (const item of list.slice(0, max)) console.log(`          - ${item}`);

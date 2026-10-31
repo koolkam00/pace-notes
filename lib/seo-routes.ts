@@ -22,6 +22,7 @@ import { getInsightsManifest } from './insights-server';
 import { CATALOG as CHART_CATALOG, getChartsManifest } from './charts-server';
 import type { ExtraPage } from './seo-pages/types';
 import { PACE_PAGES } from './seo-pages/pace';
+import { GOAL_PAGE_MINUTES, goalPagePath } from './tools/pace-chart';
 import { QUALIFYING_PAGES } from './seo-pages/qualifying';
 import { FINISH_TIME_PAGES } from './seo-pages/finish-times';
 
@@ -122,7 +123,7 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // branch changes against main (f8869591), found by diffing the two builds' visible text, not from memory: the home
   // guess's answer without JavaScript, /research's and /stories' hub lines, /methodology's half-multiple text, who holds
   // pace's way into the half story, round numbers' guess answer without JavaScript, /half and the half story. The
-  // predictor and the half pace chart take HALF_TEXT_REWRITTEN below.
+  // predictor, the half pace chart and (since that branch's round 4 review) the goal pages take HALF_TEXT_REWRITTEN below.
   '/': '2026-10-31',
   '/research': '2026-10-31',
   '/about': '2026-10-30',
@@ -253,12 +254,14 @@ export const HALF_TEXT_WRITTEN = '2026-10-30';
 /**
  * The host pages whose half text was rewritten after that, with the day the rewrite merged: October 31, 2026
  * (fix/half-followups): the predictor (its half panel's no-script line in place of a "Loading the data…" that never
- * ended) and the half pace chart (its panel's sentence and its link into the predictor). The goal pages and
- * /finish-times keep HALF_TEXT_WRITTEN: their half text did not change.
+ * ended), the half pace chart (its panel's sentence and its link into the predictor) and, since that branch's round 4
+ * review, the five goal pages ("The half marathon before" states no share under the goal: "Marathons after a 1:48 half
+ * marathon."). /finish-times keeps HALF_TEXT_WRITTEN: its half text did not change.
  */
 export const HALF_TEXT_REWRITTEN: Readonly<Record<string, string>> = {
   '/tools/predictor': '2026-10-31',
   '/tools/half-marathon-pace-chart': '2026-10-31',
+  ...Object.fromEntries(GOAL_PAGE_MINUTES.map((minute) => [goalPagePath(minute), '2026-10-31'])),
 };
 
 /** HALF_TEXT_WRITTEN (or the page's later rewrite, HALF_TEXT_REWRITTEN) in a build with the half data, else undefined. */
