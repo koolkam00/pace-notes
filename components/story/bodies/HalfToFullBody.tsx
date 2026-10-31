@@ -93,6 +93,10 @@ export default function HalfToFullBody() {
   // into the predictor) follow its needle in the browser (PredictorLink). Each window's minutes over double are its
   // typical marathon as printed minus double its half (windowOverDouble), so the readout's "Typical" and "double the
   // half plus N min", its pace against the half and the table's "Over double" add up with the times beside them.
+  // The sentence ("Typical: double the half plus 24 min (55 s/mi slower than the half); 5 in 100 came in under
+  // double.") states half.extra's two quantities, so it is passed only while half.extra's guard holds: under the plain
+  // H1 the foot keeps "Not a prediction." and the predictor link, and the readout above it keeps the typical marathon
+  // and its 8 in 10 at every half (post-merge review, round 2, October 31, 2026: the line had followed no guard).
   const over = bands.map((w) => windowOverDouble(w));
   const paces = (u: UnitSystem) => over.map((x) => { const gap = paceGap(x * 60, u); return { gap: `${Math.round(Math.abs(gap))} s/${u}`, word: gap < 0 ? 'quicker' as const : 'slower' as const }; });
   const profile: ComponentProps<typeof LineProfile> = {
@@ -140,8 +144,8 @@ export default function HalfToFullBody() {
   const chart = (
     <div className="half-after-chart">
       <LineProfile {...profile} />
-      <PredictorLink halves={bands.map((w) => floorHM(w.h))} paces={{ mi: paces('mi'), km: paces('km') }} initial={home}
-        extras={over} under={bands.map((w) => `${Math.round(w.under_double * 100)} in 100`)} not={NOT_A_PREDICTION} />
+      <PredictorLink halves={bands.map((w) => floorHM(w.h))} initial={home} not={NOT_A_PREDICTION}
+        {...(extra.guard ? { paces: { mi: paces('mi'), km: paces('km') }, extras: over, under: bands.map((w) => `${Math.round(w.under_double * 100)} in 100`) } : {})} />
     </div>
   );
 

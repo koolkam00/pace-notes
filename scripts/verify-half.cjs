@@ -525,7 +525,7 @@ const pageGuards = {};
   }
   for (const [k, v] of Object.entries(N.halfDeks())) if (typeof v === 'string') texts.push([`deks.${k}`, v]);
   const sexes = N.halfSexesFrom(linked);
-  Object.assign(pageGuards, { cities: N.halfCitiesFrom(women).guard, sexesHeadline: plain(sexes.headline), sexesFallback: plain(sexes.fallback),
+  Object.assign(pageGuards, { cities: N.halfCitiesFrom(women).guard, extra: N.halfExtraFrom(linked).guard, sexesHeadline: plain(sexes.headline), sexesFallback: plain(sexes.fallback),
     guess: N.halfSexesGuessFrom(linked).guard && N.halfDeks().guess !== null });
   for (const g of ['all', 'F', 'M']) {
     for (const w of linked.windows[g]) {
@@ -550,10 +550,18 @@ const pageGuards = {};
   // "Save the image" link (--html, section 9).
   const CW = require(path.join(ROOT, 'lib/charts/text/half.ts'));
   const docs = { field, women, linked };
+  // The published captions (docs/CHARTS_INSTAGRAM.md, written by node scripts/build-chart-cards.cjs --captions) are the
+  // cards' own words: a drawn card's caption is its title and its takeaway as the PNG prints it, and a withdrawn card
+  // has none (post-merge review, round 2, October 31, 2026: half-under-2 was re-stamped with new words while its caption
+  // kept the old ones).
+  const captionsDoc = fs.existsSync(rel('docs/CHARTS_INSTAGRAM.md')) ? fs.readFileSync(rel('docs/CHARTS_INSTAGRAM.md'), 'utf8') : '';
+  const halfCaptions = captionsDoc.slice(Math.max(0, captionsDoc.indexOf('\n## From the half (not numbered)\n')));
   for (const c of cards.cards) {
     const said = CW.HALF_CARD_TEXT[c.slug].words(c.values, docs);
     const words = CW.halfCardWords(c, docs);
     const png = fs.existsSync(rel(`public/charts/cards/${c.slug}.png`));
+    if (said.guard) ok(halfCaptions.includes(`\n### ${words.title}\n\n\`${c.slug}.png\`\n\n${words.plain}\n`), `card ${c.slug}: its caption in docs/CHARTS_INSTAGRAM.md is not its title and takeaway (node scripts/build-chart-cards.cjs --captions)`);
+    else ok(!halfCaptions.includes(`\`${c.slug}.png\``), `card ${c.slug}: withdrawn, but docs/CHARTS_INSTAGRAM.md still carries its caption (node scripts/build-chart-cards.cjs --captions)`);
     ok(said.guard === png, said.guard ? `card ${c.slug}: its guard holds but public/charts/cards/${c.slug}.png is missing (node scripts/build-chart-cards.cjs --set half)`
       : `card ${c.slug}: the takeaway's guard fails for this build, so the card is withdrawn; delete public/charts/cards/${c.slug}.png or rewrite the card's words (${said.fallback})`);
     if (!said.guard) withdrawnCards.push(c.slug);
@@ -666,6 +674,12 @@ if (opt.html) {
     const raw = fs.readFileSync(file, 'utf8');
     const html = noScripts(raw);
     for (const m of html.matchAll(/href="\/methodology#((?:story-)?half-[\w-]+)"/g)) ok(ids.has(m[1]), `${route}: links /methodology#${m[1]}, which /methodology does not have`);
+    // A link that opens the pace calculator on a half names the time too: without one the calculator showed its marathon
+    // default, a half marathon in 4:00:00 (post-merge review, round 2, October 31, 2026).
+    for (const m of html.matchAll(/href="(\/tools\/pace-calculator\?[^"]*)"/g)) {
+      const q = new URLSearchParams(m[1].split('?')[1].replace(/&amp;/g, '&'));
+      if (q.get('d') === 'half') ok(/^\d:\d\d:\d\d$/.test(q.get('t') || ''), `${route}: the pace calculator link ${m[1]} opens on a half with no time (t=H:MM:SS)`);
+    }
     for (const slug of withdrawnCards) ok(!html.includes(`/charts/cards/${slug}.png`), `${route}: links the withdrawn card ${slug}`);
     const scoped = elements(html, /data-half-scope="(?:verified|linked)"/);
     const links = elements(html, /data-half-link="linked"/);
@@ -733,6 +747,9 @@ if (opt.html) {
         ok(minutesOf(r[ti]) - 2 * minutesOf(r[hi]) === over, `${route}: after a ${r[hi]} half, Typical ${r[ti]} is double plus ${r[xi]}`);
       }
       ok(!/more after a slower one/.test(textOf(main)), `${route}: the scale note promises no rise the windows do not show`);
+      // While half.extra falls back, no slot states its reading: not the line under the scrubbed chart either ("Typical:
+      // double the half plus 24 min …; 5 in 100 came in under double."; post-merge review, round 2, October 31, 2026).
+      if (pageGuards.extra === false) ok(!/double the half (plus|minus)|came in under double/i.test(textOf(main)), `${route}: no "double the half plus" or "under double" reading while half.extra falls back`);
     }
     for (const el of elements(html, /id="goal-pace-half"/)) {
       ok(/data-half-scope="linked"/.test(el.tag), `${route}: the half-before panel is a linked surface`);

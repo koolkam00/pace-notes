@@ -188,6 +188,7 @@
 .viz-frame.dumbbell .dumbbell-rows li { display: contents; }
 .viz-frame.dumbbell .dumbbell-label { align-self: center; min-width: 0; font-size: var(--t-small); font-weight: 500; line-height: 1.25; color: var(--ink-2); }
 .viz-frame.dumbbell .is-highlight .dumbbell-label { font-weight: 600; color: var(--ink); }
+.viz-frame.dumbbell .dumbbell-note { display: block; font-size: var(--t-label); font-weight: 400; color: var(--ink-3); }
 .viz-frame.dumbbell .dumbbell-track { display: block; width: 100%; height: 44px; overflow: visible; }
 .viz-frame.dumbbell .dumbbell-gap { fill: var(--rule-strong); }
 .viz-frame.dumbbell .dumbbell-gap.is-signal { fill: var(--signal); }

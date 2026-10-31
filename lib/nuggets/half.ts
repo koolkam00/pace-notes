@@ -213,7 +213,7 @@ export function halfSexesFrom(linked: HalfLinked): Nugget {
       verified_strata: v.strata, verified_women_lower: v.women_lower },
     guard,
     headline: 'After the same half, recorded women’s marathons had *far fewer* sustained slowdowns.',
-    fallback: 'Sustained slowdowns in women’s and men’s marathons after the same half.',
+    fallback: 'Sustained slowdowns in recorded women’s and men’s marathons after the same half.',
     figure: null,
     term: '/methodology#sustained-slowdown',
   };

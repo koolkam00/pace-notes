@@ -21,6 +21,8 @@ const readPct = (share: number) => (share > 0 && share < 0.005 ? '<1%' : share <
 const nearHalf = (share: number) => pct(share, Math.abs(share - 0.5) < 0.01 ? 1 : 0);
 /** A women's share of the recorded finishes on one side of a same-city pair. */
 const womenShare = (side: { F: number; M: number }) => side.F / (side.F + side.M);
+/** How many years a same-city row pools (each pair is one city and year). */
+const years = (n: number) => `${n} year${n === 1 ? '' : 's'}`;
 
 /**
  * /half, "The half marathon": where half marathon finish times sit, from half finishes in verified results (field.json,
@@ -78,14 +80,14 @@ export default function HalfBody() {
           rows={women.bands.map((b, i) => [b.hi_s === null ? `${hm(b.lo_s / 60)} and over` : b.lo_s === 0 ? `Under ${hm(b.hi_s / 60)}` : `${hm(b.lo_s / 60)} to ${hm(b.hi_s / 60 - 1)}:59`, pct(women.median_share[i], 1)])}
           reading={womenN.guard ? cross : undefined} />,
       ] : []),
-      // Each pair's gap in points, and, while the beat's heading holds, the typical gap within a pair in the caption (the
+      // Marathon then half, the order the dumbbell's key and every row print the pair in. Each pair's gap in points, and, while the beat's heading holds, the typical gap within a pair in the caption (the
       // dumbbell's Typical row joins the two medians, whose gap is wider than the typical pair's). Under the plain heading
       // the caption says what the columns are and states no direction (review, October 30, 2026).
       <Values key="cities" bare id="hf-cities" caption={cities.guard
         ? `Women’s share of recorded finishes, the same city and year: within a pair, the half’s share was typically ${sc.summary.diff_median_points.toFixed(1)} points higher`
         : 'Women’s share of recorded finishes, the same city and year, and the gap within each pair in points'}
-        columns={[{ key: 'c', label: 'City', text: true }, { key: 'y', label: 'Year' }, { key: 'h', label: 'Half' }, { key: 'm', label: 'Marathon' }, { key: 'd', label: 'Gap, points' }]}
-        rows={[...sc.pairs].sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year).map((p) => [p.city, String(p.year), pct(womenShare(p.half), 1), pct(womenShare(p.marathon), 1),
+        columns={[{ key: 'c', label: 'City', text: true }, { key: 'y', label: 'Year' }, { key: 'm', label: 'Marathon' }, { key: 'h', label: 'Half' }, { key: 'd', label: 'Gap, points' }]}
+        rows={[...sc.pairs].sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year).map((p) => [p.city, String(p.year), pct(womenShare(p.marathon), 1), pct(womenShare(p.half), 1),
           `+${((womenShare(p.half) - womenShare(p.marathon)) * 100).toFixed(1)}`])} />,
     ]}>
       <StoryHero path={HALF_PATH} crumbs={<HalfCrumbs />} title={sentenceOf(reading)} stacked fallback={!reading.guard}
@@ -136,7 +138,9 @@ export default function HalfBody() {
       <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities ?? undefined}>
         {/* The key first, in the order every row prints its pair (marathon · half), then, while the beat's heading holds,
             the two typical shares (the dek's two medians across the pairs, worded as two) as the one signal row, as the
-            share card draws it, then each city. While the heading falls back (too few pairs or cities for a direction,
+            share card draws it, then each city, with the years its row pools under its name (a row is the mean of that
+            city's pairs, and "Oslo" alone read as one race in one year; post-merge review, round 2, October 31, 2026).
+            While the heading falls back (too few pairs or cities for a direction,
             October 30, 2026) the typical row and its "typically" in the label are left out with the dek: two medians
             side by side state the direction the heading withdrew (review, October 30, 2026: the row and the label
             still did). The cities stay, as a chart keeps its values. A value column sized to its pairs, and none on a
@@ -144,10 +148,10 @@ export default function HalfBody() {
         <div className="half-cities">
           <Dumbbell keyFirst rows={[
             ...(cities.guard ? [{ id: 'typical', label: 'Typical', a: sc.summary.marathon_median, b: sc.summary.half_median, display: `${pct(sc.summary.marathon_median)} · ${pct(sc.summary.half_median)}`, highlight: true }] : []),
-            ...sc.cities.map((c) => ({ id: c.city, label: c.city, a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` })),
+            ...sc.cities.map((c) => ({ id: c.city, label: c.city, note: years(c.pairs), a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` })),
           ]}
             domain={[0, 0.6]} ticks={[0, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}
-            label={`Women’s share of recorded finishes in the same city and year, marathon then half: ${cities.guard ? `typically ${pct(sc.summary.marathon_median)} and ${pct(sc.summary.half_median)}; ` : ''}${sc.cities.map((c) => `${c.city} ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
+            label={`Women’s share of recorded finishes in the same city and year, marathon then half: ${cities.guard ? `typically ${pct(sc.summary.marathon_median)} and ${pct(sc.summary.half_median)}; ` : ''}${sc.cities.map((c) => `${c.city} over ${years(c.pairs)}, ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
         </div>
         <SaveImage slug="half-more-women" />
       </Beat>
