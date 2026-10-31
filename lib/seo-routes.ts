@@ -22,6 +22,7 @@ import { getInsightsManifest } from './insights-server';
 import { CATALOG as CHART_CATALOG, getChartsManifest } from './charts-server';
 import type { ExtraPage } from './seo-pages/types';
 import { PACE_PAGES } from './seo-pages/pace';
+import { GOAL_PAGE_MINUTES, goalPagePath } from './tools/pace-chart';
 import { QUALIFYING_PAGES } from './seo-pages/qualifying';
 import { FINISH_TIME_PAGES } from './seo-pages/finish-times';
 
@@ -122,9 +123,9 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // branch changes against main (f8869591), found by diffing the two builds' visible text, not from memory: the home
   // guess's answer without JavaScript, /research's and /stories' hub lines, /methodology's half-multiple text, who holds
   // pace's way into the half story, round numbers' guess answer without JavaScript, /half and the half story. The
-  // predictor and the half pace chart take HALF_TEXT_REWRITTEN below.
+  // predictor, the half pace chart and (since that branch's round 4 review) the goal pages take HALF_TEXT_REWRITTEN below.
   // October 31 (the merge day of feat/half-v4, the half pages on half-dataset-20261030-1904 with person links v4): the
-  // pages whose built text that branch changes against fix/half-followups (cf882440), found by diffing the two builds'
+  // pages whose built text that branch changes against fix/half-followups (b35da73e), found by diffing the two builds'
   // visible text: the home guide's and /research's chapter 11 row and /stories' half row (the count of pairs), /half
   // (its shares, the round-time counts and its night card), the half story (its figure, windows, guess and table),
   // /methodology's half folds, limits and downloads, and the five goal pages (HALF_TEXT_REWRITTEN below). /report and
@@ -260,19 +261,15 @@ export const HALF_TEXT_WRITTEN = '2026-10-30';
 /**
  * The host pages whose half text was rewritten after that, with the day the rewrite merged: October 31, 2026
  * (fix/half-followups): the predictor (its half panel's no-script line in place of a "Loading the data…" that never
- * ended) and the half pace chart (its panel's sentence and its link into the predictor); October 31, 2026 too
- * (feat/half-v4): the five goal pages, whose "The half marathon before" lines and windows moved with the v4 person IDs
- * (found by diffing the built text against fix/half-followups). /finish-times keeps HALF_TEXT_WRITTEN: its half text did
- * not change.
+ * ended), the half pace chart (its panel's sentence and its link into the predictor) and, since that branch's round 4
+ * review, the five goal pages ("The half marathon before" states no share under the goal: "Marathons after a 1:48 half
+ * marathon."); on the same day feat/half-v4 moved their half lines and windows with the v4 person IDs (found by diffing
+ * the built text against fix/half-followups). /finish-times keeps HALF_TEXT_WRITTEN: its half text did not change.
  */
 export const HALF_TEXT_REWRITTEN: Readonly<Record<string, string>> = {
   '/tools/predictor': '2026-10-31',
   '/tools/half-marathon-pace-chart': '2026-10-31',
-  '/tools/marathon-pace/3-00': '2026-10-31',
-  '/tools/marathon-pace/3-30': '2026-10-31',
-  '/tools/marathon-pace/4-00': '2026-10-31',
-  '/tools/marathon-pace/4-30': '2026-10-31',
-  '/tools/marathon-pace/5-00': '2026-10-31',
+  ...Object.fromEntries(GOAL_PAGE_MINUTES.map((minute) => [goalPagePath(minute), '2026-10-31'])),
 };
 
 /** HALF_TEXT_WRITTEN (or the page's later rewrite, HALF_TEXT_REWRITTEN) in a build with the half data, else undefined. */

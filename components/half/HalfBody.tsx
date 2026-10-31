@@ -30,6 +30,10 @@ const readPct = (share: number) => (share > 0 && share < 0.005 ? '<1%' : share <
 const nearHalf = (share: number) => pct(share, Math.abs(share - 0.5) < 0.01 ? 1 : 0);
 /** A women's share of the recorded finishes on one side of a same-city pair. */
 const womenShare = (side: { F: number; M: number }) => side.F / (side.F + side.M);
+// A pair's gap in points from the two shares as the row prints them (one decimal each), so Half minus Marathon adds up
+// on screen: from the unrounded shares Berlin 2016 printed 25.7%, 38.6% and +13.0 (round 4 review, October 31, 2026).
+const tenths = (share: number) => Math.round(Number((share * 100).toFixed(1)) * 10);
+const gapPoints = (half: number, marathon: number) => { const d = tenths(half) - tenths(marathon); return `${d < 0 ? '−' : '+'}${(Math.abs(d) / 10).toFixed(1)}`; };
 /** How many years a same-city row pools (each pair is one city and year). */
 const years = (n: number) => `${n} year${n === 1 ? '' : 's'}`;
 
@@ -99,7 +103,7 @@ export default function HalfBody() {
         : 'Women’s share of recorded finishes, the same city and year, and the gap within each pair in points'}
         columns={[{ key: 'c', label: 'City', text: true }, { key: 'y', label: 'Year' }, { key: 'm', label: 'Marathon' }, { key: 'h', label: 'Half' }, { key: 'd', label: 'Gap, points' }]}
         rows={[...sc.pairs].sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year).map((p) => [p.city, String(p.year), pct(womenShare(p.marathon), 1), pct(womenShare(p.half), 1),
-          `+${((womenShare(p.half) - womenShare(p.marathon)) * 100).toFixed(1)}`])} />,
+          gapPoints(womenShare(p.half), womenShare(p.marathon))])} />,
     ]}>
       <StoryHero path={HALF_PATH} crumbs={<HalfCrumbs />} title={sentenceOf(reading)} stacked fallback={!reading.guard}
         figure={figure ? { value: figure.value, unit: figure.unit, sr: figure.sr } : undefined}

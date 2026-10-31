@@ -99,6 +99,13 @@
 .predictor-linked-sus { max-width: var(--measure); font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
 .predictor-linked-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }
 .predictor-linked-group > .tool-choice.seg { flex: 0 1 auto; width: auto; min-width: 0; grid-auto-columns: auto; }
+/* An option that cannot keep its row breaks between its words inside its own button instead of running out of the pill:
+   under a reader's text spacing (WCAG 1.4.12) at 320 px "Recorded men" was cut to "Recorded", unseen past the pill's edge;
+   and under 360 px the three options keep 8 px a side (each at least 44 px wide, a whole hit target), so a 320 px
+   phone's row (275 px of labels) fits its 282 px on one line with no option scrolled or broken (round 4 review, October
+   31, 2026: at 14 px a side it had needed 307 px). */
+.predictor-linked-group .seg-btn { min-width: min-content; white-space: normal; text-align: center; }
+@media (max-width: 359.98px) { .predictor-linked-group .seg-btn { min-width: 44px; padding: 0 8px; } }
 /* Under 300 px (a phone at 200% zoom; a 320 px phone still fits the row) "All · Recorded women · Recorded men"
    cannot share a row: each option takes its own full-width line, the pressed one raised, so no choice is cut off or
    scrolled out of view (as the analyses' comparison switch does). */

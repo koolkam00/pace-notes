@@ -20,14 +20,15 @@ export default function Plot({ paths, children, className }: { paths?: ReactNode
  * `className` is a width class (`w240`) when it hides below some plot width. `labelAt` names the scrubber points whose
  * needle runs through the labels' column: while the needle stands on one, the labels hide (the Scrubber's is-under).
  * `flipAt` does the same, but the labels move to the other end of their lines instead of hiding, so the scale stays
- * named while the needle stands at the plot's edge (one rule for every needle chart).
+ * named while the needle stands at the plot's edge (one rule for every needle chart). With `flipTo` (an x, such as "6.3%")
+ * they stay on their own side instead, starting 6 px past it: a chart whose data fills the other end there.
  *
  * `max` lifts the three-line limit for a chart whose sentence reads against more (the half profile's four hours,
  * 3:00 to 6:00). `part` draws the lines alone (under the data) or the labels alone (over it, on their halo of the page,
  * so a line of the data that runs through a label's place, as the dashed double-the-half does at the flipped end,
  * passes under it instead of striking it through); the default draws both, under the data.
  */
-export function Gridlines({ lines, side = 'left', labelAt = [], flipAt = [], max = 3, part = 'all' }: { lines: { y: number; label?: string; className?: string }[]; side?: 'left' | 'right'; labelAt?: number[]; flipAt?: number[]; max?: number; part?: 'all' | 'lines' | 'labels' }) {
+export function Gridlines({ lines, side = 'left', labelAt = [], flipAt = [], flipTo, max = 3, part = 'all' }: { lines: { y: number; label?: string; className?: string }[]; side?: 'left' | 'right'; labelAt?: number[]; flipAt?: number[]; flipTo?: string; max?: number; part?: 'all' | 'lines' | 'labels' }) {
   // One wrapper per point, nested, so the label hides under any of them (visibility is inherited); a flipped copy at the
   // other end shows only under them (chart-frame.css: .grid-label.is-flip).
   const at = [...labelAt, ...flipAt.filter((i) => !labelAt.includes(i))];
@@ -40,7 +41,7 @@ export function Gridlines({ lines, side = 'left', labelAt = [], flipAt = [], max
         <g key={l.y}>
           {part !== 'labels' ? <rect className="grid-line" x="0" y={pc(l.y)} width="100%" height="1" /> : null}
           {part === 'lines' ? null : l.label ? wrap(<text className={`tick grid-label${l.className ? ` ${l.className}` : ''}`} x={left ? '0' : '100%'} y={pc(l.y)} dy={-5} textAnchor={left ? 'start' : 'end'}>{l.label}</text>) : null}
-          {part !== 'lines' && l.label && flipAt.length ? flipWrap(<text className="tick grid-label is-flip" x={left ? '100%' : '0'} y={pc(l.y)} dy={-5} textAnchor={left ? 'end' : 'start'}>{l.label}</text>) : null}
+          {part !== 'lines' && l.label && flipAt.length ? flipWrap(<text className="tick grid-label is-flip" x={flipTo || (left ? '100%' : '0')} y={pc(l.y)} dx={flipTo && 6} dy={-5} textAnchor={flipTo || !left ? 'start' : 'end'}>{l.label}</text>) : null}
         </g>
       ))}
     </g>

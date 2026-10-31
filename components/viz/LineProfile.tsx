@@ -67,8 +67,11 @@ type Props = {
    */
   scrub?: { points: ScrubPoints; initial: number; detents: number[]; label: string; follow?: string;
     /** While the needle stands where it would run through the gridline labels (at the plot's edge on their side), the
-     *  labels move to the other end of their lines instead of hiding (Gridlines flipAt), as on the half curve. */
-    flipGrid?: boolean };
+     *  labels move to the other end of their lines instead of hiding (Gridlines flipAt), as on the half curve. 'needle'
+     *  keeps them on their own side, just past the last such point, for a chart whose data fills the other end there (the half
+     *  story's band rises to the upper right, where flipped labels sat on the band and the dashed line; round 4
+     *  review, October 31, 2026). */
+    flipGrid?: boolean | 'needle' };
   axisTitle?: { start?: string; end?: string };
   /** A quiet direction cue at the plot's top left, where a y axis is read ("faster ↑"), for a scale drawn against habit
    * (slower down). */
@@ -199,6 +202,8 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
   // move to the other end of their lines (scrub.flipGrid).
   const gridW = Math.max(0, ...yTicks.map((t) => textWidth(t.label, 12, 500) + 6));
   const gridFlip = scrub?.flipGrid ? scrub.points.x.flatMap((px, i) => ((gridSide === 'left' ? px : 1 - px) * REF_WIDTH <= gridW ? [i] : [])) : [];
+  // 'needle': the flipped copies stay on the labels' own side, just past the needle's last such point.
+  const flipTo = scrub?.flipGrid === 'needle' && gridFlip.length ? pc(scrub.points.x[gridFlip[gridFlip.length - 1]]) : undefined;
   // A bracket on the plot's right edge keeps a 12 px gutter free of a right-end label (its line and caps).
   const gutter = layers.some((l) => l.bracket && x(l.bracket.x) > 0.95) ? 12 : 0;
   const refSpot = (r: { value: number; label?: string }): { side?: 'left' | 'right'; at?: number; below?: boolean; inset?: number } => {
@@ -248,7 +253,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
           {w.label ? <text className={['tick', fitClass((textWidth(w.label, 12, 500) + 64) / Math.max(0.05, 1 - x(w.from))), clearOfNeedle((pw) => ({ x0: x(w.from) * pw + 6, x1: x(w.from) * pw + 6 + textWidth(w.label!, 12, 500) }))].filter(Boolean).join(' ')} x={pc(x(w.from))} y="0" dy={12} dx={6}>{w.label}</text> : null}
         </g>
       ))}
-      <Gridlines lines={gridLines} side={gridSide} flipAt={gridFlip} max={gridMax} part={gridMax ? 'lines' : 'all'} />
+      <Gridlines lines={gridLines} side={gridSide} flipAt={gridFlip} flipTo={flipTo} max={gridMax} part={gridMax ? 'lines' : 'all'} />
       {yCue ? <text className="tick" x="0" y="0" dy={13}>{yCue}</text> : null}
       {refs.map((r) => {
         const spot = refSpot(r), rw = r.label ? textWidth(r.label, 13) + 4 : 0;
@@ -256,7 +261,7 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
         return <RefLine key={r.value} y={y(r.value)} label={r.label} dashed={r.dashed} labelClass={labelClass} {...spot} />;
       })}
       {layers.map(drawLayer)}
-      {gridMax ? <Gridlines lines={gridLines} side={gridSide} flipAt={gridFlip} max={gridMax} part="labels" /> : null}
+      {gridMax ? <Gridlines lines={gridLines} side={gridSide} flipAt={gridFlip} flipTo={flipTo} max={gridMax} part="labels" /> : null}
       <Baseline />
     </Plot>
   );

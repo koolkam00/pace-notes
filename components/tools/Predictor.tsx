@@ -864,7 +864,7 @@ export default function Predictor({ indexSha, half = null }: { indexSha: string 
               ) : null}
               {linked && half && halfSeconds !== null
                 ? (LinkedPanel === 'failed' ? <LinkedPanelUnavailable /> : LinkedPanel
-                  ? <LinkedPanel sha={half.sha} seconds={halfSeconds} group={group} onGroup={(g: HalfGroup) => setQ({ sx: SX_OF[g] })} />
+                  ? <LinkedPanel sha={half.sha} seconds={halfSeconds} group={group} onGroup={(g: HalfGroup) => setQ({ sx: SX_OF[g] })} speakFirst={edited} />
                   : <LinkedPanelLoading ready={ready} />)
                 : <ObservedPanel indexSha={indexSha} proj={proj} est={est} looks={looks} units={units} />}
               {/* A half outside the half panel's range reads the 20K panel; this line says why the half reading is not there. */}

@@ -94,7 +94,7 @@ export function AllNumbers({ tables, id = 'all-numbers', className, how }: { tab
   return (
     <details className={`values all-numbers${className ? ` ${className}` : ''}`} id={id}>
       <summary>
-        <span>All numbers<span className="values-count">{list.length} {list.length === 1 ? 'table' : 'tables'}</span></span>
+        <span>All numbers<span className="values-count">{list.length}{'\u00a0'}{list.length === 1 ? 'table' : 'tables'}</span></span>
         <span className="values-glyph" aria-hidden="true" />
       </summary>
       <div className="values-body all-numbers-body">{list.map((t, i) => <Fragment key={i}>{t}</Fragment>)}{how ? <HowLink href={how} /> : null}</div>

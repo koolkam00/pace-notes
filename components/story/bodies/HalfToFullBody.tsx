@@ -141,9 +141,11 @@ export default function HalfToFullBody() {
         // The slider's words name each value's measure, which the readout leaves to the chart's key (aria-hidden): "After
         // a 1:45 half: typical marathon 3:54; 8 in 10 marathons 3:35 to 4:22; 67% under 4:00" (post-merge review, round
         // 3, October 31, 2026: "3:54, 8 in 10 3:35–4:22, Under 4:00 67%" never said that 3:54 is the typical marathon).
-        spoken: bands.map((w, i) => `After a ${floorHM(w.h)} half: typical marathon ${floorHM(w.q[9])}; 8 in 10 marathons ${floorHM(q(w, 0.1))} to ${floorHM(q(w, 0.9))}${markOf[i] ? `; ${pct(markOf[i]![1])} under ${floorHM(markOf[i]![0])}` : ''}`),
+        // Where the wash is faint (a window of fewer than THIN pairs), the words say so as the key does, "from fewer
+        // marathons": the faint wash was the only cue, and the key is hidden from assistive technology (round 4 review).
+        spoken: bands.map((w, i) => `After a ${floorHM(w.h)} half: typical marathon ${floorHM(w.q[9])}; 8 in 10 marathons ${floorHM(q(w, 0.1))} to ${floorHM(q(w, 0.9))}${w.n < THIN ? ', from fewer marathons' : ''}${markOf[i] ? `; ${pct(markOf[i]![1])} under ${floorHM(markOf[i]![0])}` : ''}`),
       },
-      initial: home, detents: DETENTS.map((h) => bands.findIndex((w) => w.h === h)).filter((i) => i >= 0), follow: 'median', flipGrid: true,
+      initial: home, detents: DETENTS.map((h) => bands.findIndex((w) => w.h === h)).filter((i) => i >= 0), follow: 'median', flipGrid: 'needle',
     },
     // The beat's reading closes the label only while it holds: its plain heading is the label's own first words.
     label: `The marathon after each half time, ${floorHM(lo)} to ${floorHM(hi)}: the typical marathon and the middle 8 in 10, against double the half.${range.guard ? ` ${sentenceOf(range).replace(/\*/g, '')}` : ''}`,

@@ -42,12 +42,15 @@ const GROUPS: HalfGroup[] = ['all', 'F', 'M'];
  * figure combines the two badges. Loaded (next/dynamic) only once a half input exists; the file is checked against the
  * sha the build recorded (lib/half.ts). Every sentence is built by lib/tools/half-to-full.ts, which verify-tools checks.
  */
-export default function LinkedPanel({ sha, seconds, group, onGroup }: {
+export default function LinkedPanel({ sha, seconds, group, onGroup, speakFirst = false }: {
   sha: string;
   /** The typed half, seconds. */
   seconds: number;
   group: HalfGroup;
   onGroup: (group: HalfGroup) => void;
+  /** The panel opened after the page did (a distance chip, a typed half moving into range): its first sentence is
+   *  spoken too. Opened with the page, it arrives with the page and stays quiet. Read once, when the panel mounts. */
+  speakFirst?: boolean;
 }) {
   const [tool, setTool] = useState<HalfTool | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,18 +82,28 @@ export default function LinkedPanel({ sha, seconds, group, onGroup }: {
   const signalAt = allWin ? nearestMark(allWin)?.[0] : undefined;
   // The panel's own sentence, spoken politely once it settles after the chips or the half change; the predictor's status
   // line speaks only the research estimate, so the new answer here was silent (post-merge review, round 3, October 31,
-  // 2026). Its first sentence is not spoken: it arrives with the page or the half that opened the panel.
+  // 2026). Its first sentence is spoken only when the panel opened after the page (`speakFirst`): a panel opened by a
+  // distance chip or a typed half had said nothing but "Loading the data…" (round 4 review). Four seconds after it is
+  // spoken the live line empties, so reading the panel in browse mode meets the sentence once.
   const tooFew = group === 'all' ? `Too few marathons after a half near ${floorHM(Math.round(seconds / 60) * 60)} to show.` : tool ? tooFewSentence(tool, group, seconds) : '';
   const said = tool ? (win ? linkedSentence(win, tool.Q, group).replace(/\*/g, '') : tooFew) : '';
   const [announce, setAnnounce] = useState('');
   const firstSaid = useRef<string | null>(null);
+  const spoken = useRef(false);
+  const speakOpening = useRef(speakFirst);
   useEffect(() => {
     if (!said) return undefined;
-    if (firstSaid.current === null) { firstSaid.current = said; return undefined; }
-    if (said === firstSaid.current && !announce) return undefined;
-    const id = window.setTimeout(() => setAnnounce(said), 1100);
-    return () => window.clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (firstSaid.current === null) {
+      firstSaid.current = said;
+      if (!speakOpening.current) return undefined;
+    } else if (said === firstSaid.current && !spoken.current && !speakOpening.current) return undefined;
+    let clear = 0;
+    const id = window.setTimeout(() => {
+      spoken.current = true;
+      setAnnounce(said);
+      clear = window.setTimeout(() => setAnnounce(''), 4000);
+    }, 1100);
+    return () => { window.clearTimeout(id); window.clearTimeout(clear); };
   }, [said]);
   return (
     <section className="tool-panel predictor-linked" id="predictor-linked" data-half-scope="linked" aria-labelledby="predictor-linked-title" ref={panel} tabIndex={-1}>
