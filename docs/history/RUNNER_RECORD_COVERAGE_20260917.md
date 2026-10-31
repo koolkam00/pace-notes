@@ -1,3 +1,5 @@
+> **History.** Moved here on October 30, 2026 from `docs/RUNNER_RECORD_COVERAGE.md` at `a2c6e507`, unchanged except that relative links point from this folder and follow sections that moved. Counts belong to the release they name; current state is in the [project handoff](../PROJECT_HANDOFF.md). Its contract is in [runner search and the race report](../RUNNERS_AND_REPORT.md#record-coverage). Index: [docs/history](README.md).
+
 # Runner lookup and incomplete results
 
 Updated September 17, 2026. Starting main commit: `9204b25f74bd77727a0cbfdcca65e9fe25c5acdd`. Input then was `private-export-20260912-0934`.

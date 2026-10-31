@@ -1,6 +1,6 @@
 # Public export access
 
-Updated October 22, 2026 for **`private-export-20261021-1050`**, the release every page uses (on `main` since PR #78, `39f3057`; production state is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md)). Full source records, recorded names, supplied features, overlays and the producer's documents are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption ([operations](../docs/OPERATIONS.md)). The half-marathon releases have [their own section](#half-marathon-releases-october-30-2026).
+Updated October 22, 2026 for **`private-export-20261021-1050`**, the release every page uses (on `main` since PR #78, `39f3057`; production state is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md)); access re-checked October 30, 2026. Full source records, recorded names, supplied features, overlays and the producer's documents are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption ([operations](../docs/OPERATIONS.md#release-intake)). The half-marathon releases have [their own section](#half-marathon-releases-october-30-2026). Every asset this page lists was checked anonymously on October 30, 2026; the method and the results are in [how access was checked](#how-access-was-checked).
 
 ## Open the full records
 
@@ -27,6 +27,8 @@ python analysis/download_release.py --bundle CORE --tag private-export-20261021-
 
 No account, password or decryption key is required: the repository is public and the release is published, not a draft (GitHub API, October 22, 2026: `private: false`, `visibility: public`; release `draft: false`, `prerelease: false`). The same day at 16:44 UTC the release's asset list (HTTP 200), the release checksums (HTTP 200, 428 bytes) and the first kilobyte of FULL part 00 (HTTP 206, 1,024 bytes) were fetched with curl from the project's build container. That container's HTTPS proxy authenticates GitHub requests (GitHub answered with a 15,000-request limit, not the anonymous 60), so this shows the files are there, not that a client without an account reached them; a check from a browser with no sign-in, or a CI job with no token, would measure that.
 
+**Correction (October 30, 2026):** the anonymous check has since been made. With no credentials in the request, CORE, both FULL parts and the release checksums each answered a ranged GET on their github.com download URL with 206, and their `Content-Range` totals equal the sizes above (October 30, 2026, 23:31 UTC; [how access was checked](#how-access-was-checked)). `download_release.py` reads the asset list from api.github.com before it downloads, so a run of it from these build sessions still does not show anonymous access by itself.
+
 | Verification | Value |
 | --- | --- |
 | CORE archive SHA-256 | `b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8` |
@@ -51,19 +53,62 @@ The half-marathon pages (`/half`, the half-to-full story and the tools' half pan
   | [`runner_links-20261029-1156.sqlite.zst.part00`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/runner_links-20261029-1156.sqlite.zst.part00) (the links, 5.3 GB once decompressed) | 839,334,549 | `7195eba8eac3aa3a1d85ffd28b38f04ca0abff448afccc4ec59d4aa5eb8de9d7` |
   | [`MATCHING_HALF.md`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/MATCHING_HALF.md) (how the links are built, their tiers and audit) | 4,637 | `7acb6ce59ba58140d44b8f84282158a6739fea56e5ebf9a8e22692023a48f030` |
   | [`linking-scripts-20261029-1156.tar.gz`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/linking-scripts-20261029-1156.tar.gz) (the scripts that built the links) | 4,364 | `29c1ca0cc1cc37a55e62ea6639c93e90d547ce238e4a471be2003e826ee930d3` |
+  | [`README.md`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/README.md) (the release's README, pinned with the data) | 3,623 | `1cf9cbd05eaf53c138cfe3611c6f2afda438c5ef5ecd544ce9806a515bba9585` |
 
-- [`half-dataset-20261029-2157`](https://github.com/koolkam00/pace-notes/releases/tag/half-dataset-20261029-2157), the corrected edition metadata: version 1's metadata (in the DOI above) overstated the verified editions, so the pages take verified status from [`csv-edition_meta.csv.zst`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-2157/csv-edition_meta.csv.zst) (582,494 bytes, sha256 `2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842`; its README explains the correction). An edition is verified only when it is stamped in both. That release's newer results are not in the pages yet.
+- [`half-dataset-20261029-2157`](https://github.com/koolkam00/pace-notes/releases/tag/half-dataset-20261029-2157), the corrected edition metadata: version 1's metadata (in the DOI above) overstated the verified editions, so the pages take verified status from [`csv-edition_meta.csv.zst`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-2157/csv-edition_meta.csv.zst) (582,494 bytes, sha256 `2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842`; its [`README.md`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-2157/README.md), 4,065 bytes, sha256 `3ba5ed96096bab048da5d81d3bd0428962661ccc494aa99963efa505e7506332`, explains the correction; both digests are in the pin's `metadata_correction`). An edition is verified only when it is stamped in both (the pin's rule: "verified = stamped in both"). That release's newer results are not in the pages yet.
 
-Steps, with standard tools: download the parts and the release's `SHA256SUMS` into one folder, check them (`sha256sum -c --ignore-missing SHA256SUMS`), then decompress (`zstd -d half-20261029-1133.sqlite.zst.part00 -o platform_half.sqlite`, the same for the links) and open the SQLite with `sqlite3` or DuckDB. Or let the downloader do it, checking every asset against its release's `SHA256SUMS` and the pin, reassembling `platform_half.sqlite` with an integrity check and cutting the links extract the builders read (`links-slim.sqlite`, about 45 MB; the 5.3 GB links SQLite is deleted afterwards unless `--keep-links-sqlite`):
+Steps, with standard tools: download the 1202 parts and that release's `SHA256SUMS` into one folder, check them (`sha256sum -c --ignore-missing SHA256SUMS`), then decompress (`zstd -d half-20261029-1133.sqlite.zst.part00 -o platform_half.sqlite`, the same for the links) and open the SQLite with `sqlite3` or DuckDB. Then download `csv-edition_meta.csv.zst`, `README.md` and `SHA256SUMS` from `half-dataset-20261029-2157` into a folder of their own, such as `half-dataset-20261029-2157/` (the layout the downloader uses), and check them there the same way: both releases ship a `csv-edition_meta.csv.zst`, a `README.md` and a `SHA256SUMS` under the same names with different digests (1202's lists the overstated metadata as `a6990b17…`, 2157's the correction as `2b8ad110…`), so one folder for both fails the check or overwrites a file. Take verified status from that corrected file, not from the snapshot's own edition metadata. Or let the downloader do it, checking every asset against its release's `SHA256SUMS` and the pin, reassembling `platform_half.sqlite` with an integrity check and cutting the links extract the builders read (`links-slim.sqlite`, about 45 MB; the 5.3 GB links SQLite is deleted afterwards unless `--keep-links-sqlite`):
 
 ```bash
 python -m pip install -r analysis/requirements.txt
 PACE_HALF_DIR=/path/to/half-1133 python3 -I analysis/download_half.py [--links-work /a/larger/disk]
 ```
 
-**Anonymous access** (checked October 30, 2026, 17:02 UTC, requests with no GitHub credentials, and again at 19:30 UTC for the assets above and both `SHA256SUMS`, whose `Content-Range` totals give the byte counts in the table): both release pages answered 200 and every pinned asset and both `SHA256SUMS` answered a ranged GET (`curl -sSL -r 0-0 -o /dev/null -w '%{http_code}' URL`) with 206 after one redirect; `https://doi.org/10.6084/m9.figshare.34858428.v1` redirected (302) to the figshare record. The asset host answers HEAD with 401, so HEAD is not a valid test, and api.github.com requests from the project's build sessions carry injected credentials, so they prove nothing. The first, private copies (`half-snapshot-20261029-1133`, `runner-links-20261029-1156` in `koolkam00/pace-notes-db-backup`) stay as provenance; their names are the identities the policy and counts are keyed by, not access labels.
+**Anonymous access** (checked October 30, 2026, 17:02 UTC, requests with no GitHub credentials, and again at 19:30 UTC for the assets above and both `SHA256SUMS`, whose `Content-Range` totals give the byte counts in the table): both release pages answered 200 and every pinned asset and both `SHA256SUMS` answered a ranged GET (`curl -sSL -r 0-0 -o /dev/null -w '%{http_code}' URL`) with 206 after one redirect; `https://doi.org/10.6084/m9.figshare.34858428.v1` redirected (302) to the figshare record. The asset host answers HEAD with 401 (measured from the build sessions, through their proxy), so HEAD is not a valid test, and api.github.com requests from the project's build sessions carry injected credentials, so they prove nothing. Re-checked October 30, 2026 at 23:31 UTC with the same result ([below](#how-access-was-checked)). The first, private copies (`half-snapshot-20261029-1133`, `runner-links-20261029-1156` in `koolkam00/pace-notes-db-backup`) stay as provenance; their names are the identities the policy and counts are keyed by, not access labels.
+
+## How access was checked
+
+**The method.** The project's build sessions reach the internet through an HTTPS proxy that adds GitHub credentials to requests for `api.github.com`, so nothing read from the GitHub API there shows what a visitor without an account can do: on October 30, 2026 at 23:41 UTC, a request with no token in the command (`env -u GH_TOKEN -u GITHUB_TOKEN curl`) read the asset list of a release in the private `koolkam00/pace-notes-db-backup` from the API with HTTP 200. Release downloads from `github.com` carry no such credentials, so the anonymous test is a ranged GET of each asset's download URL with the token variables unset:
+
+```bash
+env -u GH_TOKEN -u GITHUB_TOKEN curl -sS -L -r 0-0 -o /dev/null -D - -w '%{http_code}\n' \
+  https://github.com/koolkam00/pace-notes/releases/download/<tag>/<asset>
+```
+
+A 206 (or 200) after the redirect to the asset host means anyone can download the bytes, and the `Content-Range` header gives the asset's full size; an asset in a private repository answers 404. A HEAD request is not a test: the asset host answers HEAD with 401 even for a public asset (measured from the build sessions, through their proxy). A 302 from `https://doi.org/<doi>` shows only that the DOI resolves; figshare's own pages answer scripted clients with a 202 challenge (measured from the build sessions, through their proxy). Stronger evidence is a CI job with no token, or a browser with no sign-in: the Half marathon workflow's `source` job downloaded every pinned half asset from these URLs with no token on October 30, 2026 (run 41126215052, on the merge of #85). The procedure is in [operations](../docs/OPERATIONS.md#access-checks); the current result also goes in the handoff's [Current state](../docs/PROJECT_HANDOFF.md#current-state).
+
+**The check of October 30, 2026, 23:31 UTC** (23:31:24 to 23:31:37), from a build session, with no credentials in any request. Every asset this page lists answered 206 after one redirect, and every `Content-Range` total equals the size GitHub lists for the asset:
+
+| Release | Asset | Result | Bytes (`Content-Range`) |
+| --- | --- | --- | ---: |
+| `private-export-20261021-1050` | `pace-notes-CORE-20261021-1050.tar.gz` | 206 | 189,403,111 |
+| | `pace-notes-FULL-20261021-1050.tar.gz.part-00` | 206 | 790,000,000 |
+| | `pace-notes-FULL-20261021-1050.tar.gz.part-01` | 206 | 780,523,364 |
+| | `RELEASE-SHA256SUMS-20261021-1050.txt` | 206 | 428 |
+| `half-dataset-20261029-1202` | `half-20261029-1133.sqlite.zst.part00` | 206 | 392,995,892 |
+| | `runner_links-20261029-1156.sqlite.zst.part00` | 206 | 839,334,549 |
+| | `MATCHING_HALF.md` | 206 | 4,637 |
+| | `linking-scripts-20261029-1156.tar.gz` | 206 | 4,364 |
+| | `README.md` | 206 | 3,623 |
+| | `SHA256SUMS` | 206 | 935 |
+| `half-dataset-20261029-2157` | `csv-edition_meta.csv.zst` | 206 | 582,494 |
+| | `README.md` | 206 | 4,065 |
+| | `SHA256SUMS` | 206 | 824 |
+| `htw-db-2026-10-16-1652` (historical) | `htw-db-CORE-20261016-1652.tar.gz` | 206 | 189,872,267 |
+| | `htw-db-FULL-20261016-1652.tar.gz` | 206 | 1,465,415,183 |
+| | `race_records.parquet` | 206 | 240,181,546 |
+| | `features.parquet` | 206 | 1,291,757,672 |
+| | `_snapshot_platform_20261016-1652-freeze.sqlite.gz` | 206 | 679,318,522 |
+| | `RELEASE-SHA256SUMS-20261016-1652.txt` | 206 | 1,410 |
+| | `SHA256SUMS.txt` | 206 | 1,096 |
+| | `EDITIONS.json` | 206 | 36,950 |
+| | `CHANGE-REPORT.md` | 206 | 1,676 |
+
+In the same run: the release pages of `private-export-20261021-1050`, `half-dataset-20261029-1202`, `half-dataset-20261029-2157`, `htw-db-2026-10-16-1652` and `private-export-20260912-0934` answered 200; `https://doi.org/10.6084/m9.figshare.33965155.v3` and `https://doi.org/10.6084/m9.figshare.34858428.v1` answered 302 to their figshare records; a HEAD request for the 1050 release checksums answered 401. The control, `half-snapshot-20261029-1133/half-20261029-1133.sqlite.zst.part00` in the private `koolkam00/pace-notes-db-backup` (an asset the proxied API lists), answered 404 to the same ranged GET, which shows the test does not carry the proxy's credentials.
 
 ## The 1652 release (October 16, 2026, historical)
+
+> Historical (October 30, 2026): 1652 was adopted on `main` by PR #70 (`77356bf`) and superseded by `private-export-20261021-1050` (PR #78, `39f3057`, October 22, 2026). This section is kept as written on October 16, 2026, with one dated correction below.
 
 Updated October 16, 2026 for **`htw-db-2026-10-16-1652`**, the release the analyses on branch `feat/release-1652` are rebuilt from (repository state; not deployed until that branch is merged and production is checked). Full source records, recorded names, supplied features, overlays and consistent database backups are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database.
 
@@ -79,6 +124,8 @@ The release lives in the renamed repository `koolkam00/pace-notes`.
 - [Release checksums](https://github.com/koolkam00/pace-notes/releases/download/htw-db-2026-10-16-1652/RELEASE-SHA256SUMS-20261016-1652.txt), [member checksums](https://github.com/koolkam00/pace-notes/releases/download/htw-db-2026-10-16-1652/SHA256SUMS.txt), [per-edition counts](https://github.com/koolkam00/pace-notes/releases/download/htw-db-2026-10-16-1652/EDITIONS.json) and the [change report](https://github.com/koolkam00/pace-notes/releases/download/htw-db-2026-10-16-1652/CHANGE-REPORT.md)
 
 No account, password or decryption key is required. On October 16, 2026 the release's asset list was read from the GitHub API without a token, and `SHA256SUMS.txt` and the first kilobyte of the SQLite snapshot were downloaded anonymously (the signed asset host answers GET; a HEAD request to it returns 401, which is not an access restriction). Standard gzip/tar tools open the archives; DuckDB or PyArrow reads Parquet. The `private` wording that the release README and MANIFEST still carry is stale producer text, not an access restriction.
+
+**Correction (October 30, 2026):** an API read from the project's build sessions carries credentials added by their proxy, so the asset-list read above does not show anonymous access. The assets listed above answered a ranged GET with no credentials with 206 on October 30, 2026 ([how access was checked](#how-access-was-checked)).
 
 Both archives were downloaded with `analysis/download_release.py` and checked against their release sizes and SHA-256 digests. CORE has its 12 expected members and FULL its 14. The twelve members they share match byte for byte, and every line of both copies of `SHA256SUMS.txt` matches its extracted file (CORE's copy also lists the two FULL-only files). `EDITIONS.json` and `races_summary.json` match the parquet in all 287 editions, including the counts with a 5 km split. The SQLite snapshot was not downloaded in full or opened for this refresh (disk space); its digest is listed below. See [the refresh record](../docs/REFRESH_20261016_1652.md) for calculation and import status.
 
@@ -124,7 +171,7 @@ python analysis/audit_release.py --input /path/to/1652-input --core /path/to/165
 
 ## The 0934 release (September 12, 2026, historical)
 
-The previous adopted release, [`private-export-20260912-0934`](https://github.com/koolkam00/pace-notes/releases/tag/private-export-20260912-0934), keeps its assets and its [refresh record](../docs/REFRESH_20260912_0934.md): 4,462,379 raw and feature rows, 34 cities, 256 editions, FULL `cb4e0ab7432010de29755ec5d75ca3b370e64e481eda5b20c44b359f39552204`, manifest `a6f534d40bac291e0a1bc2eeb70633660acd00a710a090320876736de9c30f4d`, SQLite database `b5da2f6557eec5bf382f291f86c040cf50302cbaa55aa248f076c723f9cd822f` (opened read-only, `PRAGMA integrity_check` ok). Its CORE has eight members and FULL nine. Its eligible cohort was 3,517,336 finishes; those numbers stay as historical evidence.
+An earlier adopted release (superseded by `htw-db-2026-10-16-1652` in PR #70, then by `private-export-20261021-1050` in PR #78), [`private-export-20260912-0934`](https://github.com/koolkam00/pace-notes/releases/tag/private-export-20260912-0934), keeps its assets and its [refresh record](../docs/REFRESH_20260912_0934.md): 4,462,379 raw and feature rows, 34 cities, 256 editions, FULL `cb4e0ab7432010de29755ec5d75ca3b370e64e481eda5b20c44b359f39552204`, manifest `a6f534d40bac291e0a1bc2eeb70633660acd00a710a090320876736de9c30f4d`, SQLite database `b5da2f6557eec5bf382f291f86c040cf50302cbaa55aa248f076c723f9cd822f` (opened read-only, `PRAGMA integrity_check` ok). Its CORE has eight members and FULL nine. Its eligible cohort was 3,517,336 finishes; those numbers stay as historical evidence.
 
 ## Historical compatibility evidence
 

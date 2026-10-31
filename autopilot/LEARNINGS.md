@@ -10,7 +10,9 @@ Each entry is dated, says what kind of evidence it rests on, and gives a sample 
   - Tools (23%) and stories (20%) went from nothing to real use.
   - Page views per visit rose from 2.5 to 3.5.
 
-  The old home's main button went straight to `/analyses/pacing-pattern`. The likely lesson: a direct "how do runners like me pace?" entry on the first phone screen matters a lot. `home-hero-v1` tests exactly this.
+  The old home's main button went straight to `/analyses/pacing-pattern`. The likely lesson: a direct "how do runners like me pace?" entry on the first phone screen matters a lot. ~~`home-hero-v1` tests exactly this.~~
+
+  Correction (2026-10-30): `home-hero-v1` was dropped before merge on 2026-10-15 and never ran. `lib/experiments.ts` holds `EXPERIMENTS = []`, so no experiment has run yet (`docs/ANALYTICS.md`, experiments).
 - **People who stay on the new home page read it.** The median time before a second page rose from 6.5 s to 46.5 s, and visits whose second page was `/stories` averaged 9.4 page views. The story isn't failing; the first screen is.
 - **Runner search** fails to find a name 23.6% of the time (29 of 123), and before the setup a failed search led nowhere.
 - **Quick exits were invisible.** About 52% of visits had one page and no action. Replays start after a delay, so they never show quick exits. Since the setup, `$pageleave` duration and `section_viewed` give the missing picture; use them before guessing.
@@ -19,3 +21,4 @@ Each entry is dated, says what kind of evidence it rests on, and gives a sample 
 
 ## Log
 <!-- Add new entries below, newest last: "- YYYY-MM-DD (source, n): learning." -->
+- 2026-10-22 (PostHog project 614669, sessions 2026-09-17..10-22 mixed with the owner's and automated ones; n = 125 home landings since 2026-10-15 for the last figure; recorded 2026-10-30 from the orientation survey in `docs/history/handoff-2026-10-20-to-30.md`): 76% of sessions were on phones and 79% landed on `/`, close to the 2026-10-14 starting point. 0 of 125 home landings went next to `/about` or `/methodology`. Consistent with a first phone screen that did not say what the site is (addressed by the orientation work, #80, merged 2026-10-22); evidence, not proof.
