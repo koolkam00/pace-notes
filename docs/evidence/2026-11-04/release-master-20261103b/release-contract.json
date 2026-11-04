@@ -1,0 +1,414 @@
+{
+  "release_tag": "master-20261103b",
+  "input_provenance": {
+    "repository": "koolkam00/pace-notes",
+    "release_tag": "master-20261103b",
+    "release_published_at": "2026-11-03T23:10:56Z",
+    "layout": "master",
+    "asset": "master_results_FULL.parquet",
+    "asset_sha256": "41d575cde127c94a9acf4242cc4d385701bb1e7568ba2e8ee65e4341e15b69db",
+    "asset_path": "master-assets/master_results_FULL.parquet",
+    "bundle": "FULL",
+    "manifest_sha256": "551c26e1e4095f0b0e4f45e0fb678da015ea0b8ad342824e68f8920750f376c7",
+    "release_checksums": {
+      "asset": "SHA256SUMS",
+      "sha256": "b2dc190ed25a59c1a2175a46661db0cb3d2abf5e3814e98eb8eb9ceddf2c2065"
+    },
+    "assets": {
+      "master_results_FULL.parquet": "41d575cde127c94a9acf4242cc4d385701bb1e7568ba2e8ee65e4341e15b69db",
+      "editions.csv": "3522002d59f6a9df660b6c541c33f8da5e702e7dd05b1d43d36d3cfc4b15279b",
+      "MANIFEST_editions.csv": "369edb123d7450c84d092fd27a3bd2afdd1fae2e3a0dcd064e30040deeb95b88",
+      "marathon_record_flags_detail.parquet": "ed2f7a033cd195c2baade469d01d80163cb1c0bdf293b7380369b70467d69378",
+      "NYC2026_rows_missing_splits.csv": "bf3dba365f99cd40a51a62e37e0ec74a9eb7f69c1550e795d08e83a7c559aeed",
+      "sources.csv": "6702e4467a2f22639914ee3436c39319409988ec3da076bbe412f0f5ad402770",
+      "QA-REPORT.json": "c52638fba148b8f5332d65d3700efe5be5459f467c6f9300d30210ebca0273d1",
+      "README.md": "37bd1205490ab657dcac3d62f8d3b367786697ccd36a57f50397dc2a0b2dd46b",
+      "DATA_DICTIONARY.md": "ed641d18cf43f1cf48df3a62eab3ab492a26590b3be91fee1d538c5b5e7143b7",
+      "CHANGELOG.md": "b65e348d07e96b9a85ca6761290062354f9440624f390d82be33afae69f94386"
+    },
+    "overlays": {
+      "tag": "dataset-20261103-0706",
+      "published_at": "2026-11-03T12:27:45Z",
+      "sha256sums_sha256": "d9f37a77dad7b04f59e7e75b27e7af9e8653c2b09464685690c5e5d06dd62d54",
+      "assets": {
+        "marathon-race_conditions.csv.zst": "4a781f7cecb1bd8dd6b1e883a0b5c25b63bf3937bfa6219ed08c710be50ad3b5",
+        "marathon-course_profiles.csv.zst": "ce69dee207c261912299bc4e943384cf4119fd0fb4aa686d3845b0d5d99ccfcf",
+        "marathon-course_segments.csv.zst": "37a3e8a935fea734002a31d668c03ab2984379f08d850bffce61848b3119c5bb",
+        "marathon-sources.csv.zst": "62d788120af0d8df5fdd8635b4de1363800f7ea566ebc6172358028d93f39857",
+        "marathon-edition_meta.csv.zst": "233a59f877d09d3d50a93d5e069206078a82c7b6f9b88649b727b0cc21b53c3f",
+        "marathon-record_flags.csv.zst": "862cb0ea493476b62b116e99669bdb0bd2a40ef35e793c5ae50468e862c5344a"
+      }
+    },
+    "baseline": {
+      "tag": "private-export-20261021-1050",
+      "published_at": "2026-10-21T15:14:49Z",
+      "asset": "pace-notes-CORE-20261021-1050.tar.gz",
+      "sha256": "b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8",
+      "checksums_asset": "RELEASE-SHA256SUMS-20261021-1050.txt",
+      "checksums_sha256": "a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f"
+    },
+    "adapter_sha256": "54e57b6f1e09c0086f65325b07b5f3891fab919ac852f4aa828fa1ca97569916",
+    "adapter_version": 1
+  },
+  "audit_script_sha256": "6fd51ed37b33b8692b4fe83b5fb1a3ea33fa85ff9dee1dc8f1dd6537644605f8",
+  "member_sha256": {
+    "MANIFEST.json": "551c26e1e4095f0b0e4f45e0fb678da015ea0b8ad342824e68f8920750f376c7",
+    "race_records.parquet": "9de4cecb58845d3c7214baeea87ba356de973398536b8bc284fc58fb53718c2d",
+    "race_conditions.parquet": "a2efadb42d1570d499e6b2b9fb2390afc1e03c14e32dd86ff268aba85942a401",
+    "course_profiles.parquet": "afd01df49fa899547fd5a5ccd0d7740a19ae33c98d3b1f732dcbe623a60b867c",
+    "course_segments.parquet": "ecc37923c7dfb868c227241388aaf3ba0e6c7dd86dd49134e0ab514f853ffd1c",
+    "sources.parquet": "e2d9304b0b871e7a4cab1defefb5d8bc3ee9cb0674de27be78c35e5c92ecc2fc",
+    "edition_meta.parquet": "028f387eccc802bb356eef8524a74e50c1e88021f7e1d7a91288c5678a4b1aa5",
+    "record_flags.parquet": "0649c4a34938d1c2d729026015901fd1d47c860fe45f6ba963eb77f2a11cd7b3",
+    "features.parquet": "03bd015098cb087a79105b698e1e93f929175de3b20ffd577b55994e2768127d",
+    "EDITIONS.json": "528964cc2ea8ec2d383164b978f1cf75db30d7f6a07fdf7193c83b8e0631a8d6",
+    "races_summary.json": "2f51e62dcbd48347eb1894940da418b502b83338bf10f7fee2d9a3edaafe2c9b",
+    "EDITION-CHECKSUMS.csv": "36f82a2478de4b3b45696ca0075ff20c1100aeeb6b690372f217fcf675355b88",
+    "RECONCILIATION.json": "635ef547c92627e503b40bce447f82add20ddfd1eba7c32d2045d9942f11ecd7",
+    "CHANGE-REPORT.md": "e22f554f2a9638a5aef06f32e0fb6a97ee4ee7011cd67bb0345dbdf04226fed8",
+    "ID-CONTRACT.md": "721f3438df511f122e4fdbdcaefc813d640ba000f38dc8e1316e7f4b399f031f",
+    "MATCHING.md": "e667c265692b7cf5c8886167bd2077a0ab1be28bc0b6359ee77f57c5b6219169",
+    "FEATURE-FIELD-NOTES.md": "d5a3005bc30a1d4071abfe2bc6b00c130cfa3de7d8ea4179943b1542b46da99a",
+    "README.md": "8e7fda177d7d52da74dbe8137f47b0b9817a66f8f63bf8ffcd03ad2f1782b4b3",
+    "SHA256SUMS.txt": "32401a194ce5372aa0d05326984f6c9e7cce3b11791e8b481973d554a69bf8de"
+  },
+  "manifest_size_notes": [],
+  "r_ids": {
+    "rows": 5388605,
+    "non_null": 5388605,
+    "unique_ids": 5388605
+  },
+  "f_ids": {
+    "rows": 5388605,
+    "non_null": 5388605,
+    "unique_ids": 5388605
+  },
+  "alignment": {
+    "joined": 5388605,
+    "unmatched": 0,
+    "edition_mismatch": 0,
+    "name_mismatch": 0,
+    "age_mismatch": 0
+  },
+  "sex_normalization": [
+    {
+      "raw_sex": "X",
+      "feature_sex": "NULL",
+      "rows": 858
+    }
+  ],
+  "timings": [
+    {
+      "comparable": 5302489,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 1.8189894035458565e-12,
+      "raw": "split_5km",
+      "feature": "cum_05"
+    },
+    {
+      "comparable": 5297766,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 1.8189894035458565e-12,
+      "raw": "split_10km",
+      "feature": "cum_10"
+    },
+    {
+      "comparable": 5193138,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 3.637978807091713e-12,
+      "raw": "split_15km",
+      "feature": "cum_15"
+    },
+    {
+      "comparable": 4850579,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 3.637978807091713e-12,
+      "raw": "split_20km",
+      "feature": "cum_20"
+    },
+    {
+      "comparable": 5001982,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 7.275957614183426e-12,
+      "raw": "split_25km",
+      "feature": "cum_25"
+    },
+    {
+      "comparable": 5285149,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 7.275957614183426e-12,
+      "raw": "split_30km",
+      "feature": "cum_30"
+    },
+    {
+      "comparable": 5262568,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 1.4551915228366852e-11,
+      "raw": "split_35km",
+      "feature": "cum_35"
+    },
+    {
+      "comparable": 5240844,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 1.4551915228366852e-11,
+      "raw": "split_40km",
+      "feature": "cum_40"
+    },
+    {
+      "comparable": 5375713,
+      "mismatches": 0,
+      "valid_mismatches": 0,
+      "max_error_seconds": 3.637978807091713e-12,
+      "raw": "split_42_2km",
+      "feature": "finish_time"
+    }
+  ],
+  "coverage": {
+    "raw_records": 5388605,
+    "cities": 34,
+    "race_years": 299,
+    "max_ingested_at": "2026-11-03T12:38:54Z",
+    "null_age": 3675935
+  },
+  "features": {
+    "with_runner_id": 4653347,
+    "runner_ids": 3522255,
+    "keyed_not_unambiguous": 0,
+    "null_name": 11,
+    "supplied_dates": 5327543
+  },
+  "course_validity": {
+    "profiles": 33,
+    "valid_from": 1,
+    "valid_to": 0
+  },
+  "weather": {
+    "rows": 299,
+    "unique_editions": 299,
+    "dates_agree": 299
+  },
+  "checksum_list": {
+    "listed": 18,
+    "matched": [
+      "CHANGE-REPORT.md",
+      "EDITION-CHECKSUMS.csv",
+      "EDITIONS.json",
+      "FEATURE-FIELD-NOTES.md",
+      "ID-CONTRACT.md",
+      "MANIFEST.json",
+      "MATCHING.md",
+      "README.md",
+      "RECONCILIATION.json",
+      "course_profiles.parquet",
+      "course_segments.parquet",
+      "edition_meta.parquet",
+      "features.parquet",
+      "race_conditions.parquet",
+      "race_records.parquet",
+      "races_summary.json",
+      "record_flags.parquet",
+      "sources.parquet"
+    ],
+    "mismatched": [],
+    "missing": [],
+    "unlisted": []
+  },
+  "producer_counts": {
+    "editions": 299,
+    "records": 5388605,
+    "records_with_5km": 5302489,
+    "races_summary_mismatches": [],
+    "manifest_race_years": 299,
+    "editions_json_rows": 300,
+    "editions_json_status": {
+      "complete": 196,
+      "excluded": 1,
+      "partial": 73,
+      "unverified": 30
+    },
+    "editions_json_excluded": [
+      "Amsterdam 2020"
+    ],
+    "editions_json_mismatches": []
+  },
+  "master_reconciliation": {
+    "core_rows_missing": 0,
+    "rows_not_core": 0,
+    "rows_differ": 0,
+    "rows_equal_or_differ": 5388605,
+    "qa_core_rows_marathon": 5388605,
+    "qa_full_rows_marathon": 5389399,
+    "editions_csv_mismatches": [],
+    "columns_compared": [
+      "race",
+      "year",
+      "city",
+      "runner",
+      "sex",
+      "age",
+      "age_group",
+      "split_5km",
+      "split_10km",
+      "split_15km",
+      "split_20km",
+      "split_25km",
+      "split_30km",
+      "split_35km",
+      "split_40km",
+      "split_42_2km",
+      "source_url",
+      "ingested_at",
+      "age_or_group"
+    ]
+  },
+  "core_full_shared_hashes_match": true,
+  "core_full_shared_members": [
+    "CHANGE-REPORT.md",
+    "EDITION-CHECKSUMS.csv",
+    "EDITIONS.json",
+    "FEATURE-FIELD-NOTES.md",
+    "ID-CONTRACT.md",
+    "MANIFEST.json",
+    "MATCHING.md",
+    "README.md",
+    "RECONCILIATION.json",
+    "SHA256SUMS.txt",
+    "course_profiles.parquet",
+    "course_segments.parquet",
+    "edition_meta.parquet",
+    "race_conditions.parquet",
+    "race_records.parquet",
+    "races_summary.json",
+    "record_flags.parquet",
+    "sources.parquet"
+  ],
+  "core_provenance": {
+    "repository": "koolkam00/pace-notes",
+    "release_tag": "master-20261103b",
+    "release_published_at": "2026-11-03T23:10:56Z",
+    "layout": "master",
+    "asset": "master_results_FULL.parquet",
+    "asset_sha256": "41d575cde127c94a9acf4242cc4d385701bb1e7568ba2e8ee65e4341e15b69db",
+    "asset_path": "master-assets/master_results_FULL.parquet",
+    "bundle": "CORE",
+    "manifest_sha256": "551c26e1e4095f0b0e4f45e0fb678da015ea0b8ad342824e68f8920750f376c7",
+    "release_checksums": {
+      "asset": "SHA256SUMS",
+      "sha256": "b2dc190ed25a59c1a2175a46661db0cb3d2abf5e3814e98eb8eb9ceddf2c2065"
+    },
+    "assets": {
+      "master_results_FULL.parquet": "41d575cde127c94a9acf4242cc4d385701bb1e7568ba2e8ee65e4341e15b69db",
+      "editions.csv": "3522002d59f6a9df660b6c541c33f8da5e702e7dd05b1d43d36d3cfc4b15279b",
+      "MANIFEST_editions.csv": "369edb123d7450c84d092fd27a3bd2afdd1fae2e3a0dcd064e30040deeb95b88",
+      "marathon_record_flags_detail.parquet": "ed2f7a033cd195c2baade469d01d80163cb1c0bdf293b7380369b70467d69378",
+      "NYC2026_rows_missing_splits.csv": "bf3dba365f99cd40a51a62e37e0ec74a9eb7f69c1550e795d08e83a7c559aeed",
+      "sources.csv": "6702e4467a2f22639914ee3436c39319409988ec3da076bbe412f0f5ad402770",
+      "QA-REPORT.json": "c52638fba148b8f5332d65d3700efe5be5459f467c6f9300d30210ebca0273d1",
+      "README.md": "37bd1205490ab657dcac3d62f8d3b367786697ccd36a57f50397dc2a0b2dd46b",
+      "DATA_DICTIONARY.md": "ed641d18cf43f1cf48df3a62eab3ab492a26590b3be91fee1d538c5b5e7143b7",
+      "CHANGELOG.md": "b65e348d07e96b9a85ca6761290062354f9440624f390d82be33afae69f94386"
+    },
+    "overlays": {
+      "tag": "dataset-20261103-0706",
+      "published_at": "2026-11-03T12:27:45Z",
+      "sha256sums_sha256": "d9f37a77dad7b04f59e7e75b27e7af9e8653c2b09464685690c5e5d06dd62d54",
+      "assets": {
+        "marathon-race_conditions.csv.zst": "4a781f7cecb1bd8dd6b1e883a0b5c25b63bf3937bfa6219ed08c710be50ad3b5",
+        "marathon-course_profiles.csv.zst": "ce69dee207c261912299bc4e943384cf4119fd0fb4aa686d3845b0d5d99ccfcf",
+        "marathon-course_segments.csv.zst": "37a3e8a935fea734002a31d668c03ab2984379f08d850bffce61848b3119c5bb",
+        "marathon-sources.csv.zst": "62d788120af0d8df5fdd8635b4de1363800f7ea566ebc6172358028d93f39857",
+        "marathon-edition_meta.csv.zst": "233a59f877d09d3d50a93d5e069206078a82c7b6f9b88649b727b0cc21b53c3f",
+        "marathon-record_flags.csv.zst": "862cb0ea493476b62b116e99669bdb0bd2a40ef35e793c5ae50468e862c5344a"
+      }
+    },
+    "baseline": {
+      "tag": "private-export-20261021-1050",
+      "published_at": "2026-10-21T15:14:49Z",
+      "asset": "pace-notes-CORE-20261021-1050.tar.gz",
+      "sha256": "b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8",
+      "checksums_asset": "RELEASE-SHA256SUMS-20261021-1050.txt",
+      "checksums_sha256": "a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f"
+    },
+    "adapter_sha256": "54e57b6f1e09c0086f65325b07b5f3891fab919ac852f4aa828fa1ca97569916",
+    "adapter_version": 1
+  },
+  "core_checksum_list": {
+    "listed": 18,
+    "matched": [
+      "CHANGE-REPORT.md",
+      "EDITION-CHECKSUMS.csv",
+      "EDITIONS.json",
+      "FEATURE-FIELD-NOTES.md",
+      "ID-CONTRACT.md",
+      "MANIFEST.json",
+      "MATCHING.md",
+      "README.md",
+      "RECONCILIATION.json",
+      "course_profiles.parquet",
+      "course_segments.parquet",
+      "edition_meta.parquet",
+      "race_conditions.parquet",
+      "race_records.parquet",
+      "races_summary.json",
+      "record_flags.parquet",
+      "sources.parquet"
+    ],
+    "mismatched": [],
+    "missing": [
+      "features.parquet"
+    ],
+    "unlisted": []
+  },
+  "previous_delta": {
+    "added": 61101,
+    "deleted": 0,
+    "changed": 16013,
+    "unchanged": 5311491
+  },
+  "previous_release": "private-export-20261021-1050",
+  "previous_delta_by_edition": [
+    {
+      "city": "Amsterdam",
+      "year": 2023,
+      "added": 39,
+      "deleted": 0,
+      "changed": 16013
+    },
+    {
+      "city": "New York",
+      "year": 2026,
+      "added": 61062,
+      "deleted": 0,
+      "changed": 0
+    }
+  ],
+  "previous_changed_columns": {
+    "race": 0,
+    "year": 0,
+    "city": 0,
+    "runner": 0,
+    "sex": 0,
+    "age": 0,
+    "age_group": 0,
+    "split_5km": 0,
+    "split_10km": 0,
+    "split_15km": 0,
+    "split_20km": 0,
+    "split_25km": 0,
+    "split_30km": 0,
+    "split_35km": 0,
+    "split_40km": 0,
+    "split_42_2km": 16013,
+    "source_url": 0,
+    "ingested_at": 0,
+    "age_or_group": 0
+  }
+}

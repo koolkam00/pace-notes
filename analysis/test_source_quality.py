@@ -9,7 +9,8 @@ from pathlib import Path
 import duckdb
 
 from build_pacing import FIELDS, Publisher, prepare
-from source_quality import (RELEASE, RULES, LATEST_RELEASE, LATEST_RULES, RELEASE_1652, RULES_1652, RELEASE_1050, RULES_1050, REVIEWED_POLICIES,
+from source_quality import (RELEASE, RULES, LATEST_RELEASE, LATEST_RULES, RELEASE_1652, RULES_1652, RELEASE_1050, RULES_1050, RELEASE_MASTER_20261103B,
+                            RULES_MASTER_20261103B, REVIEWED_POLICIES,
                             policy_metadata, source_quality_report, validate_source_quality)
 
 
@@ -47,7 +48,7 @@ class SourceQualityTests(unittest.TestCase):
         self.assertIn('200 records', next(row['reason'] for row in historical['editions'] if row['city'] == 'New York'))
 
     def test_htw_db_release_has_its_own_reviewed_policy(self):
-        self.assertEqual(set(REVIEWED_POLICIES), {RELEASE, LATEST_RELEASE, RELEASE_1652, RELEASE_1050})
+        self.assertEqual(set(REVIEWED_POLICIES), {RELEASE, LATEST_RELEASE, RELEASE_1652, RELEASE_1050, RELEASE_MASTER_20261103B})
         keys = [(city, year) for city, year, _, _ in RULES_1652]
         self.assertEqual(len(keys), len(set(keys)))
         self.assertEqual(len(RULES_1652), 30)
@@ -127,6 +128,40 @@ class SourceQualityTests(unittest.TestCase):
             self.assertEqual(source_quality_report(db, source)['release_tag'], RELEASE_1050)
         # The 1652 policy is unchanged.
         self.assertEqual(len(policy_metadata(RELEASE_1652)['editions']), 30)
+
+    def test_release_master_20261103b_policy(self):
+        # Reviewed November 4, 2026 (docs/REFRESH_20261103b.md): RULES_1050 carried, New York 2008 and Amsterdam 2023 released.
+        keys = [(city, year) for city, year, _, _ in RULES_MASTER_20261103B]
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertEqual(len(RULES_MASTER_20261103B), 39)
+        rule = {(city, year): (category, reason) for city, year, category, reason in RULES_MASTER_20261103B}
+        before = {(city, year): (category, reason) for city, year, category, reason in RULES_1050}
+        self.assertEqual(set(before) - set(rule), {('New York', 2008), ('Amsterdam', 2023)})
+        self.assertEqual(set(rule) - set(before), set())
+        # New York 2026 is new and passes the screens; London 2025 and 2026 stay in (owner, October 21, 2026).
+        for key in [('New York', 2026), ('London', 2025), ('London', 2026), ('Amsterdam', 2020)]:
+            self.assertNotIn(key, rule)
+        # Categories never change; a reason changes only where it cited a producer HOLD, which master does not carry.
+        reworded = {key for key in rule if rule[key][1] != before[key][1]}
+        self.assertEqual(reworded, {key for key, (_, reason) in before.items() if 'HOLD' in reason} - {('New York', 2008), ('Amsterdam', 2023)})
+        self.assertEqual(len(reworded), 14)
+        for key in rule:
+            self.assertEqual(rule[key][0], before[key][0], key)
+        for key in reworded:
+            self.assertTrue(rule[key][1].startswith('The producer lists this edition as partial'), key)
+            self.assertEqual(re.findall(r'[0-9][0-9,.]*', rule[key][1]), re.findall(r'[0-9][0-9,.]*', before[key][1].replace('HOLD', '')), key)
+        self.assertFalse(any('HOLD' in reason or 'master-' in reason or '20261103' in reason or 'private-export' in reason
+                             for _, reason in rule.values()))
+        rank = re.compile(r'\b(?:rank|ranks|ranked|ranking|rankings|fastest|toughest|hardest|easiest|harder|easier|tougher|similar|best|worst|top \d+)\b', re.I)
+        self.assertEqual([key for key, (_, reason) in rule.items() if rank.search(reason)], [])
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder); db = fixture(source, RELEASE_MASTER_20261103B, RULES_MASTER_20261103B)
+            counts = prepare(db, source, keep_record_id=True)
+            self.assertEqual(counts['source_quality_excluded'], 39)
+            self.assertEqual(counts['eligible'], 1)
+            self.assertEqual(source_quality_report(db, source)['release_tag'], RELEASE_MASTER_20261103B)
+        # The 1050 policy is unchanged.
+        self.assertEqual(len(policy_metadata(RELEASE_1050)['editions']), 41)
 
     def test_known_grid_holds_and_selected_fields_are_excluded_without_double_counting(self):
         with tempfile.TemporaryDirectory() as folder:
