@@ -235,6 +235,12 @@ export function HalfFieldTopic() {
   // While /half's same-city heading falls back (half.cities), this sentence states no reading either: the counts and
   // the floor they miss, not which distance had the larger women's share or by how much (AGENTS.md rule 13: the
   // methodology sentence about the page is one of the fallback's slots; post-merge review, round 5, October 31, 2026).
+  // How many years each city's row pools is said here, from the published pairs, and nowhere on /half (AGENTS.md rule
+  // 15: coverage lives only on /methodology; November 4, 2026, when /half's "6 years" notes were removed).
+  const cityYears = and(sc.cities.map((c, i) => {
+    const runs = editionList(sc.pairs.filter((p) => p.city === c.city)).slice(c.city.length + 1);
+    return `${c.city}’s${i ? '' : ' row pools'} ${n(c.pairs)} ${c.pairs === 1 ? 'year' : 'years'} (${runs})`;
+  }));
   const few = sc.summary.pairs < 10 || sc.summary.cities < 5;
   const citiesSaid = halfCitiesFrom(women).guard
     ? `That gives ${n(sc.summary.pairs)} pairs in ${n(sc.summary.cities)} cities; the half had the larger women’s share in ${n(sc.summary.half_higher)} of them, by a median ${sc.summary.diff_median_points.toFixed(1)} points (from ${sc.summary.diff_min_points.toFixed(1)} to ${sc.summary.diff_max_points.toFixed(1)}), and in ${n(sc.all_scope_check.half_higher)} of ${n(sc.all_scope_check.pairs)} pairs over every usable half edition, verified or not.`
@@ -248,7 +254,7 @@ export function HalfFieldTopic() {
       {womenBandsPublished(women)
         ? <p>Women’s share by finish band is the median over {n(women.band_editions.length)} verified editions with at least {n(women.band_rule.min_finishes)} finishes, at most {pct0(women.band_rule.max_unrecorded)} without a recorded sex and at least {n(women.band_rule.min_recorded_per_band)} recorded finishes in every band; the band where the shares pass one half is the same with any one edition left out. The marathon’s comparison (women’s finishes are the majority from {floorHM(women.marathon.cross_s)}) is the Top 100 chart’s, from <a href={dataHref(women.marathon.file)}>{women.marathon.file}</a>.</p>
         : <p>Women’s share by finish band would be the median over the verified editions with at least {n(women.band_rule.min_finishes)} finishes, at most {pct0(women.band_rule.max_unrecorded)} without a recorded sex and at least {n(women.band_rule.min_recorded_per_band)} recorded finishes in every band, every edition counting once, as the marathon’s chart counts them. The medians need at least {n(women.min_band_editions)} such editions; {n(women.band_editions_qualifying)} qualify, so the page leaves the bands out until a snapshot has enough.</p>}
-      <p>Same city, same year: a half edition (verified, with at least 1,000 finishes and 100 recorded women and men) is paired with that city’s marathon in the same year when the marathon is not a gender-gap edition, has at most 2% without a recorded sex, kept at least 80% of its raw records and has at least 1,000 finishes and 100 of each sex. {citiesSaid} London’s 2025 and 2026 marathons and Berlin’s 2025 marathon publish too many finishes without a recorded sex, so they have no pair. A city’s row is the mean of its pairs. These are the fields that entered each race, not anyone’s choice.</p>
+      <p>Same city, same year: a half edition (verified, with at least 1,000 finishes and 100 recorded women and men) is paired with that city’s marathon in the same year when the marathon is not a gender-gap edition, has at most 2% without a recorded sex, kept at least 80% of its raw records and has at least 1,000 finishes and 100 of each sex. {citiesSaid} London’s 2025 and 2026 marathons and Berlin’s 2025 marathon publish too many finishes without a recorded sex, so they have no pair. A city’s row on the page is the mean of its pairs, one a year, so {cityYears}. These are the fields that entered each race, not anyone’s choice.</p>
       <p className="methods-links"><Link href="/half">Read the page</Link><a href={dataHref('half/field.json')}>half/field.json</a><a href={dataHref('half/women.json')}>half/women.json</a></p>
     </Topic>
   );

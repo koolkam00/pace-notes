@@ -47,4 +47,6 @@
   .values { interpolate-size: allow-keywords; }
   .values::details-content { height: 0; overflow: clip; transition: height var(--d-toggle) var(--ease-out), content-visibility var(--d-toggle) allow-discrete; }
   .values[open]::details-content { height: auto; }
+  /* A fold MethodsHash opens for a link skips the animation, so its scroll lands (round 6, November 4, 2026). */
+  .values[data-landing]::details-content { transition: none; }
 }

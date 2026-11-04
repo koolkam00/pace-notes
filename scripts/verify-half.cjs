@@ -658,6 +658,16 @@ const pageGuards = {};
     ok(words.plain.length <= 150, `card ${c.slug}: the takeaway is ${words.plain.length} characters (at most 150)`);
     ok(/records linked by name/.test(words.plain) === (c.scope === 'linked'), `card ${c.slug}: "records linked by name" exactly when the card is linked`);
     eq(words.chip, c.scope === 'linked' ? 'Includes unverified half results' : null, `card ${c.slug}: the chip only on a linked card`);
+    // A dumbbell card's key reads in the order its marks run across every row: the form's own key names the ring (a)
+    // first, so where b's dot sits left of a's ring in every row the card carries its own key, dot first (post-merge
+    // review, round 6, October 31, 2026: half-same-half's key read "○ Recorded men's ● Recorded women's" over rows whose
+    // women's dot was always on the left).
+    if (c.plot.form === 'dumbbell' && !c.plot.arrow) {
+      const bLeft = c.plot.rows.every((r) => r.b < r.a), aLeft = c.plot.rows.every((r) => r.a < r.b);
+      const own = [{ label: c.plot.a, tone: 'quiet', mark: 'ring' }, { label: c.plot.b, tone: 'ink', mark: 'dot' }];
+      if (bLeft) eq(words.key, [own[1], own[0]], `card ${c.slug}: the b dot sits left of the a ring in every row, so the key names it first`);
+      else ok(words.key === null || JSON.stringify(words.key) === JSON.stringify(own) || !aLeft, `card ${c.slug}: the a ring sits left in every row, so the key names it first`);
+    }
     texts.push([`card ${c.slug} title`, said.title], [`card ${c.slug} title fallback`, said.titleFallback], [`card ${c.slug} takeaway`, said.headline],
       [`card ${c.slug} fallback`, said.fallback], [`card ${c.slug} kicker`, `${words.kicker} ${words.theme}`]);
   }
@@ -836,6 +846,24 @@ if (opt.html) {
       const hitCity = /larger women’s share in \d|half was higher|half had the larger|by a median [\d.]+ points|more women/i.exec(said);
       ok(!hitCity, `/methodology: the same-city sentence states a direction while half.cities falls back: …${hitCity ? said.slice(Math.max(0, hitCity.index - 60), hitCity.index + 60) : ''}…`);
     }
+    // How many years each city's same-city row pools is coverage, so /methodology says it (from women.json's pairs) and
+    // /half does not (AGENTS.md rule 15; November 4, 2026: /half had put "6 years" under each city).
+    {
+      const field = elements(noScripts(methodology), /id="half-field"/)[0];
+      const said = field ? textOf(field.html.replace(/<!--[\s\S]*?-->/g, '')).replace(/\s+/g, ' ') : '';
+      const runsOf = (ys) => {
+        const out = [];
+        for (let i = 0; i < ys.length;) { let j = i; while (j + 1 < ys.length && ys[j + 1] === ys[j] + 1) j++; out.push(j > i ? `${ys[i]}–${ys[j]}` : String(ys[i])); i = j + 1; }
+        return out.length < 2 ? out.join('') : `${out.slice(0, -1).join(', ')} and ${out[out.length - 1]}`;
+      };
+      const items = SC.cities.map((c, i) => {
+        const ys = [...new Set(SC.pairs.filter((p) => p.city === c.city).map((p) => p.year))].sort((a, b) => a - b);
+        eq(ys.length, c.pairs, `women.same_city ${c.city}: a pair a year`);
+        return `${c.city}’s${i ? '' : ' row pools'} ${c.pairs.toLocaleString('en-US')} ${c.pairs === 1 ? 'year' : 'years'} (${runsOf(ys)})`;
+      });
+      const want = `one a year, so ${items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`}.`;
+      ok(said.includes(want), `/methodology: #half-field says the years each city's row pools, from women.json ("${want}")`);
+    }
   }
   let surfaces = 0, readings = 0;
   for (const file of pages) {
@@ -942,6 +970,16 @@ if (opt.html) {
       const tenths = (v) => Math.round(Number(v.replace('%', '').replace('−', '-').replace('+', '')) * 10);
       for (const r of rows) ok(tenths(r[hi]) - tenths(r[mi]) === tenths(r[di]), `${route}: ${r[0]} ${r[1]}: Half ${r[hi]} minus Marathon ${r[mi]} is the printed gap ${r[di]}`);
     }
+    // The same-city beat names each city alone: how many years a row pools is coverage, said on /methodology only
+    // (AGENTS.md rule 15; November 4, 2026: round 2 had put "6 years" under each city and "Oslo over 6 years" in the
+    // chart's label).
+    if (route === '/half') {
+      const beat = elements(html, /id="two-distances"/)[0];
+      const labels = beat ? [...beat.html.matchAll(/aria-label="([^"]*)"/g)].map((m) => textOf(m[1])).join(' ') : '';
+      const seen = beat ? `${textOf(beat.html)} ${labels}` : '';
+      const hit = /\b\d+\s+years?\b|\bover\s+\d/i.exec(seen);
+      ok(beat && !hit && !/dumbbell-note/.test(beat.html), `${route}: the same-city beat states no coverage (years pooled) in its rows or label: …${hit ? seen.slice(Math.max(0, hit.index - 40), hit.index + 40) : ''}…`);
+    }
     // While half.cities falls back, its beat states no direction in any slot: no "typically" in the dumbbell's label,
     // no Typical row and no row drawn as the signal (post-merge review, October 30, 2026: the row and the label still
     // gave the two medians the dek had withdrawn).
@@ -971,7 +1009,8 @@ if (opt.html) {
       }
     }
     // Who holds pace's way into the half story states a direction ("recorded women’s marathons had fewer sustained
-    // slowdowns after the same half marathon, too"), naming whose marathons, its measure and, as its term link before it,
+    // slowdowns after a half marathon in the same time, too"; round 6, October 31, 2026: "after the same half marathon"
+    // read as the same race under "Same race, same finish minute"), naming whose marathons, its measure and, as its term link before it,
     // its scope, only while the H1's reading (holds.title), the beat's (holds.unmask) and half.sexes's guards all hold,
     // recounted here from demographics.json; otherwise it is a pointer with no direction (post-merge review, round 3,
     // October 31, 2026: the link followed no guard; round 4: under the H2's recorded men "fewer … too" named no group).
@@ -982,6 +1021,7 @@ if (opt.html) {
       const ways = links.map((el) => textOf(el.html).trim());
       ok(ways.length === 1, `${route}: one way into the half story (${JSON.stringify(ways)})`);
       for (const way of ways) {
+        ok(!/\bsame half(?: marathon)?\b(?! time)/i.test(way), `${route}: the way into the half story names the half's time as what was held equal, not "the same half marathon" (read as the same race; round 6): "${way}"`);
         if (stateIt) {
           const line = elements(html, /data-half-said="stated"/)[0];
           ok(/^recorded women’s marathons had fewer sustained slowdowns\b/i.test(way) && /\btoo\b/.test(way) && line && /<a\b[^>]*href="\/methodology#half-linking"[^>]*>records linked by name<\/a>/.test(line.html), `${route}: the stated way names whose marathons, its measure and its scope ("${way}")`);
