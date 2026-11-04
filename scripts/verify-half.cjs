@@ -702,6 +702,24 @@ if (opt.html) {
       const hitCity = /larger women’s share in \d|half was higher|half had the larger|by a median [\d.]+ points|more women/i.exec(said);
       ok(!hitCity, `/methodology: the same-city sentence states a direction while half.cities falls back: …${hitCity ? said.slice(Math.max(0, hitCity.index - 60), hitCity.index + 60) : ''}…`);
     }
+    // How many years each city's same-city row pools is coverage, so /methodology says it (from women.json's pairs) and
+    // /half does not (AGENTS.md rule 15; November 4, 2026: /half had put "6 years" under each city).
+    {
+      const field = elements(noScripts(methodology), /id="half-field"/)[0];
+      const said = field ? textOf(field.html.replace(/<!--[\s\S]*?-->/g, '')).replace(/\s+/g, ' ') : '';
+      const runsOf = (ys) => {
+        const out = [];
+        for (let i = 0; i < ys.length;) { let j = i; while (j + 1 < ys.length && ys[j + 1] === ys[j] + 1) j++; out.push(j > i ? `${ys[i]}–${ys[j]}` : String(ys[i])); i = j + 1; }
+        return out.length < 2 ? out.join('') : `${out.slice(0, -1).join(', ')} and ${out[out.length - 1]}`;
+      };
+      const items = SC.cities.map((c, i) => {
+        const ys = [...new Set(SC.pairs.filter((p) => p.city === c.city).map((p) => p.year))].sort((a, b) => a - b);
+        eq(ys.length, c.pairs, `women.same_city ${c.city}: a pair a year`);
+        return `${c.city}’s${i ? '' : ' row pools'} ${c.pairs.toLocaleString('en-US')} ${c.pairs === 1 ? 'year' : 'years'} (${runsOf(ys)})`;
+      });
+      const want = `one a year, so ${items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`}.`;
+      ok(said.includes(want), `/methodology: #half-field says the years each city's row pools, from women.json ("${want}")`);
+    }
   }
   let surfaces = 0, readings = 0;
   for (const file of pages) {
@@ -807,6 +825,16 @@ if (opt.html) {
       ok(mi > 0 && hi > 0 && di > 0 && rows.length === women.same_city.pairs.length, `${route}: the same-city table has its Marathon, Half and Gap columns, a row per pair (${rows.length})`);
       const tenths = (v) => Math.round(Number(v.replace('%', '').replace('−', '-').replace('+', '')) * 10);
       for (const r of rows) ok(tenths(r[hi]) - tenths(r[mi]) === tenths(r[di]), `${route}: ${r[0]} ${r[1]}: Half ${r[hi]} minus Marathon ${r[mi]} is the printed gap ${r[di]}`);
+    }
+    // The same-city beat names each city alone: how many years a row pools is coverage, said on /methodology only
+    // (AGENTS.md rule 15; November 4, 2026: round 2 had put "6 years" under each city and "Oslo over 6 years" in the
+    // chart's label).
+    if (route === '/half') {
+      const beat = elements(html, /id="two-distances"/)[0];
+      const labels = beat ? [...beat.html.matchAll(/aria-label="([^"]*)"/g)].map((m) => textOf(m[1])).join(' ') : '';
+      const seen = beat ? `${textOf(beat.html)} ${labels}` : '';
+      const hit = /\b\d+\s+years?\b|\bover\s+\d/i.exec(seen);
+      ok(beat && !hit && !/dumbbell-note/.test(beat.html), `${route}: the same-city beat states no coverage (years pooled) in its rows or label: …${hit ? seen.slice(Math.max(0, hit.index - 40), hit.index + 40) : ''}…`);
     }
     // While half.cities falls back, its beat states no direction in any slot: no "typically" in the dumbbell's label,
     // no Typical row and no row drawn as the signal (post-merge review, October 30, 2026: the row and the label still

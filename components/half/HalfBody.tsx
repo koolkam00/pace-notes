@@ -34,8 +34,6 @@ const womenShare = (side: { F: number; M: number }) => side.F / (side.F + side.M
 // on screen: from the unrounded shares Berlin 2016 printed 25.7%, 38.6% and +13.0 (round 4 review, October 31, 2026).
 const tenths = (share: number) => Math.round(Number((share * 100).toFixed(1)) * 10);
 const gapPoints = (half: number, marathon: number) => { const d = tenths(half) - tenths(marathon); return `${d < 0 ? '−' : '+'}${(Math.abs(d) / 10).toFixed(1)}`; };
-/** How many years a same-city row pools (each pair is one city and year). */
-const years = (n: number) => `${n} year${n === 1 ? '' : 's'}`;
 
 /**
  * /half, "The half marathon": where half marathon finish times sit, from half finishes in verified results (field.json,
@@ -158,8 +156,9 @@ export default function HalfBody() {
       <Beat id="two-distances" track="chapter-4" label="Two distances" title={cities} dek={deks.cities ?? undefined}>
         {/* The key first, in the order every row prints its pair (marathon · half), then, while the beat's heading holds,
             the two typical shares (the dek's two medians across the pairs, worded as two) as the one signal row, as the
-            share card draws it, then each city, with the years its row pools under its name (a row is the mean of that
-            city's pairs, and "Oslo" alone read as one race in one year; post-merge review, round 2, October 31, 2026).
+            share card draws it, then each city by its name alone. How many years a city's row pools is coverage, so it
+            is said on /methodology#half-field only (AGENTS.md rule 15; November 4, 2026: round 2 of October 31 had put
+            "6 years" under each city and "over 6 years" in the label).
             While the heading falls back (too few pairs or cities for a direction,
             October 30, 2026) the typical row and its "typically" in the label are left out with the dek: two medians
             side by side state the direction the heading withdrew (review, October 30, 2026: the row and the label
@@ -168,10 +167,10 @@ export default function HalfBody() {
         <div className="half-cities">
           <Dumbbell keyFirst rows={[
             ...(cities.guard ? [{ id: 'typical', label: 'Typical', a: sc.summary.marathon_median, b: sc.summary.half_median, display: `${pct(sc.summary.marathon_median)} · ${pct(sc.summary.half_median)}`, highlight: true }] : []),
-            ...sc.cities.map((c) => ({ id: c.city, label: c.city, note: years(c.pairs), a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` })),
+            ...sc.cities.map((c) => ({ id: c.city, label: c.city, a: c.marathon, b: c.half, display: `${pct(c.marathon)} · ${pct(c.half)}` })),
           ]}
             domain={[0, 0.6]} ticks={[0, 0.6].map((v) => ({ value: v, label: pct(v) }))} keyLabels={{ a: 'Marathon', b: 'Half' }}
-            label={`Women’s share of recorded finishes in the same city and year, marathon then half: ${cities.guard ? `typically ${pct(sc.summary.marathon_median)} and ${pct(sc.summary.half_median)}; ` : ''}${sc.cities.map((c) => `${c.city} over ${years(c.pairs)}, ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
+            label={`Women’s share of recorded finishes in the same city and year, marathon then half: ${cities.guard ? `typically ${pct(sc.summary.marathon_median)} and ${pct(sc.summary.half_median)}; ` : ''}${sc.cities.map((c) => `${c.city} ${pct(c.marathon)} and ${pct(c.half)}`).join('; ')}.`} />
         </div>
         <SaveImage slug="half-more-women" />
       </Beat>

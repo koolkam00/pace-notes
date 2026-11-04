@@ -373,3 +373,5 @@ S6 `planner splits choice` (Berlin 3:30 opens in course shape; pressing Even pac
 ## History
 
 The text these sections replaced on October 30, 2026 (branch and deploy states, the redesign's review rounds, the stretch-pace measurements and the terrain splits' status block, the 1652/0934 cohort counts and the earlier check counts) is kept word for word in [history](history/tools-2026-10.md). The October 20 course-shape band, superseded on October 23, is the section above.
+
+The lines the post-merge half review (branch `fix/half-followups`) rewrote are kept word for word, as `main` held them at `f8869591`, in [history](history/half-followups-2026-11.md) (moved November 4, 2026).

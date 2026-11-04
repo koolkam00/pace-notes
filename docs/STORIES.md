@@ -154,3 +154,5 @@ Each item names the check that fails without it.
 ## History (earlier releases)
 
 The text these sections replaced on October 30, 2026 (the 1652 and 0934 screens and counts, the Chicago copy evidence of October 15, 2026, the earlier family rows and the half story's pre-merge record) is kept word for word in [history](history/stories-2026-09-to-10.md). Older versions are in Git history.
+
+The lines the post-merge half review (branch `fix/half-followups`) rewrote are kept word for word, as `main` held them at `f8869591`, in [history](history/half-followups-2026-11.md) (moved November 4, 2026).

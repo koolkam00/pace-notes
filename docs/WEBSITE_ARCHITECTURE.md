@@ -235,3 +235,5 @@ Beside the tools, `/tools` has server-rendered reference pages for search: the m
 ## History
 
 The sections this document replaced on October 30, 2026 (the branch-state preambles, the export counts at release preparation, the vercel.json table, the explorer review rounds of October 18, the old-Safari measurements of October 14, the takeover and PR #32 deployment evidence, the 1652/0934 totals and the earlier route rows) are kept word for word in [history](history/website-architecture-2026-09-to-10.md). Older versions are in Git history.
+
+The lines the post-merge half review (branch `fix/half-followups`) rewrote are kept word for word, as `main` held them at `f8869591`, in [history](history/half-followups-2026-11.md) (moved November 4, 2026).

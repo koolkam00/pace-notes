@@ -316,3 +316,7 @@ curl -sf 'https://splithappens.run/data/live.json' | python3 -m json.tool > /dev
 - **"Washington Marathon".** The course data (`course-geometry.json`, `courses.json`) names the race "Washington Marathon", and the course page, its title and its share card show that name. It may really be the Marine Corps Marathon. Only the owner can confirm; if it is renamed in the data, rebuild and re-run `npm run og:images`.
 - **A licence for the Dataset JSON-LD.** `/methodology` describes the story summaries as a schema.org `Dataset` without a `license`, because the repository states none. Google Dataset Search recommends one. Choose a licence first; then add it to the repository and to `storyDataset()` in `app/methodology/page.tsx`.
 - **Search Console and Bing verification.** The Domain property, the TXT record and the sitemap submissions above are owner steps; nothing in the repository can do them.
+
+## History
+
+The lines the post-merge half review (branch `fix/half-followups`) rewrote are kept word for word, as `main` held them at `f8869591`, in [history](history/half-followups-2026-11.md) (moved November 4, 2026).

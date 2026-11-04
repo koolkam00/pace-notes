@@ -126,3 +126,7 @@ Keep the critiques and contact sheets in the pull request description, not in th
 ## Touching tokens, fonts or units
 
 The Top 100 and half-marathon share cards are stamped with a hash of everything they are drawn from, including `app/styles/tokens.css`, `app/styles/fonts.css`, `lib/units.ts`, `lib/nuggets/format.ts` and the chart code (`CODE` in `scripts/build-chart-cards.cjs`). A change to any of them makes every card stale, and `npm run verify:data` fails on both `--check` runs. Re-stamp both sets (`node scripts/build-chart-cards.cjs`, then `node scripts/build-chart-cards.cjs --set half`), run each again with `--check`, open the PNGs, and run `npm run og:check` (the Open Graph cards copy the colour tokens; no CI job runs it). [Top 100 charts](TOP_100_CHARTS.md) describes the cards.
+
+## History
+
+The lines the post-merge half review (branch `fix/half-followups`) rewrote are kept word for word, as `main` held them at `f8869591`, in [history](history/half-followups-2026-11.md) (moved November 4, 2026).
