@@ -12,6 +12,7 @@ import type { HalfCard, HalfCardSlug, HalfField, HalfLinked, HalfWomen } from '@
 import { pct } from '@/lib/nuggets/format';
 import { flagshipWindow, halfCitiesFrom, halfExtraFrom, halfFieldFrom, halfSexesFrom } from '@/lib/nuggets/half';
 import { floorHM } from '@/lib/tools/half-to-full';
+import type { ChartSpec, KeyItem } from '../spec';
 import { typo } from '../typo';
 
 /** The family files a card's guard reads (its values come from the card itself). */
@@ -32,6 +33,9 @@ export type HalfCardText = {
   page: '/half' | '/stories/half-to-full';
   /** Titles at most 47 characters; headlines with one *…* accent; fallbacks that assert no direction. */
   words: (v: V, d: HalfDocs) => Said;
+  /** The plot's key, when its marks read in another order than the form's own key would give them: its labels are the
+   *  plot's own names (cards.json), set in the order the marks run across the rows. */
+  key?: (plot: ChartSpec) => KeyItem[] | null;
 };
 
 const n = (x: number | string | undefined) => (typeof x === 'number' ? x : Number(x));
@@ -115,6 +119,11 @@ export const HALF_CARD_TEXT: Record<HalfCardSlug, HalfCardText> = {
         fallback: "Sustained slowdowns in recorded women's and men's marathons after the same half.",
       };
     },
+    // The women's share is the filled dot and sits left of the men's ring in every row, and the title, the takeaway and
+    // the story's guess put women first: the dumbbell's own key named the ring (a, the men's) first, so read left to
+    // right it paired each name with the other mark (post-merge review, round 6, October 31, 2026). Only the key's order
+    // changes; the marks, the signal row and the guard are cards.json's.
+    key: (plot) => (plot.form === 'dumbbell' && !plot.arrow ? [{ label: plot.b, tone: 'ink', mark: 'dot' }, { label: plot.a, tone: 'quiet', mark: 'ring' }] : null),
   },
 };
 
@@ -132,6 +141,8 @@ export type HalfCardWords = {
   page: HalfCardText['page'];
   /** The footer's chip (a card of records linked by name), or null. */
   chip: string | null;
+  /** The plot's key in the order its marks run (HalfCardText `key`), or null for the form's own. */
+  key: KeyItem[] | null;
 };
 
 /** A half card's words, rendered from its values and guarded by its page's nugget. */
@@ -144,5 +155,6 @@ export function halfCardWords(card: HalfCard, docs: HalfDocs): HalfCardWords {
   return {
     slug: card.slug, title: typo(said.guard ? said.title : said.titleFallback), headline, plain: headline.replace(/\*/g, ''), fallback,
     guard: said.guard, kicker: HALF_CARD_KICKER, theme: text.theme, page: text.page, chip: card.scope === 'linked' ? HALF_CARD_CHIP : null,
+    key: text.key ? text.key(card.plot) : null,
   };
 }

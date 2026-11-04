@@ -8,7 +8,8 @@
 // typing a colon in time fields (the home goal, a tool's time, a pace and the split check). Last, the units
 // switch: it works on /research and /methodology opened directly, and every page served with the inert placeholder
 // reads the same in miles and kilometres (a moved address's stub forwards before anyone reads it, keeping the query, to
-// a page with the working switch, so it is left out). Then a course page's contents link, a link away and Back.
+// a page with the working switch, so it is left out). Then a course page's contents link, a link away and Back, and a
+// link to a /methodology topic two folds deep.
 const fs = require('node:fs');
 const path = require('node:path');
 const { SITE, wiggle, openMenu, type } = require('../browser.cjs');
@@ -468,6 +469,42 @@ async function menuOpenData(h) {
   h.check('page views: /about, then /methodology once', JSON.stringify(paths) === JSON.stringify(['/about', '/methodology']), paths);
 }
 
+// A /methodology topic two folds deep (#story-half-to-full inside Stories, #tools-predictor inside Tools), followed from
+// a page's own link client-side, on a phone: MethodsHash opens both folds without their opening animation and, two
+// animation frames later, brings the topic's summary under the header. Chromium ignores a scroll into a fold still drawn
+// shut (a fold grows from 0 px over its animation), so these had opened but stayed 1,100 to 5,500 px below the screen
+// (post-merge review, round 6, October 31, 2026; the animation found November 4, 2026).
+async function methodsDeepLink(h) {
+  const run = await h.run('a methods link two folds deep', PHONE);
+  const page = await run.newPage();
+  for (const [from, href] of [['/stories/half-to-full', '/methodology#story-half-to-full'], ['/tools/predictor?d=half&t=1:45:00', '/methodology#tools-predictor']]) {
+    await page.goto(SITE + from, { waitUntil: 'load' });
+    await page.waitForTimeout(800);
+    // The story's link sits in its All numbers fold: open the folds around it, as a reader would.
+    await page.evaluate((href) => {
+      const a = document.querySelector(`a[href="${href}"]`);
+      for (let d = a && a.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+    }, href);
+    const link = page.locator(`a[href="${href}"]`).first();
+    await link.scrollIntoViewIfNeeded();
+    await link.click();
+    const id = href.split('#')[1];
+    await page.waitForFunction((id) => location.pathname === '/methodology' && location.hash === `#${id}`, id, { timeout: 15000 });
+    await page.waitForTimeout(1200);
+    const state = await page.evaluate((id) => {
+      const el = document.getElementById(id);
+      const summary = el && (el.matches('details') ? el.querySelector(':scope > summary') : el);
+      const r = summary ? summary.getBoundingClientRect() : null;
+      const folds = [];
+      for (let n = el; n; n = n.parentElement) if (n.tagName === 'DETAILS') folds.push(n.open);
+      return { top: r && Math.round(r.top), header: Math.round(document.querySelector('.site-header').getBoundingClientRect().bottom), vh: innerHeight, folds };
+    }, id);
+    h.check(`from ${from}, ${href} opens both folds around it and shows the topic just under the header`,
+      state.folds.length >= 2 && state.folds.every(Boolean) && state.top !== null && state.top >= state.header - 1 && state.top < state.vh / 2, state);
+  }
+  await run.close();
+}
+
 module.exports = {
   id: 'S1',
   title: 'Browsing: home, story, the five main links, an analysis, privacy; the home page\'s first screen and form; the units switch; Back to a course page; every goal tool\'s goal retyped',
@@ -481,6 +518,7 @@ module.exports = {
     { name: 'units switch', weight: 12, run: unitSwitch },
     { name: 'course page Back', weight: 8, run: h => courseBack(h, PHONE) },
     { name: 'Menu Open data', weight: 8, run: menuOpenData },
+    { name: 'methods link two folds deep', weight: 6, run: methodsDeepLink },
     { name: 'goal retype', weight: 8, run: goalRetype },
   ],
 };

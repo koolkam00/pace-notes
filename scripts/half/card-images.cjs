@@ -54,7 +54,7 @@ module.exports = function halfCardSet(kit) {
     const foot = React.createElement(React.Fragment, null, React.createElement('b', null, mark, 'Pace Notes'), stampLine);
     const markup = renderToStaticMarkup(React.createElement(ChartCard, {
       number: 0, theme: words.theme, title: words.title, takeaway: accent(words.headline), label: words.plain,
-      spec: typeset(card.plot), units: 'mi', heading: 'h2', foot, fit,
+      spec: typeset(words.key ? { ...card.plot, key: words.key } : card.plot), units: 'mi', heading: 'h2', foot, fit,
     }));
     // ChartCard's kicker names a number of 100; the half cards are outside the hundred.
     const KICKER = /<p class="chart-card-kicker">[\s\S]*?<\/p>/g;

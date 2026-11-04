@@ -567,6 +567,16 @@ const pageGuards = {};
     ok(words.plain.length <= 150, `card ${c.slug}: the takeaway is ${words.plain.length} characters (at most 150)`);
     ok(/records linked by name/.test(words.plain) === (c.scope === 'linked'), `card ${c.slug}: "records linked by name" exactly when the card is linked`);
     eq(words.chip, c.scope === 'linked' ? 'Includes unverified half results' : null, `card ${c.slug}: the chip only on a linked card`);
+    // A dumbbell card's key reads in the order its marks run across every row: the form's own key names the ring (a)
+    // first, so where b's dot sits left of a's ring in every row the card carries its own key, dot first (post-merge
+    // review, round 6, October 31, 2026: half-same-half's key read "○ Recorded men's ● Recorded women's" over rows whose
+    // women's dot was always on the left).
+    if (c.plot.form === 'dumbbell' && !c.plot.arrow) {
+      const bLeft = c.plot.rows.every((r) => r.b < r.a), aLeft = c.plot.rows.every((r) => r.a < r.b);
+      const own = [{ label: c.plot.a, tone: 'quiet', mark: 'ring' }, { label: c.plot.b, tone: 'ink', mark: 'dot' }];
+      if (bLeft) eq(words.key, [own[1], own[0]], `card ${c.slug}: the b dot sits left of the a ring in every row, so the key names it first`);
+      else ok(words.key === null || JSON.stringify(words.key) === JSON.stringify(own) || !aLeft, `card ${c.slug}: the a ring sits left in every row, so the key names it first`);
+    }
     texts.push([`card ${c.slug} title`, said.title], [`card ${c.slug} title fallback`, said.titleFallback], [`card ${c.slug} takeaway`, said.headline],
       [`card ${c.slug} fallback`, said.fallback], [`card ${c.slug} kicker`, `${words.kicker} ${words.theme}`]);
   }
@@ -827,7 +837,8 @@ if (opt.html) {
       }
     }
     // Who holds pace's way into the half story states a direction ("recorded women’s marathons had fewer sustained
-    // slowdowns after the same half marathon, too"), naming whose marathons, its measure and, as its term link before it,
+    // slowdowns after a half marathon in the same time, too"; round 6, October 31, 2026: "after the same half marathon"
+    // read as the same race under "Same race, same finish minute"), naming whose marathons, its measure and, as its term link before it,
     // its scope, only while the H1's reading (holds.title), the beat's (holds.unmask) and half.sexes's guards all hold,
     // recounted here from demographics.json; otherwise it is a pointer with no direction (post-merge review, round 3,
     // October 31, 2026: the link followed no guard; round 4: under the H2's recorded men "fewer … too" named no group).
@@ -838,6 +849,7 @@ if (opt.html) {
       const ways = links.map((el) => textOf(el.html).trim());
       ok(ways.length === 1, `${route}: one way into the half story (${JSON.stringify(ways)})`);
       for (const way of ways) {
+        ok(!/\bsame half(?: marathon)?\b(?! time)/i.test(way), `${route}: the way into the half story names the half's time as what was held equal, not "the same half marathon" (read as the same race; round 6): "${way}"`);
         if (stateIt) {
           const line = elements(html, /data-half-said="stated"/)[0];
           ok(/^recorded women’s marathons had fewer sustained slowdowns\b/i.test(way) && /\btoo\b/.test(way) && line && /<a\b[^>]*href="\/methodology#half-linking"[^>]*>records linked by name<\/a>/.test(line.html), `${route}: the stated way names whose marathons, its measure and its scope ("${way}")`);

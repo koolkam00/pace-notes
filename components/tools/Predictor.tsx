@@ -747,8 +747,10 @@ export default function Predictor({ indexSha, half = null }: { indexSha: string 
   // The finishes on the chosen estimate's pace at 20 km: one load, read by the data beat (not for a half the half panel reads).
   const proj = useProjector(indexSha, !!est?.isMarathon && !linked);
 
-  // One always-present status line for screen readers: a short summary, spoken once the inputs settle.
-  const summary = est ? summaryText(est) : emptyText;
+  // One always-present status line for screen readers: a short summary, spoken once the inputs settle, led by the words
+  // of the research card's badge: with a half typed the half panel's Pace Notes data sentence follows about 0.2 s later,
+  // and both name a "typical" marathon (post-merge review, round 6, October 31, 2026).
+  const summary = est ? `Published research. ${summaryText(est)}` : emptyText;
   const [announce, setAnnounce] = useState('');
   const firstSummary = useRef<string | null>(null);
   useEffect(() => {
@@ -878,7 +880,7 @@ export default function Predictor({ indexSha, half = null }: { indexSha: string 
   );
 }
 
-/** The short line the status region speaks when the result changes. */
+/** The short line the status region speaks when the result changes (after the research badge's words). */
 function summaryText(est: Estimates): string {
   if (est.range) {
     const r = est.range;

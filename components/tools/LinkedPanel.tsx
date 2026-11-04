@@ -100,11 +100,33 @@ export default function LinkedPanel({ sha, seconds, group, onGroup, speakFirst =
     let clear = 0;
     const id = window.setTimeout(() => {
       spoken.current = true;
-      setAnnounce(said);
+      // Led by the words of the badge and chip above it, read from the panel ("Pace Notes data, includes unverified half
+      // results: After a half near 1:40, …"): the predictor's status line speaks the research card's estimate about
+      // 0.2 s earlier, and both name a "typical" marathon (post-merge review, round 6, October 31, 2026).
+      const tags = Array.from(panel.current?.querySelector('.predictor-linked-tags')?.children ?? [], (t, i) => (i ? t.textContent!.replace(/^./, (c) => c.toLowerCase()) : t.textContent));
+      setAnnounce(tags.length ? `${tags.join(', ')}: ${said}` : said);
       clear = window.setTimeout(() => setAnnounce(''), 4000);
     }, 1100);
     return () => { window.clearTimeout(id); window.clearTimeout(clear); };
   }, [said]);
+  // A chip that changes what sits above it (the strip and its lines come back after "Too few…", or go) can leave the
+  // pressed chip under the header or below the screen at 200% zoom and at 320 px: the reader sees the new chart but not
+  // where focus is (post-merge review, round 6). After the change has drawn, a focused chip out of view is brought back,
+  // the least distance that shows it (the page's scroll padding keeps it clear of the header).
+  const groupRow = useRef<HTMLDivElement>(null);
+  const shownGroup = useRef(group);
+  useEffect(() => {
+    if (shownGroup.current === group) return undefined;
+    shownGroup.current = group;
+    const frame = requestAnimationFrame(() => {
+      const chip = document.activeElement;
+      if (!(chip instanceof HTMLElement) || !groupRow.current?.contains(chip)) return;
+      const r = chip.getBoundingClientRect();
+      const top = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+      if (r.top < top || r.bottom > window.innerHeight) chip.scrollIntoView({ block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [group]);
   return (
     <section className="tool-panel predictor-linked" id="predictor-linked" data-half-scope="linked" aria-labelledby="predictor-linked-title" ref={panel} tabIndex={-1}>
       <p className="predictor-linked-tags"><EvidenceTag kind="data" /><ScopeTag /></p>
@@ -131,7 +153,7 @@ export default function LinkedPanel({ sha, seconds, group, onGroup, speakFirst =
           setAttempt((n) => n + 1);
         }}>Try again</button>
       ) : (
-        <div className="tool-field predictor-linked-group">
+        <div className="tool-field predictor-linked-group" ref={groupRow}>
           <span className="tool-label" aria-hidden="true">Marathons of</span>
           <Choice label="Marathons of" value={group} onChange={onGroup} options={OPTIONS} />
         </div>
