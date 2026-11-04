@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { UnitLink } from '@/components/UnitsProvider';
 import Arrow from './Arrow';
 import { withEm } from './withEm';
@@ -20,6 +20,14 @@ import { withEm } from './withEm';
  * gives it), its lit dots in ink, each grid named under it (`truthName` names the guess's); the reveal then shows the two
  * side by side. `after` (a line, a card's link) shows only once the answer is out, so nothing before the guess gives it
  * away.
+ *
+ * Lock it in and Skip go away with the reveal, so focus moves to the verdict (tabIndex -1), which a screen reader then
+ * reads in place of a live region (focus fell to the page's body; post-merge review, round 3, October 31, 2026). Without
+ * JavaScript nothing can be guessed, so the static page shows the guess as Skip would: the answer in a <noscript> under
+ * the question, and from the layout's no-script style (app/layout.tsx) the truth's dots lit (`is-truth-ns`, on the
+ * server markup), the truth's mark and label on a ruler, its count and key from <noscript>s, and no readout, slider,
+ * buttons or You rings (round 4 review, October 31, 2026: the chart had kept the unanswered state, 30 dots ringed You
+ * over "About 1 in 10 did.").
  */
 type Props = {
   question: string;
@@ -52,13 +60,22 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
   // Until the reader moves the guess, its rings are drawn quiet: the loudest thing on screen is never a guess nobody made.
   const [touched, setTouched] = useState(false);
   const [still, setStill] = useState(false);
+  // Set by Lock it in and Skip: once the verdict is on screen, focus moves to it.
+  const focusVerdict = useRef(false);
+  const verdictRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     setStill(!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || document.documentElement.hasAttribute('data-motion-off'));
   }, []);
 
   const revealed = state === 'revealed' || state === 'skipped';
+  useEffect(() => {
+    if (!revealed || !focusVerdict.current) return;
+    focusVerdict.current = false;
+    verdictRef.current?.focus();
+  }, [revealed]);
   const fmt = (v: number) => (unit === '%' ? `${Math.round(v)}%` : `${Math.round(v)} of 100`);
   const lock = () => {
+    focusVerdict.current = true;
     if (still) { setState('revealed'); return; }
     setState('locked');
     window.setTimeout(() => setState('revealed'), 260);
@@ -86,7 +103,7 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
       <p className="guess-question t-sentence" id={`${id}-q`}>{withEm(question)}</p>
       {/* Once revealed, the verdict says the guess, so the readout steps out (no number twice on one screen). */}
       {!revealed ? (
-        <div>
+        <div className="guess-ask">
           <div className="guess-readout">
             <label className="guess-readout-key" htmlFor={`${id}-range`}>Your guess</label>
             <span className="guess-readout-value" aria-hidden="true">{Math.round(guess)}{unit === '%' ? <small className="is-pct">%</small> : <small>of 100</small>}</span>
@@ -102,10 +119,10 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
               <div className="guess-dots-fig">
                 <ol className="guess-dots" aria-hidden="true">
                   {Array.from({ length: 100 }, (_, i) => (
-                    <li key={i} className={`guess-dot${revealed && i < Math.round(truth) ? ' is-lit' : ''}${state !== 'skipped' && i < Math.round(guess) ? ' is-you' : ''}`} style={{ ['--i' as string]: i }} />
+                    <li key={i} className={`guess-dot${revealed && i < Math.round(truth) ? ' is-lit' : !revealed && i < Math.round(truth) ? ' is-truth-ns' : ''}${state !== 'skipped' && i < Math.round(guess) ? ' is-you' : ''}`} style={{ ['--i' as string]: i }} />
                   ))}
                 </ol>
-                {compare ? <p className="guess-dots-name is-truth" aria-hidden="true">{truthName}{revealed ? <>: <b>{Math.round(truth)}</b></> : null}</p> : null}
+                {compare ? <p className="guess-dots-name is-truth" aria-hidden="true">{truthName}{revealed ? <>: <b>{Math.round(truth)}</b></> : <noscript>: <b>{Math.round(truth)}</b></noscript>}</p> : null}
               </div>
               {compare ? (
                 <div className="guess-dots-fig is-compare">
@@ -117,10 +134,11 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
               ) : null}
             </div>
             <div className="guess-dots-key" aria-hidden="true">
-              {state !== 'skipped' ? <span><i className="is-you" />You</span> : null}
+              {state !== 'skipped' ? <span className="guess-key-you"><i className="is-you" />You</span> : null}
               {/* With a comparison, both grids' filled dots mean the same thing: the key shows both tones (the truth's
                   orange, the comparison's ink) before the one label. */}
-              {revealed ? <span><i className="is-lit" />{compare ? <i className="is-compare" /> : null}{truthLabel ?? 'Recorded finishes'}</span> : null}
+              {revealed ? <span><i className="is-lit" />{compare ? <i className="is-compare" /> : null}{truthLabel ?? 'Recorded finishes'}</span>
+                : <noscript><span><i className="is-lit" />{compare ? <i className="is-compare" /> : null}{truthLabel ?? 'Recorded finishes'}</span></noscript>}
             </div>
           </>
         ) : (
@@ -151,10 +169,12 @@ export default function GuessFirst({ question, truth, answer, truthLabel, compar
       {!revealed ? (
         <div className="guess-actions">
           <button type="button" className="btn btn-secondary is-compact" onClick={lock} disabled={state === 'locked'}>Lock it in</button>
-          <button type="button" className="guess-skip" onClick={() => setState('skipped')}>Skip, show me</button>
+          <button type="button" className="guess-skip" onClick={() => { focusVerdict.current = true; setState('skipped'); }}>Skip, show me</button>
         </div>
       ) : null}
-      <p className="guess-verdict t-sentence" aria-live="polite">{verdict ? withEm(verdict) : null}</p>
+      <p className="guess-verdict t-sentence" ref={verdictRef} tabIndex={-1}>{verdict ? withEm(verdict) : null}</p>
+      {/* Without JavaScript: the page's own answer, as Skip would show it. */}
+      <noscript><p className="guess-verdict t-sentence">{withEm(answer)}</p></noscript>
       {revealed && after ? <div className="guess-after">{after}</div> : null}
       {revealed && next ? <UnitLink className="guess-next" href={next.href}>{next.label}<Arrow /></UnitLink> : null}
     </div>

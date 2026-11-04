@@ -1,6 +1,6 @@
 import { PageList } from '@/components/ui/ChapterList';
 import { CHAPTERS, livePages, type PageKind } from '@/lib/chapters';
-import { readingOf } from '@/lib/nuggets';
+import { getNugget, readingOf } from '@/lib/nuggets';
 import { countWord } from '@/lib/nuggets/format';
 import { STORIES, capital, storyHref, storyPublished } from '@/lib/stories';
 import { finishesM, pageMetadata } from '@/lib/seo';
@@ -35,14 +35,18 @@ export function generateMetadata() {
   return pageMetadata({ title: `Marathon Data Stories from ${finishesM()}M Finishes | Pace Notes`, description, path: '/stories' });
 }
 
-/** The stories: the contents filtered to them, in race order, each with its chapter and reading (spec 7.2, cut 3 of 00). */
+/** The stories: the contents filtered to them, in race order, each with its chapter and reading (spec 7.2, cut 3 of 00).
+ *  The line promises a finding for each only while every listed story states one (its nugget's guard holds): a story
+ *  whose reading fell back shows a neutral figure in its row, such as chapter 11's count of pairs (post-merge review,
+ *  round 2, October 31, 2026). */
 export default function StoriesPage() {
   const count = storyPages().length;
+  const found = storyPages().every((p) => getNugget(p.nugget).guard);
   return (
     <div className="contents-page">
       <header className="contents-hero">
         <h1 className="t-title">Stories</h1>
-        <p className="contents-dek">{capital(countWord(count))} stories, one finding each.</p>
+        <p className="contents-dek">{capital(countWord(count))} stories{found ? ', one finding each' : ''}.</p>
       </header>
       <section className="contents-body" aria-label="Every story">
         <PageList kind={KINDS} readingOf={readingOf} label="Stories" />

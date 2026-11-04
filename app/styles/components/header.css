@@ -76,8 +76,13 @@
   .nav-toggle { width: 44px; padding: 0; }
   .nav-toggle-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 }
-/* 200% zoom on a phone (195 px): the controls take a second row under the brand. */
+/* 200% zoom on a phone (195 px): the controls take a second row under the brand. The header's height token then follows
+   both rows (the brand row: the 44 px title and the credit's 1.3 lines of .75rem pulled up 11 px; the 44 px controls;
+   the row's foot), so anchors, focused controls and sticky rails clear the whole header: with the one-row 56 px, Shift+Tab
+   left focused controls half under it (post-merge review, round 3, October 31, 2026). Set here, beside the wrap, not in
+   tokens.css, whose bytes every share card's stamp binds. */
 @media (max-width: 299.98px) {
+  :root { --header-h: calc(44px + .75rem * 1.3 - 11px + 44px + var(--s-1)); }
   .header-inner { flex-wrap: wrap; gap: 0; padding-bottom: var(--s-1); }
   .header-controls { flex: 1 1 100%; justify-content: space-between; margin-left: 0; }
   /* With no unit switch the Menu button is alone on its row: it keeps to the right, where it sits on row one. */

@@ -129,6 +129,12 @@
 .viz-frame .viz-key-mark.is-wash, .viz-frame .viz-key-mark.is-wash-thin { position: relative; width: 18px; height: 10px; border-radius: 2px; background: none; box-shadow: none; }
 .viz-frame .viz-key-mark.is-wash::before, .viz-frame .viz-key-mark.is-wash-thin::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--ink); opacity: var(--wash, .1); }
 .viz-frame .viz-key-mark.is-wash-thin::before { opacity: var(--wash-thin, .045); }
+/* An interval keyed as the plot draws it: a vertical 1.5 px stem with 9 px caps in the second ink, not a horizontal
+   bar a reader could match to a chart's baseline (the /half round-times columns; round 5 review). */
+.viz-frame .viz-key-mark.is-whisker {
+  width: 9px; height: 12px; margin-top: calc((1.4em - 12px) / 2); border-radius: 0;
+  background: linear-gradient(var(--ink-2), var(--ink-2)) center / 1.5px 100% no-repeat, linear-gradient(var(--ink-2), var(--ink-2)) top / 100% 1.5px no-repeat, linear-gradient(var(--ink-2), var(--ink-2)) bottom / 100% 1.5px no-repeat;
+}
 .viz-frame .viz-caption { margin-top: var(--s-3); font-size: var(--t-small); color: var(--ink-2); }
 .viz-frame .viz-status { display: grid; place-items: center; min-height: var(--plot-h); padding: var(--s-5); border-block: 1px solid var(--rule); font-size: var(--t-small); color: var(--ink-2); text-align: center; }
 .viz-frame .viz-status a { margin-left: 6px; font-weight: 600; text-decoration: underline; }
@@ -166,6 +172,8 @@
 @container (max-width: 359.98px) { .viz-frame .w360 { display: none; } }
 @container (max-width: 319.98px) { .viz-frame .w320 { display: none; } }
 @container (max-width: 287.98px) { .viz-frame .w288 { display: none; } }
+/* A tick centred at the reference width turns at the plot's edge below it rather than hiding (Tick `turn`, labels.ts). */
+@container (max-width: 287.98px) { .viz-frame .tick.turn-start { text-anchor: start; } .viz-frame .tick.turn-end { text-anchor: end; } }
 @container (max-width: 239.98px) { .viz-frame .w240 { display: none; } }
 @container (max-width: 199.98px) { .viz-frame .w200 { display: none; } }
 @container (max-width: 159.98px) { .viz-frame .w160 { display: none; } }

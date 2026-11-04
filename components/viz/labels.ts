@@ -188,16 +188,23 @@ export function fitClass(width: number): string {
 }
 
 /** `group`: ticks that show and hide together (the quarter hours between half hours), so the steps stay even. `from`:
- *  a figure width (one of FIT_STEPS) below which the tick hides even where it would fit. */
-export type Tick = { x: number; label: string; priority?: number; group?: string; from?: number };
-export type LaidTick = Tick & { anchor: 'start' | 'middle' | 'end'; minWidth: number | null };
+ *  a figure width (one of FIT_STEPS) below which the tick hides even where it would fit. `turn`: a tick centred at the
+ *  reference width that, below it, turns to start (or end) at the plot's edge rather than hiding where centred it would
+ *  run past the edge (a first tick a little in from the edge, on a phone at 200% zoom). `markGroup`: the group whose
+ *  ticks this tick's mark shows and hides with, while its label keeps its own width (a quarter that gives way to the
+ *  end label keeps its mark among the other quarters). */
+export type Tick = { x: number; label: string; priority?: number; group?: string; from?: number; turn?: 'start' | 'end'; markGroup?: string };
+/** `turned`: the anchor below the reference width (Axis gives it a class a container query applies). `markWidth`: the
+ *  narrowest width of the tick's mark, where it differs from its label's (`markGroup`). */
+export type LaidTick = Tick & { anchor: 'start' | 'middle' | 'end'; minWidth: number | null; turned?: 'start' | 'end'; markWidth?: number | null };
 
 /**
  * Axis ticks: each keeps its label clear of higher-priority ticks (the ends and the marks named first) and inside the
  * axis; the anchor turns to start or end near an edge. A tick that cannot fit even at the reference width is dropped
- * (minWidth null); one that stops fitting below it carries its width class.
+ * (minWidth null); one that stops fitting below it carries its width class. `gap` is the clear space kept between two
+ * labels, in px of the generous width estimate (6 by default).
  */
-export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH, centred = false): LaidTick[] {
+export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH, centred = false, gap = 6): LaidTick[] {
   // Centred ticks (years under stems, where a label slid off its tick reads as the next year's) never turn at an edge:
   // one that does not fit centred hides below the width it fits.
   const anchorOf = (t: Tick): LaidTick['anchor'] => {
@@ -219,15 +226,19 @@ export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH, centred =
   // Widths are the figure's; an axis narrower than its figure (`ref` below the reference) scales them down.
   const scale = ref / REF_WIDTH;
   const widths = [...new Set<number>([...WIDTH_STEPS, REF_WIDTH, ...FIT_STEPS])].sort((a, b) => a - b);
-  const kept: { i: number; t: Tick; anchor: LaidTick['anchor']; min: number | null }[] = [];
+  type Kept = { i: number; t: Tick; anchor: LaidTick['anchor']; turned?: 'start' | 'end'; at: (fw: number) => LaidTick['anchor']; min: number | null };
+  const kept: Kept[] = [];
   for (const { t, i } of order) {
     const anchor = anchorOf(t);
-    const clash = (fw: number) => { const w = fw * scale; return !inside(box(t, anchor, w), w, size) || kept.some((k) => k.min !== null && k.min <= fw && overlaps(box(t, anchor, w), box(k.t, k.anchor, w), 6)); };
+    // A turning tick is placed with its turned anchor below the reference figure width, where chart-frame.css turns it.
+    const turned = !centred && t.turn && anchor === 'middle' ? t.turn : undefined;
+    const at = (fw: number) => (turned && fw < REF_WIDTH ? turned : anchor);
+    const clash = (fw: number) => { const w = fw * scale; const b = box(t, at(fw), w); return !inside(b, w, size) || kept.some((k) => k.min !== null && k.min <= fw && overlaps(b, box(k.t, k.at(fw), w), gap)); };
     let min: number | null = null;
     for (let s = 0; s < widths.length; s++) {
       if (widths.slice(s).every((w) => !clash(w))) { min = s === 0 ? 0 : widths[s]; break; }
     }
-    kept.push({ i, t, anchor, min });
+    kept.push({ i, t, anchor, turned, at, min });
   }
   // A group shows from the widest of its members' widths (and not at all if one never fits), so no step goes missing
   // alone. Ticks outside the group were placed clear of every member at its own width, so they stay clear.
@@ -237,7 +248,11 @@ export function layoutTicks(ticks: Tick[], size = 12, ref = REF_WIDTH, centred =
   };
   return ticks.map((t, i) => {
     const k = kept.find((x) => x.i === i)!;
-    const min = t.group ? groupMin(t.group) : k.min;
-    return { ...t, anchor: k.anchor, minWidth: min === null || !t.from ? min : Math.max(min, t.from) };
+    const own = t.group ? groupMin(t.group) : k.min;
+    const min = own === null || !t.from ? own : Math.max(own, t.from);
+    // A mark that follows a group shows from the group's width; its label never shows before its mark.
+    const mark = t.markGroup ? groupMin(t.markGroup) : undefined;
+    const label = mark === undefined || min === null ? min : mark === null ? null : Math.max(min, mark);
+    return { ...t, anchor: k.anchor, ...(k.turned ? { turned: k.turned } : {}), minWidth: label, ...(mark !== undefined ? { markWidth: mark } : {}) };
   });
 }

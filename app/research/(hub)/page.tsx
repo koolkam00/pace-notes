@@ -5,8 +5,8 @@ import { assertCohortTotals } from '@/components/CohortNote';
 import { MarathonDistance, UnitLink as Link } from '@/components/UnitsProvider';
 import { halfLive } from '@/components/half/HalfWays';
 import ChapterList from '@/components/ui/ChapterList';
-import { CHAPTERS } from '@/lib/chapters';
-import { readingOf } from '@/lib/nuggets';
+import { CHAPTERS, livePages } from '@/lib/chapters';
+import { getNugget, readingOf } from '@/lib/nuggets';
 import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
 import { sitemapEntries } from '@/lib/seo-routes';
 import { WEATHER_QUESTIONS, weatherHref } from '@/lib/weather-catalog';
@@ -28,6 +28,11 @@ export default function ResearchPage() {
   // The build stops here when the site's two finish totals do not add up (the cohort note itself is on /methodology).
   assertCohortTotals();
   const chapters = countWord(CHAPTERS.length);
+  // The lines promise a finding for each chapter, and for each story, only while each states one (its lead's guard
+  // holds): a reading that fell back shows a neutral figure in its row, such as chapter 11's count of pairs (post-merge
+  // review, round 2, October 31, 2026).
+  const found = CHAPTERS.every((c) => getNugget(c.lead).guard);
+  const storiesFound = CHAPTERS.flatMap(livePages).filter((p) => p.kind === 'story').every((p) => getNugget(p.nugget).guard);
   // Analyses still in the sitemap that no chapter holds (the warming and wind questions, until they fold into race-day
   // weather): rows under their chapter, so every analysis keeps a way in from here. They go once they leave the sitemap.
   const inChapters = new Set(CHAPTERS.flatMap((c) => c.pages.map((p) => p.href)));
@@ -39,8 +44,8 @@ export default function ResearchPage() {
     <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Research']])} />
     <header className="contents-hero" data-track-section="hero">
       <h1 className="t-title">The race, start to finish.</h1>
-      <p className="contents-dek"><MarathonDistance /> in {chapters} chapters, and what each one found.</p>
-      <p className="contents-views"><Link href="/stories">Stories</Link> show one finding each. <Link href="/analyses">Analyses</Link> answer a question you can set to your own course and time. The <Link href="/charts">Top 100 charts</Link> are a hundred findings, one picture each.{halfLive() ? <> <Link href="/half">The half marathon</Link> has a page of its own.</> : null}</p>
+      <p className="contents-dek"><MarathonDistance /> in {chapters} chapters{found ? ', and what each one found' : ''}.</p>
+      <p className="contents-views"><Link href="/stories">Stories</Link> {storiesFound ? 'show one finding each' : 'follow one subject each'}. <Link href="/analyses">Analyses</Link> answer a question you can set to your own course and time. The <Link href="/charts">Top 100 charts</Link> are a hundred findings, one picture each.{halfLive() ? <> <Link href="/half">The half marathon</Link> has a page of its own.</> : null}</p>
     </header>
     <section id="analyses" className="contents-body" data-track-section="analyses" aria-label="Every chapter and page">
       <ChapterList variant="expanded" readingOf={readingOf} label="Contents" className="contents-chapters"

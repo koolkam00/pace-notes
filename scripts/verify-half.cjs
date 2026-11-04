@@ -502,6 +502,8 @@ eq(Object.keys(card), ['half-under-2', 'half-more-women', 'half-double', 'half-s
 }
 
 const withdrawnCards = [];
+// The guards the --html page rules follow (section 9), read from the nuggets in section 7.
+const pageGuards = {};
 // ---------- 7. Words: the half nuggets, deks and tool sentences ----------
 {
   const ts = require('typescript');
@@ -522,6 +524,9 @@ const withdrawnCards = [];
     ok((String(n.headline).match(/\*/g) || []).length <= 2, `${id}: at most one accent`);
   }
   for (const [k, v] of Object.entries(N.halfDeks())) if (typeof v === 'string') texts.push([`deks.${k}`, v]);
+  const sexes = N.halfSexesFrom(linked);
+  Object.assign(pageGuards, { cities: N.halfCitiesFrom(women).guard, extra: N.halfExtraFrom(linked).guard, sexes: sexes.guard, sexesHeadline: plain(sexes.headline), sexesFallback: plain(sexes.fallback),
+    guess: N.halfSexesGuessFrom(linked).guard && N.halfDeks().guess !== null });
   for (const g of ['all', 'F', 'M']) {
     for (const w of linked.windows[g]) {
       const win = T.fromLinked(w);
@@ -532,10 +537,7 @@ const withdrawnCards = [];
   }
   for (const g of ['F', 'M']) texts.push([`tool too few ${g}`, T.tooFewSentence(tool, g)], [`tool too few ${g} near a half`, T.tooFewSentence(tool, g, 5100)]);
   texts.push(['tool linked line', T.LINKED_LINE], ['tool out of range', T.outOfRangeSentence(tool.groups.all)]);
-  for (const goal of linked.goals) {
-    const at = linked.windows.all.find((w) => w.h === goal.all.h) ?? null;
-    for (const [k, v] of Object.entries(T.goalLines(goal, at))) if (v && k !== 'link') texts.push([`goal ${goal.goal_s} ${k}`, v]);
-  }
+  for (const goal of linked.goals) for (const [k, v] of Object.entries(T.goalLines(goal))) if (v && k !== 'link') texts.push([`goal ${goal.goal_s} ${k}`, v]);
   texts.push(['not a prediction', T.NOT_A_PREDICTION]);
   // The words of the "From the half" cards (lib/charts/text/half.ts), held to the Top 100's card rules: the guard
   // holds for this build, titles fit 47 characters, one accent, a takeaway of at most 150 characters; a card of records
@@ -545,10 +547,18 @@ const withdrawnCards = [];
   // "Save the image" link (--html, section 9).
   const CW = require(path.join(ROOT, 'lib/charts/text/half.ts'));
   const docs = { field, women, linked };
+  // The published captions (docs/CHARTS_INSTAGRAM.md, written by node scripts/build-chart-cards.cjs --captions) are the
+  // cards' own words: a drawn card's caption is its title and its takeaway as the PNG prints it, and a withdrawn card
+  // has none (post-merge review, round 2, October 31, 2026: half-under-2 was re-stamped with new words while its caption
+  // kept the old ones).
+  const captionsDoc = fs.existsSync(rel('docs/CHARTS_INSTAGRAM.md')) ? fs.readFileSync(rel('docs/CHARTS_INSTAGRAM.md'), 'utf8') : '';
+  const halfCaptions = captionsDoc.slice(Math.max(0, captionsDoc.indexOf('\n## From the half (not numbered)\n')));
   for (const c of cards.cards) {
     const said = CW.HALF_CARD_TEXT[c.slug].words(c.values, docs);
     const words = CW.halfCardWords(c, docs);
     const png = fs.existsSync(rel(`public/charts/cards/${c.slug}.png`));
+    if (said.guard) ok(halfCaptions.includes(`\n### ${words.title}\n\n\`${c.slug}.png\`\n\n${words.plain}\n`), `card ${c.slug}: its caption in docs/CHARTS_INSTAGRAM.md is not its title and takeaway (node scripts/build-chart-cards.cjs --captions)`);
+    else ok(!halfCaptions.includes(`\`${c.slug}.png\``), `card ${c.slug}: withdrawn, but docs/CHARTS_INSTAGRAM.md still carries its caption (node scripts/build-chart-cards.cjs --captions)`);
     ok(said.guard === png, said.guard ? `card ${c.slug}: its guard holds but public/charts/cards/${c.slug}.png is missing (node scripts/build-chart-cards.cjs --set half)`
       : `card ${c.slug}: the takeaway's guard fails for this build, so the card is withdrawn; delete public/charts/cards/${c.slug}.png or rewrite the card's words (${said.fallback})`);
     if (!said.guard) withdrawnCards.push(c.slug);
@@ -557,6 +567,16 @@ const withdrawnCards = [];
     ok(words.plain.length <= 150, `card ${c.slug}: the takeaway is ${words.plain.length} characters (at most 150)`);
     ok(/records linked by name/.test(words.plain) === (c.scope === 'linked'), `card ${c.slug}: "records linked by name" exactly when the card is linked`);
     eq(words.chip, c.scope === 'linked' ? 'Includes unverified half results' : null, `card ${c.slug}: the chip only on a linked card`);
+    // A dumbbell card's key reads in the order its marks run across every row: the form's own key names the ring (a)
+    // first, so where b's dot sits left of a's ring in every row the card carries its own key, dot first (post-merge
+    // review, round 6, October 31, 2026: half-same-half's key read "○ Recorded men's ● Recorded women's" over rows whose
+    // women's dot was always on the left).
+    if (c.plot.form === 'dumbbell' && !c.plot.arrow) {
+      const bLeft = c.plot.rows.every((r) => r.b < r.a), aLeft = c.plot.rows.every((r) => r.a < r.b);
+      const own = [{ label: c.plot.a, tone: 'quiet', mark: 'ring' }, { label: c.plot.b, tone: 'ink', mark: 'dot' }];
+      if (bLeft) eq(words.key, [own[1], own[0]], `card ${c.slug}: the b dot sits left of the a ring in every row, so the key names it first`);
+      else ok(words.key === null || JSON.stringify(words.key) === JSON.stringify(own) || !aLeft, `card ${c.slug}: the a ring sits left in every row, so the key names it first`);
+    }
     texts.push([`card ${c.slug} title`, said.title], [`card ${c.slug} title fallback`, said.titleFallback], [`card ${c.slug} takeaway`, said.headline],
       [`card ${c.slug} fallback`, said.fallback], [`card ${c.slug} kicker`, `${words.kicker} ${words.theme}`]);
   }
@@ -655,12 +675,65 @@ if (opt.html) {
   const methodology = fs.existsSync(path.join(opt.out, 'methodology.html')) ? fs.readFileSync(path.join(opt.out, 'methodology.html'), 'utf8') : '';
   const ids = new Set([...methodology.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
   for (const id of ['half-data', 'half-coverage', 'half-linking', 'half-multiple', 'half-field', 'story-half-to-full', 'downloads-half', 'half-cards', 'evidence', 'sustained-slowdown']) ok(ids.has(id), `/methodology has #${id} (spec 5)`);
+  // /methodology names the half releases and the policy file in words, their tags in the addresses only (AGENTS.md rule
+  // 17; round 4 review, October 31, 2026: three tags were link text). Tags are removed with no space, so a name broken
+  // into parts for wrapping still reads whole.
+  if (methodology) {
+    const plain = noScripts(methodology).replace(/<style\b[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, '');
+    const hit = /half-dataset-|half-snapshot-|runner-links-|half-policy-/.exec(plain);
+    ok(!hit, `/methodology: a half release tag or the policy file's dated name in visible copy: …${hit ? plain.slice(Math.max(0, hit.index - 60), hit.index + 40) : ''}…`);
+    // Nor a file name that carries a pinned release's date stamp ("half-20261029-1133.sqlite.zst.part00"; round 5: the
+    // source files' names were link text). The stamps are read from every tag and asset name in the pin.
+    const stamps = [...new Set([pin.half.tag, pin.half.private_tag, pin.links.tag, pin.links.private_tag, pin.links.pairs_with, (pin.metadata_correction || {}).tag,
+      ...Object.keys(pin.half.assets || {}), ...Object.keys(pin.links.assets || {}), (pin.metadata_correction || {}).asset]
+      .flatMap((name) => String(name || '').match(/20\d{6}/g) || []))];
+    ok(stamps.length > 0, '/methodology: the pin names its date stamps');
+    for (const stamp of stamps) {
+      const at = plain.indexOf(stamp);
+      ok(at < 0, `/methodology: a half release's date stamp ${stamp} in visible copy: …${at >= 0 ? plain.slice(Math.max(0, at - 60), at + 40) : ''}…`);
+    }
+    // While half.cities falls back, the methodology sentence about /half's same-city beat states no direction either
+    // (AGENTS.md rule 13; round 5: it gave "the half had the larger women's share in 9 of them, by a median 16.8
+    // points" and "the half was higher in 42 of 42 pairs" under /half's plain heading).
+    if (pageGuards.cities === false) {
+      const field = elements(noScripts(methodology), /id="half-field"/)[0];
+      const said = field ? textOf(field.html) : '';
+      ok(field && /same city, same year/i.test(said), '/methodology: #half-field has its same-city paragraph');
+      const hitCity = /larger women’s share in \d|half was higher|half had the larger|by a median [\d.]+ points|more women/i.exec(said);
+      ok(!hitCity, `/methodology: the same-city sentence states a direction while half.cities falls back: …${hitCity ? said.slice(Math.max(0, hitCity.index - 60), hitCity.index + 60) : ''}…`);
+    }
+    // How many years each city's same-city row pools is coverage, so /methodology says it (from women.json's pairs) and
+    // /half does not (AGENTS.md rule 15; November 4, 2026: /half had put "6 years" under each city).
+    {
+      const field = elements(noScripts(methodology), /id="half-field"/)[0];
+      const said = field ? textOf(field.html.replace(/<!--[\s\S]*?-->/g, '')).replace(/\s+/g, ' ') : '';
+      const runsOf = (ys) => {
+        const out = [];
+        for (let i = 0; i < ys.length;) { let j = i; while (j + 1 < ys.length && ys[j + 1] === ys[j] + 1) j++; out.push(j > i ? `${ys[i]}–${ys[j]}` : String(ys[i])); i = j + 1; }
+        return out.length < 2 ? out.join('') : `${out.slice(0, -1).join(', ')} and ${out[out.length - 1]}`;
+      };
+      const items = SC.cities.map((c, i) => {
+        const ys = [...new Set(SC.pairs.filter((p) => p.city === c.city).map((p) => p.year))].sort((a, b) => a - b);
+        eq(ys.length, c.pairs, `women.same_city ${c.city}: a pair a year`);
+        return `${c.city}’s${i ? '' : ' row pools'} ${c.pairs.toLocaleString('en-US')} ${c.pairs === 1 ? 'year' : 'years'} (${runsOf(ys)})`;
+      });
+      const want = `one a year, so ${items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`}.`;
+      ok(said.includes(want), `/methodology: #half-field says the years each city's row pools, from women.json ("${want}")`);
+    }
+  }
   let surfaces = 0, readings = 0;
   for (const file of pages) {
     const route = routeOf(file);
     const raw = fs.readFileSync(file, 'utf8');
     const html = noScripts(raw);
     for (const m of html.matchAll(/href="\/methodology#((?:story-)?half-[\w-]+)"/g)) ok(ids.has(m[1]), `${route}: links /methodology#${m[1]}, which /methodology does not have`);
+    // A link that opens the pace calculator or the predictor on a half names the time too: without one the calculator
+    // showed its marathon default, a half marathon in 4:00:00 (post-merge review, round 2, October 31, 2026), and the
+    // predictor its built-in example half without the example's label (round 3).
+    for (const m of html.matchAll(/href="(\/tools\/(?:pace-calculator|predictor)\?[^"]*)"/g)) {
+      const q = new URLSearchParams(m[1].split('?')[1].replace(/&amp;/g, '&'));
+      if (q.get('d') === 'half') ok(/^\d:\d\d:\d\d$/.test(q.get('t') || ''), `${route}: the tool link ${m[1]} opens on a half with no time (t=H:MM:SS)`);
+    }
     for (const slug of withdrawnCards) ok(!html.includes(`/charts/cards/${slug}.png`), `${route}: links the withdrawn card ${slug}`);
     const scoped = elements(html, /data-half-scope="(?:verified|linked)"/);
     const links = elements(html, /data-half-link="linked"/);
@@ -728,12 +801,89 @@ if (opt.html) {
         ok(minutesOf(r[ti]) - 2 * minutesOf(r[hi]) === over, `${route}: after a ${r[hi]} half, Typical ${r[ti]} is double plus ${r[xi]}`);
       }
       ok(!/more after a slower one/.test(textOf(main)), `${route}: the scale note promises no rise the windows do not show`);
+      // While half.extra falls back, no slot states its reading: not the line under the scrubbed chart either ("Typical:
+      // double the half plus 24 min …; 5 in 100 came in under double."; post-merge review, round 2, October 31, 2026).
+      if (pageGuards.extra === false) ok(!/double the half (plus|minus)|came in under double/i.test(textOf(main)), `${route}: no "double the half plus" or "under double" reading while half.extra falls back`);
     }
     for (const el of elements(html, /id="goal-pace-half"/)) {
       ok(/data-half-scope="linked"/.test(el.tag), `${route}: the half-before panel is a linked surface`);
       ok(textOf(el.html).includes('Not a prediction.'), `${route}: "Not a prediction." in the half-before panel`);
+      // Its heading names the half and states no reading: the share under the goal it had led with had no guard of its
+      // own (round 4 review, October 31, 2026).
+      const h2 = /<h2\b[^>]*id="goal-pace-half-title"[^>]*>([\s\S]*?)<\/h2>/.exec(el.html);
+      const said = h2 ? textOf(h2[1]).trim() : '';
+      ok(/^Marathons after a \d:\d\d half marathon\.$/.test(said), `${route}: the half-before heading states no reading ("${said}")`);
     }
     for (const el of elements(html, /id="half-field"/)) ok(/data-half-scope="verified"/.test(el.tag), `${route}: the observed half panel is a verified surface`);
+    // The same-city table's gap is the row's Half minus its Marathon as printed (round 4 review, October 31, 2026: from
+    // the unrounded shares three rows did not add up, Berlin 2016 25.7% and 38.6% beside +13.0).
+    if (route === '/half') {
+      const t = elements(html, /id="hf-cities"/)[0];
+      const heads = t ? [...t.html.matchAll(/<th scope="col"[^>]*>([\s\S]*?)<\/th>/g)].map((m) => textOf(m[1]).trim()) : [];
+      const [mi, hi, di] = ['Marathon', 'Half', 'Gap, points'].map((h) => heads.indexOf(h));
+      const rows = t ? [...t.html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/g)].map((m) => [...m[1].matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/g)].map((c) => textOf(c[1]).trim())).filter((r) => r.length === heads.length && r[0] !== 'City') : [];
+      ok(mi > 0 && hi > 0 && di > 0 && rows.length === women.same_city.pairs.length, `${route}: the same-city table has its Marathon, Half and Gap columns, a row per pair (${rows.length})`);
+      const tenths = (v) => Math.round(Number(v.replace('%', '').replace('−', '-').replace('+', '')) * 10);
+      for (const r of rows) ok(tenths(r[hi]) - tenths(r[mi]) === tenths(r[di]), `${route}: ${r[0]} ${r[1]}: Half ${r[hi]} minus Marathon ${r[mi]} is the printed gap ${r[di]}`);
+    }
+    // The same-city beat names each city alone: how many years a row pools is coverage, said on /methodology only
+    // (AGENTS.md rule 15; November 4, 2026: round 2 had put "6 years" under each city and "Oslo over 6 years" in the
+    // chart's label).
+    if (route === '/half') {
+      const beat = elements(html, /id="two-distances"/)[0];
+      const labels = beat ? [...beat.html.matchAll(/aria-label="([^"]*)"/g)].map((m) => textOf(m[1])).join(' ') : '';
+      const seen = beat ? `${textOf(beat.html)} ${labels}` : '';
+      const hit = /\b\d+\s+years?\b|\bover\s+\d/i.exec(seen);
+      ok(beat && !hit && !/dumbbell-note/.test(beat.html), `${route}: the same-city beat states no coverage (years pooled) in its rows or label: …${hit ? seen.slice(Math.max(0, hit.index - 40), hit.index + 40) : ''}…`);
+    }
+    // While half.cities falls back, its beat states no direction in any slot: no "typically" in the dumbbell's label,
+    // no Typical row and no row drawn as the signal (post-merge review, October 30, 2026: the row and the label still
+    // gave the two medians the dek had withdrawn).
+    if (route === '/half' && pageGuards.cities === false) {
+      const beat = elements(html, /id="two-distances"/)[0];
+      ok(beat && !/typically/i.test(beat.html) && !/>Typical</.test(beat.html) && !/is-highlight|is-signal/.test(beat.html), `${route}: the same-city beat states no reading while half.cities falls back`);
+    }
+    // The guess's heading never gives its answer away: while the guess is up, the beat's H2 is half.sexes's neutral
+    // line, and its reading comes with the reveal (post-merge review, October 30, 2026). The static page carries that
+    // reveal too, in a <noscript>, while half.sexes holds (round 3: without JavaScript no element held the reading).
+    if (route === '/stories/half-to-full' && pageGuards.guess) {
+      const h2 = /<h2\b[^>]*id="women-men-title"[^>]*>([\s\S]*?)<\/h2>/.exec(html);
+      const said = h2 ? textOf(h2[1]).replace(/\s+/g, ' ').trim() : '';
+      ok(said === pageGuards.sexesFallback && said !== pageGuards.sexesHeadline, `${route}: the guess's heading is the neutral line, not the reading ("${said}")`);
+      const quiet = [...html.matchAll(/<noscript>([\s\S]*?)<\/noscript>/g)].map((m) => textOf(m[1]).trim()).join(' ');
+      ok(quiet.includes(pageGuards.sexesHeadline) === pageGuards.sexes, `${route}: the guess's no-script answer carries half.sexes's reading exactly while its guard holds (${pageGuards.sexes})`);
+    }
+    // The story's search description: half.extra's reading only under its guard, then half.sexes's under its own, else
+    // the neutral line; a linked reading there names its scope (post-merge review, round 3, October 31, 2026).
+    if (route === '/stories/half-to-full') {
+      const meta = /<meta name="description" content="([^"]*)"/.exec(raw);
+      const desc = meta ? textOf(meta[1]) : '';
+      if (pageGuards.extra === false) ok(!/double it plus|over double|under double/i.test(desc), `${route}: no half.extra reading in the description while it falls back ("${desc}")`);
+      if (pageGuards.extra === false) {
+        const stated = desc.startsWith(pageGuards.sexesHeadline.replace(/\.$/, ''));
+        ok(stated === pageGuards.sexes && (!stated || /records linked by name/.test(desc)) && (pageGuards.sexes || !/fewer|more/i.test(desc)), `${route}: the description states half.sexes's reading, with its scope, exactly while its guard holds (${pageGuards.sexes}): "${desc}"`);
+      }
+    }
+    // Who holds pace's way into the half story states a direction ("recorded women’s marathons had fewer sustained
+    // slowdowns after a half marathon in the same time, too"; round 6, October 31, 2026: "after the same half marathon"
+    // read as the same race under "Same race, same finish minute"), naming whose marathons, its measure and, as its term link before it,
+    // its scope, only while the H1's reading (holds.title), the beat's (holds.unmask) and half.sexes's guards all hold,
+    // recounted here from demographics.json; otherwise it is a pointer with no direction (post-merge review, round 3,
+    // October 31, 2026: the link followed no guard; round 4: under the H2's recorded men "fewer … too" named no group).
+    if (route === '/stories/who-holds-pace') {
+      const o = readJson('public/data/insights/demographics.json').overall;
+      const pooled = o.pooled_men_block - o.pooled_women_block, matched = o.men_block - o.women_block;
+      const stateIt = o.women_slowdown > 0 && o.men_slowdown > 1.5 * o.women_slowdown && pooled > 0 && matched > 0 && matched / pooled >= 2 && pageGuards.sexes;
+      const ways = links.map((el) => textOf(el.html).trim());
+      ok(ways.length === 1, `${route}: one way into the half story (${JSON.stringify(ways)})`);
+      for (const way of ways) {
+        ok(!/\bsame half(?: marathon)?\b(?! time)/i.test(way), `${route}: the way into the half story names the half's time as what was held equal, not "the same half marathon" (read as the same race; round 6): "${way}"`);
+        if (stateIt) {
+          const line = elements(html, /data-half-said="stated"/)[0];
+          ok(/^recorded women’s marathons had fewer sustained slowdowns\b/i.test(way) && /\btoo\b/.test(way) && line && /<a\b[^>]*href="\/methodology#half-linking"[^>]*>records linked by name<\/a>/.test(line.html), `${route}: the stated way names whose marathons, its measure and its scope ("${way}")`);
+        } else ok(!/\b(?:too|fewer|more|less|far)\b/i.test(way) && !elements(html, /data-half-said="stated"/).length, `${route}: a guard fails, so the way into the half story states no direction ("${way}")`);
+      }
+    }
   }
   ok(surfaces >= 2 && readings >= 1, `--html: ${surfaces} half surfaces and ${readings} reading links found`);
   console.log(JSON.stringify({ html: { pages: pages.length, surfaces, readings } }));

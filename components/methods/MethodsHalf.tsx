@@ -2,7 +2,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { halfPin, halfStampCorrection, readHalf } from '@/lib/half-server';
 import type { HalfBatteryId, HalfManifest } from '@/lib/half-types';
 import { halfCardWords } from '@/lib/charts/text/half';
-import { flagshipGuard, halfExtraFrom, womenBandsPublished } from '@/lib/nuggets/half';
+import { flagshipGuard, halfCitiesFrom, halfExtraFrom, womenBandsPublished } from '@/lib/nuggets/half';
 import { STORIES, halfManifest, storyHref } from '@/lib/stories';
 import { floorHM } from '@/lib/tools/half-to-full';
 import { Definition, Detail, Topic, and, dataHref, day, editionList, n, pctText } from './shared';
@@ -99,8 +99,10 @@ export function HalfDataTopics() {
         <li>{n(c.R6)} repeated in one edition (the same name, finish and sex), keeping one copy;</li>
         <li>{n(c.R7)} in the Oslo Half’s bib block of same-day marathon finishers listed under the half (a bib range, never a list of people).</li>
       </ul>
-      <p>That leaves {n(c.record_usable_after_R7)}. Editions then supply nothing when they have no registry row ({n(c.E0_editions)} editions), are held for review by the producer ({n(c.E1_held_editions)} editions, {n(c.E1_held_finishes)} finishes), or fail a reviewed check ({n(c.E2_E8_editions)} editions, {n(c.E2_E8_finishes)} finishes): copies or overlaps of another edition, another distance, a finisher count far from the published one, a list of one sex only, a top list, a round-number cap, an atypical field, or a median far from the same race’s other years. The Berlin half’s 2018, 2019, 2022 and 2023 lists are among them: their times fit gun times. {n(c.use_finish.finishes)} finishes in {n(c.use_finish.editions)} editions remain. {n(c.undated.editions)} of those editions have no race date, so they never enter a linked pair.</p>
-      <p>The reviewed lists are frozen in <a href={`https://github.com/koolkam00/pace-notes/blob/main/${m.policy.file}`}>{m.policy.file.split('/').pop()}</a>; a new snapshot shows no half figure until its lists are reviewed again.</p>
+      <p>That leaves {n(c.record_usable_after_R7)}. Editions then supply nothing when they have no registry row ({n(c.E0_editions)} editions, {n(c.E0_finishes)} finishes), are held for review by the producer ({n(c.E1_held_editions)} editions, {n(c.E1_held_finishes)} finishes), or fail a reviewed check ({n(c.E2_E8_editions)} editions, {n(c.E2_E8_finishes)} finishes): copies or overlaps of another edition, another distance, a finisher count far from the published one, a list of one sex only, a top list, a round-number cap, an atypical field, or a median far from the same race’s other years. The Berlin half’s 2018, 2019, 2022 and 2023 lists are among them: their times fit gun times. {n(c.use_finish.finishes)} finishes in {n(c.use_finish.editions)} editions remain. {n(c.undated.editions)} of those editions have no race date, so they never enter a linked pair.</p>
+      {/* The file's name carries the snapshot's tag and date, so the link says what it is (AGENTS.md rule 17: never a
+          release tag or its date in visible copy; round 4 review, October 31, 2026). */}
+      <p>The reviewed lists are frozen in <a href={`https://github.com/koolkam00/pace-notes/blob/main/${m.policy.file}`}>the policy file</a>; a new snapshot shows no half figure until its lists are reviewed again.</p>
     </Topic>
 
     <Topic id="half-coverage" title="Verified and unverified half results">
@@ -129,10 +131,16 @@ export function HalfTotalsLine() {
 export function HalfMultipleDefinition() {
   const m = useHalf();
   if (!m) return null;
+  // The pace against the half, the readout's minutes over double, the reading and its ruler are on the story only while
+  // its reading holds (half.extra's guard); under its plain heading only the table's "Over double" column is, so this
+  // describes that alone (post-merge review, round 3, October 31, 2026: it described pieces the page no longer showed).
+  const reading = halfExtraFrom(readHalf('linked.json')).guard;
   return (
     <Definition id="half-multiple" term="Double the half, and a half near a time"
       rule={<p>The minutes over double the half are the marathon time minus twice the half time. A half “near 1:45” is one within 2:30 of that whole minute.</p>}>
-      <p>A five-minute band centred on a round time (1:45 is 1:42:30 to 1:47:29) is the window at that minute. Quantiles are linear between observations, the method used everywhere on the site. The marks a window shows are quarter-hour times inside its 5th to 95th percentile, each with the exact share of marathons strictly under it. The pace against the half is the minutes over double divided by the marathon distance: how much slower per mile (or km) the typical marathon ran than its half. On the story’s half-by-half readout and in its table, a window’s minutes over double are its typical marathon, as printed, minus twice the window’s half, so the two add up on screen; the reading and its ruler take each pair’s own half instead. In a slow window the halves run quicker than its centre, so there the pairs’ own minutes over double run a little higher.</p>
+      <p>A five-minute band centred on a round time (1:45 is 1:42:30 to 1:47:29) is the window at that minute. Quantiles are linear between observations, the method used everywhere on the site. The marks a window shows are quarter-hour times inside its 5th to 95th percentile, each with the exact share of marathons strictly under it. {reading
+        ? 'The pace against the half is the minutes over double divided by the marathon distance: how much slower per mile (or km) the typical marathon ran than its half. On the story’s half-by-half readout and in its table, a window’s minutes over double are its typical marathon, as printed, minus twice the window’s half, so the two add up on screen; the reading and its ruler take each pair’s own half instead. In a slow window the halves run quicker than its centre, so there the pairs’ own minutes over double run a little higher.'
+        : 'In the story’s half-by-half table, a window’s minutes over double (“Over double”) are its typical marathon, as printed, minus twice the window’s half, so the columns add up on screen. Taken with each pair’s own half instead, they run a little higher in a slow window, whose halves run quicker than its centre.'}</p>
     </Definition>
   );
 }
@@ -150,6 +158,21 @@ export function HalfFieldTopic() {
   const field = readHalf('field.json');
   const women = readHalf('women.json');
   const sc = women.same_city;
+  // While /half's same-city heading falls back (half.cities), this sentence states no reading either: the counts and
+  // the floor they miss, not which distance had the larger women's share or by how much (AGENTS.md rule 13: the
+  // methodology sentence about the page is one of the fallback's slots; post-merge review, round 5, October 31, 2026).
+  // How many years each city's row pools is said here, from the published pairs, and nowhere on /half (AGENTS.md rule
+  // 15: coverage lives only on /methodology; November 4, 2026, when /half's "6 years" notes were removed).
+  const cityYears = and(sc.cities.map((c, i) => {
+    const runs = editionList(sc.pairs.filter((p) => p.city === c.city)).slice(c.city.length + 1);
+    return `${c.city}’s${i ? '' : ' row pools'} ${n(c.pairs)} ${c.pairs === 1 ? 'year' : 'years'} (${runs})`;
+  }));
+  const few = sc.summary.pairs < 10 || sc.summary.cities < 5;
+  const citiesSaid = halfCitiesFrom(women).guard
+    ? `That gives ${n(sc.summary.pairs)} pairs in ${n(sc.summary.cities)} cities; the half had the larger women’s share in ${n(sc.summary.half_higher)} of them, by a median ${sc.summary.diff_median_points.toFixed(1)} points (from ${sc.summary.diff_min_points.toFixed(1)} to ${sc.summary.diff_max_points.toFixed(1)}), and in ${n(sc.all_scope_check.half_higher)} of ${n(sc.all_scope_check.pairs)} pairs over every usable half edition, verified or not.`
+    : few
+      ? `That gives ${n(sc.summary.pairs)} pairs in ${n(sc.summary.cities)} ${sc.summary.cities === 1 ? 'city' : 'cities'}, under the 10 pairs in 5 cities a stated direction needs, so the page draws them under a plain heading.`
+      : `That gives ${n(sc.summary.pairs)} pairs in ${n(sc.summary.cities)} cities. The page states a direction only when one distance had the larger women’s share in every pair, verified or not, so it draws them under a plain heading.`;
   return (
     <Topic id="half-field" title="The half marathon’s figures">
       <p>The figures on <Link href="/half">The half marathon</Link> pool the {n(field.cohort.finishes)} finishes of the {n(field.cohort.editions)} verified editions. Shares under a time count finishes strictly under it, from whole-minute counts; recorded women’s and men’s shares use the {n(field.cohort.sex_editions)} editions where at least 95% of finishes carry a recorded sex and each sex is at least 3% ({n(field.cohort.sex_finishes)} finishes).</p>
@@ -157,7 +180,7 @@ export function HalfFieldTopic() {
       {womenBandsPublished(women)
         ? <p>Women’s share by finish band is the median over {n(women.band_editions.length)} verified editions with at least {n(women.band_rule.min_finishes)} finishes, at most {pct0(women.band_rule.max_unrecorded)} without a recorded sex and at least {n(women.band_rule.min_recorded_per_band)} recorded finishes in every band; the band where the shares pass one half is the same with any one edition left out. The marathon’s comparison (women’s finishes are the majority from {floorHM(women.marathon.cross_s)}) is the Top 100 chart’s, from <a href={dataHref(women.marathon.file)}>{women.marathon.file}</a>.</p>
         : <p>Women’s share by finish band would be the median over the verified editions with at least {n(women.band_rule.min_finishes)} finishes, at most {pct0(women.band_rule.max_unrecorded)} without a recorded sex and at least {n(women.band_rule.min_recorded_per_band)} recorded finishes in every band, every edition counting once, as the marathon’s chart counts them. The medians need at least {n(women.min_band_editions)} such editions; {n(women.band_editions_qualifying)} qualify, so the page leaves the bands out until a snapshot has enough.</p>}
-      <p>Same city, same year: a half edition (verified, with at least 1,000 finishes and 100 recorded women and men) is paired with that city’s marathon in the same year when the marathon is not a gender-gap edition, has at most 2% without a recorded sex, kept at least 80% of its raw records and has at least 1,000 finishes and 100 of each sex. That gives {n(sc.summary.pairs)} pairs in {n(sc.summary.cities)} cities; the half had the larger women’s share in {n(sc.summary.half_higher)} of them, by a median {sc.summary.diff_median_points.toFixed(1)} points (from {sc.summary.diff_min_points.toFixed(1)} to {sc.summary.diff_max_points.toFixed(1)}). London’s 2025 and 2026 marathons and Berlin’s 2025 marathon publish too many finishes without a recorded sex, so they have no pair. Over every usable half edition, verified or not, the half was higher in {n(sc.all_scope_check.half_higher)} of {n(sc.all_scope_check.pairs)} pairs.{sc.summary.pairs < 10 || sc.summary.cities < 5 ? ` The page states a direction only with at least 10 verified pairs in 5 cities, so its ${n(sc.summary.pairs)} pairs in ${n(sc.summary.cities)} cities are drawn under a plain heading.` : ''} A city’s row is the mean of its pairs. These are the fields that entered each race, not anyone’s choice.</p>
+      <p>Same city, same year: a half edition (verified, with at least 1,000 finishes and 100 recorded women and men) is paired with that city’s marathon in the same year when the marathon is not a gender-gap edition, has at most 2% without a recorded sex, kept at least 80% of its raw records and has at least 1,000 finishes and 100 of each sex. {citiesSaid} London’s 2025 and 2026 marathons and Berlin’s 2025 marathon publish too many finishes without a recorded sex, so they have no pair. A city’s row on the page is the mean of its pairs, one a year, so {cityYears}. These are the fields that entered each race, not anyone’s choice.</p>
       <p className="methods-links"><Link href="/half">Read the page</Link><a href={dataHref('half/field.json')}>half/field.json</a><a href={dataHref('half/women.json')}>half/women.json</a></p>
     </Topic>
   );
@@ -227,7 +250,7 @@ export function HalfToolNotes({ tool }: { tool: 'predictor' | 'goal-pages' | 'pa
     return <p><strong>The half panel.</strong> For a recent half (or a distance within 0.5% of one) and a marathon to predict, the Pace Notes data panel shows the marathons of records linked by name 3 to 16 weeks after a half near the typed half’s whole minute (<a href="#story-half-to-full">the story’s method</a>), in place of the 20 km reading, from {floorHM(g.all.from)} to {floorHM(g.all.to)}; recorded women’s from {floorHM(g.F.from)} to {floorHM(g.F.to)} and recorded men’s from {floorHM(g.M.from)} to {floorHM(g.M.to)}. Its marks are quarter-hour times inside the window’s 5th to 95th percentile, never the estimate above. Outside those ranges, or for any other distance, the 20 km panel shows. The median multiple of the half, {ratio.toFixed(2)}, matches a half-to-full exponent of about {exponent.toFixed(2)}; the classic formula’s 1.06 assumes {(2 ** 1.06).toFixed(3)}, and the training-log exponents above (1.09 to 1.15) give {multiple(1.09)} to {multiple(1.15)}. Those comparisons are made here only, never in the tool, where the two kinds of evidence stay apart.</p>;
   }
   if (tool === 'goal-pages') {
-    return <p><strong>The half marathon before.</strong> Each goal page names the slowest half window whose typical marathon (records linked by name) came in under the goal, so the predictor at that half shows a typical marathon under the goal and a minute slower does not. Recorded women’s and men’s halves are named where both sexes have a window there.</p>;
+    return <p><strong>The half marathon before.</strong> Each goal page names the slowest half window whose typical marathon (records linked by name) came in under the goal, so the predictor at that half shows a typical marathon under the goal and a minute slower does not.</p>;
   }
   const under = readHalf('field.json').under;
   return <p><strong>The half marathon pace chart’s data panel</strong> shows the share of half finishes in verified results under each time from {floorHM(under[0].s)} to {floorHM(under[under.length - 1].s)} (<a href="#half-field">how it is worked out</a>), kept apart from the chart’s even-pace columns, which stay plain calculations.</p>;
@@ -248,9 +271,8 @@ export function HalfCardsDetail() {
 }
 
 /**
- * A file name, tag or DOI with a line-break opportunity after each '-', '.', '/' and '_', so on a narrow phone it wraps
- * between its parts ("half-20261029-1133.sqlite.zst." / "part00") rather than one character from its end (200% zoom,
- * review, October 30, 2026).
+ * A DOI with a line-break opportunity after each '-', '.', '/' and '_', so on a narrow phone it wraps between its parts
+ * ("doi:10.6084/" / "m9.figshare.34858428") rather than one character from its end (200% zoom, review, October 30, 2026).
  */
 function breakable(text: string) {
   // Each part ends on its separator (no lookbehind: Safari before 16.4 cannot parse one, verify-browser-compat).
@@ -267,21 +289,27 @@ export function HalfDownloads() {
   const assetUrl = (tag: string, name: string) => `https://github.com/${pin.repository}/releases/download/${tag}/${name}`;
   const doi = pin.half.doi.replace(/\.v(\d+)$/, '');
   const version = /\.v(\d+)$/.exec(pin.half.doi)?.[1];
-  const sources: [string, string, string][] = [
-    [pin.half.tag, Object.keys(pin.half.assets).find((a) => a.includes('.sqlite.zst.part'))!, 'the half-marathon results as one SQLite database, zstd-compressed'],
-    [pin.links.tag, Object.keys(pin.links.assets).find((a) => a.includes('.sqlite.zst.part'))!, 'the links between half and marathon records, as a SQLite database'],
-    [pin.links.tag, 'MATCHING_HALF.md', 'how the links are built, their confidence tiers and their audit'],
-    [pin.links.tag, Object.keys(pin.links.assets).find((a) => a.endsWith('.tar.gz'))!, 'the scripts that built the links'],
+  // Each file is named in words, its file name kept in the address only: three of the names carry the snapshot's and
+  // the link build's date stamps (half-20261029-1133.sqlite.zst.part00), a release date in visible copy (AGENTS.md rule
+  // 17; post-merge review, round 5, October 31, 2026). The marathon's downloads name their files the same way.
+  const sources: [string, string, string, string][] = [
+    [pin.half.tag, Object.keys(pin.half.assets).find((a) => a.includes('.sqlite.zst.part'))!, 'The half-marathon results', 'one SQLite database, zstd-compressed'],
+    [pin.links.tag, Object.keys(pin.links.assets).find((a) => a.includes('.sqlite.zst.part'))!, 'The links between records', 'half and marathon records linked by name, as a SQLite database, zstd-compressed'],
+    [pin.links.tag, 'MATCHING_HALF.md', 'How the links are built', 'their confidence tiers and their audit'],
+    [pin.links.tag, Object.keys(pin.links.assets).find((a) => a.endsWith('.tar.gz'))!, 'The linking scripts', 'the code that built the links'],
   ];
   const digest = (tag: string, name: string) => (tag === pin.half.tag && pin.half.assets[name]) || pin.links.assets[name];
   return (
     <Detail id="downloads-half" title="The half-marathon files">
       <p>The half-marathon results and the links between records are the owner’s public releases, under {pin.license}, downloadable without an account or key. The pages read this snapshot and these links, with the verified status from the corrected edition metadata below:</p>
       <ul className="methods-files is-wrapped">
-        {sources.map(([tag, name, what]) => <li key={name}><a href={assetUrl(tag, name)}>{breakable(name)}</a><span> · {what}, sha256 <code className="methods-sha">{digest(tag, name)}</code></span></li>)}
-        <li><a href={assetUrl(pin.metadata_correction.tag, pin.metadata_correction.asset)}>{breakable(pin.metadata_correction.asset)}</a><span> · the corrected edition metadata the pages take verified status from, sha256 <code className="methods-sha">{pin.metadata_correction.sha256}</code></span></li>
+        {sources.map(([tag, name, title, what]) => <li key={name}><a href={assetUrl(tag, name)}>{title}</a><span> · {what}, sha256 <code className="methods-sha">{digest(tag, name)}</code></span></li>)}
+        <li><a href={assetUrl(pin.metadata_correction.tag, pin.metadata_correction.asset)}>The corrected edition metadata</a><span> · the comma-separated table the pages take verified status from, zstd-compressed, sha256 <code className="methods-sha">{pin.metadata_correction.sha256}</code></span></li>
       </ul>
-      <p>The first {countWord(sources.length).toLowerCase()} files are in the release <a href={releaseUrl(pin.half.tag)}>{pin.half.tag}</a>, archived as <a data-long="" href={`https://doi.org/${pin.half.doi}`}>{breakable(`doi:${doi}`)}{version ? ` version ${version}` : ''}</a>, with its own README, comma-separated tables and SHA256SUMS. That version’s edition metadata overstated the verified editions; the release <a href={releaseUrl(pin.metadata_correction.tag)}>{pin.metadata_correction.tag}</a> supersedes it, and the pages use its corrected metadata only (its newer results are not in the pages yet). The page totals are:</p>
+      {/* The releases are named in words and linked, their tags kept in the addresses only, as the marathon's downloads do
+          ("Every data release"; AGENTS.md rule 17; round 4 review, October 31, 2026), and so are the files above (round
+          5: three file names carried the date stamps). */}
+      <p>The first {countWord(sources.length).toLowerCase()} files are in <a href={releaseUrl(pin.half.tag)}>the owner’s half-marathon release</a>, archived as <a data-long="" href={`https://doi.org/${pin.half.doi}`}>{breakable(`doi:${doi}`)}{version ? ` version ${version}` : ''}</a>, with its own README, comma-separated tables and SHA256SUMS. That version’s edition metadata overstated the verified editions; <a href={releaseUrl(pin.metadata_correction.tag)}>a later release with corrected edition metadata</a> supersedes it, and the pages use its corrected metadata only (its newer results are not in the pages yet). The page totals are:</p>
       <ul className="methods-files is-wrapped">
         {Object.entries(m.files).map(([file, meta]) => <li key={file}><a href={dataHref(`half/${file}`)}>{file.replace(/^tools\//, '')}</a><span> · {file === 'women.json' && !womenBandsPublished(readHalf('women.json')) ? 'women’s share of finishes in the same city’s half and marathon' : HALF_FILE_TOPICS[file] ?? 'totals'}, sha256 <code>{meta.sha256.slice(0, 12)}</code></span></li>)}
         <li><a href={dataHref('half/manifest.json')}>manifest.json</a><span> · the snapshot, link build, corrected metadata and policy behind them, and every file’s checksum</span></li>

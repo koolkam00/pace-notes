@@ -16,7 +16,8 @@ import Readout, { type ReadoutProps } from './Readout';
  */
 /** `none` is a key line with no swatch, for what holds for every mark ("Each dot ≈ 38,700 finishes"). */
 /** `wash` and `wash-thin`: a LineProfile band's two fills, drawn exactly as the plot draws them (--wash, --wash-thin). */
-export type KeyItem = { label: string; mark: 'dot' | 'ring' | 'line' | 'dash' | 'square' | 'hollow' | 'band' | 'wash' | 'wash-thin' | 'none'; tone?: 'ink' | 'signal' | 'quiet' };
+/** `whisker`: an interval drawn as a vertical I-beam (a 1.5 px stem with caps), so it is not read as a horizontal line. */
+export type KeyItem = { label: string; mark: 'dot' | 'ring' | 'line' | 'dash' | 'square' | 'hollow' | 'band' | 'wash' | 'wash-thin' | 'whisker' | 'none'; tone?: 'ink' | 'signal' | 'quiet' };
 
 type Props = {
   /** The finding, said in full: the plot's accessible name. */

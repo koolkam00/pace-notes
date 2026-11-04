@@ -22,6 +22,7 @@ import { getInsightsManifest } from './insights-server';
 import { CATALOG as CHART_CATALOG, getChartsManifest } from './charts-server';
 import type { ExtraPage } from './seo-pages/types';
 import { PACE_PAGES } from './seo-pages/pace';
+import { GOAL_PAGE_MINUTES, goalPagePath } from './tools/pace-chart';
 import { QUALIFYING_PAGES } from './seo-pages/qualifying';
 import { FINISH_TIME_PAGES } from './seo-pages/finish-times';
 
@@ -118,11 +119,16 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // chapter 11 row and half line, /research's chapter 11, /about's row for the half and who holds pace's link to the
   // half story (review, October 30, 2026: their dates had stayed those of production, so the merge changed no lastmod).
   // The predictor, the goal pages, the half pace chart and /finish-times take HALF_TEXT_WRITTEN below.
-  '/': '2026-10-30',
-  '/research': '2026-10-30',
+  // October 31 (the merge day of fix/half-followups, the post-merge review's fixes): the pages whose built text that
+  // branch changes against main (f8869591), found by diffing the two builds' visible text, not from memory: the home
+  // guess's answer without JavaScript, /research's and /stories' hub lines, /methodology's half-multiple text, who holds
+  // pace's way into the half story, round numbers' guess answer without JavaScript, /half and the half story. The
+  // predictor, the half pace chart and (since that branch's round 4 review) the goal pages take HALF_TEXT_REWRITTEN below.
+  '/': '2026-10-31',
+  '/research': '2026-10-31',
   '/about': '2026-10-30',
-  '/methodology': '2026-10-30',
-  '/stories': '2026-10-19',
+  '/methodology': '2026-10-31',
+  '/stories': '2026-10-31',
   '/tools': '2026-10-19',
   '/tools/pace-calculator': '2026-10-19',
   '/analyses': '2026-10-19',
@@ -130,15 +136,15 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/slowdown': '2026-10-19',
   '/privacy': '2026-10-19',
   '/stories/pacing-types': '2026-10-19',
-  '/stories/round-numbers': '2026-10-19',
+  '/stories/round-numbers': '2026-10-31',
   '/stories/race-replay': '2026-10-19',
   '/stories/places': '2026-10-19',
   '/stories/final-kick': '2026-10-19',
   '/stories/courses': '2026-10-19',
-  '/stories/who-holds-pace': '2026-10-30',
+  '/stories/who-holds-pace': '2026-10-31',
   '/stories/race-morning': '2026-10-19',
-  '/half': '2026-10-30',
-  '/stories/half-to-full': '2026-10-30',
+  '/half': '2026-10-31',
+  '/stories/half-to-full': '2026-10-31',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };
@@ -245,9 +251,22 @@ export function halfDataDate(): string | undefined {
  */
 export const HALF_TEXT_WRITTEN = '2026-10-30';
 
-/** HALF_TEXT_WRITTEN in a build with the half data, else undefined. */
-export function halfTextDate(): string | undefined {
-  return halfManifest() ? HALF_TEXT_WRITTEN : undefined;
+/**
+ * The host pages whose half text was rewritten after that, with the day the rewrite merged: October 31, 2026
+ * (fix/half-followups): the predictor (its half panel's no-script line in place of a "Loading the data…" that never
+ * ended), the half pace chart (its panel's sentence and its link into the predictor) and, since that branch's round 4
+ * review, the five goal pages ("The half marathon before" states no share under the goal: "Marathons after a 1:48 half
+ * marathon."). /finish-times keeps HALF_TEXT_WRITTEN: its half text did not change.
+ */
+export const HALF_TEXT_REWRITTEN: Readonly<Record<string, string>> = {
+  '/tools/predictor': '2026-10-31',
+  '/tools/half-marathon-pace-chart': '2026-10-31',
+  ...Object.fromEntries(GOAL_PAGE_MINUTES.map((minute) => [goalPagePath(minute), '2026-10-31'])),
+};
+
+/** HALF_TEXT_WRITTEN (or the page's later rewrite, HALF_TEXT_REWRITTEN) in a build with the half data, else undefined. */
+export function halfTextDate(path?: string): string | undefined {
+  return halfManifest() ? latest(HALF_TEXT_WRITTEN, path ? own(HALF_TEXT_REWRITTEN, path) : undefined) : undefined;
 }
 
 /** Which data each of the ten analyses shows (see app/analyses/[slug]/page.tsx). */
@@ -262,7 +281,7 @@ export function allSourceDates(): string[] {
   const sources: DataSource[] = ['insights', 'study', 'weather', 'personalized', 'fastStart', 'allFinisher', 'qualifying', 'charts', ...(halfManifest() ? ['half' as const] : [])];
   const extras = EXTRA_SITEMAP_PAGES.map(page => typeof page.lastmod === 'function' ? page.lastmod() : page.lastmod);
   const coursePack = extensionForQuestion('s3_course_breaks');
-  return [...new Set([...sources.map(dataDate), coursePack ? day(coursePack.asOf) : undefined, ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, ...extras].filter((date): date is string => !!date))].sort();
+  return [...new Set([...sources.map(dataDate), coursePack ? day(coursePack.asOf) : undefined, ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, ...(halfManifest() ? [HALF_TEXT_WRITTEN, ...Object.values(HALF_TEXT_REWRITTEN)] : []), ...extras].filter((date): date is string => !!date))].sort();
 }
 
 // ---------- Sitemap ----------
@@ -277,7 +296,7 @@ export function sitemapEntries(): SitemapEntry[] {
   const entries: SitemapEntry[] = [];
   // 'halfText': the half panels' text date (HALF_TEXT_WRITTEN), in a build with the half data.
   const add = (path: string, ...sources: (DataSource | 'content' | 'halfText')[]) => {
-    const lastmod = latest(...sources.map(source => source === 'content' ? own(CONTENT_DATES, path) : source === 'halfText' ? halfTextDate() : at(source)));
+    const lastmod = latest(...sources.map(source => source === 'content' ? own(CONTENT_DATES, path) : source === 'halfText' ? halfTextDate(path) : at(source)));
     entries.push(lastmod ? { path, lastmod } : { path });
   };
   const manifest = getInsightsManifest();

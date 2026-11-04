@@ -132,8 +132,9 @@ export function RatioColumns({ marks, signal, ink, label, values }: {
     </Plot>
   );
   // The columns are named by the H2 and their axis; the key says what they stand on and names the whisker. "curve, 1×"
-  // is bound by a no-break space, so the baseline's value never wraps to a line of its own (320 px, round 4 review).
-  const keys: KeyItem[] = [{ label: 'Each column rises from the smooth curve,\u00a01×', mark: 'none' }, { label: '95% interval', mark: 'line' }];
+  // is bound by a no-break space, so the baseline's value never wraps to a line of its own (320 px, round 4 review). The
+  // interval's glyph is the whisker itself: a horizontal bar beside "1×" read as the baseline (round 5 review).
+  const keys: KeyItem[] = [{ label: 'Each column rises from the smooth curve,\u00a01×', mark: 'none' }, { label: '95% interval', mark: 'whisker' }];
   return (
     <ChartFrame className="columns half-ratio" label={label} height={height} heightMd={210} plot={plot}
       axis={<Axis ticks={marks.map((m, i) => ({ x: x(i + 0.5), label: m.mark, priority: tone(m) === 'signal' ? 4 : 2 }))} />}
@@ -214,11 +215,14 @@ export function ShareColumns({ bands, shares, signal, label, format, values }: {
  * LineProfile's single-curve drawing without the needle or the lens: LineProfile imports its two client islands
  * (Scrubber, Lens) wherever it is used, which put 3.6 KB of chart script on a page that runs none (S8, October 30, 2026).
  */
-export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, height = 200, heightMd = 240 }: {
+export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, tickGap, height = 200, heightMd = 240 }: {
   curve: { x: number; y: number }[]; xDomain: [number, number];
   marks: { x: number; y: number; text: string; signal?: boolean }[];
-  xTicks: { value: number; label: string; priority?: number; group?: string }[]; yTicks: { value: number; label: string }[];
-  label: string; height?: number; heightMd?: number;
+  xTicks: { value: number; label: string; priority?: number; group?: string; markGroup?: string }[]; yTicks: { value: number; label: string }[];
+  label: string;
+  /** The clear space between two tick labels (Axis `gap`). */
+  tickGap?: number;
+  height?: number; heightMd?: number;
 }) {
   const x = linear(xDomain);
   const y = yScale(0, 1, { top: 0.12, bottom: 0 });
@@ -252,7 +256,7 @@ export function ShareCurve({ curve, xDomain, marks, xTicks, yTicks, label, heigh
       </g>
     </Plot>
   );
-  return <ChartFrame label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority, group: t.group }))} />} />;
+  return <ChartFrame label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis gap={tickGap} ticks={xTicks.map((t) => ({ x: x(t.value), label: t.label, priority: t.priority, group: t.group, markGroup: t.markGroup }))} />} />;
 }
 
 /**
