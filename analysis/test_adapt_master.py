@@ -415,6 +415,53 @@ class AdaptMaster(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'adapted only as the tag'):
                 download_release.main(['--output', str(self.root / 'dl')])
 
+    def test_audit_and_runner_context_read_the_adapted_folder(self):
+        import audit_release
+        import build_runner_context
+        fx = self.fixture()
+        full, core = self.root / 'full', self.root / 'core'
+        fx.adapt(full)
+        fx.adapt(core, bundle='CORE')
+        out = self.root / 'audit' / 'release-contract.json'
+        audit_release.audit(full, core, None, out)
+        report = json.loads(out.read_text())
+        self.assertEqual(report['master_reconciliation']['rows_differ'], 0)
+        self.assertEqual(report['master_reconciliation']['rows_equal_or_differ'], 11)
+        self.assertEqual(report['producer_counts']['editions_json_excluded'], ['Testville 2019'])
+        self.assertTrue(report['core_full_shared_hashes_match'])
+        self.assertTrue(all(row['valid_mismatches'] == 0 for row in report['timings']))
+        provenance = json.loads((full / 'provenance.json').read_text())
+        self.assertEqual(set(build_runner_context.verified_inputs(full, provenance)), set(build_runner_context.FILES))
+        # A record changed after adaptation, with every adapter document rewritten to match, still fails: the audit compares
+        # the folder with the producer's master file, not with the adapter's own documents.
+        db = duckdb.connect()
+        rr = full / 'race_records.parquet'
+        db.execute(f"COPY (SELECT * REPLACE (CASE WHEN id=104 THEN 'Changed' ELSE runner END AS runner) FROM read_parquet({literal(rr)}) ORDER BY id) "
+                   f"TO {literal(self.root / 'rr.parquet')} (FORMAT parquet)")
+        db.execute(f"COPY (SELECT * REPLACE (CASE WHEN record_id=104 THEN 'Changed' ELSE runner_name END AS runner_name) FROM "
+                   f"read_parquet({literal(full / 'features.parquet')}) ORDER BY record_id) TO {literal(self.root / 'f.parquet')} (FORMAT parquet)")
+        shutil.move(self.root / 'rr.parquet', rr)
+        shutil.move(self.root / 'f.parquet', full / 'features.parquet')
+        manifest = json.loads((full / 'MANIFEST.json').read_text())
+        for name in ('race_records.parquet', 'features.parquet'):
+            manifest['files'][name].update(bytes=(full / name).stat().st_size, sha256=sha(full / name))
+        (full / 'MANIFEST.json').write_text(json.dumps(manifest))
+        listing = {n: f['sha256'] for n, f in manifest['files'].items()}
+        listing['MANIFEST.json'] = sha(full / 'MANIFEST.json')
+        (full / 'SHA256SUMS.txt').write_text(''.join(f'{d}  {n}\n' for n, d in sorted(listing.items())))
+        provenance['manifest_sha256'] = sha(full / 'MANIFEST.json')
+        (full / 'provenance.json').write_text(json.dumps(provenance))
+        with self.assertRaisesRegex(AssertionError, "rows_differ': 1"):
+            audit_release.audit(full, None, None, out)
+        # Runner context re-hashes the master file and each member against the adapted manifest.
+        (full / 'course_segments.parquet').write_bytes(b'changed')
+        with self.assertRaisesRegex(AssertionError, 'course_segments.parquet differs'):
+            build_runner_context.verified_inputs(full, provenance)
+        (full / provenance['asset_path']).unlink()
+        shutil.copyfile(fx.master / 'README.md', full / provenance['asset_path'])
+        with self.assertRaisesRegex(AssertionError, 'Master results file checksum mismatch'):
+            build_runner_context.verified_inputs(full, provenance)
+
     def test_repository_pin(self):
         """The committed pin is complete and names a reviewed tag (no network)."""
         pin = adapt_master.load_pin()

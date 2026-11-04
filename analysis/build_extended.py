@@ -23,7 +23,9 @@ HISTORY_METHOD = [
 OBSERVATIONAL = 'These are observational results. Fitness changes, intentions, training, selection into the dataset and unmeasured conditions can explain differences. Outcome percentiles describe variation among performances, not confidence intervals or advice about the best strategy.'
 OPENINGS = ['Faster opening', 'Similar opening', 'Slower opening']
 SERIES_SPREAD = [{'key':'p10','label':'10th percentile'}, {'key':'median','label':'Median'}, {'key':'p90','label':'90th percentile'}]
-CANONICAL_ID_RELEASES = {'private-export-20260911-1107', 'private-export-20260912-0934', 'htw-db-2026-10-16-1652', 'private-export-20261021-1050'}
+CANONICAL_ID_RELEASES = {'private-export-20260911-1107', 'private-export-20260912-0934', 'htw-db-2026-10-16-1652', 'private-export-20261021-1050',
+                         # Adapted by analysis/adapt_master.py; race_records.id is master source_record_id (checked per row).
+                         'master-20261103b'}
 
 
 def canonical_id_contract(db, source):
