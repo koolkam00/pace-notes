@@ -8,7 +8,7 @@ from datetime import date
 
 import numpy as np
 
-from charts_common import count_phrase, median, require_cell, sec, sh
+from charts_common import count_phrase, median, require_cell, require_race_dates, sec, sh
 
 CHARTS = {}
 
@@ -35,8 +35,7 @@ def linked(c):
         d = dates.get((ed['city'], ed['year']))
         if d:
             ed_day[e] = (date.fromisoformat(d) - date(2000, 1, 1)).days
-    if (ed_day[c.ed_n > 0] < 0).any():
-        raise ValueError('Every edition with finishes needs a race date for the linked-record order')
+    require_race_dates(c, ed_day < 0)
     day = ed_day[c.edition]
     order = np.lexsort((c.edition, day, c.profile))
     p = c.profile[order]
@@ -84,6 +83,12 @@ def every_new_york_in_the_data(c):
     """Records linked by name by how many New York editions they finished."""
     L = linked(c)
     ny = c.mask_city('New York')
+    # Only the editions that carry cross-race identity (a finish whose record has another finish): an edition loaded
+    # without the producer's cross-race key (New York 2026 in master-20261103b, November 4, 2026) cannot be counted in
+    # "every edition", so it is left out and named in the method line.
+    linked_ed = np.unique(c.edition[L['count'] > 1])
+    no_key = [int(e) for e in np.unique(c.edition[ny]) if e not in set(linked_ed.tolist())]
+    ny &= ~np.isin(c.edition, no_key)
     k = int(len(np.unique(c.edition[ny])))
     per = np.bincount(L['pid'][ny], minlength=L['records'])
     at_least = {m: int((per >= m).sum()) for m in (2, 5, 10, 15, k)}
@@ -95,7 +100,9 @@ def every_new_york_in_the_data(c):
                   compare=compare, compareFmt='count'),
         cohort_n=int(ny.sum()), editions_n=k, weighting='pooled',
         method=f'New York finishes ({int(ny.sum()):,} finishes, {k} editions) grouped by record linked by name; '
-               'counts are records, which are candidate links rather than verified people.',
+               'counts are records, which are candidate links rather than verified people.'
+               + (f" {' and '.join(c.label(e) for e in no_key)} {'carry' if len(no_key) > 1 else 'carries'} no cross-race "
+                  f"identity yet, so {'they are' if len(no_key) > 1 else 'it is'} left out." if no_key else ''),
     )
 
 

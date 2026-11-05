@@ -1,8 +1,10 @@
 import kept from './kept-holds.json';
 
 /**
- * Producer-held editions kept after review, by adopted release (lib/kept-holds.json). The edition policy
- * (analysis/source_quality.py) leaves out every other hold; /methodology names these as the exception. Owner decision,
+ * Unreconciled editions kept after review, by adopted release (lib/kept-holds.json): editions the producer held
+ * (to 1050) or lists as partial (from master-20261103b, which carries no hold field), short of the official finisher
+ * count. The edition policy (analysis/source_quality.py) leaves out every other one; /methodology names these as the
+ * exception. Owner decision,
  * October 21, 2026, verbatim: "Keep London 2025–26" (their records fall 2.8% and 0.5% short of the official finisher
  * counts). A release with no entry keeps none. scripts/verify-insights.cjs reads the same JSON and checks each is in the
  * release and outside the policy.

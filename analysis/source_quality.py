@@ -224,7 +224,8 @@ REVIEWED_POLICIES = {RELEASE: RULES, LATEST_RELEASE: LATEST_RULES, RELEASE_1652:
                      RELEASE_MASTER_20261103B: RULES_MASTER_20261103B}
 METHOD = ('Apply the reviewed source-quality edition exclusions for this exact export after the timing checks. '
           'Known invalid split grids (including grids that mix timing bases, a checkpoint that stopped recording partway '
-          'through the field and a virtual edition), incomplete ingestion, unreconciled HOLD editions and selected fields '
+          'through the field and a virtual edition), incomplete ingestion, editions not reconciled with the official '
+          'finisher count (held, or listed by the producer as partial or unverified) and selected fields '
           '(a top-finisher list, or finishers cut off when a race was stopped) do not contribute to the analyses or prior '
           'benchmarks. Report source exclusions separately; an already invalid timing row is not counted twice. Missing age '
           'or recorded gender alone does not exclude an otherwise eligible finish from the overall cohort. Other sparse '

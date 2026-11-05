@@ -13,6 +13,17 @@ const early = (y) => y >= 2013 && y <= 2019, late = (y) => y >= 2022 && y <= 202
 const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
 const yy = (y) => String(y % 100).padStart(2, '0');
 
+/** An edition without a race date (no weather row: New York 2026 in master-20261103b, November 4, 2026) is allowed only
+ * while each of its finishes is its record's only finish, so it never enters a linked order; nothing is filled in. */
+function requireRaceDates(C, undated) {
+  const per = new Map();
+  for (let i = 0; i < C.n; i++) per.set(C.profile[i], (per.get(C.profile[i]) || 0) + 1);
+  for (let i = 0; i < C.n; i++) {
+    const e = C.edition[i];
+    if (undated[e] && per.get(C.profile[i]) > 1) throw new Error(`${C.editions[e].city} ${C.editions[e].year}: no race date`);
+  }
+}
+
 const cache = new WeakMap();
 /** Every record's finishes grouped and ordered by race date; finishes on a date the record already has are dropped. */
 function linked(C) {
@@ -20,9 +31,9 @@ function linked(C) {
   const dateOf = new Map(C.weather.editions.map((r) => [`${r.city}\u0000${r.year}`, r.date]));
   const day = C.editions.map((e, k) => {
     const d = dateOf.get(`${e.city}\u0000${e.year}`);
-    if (!d && C.edN[k] > 0) throw new Error(`${e.city} ${e.year}: no race date`);
     return d ? Date.parse(`${d}T00:00:00Z`) / 86400000 : -1;
   });
+  requireRaceDates(C, day.map((d, k) => d < 0 && C.edN[k] > 0));
   let P = 0;
   for (let i = 0; i < C.n; i++) if (C.profile[i] + 1 > P) P = C.profile[i] + 1;
   const start = new Uint32Array(P + 1);

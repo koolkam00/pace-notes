@@ -366,7 +366,7 @@ for (const rule of screen) {
   duplicate[editionIndex.get(editionKey(rule.city, rule.year))] = 1;
 }
 const excluded = new Set(runners.source_quality.editions.map(row => editionKey(row.city, row.year)));
-// The producer-held editions /methodology names as kept (lib/kept-holds.json, read as JSON so this verifier needs
+// The unreconciled (producer-held or partial) editions /methodology names as kept (lib/kept-holds.json, read as JSON so this verifier needs
 // no TypeScript or packages): in this release and outside its policy.
 for (const { city, year } of read(path.join(root, 'lib', 'kept-holds.json'))[pin.tag] ?? []) {
   assert.ok(editionIndex.has(editionKey(city, year)) && !excluded.has(editionKey(city, year)), `${city} ${year}: a kept hold must be in the release and outside the edition policy`);

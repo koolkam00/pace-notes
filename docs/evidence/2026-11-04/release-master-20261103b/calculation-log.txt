@@ -1,0 +1,287 @@
+14:18:44 tests: 252 run, 10 fail (test_half marathon-release binding only, expected until step 2), 8 skipped
+skip tests
+14:18:44 START pacing
+14:20:13 OK pacing 89s; free 9631M
+14:20:13 START weather
+14:21:00 OK weather 47s; free 9631M
+14:21:00 START extended
+14:28:10 OK extended 430s; free 9376M
+14:28:10 START extended-clean
+14:28:10 OK extended-clean 0s; free 9376M
+14:28:10 START findings
+14:28:10 OK findings 0s; free 9376M
+14:28:10 START zip
+14:28:14 OK zip 4s; free 9357M
+14:28:14 START packs-check
+14:28:14 OK packs-check 0s; free 9357M
+14:28:14 START personalized-check
+14:28:28 OK personalized-check 14s; free 9357M
+14:28:28 START packs-import
+14:28:28 OK packs-import 0s; free 9357M
+14:28:28 START personalized-import
+14:28:56 OK personalized-import 28s; free 9353M
+14:28:56 START explorer
+14:34:42 OK explorer 346s; free 8857M
+14:34:42 START explorer-import
+14:38:22 OK explorer-import 220s; free 8854M
+14:38:22 START context
+14:40:19 OK context 117s; free 8835M
+14:40:19 START context-check
+14:41:30 OK context-check 71s; free 8835M
+14:41:30 START context-import
+14:42:36 OK context-import 66s; free 8834M
+14:42:36 START fast-start
+14:43:35 OK fast-start 59s; free 4107M
+14:43:35 START fast-start-verify
+14:44:16 OK fast-start-verify 41s; free 4565M
+14:44:16 START fast-start-all
+14:46:37 OK fast-start-all 141s; free 4565M
+14:46:37 START fast-start-all-verify
+14:47:43 OK fast-start-all-verify 66s; free 4565M
+14:47:43 START fast-start-copy
+14:47:43 OK fast-start-copy 0s; free 4565M
+14:47:43 START afc
+14:52:13 OK afc 270s; free 4550M
+14:52:13 START afc-verify
+14:54:27 OK afc-verify 134s; free 4550M
+14:54:27 START afc-copy
+14:54:27 OK afc-copy 0s; free 4550M
+14:54:27 START insights-fresh
+14:54:27 OK insights-fresh 0s; free 4550M
+14:54:27 START insights
+15:17:10 OK insights 1363s; free 4530M
+15:17:10 START geometry
+15:17:13 OK geometry 3s; free 4530M
+15:17:13 START terrain
+15:17:14 OK terrain 1s; free 4530M
+15:17:14 START insights-manifest
+15:18:35 OK insights-manifest 81s; free 4530M
+15:18:35 START insights-verify
+15:22:26 OK insights-verify 231s; free 4530M
+15:22:26 START insights-copy
+15:22:26 OK insights-copy 0s; free 4530M
+15:22:26 START weather-copy
+15:22:26 OK weather-copy 0s; free 4530M
+15:22:26 START charts
+15:24:04 FAIL charts (see /home/user/data/m1103-out/logs/charts.log)
+  File "/home/user/wt/v4/analysis/build_charts.py", line 115, in run
+    result = build_one(item, cohort)
+  File "/home/user/wt/v4/analysis/build_charts.py", line 75, in build_one
+    result = builder(cohort)
+  File "/home/user/wt/v4/analysis/charts_trends_1.py", line 136, in slowdowns_run_in_streaks
+    F = first_k(c, 4, True)
+  File "/home/user/wt/v4/analysis/charts_trends_1.py", line 87, in first_k
+    order, starts, counts = sequences(c, shape_only)
+                            ~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/user/wt/v4/analysis/charts_trends_1.py", line 68, in sequences
+    day = edition_days(c)[c.edition]
+          ~~~~~~~~~~~~^^^
+  File "/home/user/wt/v4/analysis/charts_trends_1.py", line 56, in edition_days
+    raise ValueError('An edition with finishes has no race date')
+ValueError: An edition with finishes has no race date
+--- resume 2026-11-05 05:14:31 after chart race-date fix (charts_common.require_race_dates)
+skip tests
+skip pacing
+skip weather
+skip extended
+skip extended-clean
+skip findings
+skip zip
+skip packs-check
+skip personalized-check
+skip packs-import
+skip personalized-import
+skip explorer
+skip explorer-import
+skip context
+skip context-check
+skip context-import
+skip fast-start
+skip fast-start-verify
+skip fast-start-all
+skip fast-start-all-verify
+skip fast-start-copy
+skip afc
+skip afc-verify
+skip afc-copy
+skip insights-fresh
+skip insights
+skip geometry
+skip terrain
+skip insights-manifest
+skip insights-verify
+skip insights-copy
+skip weather-copy
+05:14:32 START charts
+05:22:28 FAIL charts (see /home/user/data/m1103-out/logs/charts.log)
+  File "/home/user/wt/v4/analysis/build_charts.py", line 150, in <module>
+    main()
+    ~~~~^^
+  File "/home/user/wt/v4/analysis/build_charts.py", line 146, in main
+    run(a.output, {x for x in a.only.split(',') if x} or None, a.cache, a.partial)
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/wt/v4/analysis/build_charts.py", line 115, in run
+    result = build_one(item, cohort)
+  File "/home/user/wt/v4/analysis/build_charts.py", line 75, in build_one
+    result = builder(cohort)
+  File "/home/user/wt/v4/analysis/charts_trends_2.py", line 89, in every_new_york_in_the_data
+    all_k = require_cell(at_least[k], 'records with every New York edition')
+  File "/home/user/wt/v4/analysis/charts_common.py", line 35, in require_cell
+    raise ValueError(f'{what}: {int(n)} finishes is under the {MIN_CELL}-finish threshold')
+ValueError: records with every New York edition: 0 finishes is under the 100-finish threshold
+--- resume 2026-11-05 05:23:30 after every-new-york scope fix
+skip tests
+skip pacing
+skip weather
+skip extended
+skip extended-clean
+skip findings
+skip zip
+skip packs-check
+skip personalized-check
+skip packs-import
+skip personalized-import
+skip explorer
+skip explorer-import
+skip context
+skip context-check
+skip context-import
+skip fast-start
+skip fast-start-verify
+skip fast-start-all
+skip fast-start-all-verify
+skip fast-start-copy
+skip afc
+skip afc-verify
+skip afc-copy
+skip insights-fresh
+skip insights
+skip geometry
+skip terrain
+skip insights-manifest
+skip insights-verify
+skip insights-copy
+skip weather-copy
+05:23:30 START charts
+05:29:03 OK charts 333s; free 4529M
+05:29:03 START charts-verify
+05:29:07 FAIL charts-verify (see /home/user/data/m1103-out/logs/charts-verify.log)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v22.22.0
+--- resume 2026-11-05 05:30:48 at charts-verify after chart text re-judgement
+skip tests
+skip pacing
+skip weather
+skip extended
+skip extended-clean
+skip findings
+skip zip
+skip packs-check
+skip personalized-check
+skip packs-import
+skip personalized-import
+skip explorer
+skip explorer-import
+skip context
+skip context-check
+skip context-import
+skip fast-start
+skip fast-start-verify
+skip fast-start-all
+skip fast-start-all-verify
+skip fast-start-copy
+skip afc
+skip afc-verify
+skip afc-copy
+skip insights-fresh
+skip insights
+skip geometry
+skip terrain
+skip insights-manifest
+skip insights-verify
+skip insights-copy
+skip weather-copy
+skip charts
+05:30:48 START charts-verify
+05:31:27 FAIL charts-verify (see /home/user/data/m1103-out/logs/charts-verify.log)
+                            ^
+
+Error: New York 2026: no race date
+    at /home/user/wt/v4/scripts/charts/charts_trends_1.cjs:23:35
+    at Array.map (<anonymous>)
+    at linked (/home/user/wt/v4/scripts/charts/charts_trends_1.cjs:21:26)
+    at firstK (/home/user/wt/v4/scripts/charts/charts_trends_1.cjs:52:19)
+    at slowdowns-run-in-streaks (/home/user/wt/v4/scripts/charts/charts_trends_1.cjs:87:18)
+    at Object.<anonymous> (/home/user/wt/v4/scripts/verify-charts.cjs:177:32)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+
+Node.js v22.22.0
+--- resume 2026-11-05 05:32:12 at charts-verify after Node recount mirror
+skip tests
+skip pacing
+skip weather
+skip extended
+skip extended-clean
+skip findings
+skip zip
+skip packs-check
+skip personalized-check
+skip packs-import
+skip personalized-import
+skip explorer
+skip explorer-import
+skip context
+skip context-check
+skip context-import
+skip fast-start
+skip fast-start-verify
+skip fast-start-all
+skip fast-start-all-verify
+skip fast-start-copy
+skip afc
+skip afc-verify
+skip afc-copy
+skip insights-fresh
+skip insights
+skip geometry
+skip terrain
+skip insights-manifest
+skip insights-verify
+skip insights-copy
+skip weather-copy
+skip charts
+05:32:12 START charts-verify
+05:36:13 OK charts-verify 241s; free 4528M
+05:36:13 START weather-verify
+05:36:22 FAIL weather-verify (see /home/user/data/m1103-out/logs/weather-verify.log)
+    ^
+
+Error: Half data must use the adopted marathon release.
+    at getHalfManifest (/home/user/wt/v4/lib/half-server.ts:50:15)
+    at halfManifest (/home/user/wt/v4/lib/stories.ts:81:152)
+    at halfLive (/home/user/wt/v4/components/half/HalfWays.tsx:19:41)
+    at ways (/home/user/wt/v4/app/about/page.tsx:41:33)
+    at AboutPage (/home/user/wt/v4/app/about/page.tsx:55:1071)
+    at renderWithHooks (/home/user/pace-notes/node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5662:16)
+    at renderIndeterminateComponent (/home/user/pace-notes/node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5736:15)
+    at renderElement (/home/user/pace-notes/node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5961:7)
+    at renderNodeDestructiveImpl (/home/user/pace-notes/node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6119:11)
+    at renderNodeDestructive (/home/user/pace-notes/node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6091:14)
+
+Node.js v22.22.0

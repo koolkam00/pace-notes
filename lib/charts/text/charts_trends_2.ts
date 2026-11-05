@@ -15,9 +15,11 @@ export const CHARTS_TRENDS_2_TEXT: Record<string, ChartText> = {
     }),
   },
   'every-new-york-in-the-data': {
-    title: 'Sixteen New Yorks under one name',
+    // November 4, 2026 (master-20261103b): New York 2008 is released, so the editions with cross-race identity are 17
+    // (New York 2026 has none and is left out by the builder); the title and the pinned count follow the data.
+    title: 'Seventeen New Yorks under one name',
     takeaway: (v) => ({
-      guard: n(v.n_eds) === 16 && n(v.all16) >= 100 && n(v.ten) > n(v.all16),
+      guard: n(v.n_eds) === 17 && n(v.all16) >= 100 && n(v.ten) > n(v.all16),
       headline: `*${count(n(v.all16))}* records linked by name finished ${count(n(v.n_eds))} New York editions, and ${count(n(v.ten))} at least 10.`,
       fallback: 'Records linked by name by how many New York editions they finished.',
     }),

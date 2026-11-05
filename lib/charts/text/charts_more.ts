@@ -23,9 +23,16 @@ export const CHARTS_MORE_TEXT: Record<string, ChartText> = {
   },
   'mornings-vary-by-year': {
     title: 'Race mornings vary more by year than by race',
-    takeaway: (v) => ({
-      guard: n(v.wider) === n(v.races) && n(v.races) >= 8 && n(v.narrowest) > n(v.gap) && n(v.within) > 0.5,
+    // November 4, 2026 (master-20261103b): one race's spread (7.0 °C) fell under the gap between typical mornings
+    // (7.1 °C), so "each of" no longer holds; the count form has its own guard (most races wider, and more of the
+    // variance within races than between them), and "each of" returns only under its original guard.
+    takeaway: (v) => (n(v.wider) === n(v.races) ? {
+      guard: n(v.races) >= 8 && n(v.narrowest) > n(v.gap) && n(v.within) > 0.5,
       headline: `In *each of ${count(n(v.races))} races*, start temperatures across editions spread wider than the gap between the races' typical mornings.`,
+      fallback: "Each race's spread of start temperatures across its editions.",
+    } : {
+      guard: n(v.races) >= 8 && n(v.wider) >= 0.8 * n(v.races) && n(v.within) > 0.5,
+      headline: `In *${count(n(v.wider))} of ${count(n(v.races))} races*, start temperatures across editions spread wider than the gap between the races' typical mornings.`,
       fallback: "Each race's spread of start temperatures across its editions.",
     }),
   },
