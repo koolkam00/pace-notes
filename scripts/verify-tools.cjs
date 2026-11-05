@@ -763,14 +763,15 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   // The As run table: the shard's medians as they ran, never scaled to the goal (New York 5:15: finishes 5:10:00 to 5:14:59).
   const nyShard = insight(band.paceBandShardPath('new-york', 'all'));
   const [nyAll, nyHeld, nySlow] = ['all', 'held', 'slowdown'].map((k) => band.cellOf(nyShard.groups[k], tb.bandMinute(G)));
-  assert.deepEqual([F(nyAll.e50[0]), F(nyAll.e50[8]), nyAll.n, Math.round(nyAll.sd * 100)], ['32:52', '5:12:28', 15623, 48], 'New York 5:15 as run: 5K 32:52, finish 5:12:28, 15,623 finishes, 48% sustained slowdown'); ok();
+  // November 4, 2026 (master-20261103b): New York 2026 joins the cell, 15,623 finishes and 5K 32:52 before.
+  assert.deepEqual([F(nyAll.e50[0]), F(nyAll.e50[8]), nyAll.n, Math.round(nyAll.sd * 100)], ['32:56', '5:12:28', 17566, 48], 'New York 5:15 as run: 5K 32:56, finish 5:12:28, 17,566 finishes, 48% sustained slowdown'); ok();
   assert.equal(tb.asRunLine(nyAll.sd).join(''), 'As run, slowdowns included: 48% had a sustained slowdown. Not splits to copy.'); ok();
   for (const short of [false, true]) {
     const html = renderToStaticMarkup(React.createElement(AsRunTable.default, { cells: { all: nyAll, held: nyHeld, slow: nySlow }, units: 'mi', short }));
     assert.deepEqual(heads(html), short ? ['Mat', 'All', 'Held', 'Slowed'] : ['Mat', 'All', 'No sustained slowdown', 'Sustained slowdown']);
     const cells = tds(html);
     assert.deepEqual(cells.slice(0, 9), POINTS.map((_, i) => [nyAll, nyHeld, nySlow].map((c) => F(c.e50[i]))), 'As run: the shard\'s e50, unscaled');
-    assert.deepEqual(cells[9], [nyAll, nyHeld, nySlow].map((c) => c.n.toLocaleString('en-US')), 'As run: the Finishes row'); assert.equal(cells[9][0], '15,623');
+    assert.deepEqual(cells[9], [nyAll, nyHeld, nySlow].map((c) => c.n.toLocaleString('en-US')), 'As run: the Finishes row'); assert.equal(cells[9][0], '17,566'); // 15,623 on 1050 (November 4, 2026)
     checks += 3;
   }
   const asRunNote = renderToStaticMarkup(React.createElement(AsRunTable.AsRunNote, { sd: nyAll.sd }));
@@ -1562,10 +1563,12 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     // The page example (1:55:00): every value exact. 2026-10-31: half-dataset-20261030-1904 with the v4 person IDs (set B
     // 23,929 -> 58,497 pairs; the 1:55 window 2,056 pairs from 79 marathon editions -> 5,179 from 146, median 4:15:38.5
     // -> 4:15:53). Earlier goldens are in Git history.
+    // 2026-11-04: master-20261103b's eligible marathons (set B 58,497 -> 58,597 pairs): 5,181 pairs from 147 editions,
+    // the median unchanged; every golden below moved by a few pairs, one edition or a second.
     const w155 = win(H(1, 55));
-    assert.ok(w155 && w155.h === H(1, 55) && w155.n === 5179 && w155.e === 146 && w155.q[9] === 15353, `1:55 all window: ${JSON.stringify(w155 && [w155.n, w155.e, w155.q[9]])}`); ok();
-    assert.deepEqual(marksOf(w155), { 14400: 0.2174164897, 15300: 0.4825255841, 16200: 0.7327669434 }, '1:55 marks'); ok();
-    assert.equal(w155.sus, 0.3334620583, '1:55 sustained slowdown'); ok();
+    assert.ok(w155 && w155.h === H(1, 55) && w155.n === 5181 && w155.e === 147 && w155.q[9] === 15353, `1:55 all window: ${JSON.stringify(w155 && [w155.n, w155.e, w155.q[9]])}`); ok();
+    assert.deepEqual(marksOf(w155), { 14400: 0.2173325613, 15300: 0.4827253426, 16200: 0.7328701023 }, '1:55 marks'); ok();
+    assert.equal(w155.sus, 0.3333333333, '1:55 sustained slowdown'); ok();
     // The sentence's range is the 10th to 90th percentile, the span the strip brackets ("8 in 10"), as on the story and
     // the goal pages (round 2 review).
     assert.equal(htf.linkedSentence(w155, Q), 'After a half near 1:55, the typical marathon 3 to 16 weeks later took *4:15*; 8 in 10 took 3:52 to 4:48.'); ok();
@@ -1574,7 +1577,7 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     assert.deepEqual(htf.markLabels(w155), ['22% under 4:00', '48% under 4:15', '73% under 4:30']); ok();
     // 2026-10-31 (v4 person IDs): the women's 1:55 window 694 pairs from 61 editions -> 1,964 from 122.
     const f155 = win(H(1, 55), 'F');
-    assert.ok(f155 && f155.n === 1964 && f155.e === 122 && f155.q[9] === 15182 && f155.sus === 0.1797352342, `1:55 women: ${JSON.stringify(f155 && [f155.n, f155.e, f155.q[9], f155.sus])}`); ok();
+    assert.ok(f155 && f155.n === 1965 && f155.e === 123 && f155.q[9] === 15182 && f155.sus === 0.1796437659, `1:55 women: ${JSON.stringify(f155 && [f155.n, f155.e, f155.q[9], f155.sus])}`); ok();
     // A recorded-sex chip names recorded sex in both sentences, so a shared sx=f or sx=m link never reads as all
     // marathons (round 4 review, October 30, 2026: "the typical marathon … took 3:49" with the women's chip pressed).
     assert.equal(htf.linkedSentence(f155, Q, 'F'), 'After a half near 1:55, the typical recorded women’s marathon 3 to 16 weeks later took *4:13*; 8 in 10 took 3:53 to 4:41.'); ok();
@@ -1585,16 +1588,16 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     assert.equal(htf.linkedSentence(win(H(1, 45), 'F'), Q, 'F'), 'After a half near 1:45, the typical recorded women’s marathon 3 to 16 weeks later took *3:50*; 8 in 10 took 3:34 to 4:12.'); ok();
     assert.equal(htf.slowdownSentence(win(H(1, 45), 'F'), 'F'), '14% of these recorded women’s marathons had a sustained slowdown.'); ok();
     assert.equal(htf.linkedSentence(w155, Q, 'all'), htf.linkedSentence(w155, Q), 'All keeps its wording'); ok();
-    assert.equal(win(H(1, 45)).q[9], 14066, '1:45 all median'); ok();
+    assert.equal(win(H(1, 45)).q[9], 14064, '1:45 all median'); ok();
     // The spec's example rows: pairs (editions), median, 8 in 10 (p10–p90), marks, sustained slowdown. 2026-10-31: every
     // row on half-dataset-20261030-1904 with the v4 person IDs (each window holds about 2 to 3 times the pairs it had).
     for (const [s, g, n, e, median, mid, marks, sus] of [
-      [H(1, 55), 'F', 1964, 122, '4:13', '3:53 to 4:41', ['22%', '55%', '80%'], '18%'],
-      [H(1, 55), 'M', 3215, 139, '4:18', '3:50 to 4:52', ['22%', '44%', '69%'], '43%'],
-      [H(1, 45), 'all', 6327, 149, '3:54', '3:35 to 4:23', ['26% under 3:45', '65% under 4:00', '84% under 4:15'], '28%'],
-      [H(1, 45), 'F', 1554, 125, '3:50', '3:34 to 4:12', ['6% under 3:30', '34% under 3:45', '76% under 4:00'], '14%'],
-      [H(1, 30), 'all', 4739, 143, '3:17', '3:04 to 3:39', ['6% under 3:00', '41% under 3:15', '81% under 3:30'], '19%'],
-      [H(2, 15), 'all', 1803, 128, '4:58', '4:17 to 5:35', ['29% under 4:45', '53% under 5:00', '73% under 5:15'], '39%'],
+      [H(1, 55), 'F', 1965, 123, '4:13', '3:53 to 4:41', ['22%', '55%', '80%'], '18%'],
+      [H(1, 55), 'M', 3216, 140, '4:18', '3:50 to 4:52', ['22%', '44%', '69%'], '43%'],
+      [H(1, 45), 'all', 6345, 150, '3:54', '3:34 to 4:23', ['26% under 3:45', '65% under 4:00', '84% under 4:15'], '28%'],
+      [H(1, 45), 'F', 1559, 126, '3:50', '3:34 to 4:12', ['6% under 3:30', '34% under 3:45', '76% under 4:00'], '14%'],
+      [H(1, 30), 'all', 4749, 144, '3:17', '3:04 to 3:39', ['6% under 3:00', '41% under 3:15', '81% under 3:30'], '19%'],
+      [H(2, 15), 'all', 1804, 129, '4:58', '4:17 to 5:35', ['29% under 4:45', '53% under 5:00', '73% under 5:15'], '39%'],
     ]) {
       const w = win(s, g);
       assert.ok(w && w.n === n && w.e === e, `${time.formatHM(s)} ${g}: ${w && w.n} (${w && w.e})`);
@@ -1608,7 +1611,7 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     // Windows, not bands: the typed half's nearest whole minute (1:57:29 reads 1:57; 1:52:30 reads 1:53).
     // 2026-10-31 (v4 person IDs): the 1:57 window 2,021 pairs -> 5,173, its median 4:20:31 -> 4:21:18.
     const w157 = win(H(1, 57, 29));
-    assert.ok(w157.h === H(1, 57) && w157.n === 5173 && Math.round(w157.q[9]) === H(4, 21, 18), `1:57:29: ${w157.h} ${w157.n} ${w157.q[9]}`); ok();
+    assert.ok(w157.h === H(1, 57) && w157.n === 5175 && Math.round(w157.q[9]) === H(4, 21, 18), `1:57:29: ${w157.h} ${w157.n} ${w157.q[9]}`); ok();
     assert.equal(win(H(1, 52, 30)).h, H(1, 53), '1:52:30 reads the 1:53 window'); ok();
     // Outside a group's published range: no window (2:55 falls back to the 20K panel; women's at 1:15 and men's at 2:45 are
     // too few). 2026-10-31 (v4 person IDs): the recorded women's range 1:26–2:40 -> 1:19–2:45 and the men's 1:10–2:29 ->
@@ -1655,11 +1658,11 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     // 2026-10-31: half-dataset-20261030-1904 with the v4 person IDs. Every goal row holds 2 to 3 times the pairs, and
     // 5:00's half moves from 2:16 to 2:15.
     const GOALS = {
-      10800: { H: '1:23', n: 3139, e: 137, q50: H(2, 59, 12), range: 'The typical one took 2:59; 8 in 10 took 2:49 to 3:18.' },
-      12600: { H: '1:35', n: 5444, e: 152, q50: H(3, 29, 43), range: 'The typical one took 3:29; 8 in 10 took 3:15 to 3:54.' },
-      14400: { H: '1:48', n: 5941, e: 149, q50: H(3, 59, 59), range: 'The typical one took 3:59; 8 in 10 took 3:42 to 4:29.' },
-      16200: { H: '2:01', n: 4048, e: 139, q50: H(4, 29, 22), range: 'The typical one took 4:29; 8 in 10 took 3:58 to 5:02.' },
-      18000: { H: '2:15', n: 1803, e: 128, q50: H(4, 58, 15), range: 'The typical one took 4:58; 8 in 10 took 4:17 to 5:35.' },
+      10800: { H: '1:23', n: 3148, e: 138, q50: H(2, 59, 12), range: 'The typical one took 2:59; 8 in 10 took 2:49 to 3:18.' },
+      12600: { H: '1:35', n: 5456, e: 153, q50: H(3, 29, 42), range: 'The typical one took 3:29; 8 in 10 took 3:15 to 3:54.' },
+      14400: { H: '1:48', n: 5953, e: 150, q50: H(3, 59, 59), range: 'The typical one took 3:59; 8 in 10 took 3:42 to 4:29.' },
+      16200: { H: '2:01', n: 4051, e: 140, q50: H(4, 29, 21), range: 'The typical one took 4:29; 8 in 10 took 3:58 to 5:02.' },
+      18000: { H: '2:15', n: 1804, e: 129, q50: H(4, 58, 16), range: 'The typical one took 4:58; 8 in 10 took 4:17 to 5:35.' },
     };
     assert.deepEqual(linked.goals.map((g) => g.goal_s), Object.keys(GOALS).map(Number), 'Five goal pages'); ok();
     for (const g of linked.goals) {

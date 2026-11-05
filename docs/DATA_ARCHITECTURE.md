@@ -2,7 +2,7 @@
 
 How race data reaches the site: where each input lives, which identifiers name it, what counts as an eligible finish, how records join across files and races, and which overlays (weather, course profiles, the half-marathon source) are attached. Counts below name their release. The current refresh record is [REFRESH_20261021_1050.md](REFRESH_20261021_1050.md); what is deployed is in the [project handoff](PROJECT_HANDOFF.md#current-state).
 
-**Current source: `private-export-20261021-1050`** (repository `koolkam00/pace-notes`; manifest created `2026-10-21T15:02:30Z`). Both [analysis/release.json](../analysis/release.json) and [analysis/weather-release.json](../analysis/weather-release.json) name it in `tag`. It was adopted in PR #78, merged to `main` as `39f3057` on October 22, 2026 and live the same day ([refresh record](REFRESH_20261021_1050.md#deployed-october-22)); what production's `/data/live.json` names now is checked, with its date, in the handoff's [Current state](PROJECT_HANDOFF.md#current-state). Earlier sources are in the [release history](#release-history).
+**Branch `feat/half-v4` (draft PR #89, not merged; November 5, 2026): `master-20261103b`**, a combined results release read through `analysis/adapt_master.py`, with weather and routes from `dataset-20261103-0706` (5,388,605 marathon records in CORE, 4,222,246 eligible finishes in 218 editions; [refresh record](REFRESH_20261103b.md)). **On `main`: `private-export-20261021-1050`** (repository `koolkam00/pace-notes`; manifest created `2026-10-21T15:02:30Z`). Both [analysis/release.json](../analysis/release.json) and [analysis/weather-release.json](../analysis/weather-release.json) name it in `tag`. It was adopted in PR #78, merged to `main` as `39f3057` on October 22, 2026 and live the same day ([refresh record](REFRESH_20261021_1050.md#deployed-october-22)); what production's `/data/live.json` names now is checked, with its date, in the handoff's [Current state](PROJECT_HANDOFF.md#current-state). Earlier sources are in the [release history](#release-history).
 
 ## Storage and transfer
 
@@ -129,7 +129,8 @@ Publication times are the GitHub release times (UTC). Counts are each release's 
 | `private-export-20260912-0934` | September 12 | 4,462,379 | 256 | 3,517,336 | Adopted (PR #39, merged September 12) | [0934 record](REFRESH_20260912_0934.md) |
 | `htw-db-2026-10-16-1652` | October 16 | 4,915,355 | 287 | 3,871,767 | Adopted (PR #70, merged October 17) | [1652 record](REFRESH_20261016_1652.md) |
 | `private-export-20261021-0829` | October 21 | 5,327,504 | 298 | — | Reviewed, not adopted: its FULL had lost the runner identities. Draft PR #77 still open on October 30 | [0829 review](REFRESH_20261021_0829.md) |
-| `private-export-20261021-1050` | October 21 | 5,327,504 | 298 | 4,108,749 | Adopted (PR #78, merged October 22); current | [1050 record](REFRESH_20261021_1050.md) |
+| `private-export-20261021-1050` | October 21 | 5,327,504 | 298 | 4,108,749 | Adopted (PR #78, merged October 22); current on `main` | [1050 record](REFRESH_20261021_1050.md) |
+| `master-20261103b` | November 3 | 5,388,605 (CORE) | 299 | 4,222,246 | Adopted on `feat/half-v4` (draft PR #89), not merged; through `analysis/adapt_master.py`, overlays from `dataset-20261103-0706` | [master record](REFRESH_20261103b.md) |
 
 ## Historical inspections
 
@@ -143,7 +144,7 @@ Text moved here word for word on October 30, 2026 from this file as it stood at 
 
 ### The current-source line, as written on October 21–22, 2026 (line 3)
 
-Current full-refresh source: **`private-export-20261021-1050`** (repository `koolkam00/pace-notes`), manifest created `2026-10-21T15:02:30Z`, adopted on branch `data/release-1050` on October 21, 2026 (weather-dependent outputs rebuilt October 22); deployment is recorded in the [project handoff](PROJECT_HANDOFF.md). The [refresh record](REFRESH_20261021_1050.md) distinguishes verified inputs, calculations, imported files and production. The [1652 record](REFRESH_20261016_1652.md), the [0934 record](REFRESH_20260912_0934.md) and older inspections below are historical evidence.
+Full-refresh source on `main`: **`private-export-20261021-1050`** (on `feat/half-v4`: `master-20261103b`, refreshed November 4–5, 2026, [record](REFRESH_20261103b.md)) (repository `koolkam00/pace-notes`), manifest created `2026-10-21T15:02:30Z`, adopted on branch `data/release-1050` on October 21, 2026 (weather-dependent outputs rebuilt October 22); deployment is recorded in the [project handoff](PROJECT_HANDOFF.md). The [refresh record](REFRESH_20261021_1050.md) distinguishes verified inputs, calculations, imported files and production. The [1652 record](REFRESH_20261016_1652.md), the [0934 record](REFRESH_20260912_0934.md) and older inspections below are historical evidence.
 
 ### Identifiers and access, as written before the half source became public (line 25)
 
