@@ -80,6 +80,10 @@ async function reading(h) {
   await page.waitForURL(url => new URL(url).pathname === storyB);
   await page.waitForSelector('.story-page', { timeout: 30000 });
   await page.waitForTimeout(1500);
+  // A reader sees the hero before scrolling past it. On a slow runner the hero's section view can still be in the
+  // SDK's batch when the fixed pause ends (CI, November 5, 2026: round numbers sent no hero before the full load to
+  // /about; it passed 3 of 3 locally). Wait, up to 15 s, until it has been sent; the check below still needs exactly one.
+  await waitFor(() => named(run, 'section_viewed').some(p => p.section === 'hero' && p.$pathname === storyB), 15000);
   await toBottom();
   await page.waitForTimeout(800);
   await page.goto(SITE + '/about', { waitUntil: 'load' });
