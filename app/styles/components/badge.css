@@ -24,18 +24,29 @@ a.evidence-badge:focus-visible { outline: 2px solid var(--focus); outline-offset
    linked half figure's dek. It qualifies the badge, so it is quieter than a control: --ink-2 text, a --rule-strong
    1 px edge, no fill. As a link it has a 44 px hit area drawn by ::after, as a badge's; on a narrow screen it wraps
    inside the column rather than run past it (195 CSS px at 200% zoom). */
-.scope-chip {
+/* The distance label (DistanceTag) is drawn as the scope chip: "Half-to-marathon comparison" on every linked half
+   figure (owner decision, November 5, 2026). */
+.scope-chip, .distance-chip {
   display: inline-flex; align-items: center; max-width: 100%; min-height: 24px; padding: 2px 10px;
   font-family: var(--sans); font-size: var(--t-label); font-weight: 500; line-height: 1.3; letter-spacing: 0; text-transform: none;
   color: var(--ink-2); background: none; border: 1px solid var(--rule-strong); border-radius: var(--r-pill);
   white-space: normal; overflow-wrap: anywhere; text-align: left;
 }
 /* After a dek's sentence (the half story's hero): a little air above it when it wraps to a line of its own. */
-.reading-dek .scope-chip { margin-top: 6px; vertical-align: middle; }
-a.scope-chip { position: relative; text-decoration: none; }
-a.scope-chip::after { content: ''; position: absolute; left: -2px; right: -2px; top: 50%; height: 44px; min-height: 100%; transform: translateY(-50%); }
-a.scope-chip:hover { color: var(--ink); border-color: var(--ink-2); text-decoration: underline; text-underline-offset: .2em; }
-a.scope-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.reading-dek .scope-chip, .reading-dek .distance-chip { margin-top: 6px; vertical-align: middle; }
+a.scope-chip, a.distance-chip { position: relative; text-decoration: none; }
+a.scope-chip::after, a.distance-chip::after { content: ''; position: absolute; left: -2px; right: -2px; top: 50%; height: 44px; min-height: 100%; transform: translateY(-50%); }
+a.scope-chip:hover, a.distance-chip:hover { color: var(--ink); border-color: var(--ink-2); text-decoration: underline; text-underline-offset: .2em; }
+a.scope-chip:focus-visible, a.distance-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (forced-colors: active) {
-  .scope-chip { border-color: CanvasText; }
+  .scope-chip, .distance-chip { border-color: CanvasText; }
 }
+
+/* The distance label repeated inside a reading that is already a link (a contents row, a next card): plain words in
+   the same pill, wrapping under the key when the row is narrow. */
+.page-reading.has-distance { flex-wrap: wrap; }
+.next-card-distance { margin-top: 2px; }
+.story-way-label { display: block; margin-top: 10px; }
+/* The label's longest word is "comparison", so it wraps at its spaces and hyphens, never inside a word (a contents row
+   at 195 CSS px broke "comparis-on"). */
+.distance-chip { overflow-wrap: normal; }

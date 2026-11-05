@@ -20,18 +20,20 @@ const CODE = ['lib/charts/text/half.ts', 'lib/nuggets/half.ts', 'lib/nuggets/for
 const STYLE = `
   .chart-card-url{font-variant-numeric:normal}
   .chart-card-stamp{display:flex;flex-direction:column;align-items:flex-end;gap:6px;text-align:right}
+  .chart-card-chips{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
   .chart-card-chip{display:inline-flex;align-items:center;padding:1px 9px;border:1px solid var(--rule-strong);border-radius:var(--r-pill);
     font-size:.75rem;line-height:1.35;font-weight:500;color:var(--ink-2);white-space:nowrap}`;
 
 module.exports = function halfCardSet(kit) {
   const { React, renderToStaticMarkup, ChartCard, accent, frame, root, sha, topCode } = kit;
   const { readHalf, getHalfManifest, halfPublished } = require('../../lib/half-server.ts');
-  const { halfCardWords, HALF_CARD_CHIP } = require('../../lib/charts/text/half.ts');
+  const { halfCardWords, HALF_CARD_CHIP, HALF_CARD_DISTANCE } = require('../../lib/charts/text/half.ts');
   const { typeset } = require('../../lib/charts/typo.ts');
 
   // The chip's words are the site's (components/tools/EvidenceTag.tsx SCOPE_CHIP); a card never words it differently.
   const tag = fs.readFileSync(path.join(root, 'components/tools/EvidenceTag.tsx'), 'utf8');
   if (!tag.includes(`SCOPE_CHIP = '${HALF_CARD_CHIP}'`)) throw new Error('The half cards’ chip differs from SCOPE_CHIP in components/tools/EvidenceTag.tsx.');
+  if (!tag.includes(`DISTANCE_LABEL = '${HALF_CARD_DISTANCE}'`)) throw new Error('The half cards’ distance label differs from DISTANCE_LABEL in components/tools/EvidenceTag.tsx.');
 
   const code = () => sha(topCode() + CODE.map((f) => sha(fs.readFileSync(path.join(root, f), 'utf8'))).join(''));
 
@@ -49,7 +51,9 @@ module.exports = function halfCardSet(kit) {
     const address = `splithappens.run${words.page}`;
     const url = React.createElement('span', { className: 'chart-card-url' }, address);
     const stampLine = words.chip
-      ? React.createElement('span', { className: 'chart-card-stamp' }, React.createElement('span', { className: 'chart-card-chip' }, words.chip), url)
+      ? React.createElement('span', { className: 'chart-card-stamp' }, React.createElement('span', { className: 'chart-card-chips' },
+        React.createElement('span', { className: 'chart-card-chip' }, words.chip),
+        words.distance ? React.createElement('span', { className: 'chart-card-chip' }, words.distance) : null), url)
       : url;
     const foot = React.createElement(React.Fragment, null, React.createElement('b', null, mark, 'Pace Notes'), stampLine);
     const markup = renderToStaticMarkup(React.createElement(ChartCard, {
@@ -69,7 +73,7 @@ module.exports = function halfCardSet(kit) {
   function stamp({ card, words }, setCode) {
     const files = getHalfManifest().files;
     const data = sha(files['cards.json'].sha256 + files[card.source.file].sha256);
-    return { card: card.slug, title: words.title, hash: sha([setCode, data, words.title, words.headline, words.page, words.chip || ''].join('\n')).slice(0, 20) };
+    return { card: card.slug, title: words.title, hash: sha([setCode, data, words.title, words.headline, words.page, words.chip || '', words.distance || ''].join('\n')).slice(0, 20) };
   }
 
   /** The captions of the half cards, appended to docs/CHARTS_INSTAGRAM.md under their own heading. */
@@ -81,7 +85,7 @@ module.exports = function halfCardSet(kit) {
     for (const { inputs: { card, words } } of list) {
       lines.push(`### ${words.title}`, '', `\`${card.slug}.png\``, '', words.plain, '');
       const where = words.page === '/half' ? 'The half marathon on Pace Notes' : 'From the half to the marathon, on Pace Notes';
-      lines.push(`${words.chip ? `${words.chip}. ` : ''}${where}: splithappens.run${words.page}`, '');
+      lines.push(`${words.distance ? `${words.distance}. ` : ''}${words.chip ? `${words.chip}. ` : ''}${where}: splithappens.run${words.page}`, '');
     }
     return lines;
   }

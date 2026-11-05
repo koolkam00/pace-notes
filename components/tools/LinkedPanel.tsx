@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { EvidenceTag, ScopeTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
+import { DistanceTag, EvidenceTag, ScopeTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import ArrowTail from '@/components/ui/ArrowTail';
 import { withEm } from '@/components/ui/withEm';
@@ -129,7 +129,7 @@ export default function LinkedPanel({ sha, seconds, group, onGroup, speakFirst =
   }, [group]);
   return (
     <section className="tool-panel predictor-linked" id="predictor-linked" data-half-scope="linked" aria-labelledby="predictor-linked-title" ref={panel} tabIndex={-1}>
-      <p className="predictor-linked-tags"><EvidenceTag kind="data" /><ScopeTag /></p>
+      <p className="predictor-linked-tags"><EvidenceTag kind="data" /><ScopeTag /><DistanceTag /></p>
       <p className="sr-only" aria-live="polite">{announce}</p>
       <DataState error={error} loading={!error && !tool}>
         {tool && win ? (

@@ -3,6 +3,7 @@ import { joinRanges } from '@/components/ui/keepTogether';
 import BigNumber from './ui/BigNumber';
 import MarkerBadge from './ui/MarkerBadge';
 import ChapterLink from './ChapterLink';
+import { DistanceTag } from './tools/EvidenceTag';
 import { UnitLink as Link } from './UnitsProvider';
 import { CHAPTERS, chapterHref, chapterNumber, type ChapterReading, type Next } from '@/lib/chapters';
 
@@ -21,7 +22,8 @@ export default function NextCard({ next, reading }: { next: Next; reading?: Chap
   const key = reading ? (reading.key ?? (opensChapter ? chapter.key : undefined)) : undefined;
   // A half reading (records linked by name) repeated as a link to its own page, which carries the scope chip: marked for
   // verify-half, which checks the card links to that page and holds no other half figure.
-  const half = reading && (opensChapter ? chapter.lead : page.nugget).startsWith('half.') ? { 'data-half-link': 'linked' } : {};
+  const isHalf = !!reading && (opensChapter ? chapter.lead : page.nugget).startsWith('half.');
+  const half = isHalf ? { 'data-half-link': 'linked' } : {};
   return (
     <ChapterLink href={page.href} className="next-card night" {...half}>
       <span className="next-card-kicker t-kicker">
@@ -34,6 +36,7 @@ export default function NextCard({ next, reading }: { next: Next; reading?: Chap
         <span className="next-card-reading">
           <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="m" tone="night" />
           {key ? <span className="next-card-key">{joinRanges(key)}</span> : null}
+          {isHalf ? <DistanceTag link={false} className="next-card-distance" /> : null}
         </span>
       ) : null}
       <span className="next-card-go" aria-hidden="true"><Arrow /></span>

@@ -1,5 +1,6 @@
 import Arrow from '@/components/ui/Arrow';
 import BigNumber from '@/components/ui/BigNumber';
+import { DistanceTag } from '@/components/tools/EvidenceTag';
 import { joinRanges } from '@/components/ui/keepTogether';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import type { ChapterReading } from '@/lib/chapters';
@@ -19,6 +20,7 @@ export default function HalfNext({ href, kicker, title, reading }: { href: strin
         <span className="next-card-reading">
           <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="m" tone="night" />
           {reading.key ? <span className="next-card-key">{joinRanges(reading.key)}</span> : null}
+          <DistanceTag link={false} className="next-card-distance" />
         </span>
       ) : null}
       <span className="next-card-go" aria-hidden="true"><Arrow /></span>

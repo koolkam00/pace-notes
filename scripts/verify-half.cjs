@@ -46,6 +46,10 @@ for (let i = 0; i < args.length; i++) {
 }
 const D = require('./half/derive.cjs');
 const W = require('./lib/words.cjs');
+// The distance label's words, read from the one place they are written (owner decision, November 5, 2026: "label each
+// one as a comparison between distances").
+const DISTANCE = (/DISTANCE_LABEL = '([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'components/tools/EvidenceTag.tsx'), 'utf8')) || [])[1];
+if (!DISTANCE) throw new Error('verify-half: DISTANCE_LABEL not found in components/tools/EvidenceTag.tsx');
 
 const started = Date.now();
 const problems = [];
@@ -658,6 +662,8 @@ const pageGuards = {};
     ok(words.plain.length <= 150, `card ${c.slug}: the takeaway is ${words.plain.length} characters (at most 150)`);
     ok(/records linked by name/.test(words.plain) === (c.scope === 'linked'), `card ${c.slug}: "records linked by name" exactly when the card is linked`);
     eq(words.chip, c.scope === 'linked' ? 'Includes unverified half results' : null, `card ${c.slug}: the chip only on a linked card`);
+    // Each half-to-marathon pair is labelled a comparison between distances (owner decision, November 5, 2026).
+    eq(words.distance, c.scope === 'linked' ? DISTANCE : null, `card ${c.slug}: the distance label only on a linked card`);
     // A dumbbell card's key reads in the order its marks run across every row: the form's own key names the ring (a)
     // first, so where b's dot sits left of a's ring in every row the card carries its own key, dot first (post-merge
     // review, round 6, October 31, 2026: half-same-half's key read "○ Recorded men's ● Recorded women's" over rows whose
@@ -758,6 +764,9 @@ if (opt.html) {
   };
   const remove = (html, attrRe) => { let h = html; for (const el of elements(h, attrRe).reverse()) h = h.slice(0, el.index) + ' ' + h.slice(el.index + el.html.length); return h; };
   const CHIP = /class="[^"]*\bscope-chip\b[^"]*"/;
+  // The distance label (DistanceTag): once on every linked surface and inside every reading repeated as a link that
+  // shows a figure or states a reading; never on a half-only figure (owner decision, November 5, 2026).
+  const DIST = /class="[^"]*\bdistance-chip\b[^"]*"/;
   // Spec copy that names the tool by its short name (spec 3.2: "Your own half in the predictor →").
   const HTML_ALLOWED = ['Your own half in the predictor'];
   const LINKED_ROUTES = ['/stories/half-to-full'];
@@ -812,6 +821,10 @@ if (opt.html) {
     const closeDays = Number(/^CLOSE_MARATHON_DAYS = (\d+)$/m.exec(fs.readFileSync(rel('analysis/half_pairs.py'), 'utf8'))?.[1]);
     ok(linking.includes(`${sb.halves_in_two_or_more_pairs.toLocaleString('en-US')} halves are in two or more pairs, and ${sb.pairs_with_a_close_marathon.toLocaleString('en-US')} pairs have another eligible marathon of the record within ${closeDays} days`), '#half-linking: the two set B signals (review R6) with the builder\'s window');
     ok(/accepted or rejected some merges on how a half time fits a marathon time, so the tails of the multiple partly reflect the link build/.test(linking), '#half-linking: the time-screened links (review R5)');
+    {
+      const flat = linking.replace(/\s+/g, ' ').replace(/“ /g, '“').replace(/ ”/g, '”');
+      ok(flat.includes(`a comparison between distances, so every figure of pairs carries the label “${DISTANCE}”, and no statistic on these pages pools half and marathon finishes`), '#half-linking: says each pair is a comparison between distances, names the label and that no statistic pools both distances');
+    }
     ok(!/1\.85|outside .{0,20}3\.0|false links? (?:at|of) about/.test(linking), '#half-linking: no ratio-based false-link figure (review R5)');
     const rv = pin.links.producer_review;
     if (rv) for (const r of rv.last_rounds) ok(linking.includes(`${(r.rare_missed * 100).toFixed(1)}%`), `#half-linking: the producer's rare-name missed links of round ${r.round}`);
@@ -888,7 +901,22 @@ if (opt.html) {
       const toLinked = [...own, ...inner].filter(linkedHref);
       ok(own.length ? linkedHref(own[0]) && !inner.some(linkedHref) : toLinked.length === 1, `${route}: a reading marked data-half-link is a link to a linked page, or wraps exactly one (${JSON.stringify([...own, ...inner])})`);
       ok(!CHIP.test(el.html), `${route}: a reading repeated as a link carries no chip`);
+      // A reading link that shows a figure carries the distance label as plain words inside it (a link holds no link);
+      // a figure-free pointer carries none.
+      const labels = elements(el.html, DIST);
+      const figure = /class="[^"]*\bbig-number\b/.test(el.html);
+      eq(labels.length, figure ? 1 : 0, `${route}: a reading repeated as a link carries the distance label exactly when it shows a figure`);
+      for (const l of labels) ok(!/^<a\b/.test(l.tag), `${route}: the distance label inside a reading link is not a link`);
       ok(!/half marathon finishes|half finishes|came in under 2:00/i.test(textOf(el.html)), `${route}: a reading link holds no other half figure`);
+    }
+    // A stated half reading outside the half pages (who holds pace's way into the half story) carries one label beside
+    // its link.
+    for (const el of elements(html, /data-half-said="stated"/)) eq(elements(el.html, DIST).length, 1, `${route}: a stated half reading carries the distance label`);
+    // Outside the half surfaces the label appears only in a reading link or beside a stated reading.
+    {
+      let rest = html;
+      for (const re of [/data-half-scope="(?:verified|linked)"/, /data-half-link="linked"/, /data-half-said="stated"/]) rest = remove(rest, re);
+      if (route !== '/methodology') ok(!DIST.test(rest), `${route}: a distance label outside a half-to-marathon figure`);
     }
     if (!scoped.length) {
       if (route !== '/methodology') ok(!CHIP.test(html), `${route}: a scope chip outside any half surface`);
@@ -898,19 +926,23 @@ if (opt.html) {
       surfaces++;
       const scope = /data-half-scope="(verified|linked)"/.exec(el.tag)[1];
       const chips = elements(el.html, CHIP).length;
-      if (scope === 'linked') eq(chips, 1, `${route}: a linked surface carries exactly one scope chip`);
-      else {
+      const own = elements(remove(el.html, /data-half-link="linked"/), DIST).length;
+      if (scope === 'linked') {
+        eq(chips, 1, `${route}: a linked surface carries exactly one scope chip`);
+        eq(own, 1, `${route}: a linked surface carries exactly one distance label ("${DISTANCE}")`);
+      } else {
         eq(chips, 0, `${route}: a verified surface carries no scope chip`);
+        eq(own, 0, `${route}: a half-only surface carries no distance label outside a reading link`);
         const rest = textOf(remove(el.html, /data-half-link="linked"/));
         for (const re of LINKED_FIGURES) ok(!re.test(rest), `${route}: a verified surface shows a linked figure outside a reading link (${re})`);
       }
       if (route !== '/methodology') {
-        const words = textOf(remove(el.html, CHIP));
+        const words = textOf(remove(remove(el.html, CHIP), DIST));
         for (const [re, what] of [...W.STATUS_WORDS, ...W.VERIFICATION_WORDS]) ok(!re.test(words), `${route}: ${what} on a half surface`);
         // The word rules apply to the half content itself: the chapter rail, navigation, the chapter's next card, the
         // feedback block and reading links repeat other pages' words.
         let content = el.html;
-        for (const re of [/<aside\b/, /<nav\b/, /class="[^"]*\bchapter-end\b[^"]*"/, /class="[^"]*crumbs\b[^"]*"/, /class="[^"]*\bpage-feedback\b[^"]*"/, /data-half-link="linked"/, CHIP]) content = remove(content, re);
+        for (const re of [/<aside\b/, /<nav\b/, /class="[^"]*\bchapter-end\b[^"]*"/, /class="[^"]*crumbs\b[^"]*"/, /class="[^"]*\bpage-feedback\b[^"]*"/, /data-half-link="linked"/, CHIP, DIST]) content = remove(content, re);
         const t = [...W.ALLOWED, ...HTML_ALLOWED].reduce((acc, a) => acc.split(a).join(' '), textOf(content));
         for (const [re, what] of [...W.BANNED, ...W.HALF_BANNED]) {
           const hit = re.exec(t);
@@ -922,8 +954,13 @@ if (opt.html) {
       ok(/Includes unverified half results/.test(textOf(el.html)) && /href="\/methodology#half-coverage"/.test(el.html), `${route}: the chip reads "Includes unverified half results" and links /methodology#half-coverage`);
       ok(!/\d/.test(textOf(el.html)), `${route}: the chip carries no numbers`);
     }
+    for (const el of elements(html, DIST)) {
+      eq(textOf(el.html).trim(), DISTANCE, `${route}: the distance label's words`);
+      if (/^<a\b/.test(el.tag)) ok(/href="\/methodology#half-linking"/.test(el.tag), `${route}: the distance label links /methodology#half-linking`);
+    }
     // "Records linked by name": the first mention on a page is the term link to /methodology#half-linking.
-    const main = html.slice(Math.max(0, html.indexOf('<main')));
+    // The distance label links /methodology#half-linking too; the term link is the first link in running text.
+    const main = remove(html.slice(Math.max(0, html.indexOf('<main'))), DIST);
     const at = textOf(main).search(/linked by name/i);
     if (at >= 0) {
       const firstLink = /<a\b[^>]*href="\/methodology#half-linking"[^>]*>([\s\S]*?)<\/a>/.exec(main);

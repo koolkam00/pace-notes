@@ -135,11 +135,16 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // (d5a7daa5) and whose lastmod would not move with their data's as_of, found by diffing the two builds' visible text:
   // /analyses (a starting-pace figure in its list), /half and the half story (the pairs bound to the new marathon release;
   // the half snapshot's own as_of is unchanged). Every other changed page takes its rebuilt data's date (November 4).
-  '/': '2026-10-31',
-  '/research': '2026-10-31',
+  // November 5 again (the merge day of feat/cross-distance-label, the owner's decision of that day to label each
+  // half-to-marathon pair a comparison between distances): the pages whose built text that branch changes against main
+  // (b35789b8), found by diffing the two builds' visible text: the home guide's and /research's chapter 11 row, /stories'
+  // half row, /half's night card, the half story's dek, who holds pace's way into it, /methodology#half-linking and the
+  // five goal pages (HALF_TEXT_REWRITTEN below). /report and /runners repeat the chapter 11 next card; they are noindex.
+  '/': '2026-11-05',
+  '/research': '2026-11-05',
   '/about': '2026-10-30',
-  '/methodology': '2026-10-31',
-  '/stories': '2026-10-31',
+  '/methodology': '2026-11-05',
+  '/stories': '2026-11-05',
   '/tools': '2026-10-19',
   '/tools/pace-calculator': '2026-10-19',
   '/analyses': '2026-11-05',
@@ -152,7 +157,7 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/stories/places': '2026-10-19',
   '/stories/final-kick': '2026-10-19',
   '/stories/courses': '2026-10-19',
-  '/stories/who-holds-pace': '2026-10-31',
+  '/stories/who-holds-pace': '2026-11-05',
   '/stories/race-morning': '2026-10-19',
   '/half': '2026-11-05',
   '/stories/half-to-full': '2026-11-05',
@@ -273,7 +278,7 @@ export const HALF_TEXT_WRITTEN = '2026-10-30';
 export const HALF_TEXT_REWRITTEN: Readonly<Record<string, string>> = {
   '/tools/predictor': '2026-10-31',
   '/tools/half-marathon-pace-chart': '2026-10-31',
-  ...Object.fromEntries(GOAL_PAGE_MINUTES.map((minute) => [goalPagePath(minute), '2026-10-31'])),
+  ...Object.fromEntries(GOAL_PAGE_MINUTES.map((minute) => [goalPagePath(minute), '2026-11-05'])),
 };
 
 /** HALF_TEXT_WRITTEN (or the page's later rewrite, HALF_TEXT_REWRITTEN) in a build with the half data, else undefined. */

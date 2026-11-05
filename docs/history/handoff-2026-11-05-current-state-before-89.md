@@ -1,0 +1,32 @@
+# Handoff current state and two owner items, November 5, 2026 (before #89 merged)
+
+Moved November 5, 2026 from `docs/PROJECT_HANDOFF.md` at `b35789b8` (`main`), word for word: the Current state block (lines 6–23), checked at 06:21 UTC while #89 was a draft, and owner items 2 and 14 of "Open for the owner", replaced when #89 merged and the owner answered the half question and the producer asks (branch `feat/cross-distance-label`).
+
+## Current state
+
+
+**Checked 2026-11-05, 06:21 UTC.** Keep four facts apart: release notes, measured results, repository state and deployed state. Never write "live" for anything without reading `/version.json` again. After a merge that changes a page, data, a contract or a workflow, replace this block, with its date, in the next pull request ([AGENTS.md](../AGENTS.md) rule 19). The block of October 30 to November 4 is in [history](history/handoff-2026-10-30-to-11-04-current-state.md).
+
+| Fact | Value | How it was checked |
+| --- | --- | --- |
+| `main` | `d5a7daa5`, "Half follow-ups: shares named by their denominator, no reading in a fallen slot, clearer ways in (#88)"; since #85 (`a2c6e507`) it gained the documentation-only #86 and #87 and the half follow-ups #88 | `git ls-remote origin refs/heads/main` |
+| Production | `d5a7daa5`, built 2026-11-04T12:54:17Z | `curl -s https://splithappens.run/version.json` |
+| Production data | `release_tag` `private-export-20261021-1050` (`as_of` 2026-10-21T16:10:31Z); `/data/half/manifest.json` names the first half pin, `half-dataset-20261029-1202` | `curl -s https://splithappens.run/data/live.json` and the half manifest |
+| Releases | `koolkam00/pace-notes`: `master-20261103b` (2026-11-03 23:10 UTC, the newest), `master-20261103` (23:02) and `dataset-20261103-0706` (12:27), all after the pins on `main`; `koolkam00/pace-notes-db-backup`: nothing after `person-ids-v4-20261030-1150` | GitHub REST `releases` |
+| Open pull requests | #89 (draft, `feat/half-v4`, since 2026-11-04; below), #77 (draft, `data/release-0829`), #49 (draft, `codex/berlin-2026-intake`), #29 (`codex/qa-coverage-mobile`) | GitHub REST `pulls?state=open` |
+| Autopilot | Paused (issue #59, `autopilot:paused` since 2026-10-15); the scheduled task is described in the [October 30 block](history/handoff-2026-10-30-to-11-04-current-state.md) | not re-read |
+
+**Not yet merged: `feat/half-v4` (draft PR #89).** It carries two changes, neither merged nor deployed:
+
+- **The half on the person IDs v4** (owner, 2026-10-31T02:20:30Z: "Yes you should adopt v4"; [register](OWNER_DECISIONS.md)): pin [`analysis/half-release.json`](../analysis/half-release.json) schema 3, snapshot `half-dataset-20261030-1904`, person IDs `person-ids-v4-20261030-1150`, policy `analysis/half-policy-20261030-1904.json` ([half marathons](HALF_MARATHON.md)).
+- **The marathon on `master-20261103b`** (owner, 2026-11-04: "I just uploaded new data can you make sure all the analyses and site are full updated as well"; how it is adopted is the lead's Default, [register](OWNER_DECISIONS.md#defaults-not-owner-decisions)): [`analysis/release.json`](../analysis/release.json) `layout: master`, read through `analysis/adapt_master.py`, with weather and routes from `dataset-20261103-0706`; edition policy `RULES_MASTER_20261103B`; every owned output rebuilt and imported November 4–5, 2026: **4,222,246 eligible finishes in 218 editions and 27 cities, 1,298,524 sustained slowdowns (30.75%)**; the half rebound to it (set B 58,597 pairs) on its current snapshot, the move to `dataset-20261103-0706`'s half snapshot deferred ([refresh record](REFRESH_20261103b.md)).
+- **Anonymous access** (2026-11-05, 06:20:02–06:20:21 UTC): every asset of `master-20261103b` and `dataset-20261103-0706` and 1050's CORE archive answered a ranged GET with no token with 206 ([analysis/ACCESS.md](../analysis/ACCESS.md)). The half pin's assets answered 206 on 2026-10-31, and the snapshot was downloaded again anonymously on 2026-11-04.
+
+## Open for the owner, items 2 and 14
+
+2. **Half marathons.** The producer's release READMEs say "Do not mix halves and marathons in one statistic." (`half-dataset-20261029-1202`) and "Halves and marathons are never mixed in one statistic." (`half-dataset-20261029-2157`; the v4 person IDs' `MATCHING_V4.md` says the same), while set B pairs a half with the marathon after it: confirm that this pairing is what you want (default: proceed). The 1904 README adds that finish-time-only races are "a separate, marked tier … Do not pool them with split-bearing races.": confirm that pooling finish times only, as the half pages do, is fine (default: proceed as today). Decide whether the v4 person IDs should also replace the marathon release's cross-race identity elsewhere (default: no). Each default is in the [register](OWNER_DECISIONS.md#defaults-not-owner-decisions). Decide whether the verified-halves weighting stays in the half story's battery ([known issues](KNOWN_ISSUES.md)). Q3–Q12, Q14 and Q15 stand at the build's defaults ([half marathon](HALF_MARATHON.md#owner-questions)); the build specification they cite is not in the repository. The v4 adoption's merge request is recorded in the register (2026-10-31; the lead's plan was "PR, CI and merge, followed by a live check"); its pull request follows the follow-ups pull request. The half binds the adopted marathon release, so adopting a new marathon release needs a new person-ID build from the producer first ([release intake](OPERATIONS.md#release-intake)): decide whether an adoption waits for it or the half pages are withdrawn meanwhile (no decision is recorded).
+14. **Release `master-20261103b`** (draft PR #89; [refresh record](REFRESH_20261103b.md)): the lead adopted it with the defaults listed in the [register](OWNER_DECISIONS.md#defaults-not-owner-decisions); overturn any of them. In particular: New York 2026 is released without cross-race links (its count is NYRR's provisional one, it has no weather row, and the producer has not given it v1 `runner_id`s); New York 2008 and Amsterdam 2023 are released; the half keeps its snapshot `half-dataset-20261030-1904`, and its move to `dataset-20261103-0706` (NYC Half 2024 and 2025 out, 2016 and 2022 partial loads) waits for a policy review that, on the release's own evidence, changes no published figure.
+
+## Recent changes, the first line
+
+Every pull request below is an ancestor of `a2c6e507`, so all are in the production build checked above. The first-live dates come from the records linked.
