@@ -131,6 +131,10 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // /methodology's half folds, limits and downloads, and the five goal pages (HALF_TEXT_REWRITTEN below). /report and
   // /runners repeat the chapter 11 next card too; they are noindex and carry no lastmod. The predictor's and the half
   // pace chart's half panels render in the browser, so their built text did not change (they already take the 31st).
+  // November 5 (the merge day of the master-20261103b adoption): the pages whose built text changes against main
+  // (d5a7daa5) and whose lastmod would not move with their data's as_of, found by diffing the two builds' visible text:
+  // /analyses (a starting-pace figure in its list), /half and the half story (the pairs bound to the new marathon release;
+  // the half snapshot's own as_of is unchanged). Every other changed page takes its rebuilt data's date (November 4).
   '/': '2026-10-31',
   '/research': '2026-10-31',
   '/about': '2026-10-30',
@@ -138,7 +142,7 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/stories': '2026-10-31',
   '/tools': '2026-10-19',
   '/tools/pace-calculator': '2026-10-19',
-  '/analyses': '2026-10-19',
+  '/analyses': '2026-11-05',
   '/courses': '2026-10-19',
   '/slowdown': '2026-10-19',
   '/privacy': '2026-10-19',
@@ -150,8 +154,8 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/stories/courses': '2026-10-19',
   '/stories/who-holds-pace': '2026-10-31',
   '/stories/race-morning': '2026-10-19',
-  '/half': '2026-10-31',
-  '/stories/half-to-full': '2026-10-31',
+  '/half': '2026-11-05',
+  '/stories/half-to-full': '2026-11-05',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };
