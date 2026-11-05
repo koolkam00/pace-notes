@@ -1627,7 +1627,9 @@ class Pin(unittest.TestCase):
             with self.assertRaisesRegex(hc.HalfError, 'is not empty'):
                 download_half.check_sidecars(link)
             node = shutil.which('node')
-            if node:
+            # The recount needs node:sqlite (Node 22 and later, as half.yml runs); workflows on an older Node that run
+            # every test (runner context runs Node 20) cannot start it at all, so its guard is checked where it can run.
+            if node and subprocess.run([node, '-e', "require('node:sqlite')"], capture_output=True).returncode == 0:
                 # The Node recount refuses before it reads anything (its sources need only exist for this check).
                 ref, meta = Path(folder) / 'ref.csv.zst', Path(folder) / 'meta.csv.zst'
                 ref.write_bytes(b'')
