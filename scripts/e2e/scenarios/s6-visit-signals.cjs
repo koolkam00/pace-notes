@@ -637,9 +637,9 @@ async function terrainFigures(h) {
   h.check('terrain: Published research on the card and the band, no Pace Notes data badge on either; the band\'s kicker; the fold\'s terrain beside even pace, no Finishes row',
     JSON.stringify(plan.card) === '["evidence-research"]' && JSON.stringify(plan.band) === '["evidence-research"]' && plan.kicker === '5:15 · New York · terrain splits'
       && JSON.stringify(plan.head) === '["Mat","Terrain","Even pace"]' && JSON.stringify(plan.first) === '["37:19","37:20"]' && !plan.finishesRow && plan.print === false, plan);
-  h.check('terrain: the As run panel, Pace Notes data, with the forewarning (48%, sustained slowdown linked) and the medians as they ran (5K 32:52)',
+  h.check('terrain: the As run panel, Pace Notes data, with the forewarning (48%, sustained slowdown linked) and the medians as they ran (5K 32:56)',
     plan.title === 'As run near 5:15 in New York' && JSON.stringify(plan.asRunBadges) === '["evidence-data"]' && plan.note.includes('48%') && plan.note.includes('Not splits to copy.')
-      && plan.term === '/methodology#sustained-slowdown' && plan.all5k === '32:52', plan);
+      && plan.term === '/methodology#sustained-slowdown' && plan.all5k === '32:56', plan); // 32:52 on 1050; New York 2026 joins the cell (November 4, 2026)
   h.check('terrain: the planner says Berlin, Oslo and Prague have no terrain splits (the same words for either reason), and nothing for an unknown course or on all courses', lines.berlin.none === 'Even pace: no terrain splits for Berlin.'
     && lines.oslo.none === 'Even pace: no terrain splits for Oslo.' && lines.prague.none === 'Even pace: no terrain splits for Prague.' && lines.nowhere.none === '' && lines.all.none === ''
     && Object.values(lines).every((l) => l.seg === 0 && !l.terrain), lines);
