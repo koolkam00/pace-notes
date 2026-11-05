@@ -73,7 +73,7 @@ export default function MethodsDownloads() {
       <FileRow href={RELEASES} name="Every data release" what="Each export, with its checksums" />
       <FileRow href={SOURCE} name="Source code" what="The site and every calculation behind it" />
     </div>
-    <p className="methods-part-note">The full race records are large archives for data tools: <a href={ACCESS}>how to open them</a> gives the steps and checksums for the current release. Every other file below is a JSON or CSV summary.</p>
+    <p className="methods-part-note">The full race records are large files for data tools: <a href={ACCESS}>how to open them</a> gives the steps and checksums for the current release. Every other file below is a JSON or CSV summary.</p>
 
     <Detail id="downloads-stories" title="The stories’ data">
       <Files files={[

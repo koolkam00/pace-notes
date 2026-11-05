@@ -6,9 +6,11 @@
 // never imports the Python builders and shares only their inputs:
 //
 //   - the half snapshot and the links extract, opened read-only with node:sqlite and checked against the pin
-//     (analysis/half-release.json): the snapshot's sha256, the extract's canonical content digest and link build;
-//   - the corrected edition metadata (half-dataset-20261029-2157, csv-edition_meta.csv.zst; its sha256 pinned): the
-//     recount rederives the withdrawn stamps from it and compares them with the frozen list (verified = stamped in both);
+//     (analysis/half-release.json, schema 3): the snapshot's sha256 (a non-empty -wal beside it is refused), the
+//     extract's canonical content digest and link build;
+//   - the stamp reference (half-dataset-20261029-2157, csv-edition_meta.csv.zst) and the release's own
+//     csv-edition_meta.csv.zst, both sha256 pinned: the recount checks the snapshot's stamps against the frozen list, the
+//     reference, the withdrawn stamps, never_stamp and that CSV (verified = stamped in the snapshot's own edition_meta);
 //   - the frozen policy (analysis/half-policy-<stamp>.json), whose rule text must equal this recount's own constants;
 //   - the marathon side from the public runner shards and the weather evidence (scripts/half/marathon.cjs).
 //
@@ -20,11 +22,24 @@
 // lies inside it. It then writes the receipt docs/evidence/half/source-recount.json (a date, the bound digests, the
 // counts it checked and the mismatches; no rows), which scripts/verify-half.cjs requires in CI.
 //
-//   npm run verify:half-source -- [--half platform_half.sqlite] [--links links-slim.sqlite] [--corrected-meta FILE] [--no-write]
+//   npm run verify:half-source -- [--half platform_half.sqlite] [--links links-v4.sqlite] [--stamp-reference FILE]
+//                                 [--edition-meta FILE] [--no-write] [--policy-only]
 //
-// Defaults: $PACE_HALF_DIR/platform_half.sqlite, $PACE_HALF_DIR/links-slim.sqlite and
-// $PACE_HALF_DIR/<correction tag>/csv-edition_meta.csv.zst (PACE_HALF_DIR defaults to ~/data/half-1133). About 80 s and under 1 GB of memory (typed arrays for 6.9 million records and 4.1 million marathon
-// finishes); the sha256 of the 3.7 GB snapshot is read once.
+// Defaults: $PACE_HALF_DIR/platform_half.sqlite, $PACE_HALF_DIR/links-v4.sqlite,
+// $PACE_HALF_DIR/<reference tag>/csv-edition_meta.csv.zst and $PACE_HALF_DIR/csv-edition_meta.csv.zst (PACE_HALF_DIR
+// defaults to ~/data/half-1904). `--policy-only` stops after the policy and the stamp check (a new snapshot's review,
+// before any extract or figure exists): it never writes the receipt. Measured 2026-10-31 on half-dataset-20261030-1904
+// with the v4 links extract: 126 s and a peak of 1.8 GB resident for 7.67 million records and 2.45 million link rows
+// (typed arrays; the snapshot's sha256 is read once, the extract's digest once).
+//
+// The links extract (analysis/half_links_extract.py): its canonical content digest over every column; then every person
+// (tier, sex, ns_keys, k and its block: one k per block, no more of the extract's people in a block than k, every high
+// person alone in its block) and every link row, joined to the snapshot (a half: its id inside the coverage boundary,
+// city, year, published sex, and the finish within 0.5 s where the snapshot's parses, except the re-timed editions) or to
+// the runner shards (an eligible marathon: city, year, finish within 0.5 s, recorded sex mapped). Names and ages are not
+// in the extract, so their join checks run only where it is cut; its digest binds them, and the source job re-cuts it
+// from the public parquet files. Each person's ns_keys is recounted as the largest block count over the rows that may
+// pair (lead rulings L.4); k is evidence only and never decides a pair.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -36,23 +51,27 @@ const { DatabaseSync } = require('node:sqlite');
 
 const ROOT = path.resolve(__dirname, '..');
 const D = require('./half/derive.cjs');
-const { applyPolicy, dateDay, readCorrection, correctionReason, trimText } = require('./half/policy.cjs');
+const { applyPolicy, dateDay, readCorrection, checkStamps, linkPartial } = require('./half/policy.cjs');
 const { loadMarathons } = require('./half/marathon.cjs');
 const Fam = require('./half/families.cjs');
 
 const started = Date.now();
 const log = (message) => console.log(`[${Math.round((Date.now() - started) / 1000)} s] ${message}`);
 const argv = process.argv.slice(2);
-const halfDir = process.env.PACE_HALF_DIR || path.join(os.homedir(), 'data', 'half-1133');
+const halfDir = process.env.PACE_HALF_DIR || path.join(os.homedir(), 'data', 'half-1904');
 const pinFor = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'analysis', 'half-release.json'), 'utf8'));
-const opt = { half: path.join(halfDir, 'platform_half.sqlite'), links: path.join(halfDir, 'links-slim.sqlite'),
-  corrected: path.join(halfDir, pinFor.metadata_correction.tag, pinFor.metadata_correction.asset), write: true };
+const REF = pinFor.stamps.reference;
+const opt = { half: path.join(halfDir, pinFor.half.sqlite), links: path.join(halfDir, pinFor.links.extract),
+  reference: path.join(halfDir, REF.tag, REF.asset), editionMeta: path.join(halfDir, 'csv-edition_meta.csv.zst'), write: true, policyOnly: false };
+const USAGE = 'Usage: node scripts/verify-half-source.cjs [--half platform_half.sqlite] [--links links-v4.sqlite] [--stamp-reference FILE] [--edition-meta FILE] [--no-write] [--policy-only]';
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--half' && argv[i + 1]) opt.half = path.resolve(argv[++i]);
   else if (argv[i] === '--links' && argv[i + 1]) opt.links = path.resolve(argv[++i]);
-  else if (argv[i] === '--corrected-meta' && argv[i + 1]) opt.corrected = path.resolve(argv[++i]);
+  else if (argv[i] === '--stamp-reference' && argv[i + 1]) opt.reference = path.resolve(argv[++i]);
+  else if (argv[i] === '--edition-meta' && argv[i + 1]) opt.editionMeta = path.resolve(argv[++i]);
   else if (argv[i] === '--no-write') opt.write = false;
-  else throw new Error('Usage: node scripts/verify-half-source.cjs [--half platform_half.sqlite] [--links links-slim.sqlite] [--corrected-meta FILE] [--no-write]');
+  else if (argv[i] === '--policy-only') { opt.policyOnly = true; opt.write = false; }
+  else throw new Error(USAGE);
 }
 const rel = (p) => path.join(ROOT, p);
 const sha = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -63,19 +82,28 @@ const fail = (message) => { console.error(`verify-half-source: ${message}`); pro
 // ---------- Inputs and their pins ----------
 const pin = readJson('analysis/half-release.json');
 const release = readJson('analysis/release.json');
-const manifestBytes = fs.readFileSync(rel('public/data/half/manifest.json'));
-const manifest = JSON.parse(manifestBytes);
 const policyBytes = fs.readFileSync(rel(pin.policy));
 const policy = JSON.parse(policyBytes);
+if (pin.schema_version !== 3) fail(`the pin is schema ${pin.schema_version}; this recount reads schema 3`);
 if (pin.marathon_release !== release.tag) fail('the pin binds another marathon release');
-if (policy.tag !== pin.half.private_tag) fail('the policy is not the pinned snapshot’s');
-const MC = pin.metadata_correction, SC = policy.stamp_correction;
-if (!MC || !SC || MC.tag !== SC.tag || MC.asset !== SC.asset || MC.sha256 !== SC.sha256 || MC.applied !== SC.applied) fail('the pin and the policy name different stamp corrections');
-for (const [p, what] of [[opt.half, '--half'], [opt.links, '--links'], [opt.corrected, '--corrected-meta']]) {
+if (policy.tag !== pin.half.key || policy.schema_version !== 2) fail('the policy is not the pinned snapshot’s (schema 2, keyed by half.key)');
+if (pin.links.applies_to !== pin.half.key) fail('the pinned link build does not apply to the pinned snapshot');
+const PS = policy.stamps;
+if (!PS || ['tag', 'asset', 'sha256', 'readme_sha256'].some((k) => PS.reference[k] !== REF[k]) || PS.rule !== pin.stamps.rule) fail('the pin and the policy name different stamp references or rules');
+if (pin.half.assets[PS.edition_meta_csv.asset] !== PS.edition_meta_csv.sha256) fail('the pin and the policy name different edition_meta CSVs');
+const LE = policy.link_editions;
+if (!LE || LE.link_build !== pin.links.key || LE.half_max_record_id !== pin.links.coverage.half_max_record_id) fail('the policy’s link-build editions name another link build or boundary than the pin');
+const sources = [[opt.half, '--half'], [opt.reference, '--stamp-reference'], [opt.editionMeta, '--edition-meta'], ...(opt.policyOnly ? [] : [[opt.links, '--links']])];
+for (const [p, what] of sources) {
   if (!fs.existsSync(p)) fail(`${what}: missing ${p}`);
   if (inside(p)) fail(`${what}: ${p} is inside the repository; record-level sources stay outside it`);
 }
-if (path.basename(opt.half) !== pin.half.sqlite || path.basename(opt.links) !== pin.links.extract) fail('the sources must be the pinned files');
+if (path.basename(opt.half) !== pin.half.sqlite || (!opt.policyOnly && path.basename(opt.links) !== pin.links.extract)) fail('the sources must be the pinned files');
+// Beside the path given and beside the file a symlink resolves to, where node:sqlite reads it (verify round 2, October 31,
+// 2026: a symlinked snapshot whose target had a non-empty -wal passed a check that looked only beside the link).
+for (const wal of new Set([`${opt.half}-wal`, `${fs.realpathSync(opt.half)}-wal`])) {
+  if (fs.existsSync(wal) && fs.statSync(wal).size > 0) fail(`${wal} is not empty: the snapshot has uncommitted pages beside it`);
+}
 
 function fileSha(p) {
   const hash = crypto.createHash('sha256');
@@ -87,27 +115,95 @@ function fileSha(p) {
 log('checking the half snapshot’s sha256');
 const halfSha = fileSha(opt.half);
 if (halfSha !== pin.half.sqlite_sha256) fail(`${opt.half} is not the pinned snapshot (sha256 ${halfSha})`);
+const referenceBytes = fs.readFileSync(opt.reference), referenceSha = sha(referenceBytes);
+if (referenceSha !== REF.sha256) fail(`${opt.reference} is not the pinned stamp reference (sha256 ${referenceSha})`);
+const editionMetaBytes = fs.readFileSync(opt.editionMeta), editionMetaSha = sha(editionMetaBytes);
+if (editionMetaSha !== PS.edition_meta_csv.sha256) fail(`${opt.editionMeta} is not the pinned edition_meta CSV (sha256 ${editionMetaSha})`);
+const reference = readCorrection(referenceBytes), releaseMeta = readCorrection(editionMetaBytes);
+log('the snapshot, the stamp reference and the edition_meta CSV match the pin');
 
-// The links extract: its canonical content digest (analysis/half_links_extract.py docstring), computed here.
+// ---------- The policy alone (--policy-only): R1–R7, the editions, the stamp check, the link-build editions ----------
+function policyChecks(P) {
+  const problems = [];
+  const sortedRows = (rows) => rows.map((r) => JSON.stringify(Object.keys(r).sort().map((k) => [k, r[k]]))).sort();
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
+  if (!same(canon(P.counts), canon(policy.expected))) problems.push(`counts differ from the reviewed ones: ${JSON.stringify(canon(P.counts))} vs ${JSON.stringify(canon(policy.expected))}`);
+  if (!same(sortedRows(P.lists.R3), sortedRows(policy.record_rules.R3.subraces))) problems.push('R3 sub-races differ from the frozen list');
+  if (!same(sortedRows(P.lists.R4), sortedRows(policy.record_rules.R4.subraces))) problems.push('R4 sub-races differ from the frozen list');
+  const EK = ['edition_id', 'city', 'year', 'rule', 'category', 'finishes'];
+  const pickRows = (rows) => rows.map((r) => Object.fromEntries(EK.map((k) => [k, r[k]])));
+  if (!same(sortedRows(pickRows(P.lists.editions)), sortedRows(pickRows(policy.edition_rules.editions)))) problems.push('the E0, E2–E8 editions differ from the frozen list');
+  problems.push(...checkStamps(hdb, policy, P, reference, releaseMeta));
+  if (!same(canon(linkPartial(P, LE.half_max_record_id)), canon(LE.link_partial))) problems.push(`the link-partial editions differ: ${JSON.stringify(linkPartial(P, LE.half_max_record_id))}`);
+  const usable = new Map(P.editions.filter((r) => r.use_finish).map((r) => [r.edition_id, r]));
+  for (const x of LE.retimed) { const r = usable.get(x.edition_id); if (!r || r.city !== x.city || r.year !== x.year) problems.push(`re-timed edition ${x.edition_id} is not a usable edition`); }
+  const offRoad = new Set(P.editions.filter((r) => r.use_finish && r.group === 'verified').map((r) => r.city));
+  for (const l of policy.battery.off_road_labels) if (!offRoad.has(l)) problems.push(`off-road label ${l} is not a verified usable label`);
+  return problems;
+}
+
+const hdb = new DatabaseSync(opt.half, { readOnly: true });
+if (opt.policyOnly) {
+  log('applying R1–R7 and the editions (policy only)');
+  const P = applyPolicy(hdb, policy, log);
+  const problems = policyChecks(P);
+  for (const m of problems) console.error(`  policy: ${m}`);
+  console.log(JSON.stringify({ status: problems.length ? 'fail' : 'pass', problems: problems.length, counts: P.counts,
+    lists: { R3: P.lists.R3.length, R4: P.lists.R4.length, editions: P.lists.editions.length, link_partial: linkPartial(P, LE.half_max_record_id) },
+    duplicate_groups: P.recomputed.duplicate_groups, seconds: Math.round((Date.now() - started) / 1000) }));
+  process.exit(problems.length ? 1 : 0);
+}
+const manifestBytes = fs.readFileSync(rel('public/data/half/manifest.json'));
+const manifest = JSON.parse(manifestBytes);
+// The link rule of set B, restated here (analysis/half_pairs.py LINK_RULES; lead rulings L, October 31, 2026): a changed
+// rule needs a reviewed recount. People: a v4 person id whose tier is high_elite, high or medium, with ns_keys at most 3.
+// Strong rows: their own confidence high_elite, high or medium; only they pair. Halves: usable, dated, not R7, not
+// date-suspect, not in a link edition, with no other usable half and no eligible marathon of the person on its date over
+// every linked row of the person (any confidence). Pairs: the nearest prior half 21 to 112 days before each eligible
+// marathon.
+const STRONG = ['high_elite', 'high', 'medium'];
+const LINK = { tiers: STRONG, row_tiers: STRONG, ns_keys_max: 3, window_days: [21, 112] };
+const CLOSE_MARATHON_DAYS = 13;   // review R6: counted, never excluded
+const CONFIDENCES = new Set([...STRONG, 'low', 'low_noage', 'low_noage_series', 'low_nosex']);
+const PERSON_ID = /^p4_[0-9a-f]{16}$/;
+for (const [k, v] of Object.entries(LINK)) if (JSON.stringify(manifest.link_rules?.[k]) !== JSON.stringify(v)) fail(`the manifest's link rule ${k} is not this recount's`);
+// The links extract: its canonical content digest (analysis/half_links_extract.py docstring), computed here: each table's
+// rows ordered by every column in declared order, each field as its SQLite text (integers in decimal, NULL as \N), joined
+// by a tab, every row ended by \n.
+const PEOPLE_COLS = ['person_id', 'sex', 'tier', 'ns_keys', 'key_type', 'in_union', 'k', 'k_block'];
+const LINK_COLS = ['person_id', 'db', 'record_id', 'confidence', 'finish_s', 'sex', 'city', 'year', 'ns_keys'];
 const ldb = new DatabaseSync(opt.links, { readOnly: true });
 const build = Object.fromEntries(ldb.prepare('SELECT k, v FROM build').all().map((r) => [r.k, r.v]));
 let linksSha;
 {
   const hash = crypto.createHash('sha256');
-  const field = (v) => (v === null ? '\\N' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : fail('a REAL in the extract')) : String(v));
-  for (const [table, cols] of [['people', 'person_id, sex, confidence, ns_keys, key_type, in_candidate_merge'], ['links', 'person_id, db, record_id, confidence']]) {
-    const names = cols.split(', ');
+  const field = (v) => (v === null ? '\\N' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : fail('a REAL in the extract'))
+    : typeof v === 'string' && !/[\t\n\\]/.test(v) ? v : fail(`a field the canonical TSV cannot hold: ${JSON.stringify(v)}`));
+  for (const [table, names] of [['people', PEOPLE_COLS], ['links', LINK_COLS]]) {
+    const cols = names.join(', ');
     for (const row of ldb.prepare(`SELECT ${cols} FROM ${table} ORDER BY ${cols}`).iterate()) hash.update(`${names.map((c) => field(row[c])).join('\t')}\n`);
   }
   linksSha = hash.digest('hex');
 }
-if (linksSha !== pin.links.extract_content_sha256 || build.extract_content_sha256 !== linksSha) fail(`${opt.links} is not the pinned extract (content sha256 ${linksSha})`);
-if (build.links_tag !== pin.links.private_tag || build.pairs_with !== pin.half.private_tag || build.marathon_release !== release.tag) fail('the extract was cut from another link build');
-const correctedBytes = fs.readFileSync(opt.corrected);
-const correctedSha = sha(correctedBytes);
-if (correctedSha !== MC.sha256) fail(`${opt.corrected} is not the pinned corrected metadata (sha256 ${correctedSha})`);
-const corrected = readCorrection(correctedBytes);
-log('sources and the corrected metadata match the pin');
+if (!pin.links.extract_content_sha256 || linksSha !== pin.links.extract_content_sha256 || build.extract_content_sha256 !== linksSha) fail(`${opt.links} is not the pinned extract (content sha256 ${linksSha})`);
+if (build.links_key !== pin.links.key || build.applies_to !== pin.links.applies_to || build.marathon_release !== release.tag || build.half_key !== pin.half.key) fail('the extract was cut from another link build');
+if (build[`source_sha256:${pin.half.sqlite}`] !== pin.half.sqlite_sha256 || Object.entries(pin.links.assets).some(([name, d]) => build[`source_sha256:${name}`] !== d)) fail('the extract was cut from other sources than the pin names');
+// The frozen ns_keys and k SQL the extract was cut with must be the ones analysis/half_links_extract.py holds now (verify
+// round 2, October 31, 2026: the shas were written and never compared). Read from the module's text, the tier list put in
+// as the module does; a module this cannot read fails, as a changed SQL does.
+{
+  const py = fs.readFileSync(rel('analysis/half_links_extract.py'), 'utf8');
+  const strong = /^STRONG = \(([^)]*)\)/m.exec(py);
+  const block = (name, f) => new RegExp(`^${name} = ${f ? 'f' : ''}"""([\\s\\S]*?)"""`, 'm').exec(py)?.[1];
+  const tiers = strong ? [...strong[1].matchAll(/'([a-z_]+)'/g)].map((m) => `'${m[1]}'`).join(', ') : null;
+  const ns = block('NS_KEYS_SQL', true), k = block('K_SQL', false);
+  if (!tiers || ns === undefined || k === undefined || !ns.includes('{_STRONG_SQL}')) fail('cannot read the frozen NS_KEYS_SQL and K_SQL from analysis/half_links_extract.py');
+  const nsText = ns.replaceAll('{_STRONG_SQL}', tiers);
+  if (/[{}]/.test(nsText) || /[{}]/.test(k)) fail('the frozen SQL in analysis/half_links_extract.py holds a placeholder this recount does not fill');
+  if (build.ns_keys_sql_sha256 !== sha(Buffer.from(nsText, 'utf8')) || build.k_sql_sha256 !== sha(Buffer.from(k, 'utf8'))) fail('the extract was cut with other frozen ns_keys or k SQL than analysis/half_links_extract.py holds; re-cut it');
+}
+log('the links extract matches the pin');
 
 // ---------- Comparison ----------
 const mismatches = [];
@@ -142,7 +238,6 @@ for (const [name, meta] of Object.entries(manifest.files)) {
 
 // ---------- The half snapshot: R1–R7, the editions, the policy counts ----------
 log('applying R1–R7 and the editions');
-const hdb = new DatabaseSync(opt.half, { readOnly: true });
 const P = applyPolicy(hdb, policy, log);
 log(`policy applied: ${P.counts.use_finish.finishes.toLocaleString('en-US')} usable finishes in ${P.counts.use_finish.editions.toLocaleString('en-US')} editions`);
 const { set_b: publishedSetB, ...publishedCounts } = manifest.policy.counts;
@@ -156,107 +251,208 @@ const EK = ['edition_id', 'city', 'year', 'rule', 'category', 'finishes'];
 compare('policy', 'E0, E2–E8 editions (recomputed screens)', sorted(pick(policy.edition_rules.editions, EK)), sorted(pick(P.lists.editions, EK)));
 log(`policy compared: ${P.recomputed.duplicate_groups} duplicate groups, ${P.lists.editions.length} listed editions recomputed`);
 
-// The stamp correction, rederived from the corrected metadata: every stamped edition of the snapshot whose corrected
-// status is not stamped (the frozen list, with its trimmed reason), the weaker-source stamps, and the verified scope.
-{
-  const derived = [];
-  let missing = 0;
-  for (const r of P.editions) {
-    if (r.status !== 'stamped' || r.edition_id === null) continue;
-    const c = corrected.get(r.edition_id);
-    if (!c || c.city !== r.city || c.year !== r.year) { missing++; continue; }
-    if (c.status !== 'stamped') derived.push({ edition_id: r.edition_id, city: r.city, year: r.year, corrected_status: c.status, reason: correctionReason(c.reason) });
-  }
-  compare('policy', 'stamp correction: stamped editions missing from or renamed in the corrected metadata', 0, missing);
-  compare('policy', 'stamp correction: withdrawn stamps (from the corrected metadata)', sorted(SC.withdrawn), sorted(derived));
-  const weaker = SC.weaker_source.map((x) => { const c = corrected.get(x.edition_id); return c && c.status === 'stamped' ? { edition_id: x.edition_id, city: c.city, year: c.year, source: trimText(c.source_type) } : null; });
-  compare('policy', 'stamp correction: weaker-source stamps stay stamped', sorted(SC.weaker_source), sorted(weaker.filter(Boolean)));
-  let wrong = 0, weakVerified = 0;
-  const weakIds = new Set(SC.weaker_source.map((x) => x.edition_id));
-  for (const r of P.editions) {
-    if (!r.use_finish || r.edition_id === null) continue;
-    const stamped = corrected.get(r.edition_id)?.status === 'stamped';
-    if (stamped !== (r.group === 'verified')) wrong++;
-    if (weakIds.has(r.edition_id) && r.group === 'verified') weakVerified++;
-  }
-  compare('policy', 'stamp correction: usable editions verified exactly when stamped in both', 0, wrong);
-  compare('policy', 'stamp correction: weaker-source stamps verified', weakIds.size, weakVerified);
-}
+// The stamp check (policy.stamps.reads) and the link-build editions, recounted: every problem is a mismatch.
+for (const m of policyChecks(P).filter((x) => !/^counts differ|^R3 |^R4 |^the E0, E2/.test(x))) compare('policy', `stamp and link-build checks: ${m}`, 'pass', 'fail');
+tally.policy.values++;
 
 // ---------- The marathon side ----------
 log('reading the runner shards');
 const MAR = loadMarathons(ROOT);
-const REVIEWED_MARATHON = { 'private-export-20261021-1050': { eligible: 4108749, sustained: 1266780, dated_editions: 215 } };
-compare('policy', 'marathon side', REVIEWED_MARATHON[MAR.releaseTag] || null, { eligible: MAR.n, sustained: MAR.slowdowns, dated_editions: MAR.datedEditions });
+// November 4, 2026: master-20261103b (New York 2026 has no weather row, so no race date; it supplies no pair).
+const REVIEWED_MARATHON = {
+  'private-export-20261021-1050': { eligible: 4108749, sustained: 1266780, dated_editions: 215 },
+  'master-20261103b': { eligible: 4222246, sustained: 1298524, dated_editions: 217, undated: [['New York', 2026]] },
+};
+compare('policy', 'marathon side', REVIEWED_MARATHON[MAR.releaseTag] || null, { eligible: MAR.n, sustained: MAR.slowdowns, dated_editions: MAR.datedEditions,
+  ...(MAR.undated.length || 'undated' in (REVIEWED_MARATHON[MAR.releaseTag] || {}) ? { undated: MAR.undated } : {}) });
 if (MAR.manifestSha !== manifest.marathon.runner_manifest_sha256) fail('the runner manifest changed after the half build');
+// The extract's marathon join checks (review R3) ran against one runner manifest; a changed one needs a re-cut (verify
+// round 2, October 31, 2026).
+if (build.runner_manifest_sha256 !== MAR.manifestSha) fail(`the links extract checked its marathon joins against another runner manifest (${build.runner_manifest_sha256}); re-cut it`);
 if (MAR.weatherSha !== manifest.marathon.weather_evidence_sha256) fail('the weather evidence changed after the half build');
 
-// ---------- Set B ----------
-log('rebuilding set B');
-const people = new Map();
-const personSex = [], personNs = [], personMerge = [];
-for (const r of ldb.prepare('SELECT person_id, sex, confidence, ns_keys, in_candidate_merge FROM people').iterate()) {
-  if (!['high', 'medium'].includes(r.confidence) || !(r.ns_keys <= 3)) continue;
-  people.set(r.person_id, personSex.length);
-  personSex.push(r.sex); personNs.push(r.ns_keys); personMerge.push(r.in_candidate_merge === 1);
-}
+// ---------- The links extract against its sources, and set B ----------
+// One pass over the extract's people, then one over its link rows grouped by person (ordered by person_id): every row is
+// joined to the snapshot (half) or the runner shards (eligible marathons) and its link-build finish, sex, city and year
+// re-verified (review R3); each person's ns_keys is recounted from its strong rows (own confidence high_elite, high or
+// medium; lead rulings L.4) and its sex against its rows' published sex (review R16); the k blocks are checked (review
+// R17); and set B, its R6 signals and the link coverage are rebuilt person by person.
+log('rebuilding set B from the links extract');
 const findSorted = (arr, v) => { let lo = 0, hi = arr.length - 1; while (lo <= hi) { const m = (lo + hi) >> 1; if (arr[m] === v) return m; if (arr[m] < v) lo = m + 1; else hi = m - 1; } return -1; };
-const fin = P.fin;
+const fin = P.fin, ED = P.editions, ROWS = P.rows;
+const boundary = pin.links.coverage.half_max_record_id;
+const linkEditionIds = new Set([...LE.link_partial, ...LE.retimed].map((x) => x.edition_id));
+const retimedIds = new Set(LE.retimed.map((x) => x.edition_id));
 const marOrder = Uint32Array.from({ length: MAR.n }, (_, i) => i).sort((a, b) => MAR.id[a] - MAR.id[b]);
 const marIds = Float64Array.from(marOrder, (i) => MAR.id[i]);
-const halvesOf = new Map(), marsOf = new Map();
-const push = (map, k, v) => { let a = map.get(k); if (!a) { a = []; map.set(k, a); } a.push(v); };
-for (const r of ldb.prepare('SELECT person_id, db, record_id FROM links').iterate()) {
-  const p = people.get(r.person_id);
-  if (p === undefined) continue;
-  if (r.db === 'half') { const k = findSorted(fin.id, r.record_id); if (k >= 0) push(halvesOf, p, k); }
-  else if (r.db === 'full') { const j = findSorted(marIds, r.record_id); if (j >= 0) push(marsOf, p, marOrder[j]); }
+// The extract's own checks (problems are mismatches), and the join counts for the receipt.
+const extractProblems = [];
+const flagProblem = (what) => extractProblems.push(what);
+const joins = {
+  half_rows: 0, half_rows_retimed: 0, half_rows_unparsed: 0, half_sex_x_null: 0,
+  half_missing: 0, half_beyond_boundary: 0, half_city_year: 0, half_sex: 0, half_finish: 0,
+  marathon_rows: 0, marathon_rows_eligible: 0, marathon_city_year: 0, marathon_finish: 0, marathon_sex: 0,
+};
+// People.
+const people = new Map();
+const personSex = [], personNs = [], personUnion = [], personTier = [];
+const blocks = new Map();
+let highNotAlone = 0, badPeople = 0;
+for (const r of ldb.prepare('SELECT person_id, sex, tier, ns_keys, key_type, in_union, k, k_block FROM people').iterate()) {
+  if (!PERSON_ID.test(r.person_id) || !['M', 'F'].includes(r.sex) || !STRONG.includes(r.tier) || !Number.isSafeInteger(r.ns_keys) || r.ns_keys < 0
+    || !['yob', 'age_bin', 'mixed', 'none'].includes(r.key_type) || ![0, 1].includes(r.in_union) || !Number.isSafeInteger(r.k) || r.k < 1 || !/^[0-9a-f]{16}$/.test(r.k_block || '')) badPeople++;
+  people.set(r.person_id, personSex.length);
+  personSex.push(r.sex); personNs.push(r.ns_keys); personUnion.push(r.in_union === 1); personTier.push(r.tier);
+  const b = blocks.get(r.k_block);
+  if (!b) blocks.set(r.k_block, { k: r.k, n: 1, ks: 1 });
+  else { b.n++; if (b.k !== r.k) b.ks++; }
+  if (r.tier === 'high' && r.k !== 1) highNotAlone++;
 }
-const ED = P.editions;
-const pairs = { h: [], m: [], sex: [], ed: [], city: [], sus: [], verified: [], nsKeys: [], inMerge: [], person: [], mDay: [], mId: [] };
+if (badPeople) flagProblem(`${badPeople} people with a malformed field (person id, sex, tier, ns_keys, key type, union, k or block)`);
+// Review R17: every person of a block carries one k, and a block holds no more of the extract's people than its k (each of
+// them has a row attached with an age, so each counts in k). The producer's high tier is given only to a person alone in
+// its block (spec 4.3), so a high person with k other than 1 marks a block the rebuild cuts differently.
+let blocksTwoK = 0, blocksOverK = 0;
+for (const b of blocks.values()) { if (b.ks > 1) blocksTwoK++; if (b.n > b.k) blocksOverK++; }
+if (blocksTwoK) flagProblem(`${blocksTwoK} k blocks whose people carry two values of k`);
+if (blocksOverK) flagProblem(`${blocksOverK} k blocks holding more of the extract's people than k`);
+if (highNotAlone) flagProblem(`${highNotAlone} high people whose rebuilt k is not 1`);
+// Set B, person by person.
+const eligiblePerson = (p) => STRONG.includes(personTier[p]) && personNs[p] <= LINK.ns_keys_max;
+const pairs = { h: [], m: [], sex: [], ed: [], city: [], sus: [], verified: [], nsKeys: [], inUnion: [], person: [], mDay: [], mId: [], hEd: [], hLabel: [], hId: [], close: [] };
 const pairPeople = new Set(), halfEds = new Set();
-for (const [p, mars] of marsOf) {
-  const halves = halvesOf.get(p) || [];
+const linkedMar = new Uint8Array(MAR.n);
+let nsMismatch = 0, sexMismatch = 0, withoutStrongPair = 0, orphanRows = 0, badRows = 0, persons = 0;
+const [W_LO, W_HI] = LINK.window_days;
+function person(p, halves, fulls) {
+  persons++;
+  // ns_keys: the largest block count over the person's strong rows, either distance (lead rulings L.4).
+  let ns = -1, strongHalf = false, strongFull = false;
+  for (const r of [...halves, ...fulls]) if (r.strong) { if (r.ns === null) badRows++; else ns = Math.max(ns, r.ns); }
+  for (const r of halves) if (r.strong) strongHalf = true;
+  for (const r of fulls) if (r.strong) strongFull = true;
+  if (ns !== personNs[p]) nsMismatch++;
+  // Review R16: the person's sex (persons.parquet's, which every pair takes) is the published sex of each of its rows
+  // that has one (verify round 1, October 31, 2026: only the extract's own check compared them).
+  if ([...halves, ...fulls].some((r) => r.sex !== null && r.sex !== personSex[p])) sexMismatch++;
+  if (!strongHalf || !strongFull) withoutStrongPair++;
+  if (!eligiblePerson(p)) return;
+  // Conflicts over every linked row of the person, whatever its confidence (the R7 rows and the link editions included).
   const perDate = new Map();
-  for (const k of halves) { const d = ED[fin.ed[k]].day; if (!Number.isNaN(d)) perDate.set(d, (perDate.get(d) || 0) + 1); }
-  const marDays = new Set(mars.map((j) => MAR.day[MAR.edition[j]]));
-  for (const j of mars) {
-    const mDay = MAR.day[MAR.edition[j]];
+  for (const r of halves) if (r.k >= 0) { const d = ED[fin.ed[r.k]].day; if (!Number.isNaN(d)) perDate.set(d, (perDate.get(d) || 0) + 1); }
+  const marDays = [];
+  for (const r of fulls) if (r.j >= 0) marDays.push([MAR.id[r.j], MAR.day[MAR.edition[r.j]]]);
+  const marDaySet = new Set(marDays.map(([, d]) => d));
+  // The candidate halves: a strong row, a usable finish, not in a link edition.
+  const cand = halves.filter((r) => r.strong && r.k >= 0 && !linkEditionIds.has(ED[fin.ed[r.k]].edition_id)).map((r) => r.k);
+  if (cand.some((k) => !fin.r7[k])) for (const r of fulls) if (r.strong && r.j >= 0) linkedMar[r.j] = 1;
+  for (const r of fulls) {
+    if (!r.strong || r.j < 0) continue;
+    const j = r.j, mDay = MAR.day[MAR.edition[j]];
     let best = -1, bestDays = Infinity;
-    for (const k of halves) {
+    for (const k of cand) {
       const e = ED[fin.ed[k]];
-      if (Number.isNaN(e.day) || fin.r7[k] || e.date_suspect || perDate.get(e.day) > 1 || marDays.has(e.day)) continue;
+      if (Number.isNaN(e.day) || fin.r7[k] || e.date_suspect || perDate.get(e.day) > 1 || marDaySet.has(e.day)) continue;
       const days = mDay - e.day;
-      if (days < 21 || days > 112) continue;
+      if (days < W_LO || days > W_HI) continue;
       if (days < bestDays || (days === bestDays && fin.id[k] < fin.id[best])) { best = k; bestDays = days; }
     }
     if (best < 0) continue;
-    const med = MAR.editions[MAR.edition[j]];
+    const med = MAR.editions[MAR.edition[j]], he = ED[fin.ed[best]];
     pairs.h.push(fin.finish[best]); pairs.m.push(MAR.finish[j]); pairs.sex.push(personSex[p]);
     pairs.ed.push(`${med.city} ${med.year}`); pairs.city.push(med.city); pairs.sus.push(MAR.sustained[j] === 1);
-    pairs.verified.push(ED[fin.ed[best]].group === 'verified'); pairs.nsKeys.push(personNs[p]); pairs.inMerge.push(personMerge[p]);
-    pairs.person.push(p); pairs.mDay.push(mDay); pairs.mId.push(MAR.id[j]);
+    pairs.verified.push(he.group === 'verified'); pairs.nsKeys.push(personNs[p]); pairs.inUnion.push(personUnion[p]);
+    pairs.person.push(p); pairs.mDay.push(mDay); pairs.mId.push(MAR.id[j]); pairs.hEd.push(he.edition_id); pairs.hLabel.push(he.city); pairs.hId.push(fin.id[best]);
+    // Review R6: another eligible marathon of the person (any linked row) within 13 days of the paired one.
+    pairs.close.push(marDays.some(([id, d]) => id !== MAR.id[j] && Math.abs(d - mDay) <= CLOSE_MARATHON_DAYS));
     pairPeople.add(p); halfEds.add(fin.ed[best]);
   }
 }
-const setB = { pairs: pairs.h.length, people: pairPeople.size, marathon_editions: new Set(pairs.ed).size, half_editions: halfEds.size };
-// Link coverage by marathon city: eligible marathon finishes linked to someone with at least one usable half (any
-// date, not R7), for /methodology.
+{
+  let current = null, halves = [], fulls = [];
+  const flush = () => { if (current !== null) person(current, halves, fulls); halves = []; fulls = []; };
+  let lastId = null;
+  for (const r of ldb.prepare('SELECT person_id, db, record_id, confidence, finish_s, sex, city, year, ns_keys FROM links ORDER BY person_id, db, record_id').iterate()) {
+    const p = people.get(r.person_id);
+    if (p === undefined) { orphanRows++; continue; }
+    if (r.person_id !== lastId) { flush(); current = p; lastId = r.person_id; }
+    if (!CONFIDENCES.has(r.confidence) || !Number.isSafeInteger(r.record_id) || typeof r.city !== 'string' || !Number.isSafeInteger(r.year)
+      || !(r.finish_s === null || Number.isSafeInteger(r.finish_s)) || !(r.ns_keys === null || Number.isSafeInteger(r.ns_keys))) badRows++;
+    const strong = STRONG.includes(r.confidence);
+    if (r.db === 'half') {
+      joins.half_rows++;
+      if (r.record_id > boundary) joins.half_beyond_boundary++;
+      const i = findSorted(ROWS.id, r.record_id);
+      if (i < 0) { joins.half_missing++; continue; }
+      const e = ED[ROWS.ed[i]];
+      if (e.city !== r.city || e.year !== r.year) joins.half_city_year++;
+      const snapSex = ROWS.sexNames[ROWS.sex[i]];
+      if (snapSex === 'X' && r.sex === null) joins.half_sex_x_null++;
+      else if (snapSex !== r.sex) joins.half_sex++;
+      // The link build's finish: within 0.5 s of this snapshot's where it parses; null or negative where it does not (the
+      // link build read a few negative texts as negative seconds; the builders give them no finish); unchecked on the
+      // re-timed editions, whose times changed after the link build (policy link_editions.retimed).
+      if (retimedIds.has(e.edition_id)) joins.half_rows_retimed++;
+      else if (!Number.isNaN(ROWS.finish[i])) { if (r.finish_s === null || Math.abs(r.finish_s - ROWS.finish[i]) > 0.5) joins.half_finish++; }
+      else { joins.half_rows_unparsed++; if (r.finish_s !== null && r.finish_s >= 0) joins.half_finish++; }
+      halves.push({ strong, ns: r.ns_keys, sex: r.sex, k: findSorted(fin.id, r.record_id) });
+    } else if (r.db === 'full') {
+      joins.marathon_rows++;
+      const at = findSorted(marIds, r.record_id);
+      const j = at >= 0 ? marOrder[at] : -1;
+      if (j >= 0) {
+        joins.marathon_rows_eligible++;
+        const med = MAR.editions[MAR.edition[j]];
+        if (med.city !== r.city || med.year !== r.year) joins.marathon_city_year++;
+        if (r.finish_s === null || Math.abs(r.finish_s - MAR.finish[j]) > 0.5) joins.marathon_finish++;
+        const g = MAR.gender[j];
+        if (!(g === 1 ? r.sex === 'M' : g === 2 ? r.sex === 'F' : r.sex === null || !['M', 'F'].includes(r.sex))) joins.marathon_sex++;
+      }
+      fulls.push({ strong, ns: r.ns_keys, sex: r.sex, j });
+    } else badRows++;
+  }
+  flush();
+}
+if (persons !== people.size) flagProblem(`${people.size - persons} people without a link row`);
+if (orphanRows) flagProblem(`${orphanRows} link rows without a person`);
+if (badRows) flagProblem(`${badRows} link rows with a malformed field, or a strong row without ns_keys`);
+if (nsMismatch) flagProblem(`${nsMismatch} people whose ns_keys is not the largest over their strong rows`);
+if (sexMismatch) flagProblem(`${sexMismatch} people whose sex differs from the published sex of one of their link rows`);
+if (withoutStrongPair) flagProblem(`${withoutStrongPair} people without a strong half row and a strong marathon row`);
+for (const k of ['half_missing', 'half_beyond_boundary', 'half_city_year', 'half_sex', 'half_finish', 'marathon_city_year', 'marathon_finish', 'marathon_sex']) if (joins[k]) flagProblem(`link rows against their sources: ${joins[k]} ${k.replace(/_/g, ' ')}`);
+for (const m of extractProblems) compare('policy', `links extract: ${m}`, 'pass', 'fail');
+tally.policy.values++;
+const reuse = new Map();
+for (const id of pairs.hId) reuse.set(id, (reuse.get(id) || 0) + 1);
+const setB = { pairs: pairs.h.length, people: pairPeople.size, marathon_editions: new Set(pairs.ed).size, half_editions: halfEds.size,
+  halves_in_two_or_more_pairs: [...reuse.values()].filter((n) => n >= 2).length, pairs_with_a_close_marathon: pairs.close.filter(Boolean).length };
+delete pairs.hId; delete pairs.close;
+log(`links extract: ${people.size.toLocaleString('en-US')} people, ${(joins.half_rows + joins.marathon_rows).toLocaleString('en-US')} link rows re-verified against the snapshot and the shards`);
+// Link coverage by marathon city: eligible marathon finishes linked, on a strong row, to a person of set B's rule with a
+// strong row on a usable half outside the link editions and the R7 block (dated or not, date-suspect or not), for
+// /methodology.
 const coverage = [];
 {
-  const linkedMars = new Set();
-  for (const [p, mars] of marsOf) if ((halvesOf.get(p) || []).some((k) => !fin.r7[k])) for (const j of mars) linkedMars.add(j);
   const byCity = new Map();
   for (let j = 0; j < MAR.n; j++) {
     const city = MAR.editions[MAR.edition[j]].city;
     let c = byCity.get(city);
     if (!c) { c = { city, finishes: 0, linked: 0 }; byCity.set(city, c); }
     c.finishes++;
-    if (linkedMars.has(j)) c.linked++;
+    if (linkedMar[j]) c.linked++;
   }
   coverage.push(...[...byCity.values()].sort((a, b) => (a.city < b.city ? -1 : 1)));
 }
 compare('policy', 'set B (manifest)', publishedSetB, setB);
+// The flagship battery's verified-half members (the policy's `battery`, pre-registered October 30, 2026): the
+// weaker-source stamps by edition id, and the reviewed off-road labels, each the label of a verified usable edition.
+const BAT = policy.battery;
+if (!BAT || !Array.isArray(BAT.off_road_labels) || !BAT.off_road_labels.length || !BAT.off_road_labels.every((l) => typeof l === 'string')) fail('the policy names no off-road labels for the battery');
+const battery = { weakerSource: new Set(PS.weaker_source.map((x) => x.edition_id)), offRoad: new Set(BAT.off_road_labels) };
+{
+  const verifiedLabels = new Set(P.editions.filter((r) => r.use_finish && r.group === 'verified').map((r) => r.city));
+  compare('policy', 'battery: the off-road labels, each a verified usable edition’s label', BAT.off_road_labels, BAT.off_road_labels.filter((l) => verifiedLabels.has(l)));
+}
 log(`set B: ${setB.pairs.toLocaleString('en-US')} pairs, ${setB.people.toLocaleString('en-US')} people`);
 
 // ---------- The published files ----------
@@ -272,7 +468,7 @@ for (const m of fieldPub.marks) {
 const chartBytes = fs.readFileSync(rel('public/data/charts/womens-share-by-finish-time.json'));
 const womenMine = Fam.women({ fin, editions: ED, marathons: MAR, labels: policy.same_city_labels, chart: JSON.parse(chartBytes), chartSha: sha(chartBytes) });
 compare('women.json', '', readHalf('women.json'), womenMine);
-const { linked: linkedMine, tool: toolMine } = Fam.linked(pairs, { people: setB.people, halfEditions: setB.half_editions, coverage });
+const { linked: linkedMine, tool: toolMine } = Fam.linked(pairs, { people: setB.people, halfEditions: setB.half_editions, coverage, ...battery });
 compare('linked.json', '', readHalf('linked.json'), linkedMine);
 compare('tools/half-to-full.json', '', readHalf('tools/half-to-full.json'), toolMine);
 compare('cards.json', '', readHalf('cards.json'), Fam.cards(fieldMine, womenMine, linkedMine));
@@ -301,9 +497,13 @@ const receipt = {
   date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
   status: total === 0 ? 'pass' : 'fail', mismatches: total, values_checked: values,
   manifest_sha256: sha(manifestBytes), verify_half_source_sha256: scripts['scripts/verify-half-source.cjs'], recount_scripts: scripts,
-  half_sqlite_sha256: halfSha, links_extract_content_sha256: linksSha, corrected_meta_sha256: correctedSha, runner_manifest_sha256: MAR.manifestSha,
+  half_sqlite_sha256: halfSha, links_extract_content_sha256: linksSha, stamp_reference_sha256: referenceSha, edition_meta_csv_sha256: editionMetaSha, runner_manifest_sha256: MAR.manifestSha,
   policy_sha256: sha(policyBytes), weather_evidence_sha256: MAR.weatherSha, marathon_release: release.tag,
   counts: { ...P.counts, set_b: setB, marathon: { eligible: MAR.n, sustained: MAR.slowdowns, dated_editions: MAR.datedEditions } },
+  // The links extract re-verified row by row (review R3): every half row against the snapshot, every eligible marathon row
+  // against the runner shards; names and ages are not in the extract, so they are checked only when it is cut (the
+  // digest binds them, and the source job re-cuts it from the public parquet files).
+  links: { people: people.size, k_blocks: blocks.size, joins },
   files: Object.fromEntries(Object.keys(manifest.files).sort().map((f) => [f, tally[f] || { values: 0, mismatches: 0 }])),
   policy_checks: tally.policy,
   python_only: ['field.json marks[].ratio_ci95: the 200-draw whole-edition bootstrap (numpy generator); the recount checks each published ratio lies inside it'],

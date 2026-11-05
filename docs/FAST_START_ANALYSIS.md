@@ -14,7 +14,7 @@ All eligible finishes contributes every eligible record once, including the fini
 
 ## Current outputs (1050)
 
-Both outputs were rebuilt on October 21, 2026 from the 1050 runner lookup: `release_tag` `private-export-20261021-1050`, `runner_manifest_sha256` `cd2c99d7…` (7,885 shards). They cover 5,327,504 raw records, 4,108,749 eligible finishes and 4,196,334 candidate profiles; 648,914 finishes have the required earlier benchmark (`history_n`) and 3,459,835 do not (`eligible_without_prior_n`). Both record `engine` NumPy 2.5.3.
+On `feat/half-v4` (draft PR #89) both were rebuilt on November 4, 2026 from the `master-20261103b` lookup (`runner_manifest_sha256` `8f593e05…`, 7,886 shards): 5,388,605 raw records, 4,222,246 eligible finishes and 4,257,513 candidate profiles; 662,539 have the earlier benchmark and 3,559,707 do not; 305 all-eligible filter combinations with 1,579 groups and 593 earlier-best combinations with 2,906 ([record](REFRESH_20261103b.md)). On `main`, both outputs were rebuilt on October 21, 2026 from the 1050 runner lookup: `release_tag` `private-export-20261021-1050`, `runner_manifest_sha256` `cd2c99d7…` (7,885 shards). They cover 5,327,504 raw records, 4,108,749 eligible finishes and 4,196,334 candidate profiles; 648,914 finishes have the required earlier benchmark (`history_n`) and 3,459,835 do not (`eligible_without_prior_n`). Both record `engine` NumPy 2.5.3.
 
 | File | Mode | Filter combinations | Opening-group cells | Bytes | SHA-256 |
 | --- | --- | ---: | ---: | ---: | --- |

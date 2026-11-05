@@ -33,7 +33,11 @@ WEATHER_EVIDENCE = ROOT / 'public' / 'data' / 'weather' / 'evidence.json'
 WEATHER_PIN = ROOT / 'analysis' / 'weather-release.json'
 
 # The adopted release's reviewed counts (analysis/release.json private-export-20261021-1050).
-EXPECTED = {'private-export-20261021-1050': {'eligible': 4_108_749, 'sustained': 1_266_780, 'dated_editions': 215}}
+EXPECTED = {'private-export-20261021-1050': {'eligible': 4_108_749, 'sustained': 1_266_780, 'dated_editions': 215},
+            # November 4, 2026: the adopted master-20261103b (the study's 1,298,524 sustained slowdowns of 4,222,246);
+            # New York 2026 has no weather row, so no race date, and supplies no pair.
+            'master-20261103b': {'eligible': 4_222_246, 'sustained': 1_298_524, 'dated_editions': 217,
+                                 'undated': [['New York', 2026]]}}
 
 
 class Marathons:
@@ -48,7 +52,7 @@ class Marathons:
         self.sustained = sustained          # bool
         self.editions = editions            # [{city, year, race}] from the runner manifest
         self.raw_by_edition = raw_by_edition
-        self.dates = dates                  # {edition index: 'YYYY-MM-DD'} for every edition with eligible finishes
+        self.dates = dates                  # {edition index: 'YYYY-MM-DD'}; a reviewed undated edition has none
         self.manifest_sha256 = manifest_sha
         self.manifest = manifest
         self.weather_sha256 = weather_sha
@@ -67,8 +71,12 @@ class Marathons:
         })
 
 
-def _dates(editions, eligible_editions, weather):
-    """Race date of every edition with eligible finishes, from the weather evidence (one row per city and year)."""
+def _dates(editions, eligible_editions, weather, undated=()):
+    """Race date of every edition with eligible finishes, from the weather evidence (one row per city and year).
+
+    An edition the weather evidence has no row for has no race date: it is allowed only on the release's reviewed
+    `undated` list (New York 2026 in master-20261103b: the producer has no weather row for it yet, and no date is filled
+    in), keeps its finishes and supplies no pair, since a pair needs both dates (November 4, 2026)."""
     by_key = {}
     for row in weather['editions']:
         key = (row['city'], int(row['year']))
@@ -79,6 +87,8 @@ def _dates(editions, eligible_editions, weather):
     for e in eligible_editions:
         ed = editions[e]
         date = by_key.get((ed['city'], int(ed['year'])))
+        if date is None and [ed['city'], int(ed['year'])] in [list(u) for u in undated]:
+            continue
         if not isinstance(date, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date) or int(date[:4]) != int(ed['year']):
             fail(f"no race date in the weather evidence for {ed['city']} {ed['year']}")
         dates[int(e)] = date
@@ -139,13 +149,16 @@ def load(runner_root: Path = RUNNERS, weather_path: Path = WEATHER_EVIDENCE, exp
     keys = [(editions[e]['city'], editions[e]['year']) for e in eligible_editions]
     if len(set(keys)) != len(keys):
         fail('two eligible marathon editions share a city and year')
-    dates = _dates(editions, eligible_editions, weather)
-    m = Marathons(np.frombuffer(ids, dtype=np.uint64).copy(), edition_arr, gender_arr, times_arr[:, 8].copy(), sustained,
-                  editions, raw_by_edition, dates, manifest_sha, manifest, file_sha256(weather_path))
     want = (expected or EXPECTED).get(manifest['release_tag'])
     if want is None:
         fail(f"no reviewed marathon counts for {manifest['release_tag']}")
+    dates = _dates(editions, eligible_editions, weather, want.get('undated', ()))
+    m = Marathons(np.frombuffer(ids, dtype=np.uint64).copy(), edition_arr, gender_arr, times_arr[:, 8].copy(), sustained,
+                  editions, raw_by_edition, dates, manifest_sha, manifest, file_sha256(weather_path))
     got = {'eligible': int(m.n), 'sustained': int(sustained.sum()), 'dated_editions': len(dates)}
+    undated = sorted([editions[e]['city'], int(editions[e]['year'])] for e in eligible_editions if int(e) not in dates)
+    if undated or 'undated' in want:
+        got['undated'] = undated
     if got != want:
         fail(f'marathon side counts {got} differ from the reviewed {want}')
     return m

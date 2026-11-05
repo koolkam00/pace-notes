@@ -74,6 +74,20 @@ def count_phrase(n, noun):
     return f'no {plural(noun)}' if n == 0 else f'1 {noun}' if n == 1 else f'{n:,} {plural(noun)}'
 
 
+def require_race_dates(c, undated_edition):
+    """Every edition with finishes needs a race date to order a record's linked finishes, except an edition the weather
+    evidence has no row for (New York 2026 in master-20261103b, November 4, 2026): it is allowed only while each of its
+    finishes is the only finish of its record (no cross-race key), so it can never enter a linked order or pair; no date
+    is filled in. `undated_edition` is a boolean per edition."""
+    undated = np.flatnonzero(undated_edition & (c.ed_n > 0))
+    if not len(undated):
+        return
+    ids, counts = np.unique(c.profile, return_counts=True)
+    finishes_of = counts[np.searchsorted(ids, c.profile)]
+    if (finishes_of[np.isin(c.edition, undated)] > 1).any():
+        raise ValueError('An edition with finishes has no race date')
+
+
 def edition_ranks(values, edition):
     """Each finish's place within its edition as a fraction from 0 (lowest value) to 1 ((rank) / (n − 1)), ties by
     stable order. Used for "quarter of the field" charts; positions are clock ranks, not road positions."""

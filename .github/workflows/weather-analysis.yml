@@ -31,7 +31,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          # The exact Python of the local calculation (November 4-5, 2026): analysis/adapt_master.py records the
+          # interpreter version in the adapted MANIFEST.json, whose digest every output binds, so another Python
+          # gives another digest and the rebuilt outputs cannot match the committed ones.
+          python-version: '3.13.16'
       - run: python -m pip install -r analysis/requirements.txt
       - name: Check weather measurements and screening rules
         run: python -m unittest discover -s analysis -p 'test_*.py'
@@ -42,7 +45,7 @@ jobs:
           python - <<'PY'
           import json, os, re
           tag = os.environ.get('REQUESTED_WEATHER_TAG') or json.load(open('analysis/weather-release.json'))['tag']
-          if not re.fullmatch(r'private-export-\d{8}-\d{4}|htw-db-\d{4}-\d{2}-\d{2}-\d{4}', tag):
+          if not re.fullmatch(r'private-export-\d{8}-\d{4}|htw-db-\d{4}-\d{2}-\d{2}-\d{4}|master-\d{8}[a-z]?', tag):
               raise ValueError('Unexpected export tag')
           with open(os.environ['GITHUB_ENV'], 'a') as stream:
               stream.write('WEATHER_RELEASE_TAG=' + tag + '\n')

@@ -1,21 +1,21 @@
 target,label,value,n_value
-Under 3 hours,2–5 minutes ahead,-0.857100445868153,38302
-Under 3 hours,Up to 2 minutes ahead,-1.5271656962706381,35478
-Under 3 hours,Up to 2 minutes behind,-0.6445984587796216,25167
-Under 3 hours,2–5 minutes behind,-0.4599978546053318,35216
-Under 3:30,2–5 minutes ahead,-1.8891750024759735,76926
-Under 3:30,Up to 2 minutes ahead,-2.3755287992189844,61096
-Under 3:30,Up to 2 minutes behind,-2.115370315006393,55724
-Under 3:30,2–5 minutes behind,-1.6721949492322308,78698
-Under 4 hours,2–5 minutes ahead,-3.282422793980355,116551
-Under 4 hours,Up to 2 minutes ahead,-4.046270430037502,81507
-Under 4 hours,Up to 2 minutes behind,-4.0816223908441085,69522
-Under 4 hours,2–5 minutes behind,-2.9781489918164206,91785
-Under 4:30,2–5 minutes ahead,-5.131240387949976,84690
-Under 4:30,Up to 2 minutes ahead,-5.4454807237718565,57016
-Under 4:30,Up to 2 minutes behind,-5.563584011669819,53605
-Under 4:30,2–5 minutes behind,-5.315414224787684,76321
-Under 5 hours,2–5 minutes ahead,-7.111066830233493,59408
-Under 5 hours,Up to 2 minutes ahead,-7.589892246144991,38237
-Under 5 hours,Up to 2 minutes behind,-7.65378521107492,35670
-Under 5 hours,2–5 minutes behind,-6.853715551548401,48092
+Under 3 hours,2–5 minutes ahead,-0.8544323130765585,39069
+Under 3 hours,Up to 2 minutes ahead,-1.537739750973799,36223
+Under 3 hours,Up to 2 minutes behind,-0.6575771254485385,25638
+Under 3 hours,2–5 minutes behind,-0.47150542473566315,35938
+Under 3:30,2–5 minutes ahead,-1.9016235992151964,78749
+Under 3:30,Up to 2 minutes ahead,-2.3755287992190066,62569
+Under 3:30,Up to 2 minutes behind,-2.1201344991515603,57089
+Under 3:30,2–5 minutes behind,-1.6827099713424887,80646
+Under 4 hours,2–5 minutes ahead,-3.283127370624955,119718
+Under 4 hours,Up to 2 minutes ahead,-4.052726467952795,83773
+Under 4 hours,Up to 2 minutes behind,-4.101348683759875,71450
+Under 4 hours,2–5 minutes behind,-2.9902220924122314,94303
+Under 4:30,2–5 minutes ahead,-5.12103642623919,87160
+Under 4:30,Up to 2 minutes ahead,-5.435163023525286,58620
+Under 4:30,Up to 2 minutes behind,-5.564874469028281,55172
+Under 4:30,2–5 minutes behind,-5.310224034939992,78561
+Under 5 hours,2–5 minutes ahead,-7.0861309545803,61236
+Under 5 hours,Up to 2 minutes ahead,-7.561990504506911,39448
+Under 5 hours,Up to 2 minutes behind,-7.64479942051638,36765
+Under 5 hours,2–5 minutes behind,-6.842687659355295,49480

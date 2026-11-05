@@ -51,8 +51,9 @@ export default function HalfToFullBody() {
   const linked = readHalf('linked.json');
   const deks = halfDeks();
   const extra = getNugget('half.extra'), range = getNugget('half.range'), sexes = getNugget('half.sexes'), guess = getNugget('half.sexesGuess');
-  // The hero's figure is the nugget's: a reading only under a guard of its own, else the count of pairs (lib/nuggets/half.ts
-  // halfExtraFrom). A table row is marked as the page's reading only while that reading is stated (review, October 30, 2026).
+  // The hero's figure is the nugget's: a reading only under the H1's guard and a guard of its own, else the count of pairs
+  // (lib/nuggets/half.ts halfExtraFrom; AGENTS rule 13). A table row is marked as the page's reading only while that
+  // reading is stated (review, October 30, 2026).
   const figure = extra.figure;
   const Q = linked.Q;
   const q = (w: HalfWindow, level: number) => w.q[Q.findIndex((x) => Math.abs(x - level) < 1e-9)];

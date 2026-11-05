@@ -374,20 +374,54 @@ function goalRow(rows, G, full) {
   return { row: out, clean: rows[i + 1].q[9] >= G && rows[i - 1].q[9] < G };
 }
 
+// The flagship guard's member clauses and the one-verified-half-edition-out variants it judges (analysis/half_linked.py
+// MULTIPLE_BAND, GAP_S, UNDER_DOUBLE_MAX, LEAVE_OUTS and WORST; pre-registered October 30, 2026).
+const LEAVE_OUTS = { verified_halves: ['multiple', 'reexpressed', 'under_double', 'extra'], verified_federation: ['multiple', 'reexpressed', 'under_double'] };
+const WORST = { multiple: ['multiple_low', 'multiple_high'], reexpressed: ['reexpressed'], under_double: ['under_double'], extra: ['extra'] };
+/** One member clause on a member's or a variant's values, against the pooled minutes over double and median half. */
+function passes(clause, v, extra, half) {
+  if (clause === 'multiple') return v.multiple_p50 >= 2.15 && v.multiple_p50 <= 2.25;
+  if (clause === 'reexpressed') return Math.abs((v.multiple_p50 - 2) * half - extra) <= 180;
+  if (clause === 'under_double') return v.under_double < 0.15;
+  if (clause === 'extra') return Math.abs(extra - v.extra_p50_s) <= 180;
+  throw new Error(`unknown guard clause ${clause}`);
+}
+
 /** The flagship H1's guard (spec 3.2; analysis/half_linked.flagship_guard and lib/nuggets/half.ts half.extra). */
 function flagshipGuard(linked) {
   const battery = linked.checks.battery;
   const members = Object.fromEntries(battery.members.map((m) => [m.id, m]));
   const pooled = members.pooled;
-  if (!pooled || !members.verified_halves || !members.one_per_person) return false;
+  if (!['pooled', 'verified_halves', 'verified_federation', 'verified_road', 'one_per_person'].every((k) => members[k])) return false;
   const extra = pooled.extra_p50_s, half = battery.pooled_half_p50_s;
   const all = Object.values(members);
+  const leaveOuts = Object.entries(LEAVE_OUTS).every(([id, clauses]) => {
+    const x = (battery.leave_outs || {})[id];
+    return !!x && x.under_floor === 0 && x.variants > 0 && clauses.every((c) => WORST[c].every((k) => !!x.worst[k] && passes(c, x.worst[k], extra, half)));
+  });
   return linked.set.pairs >= MIN_CELL && linked.set.marathon_editions >= MIN_EDITIONS && extra >= 600 && extra <= 3600
-    && all.every((m) => m.multiple_p50 >= 2.15 && m.multiple_p50 <= 2.25)
-    && all.every((m) => Math.abs((m.multiple_p50 - 2) * half - extra) <= 180)
-    && Math.abs(extra - members.verified_halves.extra_p50_s) <= 180
-    && Math.abs(extra - members.one_per_person.extra_p50_s) <= 180
-    && all.every((m) => m.under_double < 0.15);
+    && all.every((m) => ['multiple', 'reexpressed', 'under_double'].every((c) => passes(c, m, extra, half)))
+    && passes('extra', members.verified_halves, extra, half)
+    && passes('extra', members.one_per_person, extra, half)
+    && leaveOuts;
+}
+
+/**
+ * The story figure's own guard (lib/nuggets/half.ts figureGuard): every battery member and every one-verified-half-edition-out
+ * variant (none under 100 pairs) under 15% under double, and the verified halves within 3 points of the pooled share (that
+ * check is the figure's own, not the variants'; lead rulings A1 and A2, October 31, 2026).
+ */
+function figureGuard(linked) {
+  const battery = linked.checks.battery;
+  const members = Object.fromEntries(battery.members.map((m) => [m.id, m]));
+  const share = linked.overall.under_double_plus_min['0'];
+  const variants = Object.keys(LEAVE_OUTS).every((id) => {
+    const x = (battery.leave_outs || {})[id];
+    const w = x && x.worst.under_double;
+    return !!x && x.under_floor === 0 && x.variants > 0 && !!w && passes('under_double', w, 0, 0);
+  });
+  return !!members.pooled && !!members.verified_halves && Object.values(members).every((m) => passes('under_double', m, 0, 0))
+    && variants && Math.abs(share - members.verified_halves.under_double) <= 0.03;
 }
 
 module.exports = {
@@ -397,5 +431,5 @@ module.exports = {
   tailedTotal, underMinutes, underBins, binOfRank, quantileBounds, densest,
   poissonPolyFit, localFit, cliffIndex,
   womenShare, crossing, sameCitySummary, cityRows,
-  markTimes, shareBounds, windowFor, readoutMark, goalRow, flagshipGuard,
+  markTimes, shareBounds, windowFor, readoutMark, goalRow, flagshipGuard, figureGuard, passes, LEAVE_OUTS, WORST,
 };

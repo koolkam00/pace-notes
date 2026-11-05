@@ -30,7 +30,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          # The exact Python of the local calculation (November 4-5, 2026): analysis/adapt_master.py records the
+          # interpreter version in the adapted MANIFEST.json, whose digest every output binds, so another Python
+          # gives another digest and the rebuilt outputs cannot match the committed ones.
+          python-version: '3.13.16'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

@@ -75,6 +75,18 @@ class Helpers(unittest.TestCase):
         build_charts.check(dict(rows=[dict(n=100, v=0.5)]), 'x')
 
 
+class RaceDates(unittest.TestCase):
+    def test_an_undated_edition_passes_only_without_linked_records(self):
+        """November 4, 2026: New York 2026 has no weather row; its finishes are each their record's only one."""
+        from types import SimpleNamespace
+        c = SimpleNamespace(ed_n=np.array([2, 2, 0]), edition=np.array([0, 0, 1, 1]), profile=np.array([7, 8, 9, 10]))
+        charts_common.require_race_dates(c, np.array([False, True, True]))
+        c.profile = np.array([7, 9, 9, 10])
+        with self.assertRaisesRegex(ValueError, 'no race date'):
+            charts_common.require_race_dates(c, np.array([False, True, False]))
+        charts_common.require_race_dates(c, np.array([False, False, True]))
+
+
 class Catalog(unittest.TestCase):
     def test_every_catalog_chart_has_a_builder_and_nothing_else_does(self):
         items = build_charts.catalog()

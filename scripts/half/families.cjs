@@ -211,7 +211,7 @@ function women({ fin, editions, marathons, labels, chart, chartSha }) {
 
 const Q = Array.from({ length: 19 }, (_, i) => D.pyRound(0.05 * (i + 1), 2));
 
-/** Set B as columns. `P` holds h, m (seconds), sex ('F'|'M'), ed (marathon edition key), city, sus, verified, nsKeys, inMerge, person, mDay, mId. */
+/** Set B as columns. `P` holds h, m (seconds), sex ('F'|'M'), ed (marathon edition key), city, sus, verified, nsKeys, inUnion (a row of the person joined by one of the link build's unions), person, mDay, mId, hEd (the half's edition id) and hLabel (its edition label). */
 function subset(P, keep) {
   const out = {};
   for (const [k, v] of Object.entries(P)) if (Array.isArray(v)) out[k] = v.filter((_, i) => keep[i]);
@@ -307,11 +307,57 @@ function underGoalAt(p, H = 105, G = 14400) {
 }
 const median50 = (values) => D.quantile(values, 0.5);
 
-function battery(p) {
+/** A pair member's published values from its marathon and half seconds (analysis/half_linked.member_values). */
+function memberValues(m, h) {
+  const extra = m.map((v, i) => v - 2 * h[i]);
+  return { n: m.length, multiple_p50: D.r(median50(m.map((v, i) => v / h[i])), 4), extra_p50_s: D.sec(median50(extra)), under_double: D.sh(extra.filter((x) => x < 0).length / m.length) };
+}
+
+/**
+ * The one-verified-half-edition-out variants of the member `keep` selects (analysis/half_linked.leave_outs): one per
+ * half edition with a pair in it, that edition's pairs left out; a variant under 100 pairs is not published and cannot
+ * pass; the worst variant for each clause (ties: the lower edition id).
+ */
+function leaveOuts(p, keep, clauses, extra, half) {
+  const idx = [];
+  for (let i = 0; i < p.n; i++) if (keep[i]) idx.push(i);
+  const eds = [...new Set(idx.map((i) => p.hEd[i]))].sort((a, b) => a - b);
+  const variants = [];
+  let underFloor = 0;
+  for (const e of eds) {
+    const kept = idx.filter((i) => p.hEd[i] !== e);
+    if (kept.length < MIN_CELL) { underFloor++; continue; }
+    variants.push({ half_edition: e, left_out: idx.length - kept.length, ...memberValues(kept.map((i) => p.m[i]), kept.map((i) => p.h[i])) });
+  }
+  const order = {
+    multiple_low: (v) => v.multiple_p50,
+    multiple_high: (v) => -v.multiple_p50,
+    reexpressed: (v) => -Math.abs((v.multiple_p50 - 2) * half - extra),
+    under_double: (v) => -v.under_double,
+    extra: (v) => -Math.abs(extra - v.extra_p50_s),
+  };
+  const first = (key) => variants.reduce((best, v) => (best === null || order[key](v) < order[key](best) || (order[key](v) === order[key](best) && v.half_edition < best.half_edition) ? v : best), null);
+  const worst = {};
+  for (const c of clauses) for (const k of D.WORST[c]) worst[k] = first(k);
+  return {
+    variants: variants.length + underFloor, under_floor: underFloor,
+    failing: Object.fromEntries(clauses.map((c) => [c, variants.filter((v) => !D.passes(c, v, extra, half)).length])),
+    failed: underFloor + variants.filter((v) => clauses.some((c) => !D.passes(c, v, extra, half))).length,
+    worst,
+  };
+}
+
+/** The flagship's weighting checks; `weakerSource` (edition ids) and `offRoad` (half labels) are the policy's (half_quality.battery_lists). */
+function battery(p, { weakerSource, offRoad }) {
+  need(weakerSource instanceof Set && offRoad instanceof Set && offRoad.size > 0, 'the battery needs the policy’s weaker-source stamps and off-road labels');
   const members = [];
-  const pairsMember = (id, q) => members.push({ id, n: q.n, multiple_p50: D.r(median50(q.m.map((m, i) => m / q.h[i])), 4), extra_p50_s: D.sec(median50(q.extra)), under_double: D.sh(q.extra.filter((x) => x < 0).length / q.n) });
+  const pairsMember = (id, q) => members.push({ id, ...memberValues(q.m, q.h) });
+  const federation = p.verified.map((v, i) => v && !weakerSource.has(p.hEd[i]));
+  const road = p.verified.map((v, i) => v && !offRoad.has(p.hLabel[i]));
   pairsMember('pooled', p);
   pairsMember('verified_halves', columns(subset(p, p.verified)));
+  pairsMember('verified_federation', columns(subset(p, federation)));
+  pairsMember('verified_road', columns(subset(p, road)));
   pairsMember('other_marathons', columns(subset(p, p.city.map((c) => !['Valencia', 'Warsaw'].includes(c)))));
   pairsMember('ns_keys_1', columns(subset(p, p.nsKeys.map((k) => k === 1))));
   pairsMember('one_per_person', latestPerPerson(p));
@@ -329,10 +375,12 @@ function battery(p) {
   groupsMember('editions_equal_20', p.ed, 20);
   groupsMember('editions_equal_100', p.ed, 100);
   groupsMember('city_equal', p.city, 100, 3);
-  return { pooled_half_p50_s: D.sec(median50(p.h)), members };
+  const half = D.sec(median50(p.h)), extra = members[0].extra_p50_s;
+  const masks = { verified_halves: p.verified, verified_federation: federation };
+  return { pooled_half_p50_s: half, members, leave_outs: Object.fromEntries(Object.entries(D.LEAVE_OUTS).map(([id, clauses]) => [id, leaveOuts(p, masks[id], clauses, extra, half)])) };
 }
 
-function checks(p) {
+function checks(p, lists) {
   const ver = columns(subset(p, p.verified));
   const by = new Map();
   p.ed.forEach((key, i) => { if (!by.has(key)) by.set(key, []); by.get(key).push(i); });
@@ -344,7 +392,7 @@ function checks(p) {
   const other = columns(subset(p, p.city.map((c) => !['Valencia', 'Warsaw'].includes(c))));
   const ns1 = columns(subset(p, p.nsKeys.map((k) => k === 1)));
   const one = latestPerPerson(p);
-  const noMerge = columns(subset(p, p.inMerge.map((x) => !x)));
+  const noUnion = columns(subset(p, p.inUnion.map((x) => !x)));
   const vs = sexes(ver);
   return {
     verified: { pairs: ver.n, extra_p50_s: D.sec(median50(ver.extra)), under_double: D.sh(ver.extra.filter((x) => x < 0).length / ver.n), w105_under_14400: underGoalAt(ver), sexes: { strata: vs.strata, women_lower: vs.women_lower, diff_points: vs.diff_points } },
@@ -352,8 +400,8 @@ function checks(p) {
     other_marathons: { pairs: other.n, extra_p50_s: D.sec(median50(other.extra)), w105_under_14400: underGoalAt(other) },
     ns_keys_1: { pairs: ns1.n, w105_under_14400: underGoalAt(ns1) },
     one_per_person: { pairs: one.n, w105_under_14400: underGoalAt(one) },
-    no_merge_people: { pairs: noMerge.n, extra_p50_s: D.sec(median50(noMerge.extra)) },
-    battery: battery(p),
+    no_union_people: { pairs: noUnion.n, extra_p50_s: D.sec(median50(noUnion.extra)) },
+    battery: battery(p, lists),
   };
 }
 
@@ -388,12 +436,30 @@ function byCity(p) {
   return out;
 }
 
+/**
+ * Where the pairs come from (half_linked.pairs_from): the fewest marathon cities, most pairs first (ties by name), that
+ * together hold more than half of the pairs, over every marathon city; null when one of them holds under 100 pairs.
+ */
+function pairsFrom(p) {
+  const by = new Map();
+  p.city.forEach((c, i) => { let x = by.get(c); if (!x) by.set(c, (x = { n: 0, eds: new Set() })); x.n++; x.eds.add(p.ed[i]); });
+  const order = [...by.entries()].sort((a, b) => b[1].n - a[1].n || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const cities = [];
+  let held = 0;
+  for (const [city, x] of order) {
+    if (2 * held > p.n) break;
+    cities.push({ city, pairs: x.n, e: x.eds.size });
+    held += x.n;
+  }
+  return cities.some((c) => c.pairs < MIN_CELL) ? null : { cities, pairs: held };
+}
+
 /** Link coverage by marathon city: at least 1,000 eligible finishes and 100 linked ones, by share. */
 const coverageRows = (rows) => rows.filter((c) => c.finishes >= 1000 && c.linked >= MIN_CELL)
   .map((c) => ({ city: c.city, finishes: c.finishes, share: D.sh(c.linked / c.finishes) }))
   .sort((a, b) => b.share - a.share || (a.city < b.city ? -1 : a.city > b.city ? 1 : 0));
 
-function linked(P, { people, halfEditions, coverage }) {
+function linked(P, { people, halfEditions, coverage, weakerSource, offRoad }) {
   const p = columns(P);
   need(p.n >= MIN_CELL, 'set B is under the floor');
   const windows = {}, ranges = {};
@@ -428,7 +494,7 @@ function linked(P, { people, halfEditions, coverage }) {
     windows: Object.fromEntries(Object.entries(windows).map(([g, ws]) => [g, ws.map(clean)])),
     sexes: { rule: 'half band x marathon city, >=20 pairs per sex', ...sexes(p) },
     goals,
-    checks: { ...checks(p), multiple_by_band: multipleByBand(p, ...ranges.all), by_city: byCity(p), ...(coverage ? { coverage: coverageRows(coverage) } : {}) },
+    checks: { ...checks(p, { weakerSource, offRoad }), multiple_by_band: multipleByBand(p, ...ranges.all), by_city: byCity(p), pairs_from: pairsFrom(p), ...(coverage ? { coverage: coverageRows(coverage) } : {}) },
   };
   const tool = {
     schema_version: 1, family: 'half-tool', scope: 'linked', Q, window_s: 300,

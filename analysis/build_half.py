@@ -1,13 +1,15 @@
 """Build the half-marathon aggregates, public/data/half/ (docs/HALF_MARATHON.md; spec 2).
 
-    python3 -I analysis/build_half.py --half "$PACE_HALF_DIR/platform_half.sqlite" --links "$PACE_HALF_DIR/links-slim.sqlite" \
-        [--corrected-meta "$PACE_HALF_DIR/half-dataset-20261029-2157/csv-edition_meta.csv.zst"] [--out public/data/half] [--accept-counts]
+    python3 -I analysis/build_half.py --half "$PACE_HALF_DIR/platform_half.sqlite" --links "$PACE_HALF_DIR/links-v4.sqlite" \
+        [--stamp-reference "$PACE_HALF_DIR/half-dataset-20261029-2157/csv-edition_meta.csv.zst"] \
+        [--edition-meta "$PACE_HALF_DIR/csv-edition_meta.csv.zst"] [--out public/data/half] [--accept-counts]
 
-Reads the half snapshot and the links extract read-only (the owner's public CC BY 4.0 release half-dataset-20261029-1202,
-fetched by analysis/download_half.py outside the repository and checked against analysis/half-release.json), the
-corrected edition metadata of half-dataset-20261029-2157 (verified = stamped in both; its sha256 is pinned), the frozen
-policy (analysis/half-policy-20261029-1133.json, checked against analysis/half_quality.py), and the marathon side from
-public files only (the runner shards and the weather evidence).
+Reads the half snapshot and the links extract read-only (the owner's public CC BY 4.0 release half-dataset-20261030-1904
+with person links v4, fetched by analysis/download_half.py outside the repository and checked against
+analysis/half-release.json, schema 3), this release's csv-edition_meta and the stamp reference of half-dataset-20261029-2157
+(verified = stamped in the snapshot's own edition_meta, cross-checked; both sha256 pinned), the frozen policy
+(analysis/half-policy-20261030-1904.json, checked against analysis/half_quality.py), and the marathon side from public
+files only (the runner shards and the weather evidence).
 Writes aggregates only: field.json and women.json (verified half finishes), linked.json and tools/half-to-full.json
 (half and marathon records linked by name), cards.json (the four card plots, read from those files), then
 manifest.json, which binds every file to the pin, the policy, the adopted marathon release, the runner manifest, the
@@ -15,14 +17,13 @@ weather evidence, the cited marathon files and every builder script. The output 
 
 Every count of the policy, the marathon side and set B is asserted by its module. A rebuild whose policy counts or
 cohort differ from the manifest already in --out prints the change and fails unless --accept-counts (a reviewed refresh
-only). DuckDB settings: PACE_HALF_DUCKDB_THREADS (default 2), PACE_HALF_DUCKDB_MEMORY (default 4GB), TMPDIR for spill.
+only). DuckDB settings: PACE_HALF_DUCKDB_THREADS (default 2), PACE_HALF_DUCKDB_MEMORY (default 4GB),
+PACE_HALF_DUCKDB_MAX_TEMP (the spill cap, default 4GB), TMPDIR for spill.
 """
 from __future__ import annotations
 
 import argparse
 import json
-import os
-import re
 import sqlite3
 import sys
 import time
@@ -46,7 +47,7 @@ def log(message: str) -> None:
 
 
 def check_sources(pin: dict, half: Path, links: Path) -> None:
-    """The half snapshot's sha and the links extract's content digest must equal the pin."""
+    """The half snapshot's sha and the links extract's content digest and link build must equal the pin."""
     for path, what in ((half, '--half'), (links, '--links')):
         if not path.is_file():
             fail(f'{what}: missing {path}')
@@ -56,6 +57,8 @@ def check_sources(pin: dict, half: Path, links: Path) -> None:
         fail(f"--half must be the pinned {pin['half']['sqlite']}")
     if links.name != pin['links']['extract']:
         fail(f"--links must be the pinned {pin['links']['extract']}")
+    half_common.check_no_wal(half)
+    pinned = half_common.pinned_digest(pin)
     sha = file_sha256(half)
     if sha != pin['half']['sqlite_sha256']:
         fail(f'{half} is not the pinned half snapshot (sha256 {sha})')
@@ -66,10 +69,32 @@ def check_sources(pin: dict, half: Path, links: Path) -> None:
         digest = half_links_extract.content_sha256(con)
     finally:
         con.close()
-    if digest != pin['links']['extract_content_sha256'] or build.get('extract_content_sha256') != digest:
+    if digest != pinned or build.get('extract_content_sha256') != digest:
         fail(f'{links} is not the pinned links extract (content sha256 {digest})')
-    if build.get('links_tag') != pin['links']['private_tag'] or build.get('pairs_with') != pin['half']['private_tag']:
-        fail(f'{links} was cut from another link build')
+    check_extract_build(pin, links, build)
+
+
+def check_extract_build(pin: dict, links: Path, build: dict) -> None:
+    """The extract's `build` table names what it was cut from and checked against; each must be what this build reads
+    now, else the extract is re-cut (verify round 2, October 31, 2026: the runner manifest its marathon join checks ran
+    on, the frozen ns_keys and k SQL, the marathon release, the snapshot key and the source digests were written and
+    never compared here; the Node recount compares the same keys)."""
+    import half_links_extract
+    if build.get('links_key') != pin['links']['key'] or build.get('applies_to') != pin['links']['applies_to']:
+        fail(f'{links} was cut from another link build or for another snapshot')
+    release = json.loads(half_common.RELEASE_PATH.read_text())['tag']
+    if build.get('marathon_release') != pin['marathon_release'] or build.get('marathon_release') != release or build.get('half_key') != pin['half']['key']:
+        fail(f'{links} was cut for another marathon release or half snapshot; re-cut it (analysis/half_links_extract.py)')
+    sources = {pin['half']['sqlite']: pin['half']['sqlite_sha256'], **pin['links']['assets']}
+    if any(build.get(f'source_sha256:{name}') != sha for name, sha in sources.items()):
+        fail(f'{links} was cut from other sources than the pin names; re-cut it (analysis/half_links_extract.py)')
+    runner_sha = file_sha256(ROOT / 'public' / 'data' / 'runners' / 'manifest.json')
+    if build.get('runner_manifest_sha256') != runner_sha:
+        fail(f'{links} ran its marathon join checks against another runner manifest ({build.get("runner_manifest_sha256")}, '
+             f'now {runner_sha}); re-cut it (analysis/half_links_extract.py)')
+    for key, sql in (('ns_keys_sql_sha256', half_links_extract.NS_KEYS_SQL), ('k_sql_sha256', half_links_extract.K_SQL)):
+        if build.get(key) != half_links_extract.sql_sha256(sql):
+            fail(f'{links} was cut with another frozen {key.removesuffix("_sql_sha256")} SQL than analysis/half_links_extract.py holds; re-cut it')
 
 
 def finishes(db):
@@ -82,27 +107,26 @@ def finishes(db):
 
 
 def as_of(pin: dict) -> str:
-    m = re.search(r'(\d{4})(\d{2})(\d{2})-\d{4}$', pin['half']['private_tag'])
-    if not m:
-        fail(f"cannot read a date from the half snapshot tag {pin['half']['private_tag']}")
-    return f'{m.group(1)}-{m.group(2)}-{m.group(3)}'
+    """The snapshot's date, from half.key (schema 3; private_tag may be null)."""
+    return half_common.snapshot_date(pin)
 
 
 def manifest(pin, policy_sha, module_sha, counts, set_b, marathons, files, out_bytes) -> dict:
     runner_manifest = json.loads((ROOT / 'public/data/runners/manifest.json').read_text())
     from half_pairs import LINK_RULES
     return {
-        'schema_version': 1, 'family': 'half', 'as_of': as_of(pin),
+        'schema_version': 2, 'family': 'half', 'as_of': as_of(pin),
         'access': pin['access'], 'repository': pin['repository'], 'license': pin['license'],
-        'half': {'tag': pin['half']['tag'], 'private_tag': pin['half']['private_tag'], 'sqlite_sha256': pin['half']['sqlite_sha256']},
-        'links': {'tag': pin['links']['tag'], 'private_tag': pin['links']['private_tag'],
-                  'extract_content_sha256': pin['links']['extract_content_sha256']},
-        'metadata_correction': {k: pin['metadata_correction'][k] for k in ('tag', 'asset', 'sha256', 'applied')},
+        'half': {k: pin['half'][k] for k in ('tag', 'key', 'private_tag', 'sqlite_sha256')},
+        'links': {**{k: pin['links'][k] for k in ('tag', 'key', 'private_tag', 'applies_to', 'extract_content_sha256')},
+                  'coverage': {k: pin['links']['coverage'][k] for k in ('half_rows', 'half_max_record_id', 'marathon_rows')}},
+        'stamps': {'rule': pin['stamps']['rule'], 'reference': {k: pin['stamps']['reference'][k] for k in ('tag', 'asset', 'sha256')}},
         'marathon': {'release_tag': runner_manifest['release_tag'], 'runner_manifest_sha256': marathons.manifest_sha256,
                      'runner_manifest_as_of': runner_manifest['as_of'], 'weather_evidence_sha256': marathons.weather_sha256,
                      'inputs': {name: file_sha256(ROOT / 'public/data' / name) for name in MARATHON_INPUTS}},
         'policy': {'file': pin['policy'], 'sha256': policy_sha, 'module_sha256': module_sha,
-                   'counts': {**counts, 'set_b': {k: set_b[k] for k in ('pairs', 'people', 'marathon_editions', 'half_editions')}}},
+                   'counts': {**counts, 'set_b': {k: set_b[k] for k in ('pairs', 'people', 'marathon_editions', 'half_editions',
+                                                                     'halves_in_two_or_more_pairs', 'pairs_with_a_close_marathon')}}},
         'link_rules': LINK_RULES,
         'scripts': {f'analysis/{name}': file_sha256(ANALYSIS / name) for name in SCRIPTS},
         'cohort': {'verified': counts['verified'], 'usable': counts['use_finish'],
@@ -136,17 +160,25 @@ def write(path: Path, data: bytes) -> None:
     tmp.replace(path)
 
 
-def check_correction_pin(pin: dict, correction: dict) -> None:
-    """The pin's metadata correction must be the one the policy reviewed."""
-    mc = pin.get('metadata_correction') or {}
-    for key in ('tag', 'asset', 'sha256', 'readme_sha256', 'applied'):
-        if mc.get(key) != correction[key]:
-            fail(f'analysis/half-release.json metadata_correction.{key} differs from the reviewed stamp correction')
-    if correction['repository'] != pin['repository']:
-        fail('the reviewed stamp correction names another repository than the pin')
+def check_policy_pin(pin: dict, reviewed: dict) -> None:
+    """The pin's stamps, edition_meta CSV and link-build boundary must be the ones the policy reviewed."""
+    stamps = reviewed['stamps']
+    ref = pin['stamps']['reference']
+    for key in ('tag', 'asset', 'sha256', 'readme_sha256'):
+        if ref.get(key) != stamps['reference'][key]:
+            fail(f'analysis/half-release.json stamps.reference.{key} differs from the reviewed stamp reference')
+    if stamps['reference']['repository'] != pin['repository'] or pin['stamps']['rule'] != stamps['rule']:
+        fail('the reviewed stamp reference names another repository or rule than the pin')
+    csv = stamps['edition_meta_csv']
+    if pin['half']['assets'].get(csv['asset']) != csv['sha256']:
+        fail(f"analysis/half-release.json half.assets {csv['asset']} differs from the policy's reviewed edition_meta CSV")
+    le = reviewed['link_editions']
+    if le['link_build'] != pin['links']['key'] or le['half_max_record_id'] != pin['links']['coverage']['half_max_record_id']:
+        fail("the policy's link-build editions were reviewed for another link build or coverage boundary")
 
 
-def run(half: Path, links: Path, out: Path, accept_counts: bool = False, corrected_meta: Path | None = None) -> dict:
+def run(half: Path, links: Path, out: Path, accept_counts: bool = False, stamp_reference: Path | None = None,
+        edition_meta: Path | None = None) -> dict:
     started = time.time()
     import half_cards
     import half_field
@@ -156,34 +188,37 @@ def run(half: Path, links: Path, out: Path, accept_counts: bool = False, correct
     import half_quality
     import half_women
     pin = load_pin()
-    if pin['half']['private_tag'] != half_quality.TAG or pin['policy'] != half_quality.REVIEWED_HALF_POLICIES[half_quality.TAG]['file']:
+    key = pin['half']['key']
+    if key != half_quality.TAG or pin['policy'] != half_quality.REVIEWED_HALF_POLICIES[half_quality.TAG]['file']:
         fail('the pin and the reviewed policy name different snapshots or policy files')
-    policy_sha = half_quality.check_policy_file(half_quality.TAG)
+    reviewed = half_quality.REVIEWED_HALF_POLICIES[key]
+    policy_sha = half_quality.check_policy_file(key)
     module_sha = half_quality.module_sha256()
-    correction = half_quality.REVIEWED_HALF_POLICIES[half_quality.TAG]['correction']
-    check_correction_pin(pin, correction)
+    check_policy_pin(pin, reviewed)
     check_sources(pin, half, links)
-    rows = half_quality.read_correction(corrected_meta or half_quality.default_correction_path(), correction)
-    log(f'sources and the corrected metadata match the pin ({time.time() - started:.0f} s)')
+    stamp_inputs = half_quality.read_stamp_inputs(key, stamp_reference, edition_meta)
+    log(f'sources, the stamp reference and the edition_meta CSV match the pin ({time.time() - started:.0f} s)')
 
     db = half_common.connect(half=half, links=links)
-    policy = half_quality.apply(db, half_quality.TAG, correction_rows=rows)
+    policy = half_quality.apply(db, key, stamp_inputs=stamp_inputs)
     fin = finishes(db)
     log(f"policy applied: {policy.counts['use_finish']['finishes']:,} usable finishes ({time.time() - started:.0f} s)")
     marathons = half_marathon.load()
     log(f'marathon side: {marathons.n:,} eligible finishes ({time.time() - started:.0f} s)')
-    pairs = half_pairs.build(db, marathons, pin['links']['private_tag'])
+    link_editions = half_quality.link_editions(key)
+    pairs = half_pairs.build(db, marathons, pin['links']['key'], link_editions=link_editions)
     set_b = half_pairs.summary(pairs)
-    coverage = half_pairs.coverage(db, marathons)
+    coverage = half_pairs.coverage(db, marathons, link_editions=link_editions)
     log(f"set B: {set_b['pairs']:,} pairs ({time.time() - started:.0f} s)")
     db.close()
 
     families = {
         'field.json': half_field.build(fin, policy_sha256=policy_sha, module_sha256=module_sha,
-                                       label_countries=half_quality.REVIEWED_HALF_POLICIES[half_quality.TAG]['label_countries']),
-        'women.json': half_women.build(fin, policy.editions, marathons, half_quality.SAME_CITY_LABELS),
+                                       label_countries=reviewed['label_countries']),
+        'women.json': half_women.build(fin, policy.editions, marathons, reviewed['rules']['same_city_labels']),
     }
-    families['linked.json'], families['tools/half-to-full.json'], _ = half_linked.build(pairs, coverage=coverage)
+    families['linked.json'], families['tools/half-to-full.json'], _ = half_linked.build(pairs, coverage=coverage,
+                                                                                    **half_quality.battery_lists(key))
     families['cards.json'] = half_cards.build(families['field.json'], families['women.json'], families['linked.json'])
     out_bytes = {}
     for name, value in families.items():
@@ -199,18 +234,22 @@ def run(half: Path, links: Path, out: Path, accept_counts: bool = False, correct
 
 
 def main(argv=None) -> int:
-    half_dir = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1133')
+    import half_quality
+    half_dir = half_quality.half_dir()
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     parser.add_argument('--half', type=Path, default=half_dir / 'platform_half.sqlite', help='the half snapshot (platform_half.sqlite)')
-    parser.add_argument('--links', type=Path, default=half_dir / 'links-slim.sqlite', help='the links extract (links-slim.sqlite)')
-    parser.add_argument('--corrected-meta', type=Path, default=None,
-                        help='the corrected edition_meta CSV of the pinned metadata correction (default $PACE_HALF_DIR/<tag>/<asset>)')
+    parser.add_argument('--links', type=Path, default=half_dir / 'links-v4.sqlite', help='the links extract (links-v4.sqlite)')
+    parser.add_argument('--stamp-reference', type=Path, default=None,
+                        help='the pinned stamp reference CSV (default $PACE_HALF_DIR/<reference tag>/csv-edition_meta.csv.zst)')
+    parser.add_argument('--edition-meta', type=Path, default=None,
+                        help="this release's csv-edition_meta.csv.zst (default $PACE_HALF_DIR/csv-edition_meta.csv.zst)")
     parser.add_argument('--out', type=Path, default=OUTPUT)
     parser.add_argument('--accept-counts', action='store_true', help='accept reviewed count changes (a refresh only)')
     args = parser.parse_args(argv)
     try:
         run(args.half.expanduser(), args.links.expanduser(), args.out, args.accept_counts,
-            args.corrected_meta.expanduser() if args.corrected_meta else None)
+            args.stamp_reference.expanduser() if args.stamp_reference else None,
+            args.edition_meta.expanduser() if args.edition_meta else None)
     except HalfError as error:
         print(f'build_half: {error}', file=sys.stderr)
         return 1

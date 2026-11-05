@@ -1,4 +1,40 @@
 {
   "repository": "koolkam00/pace-notes",
-  "tag": "private-export-20261021-1050"
+  "tag": "master-20261103b",
+  "layout": "master",
+  "published_at": "2026-11-03T23:10:56Z",
+  "sha256sums_sha256": "b2dc190ed25a59c1a2175a46661db0cb3d2abf5e3814e98eb8eb9ceddf2c2065",
+  "assets": {
+    "master_results_FULL.parquet": "41d575cde127c94a9acf4242cc4d385701bb1e7568ba2e8ee65e4341e15b69db",
+    "editions.csv": "3522002d59f6a9df660b6c541c33f8da5e702e7dd05b1d43d36d3cfc4b15279b",
+    "MANIFEST_editions.csv": "369edb123d7450c84d092fd27a3bd2afdd1fae2e3a0dcd064e30040deeb95b88",
+    "marathon_record_flags_detail.parquet": "ed2f7a033cd195c2baade469d01d80163cb1c0bdf293b7380369b70467d69378",
+    "NYC2026_rows_missing_splits.csv": "bf3dba365f99cd40a51a62e37e0ec74a9eb7f69c1550e795d08e83a7c559aeed",
+    "sources.csv": "6702e4467a2f22639914ee3436c39319409988ec3da076bbe412f0f5ad402770",
+    "QA-REPORT.json": "c52638fba148b8f5332d65d3700efe5be5459f467c6f9300d30210ebca0273d1",
+    "README.md": "37bd1205490ab657dcac3d62f8d3b367786697ccd36a57f50397dc2a0b2dd46b",
+    "DATA_DICTIONARY.md": "ed641d18cf43f1cf48df3a62eab3ab492a26590b3be91fee1d538c5b5e7143b7",
+    "CHANGELOG.md": "b65e348d07e96b9a85ca6761290062354f9440624f390d82be33afae69f94386"
+  },
+  "overlays": {
+    "tag": "dataset-20261103-0706",
+    "published_at": "2026-11-03T12:27:45Z",
+    "sha256sums_sha256": "d9f37a77dad7b04f59e7e75b27e7af9e8653c2b09464685690c5e5d06dd62d54",
+    "assets": {
+      "marathon-race_conditions.csv.zst": "4a781f7cecb1bd8dd6b1e883a0b5c25b63bf3937bfa6219ed08c710be50ad3b5",
+      "marathon-course_profiles.csv.zst": "ce69dee207c261912299bc4e943384cf4119fd0fb4aa686d3845b0d5d99ccfcf",
+      "marathon-course_segments.csv.zst": "37a3e8a935fea734002a31d668c03ab2984379f08d850bffce61848b3119c5bb",
+      "marathon-sources.csv.zst": "62d788120af0d8df5fdd8635b4de1363800f7ea566ebc6172358028d93f39857",
+      "marathon-edition_meta.csv.zst": "233a59f877d09d3d50a93d5e069206078a82c7b6f9b88649b727b0cc21b53c3f",
+      "marathon-record_flags.csv.zst": "862cb0ea493476b62b116e99669bdb0bd2a40ef35e793c5ae50468e862c5344a"
+    }
+  },
+  "baseline": {
+    "tag": "private-export-20261021-1050",
+    "published_at": "2026-10-21T15:14:49Z",
+    "asset": "pace-notes-CORE-20261021-1050.tar.gz",
+    "sha256": "b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8",
+    "checksums_asset": "RELEASE-SHA256SUMS-20261021-1050.txt",
+    "checksums_sha256": "a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f"
+  }
 }

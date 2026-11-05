@@ -87,20 +87,24 @@ function loadMarathons(root) {
   }
   const day = new Float64Array(editions.length).fill(NaN);
   const eligibleEditions = new Set(edition);
-  const keys = new Set();
+  const keys = new Set(), undated = [];
   for (const e of eligibleEditions) {
     const ed = editions[e];
     const key = `${ed.city}\u0000${ed.year}`;
     need(!keys.has(key), `two eligible editions share ${ed.city} ${ed.year}`);
     keys.add(key);
     const text = dateOf.get(key);
+    // No weather row: no race date (New York 2026 in master-20261103b). The edition keeps its finishes, supplies no
+    // pair (its day stays NaN) and is returned in `undated` for the reviewed list (November 4, 2026); nothing is filled in.
+    if (text === undefined) { undated.push([ed.city, ed.year]); continue; }
     need(typeof text === 'string' && Number(text.slice(0, 4)) === ed.year && dayNumber(text) !== null, `no race date for ${ed.city} ${ed.year}`);
     day[e] = dayNumber(text);
   }
+  undated.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1]));
   let slowdowns = 0;
   for (let i = 0; i < n; i++) slowdowns += sustained[i];
   return {
-    n, id, edition, gender, finish, sustained, editions, rawN, day, slowdowns, datedEditions: eligibleEditions.size,
+    n, id, edition, gender, finish, sustained, editions, rawN, day, slowdowns, datedEditions: eligibleEditions.size - undated.length, undated,
     manifestSha: sha(manifestBytes), weatherSha: sha(weatherBytes), releaseTag: release.tag,
   };
 }

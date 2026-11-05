@@ -192,10 +192,40 @@ RULES_1050 = [
      'and no recorded finish is slower than 7:13 (8:15 or later in every other Chicago year). A finisher set cut off when a '
      'race was stopped is not comparable with other editions.'),
 ]
-REVIEWED_POLICIES = {RELEASE: RULES, LATEST_RELEASE: LATEST_RULES, RELEASE_1652: RULES_1652, RELEASE_1050: RULES_1050}
+# Reviewed November 4, 2026 for master-20261103b, adapted by analysis/adapt_master.py (docs/REFRESH_20261103b.md;
+# evidence in docs/evidence/2026-11-04/release-master-20261103b/). Against 1050 the adapted records repeat every 1050
+# record byte for byte except Amsterdam 2023 (16,013 finishes filled in place, 39 records added) and add New York 2026
+# (61,062 records); the per-edition checksums of the other 297 editions are unchanged. The virtual Amsterdam 2020 stays
+# out of CORE, as in 1050. RULES_1050 carries forward, decisions unchanged, with these changes:
+# - Released: New York 2008 (the producer now lists it complete: 38,047 finishes against 38,096 official, -0.13%; the
+#   1050 hold was this re-check, and the earlier 200-record partial load is long replaced) and Amsterdam 2023 (complete:
+#   16,069 against 16,069; the finish column, whose absence was the 1050 reason, is filled). Both pass the timing screens
+#   (98.27% and 98.82% timing-eligible; 98.3/96.7% and 98.9/98.4% of the quarters with the shortest and longest finishes;
+#   1 and 0 mixed-basis grids). New York 2026 is new and not listed: the producer stamped it (-0.14% against the
+#   provisional official count) and it passes the screens (98.64%, 99.8/95.2%, 0).
+# - Master carries no hold field, so the reasons that said "Producer marks this edition HOLD" now cite the producer's
+#   current status, which for every one of them is partial; counts and the other words are unchanged. The two Valencia
+#   reasons, which cited older hold notes, cite the same status and the facts its reason gives.
+# - London 2025 and 2026 stay in under the owner's October 21, 2026 decision ("Keep London 2025-26"; lib/kept-holds.json).
+RELEASE_MASTER_20261103B = 'master-20261103b'
+_RELEASED_MASTER_20261103B = {('New York', 2008), ('Amsterdam', 2023)}
+_PARTIAL = 'The producer lists this edition as partial'
+_REWORDED_MASTER_20261103B = {
+    ('Valencia', 2017):
+        f'{_PARTIAL}: 3,373 listed detail pages returned errors and were not loaded; the observed records also lack 20 km.',
+    ('Valencia', 2018):
+        f'{_PARTIAL} and its source note says incomplete; the edition also lacks the observed 20 km checkpoint.',
+}
+RULES_MASTER_20261103B = [
+    (city, year, category, _REWORDED_MASTER_20261103B.get((city, year), reason.replace('Producer marks this edition HOLD', _PARTIAL)))
+    for city, year, category, reason in RULES_1050 if (city, year) not in _RELEASED_MASTER_20261103B
+]
+REVIEWED_POLICIES = {RELEASE: RULES, LATEST_RELEASE: LATEST_RULES, RELEASE_1652: RULES_1652, RELEASE_1050: RULES_1050,
+                     RELEASE_MASTER_20261103B: RULES_MASTER_20261103B}
 METHOD = ('Apply the reviewed source-quality edition exclusions for this exact export after the timing checks. '
           'Known invalid split grids (including grids that mix timing bases, a checkpoint that stopped recording partway '
-          'through the field and a virtual edition), incomplete ingestion, unreconciled HOLD editions and selected fields '
+          'through the field and a virtual edition), incomplete ingestion, editions not reconciled with the official '
+          'finisher count (held, or listed by the producer as partial or unverified) and selected fields '
           '(a top-finisher list, or finishers cut off when a race was stopped) do not contribute to the analyses or prior '
           'benchmarks. Report source exclusions separately; an already invalid timing row is not counted twice. Missing age '
           'or recorded gender alone does not exclude an otherwise eligible finish from the overall cohort. Other sparse '

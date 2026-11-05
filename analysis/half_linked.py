@@ -38,6 +38,21 @@ CHECK_GOAL = 14400
 GROUPS = ('all', 'F', 'M')
 MID_HALF_S = (6000, 7200)                # the halves of 1:40 to 1:59, where the cities' minutes over double are compared
 COVERAGE_MIN = {'finishes': 1000, 'linked': MIN_CELL}
+# The flagship guard's member clauses (spec 3.2): every member's median multiple within MULTIPLE_BAND (inclusive) and,
+# re-expressed at the pooled median half, within GAP_S of the pooled minutes over double; every member's under-double
+# share under UNDER_DOUBLE_MAX; the verified-halves and one-pair-per-person minutes within GAP_S of the pooled.
+MULTIPLE_BAND = (2.15, 2.25)
+GAP_S = 180
+UNDER_DOUBLE_MAX = 0.15
+# The one-verified-half-edition-out variants (half_quality.BATTERY_RULES, pre-registered 2026-10-30): for each member,
+# the clauses every variant must pass, the ones that member must pass; and the worst variant kept for each clause (the band
+# has two sides).
+LEAVE_OUTS = {'verified_halves': ('multiple', 'reexpressed', 'under_double', 'extra'),
+              'verified_federation': ('multiple', 'reexpressed', 'under_double')}
+WORST = {'multiple': ('multiple_low', 'multiple_high'), 'reexpressed': ('reexpressed',), 'under_double': ('under_double',),
+         'extra': ('extra',)}
+# The members the guard's clauses name; a battery without any of them cannot pass.
+GUARD_MEMBERS = ('pooled', 'verified_halves', 'verified_federation', 'verified_road', 'one_per_person')
 
 
 class Pairs:
@@ -150,18 +165,76 @@ def under_goal_at(p, H=CHECK_WINDOW, G=CHECK_GOAL):
     return sh((w < G).mean())
 
 
-def battery(p):
-    """The flagship's weighting checks: pooled medians for pair members; medians over editions or cities otherwise."""
+def member_values(m, h) -> dict:
+    """A pair member's published values: pairs, median multiple, median minutes over double, under-double share."""
+    extra = m - 2 * h
+    return {'n': int(len(m)), 'multiple_p50': r(quantile(m / h, 0.5), 4), 'extra_p50_s': sec(quantile(extra, 0.5)),
+            'under_double': sh((extra < 0).mean())}
+
+
+def passes(clause: str, v: dict, extra, half) -> bool:
+    """One member clause of the flagship guard, on a member's or a variant's published values (`extra` and `half` are the
+    pooled minutes over double and the pooled median half)."""
+    if clause == 'multiple':
+        return MULTIPLE_BAND[0] <= v['multiple_p50'] <= MULTIPLE_BAND[1]
+    if clause == 'reexpressed':
+        return abs((v['multiple_p50'] - 2) * half - extra) <= GAP_S
+    if clause == 'under_double':
+        return v['under_double'] < UNDER_DOUBLE_MAX
+    if clause == 'extra':
+        return abs(extra - v['extra_p50_s']) <= GAP_S
+    fail(f'linked: unknown guard clause {clause!r}')
+
+
+def worst_key(key: str, extra, half):
+    """The order that puts the worst variant of a clause first (ties: the lower edition id)."""
+    return {
+        'multiple_low': lambda v: (v['multiple_p50'], v['half_edition']),
+        'multiple_high': lambda v: (-v['multiple_p50'], v['half_edition']),
+        'reexpressed': lambda v: (-abs((v['multiple_p50'] - 2) * half - extra), v['half_edition']),
+        'under_double': lambda v: (-v['under_double'], v['half_edition']),
+        'extra': lambda v: (-abs(extra - v['extra_p50_s']), v['half_edition']),
+    }[key]
+
+
+def leave_outs(p, mask, clauses, extra, half) -> dict:
+    """The one-verified-half-edition-out variants of the member `mask` selects: one per half edition with a pair in it,
+    that edition's pairs left out. A variant under MIN_CELL pairs is not published and cannot pass (`under_floor`); of
+    the others, `failing` counts those failing each clause, `failed` those failing any (or under the floor), and `worst`
+    names the worst for each clause by its edition id, with its values."""
+    hed = p.frame.h_edition_id.to_numpy('int64')[mask]
+    m, h = p.m[mask], p.h[mask]
+    variants, under_floor = [], 0
+    for ed in sorted(set(hed.tolist())):
+        keep = hed != ed
+        if keep.sum() < MIN_CELL:
+            under_floor += 1
+            continue
+        variants.append({'half_edition': int(ed), 'left_out': int((~keep).sum()), **member_values(m[keep], h[keep])})
+    worst = {k: (min(variants, key=worst_key(k, extra, half)) if variants else None) for c in clauses for k in WORST[c]}
+    return {'variants': len(variants) + under_floor, 'under_floor': under_floor,
+            'failing': {c: sum(not passes(c, v, extra, half) for v in variants) for c in clauses},
+            'failed': under_floor + sum(any(not passes(c, v, extra, half) for c in clauses) for v in variants),
+            'worst': worst}
+
+
+def battery(p, weaker_source, off_road_labels):
+    """The flagship's weighting checks: pooled medians for pair members; medians over editions or cities otherwise; and
+    the one-verified-half-edition-out variants of verified_halves and verified_federation. `weaker_source` (edition ids)
+    and `off_road_labels` (half edition labels) are the policy's (half_quality.battery_lists)."""
     mult = p.m / p.h
     members = []
 
     def pairs_member(id_, q):
-        mq = q.m / q.h
-        members.append({'id': id_, 'n': int(q.n), 'multiple_p50': r(quantile(mq, 0.5), 4), 'extra_p50_s': sec(quantile(q.extra, 0.5)),
-                        'under_double': sh((q.extra < 0).mean())})
+        members.append({'id': id_, **member_values(q.m, q.h)})
 
+    verified = p.frame.verified.to_numpy(bool)
+    federation = verified & ~p.frame.h_edition_id.isin(sorted(weaker_source)).to_numpy(bool)
+    road = verified & ~p.frame.h_label.isin(sorted(off_road_labels)).to_numpy(bool)
     pairs_member('pooled', p)
-    pairs_member('verified_halves', p.subset(p.frame.verified.to_numpy(bool)))
+    pairs_member('verified_halves', p.subset(verified))
+    pairs_member('verified_federation', p.subset(federation))
+    pairs_member('verified_road', p.subset(road))
     pairs_member('other_marathons', p.subset(~np.isin(p.city, OTHER_THAN)))
     pairs_member('ns_keys_1', p.subset(p.frame.ns_keys.to_numpy() == 1))
     pairs_member('one_per_person', latest_per_person(p))
@@ -180,7 +253,10 @@ def battery(p):
     for k in EDITIONS_EQUAL:
         groups_member(f'editions_equal_{k}', p.ed, k)
     groups_member('city_equal', p.city, CITY_EQUAL['min_pairs'], CITY_EQUAL['min_editions'])
-    return {'pooled_half_p50_s': sec(quantile(p.h, 0.5)), 'members': members}
+    half, extra = sec(quantile(p.h, 0.5)), members[0]['extra_p50_s']
+    masks = {'verified_halves': verified, 'verified_federation': federation}
+    return {'pooled_half_p50_s': half, 'members': members,
+            'leave_outs': {id_: leave_outs(p, masks[id_], clauses, extra, half) for id_, clauses in LEAVE_OUTS.items()}}
 
 
 def multiple_by_band(p, lo, hi):
@@ -214,6 +290,27 @@ def by_city(p):
     return out
 
 
+def pairs_from(p):
+    """Where the pairs come from, for /methodology's limits sentence: the fewest marathon cities, most pairs first (ties by
+    name), that together hold more than half of the pairs, counted over every marathon city of set B (a count of pairs,
+    not a per-city reading, so no edition floor; verify round 1, October 31, 2026: by_city's 3-edition rule left out the
+    second-largest source). Each city's pairs and marathon editions; null when one of them holds under 100 pairs."""
+    counts = {}
+    for city, ed in zip(p.city.tolist(), p.ed.tolist()):
+        c = counts.setdefault(str(city), [0, set()])
+        c[0] += 1
+        c[1].add(ed)
+    cities, held = [], 0
+    for city, (n, eds) in sorted(counts.items(), key=lambda kv: (-kv[1][0], kv[0])):
+        if 2 * held > p.n:
+            break
+        cities.append({'city': city, 'pairs': n, 'e': len(eds)})
+        held += n
+    if any(c['pairs'] < MIN_CELL for c in cities):
+        return None
+    return {'cities': cities, 'pairs': held}
+
+
 def coverage_rows(rows):
     """Link coverage by marathon city: cities with at least 1,000 eligible finishes and 100 linked ones, by share."""
     out = [{'city': c['city'], 'finishes': c['finishes'], 'share': sh(c['linked'] / c['finishes'])} for c in rows
@@ -222,7 +319,7 @@ def coverage_rows(rows):
     return out
 
 
-def checks(p):
+def checks(p, weaker_source, off_road_labels):
     ver = p.subset(p.frame.verified.to_numpy(bool))
     eds = {}
     for key in sorted(set(p.ed.tolist())):
@@ -234,7 +331,9 @@ def checks(p):
     other = p.subset(~np.isin(p.city, OTHER_THAN))
     ns1 = p.subset(p.frame.ns_keys.to_numpy() == 1)
     one = latest_per_person(p)
-    no_merge = p.subset(~p.frame.in_candidate_merge.to_numpy(bool))
+    # People none of whose rows joined through one of the link build's unions (v4 applies its own middle-name and
+    # nationality unions; with runner links v1 this was `no_merge_people`, people in no candidate merge).
+    no_union = p.subset(~p.frame.in_union.to_numpy(bool))
     vs = sexes(ver)
     return {
         'verified': {'pairs': int(ver.n), 'extra_p50_s': sec(quantile(ver.extra, 0.5)), 'under_double': sh((ver.extra < 0).mean()),
@@ -246,31 +345,51 @@ def checks(p):
         'other_marathons': {'pairs': int(other.n), 'extra_p50_s': sec(quantile(other.extra, 0.5)), 'w105_under_14400': under_goal_at(other)},
         'ns_keys_1': {'pairs': int(ns1.n), 'w105_under_14400': under_goal_at(ns1)},
         'one_per_person': {'pairs': int(one.n), 'w105_under_14400': under_goal_at(one)},
-        'no_merge_people': {'pairs': int(no_merge.n), 'extra_p50_s': sec(quantile(no_merge.extra, 0.5))},
-        'battery': battery(p),
+        'no_union_people': {'pairs': int(no_union.n), 'extra_p50_s': sec(quantile(no_union.extra, 0.5))},
+        'battery': battery(p, weaker_source, off_road_labels),
     }
+
+
+def leave_outs_pass(battery: dict, extra, half) -> bool:
+    """Every one-verified-half-edition-out variant passes every clause its member must pass: none under the floor, and the
+    worst variant of each clause passing it."""
+    found = battery.get('leave_outs') or {}
+    for id_, clauses in LEAVE_OUTS.items():
+        x = found.get(id_)
+        if not x or x['under_floor'] or not x['variants']:
+            return False
+        for c in clauses:
+            for k in WORST[c]:
+                w = x['worst'].get(k)
+                if w is None or not passes(c, w, extra, half):
+                    return False
+    return True
 
 
 def flagship_guard(linked: dict) -> bool:
     """The flagship H1's guard (spec 3.2), the rule lib/nuggets/half.ts applies to `half.extra`: enough pairs and
     marathon editions; the pooled minutes over double between 10 and 60; every battery member's multiple within
     [2.15, 2.25] and, re-expressed at the pooled median half, within 3 minutes of the pooled minutes; the verified-halves
-    and one-pair-per-person minutes within 3 minutes of the pooled; every member's under-double share under 15%."""
+    and one-pair-per-person minutes within 3 minutes of the pooled; every member's under-double share under 15%; and,
+    pre-registered on 2026-10-30, every one-verified-half-edition-out variant of verified_halves and verified_federation
+    passing the clauses its member must pass (LEAVE_OUTS)."""
     battery = linked['checks']['battery']
     members = {m['id']: m for m in battery['members']}
+    if not all(k in members for k in GUARD_MEMBERS):
+        return False
     pooled = members['pooled']
     extra, half = pooled['extra_p50_s'], battery['pooled_half_p50_s']
     return (linked['set']['pairs'] >= MIN_CELL and linked['set']['marathon_editions'] >= MIN_EDITIONS and 600 <= extra <= 3600
-            and all(2.15 <= m['multiple_p50'] <= 2.25 for m in members.values())
-            and all(abs((m['multiple_p50'] - 2) * half - extra) <= 180 for m in members.values())
-            and abs(extra - members['verified_halves']['extra_p50_s']) <= 180
-            and abs(extra - members['one_per_person']['extra_p50_s']) <= 180
-            and all(m['under_double'] < 0.15 for m in members.values()))
+            and all(passes(c, m, extra, half) for m in members.values() for c in ('multiple', 'reexpressed', 'under_double'))
+            and passes('extra', members['verified_halves'], extra, half)
+            and passes('extra', members['one_per_person'], extra, half)
+            and leave_outs_pass(battery, extra, half))
 
 
-def build(frame, coverage=None):
+def build(frame, coverage=None, *, weaker_source, off_road_labels):
     """(linked.json, tools/half-to-full.json, the published ranges). `coverage` (half_pairs.coverage) adds the link
-    coverage by marathon city to the checks; the builder always passes it."""
+    coverage by marathon city to the checks; the builder always passes it. `weaker_source` and `off_road_labels` define
+    the battery's verified_federation and verified_road members (half_quality.battery_lists)."""
     p = Pairs(frame)
     if p.n < MIN_CELL:
         fail('linked: set B is under the floor')
@@ -302,8 +421,8 @@ def build(frame, coverage=None):
         'windows': {g: [clean(w) for w in windows[g]] for g in GROUPS},
         'sexes': {'rule': 'half band x marathon city, >=20 pairs per sex', **sexes(p)},
         'goals': goals,
-        'checks': {**checks(p), 'multiple_by_band': multiple_by_band(p, *ranges['all']), 'by_city': by_city(p),
-                   **({'coverage': coverage_rows(coverage)} if coverage is not None else {})},
+        'checks': {**checks(p, weaker_source, off_road_labels), 'multiple_by_band': multiple_by_band(p, *ranges['all']), 'by_city': by_city(p),
+                   'pairs_from': pairs_from(p), **({'coverage': coverage_rows(coverage)} if coverage is not None else {})},
     }
     tool = {
         'schema_version': 1, 'family': 'half-tool', 'scope': 'linked', 'Q': Q, 'window_s': WINDOW_S,

@@ -80,6 +80,10 @@ async function reading(h) {
   await page.waitForURL(url => new URL(url).pathname === storyB);
   await page.waitForSelector('.story-page', { timeout: 30000 });
   await page.waitForTimeout(1500);
+  // A reader sees the hero before scrolling past it. On a slow runner the hero's section view can still be in the
+  // SDK's batch when the fixed pause ends (CI, November 5, 2026: round numbers sent no hero before the full load to
+  // /about; it passed 3 of 3 locally). Wait, up to 15 s, until it has been sent; the check below still needs exactly one.
+  await waitFor(() => named(run, 'section_viewed').some(p => p.section === 'hero' && p.$pathname === storyB), 15000);
   await toBottom();
   await page.waitForTimeout(800);
   await page.goto(SITE + '/about', { waitUntil: 'load' });
@@ -637,9 +641,9 @@ async function terrainFigures(h) {
   h.check('terrain: Published research on the card and the band, no Pace Notes data badge on either; the band\'s kicker; the fold\'s terrain beside even pace, no Finishes row',
     JSON.stringify(plan.card) === '["evidence-research"]' && JSON.stringify(plan.band) === '["evidence-research"]' && plan.kicker === '5:15 · New York · terrain splits'
       && JSON.stringify(plan.head) === '["Mat","Terrain","Even pace"]' && JSON.stringify(plan.first) === '["37:19","37:20"]' && !plan.finishesRow && plan.print === false, plan);
-  h.check('terrain: the As run panel, Pace Notes data, with the forewarning (48%, sustained slowdown linked) and the medians as they ran (5K 32:52)',
+  h.check('terrain: the As run panel, Pace Notes data, with the forewarning (48%, sustained slowdown linked) and the medians as they ran (5K 32:56)',
     plan.title === 'As run near 5:15 in New York' && JSON.stringify(plan.asRunBadges) === '["evidence-data"]' && plan.note.includes('48%') && plan.note.includes('Not splits to copy.')
-      && plan.term === '/methodology#sustained-slowdown' && plan.all5k === '32:52', plan);
+      && plan.term === '/methodology#sustained-slowdown' && plan.all5k === '32:56', plan); // 32:52 on 1050; New York 2026 joins the cell (November 4, 2026)
   h.check('terrain: the planner says Berlin, Oslo and Prague have no terrain splits (the same words for either reason), and nothing for an unknown course or on all courses', lines.berlin.none === 'Even pace: no terrain splits for Berlin.'
     && lines.oslo.none === 'Even pace: no terrain splits for Oslo.' && lines.prague.none === 'Even pace: no terrain splits for Prague.' && lines.nowhere.none === '' && lines.all.none === ''
     && Object.values(lines).every((l) => l.seg === 0 && !l.terrain), lines);
@@ -873,7 +877,13 @@ async function halfSections(h) {
   const halfIds = ['hero', 'chapter-1', 'chapter-2', ...(women.band_editions.length >= women.min_band_editions ? ['chapter-3'] : []), 'chapter-4', 'related'];
   h.check(`/half marks ${halfIds.join(', ')}, each once, in page order`, JSON.stringify(halfOrder) === JSON.stringify(halfIds) && JSON.stringify(sections('/half')) === JSON.stringify(halfOrder), { page: halfOrder, sent: sections('/half') });
   h.check('/stories/half-to-full marks hero, chapter-1, chapter-2 and related, each once, in page order', JSON.stringify(storyOrder) === JSON.stringify(['hero', 'chapter-1', 'chapter-2', 'related']) && JSON.stringify(sections('/stories/half-to-full')) === JSON.stringify(storyOrder), { page: storyOrder, sent: sections('/stories/half-to-full') });
-  h.check('the half-to-full guess reveals its answer ("1 in 10")', /1 in 10/.test(verdict), verdict);
+  // The answer is the recorded women's share at the flagship half (the window the guess asks about), in either of the
+  // nugget's forms ("About 1 in 10" or "14%"), read from linked.json so a rebuilt half release leaves no typed answer
+  // behind (v4 adoption, October 31, 2026: "1 in 10" on the 1133 build, "14%" on the 1904 build).
+  const linked = JSON.parse(require('node:fs').readFileSync(path.join(ROOT, 'public/data/half/linked.json'), 'utf8'));
+  const flagF = linked.windows.F.find((w) => w.h === Math.round(linked.checks.battery.pooled_half_p50_s / 300) * 300);
+  const answers = flagF ? [`${Math.round(flagF.sus * 100)}%`, `${Math.round(flagF.sus * 10)} in 10`] : [];
+  h.check(`the half-to-full guess reveals its answer (${answers.join(' or ')})`, answers.some((a) => verdict.includes(a)), verdict);
   h.check('the guess writes no storage key and sends no event of its own', JSON.stringify(before) === JSON.stringify(after) && !sinceGuess.length, { before, after, events: shown(sinceGuess) });
 }
 

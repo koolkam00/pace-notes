@@ -194,7 +194,7 @@ export type HalfGoal = {
 };
 
 export type HalfBatteryId =
-  | 'pooled' | 'verified_halves' | 'other_marathons' | 'ns_keys_1' | 'one_per_person'
+  | 'pooled' | 'verified_halves' | 'verified_federation' | 'verified_road' | 'other_marathons' | 'ns_keys_1' | 'one_per_person'
   | 'editions_equal_20' | 'editions_equal_100' | 'city_equal';
 
 /**
@@ -203,6 +203,34 @@ export type HalfBatteryId =
  * each group's median multiple, median extra and under-double share (`n` editions or cities).
  */
 export type HalfBatteryMember = { id: HalfBatteryId; n: number; multiple_p50: number; extra_p50_s: number; under_double: number };
+
+/** The members whose one-verified-half-edition-out variants the flagship guard judges (pre-registered October 30, 2026). */
+export type HalfLeaveOutParent = 'verified_halves' | 'verified_federation';
+/** A guard clause a leave-out variant must pass, as its member does; `extra` (its own minutes) for verified_halves only. */
+export type HalfLeaveOutClause = 'multiple' | 'reexpressed' | 'under_double' | 'extra';
+/** The worst variant kept for each clause (the multiple's band has two sides). */
+export type HalfLeaveOutWorstKey = 'multiple_low' | 'multiple_high' | 'reexpressed' | 'under_double' | 'extra';
+
+/**
+ * One variant of a member without one verified half edition: that edition's id in the snapshot (no label), the pairs
+ * left out, and the member's values on the pairs kept (at least 100).
+ */
+export type HalfLeaveOutVariant = {
+  half_edition: number; left_out: number; n: number; multiple_p50: number; extra_p50_s: number; under_double: number;
+};
+
+/**
+ * A member's one-verified-half-edition-out variants: how many (one per verified half edition with a pair in it), how
+ * many fall under the 100-pair floor (they cannot pass), how many fail each clause and any clause, and the worst for each
+ * clause (null when no variant holds 100 pairs).
+ */
+export type HalfLeaveOuts = {
+  variants: number;
+  under_floor: number;
+  failing: Partial<Record<HalfLeaveOutClause, number>>;
+  failed: number;
+  worst: Partial<Record<HalfLeaveOutWorstKey, HalfLeaveOutVariant | null>>;
+};
 
 export type HalfLinked = {
   schema_version: 1;
@@ -241,12 +269,17 @@ export type HalfLinked = {
     other_marathons: { pairs: number; extra_p50_s: number; w105_under_14400: number };
     ns_keys_1: { pairs: number; w105_under_14400: number };
     one_per_person: { pairs: number; w105_under_14400: number };
-    no_merge_people: { pairs: number; extra_p50_s: number };
-    battery: { pooled_half_p50_s: number; members: HalfBatteryMember[] };
+    no_union_people: { pairs: number; extra_p50_s: number };
+    battery: { pooled_half_p50_s: number; members: HalfBatteryMember[]; leave_outs: Record<HalfLeaveOutParent, HalfLeaveOuts> };
     /** The median multiple in each 5-minute band of the all-pairs range. */
     multiple_by_band: { h: number; ratio_p50: number }[];
     /** Marathon cities of at least 100 pairs from 3 editions (the battery's city_equal cities). */
     by_city: HalfLinkedCity[];
+    /**
+     * Where the pairs come from (the limits sentences): the fewest marathon cities, most pairs first, that together hold
+     * more than half of the pairs, over every marathon city of set B; null when one of them holds under 100 pairs.
+     */
+    pairs_from: { cities: { city: string; pairs: number; e: number }[]; pairs: number } | null;
     /** Link coverage by marathon city: eligible finishes linked to someone with a usable half (1,000 finishes and 100 linked at least). */
     coverage: { city: string; finishes: number; share: number }[];
   };
@@ -329,10 +362,19 @@ export type HalfPolicyCounts = {
   verified_use_sex: HalfFinishesEditions;
   /** use_finish editions with no race date (they enter no date window), and their finishes after R7. */
   undated: HalfFinishesEditions;
-  /** The editions stamped in the snapshot whose stamp the corrected metadata withdrew (now unverified), and their finishes after R7. */
-  stamp_withdrawn: HalfFinishesEditions;
-  set_b: { pairs: number; people: number; marathon_editions: number; half_editions: number };
+  /** Editions the producer deleted as double loads (E1, no rows). */
+  E1_removed_editions: number;
+  /** The stamp check (policy schema 2): stamped editions, the verified usable ones, the reference's withdrawn stamps
+   * that are unstamped here, and the snapshot's never_stamp rows. */
+  stamp_check: { stamped: number; verified_usable: number; withdrawn_unstamped: number; never_stamp: number };
+  /** Set B's reviewed counts, with review R6's two signals (counted, never excluded): halves serving two or more pairs,
+   * and pairs whose person has another eligible marathon within 13 days. */
+  set_b: { pairs: number; people: number; marathon_editions: number; half_editions: number; halves_in_two_or_more_pairs: number;
+    pairs_with_a_close_marathon: number };
 };
+
+/** The link build's confidence tiers that may pair (high_elite counts as high). */
+export type HalfLinkTier = 'high_elite' | 'high' | 'medium';
 
 export type HalfScript =
   | 'analysis/build_half.py' | 'analysis/half_common.py' | 'analysis/half_quality.py' | 'analysis/half_policy_lists.py'
@@ -341,18 +383,22 @@ export type HalfScript =
   | 'analysis/half_linked.py' | 'analysis/half_cards.py';
 
 export type HalfManifest = {
-  schema_version: 1;
+  schema_version: 2;
   family: 'half';
   as_of: string;
   /** The pinned source's repository, licence and access sentence (analysis/half-release.json). */
   repository: string;
   license: string;
   access: string;
-  /** `tag` is the public release the files come from; `private_tag` the snapshot's or link build's own name. */
-  half: { tag: string; private_tag: string; sqlite_sha256: string };
-  links: { tag: string; private_tag: string; extract_content_sha256: string };
-  /** The corrected edition metadata the verified scope is taken from: verified = stamped in both. */
-  metadata_correction: HalfMetadataCorrection;
+  /** `tag` is the public release the files come from; `key` the snapshot's or link build's identity; `private_tag` a
+   * private twin's name, or null when there is none. */
+  half: { tag: string; key: string; private_tag: string | null; sqlite_sha256: string };
+  links: {
+    tag: string; key: string; private_tag: string | null; applies_to: string; extract_content_sha256: string;
+    coverage: HalfLinkCoverage;
+  };
+  /** The verified rule and the pinned file its stamps are cross-checked against. */
+  stamps: { rule: HalfStampRule; reference: { tag: string; asset: string; sha256: string } };
   marathon: {
     release_tag: string;
     runner_manifest_sha256: string;
@@ -362,12 +408,18 @@ export type HalfManifest = {
     inputs: { 'insights/finish-times.json': string; 'charts/womens-share-by-finish-time.json': string };
   };
   policy: { file: string; sha256: string; module_sha256: string; counts: HalfPolicyCounts };
+  /** analysis/half_pairs.py LINK_RULES (the v4 link rule, lead rulings L): the person tiers and each paired row's own
+   * confidence, the name-and-sex age-key bound, the window, the pairing and the conflict scope, in words. */
   link_rules: {
-    tiers: ('high' | 'medium')[];
+    tiers: HalfLinkTier[];
+    row_tiers: HalfLinkTier[];
     ns_keys_max: number;
+    ns_keys: string;
     window_days: [number, number];
     pairing: string;
-    candidate_merges: string;
+    conflicts: string;
+    link_editions: string;
+    unions: string;
   };
   /** sha256 of every builder module (verify-half fails when a repository file differs). */
   scripts: Record<HalfScript, string>;
@@ -380,33 +432,71 @@ export type HalfManifest = {
   files: Record<string, HalfFileMeta>;
 };
 
-/** The policy's reviewed stamp correction (analysis/half-policy-<stamp>.json `stamp_correction`). */
-export type HalfStampCorrection = HalfMetadataCorrection & {
-  repository: string; readme_sha256: string; reviewed: string; rule: string;
-  withdrawn: { edition_id: number; city: string; year: number; corrected_status: string; reason: string }[];
+export type HalfStampRule = "verified = stamped in this snapshot's own edition_meta, equal to the policy's reviewed list";
+
+/** The link build's half coverage (pin `links.coverage`): half rows above the id boundary have no person ID. */
+export type HalfLinkCoverage = { half_rows: number; half_max_record_id: number; marathon_rows: number };
+
+/** The policy's reviewed stamp check (analysis/half-policy-<stamp>.json `stamps`, policy schema 2). */
+export type HalfStamps = {
+  rule: HalfStampRule; reviewed: string; reads: Record<string, string>; reason_rule: string; weaker_source_rule: string;
+  stamped: number[];
+  never_stamp: { edition_id: number; reason: string; added_at: string }[];
+  reference: {
+    repository: string; tag: string; asset: string; sha256: string; readme_sha256: string;
+    /** The stamps the reference withdrew on 2026-10-29 (unstamped here, in never_stamp). */
+    withdrawn: { edition_id: number; city: string; year: number; corrected_status: string; reason: string }[];
+    weaker_source: { edition_id: number; city: string; year: number; source: string }[];
+  };
+  edition_meta_csv: { asset: string; sha256: string };
   weaker_source: { edition_id: number; city: string; year: number; source: string }[];
 };
 
-/** The producer's corrected edition metadata (a later public release of the same edition ids). */
-export type HalfMetadataCorrection = { tag: string; asset: string; sha256: string; applied: 'verified = stamped in both' };
+/** The policy's link-build editions (analysis/half-policy-<stamp>.json `link_editions`, policy schema 2): editions that
+ * straddle the link build's half coverage boundary, and editions re-timed after it, supply no linked half. */
+export type HalfLinkEditions = {
+  link_build: string; half_max_record_id: number; conflicts: string; link_partial_rule: string; retimed_rule: string;
+  link_partial: { edition_id: number; city: string; year: number; rows_covered: number; rows_uncovered: number }[];
+  retimed: { edition_id: number; city: string; year: number; rows: number }[];
+};
+
+/** The producer's hand review (MATCHING_V4.md): its last rounds' missed-link and false-merge shares, per cell of `n_per_cell`. */
+export type HalfProducerReview = {
+  source: string; claim: string; n_per_cell: number; zero_of_n_upper95: number;
+  last_rounds: { round: string; rare_missed: number; common_missed: number; rare_false_merge: number; common_false_merge: number }[];
+};
 
 /**
- * analysis/half-release.json: the separate pin of the half snapshot and its link build, both from the owner's public CC
- * BY 4.0 release (`tag`), first released privately under `private_tag` (the name the policy, the links extract and the
- * reviewed counts carry), and the corrected metadata the verified scope is taken from.
+ * analysis/half-release.json (schema 3): the separate pin of the half snapshot and its person links, both from the
+ * owner's public CC BY 4.0 release (`tag`). `key` names each (the identity the policy, the links extract and the reviewed
+ * counts are keyed by); `private_tag` is a private twin's name, and `doi` an archive's, or null; `stamps.reference` is the
+ * pinned file the verified stamps are cross-checked against.
  */
 export type HalfReleasePin = {
-  schema_version: 2;
+  schema_version: 3;
   access: string;
   repository: string;
   license: string;
-  half: { tag: string; doi: string; private_tag: string; assets: Record<string, string>; sqlite: string; sqlite_sha256: string };
-  links: {
-    tag: string; private_tag: string; pairs_with: string; built_at: string; assets: Record<string, string>;
-    extract: string; extract_content_sha256: string;
+  half: {
+    tag: string; key: string; private_tag: string | null; doi: string | null; snapshot: string; sha256sums_sha256: string;
+    assets: Record<string, string>; sqlite: string; sqlite_sha256: string;
   };
-  metadata_correction: HalfMetadataCorrection & { readme_sha256: string };
-  provenance: { private_repository: string; note: string; private_readme_sha256: Record<string, string> };
+  links: {
+    tag: string; key: string; private_tag: string | null; version: string; applies_to: string; applies_to_rule: string;
+    coverage: HalfLinkCoverage & { producer_build_info: string }; assets: Record<string, string>;
+    /** The producer's hand review of the link build, transcribed from the pinned MATCHING_V4.md: a claim, not recounted. */
+    producer_review?: HalfProducerReview;
+    extract: string; extract_content_sha256: string | null;
+  };
+  stamps: {
+    rule: HalfStampRule;
+    reference: {
+      tag: string; asset: string; sha256: string; readme_sha256: string; sha256sums_sha256: string;
+      /** The archive of the reference release and of the version whose metadata it corrected (claims; null when none). */
+      doi?: string | null; supersedes_doi?: string | null; doi_note?: string;
+    };
+  };
+  provenance: { private_repository: string; note: string; private_readme_sha256: Record<string, string>; history: string };
   /** Must equal analysis/release.json `tag`. */
   marathon_release: string;
   /** The frozen policy file (path from the repository root). */

@@ -1,7 +1,7 @@
 """field.json (verified): where half-marathon finish times sit (spec 2.2, /half beats 1 and 2).
 
-Every value comes from the verified usable editions after R7 (stamped in the snapshot and in the corrected metadata:
-238 editions), finishes pooled (the claim is about finishes, as the marathon's field median is). Recorded sex only, and only in editions that pass the sex rule (`use_sex`). The round
+Every value comes from the verified usable editions after R7 (stamped in the snapshot, equal to the policy's reviewed
+list and checked against the pinned stamp reference; the count is the policy's `verified`), finishes pooled (the claim is about finishes, as the marathon's field median is). Recorded sex only, and only in editions that pass the sex rule (`use_sex`). The round
 marks use the site's own smooth curve, `insights_round.local_fit` (Poisson log-cubic over ±25 minutes leaving out five
 minutes before and ten after the mark and short windows around other 10- and 15-minute marks) on a half minute matrix
 of 40 to 300 minutes, with a 200-draw whole-edition bootstrap (`insights_stats.SEED`). The scope checks are for

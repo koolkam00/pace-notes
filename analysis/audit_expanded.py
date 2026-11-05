@@ -15,10 +15,15 @@ def audit(source, output):
         location = str(source / (file+'.parquet')).replace("'", "''")
         db.execute(f"CREATE VIEW {view} AS SELECT * FROM read_parquet('{location}')")
     report = {}
-    report['feature_values'] = records(db, '''SELECT count(*) AS n,count(DISTINCT record_id) AS unique_record_ids,
-      count(*) FILTER(WHERE valid_splits) AS valid_flag,
+    # An adapted master input (analysis/adapt_master.py) has an identity-subset features file without the producer
+    # engine's valid_splits and pace columns; those two values are then reported as null, never computed here.
+    present = {row[0] for row in db.execute('DESCRIBE f').fetchall()}
+    valid = 'count(*) FILTER(WHERE valid_splits)' if 'valid_splits' in present else 'NULL'
+    pace = 'median(pace_05)' if 'pace_05' in present else 'NULL'
+    report['feature_values'] = records(db, f'''SELECT count(*) AS n,count(DISTINCT record_id) AS unique_record_ids,
+      {valid} AS valid_flag,
       median(finish_time) AS median_finish,median(seg_05) AS median_seg05,
-      median(pace_05) AS median_pace05,median(cum_05) AS median_cum05,
+      {pace} AS median_pace05,median(cum_05) AS median_cum05,
       median(seg_05+seg_10+seg_15+seg_20+seg_25+seg_30+seg_35+seg_40+seg_42-finish_time) AS segment_sum_error,
       max(abs(seg_05+seg_10+seg_15+seg_20+seg_25+seg_30+seg_35+seg_40+seg_42-finish_time)) AS max_segment_sum_error
       FROM f''')[0]

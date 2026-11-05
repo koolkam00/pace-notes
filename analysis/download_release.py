@@ -2,6 +2,10 @@
 
 No GitHub CLI or token is required. GH_TOKEN or GITHUB_TOKEN optionally raises
 the API rate limit; asset downloads always use their public browser URL.
+
+A `master-*` release has no CORE/FULL archive: when the pin (analysis/release.json) names one with
+`layout: master`, the same command hands it to analysis/adapt_master.py, which downloads the pinned
+assets anonymously, reconciles them and writes the input folder the builders read.
 """
 import argparse
 import hashlib
@@ -9,6 +13,7 @@ import json
 import os
 import re
 import shutil
+import sys
 import tarfile
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -33,6 +38,8 @@ PACE_NOTES_DOCS = {
 # From private-export-20261021-1050 they also carry the producer's cross-race matching rules; 0829 predates them.
 PACE_NOTES_MATCHING = {"MATCHING.md"}
 PACE_NOTES_WITHOUT_MATCHING = {"private-export-20261021-0829"}
+# master-* releases (first master-20261103b): one results table for both distances, adapted by analysis/adapt_master.py.
+MASTER_TAG = re.compile(r"master-[0-9]{8}[a-z]?")
 # A large archive may be attached in numbered parts, joined in order before extraction.
 PART = re.compile(r"^(?P<archive>.+\.tar\.gz)\.part-(?P<number>[0-9]{2})$")
 
@@ -91,6 +98,8 @@ class GitHubApiRedirect(HTTPRedirectHandler):
 
 
 _OPENER = build_opener(GitHubApiRedirect)
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 def urlopen(request, timeout):
@@ -173,6 +182,14 @@ def main(argv=None):
     args = parser.parse_args(argv)
     config = json.loads(Path(__file__).with_name("release.json").read_text())
     repo, tag = config["repository"], args.tag or config["tag"]
+    if MASTER_TAG.fullmatch(tag):
+        # A master release is read only through its full pin: every asset digest, the overlays and the baseline.
+        if config.get("layout") != "master" or config["tag"] != tag:
+            raise ValueError("A master-* release is adapted only as the tag analysis/release.json pins with layout master.")
+        import adapt_master
+        provenance = adapt_master.adapt(config, args.output, args.bundle)
+        print(f"Verified and adapted {args.bundle} input {tag} into {args.output.resolve()}.")
+        return provenance
     if not tag.startswith(("private-export-", "htw-db-")) or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_." for c in tag):
         raise ValueError("Expected a private-export- or htw-db- release tag.")
     root = args.output.resolve()

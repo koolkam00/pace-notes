@@ -128,15 +128,19 @@ module.exports = function half({ json, eq, ok, core }) {
     eq(n.guard, flagshipOk(), 'half.extra: guard (the weighting battery)');
     if (n.guard) eq(shown(n), `After a half, the typical marathon took double it plus *${minutes} minutes*.`, 'half.extra: the H1');
     const share = linked.overall.under_double_plus_min['0'];
-    const figureOk = Object.values(battery).every((m) => m.under_double < 0.15) && Math.abs(share - battery.verified_halves.under_double) <= 0.03;
-    // The figure states a reading only under a guard of its own: the share while its check holds, the minutes while the
-    // H1's does, else the count of pairs (review, October 30, 2026: the minutes stood in the figure after the H1's guard
-    // had rejected them).
+    // Every member and every one-edition leave-out variant under 15% under double (none under 100 pairs), and the
+    // verified halves within 3 points of the pooled share (lead rulings A1 and A2, October 31, 2026), on top of the H1's
+    // guard: while the H1 falls back the figure states no reading, whatever its own check says (AGENTS rule 13; lead
+    // rulings G, October 31, 2026: "the fallback stays in every slot").
+    const figureOk = flagshipOk() && D.figureGuard(linked);
+    // The figure states a reading only under the H1's guard and one of its own: the share while its check holds, the
+    // minutes while only the H1's does, else the count of pairs (review, October 30, 2026: the minutes stood in the
+    // figure after the H1's guard had rejected them).
     const asMinutes = !figureOk && n.guard;
     eq(n.figure.value, figureOk ? String(Math.round(share * 100)) : asMinutes ? `+${minutes}` : linked.set.pairs.toLocaleString('en-US'), 'half.extra: the figure');
     eq(n.key, figureOk ? 'of marathons came in under double the half marathon before them' : asMinutes ? 'over double the half marathon, typical' : 'pairs of a half and the marathon after it', 'half.extra: the key');
     eq([n.values.figure_is_share, n.values.figure_is_minutes], [figureOk ? 1 : 0, asMinutes ? 1 : 0], 'half.extra: what the figure is');
-    if (!n.guard && !figureOk) ok(!/double|over|under|typical|\+/.test(`${n.figure.value} ${n.key}`), 'half.extra: with both guards failing, the figure and its key state no reading');
+    if (!n.guard) ok(!/double|over|under|typical|\+/.test(`${n.figure.value} ${n.key}`) && n.values.figure_is_share === 0 && n.values.figure_is_minutes === 0, 'half.extra: while the H1 falls back, the figure and its key state no reading');
     ok(n.figure.value !== String(minutes) && !core.plain(shown(n)).includes(`${n.figure.value}%`), 'half.extra: the H1 accent and the figure are different numbers');
     eq(n.denominator, 'linked', 'half.extra: the linked family');
   };
@@ -277,6 +281,79 @@ module.exports = function half({ json, eq, ok, core }) {
     const l2 = clone(linked); l2.checks.verified.w105_under_14400 = 0.5;
     const l3 = clone(linked); l3.sexes.women_lower = Math.floor(l3.sexes.strata * 0.5);
     const l4 = clone(linked); l4.windows.F = l4.windows.F.filter((w) => w.h !== 6300);
+    // The flagship guard with every member and every leave-out variant set to the pooled reading holds; the two copies
+    // below move one value each from there, so each fails on that value alone: a pre-registered member (verified_road)
+    // outside the band, and one variant of verified_federation (one verified half edition left out) at 15% under double.
+    const pass = clone(linked);
+    const pooled = pass.checks.battery.members.find((m) => m.id === 'pooled');
+    const at = { multiple_p50: pooled.multiple_p50, extra_p50_s: pooled.extra_p50_s, under_double: pooled.under_double };
+    for (const m of pass.checks.battery.members) Object.assign(m, at);
+    for (const x of Object.values(pass.checks.battery.leave_outs)) {
+      Object.assign(x, { under_floor: 0, failed: 0, failing: Object.fromEntries(Object.keys(x.failing).map((c) => [c, 0])) });
+      for (const k of Object.keys(x.worst)) x.worst[k] = { half_edition: 1, left_out: 1, n: 1000, ...at };
+    }
+    ok(D.flagshipGuard(pass) && H.flagshipGuard(pass) && H.halfExtraFrom(pass).guard, 'half fixtures: with every member and leave-out at the pooled reading, the flagship guard holds');
+    const l5 = clone(pass); l5.checks.battery.members.find((m) => m.id === 'verified_road').multiple_p50 = 2.3;
+    const l6 = clone(pass); l6.checks.battery.leave_outs.verified_federation.worst.under_double.under_double = 0.15;
+    for (const [fixture, what] of [[l5, 'a pre-registered member outside the band'], [l6, 'one leave-out variant at 15% under double']]) {
+      ok(!D.flagshipGuard(fixture) && !H.flagshipGuard(fixture), `half fixtures: ${what} fails the flagship guard`);
+    }
+    // Every other clause of the H1's guard, each moved alone from `pass` (verify round 2, October 31, 2026: lead rulings
+    // A2, the band's upper side and the members' minutes could be dropped from lib/nuggets/half.ts with every check
+    // passing). A value 1 s or 0.0001 past a bar fails; the bar itself passes, since every bar is inclusive but the
+    // under-double one.
+    {
+      const P = pass.checks.battery, pooledExtra = pooled.extra_p50_s, half = P.pooled_half_p50_s;
+      const moved = (what, change) => { const x = clone(pass); change(x.checks.battery, x); return [x, what]; };
+      const member = (b, id) => b.members.find((m) => m.id === id);
+      const failing = [
+        ...Object.keys(P.leave_outs).map((id) => moved(`${id}: one variant under 100 pairs (lead rulings A2)`, (b) => { b.leave_outs[id].under_floor = 1; })),
+        ...Object.keys(P.leave_outs).flatMap((id) => [
+          moved(`${id}: its highest-multiple variant at 2.2501`, (b) => { b.leave_outs[id].worst.multiple_high.multiple_p50 = 2.2501; }),
+          moved(`${id}: its lowest-multiple variant at 2.1499`, (b) => { b.leave_outs[id].worst.multiple_low.multiple_p50 = 2.1499; }),
+          moved(`${id}: its re-expressed variant 181 s off at the pooled median half`, (b) => { b.leave_outs[id].worst.reexpressed.multiple_p50 = 2 + (pooledExtra + 181) / half; }),
+          moved(`${id}: no variant at all`, (b) => { b.leave_outs[id].variants = 0; }),
+        ]),
+        moved('verified_halves: a variant\'s minutes 181 s from the pooled', (b) => { b.leave_outs.verified_halves.worst.extra.extra_p50_s = pooledExtra - 181; }),
+        moved('one_per_person: its minutes 181 s from the pooled', (b) => { member(b, 'one_per_person').extra_p50_s = pooledExtra + 181; }),
+        moved('verified_halves: its minutes 181 s from the pooled', (b) => { member(b, 'verified_halves').extra_p50_s = pooledExtra - 181; }),
+        moved('a member re-expressed 181 s off', (b) => { member(b, 'other_marathons').multiple_p50 = 2 + (pooledExtra - 181) / half; }),
+        moved('a member at 15% under double', (b) => { member(b, 'city_equal').under_double = 0.15; }),
+        moved('no verified_road member', (b) => { b.members = b.members.filter((m) => m.id !== 'verified_road'); }),
+      ];
+      for (const [fixture, what] of failing) ok(!D.flagshipGuard(fixture) && !H.flagshipGuard(fixture), `half fixtures: ${what} fails the flagship guard (TS and Node)`);
+      const holding = [
+        moved('both leave-outs\' band variants at 2.25 and 2.15', (b) => { for (const x of Object.values(b.leave_outs)) { x.worst.multiple_high.multiple_p50 = 2.25; x.worst.multiple_low.multiple_p50 = 2.15; } }),
+        moved('one_per_person and verified_halves 180 s from the pooled', (b) => { member(b, 'one_per_person').extra_p50_s = pooledExtra + 180; member(b, 'verified_halves').extra_p50_s = pooledExtra - 180; }),
+      ];
+      for (const [fixture, what] of holding) ok(D.flagshipGuard(fixture) && H.flagshipGuard(fixture), `half fixtures: ${what} still holds the flagship guard (TS and Node)`);
+      // The TS guard's bars are analysis/half_linked.py's, read from its source.
+      const py = fs.readFileSync(path.join(__dirname, '..', '..', 'analysis', 'half_linked.py'), 'utf8');
+      const num = (re) => Number(re.exec(py)?.[1]);
+      eq([H.FLAGSHIP_CLAUSES.multiple_band[0], H.FLAGSHIP_CLAUSES.multiple_band[1], H.FLAGSHIP_CLAUSES.gap_s, H.FLAGSHIP_CLAUSES.under_double_max],
+        [num(/^MULTIPLE_BAND = \(([\d.]+), /m), num(/^MULTIPLE_BAND = \([\d.]+, ([\d.]+)\)/m), num(/^GAP_S = (\d+)$/m), num(/^UNDER_DOUBLE_MAX = ([\d.]+)$/m)],
+        'half fixtures: the TS flagship bars are half_linked.py\'s MULTIPLE_BAND, GAP_S and UNDER_DOUBLE_MAX');
+    }
+    // The figure's own guard follows the variants too (lead rulings A1 and A2, October 31, 2026): with every member and
+    // variant at the pooled reading and the verified halves on the pooled share it holds; one variant at 15% under double,
+    // or one variant under 100 pairs, and the figure is the count of pairs again, whatever the members say.
+    const g0 = clone(pass);
+    g0.checks.battery.members.find((m) => m.id === 'verified_halves').under_double = g0.overall.under_double_plus_min['0'];
+    ok(D.figureGuard(g0) && H.figureGuard(g0) && H.halfExtraFrom(g0).values.figure_is_share === 1, 'half fixtures: the figure guard holds with every member and variant at the pooled share');
+    const g1 = clone(g0); g1.checks.battery.leave_outs.verified_halves.worst.under_double.under_double = 0.15;
+    const g2 = clone(g0); g2.checks.battery.leave_outs.verified_federation.under_floor = 1;
+    for (const [fixture, what] of [[g1, 'one verified_halves variant at 15% under double'], [g2, 'one verified_federation variant under 100 pairs']]) {
+      const x = H.halfExtraFrom(fixture);
+      ok(!D.figureGuard(fixture) && !H.figureGuard(fixture), `half fixtures: ${what} fails the figure guard`);
+      ok(x.values.figure_is_share === 0 && x.key !== 'of marathons came in under double the half marathon before them', `half fixtures: ${what}: the figure is not the share under double`);
+    }
+    // The figure's own guard never outlives the H1's (AGENTS rule 13; lead rulings G, October 31, 2026): one verified_halves
+    // variant 4 minutes off the pooled minutes fails the H1's guard alone, the figure's check still holds, and the figure
+    // is the count of pairs with its neutral key.
+    const g3 = clone(g0); g3.checks.battery.leave_outs.verified_halves.worst.extra.extra_p50_s = g3.checks.battery.members.find((m) => m.id === 'pooled').extra_p50_s - 240;
+    const x3 = H.halfExtraFrom(g3);
+    ok(!D.flagshipGuard(g3) && !H.flagshipGuard(g3) && D.figureGuard(g3) && H.figureGuard(g3), 'half fixtures: a leave-out 4 minutes off fails the H1 guard and not the figure check');
+    eq([x3.guard, x3.values.figure_is_share, x3.values.figure_is_minutes, x3.figure.value, x3.key], [false, 0, 0, g3.set.pairs.toLocaleString('en-US'), 'pairs of a half and the marathon after it'], 'half fixtures: under a fallen H1 the figure is the count of pairs, whatever its own check says');
     return [
       [H.halfFieldFrom(f1), 'Half marathon finishes by finish time.'],
       [H.halfUnderFrom(f2), 'Half finishes under 1:45.'],
@@ -284,6 +361,8 @@ module.exports = function half({ json, eq, ok, core }) {
       [H.halfWomenFrom(w1), 'Women’s share of half finishes, by finish time.'],
       [H.halfCitiesFrom(w2), 'Women’s share of marathon and half finishes, same city and year.'],
       [H.halfExtraFrom(l1), 'The marathon after a half, against double the half.'],
+      [H.halfExtraFrom(l5), 'The marathon after a half, against double the half.'],
+      [H.halfExtraFrom(l6), 'The marathon after a half, against double the half.'],
       [H.halfRangeFrom(l2), 'The marathon after each half time.'],
       [H.halfSexesFrom(l3), 'Sustained slowdowns in recorded women’s and men’s marathons after the same half.'],
       [H.halfSexesGuessFrom(l4), 'Recorded women’s and men’s marathons after the same half.'],

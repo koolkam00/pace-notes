@@ -9,7 +9,7 @@
  * and proves its fallback on a fixture. Fallbacks never assert a direction. The deks with numbers are built here too
  * (`halfDeks`), so a page types no number.
  */
-import type { HalfField, HalfLinked, HalfWindow, HalfWomen } from '@/lib/half-types';
+import type { HalfBatteryId, HalfBatteryMember, HalfField, HalfLeaveOutClause, HalfLeaveOutParent, HalfLeaveOutVariant, HalfLeaveOutWorstKey, HalfLinked, HalfWindow, HalfWomen } from '@/lib/half-types';
 import { readHalf } from '@/lib/half-server';
 import { floorHM, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
 import { count, inWords, pct, ratio, spokenPct, spokenTime } from './format';
@@ -120,21 +120,102 @@ export function halfCitiesFrom(women: HalfWomen): Nugget {
 
 const members = (linked: HalfLinked) => Object.fromEntries(linked.checks.battery.members.map((m) => [m.id, m]));
 
+/** The flagship guard's member clauses (analysis/half_linked.py MULTIPLE_BAND, GAP_S, UNDER_DOUBLE_MAX). */
+const MULTIPLE_BAND = [2.15, 2.25] as const, GAP_S = 180, UNDER_DOUBLE_MAX = 0.15;
+/**
+ * The one-verified-half-edition-out variants (pre-registered October 30, 2026, before the next half release existed):
+ * the clauses each member's variants must pass, as the member does, and the worst variant kept for each clause.
+ */
+const LEAVE_OUTS: Record<HalfLeaveOutParent, HalfLeaveOutClause[]> = {
+  verified_halves: ['multiple', 'reexpressed', 'under_double', 'extra'],
+  verified_federation: ['multiple', 'reexpressed', 'under_double'],
+};
+const WORST: Record<HalfLeaveOutClause, HalfLeaveOutWorstKey[]> = {
+  multiple: ['multiple_low', 'multiple_high'], reexpressed: ['reexpressed'], under_double: ['under_double'], extra: ['extra'],
+};
+type Judged = Pick<HalfBatteryMember, 'multiple_p50' | 'extra_p50_s' | 'under_double'> | HalfLeaveOutVariant;
+/** One member clause on a member's or a variant's values, against the pooled minutes over double and median half. */
+function passes(clause: HalfLeaveOutClause, v: Judged, extra: number, half: number): boolean {
+  if (clause === 'multiple') return v.multiple_p50 >= MULTIPLE_BAND[0] && v.multiple_p50 <= MULTIPLE_BAND[1];
+  if (clause === 'reexpressed') return Math.abs((v.multiple_p50 - 2) * half - extra) <= GAP_S;
+  if (clause === 'under_double') return v.under_double < UNDER_DOUBLE_MAX;
+  return Math.abs(extra - v.extra_p50_s) <= GAP_S;
+}
+
 /**
  * The flagship H1's guard (spec 3.2; analysis/half_linked.py flagship_guard): enough pairs and marathon editions; the
  * pooled minutes over double between 10 and 60; every battery member's multiple within [2.15, 2.25] and, re-expressed
  * at the pooled median half, within 3 minutes of the pooled minutes; the verified-halves and one-pair-per-person minutes
- * within 3 minutes of it; every member's under-double share under 15%.
+ * within 3 minutes of it; every member's under-double share under 15%; and every one-verified-half-edition-out variant
+ * of verified_halves and verified_federation passing the clauses its member must pass (none under 100 pairs).
  */
 export function flagshipGuard(linked: HalfLinked): boolean {
   const b = linked.checks.battery, m = members(linked), pooled = m.pooled;
-  if (!pooled || !m.verified_halves || !m.one_per_person) return false;
+  if (!pooled || !m.verified_halves || !m.verified_federation || !m.verified_road || !m.one_per_person) return false;
   const extra = pooled.extra_p50_s, half = b.pooled_half_p50_s, all = Object.values(m);
+  const leaveOuts = (Object.entries(LEAVE_OUTS) as [HalfLeaveOutParent, HalfLeaveOutClause[]][]).every(([id, clauses]) => {
+    const x = b.leave_outs?.[id];
+    return !!x && x.under_floor === 0 && x.variants > 0
+      && clauses.every((c) => WORST[c].every((k) => { const w = x.worst[k]; return !!w && passes(c, w, extra, half); }));
+  });
   return linked.set.pairs >= MIN_CELL && linked.set.marathon_editions >= MIN_EDITIONS && extra >= 600 && extra <= 3600
-    && all.every((x) => x.multiple_p50 >= 2.15 && x.multiple_p50 <= 2.25)
-    && all.every((x) => Math.abs((x.multiple_p50 - 2) * half - extra) <= 180)
-    && Math.abs(extra - m.verified_halves.extra_p50_s) <= 180 && Math.abs(extra - m.one_per_person.extra_p50_s) <= 180
-    && all.every((x) => x.under_double < 0.15);
+    && all.every((x) => passes('multiple', x, extra, half) && passes('reexpressed', x, extra, half) && passes('under_double', x, extra, half))
+    && passes('extra', m.verified_halves, extra, half) && passes('extra', m.one_per_person, extra, half)
+    && leaveOuts;
+}
+
+/**
+ * The story figure's own guard (spec 3.2): the share under double states a reading only while every battery member and
+ * every one-verified-half-edition-out variant of verified_halves and verified_federation (none under 100 pairs) is under
+ * 15% under double, and the verified halves are within 3 points of the pooled share. The variants follow the figure's
+ * under-15% clause as they follow the H1's (lead rulings A1 and A2, October 31, 2026, made before any value of the
+ * 1904 build was read); the 3-point check is the figure's own and does not apply to them.
+ */
+export function figureGuard(linked: HalfLinked): boolean {
+  const b = linked.checks.battery, m = members(linked);
+  const share = linked.overall.under_double_plus_min['0'];
+  const variants = (Object.keys(LEAVE_OUTS) as HalfLeaveOutParent[]).every((id) => {
+    const x = b.leave_outs?.[id], w = x?.worst.under_double;
+    return !!x && x.under_floor === 0 && x.variants > 0 && !!w && w.under_double < UNDER_DOUBLE_MAX;
+  });
+  return !!m.pooled && !!m.verified_halves && Object.values(m).every((x) => x.under_double < UNDER_DOUBLE_MAX)
+    && variants && Math.abs(share - m.verified_halves.under_double) <= 0.03;
+}
+
+/** The flagship guard's thresholds, for the /methodology sentence that states them (never typed there). */
+export const FLAGSHIP_CLAUSES = { multiple_band: MULTIPLE_BAND, gap_s: GAP_S, under_double_max: UNDER_DOUBLE_MAX } as const;
+
+/**
+ * What fails the flagship guard, clause by clause, for the /methodology sentence about the story (AGENTS rule 13: that
+ * sentence states why the story falls back, from the values, never a reason typed for an earlier build): the members
+ * whose own clauses fail, the leave-out members with failing reruns (with their worst rerun of each failing clause),
+ * and whether the set itself is under its floors. Empty lists and `set: false` exactly when every clause passes.
+ */
+export type FlagshipFailures = {
+  set: boolean;
+  members: { id: HalfBatteryId; clauses: ('multiple' | 'reexpressed' | 'under_double' | 'extra')[] }[];
+  leaveOuts: { id: HalfLeaveOutParent; variants: number; failed: number; under_floor: number;
+    clauses: { clause: HalfLeaveOutClause; failing: number; worst: HalfLeaveOutVariant | null }[] }[];
+};
+export function flagshipFailures(linked: HalfLinked): FlagshipFailures {
+  const b = linked.checks.battery, m = members(linked), pooled = m.pooled;
+  const extra = pooled?.extra_p50_s ?? NaN, half = b.pooled_half_p50_s;
+  const set = !(pooled && linked.set.pairs >= MIN_CELL && linked.set.marathon_editions >= MIN_EDITIONS && extra >= 600 && extra <= 3600);
+  const out: FlagshipFailures['members'] = [];
+  for (const x of b.members) {
+    const clauses = (['multiple', 'reexpressed', 'under_double'] as const).filter((c) => !passes(c, x, extra, half)) as FlagshipFailures['members'][number]['clauses'];
+    if ((x.id === 'verified_halves' || x.id === 'one_per_person') && !passes('extra', x, extra, half)) clauses.push('extra');
+    if (clauses.length) out.push({ id: x.id, clauses });
+  }
+  const leaveOuts: FlagshipFailures['leaveOuts'] = [];
+  for (const [id, clauses] of Object.entries(LEAVE_OUTS) as [HalfLeaveOutParent, HalfLeaveOutClause[]][]) {
+    const x = b.leave_outs?.[id];
+    if (!x) { leaveOuts.push({ id, variants: 0, failed: 0, under_floor: 0, clauses: [] }); continue; }
+    const failing = clauses.filter((c) => !WORST[c].every((k) => { const w = x.worst[k]; return !!w && passes(c, w, extra, half); }))
+      .map((c) => ({ clause: c, failing: x.failing[c] ?? 0, worst: WORST[c].map((k) => x.worst[k] ?? null).find((w) => !w || !passes(c, w, extra, half)) ?? null }));
+    if (failing.length || x.under_floor > 0 || x.variants === 0) leaveOuts.push({ id, variants: x.variants, failed: x.failed, under_floor: x.under_floor, clauses: failing });
+  }
+  return { set, members: out, leaveOuts };
 }
 
 /** The neutral key of the flagship's figure while it states no reading: what the count counts. */
@@ -143,12 +224,14 @@ export const HALF_PAIRS_KEY = 'pairs of a half and the marathon after it';
 /**
  * Story H1 (chapter 11's lead): after a half, the typical marathon took double it plus 21 minutes; figure 8%.
  *
- * The figure, which the chapter 11 row, the next cards and the /half night card repeat, states a reading only under a
- * guard of its own: the share under double while its check holds (spec 3.2), else the minutes over double while the H1's
- * guard holds (the spec's fallback, the H1's own reading), else the count of pairs, which states none. Since the stamp
- * correction (October 30, 2026) both checks fail on the verified-halves member (+16.3 minutes and 14.0% under double,
- * against +20.9 and 7.7% pooled), so the story and every place that repeats its figure show the 23,929 pairs: the minutes
- * the H1's guard rejected never stand in its place (review, October 30, 2026).
+ * The figure, which the chapter 11 row, the next cards and the /half night card repeat, states a reading only while the
+ * H1's guard holds and, on top of it, a guard of its own: the share under double while its check holds too (spec 3.2),
+ * else the minutes over double (the H1's own reading), else the count of pairs, which states none. While the H1 falls
+ * back, the figure is the count whatever its own check says: a fallback states no reading in any slot, the hero figure
+ * and its key included (AGENTS rule 13; lead rulings G, October 31, 2026, "the fallback stays in every slot, exactly as
+ * on main", recorded before any value of the 1904 build was read). Since the stamp correction (October 30, 2026) the
+ * H1's guard has failed, so the story and every place that repeats its figure show the number of pairs: the minutes and
+ * the share the H1's guard rejected never stand in its place (review, October 30, 2026).
  */
 export function halfExtraFrom(linked: HalfLinked): Nugget {
   const m = members(linked), pooled = m.pooled;
@@ -157,7 +240,7 @@ export function halfExtraFrom(linked: HalfLinked): Nugget {
   const under = linked.overall.under_double_plus_min['0'];
   const pairs = linked.set.pairs;
   const guard = flagshipGuard(linked) && pooled?.extra_p50_s === extra;
-  const figureOk = !!pooled && Object.values(m).every((x) => x.under_double < 0.15) && !!m.verified_halves && Math.abs(under - m.verified_halves.under_double) <= 0.03;
+  const figureOk = guard && figureGuard(linked);
   const asMinutes = !figureOk && guard;
   const figure = figureOk ? shareFigure(under)
     : asMinutes ? { value: `+${minutes}`, unit: '\u00a0min', sr: `plus ${minutes} minutes` }

@@ -1,4 +1,10 @@
 {
   "repository": "koolkam00/pace-notes",
-  "tag": "private-export-20261021-1050"
+  "tag": "master-20261103b",
+  "layout": "master",
+  "race_conditions": {
+    "tag": "dataset-20261103-0706",
+    "asset": "marathon-race_conditions.csv.zst",
+    "sha256": "4a781f7cecb1bd8dd6b1e883a0b5c25b63bf3937bfa6219ed08c710be50ad3b5"
+  }
 }

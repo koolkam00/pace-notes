@@ -10,7 +10,7 @@ from datetime import date
 
 import numpy as np
 
-from charts_common import MIN_CELL, count_phrase, edition_ranks, median, require_cell, sh
+from charts_common import MIN_CELL, count_phrase, edition_ranks, median, require_cell, require_race_dates, sh
 
 CHARTS = {}
 
@@ -52,8 +52,7 @@ def edition_days(c):
         d = by.get((ed['city'], ed['year']))
         if d:
             out[e] = (date.fromisoformat(d) - date(2000, 1, 1)).days
-    if (out[c.ed_n > 0] < 0).any():
-        raise ValueError('An edition with finishes has no race date')
+    require_race_dates(c, out < 0)
     return out
 
 

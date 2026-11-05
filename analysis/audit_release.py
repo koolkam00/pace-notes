@@ -10,6 +10,7 @@ from pathlib import Path
 import duckdb
 from build_pacing import FIELDS, records
 from download_release import EXPECTED, HTW_DB_DOCS, HTW_DB_FULL_DOCS, PACE_NOTES_DOCS, PACE_NOTES_MATCHING, PACE_NOTES_WITHOUT_MATCHING
+from adapt_master import EXPECTED_MASTER, RACE_RECORDS
 
 
 def digest(path):
@@ -26,6 +27,9 @@ def audit(source, core, previous, output):
     manifest = json.loads((source/'MANIFEST.json').read_text())
     provenance = json.loads((source/'provenance.json').read_text())
     assert digest(source/'MANIFEST.json') == provenance['manifest_sha256']
+    # A master release is adapted (analysis/adapt_master.py): its features are an identity subset with no producer
+    # engine columns, and its documents are the adapter's, so they are checked against the producer's own files too.
+    master = provenance.get('layout') == 'master'
     report = {'release_tag':provenance['release_tag'], 'input_provenance':provenance,
               'audit_script_sha256':digest(__file__), 'member_sha256':{}, 'manifest_size_notes':[]}
     # A manifest need not list its own size/hash: compare it independently too.
@@ -62,9 +66,13 @@ def audit(source, core, previous, output):
     cumulatives = ['cum_'+x for x in ['05','10','15','20','25','30','35','40']] + ['finish_time']
     report['timings'] = []
     for raw, feature in zip(FIELDS,cumulatives):
+        # The adapted features carry no valid_splits flag; their timings come from the raw strings, so a timing must be
+        # present in both or in neither, on every row (stricter than the valid-row check of the producer layouts).
+        valid = (f'(seconds(r.{raw}) IS NULL) <> (f.{feature} IS NULL)' if master else
+                 f'f.valid_splits AND (seconds(r.{raw}) IS NULL OR f.{feature} IS NULL OR abs(seconds(r.{raw})-f.{feature}*60)>0.001)')
         row = records(db, f'''SELECT count(*) FILTER(WHERE seconds(r.{raw}) IS NOT NULL AND f.{feature} IS NOT NULL) AS comparable,
           count(*) FILTER(WHERE abs(seconds(r.{raw})-f.{feature}*60)>0.001) AS mismatches,
-          count(*) FILTER(WHERE f.valid_splits AND (seconds(r.{raw}) IS NULL OR f.{feature} IS NULL OR abs(seconds(r.{raw})-f.{feature}*60)>0.001)) AS valid_mismatches,
+          count(*) FILTER(WHERE {valid}) AS valid_mismatches,
           max(abs(seconds(r.{raw})-f.{feature}*60)) AS max_error_seconds
           FROM r JOIN f ON r.id=f.record_id''')[0]
         row.update(raw=raw, feature=feature)
@@ -73,18 +81,28 @@ def audit(source, core, previous, output):
     report['coverage'] = records(db, '''SELECT count(*) AS raw_records,count(DISTINCT city) AS cities,
       count(DISTINCT (city,year)) AS race_years,max(ingested_at) AS max_ingested_at,
       count(*) FILTER(WHERE age IS NULL) AS null_age FROM r''')[0]
-    # pace-notes releases from 1050 rename the producer's htw* feature columns to wall_* (FEATURE-FIELD-NOTES.md).
-    slowdown = 'wall_hit' if 'wall_hit' in {row[0] for row in db.execute('DESCRIBE f').fetchall()} else 'htw'
-    report['features'] = records(db, f'''SELECT count(*) FILTER(WHERE valid_splits) AS valid_splits,
-      count(*) FILTER(WHERE valid_splits AND {slowdown}) AS sustained_slowdown_among_valid,
-      count(*) FILTER(WHERE runner_name IS NULL) AS null_name,
-      count(*) FILTER(WHERE race_date IS NOT NULL) AS supplied_dates FROM f''')[0]
+    if master:
+        report['features'] = records(db, '''SELECT count(runner_id) AS with_runner_id,count(DISTINCT runner_id) AS runner_ids,
+          count(*) FILTER(WHERE runner_id IS NOT NULL AND is_ambiguous IS DISTINCT FROM false) AS keyed_not_unambiguous,
+          count(*) FILTER(WHERE runner_name IS NULL) AS null_name,
+          count(*) FILTER(WHERE race_date IS NOT NULL) AS supplied_dates FROM f''')[0]
+        assert report['features']['keyed_not_unambiguous'] == 0
+    else:
+        # pace-notes releases from 1050 rename the producer's htw* feature columns to wall_* (FEATURE-FIELD-NOTES.md).
+        slowdown = 'wall_hit' if 'wall_hit' in {row[0] for row in db.execute('DESCRIBE f').fetchall()} else 'htw'
+        report['features'] = records(db, f'''SELECT count(*) FILTER(WHERE valid_splits) AS valid_splits,
+          count(*) FILTER(WHERE valid_splits AND {slowdown}) AS sustained_slowdown_among_valid,
+          count(*) FILTER(WHERE runner_name IS NULL) AS null_name,
+          count(*) FILTER(WHERE race_date IS NOT NULL) AS supplied_dates FROM f''')[0]
     report['course_validity'] = records(db, '''SELECT count(*) AS profiles,
       count(valid_from_year) AS valid_from,count(valid_to_year) AS valid_to FROM cp''')[0]
     report['weather'] = records(db, '''SELECT count(*) AS rows,count(DISTINCT (city,year)) AS unique_editions,
       count(*) FILTER(WHERE year(try_cast(race_date AS DATE))=year) AS dates_agree FROM w''')[0]
     tag = provenance['release_tag']
-    if tag.startswith('htw-db-'):
+    if master:
+        # The adapter lists every member in MANIFEST.json and SHA256SUMS.txt; FULL adds only features.parquet.
+        docs, full_only = EXPECTED_MASTER - EXPECTED, set()
+    elif tag.startswith('htw-db-'):
         docs, full_only = HTW_DB_DOCS, HTW_DB_FULL_DOCS
     elif provenance['asset'].startswith('pace-notes-'):
         # pace-notes archives list every member in MANIFEST.json and SHA256SUMS.txt; FULL adds only features.parquet.
@@ -100,6 +118,8 @@ def audit(source, core, previous, output):
         assert not report['checksum_list']['mismatched'] and not report['checksum_list']['missing'], report['checksum_list']
         report['producer_counts'] = producer_counts(db, source, manifest)
         assert report['producer_counts']['editions_json_mismatches'] == report['producer_counts']['races_summary_mismatches'] == []
+    if master:
+        report['master_reconciliation'] = master_reconciliation(db, source, provenance, manifest)
     if core:
         shared = sorted(EXPECTED | (docs if htw_db else set()))
         assert all((core/name).is_file() and name in report['member_sha256'] for name in shared)
@@ -108,6 +128,7 @@ def audit(source, core, previous, output):
         assert report['core_full_shared_hashes_match']
         core_provenance = json.loads((core/'provenance.json').read_text())
         assert core_provenance['release_tag'] == provenance['release_tag'] and core_provenance['bundle'] == 'CORE'
+        assert core_provenance.get('layout') == provenance.get('layout') and core_provenance['asset_sha256'] == provenance['asset_sha256']
         report['core_provenance'] = core_provenance
         if htw_db:
             # CORE's SHA256SUMS.txt also lists the two FULL-only files; every member CORE does carry must match.
@@ -138,6 +159,40 @@ def audit(source, core, previous, output):
             + ' FROM r JOIN previous p ON r.id=p.id')[0]
     output.write_text(json.dumps(report,indent=2,allow_nan=False,default=str)+'\n')
     print(json.dumps({k:report[k] for k in ['release_tag','alignment','coverage','features','manifest_size_notes','checksum_list','producer_counts','previous_delta'] if k in report},indent=2))
+
+
+def master_reconciliation(db, source, provenance, manifest):
+    """The adapted folder against the producer's own files, not against the adapter's documents: the pinned master
+    parquet re-hashed, every CORE marathon row present once with all 20 race_records columns equal, and the producer's
+    QA totals and editions.csv counts."""
+    asset = source/provenance['asset_path']
+    assert digest(asset) == provenance['asset_sha256'], 'The master results file is not the pinned one'
+    assets = source/Path(provenance['asset_path']).parent
+    for name, value in provenance['assets'].items():
+        assert digest(assets/name) == value, f'master asset {name} differs from the pin'
+    location = str(asset).replace("'", "''")
+    db.execute(f"CREATE VIEW mr AS SELECT * FROM read_parquet('{location}') WHERE distance='marathon'")
+    columns = [name for name, _ in RACE_RECORDS if name != 'id']
+    compare = ' OR '.join(f'r."{c}" IS DISTINCT FROM CAST(m."{c}" AS {t})' for c, t in RACE_RECORDS if c != 'id')
+    out = records(db, f'''SELECT count(*) FILTER(WHERE m.source_record_id IS NOT NULL AND r.id IS NULL) AS core_rows_missing,
+      count(*) FILTER(WHERE r.id IS NOT NULL AND m.source_record_id IS NULL) AS rows_not_core,
+      count(*) FILTER(WHERE r.id IS NOT NULL AND m.source_record_id IS NOT NULL AND ({compare})) AS rows_differ,
+      count(*) FILTER(WHERE r.id IS NOT NULL AND m.source_record_id IS NOT NULL) AS rows_equal_or_differ
+      FROM r FULL JOIN (SELECT * FROM mr WHERE in_core) m ON r.id=m.source_record_id''')[0]
+    assert out['core_rows_missing'] == out['rows_not_core'] == out['rows_differ'] == 0, out
+    qa = json.loads((assets/'QA-REPORT.json').read_text())
+    out['qa_core_rows_marathon'] = qa['core_rows']['marathon']
+    out['qa_full_rows_marathon'] = qa['full_rows']['marathon']
+    assert out['rows_equal_or_differ'] == qa['core_rows']['marathon'] == manifest['n_records']
+    location = str(assets/'editions.csv').replace("'", "''")
+    out['editions_csv_mismatches'] = [f'{c} {y}' for c, y in db.execute(f'''WITH e AS (SELECT city,year,rows_core FROM
+      read_csv('{location}', header=true, max_line_size=10000000) WHERE distance='marathon' AND rows_core>0),
+      c AS (SELECT city,year,count(*) AS n FROM r GROUP BY ALL)
+      SELECT coalesce(e.city,c.city),coalesce(e.year,c.year) FROM e FULL JOIN c USING(city,year)
+      WHERE e.rows_core IS DISTINCT FROM c.n ORDER BY 1,2''').fetchall()]
+    assert out['editions_csv_mismatches'] == [], out['editions_csv_mismatches']
+    out['columns_compared'] = columns
+    return out
 
 
 def checksum_list(folder, hashes):

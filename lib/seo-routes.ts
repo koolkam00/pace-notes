@@ -124,6 +124,17 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // guess's answer without JavaScript, /research's and /stories' hub lines, /methodology's half-multiple text, who holds
   // pace's way into the half story, round numbers' guess answer without JavaScript, /half and the half story. The
   // predictor, the half pace chart and (since that branch's round 4 review) the goal pages take HALF_TEXT_REWRITTEN below.
+  // October 31 (the merge day of feat/half-v4, the half pages on half-dataset-20261030-1904 with person links v4): the
+  // pages whose built text that branch changes against fix/half-followups (b35da73e), found by diffing the two builds'
+  // visible text: the home guide's and /research's chapter 11 row and /stories' half row (the count of pairs), /half
+  // (its shares, the round-time counts and its night card), the half story (its figure, windows, guess and table),
+  // /methodology's half folds, limits and downloads, and the five goal pages (HALF_TEXT_REWRITTEN below). /report and
+  // /runners repeat the chapter 11 next card too; they are noindex and carry no lastmod. The predictor's and the half
+  // pace chart's half panels render in the browser, so their built text did not change (they already take the 31st).
+  // November 5 (the merge day of the master-20261103b adoption): the pages whose built text changes against main
+  // (d5a7daa5) and whose lastmod would not move with their data's as_of, found by diffing the two builds' visible text:
+  // /analyses (a starting-pace figure in its list), /half and the half story (the pairs bound to the new marathon release;
+  // the half snapshot's own as_of is unchanged). Every other changed page takes its rebuilt data's date (November 4).
   '/': '2026-10-31',
   '/research': '2026-10-31',
   '/about': '2026-10-30',
@@ -131,7 +142,7 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/stories': '2026-10-31',
   '/tools': '2026-10-19',
   '/tools/pace-calculator': '2026-10-19',
-  '/analyses': '2026-10-19',
+  '/analyses': '2026-11-05',
   '/courses': '2026-10-19',
   '/slowdown': '2026-10-19',
   '/privacy': '2026-10-19',
@@ -143,8 +154,8 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/stories/courses': '2026-10-19',
   '/stories/who-holds-pace': '2026-10-31',
   '/stories/race-morning': '2026-10-19',
-  '/half': '2026-10-31',
-  '/stories/half-to-full': '2026-10-31',
+  '/half': '2026-11-05',
+  '/stories/half-to-full': '2026-11-05',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };
@@ -256,7 +267,8 @@ export const HALF_TEXT_WRITTEN = '2026-10-30';
  * (fix/half-followups): the predictor (its half panel's no-script line in place of a "Loading the data…" that never
  * ended), the half pace chart (its panel's sentence and its link into the predictor) and, since that branch's round 4
  * review, the five goal pages ("The half marathon before" states no share under the goal: "Marathons after a 1:48 half
- * marathon."). /finish-times keeps HALF_TEXT_WRITTEN: its half text did not change.
+ * marathon."); on the same day feat/half-v4 moved their half lines and windows with the v4 person IDs (found by diffing
+ * the built text against fix/half-followups). /finish-times keeps HALF_TEXT_WRITTEN: its half text did not change.
  */
 export const HALF_TEXT_REWRITTEN: Readonly<Record<string, string>> = {
   '/tools/predictor': '2026-10-31',

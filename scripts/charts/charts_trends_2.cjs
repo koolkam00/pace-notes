@@ -1,6 +1,17 @@
 // Recounts of the Top 100 charts, trends (second batch) (scripts/verify-charts.cjs), rebuilt from the cohort
 // without the Python builders. Records linked by name (C.profile) are candidate links, never verified people.
 
+/** An edition without a race date (no weather row: New York 2026 in master-20261103b, November 4, 2026) is allowed only
+ * while each of its finishes is its record's only finish, so it never enters a linked order; nothing is filled in. */
+function requireRaceDates(C, undated) {
+  const per = new Map();
+  for (let i = 0; i < C.n; i++) per.set(C.profile[i], (per.get(C.profile[i]) || 0) + 1);
+  for (let i = 0; i < C.n; i++) {
+    const e = C.edition[i];
+    if (undated[e] && per.get(C.profile[i]) > 1) throw new Error(`${C.editions[e].city} ${C.editions[e].year}: no race date`);
+  }
+}
+
 /** Each record's finishes in race-date order (editions dated from the weather evidence, ties by edition index): rank,
  * count, record index, and the consecutive pairs on different days. Computed once per cohort. */
 function linked(C) {
@@ -11,7 +22,7 @@ function linked(C) {
     const d = dates.get(key(e.city, e.year));
     return d ? Math.round((Date.parse(`${d}T00:00:00Z`) - Date.UTC(2000, 0, 1)) / 86400000) : -1;
   });
-  for (let e = 0; e < C.editions.length; e++) if (C.edN[e] > 0 && edDay[e] < 0) throw new Error(`${C.editions[e].city} ${C.editions[e].year}: no race date`);
+  requireRaceDates(C, edDay.map((d, e) => d < 0 && C.edN[e] > 0));
   const day = (i) => edDay[C.edition[i]];
   const order = Array.from({ length: C.n }, (_, i) => i);
   order.sort((x, y) => C.profile[x] - C.profile[y] || day(x) - day(y) || C.edition[x] - C.edition[y] || x - y);
@@ -53,9 +64,13 @@ module.exports = {
 
   'every-new-york-in-the-data': (C) => {
     const L = linked(C);
+    // Only New York editions with cross-race identity (a finish whose record has another finish); an edition loaded
+    // without the producer's cross-race key (New York 2026, November 4, 2026) is left out.
+    const keyed = new Set();
+    for (let i = 0; i < C.n; i++) if (L.count[i] > 1) keyed.add(C.edition[i]);
     const per = new Int32Array(L.records), eds = new Set();
     let n = 0;
-    for (let i = 0; i < C.n; i++) if (cityOf(C, i) === 'New York') { per[L.pid[i]]++; eds.add(C.edition[i]); n++; }
+    for (let i = 0; i < C.n; i++) if (cityOf(C, i) === 'New York' && keyed.has(C.edition[i])) { per[L.pid[i]]++; eds.add(C.edition[i]); n++; }
     const k = eds.size, atLeast = (m) => per.reduce((s, v) => s + (v >= m ? 1 : 0), 0);
     return {
       values: { all16: atLeast(k), n_eds: k, ten: atLeast(10), five: atLeast(5), fifteen: atLeast(15), two: atLeast(2) },

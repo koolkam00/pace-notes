@@ -20,7 +20,7 @@
 //      file equal to linked.json window for window, the cards equal to their sources.
 //   5. The source-recount receipt (docs/evidence/half/source-recount.json, written by scripts/verify-half-source.cjs
 //      from the source files): status pass, no mismatches, and bound to the current manifest, recount scripts, half
-//      snapshot, links extract, corrected metadata, runner manifest and policy. A rebuild or a changed recount without a fresh local recount
+//      snapshot, links extract, stamp reference and edition_meta CSV, runner manifest and policy. A rebuild or a changed recount without a fresh local recount
 //      fails.
 //   6. `--html` (after `npm run build`): the scope chip and status words (spec 9), the reading links, "records linked by
 //      name" as a term link, "Not a prediction.", and every /methodology#half-* anchor.
@@ -79,22 +79,37 @@ const manifest = JSON.parse(manifestBytes);
 }
 
 // ---------- 1. Provenance ----------
-eq([manifest.schema_version, manifest.family], [1, 'half'], 'half manifest schema');
-eq([manifest.half.tag, manifest.half.private_tag, manifest.half.sqlite_sha256], [pin.half.tag, pin.half.private_tag, pin.half.sqlite_sha256], 'the manifest binds the pinned half snapshot');
-eq([manifest.links.tag, manifest.links.private_tag, manifest.links.extract_content_sha256], [pin.links.tag, pin.links.private_tag, pin.links.extract_content_sha256], 'the manifest binds the pinned links extract');
-ok(/^[0-9a-f]{64}$/.test(pin.links.extract_content_sha256), 'the pin holds the links extract digest');
-eq(pin.links.pairs_with, pin.half.private_tag, 'the pinned link build pairs with the pinned half snapshot');
+// Pin schema 3: `key` names the snapshot and the link build (what the policy and the reviewed counts are keyed by);
+// `private_tag` and `doi` are provenance, null where none exists; `stamps.reference` is the stamp cross-check.
+eq([manifest.schema_version, manifest.family], [2, 'half'], 'half manifest schema');
+eq([manifest.half.tag, manifest.half.key, manifest.half.private_tag, manifest.half.sqlite_sha256], [pin.half.tag, pin.half.key, pin.half.private_tag, pin.half.sqlite_sha256], 'the manifest binds the pinned half snapshot');
+eq([manifest.links.tag, manifest.links.key, manifest.links.private_tag, manifest.links.applies_to, manifest.links.extract_content_sha256],
+  [pin.links.tag, pin.links.key, pin.links.private_tag, pin.links.applies_to, pin.links.extract_content_sha256], 'the manifest binds the pinned links extract');
+eq(manifest.links.coverage, { half_max_record_id: pin.links.coverage.half_max_record_id, half_rows: pin.links.coverage.half_rows, marathon_rows: pin.links.coverage.marathon_rows }, 'the manifest binds the link build’s coverage');
+ok(/^[0-9a-f]{64}$/.test(pin.links.extract_content_sha256 || ''), 'the pin holds the links extract digest');
+eq(pin.links.applies_to, pin.half.key, 'the pinned link build applies to the pinned half snapshot');
 // The source is the owner's public release (owner decision, October 30, 2026: "publish everything and full merge").
-eq([pin.schema_version, pin.repository, pin.license, pin.access], [2, 'koolkam00/pace-notes', 'CC BY 4.0', 'public (CC BY 4.0), owner releases; pages publish aggregates'], 'the pin names the owner’s public release and its access');
+eq([pin.schema_version, pin.repository, pin.license, pin.access], [3, 'koolkam00/pace-notes', 'CC BY 4.0', 'public (CC BY 4.0), owner releases; pages publish aggregates'], 'the pin names the owner’s public release and its access');
 eq([manifest.repository, manifest.license, manifest.access], [pin.repository, pin.license, pin.access], 'the manifest names the pinned public source');
-ok([pin.half, pin.links].every((x) => /^half-dataset-\d{8}-\d{4}$/.test(x.tag) && Object.values(x.assets).every((d) => /^[0-9a-f]{64}$/.test(d))), 'the pin names public release tags and asset digests');
-eq(pin.provenance.private_repository, 'koolkam00/pace-notes-db-backup', 'the pin keeps the original private release as provenance');
-const MC = pin.metadata_correction || {};
-eq(manifest.metadata_correction, { applied: MC.applied, asset: MC.asset, sha256: MC.sha256, tag: MC.tag }, 'the manifest binds the pinned metadata correction');
-eq([MC.applied, /^half-dataset-\d{8}-\d{4}$/.test(MC.tag || ''), /^[0-9a-f]{64}$/.test(MC.sha256 || '')], ['verified = stamped in both', true, true], 'the metadata correction: verified = stamped in both, a public release and a digest');
+ok([pin.half, pin.links].every((x) => /^half-dataset-\d{8}-\d{4}$/.test(x.tag) && /^[a-z0-9]+(-[a-z0-9]+)+$/.test(x.key) && Object.values(x.assets).every((d) => /^[0-9a-f]{64}$/.test(d))), 'the pin names public release tags, keys and asset digests');
+ok([pin.half, pin.links].every((x) => x.private_tag === null || /^[a-z0-9]+(-[a-z0-9]+)+$/.test(x.private_tag)) && (pin.half.doi === null || typeof pin.half.doi === 'string'), 'private_tag and doi are a name or null');
+eq(pin.provenance.private_repository, 'koolkam00/pace-notes-db-backup', 'the pin keeps the private releases as provenance');
+// The archives /methodology#downloads-half names, and the producer's hand review it cites: claims transcribed from the
+// pinned READMEs and MATCHING_V4.md (analysis/test_half.py compares the review with the file where it is on disk).
+const DOI = /^10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+$/;
+ok(['doi', 'supersedes_doi'].every((k) => pin.stamps.reference[k] == null || DOI.test(pin.stamps.reference[k])), 'stamps.reference.doi and supersedes_doi: a DOI or null');
+{
+  const rv = pin.links.producer_review;
+  ok(rv == null || (pin.links.assets[rv.source] && int(rv.n_per_cell, 1) && finite(rv.zero_of_n_upper95) && rv.zero_of_n_upper95 > 0 && rv.zero_of_n_upper95 < 1 && Array.isArray(rv.last_rounds) && rv.last_rounds.length > 0
+    && rv.last_rounds.every((r) => typeof r.round === 'string' && ['rare_missed', 'common_missed', 'rare_false_merge', 'common_false_merge'].every((k) => finite(r[k]) && r[k] >= 0 && r[k] <= 1))),
+  'links.producer_review: a pinned source file, a cell size, and shares for each of its last rounds');
+}
+const REF = pin.stamps?.reference || {};
+eq(manifest.stamps, { reference: { asset: REF.asset, sha256: REF.sha256, tag: REF.tag }, rule: pin.stamps?.rule }, 'the manifest binds the pinned stamp reference');
+eq([/^half-dataset-\d{8}-\d{4}$/.test(REF.tag || ''), /^[0-9a-f]{64}$/.test(REF.sha256 || ''), pin.stamps?.rule], [true, true, 'verified = stamped in this snapshot\'s own edition_meta, equal to the policy\'s reviewed list'], 'the stamp rule and its reference: a public release and a digest');
 eq([pin.marathon_release, manifest.marathon.release_tag], [release.tag, release.tag], 'the half data use the adopted marathon release');
-const stamp = /(\d{4})(\d{2})(\d{2})-\d{4}$/.exec(pin.half.private_tag);
-eq(manifest.as_of, stamp && `${stamp[1]}-${stamp[2]}-${stamp[3]}`, 'as_of is the snapshot date');
+const stamp = /(\d{4})(\d{2})(\d{2})-\d{4}$/.exec(pin.half.key);
+eq(manifest.as_of, stamp && `${stamp[1]}-${stamp[2]}-${stamp[3]}`, 'as_of is the snapshot date (from half.key)');
 const runnerBytes = fs.readFileSync(rel('public/data/runners/manifest.json'));
 const runners = JSON.parse(runnerBytes);
 eq(runners.release_tag, release.tag, 'the runner shards are the adopted release');
@@ -108,15 +123,30 @@ for (const [name, digest] of Object.entries(manifest.marathon.inputs)) eq(digest
 const policyBytes = fs.readFileSync(rel(pin.policy));
 const policy = JSON.parse(policyBytes);
 eq([manifest.policy.file, manifest.policy.sha256], [pin.policy, sha(policyBytes)], 'the reviewed half policy file');
-eq(policy.tag, pin.half.private_tag, 'the policy is the snapshot’s');
+eq([policy.tag, policy.schema_version], [pin.half.key, 2], 'the policy is the snapshot’s');
+// The flagship battery's pre-registered verified-half members (October 30, 2026): the rules in words and the reviewed
+// off-road labels; the weaker-source stamps are the policy's stamps.weaker_source.
+eq(Object.keys(policy.battery || {}).sort(), ['leave_outs', 'off_road_labels', 'reviewed', 'verified_federation', 'verified_road'], 'the policy states the battery’s verified-half members and leave-outs');
+ok(Array.isArray(policy.battery?.off_road_labels) && policy.battery.off_road_labels.length > 0 && policy.battery.off_road_labels.every((l) => typeof l === 'string' && l.length > 0)
+  && new Set(policy.battery.off_road_labels).size === policy.battery.off_road_labels.length, 'the policy’s off-road labels: distinct label strings');
 {
-  // The stamp correction in the policy: the pinned source, a reviewed list of withdrawn stamps (each turned into an
-  // unverified status, none of them a weaker-source stamp), and the counts it moved.
-  const SC = policy.stamp_correction;
-  eq([SC.tag, SC.asset, SC.sha256, SC.applied, SC.readme_sha256], [MC.tag, MC.asset, MC.sha256, MC.applied, MC.readme_sha256], 'the policy’s stamp correction is the pinned one');
-  ok(SC.withdrawn.every((w) => policy.statuses.unverified.includes(w.corrected_status) && Number.isSafeInteger(w.edition_id) && typeof w.reason === 'string' && w.reason.length > 0 && w.reason.length <= 160), 'the withdrawn stamps: an unverified corrected status and a reason each');
-  eq(new Set(SC.withdrawn.map((w) => w.edition_id)).size, SC.withdrawn.length, 'the withdrawn stamps: one row per edition');
-  ok(SC.weaker_source.length > 0 && SC.weaker_source.every((x) => !SC.withdrawn.some((w) => w.edition_id === x.edition_id)), 'the weaker-source stamps stay stamped (none is withdrawn)');
+  // The stamp check in the policy (schema 2): the pinned reference and edition_meta CSV, the reviewed stamped list, the
+  // never_stamp rows, the reference's withdrawn stamps (each now an unverified status, none stamped) and the
+  // weaker-source stamps (each stamped, none withdrawn), with the counts the recount asserts.
+  const PS = policy.stamps || {};
+  eq([PS.reference?.tag, PS.reference?.asset, PS.reference?.sha256, PS.reference?.readme_sha256, PS.rule], [REF.tag, REF.asset, REF.sha256, REF.readme_sha256, pin.stamps?.rule], 'the policy’s stamp reference is the pinned one');
+  eq(PS.edition_meta_csv?.sha256, pin.half.assets[PS.edition_meta_csv?.asset], 'the policy’s edition_meta CSV is the pinned one');
+  const stampedIds = new Set(PS.stamped || []);
+  eq(stampedIds.size, (PS.stamped || []).length, 'the stamped list: one entry per edition');
+  ok((PS.reference?.withdrawn || []).every((w) => policy.statuses.unverified.includes(w.corrected_status) && !stampedIds.has(w.edition_id) && typeof w.reason === 'string' && w.reason.length > 0 && w.reason.length <= 160), 'the withdrawn stamps: an unverified status, never stamped, a reason each');
+  ok((PS.never_stamp || []).every((r) => Number.isSafeInteger(r.edition_id) && !stampedIds.has(r.edition_id) && typeof r.reason === 'string' && typeof r.added_at === 'string'), 'the never_stamp rows: none stamped');
+  ok((PS.reference?.withdrawn || []).every((w) => (PS.never_stamp || []).some((r) => r.edition_id === w.edition_id)), 'every withdrawn stamp is in never_stamp');
+  ok((PS.weaker_source || []).length > 0 && PS.weaker_source.every((x) => stampedIds.has(x.edition_id)), 'the weaker-source stamps are stamped');
+  ok((PS.reference?.weaker_source || []).every((x) => PS.weaker_source.some((y) => y.edition_id === x.edition_id && y.source === x.source)), 'the reference’s weaker-source stamps stay weaker-source');
+  eq(policy.expected?.stamp_check && [policy.expected.stamp_check.stamped, policy.expected.stamp_check.never_stamp, policy.expected.stamp_check.withdrawn_unstamped],
+    [stampedIds.size, (PS.never_stamp || []).length, (PS.reference?.withdrawn || []).length], 'the stamp_check counts are the policy’s lists');
+  const LE = policy.link_editions || {};
+  eq([LE.link_build, LE.half_max_record_id], [pin.links.key, pin.links.coverage.half_max_record_id], 'the policy’s link-build editions are the pinned link build’s');
 }
 eq(manifest.policy.module_sha256, sha(Buffer.concat(['analysis/half_quality.py', 'analysis/half_policy_lists.py'].map((p) => fs.readFileSync(rel(p))))), 'the policy modules');
 const counts = manifest.policy.counts;
@@ -126,11 +156,22 @@ eq(policyCounts, policy.expected, 'the manifest’s policy counts are the review
 const halfModules = fs.readdirSync(rel('analysis')).filter((n) => /^(half_.*|build_half)\.py$/.test(n)).map((n) => `analysis/${n}`).sort();
 eq(Object.keys(manifest.scripts).sort(), halfModules, 'every half builder module is bound to the manifest');
 for (const [name, digest] of Object.entries(manifest.scripts)) ok(digest === fileSha(name), `stale half data: ${name} changed after the build (rerun analysis/build_half.py)`);
-eq(manifest.link_rules, { candidate_merges: 'not applied', ns_keys_max: 3, pairing: 'nearest prior half, one pair per person and marathon', tiers: ['high', 'medium'], window_days: [21, 112] }, 'the link rules (spec 1.3)');
+// The v4 link rule (lead rulings L, October 31, 2026; analysis/half_pairs.py LINK_RULES).
+eq(manifest.link_rules, { conflicts: 'over every linked row of the person, whatever its confidence', link_editions: "the policy's link-partial and re-timed editions supply no linked half", ns_keys: "distinct age keys per normalized name and published sex over every row of the link build; a person takes the largest over the person's rows whose own confidence is high_elite, high or medium (either distance, whatever the record's status)", ns_keys_max: 3, pairing: 'nearest prior half, one pair per person and marathon', row_tiers: ['high_elite', 'high', 'medium'], tiers: ['high_elite', 'high', 'medium'], unions: 'applied by the link build', window_days: [21, 112] }, 'the link rules (spec 1.3)');
 eq(manifest.cohort, { linked: { half_editions: setB.half_editions, marathon_editions: setB.marathon_editions, pairs: setB.pairs }, usable: counts.use_finish, verified: counts.verified }, 'the manifest cohort is its policy counts');
+// Set B's reviewed counts (analysis/half_pairs.EXPECTED), with review R6's two signals, counted and never excluded (lead
+// rulings, October 31, 2026): halves that serve two or more pairs, and pairs whose person has another eligible marathon
+// within 13 days. Each is a count of set B and at most what it counts.
+eq(Object.keys(setB).sort(), ['half_editions', 'halves_in_two_or_more_pairs', 'marathon_editions', 'pairs', 'pairs_with_a_close_marathon', 'people'], 'set B: its reviewed counts and the two R6 signals');
+ok(Object.values(setB).every((v) => int(v)) && setB.people <= setB.pairs && setB.half_editions <= setB.pairs && 2 * setB.halves_in_two_or_more_pairs <= setB.pairs
+  && setB.pairs_with_a_close_marathon <= setB.pairs, 'set B: counts within the pairs (a half serving two pairs counts once)');
 // The policy counts add up.
 eq(counts.raw - counts.R1 - counts.R2 - counts.R3 - counts.R4 - counts.R5_fast - counts.R5_slow - counts.R6, counts.record_usable, 'R1–R6 leave the record-usable rows');
 eq(counts.record_usable - counts.R7, counts.record_usable_after_R7, 'R7 leaves the record-usable rows after R7');
+// Every record-usable finish after R7 is used or removed by one edition rule (verify round 1, October 31, 2026: a status
+// without a rule, such as the producer's empty placeholder holding rows, would otherwise drop finishes unnoticed).
+eq(counts.use_finish.finishes + counts.E0_finishes + counts.E1_held_finishes + counts.E2_E8_finishes, counts.record_usable_after_R7, 'the editions account for every record-usable finish after R7 (used, E0, E1 held, E2–E8)');
+ok(typeof policy.empty_status === 'string', 'the policy states that an empty status holds no record-usable rows');
 ok(counts.verified.finishes <= counts.use_finish.finishes && counts.verified_use_sex.finishes <= counts.verified.finishes, 'verified ⊂ usable, sex ⊂ verified');
 const frozen = policy.edition_rules.editions;
 eq(frozen.filter((e) => e.rule !== 'E0').length, counts.E2_E8_editions, 'the frozen E2–E8 list');
@@ -160,7 +201,10 @@ eq(field.policy, { sha256: manifest.policy.sha256, module_sha256: manifest.polic
 const IDENTITY_KEY = /^(ids?|rids?|record_?ids?|profile_?ids?|runners?|runner_?ids?|bibs?|bib_?(no|number)|names?|(full|first|last|given|family)_?names?|participants?|participant_?ids?|persons?|person_?ids?|edition_?ids?|h_record_id|m_record_id|series_key|urls?|source_url)$/i;
 const STRING_KEYS = new Set(['city', 'label', 'mark', 'scope', 'family', 'file', 'weighting', 'id', 'slug', 'path']);
 const PLOT_STRING_KEYS = new Set(['form', 'tone', 'rest', 'fmt', 'a', 'b']);
-const BATTERY_IDS = new Set(['pooled', 'verified_halves', 'other_marathons', 'ns_keys_1', 'one_per_person', 'editions_equal_20', 'editions_equal_100', 'city_equal']);
+// verified_federation and verified_road were pre-registered on October 30, 2026 (the policy's `battery`).
+const BATTERY_IDS = new Set(['pooled', 'verified_halves', 'verified_federation', 'verified_road', 'other_marathons', 'ns_keys_1', 'one_per_person', 'editions_equal_20', 'editions_equal_100', 'city_equal']);
+// The one place a family file names an edition: a worst leave-out variant, by its integer edition id (no label).
+const HALF_EDITION_AT = /^linked\.json\.checks\.battery\.leave_outs\.(verified_halves|verified_federation)\.worst\.[a-z_]+$/;
 const fileStrings = [];
 function scan(value, where, { inRule = false, plot = false } = {}) {
   if (Array.isArray(value)) {
@@ -168,6 +212,7 @@ function scan(value, where, { inRule = false, plot = false } = {}) {
   } else if (value && typeof value === 'object') {
     for (const [k, v] of Object.entries(value)) {
       if (k === 'id') ok(BATTERY_IDS.has(v), `${where}.id: only the battery members may use "id" (${JSON.stringify(v)})`);
+      else if (k === 'half_edition') ok(Number.isSafeInteger(v) && v >= 0 && HALF_EDITION_AT.test(where), `${where}.half_edition: an edition id only as an integer naming a worst leave-out variant (${JSON.stringify(v)})`);
       else ok(!IDENTITY_KEY.test(k), `${where}.${k}: an identifier or name key`);
       if (typeof v === 'string') {
         if (k === 'sha256' || k === 'module_sha256') ok(/^[0-9a-f]{64}$/.test(v), `${where}.${k}: not a sha256 digest`);
@@ -409,7 +454,7 @@ close(sx.diff_points, 100 * (sx.men_std - sx.women_std), 1e-6, 'linked.sexes: th
 const C = linked.checks;
 ok(C.verified.sexes.women_lower <= C.verified.sexes.strata && C.verified.sexes.strata <= sx.strata, 'linked.checks.verified.sexes: a subset of strata');
 const bat = Object.fromEntries(C.battery.members.map((m) => [m.id, m]));
-eq(Object.keys(bat), [...BATTERY_IDS], 'linked.checks.battery: the eight weighting members (spec 2.4)');
+eq(Object.keys(bat), [...BATTERY_IDS], 'linked.checks.battery: the ten weighting members (spec 2.4; verified_federation and verified_road pre-registered October 30, 2026)');
 eq([bat.pooled.n, bat.pooled.extra_p50_s, bat.pooled.multiple_p50, bat.pooled.under_double], [S.pairs, ov.extra_s.p50, ov.ratio_p50, ov.under_double_plus_min['0']], 'battery: the pooled member is the overall reading');
 eq([bat.verified_halves.n, bat.verified_halves.extra_p50_s, bat.verified_halves.under_double], [C.verified.pairs, C.verified.extra_p50_s, C.verified.under_double], 'battery: verified halves are the verified check');
 eq([bat.other_marathons.n, bat.other_marathons.extra_p50_s], [C.other_marathons.pairs, C.other_marathons.extra_p50_s], 'battery: other marathons');
@@ -423,7 +468,37 @@ for (const m of Object.values(bat)) {
   ok(finite(m.multiple_p50) && finite(m.extra_p50_s) && m.under_double >= 0 && m.under_double < 1, `battery ${m.id}: values`);
   if (!m.id.startsWith('editions') && m.id !== 'city_equal') ok(D.isShareOf(m.under_double, m.n), `battery ${m.id}: an exact share of its pairs`);
 }
-ok(C.no_merge_people.pairs <= S.pairs && C.ns_keys_1.pairs <= S.pairs && C.other_marathons.pairs < S.pairs, 'linked.checks: subsets of set B');
+ok(!!bat.verified_federation && !!bat.verified_road && bat.verified_federation.n <= bat.verified_halves.n && bat.verified_road.n <= bat.verified_halves.n, 'battery: verified_federation and verified_road are subsets of the verified halves');
+// The one-verified-half-edition-out variants of verified_halves and verified_federation (pre-registered October 30,
+// 2026): the clauses each must pass, as its member does; counts that add up; the worst variant of each clause is the
+// member without one edition, at or over the floor, an exact share of its pairs; a clause no variant fails is one its worst
+// variant passes, and one some variant fails is one its worst variant fails.
+{
+  const LO = C.battery.leave_outs || {};
+  eq(Object.keys(LO).sort(), Object.keys(D.LEAVE_OUTS).sort(), 'battery.leave_outs: verified_halves and verified_federation');
+  const pooledExtra = bat.pooled.extra_p50_s, half = C.battery.pooled_half_p50_s;
+  for (const [id, clauses] of Object.entries(D.LEAVE_OUTS)) {
+    const x = LO[id];
+    if (!ok(x && typeof x === 'object' && bat[id], `battery.leave_outs.${id}: present, with its member`)) continue;
+    const keys = clauses.flatMap((c) => D.WORST[c]);
+    eq([Object.keys(x.failing).sort(), Object.keys(x.worst).sort()], [[...clauses].sort(), [...keys].sort()], `battery.leave_outs.${id}: its clauses and worst variants`);
+    ok(int(x.variants, 1) && int(x.under_floor) && x.under_floor <= x.variants && int(x.failed) && x.failed <= x.variants && x.failed >= x.under_floor, `battery.leave_outs.${id}: counts`);
+    ok(x.variants <= bat[id].n && x.variants <= S.half_editions, `battery.leave_outs.${id}: at most one variant per half edition of the member`);
+    for (const c of clauses) {
+      ok(int(x.failing[c]) && x.failing[c] <= x.failed - x.under_floor, `battery.leave_outs.${id}: failing ${c}`);
+      for (const k of D.WORST[c]) {
+        const w = x.worst[k];
+        if (w === null) { ok(x.under_floor === x.variants && x.failing[c] === 0, `battery.leave_outs.${id}.worst.${k}: null only when every variant is under the floor`); continue; }
+        ok(int(w.half_edition) && int(w.left_out, 1) && int(w.n, D.MIN_CELL) && w.n + w.left_out === bat[id].n, `battery.leave_outs.${id}.worst.${k}: the member without one edition, at or over the floor`);
+        ok(finite(w.multiple_p50) && finite(w.extra_p50_s) && D.isShareOf(w.under_double, w.n), `battery.leave_outs.${id}.worst.${k}: values, an exact share of its pairs`);
+      }
+      const worst = D.WORST[c].map((k) => x.worst[k]);
+      if (worst.every(Boolean)) eq(worst.every((w) => D.passes(c, w, pooledExtra, half)), x.failing[c] === 0, `battery.leave_outs.${id}: its worst variants pass ${c} exactly when no variant fails it`);
+    }
+    if (x.worst.multiple_low && x.worst.multiple_high) ok(x.worst.multiple_low.multiple_p50 <= x.worst.multiple_high.multiple_p50, `battery.leave_outs.${id}: the band's two sides in order`);
+  }
+}
+ok(C.no_union_people.pairs <= S.pairs && C.ns_keys_1.pairs <= S.pairs && C.other_marathons.pairs < S.pairs, 'linked.checks: subsets of set B');
 for (const k of ['verified', 'editions_equal', 'other_marathons', 'ns_keys_1', 'one_per_person']) ok(C[k].w105_under_14400 > 0 && C[k].w105_under_14400 < 1, `linked.checks.${k}: the 1:45 check share`);
 ok(C.battery.pooled_half_p50_s >= linked.windows.all[0].h && C.battery.pooled_half_p50_s <= linked.windows.all.at(-1).h, 'linked.checks.battery: the pooled median half lies in the published range');
 // /methodology only: the multiple by 5-minute band, the marathon cities, link coverage by city.
@@ -445,6 +520,22 @@ ok(C.battery.pooled_half_p50_s >= linked.windows.all[0].h && C.battery.pooled_ha
   close(bat.city_equal.extra_p50_s, D.npMedian(cities.map((c) => c.extra_p50_s)), 0.05, 'linked.checks.by_city: city_equal’s minutes are the median city’s');
   close(bat.city_equal.multiple_p50, D.npMedian(cities.map((c) => c.multiple_p50)), 5e-5, 'linked.checks.by_city: city_equal’s multiple is the median city’s');
   close(bat.city_equal.under_double, D.npMedian(cities.map((c) => c.under_double)), 1e-9, 'linked.checks.by_city: city_equal’s under-double share is the median city’s');
+  // Where the pairs come from (verify round 1, October 31, 2026), over every marathon city: the fewest cities, most pairs
+  // first (ties by name), holding more than half of the pairs, each at least 100 pairs, no more pairs or editions than set
+  // B, and a city that is also in by_city carries by_city's pairs and editions. Minimal: without the last city they hold
+  // half or less, and no city outside them holds more pairs than the last (the list is the largest ones).
+  const PF = C.pairs_from;
+  if (PF !== null) {
+    ok(Array.isArray(PF.cities) && PF.cities.length > 0 && PF.cities.length <= S.marathon_cities && PF.cities.every((c) => typeof c.city === 'string' && int(c.pairs, D.MIN_CELL) && int(c.e, 1))
+      && new Set(PF.cities.map((c) => c.city)).size === PF.cities.length, 'linked.checks.pairs_from: distinct cities of at least 100 pairs');
+    eq(PF.pairs, PF.cities.reduce((a, c) => a + c.pairs, 0), 'linked.checks.pairs_from: its pairs are its cities’');
+    ok(PF.cities.every((c, i) => !i || c.pairs < PF.cities[i - 1].pairs || (c.pairs === PF.cities[i - 1].pairs && c.city > PF.cities[i - 1].city)), 'linked.checks.pairs_from: most pairs first, ties by name');
+    ok(2 * PF.pairs > S.pairs && 2 * (PF.pairs - PF.cities.at(-1).pairs) <= S.pairs && PF.pairs <= S.pairs && PF.cities.reduce((a, c) => a + c.e, 0) <= S.marathon_editions, 'linked.checks.pairs_from: the fewest cities holding more than half of the pairs');
+    for (const c of PF.cities) { const b = cities.find((x) => x.city === c.city); if (b) eq([c.pairs, c.e], [b.pairs, b.e], `linked.checks.pairs_from ${c.city}: by_city’s pairs and editions`); }
+    // A by_city city not in the list holds no more pairs than the list's last (the list takes the largest first).
+    ok(cities.every((b) => PF.cities.some((c) => c.city === b.city) || b.pairs < PF.cities.at(-1).pairs || (b.pairs === PF.cities.at(-1).pairs && b.city > PF.cities.at(-1).city)), 'linked.checks.pairs_from: no city of by_city outside it holds more pairs than its last');
+    if (cohort) for (const c of PF.cities) ok(cohort.editions.some((e) => e.city === c.city), `linked.checks.pairs_from ${c.city}: a marathon city of the adopted release`);
+  }
   const cov = C.coverage;
   ok(Array.isArray(cov) && cov.length >= 2 && cov.every((c) => int(c.finishes, 1000) && D.isShareOf(c.share, c.finishes) && Math.round(c.share * c.finishes) >= D.MIN_CELL), 'linked.checks.coverage: floors (1,000 finishes, 100 linked) and exact shares');
   ok(cov.every((c, i) => !i || c.share < cov[i - 1].share || (c.share === cov[i - 1].share && c.city > cov[i - 1].city)), 'linked.checks.coverage: by share');
@@ -615,7 +706,7 @@ const pageGuards = {};
     for (const [name, digest] of Object.entries(receipt.recount_scripts || {})) ok(fs.existsSync(rel(name)) && digest === fileSha(name), stale(`${name} changed`));
     ok(receipt.half_sqlite_sha256 === pin.half.sqlite_sha256, stale('another half snapshot'));
     ok(receipt.links_extract_content_sha256 === pin.links.extract_content_sha256, stale('another links extract'));
-    ok(receipt.corrected_meta_sha256 === (pin.metadata_correction || {}).sha256, stale('another corrected metadata'));
+    ok(receipt.stamp_reference_sha256 === REF.sha256 && receipt.edition_meta_csv_sha256 === pin.half.assets['csv-edition_meta.csv.zst'], stale('another stamp reference or edition_meta CSV'));
     // The marks whose fit windows reach under the published minutes are recounted only there (section 4).
     if (sourceOnlyFits.length) ok(receipt.files && receipt.files['field.json'] && receipt.files['field.json'].mismatches === 0 && receipt.tolerances && receipt.tolerances['field.json marks[].expected_minute_before'] === 0.05,
       `field.marks ${sourceOnlyFits.join(', ')}: the source recount refits their smooth curve within 0.05`);
@@ -675,6 +766,56 @@ if (opt.html) {
   const methodology = fs.existsSync(path.join(opt.out, 'methodology.html')) ? fs.readFileSync(path.join(opt.out, 'methodology.html'), 'utf8') : '';
   const ids = new Set([...methodology.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
   for (const id of ['half-data', 'half-coverage', 'half-linking', 'half-multiple', 'half-field', 'story-half-to-full', 'downloads-half', 'half-cards', 'evidence', 'sustained-slowdown']) ok(ids.has(id), `/methodology has #${id} (spec 5)`);
+  // /methodology's half sentences, recounted from the files they read (v4 adoption, October 31, 2026).
+  {
+    const mtext = textOf(noScripts(methodology));
+    const section = (id) => { const at = methodology.search(new RegExp(`\\sid="${id}"`)); return at < 0 ? '' : textOf(noScripts(elementAt(methodology, methodology.lastIndexOf('<', at)))); };
+    // AGENTS rule 17: no release tag, no person-ids- name and no snapshot stamp in the page's visible text (the links keep
+    // the names in their hrefs; the round-3 review found the half downloads printing them).
+    ok(!W.RELEASE_LABEL.test(mtext) && !/\b20\d{6}-\d{4}\b/.test(mtext), `/methodology: a release tag or a snapshot stamp in the visible text (${(mtext.match(W.RELEASE_LABEL) || mtext.match(/\b20\d{6}-\d{4}\b/) || [''])[0]})`);
+    const andList = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+    const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+    const word = (k) => WORDS[k] ?? k.toLocaleString('en-US');
+    // Where the pairs come from (the limits sentence, twice): linked.checks.pairs_from, the fewest marathon cities, over
+    // every marathon city, holding more than half of all pairs ("most pairs are from the Valencia and Warsaw marathons" was
+    // runner links v1's reading; verify round 1, October 31, 2026: by_city's cities alone left out the second-largest).
+    const PFH = C.pairs_from;
+    const top = PFH ? PFH.cities.map((c) => c.city) : [];
+    const from = PFH && PFH.pairs * 2 > S.pairs && top.length ? `more than half of the pairs are from ${top.length === 1 ? 'one marathon' : `${word(top.length)} marathons`} (${andList(top)})` : 'the pairs come unevenly from the marathons';
+    eq(mtext.split(from).length - 1, 2, `/methodology: the two limits sentences say "${from}"`);
+    ok(!/most pairs (?:are|come) from/.test(mtext), '/methodology: no "most pairs are from" left from an earlier link build');
+    // The story's method: while the flagship guard fails, the sentence names the clauses that fail, not an earlier build's.
+    const story = section('story-half-to-full');
+    const pooledM = C.battery.members.find((x) => x.id === 'pooled'), vh = C.battery.members.find((x) => x.id === 'verified_halves');
+    if (!D.flagshipGuard(linked)) {
+      ok(/so the story shows the pairs under a plain heading and states no reading of its own: its figure is the number of pairs\./.test(story), '#story-half-to-full: the fallback sentence, with the figure as the count');
+      eq(/with verified halves only \(/.test(story), !D.passes('extra', vh, pooledM.extra_p50_s, C.battery.pooled_half_p50_s), '#story-half-to-full: names the verified-halves minutes as a reason exactly when that clause fails');
+      for (const [id, clauses] of Object.entries(D.LEAVE_OUTS)) {
+        const x = C.battery.leave_outs[id];
+        for (const c of clauses) {
+          const fails = !D.WORST[c].every((k) => x.worst[k] && D.passes(c, x.worst[k], pooledM.extra_p50_s, C.battery.pooled_half_p50_s));
+          eq(story.includes(`${x.failing[c].toLocaleString('en-US')} of the ${x.variants.toLocaleString('en-US')} reruns of`) && fails, fails, `#story-half-to-full: names the failing reruns of ${id} (${c}) exactly when they fail`);
+        }
+      }
+    } else ok(/The story states only the pooled reading\./.test(story), '#story-half-to-full: the holding guard\'s sentence');
+    // How records are linked: the link-build editions, the two set B signals (review R6) and the producer's hand review.
+    const linking = section('half-linking');
+    const policyJson = readJson(manifest.policy.file);
+    const le = policyJson.link_editions;
+    if (le) {
+      const k = le.link_partial.length, r = le.retimed.length;
+      if (k) ok(linking.includes(`${word(k).replace(/^./, (c) => c.toUpperCase())} edition${k === 1 ? '' : 's'} loaded partly before the link build and partly after it`), '#half-linking: the link-partial editions, counted');
+      if (r) ok(linking.includes(`${word(r)} edition${r === 1 ? '' : 's'} whose finish times were reloaded after it`), '#half-linking: the re-timed editions, counted');
+      ok(!le.link_partial.concat(le.retimed).some((x) => linking.includes(String(x.edition_id))), '#half-linking: no edition id');
+    }
+    const sb = manifest.policy.counts.set_b;
+    const closeDays = Number(/^CLOSE_MARATHON_DAYS = (\d+)$/m.exec(fs.readFileSync(rel('analysis/half_pairs.py'), 'utf8'))?.[1]);
+    ok(linking.includes(`${sb.halves_in_two_or_more_pairs.toLocaleString('en-US')} halves are in two or more pairs, and ${sb.pairs_with_a_close_marathon.toLocaleString('en-US')} pairs have another eligible marathon of the record within ${closeDays} days`), '#half-linking: the two set B signals (review R6) with the builder\'s window');
+    ok(/accepted or rejected some merges on how a half time fits a marathon time, so the tails of the multiple partly reflect the link build/.test(linking), '#half-linking: the time-screened links (review R5)');
+    ok(!/1\.85|outside .{0,20}3\.0|false links? (?:at|of) about/.test(linking), '#half-linking: no ratio-based false-link figure (review R5)');
+    const rv = pin.links.producer_review;
+    if (rv) for (const r of rv.last_rounds) ok(linking.includes(`${(r.rare_missed * 100).toFixed(1)}%`), `#half-linking: the producer's rare-name missed links of round ${r.round}`);
+  }
   // /methodology names the half releases and the policy file in words, their tags in the addresses only (AGENTS.md rule
   // 17; round 4 review, October 31, 2026: three tags were link text). Tags are removed with no space, so a name broken
   // into parts for wrapping still reads whole.
@@ -683,9 +824,12 @@ if (opt.html) {
     const hit = /half-dataset-|half-snapshot-|runner-links-|half-policy-/.exec(plain);
     ok(!hit, `/methodology: a half release tag or the policy file's dated name in visible copy: …${hit ? plain.slice(Math.max(0, hit.index - 60), hit.index + 40) : ''}…`);
     // Nor a file name that carries a pinned release's date stamp ("half-20261029-1133.sqlite.zst.part00"; round 5: the
-    // source files' names were link text). The stamps are read from every tag and asset name in the pin.
-    const stamps = [...new Set([pin.half.tag, pin.half.private_tag, pin.links.tag, pin.links.private_tag, pin.links.pairs_with, (pin.metadata_correction || {}).tag,
-      ...Object.keys(pin.half.assets || {}), ...Object.keys(pin.links.assets || {}), (pin.metadata_correction || {}).asset]
+    // source files' names were link text). The stamps are read from every tag and asset name in the pin (schema 3 since
+    // the v4 adoption: the stamp reference replaces metadata_correction, applies_to replaces pairs_with; merged from
+    // fix/half-followups round 5, October 31, 2026).
+    const ref = (pin.stamps || {}).reference || {};
+    const stamps = [...new Set([pin.half.tag, pin.half.key, pin.half.private_tag, pin.links.tag, pin.links.key, pin.links.private_tag, pin.links.applies_to, ref.tag, ref.asset,
+      ...Object.keys(pin.half.assets || {}), ...Object.keys(pin.links.assets || {})]
       .flatMap((name) => String(name || '').match(/20\d{6}/g) || []))];
     ok(stamps.length > 0, '/methodology: the pin names its date stamps');
     for (const stamp of stamps) {

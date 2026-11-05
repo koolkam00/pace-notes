@@ -1,47 +1,99 @@
 # Public export access
 
-Updated October 22, 2026 for **`private-export-20261021-1050`**, the release every page uses (on `main` since PR #78, `39f3057`; production state is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md)); access re-checked October 30, 2026. Full source records, recorded names, supplied features, overlays and the producer's documents are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption ([operations](../docs/OPERATIONS.md#release-intake)). The half-marathon releases have [their own section](#half-marathon-releases-october-30-2026). Every asset this page lists was checked anonymously on October 30, 2026; the method and the results are in [how access was checked](#how-access-was-checked).
+Updated November 5, 2026 for **`master-20261103b`**, the release every page uses on the branch `feat/half-v4` (draft PR #89; not merged: production still uses `private-export-20261021-1050`, whose section is [below](#the-1050-release-october-21-2026-historical); production state is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md)). Full source records, recorded names, overlays and the producer's documents are public research material. Files are compressed or plain, never encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption.
 
 ## Open the full records
 
-- [1050 release and all assets](https://github.com/koolkam00/pace-notes/releases/tag/private-export-20261021-1050), also on Figshare (DOI [10.6084/m9.figshare.33965155.v3](https://doi.org/10.6084/m9.figshare.33965155.v3))
-- [CORE archive](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/pace-notes-CORE-20261021-1050.tar.gz) (189,403,111 bytes): the race records, weather, routes, flags and the producer's documents, 17 members
-- FULL archive in two parts, [part 00](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/pace-notes-FULL-20261021-1050.tar.gz.part-00) (790,000,000 bytes) and [part 01](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/pace-notes-FULL-20261021-1050.tar.gz.part-01) (780,523,364 bytes): every CORE member plus `features.parquet`, which carries the producer's cross-race `runner_id` (rules in `MATCHING.md`)
-- [Release checksums](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/RELEASE-SHA256SUMS-20261021-1050.txt) (428 bytes), listing CORE, the joined FULL and both parts
+- [`master-20261103b` and all assets](https://github.com/koolkam00/pace-notes/releases/tag/master-20261103b) (published 2026-11-03 23:10:56 UTC): one results table for the marathon and the half, the edition table and the producer's QA files. It has no hourly weather and no course routes, so those come from
+- [`dataset-20261103-0706`](https://github.com/koolkam00/pace-notes/releases/tag/dataset-20261103-0706) (published 2026-11-03 12:27:45 UTC), the producer's snapshot of the same morning: `marathon-race_conditions.csv.zst`, `marathon-course_profiles.csv.zst`, `marathon-course_segments.csv.zst`, `marathon-edition_meta.csv.zst`, `marathon-record_flags.csv.zst` and `marathon-sources.csv.zst` (its `SHA256SUMS` `d9f37a77…2d62`), value-equal to 1050's own tables where they overlap ([refresh record](../docs/REFRESH_20261103b.md#why-an-adapter)).
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| [`master_results_FULL.parquet`](https://github.com/koolkam00/pace-notes/releases/download/master-20261103b/master_results_FULL.parquet) (every result of both distances, one row each (`distance` marathon or half); the marathon rows are the analyses' source) | 537,011,922 | `41d575cde127c94a9acf4242cc4d385701bb1e7568ba2e8ee65e4341e15b69db` |
+| [`master_results_CORE.parquet`](https://github.com/koolkam00/pace-notes/releases/download/master-20261103b/master_results_CORE.parquet) (the same without the rows the producer leaves out of the release (not read by the pipeline)) | 535,914,531 | `a260bd777f757e30e0f30955744b4cf1f6b546440aa6d1d0156c846aa4c4d249` |
+| [`editions.csv`](https://github.com/koolkam00/pace-notes/releases/download/master-20261103b/editions.csv) (one row per edition: counts, status and the producer's reasons) | 6,385,105 | `3522002d59f6a9df660b6c541c33f8da5e702e7dd05b1d43d36d3cfc4b15279b` |
+| [`marathon_record_flags_detail.parquet`](https://github.com/koolkam00/pace-notes/releases/download/master-20261103b/marathon_record_flags_detail.parquet) (the marathon record flags) | 684,278 | `ed2f7a033cd195c2baade469d01d80163cb1c0bdf293b7380369b70467d69378` |
+| [`SHA256SUMS`](https://github.com/koolkam00/pace-notes/releases/download/master-20261103b/SHA256SUMS) (the release's checksums) | 1,503 | `b2dc190ed25a59c1a2175a46661db0cb3d2abf5e3814e98eb8eb9ceddf2c2065` |
+
+Every other pinned digest (the README, data dictionary, changelog, QA report, `MANIFEST_editions.csv`, `NYC2026_rows_missing_splits.csv`, `sources.csv` and the six 0706 files) is in [`analysis/release.json`](release.json).
 
 Steps, with standard tools:
 
-1. Download CORE, or both FULL parts, and the release checksums into one folder.
-2. Join FULL's parts in order: `cat pace-notes-FULL-20261021-1050.tar.gz.part-00 pace-notes-FULL-20261021-1050.tar.gz.part-01 > pace-notes-FULL-20261021-1050.tar.gz`.
-3. Check what you downloaded: `sha256sum -c --ignore-missing RELEASE-SHA256SUMS-20261021-1050.txt` (on macOS, `shasum -a 256 -c --ignore-missing RELEASE-SHA256SUMS-20261021-1050.txt`). Each file you downloaded prints OK; the others are skipped.
-4. Unpack: `tar -xzf pace-notes-FULL-20261021-1050.tar.gz` (or the CORE archive). It unpacks into a folder named `private-export-20261021-1050/`, whose `SHA256SUMS.txt` lists the data files' digests (CORE's copy also lists `features.parquet`, which only FULL holds, so check it with `--ignore-missing` too).
-5. From inside that folder, read the Parquet tables with DuckDB (`SELECT * FROM 'race_records.parquet' LIMIT 10;`) or PyArrow. `MANIFEST.json`, `ID-CONTRACT.md`, `FEATURE-FIELD-NOTES.md` and `MATCHING.md`, in the same folder, describe the fields.
+1. Download the files you want and the release's `SHA256SUMS` into one folder; check them with `sha256sum -c --ignore-missing SHA256SUMS` (on macOS, `shasum -a 256 -c --ignore-missing SHA256SUMS`).
+2. Read the results with DuckDB: `SELECT * FROM 'master_results_FULL.parquet' WHERE distance = 'marathon' LIMIT 10;` (or PyArrow). `DATA_DICTIONARY.md` describes the columns; `source_record_id` is the canonical marathon record id, the same id 1050 used.
+3. Decompress a 0706 CSV with `zstd -d marathon-race_conditions.csv.zst`.
 
-Or let `analysis/download_release.py` do steps 1 to 4: it streams FULL's parts in order, checks each part's size and digest, refuses a joined archive whose SHA-256 is not in the release checksums, and writes every file straight into `--output` (no subfolder), which is the layout the analysis commands expect.
+Or let the repository build the folder the analysis commands read: `analysis/download_release.py` hands this pin to `analysis/adapt_master.py`, which downloads every pinned file from github.com with no token, checks each against the pin and the releases' own `SHA256SUMS`, reconciles them and writes the input folder (its own documents are labelled as adapter outputs, not producer claims).
 
 ```bash
 python -m pip install -r analysis/requirements.txt
-python analysis/download_release.py --bundle FULL --tag private-export-20261021-1050 --output /path/to/1050-input
-python analysis/download_release.py --bundle CORE --tag private-export-20261021-1050 --output /path/to/1050-core
+python analysis/download_release.py --bundle FULL --output /path/to/master-20261103b-input
+python analysis/download_release.py --bundle CORE --output /path/to/master-20261103b-core
 ```
 
-No account, password or decryption key is required: the repository is public and the release is published, not a draft (GitHub API, October 22, 2026: `private: false`, `visibility: public`; release `draft: false`, `prerelease: false`). The same day at 16:44 UTC the release's asset list (HTTP 200), the release checksums (HTTP 200, 428 bytes) and the first kilobyte of FULL part 00 (HTTP 206, 1,024 bytes) were fetched with curl from the project's build container. That container's HTTPS proxy authenticates GitHub requests (GitHub answered with a 15,000-request limit, not the anonymous 60), so this shows the files are there, not that a client without an account reached them; a check from a browser with no sign-in, or a CI job with no token, would measure that.
-
-**Correction (October 30, 2026):** the anonymous check has since been made. With no credentials in the request, CORE, both FULL parts and the release checksums each answered a ranged GET on their github.com download URL with 206, and their `Content-Range` totals equal the sizes above (October 30, 2026, 23:31 UTC; [how access was checked](#how-access-was-checked)). `download_release.py` reads the asset list from api.github.com before it downloads, so a run of it from these build sessions still does not show anonymous access by itself.
+**Anonymous access (checked November 5, 2026, 06:20:02–06:20:21 UTC):** with `GH_TOKEN` and `GITHUB_TOKEN` removed from the environment and no Authorization header, a ranged GET (`curl -sSL -r 0-0 -o /dev/null -w '%{http_code}' URL`) on the github.com download URL of every asset of both releases (14 of `master-20261103b`, 28 of `dataset-20261103-0706`) and of 1050's CORE archive, the adapter's baseline, answered 206 ([list](../docs/evidence/2026-11-04/release-master-20261103b/anonymous-access-2026-11-05.txt)). The adapter never calls api.github.com.
 
 | Verification | Value |
 | --- | --- |
-| CORE archive SHA-256 | `b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8` |
-| FULL archive SHA-256 (joined) | `6df47d5538023003271a89c289332e964aa136e34b3770ecffd2e704cc8490e5` |
-| FULL part 00 SHA-256 | `07788e3d11abf529e4a4930bfe2082f066ff811bd35b0fab8ac7bbb08e4bd4cc` |
-| FULL part 01 SHA-256 | `9a67ce12c6d14776826249727373895b3ac776cfb366595286164c24a5ad6b09` |
-| Release checksums SHA-256 | `a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f` |
-| Raw records and features | 5,327,504 each |
-| Raw coverage | 34 cities; 298 city/year editions |
+| Marathon rows (FULL; CORE, the analyses' input) | 5,389,399; 5,388,605 |
+| Raw coverage | 34 cities; 299 city/year editions (Amsterdam 2020, a virtual race, is out of CORE) |
+| Eligible finishes under the reviewed policy | 4,222,246 in 218 editions and 27 cities |
 
-The audit, the identity contract, the edition policy and the delta against 1652 (412,943 records added, 794 removed, none changed) are in [the 1050 refresh record](../docs/REFRESH_20261021_1050.md#verified-source). Downloading a release does not change either pin, the website or the ingestion database.
+The audit, the identity contract, the edition policy and the delta against 1050 (61,101 records added, none removed, 16,013 changed in place) are in [the refresh record](../docs/REFRESH_20261103b.md). Downloading a release does not change either pin, the website or the ingestion database.
 
-## Half-marathon releases (October 30, 2026)
+## Half-marathon releases (October 31, 2026)
+
+The half-marathon pages (`/half`, the half-to-full story and the tools' half panels) read the owner's public half releases in the same repository, under CC BY 4.0, pinned by sha256 in [`analysis/half-release.json`](half-release.json) (schema 3). This is the pin of the branch `feat/half-v4`, measured and reviewed on October 31, 2026 and not merged; `main` and production still read the first pin, [below](#half-marathon-releases-october-30-2026-historical). Contract, rules and evidence: [half marathons](../docs/HALF_MARATHON.md#sources-and-access).
+
+- [`half-dataset-20261030-1904`](https://github.com/koolkam00/pace-notes/releases/tag/half-dataset-20261030-1904) (published 2026-10-30 23:52 UTC; `immutable: false` on GitHub; no DOI is stated for it): the half snapshot of October 30, 2026, 19:04 ET, and the producer's person IDs v4, which link half and marathon records, with the release's README, comma-separated tables and [`SHA256SUMS`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/SHA256SUMS) (1,383 bytes, itself pinned: sha256 `9a9759bf6aff47a2dbc5c53f97d295dd55d440392e492cca9fec6a1bc06d9446`). The pages use:
+
+  | Asset | Bytes | SHA-256 |
+  | --- | ---: | --- |
+  | [`half-20261030-1904.sqlite.zst.part00`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/half-20261030-1904.sqlite.zst.part00) (the results, the only part, reassembled to `platform_half.sqlite`, 4,474,351,616 bytes, sha256 `c8f31c59b4446482c14626717eabadcecbf6dfacffab42d63bf7881181342b91`; a WAL-mode SQLite) | 480,393,114 | `748a33d2d1605da3c42be8cbaf9776713796cc4131442d1f26eea5da14819892` |
+  | [`csv-edition_meta.csv.zst`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/csv-edition_meta.csv.zst) (the edition metadata, checked equal to the snapshot's `edition_meta` on every build) | 636,190 | `a0f48f1501fe1a17a669c98f0e497d16a7e52722b61c7dad3936e056724a9abe` |
+  | [`README.md`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/README.md) (the release's README, pinned with the data) | 3,182 | `8747dc6431a5842572a2dc8b589f2a67090d7546213ba4e358d7dee0280baec1` |
+  | [`race_results_linked.parquet`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/race_results_linked.parquet) (the person IDs: one row per half or marathon result; the links extract's source) | 677,175,967 | `07c5d13c39886a31ee03d0b2de3847bf00a03022a7629d223950c4bd2884cf77` |
+  | [`persons.parquet`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/persons.parquet) (one row per person) | 131,547,990 | `7c95d07c48959eff3d22a2aaffc65cfa67db9ee698acb24ce2886ca862d1ed8d` |
+  | [`MATCHING_V4.md`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/MATCHING_V4.md) (the linking rules R1–R23 and the producer's hand review) | 4,997 | `ab53ce56c491858cbc6a69b8ee5fa2b919ab7990f1b9da0e1c6e6a30f23364dd` |
+  | [`COLUMNS_V4.md`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/COLUMNS_V4.md) (the columns of the two parquet files) | 1,192 | `684f9bbf21fc1bef9ab8850e06f5d328eadcd064510bb1c91ad4a8b5a6a205fd` |
+  | [`checks.txt`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/checks.txt) (the producer's integrity checks) | 2,304 | `ccf75c8756158172209f7e981a07b4ed8c9c8c680a055479b24c14b35d3803c3` |
+  | [`code.tgz`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/code.tgz) (the scripts that built the person IDs) | 13,883 | `d4ebc559b240c16aa21a710c39cdead1d5611132aa1b9ec8b2330e07e5147d50` |
+
+  Not used by the pages: `person_ids_v4.sqlite.zst` (1,034,478,984 bytes, sha256 `b2747de3a0c448b7e4cae0b343474ad5d4046190152802c050cfa6a7198daedc`), the same person IDs as SQLite, which holds no `name_norm` or sex, so `ns_keys` cannot be rebuilt from it; `csv-race_records_nodup.csv.zst` (200,585,924 bytes, `d26d18d8ed0f374f0ca2c4b92e0e6d4a1f2b54b3d62aa5c68f8638c6415c285c`) and the release's other tables (`csv-race_conditions`, `csv-record_flags`, `csv-sources`, each in `SHA256SUMS`). Cited only: [`MATCHING_HALF.md`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/MATCHING_HALF.md) (4,637 bytes, `7acb6ce59ba58140d44b8f84282158a6739fea56e5ebf9a8e22692023a48f030`, the v1 method, the same file as in `half-dataset-20261029-1202`) and [`split_rates.txt`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/split_rates.txt) (1,688 bytes, `ed99365f06f73a4b596b47b0d9723bdb8fff3ab74eb5de6fdf44a3ab024695fb`).
+- [`half-dataset-20261029-2157`](https://github.com/koolkam00/pace-notes/releases/tag/half-dataset-20261029-2157), doi:[10.6084/m9.figshare.34858428.v2](https://doi.org/10.6084/m9.figshare.34858428.v2) (the 1904 README's name for it), is the **stamp reference**: [`csv-edition_meta.csv.zst`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-2157/csv-edition_meta.csv.zst) (582,494 bytes, sha256 `2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842`), the producer's corrected edition metadata of October 29, 2026, with its [`README.md`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-2157/README.md) (4,065 bytes, `3ba5ed96096bab048da5d81d3bd0428962661ccc494aa99963efa505e7506332`) and [`SHA256SUMS`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-2157/SHA256SUMS) (824 bytes, pinned: `fe72490f32557e4464cb5fa9577726b663a8d7c125f7456944bad6a84e4051b6`). The 1904 snapshot carries this correction natively; the build checks every stamp against the file, so it is a cross-check, not an overlay. It supersedes figshare version 1 (doi:10.6084/m9.figshare.34858428.v1), whose edition metadata overstated the verified editions.
+
+Steps, with standard tools: download the 1904 files above and that release's `SHA256SUMS` into one folder, check them (`sha256sum -c --ignore-missing SHA256SUMS`), then decompress the snapshot (`zstd -d half-20261030-1904.sqlite.zst.part00 -o platform_half.sqlite`) and open it read-only (it is a WAL-mode SQLite, so open it as `file:platform_half.sqlite?mode=ro&immutable=1`), or read the parquet files with DuckDB. Download the three 2157 files into a folder of their own, `half-dataset-20261029-2157/` (the layout the downloader uses), and check them there: both releases ship a `csv-edition_meta.csv.zst`, a `README.md` and a `SHA256SUMS` under the same names with different digests. Or let the downloader do it, checking every asset against its release's `SHA256SUMS` (whose own digest the pin holds) and the pin, reassembling `platform_half.sqlite` with an integrity check and cutting the links extract the builders read (`links-v4.sqlite`, 260,952,064 bytes; the parquet files are deleted afterwards unless `--keep-v4`):
+
+```bash
+python -m pip install -r analysis/requirements.txt
+PACE_HALF_DIR=/path/to/half-1904 python3 -I analysis/download_half.py [--work /a/larger/disk]
+```
+
+**Anonymous access** (checked October 31, 2026, 11:30:07 to 11:30:14 UTC, from a build session, a ranged GET of each github.com download URL, `curl -sS -L -r 0-0`, with every token variable unset). Every asset answered 206 after one redirect, and every `Content-Range` total equals the asset's size:
+
+| Release | Asset | Result | Bytes (`Content-Range`) |
+| --- | --- | --- | ---: |
+| `half-dataset-20261030-1904` | `half-20261030-1904.sqlite.zst.part00` | 206 | 480,393,114 |
+| | `csv-edition_meta.csv.zst` | 206 | 636,190 |
+| | `README.md` | 206 | 3,182 |
+| | `SHA256SUMS` | 206 | 1,383 |
+| | `race_results_linked.parquet` | 206 | 677,175,967 |
+| | `persons.parquet` | 206 | 131,547,990 |
+| | `MATCHING_V4.md` | 206 | 4,997 |
+| | `COLUMNS_V4.md` | 206 | 1,192 |
+| | `checks.txt` | 206 | 2,304 |
+| | `code.tgz` | 206 | 13,883 |
+| | `split_rates.txt` | 206 | 1,688 |
+| | `MATCHING_HALF.md` | 206 | 4,637 |
+| `half-dataset-20261029-2157` | `csv-edition_meta.csv.zst` | 206 | 582,494 |
+| | `README.md` | 206 | 4,065 |
+| | `SHA256SUMS` | 206 | 824 |
+
+In the same run the release page of `half-dataset-20261030-1904` answered 200, `https://doi.org/10.6084/m9.figshare.34858428.v2` answered 302, and the control, `half-snapshot-20261029-1133/half-20261029-1133.sqlite.zst.part00` in the private `koolkam00/pace-notes-db-backup`, answered 404. The same assets had answered 206 at the fetch (about 02:23 UTC) and in the specification review (03:53:34 UTC), and the workflow's `source` job steps downloaded them on this machine with no credentials (07:52 UTC; [half marathons](../docs/HALF_MARATHON.md#evidence-measured-october-31-2026)). The private releases `person-ids-v4-20261030-1150` (the same digests as the public v4 assets, compared October 31, 2026) and `half-snapshot-20261030-1356` (an earlier snapshot, not used) are provenance only.
+
+## Half-marathon releases (October 30, 2026, historical)
+
+> Historical (October 31, 2026): the first half pin, which `main` and production still read; the branch `feat/half-v4` replaces it with `half-dataset-20261030-1904` ([above](#half-marathon-releases-october-31-2026)). This section is kept as written on October 30, 2026; its heading gained "historical".
 
 The half-marathon pages (`/half`, the half-to-full story and the tools' half panels) read the owner's public half releases in the same repository, under CC BY 4.0, pinned by sha256 in [`analysis/half-release.json`](half-release.json). Contract, rules and evidence: [half marathons](../docs/HALF_MARATHON.md#sources-and-access).
 
@@ -105,6 +157,52 @@ A 206 (or 200) after the redirect to the asset host means anyone can download th
 | | `CHANGE-REPORT.md` | 206 | 1,676 |
 
 In the same run: the release pages of `private-export-20261021-1050`, `half-dataset-20261029-1202`, `half-dataset-20261029-2157`, `htw-db-2026-10-16-1652` and `private-export-20260912-0934` answered 200; `https://doi.org/10.6084/m9.figshare.33965155.v3` and `https://doi.org/10.6084/m9.figshare.34858428.v1` answered 302 to their figshare records; a HEAD request for the 1050 release checksums answered 401. The control, `half-snapshot-20261029-1133/half-20261029-1133.sqlite.zst.part00` in the private `koolkam00/pace-notes-db-backup` (an asset the proxied API lists), answered 404 to the same ranged GET, which shows the test does not carry the proxy's credentials.
+
+## The 1050 release (October 21, 2026, historical)
+
+The top of this file as it stood for `private-export-20261021-1050` until November 5, 2026, kept word for word (its headings demoted one level):
+
+Updated October 22, 2026 for **`private-export-20261021-1050`**, the release every page uses (on `main` since PR #78, `39f3057`; production state is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md)); access re-checked October 30, 2026. Full source records, recorded names, supplied features, overlays and the producer's documents are public research material. Archives are compressed, not encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption ([operations](../docs/OPERATIONS.md#release-intake)). The half-marathon releases have their own sections: [the v4 pin](#half-marathon-releases-october-31-2026) (branch `feat/half-v4`, October 31, 2026) and [the first pin](#half-marathon-releases-october-30-2026-historical), which `main` reads. Every asset this page lists was checked anonymously on October 30, 2026; the method and the results are in [how access was checked](#how-access-was-checked).
+
+### Open the full records
+
+- [1050 release and all assets](https://github.com/koolkam00/pace-notes/releases/tag/private-export-20261021-1050), also on Figshare (DOI [10.6084/m9.figshare.33965155.v3](https://doi.org/10.6084/m9.figshare.33965155.v3))
+- [CORE archive](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/pace-notes-CORE-20261021-1050.tar.gz) (189,403,111 bytes): the race records, weather, routes, flags and the producer's documents, 17 members
+- FULL archive in two parts, [part 00](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/pace-notes-FULL-20261021-1050.tar.gz.part-00) (790,000,000 bytes) and [part 01](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/pace-notes-FULL-20261021-1050.tar.gz.part-01) (780,523,364 bytes): every CORE member plus `features.parquet`, which carries the producer's cross-race `runner_id` (rules in `MATCHING.md`)
+- [Release checksums](https://github.com/koolkam00/pace-notes/releases/download/private-export-20261021-1050/RELEASE-SHA256SUMS-20261021-1050.txt) (428 bytes), listing CORE, the joined FULL and both parts
+
+Steps, with standard tools:
+
+1. Download CORE, or both FULL parts, and the release checksums into one folder.
+2. Join FULL's parts in order: `cat pace-notes-FULL-20261021-1050.tar.gz.part-00 pace-notes-FULL-20261021-1050.tar.gz.part-01 > pace-notes-FULL-20261021-1050.tar.gz`.
+3. Check what you downloaded: `sha256sum -c --ignore-missing RELEASE-SHA256SUMS-20261021-1050.txt` (on macOS, `shasum -a 256 -c --ignore-missing RELEASE-SHA256SUMS-20261021-1050.txt`). Each file you downloaded prints OK; the others are skipped.
+4. Unpack: `tar -xzf pace-notes-FULL-20261021-1050.tar.gz` (or the CORE archive). It unpacks into a folder named `private-export-20261021-1050/`, whose `SHA256SUMS.txt` lists the data files' digests (CORE's copy also lists `features.parquet`, which only FULL holds, so check it with `--ignore-missing` too).
+5. From inside that folder, read the Parquet tables with DuckDB (`SELECT * FROM 'race_records.parquet' LIMIT 10;`) or PyArrow. `MANIFEST.json`, `ID-CONTRACT.md`, `FEATURE-FIELD-NOTES.md` and `MATCHING.md`, in the same folder, describe the fields.
+
+Or let `analysis/download_release.py` do steps 1 to 4: it streams FULL's parts in order, checks each part's size and digest, refuses a joined archive whose SHA-256 is not in the release checksums, and writes every file straight into `--output` (no subfolder), which is the layout the analysis commands expect.
+
+```bash
+python -m pip install -r analysis/requirements.txt
+python analysis/download_release.py --bundle FULL --tag private-export-20261021-1050 --output /path/to/1050-input
+python analysis/download_release.py --bundle CORE --tag private-export-20261021-1050 --output /path/to/1050-core
+```
+
+No account, password or decryption key is required: the repository is public and the release is published, not a draft (GitHub API, October 22, 2026: `private: false`, `visibility: public`; release `draft: false`, `prerelease: false`). The same day at 16:44 UTC the release's asset list (HTTP 200), the release checksums (HTTP 200, 428 bytes) and the first kilobyte of FULL part 00 (HTTP 206, 1,024 bytes) were fetched with curl from the project's build container. That container's HTTPS proxy authenticates GitHub requests (GitHub answered with a 15,000-request limit, not the anonymous 60), so this shows the files are there, not that a client without an account reached them; a check from a browser with no sign-in, or a CI job with no token, would measure that.
+
+**Correction (October 30, 2026):** the anonymous check has since been made. With no credentials in the request, CORE, both FULL parts and the release checksums each answered a ranged GET on their github.com download URL with 206, and their `Content-Range` totals equal the sizes above (October 30, 2026, 23:31 UTC; [how access was checked](#how-access-was-checked)). `download_release.py` reads the asset list from api.github.com before it downloads, so a run of it from these build sessions still does not show anonymous access by itself.
+
+| Verification | Value |
+| --- | --- |
+| CORE archive SHA-256 | `b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8` |
+| FULL archive SHA-256 (joined) | `6df47d5538023003271a89c289332e964aa136e34b3770ecffd2e704cc8490e5` |
+| FULL part 00 SHA-256 | `07788e3d11abf529e4a4930bfe2082f066ff811bd35b0fab8ac7bbb08e4bd4cc` |
+| FULL part 01 SHA-256 | `9a67ce12c6d14776826249727373895b3ac776cfb366595286164c24a5ad6b09` |
+| Release checksums SHA-256 | `a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f` |
+| Raw records and features | 5,327,504 each |
+| Raw coverage | 34 cities; 298 city/year editions |
+
+The audit, the identity contract, the edition policy and the delta against 1652 (412,943 records added, 794 removed, none changed) are in [the 1050 refresh record](../docs/REFRESH_20261021_1050.md#verified-source). Downloading a release does not change either pin, the website or the ingestion database.
+
 
 ## The 1652 release (October 16, 2026, historical)
 

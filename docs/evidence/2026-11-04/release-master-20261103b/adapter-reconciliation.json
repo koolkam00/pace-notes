@@ -1,0 +1,177 @@
+{
+  "document": "Adapter output (analysis/adapt_master.py), not a producer document.",
+  "tag": "master-20261103b",
+  "checks": {
+    "qa_report": {
+      "full_rows_marathon": 5389399,
+      "core_rows_marathon": 5388605,
+      "record_contract": {
+        "rows": 5389399,
+        "uid_not_m_id": 0,
+        "repeated_or_null_id": 0,
+        "null_id": 0,
+        "distance_km": 0,
+        "source_db": 0,
+        "edition_uid": 0,
+        "half_columns": 0,
+        "finish_column": 0,
+        "in_core_rule": 0,
+        "finish_time_only": 0
+      },
+      "nyc2026_rows_with_all_8_splits": 60269
+    },
+    "nyc2026_rows_missing_splits": {
+      "measured": 793,
+      "listed": 793,
+      "disagree": 0
+    },
+    "editions_csv": {
+      "editions": 300,
+      "unmatched": 0,
+      "rows_full": 0,
+      "rows_core": 0,
+      "rows_with_finish": 0,
+      "rows_with_5k": 0,
+      "tier": 0,
+      "tier_rule": 0,
+      "manifest_editions_rows": 10366,
+      "manifest_editions_differences": 0,
+      "excluded": [
+        "Amsterdam 2020"
+      ]
+    },
+    "record_flags": {
+      "flag_string": 0,
+      "exclude_flag": 0,
+      "orphan_flags": 0,
+      "repeated_flags": 0,
+      "detail_rows": 542257,
+      "overlay_rows": 542257,
+      "detail_vs_overlay": {
+        "only_left": 0,
+        "only_right": 0,
+        "changed_columns": {}
+      }
+    },
+    "edition_overlays": {
+      "edition_meta": {
+        "no_overlay_row": 1,
+        "no_edition_row": 0,
+        "differ": 0,
+        "without_overlay_row": [
+          "New York 2026"
+        ]
+      },
+      "weather": {
+        "with_weather": 298,
+        "differ": 0,
+        "scalars_without_row": 0,
+        "repeated": 0,
+        "editions_without_weather": [
+          "Amsterdam 2020",
+          "New York 2026"
+        ]
+      },
+      "elevation": {
+        "with_elevation": 295,
+        "without_profile": 0
+      }
+    },
+    "baseline_overlays": {
+      "tag": "private-export-20261021-1050",
+      "equal": {
+        "race_conditions": true,
+        "course_profiles": true,
+        "course_segments": true,
+        "edition_meta": false,
+        "record_flags": false
+      },
+      "differences": {
+        "race_conditions": {
+          "only_left": 0,
+          "only_right": 0,
+          "changed_columns": {}
+        },
+        "course_profiles": {
+          "only_left": 0,
+          "only_right": 0,
+          "changed_columns": {}
+        },
+        "course_segments": {
+          "only_left": 0,
+          "only_right": 0,
+          "changed_columns": {}
+        },
+        "edition_meta": {
+          "only_left": 0,
+          "only_right": 0,
+          "changed_columns": {
+            "official_finishers": 1,
+            "official_source_url": 1,
+            "official_source_type": 1,
+            "official_checked_at": 1,
+            "db_count_at_check": 1,
+            "checked_at": 2,
+            "completeness_status": 2,
+            "completeness_reason": 2,
+            "updated_at": 2
+          }
+        },
+        "record_flags": {
+          "only_left": 795,
+          "only_right": 0,
+          "changed_columns": {
+            "note": 2,
+            "updated_at": 2
+          }
+        }
+      },
+      "edition_meta_changed": [
+        "Amsterdam 2023",
+        "New York 2008"
+      ],
+      "core_flags_changed": [
+        "Amsterdam 2023"
+      ]
+    }
+  },
+  "overlays_written": {
+    "race_conditions": "baseline bytes (values equal to the overlay CSV)",
+    "course_profiles": "baseline bytes (values equal to the overlay CSV)",
+    "course_segments": "baseline bytes (values equal to the overlay CSV)",
+    "sources": "overlay values in the 1050 schema",
+    "edition_meta": "overlay values in the 1050 schema",
+    "record_flags": "overlay values in the 1050 schema"
+  },
+  "features": {
+    "rows": 5388605,
+    "with_runner_id": 4653347,
+    "runner_ids": 3522255,
+    "nyc2026_without_runner_id": 61062,
+    "nyc2026_rows": 61062,
+    "with_yob": 1644749
+  },
+  "checksum_delta": {
+    "baseline": "private-export-20261021-1050",
+    "baseline_editions": 298,
+    "baseline_empty": [
+      "Amsterdam 2020"
+    ],
+    "editions": 299,
+    "unchanged": 297,
+    "changed": [
+      {
+        "edition": "Amsterdam 2023",
+        "rows_before": 16030,
+        "rows": 16069
+      }
+    ],
+    "added": [
+      {
+        "edition": "New York 2026",
+        "rows": 61062
+      }
+    ],
+    "removed": []
+  }
+}
