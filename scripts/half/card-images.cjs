@@ -33,7 +33,7 @@ module.exports = function halfCardSet(kit) {
   // The chip's words are the site's (components/tools/EvidenceTag.tsx SCOPE_CHIP); a card never words it differently.
   const tag = fs.readFileSync(path.join(root, 'components/tools/EvidenceTag.tsx'), 'utf8');
   if (!tag.includes(`SCOPE_CHIP = '${HALF_CARD_CHIP}'`)) throw new Error('The half cards’ chip differs from SCOPE_CHIP in components/tools/EvidenceTag.tsx.');
-  if (!tag.includes(`DISTANCE_LABEL = '${HALF_CARD_DISTANCE}'`)) throw new Error('The half cards’ distance label differs from DISTANCE_LABEL in components/tools/EvidenceTag.tsx.');
+  if (!fs.readFileSync(path.join(root, 'components/tools/DistanceTag.tsx'), 'utf8').includes(`DISTANCE_LABEL = '${HALF_CARD_DISTANCE}'`)) throw new Error('The half cards’ distance label differs from DISTANCE_LABEL in components/tools/DistanceTag.tsx.');
 
   const code = () => sha(topCode() + CODE.map((f) => sha(fs.readFileSync(path.join(root, f), 'utf8'))).join(''));
 

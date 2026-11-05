@@ -1,6 +1,6 @@
 import Arrow from '@/components/ui/Arrow';
 import BigNumber from '@/components/ui/BigNumber';
-import { DistanceTag } from '@/components/tools/EvidenceTag';
+import { DistanceTag } from '@/components/tools/DistanceTag';
 import { joinRanges } from '@/components/ui/keepTogether';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import type { ChapterReading } from '@/lib/chapters';

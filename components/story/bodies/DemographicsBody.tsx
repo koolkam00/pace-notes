@@ -8,7 +8,7 @@ import { MARATHON_KM } from '@/lib/units';
 import LineProfile from '@/components/viz/LineProfile';
 import Ruler from '@/components/viz/Ruler';
 import Values from '@/components/ui/Values';
-import { DistanceTag } from '@/components/tools/EvidenceTag';
+import { DistanceTag } from '@/components/tools/DistanceTag';
 import ArrowTail from '@/components/ui/ArrowTail';
 import PairBars from '../charts/PairBars';
 import { HalfWay, halfStoryLive } from '@/components/half/HalfWays';

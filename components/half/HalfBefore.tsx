@@ -1,5 +1,6 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { DistanceTag, EvidenceTag, ScopeTag } from '@/components/tools/EvidenceTag';
+import { EvidenceTag, ScopeTag } from '@/components/tools/EvidenceTag';
+import { DistanceTag } from '@/components/tools/DistanceTag';
 import ArrowTail from '@/components/ui/ArrowTail';
 import { withEm } from '@/components/ui/withEm';
 import type { HalfGoal } from '@/lib/half-types';

@@ -48,8 +48,8 @@ const D = require('./half/derive.cjs');
 const W = require('./lib/words.cjs');
 // The distance label's words, read from the one place they are written (owner decision, November 5, 2026: "label each
 // one as a comparison between distances").
-const DISTANCE = (/DISTANCE_LABEL = '([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'components/tools/EvidenceTag.tsx'), 'utf8')) || [])[1];
-if (!DISTANCE) throw new Error('verify-half: DISTANCE_LABEL not found in components/tools/EvidenceTag.tsx');
+const DISTANCE = (/DISTANCE_LABEL = '([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'components/tools/DistanceTag.tsx'), 'utf8')) || [])[1];
+if (!DISTANCE) throw new Error('verify-half: DISTANCE_LABEL not found in components/tools/DistanceTag.tsx');
 
 const started = Date.now();
 const problems = [];

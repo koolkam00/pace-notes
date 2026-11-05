@@ -3,7 +3,7 @@ import { joinRanges } from '@/components/ui/keepTogether';
 import BigNumber from './ui/BigNumber';
 import MarkerBadge from './ui/MarkerBadge';
 import ChapterLink from './ChapterLink';
-import { DistanceTag } from './tools/EvidenceTag';
+import { DistanceTag } from './tools/DistanceTag';
 import { UnitLink as Link } from './UnitsProvider';
 import { CHAPTERS, chapterHref, chapterNumber, type ChapterReading, type Next } from '@/lib/chapters';
 

@@ -3,7 +3,7 @@ import { joinRanges } from '@/components/ui/keepTogether';
 import MarkerBadge from './MarkerBadge';
 import Arrow from './Arrow';
 import ChapterLink from '@/components/ChapterLink';
-import { DistanceTag } from '@/components/tools/EvidenceTag';
+import { DistanceTag } from '@/components/tools/DistanceTag';
 import { CHAPTERS, chapterHref, livePages, partLabel, type Chapter, type ChapterPage, type PageKind, type ReadingOf } from '@/lib/chapters';
 
 /**

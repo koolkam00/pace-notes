@@ -7,7 +7,8 @@ import { count, hm, pct } from '@/lib/nuggets/format';
 import { NOT_A_PREDICTION, floorHM, paceGap, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
 import type { UnitSystem } from '@/lib/units';
 import { STORIES } from '@/lib/stories';
-import { DistanceTag, ScopeTag } from '@/components/tools/EvidenceTag';
+import { ScopeTag } from '@/components/tools/EvidenceTag';
+import { DistanceTag } from '@/components/tools/DistanceTag';
 import Ruler from '@/components/viz/Ruler';
 import LineProfile from '@/components/viz/LineProfile';
 import { crowdedFlipLabels } from '@/components/viz/grid-crowded';
@@ -199,7 +200,7 @@ export default function HalfToFullBody() {
         // The dek says what the page pairs and where to look, and states no reading, so it reads the same under the
         // plain H1 (review, October 30, 2026: the old verbless dek was written to qualify the reading H1).
         // "Find your half below." is said only with JavaScript: a static page's needle cannot move (round 5 review).
-        dek={<>{rich(deks.hero, { linked: true })}<span className="js-only"> {deks.find}</span> <ScopeTag /> <DistanceTag /></>}
+        dek={<>{rich(deks.hero, { linked: true })}<span className="js-only"> {deks.find}</span> <span className="reading-dek-tags"><ScopeTag /><DistanceTag /></span></>}
         figure={figure ? { value: figure.value, unit: figure.unit, sr: figure.sr } : undefined} unitLine={figure ? extra.key : undefined}
         instrument={extra.guard ? ruler : undefined} />
 

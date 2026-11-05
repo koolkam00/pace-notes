@@ -2,7 +2,7 @@ import { UnitLink as Link } from '@/components/UnitsProvider';
 import { halfLinkEditions, halfPin, halfStamps, readHalf } from '@/lib/half-server';
 import type { HalfBatteryId, HalfLinked, HalfManifest } from '@/lib/half-types';
 import { halfCardWords } from '@/lib/charts/text/half';
-import { DISTANCE_LABEL } from '@/components/tools/EvidenceTag';
+import { DISTANCE_LABEL } from '@/components/tools/DistanceTag';
 import { FLAGSHIP_CLAUSES, flagshipFailures, flagshipGuard, halfCitiesFrom, halfExtraFrom, womenBandsPublished } from '@/lib/nuggets/half';
 import { STORIES, halfManifest, storyHref } from '@/lib/stories';
 import { floorHM } from '@/lib/tools/half-to-full';

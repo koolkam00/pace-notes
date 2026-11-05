@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { DistanceTag, EvidenceTag, ScopeTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
+import { EvidenceTag, ScopeTag, SlowdownTerm } from '@/components/tools/EvidenceTag';
+import { DistanceTag } from '@/components/tools/DistanceTag';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import ArrowTail from '@/components/ui/ArrowTail';
 import { withEm } from '@/components/ui/withEm';

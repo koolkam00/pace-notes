@@ -50,3 +50,7 @@ a.scope-chip:focus-visible, a.distance-chip:focus-visible { outline: 2px solid v
 /* The label's longest word is "comparison", so it wraps at its spaces and hyphens, never inside a word (a contents row
    at 195 CSS px broke "comparis-on"). */
 .distance-chip { overflow-wrap: normal; }
+/* The half story's dek ends on its two pills, on a line of their own: the row gap keeps each pill's 44 px hit area
+   clear of the other's when they wrap (layout lint, November 5, 2026). */
+.reading-dek-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 20px var(--s-2); margin-top: 10px; }
+.reading-dek-tags .scope-chip, .reading-dek-tags .distance-chip { margin-top: 0; }
