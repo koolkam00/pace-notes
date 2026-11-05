@@ -8,6 +8,7 @@ import { MARATHON_KM } from '@/lib/units';
 import LineProfile from '@/components/viz/LineProfile';
 import Ruler from '@/components/viz/Ruler';
 import Values from '@/components/ui/Values';
+import { DistanceTag } from '@/components/tools/DistanceTag';
 import ArrowTail from '@/components/ui/ArrowTail';
 import PairBars from '../charts/PairBars';
 import { HalfWay, halfStoryLive } from '@/components/half/HalfWays';
@@ -99,6 +100,7 @@ export default function DemographicsBody() {
         {halfSaid ? (
           <p className="story-way arrow-line" data-half-said="stated">For <Link href="/methodology#half-linking" className="term-link">records linked by name</Link>:{' '}
             <Link href="/stories/half-to-full#women-men" data-half-link="linked"><ArrowTail text="recorded women’s marathons had fewer sustained slowdowns after a half marathon in the same time, too" /></Link>
+            <span className="story-way-label"><DistanceTag link={false} /></span>
           </p>
         ) : <HalfWay className="story-way" href="/stories/half-to-full#women-men" reading>Recorded women and men after a half marathon in the same time</HalfWay>}
       </Beat>

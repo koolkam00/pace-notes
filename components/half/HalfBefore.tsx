@@ -1,5 +1,6 @@
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { EvidenceTag, ScopeTag } from '@/components/tools/EvidenceTag';
+import { DistanceTag } from '@/components/tools/DistanceTag';
 import ArrowTail from '@/components/ui/ArrowTail';
 import { withEm } from '@/components/ui/withEm';
 import type { HalfGoal } from '@/lib/half-types';
@@ -18,7 +19,7 @@ export default function HalfBefore({ goal }: { goal: HalfGoal }) {
   const lines = goalLines(goal);
   return (
     <section className="tool-panel goal-pace-half" id="goal-pace-half" data-half-scope="linked" aria-labelledby="goal-pace-half-title">
-      <p className="goal-pace-half-tags"><EvidenceTag kind="data" /><ScopeTag /></p>
+      <p className="goal-pace-half-tags"><EvidenceTag kind="data" /><ScopeTag /><DistanceTag /></p>
       <p className="goal-pace-half-kicker">The half marathon before</p>
       <h2 className="tool-nugget-text" id="goal-pace-half-title">{withEm(lines.lead)}</h2>
       <p className="tool-panel-meta">Half and marathon <Link href="/methodology#half-linking" className="term-link">records linked by name</Link>, the half 3 to 16 weeks before.</p>

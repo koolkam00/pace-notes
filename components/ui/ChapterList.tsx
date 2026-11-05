@@ -3,6 +3,7 @@ import { joinRanges } from '@/components/ui/keepTogether';
 import MarkerBadge from './MarkerBadge';
 import Arrow from './Arrow';
 import ChapterLink from '@/components/ChapterLink';
+import { DistanceTag } from '@/components/tools/DistanceTag';
 import { CHAPTERS, chapterHref, livePages, partLabel, type Chapter, type ChapterPage, type PageKind, type ReadingOf } from '@/lib/chapters';
 
 /**
@@ -48,6 +49,9 @@ function Reading({ readingOf, id, fallbackKey, size, href }: { readingOf?: Readi
     <>
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size={size} />
       {key ? <span className="chapter-key"><KeyText text={key} /></span> : null}
+      {/* A half reading compares a half with a later marathon: it says so where it is repeated (owner decision, November
+          5, 2026), as plain words, since the row is already a link. */}
+      {id.startsWith('half.') ? <DistanceTag link={false} className="chapter-distance" /> : null}
     </>
   );
   // A half reading (records linked by name) is shown only as a link to the page that carries its scope chip, as every
@@ -61,9 +65,10 @@ function PageReading({ readingOf, page }: { readingOf?: ReadingOf; page: Chapter
   const reading = readingOf?.(page.nugget);
   if (!reading?.key) return null;
   return (
-    <span className="page-reading">
+    <span className={`page-reading${page.nugget.startsWith('half.') ? ' has-distance' : ''}`}>
       <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="s" />
       <span className="page-reading-key"><KeyText text={reading.key} /></span>
+      {page.nugget.startsWith('half.') ? <DistanceTag link={false} className="page-reading-distance" /> : null}
     </span>
   );
 }

@@ -620,4 +620,4 @@ The half marathon on Pace Notes: splithappens.run/half
 
 Of records linked by name with a half near 1:45, 14% of recorded women’s marathons had a sustained slowdown, against 32% of men’s.
 
-Includes unverified half results. From the half to the marathon, on Pace Notes: splithappens.run/stories/half-to-full
+Half-to-marathon comparison. Includes unverified half results. From the half to the marathon, on Pace Notes: splithappens.run/stories/half-to-full

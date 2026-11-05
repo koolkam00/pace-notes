@@ -22,6 +22,9 @@ export type HalfDocs = { field: HalfField; women: HalfWomen; linked: HalfLinked 
 export const HALF_CARD_KICKER = 'From the half';
 /** The scope chip a linked card prints in its footer (the same words as ScopeTag, components/tools/EvidenceTag.tsx). */
 export const HALF_CARD_CHIP = 'Includes unverified half results';
+/** The distance label a linked card prints beside the chip (the same words as DistanceTag; owner decision, November 5,
+ *  2026: each half-to-marathon pair is labelled a comparison between distances). */
+export const HALF_CARD_DISTANCE = 'Half-to-marathon comparison';
 
 type V = Record<string, number | string>;
 type Said = { guard: boolean; title: string; headline: string; titleFallback: string; fallback: string };
@@ -141,6 +144,8 @@ export type HalfCardWords = {
   page: HalfCardText['page'];
   /** The footer's chip (a card of records linked by name), or null. */
   chip: string | null;
+  /** The footer's distance label (a card of records linked by name), or null. */
+  distance: string | null;
   /** The plot's key in the order its marks run (HalfCardText `key`), or null for the form's own. */
   key: KeyItem[] | null;
 };
@@ -155,6 +160,7 @@ export function halfCardWords(card: HalfCard, docs: HalfDocs): HalfCardWords {
   return {
     slug: card.slug, title: typo(said.guard ? said.title : said.titleFallback), headline, plain: headline.replace(/\*/g, ''), fallback,
     guard: said.guard, kicker: HALF_CARD_KICKER, theme: text.theme, page: text.page, chip: card.scope === 'linked' ? HALF_CARD_CHIP : null,
+    distance: card.scope === 'linked' ? HALF_CARD_DISTANCE : null,
     key: text.key ? text.key(card.plot) : null,
   };
 }
