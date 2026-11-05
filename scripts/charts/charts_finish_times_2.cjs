@@ -140,7 +140,7 @@ module.exports = {
 
   'quick-double-mostly-slower': (C, file, H) => {
     // Race dates come from the pinned weather evidence; days since 2000-01-01.
-    const iso = new Map(C.weather.editions.map((r) => [`${r.city}|${r.year}`, r.date]));
+    const iso = new Map(C.raceDates.map((r) => [`${r.city}|${r.year}`, r.date]));
     const edDay = C.editions.map((e) => {
       const d = iso.get(`${e.city}|${e.year}`);
       return d ? (Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) - Date.UTC(2000, 0, 1)) / 86400000 : -1;
@@ -191,6 +191,7 @@ module.exports = {
         dbl: rows[0].b, yr: rows[0].a, n_dbl: sizes[0][0], n_yr: sizes[0][1], slower_dbl: slowerTop / sizes[0][0],
         gap_top: gaps[0], gap_max_rest: Math.max(...gaps.slice(1).map(Math.abs)), gap_back: gaps[gaps.length - 1],
         min_pairs: Math.min(...sizes.flat()), pairs_dbl: pairsDbl, pairs_yr: pairsYr,
+        narrows: gaps.every((g, i) => i === 0 || g < gaps[i - 1]) ? 1 : 0,
       },
       plot: { rows, ref: { axis: 'x', value: 0.5 }, notes: [{ x: rows[0].b, row: 0, value: rows[0].b }, { x: rows[0].a, row: 0, value: rows[0].a }] },
       cohort_n: cohort,

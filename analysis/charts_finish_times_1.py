@@ -6,7 +6,7 @@ import datetime
 
 import numpy as np
 
-from charts_common import count_phrase, median, require_cell, require_race_dates, sec, sh
+from charts_common import race_dates, count_phrase, median, require_cell, require_race_dates, sec, sh
 
 CHARTS = {}
 
@@ -112,7 +112,7 @@ def seconds_before_the_mark(c):
 
 def race_days(c):
     """Each edition's race date (days since 2000-01-01) from the weather evidence."""
-    by = {(row['city'], row['year']): row.get('date') for row in c.weather['editions']}
+    by = race_dates(c)
     days = np.full(len(c.editions), -1, np.int64)
     for e, ed in enumerate(c.editions):
         d = by.get((ed['city'], ed['year']))

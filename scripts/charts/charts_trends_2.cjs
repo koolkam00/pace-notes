@@ -1,7 +1,7 @@
 // Recounts of the Top 100 charts, trends (second batch) (scripts/verify-charts.cjs), rebuilt from the cohort
 // without the Python builders. Records linked by name (C.profile) are candidate links, never verified people.
 
-/** An edition without a race date (no weather row: New York 2026 in master-20261103b, November 4, 2026) is allowed only
+/** An edition without a race date (no weather row and no reviewed date in analysis/reviewed-race-dates.json) is allowed only
  * while each of its finishes is its record's only finish, so it never enters a linked order; nothing is filled in. */
 function requireRaceDates(C, undated) {
   const per = new Map();
@@ -17,7 +17,7 @@ function requireRaceDates(C, undated) {
 function linked(C) {
   if (C.__trends2) return C.__trends2;
   const key = (city, year) => `${city}\u0000${year}`;
-  const dates = new Map(C.weather.editions.map((r) => [key(r.city, r.year), r.date]));
+  const dates = new Map(C.raceDates.map((r) => [key(r.city, r.year), r.date]));
   const edDay = C.editions.map((e) => {
     const d = dates.get(key(e.city, e.year));
     return d ? Math.round((Date.parse(`${d}T00:00:00Z`) - Date.UTC(2000, 0, 1)) / 86400000) : -1;
@@ -72,9 +72,15 @@ module.exports = {
     let n = 0;
     for (let i = 0; i < C.n; i++) if (cityOf(C, i) === 'New York' && keyed.has(C.edition[i])) { per[L.pid[i]]++; eds.add(C.edition[i]); n++; }
     const k = eds.size, atLeast = (m) => per.reduce((s, v) => s + (v >= m ? 1 : 0), 0);
+    // The top is every edition while that cell has 100 records, else the most editions whose cell has 100 (November 5,
+    // 2026: New York 2026 keyed under person_id, 18 editions, 81 records with all 18, so the top is 17).
+    let top = k;
+    while (top > 1 && atLeast(top) < 100) top--;
+    if (atLeast(top) < 100) throw new Error('every-new-york-in-the-data: a small top cell');
+    const label = top === k ? `${k} editions` : `${top}+ of ${k}`;
     return {
-      values: { all16: atLeast(k), n_eds: k, ten: atLeast(10), five: atLeast(5), fifteen: atLeast(15), two: atLeast(2) },
-      plot: { value: atLeast(k), compare: [{ label: 'At least 10', value: atLeast(10), tone: 'ink' }, { label: `${k} editions`, value: atLeast(k), tone: 'signal' }] },
+      values: { all16: atLeast(top), top, n_eds: k, ten: atLeast(10), five: atLeast(5), fifteen: atLeast(15), two: atLeast(2) },
+      plot: { value: atLeast(top), compare: [{ label: 'At least 10', value: atLeast(10), tone: 'ink' }, { label, value: atLeast(top), tone: 'signal' }] },
       cohort_n: n,
     };
   },

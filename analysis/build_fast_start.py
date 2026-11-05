@@ -316,7 +316,7 @@ def run(runner_root, output, pin_path):
             'Use the public runner profiles from the adopted source. Verify every compressed shard checksum and size, '
             'source calculation hashes, record and profile uniqueness, raw and eligible counts, and the reconstructed '
             'earlier-benchmark cohort against the audited runner manifest.',
-            'Source identities are screened candidates, not independently verified people. Names never establish a link. '
+            'Source identities are the producer\'s screened person links, not independently verified people; Pace Notes adds no name matching of its own. '
             'Use only eligible finishes, including for earlier benchmarks; held, incomplete and invalid timings cannot contribute.',
             'For each eligible race, recompute the fastest eligible finish in the two strictly earlier calendar years. '
             'Exclude the current race and every same-year race. This is an earlier recorded best, not verified fitness, '

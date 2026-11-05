@@ -86,6 +86,12 @@ async function main() {
   assert.equal(validateRunnerProfile({ ...profile, races: [{ ...base, age: 1923 }] }, manifest).races[0].age, 1923, 'Retain a suspect recorded age without inventing a correction');
   assert.throws(() => validateRunnerProfile({ ...profile, races: [base, base] }, manifest), /verified/);
   assert.throws(() => validateRunnerProfile({ ...profile, races: [{ ...base, times: [null, ...base.times.slice(1)] }] }, manifest), /verified/);
+  // A preliminary link (November 5, 2026): the profile mark must match its races, and only "preliminary" is a link mark.
+  const prelimRace = { ...missing, link: 'preliminary' };
+  assert.equal(validateRunnerProfile({ ...profile, races: [base, prelimRace], preliminary: true }, manifest).preliminary, true);
+  assert.throws(() => validateRunnerProfile({ ...profile, races: [base, prelimRace] }, manifest), /verified/, 'A preliminary race needs the profile mark');
+  assert.throws(() => validateRunnerProfile({ ...profile, races: [base], preliminary: true }, manifest), /verified/, 'A lone record is never a preliminary link');
+  assert.throws(() => validateRunnerProfile({ ...profile, races: [base, { ...missing, link: 'v4' }] }, manifest), /verified/);
 
   const render = (races, units) => renderToStaticMarkup(React.createElement(SelectedAnalysis, { races, manifest, units }));
   const sameYearHtml = render([base, changed], 'mi');
@@ -192,6 +198,8 @@ async function main() {
   assert.doesNotMatch(details(real2024, copies), /This edition’s records|Recorded times only/, 'The field a copy repeats is not a copy');
   assert.doesNotMatch(details(copy2019, []), /Pacing analysis|Recorded times only|Limited|runner-eligible|runner-ineligible/, 'A record with its pacing analysis carries no tag: only the exception is marked');
   assert.doesNotMatch(details(copy2019, []), /Fixture Runner|Age not recorded|Recorded gender/, 'The row carries no name, age or gender: they are in the disclosure');
+  assert.match(details({ ...copy2019, link: 'preliminary' }, []), /data-prelim-link="race">Preliminary link</, 'A race joined through a preliminary link says so on its row');
+  assert.doesNotMatch(details(copy2019, []), /Preliminary link/, 'Only a preliminary link is marked');
   assert.match(opened(copy2019, []), /Fixture Runner · Lakeside Marathon · Age not recorded · Gender not recorded/);
   assert.match(details(heldCopy, copies), /Limited: missing checkpoints|Limited analysis/);
   assert.match(details(race(25, 4, 300, { eligible: false, reason: 'Checkpoint times are not strictly increasing.' }), copies), /Limited: times out of order/);
@@ -225,9 +233,9 @@ async function main() {
     served = JSON.stringify({ ...manifest, release_tag: 'old' });
     await assert.rejects(() => loadRunnerManifest(), /verified/);
 
-    const rows = Array.from({ length: 79 }, (_, i) => [`José Smith ${i}`, i + 1, 1, 2020, 2020, 'London']);
-    rows.push(['JOSE SMITH 0', 1, 1, 2020, 2020, 'London']);
-    rows.push(['José Brown', 1000, 1, 2020, 2020, 'London']);
+    const rows = Array.from({ length: 79 }, (_, i) => [`José Smith ${i}`, i + 1, 1, 2020, 2020, 'London', 0]);
+    rows.push(['JOSE SMITH 0', 1, 1, 2020, 2020, 'London', 0]);
+    rows.push(['José Brown', 1000, 1, 2020, 2020, 'London', 0]);
     const index = descriptor({ release_tag: RUNNER_RELEASE, rows });
     const indexPath = `index/${await runnerShardKey('jos')}.json.gz`;
     served = index.bytes;
@@ -249,6 +257,9 @@ async function main() {
     await assert.rejects(() => searchRunnerNames('jos', sourceFor(indexPath, badHash), signal), /verified/);
     served = Buffer.concat([index.bytes, Buffer.from('x')]);
     await assert.rejects(() => searchRunnerNames('jos', sourceFor(indexPath, { meta: { ...index.meta, sha256: '1'.repeat(64) } }), signal), /verified/);
+    // November 5, 2026: a row carries its preliminary-link flag (0 or 1); a six-field row is refused.
+    const sixFields = descriptor({ release_tag: RUNNER_RELEASE, rows: [['José Smith', 1, 1, 2020, 2020, 'London']] }); served = sixFields.bytes;
+    await assert.rejects(() => searchRunnerNames('jos smi', sourceFor(indexPath, sixFields), signal), /verified/);
     const corrupted = descriptor({ release_tag: RUNNER_RELEASE, rows: [['Name', 'wrong id']] }); served = corrupted.bytes;
     await assert.rejects(() => searchRunnerNames('jos', sourceFor(indexPath, corrupted), signal), /verified/);
 
@@ -264,13 +275,13 @@ async function main() {
     // for a named candidate with no eligible race, not just its metric helper.
     const limitedProfile = { id: 5, names: ['Casey Partial'], races: [missing, held] };
     const limitedIndexPath = `index/${await runnerShardKey('par')}.json.gz`;
-    const limitedIndex = descriptor({ release_tag: RUNNER_RELEASE, rows: [['Casey Partial', 5, 2, 2020, 2020, 'London']] });
+    const limitedIndex = descriptor({ release_tag: RUNNER_RELEASE, rows: [['Casey Partial', 5, 2, 2020, 2020, 'London', 0]] });
     const limitedProfilePath = `profiles/${await runnerShardKey('5')}.json.gz`;
     const limitedShard = descriptor({ release_tag: RUNNER_RELEASE, profiles: [limitedProfile] });
     const limitedSource = { ...manifest, shards: { [limitedIndexPath]: limitedIndex.meta, [limitedProfilePath]: limitedShard.meta } };
     served = limitedIndex.bytes;
     const limitedMatches = await searchRunnerNames('Casey Partial', limitedSource, signal);
-    assert.deepEqual(limitedMatches, [['Casey Partial', 5, 2, 2020, 2020, 'London']], 'A candidate with only held/missing-split records must be discoverable');
+    assert.deepEqual(limitedMatches, [['Casey Partial', 5, 2, 2020, 2020, 'London', 0]], 'A candidate with only held/missing-split records must be discoverable');
     served = limitedShard.bytes;
     const loadedLimited = await loadRunnerProfile(limitedMatches[0][1], limitedSource, signal);
     assert.deepEqual(loadedLimited, limitedProfile, 'Loading retains all races and original readings even with no eligible race');

@@ -1,595 +1,631 @@
 city,outcome,label,value,n_value
-Amsterdam,More than 2% faster,5,-1.0764900558077273,6158
-Amsterdam,More than 2% slower,5,-6.343104659330379,6011
-Amsterdam,Within 2%,5,-2.226068414038207,3739
-Austin,More than 2% faster,5,-1.9329398741264603,514
-Austin,More than 2% slower,5,-9.515670417915512,351
-Austin,Within 2%,5,-2.45422946410136,232
-Berlin,More than 2% faster,5,-2.606721792477995,44509
-Berlin,More than 2% slower,5,-8.178369833436161,48399
-Berlin,Within 2%,5,-3.8446626647033466,27530
-Boston,More than 2% faster,5,-2.626923076923071,17586
-Boston,More than 2% slower,5,-8.367884048476903,23747
-Boston,Within 2%,5,-3.1492757996379073,13009
-Chicago,More than 2% faster,5,-3.322816000000006,55431
-Chicago,More than 2% slower,5,-10.67478814021836,60710
-Chicago,Within 2%,5,-4.720138846598864,26315
-Copenhagen,More than 2% faster,5,-1.8234331900356615,11082
-Copenhagen,More than 2% slower,5,-7.51995537259052,9134
-Copenhagen,Within 2%,5,-3.417603799601643,5243
-Eindhoven,More than 2% faster,5,-2.305300894223794,1533
-Eindhoven,More than 2% slower,5,-6.957324707846402,1329
-Eindhoven,Within 2%,5,-3.363299623230626,1034
-Frankfurt,More than 2% faster,5,-1.1357137966449882,465
-Frankfurt,More than 2% slower,5,-6.59174274680781,176
-Frankfurt,Within 2%,5,-2.021135281245978,105
-Gold Coast,More than 2% faster,5,-3.7047521186503007,1692
-Gold Coast,More than 2% slower,5,-10.309001682557483,1799
-Gold Coast,Within 2%,5,-4.986083273844588,932
-Hamburg,More than 2% faster,5,-0.983888031739033,7749
-Hamburg,More than 2% slower,5,-6.364535668954463,8096
-Hamburg,Within 2%,5,-2.4248443522087104,5141
-Helsinki,More than 2% faster,5,0.7658746718718357,367
-Helsinki,More than 2% slower,5,-4.727069635385539,839
-Helsinki,Within 2%,5,-1.4690189968723788,350
-London,More than 2% faster,5,-4.691633541045747,4152
-London,More than 2% slower,5,-10.404757131842723,5365
-London,Within 2%,5,-4.920074696545285,2491
-Madrid,More than 2% faster,5,-1.4384469696969604,969
-Madrid,More than 2% slower,5,-4.666871000336814,2435
-Madrid,Within 2%,5,-1.5773995392884599,967
-New York,More than 2% faster,5,-5.080401056279904,48925
-New York,More than 2% slower,5,-10.953078932784416,59312
-New York,Within 2%,5,-6.055306626162893,27797
-Oslo,More than 2% faster,5,-0.4227310117905225,1609
-Oslo,More than 2% slower,5,-4.593043836180277,1325
-Oslo,Within 2%,5,-1.605585164634593,945
-Paris,More than 2% faster,5,-2.7571096823805874,564
-Paris,More than 2% slower,5,-9.450258439679699,248
-Paris,Within 2%,5,-5.561194237594824,159
-Prague,More than 2% faster,5,8.606264938240837,1682
-Prague,More than 2% slower,5,6.049885757806539,2017
-Prague,Within 2%,5,6.184108158850443,960
-Rotterdam,More than 2% faster,5,-2.647346710480325,9313
-Rotterdam,More than 2% slower,5,-7.987260969334531,10685
-Rotterdam,Within 2%,5,-3.761599895991108,6984
-Sydney,More than 2% faster,5,-4.603979820627801,721
-Sydney,More than 2% slower,5,-9.946045319096546,764
-Sydney,Within 2%,5,-6.429525076720388,374
-Valencia,More than 2% faster,5,-0.5765310745102059,6222
-Valencia,More than 2% slower,5,-5.815763382910422,6422
-Valencia,Within 2%,5,-1.290809665138276,4778
-Warsaw,More than 2% faster,5,0.7349629761798759,5569
-Warsaw,More than 2% slower,5,-4.876509567922116,5119
-Warsaw,Within 2%,5,-0.6398327963075934,2863
-Washington,More than 2% faster,5,-2.970239799842206,16258
-Washington,More than 2% slower,5,-8.942306567635526,23737
-Washington,Within 2%,5,-4.399839723041421,9303
-Amsterdam,More than 2% faster,10,-2.8141309623385844,6158
-Amsterdam,More than 2% slower,10,-7.297136682874128,6011
-Amsterdam,Within 2%,10,-3.7094404771246925,3739
-Austin,More than 2% faster,10,-7.217717828924231,514
-Austin,More than 2% slower,10,-13.28565691878868,351
-Austin,Within 2%,10,-7.386028612423312,232
-Berlin,More than 2% faster,10,-2.2858653650599803,44509
-Berlin,More than 2% slower,10,-6.6332687088018645,48399
-Berlin,Within 2%,10,-3.2321316411603407,27530
-Boston,More than 2% faster,10,-3.1811635290065476,17586
-Boston,More than 2% slower,10,-7.61966845878137,23747
-Boston,Within 2%,10,-3.47878019683866,13009
-Chicago,More than 2% faster,10,-3.4607217694994197,55431
-Chicago,More than 2% slower,10,-8.888045769456765,60710
-Chicago,Within 2%,10,-4.289485916147628,26315
-Copenhagen,More than 2% faster,10,-1.9503390043867974,11082
-Copenhagen,More than 2% slower,10,-7.258460792224813,9134
-Copenhagen,Within 2%,10,-3.4432917472813407,5243
-Eindhoven,More than 2% faster,10,-1.6375243213193835,1533
-Eindhoven,More than 2% slower,10,-6.012410850738659,1329
-Eindhoven,Within 2%,10,-2.4663027796895998,1034
-Frankfurt,More than 2% faster,10,-1.8374327687244119,465
-Frankfurt,More than 2% slower,10,-6.331283627394251,176
-Frankfurt,Within 2%,10,-2.7304328018223134,105
-Gold Coast,More than 2% faster,10,-3.6054701341322435,1692
-Gold Coast,More than 2% slower,10,-9.72895369227772,1799
-Gold Coast,Within 2%,10,-4.368426132191955,932
-Hamburg,More than 2% faster,10,-2.7060881801125647,7749
-Hamburg,More than 2% slower,10,-6.67722725100775,8096
-Hamburg,Within 2%,10,-3.600446713465222,5141
-Helsinki,More than 2% faster,10,-3.932361800141737,367
-Helsinki,More than 2% slower,10,-7.501352313167253,839
-Helsinki,Within 2%,10,-4.869217663724562,350
-London,More than 2% faster,10,-3.5853386941616217,4152
-London,More than 2% slower,10,-8.22055209260908,5365
-London,Within 2%,10,-3.82356027987083,2491
-Madrid,More than 2% faster,10,-5.657215645137137,969
-Madrid,More than 2% slower,10,-8.584902292801244,2435
-Madrid,Within 2%,10,-5.796262959093468,967
-New York,More than 2% faster,10,-5.983336507331938,48925
-New York,More than 2% slower,10,-10.45617001362935,59312
-New York,Within 2%,10,-6.584235594301502,27797
-Oslo,More than 2% faster,10,-5.125571646341465,1609
-Oslo,More than 2% slower,10,-8.592178402724382,1325
-Oslo,Within 2%,10,-5.859035494659615,945
-Paris,More than 2% faster,10,-3.1241546580100032,564
-Paris,More than 2% slower,10,-8.073112065738824,248
-Paris,Within 2%,10,-4.8927270466836426,159
-Prague,More than 2% faster,10,-5.853088978424253,1682
-Prague,More than 2% slower,10,-10.338162325613364,2017
-Prague,Within 2%,10,-6.620040017279805,960
-Rotterdam,More than 2% faster,10,-3.443799788508972,9313
-Rotterdam,More than 2% slower,10,-8.428680774425946,10685
-Rotterdam,Within 2%,10,-4.442041817579845,6984
-Sydney,More than 2% faster,10,-3.1794527293190766,721
-Sydney,More than 2% slower,10,-7.605471673368324,764
-Sydney,Within 2%,10,-4.6166193577240495,374
-Valencia,More than 2% faster,10,-1.641802223573724,6222
-Valencia,More than 2% slower,10,-6.25929296987931,6422
-Valencia,Within 2%,10,-2.3194950815540682,4778
-Warsaw,More than 2% faster,10,-2.4968321257900272,5569
-Warsaw,More than 2% slower,10,-8.278502088965334,5119
-Warsaw,Within 2%,10,-3.793958220082305,2863
-Washington,More than 2% faster,10,-6.233333333333329,16258
-Washington,More than 2% slower,10,-11.095002479475458,23737
-Washington,Within 2%,10,-7.16279883381924,9303
-Amsterdam,More than 2% faster,15,-2.3809340265926737,6158
-Amsterdam,More than 2% slower,15,-6.334867352463447,6011
-Amsterdam,Within 2%,15,-3.0874139925713973,3739
-Austin,More than 2% faster,15,-2.9886118808296,514
-Austin,More than 2% slower,15,-6.882000601555449,351
-Austin,Within 2%,15,-3.2172562843223895,232
-Berlin,More than 2% faster,15,-2.8879769024541146,44509
-Berlin,More than 2% slower,15,-6.3994996351506295,48399
-Berlin,Within 2%,15,-3.5296017635834174,27530
-Boston,More than 2% faster,15,-2.7943145774766864,17586
-Boston,More than 2% slower,15,-6.1637218510269705,23747
-Boston,Within 2%,15,-2.9762720156555678,13009
-Chicago,More than 2% faster,15,-4.2149988550492345,55431
-Chicago,More than 2% slower,15,-8.90742696700707,60710
-Chicago,Within 2%,15,-4.829340463458109,26315
-Copenhagen,More than 2% faster,15,-1.9198637425507648,11082
-Copenhagen,More than 2% slower,15,-6.875392311488049,9134
-Copenhagen,Within 2%,15,-3.291132332878577,5243
-Eindhoven,More than 2% faster,15,-1.9393457943925108,1533
-Eindhoven,More than 2% slower,15,-5.875217483556128,1329
-Eindhoven,Within 2%,15,-2.609803863529203,1034
-Frankfurt,More than 2% faster,15,-2.9645294978059455,465
-Frankfurt,More than 2% slower,15,-6.57859770603606,176
-Frankfurt,Within 2%,15,-4.221730103806232,105
-Gold Coast,More than 2% faster,15,-3.8142370830231584,1692
-Gold Coast,More than 2% slower,15,-8.587329319428017,1799
-Gold Coast,Within 2%,15,-4.396081517547001,932
-Hamburg,More than 2% faster,15,-3.239412340842318,7749
-Hamburg,More than 2% slower,15,-6.964409468702254,8096
-Hamburg,Within 2%,15,-4.163393012341388,5141
-Helsinki,More than 2% faster,15,-5.079582898852964,367
-Helsinki,More than 2% slower,15,-7.885463835785389,839
-Helsinki,Within 2%,15,-5.512993572305569,350
-London,More than 2% faster,15,-1.6979835226056506,4152
-London,More than 2% slower,15,-4.96596919877833,5365
-London,Within 2%,15,-1.6609701107961783,2491
-Madrid,More than 2% faster,15,-3.2485837604532053,969
-Madrid,More than 2% slower,15,-5.709497206703917,2435
-Madrid,Within 2%,15,-3.589691629955949,967
-New York,More than 2% faster,15,-4.464150943396228,48925
-New York,More than 2% slower,15,-7.992222802302578,59312
-New York,Within 2%,15,-4.843064719400991,27797
-Oslo,More than 2% faster,15,-2.648845062812377,1609
-Oslo,More than 2% slower,15,-5.473046491859012,1325
-Oslo,Within 2%,15,-3.1658392240670685,945
-Paris,More than 2% faster,15,-2.4273228848591897,564
-Paris,More than 2% slower,15,-6.452462065071051,248
-Paris,Within 2%,15,-3.5679591692067913,159
-Prague,More than 2% faster,15,-4.985908652563181,1682
-Prague,More than 2% slower,15,-8.669373515439426,2017
-Prague,Within 2%,15,-5.546822354683673,960
-Rotterdam,More than 2% faster,15,-2.803515526910527,9313
-Rotterdam,More than 2% slower,15,-6.975501930501926,10685
-Rotterdam,Within 2%,15,-3.5820753332675093,6984
-Sydney,More than 2% faster,15,-5.38412578616353,721
-Sydney,More than 2% slower,15,-8.347957774103321,764
-Sydney,Within 2%,15,-6.139709203108379,374
-Valencia,More than 2% faster,15,-1.6320323843366846,6222
-Valencia,More than 2% slower,15,-5.806315606592527,6422
-Valencia,Within 2%,15,-2.2317376433526883,4778
-Warsaw,More than 2% faster,15,-3.1048752984876637,5569
-Warsaw,More than 2% slower,15,-7.981081081081076,5119
-Warsaw,Within 2%,15,-4.168087143883148,2863
-Washington,More than 2% faster,15,-4.451744330337459,16258
-Washington,More than 2% slower,15,-8.055424543837697,23737
-Washington,Within 2%,15,-5.034544303797461,9303
-Amsterdam,More than 2% faster,20,-1.4806930561372,6158
-Amsterdam,More than 2% slower,20,-4.26238819320216,6011
-Amsterdam,Within 2%,20,-1.8135441527446283,3739
-Austin,More than 2% faster,20,-2.3817994416957697,514
-Austin,More than 2% slower,20,-4.723881491629911,351
-Austin,Within 2%,20,-2.1894323676348195,232
-Berlin,More than 2% faster,20,-2.262806130510353,44509
-Berlin,More than 2% slower,20,-4.632883028636147,48399
-Berlin,Within 2%,20,-2.6769539127934894,27530
-Boston,More than 2% faster,20,-1.607547907027601,17586
-Boston,More than 2% slower,20,-3.4256914285714313,23747
-Boston,Within 2%,20,-1.6373304157549229,13009
-Chicago,More than 2% faster,20,-2.534295786469698,55431
-Chicago,More than 2% slower,20,-5.065081761379708,60710
-Chicago,Within 2%,20,-2.7892622694591918,26315
-Copenhagen,More than 2% faster,20,-1.6253957406827002,11082
-Copenhagen,More than 2% slower,20,-5.222562897606704,9134
-Copenhagen,Within 2%,20,-2.5747762221712156,5243
-Eindhoven,More than 2% faster,20,-2.2137901470685284,1533
-Eindhoven,More than 2% slower,20,-5.393514065881222,1329
-Eindhoven,Within 2%,20,-2.44034823615808,1034
-Frankfurt,More than 2% faster,20,-1.7556371856456643,465
-Frankfurt,More than 2% slower,20,-4.290287598277542,176
-Frankfurt,Within 2%,20,-2.720901194353964,105
-Gold Coast,More than 2% faster,20,-3.4554839437581917,1692
-Gold Coast,More than 2% slower,20,-6.391589310829826,1799
-Gold Coast,Within 2%,20,-3.555901453835608,932
-Hamburg,More than 2% faster,20,-1.9674766950840472,7749
-Hamburg,More than 2% slower,20,-3.92246497326349,8096
-Hamburg,Within 2%,20,-2.357178678893823,5141
-Helsinki,More than 2% faster,20,-4.411520477265385,367
-Helsinki,More than 2% slower,20,-5.931020084566596,839
-Helsinki,Within 2%,20,-4.552202786855474,350
-London,More than 2% faster,20,-2.5523814216063423,4152
-London,More than 2% slower,20,-4.06507533940027,5365
-London,Within 2%,20,-2.50609502176794,2491
-Madrid,More than 2% faster,20,-2.207925547883516,969
-Madrid,More than 2% slower,20,-4.0880565301181,2435
-Madrid,Within 2%,20,-2.4804729278074755,967
-New York,More than 2% faster,20,-2.7882522837184287,48925
-New York,More than 2% slower,20,-4.556511015239534,59312
-New York,Within 2%,20,-2.972798653954012,27797
-Oslo,More than 2% faster,20,-2.0493840678893926,1609
-Oslo,More than 2% slower,20,-3.441447368421069,1325
-Oslo,Within 2%,20,-2.36085977097803,945
-Paris,More than 2% faster,20,-2.862148954583782,564
-Paris,More than 2% slower,20,-5.159847563554088,248
-Paris,Within 2%,20,-3.7314555213924683,159
-Prague,More than 2% faster,20,-4.1257250982461855,1682
-Prague,More than 2% slower,20,-6.96454128440368,2017
-Prague,Within 2%,20,-4.389357372965048,960
-Rotterdam,More than 2% faster,20,-2.479936923823378,9313
-Rotterdam,More than 2% slower,20,-5.517557251908389,10685
-Rotterdam,Within 2%,20,-3.063317467756127,6984
-Sydney,More than 2% faster,20,-2.82316063621989,721
-Sydney,More than 2% slower,20,-5.228366722604494,764
-Sydney,Within 2%,20,-2.920480887594923,374
-Valencia,More than 2% faster,20,-1.7528978939503892,6222
-Valencia,More than 2% slower,20,-4.925626498147745,6422
-Valencia,Within 2%,20,-2.235282495506108,4778
-Warsaw,More than 2% faster,20,-1.656992974238869,5569
-Warsaw,More than 2% slower,20,-4.866844343634813,5119
-Warsaw,Within 2%,20,-2.4077835648148027,2863
-Washington,More than 2% faster,20,-4.953256818140233,16258
-Washington,More than 2% slower,20,-7.0033977455716485,23737
-Washington,Within 2%,20,-5.1054206318995154,9303
-Amsterdam,More than 2% faster,25,-1.8397659190594773,6158
-Amsterdam,More than 2% slower,25,-2.972682747642952,6011
-Amsterdam,Within 2%,25,-2.0456825926194577,3739
-Austin,More than 2% faster,25,0.22117955689852087,514
-Austin,More than 2% slower,25,0.6049324434315384,351
-Austin,Within 2%,25,0.5292425417172786,232
-Berlin,More than 2% faster,25,-0.7431804543506226,44509
-Berlin,More than 2% slower,25,-1.115815170008727,48399
-Berlin,Within 2%,25,-0.7304294548444834,27530
-Boston,More than 2% faster,25,-1.2747480380471077,17586
-Boston,More than 2% slower,25,-1.63886547242712,23747
-Boston,Within 2%,25,-1.2355791006146921,13009
-Chicago,More than 2% faster,25,-1.0719951741818723,55431
-Chicago,More than 2% slower,25,-1.0154575863993043,60710
-Chicago,Within 2%,25,-1.0121252867199226,26315
-Copenhagen,More than 2% faster,25,-1.172710415054934,11082
-Copenhagen,More than 2% slower,25,-1.9074183413014811,9134
-Copenhagen,Within 2%,25,-1.365086531226467,5243
-Eindhoven,More than 2% faster,25,-1.0346815994076275,1533
-Eindhoven,More than 2% slower,25,-1.8187867813490244,1329
-Eindhoven,Within 2%,25,-1.069726168908136,1034
-Frankfurt,More than 2% faster,25,-1.272055445544562,465
-Frankfurt,More than 2% slower,25,-1.7123765295683824,176
-Frankfurt,Within 2%,25,-1.6477524709927027,105
-Gold Coast,More than 2% faster,25,-2.0544176563007777,1692
-Gold Coast,More than 2% slower,25,-2.4536479690522195,1799
-Gold Coast,Within 2%,25,-1.8914427949795476,932
-Hamburg,More than 2% faster,25,-0.8199999999999985,7749
-Hamburg,More than 2% slower,25,-1.1038347741480492,8096
-Hamburg,Within 2%,25,-0.8237179487179502,5141
-Helsinki,More than 2% faster,25,-1.0101734489659675,367
-Helsinki,More than 2% slower,25,-1.7521255904417887,839
-Helsinki,Within 2%,25,-0.9624769506541953,350
-London,More than 2% faster,25,-1.0594869534555684,4152
-London,More than 2% slower,25,-0.8384930530815904,5365
-London,Within 2%,25,-0.9262990071744248,2491
-Madrid,More than 2% faster,25,-3.0212902720075263,969
-Madrid,More than 2% slower,25,-3.864201248622834,2435
-Madrid,Within 2%,25,-3.0240822840929216,967
-New York,More than 2% faster,25,1.5089708506841104,48925
-New York,More than 2% slower,25,2.241888544204884,59312
-New York,Within 2%,25,1.5958386726917073,27797
-Oslo,More than 2% faster,25,-0.47096239854232946,1609
-Oslo,More than 2% slower,25,-1.2399496514329922,1325
-Oslo,Within 2%,25,-0.717647058823534,945
-Paris,More than 2% faster,25,-2.305109383897086,564
-Paris,More than 2% slower,25,-2.328218350666089,248
-Paris,Within 2%,25,-2.2461876832844507,159
-Prague,More than 2% faster,25,-3.9381280729104184,1682
-Prague,More than 2% slower,25,-4.977354541649214,2017
-Prague,Within 2%,25,-3.7706322523212488,960
-Rotterdam,More than 2% faster,25,-0.997356064436894,9313
-Rotterdam,More than 2% slower,25,-1.982495036399723,10685
-Rotterdam,Within 2%,25,-1.253961553879912,6984
-Sydney,More than 2% faster,25,-2.5227177554438818,721
-Sydney,More than 2% slower,25,-3.3186245007347184,764
-Sydney,Within 2%,25,-2.4381947667334813,374
-Valencia,More than 2% faster,25,-0.7648610345378171,6222
-Valencia,More than 2% slower,25,-2.3197062744690577,6422
-Valencia,Within 2%,25,-0.9472861722734371,4778
-Warsaw,More than 2% faster,25,-1.7043530113297511,5569
-Warsaw,More than 2% slower,25,-2.3708510786846326,5119
-Warsaw,Within 2%,25,-1.8815611732921567,2863
-Washington,More than 2% faster,25,-2.381511381959095,16258
-Washington,More than 2% slower,25,-2.4750150006000227,23737
-Washington,Within 2%,25,-2.2815118243243226,9303
-Amsterdam,More than 2% faster,30,-0.3795686719636815,6158
-Amsterdam,More than 2% slower,30,0.9255091026840301,6011
-Amsterdam,Within 2%,30,-0.029315427448406428,3739
-Austin,More than 2% faster,30,0.02573378790814429,514
-Austin,More than 2% slower,30,3.082886954210151,351
-Austin,Within 2%,30,0.4019206152757082,232
-Berlin,More than 2% faster,30,0.8207500561419279,44509
-Berlin,More than 2% slower,30,2.686755509994887,48399
-Berlin,Within 2%,30,1.218808627973078,27530
-Boston,More than 2% faster,30,2.026650117837059,17586
-Boston,More than 2% slower,30,3.89031172686789,23747
-Boston,Within 2%,30,2.2205092911218305,13009
-Chicago,More than 2% faster,30,0.30516504310043047,55431
-Chicago,More than 2% slower,30,3.5079512478235486,60710
-Chicago,Within 2%,30,0.7222213194670202,26315
-Copenhagen,More than 2% faster,30,0.17011291131042716,11082
-Copenhagen,More than 2% slower,30,1.1949563276360986,9134
-Copenhagen,Within 2%,30,0.37468382191681027,5243
-Eindhoven,More than 2% faster,30,-0.16048387096772032,1533
-Eindhoven,More than 2% slower,30,0.8966758836258748,1329
-Eindhoven,Within 2%,30,0.05632656600498276,1034
-Frankfurt,More than 2% faster,30,-0.19279567248585705,465
-Frankfurt,More than 2% slower,30,0.9768159209506022,176
-Frankfurt,Within 2%,30,0.19231959161574164,105
-Gold Coast,More than 2% faster,30,-0.7114367948834688,1692
-Gold Coast,More than 2% slower,30,2.3486493024756028,1799
-Gold Coast,Within 2%,30,-0.1988518741819878,932
-Hamburg,More than 2% faster,30,0.3610594279366941,7749
-Hamburg,More than 2% slower,30,2.4600435832071943,8096
-Hamburg,Within 2%,30,0.851303607534315,5141
-Helsinki,More than 2% faster,30,-0.06084612871610773,367
-Helsinki,More than 2% slower,30,2.9919849679645116,839
-Helsinki,Within 2%,30,0.6430716330426356,350
-London,More than 2% faster,30,1.2466279270400893,4152
-London,More than 2% slower,30,3.502537542139139,5365
-London,Within 2%,30,1.561302036052381,2491
-Madrid,More than 2% faster,30,1.6218194911185702,969
-Madrid,More than 2% slower,30,2.6162426035502895,2435
-Madrid,Within 2%,30,1.7180529697915947,967
-New York,More than 2% faster,30,-0.12208171206226082,48925
-New York,More than 2% slower,30,2.1745218472703165,59312
-New York,Within 2%,30,0.2703104114065047,27797
-Oslo,More than 2% faster,30,-0.642053378215901,1609
-Oslo,More than 2% slower,30,0.9811587485515583,1325
-Oslo,Within 2%,30,-0.24346268656716408,945
-Paris,More than 2% faster,30,0.966312994552887,564
-Paris,More than 2% slower,30,3.3900624671775015,248
-Paris,Within 2%,30,1.7016757436112195,159
-Prague,More than 2% faster,30,-1.382243347174128,1682
-Prague,More than 2% slower,30,-0.06658429956281076,2017
-Prague,Within 2%,30,-0.8092096653610603,960
-Rotterdam,More than 2% faster,30,0.11618151437868818,9313
-Rotterdam,More than 2% slower,30,1.3648674501229863,10685
-Rotterdam,Within 2%,30,0.3125337944599682,6984
-Sydney,More than 2% faster,30,0.43761030847326854,721
-Sydney,More than 2% slower,30,1.6968830333926266,764
-Sydney,Within 2%,30,0.7245697845463583,374
-Valencia,More than 2% faster,30,0.020268035222115177,6222
-Valencia,More than 2% slower,30,0.9836845225067226,6422
-Valencia,Within 2%,30,0.12130505594482033,4778
-Warsaw,More than 2% faster,30,-0.22138454600119095,5569
-Warsaw,More than 2% slower,30,1.947350254885305,5119
-Warsaw,Within 2%,30,0.1658292833184971,2863
-Washington,More than 2% faster,30,0.4791177630632415,16258
-Washington,More than 2% slower,30,2.7550127918132494,23737
-Washington,Within 2%,30,0.950047095761386,9303
-Amsterdam,More than 2% faster,35,2.523775438491571,6158
-Amsterdam,More than 2% slower,35,8.736512092606642,6011
-Amsterdam,Within 2%,35,3.5754742166643094,3739
-Austin,More than 2% faster,35,1.6547134803350683,514
-Austin,More than 2% slower,35,6.126128394173724,351
-Austin,Within 2%,35,2.2631499845973457,232
-Berlin,More than 2% faster,35,1.7549537289058392,44509
-Berlin,More than 2% slower,35,6.145018141222436,48399
-Berlin,Within 2%,35,2.6568872987477565,27530
-Boston,More than 2% faster,35,4.409056700794678,17586
-Boston,More than 2% slower,35,8.951614497528837,23747
-Boston,Within 2%,35,4.713797566658062,13009
-Chicago,More than 2% faster,35,3.561934523809529,55431
-Chicago,More than 2% slower,35,9.491886034683784,60710
-Chicago,Within 2%,35,4.621874497184231,26315
-Copenhagen,More than 2% faster,35,1.7043327462881175,11082
-Copenhagen,More than 2% slower,35,8.445029877839804,9134
-Copenhagen,Within 2%,35,3.4882943143812684,5243
-Eindhoven,More than 2% faster,35,2.3214072748956482,1533
-Eindhoven,More than 2% slower,35,7.430352941176466,1329
-Eindhoven,Within 2%,35,3.3133273679842423,1034
-Frankfurt,More than 2% faster,35,2.155904417893839,465
-Frankfurt,More than 2% slower,35,8.197786228362535,176
-Frankfurt,Within 2%,35,3.094102756422279,105
-Gold Coast,More than 2% faster,35,4.274946202651386,1692
-Gold Coast,More than 2% slower,35,11.078830352827463,1799
-Gold Coast,Within 2%,35,5.181777639571273,932
-Hamburg,More than 2% faster,35,1.7276543674698663,7749
-Hamburg,More than 2% slower,35,6.198284900612949,8096
-Hamburg,Within 2%,35,2.946933205976676,5141
-Helsinki,More than 2% faster,35,5.333873040349513,367
-Helsinki,More than 2% slower,35,10.575597835573403,839
-Helsinki,Within 2%,35,7.178601625710812,350
-London,More than 2% faster,35,4.228446479556103,4152
-London,More than 2% slower,35,9.233836347079482,5365
-London,Within 2%,35,4.342316939890689,2491
-Madrid,More than 2% faster,35,1.3961062618595976,969
-Madrid,More than 2% slower,35,3.524810825247049,2435
-Madrid,Within 2%,35,1.555226904376017,967
-New York,More than 2% faster,35,5.540695915279881,48925
-New York,More than 2% slower,35,10.30447878934362,59312
-New York,Within 2%,35,6.249224279688281,27797
-Oslo,More than 2% faster,35,1.5799636391182537,1609
-Oslo,More than 2% slower,35,4.9709761491075755,1325
-Oslo,Within 2%,35,2.381053095395469,945
-Paris,More than 2% faster,35,3.7779814090646235,564
-Paris,More than 2% slower,35,8.966600417619773,248
-Paris,Within 2%,35,6.612226430976431,159
-Prague,More than 2% faster,35,1.6554247915338771,1682
-Prague,More than 2% slower,35,5.864462104645574,2017
-Prague,Within 2%,35,2.7623251833027274,960
-Rotterdam,More than 2% faster,35,2.290909090909099,9313
-Rotterdam,More than 2% slower,35,8.471936821952774,10685
-Rotterdam,Within 2%,35,3.3451673820348526,6984
-Sydney,More than 2% faster,35,4.596056338028176,721
-Sydney,More than 2% slower,35,9.592880898235457,764
-Sydney,Within 2%,35,6.285065341738704,374
-Valencia,More than 2% faster,35,2.158531785620943,6222
-Valencia,More than 2% slower,35,7.865825754822275,6422
-Valencia,Within 2%,35,2.979914103442838,4778
-Warsaw,More than 2% faster,35,2.672998932764159,5569
-Warsaw,More than 2% slower,35,9.449822820694553,5119
-Warsaw,Within 2%,35,3.997354249590268,2863
-Washington,More than 2% faster,35,4.452488129011889,16258
-Washington,More than 2% slower,35,9.535728782287812,23737
-Washington,Within 2%,35,5.50407826496937,9303
-Amsterdam,More than 2% faster,40,4.368403683393362,6158
-Amsterdam,More than 2% slower,40,10.60639455782313,6011
-Amsterdam,Within 2%,40,5.7783739068778095,3739
-Austin,More than 2% faster,40,7.142459243749688,514
-Austin,More than 2% slower,40,13.036511299435038,351
-Austin,Within 2%,40,7.168028996763942,232
-Berlin,More than 2% faster,40,5.804179175225155,44509
-Berlin,More than 2% slower,40,12.25252882864658,48399
-Berlin,Within 2%,40,7.220892414355817,27530
-Boston,More than 2% faster,40,2.90240997749438,17586
-Boston,More than 2% slower,40,8.152149706155276,23747
-Boston,Within 2%,40,3.250407830342583,13009
-Chicago,More than 2% faster,40,7.5733324545214975,55431
-Chicago,More than 2% slower,40,14.66129185091598,60710
-Chicago,Within 2%,40,8.830819672131152,26315
-Copenhagen,More than 2% faster,40,4.607119612476396,11082
-Copenhagen,More than 2% slower,40,13.126594448150586,9134
-Copenhagen,Within 2%,40,7.29161217303822,5243
-Eindhoven,More than 2% faster,40,4.9498470948012185,1533
-Eindhoven,More than 2% slower,40,12.145452187445937,1329
-Eindhoven,Within 2%,40,6.018945516628371,1034
-Frankfurt,More than 2% faster,40,4.924399466192164,465
-Frankfurt,More than 2% slower,40,11.14158579589246,176
-Frankfurt,Within 2%,40,6.816325707951232,105
-Gold Coast,More than 2% faster,40,9.616891675270345,1692
-Gold Coast,More than 2% slower,40,16.80478788810329,1799
-Gold Coast,Within 2%,40,10.012292761532171,932
-Hamburg,More than 2% faster,40,4.916537596802395,7749
-Hamburg,More than 2% slower,40,10.387544095793567,8096
-Hamburg,Within 2%,40,6.131684219842448,5141
-Helsinki,More than 2% faster,40,4.453308823529412,367
-Helsinki,More than 2% slower,40,8.258625218914183,839
-Helsinki,Within 2%,40,5.387949588935825,350
-London,More than 2% faster,40,4.767224939254944,4152
-London,More than 2% slower,40,8.907527017632555,5365
-London,Within 2%,40,4.6951134656440185,2491
-Madrid,More than 2% faster,40,7.73191489361702,969
-Madrid,More than 2% slower,40,12.464812219730925,2435
-Madrid,Within 2%,40,7.824883880301536,967
-New York,More than 2% faster,40,7.553330763299915,48925
-New York,More than 2% slower,40,11.828371450007758,59312
-New York,Within 2%,40,8.131135391198029,27797
-Oslo,More than 2% faster,40,6.02661839863714,1609
-Oslo,More than 2% slower,40,11.178054470169707,1325
-Oslo,Within 2%,40,7.234405040794911,945
-Paris,More than 2% faster,40,6.016185334242796,564
-Paris,More than 2% slower,40,12.79761255893347,248
-Paris,Within 2%,40,7.468485915492962,159
-Prague,More than 2% faster,40,6.267183176204338,1682
-Prague,More than 2% slower,40,12.87532631578947,2017
-Prague,Within 2%,40,7.688305280866792,960
-Rotterdam,More than 2% faster,40,6.9096931659692995,9313
-Rotterdam,More than 2% slower,40,14.054900314795393,10685
-Rotterdam,Within 2%,40,8.60134138760843,6984
-Sydney,More than 2% faster,40,9.298850012233917,721
-Sydney,More than 2% slower,40,16.256895602369358,764
-Sydney,Within 2%,40,10.831231769357498,374
-Valencia,More than 2% faster,40,2.8706548972091905,6222
-Valencia,More than 2% slower,40,10.761536486746692,6422
-Valencia,Within 2%,40,4.064596007390698,4778
-Warsaw,More than 2% faster,40,6.099477871705616,5569
-Warsaw,More than 2% slower,40,14.1122641509434,5119
-Warsaw,Within 2%,40,8.493313888265664,2863
-Washington,More than 2% faster,40,9.86424444754288,16258
-Washington,More than 2% slower,40,15.641861839278025,23737
-Washington,Within 2%,40,11.077802030456873,9303
-Amsterdam,More than 2% faster,42.195,4.041219151140618,6158
-Amsterdam,More than 2% slower,42.195,8.410458741594095,6011
-Amsterdam,Within 2%,42.195,5.029201705859188,3739
-Austin,More than 2% faster,42.195,6.978182307005454,514
-Austin,More than 2% slower,42.195,9.642944293479783,351
-Austin,Within 2%,42.195,6.661133760426418,232
-Berlin,More than 2% faster,42.195,2.260021166627113,44509
-Berlin,More than 2% slower,42.195,5.981272568353391,48399
-Berlin,Within 2%,42.195,3.378289771096865,27530
-Boston,More than 2% faster,42.195,2.6605499786334086,17586
-Boston,More than 2% slower,42.195,6.470608632563901,23747
-Boston,Within 2%,42.195,2.984933582600968,13009
-Chicago,More than 2% faster,42.195,2.674613552285776,55431
-Chicago,More than 2% slower,42.195,5.666452528242627,60710
-Chicago,Within 2%,42.195,3.431522236148865,26315
-Copenhagen,More than 2% faster,42.195,2.5520401936650283,11082
-Copenhagen,More than 2% slower,42.195,7.342238638923126,9134
-Copenhagen,Within 2%,42.195,4.356714587601407,5243
-Eindhoven,More than 2% faster,42.195,2.7025310929972512,1533
-Eindhoven,More than 2% slower,42.195,6.102269029376095,1329
-Eindhoven,Within 2%,42.195,3.7284902025225053,1034
-Frankfurt,More than 2% faster,42.195,2.0281878173486145,465
-Frankfurt,More than 2% slower,42.195,4.517904880393486,176
-Frankfurt,Within 2%,42.195,2.816208317387514,105
-Gold Coast,More than 2% faster,42.195,4.762267277287268,1692
-Gold Coast,More than 2% slower,42.195,7.623038916872549,1799
-Gold Coast,Within 2%,42.195,4.894343431077408,932
-Hamburg,More than 2% faster,42.195,3.1097689554181684,7749
-Hamburg,More than 2% slower,42.195,6.459031855863662,8096
-Hamburg,Within 2%,42.195,4.376987704694213,5141
-Helsinki,More than 2% faster,42.195,5.0470456069305225,367
-Helsinki,More than 2% slower,42.195,6.835890221719865,839
-Helsinki,Within 2%,42.195,5.484769025600855,350
-London,More than 2% faster,42.195,3.2237394661133734,4152
-London,More than 2% slower,42.195,5.476200988608082,5365
-London,Within 2%,42.195,3.661657398355178,2491
-Madrid,More than 2% faster,42.195,8.353776064482222,969
-Madrid,More than 2% slower,42.195,10.972365726708567,2435
-Madrid,Within 2%,42.195,7.944265710943088,967
-New York,More than 2% faster,42.195,3.3130941095059985,48925
-New York,More than 2% slower,42.195,5.590425476632921,59312
-New York,Within 2%,42.195,3.7402131777594105,27797
-Oslo,More than 2% faster,42.195,5.332792461072811,1609
-Oslo,More than 2% slower,42.195,7.910060807496189,1325
-Oslo,Within 2%,42.195,6.322380750237833,945
-Paris,More than 2% faster,42.195,2.111726522798607,564
-Paris,More than 2% slower,42.195,4.1004799925215885,248
-Paris,Within 2%,42.195,3.252036057121077,159
-Prague,More than 2% faster,42.195,1.592663941406336,1682
-Prague,More than 2% slower,42.195,4.932354273327011,2017
-Prague,Within 2%,42.195,2.5634944916959723,960
-Rotterdam,More than 2% faster,42.195,4.264663675694713,9313
-Rotterdam,More than 2% slower,42.195,8.685530244415096,10685
-Rotterdam,Within 2%,42.195,5.583805233478767,6984
-Sydney,More than 2% faster,42.195,5.157120692458617,721
-Sydney,More than 2% slower,42.195,8.836680187636524,764
-Sydney,Within 2%,42.195,5.979528795066658,374
-Valencia,More than 2% faster,42.195,0.8484459068697658,6222
-Valencia,More than 2% slower,42.195,5.255698230755501,6422
-Valencia,Within 2%,42.195,1.9020189971590162,4778
-Warsaw,More than 2% faster,42.195,-3.0396835491478202,5569
-Warsaw,More than 2% slower,42.195,0.4454498750326774,5119
-Warsaw,Within 2%,42.195,-1.3775805771050864,2863
-Washington,More than 2% faster,42.195,8.104900293495632,16258
-Washington,More than 2% slower,42.195,12.136902497257363,23737
-Washington,Within 2%,42.195,9.20535823092139,9303
+Amsterdam,More than 2% faster,5,-1.0824410008162866,9380
+Amsterdam,More than 2% slower,5,-6.322020636285474,8641
+Amsterdam,Within 2%,5,-2.26143636580301,5374
+Austin,More than 2% faster,5,-2.219608899838321,589
+Austin,More than 2% slower,5,-8.718213424950587,506
+Austin,Within 2%,5,-2.4962737965213364,270
+Berlin,More than 2% faster,5,-2.5536647740050213,73224
+Berlin,More than 2% slower,5,-8.446224084511417,77126
+Berlin,Within 2%,5,-3.8418051754561198,42156
+Boston,More than 2% faster,5,-2.5268923735752735,26898
+Boston,More than 2% slower,5,-7.862334840629676,44522
+Boston,Within 2%,5,-2.808868633527367,22888
+Chicago,More than 2% faster,5,-3.0441454877302876,86798
+Chicago,More than 2% slower,5,-10.217820721911403,92200
+Chicago,Within 2%,5,-4.434134136081602,41348
+Copenhagen,More than 2% faster,5,-1.838407269747011,13278
+Copenhagen,More than 2% slower,5,-7.371960258634291,11465
+Copenhagen,Within 2%,5,-3.3720603012085624,6502
+Dubai,More than 2% faster,5,-4.542289289657708,195
+Dubai,More than 2% slower,5,-8.917835486775678,190
+Dubai,Within 2%,5,-4.292192666273492,110
+Eindhoven,More than 2% faster,5,-2.2765373846679426,2212
+Eindhoven,More than 2% slower,5,-6.9327431160683295,1901
+Eindhoven,Within 2%,5,-3.275035079955452,1436
+Frankfurt,More than 2% faster,5,-1.2228482331104018,2264
+Frankfurt,More than 2% slower,5,-6.581649331352157,1293
+Frankfurt,Within 2%,5,-2.5143577779179083,981
+Gold Coast,More than 2% faster,5,-3.8736324758585514,2218
+Gold Coast,More than 2% slower,5,-10.229245283018873,2383
+Gold Coast,Within 2%,5,-5.0093353284861974,1144
+Hamburg,More than 2% faster,5,-0.9693055450182786,12224
+Hamburg,More than 2% slower,5,-6.018361817423923,12167
+Hamburg,Within 2%,5,-2.348617677698528,7917
+Helsinki,More than 2% faster,5,0.7480730787829959,448
+Helsinki,More than 2% slower,5,-4.772940112540192,1029
+Helsinki,Within 2%,5,-1.2036541643684617,397
+London,More than 2% faster,5,-4.70907184058732,8381
+London,More than 2% slower,5,-10.499097057138068,12720
+London,Within 2%,5,-5.120571910329713,5090
+Madrid,More than 2% faster,5,-1.6074378088617225,1373
+Madrid,More than 2% slower,5,-4.729955663450114,3234
+Madrid,Within 2%,5,-1.7040207854396416,1250
+New York,More than 2% faster,5,-4.681798561151074,64767
+New York,More than 2% slower,5,-9.877061072995163,89769
+New York,Within 2%,5,-5.458595589210547,39336
+Oslo,More than 2% faster,5,-0.593536421075741,1896
+Oslo,More than 2% slower,5,-4.415868957726376,1685
+Oslo,Within 2%,5,-1.6144842711523222,1156
+Paris,More than 2% faster,5,-2.4090233162492036,2119
+Paris,More than 2% slower,5,-7.955859950073608,1577
+Paris,Within 2%,5,-3.9853435491843947,975
+Prague,More than 2% faster,5,8.62011227727606,1959
+Prague,More than 2% slower,5,6.473688282479795,2636
+Prague,Within 2%,5,6.611307776193276,1183
+Rotterdam,More than 2% faster,5,-2.644962286621655,11547
+Rotterdam,More than 2% slower,5,-7.970610737092832,13122
+Rotterdam,Within 2%,5,-3.7053854690253907,8485
+Singapore,More than 2% slower,5,-7.9637781152407,194
+Sydney,More than 2% faster,5,-4.419124869772295,947
+Sydney,More than 2% slower,5,-10.166558130879427,1002
+Sydney,Within 2%,5,-5.997972794760298,462
+Valencia,More than 2% faster,5,-0.5818780388978984,9659
+Valencia,More than 2% slower,5,-5.862759039591409,9390
+Valencia,Within 2%,5,-1.2635280008255034,6860
+Warsaw,More than 2% faster,5,0.6366397936149681,6035
+Warsaw,More than 2% slower,5,-4.740577726552376,5593
+Warsaw,Within 2%,5,-0.7414092115474391,3086
+Washington,More than 2% faster,5,-2.85247148288974,17931
+Washington,More than 2% slower,5,-8.632141561313777,26956
+Washington,Within 2%,5,-4.171867662753459,10261
+Amsterdam,More than 2% faster,10,-2.8200605627015762,9380
+Amsterdam,More than 2% slower,10,-7.3280189711783965,8641
+Amsterdam,Within 2%,10,-3.7331326015457913,5374
+Austin,More than 2% faster,10,-7.565719360568391,589
+Austin,More than 2% slower,10,-12.206724408551782,506
+Austin,Within 2%,10,-7.262642884411758,270
+Berlin,More than 2% faster,10,-2.3058541188391404,73224
+Berlin,More than 2% slower,10,-6.831176980626302,77126
+Berlin,Within 2%,10,-3.2618504620735345,42156
+Boston,More than 2% faster,10,-3.1655731259485953,26898
+Boston,More than 2% slower,10,-7.258760129475656,44522
+Boston,Within 2%,10,-3.2525349410797433,22888
+Chicago,More than 2% faster,10,-3.2129633616084674,86798
+Chicago,More than 2% slower,10,-8.623699167488441,92200
+Chicago,Within 2%,10,-4.156611933625714,41348
+Copenhagen,More than 2% faster,10,-1.97469742913004,13278
+Copenhagen,More than 2% slower,10,-7.128018825349769,11465
+Copenhagen,Within 2%,10,-3.383543500302766,6502
+Dubai,More than 2% faster,10,-5.245926023430291,195
+Dubai,More than 2% slower,10,-8.577171191362831,190
+Dubai,Within 2%,10,-4.142160810404749,110
+Eindhoven,More than 2% faster,10,-1.7114237308347324,2212
+Eindhoven,More than 2% slower,10,-6.0042150274893125,1901
+Eindhoven,Within 2%,10,-2.449381369459375,1436
+Frankfurt,More than 2% faster,10,-1.6740306516341064,2264
+Frankfurt,More than 2% slower,10,-6.202426000395544,1293
+Frankfurt,Within 2%,10,-2.591180298328166,981
+Gold Coast,More than 2% faster,10,-3.654920359181663,2218
+Gold Coast,More than 2% slower,10,-9.498109486569195,2383
+Gold Coast,Within 2%,10,-4.401722466770774,1144
+Hamburg,More than 2% faster,10,-2.6599393034409835,12224
+Hamburg,More than 2% slower,10,-6.43689923641263,12167
+Hamburg,Within 2%,10,-3.5307781366156865,7917
+Helsinki,More than 2% faster,10,-3.8972529254514665,448
+Helsinki,More than 2% slower,10,-7.533104404259339,1029
+Helsinki,Within 2%,10,-4.694913863822803,397
+London,More than 2% faster,10,-3.657012433701412,8381
+London,More than 2% slower,10,-8.328612186027435,12720
+London,Within 2%,10,-4.033306486934668,5090
+Madrid,More than 2% faster,10,-5.7819119669876295,1373
+Madrid,More than 2% slower,10,-8.665012158899504,3234
+Madrid,Within 2%,10,-5.952732015231871,1250
+New York,More than 2% faster,10,-5.728929719156062,64767
+New York,More than 2% slower,10,-9.768571428571438,89769
+New York,Within 2%,10,-6.178910869089426,39336
+Oslo,More than 2% faster,10,-5.301714553777454,1896
+Oslo,More than 2% slower,10,-8.531050198150592,1685
+Oslo,Within 2%,10,-5.822283951195322,1156
+Paris,More than 2% faster,10,-2.679533752860408,2119
+Paris,More than 2% slower,10,-7.176548323471388,1577
+Paris,Within 2%,10,-3.8683897448099414,975
+Prague,More than 2% faster,10,-5.857246770904146,1959
+Prague,More than 2% slower,10,-10.458329311222936,2636
+Prague,Within 2%,10,-6.674157384637636,1183
+Rotterdam,More than 2% faster,10,-3.4062347476973898,11547
+Rotterdam,More than 2% slower,10,-8.411091531803994,13122
+Rotterdam,Within 2%,10,-4.390715861239225,8485
+Singapore,More than 2% slower,10,-7.858268994273471,194
+Sydney,More than 2% faster,10,-3.1701754385964898,947
+Sydney,More than 2% slower,10,-7.9464652399895925,1002
+Sydney,Within 2%,10,-4.2855294352058255,462
+Valencia,More than 2% faster,10,-1.724517661027003,9659
+Valencia,More than 2% slower,10,-6.408438580057634,9390
+Valencia,Within 2%,10,-2.3843217297813526,6860
+Warsaw,More than 2% faster,10,-2.453581095910462,6035
+Warsaw,More than 2% slower,10,-8.088359017076218,5593
+Warsaw,Within 2%,10,-3.7337053602882753,3086
+Washington,More than 2% faster,10,-6.107133243606999,17931
+Washington,More than 2% slower,10,-10.895835231250146,26956
+Washington,Within 2%,10,-7.054914423207881,10261
+Amsterdam,More than 2% faster,15,-2.39724181960963,9380
+Amsterdam,More than 2% slower,15,-6.325693286861645,8641
+Amsterdam,Within 2%,15,-3.165305088243037,5374
+Austin,More than 2% faster,15,-3.0537024221453213,589
+Austin,More than 2% slower,15,-6.210827508636829,506
+Austin,Within 2%,15,-3.2478109857626225,270
+Berlin,More than 2% faster,15,-2.764585402332048,73224
+Berlin,More than 2% slower,15,-6.415400120335379,77126
+Berlin,Within 2%,15,-3.47514674275462,42156
+Boston,More than 2% faster,15,-2.7692368059798356,26898
+Boston,More than 2% slower,15,-5.858681421190253,44522
+Boston,Within 2%,15,-2.798798817324155,22888
+Chicago,More than 2% faster,15,-3.9685995971987573,86798
+Chicago,More than 2% slower,15,-8.68771434438277,92200
+Chicago,Within 2%,15,-4.707371983684766,41348
+Copenhagen,More than 2% faster,15,-1.9363338788870643,13278
+Copenhagen,More than 2% slower,15,-6.738110265453868,11465
+Copenhagen,Within 2%,15,-3.2069487436375166,6502
+Dubai,More than 2% faster,15,-5.412078152753108,195
+Dubai,More than 2% slower,15,-7.498323195344914,190
+Dubai,Within 2%,15,-3.4599271561461418,110
+Eindhoven,More than 2% faster,15,-1.9124304904169276,2212
+Eindhoven,More than 2% slower,15,-5.818600426506581,1901
+Eindhoven,Within 2%,15,-2.4868560696799378,1436
+Frankfurt,More than 2% faster,15,-3.0981087983000144,2264
+Frankfurt,More than 2% slower,15,-6.972564612326037,1293
+Frankfurt,Within 2%,15,-4.034036104888661,981
+Gold Coast,More than 2% faster,15,-3.9054374592164267,2218
+Gold Coast,More than 2% slower,15,-8.520163062743713,2383
+Gold Coast,Within 2%,15,-4.40693721046701,1144
+Hamburg,More than 2% faster,15,-3.180219853433519,12224
+Hamburg,More than 2% slower,15,-6.748743028049475,12167
+Hamburg,Within 2%,15,-4.0212323943661925,7917
+Helsinki,More than 2% faster,15,-4.989340744369569,448
+Helsinki,More than 2% slower,15,-7.885463835785389,1029
+Helsinki,Within 2%,15,-5.315798973969221,397
+London,More than 2% faster,15,-1.8600667256757575,8381
+London,More than 2% slower,15,-5.307053514404475,12720
+London,Within 2%,15,-1.9965767186023609,5090
+Madrid,More than 2% faster,15,-3.4679080229942483,1373
+Madrid,More than 2% slower,15,-5.709332489872809,3234
+Madrid,Within 2%,15,-3.6197451493509614,1250
+New York,More than 2% faster,15,-4.316501580611176,64767
+New York,More than 2% slower,15,-7.507283423208911,89769
+New York,Within 2%,15,-4.576360296987641,39336
+Oslo,More than 2% faster,15,-2.7383196057718164,1896
+Oslo,More than 2% slower,15,-5.392882943143807,1685
+Oslo,Within 2%,15,-3.1421014820904647,1156
+Paris,More than 2% faster,15,-2.209903485584319,2119
+Paris,More than 2% slower,15,-6.293322403934576,1577
+Paris,Within 2%,15,-3.115029646816203,975
+Prague,More than 2% faster,15,-4.973587257617728,1959
+Prague,More than 2% slower,15,-8.760638846099821,2636
+Prague,Within 2%,15,-5.547750281214848,1183
+Rotterdam,More than 2% faster,15,-2.8125767299107207,11547
+Rotterdam,More than 2% slower,15,-6.961992674064055,13122
+Rotterdam,Within 2%,15,-3.5412595508219624,8485
+Singapore,More than 2% slower,15,-5.879551932766414,194
+Sydney,More than 2% faster,15,-5.107948844072807,947
+Sydney,More than 2% slower,15,-8.311835345700676,1002
+Sydney,Within 2%,15,-6.018166380591539,462
+Valencia,More than 2% faster,15,-1.6676771953594738,9659
+Valencia,More than 2% slower,15,-5.862265403447853,9390
+Valencia,Within 2%,15,-2.261077052144361,6860
+Warsaw,More than 2% faster,15,-3.0563207408496273,6035
+Warsaw,More than 2% slower,15,-7.848802882954054,5593
+Warsaw,Within 2%,15,-4.128120554797799,3086
+Washington,More than 2% faster,15,-4.368599539459906,17931
+Washington,More than 2% slower,15,-7.8936166192809125,26956
+Washington,Within 2%,15,-4.947892805023657,10261
+Amsterdam,More than 2% faster,20,-1.4837592468430583,9380
+Amsterdam,More than 2% slower,20,-4.19969750585012,8641
+Amsterdam,Within 2%,20,-1.883853756496856,5374
+Austin,More than 2% faster,20,-2.361962323390887,589
+Austin,More than 2% slower,20,-3.850303775967384,506
+Austin,Within 2%,20,-2.277976834644546,270
+Berlin,More than 2% faster,20,-2.128039124359571,73224
+Berlin,More than 2% slower,20,-4.460206804238709,77126
+Berlin,Within 2%,20,-2.565306366150888,42156
+Boston,More than 2% faster,20,-1.5660356282302113,26898
+Boston,More than 2% slower,20,-3.244387179681291,44522
+Boston,Within 2%,20,-1.5291045912249612,22888
+Chicago,More than 2% faster,20,-2.4246795757943973,86798
+Chicago,More than 2% slower,20,-5.052859874554183,92200
+Chicago,Within 2%,20,-2.8017711914183563,41348
+Copenhagen,More than 2% faster,20,-1.6186116659311578,13278
+Copenhagen,More than 2% slower,20,-5.14437992534218,11465
+Copenhagen,Within 2%,20,-2.505621616398468,6502
+Dubai,More than 2% faster,20,-3.9420645804762455,195
+Dubai,More than 2% slower,20,-5.75848392610377,190
+Dubai,Within 2%,20,-2.3478588058794103,110
+Eindhoven,More than 2% faster,20,-2.1525856216601023,2212
+Eindhoven,More than 2% slower,20,-5.261275506856511,1901
+Eindhoven,Within 2%,20,-2.4659055083331882,1436
+Frankfurt,More than 2% faster,20,-1.737710847993884,2264
+Frankfurt,More than 2% slower,20,-4.19407171047107,1293
+Frankfurt,Within 2%,20,-2.2046498554449068,981
+Gold Coast,More than 2% faster,20,-3.4918979564046824,2218
+Gold Coast,More than 2% slower,20,-6.3163661246176,2383
+Gold Coast,Within 2%,20,-3.6051703497367416,1144
+Hamburg,More than 2% faster,20,-1.9704013365184736,12224
+Hamburg,More than 2% slower,20,-3.885738520035109,12167
+Hamburg,Within 2%,20,-2.3454282646402924,7917
+Helsinki,More than 2% faster,20,-4.284491092657882,448
+Helsinki,More than 2% slower,20,-5.884573149132121,1029
+Helsinki,Within 2%,20,-4.355162475682672,397
+London,More than 2% faster,20,-2.4959132189707245,8381
+London,More than 2% slower,20,-4.1371696484199365,12720
+London,Within 2%,20,-2.514020181665205,5090
+Madrid,More than 2% faster,20,-2.3617852368929104,1373
+Madrid,More than 2% slower,20,-4.110254654318496,3234
+Madrid,Within 2%,20,-2.4985827890587284,1250
+New York,More than 2% faster,20,-2.687260369466715,64767
+New York,More than 2% slower,20,-4.328582666234782,89769
+New York,Within 2%,20,-2.8259483714393685,39336
+Oslo,More than 2% faster,20,-2.0705162446643053,1896
+Oslo,More than 2% slower,20,-3.4536890645586293,1685
+Oslo,Within 2%,20,-2.2374440661731834,1156
+Paris,More than 2% faster,20,-2.562961304192035,2119
+Paris,More than 2% slower,20,-5.093912484664365,1577
+Paris,Within 2%,20,-3.15688539741219,975
+Prague,More than 2% faster,20,-4.132194015033342,1959
+Prague,More than 2% slower,20,-6.95376462540021,2636
+Prague,Within 2%,20,-4.39164741062934,1183
+Rotterdam,More than 2% faster,20,-2.4778535728758655,11547
+Rotterdam,More than 2% slower,20,-5.520866515303058,13122
+Rotterdam,Within 2%,20,-3.017429687499995,8485
+Singapore,More than 2% slower,20,-0.14538964842176205,194
+Sydney,More than 2% faster,20,-2.7174680013127728,947
+Sydney,More than 2% slower,20,-5.238352647807659,1002
+Sydney,Within 2%,20,-2.8879440408036694,462
+Valencia,More than 2% faster,20,-1.7889272541787515,9659
+Valencia,More than 2% slower,20,-4.948506669208486,9390
+Valencia,Within 2%,20,-2.2529807469264584,6860
+Warsaw,More than 2% faster,20,-1.6366129585190237,6035
+Warsaw,More than 2% slower,20,-4.791382609311901,5593
+Warsaw,Within 2%,20,-2.404863615639713,3086
+Washington,More than 2% faster,20,-4.897525680437875,17931
+Washington,More than 2% slower,20,-6.9298202464506184,26956
+Washington,Within 2%,20,-5.073674911660775,10261
+Amsterdam,More than 2% faster,25,-1.7642286504272187,9380
+Amsterdam,More than 2% slower,25,-2.875959079283885,8641
+Amsterdam,Within 2%,25,-2.0302971330898254,5374
+Austin,More than 2% faster,25,0.2259396884378928,589
+Austin,More than 2% slower,25,0.47592042696413817,506
+Austin,Within 2%,25,0.3860915953223243,270
+Berlin,More than 2% faster,25,-0.6422215973994172,73224
+Berlin,More than 2% slower,25,-0.9407161752722382,77126
+Berlin,Within 2%,25,-0.6659528599113729,42156
+Boston,More than 2% faster,25,-1.2383282439115795,26898
+Boston,More than 2% slower,25,-1.5751997603154544,44522
+Boston,Within 2%,25,-1.1923295559793767,22888
+Chicago,More than 2% faster,25,-1.0558143364950423,86798
+Chicago,More than 2% slower,25,-1.1202799007173858,92200
+Chicago,Within 2%,25,-1.06647047333982,41348
+Copenhagen,More than 2% faster,25,-1.1706666437401592,13278
+Copenhagen,More than 2% slower,25,-1.8305207413945146,11465
+Copenhagen,Within 2%,25,-1.3332508589313619,6502
+Dubai,More than 2% faster,25,-1.3842963123409269,195
+Dubai,More than 2% slower,25,-2.0566456731708147,190
+Dubai,Within 2%,25,-1.0435905277566937,110
+Eindhoven,More than 2% faster,25,-1.101403557791658,2212
+Eindhoven,More than 2% slower,25,-1.8931575769772557,1901
+Eindhoven,Within 2%,25,-1.1087444058670515,1436
+Frankfurt,More than 2% faster,25,-1.1782405110898675,2264
+Frankfurt,More than 2% slower,25,-1.9987096774193525,1293
+Frankfurt,Within 2%,25,-1.3923039806996274,981
+Gold Coast,More than 2% faster,25,-2.0765476772156566,2218
+Gold Coast,More than 2% slower,25,-2.455367819079801,2383
+Gold Coast,Within 2%,25,-1.9323690816778483,1144
+Hamburg,More than 2% faster,25,-0.7935325004120086,12224
+Hamburg,More than 2% slower,25,-1.103796398072221,12167
+Hamburg,Within 2%,25,-0.7778871435313084,7917
+Helsinki,More than 2% faster,25,-1.068507779432054,448
+Helsinki,More than 2% slower,25,-1.7573235414116706,1029
+Helsinki,Within 2%,25,-1.0483274837046141,397
+London,More than 2% faster,25,-1.0864469128678556,8381
+London,More than 2% slower,25,-0.8570712178177398,12720
+London,Within 2%,25,-1.0481718701716214,5090
+Madrid,More than 2% faster,25,-3.143822075782532,1373
+Madrid,More than 2% slower,25,-3.859635608763412,3234
+Madrid,Within 2%,25,-3.053995766156131,1250
+New York,More than 2% faster,25,1.4718995784307687,64767
+New York,More than 2% slower,25,1.9855530770239938,89769
+New York,Within 2%,25,1.5216026818748674,39336
+Oslo,More than 2% faster,25,-0.49869831691612965,1896
+Oslo,More than 2% slower,25,-1.171359015973339,1685
+Oslo,Within 2%,25,-0.6307660988095654,1156
+Paris,More than 2% faster,25,-2.2974662291078363,2119
+Paris,More than 2% slower,25,-2.714584221748406,1577
+Paris,Within 2%,25,-2.3536928208386487,975
+Prague,More than 2% faster,25,-3.9697927793206578,1959
+Prague,More than 2% slower,25,-4.940347330977602,2636
+Prague,Within 2%,25,-3.857468722355617,1183
+Rotterdam,More than 2% faster,25,-1.0127204279770097,11547
+Rotterdam,More than 2% slower,25,-1.9625395886739117,13122
+Rotterdam,Within 2%,25,-1.2229007633587696,8485
+Singapore,More than 2% slower,25,-1.4529568201307907,194
+Sydney,More than 2% faster,25,-2.6343385880740255,947
+Sydney,More than 2% slower,25,-3.5576708985494196,1002
+Sydney,Within 2%,25,-2.4313165452415406,462
+Valencia,More than 2% faster,25,-0.7694172858818904,9659
+Valencia,More than 2% slower,25,-2.2254451260695083,9390
+Valencia,Within 2%,25,-0.952152654654792,6860
+Warsaw,More than 2% faster,25,-1.6868857793686964,6035
+Warsaw,More than 2% slower,25,-2.3087104072398112,5593
+Warsaw,Within 2%,25,-1.8599649176950506,3086
+Washington,More than 2% faster,25,-2.3905469084677944,17931
+Washington,More than 2% slower,25,-2.53126505021764,26956
+Washington,Within 2%,25,-2.3142108245961857,10261
+Amsterdam,More than 2% faster,30,-0.35680624722964627,9380
+Amsterdam,More than 2% slower,30,0.9538680116502052,8641
+Amsterdam,Within 2%,30,-0.03547047520757185,5374
+Austin,More than 2% faster,30,0.02685050798258981,589
+Austin,More than 2% slower,30,2.927080435027851,506
+Austin,Within 2%,30,0.36187597764331114,270
+Berlin,More than 2% faster,30,0.8119245092617522,73224
+Berlin,More than 2% slower,30,2.912725145976902,77126
+Berlin,Within 2%,30,1.230961673000941,42156
+Boston,More than 2% faster,30,2.0541248276530144,26898
+Boston,More than 2% slower,30,3.783240891237827,44522
+Boston,Within 2%,30,2.185116444115165,22888
+Chicago,More than 2% faster,30,0.23486020072230884,86798
+Chicago,More than 2% slower,30,3.2390787746102045,92200
+Chicago,Within 2%,30,0.6348704437030617,41348
+Copenhagen,More than 2% faster,30,0.17112656164621765,13278
+Copenhagen,More than 2% slower,30,1.141335834896795,11465
+Copenhagen,Within 2%,30,0.34870640430606503,6502
+Dubai,More than 2% faster,30,0.5319715808170367,195
+Dubai,More than 2% slower,30,2.4707394316376807,190
+Dubai,Within 2%,30,1.1412831810304391,110
+Eindhoven,More than 2% faster,30,-0.10540611167071945,2212
+Eindhoven,More than 2% slower,30,0.875603158356486,1901
+Eindhoven,Within 2%,30,0.07628507320946998,1436
+Frankfurt,More than 2% faster,30,-0.07027208029994347,2264
+Frankfurt,More than 2% slower,30,1.1780639431616446,1293
+Frankfurt,Within 2%,30,0.24718012913427234,981
+Gold Coast,More than 2% faster,30,-0.6700135154531994,2218
+Gold Coast,More than 2% slower,30,2.2443678908027342,2383
+Gold Coast,Within 2%,30,-0.24669560597251894,1144
+Hamburg,More than 2% faster,30,0.3520894516989337,12224
+Hamburg,More than 2% slower,30,2.3007922705313932,12167
+Hamburg,Within 2%,30,0.7961003924133347,7917
+Helsinki,More than 2% faster,30,-0.022866319376446675,448
+Helsinki,More than 2% slower,30,2.876097358019547,1029
+Helsinki,Within 2%,30,0.6091721949812445,397
+London,More than 2% faster,30,1.2074646940148037,8381
+London,More than 2% slower,30,3.5670853808824177,12720
+London,Within 2%,30,1.4895668719377309,5090
+Madrid,More than 2% faster,30,1.639667440641146,1373
+Madrid,More than 2% slower,30,2.7084749976927003,3234
+Madrid,Within 2%,30,1.79186644225805,1250
+New York,More than 2% faster,30,-0.24907016060861098,64767
+New York,More than 2% slower,30,1.6027418739670285,89769
+New York,Within 2%,30,0.007751014950929669,39336
+Oslo,More than 2% faster,30,-0.5221898461142016,1896
+Oslo,More than 2% slower,30,0.8326240670420315,1685
+Oslo,Within 2%,30,-0.1796696965856437,1156
+Paris,More than 2% faster,30,0.7186256781193556,2119
+Paris,More than 2% slower,30,2.0584098121622763,1577
+Paris,Within 2%,30,1.0629447497830569,975
+Prague,More than 2% faster,30,-1.4041829288987007,1959
+Prague,More than 2% slower,30,-0.03571673443352186,2636
+Prague,Within 2%,30,-0.8695766231873625,1183
+Rotterdam,More than 2% faster,30,0.08584461447911362,11547
+Rotterdam,More than 2% slower,30,1.3534209918350526,13122
+Rotterdam,Within 2%,30,0.32130598576809444,8485
+Singapore,More than 2% slower,30,3.0478862548520946,194
+Sydney,More than 2% faster,30,0.4138467717642369,947
+Sydney,More than 2% slower,30,1.8480497565206644,1002
+Sydney,Within 2%,30,0.5404544292472724,462
+Valencia,More than 2% faster,30,0.03580481141383096,9659
+Valencia,More than 2% slower,30,1.1774967439684314,9390
+Valencia,Within 2%,30,0.12446029508895728,6860
+Warsaw,More than 2% faster,30,-0.21618856439812317,6035
+Warsaw,More than 2% slower,30,1.8605443272405209,5593
+Warsaw,Within 2%,30,0.1735332693497238,3086
+Washington,More than 2% faster,30,0.4210752688172059,17931
+Washington,More than 2% slower,30,2.636740327337095,26956
+Washington,Within 2%,30,0.8898250460405155,10261
+Amsterdam,More than 2% faster,35,2.5671910684263333,9380
+Amsterdam,More than 2% slower,35,8.810604312716318,8641
+Amsterdam,Within 2%,35,3.623762993034929,5374
+Austin,More than 2% faster,35,1.7111747194870741,589
+Austin,More than 2% slower,35,5.733335596635714,506
+Austin,Within 2%,35,2.0834126262496033,270
+Berlin,More than 2% faster,35,1.6856027759421632,73224
+Berlin,More than 2% slower,35,6.235880139758931,77126
+Berlin,Within 2%,35,2.627511691623019,42156
+Boston,More than 2% faster,35,4.320814640213511,26898
+Boston,More than 2% slower,35,8.53846660676073,44522
+Boston,Within 2%,35,4.473366293214321,22888
+Chicago,More than 2% faster,35,3.238213928247735,86798
+Chicago,More than 2% slower,35,9.181818454579249,92200
+Chicago,Within 2%,35,4.370347092884286,41348
+Copenhagen,More than 2% faster,35,1.7140832211738122,13278
+Copenhagen,More than 2% slower,35,8.262855409811198,11465
+Copenhagen,Within 2%,35,3.4064340222169642,6502
+Dubai,More than 2% faster,35,5.165718643459538,195
+Dubai,More than 2% slower,35,9.682770465240175,190
+Dubai,Within 2%,35,4.408808847307489,110
+Eindhoven,More than 2% faster,35,2.1752432045846204,2212
+Eindhoven,More than 2% slower,35,6.985628664495103,1901
+Eindhoven,Within 2%,35,2.9823890722297963,1436
+Frankfurt,More than 2% faster,35,2.1267477289577563,2264
+Frankfurt,More than 2% slower,35,8.00045674368619,1293
+Frankfurt,Within 2%,35,3.390286846159496,981
+Gold Coast,More than 2% faster,35,4.3948970122929865,2218
+Gold Coast,More than 2% slower,35,11.042768135291503,2383
+Gold Coast,Within 2%,35,5.053974219257018,1144
+Hamburg,More than 2% faster,35,1.7048281091825213,12224
+Hamburg,More than 2% slower,35,5.9243160681555995,12167
+Hamburg,Within 2%,35,2.8085163261409196,7917
+Helsinki,More than 2% faster,35,5.395841539380342,448
+Helsinki,More than 2% slower,35,10.575597835573403,1029
+Helsinki,Within 2%,35,6.881478647934358,397
+London,More than 2% faster,35,4.214808268654413,8381
+London,More than 2% slower,35,9.391171641138785,12720
+London,Within 2%,35,4.517129772392902,5090
+Madrid,More than 2% faster,35,1.4585324553151313,1373
+Madrid,More than 2% slower,35,3.5028523747206775,3234
+Madrid,Within 2%,35,1.6261111809564799,1250
+New York,More than 2% faster,35,5.279555054914109,64767
+New York,More than 2% slower,35,9.578084606345483,89769
+New York,Within 2%,35,5.776934010449386,39336
+Oslo,More than 2% faster,35,1.6398825122695415,1896
+Oslo,More than 2% slower,35,4.7772972645114375,1685
+Oslo,Within 2%,35,2.250797186491682,1156
+Paris,More than 2% faster,35,3.478713363139585,2119
+Paris,More than 2% slower,35,8.379352926648554,1577
+Paris,Within 2%,35,4.687707694789478,975
+Prague,More than 2% faster,35,1.6988737329495684,1959
+Prague,More than 2% slower,35,5.936210536489628,2636
+Prague,Within 2%,35,2.744425625186797,1183
+Rotterdam,More than 2% faster,35,2.269357829091523,11547
+Rotterdam,More than 2% slower,35,8.475215378070432,13122
+Rotterdam,Within 2%,35,3.2695121951219486,8485
+Singapore,More than 2% slower,35,5.320817716741988,194
+Sydney,More than 2% faster,35,4.6773620289337625,947
+Sydney,More than 2% slower,35,9.998993909131414,1002
+Sydney,Within 2%,35,5.870351714241739,462
+Valencia,More than 2% faster,35,2.235274738935855,9659
+Valencia,More than 2% slower,35,8.087456511294322,9390
+Valencia,Within 2%,35,3.0572679213809573,6860
+Warsaw,More than 2% faster,35,2.6596080198242777,6035
+Warsaw,More than 2% slower,35,9.316404561377345,5593
+Warsaw,Within 2%,35,3.9970569990804727,3086
+Washington,More than 2% faster,35,4.340417189460477,17931
+Washington,More than 2% slower,35,9.3546643111852,26956
+Washington,Within 2%,35,5.343744889615687,10261
+Amsterdam,More than 2% faster,40,4.366802523144553,9380
+Amsterdam,More than 2% slower,40,10.504129342364,8641
+Amsterdam,Within 2%,40,5.776362062526363,5374
+Austin,More than 2% faster,40,7.120634676114945,589
+Austin,More than 2% slower,40,11.744597592748107,506
+Austin,Within 2%,40,7.052679503710557,270
+Berlin,More than 2% faster,40,5.604792273146153,73224
+Berlin,More than 2% slower,40,12.022910333401594,77126
+Berlin,Within 2%,40,7.052838381917503,42156
+Boston,More than 2% faster,40,2.817214930680312,26898
+Boston,More than 2% slower,40,7.680545804995331,44522
+Boston,Within 2%,40,2.936711939021608,22888
+Chicago,More than 2% faster,40,7.2213148315234506,86798
+Chicago,More than 2% slower,40,14.408893823808576,92200
+Chicago,Within 2%,40,8.613221732473196,41348
+Copenhagen,More than 2% faster,40,4.59867950694286,13278
+Copenhagen,More than 2% slower,40,12.910947529591898,11465
+Copenhagen,Within 2%,40,7.181781031669587,6502
+Dubai,More than 2% faster,40,10.195206611570251,195
+Dubai,More than 2% slower,40,13.62767234027209,190
+Dubai,Within 2%,40,7.2405365756911255,110
+Eindhoven,More than 2% faster,40,5.207823353751417,2212
+Eindhoven,More than 2% slower,40,12.728756957328402,1901
+Eindhoven,Within 2%,40,6.454501894171438,1436
+Frankfurt,More than 2% faster,40,4.790976890734933,2264
+Frankfurt,More than 2% slower,40,11.00084486043238,1293
+Frankfurt,Within 2%,40,6.059194543076063,981
+Gold Coast,More than 2% faster,40,9.687435629117203,2218
+Gold Coast,More than 2% slower,40,16.47320968874326,2383
+Gold Coast,Within 2%,40,10.242941485631219,1144
+Hamburg,More than 2% faster,40,4.824596727969411,12224
+Hamburg,More than 2% slower,40,10.224714415231183,12167
+Hamburg,Within 2%,40,6.003534795644616,7917
+Helsinki,More than 2% faster,40,4.511158746983823,448
+Helsinki,More than 2% slower,40,8.208319238900618,1029
+Helsinki,Within 2%,40,5.32379730213679,397
+London,More than 2% faster,40,4.883966361067094,8381
+London,More than 2% slower,40,9.271455385336836,12720
+London,Within 2%,40,5.314572923564809,5090
+Madrid,More than 2% faster,40,8.114531450577678,1373
+Madrid,More than 2% slower,40,12.469560955561189,3234
+Madrid,Within 2%,40,8.041548942884525,1250
+New York,More than 2% faster,40,7.29794947612008,64767
+New York,More than 2% slower,40,11.311963190184038,89769
+New York,Within 2%,40,7.792214347956383,39336
+Oslo,More than 2% faster,40,6.241318848310695,1896
+Oslo,More than 2% slower,40,10.81578751025889,1685
+Oslo,Within 2%,40,7.098273990307435,1156
+Paris,More than 2% faster,40,5.864465455628354,2119
+Paris,More than 2% slower,40,13.553119201484431,1577
+Paris,Within 2%,40,7.804320587599922,975
+Prague,More than 2% faster,40,6.273323873714087,1959
+Prague,More than 2% slower,40,12.668466916882238,2636
+Prague,Within 2%,40,7.618316944889103,1183
+Rotterdam,More than 2% faster,40,6.922477064220178,11547
+Rotterdam,More than 2% slower,40,14.055570468116052,13122
+Rotterdam,Within 2%,40,8.46314216327293,8485
+Singapore,More than 2% slower,40,8.949134619556197,194
+Sydney,More than 2% faster,40,9.077085620197579,947
+Sydney,More than 2% slower,40,16.368850882303576,1002
+Sydney,Within 2%,40,10.259700107201674,462
+Valencia,More than 2% faster,40,2.9692307692307685,9659
+Valencia,More than 2% slower,40,10.684908026258743,9390
+Valencia,Within 2%,40,4.122896498008089,6860
+Warsaw,More than 2% faster,40,6.0406648857227685,6035
+Warsaw,More than 2% slower,40,13.858594617092113,5593
+Warsaw,Within 2%,40,8.354281539522525,3086
+Washington,More than 2% faster,40,9.750515649358448,17931
+Washington,More than 2% slower,40,15.371282710504309,26956
+Washington,Within 2%,40,10.944336450320137,10261
+Amsterdam,More than 2% faster,42.195,3.962345831019509,9380
+Amsterdam,More than 2% slower,42.195,8.223610841140605,8641
+Amsterdam,Within 2%,42.195,5.08141224319697,5374
+Austin,More than 2% faster,42.195,6.967500481737576,589
+Austin,More than 2% slower,42.195,8.996273521254228,506
+Austin,Within 2%,42.195,7.094693616950398,270
+Berlin,More than 2% faster,42.195,2.0368196234130664,73224
+Berlin,More than 2% slower,42.195,5.628130674018372,77126
+Berlin,Within 2%,42.195,3.1424685448962486,42156
+Boston,More than 2% faster,42.195,2.4667157034419573,26898
+Boston,More than 2% slower,42.195,6.048826200268187,44522
+Boston,Within 2%,42.195,2.651127488589222,22888
+Chicago,More than 2% faster,42.195,2.6228812292312997,86798
+Chicago,More than 2% slower,42.195,5.7326433920762305,92200
+Chicago,Within 2%,42.195,3.4798351033410335,41348
+Copenhagen,More than 2% faster,42.195,2.568633118301511,13278
+Copenhagen,More than 2% slower,42.195,7.266792856039661,11465
+Copenhagen,Within 2%,42.195,4.254247981115555,6502
+Dubai,More than 2% faster,42.195,6.084915989683126,195
+Dubai,More than 2% slower,42.195,6.720522730369726,190
+Dubai,Within 2%,42.195,3.8742044612651183,110
+Eindhoven,More than 2% faster,42.195,2.8458112122804358,2212
+Eindhoven,More than 2% slower,42.195,6.17070720769386,1901
+Eindhoven,Within 2%,42.195,3.4852161182255537,1436
+Frankfurt,More than 2% faster,42.195,2.5180596886179685,2264
+Frankfurt,More than 2% slower,42.195,6.032580441357949,1293
+Frankfurt,Within 2%,42.195,3.3027188046799605,981
+Gold Coast,More than 2% faster,42.195,4.720662954156496,2218
+Gold Coast,More than 2% slower,42.195,7.536830821526541,2383
+Gold Coast,Within 2%,42.195,5.113586107322254,1144
+Hamburg,More than 2% faster,42.195,3.1096621522533674,12224
+Hamburg,More than 2% slower,42.195,6.410407274379115,12167
+Hamburg,Within 2%,42.195,4.227610598249609,7917
+Helsinki,More than 2% faster,42.195,4.9566402504667035,448
+Helsinki,More than 2% slower,42.195,6.844669463873365,1029
+Helsinki,Within 2%,42.195,5.426198075124233,397
+London,More than 2% faster,42.195,3.524264824081369,8381
+London,More than 2% slower,42.195,5.816536094957625,12720
+London,Within 2%,42.195,3.960935093362561,5090
+Madrid,More than 2% faster,42.195,8.538305217299968,1373
+Madrid,More than 2% slower,42.195,10.818167885253715,3234
+Madrid,Within 2%,42.195,8.075576925061,1250
+New York,More than 2% faster,42.195,3.0823604677369554,64767
+New York,More than 2% slower,42.195,5.327487893793714,89769
+New York,Within 2%,42.195,3.5170876225325554,39336
+Oslo,More than 2% faster,42.195,5.677232582870406,1896
+Oslo,More than 2% slower,42.195,8.214646245560363,1685
+Oslo,Within 2%,42.195,6.382711518370055,1156
+Paris,More than 2% faster,42.195,1.783445012485596,2119
+Paris,More than 2% slower,42.195,4.29417954088851,1577
+Paris,Within 2%,42.195,2.3199156713642255,975
+Prague,More than 2% faster,42.195,1.5982089510437447,1959
+Prague,More than 2% slower,42.195,4.652678127264254,2636
+Prague,Within 2%,42.195,2.6265912563646188,1183
+Rotterdam,More than 2% faster,42.195,4.303822332030149,11547
+Rotterdam,More than 2% slower,42.195,8.677114724601731,13122
+Rotterdam,Within 2%,42.195,5.478403509774843,8485
+Singapore,More than 2% slower,42.195,2.50305865942011,194
+Sydney,More than 2% faster,42.195,4.759915115579139,947
+Sydney,More than 2% slower,42.195,8.731862869050943,1002
+Sydney,Within 2%,42.195,5.649359009613875,462
+Valencia,More than 2% faster,42.195,0.7308042033428164,9659
+Valencia,More than 2% slower,42.195,5.050520363936151,9390
+Valencia,Within 2%,42.195,1.8268645713223175,6860
+Warsaw,More than 2% faster,42.195,-2.7572338568812693,6035
+Warsaw,More than 2% slower,42.195,0.5376951321486967,5593
+Warsaw,Within 2%,42.195,-1.2075424143344171,3086
+Washington,More than 2% faster,42.195,8.005837177567354,17931
+Washington,More than 2% slower,42.195,12.017373477975758,26956
+Washington,Within 2%,42.195,9.127532800827609,10261

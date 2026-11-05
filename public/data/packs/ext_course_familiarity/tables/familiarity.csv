@@ -1,31 +1,39 @@
 city,label,value,n_value
-Amsterdam,First recorded on this course,8.19308493065301,6222
-Amsterdam,Previously recorded on this course,8.351145402581095,5681
-Berlin,First recorded on this course,8.280071726848515,7687
-Berlin,Previously recorded on this course,9.288657903429142,46141
-Boston,First recorded on this course,10.670071628863331,10121
-Boston,Previously recorded on this course,9.703378696605753,33824
-Chicago,First recorded on this course,8.544230325605016,14655
-Chicago,Previously recorded on this course,9.73820784527122,46735
-Copenhagen,First recorded on this course,10.828251613985815,2611
-Copenhagen,Previously recorded on this course,10.163629751336458,12974
-Eindhoven,First recorded on this course,7.044856432495114,636
-Eindhoven,Previously recorded on this course,7.296064618138077,671
-Gold Coast,First recorded on this course,16.984378441122328,243
-Gold Coast,Previously recorded on this course,14.073787175569972,796
-London,First recorded on this course,12.259725769012519,2552
-London,Previously recorded on this course,11.124643676152001,3193
-Madrid,First recorded on this course,9.379709362622586,1423
-Madrid,Previously recorded on this course,9.016408676129172,1963
-New York,First recorded on this course,13.563936714095167,5239
-New York,Previously recorded on this course,14.74616601384457,60507
-Prague,First recorded on this course,5.872931785648195,600
-Prague,Previously recorded on this course,6.709765453698139,2110
-Rotterdam,First recorded on this course,10.139658000892037,5363
-Rotterdam,Previously recorded on this course,10.051732163195007,15915
-Sydney,First recorded on this course,11.587385096106972,193
-Sydney,Previously recorded on this course,11.368034035097626,422
-Valencia,First recorded on this course,7.627348791400464,2212
-Valencia,Previously recorded on this course,8.215091348560083,12178
-Washington,First recorded on this course,11.830585095842547,5167
-Washington,Previously recorded on this course,13.387462468705923,27743
+Amsterdam,First recorded on this course,8.278215863765043,10469
+Amsterdam,Previously recorded on this course,8.413475879576888,7585
+Berlin,First recorded on this course,9.57688101794173,58331
+Berlin,Previously recorded on this course,10.304503278909753,117546
+Boston,First recorded on this course,10.357482894048475,34149
+Boston,Previously recorded on this course,9.700504637941735,52201
+Chicago,First recorded on this course,10.896757828560062,74343
+Chicago,Previously recorded on this course,12.366720713259728,133432
+Copenhagen,First recorded on this course,9.633659003876888,6197
+Copenhagen,Previously recorded on this course,9.160219513430874,20223
+Eindhoven,First recorded on this course,7.749278180973355,1394
+Eindhoven,Previously recorded on this course,7.923396275017209,1454
+Frankfurt,First recorded on this course,6.81915361399446,1051
+Frankfurt,Previously recorded on this course,7.168445433391648,1460
+Gold Coast,First recorded on this course,16.6184533024847,567
+Gold Coast,Previously recorded on this course,14.739279820032447,1514
+Hamburg,First recorded on this course,7.173826548781688,5124
+Hamburg,Previously recorded on this course,8.195707840147392,21273
+London,First recorded on this course,11.936990815128917,9822
+London,Previously recorded on this course,11.272472660706484,4132
+Madrid,First recorded on this course,9.809935831904216,2028
+Madrid,Previously recorded on this course,9.684258756506535,2709
+New York,First recorded on this course,12.542119843871781,44512
+New York,Previously recorded on this course,13.106029711401177,137151
+Oslo,First recorded on this course,7.8968500564379545,338
+Oslo,Previously recorded on this course,7.647372769563858,1096
+Prague,First recorded on this course,6.139890334405252,1043
+Prague,Previously recorded on this course,6.703861023800368,2833
+Rotterdam,First recorded on this course,10.05119866405421,7187
+Rotterdam,Previously recorded on this course,9.842071430780821,20643
+Sydney,First recorded on this course,12.527829296310761,407
+Sydney,Previously recorded on this course,13.6728197702615,713
+Valencia,First recorded on this course,7.978973931857533,6940
+Valencia,Previously recorded on this course,8.389793800838241,16702
+Warsaw,First recorded on this course,8.165226909816173,209
+Warsaw,Previously recorded on this course,11.454727337758289,1517
+Washington,First recorded on this course,11.84287337044326,10447
+Washington,Previously recorded on this course,13.334797358069926,36227

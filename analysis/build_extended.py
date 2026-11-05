@@ -79,10 +79,17 @@ def prepare_history(db, source):
       JOIN features f ON {identity_match}
         AND round(f.finish_time*60,3)=round(e.t8,3) AND {timing_match}
       WHERE f.runner_id IS NOT NULL AND NOT f.is_ambiguous''')
-    db.execute('''CREATE TEMP TABLE linked AS SELECT e.*,f.runner_id AS uid,w.event_date,
+    # The race date is the weather row's; an edition without one takes the reviewed date the input carries in
+    # features.race_date (New York 2026 in master-20261103b, analysis/reviewed-race-dates.json, November 5, 2026).
+    dated = 'race_date' in {c[0] for c in db.execute('DESCRIBE features').fetchall()}
+    event_date = 'coalesce(w.event_date,CASE WHEN w.city IS NULL THEN try_cast(fd.race_date AS DATE) END)' if dated else 'w.event_date'
+    join_dates = 'JOIN features fd ON fd.record_id=f.record_id' if dated else ''
+    db.execute(f'''CREATE TEMP TABLE linked AS SELECT e.*,f.runner_id AS uid,
+      {event_date} AS event_date,
       w.temperature,w.dewpoint,w.wind,w.rain
       FROM eligible e JOIN candidate_links f USING(rid)
       JOIN safe_ids s ON f.runner_id=s.runner_id
+      {join_dates}
       LEFT JOIN weather w ON e.city=w.city AND e.year=w.year
       WHERE f.raw_matches=1 AND f.feature_matches=1''')
     db.execute('''CREATE TEMP TABLE prior AS SELECT a.rid,count(*) AS prior_count,

@@ -10,7 +10,7 @@ from datetime import date
 
 import numpy as np
 
-from charts_common import MIN_CELL, count_phrase, edition_ranks, median, require_cell, require_race_dates, sh
+from charts_common import race_dates, MIN_CELL, count_phrase, edition_ranks, median, require_cell, require_race_dates, sh
 
 CHARTS = {}
 
@@ -46,7 +46,7 @@ def in_period(year, period):
 
 def edition_days(c):
     """Each edition's race date as a day number (weather evidence), -1 where an edition has no finishes."""
-    by = {(row['city'], row['year']): row.get('date') for row in c.weather['editions']}
+    by = race_dates(c)
     out = np.full(len(c.editions), -1, dtype=np.int64)
     for e, ed in enumerate(c.editions):
         d = by.get((ed['city'], ed['year']))

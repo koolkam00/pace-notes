@@ -69,11 +69,19 @@ def master_rows():
             runner_id = None if city == 'Newtown' else (f'runner {i}|{sex}|yob:{1980 + i}' if i % 2 == 0 else f'runner {i}|{sex}|ag:40-44')
             if sex in ('X', None):
                 runner_id = None
+            # person_id (the cross-race key since adapter version 2): the v4 build for every record with a v1 key; in
+            # Newtown (no v1 key, like New York 2026) one record joins runner 0 through the preliminary build, one has a
+            # name-only series link (no key under the rule) and one has none.
+            person = (f'p2_r{i}', 'high', 'exact_key', 'v4_20261030', None) if runner_id else (None, None, None, None, 'no_age_key')
+            if city == 'Newtown':
+                person = [('p2_r0', None, 'attach_unique', 'nyc2026_incremental_preliminary', None),
+                          ('p2s_n1', 'low_series_name_only', 'series_name_sex_only', 'v4_20261030', None),
+                          (None, None, None, None, None)][i]
             flags = {(101 + 0): 'release_exclude', 105: 'age_is_group_floor'}.get(rid)
             out.append([f'M-{rid}', 'marathon', 42.195, 'platform.sqlite', rid, f'{city} Marathon', city, year,
                         f'marathon|{city}|{year}', f'Runner {i}', sex, 30 + i, 'M30', 'M30', None, None,
                         *times[:4], None, *times[4:8], times[8], times[8], None, flags, rid == 101, tier != 'excluded_from_release',
-                        runner_id, None, None, None, None, None, tier, False, f'https://example.org/{rid}', '2026-01-01T00:00:00Z'])
+                        runner_id, *person, tier, False, f'https://example.org/{rid}', '2026-01-01T00:00:00Z'])
     # One half row, which the adapter must leave out.
     out.append(['H-1', 'half', 21.0975, 'platform_half.sqlite', 1, 'Half', 'Testville', 2020, 'half|Testville|2020', 'Half Runner',
                 'F', 40, None, None, '7', None, '00:25:00', '00:50:00', '01:15:00', '01:40:00', '01:45:00', None, None, None, None,
@@ -141,7 +149,7 @@ class Fixture:
             row.update(edition_uid=f'marathon|{city}|{year}', distance='marathon', city=city, year=str(year), race=f'{city} Marathon',
                        official_finishers=None if city == 'Newtown' else str(float(n)), official_source_type=None if city == 'Newtown' else 'organiser',
                        official_source_url=None if city == 'Newtown' else 'https://example.org/count', completeness_status=status,
-                       completeness_reason=f'DB {n} finishes', has_splits='1', never_stamp='false', verification_tier=tier,
+                       completeness_reason=f'DB {n} finishes' + ('. Year verified (race 2022-10-02).' if city == 'Newtown' else ''), has_splits='1', never_stamp='false', verification_tier=tier,
                        finish_time_only='false', rows_snapshot=str(n), rows_full=str(n), rows_core='0' if status == 'excluded' else str(n),
                        rows_with_finish=str(n), rows_with_5k=str(n))
             if city == 'Newtown':
@@ -227,18 +235,40 @@ def offline():
     raise AssertionError('the tests never touch the network')
 
 
+IDENTITY = {'versions': {'v4_20261030': ['high', 'medium', 'low']}, 'preliminary_versions': ['nyc2026_incremental_preliminary'],
+            'unkeyed_confidences': ['low_series_name_only', 'withheld_too_many_candidates']}
+RACE_DATES = {'releases': {TAG: [{'city': 'Newtown', 'year': 2022, 'date': '2022-10-02', 'source': 'synthetic',
+                                  'evidence_text': 'Year verified (race 2022-10-02)'}]}}
+
+
 @mock.patch.dict(adapt_master.REVIEWED, {TAG: REVIEW})
+@mock.patch.dict(adapt_master.IDENTITY, {TAG: IDENTITY})
 @mock.patch.object(adapt_master, '_opener', offline)
 class AdaptMaster(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
+        dates = self.root / 'reviewed-race-dates.json'
+        dates.write_text(json.dumps(RACE_DATES))
+        patcher = mock.patch.object(adapt_master, 'RACE_DATES_PATH', dates)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         self.tmp.cleanup()
 
     def fixture(self, name='f', mutate=None, after_master=None):
         return Fixture(self.root / name, mutate, after_master)
+
+    def test_an_unreviewed_link_confidence_stops_the_adapter(self):
+        fx = self.fixture(mutate=lambda f: f.db.execute("UPDATE m SET person_link_confidence='rejected' WHERE source_record_id=104"))
+        with self.assertRaisesRegex(adapt_master.AdaptError, 'identity rule has not reviewed'):
+            fx.adapt(self.root / 'out')
+
+    def test_a_reviewed_race_date_needs_its_evidence(self):
+        fx = self.fixture(mutate=lambda f: f.db.execute("UPDATE e SET completeness_reason='DB 3 finishes' WHERE city='Newtown'"))
+        with self.assertRaisesRegex(adapt_master.AdaptError, 'reviewed race date Newtown 2022'):
+            fx.adapt(self.root / 'out')
 
     def test_writes_the_pace_notes_input(self):
         fx = self.fixture()
@@ -264,10 +294,21 @@ class AdaptMaster(unittest.TestCase):
         self.assertAlmostEqual(row[2], 25.0)
         self.assertAlmostEqual(row[3], 50.0)
         self.assertAlmostEqual(row[4], 42.195 * 5, places=1)
-        self.assertEqual(row[5:], ('runner 0|M|yob:1980', False))
+        self.assertEqual(row[5:], ('p2_r0', False))  # yob still comes from the v1 key (row[1])
         # Recorded X becomes null as in 1050's features; no runner_id, no key and no ambiguity claim.
         self.assertEqual(db.execute(f"SELECT sex, runner_id, is_ambiguous, yob FROM read_parquet({f}) WHERE record_id=106").fetchone(),
                          (None, None, None, None))
+        # The key is person_id (adapter version 2): the v4 link of record 104, the preliminary link that joins Newtown's
+        # first record to runner 0, no key for a name-only series link; the reviewed race date fills Newtown's (no weather).
+        self.assertEqual(db.execute(f"SELECT runner_id, match_key, link_preliminary FROM read_parquet({f}) WHERE record_id=104").fetchone(),
+                         ('p2_r0', 'p2_r0', False))
+        self.assertEqual(db.execute(f"SELECT record_id, runner_id, is_ambiguous, link_preliminary, race_date FROM read_parquet({f}) "
+                                    "WHERE city='Newtown' ORDER BY record_id").fetchall(),
+                         [(112, 'p2_r0', False, True, '2022-10-02'), (113, None, None, None, '2022-10-02'),
+                          (114, None, None, None, '2022-10-02')])
+        self.assertEqual(db.execute(f"SELECT DISTINCT race_date FROM read_parquet({f}) WHERE city='Testville' AND year=2020").fetchall(), [('2020-10-01',)])
+        manifest_deps = json.loads((out / 'MANIFEST.json').read_text())['dependencies']
+        self.assertEqual(sorted(manifest_deps), ['duckdb'], 'the interpreter is left out, so the manifest digest does not depend on it')
         # A missing split stays missing: 15 km is absent for record 107, so seg_15, seg_20 and cum_15 are null.
         self.assertEqual(db.execute(f"SELECT seg_15, seg_20, cum_15 FROM read_parquet({f}) WHERE record_id=107").fetchone(), (None, None, None))
         # Overlays equal to the baseline keep its bytes; the others are rewritten in 1050's schema.

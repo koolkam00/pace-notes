@@ -13,7 +13,7 @@ const early = (y) => y >= 2013 && y <= 2019, late = (y) => y >= 2022 && y <= 202
 const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
 const yy = (y) => String(y % 100).padStart(2, '0');
 
-/** An edition without a race date (no weather row: New York 2026 in master-20261103b, November 4, 2026) is allowed only
+/** An edition without a race date (no weather row and no reviewed date in analysis/reviewed-race-dates.json) is allowed only
  * while each of its finishes is its record's only finish, so it never enters a linked order; nothing is filled in. */
 function requireRaceDates(C, undated) {
   const per = new Map();
@@ -28,7 +28,7 @@ const cache = new WeakMap();
 /** Every record's finishes grouped and ordered by race date; finishes on a date the record already has are dropped. */
 function linked(C) {
   if (cache.has(C)) return cache.get(C);
-  const dateOf = new Map(C.weather.editions.map((r) => [`${r.city}\u0000${r.year}`, r.date]));
+  const dateOf = new Map(C.raceDates.map((r) => [`${r.city}\u0000${r.year}`, r.date]));
   const day = C.editions.map((e, k) => {
     const d = dateOf.get(`${e.city}\u0000${e.year}`);
     return d ? Date.parse(`${d}T00:00:00Z`) / 86400000 : -1;

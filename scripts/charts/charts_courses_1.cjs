@@ -20,7 +20,7 @@ const inBand = (C, i) => C.shapeKeep[i] === 1 && C.baseline[i] >= 330 && C.basel
 module.exports = {
   'same-race-warmer-return': (C, file, H) => {
     // Race dates from the weather evidence, as days.
-    const dates = new Map(C.weather.editions.map((r) => [`${r.city}|${r.year}`, r.date]));
+    const dates = new Map(C.raceDates.map((r) => [`${r.city}|${r.year}`, r.date]));
     const day = C.editions.map((e) => { const d = dates.get(`${e.city}|${e.year}`); return d ? Date.parse(`${d}T00:00:00Z`) / 86400000 : NaN; });
     // One linked record's finishes at one race, in race-date order; neighbours form the pairs.
     const order = new Uint32Array(C.n).map((_, i) => i);

@@ -36,8 +36,10 @@ WEATHER_PIN = ROOT / 'analysis' / 'weather-release.json'
 EXPECTED = {'private-export-20261021-1050': {'eligible': 4_108_749, 'sustained': 1_266_780, 'dated_editions': 215},
             # November 4, 2026: the adopted master-20261103b (the study's 1,298,524 sustained slowdowns of 4,222,246);
             # New York 2026 has no weather row, so no race date, and supplies no pair.
-            'master-20261103b': {'eligible': 4_222_246, 'sustained': 1_298_524, 'dated_editions': 217,
-                                 'undated': [['New York', 2026]]}}
+            # November 5, 2026: New York 2026 takes its reviewed race date (analysis/reviewed-race-dates.json, 2026-11-01)
+            # once its finishes link to other races (the marathon identity became the producer's person_id), so every
+            # eligible edition is dated. The eligible and sustained counts are set from the rebuilt study.
+            'master-20261103b': {'eligible': 4_222_246, 'sustained': 1_298_524, 'dated_editions': 218}}
 
 
 class Marathons:
@@ -74,15 +76,20 @@ class Marathons:
 def _dates(editions, eligible_editions, weather, undated=()):
     """Race date of every edition with eligible finishes, from the weather evidence (one row per city and year).
 
-    An edition the weather evidence has no row for has no race date: it is allowed only on the release's reviewed
-    `undated` list (New York 2026 in master-20261103b: the producer has no weather row for it yet, and no date is filled
-    in), keeps its finishes and supplies no pair, since a pair needs both dates (November 4, 2026)."""
+    An edition the weather evidence has no row for takes its reviewed date in analysis/reviewed-race-dates.json (New
+    York 2026 in master-20261103b, November 5, 2026); without one it is allowed only on the release's reviewed `undated`
+    list, keeps its finishes and supplies no pair, since a pair needs both dates (November 4, 2026)."""
     by_key = {}
     for row in weather['editions']:
         key = (row['city'], int(row['year']))
         if key in by_key and by_key[key] != row.get('date'):
             fail(f'weather evidence holds two dates for {key}')
         by_key[key] = row.get('date')
+    # The reviewed and cited date of an edition the weather evidence has no row for (charts_common.race_dates' rule).
+    reviewed = json.loads((ROOT / 'analysis' / 'reviewed-race-dates.json').read_text())['releases']
+    for d in reviewed.get(weather.get('input', {}).get('release_tag'), []):
+        if not by_key.get((d['city'], int(d['year']))):
+            by_key[(d['city'], int(d['year']))] = d['date']
     dates = {}
     for e in eligible_editions:
         ed = editions[e]

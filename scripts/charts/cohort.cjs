@@ -170,6 +170,12 @@ function loadCohort({ root, dataRoot, strings = new Map() }) {
   const weather = read(path.join(dataRoot, 'weather/evidence.json'));
   assert.equal(weather.input.release_tag, read(path.join(root, 'analysis/weather-release.json')).tag, 'Weather evidence matches its pin');
   const byKey = new Map(weather.editions.map((row) => [key(row.city, row.year), row]));
+  // Race dates: the weather evidence's, then the reviewed and cited date for an edition it has no row for
+  // (analysis/reviewed-race-dates.json; New York 2026 in master-20261103b, November 5, 2026). A reviewed date orders
+  // linked finishes only; it carries no weather. The twin of charts_common.race_dates.
+  const reviewed = read(path.join(root, 'analysis/reviewed-race-dates.json')).releases[weather.input.release_tag] || [];
+  const raceDates = [...weather.editions.map((row) => ({ city: row.city, year: row.year, date: row.date })),
+    ...reviewed.filter((d) => !(byKey.get(key(d.city, d.year)) || {}).date).map((d) => ({ city: d.city, year: d.year, date: d.date }))];
   const col = (k) => Float64Array.from(editions, (e) => { const row = byKey.get(key(e.city, e.year)); return row && finite(row[k]) ? row[k] : NaN; });
   const geometryPath = path.join(dataRoot, 'insights/course-geometry.json');
   const geometry = fs.existsSync(geometryPath) ? read(geometryPath) : { courses: [] };
@@ -178,7 +184,7 @@ function loadCohort({ root, dataRoot, strings = new Map() }) {
     n, times, edition, gender, age, exactAge: exact, profile, finish, baseline, slow, onset, pace, shapeKeep, shapeFlagged,
     granular, exactAgeOk, editions, cities, city, year, edN, rawN, rowsOf, genderGapEdition, nameHits,
     ed: { city: editions.map((e) => e.city), year: editions.map((e) => e.year), race: editions.map((e) => e.race), temp: col('temp_c'), dew: col('dewpoint_c'), wind: col('wind_mps'), warming: col('warming_c') },
-    weather, geometry, runners, manifestSha: hash(manifestBytes), pin,
+    weather, raceDates, geometry, runners, manifestSha: hash(manifestBytes), pin,
   };
 }
 

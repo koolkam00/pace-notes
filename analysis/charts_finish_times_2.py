@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-from charts_common import MIN_CELL, count_phrase, median, quantile, require_cell, require_race_dates, sec, sh
+from charts_common import race_dates, MIN_CELL, count_phrase, median, quantile, require_cell, require_race_dates, sec, sh
 
 CHARTS = {}
 
@@ -244,7 +244,7 @@ def race_day(c):
     """Each finish's race date (days since 2000-01-01), from the pinned weather evidence."""
     if c.weather is None:
         raise ValueError('no weather evidence: race dates are missing')
-    by = {(row['city'], row['year']): row.get('date') for row in c.weather['editions']}
+    by = race_dates(c)
     days = np.full(len(c.editions), -1, np.int64)
     for e, ed in enumerate(c.editions):
         d = by.get((ed['city'], ed['year']))
@@ -293,7 +293,9 @@ def quick_double_mostly_slower(c):
     values = dict(dbl=rows[0]['b'], yr=rows[0]['a'], n_dbl=int(sizes[0][0]), n_yr=int(sizes[0][1]),
                   slower_dbl=sh((c.finish[b] > c.finish[a])[used_d & (mean < DOUBLE_BANDS[0][1])].mean()),
                   gap_top=sh(gaps[0]), gap_max_rest=sh(max(abs(g) for g in gaps[1:])), gap_back=sh(gaps[-1]),
-                  min_pairs=int(min(min(s) for s in sizes)), pairs_dbl=int(used_d.sum()), pairs_yr=int(used_y.sum()))
+                  min_pairs=int(min(min(s) for s in sizes)), pairs_dbl=int(used_d.sum()), pairs_yr=int(used_y.sum()),
+                  # 1 when the gap narrows band by band, quickest to slowest (November 5, 2026, person_id).
+                  narrows=int(all(g < h for h, g in zip(gaps, gaps[1:]))))
     # Context for the method line: the main race pairs of the doubles, and how noisy each kind of pair is.
     keys, counts = np.unique(pair_key[used_d], return_counts=True)
     top = sorted(zip(counts.tolist(), keys.tolist()), key=lambda t: (-t[0], t[1]))[:4]

@@ -24,7 +24,8 @@ a `pace-notes-*` input (the October 21 1050 export is the model), and proves at 
 3. **Write** `race_records.parquet` (the CORE marathon rows, `in_core`, in 1050's columns and types, ordered by id),
    the overlays in 1050's schemas (the baseline's own bytes where the values are equal, so pinned hashes such as the
    course-terrain registry's stay valid), an identity subset `features.parquet` (FULL; record id, labels, section and
-   cumulative minutes from the raw strings, the producer's v1 `runner_id`), and documents that say on their first line
+   cumulative minutes from the raw strings, the producer's `person_id` as the cross-race key under the frozen `IDENTITY`
+   rule, a `link_preliminary` flag, and a reviewed race date where the weather has none), and documents that say on their first line
    that they are adapter outputs, not producer claims: `MANIFEST.json`, `EDITIONS.json`, `races_summary.json`,
    `EDITION-CHECKSUMS.csv`, `RECONCILIATION.json`, `CHANGE-REPORT.md`, `ID-CONTRACT.md`, `MATCHING.md`,
    `FEATURE-FIELD-NOTES.md`, `README.md` and `SHA256SUMS.txt`; then `provenance.json`.
@@ -32,7 +33,7 @@ a `pace-notes-*` input (the October 21 1050 export is the model), and proves at 
 The verified source files stay in `<output>/master-assets`, `<output>/overlay-assets` and `<output>/baseline` (runner
 context re-hashes the master parquet against `provenance.asset_sha256`). Every member is deterministic: two runs on the
 same pin give the same bytes. No value is inferred: a missing split stays missing, `X` and null sex stay unrecorded (as
-in 1050's features), and records without a producer `runner_id` (all of New York 2026) get no cross-race key.
+in 1050's features), and records the `IDENTITY` rule gives no `person_id` get no cross-race key.
 About 1.0 GB of disk beside the 0.54 GB master parquet; DuckDB is capped at `PACE_NOTES_ADAPT_MEMORY` (default 6GB).
 """
 from __future__ import annotations
@@ -56,7 +57,21 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 
 import duckdb  # noqa: E402
 
-ADAPTER_VERSION = 1
+ADAPTER_VERSION = 2
+# Version 2 (2026-11-05, owner decision: "Everywhere", and for New York 2026 "Use them, labelled"): the cross-race key in
+# features.parquet is the producer's person_id, not the v1 runner_id, and New York 2026 has a reviewed race date.
+# The identity rule, frozen before any outcome was computed (2026-11-05): a record's key is its person_id when its link
+# version is the v4 build and its confidence is high, medium or low, or when its version is the New York 2026
+# preliminary build (which has no confidence). `low_series_name_only` links (a name and a sex with no age key, weaker
+# than the v1 key ever was) leave the record without a key. Any other version or confidence value stops the adapter.
+IDENTITY = {
+    'master-20261103b': {
+        'versions': {'v4_20261030': ['high', 'medium', 'low']},
+        'preliminary_versions': ['nyc2026_incremental_preliminary'],
+        'unkeyed_confidences': ['low_series_name_only', 'withheld_too_many_candidates'],
+    },
+}
+RACE_DATES_PATH = Path(__file__).with_name('reviewed-race-dates.json')
 MASTER_TAG = re.compile(r'master-[0-9]{8}[a-z]?')
 DOWNLOAD_HOST = 'github.com'
 USER_AGENT = 'pace-notes-adapt-master'
@@ -668,17 +683,41 @@ def write_members(db, pin, master, overlays, baseline, root, report):
     names = ['05', '10', '15', '20', '25', '30', '35', '40', '42']
     seg = ', '.join(f'(t{i}-{"t" + str(i - 1) if i else "0"})/60 AS seg_{n}' for i, n in enumerate(names))
     cum = ', '.join(f't{i}/60 AS cum_{n}' for i, n in enumerate(names[:8]))
-    copy_parquet(db, f"""WITH p AS (SELECT r.*, {secs} FROM rr r), k AS (SELECT p.*, m.runner_id AS v1 FROM p
-        JOIN m ON m.source_record_id=p.id)
-      SELECT k.id AS record_id, k.city, k.year, w.race_date, k.race, k.runner AS runner_name,
+    rule = IDENTITY[pin['tag']]
+    keyed = ', '.join(f"('{v}', '{c}')" for v, cs in rule['versions'].items() for c in cs)
+    unknown = rows(db, "SELECT person_link_version AS v, person_link_confidence AS c, count(*) AS n FROM m WHERE in_core GROUP BY ALL")
+    allowed = {(v, c) for v, cs in rule['versions'].items() for c in cs + rule['unkeyed_confidences']}
+    allowed |= {(v, None) for v in rule['preliminary_versions']} | {(None, None)} | {(None, c) for c in rule['unkeyed_confidences']}
+    surprise = [u for u in unknown if (u['v'], u['c']) not in allowed]
+    if surprise:
+        fail(f'person_link_version/confidence values the identity rule has not reviewed: {surprise}')
+    report['identity_rule'] = dict(rule, distribution=sorted(unknown, key=lambda u: (str(u['v']), str(u['c']))))
+    prelim = ', '.join(f"'{v}'" for v in rule['preliminary_versions'])
+    dates = json.loads(RACE_DATES_PATH.read_text())['releases'].get(pin['tag'], [])
+    for d in dates:
+        note = rows(db, f"SELECT completeness_reason AS r, race_date AS d FROM e WHERE city={literal(d['city'])} AND year={int(d['year'])}")
+        if len(note) != 1 or d['evidence_text'] not in (note[0]['r'] or '') or note[0]['d']:
+            fail(f"reviewed race date {d['city']} {d['year']}: editions.csv no longer says {d['evidence_text']!r}, or now has a race_date")
+        if scalar(db, f"SELECT count(*) FROM ov_race_conditions WHERE city={literal(d['city'])} AND year={int(d['year'])}"):
+            fail(f"reviewed race date {d['city']} {d['year']}: the weather overlay now has a row; review the date again")
+    reviewed_dates = ' UNION ALL '.join(f"SELECT {literal(d['city'])} AS city, {int(d['year'])} AS year, {literal(d['date'])} AS race_date"
+                                        for d in dates) or "SELECT NULL::VARCHAR AS city, NULL::BIGINT AS year, NULL::VARCHAR AS race_date WHERE false"
+    copy_parquet(db, f"""WITH p AS (SELECT r.*, {secs} FROM rr r), k AS (SELECT p.*, m.runner_id AS v1,
+        CASE WHEN (m.person_link_version, m.person_link_confidence) IN ({keyed}) OR m.person_link_version IN ({prelim})
+          THEN m.person_id END AS pid, m.person_link_version IN ({prelim}) AS prelim FROM p
+        JOIN m ON m.source_record_id=p.id), rd AS ({reviewed_dates})
+      SELECT k.id AS record_id, k.city, k.year, coalesce(w.race_date, rd.race_date) AS race_date, k.race, k.runner AS runner_name,
         CASE WHEN k.sex='X' THEN NULL ELSE k.sex END AS sex, k.age,
         CAST(nullif(regexp_extract(k.v1, '\\|yob:([0-9]{{4}})$', 1), '') AS BIGINT) AS yob, k.age_group,
-        {seg}, t8/60 AS finish_time, {cum}, k.v1 AS match_key, CASE WHEN k.v1 IS NOT NULL THEN false END AS is_ambiguous,
-        k.v1 AS runner_id
-      FROM k LEFT JOIN ov_race_conditions w ON w.city=k.city AND w.year=k.year ORDER BY record_id""", root / 'features.parquet')
+        {seg}, t8/60 AS finish_time, {cum}, k.pid AS match_key, CASE WHEN k.pid IS NOT NULL THEN false END AS is_ambiguous,
+        k.pid AS runner_id, CASE WHEN k.pid IS NOT NULL THEN coalesce(k.prelim, false) END AS link_preliminary
+      FROM k LEFT JOIN ov_race_conditions w ON w.city=k.city AND w.year=k.year
+      LEFT JOIN rd ON rd.city=k.city AND rd.year=k.year ORDER BY record_id""", root / 'features.parquet')
     features = rows(db, f"""SELECT count(*) AS rows, count(runner_id) AS with_runner_id, count(DISTINCT runner_id) AS runner_ids,
+      count(*) FILTER(WHERE link_preliminary) AS with_preliminary_key,
       count(*) FILTER(WHERE runner_id IS NULL AND city='New York' AND year=2026) AS nyc2026_without_runner_id,
-      count(*) FILTER(WHERE city='New York' AND year=2026) AS nyc2026_rows, count(yob) AS with_yob
+      count(*) FILTER(WHERE city='New York' AND year=2026) AS nyc2026_rows, count(yob) AS with_yob,
+      count(*) FILTER(WHERE race_date IS NULL) AS without_race_date
       FROM read_parquet({literal(root / 'features.parquet')})""")[0]
     report['features'] = features
     step('edition checksums')
@@ -730,22 +769,26 @@ def write_documents(db, pin, master, root, report, sums):
                            '(`record_uid` is `M-<id>`; checked on every row).\n'
                            '- `features.record_id`, `record_flags.record_id` and every overlay join use this id. Never use a row index.\n'
                            '- Do not join runners across races by name alone.\n'
-                           '- `features.runner_id` is the producer’s v1 cross-race key, carried unchanged in master (see MATCHING.md). '
-                           'Master’s v4 `person_id` is a different identity system and is not used here.\n').encode(),
+                           '- `features.runner_id` is master’s `person_id` under the adapter’s frozen identity rule (see MATCHING.md), '
+                           'not the v1 `runner_id` (owner decision, November 5, 2026).\n').encode(),
         'MATCHING.md': (f'# Cross-race matching: {pin["tag"]} (adapted)\n\n{head}'
-                        '`features.runner_id` is master’s `runner_id`: "v1 exact key (name|sex|age_key), unchanged from previous '
-                        'releases" (master README). The adapter copies it and does not recompute it. `match_key` repeats it; '
-                        '`is_ambiguous` is false where a key is present and unknown (null) where it is absent, because master does '
-                        'not say why a key is missing; `yob` is the year in a `yob:` key and null for an age-group key. Records '
-                        f'without a key (all {report["features"]["nyc2026_rows"]:,} of New York 2026) are linked to no other race.\n\n'
+                        '`features.runner_id` is master’s `person_id` (the producer’s person clusters, which link records across '
+                        'races and years), kept for a record whose link version is the v4 build with confidence high, medium or '
+                        'low, or the New York 2026 preliminary build (`nyc2026_incremental_preliminary`, which has no confidence); '
+                        'a `low_series_name_only` link (a name and a sex with no age key) leaves the record without a key. '
+                        '`link_preliminary` is true for a record keyed by the preliminary build. `match_key` repeats the key; '
+                        '`is_ambiguous` is false where a key is present and unknown (null) where it is absent. `yob` is still the '
+                        'year in the v1 `runner_id`’s `yob:` key, and null otherwise. These are records linked by name, not '
+                        f'verified people. Keyed records: {report["features"]["with_runner_id"]:,} '
+                        f'({report["features"]["with_preliminary_key"]:,} by the preliminary build).\n\n'
                         '## The producer’s DATA_DICTIONARY.md (verbatim)\n\n' + master['DATA_DICTIONARY.md'].read_text()).encode(),
         'FEATURE-FIELD-NOTES.md': (f'# Feature fields: {pin["tag"]} (adapted)\n\n{head}'
                                    '`features.parquet` is an identity subset with one row per `race_records.id`: `record_id, city, year, '
                                    'race_date, race, runner_name, sex, age, yob, age_group`, the section minutes `seg_05 … seg_40, seg_42` '
                                    '(the last 2.195 km), `finish_time` and the cumulative minutes `cum_05 … cum_40`, parsed from the raw '
                                    'clock strings with the pacing parser (null when a string does not parse), then `match_key, '
-                                   'is_ambiguous, runner_id`. Recorded sex `X` is null here, as in 1050’s features; nothing is '
-                                   'inferred. `race_date` comes from the overlay race_conditions. It has none of the producer engine’s '
+                                   'is_ambiguous, runner_id, link_preliminary`. Recorded sex `X` is null here, as in 1050’s features; nothing is '
+                                   'inferred. `race_date` comes from the overlay race_conditions, else from analysis/reviewed-race-dates.json. It has none of the producer engine’s '
                                    'columns (`valid_splits`, `wall_*`, paces, ranks, personal bests): no site builder reads them.\n').encode(),
         'README.md': (f'# {pin["tag"]}, adapted for the Pace Notes marathon builders\n\n{head}'
                       f'Marathon rows with `in_core` from `master_results_FULL.parquet`; overlays from `{pin["overlays"]["tag"]}`; '
@@ -778,7 +821,7 @@ def write_documents(db, pin, master, root, report, sums):
                               for e in editions_json if e['excluded']],
         'canonical_record_id': 'race_records.id (= master source_record_id)', 'edition_checksum_method': CHECKSUM_METHOD,
         'tiers': {'CORE': sorted(EXPECTED_MASTER), 'FULL': 'CORE + features.parquet'},
-        'dependencies': {'python': sys.version.split()[0], 'duckdb': duckdb.__version__},
+        'dependencies': {'duckdb': duckdb.__version__},
         'files': files,
     }
     (root / 'MANIFEST.json').write_bytes(encode_json(manifest))
