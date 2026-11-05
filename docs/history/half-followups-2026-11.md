@@ -58,7 +58,7 @@ The unnumbered "From the half" cards share the Top 100 card kit (1080 × 1350, t
 
 ## Project handoff: the stale-text note (`docs/PROJECT_HANDOFF.md`, line 25)
 
-**Stale text, known.** The Status block of [half marathons](../HALF_MARATHON.md#status-october-30-2026) still says #85 is an unmerged branch and that nothing of the half is deployed. It was written before the merge (re-read 2026-10-30 22:42 UTC; production still `a2c6e507`); the rows above are the current state.
+**Stale text, known.** The Status block of [half marathons](half-marathon-2026-10-29-to-31.md#status-october-30-2026) still says #85 is an unmerged branch and that nothing of the half is deployed. It was written before the merge (re-read 2026-10-30 22:42 UTC; production still `a2c6e507`); the rows above are the current state.
 
 ## Design system: the charts line (`docs/DESIGN_SYSTEM.md`, line 52)
 
