@@ -258,8 +258,13 @@ tally.policy.values++;
 // ---------- The marathon side ----------
 log('reading the runner shards');
 const MAR = loadMarathons(ROOT);
-const REVIEWED_MARATHON = { 'private-export-20261021-1050': { eligible: 4108749, sustained: 1266780, dated_editions: 215 } };
-compare('policy', 'marathon side', REVIEWED_MARATHON[MAR.releaseTag] || null, { eligible: MAR.n, sustained: MAR.slowdowns, dated_editions: MAR.datedEditions });
+// November 4, 2026: master-20261103b (New York 2026 has no weather row, so no race date; it supplies no pair).
+const REVIEWED_MARATHON = {
+  'private-export-20261021-1050': { eligible: 4108749, sustained: 1266780, dated_editions: 215 },
+  'master-20261103b': { eligible: 4222246, sustained: 1298524, dated_editions: 217, undated: [['New York', 2026]] },
+};
+compare('policy', 'marathon side', REVIEWED_MARATHON[MAR.releaseTag] || null, { eligible: MAR.n, sustained: MAR.slowdowns, dated_editions: MAR.datedEditions,
+  ...(MAR.undated.length || 'undated' in (REVIEWED_MARATHON[MAR.releaseTag] || {}) ? { undated: MAR.undated } : {}) });
 if (MAR.manifestSha !== manifest.marathon.runner_manifest_sha256) fail('the runner manifest changed after the half build');
 // The extract's marathon join checks (review R3) ran against one runner manifest; a changed one needs a re-cut (verify
 // round 2, October 31, 2026).

@@ -32,9 +32,11 @@ Checks (each fails loudly; the reviewed counts are EXPECTED[pin links.key], the 
   builders do not parse (they supply no finish) are counted; the published sex is equal except the reviewed differences;
   the v4 normalized name shares at least one token with the snapshot's name (both lowered, accents stripped, every run of
   characters other than a-z and 0-9 a space) except the reviewed rows (review R3).
-- Eligible marathons against the v4 marathon rows (joined on the canonical record id): every one has a v4 row, with the
-  same city and year, a finish within 0.5 s and the published sex its recorded sex maps to (men M, women F, other or not
-  recorded neither).
+- Eligible marathons against the v4 marathon rows (joined on the canonical record id): every one up to the link build's
+  largest marathon record id has a v4 row, with the same city and year, a finish within 0.5 s and the published sex its
+  recorded sex maps to (men M, women F, other or not recorded neither). Those above it were loaded after the build
+  (New York 2026 in master-20261103b); they are counted by edition, frozen per marathon release, and supply no linked
+  marathon (November 4, 2026).
 
 Tables written:
 - `people(person_id, sex, tier, ns_keys, key_type, in_union, k, k_block)`: every v4 person whose tier is high_elite,
@@ -153,7 +155,15 @@ EXPECTED = {
             'half_sex': [{'snapshot': 'X', 'v4': None, 'rows': 137}],
             # the v4 normalized name shares no token with the snapshot's name (review R3: one row, Luebeck 2025)
             'half_name_no_shared_token': [{'city': 'Luebeck', 'year': 2025, 'rows': 1}],
-            'marathons': 4_108_749,
+        },
+        # The eligible marathons joined and those beyond the link build's marathon coverage, by adopted marathon release.
+        'joins_by_marathon_release': {
+            'private-export-20261021-1050': {'marathons': 4_108_749, 'marathons_beyond_coverage': []},
+            # 2026-11-04: every eligible marathon up to the build's largest marathon id (5,752,904) joins, Amsterdam
+            # 2023's filled finishes and the released New York 2008 included; New York 2026 (loaded after the build) has
+            # no v4 row. The people, links and k counts are unchanged.
+            'master-20261103b': {'marathons': 4_222_246,
+                                 'marathons_beyond_coverage': [{'city': 'New York', 'year': 2026, 'rows': 60_231}]},
         },
         # 2026-10-31: people with a tier and a strong half row and a strong marathon row; ns_keys_0 are those whose strong
         # rows all sit in name-and-sex blocks without an age key (they pass ns_keys <= 3 and are not in ns_keys_1)
@@ -338,11 +348,18 @@ def check_half_join(db, pin: dict, link_editions: dict) -> dict:
 
 
 def check_marathon_join(db) -> int:
-    """Every eligible marathon (table `mar`) against its v4 marathon row. Returns the number of eligible marathons."""
+    """Every eligible marathon (table `mar`) against its v4 marathon row. Returns the number of eligible marathons.
+
+    The link build covers the marathon rows up to its largest marathon record id (the canonical race_records.id); an
+    eligible marathon above it was loaded after the build (New York 2026 in master-20261103b) and has no v4 row: those
+    are counted by edition in `marathon_coverage` and frozen per marathon release, never joined (November 4, 2026). A
+    missing v4 row at or below that id fails, as before."""
     v = "(SELECT record_id, city, year, finish_seconds, sex FROM rrl WHERE source_db = 'full')"
     on = f'FROM mar m JOIN {v} v ON v.record_id = m.m_record_id'
+    top = f'(SELECT max(record_id) FROM {v})'
     _zero(db, {
-        'eligible marathons without a v4 row': f'SELECT count(*) FROM mar m ANTI JOIN {v} v ON v.record_id = m.m_record_id',
+        'eligible marathons without a v4 row inside the link build\'s marathon coverage':
+            f'SELECT count(*) FROM mar m ANTI JOIN {v} v ON v.record_id = m.m_record_id WHERE m.m_record_id <= {top}',
         'eligible marathons whose city or year differ': f'SELECT count(*) {on} WHERE v.city IS DISTINCT FROM m.m_city OR v.year IS DISTINCT FROM m.m_year',
         'eligible marathons whose finish differs by more than 0.5 s': f'SELECT count(*) {on} WHERE NOT coalesce(abs(v.finish_seconds - m.m_finish_s) <= 0.5, false)',
         'eligible marathons whose recorded sex does not map to the published sex': f"""SELECT count(*) {on} WHERE NOT CASE m.m_gender
@@ -350,6 +367,15 @@ def check_marathon_join(db) -> int:
             ELSE v.sex IS NULL OR v.sex NOT IN ('M', 'F') END""",
     })
     return int(db.execute('SELECT count(*) FROM mar').fetchone()[0])
+
+
+def marathon_coverage(db) -> list:
+    """The eligible marathons beyond the link build's marathon coverage (no v4 row, above its largest marathon record
+    id), by edition: they supply no linked marathon."""
+    v = "(SELECT record_id FROM rrl WHERE source_db = 'full')"
+    rows = db.execute(f"""SELECT m.m_city, m.m_year, count(*) FROM mar m ANTI JOIN {v} v ON v.record_id = m.m_record_id
+                          WHERE m.m_record_id > (SELECT max(record_id) FROM {v}) GROUP BY ALL ORDER BY ALL""").fetchall()
+    return [{'city': c, 'year': int(y), 'rows': int(n)} for c, y, n in rows]
 
 
 def select_people(db) -> None:
@@ -532,6 +558,12 @@ def main(argv: list[str] | None = None) -> int:
     if not le or le['link_build'] != key or le['half_max_record_id'] != pin['links']['coverage']['half_max_record_id']:
         fail("the policy's link_editions were reviewed for another link build or coverage boundary")
     expected = EXPECTED[key]
+    # The marathon side of the joins depends on the adopted marathon release (November 4, 2026).
+    by_release = expected.get('joins_by_marathon_release', {})
+    # A release without reviewed joins compares against None, so the run prints every count it measured, then fails.
+    reviewed = by_release.get(pin['marathon_release'], {'marathons': None, 'marathons_beyond_coverage': None})
+    expected = {**{k: v for k, v in expected.items() if k != 'joins_by_marathon_release'},
+                'joins': {**expected['joins'], **reviewed}}
 
     files = check_files(pin, v4_dir, half)
     import half_marathon
@@ -546,6 +578,7 @@ def main(argv: list[str] | None = None) -> int:
     source = check_source(db, pin)
     joins = check_half_join(db, pin, le)
     joins['marathons'] = check_marathon_join(db)
+    joins['marathons_beyond_coverage'] = marathon_coverage(db)
     select_people(db)
     got = {'source': source, 'joins': joins, **counts(db)}
     compare(got, expected)

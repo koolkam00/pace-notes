@@ -434,6 +434,14 @@ class SetB(unittest.TestCase):
         self.assertEqual(_dates(editions, np.array([0, 1]), weather), {0: '2022-10-09', 1: '2022-04-03'})
         with self.assertRaises(hc.HalfError):
             _dates(editions, np.array([0, 1]), {'editions': [{'city': 'A', 'year': 2022, 'date': '2021-10-09'}]})
+        # November 4, 2026: an edition without a weather row has no date; it passes only on the reviewed undated list,
+        # and a wrong date still fails there
+        only_a = {'editions': [{'city': 'A', 'year': 2022, 'date': '2022-10-09'}]}
+        with self.assertRaises(hc.HalfError):
+            _dates(editions, np.array([0, 1]), only_a)
+        self.assertEqual(_dates(editions, np.array([0, 1]), only_a, [['B', 2022]]), {0: '2022-10-09'})
+        with self.assertRaises(hc.HalfError):
+            _dates(editions, np.array([0, 1]), {'editions': [{'city': 'A', 'year': 2022, 'date': '2021-10-09'}]}, [['A', 2022]])
 
 
 def synthetic_pairs(n=16000, seed=3, multiple=2.2):
@@ -1371,6 +1379,7 @@ class LinksExtract(unittest.TestCase):
         self.hle.register_marathons(db, m)
         got = {'source': self.hle.check_source(db, pin), 'joins': self.hle.check_half_join(db, pin, le)}
         got['joins']['marathons'] = self.hle.check_marathon_join(db)
+        got['joins']['marathons_beyond_coverage'] = self.hle.marathon_coverage(db)
         self.hle.select_people(db)
         got.update(self.hle.counts(db))
         return db, got, folder
@@ -1392,7 +1401,8 @@ class LinksExtract(unittest.TestCase):
         self.assertEqual([r[4:] for r in links if r[2] == 101], [(14000, 'F', 'Fullton', 2022, 2)], 'finish, sex, city, year and the row’s block count')
         self.assertEqual(sorted(r[2] for r in links if r[0] == B), [5, 102, 108])
         self.assertEqual(got['joins'], {'half_finish_unparsed': 1, 'half_sex': [{'snapshot': 'X', 'v4': None, 'rows': 1}],
-                                        'half_name_no_shared_token': [{'city': 'Halfton', 'year': 2022, 'rows': 1}], 'marathons': 7})
+                                        'half_name_no_shared_token': [{'city': 'Halfton', 'year': 2022, 'rows': 1}], 'marathons': 7,
+                                        'marathons_beyond_coverage': []})
         self.assertEqual(got['people'], {'F': 1, 'M': 3, 'all': 4, 'high': 2, 'in_union': 1, 'medium': 2, 'ns_keys_0': 1})
         self.assertEqual(got['links'], {'full': 5, 'half': 5})
         self.assertEqual(got['k'], {'high_k_not_1': 1}, 'A is high but shares its block with the aged H')
@@ -1428,7 +1438,8 @@ class LinksExtract(unittest.TestCase):
              'inside the coverage boundary without a v4 row'),
             (lambda s: row(s, 101, 'full').update(finish_seconds=14001.0), 'finish differs by more than 0.5 s'),
             (lambda s: s.eligible.__setitem__(1, (102, 'Fullton', 2022, 2, 13000.0)), 'does not map'),
-            (lambda s: s.eligible.append((999, 'Fullton', 2022, 2, 14000.0)), 'eligible marathons without a v4 row'),
+            # November 4, 2026: an id at or below the build's largest marathon id without a v4 row still fails
+            (lambda s: s.eligible.append((100, 'Fullton', 2022, 2, 14000.0)), 'eligible marathons without a v4 row inside'),
             (lambda s: row(s, 1).update(person_id='p4_ANNA'), 'person ids not matching'),
             (lambda s: row(s, 2).update(sex='M'), 'two published sexes'),
             (lambda s: row(s, 108, 'full').update(record_id=107), 'repeated (source_db, record_id)'),
@@ -1448,6 +1459,15 @@ class LinksExtract(unittest.TestCase):
             with self.subTest(message):
                 with self.assertRaisesRegex(SystemExit, re.escape(message)):
                     self.run_checks(broken(change))
+
+    def test_marathons_beyond_the_link_builds_coverage_are_counted_not_joined(self):
+        """An eligible marathon above the link build's largest marathon record id (loaded after the build, as New York
+        2026 in master-20261103b) has no v4 row: it is counted by edition, never joined (November 4, 2026)."""
+        s = v4_source()
+        s.eligible += [(999, 'Late City', 2026, 2, 14000.0), (1000, 'Late City', 2026, 1, 13000.0)]
+        _, got, _ = self.run_checks(s)
+        self.assertEqual(got['joins']['marathons'], 9)
+        self.assertEqual(got['joins']['marathons_beyond_coverage'], [{'city': 'Late City', 'year': 2026, 'rows': 2}])
 
     def test_main_refuses_link_editions_of_another_build_or_boundary(self):
         """The policy's link_editions must name the pinned link build and coverage boundary, before anything is read

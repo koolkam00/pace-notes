@@ -53,10 +53,15 @@ LINK_RULES = {'tiers': list(TIERS), 'row_tiers': list(TIERS), 'ns_keys_max': NS_
 # cities, 1,045 half editions, 5,947 women's and 17,982 men's pairs and 2,024 verified halves.
 EXPECTED = {
     # 2026-10-31 (s2-extract-setb): half-dataset-20261030-1904 under its reviewed policy, person links v4 under the rule
-    # above, private-export-20261021-1050's eligible marathons. Of the pairs, 339 halves serve two or more and 77 pairs
-    # have another eligible marathon of the person within 13 days (review R6; counted, not excluded).
-    'person-ids-v4-20261030-1150': {'pairs': 58_497, 'people': 50_526, 'marathon_editions': 181, 'marathon_cities': 26,
-                                    'half_editions': 2_570, 'women_pairs': 17_822, 'men_pairs': 40_675, 'verified_halves': 4_598,
+    # above, private-export-20261021-1050's eligible marathons: 58,497 pairs, 50,526 people, 181 marathon editions in 26
+    # cities, 2,570 half editions, 17,822 women's and 40,675 men's pairs, 4,598 verified halves; 339 halves serve two or
+    # more and 77 pairs have another eligible marathon of the person within 13 days (review R6; counted, not excluded).
+    # 2026-11-04: the same snapshot, policy and links against master-20261103b's eligible marathons. The released
+    # Amsterdam 2023 and New York 2008 add 100 pairs (80 people, one marathon edition, one half edition, 23 women's and
+    # 77 men's pairs, 43 verified halves); New York 2026 has no v4 row and no race date, so it adds none; the R6 signals
+    # are unchanged.
+    'person-ids-v4-20261030-1150': {'pairs': 58_597, 'people': 50_606, 'marathon_editions': 182, 'marathon_cities': 26,
+                                    'half_editions': 2_571, 'women_pairs': 17_845, 'men_pairs': 40_752, 'verified_halves': 4_641,
                                     'halves_in_two_or_more_pairs': 339, 'pairs_with_a_close_marathon': 77},
 }
 

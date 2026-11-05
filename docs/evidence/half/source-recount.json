@@ -1,27 +1,27 @@
 {
  "schema_version": 1,
  "family": "half-source-recount",
- "date": "2026-10-31",
+ "date": "2026-11-05",
  "status": "pass",
  "mismatches": 0,
- "values_checked": 18024,
- "manifest_sha256": "fd82913429e57743d25005f6394f02c19b50d085427038f8b3a1384afd273694",
- "verify_half_source_sha256": "820d7d50398f3a86e28acf2492ec65d225dfe39ebe19728ece53470441048928",
+ "values_checked": 18026,
+ "manifest_sha256": "fd3d1a6c5df7a6f7ca6faffd8ef93f3055849cdce8afc647876ec1ce78cf5559",
+ "verify_half_source_sha256": "7a90659e9194bffb61a43af9f28454cb25f142982c706a0f84e6d0a0b0a17ef6",
  "recount_scripts": {
   "scripts/half/derive.cjs": "ce0f547128d6c8fc98a5136d81b91bf318b6b116e40b4d76fbe67da1a2775b0b",
   "scripts/half/families.cjs": "11457ee6f352aba50ae3297728cdd2eec83bd0b42a6a1052129b5add8b750b78",
-  "scripts/half/marathon.cjs": "0099e408bf084446f6fc60d91b362d5f761111128c9d5bb14b2de7aab08c5a4d",
+  "scripts/half/marathon.cjs": "77e2812722b94c296e9631912ecf36e4b4aacf850d89df913df1cdce6cab7d76",
   "scripts/half/policy.cjs": "7b456a42d497e347427f97d71930cb7aabb66b75804e96f2781c6511c0f1ae44",
-  "scripts/verify-half-source.cjs": "820d7d50398f3a86e28acf2492ec65d225dfe39ebe19728ece53470441048928"
+  "scripts/verify-half-source.cjs": "7a90659e9194bffb61a43af9f28454cb25f142982c706a0f84e6d0a0b0a17ef6"
  },
  "half_sqlite_sha256": "c8f31c59b4446482c14626717eabadcecbf6dfacffab42d63bf7881181342b91",
  "links_extract_content_sha256": "1c86602ee4d6cda09beae033a33e926d45137b5ec719e17b8d449b65636262df",
  "stamp_reference_sha256": "2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842",
  "edition_meta_csv_sha256": "a0f48f1501fe1a17a669c98f0e497d16a7e52722b61c7dad3936e056724a9abe",
- "runner_manifest_sha256": "cd2c99d7140d3f32700200901ab21e6d1d10b6b450254a0739382a59e6db028c",
+ "runner_manifest_sha256": "8f593e056ac43f0afbe0372d8095427c7805524388ff089e2a8966efd178c700",
  "policy_sha256": "b65de111d1f89b4e435b9b968cf42cb1146e44efde7d01ef2aad19124636833d",
- "weather_evidence_sha256": "6b27d16e6161b4409d52cc4846b615bed4907dcc12dbb64676afc172ff21cc8f",
- "marathon_release": "private-export-20261021-1050",
+ "weather_evidence_sha256": "fcacf6243e3f4c97bfc3e0c50c4001d5f804bbd0517cce6de2603678edd62456",
+ "marathon_release": "master-20261103b",
  "counts": {
   "raw": 7665217,
   "R1": 99056,
@@ -64,17 +64,17 @@
    "never_stamp": 78
   },
   "set_b": {
-   "pairs": 58497,
-   "people": 50526,
-   "marathon_editions": 181,
-   "half_editions": 2570,
+   "pairs": 58597,
+   "people": 50606,
+   "marathon_editions": 182,
+   "half_editions": 2571,
    "halves_in_two_or_more_pairs": 339,
    "pairs_with_a_close_marathon": 77
   },
   "marathon": {
-   "eligible": 4108749,
-   "sustained": 1266780,
-   "dated_editions": 215
+   "eligible": 4222246,
+   "sustained": 1298524,
+   "dated_editions": 217
   }
  },
  "links": {
@@ -91,7 +91,7 @@
    "half_sex": 0,
    "half_finish": 0,
    "marathon_rows": 1188333,
-   "marathon_rows_eligible": 964513,
+   "marathon_rows_eligible": 971310,
    "marathon_city_year": 0,
    "marathon_finish": 0,
    "marathon_sex": 0
@@ -120,7 +120,7 @@
   }
  },
  "policy_checks": {
-  "values": 265,
+  "values": 267,
   "mismatches": 0
  },
  "python_only": [

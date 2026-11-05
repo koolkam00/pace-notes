@@ -85,6 +85,6 @@
     },
     "history": "Schema 2 pinned half-dataset-20261029-1202 (the snapshot half-snapshot-20261029-1133 and the link build runner-links-20261029-1156, both keyed by private_tag) with the metadata correction half-dataset-20261029-2157; Git history keeps it, and analysis/half-policy-20261029-1133.json stays as its frozen policy."
   },
-  "marathon_release": "private-export-20261021-1050",
+  "marathon_release": "master-20261103b",
   "policy": "analysis/half-policy-20261030-1904.json"
 }
