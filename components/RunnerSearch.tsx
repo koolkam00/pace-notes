@@ -13,7 +13,7 @@ import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 import { pacingPatternHref } from '@/lib/tools/links';
 import {
-  displayName, loadRunnerManifest, loadRunnerProfile, normalizeRunnerName, runnerDuration, runnerProgression, runnerSearchPage, searchRunnerNames, RUNNER_PAGE_SIZE,
+  displayName, loadRunnerManifest, loadRunnerProfile, normalizeRunnerName, runnerDuration, runnerProgression, runnerSearchPage, searchRunnerNames, PRELIMINARY_LINK, RUNNER_PAGE_SIZE,
   type RunnerManifest, type RunnerMatch, type RunnerProfile, type RunnerRace,
 } from '@/lib/runner-search';
 
@@ -78,7 +78,9 @@ function limitedTag(reason: string | null): string {
 export function RunnerRecordDetails({ race, manifest, copyEditions = NO_COPIES }: { race: RunnerRace; manifest: RunnerManifest; copyEditions?: readonly CopyEdition[] }) {
   const copy = race.eligible && !!copyEditionOf(manifest.editions[race.edition], copyEditions);
   const tag = copy ? 'Recorded times only' : race.eligible ? null : limitedTag(race.reason);
-  return <><strong>{raceLabel(race, manifest)}</strong><span className="runner-recorded-finish"><span className="sr-only">Recorded finish: </span>{finishLabel(race)}</span>{tag ? <span className={copy ? 'runner-ineligible runner-copy' : 'runner-ineligible'}>{tag}</span> : null}</>;
+  // A race joined to its group through a preliminary link build says so on its own row (owner decision, November 5,
+  // 2026: "Use them, labelled"); the profile's note links to how races are linked.
+  return <><strong>{raceLabel(race, manifest)}</strong><span className="runner-recorded-finish"><span className="sr-only">Recorded finish: </span>{finishLabel(race)}</span>{tag ? <span className={copy ? 'runner-ineligible runner-copy' : 'runner-ineligible'}>{tag}</span> : null}{race.link === 'preliminary' ? <span className="runner-prelim" data-prelim-link="race">{PRELIMINARY_LINK}</span> : null}</>;
 }
 
 /**
@@ -330,11 +332,12 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
       {matches.length > NARROW_ABOVE && <p className="runner-note runner-narrow">Add a first name to narrow them.</p>}
       {/* Each row as a runner recognizes a race: one race by its city and year ("Washington 2014"), several by their
           count and span ("3 races · 2011–2025"). */}
-      {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{shownName(row[0])}</strong><small>{row[2] === 1 ? `${row[5]} ${row[3]}` : `${count(row[2])} races · ${row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`}`}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>)}</ul>}
+      {matches.length > 0 && <ul className="runner-matches">{visibleMatches.map(row => <li key={row[1]}><button className="runner-match" type="button" aria-expanded={profile?.id === row[1]} aria-controls="runner-profile" onClick={() => void openProfile(row[1])}><span><strong>{shownName(row[0])}</strong><small>{row[2] === 1 ? `${row[5]} ${row[3]}` : `${count(row[2])} races · ${row[3] === row[4] ? row[3] : `${row[3]}–${row[4]}`}`}{row[6] ? ' · preliminary link' : ''}</small></span><span className="runner-match-action">{profileLoading === row[1] ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>)}</ul>}
       {pages > 1 && <nav className="runner-pagination" aria-label="Search result pages"><button type="button" className="btn btn-secondary is-compact" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>{count(page * RUNNER_PAGE_SIZE + 1)}–{count(Math.min(matches.length, (page + 1) * RUNNER_PAGE_SIZE))} of {count(matches.length)}</span><button type="button" className="btn btn-secondary is-compact" disabled={page + 1 >= pages} onClick={() => setPage(value => value + 1)}>Next</button></nav>}
     </>}</section>}
     {profileError && <div className="runner-error" role="alert"><p>{profileError} Select the match again to retry.</p></div>}
     <div id="runner-profile" className="ph-no-capture">{manifest && profile && <section className="runner-profile" aria-labelledby="runner-profile-title"><h2 id="runner-profile-title" className="runner-h" tabIndex={-1} ref={profileHeading}>{[...new Set(profile.names.filter(Boolean).map(displayName))].join(' / ') || 'Recorded race group'}</h2><p className="runner-note">Tick only the races you recognize. You can add races from other matches too.</p>
+      {profile.preliminary && <p className="runner-note"><span className="scope-chip">{PRELIMINARY_LINK}</span> A race here is linked by a preliminary build. <Link href="/methodology#preliminary-links" className="term-link">How races are linked</Link></p>}
       <ul className="runner-races">{orderedRaces.map(race => <li className="runner-race" key={race.id}><label className="runner-race-row"><input type="checkbox" checked={selected.some(row => row.id === race.id)} onChange={() => toggleRace(race)} /><span className="runner-race-body"><RunnerRecordDetails race={race} manifest={manifest} copyEditions={copyEditions} /></span></label>
         {!analysed(race, manifest, copyEditions) && <RecordedCheckpoints race={race} manifest={manifest} copyEditions={copyEditions} />}
       </li>)}</ul>

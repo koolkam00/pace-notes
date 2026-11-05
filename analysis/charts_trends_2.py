@@ -8,7 +8,7 @@ from datetime import date
 
 import numpy as np
 
-from charts_common import count_phrase, median, require_cell, require_race_dates, sec, sh
+from charts_common import MIN_CELL, race_dates, count_phrase, median, require_cell, require_race_dates, sec, sh
 
 CHARTS = {}
 
@@ -29,7 +29,7 @@ def linked(c):
     key = id(c)
     if key in _LINKED:
         return _LINKED[key]
-    dates = {(row['city'], row['year']): row.get('date') for row in c.weather['editions']}
+    dates = race_dates(c)
     ed_day = np.full(len(c.editions), -1, np.int64)
     for e, ed in enumerate(c.editions):
         d = dates.get((ed['city'], ed['year']))
@@ -91,16 +91,24 @@ def every_new_york_in_the_data(c):
     ny &= ~np.isin(c.edition, no_key)
     k = int(len(np.unique(c.edition[ny])))
     per = np.bincount(L['pid'][ny], minlength=L['records'])
-    at_least = {m: int((per >= m).sum()) for m in (2, 5, 10, 15, k)}
-    all_k = require_cell(at_least[k], 'records with every New York edition')
-    compare = [dict(label='At least 10', value=at_least[10], tone='ink'), dict(label=f'{k} editions', value=all_k, tone='signal')]
+    # The top of the range is every edition while that cell has 100 records; under the floor the range narrows to the
+    # most editions whose cell has 100 (rule 13: narrow, never lower the floor). November 5, 2026: under person_id, New
+    # York 2026 is keyed, 18 editions; 81 records finished all 18, so the top is "at least 17 of 18".
+    top = next((m for m in range(k, 0, -1) if int((per >= m).sum()) >= MIN_CELL), k)
+    at_least = {m: int((per >= m).sum()) for m in (2, 5, 10, 15, top)}
+    all_k = require_cell(at_least[top], f'records with {top} or more New York editions')
+    every = top == k
+    label = f'{k} editions' if every else f'{top}+ of {k}'
+    compare = [dict(label='At least 10', value=at_least[10], tone='ink'), dict(label=label, value=all_k, tone='signal')]
     return dict(
-        values=dict(all16=all_k, n_eds=k, ten=at_least[10], five=at_least[5], fifteen=at_least[15], two=at_least[2]),
-        plot=dict(form='big', value=all_k, fmt='count', caption=f'records finished {k} editions',
+        values=dict(all16=all_k, top=top, n_eds=k, ten=at_least[10], five=at_least[5], fifteen=at_least[15], two=at_least[2]),
+        plot=dict(form='big', value=all_k, fmt='count',
+                  caption=f'records finished {k} editions' if every else f'records finished {top}+ of {k}',
                   compare=compare, compareFmt='count'),
         cohort_n=int(ny.sum()), editions_n=k, weighting='pooled',
         method=f'New York finishes ({int(ny.sum()):,} finishes, {k} editions) grouped by record linked by name; '
                'counts are records, which are candidate links rather than verified people.'
+               + ('' if every else f' Fewer than {MIN_CELL} records finished all {k}, so the count stops at {top}.')
                + (f" {' and '.join(c.label(e) for e in no_key)} {'carry' if len(no_key) > 1 else 'carries'} no cross-race "
                   f"identity yet, so {'they are' if len(no_key) > 1 else 'it is'} left out." if no_key else ''),
     )

@@ -30,10 +30,15 @@ def build_lookup(db, source, output, provenance):
     raw_times = '[' + ','.join(f'r.{field}' for field in FIELDS) + ']'
     # Source IDs are candidate links only; ambiguous/conflicting candidates are
     # singletons. Never merge records using a name match.
+    # A record keyed by a preliminary link build (features.link_preliminary, adapter version 2: New York 2026 in
+    # master-20261103b) is marked, so a profile it joins to other races can say so (November 5, 2026).
+    feature_columns = {c[0] for c in db.execute('DESCRIBE features').fetchall()}
+    prelim = 'coalesce(f.link_preliminary,false)' if 'link_preliminary' in feature_columns else 'false'
     db.execute(f'''CREATE TEMP TABLE lookup AS WITH classified AS (
       SELECT r.id,r.runner AS name,r.sex,r.age,d.edition,r.year,r.city,
         CASE WHEN s.runner_id IS NOT NULL AND NOT f.is_ambiguous
           THEN 'u:'||f.runner_id ELSE 'r:'||r.id::VARCHAR END AS identity_key,
+        CASE WHEN s.runner_id IS NOT NULL AND NOT f.is_ambiguous THEN {prelim} ELSE false END AS prelim,
         {times} AS times,CASE WHEN e.rid IS NULL THEN {raw_times} END AS raw_times,
         e.rid IS NOT NULL AS eligible,
         CASE WHEN e.rid IS NOT NULL THEN NULL
@@ -73,14 +78,18 @@ def build_lookup(db, source, output, provenance):
     names_file.unlink()
     print('Normalized all distinct recorded names', flush=True)
     db.execute('''CREATE TEMP TABLE lookup_stats AS SELECT profile_id,count(*) AS n,
-      min(year) AS first_year,max(year) AS last_year,first(city ORDER BY year DESC,id) AS city
+      min(year) AS first_year,max(year) AS last_year,first(city ORDER BY year DESC,id) AS city,
+      count(*)>1 AND bool_or(prelim) AS preliminary
       FROM lookup GROUP BY profile_id''')
+    preliminary_profiles = db.execute('SELECT count(*) FROM lookup_stats WHERE preliminary').fetchone()[0]
+    preliminary_editions = [[c, y] for c, y in db.execute('''SELECT DISTINCT l.city,l.year FROM lookup l
+      JOIN lookup_stats s USING(profile_id) WHERE s.preliminary AND l.prelim ORDER BY 1,2''').fetchall()]
     named = db.execute("SELECT count(*) FROM lookup l JOIN lookup_names n ON coalesce(l.name,'')=n.name WHERE n.normalized<>''").fetchone()[0]
     profiles = db.execute('SELECT count(*) FROM lookup_stats').fetchone()[0]
     shards = {}
-    query = '''SELECT substr(sha256(profile_id::VARCHAR),1,3) AS bucket,
-      profile_id,id,name,sex,age,edition,times,raw_times,eligible,reason
-      FROM lookup ORDER BY bucket,profile_id,year,id'''
+    query = '''SELECT substr(sha256(l.profile_id::VARCHAR),1,3) AS bucket,
+      l.profile_id,l.id,l.name,l.sex,l.age,l.edition,l.times,l.raw_times,l.eligible,l.reason,s.preliminary,l.prelim
+      FROM lookup l JOIN lookup_stats s USING(profile_id) ORDER BY bucket,l.profile_id,l.year,l.id'''
     cursor = db.execute(query)
     current_bucket = None
     payload = []
@@ -91,13 +100,15 @@ def build_lookup(db, source, output, provenance):
         batch = cursor.fetchmany(10000)
         if not batch:
             break
-        for shard, pid, rid, name, sex, age, edition, elapsed, recorded, valid, reason in batch:
+        for shard, pid, rid, name, sex, age, edition, elapsed, recorded, valid, reason, preliminary, linked_prelim in batch:
             if shard != current_bucket:
                 if current_bucket is not None:
                     write_shard(output, f'profiles/{current_bucket}.json.gz', dict(release_tag=tag, profiles=payload), shards)
                 current_bucket, payload, profile = shard, [], None
             if profile is None or profile['id'] != pid:
                 profile = dict(id=pid, names=[], races=[])
+                if preliminary:
+                    profile['preliminary'] = True
                 payload.append(profile)
                 written_profiles += 1
             if name and name not in profile['names']:
@@ -106,6 +117,8 @@ def build_lookup(db, source, output, provenance):
                        times=elapsed, eligible=valid, reason=reason)
             if recorded is not None:
                 row['raw_times'] = recorded
+            if preliminary and linked_prelim:
+                row['link'] = 'preliminary'
             profile['races'].append(row)
             written_records += 1
     if current_bucket is not None:
@@ -116,7 +129,7 @@ def build_lookup(db, source, output, provenance):
       SELECT DISTINCT l.profile_id,l.name,n.normalized FROM lookup l JOIN lookup_names n ON l.name=n.name WHERE n.normalized<>''
     ), prefixes AS (
       SELECT DISTINCT profile_id,name,substr(token,1,3) AS prefix FROM aliases,unnest(string_split(normalized,' ')) AS t(token)
-    ) SELECT substr(sha256(prefix),1,3) AS bucket,p.name,p.profile_id,s.n,s.first_year,s.last_year,s.city
+    ) SELECT substr(sha256(prefix),1,3) AS bucket,p.name,p.profile_id,s.n,s.first_year,s.last_year,s.city,s.preliminary::INTEGER
       FROM prefixes p JOIN lookup_stats s USING(profile_id) ORDER BY bucket,p.name,p.profile_id''')
     current_bucket, rows, index_rows = None, [], 0
     while True:
@@ -136,7 +149,9 @@ def build_lookup(db, source, output, provenance):
                     unnamed_records=raw-named, profiles=profiles, index_rows=index_rows,
                     points_km=POINTS, editions=editions, shards=shards,
                     normalization='NFKD; remove Unicode marks; lowercase; keep letters/numbers; collapse spaces',
-                    identity='Supplied non-ambiguous candidates passing gender, birth-year and duplicate-edition checks; otherwise one record per candidate. Names never establish an identity.')
+                    identity='The producer\'s person links (person_id under the adapter\'s frozen rule) passing gender, birth-year and duplicate-edition checks; otherwise one record per link. The producer links records by recorded name, sex and age or birth year; they are not verified people, and Pace Notes adds no name matching of its own.',
+                    preliminary_links=dict(profiles=preliminary_profiles, editions=preliminary_editions,
+                                           rule='A profile is preliminary when it joins more than one record and at least one of them is keyed by a preliminary link build; those races carry link "preliminary".'))
     (output/'manifest.json').write_bytes(encode(manifest))
     print(json.dumps(dict(raw_records=raw, named_records=named, profiles=profiles,
                           shards=len(shards), compressed_bytes=sum(v['bytes'] for v in shards.values()))), flush=True)

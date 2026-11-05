@@ -140,6 +140,10 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // (b35789b8), found by diffing the two builds' visible text: the home guide's and /research's chapter 11 row, /stories'
   // half row, /half's night card, the half story's dek, who holds pace's way into it, /methodology#half-linking and the
   // five goal pages (HALF_TEXT_REWRITTEN below). /report and /runners repeat the chapter 11 next card; they are noindex.
+  // November 5 again (feat/person-id-identity, the owner's "Everywhere"): the pages that change are the history-based
+  // analyses, runner context, the all-finisher views and the Top 100 charts, which all take their rebuilt data's date
+  // (November 5), /methodology (#linking and #preliminary-links; already the 5th) and /runners (noindex), so no date
+  // here moves. Not checked by a built-text diff against main this time; the reasoning is from the changed data families.
   '/': '2026-11-05',
   '/research': '2026-11-05',
   '/about': '2026-10-30',

@@ -8,13 +8,18 @@ export type RunnerManifest = {
   editions: RunnerEdition[]; points_km: number[];
   shards: Record<string, { sha256: string; bytes: number }>;
 };
-export type RunnerMatch = [name: string, profileId: number, raceCount: number, firstYear: number, lastYear: number, city: string];
+/** A search row; `preliminary` is 1 when the group joins races through a preliminary link build (November 5, 2026). */
+export type RunnerMatch = [name: string, profileId: number, raceCount: number, firstYear: number, lastYear: number, city: string, preliminary: 0 | 1];
 export type RunnerRace = {
   id: number; edition: number; name: string; sex: string | null; age: number | null;
   times: (number | null)[]; raw_times?: (string | null)[];
   eligible: boolean; reason: string | null;
+  /** Set when this race joins its group through a preliminary link build (New York 2026 in master-20261103b). */
+  link?: 'preliminary';
 };
-export type RunnerProfile = { id: number; names: string[]; races: RunnerRace[] };
+export type RunnerProfile = { id: number; names: string[]; races: RunnerRace[]; preliminary?: true };
+/** The label a group joined through a preliminary link carries, linked to /methodology#preliminary-links. */
+export const PRELIMINARY_LINK = 'Preliminary link';
 export type RunnerSection = { start: number; end: number; elapsed: number; pace: number; cumulative: number };
 export type RunnerMetrics = { finish: number; pace: number; baseline: number; latePace: number; lateChange: number; openingChange: number; sections: RunnerSection[] };
 
@@ -122,9 +127,9 @@ export async function searchRunnerNames(query: string, manifest: RunnerManifest,
   if (!Array.isArray(data.rows)) throw problem();
   const matches = new Map<number, RunnerMatch>();
   for (const row of data.rows) {
-    if (!Array.isArray(row) || row.length !== 6 || typeof row[0] !== 'string' ||
+    if (!Array.isArray(row) || row.length !== 7 || typeof row[0] !== 'string' ||
       !integer(row[1]) || !integer(row[2]) || row[2] < 1 || !integer(row[3]) || !integer(row[4]) ||
-      row[3] > row[4] || typeof row[5] !== 'string') throw problem();
+      row[3] > row[4] || typeof row[5] !== 'string' || (row[6] !== 0 && row[6] !== 1)) throw problem();
     if (runnerNameMatches(row[0], query) && !matches.has(row[1])) matches.set(row[1], row);
   }
   // In the order the rows read: by the shown name, without its punctuation ("(Smith), Clara" sorts as "clara smith").
@@ -141,7 +146,9 @@ export function validateRunnerProfile(value: unknown, manifest: RunnerManifest):
       typeof row.eligible !== 'boolean' || (row.reason !== null && typeof row.reason !== 'string') ||
       !Array.isArray(row.times) || row.times.length !== 9 || row.times.some(time => time !== null && (!Number.isFinite(time) || time < 0)) ||
       (row.raw_times !== undefined && (!Array.isArray(row.raw_times) || row.raw_times.length !== 9 || row.raw_times.some(time => time !== null && typeof time !== 'string'))) ||
-      (row.eligible && !runnerMetrics(row))) || new Set(data.races.map(row => row.id)).size !== data.races.length) throw problem();
+      (row.link !== undefined && row.link !== 'preliminary') ||
+      (row.eligible && !runnerMetrics(row))) || new Set(data.races.map(row => row.id)).size !== data.races.length ||
+    (data.preliminary ?? true) !== true || !!data.preliminary !== (data.races.length > 1 && data.races.some(row => row.link === 'preliminary'))) throw problem();
   return data;
 }
 export async function loadRunnerProfile(id: number, manifest: RunnerManifest, signal: AbortSignal): Promise<RunnerProfile> {

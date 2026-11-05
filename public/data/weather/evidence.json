@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "weather_screen",
-  "as_of": "2026-11-04T14:20:59Z",
+  "as_of": "2026-11-05T16:13:24Z",
   "input": {
     "repository": "koolkam00/pace-notes",
     "release_tag": "master-20261103b",
@@ -11,7 +11,7 @@
     "asset_sha256": "41d575cde127c94a9acf4242cc4d385701bb1e7568ba2e8ee65e4341e15b69db",
     "asset_path": "master-assets/master_results_FULL.parquet",
     "bundle": "FULL",
-    "manifest_sha256": "551c26e1e4095f0b0e4f45e0fb678da015ea0b8ad342824e68f8920750f376c7",
+    "manifest_sha256": "55f5f5a054c29e52b1732d50af567274339d537876866df0050973cb62858fb8",
     "release_checksums": {
       "asset": "SHA256SUMS",
       "sha256": "b2dc190ed25a59c1a2175a46661db0cb3d2abf5e3814e98eb8eb9ceddf2c2065"
@@ -49,8 +49,8 @@
       "checksums_asset": "RELEASE-SHA256SUMS-20261021-1050.txt",
       "checksums_sha256": "a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f"
     },
-    "adapter_sha256": "54e57b6f1e09c0086f65325b07b5f3891fab919ac852f4aa828fa1ca97569916",
-    "adapter_version": 1,
+    "adapter_sha256": "6e0eb8dfb3198d061b3a3d15dacf3a0afeff3e8a8c0db95b97821bdd01ce6204",
+    "adapter_version": 2,
     "as_of": "2026-11-03T23:10:56Z",
     "race_conditions_sha256": "a2efadb42d1570d499e6b2b9fb2390afc1e03c14e32dd86ff268aba85942a401"
   },

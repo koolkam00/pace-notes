@@ -1,0 +1,14 @@
+{
+  "document": "Race dates for editions the weather evidence has no row for, reviewed by hand and cited (2026-11-05). Every builder that orders a runner's linked finishes by race date reads this file after the weather evidence; a date here never changes a weather figure, because the edition still has no weather row.",
+  "releases": {
+    "master-20261103b": [
+      {
+        "city": "New York",
+        "year": 2026,
+        "date": "2026-11-01",
+        "source": "The producer's completeness note for this edition in master-20261103b editions.csv (and the adapted edition_meta.parquet): \"Year verified (race 2026-11-01).\" editions.csv race_date is empty and the weather overlay has no row for it.",
+        "evidence_text": "Year verified (race 2026-11-01)"
+      }
+    ]
+  }
+}

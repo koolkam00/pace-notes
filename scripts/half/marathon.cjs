@@ -85,6 +85,12 @@ function loadMarathons(root) {
     need(!dateOf.has(key) || dateOf.get(key) === row.date, `two dates for ${row.city} ${row.year}`);
     dateOf.set(key, row.date);
   }
+  // The reviewed and cited date of an edition the weather evidence has no row for (analysis/reviewed-race-dates.json;
+  // New York 2026 in master-20261103b, November 5, 2026), the twin of half_marathon._dates.
+  for (const d of read('analysis/reviewed-race-dates.json').releases[weather.input.release_tag] || []) {
+    const key = `${d.city}\u0000${d.year}`;
+    if (!dateOf.get(key)) dateOf.set(key, d.date);
+  }
   const day = new Float64Array(editions.length).fill(NaN);
   const eligibleEditions = new Set(edition);
   const keys = new Set(), undated = [];
@@ -94,8 +100,8 @@ function loadMarathons(root) {
     need(!keys.has(key), `two eligible editions share ${ed.city} ${ed.year}`);
     keys.add(key);
     const text = dateOf.get(key);
-    // No weather row: no race date (New York 2026 in master-20261103b). The edition keeps its finishes, supplies no
-    // pair (its day stays NaN) and is returned in `undated` for the reviewed list (November 4, 2026); nothing is filled in.
+    // No weather row and no reviewed date: no race date. The edition keeps its finishes, supplies no pair (its day stays
+    // NaN) and is returned in `undated` for the reviewed list (November 4, 2026); nothing is filled in.
     if (text === undefined) { undated.push([ed.city, ed.year]); continue; }
     need(typeof text === 'string' && Number(text.slice(0, 4)) === ed.year && dayNumber(text) !== null, `no race date for ${ed.city} ${ed.year}`);
     day[e] = dayNumber(text);

@@ -8,7 +8,7 @@ This document was assembled on October 30, 2026 from sections that moved here fr
 
 `/runners` searches the current release's recorded names and lets visitors confirm which candidate races belong to them. `build_runner_lookup.py` writes compressed, checksummed search/profile shards and a source manifest. The index includes usable named raw records even when their splits or edition are excluded from aggregate analysis. No name is invented. Missing timings and quality reasons remain visible.
 
-Candidates use screened supplied identities where available, otherwise one record per candidate. Names never establish cross-race identity. Every performance comparison is limited to the visitor's selected recorded races and eligible timings; an observed best is not necessarily a lifetime best. Search and full-data downloads are public, with no account requirement.
+Since November 5, 2026, candidates are the producer's screened person links (`person_id`; New York 2026's preliminary links are marked "Preliminary link"), otherwise one record per link. The producer links records by recorded name, sex and age or birth year; Pace Notes adds no name matching of its own, and a link is not a verified person. Every performance comparison is limited to the visitor's selected recorded races and eligible timings; an observed best is not necessarily a lifetime best. Search and full-data downloads are public, with no account requirement.
 
 ## Record coverage
 

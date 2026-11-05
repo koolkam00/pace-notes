@@ -61,7 +61,7 @@ module.exports = {
   },
 
   'a-year-apart': (C) => {
-    const date = new Map(C.weather.editions.map((r) => [`${r.city}\u0000${r.year}`, r.date]));
+    const date = new Map(C.raceDates.map((r) => [`${r.city}\u0000${r.year}`, r.date]));
     const edDay = C.editions.map((e) => { const d = date.get(`${e.city}\u0000${e.year}`); return d ? dayOf(d) : -1; });
     // Each record's finishes in race-date order (edition, then source order, on the same day); consecutive pairs.
     const order = Array.from({ length: C.n }, (_, i) => i);

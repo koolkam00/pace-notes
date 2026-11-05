@@ -197,7 +197,9 @@ function addIndex(map, key, row) {
 // profile shards. This is far smaller than retaining all runner objects or Sets.
 const recordIds = new Float64Array(manifest.raw_records);
 let rawCount = 0, eligibleCount = 0, namedCount = 0, profileCount = 0, expectedIndexCount = 0;
-let runnerDetections = 0;
+let runnerDetections = 0, preliminaryProfiles = 0;
+assert.ok(manifest.preliminary_links && integer(manifest.preliminary_links.profiles, 0) && Array.isArray(manifest.preliminary_links.editions), 'Manifest preliminary links');
+const preliminaryEditions = new Set(manifest.preliminary_links.editions.map(edition => JSON.stringify(edition)));
 const runnerOnsets = new Map();
 const editionCounts = new Uint32Array(manifest.editions.length);
 for (const file of files.filter(file => file.startsWith('profiles/'))) {
@@ -255,10 +257,21 @@ for (const file of files.filter(file => file.startsWith('profiles/'))) {
       if (edition.year > lastYear || (edition.year === lastYear && race.id < latestId)) { lastYear = edition.year; latestCity = edition.city; latestId = race.id; }
     }
     assert.equal(profile.id, minId, 'Profile identity is the smallest recorded source ID');
+    // A preliminary link (November 5, 2026): a profile is marked preliminary exactly when it joins more than one record
+    // and at least one race is marked link "preliminary"; such races sit only in the editions the manifest names.
+    const prelimRaces = profile.races.filter(race => race.link !== undefined);
+    assert.ok(prelimRaces.every(race => race.link === 'preliminary'), `${file}: unknown race link mark`);
+    assert.ok(profile.preliminary === undefined || profile.preliminary === true, `${file}: preliminary must be true or absent`);
+    assert.equal(!!profile.preliminary, profile.races.length > 1 && prelimRaces.length > 0, `${file}: profile ${profile.id} preliminary mark does not match its races`);
+    for (const race of prelimRaces) {
+      const edition = manifest.editions[race.edition];
+      assert.ok(preliminaryEditions.has(JSON.stringify([edition.city, edition.year])), `${file}: a preliminary link outside the manifest's preliminary editions`);
+    }
+    if (profile.preliminary) preliminaryProfiles++;
     assert.deepEqual([...names].sort(), [...profile.names].sort(), 'Profile aliases must be exactly the recorded names');
     for (const name of profile.names) for (const prefix of prefixes(name)) {
       const indexKey = bucket(prefix);
-      addIndex(expectedIndex, indexKey, [name, profile.id, profile.races.length, firstYear, lastYear, latestCity]);
+      addIndex(expectedIndex, indexKey, [name, profile.id, profile.races.length, firstYear, lastYear, latestCity, profile.preliminary ? 1 : 0]);
       expectedIndexCount++;
     }
     profileCount++;
@@ -271,6 +284,7 @@ assert.deepEqual([...runnerOnsets].sort((a, b) => a[0] - b[0]), onsetRows.map(ro
 assert.equal(namedCount, manifest.named_records);
 assert.equal(rawCount - namedCount, manifest.unnamed_records);
 assert.equal(profileCount, manifest.profiles);
+assert.equal(preliminaryProfiles, manifest.preliminary_links.profiles, 'Preliminary profiles must equal the manifest count');
 assert.equal(expectedIndexCount, manifest.index_rows);
 assert.ok([...editionCounts].every(n => n > 0), 'Manifest includes an edition without any records');
 recordIds.sort();
@@ -281,7 +295,7 @@ for (const file of files.filter(file => file.startsWith('index/'))) {
   const data = shard(file), key = file.slice(6, 9);
   assert.ok(Array.isArray(data.rows) && data.rows.length, `${file}: empty index`);
   for (const row of data.rows) {
-    assert.ok(Array.isArray(row) && row.length === 6, `${file}: malformed search row`);
+    assert.ok(Array.isArray(row) && row.length === 7 && (row[6] === 0 || row[6] === 1), `${file}: malformed search row`);
     const [name, id, count, first, last, city] = row;
     assert.ok(text(name) && normalize(name) && integer(id, 1) && integer(count, 1) && count <= manifest.raw_records);
     assert.ok(integer(first, 1) && integer(last, first) && text(city), 'Invalid index edition summary');

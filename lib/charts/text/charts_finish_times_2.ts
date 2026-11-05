@@ -59,11 +59,14 @@ export const CHARTS_FINISH_TIMES_2_TEXT: Record<string, ChartText> = {
   'quick-double-mostly-slower': {
     title: 'Sub-3:30 doubles: the second more often slower',
     takeaway: (v) => ({
-      // Under half quicker within three weeks (and most slower), well over half a year on at the same race pairs; the gap
-      // is widest in the quickest band; every group holds 100+ pairs.
-      guard: n(v.dbl) < 0.5 && n(v.slower_dbl) > 0.5 && n(v.yr) > 0.5 && n(v.gap_top) >= 0.15 && n(v.gap_top) > 1.5 * n(v.gap_max_rest)
+      // Under half quicker within three weeks (and most slower), well over half a year on at the same race pairs; every
+      // group holds 100+ pairs. Until November 5, 2026 the band was singled out because its gap was over 1.5× any other
+      // band's; under person_id that fails (18.3 against 12.6 points, 1.45×), so that reading is withdrawn. The quickest
+      // band is now singled out because the gap narrows band by band from it (18.3, 12.6, 7.7, 3.6, −0.9 points), and
+      // the headline says so under its own clause.
+      guard: n(v.dbl) < 0.5 && n(v.slower_dbl) > 0.5 && n(v.yr) > 0.5 && n(v.gap_top) >= 0.15 && n(v.narrows) === 1
         && n(v.min_pairs) >= 100,
-      headline: `With two finishes averaging under 3:30, records linked by name ran the second quicker *${pct(n(v.dbl))}* of the time within three weeks; a year on, ${pct(n(v.yr))}.`,
+      headline: `Under 3:30, records linked by name ran a double's second finish quicker *${pct(n(v.dbl))}* of the time; a year on, ${pct(n(v.yr))}. Slower bands, smaller gaps.`,
       fallback: 'How often the second of two finishes by records linked by name was quicker, weeks apart and a year apart.',
     }),
   },

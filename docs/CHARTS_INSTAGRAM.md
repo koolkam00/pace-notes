@@ -28,7 +28,7 @@ Chart 4 of 100 from Pace Notes. Every chart, its numbers and how it was made: sp
 
 ## 5. Sustained slowdowns run in streaks
 
-For records linked by name, after three finishes with a sustained slowdown, the fourth had one 69% of the time; after none, 16%.
+For records linked by name, after three finishes with a sustained slowdown, the fourth had one 66% of the time; after none, 15%.
 
 Chart 5 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/5
 
@@ -52,7 +52,7 @@ Chart 8 of 100 from Pace Notes. Every chart, its numbers and how it was made: sp
 
 ## 9. A warmer return: same start, slower end
 
-Back at the same race on a much warmer morning, records linked by name ran the first 5K as quickly as before and 35–40K 5% slower.
+Back at the same race on a much warmer morning, records linked by name ran the first 5K as quickly as before and 35–40K 6% slower.
 
 Chart 9 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/9
 
@@ -134,9 +134,9 @@ Under 3:00 held 5% of finishes; 3:00–4:00 held another 37%.
 
 Chart 22 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/22
 
-## 23. Names seen 3+ times hold a sixth of finishes
+## 23. Names seen 3+ times hold 3 in 10 finishes
 
-5.4% of records linked by name have three or more finishes but hold 16.9% of all finishes.
+10.8% of records linked by name have three or more finishes but hold 30.1% of all finishes.
 
 Chart 23 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/23
 
@@ -190,7 +190,7 @@ Chart 31 of 100 from Pace Notes. Every chart, its numbers and how it was made: s
 
 ## 32. The quickest and slowest fifths mostly repeat
 
-In records linked by name, 71% of quickest-fifth finishes were followed by another in the quickest fifth; in the slowest, 66%.
+In records linked by name, 68% of quickest-fifth finishes were followed by another in the quickest fifth; in the slowest, 64%.
 
 Chart 32 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/32
 
@@ -226,7 +226,7 @@ Chart 37 of 100 from Pace Notes. Every chart, its numbers and how it was made: s
 
 ## 38. Rare streaks, not random
 
-Of records linked by name with five or more finishes, 3.2% got quicker every time over the first five: 3.8× a random order.
+Of records linked by name with five or more finishes, 3.4% got quicker every time over the first five: 4.1× a random order.
 
 Chart 38 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/38
 
@@ -250,7 +250,7 @@ Chart 41 of 100 from Pace Notes. Every chart, its numbers and how it was made: s
 
 ## 42. Sub-3:30 doubles: the second more often slower
 
-With two finishes averaging under 3:30, records linked by name ran the second quicker 44% of the time within three weeks; a year on, 64%.
+Under 3:30, records linked by name ran a double’s second finish quicker 38% of the time; a year on, 56%. Slower bands, smaller gaps.
 
 Chart 42 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/42
 
@@ -286,7 +286,7 @@ Chart 47 of 100 from Pace Notes. Every chart, its numbers and how it was made: s
 
 ## 48. Next time, no jump between 2:59 and 3:00
 
-For records linked by name, the next finish was under 3:00 after 46% of 2:59 finishes and 41% of 3:00 ones: no jump at the mark.
+For records linked by name, the next finish was under 3:00 after 44% of 2:59 finishes and 41% of 3:00 ones: no jump at the mark.
 
 Chart 48 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/48
 
@@ -316,7 +316,7 @@ Chart 52 of 100 from Pace Notes. Every chart, its numbers and how it was made: s
 
 ## 53. Quicker second 20Ks came round again more often
 
-After a quicker 20–40K than 0–20K, records linked by name did it again 3.3× as often.
+After a quicker 20–40K than 0–20K, records linked by name did it again 3.1× as often.
 
 Chart 53 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/53
 
@@ -406,7 +406,7 @@ Chart 67 of 100 from Pace Notes. Every chart, its numbers and how it was made: s
 
 ## 68. The quicker the finish, the more repeatable
 
-After a finish under 3:00, 32% of next finishes by the same record linked by name came within 2% of it; after 5:00–6:00, 15%.
+After a finish under 3:00, 31% of next finishes by the same record linked by name came within 2% of it; after 5:00–6:00, 15%.
 
 Chart 68 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/68
 
@@ -538,7 +538,7 @@ Chart 89 of 100 from Pace Notes. Every chart, its numbers and how it was made: s
 
 ## 90. Years on, names first seen older lost more
 
-Eight years on, records linked by name first seen at 50–59 were 26 minutes behind their first finish; at 18–29, 3 minutes ahead.
+Eight years on, records linked by name first seen at 50–59 were 21 minutes behind their first finish; at 18–29, 8 minutes ahead.
 
 Chart 90 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/90
 
@@ -568,7 +568,7 @@ Chart 94 of 100 from Pace Notes. Every chart, its numbers and how it was made: s
 
 ## 95. Five linked finishes, the same slowdown share
 
-In records linked by name with five or more finishes, 32.6% of first linked finishes had a sustained slowdown; at the fifth, 32.3%.
+In records linked by name with five or more finishes, 29.7% of first linked finishes had a sustained slowdown; at the fifth, 28.8%.
 
 Chart 95 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/95
 
@@ -598,7 +598,7 @@ Chart 99 of 100 from Pace Notes. Every chart, its numbers and how it was made: s
 
 ## 100. Seventeen New Yorks under one name
 
-121 records linked by name finished 17 New York editions, and 1,762 at least 10.
+214 records linked by name finished 17+ of 18 New York editions, and 1,983 at least 10.
 
 Chart 100 of 100 from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/100
 

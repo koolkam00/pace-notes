@@ -8,7 +8,7 @@ import math
 
 import numpy as np
 
-from charts_common import SECTIONS, count_phrase, median, quantile, require_cell, sec, sh
+from charts_common import race_dates, SECTIONS, count_phrase, median, quantile, require_cell, sec, sh
 
 CHARTS = {}
 
@@ -37,7 +37,7 @@ RETURN_BINS = [
 
 def _edition_days(c):
     """Each edition's race date (days since 1970-01-01) from the weather evidence; NaN where it has none."""
-    by = {(row['city'], row['year']): row.get('date') for row in c.weather['editions']}
+    by = race_dates(c)
     out = np.full(len(c.editions), np.nan)
     for e, ed in enumerate(c.editions):
         d = by.get((ed['city'], ed['year']))

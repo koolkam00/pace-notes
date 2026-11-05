@@ -14,10 +14,20 @@ import { countWord } from '@/lib/nuggets/format';
 import { Part, Topic, day, editionList, n } from './shared';
 import { HalfDataTopics, HalfTotalsLine } from './MethodsHalf';
 import { halfManifest } from '@/lib/stories';
+import fs from 'node:fs';
+import path from 'node:path';
+
+/** The runner manifest's preliminary-link summary (build_runner_lookup.py, November 5, 2026), read from the verified file. */
+function preliminaryLinks(): { profiles: number; editions: [string, number][] } | null {
+  const file = path.join(process.cwd(), 'public/data/runners/manifest.json');
+  const manifest = JSON.parse(fs.readFileSync(file, 'utf8')) as { preliminary_links?: { profiles: number; editions: [string, number][] } };
+  return manifest.preliminary_links ?? null;
+}
 
 /** Part 1: what the data is, where it comes from and which records are analyzed. The files are under Downloads (Part 5). */
 export default function MethodsData() {
   const manifest = getInsightsManifest();
+  const prelim = preliminaryLinks();
   const extension = getExtensions()[0];
   const personalized = getPersonalSummary();
   const weather = getWeatherEvidence();
@@ -94,10 +104,11 @@ export default function MethodsData() {
     </Topic>
 
     <Topic id="linking" title="How runners are linked">
-      <p>The current export supplies candidate runner identities and canonical record IDs. We check that raw and feature IDs are unique, non-null and set-equal, then join each feature to its raw record by ID. Race, city, year, recorded name, finish time and every section time must also agree, to the millisecond. A record ID identifies one result. It does not show that results from different races belong to the same person.</p>
+      <p>Runners are linked across races and years by the producer’s person links: clusters of records with a matching recorded name, sex and age or birth year, kept when the link build rates them high, medium or low and dropped when a record was attached by name and sex alone, without an age. These are records linked by name, not verified people. The current export supplies them with canonical record IDs. We check that raw and feature IDs are unique, non-null and set-equal, then join each feature to its raw record by ID. Race, city, year, recorded name, finish time and every section time must also agree, to the millisecond. A record ID identifies one result. It does not show that results from different races belong to the same person.</p>
       <p>Identity groups with conflicting recorded gender, inferred birth years more than two years apart, or duplicate records in one edition are rejected. These checks reduce errors; they do not confirm that every link is right. Recorded names and runner IDs are in the full downloadable data.</p>
       <p>Only strictly earlier years can supply an earlier benchmark, so current and same-year results never enter it. Personal-best gains compare with the fastest finish in earlier recorded years; they cannot show a lifetime best. Race-pair analyses use adjacent observations with one race in each end year. The interval analysis uses exact supplied dates, only for identity groups with complete, unique dates.</p>
       <p>Exact-age analyses leave out age-group-only records. Recorded gender is used as supplied and never inferred from names. Unknown categories stay in overall counts where the analysis allows.</p>
+      {prelim && prelim.profiles > 0 ? <p id="preliminary-links">{prelim.editions.map(([city, year]) => `${city} ${year}`).join(', ')} {prelim.editions.length === 1 ? 'was' : 'were'} linked by a separate, preliminary build made for {prelim.editions.length === 1 ? 'that race' : 'those races'}, which the producer rates less reliable than the others. {n(prelim.profiles)} record groups join a race through it; the runner search marks each of them “Preliminary link”, and the history-based figures include them.</p> : null}
       {half ? <p>Half-marathon and marathon records are linked by a separate build, described under <a href="#half-linking">half and marathon records linked by name</a>.</p> : null}
     </Topic>
 

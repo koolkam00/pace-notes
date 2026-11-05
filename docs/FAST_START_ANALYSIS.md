@@ -68,7 +68,7 @@ The output publishes the 10th percentile, median and 90th percentile as `after20
 
 ## Earlier-best mode: benchmark and opening groups
 
-For each eligible race in year `y`, use the fastest eligible finish from years `y−2` or `y−1` within its screened supplied identity candidate. The current race and all same-year races are excluded. Held, incomplete and invalid records cannot provide a benchmark. Names never establish a link; the source identity screening does not independently verify a person's identity.
+For each eligible race in year `y`, use the fastest eligible finish from years `y−2` or `y−1` within its screened supplied identity candidate (since November 5, 2026, the producer's `person_id`). The current race and all same-year races are excluded. Held, incomplete and invalid records cannot provide a benchmark. Pace Notes adds no name matching of its own; the producer's links match recorded name, sex and age or birth year, and the screening does not independently verify a person's identity.
 
 The benchmark is a recent recorded best. It is not measured current fitness, a declared goal, the runner's last marathon, or necessarily a lifetime best. Changes in fitness between races are especially important when interpreting a faster opening.
 

@@ -7,9 +7,12 @@ const mins = (s: number | string) => `${Math.round(Math.abs(n(s)) / 60)} minutes
 /** The words of the Top 100 charts, trends (second batch). */
 export const CHARTS_TRENDS_2_TEXT: Record<string, ChartText> = {
   'most-records-appear-once': {
-    title: 'Names seen 3+ times hold a sixth of finishes',
+    // November 5, 2026 (person_id, owner: "Everywhere"): the producer's person links join more of each runner's races,
+    // so records with three or more finishes went from 5.4% of records holding 16.9% of finishes (1 in 18 records) to
+    // 10.8% holding 30.1% (1 in 9.2). "A sixth" no longer holds; the title and the pinned range follow the data.
+    title: 'Names seen 3+ times hold 3 in 10 finishes',
     takeaway: (v) => ({
-      guard: n(v.one_in) >= 17.5 && n(v.one_in) < 18.5 && n(v.held3) > 0.155 && n(v.held3) < 0.18 && n(v.records3) >= 100,
+      guard: n(v.one_in) >= 8.5 && n(v.one_in) < 10 && n(v.held3) > 0.29 && n(v.held3) < 0.31 && n(v.records3) >= 100,
       headline: `${pct(n(v.rec3), 1)} of records linked by name have three or more finishes but hold *${pct(n(v.held3), 1)}* of all finishes.`,
       fallback: 'Records linked by name, by how many finishes they hold.',
     }),
@@ -17,10 +20,13 @@ export const CHARTS_TRENDS_2_TEXT: Record<string, ChartText> = {
   'every-new-york-in-the-data': {
     // November 4, 2026 (master-20261103b): New York 2008 is released, so the editions with cross-race identity are 17
     // (New York 2026 has none and is left out by the builder); the title and the pinned count follow the data.
+    // November 5, 2026 (person_id, owner: "Everywhere", "Use them, labelled"): New York 2026 is keyed, so there are 18
+    // editions; 81 records finished all 18, under the 100-record floor, so the builder narrows the top to 17 ("at least
+    // 17 of the 18": 214). The guard pins 18 editions and a top of 17; "every edition" returns only with 100 records.
     title: 'Seventeen New Yorks under one name',
     takeaway: (v) => ({
-      guard: n(v.n_eds) === 17 && n(v.all16) >= 100 && n(v.ten) > n(v.all16),
-      headline: `*${count(n(v.all16))}* records linked by name finished ${count(n(v.n_eds))} New York editions, and ${count(n(v.ten))} at least 10.`,
+      guard: n(v.n_eds) === 18 && n(v.top) === 17 && n(v.all16) >= 100 && n(v.ten) > n(v.all16),
+      headline: `*${count(n(v.all16))}* records linked by name finished ${count(n(v.top))}+ of ${count(n(v.n_eds))} New York editions, and ${count(n(v.ten))} at least 10.`,
       fallback: 'Records linked by name by how many New York editions they finished.',
     }),
   },

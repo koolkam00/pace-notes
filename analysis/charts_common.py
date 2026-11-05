@@ -74,11 +74,23 @@ def count_phrase(n, noun):
     return f'no {plural(noun)}' if n == 0 else f'1 {noun}' if n == 1 else f'{n:,} {plural(noun)}'
 
 
+def race_dates(c):
+    """{(city, year): 'YYYY-MM-DD'}: each edition's race date from the weather evidence, and for an edition the evidence has
+    no row for, the reviewed and cited date in analysis/reviewed-race-dates.json for the evidence's release (New York 2026
+    in master-20261103b, November 5, 2026). A reviewed date orders linked finishes only; it is never a weather row."""
+    by = {(row['city'], row['year']): row.get('date') for row in c.weather['editions']}
+    reviewed = json.loads((ROOT / 'analysis/reviewed-race-dates.json').read_text())['releases']
+    for d in reviewed.get((c.weather.get('input') or {}).get('release_tag'), []):
+        if not by.get((d['city'], d['year'])):
+            by[(d['city'], d['year'])] = d['date']
+    return by
+
+
 def require_race_dates(c, undated_edition):
-    """Every edition with finishes needs a race date to order a record's linked finishes, except an edition the weather
-    evidence has no row for (New York 2026 in master-20261103b, November 4, 2026): it is allowed only while each of its
-    finishes is the only finish of its record (no cross-race key), so it can never enter a linked order or pair; no date
-    is filled in. `undated_edition` is a boolean per edition."""
+    """Every edition with finishes needs a race date to order a record's linked finishes. An edition without one (no
+    weather row and no reviewed date) is allowed only while each of its finishes is the only finish of its record (no
+    cross-race key), so it can never enter a linked order or pair; no date is filled in. `undated_edition` is a boolean
+    per edition."""
     undated = np.flatnonzero(undated_edition & (c.ed_n > 0))
     if not len(undated):
         return
