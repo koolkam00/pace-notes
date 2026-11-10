@@ -30,12 +30,13 @@ Query strings (`?units=`, `?race=`, `?goal=` and so on) never appear in a canoni
   - `metadataBase` is hard-coded to `https://splithappens.run`. Without it, Vercel would fall back to the deployment host.
   - **Vercel previews point `og:image` at the preview host, by design.** Next.js 14.2 resolves a relative social image (every `og:image` and `twitter:image` here is a path such as `/og/tools/pace-band.png`) against the deployment's own URL (`VERCEL_BRANCH_URL`, else `VERCEL_URL`) whenever `VERCEL_ENV=preview`, ignoring `metadataBase` (`getSocialImageFallbackMetadataBase` in `next/dist/lib/metadata/resolvers/resolve-url.js`). This keeps previews from showing production images. Canonicals, `og:url`, the sitemap and JSON-LD use `absoluteUrl()` and stay on `https://splithappens.run`. Production builds (`VERCEL_ENV=production`) and local builds resolve images against `metadataBase`, so `https://splithappens.run`, which is what `verify-seo` checks. Do not "fix" a preview's image host; check production with `npm run verify:seo:live`.
   - Default Open Graph (`siteName` Pace Notes, `en_US`, `/og/default.png`), an X `summary_large_image` card and `robots: index, follow, max-image-preview:large`.
-  - A fallback description that uses the build-time finish count.
+  - A fallback description that uses the build-time finish count and the number of analyses `/analyses` lists, in words (`countWord(listedAnalyses().length)`; `countWord()` is in `lib/nuggets/format.ts`, `listedAnalyses()` in `lib/chapters.ts`). Until November 9, 2026 the count was a typed "ten" while the hub listed eleven. No page in the export shows this description, because each sets its own (0 pages on a local build of `master-20261103b`, November 10, 2026).
   - Never put a canonical, `openGraph.url` or `title.template` here. Titles carry their own "| Pace Notes" suffix where it fits, so a template would double it.
 - **[`lib/seo.tsx`](../lib/seo.tsx)** (server components only):
   - `pageMetadata({ title, description, path, type, noindex, canonicalPath, image, imageAlt, publishedTime, modifiedTime })` returns the title, description, absolute canonical, the full Open Graph block, the X card and robots. It throws if `path` contains `?` or `#`. A page-level `openGraph` replaces the layout's, so the helper always returns the whole object.
   - `finishesM()` gives the analysis cohort in millions ("3.4"), read from `analysis_n` in `public/data/insights/manifest.json`. Use it for every "N.N million" in a title or description, never a typed number.
   - `JsonLd` renders a JSON-LD block with `<` escaped. `breadcrumbs()` builds a BreadcrumbList; `pageCrumbs(path, name, { section, parents })` builds one with the page's chapter (`chapterCrumb()`: "Chapter 08 · Where you run", linked to `/research`) as its second crumb when the page is in the race (October 18, 2026; the course pages use it, and the other areas switch to it as they land).
+  - `articleLd({ headline, description, path, published, modified })` builds the one `Article` node of a story or analysis page (November 9, 2026). The headline is the page's H1; `url` and `mainEntityOfPage` are the canonical; the image is the page's share card (`ogImageFor(path)`); `inLanguage` is "en"; the author and publisher are "Andrew Kam", with no link. A story (`app/stories/[slug]/page.tsx`) passes its H1 (`story.heading ?? story.title`), its `published` day from `lib/stories.ts` and, as `dateModified`, the later of that day and its sitemap `lastmod`. An analysis (`app/analyses/[slug]/page.tsx`) passes the sentence of its nugget (`headlineFor()`, the H1 the page shows) and its sitemap `lastmod` as `dateModified` and `article:modified_time`, with `og:type` `article`; it has no `datePublished`, because none is recorded. Until then the story page built the node itself, with its short title as the headline, and an analysis page carried breadcrumbs alone. `sitemapLastmod(path)` reads the day from `sitemapEntries()`. `/slowdown` gained a BreadcrumbList the same day (`pageCrumbs()` in `app/slowdown/page.tsx`; it had no structured data before). `verify-seo` `article` checks each page ([below](#automated-checks-verify-seo)).
   - `movedMetadata(path, title, description)` is the metadata of a moved address's stub.
 - **[`lib/og-paths.ts`](../lib/og-paths.ts)** picks the social image for a page: its own card (a story, tool, goal page, qualifying race page, course or `/finish-times`), else the parent tool's card, else its section's card, else `/og/default.png`. It only returns files that exist in `public/`. See [Share cards](#share-cards-publicog).
 
@@ -54,12 +55,14 @@ export const metadata = movedMetadata('/packs', 'Research Archive: Moved | Pace 
 ## robots.txt and the sitemap
 
 - **[`app/robots.ts`](../app/robots.ts)** writes `out/robots.txt`. It allows everything except `/data/runners/index/` and `/data/runners/profiles/`, the two folders that hold recorded names. Pages render their charts from the rest of `/data`, so `/data`, `/_next`, `/og` and `/icons` stay crawlable. It also points to the sitemap.
+  - It writes one group, `User-agent: *`, and names no crawler. That is what the code does (read November 10, 2026), not a decision about any crawler ([open decisions](#decisions-still-open-for-the-owner)). `verify-seo` `robots-txt` holds every group to the same rules, so a group added for one crawler must repeat the two `Disallow` lines.
 - **[`app/sitemap.ts`](../app/sitemap.ts)** writes `out/sitemap.xml` from `sitemapEntries()`. It uses absolute URLs and no `priority` or `changefreq`, because Google ignores both.
   - The list comes from the same registries as the pages: `STORIES` (filtered by `storyPublished`, so a story arrives with its data), `TOOLS`, `TEN_ANALYSES` plus downhill-start, `getCourseNames()`, `/charts` and its hundred pages, `/half` when the half data is in the build, the fixed pages and `EXTRA_SITEMAP_PAGES` (the search pages). Moved addresses are never listed. The count is whatever these registries hold; `verify-seo` `sitemap` checks every entry against the export.
   - `sitemapEntries()` throws if a path repeats, has a query or fragment, is noindex, or is not its own canonical.
   - **New content pages** register in their own module under [`lib/seo-pages/`](../lib/seo-pages/), which `EXTRA_SITEMAP_PAGES` in `lib/seo-routes.ts` collects (see [Search pages](#search-pages-october-2026)). A new entry in `TOOLS` is picked up automatically.
-- **`lastmod` is honest.** It is the newest `as_of` date of the data the page shows (insights manifest, study, weather, personalized guide, fast-start, all-finisher, `pack_meta`, or `VERIFIED_AT` for qualifying and the qualifying race pages). Pages that are mostly written text use the hand-kept `CONTENT_DATES` map. When neither applies, `lastmod` is left out (`/privacy`, for example). The build never uses today's date or git dates. **When you change the visible text of a page in `CONTENT_DATES`, update its date.**
+- **`lastmod` is honest.** It is the newest `as_of` date of the data the page shows (insights manifest, study, weather, personalized guide, fast-start, all-finisher, `pack_meta`, or `VERIFIED_AT` for qualifying and the qualifying race pages). Pages that are mostly written text use the hand-kept `CONTENT_DATES` map (`/privacy`, for example: October 19, 2026). A page with neither kind of date would be listed without a `lastmod`; none is: all 182 entries carry one on a local build of `master-20261103b` (November 10, 2026). The build never uses today's date or git dates. **When you change the visible text of a page in `CONTENT_DATES`, update its date.**
 - **The merge day moves dates.** A page whose visible text changes takes the merge day as its `lastmod`, so the hand-kept dates are set in the merge commit, on the day it merges: `published` in `lib/stories.ts` for a new story (its JSON-LD `datePublished` and `article:published_time`, `app/stories/[slug]/page.tsx`), the page's entry in `CONTENT_DATES`, `COURSE_PAGES_WRITTEN` when the course pages' text changes, and `HALF_TEXT_WRITTEN` for the half lines on host pages (all in `lib/seo-routes.ts`). A data date that equals production's tells search engines nothing changed. `verify-seo --today <date>` (default: today, UTC) fails a `lastmod` after that date, so a date set ahead of the merge fails until the day comes.
+- **Article dates follow the sitemap** (November 9, 2026). A story's or analysis's `dateModified` and `article:modified_time` come from the same `sitemapEntries()` as its `lastmod` (`sitemapLastmod()` in `lib/seo.tsx`), so setting the merge-day fields above moves all three; `verify-seo` `article` fails when they differ.
 - Both routes use `dynamic = 'force-static'`, so they stay static files in the export.
 
 ## Search pages (October 2026)
@@ -88,8 +91,9 @@ Five goal pages only, on purpose: one page per minute would be mass-produced nea
 
 One page per course at `/courses/<slug>` (`getCourseNames()`, from the course-profile pack: 27 under `private-export-20261021-1050`), written for what runners search for a race: its pacing, its elevation, its finish times by year and its race-morning weather. Search demand for them is unmeasured (the pages' first record, with the October 2026 numbers, is in [history](history/seo-2026-10.md)). A course that leaves the data answers a 308 to `/courses` ([redirects](#redirects-and-headers-verceljson)): `/courses/melbourne` since release 1652 and `/courses/vienna` since release 1050 (no eligible edition; [1050 refresh](REFRESH_20261021_1050.md)).
 
-- **Titles.** `courseTitle()` in `lib/course-page.ts`: `{race}: Elevation, Pacing and Finish Times`, or `{race}: Pacing and Finish Times by Year` for a course without a drawn route, with " | Pace Notes" only when the whole title fits 60 characters. The race name is the data's (the supplied route's race, else the course summary's): "Washington Marathon" stays until the owner decides ([below](#decisions-still-open-for-the-owner)).
-- **Descriptions** come from the figures the page prints (`courseDescription()`): the race, the elevation profile where there is a route, finish times by year, the number of finishes, the editions that make them up and their span, and race-morning weather where the course has it, with clauses dropped until it fits 155 characters.
+- **Titles.** `courseTitle(race, hasElevation)` in `lib/course-page.ts`: `{race}: Elevation, Pacing and Finish Times` where the page prints the route's climb, or `{race}: Pacing and Finish Times by Year` where it prints none (a course without a supplied route, or one whose profile reads the water under a bridge: `!!page.geometry && !profileUnderWater(page)` in `app/courses/[city]/page.tsx`), with " | Pace Notes" only when the whole title fits 60 characters. Until November 9, 2026 the first form went to every course with a supplied route, so two pages that print no climb promised elevation (`/courses/dubai` and `/courses/new-york` under `master-20261103b`). The race name is the data's (the supplied route's race, else the course summary's): "Washington Marathon" stays until the owner decides ([below](#decisions-still-open-for-the-owner)).
+- **Descriptions** come from the figures the page prints (`courseDescription()`): the race, the elevation profile where the page prints the route's climb (the same condition as the title), finish times by year, the number of finishes, the editions that make them up and their span, and race-morning weather where the course has it, with clauses dropped until it fits 155 characters.
+- **The hub.** `generateMetadata()` in `app/courses/page.tsx` counts its rows: "Marathon Courses: Pacing for N Races, Elevation for M", M being the rows that print a climb ("Marathon Courses: Elevation and Pacing for N Races" when every row prints one), and its description ends "with route and elevation for M". Until November 9, 2026 M counted every supplied route: 26 under `master-20261103b`, where 24 of the 27 rows print a climb. `verify-seo` `course-elevation` recounts both from the built pages.
 - **Structured data.** Each course page keeps its `BreadcrumbList` and has nothing else: no `FAQPage`, `SportsEvent` (the data has no future race dates) or `Dataset` (no licence yet). `/courses` has a `BreadcrumbList` and an `ItemList` of the course pages in alphabetical order, each `ListItem` with its position, the race name and the page URL.
 - **`lastmod`** of a course page is the later of the insights `as_of`, the course-profile pack's `as_of` and `COURSE_PAGES_WRITTEN` (in `lib/seo-routes.ts`, also accepted by `allSourceDates()`). Change that date when the pages' text is rewritten.
 
@@ -152,7 +156,7 @@ Every page's `og:image` and X card is a 1200×630 PNG picked by `ogImageFor(path
 | `/research` | `og/pages/research.png` | "Research · Stories, analyses and open data", "Explore the research" (October 16, 2026) |
 | `/half` | `og/pages/half.png` | "Half marathon · Finish times", "The half marathon". The half story's card is the usual `og/stories/half-to-full.png`, made only when the story is published (`storyPublished`) |
 | `/stories`, `/tools`, `/courses` | `og/sections/<section>.png` | the section's own line |
-| `/analyses` and every analysis page | `og/sections/analyses.png` | |
+| `/analyses` and every analysis page | `og/sections/analyses.png` | "Analyses · the essential eleven", the count being the number of analyses `/analyses` lists, in words (`listedAnalyses()`; eleven on a build of `master-20261103b`), and "Marathon pacing questions, answered with recorded splits." |
 | `/packs` and every pack page | `og/sections/packs.png` (the research archive) | |
 | everything else (home, about, methodology, slowdown, …) | `og/default.png` | |
 
@@ -160,7 +164,11 @@ If a page has no card yet, it falls back to the parent tool's card, then the sec
 
 **Rules for the cards:** words only (the brand, a section label, the title or race name, and "by Andrew Kam"); no data numbers, because they would go stale; no runner names; 1200×630; at most 120 KB each (63 cards, 32–81 KB, 3.2 MB in all on October 8, 2026). The race name follows the course page's rule: the supplied route's race name, else the course summary's, else the city plus " Marathon". "Washington Marathon" is shown as the data names it; if the owner renames that race, re-run the script.
 
+**The one label that counts** (November 9, 2026). The analyses card says how many analyses `/analyses` lists, in words to twelve and in figures from 13, as `countWord()` writes a count (`sectionLabel()` and `cardSpecs()` in the script, from `listedAnalyses()` in `lib/chapters.ts`). `verify-seo` `hub-counts` reads the label back from the PNG's stamp (`cardStamp()`), so a changed list fails until `npm run og:images` renders the card again. Until then the label was typed, "the essential ten", while the hub listed eleven.
+
 **Making them.** [`scripts/build-og-images.cjs`](../scripts/build-og-images.cjs) renders the cards with Playwright and headless Chromium from an HTML template in the default card's design: the site's fonts from `node_modules/@fontsource-variable`, the night background and accents from `app/styles/tokens.css` (`checkTokens()` stops the script if those tokens change; update `TOKENS` in the script with them), and each story's or tool's accent colour. It loads `playwright` from `node_modules` (a devDependency, for the browser privacy checks), else `/opt/node-tools/node_modules/playwright`; `npx playwright install chromium` installs the browser. No CI job runs `npm run og:check`: run it after a change to the tokens, the fonts, a registry name or a title.
+
+Where the machine's Chromium is not the build this Playwright asks for, set `PLAYWRIGHT_CHROMIUM_PATH` to the browser's executable, as the capture scripts do ([design system](DESIGN_SYSTEM.md#capture)); the script passes it to `chromium.launch` (November 9, 2026).
 
 ```bash
 npm run og:images                                  # render missing or changed cards; unchanged ones are skipped
@@ -186,6 +194,8 @@ node scripts/verify-seo.cjs --self-test       # only the built-in fixtures; no e
 
 Every run starts with a self-test: the banned-words patterns against fixture phrases ("your personal chance", "your own personal chances", and phrases they must not catch, such as "your race. Chance …") and a small fixture page, parsed by the same code as the export, that must hit "your chance" in its description, `og:title`, visible text and alt text. If a fixture fails, the script stops before reading the export.
 
+Since November 9, 2026 the self-test also runs fixtures for the checks added or widened that day: the redirect table on the old host with and without a root rule, and with another host's rule left out; a `Dataset` that lists a file twice, and one whose download is not in the export; the analyses hub's counts and its card's label; an `Article` against its page; a course page's and the hub's promise of elevation; and robots.txt groups.
+
 CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows/site-validation.yml). Failures are grouped by check, with the page and the reason; the script exits 1 if any check fails. Since October 16, 2026 `npm run verify:seo` then runs `node scripts/verify-courses.cjs --html`, the built-page checks of the course pages ([above](#course-pages-october-2026)).
 
 | Check | Fails when |
@@ -194,14 +204,15 @@ CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows
 | `robots-meta` | noindex is missing from a `NOINDEX` path, a moved address's stub or the 404, is on any other page, or two robots tags disagree |
 | `canonical` | an indexable page lacks exactly one canonical, or it is off `https://splithappens.run`, has `?`, `#` or a trailing slash, or differs from `canonicalPathFor(path)`; or a noindex page has one |
 | `stubs` | a moved address (`movedPages()`) has no stub in the export, or its stub lacks the H1 "This page has moved", a visible link to the target, the forward (one `<script data-forward>`, whose target, base path and, on the guide's two stubs, `#guide-*` map must match `lib/seo-routes.ts`) or `og:url` on the target, or carries JSON-LD; or the target is missing, noindex, or lacks the `#anchor` it names; or a built page is a moved address `movedPages()` does not list |
-| `redirects` | `vercel.json`, matched the way Vercel matches it (in order, first match wins; `:name*` also matches nothing), does not 308 a moved address to `movedTo()` (the forward-only `/your-race` must not redirect), redirects a sitemap or indexable page, sends a rule to a page that is not built and indexable, or answers anything but 308 |
+| `redirects` | `vercel.json`, matched the way Vercel matches it (in order, first match wins; `:name*` also matches nothing, so `/packs/:id*` matches `/packs`, but `/:path*` never matches the bare `/`), does not 308 a moved address to `movedTo()` (the forward-only `/your-race` must not redirect), redirects a sitemap or indexable page, sends a rule to a page that is not built and indexable, or answers anything but 308; or, on the old host (`htw-live-study.vercel.app`: the rules whose `has` condition names it), the root, a sitemap page, a built page or a moved address is not answered with a 308 to the same path on `https://splithappens.run` (November 9, 2026) |
 | `moved-links` | a page links a moved address instead of its target (the redesign's pending-link list was emptied and removed at integration, October 18, 2026; a weather tab named in a target's hash counts as an anchor through its `data-tab`) |
 | `social-tags` | an indexable page lacks `og:title`, `og:description`, `og:image`, `twitter:card` or `og:url`, or `og:url` is not the canonical |
 | `og-image` | an `og:image` or `twitter:image` is off the host, missing from the export, or not 1200×630 (read from the PNG, JPEG or WebP header) |
 | `duplicates` | two indexable pages share a title or a description |
 | `sitemap` | `sitemap.xml` does not parse, repeats a `<loc>`, has a relative or unclean `<loc>`, lists a page that is missing, noindex or not its own canonical, misses an indexable self-canonical page, disagrees with `sitemapEntries()`, or has a `lastmod` in the future or not among the data and content dates |
-| `robots-txt` | the `Sitemap:` line is missing, a group disallows `/`, any group blocks the pages, `/_next/`, `/data/` (outside the two runner folders), `/og/` or `/icons/`, or the runner folders are not blocked |
-| `json-ld` | a block does not parse, its `@context` is not schema.org, a `Person` is anyone but "Andrew Kam" or carries a URL, `/runners` has any, a `ProfilePage` appears, a site URL has a query, or breadcrumb positions are not 1..n or point off the host |
+| `robots-txt` | the `Sitemap:` line is missing, a group disallows `/`, any group blocks the pages, `/_next/`, `/data/` (outside the two runner folders), `/og/` or `/icons/`, or any group, not the `*` group alone, leaves a runner folder crawlable (every group since November 9, 2026: a crawler obeys only the most specific group that names it), or there is no `User-agent: *` group |
+| `json-ld` | a block does not parse, its `@context` is not schema.org, a `Person` is anyone but "Andrew Kam" or carries a URL, `/runners` has any, a `ProfilePage` appears, a site URL has a query, or breadcrumb positions are not 1..n or point off the host; or a `Dataset` lists a download twice (by `contentUrl` or by `name`), has a download without a `contentUrl`, names a download on the site that is not a file in the export, or repeats a clause of three or more words in its description (November 9, 2026: `/methodology`'s `Dataset` listed `courses.json`, and its topic, twice, because two stories share the file; `storyDataset()` in `app/methodology/page.tsx` now lists each file once) |
+| `article` | a story or analysis page (`/stories/<slug>` or `/analyses/<slug>`, indexable) has no `Article`; any page has more than one; an `Article`'s headline is missing or is not the page's one `<h1>`, its `url` or `mainEntityOfPage` is not the canonical, its image is not the page's `og:image`, or the page's `og:type` is not "article"; a page without one says `og:type` "article" or carries `article:published_time` or `article:modified_time`; a date is not ISO 8601 or differs from its Open Graph tag; `dateModified` is not the later of `datePublished` and the page's sitemap `lastmod`; or no page in the export carries an `Article` (November 9, 2026) |
 | `banned-words` | "the wall", "arithmetic" or "your chance" (any form: "your chances", or up to two words between, as in "your personal chance") is in visible text, alt, title or aria-label text, metadata or JSON-LD |
 | `fastest` | "fastest" is in a title, description, `<h1>` or og/X tag (body text may use it) |
 | `runner-counts` | a title or description says "million runners" or "N runners" (counts are finishes) |
@@ -210,7 +221,8 @@ CI runs it after `npm run build` in [`site-validation.yml`](../.github/workflows
 | `old-host` | `htw-live-study.vercel.app` is in any `<head>` (or in JSON-LD) |
 | `finish-counts` | an "N.N million" or "N.NM" in a title or description is not `finishesM()` |
 | `orphans` | a story or analysis page in the sitemap is not linked from `/research`, or any other sitemap page but the home page is linked from no other page in the export (October 16, 2026) |
-| `hub-counts` | a hub whose line counts its pages ("Ten stories, one finding each.") lists a different number, or its meta description and `og:description` do not open on the same count word (WP9 round 6, October 20, 2026) |
+| `hub-counts` | a hub whose line counts its pages ("Ten stories, one finding each.") lists a different number, or its meta description and `og:description` do not open on the same count word (WP9 round 6, October 20, 2026); or, on `/analyses`, the number before "Analyses" in its title ("Marathon Pacing: N Analyses \| Pace Notes"), the number or count word its description or `og:description` opens on, or the label of its share card (read from the PNG's stamp in the export: it must be the label `sectionLabel()` in `scripts/build-og-images.cjs` writes for the rows listed, and a card without a stamp fails) is not the number of analyses it lists (November 9, 2026) |
+| `course-elevation` | a course page names "elevation" in its title, description or their og/X copies while it prints no climb for the route (a `<data data-k>` of `geo.gain`, `route.gain` or `cg.gain`), or prints one and does not name it; on `/courses`, "for N races" or "for N marathon courses" is not the number of rows (`<a class="course-index-row">`), "elevation for N" is not the number of rows that print a climb (a digit in `<span class="f-climb">`), "Elevation and Pacing for N Races" appears while a row prints none, a row has no climb cell or no indexable course page, or a row and its page disagree on printing a climb; or no course page is in the export, or none prints a climb (November 9, 2026) |
 | `title-brand` | a title without "Pace Notes" would still fit 60 characters with " \| Pace Notes", or a title names the brand twice: every title ends the same way unless the suffix would pass the limit or the title opens on the brand (release preparation, October 20, 2026; the course pages' `courseTitle()` follows the same rule) |
 | `home-form` | the home page's course select (`#home-plan-course`) does not have the planner's options (`#plan-course` on `/tools/plan`), the same values and names in the same order: the home list comes from the course pages, the planner's from its own data (October 16, 2026) |
 | `methods-anchors` | a `/methodology#<id>` link (in the exported HTML, or as a literal in `app/`, `components/` or `lib/`), or a `#<id>` link on `/methodology`, names an id `/methodology` does not have |
@@ -240,6 +252,7 @@ node scripts/verify-seo-live.cjs --base https://<preview>.vercel.app   # path ch
 | --- | --- |
 | www host | `https://www.splithappens.run/tools?x=1` answers 308 to `https://splithappens.run/tools?x=1` |
 | old host | `https://htw-live-study.vercel.app/slowdown?a=1` answers 308 to `https://splithappens.run/slowdown?a=1` |
+| old host, the root (November 9, 2026) | `https://htw-live-study.vercel.app/` answers 308 to `https://splithappens.run/`. It fails until a production deploy carries the root rule ([below](#redirects-and-headers-verceljson)) |
 | `/htw`, `/packs/smyth_htw` | each answers 308 to `/slowdown` |
 | every other path redirect in `vercel.json` (October 18, 2026) | answers 308 to its destination, `#anchor` included; a `:name` parameter is tried with a sample segment (`/packs/r01_banking_time`) |
 | `/robots.txt` | 200 `text/plain`, with the `Sitemap:` line and no `Disallow: /` |
@@ -252,13 +265,15 @@ node scripts/verify-seo-live.cjs --base https://<preview>.vercel.app   # path ch
 
 On a preview, the host checks are skipped, and Vercel already sends `x-robots-tag: noindex` on every preview response, so the header checks prove only that a header is there.
 
+The old host's root check fails against production until a deploy carries the root rule (the root answered 200 there on November 10, 2026, 00:16 UTC), and `npm run verify:seo:live` exits 1 while it does. The autopilot's merge script runs this script against production just before it merges (`runProductionSeo()` in `scripts/autopilot-merge.cjs`), and its merges wait until the site passes.
+
 ## Redirects and headers (`vercel.json`)
 
 Next.js `redirects()` and `headers()` do not work with `output: 'export'`, so these live in [`vercel.json`](../vercel.json):
 
 | Rule | Effect |
 | --- | --- |
-| Host `htw-live-study.vercel.app`, any path | 308 to `https://splithappens.run/<same path>` |
+| Host `htw-live-study.vercel.app`, the root and any path | 308 to `https://splithappens.run/<same path>`. Two rules, `/` and then `/:path*`, because `/:path*` does not match the bare `/`: on production the root answered 200 (`text/html`) on November 9, 2026 (22:44 UTC) and on November 10, 2026 (00:16 UTC), while `/slowdown?a=1` and `/tools` answered 308. The root rule is in the repository since November 9, 2026 and is unproven on production until a deploy carries it |
 | `/htw` | 308 to `/slowdown` |
 | `/packs/smyth_htw` | 308 to `/slowdown` |
 | `/tools/marathon-pace` | 308 to `/tools/marathon-pace-chart` (the goal pages sit below this path, which has no page of its own) |
@@ -285,6 +300,7 @@ Right after each production deploy (keep Vercel Instant Rollback ready), run `np
 
 ```bash
 curl -sI 'https://htw-live-study.vercel.app/slowdown?a=1'   # 308, location https://splithappens.run/slowdown?a=1
+curl -sI 'https://htw-live-study.vercel.app/'                # 308, location https://splithappens.run/ (once a deploy carries the root rule)
 curl -sI 'https://splithappens.run/htw'                      # 308, location /slowdown
 curl -sI 'https://splithappens.run/packs/smyth_htw'          # 308, location /slowdown
 curl -sI 'https://splithappens.run/data/insights/manifest.json' | grep -i x-robots-tag   # noindex
@@ -303,6 +319,7 @@ curl -sf 'https://splithappens.run/data/live.json' | python3 -m json.tool > /dev
 - [x] **Right after the production deploy.** (Done: 13 of 13 passed after PR #53 and again on October 13, 2026.) Run `npm run verify:seo:live` ([above](#after-a-deploy-verify-seo-live)); every check should PASS once the www redirect below is 308. Keep Vercel Instant Rollback ready.
 - [x] **Vercel www redirect.** (Done: `www.splithappens.run` redirects with 308.) Project → Settings → Domains. Set `www.splithappens.run` to "Redirect to splithappens.run" with **308 Permanent** (add it if it is not listed). Before the change it answered 307. Check: `curl -sI 'https://www.splithappens.run/tools?x=1'` returns 308 to `https://splithappens.run/tools?x=1`.
 - [x] **Old vercel.app host.** (Done: covered by the live check, which passes.) Run the first `curl` above. If it does not return 308, set the redirect in Settings → Domains instead. Do not remove the domain.
+- [ ] **Old vercel.app host, the root.** `https://htw-live-study.vercel.app/` answered 200 on production on November 9, 2026 (22:44 UTC) and on November 10, 2026 (00:16 UTC): the live check above asked for `/slowdown?a=1`, never the root. After the deploy that carries the root rule ([redirects](#redirects-and-headers-verceljson)), run `npm run verify:seo:live`. If the root still does not answer 308, set the redirect in Settings → Domains. Do not remove the domain.
 - [ ] **Google Search Console.** (The `google-site-verification` TXT record was added in Vercel DNS and resolves publicly; the owner finishes verification in Search Console.) Add a Domain property for `splithappens.run` and verify it with a TXT record in Vercel DNS. Submit `sitemap.xml`. Request indexing for `/`, `/tools/pace-calculator`, `/tools/qualifying`, `/tools/marathon-pace-chart`, `/finish-times`, `/courses`, `/courses/boston`, `/stories/round-numbers` and `/slowdown`.
 - [ ] **After two to three weeks.** Inspect `/slowdown`: Google's chosen canonical should be on `splithappens.run`. Since the October 2026 redesign the old pack pages answer 308 and should drop out as "Page with redirect". Look into any "Duplicate, Google chose different canonical".
 - [ ] **Bing Webmaster Tools.** Import the site from Search Console, or add it and verify by DNS. Submit `https://splithappens.run/sitemap.xml`.
@@ -317,7 +334,50 @@ curl -sf 'https://splithappens.run/data/live.json' | python3 -m json.tool > /dev
 - **"Washington Marathon".** The course data (`course-geometry.json`, `courses.json`) names the race "Washington Marathon", and the course page, its title and its share card show that name. It may really be the Marine Corps Marathon. Only the owner can confirm; if it is renamed in the data, rebuild and re-run `npm run og:images`.
 - **A licence for the Dataset JSON-LD.** `/methodology` describes the story summaries as a schema.org `Dataset` without a `license`, because the repository states none. Google Dataset Search recommends one. Choose a licence first; then add it to the repository and to `storyDataset()` in `app/methodology/page.tsx`.
 - **Search Console and Bing verification.** The Domain property, the TXT record and the sitemap submissions above are owner steps; nothing in the repository can do them.
+- **The analyses card's label** (November 9, 2026). The card now counts the analyses the hub lists: "Analyses · the essential eleven" on a build of `master-20261103b` (`cardSpecs()` in `scripts/build-og-images.cjs`). The count was made true and the wording kept; whether the card states a count at all, and in which words, is the owner's choice.
+- **"Elevation profile" in the course descriptions.** A course description says "elevation profile" where the page prints the route's climb (`courseDescription()` in `lib/course-page.ts`), and the hub's ends "with route and elevation for M" (`app/courses/page.tsx`), M being the rows that print a climb: 24 under `master-20261103b`, which has 26 supplied routes. The wording is the owner's.
+- **Article markup on `/finish-times`, `/half` and `/slowdown`.** Stories and analyses carry an `Article` (November 9, 2026); these three pages do not. Whether they are articles is the owner's choice.
+- **An `llms.txt`.** None is published (`public/` has no such file, November 10, 2026). Whether to publish one, and what it says, is the owner's choice.
+- **A policy for AI crawlers.** robots.txt names no crawler ([above](#robotstxt-and-the-sitemap)); whether to name any is the owner's decision.
 
 ## History
 
 The lines the post-merge half review (branch `fix/half-followups`) rewrote are kept word for word, as `main` held them at `f8869591`, in [history](history/half-followups-2026-11.md) (moved November 4, 2026).
+
+### The site review's lines (moved November 10, 2026)
+
+The lines the site review of November 9, 2026 rewrote are kept here word for word, as `main` held them at `068b6c37`, each under the section it came from.
+
+From [Where metadata comes from](#where-metadata-comes-from):
+
+  - A fallback description that uses the build-time finish count.
+
+From [robots.txt and the sitemap](#robotstxt-and-the-sitemap):
+
+- **`lastmod` is honest.** It is the newest `as_of` date of the data the page shows (insights manifest, study, weather, personalized guide, fast-start, all-finisher, `pack_meta`, or `VERIFIED_AT` for qualifying and the qualifying race pages). Pages that are mostly written text use the hand-kept `CONTENT_DATES` map. When neither applies, `lastmod` is left out (`/privacy`, for example). The build never uses today's date or git dates. **When you change the visible text of a page in `CONTENT_DATES`, update its date.**
+
+From [Course pages](#course-pages-october-2026):
+
+- **Titles.** `courseTitle()` in `lib/course-page.ts`: `{race}: Elevation, Pacing and Finish Times`, or `{race}: Pacing and Finish Times by Year` for a course without a drawn route, with " | Pace Notes" only when the whole title fits 60 characters. The race name is the data's (the supplied route's race, else the course summary's): "Washington Marathon" stays until the owner decides ([below](#decisions-still-open-for-the-owner)).
+- **Descriptions** come from the figures the page prints (`courseDescription()`): the race, the elevation profile where there is a route, finish times by year, the number of finishes, the editions that make them up and their span, and race-morning weather where the course has it, with clauses dropped until it fits 155 characters.
+
+From [Share cards](#share-cards-publicog):
+
+| Page | Card | Text on the card |
+| --- | --- | --- |
+| `/analyses` and every analysis page | `og/sections/analyses.png` | |
+
+From [Automated checks: `verify-seo`](#automated-checks-verify-seo):
+
+| Check | Fails when |
+| --- | --- |
+| `redirects` | `vercel.json`, matched the way Vercel matches it (in order, first match wins; `:name*` also matches nothing), does not 308 a moved address to `movedTo()` (the forward-only `/your-race` must not redirect), redirects a sitemap or indexable page, sends a rule to a page that is not built and indexable, or answers anything but 308 |
+| `robots-txt` | the `Sitemap:` line is missing, a group disallows `/`, any group blocks the pages, `/_next/`, `/data/` (outside the two runner folders), `/og/` or `/icons/`, or the runner folders are not blocked |
+| `json-ld` | a block does not parse, its `@context` is not schema.org, a `Person` is anyone but "Andrew Kam" or carries a URL, `/runners` has any, a `ProfilePage` appears, a site URL has a query, or breadcrumb positions are not 1..n or point off the host |
+| `hub-counts` | a hub whose line counts its pages ("Ten stories, one finding each.") lists a different number, or its meta description and `og:description` do not open on the same count word (WP9 round 6, October 20, 2026) |
+
+From [Redirects and headers](#redirects-and-headers-verceljson):
+
+| Rule | Effect |
+| --- | --- |
+| Host `htw-live-study.vercel.app`, any path | 308 to `https://splithappens.run/<same path>` |

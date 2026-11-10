@@ -13,7 +13,9 @@
  * public/og/default.png is kept as it is. lib/og-paths.ts picks the image for each page.
  *
  * Cards carry words only: the brand, a section label, the title or race name and the credit. No data numbers
- * (they would go stale) and no runner names. A goal time ("4:00 marathon pace") is the page's name, not a data number. The design is the default card's: the site's fonts from
+ * (they would go stale) and no runner names. A goal time ("4:00 marathon pace") is the page's name, not a data number. The
+ * analyses card's label counts the analyses in words ("the essential eleven"): the count is the number /analyses lists,
+ * read from lib/chapters.ts, never typed. The design is the default card's: the site's fonts from
  * node_modules/@fontsource-variable and the colour tokens from app/styles/tokens.css.
  *
  * Usage:
@@ -85,10 +87,20 @@ const SECTION_CARDS = [
   { name: 'stories', eyebrow: 'Stories from the data', title: 'What recorded marathon finishes *show.*', accent: TOKENS.orange },
   { name: 'tools', eyebrow: 'Runner tools', title: 'Tools that know how marathons *really* go.', accent: TOKENS.blue },
   { name: 'courses', eyebrow: 'Courses', title: 'Marathon courses: *elevation and pacing.*', accent: TOKENS.teal },
-  { name: 'analyses', eyebrow: 'Analyses · the essential ten', title: 'Marathon pacing questions, *answered with recorded splits.*', accent: TOKENS.green },
+  // {analyses} is the number of analyses /analyses lists, in words: cardSpecs() counts them as the hub's title does
+  // (listedAnalyses() in lib/chapters.ts). The label was typed until November 9, 2026 ("the essential ten" while the hub
+  // listed eleven); verify-seo's hub-counts check now reads the card's stamp against the rows the built hub lists.
+  { name: 'analyses', eyebrow: 'Analyses · the essential {analyses}', title: 'Marathon pacing questions, *answered with recorded splits.*', accent: TOKENS.green },
   { name: 'packs', eyebrow: 'Research archive', title: 'The marathon pacing *research archive.*', accent: TOKENS.violet },
   { name: 'charts', eyebrow: 'Top 100 charts', title: 'One hundred marathon charts, *one finding each.*', accent: TOKENS.orange },
 ];
+
+/** A section card's label with its counts filled in ({ analyses: 'eleven' }); a count the label names must be given. verify-seo.cjs writes the label for the count the built hub lists with it. */
+function sectionLabel(name, counts) {
+  const section = SECTION_CARDS.find((s) => s.name === name);
+  if (!section) throw new Error(`No section card named ${name}.`);
+  return section.eyebrow.replace(/\{(\w+)\}/g, (_, count) => { if (!counts[count]) throw new Error(`No count named ${count} for the ${name} card's label.`); return counts[count]; });
+}
 
 /**
  * Same rule as raceName() in lib/course-page.ts: the supplied route's race, else the course summary's, else the city plus
@@ -121,6 +133,9 @@ function cardSpecs() {
   const { pageNoun, raceName: qualifyingRaceName, racePath } = require(path.join(ROOT, 'components/tools/QualifyingRaceText.tsx'));
   const { getCourseNames, slugifyCity } = require(path.join(ROOT, 'lib/course-data.ts'));
   const { getInsightsManifest, readInsight } = require(path.join(ROOT, 'lib/insights-server.ts'));
+  const { listedAnalyses } = require(path.join(ROOT, 'lib/chapters.ts'));
+  const { countWord } = require(path.join(ROOT, 'lib/nuggets/format.ts'));
+  const counts = { analyses: countWord(listedAnalyses().length) };
   const manifest = getInsightsManifest();
   const geometry = readInsight('course-geometry.json').courses;
   const summaries = manifest.files['courses.json'] ? readInsight('courses.json').courses : [];
@@ -152,7 +167,7 @@ function cardSpecs() {
       route: route ? route.route.map(([x, y]) => [Number(x.toFixed(4)), Number(y.toFixed(4))]) : null });
   }
   for (const page of PAGE_CARDS) cards.push({ file: `pages/${slug(page.slug)}.png`, eyebrow: page.eyebrow, title: page.title, accent: page.accent });
-  for (const section of SECTION_CARDS) cards.push({ file: `sections/${section.name}.png`, eyebrow: section.eyebrow, title: section.title, accent: section.accent, markup: true });
+  for (const section of SECTION_CARDS) cards.push({ file: `sections/${section.name}.png`, eyebrow: sectionLabel(section.name, counts), title: section.title, accent: section.accent, markup: true });
   const files = cards.map((c) => c.file);
   if (new Set(files).size !== files.length) throw new Error('Two cards would share one file name.');
   return cards;
@@ -383,7 +398,9 @@ function loadPlaywright() {
 
 async function render(cards, fonts, { force, only }) {
   const { chromium } = loadPlaywright();
-  const browser = await chromium.launch();
+  // PLAYWRIGHT_CHROMIUM_PATH points the render at another Chromium binary, as it does for the capture scripts
+  // (docs/DESIGN_SYSTEM.md, Capture): a machine whose installed Chromium is not the build this Playwright asks for.
+  const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined });
   const page = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1 });
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pace-notes-og-'));
   const links = fontLinks();
@@ -460,5 +477,10 @@ async function main() {
   console.log(`\n${results.filter((r) => !r.skipped).length} rendered, ${results.filter((r) => r.skipped).length} unchanged.`);
 }
 
-module.exports = { plannedCards };
+/** The stamp of a card file ({ card, hash, eyebrow, title }), or null when the PNG carries none. verify-seo.cjs reads the analyses card's label with it. */
+function cardStamp(file) {
+  return readPng(fs.readFileSync(file)).stamp;
+}
+
+module.exports = { plannedCards, cardStamp, sectionLabel };
 if (require.main === module) main().catch((error) => { console.error(error.stack || error.message); process.exit(1); });

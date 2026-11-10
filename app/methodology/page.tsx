@@ -31,13 +31,15 @@ const PARTS: { id: string; label: string }[] = [
 
 /**
  * schema.org Dataset for the aggregate story summaries (Dataset Search only). Every number is read from the
- * verified story data; the distribution lists only the aggregate story files this page lists under Downloads.
+ * verified story data; the distribution lists only the aggregate story files this page lists under Downloads,
+ * each once, as that list does (two stories share courses.json: until November 9, 2026 the file and its topic
+ * were listed twice; verify-seo's json-ld check now fails on a repeated download).
  * No licence is given because the repository does not state one.
  */
 function storyDataset() {
   const manifest = getInsightsManifest();
   const span = courseSpan();
-  const files = STORIES.filter((s) => s.source !== 'half' && storyPublished(s) && STORY_FILE_TOPICS[s.file]).map((s) => s.file);
+  const files = [...new Set(STORIES.filter((s) => s.source !== 'half' && storyPublished(s) && STORY_FILE_TOPICS[s.file]).map((s) => s.file))];
   if (!span || !files.length) return null;
   const topics = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' }).format(files.map((f) => STORY_FILE_TOPICS[f]));
   return {

@@ -43,7 +43,8 @@ const routes = require(path.join(ROOT, 'lib/seo-routes.ts'));
 const { finishesM } = require(path.join(ROOT, 'lib/seo.tsx'));
 const { ogImageCandidates } = require(path.join(ROOT, 'lib/og-paths.ts'));
 // The cards scripts/build-og-images.cjs makes (no browser needed), as image paths: /og/tools/qualifying/boston.png.
-const PLANNED_CARDS = new Set(require(path.join(ROOT, 'scripts/build-og-images.cjs')).plannedCards().map((file) => `/og/${file}`));
+const { plannedCards, cardStamp, sectionLabel } = require(path.join(ROOT, 'scripts/build-og-images.cjs'));
+const PLANNED_CARDS = new Set(plannedCards().map((file) => `/og/${file}`));
 const { SITE_URL, NOINDEX, FORWARD_ONLY, ROBOTS_DISALLOW } = routes;
 const MOVED_PAGES = routes.movedPages();
 const MOVED_TEXT = 'This page has moved';
@@ -58,14 +59,15 @@ const CHECKS = {
   'robots-meta': 'noindex exactly on NOINDEX, the moved addresses\' stubs and 404, with no conflicting robots tags',
   canonical: 'Indexable pages have one clean canonical on the production host, equal to canonicalPathFor(); noindex pages have none',
   stubs: 'Every moved address (movedPages()) has a stub: the H1 "This page has moved", a link to its target, the forward, og:url on the target, no JSON-LD; every target is built and indexable, with its #anchor',
-  redirects: 'vercel.json 308s every moved address but the forward-only ones to its target, first match winning, and redirects no page in the sitemap (a local redirect table)',
+  redirects: `vercel.json 308s every moved address but the forward-only ones to its target, first match winning, and redirects no page in the sitemap; on ${OLD_HOST} it 308s the root and every address to the same path on the production host (a local redirect table)`,
   'moved-links': 'No page links a moved address: every link goes straight to where the page moved',
   'social-tags': 'Indexable pages have og:title, og:description, og:image, twitter:card, and og:url equal to the canonical',
   'og-image': 'Every og:image and twitter:image is a file in the export, on the production host, 1200x630',
   duplicates: 'Indexable pages have unique titles and descriptions',
   sitemap: 'sitemap.xml parses, lists exactly the indexable self-canonical pages (sitemapEntries()), with honest lastmod dates',
-  'robots-txt': 'robots.txt names the sitemap and blocks only the runner-name folders',
+  'robots-txt': 'robots.txt names the sitemap and blocks only the runner-name folders, in every group (a crawler obeys only the group that names it)',
   'json-ld': 'JSON-LD parses, uses schema.org, names no Person but Andrew Kam (without a URL), none on /runners, breadcrumbs 1..n on the host',
+  article: 'Every story and analysis page carries one Article whose headline is the page\'s H1; wherever a page has an Article, og:type is "article", url and mainEntityOfPage are the canonical, the image is the og:image, each date equals its Open Graph tag and dateModified is the later of datePublished and the page\'s sitemap lastmod; no other page says og:type "article"',
   'banned-words': '"the wall", "arithmetic" and "your chance" (also with up to two words between, as in "your personal chance") appear nowhere: visible text, alt text, metadata or JSON-LD',
   fastest: '"fastest" is in no title, description, H1 or og/twitter tag',
   'runner-counts': 'Titles and descriptions count finishes, never runners',
@@ -74,7 +76,8 @@ const CHECKS = {
   'old-host': `${OLD_HOST} is in no <head>`,
   'finish-counts': `Every "N.N million" or "N.NM" in a title or description equals finishesM() ("${FINISHES_M}")`,
   orphans: 'Every story and analysis page is linked from /research, and every other sitemap page from at least one other page',
-  'hub-counts': 'A hub whose line counts its pages ("Ten stories, one finding each.") lists that many and says the same count in its meta description and og:description',
+  'hub-counts': 'A hub whose line counts its pages ("Ten stories, one finding each.") lists that many and says the same count in its meta description and og:description; the count in the title and descriptions of /analyses and in the label of its share card (the PNG\'s stamp) is the number of analyses it lists',
+  'course-elevation': 'A course page names elevation in its title, description and their og/twitter copies exactly when it prints the route\'s climb; the title and descriptions of /courses count the rows it lists and the rows that print a climb, and a row prints a climb exactly when its course page does',
   'home-form': "The home page's course list (#home-plan-course) has the planner's options (#plan-course), values and names in the same order",
   'title-brand': 'Every title ends " | Pace Notes", or names the brand itself, unless the suffix would take it past 60 characters (one rule for every page: courseTitle() and docs/SEO.md)',
   'methods-anchors': 'Every /methodology#<id> link (in the exported HTML, and as a literal in app/, components/ or lib/) and every #<id> link on /methodology names an element id on /methodology',
@@ -217,10 +220,14 @@ function bannedHits(page) {
  * The redirects of vercel.json as Vercel applies them: in order, the first whose source matches wins. Sources use the
  * path-to-regexp forms this site needs (literal segments, :name, :name?, :name+ and :name*, where a starred parameter
  * also matches nothing, so /packs/:id* matches /packs); any other form throws, so an unchecked rule cannot slip in.
- * Rules with a `has` condition (the old host) are left out: they never apply on the site's own host.
+ * Rules with a `has` condition (the old host) are left out: they never apply on the site's own host. With a host
+ * (November 9, 2026), the table is the one that host answers from: the same rules in the same order, with the rules
+ * whose single `has` condition names that host. A starred parameter never matches the bare "/" (Vercel compiles
+ * sources in strict mode), so "/:path*" alone leaves a host's root unredirected: the root needs its own "/" rule.
  */
-function redirectRules(config) {
-  return (config.redirects || []).filter((rule) => !rule.has).map((rule) => {
+function redirectRules(config, host = null) {
+  const onHost = (rule) => host !== null && Array.isArray(rule.has) && rule.has.length === 1 && rule.has[0].type === 'host' && rule.has[0].value === host;
+  return (config.redirects || []).filter((rule) => !rule.has || onHost(rule)).map((rule) => {
     const names = [];
     const pattern = rule.source.split('/').slice(1).map((segment) => {
       const param = /^:([A-Za-z_]\w*)([*+?]?)$/.exec(segment);
@@ -252,19 +259,119 @@ function selfTest() {
   const problems = [];
   // The redirect table: a starred parameter matches nothing or any number of segments, the first rule wins, a host rule
   // is left out, and a pattern the table cannot read throws.
-  const fixtureRules = redirectRules({ redirects: [
+  const fixtureConfig = { redirects: [
     { source: '/:path*', has: [{ type: 'host', value: 'old.example' }], destination: 'https://splithappens.run/:path*', permanent: true },
     { source: '/packs/smyth_htw', destination: '/slowdown', permanent: true },
     { source: '/packs/:id*', destination: '/methodology#downloads', permanent: true },
     { source: '/old/:slug', destination: '/new/:slug', permanent: true },
     { source: '/temp', destination: '/elsewhere', permanent: false },
-  ] });
-  const where = (pathname) => { const r = redirectFor(fixtureRules, pathname); return r ? `${r.status} ${r.location}` : 'none'; };
+  ] };
+  const fixtureRules = redirectRules(fixtureConfig);
+  const whereIn = (rules, pathname) => { const r = redirectFor(rules, pathname); return r ? `${r.status} ${r.location}` : 'none'; };
+  const where = (pathname) => whereIn(fixtureRules, pathname);
   for (const [pathname, want] of [['/packs', '308 /methodology#downloads'], ['/packs/r01', '308 /methodology#downloads'], ['/packs/a/b', '308 /methodology#downloads'],
     ['/packs/smyth_htw', '308 /slowdown'], ['/packsx', 'none'], ['/old/x', '308 /new/x'], ['/old', 'none'], ['/old/x/y', 'none'], ['/temp', '307 /elsewhere'], ['/', 'none']]) {
     if (where(pathname) !== want) problems.push(`the redirect table sends ${pathname} to ${where(pathname)}, not ${want}`);
   }
+  // The same table on the old host (November 9, 2026): its host rule comes first and keeps the path; "/:path*" alone
+  // leaves the root unredirected, a "/" rule in front sends it to the apex, and another host's rule is left out.
+  const starOnly = redirectRules(fixtureConfig, 'old.example');
+  const withRoot = redirectRules({ redirects: [{ source: '/', has: [{ type: 'host', value: 'old.example' }], destination: 'https://splithappens.run/', permanent: true }, ...fixtureConfig.redirects] }, 'old.example');
+  const otherHost = redirectRules(fixtureConfig, 'other.example');
+  const hostFixtures = [[starOnly, 'the old host without a root rule', '/', 'none'], [starOnly, 'the old host without a root rule', '/tools', '308 https://splithappens.run/tools'],
+    [starOnly, 'the old host without a root rule', '/packs/smyth_htw', '308 https://splithappens.run/packs/smyth_htw'], [withRoot, 'the old host with a root rule', '/', '308 https://splithappens.run'],
+    [withRoot, 'the old host with a root rule', '/tools/plan', '308 https://splithappens.run/tools/plan'], [otherHost, 'another host', '/tools', 'none']];
+  for (const [rules, label, pathname, want] of hostFixtures) {
+    if (whereIn(rules, pathname) !== want) problems.push(`the redirect table on ${label} sends ${pathname} to ${whereIn(rules, pathname)}, not ${want}`);
+  }
   try { redirectRules({ redirects: [{ source: '/a/(.*)', destination: '/b' }] }); problems.push('the redirect table read a regular-expression source it cannot check'); } catch { /* expected */ }
+  // A Dataset that lists one file twice and names its topic twice is caught three ways (the address, the name, the
+  // description); the same Dataset with each file once passes; a download that is no file in the export is caught.
+  const download = (name) => ({ '@type': 'DataDownload', name, contentUrl: `${SITE_URL}/data/insights/${name}` });
+  const datasetFixtures = [
+    ['a Dataset that lists courses.json twice', 3, datasetProblems({ description: 'Files cover finish-time distributions, course pacing profiles, with weather as context, and course pacing profiles, with weather as context.', distribution: [download('finish-times.json'), download('courses.json'), download('courses.json')] }, () => true)],
+    ['a Dataset that lists each file once', 0, datasetProblems({ description: 'Files cover finish-time distributions and course pacing profiles, with weather as context. Counts are finishes, not unique runners.', distribution: [download('finish-times.json'), download('courses.json')] }, () => true)],
+    ['a Dataset whose download is not in the export', 1, datasetProblems({ distribution: [download('finish-times.json')] }, () => false)],
+  ];
+  for (const [label, want, found] of datasetFixtures) if (found.length !== want) problems.push(`${label} should give ${want} problem(s); it gave ${found.length}${found.length ? `: ${found.join('; ')}` : ''}`);
+  // The analyses hub's counts against the rows it lists: the title's number, a description's opening number or count
+  // word, and the share card's label, which must be the one the card script writes for that many analyses.
+  const cardLabelled = (eyebrow) => ({ file: '/og/sections/analyses.png', stamp: eyebrow === null ? null : { eyebrow } });
+  const hub = (over) => analysesCountProblems({ rows: 11, title: 'Marathon Pacing: 11 Analyses | Pace Notes',
+    descriptions: [['description', '11 marathon pacing questions answered.'], ['og:description', 'Eleven marathon pacing questions answered.']],
+    card: cardLabelled(sectionLabel('analyses', { analyses: 'eleven' })), ...over });
+  const hubFixtures = [
+    ['an analyses hub whose counts agree', 0, hub({})],
+    ['an analyses hub whose card keeps the typed label', 1, hub({ card: cardLabelled('Analyses · the essential ten') })],
+    ['an analyses hub whose card has no stamp', 1, hub({ card: cardLabelled(null) })],
+    ['an analyses hub whose title counts ten', 1, hub({ title: 'Marathon Pacing: 10 Analyses | Pace Notes' })],
+    ['an analyses hub whose descriptions open on other counts', 2, hub({ descriptions: [['description', '10 marathon pacing questions.'], ['og:description', 'Twelve marathon pacing questions.']] })],
+    ['an analyses hub that states no count and has no card', 0, hub({ title: 'Marathon Pacing Analyses | Pace Notes', descriptions: [['description', 'Marathon pacing questions answered.']], card: null })],
+    ['an analyses hub that lists thirteen', 0, hub({ rows: 13, title: 'Marathon Pacing: 13 Analyses | Pace Notes', descriptions: [['description', '13 marathon pacing questions.']], card: cardLabelled(sectionLabel('analyses', { analyses: '13' })) })],
+  ];
+  for (const [label, want, found] of hubFixtures) if (found.length !== want) problems.push(`${label} should give ${want} problem(s); it gave ${found.length}${found.length ? `: ${found.join('; ')}` : ''}`);
+  // An Article against its page: the headline is the H1 (a word joiner and a no-break space in the H1 are layout, not
+  // words), og:type follows the markup, each date equals its tag and dateModified is the later of the two days.
+  const storyUrl = `${SITE_URL}/stories/round-numbers`;
+  const storyNode = (over) => ({ '@type': 'Article', headline: 'Finishes crowd in just under 3:00.', url: storyUrl, mainEntityOfPage: storyUrl, image: [`${SITE_URL}/og/stories/round-numbers.png`], datePublished: '2026-10-07', dateModified: '2026-11-05', ...over });
+  const article = (over) => articleProblems({ expected: true, nodes: [storyNode({})], h1: ['Finishes crowd in just under 3:00.'], canonical: storyUrl, ogType: 'article',
+    ogImage: `${SITE_URL}/og/stories/round-numbers.png`, published: '2026-10-07', modified: '2026-11-05', lastmod: '2026-11-05', ...over });
+  const undated = { datePublished: undefined, dateModified: '2026-11-05' };
+  const articleFixtures = [
+    ['a story whose Article agrees with its page', 0, article({})],
+    ['a story whose headline is its short title', 1, article({ nodes: [storyNode({ headline: 'Round numbers' })] })],
+    ['an H1 that keeps a range together with a word joiner and a no-break space', 0, article({ nodes: [storyNode({ headline: '41–50°F starts had the fewest sustained slowdowns.' })], h1: ['41–\u206050°F starts had the\u00a0fewest sustained slowdowns.'] })],
+    ['an analysis with the day it last changed and no first-published day', 0, article({ nodes: [storyNode(undated)], published: '' })],
+    ['an Article published after its sitemap lastmod', 0, article({ nodes: [storyNode({ datePublished: '2026-11-09', dateModified: '2026-11-09' })], published: '2026-11-09', modified: '2026-11-09' })],
+    ['an Article whose dateModified is earlier than the sitemap lastmod', 1, article({ nodes: [storyNode({ dateModified: '2026-10-22' })], modified: '2026-10-22' })],
+    ['an Article whose dateModified is not its Open Graph tag', 1, article({ modified: '2026-10-22' })],
+    ['an Article and tags with no dates on a page the sitemap dates', 1, article({ nodes: [storyNode({ datePublished: undefined, dateModified: undefined })], published: '', modified: '' })],
+    ['an Article with no dates under Open Graph tags that give both', 3, article({ nodes: [storyNode({ datePublished: undefined, dateModified: undefined })] })],
+    ['an Article on a page that says og:type website', 1, article({ ogType: 'website' })],
+    ['an Article whose image is not the og:image', 1, article({ ogImage: `${SITE_URL}/og/default.png` })],
+    ['an Article whose url is another page', 2, article({ canonical: `${SITE_URL}/stories/places` })],
+    ['a page with two Articles', 1, article({ nodes: [storyNode({}), storyNode({})] })],
+    ['a story without an Article', 1, article({ nodes: [], ogType: 'website', published: '', modified: '' })],
+    ['a tool page without an Article', 0, article({ expected: false, nodes: [], ogType: 'website', published: '', modified: '' })],
+    ['a tool page that says og:type article and dates itself with no Article', 2, article({ expected: false, nodes: [], published: '' })],
+  ];
+  for (const [label, want, found] of articleFixtures) if (found.length !== want) problems.push(`${label} should give ${want} problem(s); it gave ${found.length}${found.length ? `: ${found.join('; ')}` : ''}`);
+  // A course page names elevation exactly when it prints the route's climb, text by text; the hub's counts are its
+  // rows and its rows with a climb, and a row prints a climb exactly when its page does.
+  const withElevation = [['title', 'Boston Marathon: Elevation, Pacing and Finish Times'], ['description', 'Boston Marathon elevation profile, finish times by year and how 100 finishes paced each 5 km.']];
+  const withoutElevation = [['title', 'Dubai Marathon: Pacing and Finish Times by Year'], ['description', 'Dubai Marathon finish times by year and how 100 finishes paced each 5 km.']];
+  const hubRows = (n, climbs) => Array.from({ length: n }, (_, i) => ({ path: `/courses/c${i}`, climb: i < climbs }));
+  const hubOf = (rows, title, description, prints = new Map(rows.map((row) => [row.path, row.climb]))) => courseHubProblems({ rows, texts: [['title', title], ['description', description]], prints });
+  const counted = 'Sustained slowdown, climb, finishes and race-morning weather for 27 marathon courses, with route and elevation for 24.';
+  const courseFixtures = [
+    ['a course page that prints a climb and names elevation', 0, courseElevationProblems({ texts: withElevation, printsClimb: true })],
+    ['a course page that names elevation twice and prints no climb', 2, courseElevationProblems({ texts: withElevation, printsClimb: false })],
+    ['a course page that prints no climb and names no elevation', 0, courseElevationProblems({ texts: withoutElevation, printsClimb: false })],
+    ['a course page that prints a climb only its description names', 1, courseElevationProblems({ texts: [withoutElevation[0], withElevation[1]], printsClimb: true })],
+    ['a course hub whose counts are its rows', 0, hubOf(hubRows(27, 24), 'Marathon Courses: Pacing for 27 Races, Elevation for 24', counted)],
+    ['a course hub that counts every route file', 2, hubOf(hubRows(27, 24), 'Marathon Courses: Pacing for 27 Races, Elevation for 26', counted.replace('for 24', 'for 26'))],
+    ['a course hub that promises elevation for every race while three rows print none', 1, hubOf(hubRows(27, 24), 'Marathon Courses: Elevation and Pacing for 27 Races', counted)],
+    ['a course hub whose every row prints a climb', 0, hubOf(hubRows(27, 27), 'Marathon Courses: Elevation and Pacing for 27 Races', counted.replace('for 24', 'for 27'))],
+    ['a course hub that counts two more courses than it lists', 2, hubOf(hubRows(27, 24), 'Marathon Courses: Pacing for 29 Races, Elevation for 24', counted.replace('27 marathon courses', '29 marathon courses'))],
+    ['a course hub whose row prints a climb its page does not', 1, hubOf(hubRows(27, 24), 'Marathon Courses: Pacing for 27 Races, Elevation for 24', counted, new Map(hubRows(27, 23).map((row) => [row.path, row.climb])))],
+    ['a course hub whose row has no page', 1, hubOf(hubRows(27, 24), 'Marathon Courses: Pacing for 27 Races, Elevation for 24', counted, new Map(hubRows(26, 24).map((row) => [row.path, row.climb])))],
+    ['a course hub with no rows', 1, hubOf([], 'Marathon Courses', 'Marathon courses.')],
+  ];
+  for (const [label, want, found] of courseFixtures) if (found.length !== want) problems.push(`${label} should give ${want} problem(s); it gave ${found.length}${found.length ? `: ${found.join('; ')}` : ''}`);
+  // robots.txt: every group must block the folders, because a crawler obeys only the most specific group naming it.
+  const folders = ['/data/runners/index/', '/data/runners/profiles/'];
+  const everyone = 'User-agent: *\nAllow: /\nDisallow: /data/runners/index/\nDisallow: /data/runners/profiles/\n';
+  const robotsFixtures = [
+    ['a robots.txt whose one group blocks both folders', 0, everyone],
+    ['a robots.txt whose named group repeats neither block', 2, `${everyone}\nUser-agent: GPTBot\nAllow: /\n`],
+    ['a robots.txt whose named groups repeat one block', 1, `${everyone}\nUser-agent: GPTBot\nUser-agent: ClaudeBot\nAllow: /\nDisallow: /data/runners/index/\n`],
+    ['a robots.txt whose named group repeats both blocks', 0, `${everyone}\nUser-agent: GPTBot\nDisallow: /data/runners/\n`],
+    ['a robots.txt whose * group blocks nothing', 2, 'User-agent: *\nAllow: /\n'],
+  ];
+  for (const [label, want, text] of robotsFixtures) {
+    const found = robotsUnblocked(robotsGroups(text).groups, folders);
+    if (found.length !== want) problems.push(`${label} should leave ${want} folder(s) crawlable; it left ${found.length}${found.length ? `: ${found.map(([who, folder]) => `${who} ${folder}`).join('; ')}` : ''}`);
+  }
   const yourChance = BANNED.find(([, label]) => label === '"your chance"')[0];
   const caught = ['your chance', 'your chances', 'Your Chance', 'your personal chance', 'your own personal chances', 'your best possible chance', 'what are your\nreal chances'];
   const allowed = ['your race. Chance plays no part', 'your three extra words chance', 'yourchance', 'your chancellor', 'a chance for you'];
@@ -280,7 +387,7 @@ function selfTest() {
     console.error(`verify-seo self-test failed:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`);
     process.exit(1);
   }
-  return `${caught.length + allowed.length} pattern fixtures, a fixture page and 10 redirect fixtures`;
+  return `${caught.length + allowed.length} pattern fixtures, a fixture page, ${10 + hostFixtures.length} redirect fixtures, ${datasetFixtures.length} Dataset fixtures, ${hubFixtures.length} hub-count fixtures, ${articleFixtures.length} Article fixtures, ${courseFixtures.length} course-elevation fixtures and ${robotsFixtures.length} robots fixtures`;
 }
 const SELF_TEST = selfTest();
 if (SELF_TEST_ONLY) { console.log(`verify-seo self-test passed: ${SELF_TEST}.`); process.exit(0); }
@@ -488,6 +595,7 @@ function checkJsonLd(page, where, banned) {
       for (const type of ['FAQPage', 'HowTo', 'SoftwareApplication', 'SearchAction', 'Event']) if (types.includes(type)) warn('policy', where, `${label}: ${type} markup is not used on this site by policy`);
       if (types.includes('WebSite') && page.path !== '/') warn('policy', where, `${label}: WebSite markup belongs on the home page only`);
       if (types.includes('BreadcrumbList')) checkBreadcrumbs(node.itemListElement, where, label);
+      if (types.includes('Dataset')) checkDataset(node, where, label);
       for (const [key, value] of Object.entries(node)) walk(value, trail ? `${trail}.${key}` : key);
     };
     walk(data, '');
@@ -501,6 +609,39 @@ function checkJsonLd(page, where, banned) {
       }
     }
   });
+}
+
+/**
+ * A Dataset lists each download once, each download on the site is a file in the export, and its description repeats
+ * no clause (November 9, 2026: two stories share courses.json, so /methodology listed the file twice and named its
+ * topic twice in the description).
+ */
+function datasetProblems(node, fileExists) {
+  const problems = [];
+  const downloads = node.distribution === undefined ? [] : [].concat(node.distribution);
+  for (const key of ['contentUrl', 'name']) {
+    const values = downloads.map((download) => download && download[key]).filter((value) => typeof value === 'string');
+    const repeated = [...new Set(values.filter((value, i) => values.indexOf(value) !== i))];
+    if (repeated.length) problems.push(`Dataset distribution repeats the ${key} ${repeated.join(', ')}`);
+  }
+  for (const download of downloads) {
+    const url = download && download.contentUrl;
+    if (typeof url !== 'string' || !url) { problems.push(`Dataset download ${JSON.stringify(download && download.name)} has no contentUrl`); continue; }
+    if (!url.startsWith(`${SITE_URL}/`)) continue;
+    let pathname = null;
+    try { pathname = decodeURIComponent(new URL(url).pathname); } catch { /* reported below */ }
+    if (pathname === null || !fileExists(pathname)) problems.push(`Dataset download ${url} is not a file in the export`);
+  }
+  if (typeof node.description === 'string') {
+    const clauses = node.description.split(/[.;:,](?:\s+|$)|\s+and\s+/).map((clause) => clause.trim().toLowerCase().replace(/^and\s+/, '')).filter((clause) => clause.split(/\s+/).length >= 3);
+    const repeated = [...new Set(clauses.filter((clause, i) => clauses.indexOf(clause) !== i))];
+    if (repeated.length) problems.push(`Dataset description says "${repeated[0]}" more than once`);
+  }
+  return problems;
+}
+function checkDataset(node, where, label) {
+  const inExport = (pathname) => { const file = path.join(OUT, pathname); return file.startsWith(OUT + path.sep) && fs.existsSync(file) && fs.statSync(file).isFile(); };
+  for (const problem of datasetProblems(node, inExport)) fail('json-ld', where, `${label}: ${problem}`);
 }
 
 function checkBreadcrumbs(items, where, label) {
@@ -681,9 +822,45 @@ let sitemapLocs = [];
 
 // ---------- Hub counts ----------
 
+/**
+ * Problems with the counts /analyses states, against the rows it lists: the number before "Analyses" in its title, the
+ * number or count word a description opens on, and its share card's label (the PNG's stamp), which must be the label
+ * scripts/build-og-images.cjs writes for that many analyses. A text that states no count gives no problem; a card
+ * without a stamp cannot be read, so it is one. Until November 9, 2026 the card's count was typed ("the essential ten"
+ * while the hub listed eleven) and no check read a card.
+ */
+function analysesCountProblems({ rows, title, descriptions, card }) {
+  const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+  const problems = [];
+  const inTitle = /(\d+)\s+analyses\b/i.exec(title);
+  if (inTitle && Number(inTitle[1]) !== rows) problems.push(`its title counts ${inTitle[1]} analyses but it lists ${rows}`);
+  for (const [label, text] of descriptions) {
+    const first = text.trim().split(/\s+/)[0] || '';
+    const said = /^\d+$/.test(first) ? Number(first) : WORDS.indexOf(first.toLowerCase());
+    if (said >= 0 && said !== rows) problems.push(`its ${label} opens on "${first}" but it lists ${rows}`);
+  }
+  if (card) {
+    // As countWord() in lib/nuggets/format.ts writes a count: in words to twelve, in figures from 13.
+    const want = sectionLabel('analyses', { analyses: WORDS[rows] ?? String(rows) });
+    if (!card.stamp) problems.push(`its share card ${card.file} has no stamp, so its label cannot be read (run npm run og:images)`);
+    else if (card.stamp.eyebrow !== want) problems.push(`its share card ${card.file} is labelled "${card.stamp.eyebrow}", not "${want}": it lists ${rows} (run npm run og:images)`);
+  }
+  return problems;
+}
+
 (function checkHubCounts() {
   const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
   let counted = 0;
+  const analyses = byPath.get('/analyses');
+  if (analyses) {
+    const cardFile = '/og/sections/analyses.png';
+    const exported = path.join(OUT, cardFile);
+    let card = null;
+    if (fs.existsSync(exported)) { try { card = { file: cardFile, stamp: cardStamp(exported) }; } catch (error) { fail('hub-counts', '/analyses', `its share card ${cardFile} cannot be read: ${error.message}`); } }
+    const found = analysesCountProblems({ rows: (analyses.html.match(/class="page-list-row"/g) || []).length, title: analyses.title,
+      descriptions: [['description', analyses.descriptions[0] ?? ''], ['og:description', (analyses.social['og:description'] || [])[0] ?? '']], card });
+    for (const problem of found) fail('hub-counts', '/analyses', problem);
+  }
   for (const hub of ['/stories', '/analyses', '/tools']) {
     const page = byPath.get(hub);
     if (!page) continue;
@@ -700,6 +877,141 @@ let sitemapLocs = [];
     }
   }
   if (!counted) fail('hub-counts', '/stories', 'no hub line with a count was found (the check reads <p class="contents-dek">)');
+})();
+
+// ---------- Article markup ----------
+
+/**
+ * Problems with a page's Article markup, read against the page itself: the headline is the page's one H1 (the sentence a
+ * visitor reads first), `url` and `mainEntityOfPage` are the canonical, the image is the page's og:image, og:type is
+ * "article" exactly where the page has an Article, each date equals its Open Graph tag, and dateModified is the later of
+ * datePublished and the page's sitemap lastmod, so the sitemap, the tag and the markup give one day. `expected` is true
+ * for a story or an analysis, which must carry one. Until November 9, 2026 a story's headline was its short title
+ * ("Round numbers") while its H1 stated the finding, and an analysis carried no Article and no machine-readable date.
+ */
+function articleProblems({ expected, nodes, h1, canonical, ogType, ogImage, published, modified, lastmod }) {
+  const problems = [];
+  // The H1 keeps a range on one line with a word joiner (U+2060) and no-break spaces: layout, not words.
+  const flat = (text) => String(text).replace(/[\u200B-\u200D\u2060\uFEFF]/g, '').replace(/\s+/g, ' ').trim();
+  if (!nodes.length) {
+    if (expected) problems.push('has no Article markup; every story and analysis carries one (articleLd() in lib/seo.tsx)');
+    if (ogType === 'article') problems.push('says og:type "article" but has no Article markup');
+    for (const [tag, value] of [['article:published_time', published], ['article:modified_time', modified]]) if (value) problems.push(`has ${tag} ${value} but no Article markup`);
+    return problems;
+  }
+  if (nodes.length > 1) problems.push(`has ${nodes.length} Article nodes; a page has one`);
+  const node = nodes[0];
+  if (ogType !== 'article') problems.push(`has Article markup but og:type is "${ogType || 'missing'}", not "article"`);
+  if (typeof node.headline !== 'string' || !flat(node.headline)) problems.push('its Article has no headline');
+  else if (h1.length !== 1) problems.push(`its Article headline cannot be read against ${h1.length} <h1> elements`);
+  else if (flat(node.headline) !== flat(h1[0])) problems.push(`its Article headline "${flat(node.headline)}" is not the page's H1 "${flat(h1[0])}"`);
+  for (const key of ['url', 'mainEntityOfPage']) {
+    const value = node[key] && typeof node[key] === 'object' ? node[key]['@id'] : node[key];
+    // The same page with or without a closing slash (samePage, below, is not yet defined when the self-test runs).
+    if (typeof value !== 'string' || !canonical || value.replace(/\/$/, '') !== canonical.replace(/\/$/, '')) problems.push(`its Article's ${key} is ${JSON.stringify(value)}, not the canonical ${canonical || '(none)'}`);
+  }
+  const first = [].concat(node.image ?? [])[0];
+  const image = first && typeof first === 'object' ? first.url : first;
+  if (typeof image !== 'string' || image !== ogImage) problems.push(`its Article's image is ${JSON.stringify(image)}, not the page's og:image ${ogImage || '(none)'}`);
+  for (const [key, tag, tagValue] of [['datePublished', 'article:published_time', published], ['dateModified', 'article:modified_time', modified]]) {
+    const value = node[key];
+    if (value !== undefined && (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}(T|$)/.test(value) || !Number.isFinite(Date.parse(value)))) problems.push(`its Article's ${key} ${JSON.stringify(value)} is not an ISO 8601 date`);
+    else if ((value ?? '') !== (tagValue || '')) problems.push(`its Article's ${key} is ${value ?? 'left out'} but ${tag} is ${tagValue || 'left out'}`);
+  }
+  const days = [node.datePublished, lastmod].filter((day) => typeof day === 'string' && day).sort();
+  const want = days.length ? days[days.length - 1] : undefined;
+  if (node.dateModified !== want) problems.push(`its Article's dateModified is ${node.dateModified ?? 'left out'}, not ${want ?? 'left out'}: the later of its datePublished (${node.datePublished ?? 'none'}) and the page's sitemap lastmod (${lastmod ?? 'none'})`);
+  return problems;
+}
+
+(function checkArticles() {
+  let lastmods = new Map();
+  try { lastmods = new Map(routes.sitemapEntries().map((entry) => [entry.path, entry.lastmod])); } catch { /* reported by the sitemap check */ }
+  const isArticle = (type) => typeof type === 'string' && /Article$|^BlogPosting$/.test(type);
+  let found = 0;
+  for (const page of pages) {
+    if (page.notFound) continue;
+    const nodes = [];
+    const collect = (node) => {
+      if (Array.isArray(node)) { node.forEach(collect); return; }
+      if (!node || typeof node !== 'object') return;
+      if ([].concat(node['@type'] || []).some(isArticle)) nodes.push(node);
+      Object.values(node).forEach(collect);
+    };
+    for (const raw of page.jsonLd) { try { collect(JSON.parse(raw)); } catch { /* reported by the json-ld check */ } }
+    if (nodes.length) found++;
+    const one = (key) => (page.social[key] || []).find((value) => value.trim()) || '';
+    const expected = /^\/(stories|analyses)\/[^/]+$/.test(page.path) && !expectNoindex(page);
+    for (const problem of articleProblems({ expected, nodes, h1: page.h1, canonical: page.canonicals[0], ogType: one('og:type'), ogImage: one('og:image'),
+      published: one('article:published_time'), modified: one('article:modified_time'), lastmod: lastmods.get(page.path) })) fail('article', page.path, problem);
+  }
+  if (!found) fail('article', '/stories', 'no page in the export carries Article markup: the check found nothing to read');
+})();
+
+// ---------- Course pages: elevation promised and printed ----------
+
+/**
+ * Problems with a course page's promise of elevation: each of its titles and descriptions names elevation exactly when
+ * the page prints the route's climb (a whole-route climb total, the figure scripts/verify-courses.cjs recounts). Until
+ * November 9, 2026 the promise followed the route file alone, so New York and Dubai, whose profiles read the water
+ * under a bridge and print no climb, were titled "Elevation, Pacing and Finish Times".
+ */
+function courseElevationProblems({ texts, printsClimb }) {
+  const problems = [];
+  for (const [label, text] of texts) {
+    const names = /\belevation\b/i.test(text);
+    if (names && !printsClimb) problems.push(`its ${label} names elevation but the page prints no climb for the route: "${text}"`);
+    if (!names && printsClimb) problems.push(`the page prints the route's climb but its ${label} does not name elevation: "${text}"`);
+  }
+  return problems;
+}
+
+/**
+ * Problems with the counts /courses states, against its rows: "for N races" and "for N marathon courses" count the
+ * rows, "elevation for N" the rows that print a climb, and "Elevation and Pacing for N Races" needs a climb on every
+ * row. A row prints a climb exactly when its course page does (`prints`: the page's answer by path). A text that
+ * states no count gives no problem. Until November 9, 2026 the hub counted every route file (26) while 24 rows printed
+ * a climb.
+ */
+function courseHubProblems({ rows, texts, prints }) {
+  const problems = [];
+  if (!rows.length) return ['lists no course row (the check reads <a class="course-index-row">)'];
+  const climbs = rows.filter((row) => row.climb).length;
+  for (const [label, text] of texts) {
+    const listed = /\bfor (\d+) (?:races|marathon courses)\b/i.exec(text);
+    if (listed && Number(listed[1]) !== rows.length) problems.push(`its ${label} counts ${listed[1]} courses but it lists ${rows.length}`);
+    const elevation = /\belevation for (\d+)\b/i.exec(text);
+    if (elevation && Number(elevation[1]) !== climbs) problems.push(`its ${label} counts elevation for ${elevation[1]} but ${climbs} of its ${rows.length} rows print a climb`);
+    if (/\belevation and pacing for \d+ races\b/i.test(text) && climbs !== rows.length) problems.push(`its ${label} promises elevation for every race but ${rows.length - climbs} of its ${rows.length} rows print no climb`);
+  }
+  for (const row of rows) {
+    if (!prints.has(row.path)) problems.push(`its row for ${row.path} has no indexable course page in the export`);
+    else if (prints.get(row.path) !== row.climb) problems.push(`its row for ${row.path} ${row.climb ? 'prints a climb but the page prints none' : 'prints no climb but the page prints one'}`);
+  }
+  return problems;
+}
+
+(function checkCourseElevation() {
+  const textsOf = (page) => [['title', page.title], ['description', page.descriptions[0] ?? ''],
+    ...['og:title', 'og:description', 'twitter:title', 'twitter:description'].map((key) => [key, (page.social[key] || [])[0] ?? ''])].filter(([, text]) => text.trim());
+  const prints = new Map();
+  for (const page of indexable.filter((p) => /^\/courses\/[^/]+$/.test(p.path))) {
+    const keys = [...stripScripts(page.html).matchAll(/<data\b[^>]*>/gi)].map((m) => attributes(m[0])['data-k'] ?? '');
+    prints.set(page.path, keys.some((key) => /^(?:geo|route|cg)\.gain$/.test(key)));
+    for (const problem of courseElevationProblems({ texts: textsOf(page), printsClimb: prints.get(page.path) })) fail('course-elevation', page.path, problem);
+  }
+  if (!prints.size) fail('course-elevation', '/courses', 'no course page in the export: the check found nothing to read');
+  else if (![...prints.values()].some(Boolean)) fail('course-elevation', '/courses', 'no course page prints a climb (the check reads <data data-k="route.gain"> and "geo.gain")');
+  const hub = byPath.get('/courses');
+  if (!hub) { fail('course-elevation', '/courses', 'no /courses page in the export'); return; }
+  const rows = [...stripScripts(hub.html).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)].map((m) => [attributes(`<a${m[1]}>`), m[2]])
+    .filter(([anchor]) => (anchor.class || '').split(/\s+/).includes('course-index-row'))
+    .map(([anchor, inner]) => {
+      const cell = /<span class="f-climb">([\s\S]*?)<\/span>/.exec(inner);
+      if (!cell) fail('course-elevation', '/courses', `its row for ${anchor.href} has no climb cell (<span class="f-climb">)`);
+      return { path: (anchor.href || '').split(/[?#]/)[0], climb: !!cell && /\d/.test(textOf(cell[1])) };
+    });
+  for (const problem of courseHubProblems({ rows, texts: textsOf(hub), prints })) fail('course-elevation', '/courses', problem);
 })();
 
 // ---------- Moved addresses: stubs, redirects and links ----------
@@ -764,7 +1076,12 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 (function checkRedirects() {
   let rules;
-  try { rules = redirectRules(JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'))); } catch (error) { fail('redirects', 'vercel.json', `cannot be read as a redirect table: ${error.message}`); return; }
+  let oldHostRules;
+  try {
+    const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
+    rules = redirectRules(config);
+    oldHostRules = redirectRules(config, OLD_HOST);
+  } catch (error) { fail('redirects', 'vercel.json', `cannot be read as a redirect table: ${error.message}`); return; }
   const used = new Set();
   const expect = (from, want) => {
     const got = redirectFor(rules, from);
@@ -780,6 +1097,15 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
   let listed = [];
   try { listed = routes.sitemapEntries().map((e) => e.path); } catch { /* reported by the sitemap check */ }
   for (const page of [...new Set([...listed, ...pages.filter((p) => !p.notFound && !expectNoindex(p)).map((p) => p.path), '/packsx', '/runners', '/report'])]) expect(page, null);
+  // The old host (November 9, 2026: its home page answered 200 with the home page's HTML while every other path
+  // answered 308, because "/:path*" does not match the bare "/"). The root, every page in the export and every moved
+  // address answer 308 to the same path on the production host, by the first rule that matches on that host.
+  for (const from of [...new Set(['/', ...listed, ...pages.filter((p) => !p.notFound).map((p) => p.path), ...MOVED_PAGES, ...Object.keys(REDIRECT_ONLY), '/packs/not-a-question'])]) {
+    const got = redirectFor(oldHostRules, from);
+    const want = from === '/' ? `${SITE_URL}/` : SITE_URL + from;
+    if (!got) fail('redirects', from, `is not redirected on ${OLD_HOST} (it would answer there); expected 308 to ${want}`);
+    else if (got.status !== 308 || !samePage(got.location, want)) fail('redirects', from, `answers ${got.status} to ${got.location} on ${OLD_HOST} (rule ${got.rule.source}); expected 308 to ${want}`);
+  }
   for (const rule of rules) {
     if (!used.has(rule)) warn('policy', 'vercel.json', `the redirect from ${rule.source} is never exercised by the redirect table; add its expectation or remove it`);
     if (rule.status !== 308) fail('redirects', 'vercel.json', `${rule.source} answers ${rule.status}; moved addresses answer 308`);
@@ -897,6 +1223,14 @@ function robotsAllows(rules, target) {
   }
   return !best || best.type === 'allow';
 }
+/**
+ * The groups that leave a folder crawlable, as [who, folder] pairs. Every group must block the folders, not the * group
+ * alone: a crawler obeys only the most specific group that names it, so a group added for one crawler with no Disallow
+ * of its own would open the runner-name folders to it (until November 9, 2026 only the * group was read).
+ */
+function robotsUnblocked(groups, folders) {
+  return groups.flatMap((group) => folders.filter((folder) => robotsAllows(group.rules, folder + 'example.json')).map((folder) => [`User-agent: ${group.agents.join(', ')}`, folder]));
+}
 (function checkRobots() {
   const file = path.join(OUT, 'robots.txt');
   if (!fs.existsSync(file)) { fail('robots-txt', 'robots.txt', 'missing from the export'); return; }
@@ -911,10 +1245,8 @@ function robotsAllows(rules, target) {
     if (group.rules.some((r) => r.type === 'disallow' && r.path === '/')) fail('robots-txt', 'robots.txt', `${who} disallows /`);
     const blocked = [...mustAllow].filter((target) => !robotsAllows(group.rules, target));
     if (blocked.length) fail('robots-txt', 'robots.txt', `${who} blocks ${blocked.length} path(s) that must stay crawlable, e.g. ${blocked.slice(0, 4).join(', ')}`);
-    if (group.agents.includes('*')) {
-      for (const folder of ROBOTS_DISALLOW) if (robotsAllows(group.rules, folder + 'example.json')) fail('robots-txt', 'robots.txt', `${who} does not block ${folder} (ROBOTS_DISALLOW)`);
-    }
   }
+  for (const [who, folder] of robotsUnblocked(groups, ROBOTS_DISALLOW)) fail('robots-txt', 'robots.txt', `${who} does not block ${folder} (ROBOTS_DISALLOW)`);
 })();
 
 // ---------- Report ----------

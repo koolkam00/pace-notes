@@ -78,9 +78,13 @@ async function main() {
   if (IS_PRODUCTION) {
     await check('www host: 308 to the apex, keeping path and query', () => expectRedirect('https://www.splithappens.run/tools?x=1', 'https://splithappens.run/tools?x=1'));
     await check('htw-live-study.vercel.app: 308 to the apex, keeping path and query', () => expectRedirect('https://htw-live-study.vercel.app/slowdown?a=1', 'https://splithappens.run/slowdown?a=1'));
+    // The root has its own rule in vercel.json: "/:path*" does not match the bare "/", so until that rule is deployed the
+    // old host's home page answers 200 with the home page's HTML (measured November 9, 2026) and this check fails.
+    await check('htw-live-study.vercel.app: the root answers 308 to the apex', () => expectRedirect('https://htw-live-study.vercel.app/', 'https://splithappens.run/'));
   } else {
     skip('www host: 308 to the apex, keeping path and query', 'needs the production host');
     skip('htw-live-study.vercel.app: 308 to the apex, keeping path and query', 'needs the production host');
+    skip('htw-live-study.vercel.app: the root answers 308 to the apex', 'needs the production host');
   }
   await check('/htw: 308 to /slowdown', () => expectRedirect(`${BASE}/htw`, `${BASE}/slowdown`));
   await check('/packs/smyth_htw: 308 to /slowdown', () => expectRedirect(`${BASE}/packs/smyth_htw`, `${BASE}/slowdown`));

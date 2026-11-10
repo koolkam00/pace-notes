@@ -3,7 +3,7 @@ import { unitText, distanceLabel, distanceValue, DEFAULT_UNITS } from '@/lib/uni
 import { TEN_ANALYSES, analysisBySlug } from '@/lib/ten-analyses';
 import { getWeatherAnalyses } from '@/lib/weather-data';
 import { WEATHER_TAB_TITLES } from '@/lib/weather-catalog';
-import { JsonLd, breadcrumbs, movedMetadata, pageMetadata } from '@/lib/seo';
+import { JsonLd, articleLd, breadcrumbs, movedMetadata, pageMetadata, sitemapLastmod } from '@/lib/seo';
 import { movedTo } from '@/lib/seo-routes';
 import { PAGE_NUGGET, getNugget, sentenceOf, type NuggetId } from '@/lib/nuggets';
 import { hm } from '@/lib/nuggets/format';
@@ -102,6 +102,16 @@ function seoFor(slug: string) {
   return { title: unitText(item.shortTitle, DEFAULT_UNITS) + ' | Pace Notes', description: unitText(item.description, DEFAULT_UNITS), crumb };
 }
 
+/**
+ * The page's H1, for its Article markup: the sentence of the page's nugget, which every analysis body hands
+ * AnalysisShell as its title (its fallback when the guard fails, as the H1 shows), in the default unit the served HTML
+ * holds. Null for a page with no nugget, which then carries breadcrumbs alone.
+ */
+function headlineFor(path: string): string | null {
+  const id = PAGE_NUGGET[path];
+  return id ? sentenceOf(getNugget(id), DEFAULT_UNITS).replace(/\*/g, '') : null;
+}
+
 export function generateStaticParams() { return [...TEN_ANALYSES, ...getWeatherAnalyses(), { slug: 'downhill-start' }].map(item => ({ slug: item.slug })); }
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const seo = seoFor(params.slug);
@@ -109,6 +119,9 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   const path = `/analyses/${params.slug}`;
   // The weather questions that became tabs of race-day weather are noindex stubs that forward to their tab (spec 2.9).
   if (movedTo(path)) return movedMetadata(path, seo.title, seo.description);
+  // An analysis is an article with the day it last changed (its sitemap lastmod) and no first-published day: none is
+  // recorded. The Open Graph date and the Article markup below take the same value.
+  if (headlineFor(path)) return pageMetadata({ title: seo.title, description: seo.description, path, type: 'article', modifiedTime: sitemapLastmod(path) });
   return pageMetadata({ title: seo.title, description: seo.description, path });
 }
 
@@ -124,8 +137,11 @@ export default function AnalysisPage({ params }: { params: { slug: string } }) {
   if (moved) return <MovedPage to={moved} action="Go to race-day weather">{MOVED_LINE[params.slug] ?? 'This question now lives in race-day weather.'}</MovedPage>;
   const Body = BODIES[params.slug];
   if (!seo || !Body) notFound();
+  const path = `/analyses/${params.slug}`;
+  const headline = headlineFor(path);
+  const crumbs = breadcrumbs([['Pace Notes', '/'], ['Analyses', '/analyses'], [seo.crumb ?? seo.title]]);
   return <>
-    <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Analyses', '/analyses'], [seo.crumb ?? seo.title]])} />
+    <JsonLd data={headline ? [articleLd({ headline, description: seo.description, path, modified: sitemapLastmod(path) }), crumbs] : crumbs} />
     <Body />
   </>;
 }

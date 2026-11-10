@@ -12,6 +12,7 @@ import CourseToc from '@/components/course/CourseToc';
 import CourseWeatherByYear, { WEATHER_MIN_MORNINGS } from '@/components/course/CourseWeatherByYear';
 import { readingAttrs } from '@/lib/chapters';
 import { getNugget } from '@/lib/nuggets';
+import { profileUnderWater } from '@/lib/nuggets/courses';
 import { courseDescription, coursePage, coursePages, courseTitle } from '@/lib/course-page';
 import { JsonLd, pageCrumbs, pageMetadata } from '@/lib/seo';
 import '@/app/styles/pages/course.css';
@@ -21,9 +22,14 @@ export function generateStaticParams() { return [...coursePages().keys()].map((c
 export function generateMetadata({ params }: { params: { city: string } }) {
   const page = coursePage(params.city);
   if (!page) return { title: 'Course not found | Pace Notes', robots: { index: false, follow: true } };
+  // The title and description name elevation only where the page prints the route's climb: a supplied route whose
+  // profile does not read the water under a bridge. Where it does (New York and Dubai) the hero, #elevation and "All
+  // numbers" print no climb, descent or net, so a route file alone promised what the page does not show (until
+  // November 9, 2026 both took `!!page.geometry`). verify-seo's course-elevation check reads the built pages.
+  const elevation = !!page.geometry && !profileUnderWater(page);
   return pageMetadata({
-    title: courseTitle(page.race, !!page.geometry),
-    description: courseDescription(page.race, { finishes: page.summary.finishes, ...page.counted }, !!page.geometry, page.weather.length > 0),
+    title: courseTitle(page.race, elevation),
+    description: courseDescription(page.race, { finishes: page.summary.finishes, ...page.counted }, elevation, page.weather.length > 0),
     path: `/courses/${page.slug}`,
   });
 }

@@ -3,6 +3,12 @@
   "trailingSlash": false,
   "redirects": [
     {
+      "source": "/",
+      "has": [{ "type": "host", "value": "htw-live-study.vercel.app" }],
+      "destination": "https://splithappens.run/",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [{ "type": "host", "value": "htw-live-study.vercel.app" }],
       "destination": "https://splithappens.run/:path*",
