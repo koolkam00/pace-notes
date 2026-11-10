@@ -2,6 +2,14 @@
 
 These definitions are fixed so that every run measures the same way. If a definition has to change, add a new version (`@v2`) next to the old one. Keep evaluating entries registered on `@v1` with `@v1`. Only the owner edits this file.
 
+**Versions.** `@v2` was added on November 9, 2026, for five definitions: `answered_visit_rate`, `one_page_no_action_rate`, `quick_exit_rate`, `home_continuation_rate` and `home_depth`. Two things had changed under `@v1`:
+- The home page has sent no `chapter-*` section since its redesign (pull request #65, October 16, 2026), so the `@v1` home-chapter answer signal and `home_depth@v1` can only read zero.
+- Two answers the site gives were in no `@v1` signal: a pace plan seen by a visit that chose the planner, and a race report.
+
+New ledger entries use the `@v2` name wherever one exists; `answered_visit_rate@v2` is the north star. An entry registered on a `@v1` name is still judged with the `@v1` queries (§2, §3). The home page has had its present sections only since October 21, 2026, so a window that starts earlier mixes two home pages: start a `@v2` baseline on or after that day.
+
+Measured on November 9, 2026, over October 12 to November 8, 2026 (28 days, 582 visits): `@v1` counts 118 answered visits (20.3%) and `@v2` 127 (21.8%). Nine visits fall out (three home chapters was their only signal, all before October 17) and 18 come in (a pace plan seen after choosing the planner).
+
 Data source: PostHog project 614669. Analytics fires only on `splithappens.run` and `www.splithappens.run` (and `htw-live-study.vercel.app`, which redirects). Run every query through `mcp__PostHog__exec` → `call execute-sql {"query": "..."}`. Replace `{start}` and `{end}` with UTC timestamps such as `'2026-10-01 00:00:00'`, end exclusive.
 
 **Units.**
@@ -19,13 +27,18 @@ Data source: PostHog project 614669. Analytics fires only on `splithappens.run` 
 | Metric | Definition | Direction |
 |---|---|---|
 | `answered_visit_rate@v1` (**north star**) | Share of visits with at least one answer signal (listed below this table). | Higher is better. |
+| `answered_visit_rate@v2` (**north star** since November 9, 2026) | Share of visits with at least one `@v2` answer signal (listed below this table). | Higher is better. |
 | `one_page_no_action_rate@v1` (guardrail) | Share of visits with exactly 1 `$pageview` and no answer signal. | Lower is better. Must not rise by more than 5 points with P(worse) ≥ 0.9. |
+| `one_page_no_action_rate@v2` (guardrail) | Share of visits with exactly 1 `$pageview` and no `@v2` answer signal. | Lower is better. Must not rise by more than 5 points with P(worse) ≥ 0.9. |
 | `quick_exit_rate@v1` (guardrail) | Of visits that recorded a page duration: share with 1 page view, no answer signal, and the longest recorded `$prev_pageview_duration` under 10 s. | Lower is better. |
+| `quick_exit_rate@v2` (guardrail) | Of visits that recorded a page duration: share with 1 page view, no `@v2` answer signal, and the longest recorded `$prev_pageview_duration` under 10 s. | Lower is better. |
 | `error_visit_rate@v1` (guardrail) | Share of visits with at least one `site_error`. | Must stay ≤ 1%, and must not double. |
 | `web_vitals_p75@v1` (guardrail) | p75 of `$web_vitals_LCP_value` (ms), `$web_vitals_INP_value` (ms) and `$web_vitals_CLS_value` on phones (`$device_type = 'Mobile'`), across all page views in the window. | LCP ≤ 2500, INP ≤ 200, CLS ≤ 0.1. Must not get worse by more than 10%. |
 | `no_match_search_rate@v1` (guardrail) | `runner_search_completed` with `outcome = 'no_matches'` ÷ all `runner_search_completed`. | Lower is better. |
 | `home_continuation_rate@v1` | Of visits that land on `/`: share with at least 2 page views, or at least 1 answer signal. | Higher is better. |
+| `home_continuation_rate@v2` | Of visits that land on `/`: share with at least 2 page views, or at least 1 `@v2` answer signal. | Higher is better. |
 | `home_depth@v1` | Of visits that land on `/`: the distribution of how many distinct `chapter-*` sections they saw (`section_viewed`). | Higher is better. |
+| `home_depth@v2` | Of visits that land on `/`: the distribution of how many of the three home sections `stakes`, `guide` and `cta` they saw (`section_viewed`), 0 to 3. | Higher is better. |
 | `story_completion_rate@v1` | Of story page views (`$prev_pageview_pathname` starting `/stories/` on a `$pageleave` or the next `$pageview`): share with `$prev_pageview_max_scroll_percentage` ≥ 0.9. | Higher is better. |
 | `tool_engagement_rate@v1` | Of visits that view any `/tools/<tool>` page: share with at least one `tool_used`. | Higher is better. |
 | `feedback_yes_share@v1` | `page_feedback` with `answer = 'yes'` ÷ all `page_feedback`, by `$pathname`. | Higher is better. Only report it at n ≥ 20. |
@@ -40,7 +53,69 @@ Data source: PostHog project 614669. Analytics fires only on `splithappens.run` 
 - a story read to the end: `$prev_pageview_pathname` starting with `/stories/` and `$prev_pageview_max_scroll_percentage` ≥ 0.9;
 - at least 3 distinct home chapters seen: `section_viewed` on `$pathname = '/'` with `section` starting `chapter-`.
 
+**Answer signals** (`@v2`): a visit has one if any of these happened:
+- any `@v1` signal except the home chapters: `analysis_filters_applied`, `runner_profile_opened`, `race_comparison_opened`, `data_download_clicked`, `tool_used` (any action), `page_feedback` with `answer = 'yes'`, or a story read to the end;
+- `report_exported`;
+- a runner's race report seen: `section_viewed` with `section = 'report'` on `$pathname = '/runners'`;
+- a pace plan seen after choosing the planner: `section_viewed` with `section = 'result'` on `$pathname = '/tools/plan'`, in a visit that did not land on `/tools/plan`. A landing there shows an example plan before the visitor has done anything, so in that visit only `tool_used` counts;
+- a race report seen after making it: `section_viewed` with `section = 'report'` on `$pathname = '/report'`, in a visit that did not land on `/report`. A link to a report opens it at once, so a landing there does not count.
+
 ## 2. Scorecard query (all visit-level metrics in one pass)
+
+**`@v2`** (every run reads this one):
+
+```sql
+WITH v AS (
+  SELECT
+    `$session_id` AS sid,
+    countIf(event = '$pageview') AS pageviews,
+    argMinIf(toString(properties.$pathname), timestamp, event = '$pageview') AS landing,
+    argMinIf(toString(properties.$device_type), timestamp, event = '$pageview') AS device,
+    countIf(event IN ('analysis_filters_applied', 'runner_profile_opened', 'race_comparison_opened', 'data_download_clicked', 'tool_used', 'report_exported')
+      OR (event = 'page_feedback' AND properties.answer = 'yes')
+      OR (event = 'section_viewed' AND properties.$pathname = '/runners' AND properties.section = 'report')
+      OR (event IN ('$pageview', '$pageleave')
+          AND startsWith(toString(properties.$prev_pageview_pathname), '/stories/')
+          AND toFloat(properties.$prev_pageview_max_scroll_percentage) >= 0.9)) AS action_events,
+    countIf(event = 'section_viewed' AND properties.$pathname = '/tools/plan' AND properties.section = 'result') AS plan_results,
+    countIf(event = 'section_viewed' AND properties.$pathname = '/report' AND properties.section = 'report') AS report_results,
+    uniqIf(toString(properties.section), event = 'section_viewed' AND properties.$pathname = '/' AND properties.section IN ('stakes', 'guide', 'cta')) AS home_sections,
+    maxIf(toFloat(properties.$prev_pageview_duration), event IN ('$pageview', '$pageleave')) AS max_duration,
+    countIf(event IN ('$pageview', '$pageleave') AND properties.$prev_pageview_duration IS NOT NULL) AS duration_events,
+    countIf(event = 'site_error') AS errors
+  FROM events
+  WHERE timestamp >= toDateTime({start}) AND timestamp < toDateTime({end})
+    AND notEmpty(toString(`$session_id`))
+  GROUP BY sid
+  HAVING pageviews > 0
+)
+SELECT
+  device,
+  count() AS visits,
+  countIf(action_events > 0 OR (plan_results > 0 AND landing != '/tools/plan') OR (report_results > 0 AND landing != '/report')) AS answered,
+  round(answered / visits, 4) AS answered_visit_rate,
+  countIf(pageviews = 1 AND action_events = 0) AS one_page_no_action,
+  round(one_page_no_action / visits, 4) AS one_page_no_action_rate,
+  countIf(duration_events > 0) AS visits_with_duration,
+  countIf(duration_events > 0 AND pageviews = 1 AND action_events = 0 AND max_duration < 10) AS quick_exits,
+  round(quick_exits / nullIf(visits_with_duration, 0), 4) AS quick_exit_rate,
+  countIf(errors > 0) AS error_visits,
+  round(error_visits / visits, 4) AS error_visit_rate,
+  countIf(landing = '/') AS home_landings,
+  countIf(landing = '/' AND (pageviews >= 2 OR action_events > 0)) AS home_continued,
+  round(home_continued / nullIf(home_landings, 0), 4) AS home_continuation_rate,
+  countIf(landing = '/' AND home_sections = 0) AS home_depth_0,
+  countIf(landing = '/' AND home_sections = 1) AS home_depth_1,
+  countIf(landing = '/' AND home_sections = 2) AS home_depth_2,
+  countIf(landing = '/' AND home_sections = 3) AS home_depth_3
+FROM v
+GROUP BY ROLLUP(device)
+ORDER BY device
+```
+
+A visit with one page view landed on its only page, so neither landing-dependent signal can apply to it: `pageviews = 1 AND action_events = 0` is the whole one-page-no-action test. `home_depth_0` to `home_depth_3` are `home_depth@v2`: the visits that landed on `/` and saw none, one, two or all three of `stakes`, `guide` and `cta`.
+
+**`@v1`** (kept for entries registered on `@v1` names; its home-chapter terms have read zero since October 17, 2026):
 
 ```sql
 WITH v AS (
@@ -84,7 +159,7 @@ GROUP BY ROLLUP(device)
 ORDER BY device
 ```
 
-The `ROLLUP` row whose `device` is null is the all-device total.
+In both queries the `ROLLUP` row whose `device` is null is the all-device total.
 
 **Web vitals p75** (phones):
 ```sql
@@ -110,7 +185,7 @@ GROUP BY event, category, outcome, results, answer, reason
 ORDER BY event, n DESC
 ```
 
-**Home depth** (landings on `/`):
+**Home depth, `@v1`** (landings on `/`; `home_depth@v2` comes from the `@v2` scorecard above):
 ```sql
 WITH v AS (
   SELECT `$session_id` AS sid,
@@ -173,6 +248,34 @@ For an experiment `<key>` whose `pages` are listed in `lib/experiments.ts`:
 
 Count from the experiment's start, its `started` date or its ledger entry's `shipped_on` if that is later, for at most `max_days` days: `{end}` is the start + `max_days`, however late it is judged. The pull request that registers the experiment sets its `started`, `variants` and `weights`, and they never change while it runs (§4).
 
+**`@v2`** (an experiment registered on `@v2` names):
+
+```sql
+WITH v AS (
+  SELECT `$session_id` AS sid,
+    argMinIf(toString(properties['$feature/<key>']), timestamp, event = '$pageview' AND properties.$pathname IN (<pages>) AND properties['$feature/<key>'] IS NOT NULL) AS variant,
+    argMinIf(toString(properties.$pathname), timestamp, event = '$pageview') AS landing,
+    countIf(event = '$pageview') AS pageviews,
+    countIf(event IN ('analysis_filters_applied', 'runner_profile_opened', 'race_comparison_opened', 'data_download_clicked', 'tool_used', 'report_exported')
+      OR (event = 'page_feedback' AND properties.answer = 'yes')
+      OR (event = 'section_viewed' AND properties.$pathname = '/runners' AND properties.section = 'report')
+      OR (event IN ('$pageview', '$pageleave') AND startsWith(toString(properties.$prev_pageview_pathname), '/stories/') AND toFloat(properties.$prev_pageview_max_scroll_percentage) >= 0.9)) AS action_events,
+    countIf(event = 'section_viewed' AND properties.$pathname = '/tools/plan' AND properties.section = 'result') AS plan_results,
+    countIf(event = 'section_viewed' AND properties.$pathname = '/report' AND properties.section = 'report') AS report_results,
+    countIf(event = 'site_error') AS errors
+  FROM events
+  WHERE timestamp >= toDateTime({start}) AND timestamp < toDateTime({end}) AND notEmpty(toString(`$session_id`))
+  GROUP BY sid
+)
+SELECT variant, count() AS visits,
+  countIf(action_events > 0 OR (plan_results > 0 AND landing != '/tools/plan') OR (report_results > 0 AND landing != '/report')) AS answered,
+  countIf(pageviews = 1 AND action_events = 0) AS one_page_no_action,
+  countIf(errors > 0) AS error_visits
+FROM v WHERE notEmpty(variant) GROUP BY variant ORDER BY variant
+```
+
+**`@v1`** (an experiment registered on `@v1` names):
+
 ```sql
 WITH v AS (
   SELECT `$session_id` AS sid,
@@ -205,10 +308,10 @@ Then run `npm run autopilot:stats -- ab --a <answered>/<visits of control> --b <
 
 ## 4. Ledger line schema (`autopilot/ledger.jsonl`, one JSON object per line)
 
-Each entry is a single line; the example below is one line too (scroll sideways):
+Each entry is a single line. The line below is an example, not an entry in the ledger; it is one line too (scroll sideways):
 
 ```json
-{"id":"2026-10-19-home-doors","date":"2026-10-19","kind":"change","title":"Three doors under the home hero","pages":["/"],"hypothesis":"Phone visitors who land on the home page find a personal path sooner when the first screen offers one.","primary_metric":"answered_visit_rate@v1","guardrails":["one_page_no_action_rate@v1","error_visit_rate@v1","web_vitals_p75@v1"],"baseline":{"window":"2026-09-21..2026-10-18","answered":120,"visits":548},"min_sample":150,"window_days":14,"max_days":null,"decision_rule":"Keep if not worse (P(worse) < 0.9) and guardrails hold; revert if P(worse) >= 0.9 or a guardrail breaks.","evaluate_after":"2026-11-03","status":"proposed","pr":null,"shipped_on":null,"verdict":null,"result":null}
+{"id":"2026-11-09-desktop-first-screen","date":"2026-11-09","kind":"change","title":"A personal path on the desktop first screen","pages":["/"],"hypothesis":"Desktop visitors who land on the home page find a personal path sooner when the first screen offers one.","primary_metric":"answered_visit_rate@v2","guardrails":["one_page_no_action_rate@v2","error_visit_rate@v1","web_vitals_p75@v1"],"baseline":{"window":"2026-10-21..2026-11-08","answered":85,"visits":411},"min_sample":150,"window_days":14,"max_days":null,"decision_rule":"Keep if not worse (P(worse) < 0.9) and guardrails hold; revert if P(worse) >= 0.9 or a guardrail breaks.","evaluate_after":"2026-11-24","status":"proposed","pr":null,"shipped_on":null,"verdict":null,"result":null}
 ```
 
 **Fields, by kind.** Every field a later step reads is registered here, so none can be missing, blank, out of range or at odds with another field when the entry is written. The guard checks every new entry, every edited line and every repaired line against this table (`LEDGER_SCHEMA` in `scripts/autopilot-guard.cjs`, which has the same rules). "Date + N" means N days after the entry's `date`. "Today" is the UTC day of the check: the head commit's, or the clock's if that is earlier, since anyone can set a commit's date.
@@ -219,7 +322,7 @@ Each entry is a single line; the example below is one line too (scroll sideways)
 | `kind` | a before/after change, judged later | an A/B experiment, judged later | a fix, a revert, or the conclusion of an experiment: not judged later |
 | `date` | the UTC day the entry is written (`date -u +%F`): within 2 days of the branch date, and not after today | same | same |
 | `title`, `hypothesis`, `decision_rule` | text, never blank | same | same |
-| `primary_metric` | one name from the §1 table, exactly, version included (`answered_visit_rate@v1`) | same | same |
+| `primary_metric` | one name from the §1 table, exactly, version included (`answered_visit_rate@v2`) | same | same |
 | `guardrails` | a list of §1 names, at least one | at least one | may be empty |
 | `baseline` | measured before the entry: `window`, `"YYYY-MM-DD..YYYY-MM-DD"`, 7 to 56 whole UTC days counting both ends, ending on or before `date`; `visits` (or `n`; if both, the same), the visits in that window, a positive whole number; any other numbers non-negative and finite. Text, and lists and objects of numbers and text, are fine; leave out a number you do not have | measured, as for a change | any object, such as `{"note": "…"}` |
 | `min_sample` | the fewest visits each before/after window needs, a positive whole number | the fewest exposed visits each arm needs, a positive whole number | null or left out (or a positive whole number) |

@@ -697,6 +697,19 @@ const homeSections = [...withoutComments('app/(home)/page.tsx').replace(/<HomeDo
 assert.deepEqual(homeSections, ['hero', 'paths', 'stakes', 'guide', 'cta'], 'Home sections: hero, the three ways to start, the guess, the chapters and the closing call');
 assert.ok(!homeSections.some(id => id.startsWith('chapter-')), 'The home page has no chapter-* sections');
 assert.match(homeSource, /<HomeDoors\b/, 'The home page renders its three ways to start');
+// autopilot/metrics.md @v2 (November 9, 2026) reads section ids by name. Renaming one would make a metric read zero
+// with no check failing, which is what happened to home_depth@v1 after October 16, 2026: so every id the @v2 queries
+// name must be an id its page marks, and the queries must still name the answer sections these pages mark.
+const metricsText = read('autopilot/metrics.md');
+const depthIds = (metricsText.match(/properties\.\$pathname = '\/' AND properties\.section IN \(([^)]*)\)/) || [])[1];
+assert.ok(depthIds, 'autopilot/metrics.md: the @v2 scorecard names the home sections it counts');
+const depthSections = [...depthIds.matchAll(/'([^']+)'/g)].map(m => m[1]);
+assert.equal(depthSections.length, 3, 'home_depth@v2 counts three home sections, 0 to 3');
+for (const id of depthSections) assert.ok(homeSections.includes(id), `home_depth@v2 counts "${id}", which the home page must mark`);
+for (const [file, id, pathname] of [['components/tools/RacePlan.tsx', 'result', '/tools/plan'], ['components/RunnerContext.tsx', 'report', '/runners'], ['components/report/ReportView.tsx', 'report', '/report']]) {
+  assert.ok(withoutComments(file).includes(`data-track-section="${id}"`), `${file} marks the "${id}" section that an @v2 answer signal reads`);
+  assert.ok(metricsText.includes(`properties.$pathname = '${pathname}' AND properties.section = '${id}'`), `autopilot/metrics.md reads "${id}" on ${pathname}`);
+}
 const layoutSource = read('app/layout.tsx');
 assert.match(layoutSource, /<head>[^\n]*<ExperimentHead \/>[^\n]*<\/head>/, 'The experiments CSS and script are in <head>, before the page paints');
 // A classic inline script: the parser runs it before building the body, so before the first paint. An async or module
