@@ -28,7 +28,7 @@ export type ProfileLayer = {
   series: ProfileSeries[];
   /**
    * A p10–p90 (or p25–p75) band; `edge` draws its two edges as 1.5 px --mark-quiet lines. `faint` marks the points
-   * whose band rests on few finishes: the stretch between two of them is drawn lighter (--wash-thin), the stretch into
+   * whose band rests on few finishes: the stretch between two of them is drawn lighter (--band-wash-thin), the stretch into
    * the first fades to it, so a thin end's noisy edge never draws the eye from the line the sentence is about (the
    * readout keeps its exact values). A chart that draws one keys it (KeyItem mark 'wash-thin').
    */
@@ -113,8 +113,8 @@ export default function LineProfile({ x: xs, xDomain, yDomain, xTicks, yTicks = 
       }
       return runs;
     };
-    // The two strengths are the chart's --wash and --wash-thin (chart-frame.css), so a fade meets both exactly.
-    const STRENGTH = { full: 'var(--wash, .1)', faint: 'var(--wash-thin, .045)' };
+    // The two strengths are the chart's --band-wash and --band-wash-thin (chart-frame.css), so a fade meets both exactly.
+    const STRENGTH = { full: 'var(--band-wash, .1)', faint: 'var(--band-wash-thin, .045)' };
     const bandPath = (b: NonNullable<ProfileLayer['band']>, r: Run) => {
       const d = areaPath(pts(b.hi.slice(r.from, r.to + 1), r.from), pts(b.lo.slice(r.from, r.to + 1), r.from));
       if (r.tone === 'full' || r.tone === 'faint') return <path key={`band-${r.from}`} className={r.tone === 'faint' ? 'a-band is-faint' : 'a-band'} d={d} />;

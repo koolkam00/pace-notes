@@ -310,9 +310,9 @@
 .story-beat > .half-after-chart { max-width: var(--measure-figure); }
 /* The profile's 8-in-10 wash a step stronger than the generic band, and its thin stretch (windows of under 300 pairs)
    at 1.15:1 against the page in light and 1.2:1 in dark, so it stays visible; the key's swatches use the same values. */
-.half-after-chart { --wash: .12; --wash-thin: .07; }
-[data-theme="dark"] .half-after-chart { --wash: .15; --wash-thin: .085; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .half-after-chart { --wash: .15; --wash-thin: .085; } }
+.half-after-chart { --band-wash: .12; --band-wash-thin: .07; }
+[data-theme="dark"] .half-after-chart { --band-wash: .15; --band-wash-thin: .085; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .half-after-chart { --band-wash: .15; --band-wash-thin: .085; } }
 .half-pace-gap { margin: var(--s-4) 0 0; max-width: 34rem; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
 .half-pace-gap b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
 .half-not { margin: var(--s-3) 0 0; font-size: var(--t-small); font-weight: 600; line-height: 1.5; color: var(--ink); }
