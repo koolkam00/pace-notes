@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Post-deploy checks on the live site (plan G2, docs/SEO.md): host redirects, legacy redirects, robots.txt,
- * the sitemap (every <loc> must answer 200 without a redirect), X-Robots-Tag headers, the trailing-slash
+ * the sitemap (every <loc> must answer 200 without a redirect), X-Robots-Tag headers, the site's security headers, the trailing-slash
  * redirect and the live.json file the pacing-analysis workflow reads. Prints PASS or FAIL per check and
  * exits 1 if any check fails. Run it by hand right after each production deploy:
  *
@@ -152,6 +152,23 @@ async function main() {
     expect(/\bnoindex\b/i.test(tag) && /\bnofollow\b/i.test(tag), `X-Robots-Tag is "${tag || 'absent'}"`);
     return `X-Robots-Tag: ${tag}`;
   });
+
+  // November 11, 2026 (architecture review P1-2): every address carries the site's headers (scripts/lib/headers.cjs, as
+  // vercel.json sets them; verify-seo checks the file). Provable only once a deploy carries them.
+  const { SITE_HEADERS } = require('./lib/headers.cjs');
+  for (const name of Object.keys(SITE_HEADERS)) {
+    await check(`${name}: ${SITE_HEADERS[name]} on a page and a data file`, async () => {
+      const seen = [];
+      for (const where of ['/', '/data/live.json']) {
+        const response = await request(`${BASE}${where}`, 'HEAD');
+        expect(response.status === 200, `${where} answered ${response.status}`);
+        const value = header(response, name);
+        expect(value === SITE_HEADERS[name], `${where} sends ${name}: "${value || 'absent'}"; expected "${SITE_HEADERS[name]}"`);
+        seen.push(where);
+      }
+      return `${seen.join(' and ')}: ${SITE_HEADERS[name]}`;
+    });
+  }
 
   await check('/tools/: 308 to /tools in one hop', async () => {
     const detail = await expectRedirect(`${BASE}/tools/`, `${BASE}/tools`);

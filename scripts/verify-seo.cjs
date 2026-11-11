@@ -80,6 +80,7 @@ const CHECKS = {
   'course-elevation': 'A course page names elevation in its title, description and their og/twitter copies exactly when it prints the route\'s climb; the title and descriptions of /courses count the rows it lists and the rows that print a climb, and a row prints a climb exactly when its course page does',
   'home-form': "The home page's course list (#home-plan-course) has the planner's options (#plan-course), values and names in the same order",
   'title-brand': 'Every title ends " | Pace Notes", or names the brand itself, unless the suffix would take it past 60 characters (one rule for every page: courseTitle() and docs/SEO.md)',
+  headers: 'vercel.json sends every address Referrer-Policy strict-origin, X-Content-Type-Options nosniff and the Permissions-Policy of scripts/lib/headers.cjs, which turns off only features no file in app/, components/ or lib/ uses and never clipboard-write or web-share',
   'methods-anchors': 'Every /methodology#<id> link (in the exported HTML, and as a literal in app/, components/ or lib/) and every #<id> link on /methodology names an element id on /methodology',
 };
 const WARNINGS = {
@@ -1113,6 +1114,29 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
       const target = rule.destination.split('#')[0];
       if (!/:/.test(target) && (!byPath.has(target) || expectNoindex(byPath.get(target)))) fail('redirects', 'vercel.json', `${rule.source} goes to ${target}, which is not a built, indexable page`);
     }
+  }
+})();
+
+// November 11, 2026 (architecture review P1-2): the site's response headers, as committed (verify-seo-live reads them
+// from the deployed site).
+(function checkHeaders() {
+  const { DISABLED_FEATURES, USED_FEATURES, SITE_HEADERS } = require('./lib/headers.cjs');
+  let rule;
+  try {
+    rule = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8')).headers.find((r) => r.source === '/(.*)' && !r.has);
+  } catch (error) { fail('headers', 'vercel.json', `cannot be read: ${error.message}`); return; }
+  if (!rule) { fail('headers', 'vercel.json', 'has no header rule for every address ("/(.*)")'); return; }
+  const sent = new Map(rule.headers.map((h) => [h.key.toLowerCase(), h.value]));
+  for (const [name, value] of Object.entries(SITE_HEADERS)) {
+    if (sent.get(name) !== value) fail('headers', 'vercel.json', `"/(.*)" sends ${name}: ${sent.get(name) ?? '(nothing)'}; expected ${value}`);
+  }
+  const policy = (sent.get('permissions-policy') ?? '').split(',').map((d) => d.trim()).filter(Boolean);
+  for (const used of USED_FEATURES) if (policy.some((d) => d.startsWith(`${used}=`))) fail('headers', 'vercel.json', `the Permissions-Policy names ${used}, which the site uses; leave it at its default`);
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk(path.join(dir, e.name)) : /\.(?:ts|tsx|js|mjs)$/.test(e.name) ? [path.join(dir, e.name)] : []);
+  const sources = ['app', 'components', 'lib'].flatMap((d) => walk(path.join(ROOT, d))).map((file) => [path.relative(ROOT, file), fs.readFileSync(file, 'utf8')]);
+  for (const [feature, uses] of Object.entries(DISABLED_FEATURES)) {
+    const user = sources.find(([, text]) => uses.test(text));
+    if (user) fail('headers', user[0], `uses ${feature} (${uses}), which the Permissions-Policy turns off`);
   }
 })();
 

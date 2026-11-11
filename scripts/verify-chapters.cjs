@@ -443,18 +443,21 @@ test('ChapterRail marks the current page', () => {
 });
 test('ChapterList: compact without readings or ids, expanded with ids and every page, full with readings', () => {
   const readingOf = (id) => ({ value: '47', unit: '%', sr: id, key: 'the key' });
-  const compact = render('components/ui/ChapterList.tsx', { variant: 'compact', readingOf });
+  // November 11, 2026: a page passes its readings with the component that draws their figure (ReadingFigure, the units
+  // pair), so the menu's compact list in the root layout imports no units island.
+  const Figure = require(path.join(root, 'components/ui/ReadingFigure.tsx')).default;
+  const compact = render('components/ui/ChapterList.tsx', { variant: 'compact', readingOf, Figure });
   assert.equal((compact.match(/class="chapter-row"/g) || []).length, 11);
   assert.doesNotMatch(compact, /chapter-reading|id="chapter-/);
-  const expanded = render('components/ui/ChapterList.tsx', { variant: 'expanded', readingOf });
+  const expanded = render('components/ui/ChapterList.tsx', { variant: 'expanded', readingOf, Figure });
   assert.deepEqual([...expanded.matchAll(/<li class="chapter-row" id="(chapter-\d\d)"/g)].map((m) => m[1]), C.CHAPTERS.map((c) => c.id));
   // Every chain page, and each chapter's hub (Every course) after its chain.
   assert.equal((expanded.match(/class="chapter-page-link"/g) || []).length, live.length + C.CHAPTERS.filter((c) => c.hub).length);
-  const full = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf });
+  const full = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf, Figure });
   assert.equal((full.match(/class="chapter-reading"/g) || []).length, 11);
   // No reading, no figure slot: a chapter whose lead had none would show its title alone (verify-nuggets requires
   // every chapter lead to carry a number, so none does).
-  const none = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf: () => null });
+  const none = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf: () => null, Figure });
   assert.doesNotMatch(none, /chapter-reading|big-number/);
 });
 test('ChapterCrumbs', () => {

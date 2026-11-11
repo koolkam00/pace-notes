@@ -22,6 +22,7 @@ import { joinRanges } from '@/components/ui/keepTogether';
 import { readSplits } from '@/lib/tools/split-reading';
 import { loadRaceInsights, runnerAgeBand, runnerGender, type ComparisonKey, type PeerComparison, type RaceInsights, type RunnerTerrain, type RunnerWeather } from '@/lib/runner-context';
 import type { RaceReportProps } from './report/RaceReport';
+import { loadErrorText } from '@/lib/error-text';
 
 const count = (value: number) => value.toLocaleString('en-US');
 const decimal = (value: number, digits = 1) => value.toLocaleString('en-US', { maximumFractionDigits: digits });
@@ -288,7 +289,7 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   }, [reportFor, reportPressed]);
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setFailure(''); setContexts({});
-    loadRaceInsights(races, manifest, controller.signal).then(data => { if (!controller.signal.aborted) { setContexts(data); setLoading(false); } }).catch(error => { if (!controller.signal.aborted) { setFailure(error instanceof Error ? error.message : 'Race context could not load. Try again.'); setLoading(false); } });
+    loadRaceInsights(races, manifest, controller.signal).then(data => { if (!controller.signal.aborted) { setContexts(data); setLoading(false); } }).catch(error => { if (!controller.signal.aborted) { setFailure(loadErrorText(error, 'Race context could not load. Try again.')); setLoading(false); } });
     return () => controller.abort();
   }, [races, manifest, retry]);
   const focus = valid.find(row => row.race.id === focusId) || valid[valid.length - 1];

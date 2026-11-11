@@ -20,6 +20,7 @@ import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
 import { sendHero, showAnswerCard } from './analysis/hero-event';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
+import { loadErrorText } from '@/lib/error-text';
 
 const one = (value: number) => Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 1 });
 /** A % pace or finish change in words: "2.1% faster", "3.4% slower", "about the same". */
@@ -234,7 +235,7 @@ function useGuideExplorer({ definition, summary, initialAnswer, start = EXAMPLE_
     setLoading(true); setError('');
     loadAnalysisAggregate<CityData>(city.file, city.city, summary.as_of, controller.signal)
       .then(value => { if (!controller.signal.aborted) { setData(value); setLoading(false); } })
-      .catch(reason => { if (!controller.signal.aborted) { setError(reason.message); setLoading(false); } });
+      .catch(reason => { if (!controller.signal.aborted) { setError(loadErrorText(reason, 'The comparison could not load. Check your connection and try again.')); setLoading(false); } });
     return () => controller.abort();
   }, [city.file, city.city, summary.as_of, profile, retry, usesCityData, start]);
   const answer = useMemo(() => {

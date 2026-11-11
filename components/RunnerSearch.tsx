@@ -12,6 +12,7 @@ import type { ReportData } from '@/lib/report';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 import { pacingPatternHref } from '@/lib/tools/links';
+import { loadErrorText } from '@/lib/error-text';
 import {
   displayName, loadRunnerManifest, loadRunnerProfile, normalizeRunnerName, runnerDuration, runnerProgression, runnerSearchPage, searchRunnerNames, PRELIMINARY_LINK, RUNNER_PAGE_SIZE,
   type RunnerManifest, type RunnerMatch, type RunnerProfile, type RunnerRace,
@@ -28,7 +29,7 @@ const raceLabel = (race: RunnerRace, manifest: RunnerManifest) => {
 };
 /** A record's finish as recorded, in the page's one clock: a recorded "03:44:00" loses its leading zero, as "3:44:00". */
 const finishLabel = (race: RunnerRace) => (race.raw_times?.[8] || runnerDuration(race.times[8])).replace(/^0(\d:)/, '$1');
-const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'The records could not load. Please try again.';
+const errorMessage = (error: unknown) => loadErrorText(error, 'The records could not load. Please try again.');
 /** How many matches a search found, in the bands analytics allows: never the names or the exact count. */
 const resultBucket = (n: number) => n === 0 ? '0' : n === 1 ? '1' : n <= 5 ? '2-5' : '6+';
 const MAX_QUERY = 120;

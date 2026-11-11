@@ -15,6 +15,7 @@ import Ruler from './viz/Ruler';
 import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
+import { loadErrorText } from '@/lib/error-text';
 
 const cityName = (city: string) => city === 'New York' ? 'New York City' : city;
 const MATS = [20, 30, 35];
@@ -75,7 +76,7 @@ export default function CheckpointExplorer({ summary, profile: start = EXAMPLE_P
     setLoading(true); setError('');
     loadAnalysisAggregate<CheckpointData>(city.checkpoint_file, city.city, summary.as_of, controller.signal)
       .then(value => { if (!controller.signal.aborted) { setData(value); setLoading(false); } })
-      .catch(reason => { if (!controller.signal.aborted) { setError(reason.message); setLoading(false); } });
+      .catch(reason => { if (!controller.signal.aborted) { setError(loadErrorText(reason, 'The comparison could not load. Check your connection and try again.')); setLoading(false); } });
     return () => controller.abort();
   }, [isInitial, city.city, city.checkpoint_file, summary.as_of, retry]);
   const result: Result | null = isInitial && initial ? { row: initial.row, widened: '', trendWidened: false }

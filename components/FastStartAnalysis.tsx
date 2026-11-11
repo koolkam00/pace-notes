@@ -16,6 +16,7 @@ import LineProfile from './viz/LineProfile';
 import { AnswerAbove, ExploreSubmit } from './analysis/ExploreSubmit';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
+import { loadErrorText } from '@/lib/error-text';
 
 /** Shares in whole percent, as the page's answer and charts show them. */
 const percent = (n: number) => `${Math.round(n)}%`;
@@ -116,7 +117,7 @@ export default function FastStartAnalysis({ starts, defaultOpening = 'fast10', t
     if (initialRow || data) { setLoading(false); setError(''); return; }
     const controller = new AbortController(); setLoading(true); setError('');
     loadFastStartEvidence(start, controller.signal).then(value => { if (!controller.signal.aborted) { setDatasets(previous => ({ ...previous, [start.mode]: value })); setLoading(false); } })
-      .catch(reason => { if (!controller.signal.aborted) { setError(reason instanceof Error ? reason.message : 'The comparison could not load.'); setLoading(false); } });
+      .catch(reason => { if (!controller.signal.aborted) { setError(loadErrorText(reason, 'The comparison could not load.')); setLoading(false); } });
     return () => controller.abort();
   }, [initialRow, data, start, retry]);
   const row = useMemo(() => initialRow || (data ? fastStartRow(data.rows, selection) : undefined), [initialRow, data, selection]);

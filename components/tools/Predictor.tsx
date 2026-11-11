@@ -20,6 +20,7 @@ import { outOfRangeSentence } from '@/lib/tools/half-to-full';
 import { chunkLoadFailed, reloadAfterChunkError } from '@/lib/chunk-reload';
 import { trackFailure } from '@/lib/analytics';
 import { FinishStrip, fittingTicks, fmtShort, fmtTime, niceStep, qIndex } from './FinishStrip';
+import { loadErrorText } from '@/lib/error-text';
 
 /**
  * The "After a half" panel (records linked by name), loaded only once a half input inside its published range exists,
@@ -526,7 +527,7 @@ function useProjector(sha: string | null, enabled: boolean) {
         ({ index, shard }) => setState({ index, shard, error: null }),
         (e: unknown) => {
           started.current = false;
-          const reason = e instanceof Error && e.message ? e.message.trim() : 'This data could not be loaded.';
+          const reason = loadErrorText(e, 'This data could not be loaded.');
           setState({ index: null, shard: null, error: `${/[.!?]$/.test(reason) ? reason : `${reason}.`} The published estimates above are unaffected.` });
         },
       );

@@ -16,6 +16,7 @@ import { formatClock, formatDuration, formatHM, parseClock, parseDuration } from
 import { WEATHER_EXAMPLE, WEATHER_REFERENCE, acsmFlag, cToF, dewPointBand, ely, fToC, hadley, mantzios, relativeHumidity, wetBulb, type Flag, type PercentRange } from '@/lib/tools/weather';
 import { SECTION_BOUNDS, checkpointLabel, count, mss } from '@/lib/viz/format';
 import { sectionLabel as sectionName, type UnitSystem } from '@/lib/units';
+import { loadErrorText } from '@/lib/error-text';
 
 /* ------------------------------------------------------------------ */
 /* Constants and pure helpers                                          */
@@ -151,7 +152,7 @@ function useWeatherData(sha: string | null) {
     setState((s) => (s.error ? { data: null, error: null } : s));
     loadInsight<WeatherMatchData>(DATA_PATH, sha).then(
       (data) => { if (live) setState({ data, error: null }); },
-      (e: unknown) => { if (live) setState({ data: null, error: e instanceof Error ? e.message : 'This data could not be loaded. Check the connection and try again.' }); },
+      (e: unknown) => { if (live) setState({ data: null, error: loadErrorText(e, 'This data could not be loaded. Check the connection and try again.') }); },
     );
     return () => { live = false; };
   }, [sha, attempt]);

@@ -119,9 +119,14 @@ async function loadShard(path: string, manifest: RunnerManifest, signal: AbortSi
 export async function searchRunnerNames(query: string, manifest: RunnerManifest, signal: AbortSignal): Promise<RunnerMatch[]> {
   const tokens = normalizeRunnerName(query).split(' ').filter(Boolean);
   if (!tokens.length) return [];
+  // The builder files a name under the first three characters of each of its words, and a match needs every typed
+  // token to start a word (a token under three characters must equal one), so every match sits in every token's shard.
+  // Load the smallest listed one (November 11, 2026: "mar" alone is 3.4 MB); with none listed, the longest token's.
   const longest = tokens.reduce((best, token) => Array.from(token).length > Array.from(best).length ? token : best);
-  const prefix = Array.from(longest).slice(0, 3).join('');
-  const path = 'index/' + await runnerShardKey(prefix) + '.json.gz';
+  const pathFor = async (token: string) => 'index/' + await runnerShardKey(Array.from(token).slice(0, 3).join('')) + '.json.gz';
+  const paths = await Promise.all([longest, ...tokens].map(pathFor));
+  const size = (candidate: string) => manifest.shards[candidate]?.bytes ?? Infinity;
+  const path = paths.reduce((best, candidate) => size(candidate) < size(best) ? candidate : best);
   const data = await loadShard(path, manifest, signal) as { rows: RunnerMatch[] } | null;
   if (!data) return [];
   if (!Array.isArray(data.rows)) throw problem();

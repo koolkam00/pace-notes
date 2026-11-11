@@ -247,6 +247,24 @@ async function main() {
     assert.deepEqual(pages.map(page => page.length), [25, 25, 25, 4]);
     assert.deepEqual(pages.flat(), matches, 'The last match must remain reachable through pagination');
     assert.deepEqual(runnerSearchPage(matches, -1), []);
+    // November 11, 2026: every match is in every typed token's shard, so a query of two listed tokens loads the smaller
+    // shard ("mar" alone is 3.4 MB), whichever token is longer; the results are the same.
+    const smallJos = descriptor({ release_tag: RUNNER_RELEASE, rows: rows.slice(0, 10) });
+    const bigSmi = descriptor({ release_tag: RUNNER_RELEASE, rows: [...rows, ...Array.from({ length: 400 }, (_, i) => [`Pad Smithson ${i}`, 5000 + i, 1, 2020, 2020, 'Boston', 0])] });
+    const smiPath = `index/${await runnerShardKey('smi')}.json.gz`;
+    assert.ok(bigSmi.meta.bytes > smallJos.meta.bytes && smiPath !== indexPath);
+    let before = requests.length;
+    served = smallJos.bytes;
+    const smaller = await searchRunnerNames('jos smithers', { ...manifest, shards: { [indexPath]: smallJos.meta, [smiPath]: bigSmi.meta } }, signal);
+    assert.equal(requests.length, before + 1);
+    assert.ok(requests.at(-1).endsWith(indexPath + '?v=' + smallJos.meta.sha256), 'A two-token query must load the smaller listed shard, not the longest token\'s');
+    assert.deepEqual(smaller, [], 'The smaller shard gives the same answer: no name has a word starting "smithers"');
+    before = requests.length;
+    served = bigSmi.bytes;
+    const larger = await searchRunnerNames('jos smi', { ...manifest, shards: { [indexPath]: { ...smallJos.meta, bytes: bigSmi.meta.bytes + 1 }, [smiPath]: bigSmi.meta } }, signal);
+    assert.equal(requests.length, before + 1);
+    assert.ok(requests.at(-1).endsWith(smiPath + '?v=' + bigSmi.meta.sha256), 'The choice follows the manifest bytes, not the token order');
+    assert.deepEqual(larger, matches, 'Either token\'s shard gives the same ordered matches');
     const beforeEmpty = requests.length;
     assert.deepEqual(await searchRunnerNames('zzzzzz', manifest, signal), []);
     assert.equal(requests.length, beforeEmpty, 'An absent manifest bucket is a verified empty prefix');

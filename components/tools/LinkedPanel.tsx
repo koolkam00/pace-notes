@@ -11,6 +11,7 @@ import { loadHalf } from '@/lib/half';
 import type { HalfGroup, HalfTool } from '@/lib/half-types';
 import { HALF_TOOL_FILE, LINKED_LINE, NOT_A_PREDICTION, floorHM, linkedSentence, nearestMark, slowdownSentence, tooFewSentence, windowFor } from '@/lib/tools/half-to-full';
 import { FinishStrip } from './FinishStrip';
+import { loadErrorText } from '@/lib/error-text';
 
 /** The term the sentence links at its first use on the page (/methodology#half-linking says what it is). */
 const LINKED = 'records linked by name';
@@ -64,7 +65,7 @@ export default function LinkedPanel({ sha, seconds, group, onGroup, speakFirst =
       (data) => { if (live) setTool(data); },
       (e: unknown) => {
         if (!live) return;
-        const reason = e instanceof Error && e.message ? e.message.trim() : 'This data could not be loaded.';
+        const reason = loadErrorText(e, 'This data could not be loaded.');
         setError(`${/[.!?]$/.test(reason) ? reason : `${reason}.`} The published estimates above are unaffected.`);
       },
     );

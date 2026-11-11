@@ -1,6 +1,6 @@
 import Arrow from './ui/Arrow';
 import { joinRanges } from '@/components/ui/keepTogether';
-import BigNumber from './ui/BigNumber';
+import ReadingFigure from './ui/ReadingFigure';
 import MarkerBadge from './ui/MarkerBadge';
 import ChapterLink from './ChapterLink';
 import { DistanceTag } from './tools/DistanceTag';
@@ -34,7 +34,7 @@ export default function NextCard({ next, reading }: { next: Next; reading?: Chap
       <span className="next-card-title">{unbroken(page.title)}</span>
       {reading ? (
         <span className="next-card-reading">
-          <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="m" tone="night" />
+          <ReadingFigure reading={reading} size="m" tone="night" />
           {key ? <span className="next-card-key">{joinRanges(key)}</span> : null}
           {isHalf ? <DistanceTag link={false} className="next-card-distance" /> : null}
         </span>

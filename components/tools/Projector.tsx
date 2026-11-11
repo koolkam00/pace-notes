@@ -15,6 +15,7 @@ import { formatClock, formatDuration, formatHM, parseClock, parseDuration, parse
 import { keypadInput } from '@/lib/keypad';
 import { count } from '@/lib/viz/format';
 import { KM_PER_MILE, type UnitSystem } from '@/lib/units';
+import { loadErrorText } from '@/lib/error-text';
 
 /* ------------------------------------------------------------------ */
 /* Constants and pure helpers                                          */
@@ -191,7 +192,7 @@ function useProjectorIndex(sha: string | null) {
     setState((s) => (s.error ? { index: null, error: null } : s));
     loadInsight<ProjectorIndex>(INDEX_PATH, sha).then(
       (index) => { if (live) setState({ index, error: null }); },
-      (e: unknown) => { if (live) setState({ index: null, error: e instanceof Error ? e.message : LOAD_ERROR }); },
+      (e: unknown) => { if (live) setState({ index: null, error: loadErrorText(e, LOAD_ERROR) }); },
     );
     return () => { live = false; };
   }, [sha, attempt]);
@@ -209,7 +210,7 @@ function useShard(index: ProjectorIndex | null, scope: string, mat: number) {
     let live = true;
     loadShard<ProjectorShard>(index, path).then(
       (shard) => { if (live) setState({ key, shard, error: null }); },
-      (e: unknown) => { if (live) setState({ key, shard: null, error: e instanceof Error ? e.message : LOAD_ERROR }); },
+      (e: unknown) => { if (live) setState({ key, shard: null, error: loadErrorText(e, LOAD_ERROR) }); },
     );
     return () => { live = false; };
   }, [index, path, key]);
