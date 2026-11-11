@@ -273,34 +273,10 @@ assert.equal(JSON.stringify(elevationFinding), elevationFindingSource);
 // units while the chart/table measurements retain their old numeric values.
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
-const QuestionViz = require('../components/QuestionViz.tsx').default;
-const render = (spec, unitSystem) => renderToStaticMarkup(React.createElement(QuestionViz, { spec, unitSystem }));
-const spec = {
-  title: 'A measured comparison', xLabel: 'Group', kind: 'bars',
-  series: [{ key: 'value', label: 'Median' }], rows: [{ label: 'First 5 km', value: 5, n_value: 120 }],
-};
-const metricSpec = { ...spec, unit: 'min/km' };
-const canonical = JSON.stringify(metricSpec);
-const paceHtml = render(metricSpec);
-assert.match(paceHtml, /8:03\/mi/);
-assert.match(paceHtml, /First 3\.11 mi/);
-assert.doesNotMatch(paceHtml, /5:00\/km/);
-const metricHtml = render(metricSpec, 'km');
-assert.match(metricHtml, /5:00\/km/);
-assert.match(metricHtml, /First 5 km/);
-assert.doesNotMatch(metricHtml, /8:03\/mi/);
-assert.equal(JSON.stringify(metricSpec), canonical, 'Presentation must not mutate the original chart data');
-for (const [unit, value, imperial, metric] of [
-  ['m', 100, '328.1 ft', '100 m'],
-  ['sec/km', 10, '16.1 sec/mi', '10 sec/km'],
-  ['% pace', 25, '25%', '25%'],
-  ['finish', 240, '4:00', '4:00'],
-]) {
-  const chart = { ...spec, unit, rows: [{ label: 'Recorded values', value, n_value: 120 }] };
-  assert.ok(render(chart).includes(imperial), `${unit}: the imperial renderer must show ${imperial}`);
-  assert.ok(render(chart, 'km').includes(metric), `${unit}: the metric renderer must show ${metric}`);
-  assert.match(render(chart), /<td>120<\/td>/, 'Sample sizes must not be converted');
-}
+// November 11, 2026: the generic chart renders of components/QuestionViz.tsx (a measured comparison in mi and km, four
+// chart units, sample sizes unconverted, the source spec unmutated) were removed with that component, which no page
+// rendered since the October 18, 2026 redesign (architecture review P1-6). The conversions themselves are checked above
+// (paceLabel, distanceLabel, elevationLabel, unitText); the shipped pacing-pattern page is checked below.
 
 assert.equal(unitText('between 2 and 20 minutes per km', 'mi'), 'between 3.22 and 32.19 minutes/mi');
 assert.equal(unitText('2–20 min/km', 'mi'), '3.22–32.19 min/mi');
@@ -310,39 +286,30 @@ assert.equal(unitText('10 minutes or more per km', 'mi'), '16.09 minutes or more
 assert.equal(unitText('18.7 minutes. The final 12.195 km', 'mi'), '18.7 minutes. The final 7.58 mi');
 assert.equal(unitText('2 to 20 min/km', 'mi'), '3.22 to 32.19 min/mi');
 
-// Current supporting charts and their prose follow the same display preference.
-const StudyFigure = require('../components/StudyFigure.tsx').default;
-const UnitsProvider = require('../components/UnitsProvider.tsx').default;
+// November 11, 2026: components/StudyFigure.tsx (the definition-sensitivity figure in miles, no download link) and the
+// onset chart's QuestionViz axis title in mi and km were removed with those components, which no page rendered
+// (architecture review P1-6); /methodology draws the sensitivity rows in its own instrument and /slowdown its own onset
+// chart (verify-research). The study still publishes the figure:
 const { getStudyFigures } = require('../lib/study-figures.ts');
-const studyFigures = getStudyFigures();
-const definitionFigure = studyFigures.find(figure => figure.id === 'sensitivity');
-assert.ok(definitionFigure, 'The current source must publish definition sensitivity');
-const definitionSource = JSON.stringify(definitionFigure);
-const definitionHtml = renderToStaticMarkup(React.createElement(UnitsProvider, null, React.createElement(StudyFigure, { figure: definitionFigure })));
-assert.match(definitionHtml, /3\.11 mi/);
-assert.doesNotMatch(definitionHtml, /at least 5 km/);
-// Since October 16, 2026 the figure shows its chart only; its download link is on /methodology (#downloads, #sustained-slowdown).
-assert.doesNotMatch(definitionHtml, /data\/study\/evidence.json/, 'The figure links no download; /methodology does');
-assert.equal(JSON.stringify(definitionFigure), definitionSource);
-const { getWallTimingAnswer } = require('../lib/research-data.ts');
-const onsetChart = getWallTimingAnswer().charts[0];
-assert.ok(onsetChart, 'Onset must be recomputed from the current source');
-assert.match(render(onsetChart), /Distance \(mi\)/);
-assert.match(render(onsetChart, 'km'), /Distance \(km\)/);
+assert.ok(getStudyFigures().find(figure => figure.id === 'sensitivity'), 'The current source must publish definition sensitivity');
+const UnitsProvider = require('../components/UnitsProvider.tsx').default;
 
 const { getAnalysisStart } = require('../lib/analysis-server.ts');
 const profileSpec = getAnalysisStart().answers.find(answer => answer.id === 'profile').charts[0];
 const sourceProfile = JSON.stringify(profileSpec);
-const profileHtml = render(profileSpec);
+// November 11, 2026: re-pointed from the unshipped QuestionViz to the page that draws this profile, /analyses/pacing-pattern
+// (its server HTML, in the default miles).
+const AnalysisPage = require('../app/analyses/[slug]/page.tsx').default;
+const profileHtml = renderToStaticMarkup(React.createElement(UnitsProvider, null, React.createElement(AnalysisPage, { params: { slug: 'pacing-pattern' } })));
 // Sections are named by their mats in both modes (WP3, the redesign spec, section 3.10): "0–5K" … "40K–finish".
 assert.match(profileHtml, /0–5K/);
 assert.match(profileHtml, /40K–finish/);
-assert.match(profileHtml, /per mile/);
+assert.match(profileHtml, /per mile|\/mi\b/);
 for (const row of profileSpec.rows) {
   assert.ok(profileHtml.includes(paceLabel(row.value * 60, 'mi')), 'Every real profile median must use the converted source pace');
 }
-assert.match(render(profileSpec, 'km'), /40K–finish/);
-assert.equal(JSON.stringify(profileSpec), sourceProfile, 'Rendering both modes must preserve all source values');
+// (The km render of this profile went with QuestionViz; mat names read the same in both units, checked by matLabel above.)
+assert.equal(JSON.stringify(profileSpec), sourceProfile, 'Rendering the page must preserve all source values');
 // The real pacing-pattern chart's axis in both units: every value covered, every label on its own grid.
 const profilePaces = profileSpec.rows.flatMap(row => profileSpec.series.map(series => row[series.key] * 60));
 for (const [units, ending] of [['mi', /:(?:00|15|30|45)$/], ['km', /:(?:00|15|30|45)$/]]) {
@@ -351,10 +318,9 @@ for (const [units, ending] of [['mi', /:(?:00|15|30|45)$/], ['km', /:(?:00|15|30
   assert.ok(axis.domain[0] <= Math.min(...shown) && axis.domain[1] >= Math.max(...shown), `${units}: the pacing-pattern axis covers every pace`);
   for (const text of tickLabels(axis, units)) assert.match(text, ending, `${units}: pacing-pattern tick ${text} is on the round grid`);
 }
-// Both Recharts pace axes take these ticks rather than Recharts' decimal-minute ones.
+// November 11, 2026: the two source checks that the Recharts pace axes (QuestionViz, QuestionLineChart) took these ticks
+// were removed with those components (architecture review P1-6), the last users of Recharts.
 const chartSource = name => fs.readFileSync(path.join(__dirname, '../components', name), 'utf8');
-assert.match(chartSource('QuestionViz.tsx'), /paceTicks\(Math\.min\(\.\.\.allValues\) \* 60, Math\.max\(\.\.\.allValues\) \* 60, selectedUnits\)/);
-assert.match(chartSource('QuestionLineChart.tsx'), /<YAxis [^>]*ticks=\{paceTicks\}[^>]*domain=\{paceTicks \? \[paceTicks\[0\], paceTicks\[paceTicks\.length - 1\]\]/);
 // The runner view's pace chart (LineProfile, no Recharts since the October 18, 2026 redesign) takes the same ticks: its
 // domain and every gridline come from paceTicks, labelled with paceLabel.
 assert.match(chartSource('RunnerContext.tsx'), /const axis = paceTicks\([^;]*, units, 6\);\n\s*const grid = axis \? \[\.\.\.new Set\(\[axis\.ticks\[0\][^;]*axis\.ticks\[axis\.ticks\.length - 1\]\]\)\] : \[\];/);
@@ -395,6 +361,46 @@ assert.match(chartSource('RunnerContext.tsx'), /<LineProfile [^>]*yDomain=\{axis
   assert.match(page(e(units.UnitSwitch)), /^<div class="unit-switch" role="group" aria-label="Distance and pace units">/, '/research has the working switch');
 }
 
+// November 11, 2026 (design review D2): a reading repeated on a next card, a contents row or a page-list row shows its
+// kilometre twin when the reader chose km. The server HTML keeps the default (miles) figure; ByUnits swaps in the twin.
+{
+  const N = require('../lib/nuggets/index.ts');
+  const twins = N.NUGGET_IDS.filter((id) => !N.CONTEXT_NUGGETS.includes(id)).map((id) => [id, N.readingOf(id)]).filter(([, r]) => r?.km);
+  assert.ok(twins.length >= 1, 'At least one reading carries a kilometre twin (pattern.profile, weather.start)');
+  const e = React.createElement;
+  const byUnitsFile = require.resolve('../components/ui/ByUnits.client.tsx');
+  const figureFile = require.resolve('../components/ui/ReadingFigure.tsx');
+  const real = require.cache[byUnitsFile];
+  for (const units of ['mi', 'km']) {
+    // ByUnits as it renders once the units are read: the chosen side only.
+    require.cache[byUnitsFile] = { id: byUnitsFile, filename: byUnitsFile, loaded: true, exports: { __esModule: true, default: (p) => (units === 'km' ? p.km : p.mi) } };
+    delete require.cache[figureFile];
+    const ReadingFigure = require(figureFile).default;
+    for (const [id, r] of twins) {
+      const html = renderToStaticMarkup(e(ReadingFigure, { reading: r, size: 's' }));
+      const want = units === 'km' ? r.km : r;
+      assert.ok(html.includes(want.value.replace(/</g, '&lt;')) && html.includes(want.sr), `${id}: the ${units} reading shows its own figure (${want.value}${want.unit ?? ''})`);
+      assert.doesNotMatch(html, units === 'km' ? /s\/mi|°F|Fahrenheit|a mile/ : /s\/km|°C|Celsius|kilometer/, `${id}: no ${units === 'km' ? 'mile' : 'kilometre'} figure with ${units} chosen`);
+    }
+  }
+  if (real) require.cache[byUnitsFile] = real; else delete require.cache[byUnitsFile];
+  delete require.cache[figureFile];
+  // The default render (before the units are read) is the miles figure, as the served HTML.
+  const ReadingFigure = require(figureFile).default;
+  for (const [id, r] of twins) assert.ok(renderToStaticMarkup(e(require('../components/UnitsProvider.tsx').default, null, e(ReadingFigure, { reading: r, size: 'm' }))).includes(r.sr), `${id}: the served HTML holds the miles figure`);
+  // Every place the shell repeats a reading draws it through ReadingFigure, never the miles figure alone: the next card
+  // imports it; the contents and page-list rows take it from their page (ChapterList imports no units island, so the
+  // menu's compact list adds none to every page's first-load JavaScript).
+  const nextCard = fs.readFileSync(path.join(__dirname, '../components/NextCard.tsx'), 'utf8');
+  assert.match(nextCard, /<ReadingFigure reading=\{reading\}/, 'NextCard draws its reading through ReadingFigure');
+  const list = fs.readFileSync(path.join(__dirname, '../components/ui/ChapterList.tsx'), 'utf8');
+  assert.doesNotMatch(list, /<BigNumber\s|from '\.\/ReadingFigure'|ByUnits/, 'ChapterList draws a reading only through the Figure its page passes, and imports no units island');
+  for (const file of ['app/(home)/page.tsx', 'app/research/(hub)/page.tsx', 'app/stories/page.tsx', 'app/analyses/page.tsx']) {
+    const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+    assert.ok(/readingOf=\{\w+\}/.test(source) && /Figure=\{ReadingFigure\}/.test(source), `${file} passes ReadingFigure with its readings`);
+  }
+}
+
 // A per-degree effect follows the reader's degree (the redesign spec, section 3.10): perDegree converts a per-°C value.
 {
   const { perDegree } = require('../lib/nuggets/format.ts');
@@ -402,4 +408,4 @@ assert.match(chartSource('RunnerContext.tsx'), /<LineProfile [^>]*yDomain=\{axis
   assert.equal(perDegree(1.8, 'km'), 1.8);
 }
 
-console.log('Verified mat names (5K … 40K, Finish; 0–5K … 40K–finish) in both units, one-decimal prose miles, display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples, real profile sections and round pace-axis ticks in both units, the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4), and the working units switch on every page whose text changes with the units (the build stops otherwise); per-degree effects follow the reader\'s degree.');
+console.log('Verified mat names (5K … 40K, Finish; 0–5K … 40K–finish) in both units, one-decimal prose miles, display-only mile, pace and elevation conversions, source precision, checkpoint labels, prose ranges, URL preservation, rendered measurements, unchanged samples, real profile sections and round pace-axis ticks in both units, the same conversions where a lookbehind RegExp cannot be built (Safari before 16.4), and the working units switch on every page whose text changes with the units (the build stops otherwise); repeated readings (next cards, contents and page-list rows) show their kilometre twin; per-degree effects follow the reader\'s degree.');

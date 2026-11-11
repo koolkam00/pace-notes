@@ -283,10 +283,19 @@ Next.js `redirects()` and `headers()` do not work with `output: 'export'`, so th
 | `/research/personalized` | 308 to `/research` (the guide's questions are the analyses) |
 | `/analyses/warming-and-pacing`, `/analyses/wind-and-pacing` | 308 to `/analyses/race-day-weather#warming` and `#wind` (tabs of race-day weather) |
 | Every path | `Referrer-Policy: strict-origin`, the same policy as the `<meta name="referrer">` tag from `app/layout.tsx`, so the requests a page makes before that tag is parsed also send only the origin |
+| Every path | `X-Content-Type-Options: nosniff` (November 11, 2026): a browser never runs a file as a script or stylesheet unless its type says so |
+| Every path | `Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), browsing-topics=()` (November 11, 2026): turns off only features no file in `app/`, `components/` or `lib/` uses; `clipboard-write` and `web-share` (copy a link, share a report card) keep their default |
 | Every `.txt` path except `/robots.txt` | `X-Robots-Tag: noindex` (the React Server Components payloads the export writes beside each page, such as `out/tools.txt`, which the client fetches on in-app navigation) |
 | `/data/*` | `X-Robots-Tag: noindex` (files stay downloadable and fetchable) |
 | `/runners` with a `q` query | `X-Robots-Tag: noindex, nofollow` (old links that carry a name) |
 | `trailingSlash: false` | `/tools/` goes to `/tools` in one hop, as before |
+
+The expected values of the three every-path headers live in `scripts/lib/headers.cjs`.
+`verify-seo` (check `headers`) reads them from `vercel.json` and fails if the Permissions-Policy turns off a feature the source uses (each feature has its API pattern there) or names `clipboard-write` or `web-share`.
+`verify-seo-live` reads all three from `/` and `/data/live.json` on the deployed site, so the two new ones are provable only after a deploy, and it fails on production until this change is deployed.
+No frame protection and no Content-Security-Policy (owner decisions).
+HSTS is Vercel's default: production answered `strict-transport-security: max-age=63072000` on November 11, 2026.
+Fonts and digest-versioned data keep Vercel's revalidating default, because their file names are not content-addressed (architecture review P2-2, left).
 
 The pacing-analysis workflow reads `https://splithappens.run/data/live.json` directly. It uses `curl --fail` without `-L`, so it must never point at the old host.
 
@@ -309,6 +318,7 @@ curl -sI 'https://splithappens.run/tools/'                   # 308 to /tools in 
 curl -sI 'https://splithappens.run/tools/marathon-pace'      # 308, location /tools/marathon-pace-chart
 curl -sI 'https://splithappens.run/packs/r01_banking_time'   # 308, location /methodology#downloads
 curl -sI 'https://splithappens.run/tools.txt' | grep -i -e x-robots-tag -e referrer-policy   # noindex; strict-origin
+curl -sI 'https://splithappens.run/' | grep -i -e referrer-policy -e x-content-type-options -e permissions-policy   # strict-origin; nosniff; the policy above (once deployed)
 curl -s  'https://splithappens.run/robots.txt'               # the rules above and the Sitemap line
 curl -s  'https://splithappens.run/sitemap.xml' | grep -c '<loc>'
 curl -sf 'https://splithappens.run/data/live.json' | python3 -m json.tool > /dev/null && echo live.json ok

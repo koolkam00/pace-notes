@@ -14,6 +14,7 @@ import { MARATHON_KM, perUnit } from '@/lib/tools/pace';
 import { formatDuration, formatHM, parseDuration } from '@/lib/tools/time';
 import type { UnitSystem } from '@/lib/units';
 import { count } from '@/lib/viz/format';
+import { loadErrorText } from '@/lib/error-text';
 
 /* ------------------------------------------------------------------ */
 /* Constants and pure helpers                                          */
@@ -116,7 +117,7 @@ function useCourseGoal(sha: string | null) {
     let live = true;
     loadInsight<CourseGoal>(DATA_PATH, sha).then(
       (data) => { if (live) setState({ data, error: null }); },
-      (e: unknown) => { if (live) setState({ data: null, error: e instanceof Error ? e.message : 'This data could not be loaded. Check the connection and try again.' }); },
+      (e: unknown) => { if (live) setState({ data: null, error: loadErrorText(e, 'This data could not be loaded. Check the connection and try again.') }); },
     );
     return () => { live = false; };
   }, [sha, attempt]);

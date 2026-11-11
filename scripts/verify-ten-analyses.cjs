@@ -21,8 +21,6 @@ const { EXAMPLE_PROFILE, readAnalysisProfile, profileSearch, sameProfile } = req
 const { TEN_ANALYSES, analysisBySlug, analysisHref } = require('../lib/ten-analyses.ts');
 const { getAnalysisStart } = require('../lib/analysis-server.ts');
 const { loadAnalysisAggregate } = require('../lib/analysis-aggregates.ts');
-const QuestionViz = require('../components/QuestionViz.tsx').default;
-const AnalysisChart = require('../components/AnalysisChart.tsx').default;
 const AnalysisExplorer = require('../components/AnalysisExplorer.tsx').default;
 const CheckpointExplorer = require('../components/CheckpointExplorer.tsx').default;
 const { unitText } = require('../lib/units.ts');
@@ -53,48 +51,39 @@ assert.ok(!sameProfile(EXAMPLE_PROFILE, { ...EXAMPLE_PROFILE, previous: 255 }));
 assert.ok(!sameProfile(EXAMPLE_PROFILE, { ...EXAMPLE_PROFILE, goal: 241 }));
 
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
-const rangeSpec = {
-  title: 'Recorded finish range', unit: 'finish', xLabel: 'Group', kind: 'bars',
-  series: [{ key: 'low', label: '10th percentile' }, { key: 'value', label: 'Median' }, { key: 'high', label: '90th percentile' }],
-  rows: [{ label: 'Comparable finishes', low: 205, value: 240, high: 282, n_low: 200, n_value: 200, n_high: 200 }],
-};
-const rangeHtml = render(QuestionViz, { spec: rangeSpec });
-assert.match(rangeHtml, /class="range-chart"/);
-assert.match(rangeHtml, /class="range-values"><strong aria-label="Median: 4:00">4:00<\/strong><\/div>/, 'The compact range column needs one visible number and an accessible median label');
-const timeAxis = rangeHtml.match(/class="range-axis"[^>]*>(.*?)<\/div>/)[1];
-assert.doesNotMatch(timeAxis, />-/, 'Observed finish-time ranges must not acquire negative padded times');
-assert.doesNotMatch(rangeHtml, /class="range-zero"/, 'Do not place an off-scale zero reference on a finish-time range');
-for (const text of ['10th percentile', '90th percentile', '3:25', '4:00', '4:42', '200']) assert.ok(rangeHtml.includes(text), 'The exact-values table must preserve ' + text);
-const signedSpec = { ...rangeSpec, unit: '% change', rows: [{ label: 'Course A', low: -10, value: -2, high: 8 }] };
-const signedHtml = render(QuestionViz, { spec: signedSpec });
-assert.match(signedHtml, /class="range-zero"/);
-assert.match(signedHtml, /class="range-zero-label"[^>]*>0%<\/span>/, 'The faster/slower reference needs a visible zero label');
-assert.match(signedHtml, /Median: -2%/);
-for (const match of signedHtml.matchAll(/(?:left|width):([\d.-]+)%/g)) assert.ok(Number(match[1]) >= 0 && Number(match[1]) <= 100, 'Range marks must stay inside their shared scale');
-const alternativeKeys = { ...signedSpec, series: [{ key: 'p10', label: '10th percentile' }, { key: 'median', label: 'Median' }, { key: 'p90', label: '90th percentile' }], rows: [{ label: 'Course A', p10: -10, median: -2, p90: 8 }] };
-assert.match(render(QuestionViz, { spec: alternativeKeys }), /class="range-chart"/);
-assert.doesNotMatch(render(QuestionViz, { spec: { ...rangeSpec, series: [{ key: 'low', label: 'Lower confidence bound' }, { key: 'value', label: 'Estimate' }, { key: 'high', label: 'Upper confidence bound' }] } }), /class="range-chart"/, 'Confidence intervals must not be relabeled as runner percentiles');
-assert.doesNotMatch(render(QuestionViz, { spec: { ...rangeSpec, rows: [{ label: 'Partial', low: null, value: 240, high: 282 }] } }), /class="range-span"/, 'Do not draw an invented range when an endpoint is missing');
-assert.match(render(QuestionViz, { spec: { ...rangeSpec, rows: [] } }), /No published values for this selection/);
-assert.match(render(QuestionViz, { spec: rangeSpec, headingLevel: 2 }), /<h2[^>]*>Recorded finish range<\/h2>/);
+// November 11, 2026: the renders of components/QuestionViz.tsx and components/AnalysisChart.tsx (the range chart's
+// one visible number, no negative padded times, no off-scale zero, its exact-values table, a labelled zero on signed
+// ranges, marks on one scale, other series keys, confidence bounds never drawn as runner percentiles, no invented range
+// for a missing endpoint, the empty and h2 states, the profile's mat-named sections in km, the chart choice buttons and
+// select, and the empty status) were removed with those components, which no page rendered since the October 18, 2026
+// redesign (architecture review P1-6). The shipped pages are rendered below; the profile's mat names on the shipped
+// /analyses/pacing-pattern are checked by verify-units.
 
-const profileAnswer = answers.find(answer => answer.id === 'profile');
-const profileHtml = render(QuestionViz, { spec: profileAnswer.charts[0], unitSystem: 'km' });
-assert.match(profileHtml, /40K–finish/, 'Sections are named by their mats (the redesign spec, section 3.10)');
-assert.match(profileHtml, /Course section/);
-const choices = Array.from({ length: 4 }, (_, index) => ({ ...rangeSpec, title: 'Comparison ' + (index + 1) }));
-const buttonsHtml = render(AnalysisChart, { analysisId: 'example', charts: choices.slice(0, 2) });
-assert.equal([...buttonsHtml.matchAll(/aria-pressed="true"/g)].length, 1);
-assert.equal([...buttonsHtml.matchAll(/aria-pressed="false"/g)].length, 1);
-assert.match(render(AnalysisChart, { analysisId: 'example', charts: choices }), /<select[^>]+aria-controls=/);
-assert.match(render(AnalysisChart, { analysisId: 'empty', charts: [] }), /role="status"/);
+// A failed load shows the loader's own words, never the browser's ("Failed to fetch"): design review D8, November 11, 2026.
+{
+  const { loadErrorText } = require('../lib/error-text.ts');
+  const fallback = 'The comparison could not load.';
+  assert.equal(loadErrorText(new TypeError('Failed to fetch'), fallback), fallback);
+  assert.equal(loadErrorText(new SyntaxError('Unexpected end of JSON input'), fallback), fallback);
+  assert.equal(loadErrorText(new DOMException('The operation was aborted.', 'AbortError'), fallback), fallback);
+  assert.equal(loadErrorText('oops', fallback), fallback);
+  assert.equal(loadErrorText(new Error('  '), fallback), fallback);
+  assert.equal(loadErrorText(new Error('The runner data could not be verified. Please reload and try again.'), fallback), 'The runner data could not be verified. Please reload and try again.');
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk(path.join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [path.join(dir, e.name)] : []);
+  for (const file of walk('components')) {
+    const source = fs.readFileSync(file, 'utf8');
+    assert.doesNotMatch(source, /(?:setError|setFailure)\((?:reason|error|e)\.message\)|(?:reason|error|e) instanceof Error(?: && (?:reason|error|e)\.message)? \? (?:reason|error|e)\.message/, `${file}: a failed load's words go through loadErrorText (lib/error-text.ts)`);
+  }
+}
 
 // Analyses show insights only: method, definitions, coverage and sources live on /methodology (owner request, 2026-10-16).
 for (const definition of TEN_ANALYSES) {
   for (const field of ['purpose', 'readChart', 'caution']) assert.ok(!(field in definition), `${definition.id}: no ${field} copy on the analysis page`);
   assert.ok(definition.dek && definition.dek.length <= 140, `${definition.id}: a short dek`);
 }
-assert.doesNotMatch(render(AnalysisChart, { analysisId: 'note', charts: [{ ...rangeSpec, note: 'METHOD NOTE' }] }), /METHOD NOTE/, 'Chart notes explain method; analyses show the chart only');
+// Chart notes explain method; analyses show the chart only. November 11, 2026: re-pointed from the removed AnalysisChart
+// render to the components that draw the analysis charts today, which never read a chart's note.
+for (const file of ['components/AnalysisExplorer.tsx', 'components/analysis/ExplorerChart.tsx']) assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\.note\b/, `${file}: chart notes stay on /methodology`);
 const METHOD_COPY = [/How we calculated this/, /How to read this/, /Keep in mind/, /Input data:/, /Read the full methods/, /marathons, years and data fields/,
   /requires earlier results/, /strictly earlier/, /15-minute band/, /strictly below this time/, /selects a 15-minute band/, /unit of evidence/,
   /at least 100/, /Runner comparison groups contain/, /source-quality rules/, /\d[\d,]* (?:complete |eligible |achieved )?finishes (?:across|in the displayed)/,
@@ -260,5 +249,5 @@ async function verifyTransport() {
 }
 
 verifyTransport().then(() => {
-  console.log('Verified the ten analysis routes, insight-only copy (no method, coverage or source text), shareable profile round trips, exact accessible chart values, range units, comparison controls, aggregate vintage isolation, cancellation and retry behavior.');
+  console.log('Verified the ten analysis routes, insight-only copy (no method, coverage or source text), shareable profile round trips, aggregate vintage isolation, cancellation and retry behavior.');
 }).catch(error => { console.error(error); process.exitCode = 1; });

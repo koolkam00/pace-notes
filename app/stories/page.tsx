@@ -1,3 +1,4 @@
+import ReadingFigure from '@/components/ui/ReadingFigure';
 import { PageList } from '@/components/ui/ChapterList';
 import { CHAPTERS, livePages, type PageKind } from '@/lib/chapters';
 import { getNugget, readingOf } from '@/lib/nuggets';
@@ -49,7 +50,7 @@ export default function StoriesPage() {
         <p className="contents-dek">{capital(countWord(count))} stories{found ? ', one finding each' : ''}.</p>
       </header>
       <section className="contents-body" aria-label="Every story">
-        <PageList kind={KINDS} readingOf={readingOf} label="Stories" />
+        <PageList kind={KINDS} readingOf={readingOf} Figure={ReadingFigure} label="Stories" />
       </section>
     </div>
   );

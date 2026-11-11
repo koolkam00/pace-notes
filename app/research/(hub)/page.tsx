@@ -1,3 +1,4 @@
+import ReadingFigure from '@/components/ui/ReadingFigure';
 // The research hub lives in the (hub) route group, not at app/research/page.tsx: Next.js 14 hands a page the client
 // chunks of a page in a parent folder for the client components they share, so at app/research/page.tsx the archived
 // guide at /research/personalized would load this page's chunks too (see the home page's note, docs/WEBSITE_ARCHITECTURE.md).
@@ -48,7 +49,7 @@ export default function ResearchPage() {
       <p className="contents-views"><Link href="/stories">Stories</Link> {storiesFound ? 'show one finding each' : 'follow one subject each'}. <Link href="/analyses">Analyses</Link> answer a question you can set to your own course and time. The <Link href="/charts">Top 100 charts</Link> are a hundred findings, one picture each.{halfLive() ? <> <Link href="/half">The half marathon</Link> has a page of its own.</> : null}</p>
     </header>
     <section id="analyses" className="contents-body" data-track-section="analyses" aria-label="Every chapter and page">
-      <ChapterList variant="expanded" readingOf={readingOf} label="Contents" className="contents-chapters"
+      <ChapterList variant="expanded" readingOf={readingOf} Figure={ReadingFigure} label="Contents" className="contents-chapters"
         extra={weather && loose.length ? { [weather.id]: loose.map((path) => ({ href: path, label: titleOf(path) })) } : {}} />
     </section>
   </div>;

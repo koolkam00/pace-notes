@@ -1,3 +1,4 @@
+import ReadingFigure from '@/components/ui/ReadingFigure';
 // The home page lives in the (home) route group, not at app/page.tsx: Next.js 14 hands pages under app/ the client
 // chunks of a page in a parent folder for any client component they share, so with this file at app/page.tsx /privacy,
 // /htw and /runners loaded the home page's charts (about 37 KB gzipped). The route group keeps the URL `/`.
@@ -108,7 +109,7 @@ export default function Page() {
         {/* The term's first use on the page (the chapter rows' keys sit inside their links), so it links to its definition. */}
         <p className="home-guide-dek">{chapterCount.charAt(0).toUpperCase() + chapterCount.slice(1)} chapters, from the gun through the <Link href="/methodology#sustained-slowdown" className="term-link">sustained slowdown</Link> to the finish line.</p>
       </div>
-      <ChapterList variant="full" readingOf={readingOf} label="The chapters, start to finish" className="home-chapters" />
+      <ChapterList variant="full" readingOf={readingOf} Figure={ReadingFigure} label="The chapters, start to finish" className="home-chapters" />
       {/* The half marathon's page, off the chain: one line under the chapters, below the first screen. */}
       <HalfWay className="home-guide-half" lead="Running a half?">The half marathon</HalfWay>
       {/* The guide ends on the way in, in the words the finish card answers ("Back to the gun"). */}

@@ -9,8 +9,8 @@ export interface PackInfo {
   parked?: boolean;
 }
 
-// Registry of the research packs (ids and titles) whose data files stay published under public/data/packs. Their pages
-// closed with the research archive (the redesign spec, section 00): verify-research checks every id here against the
+// Registry of the research packs (ids and titles). None of these ids has a folder under public/data/packs (the files
+// published there are the ext_* packs, read by lib/research-data.ts table()); their pages closed with the research archive (the redesign spec, section 00): verify-research checks every id here against the
 // question catalog, and each former /packs/<id> address keeps a moved stub (lib/seo-routes.ts movedPackIds).
 export const PACKS: PackInfo[] = [
   { id: 'smyth_htw', title: 'Sustained slowdown', status: 'ready', group: 'paper' },

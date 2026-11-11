@@ -40,6 +40,7 @@ Missing or inconsistent readings stay missing or inconsistent. No pace, fastest 
 - The Public runner explorer workflow downloads verified FULL input, rebuilds and verifies the study/search outputs, then uploads an artifact. Import and deployment remain separate steps.
 
 `scripts/verify-runner-search.cjs` covers a candidate containing only held/missing-split records through verified compressed name search, profile loading and the selected-record view. It also checks mixed selections, original source formatting, miles/kilometres, and that a faster held time never replaces the eligible best.
+Since November 11, 2026 it also asserts that a two-token search loads the smaller of its tokens' listed shards ([the rule](../analysis/README.md#public-name-search-and-selected-race-analysis)).
 
 ## Copy editions
 

@@ -160,15 +160,16 @@ export function displayChart(spec: ChartSpec): ChartSpec {
 }
 
 /**
- * A research answer as a page shows it: the findings answer and the reworded charts, prepared on the server. Only the
- * fields ResearchQuestion renders are passed, so the page's data carries neither the stored method, detail, source
- * and sample fields, the chart notes, nor this file. ResearchQuestion takes only this type.
+ * A research answer as a result card showed it: the findings answer and the reworded charts, prepared on the server,
+ * without the stored method, detail, source and sample fields or the chart notes. Its renderer (ResearchQuestion) was
+ * deleted on November 11, 2026 with the rest of the unshipped chart stack; no page uses this now, and verify-research
+ * still checks its fields. Whether to keep it is a later decision (architecture review P1-6, step 3).
  */
 export type PageAnswer = Pick<ResearchAnswer, 'id' | 'number' | 'title' | 'aliases' | 'answer' | 'available' | 'charts' | 'related'> & { readonly forPage: true };
 export const forPage = (question: ResearchAnswer): PageAnswer => ({
   id: question.id, number: question.number, title: question.title, aliases: question.aliases,
   answer: insightAnswer(question), available: question.available, related: question.related,
-  // QuestionViz draws no chart note; it is left out of the page's data with the method fields.
+  // A chart note is method copy; it is left out with the method fields.
   charts: question.charts.map((spec) => { const shown = { ...displayChart(spec) }; delete shown.note; return shown; }),
   forPage: true,
 });

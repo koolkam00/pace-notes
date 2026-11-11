@@ -188,6 +188,9 @@ async function homeForm(h) {
   h.check('with kilometres chosen it adds units=km', sent(km) === sent([['course', 'berlin'], ['goal', '3:30'], ['units', 'km']]), km);
   const empty = await submit({}, { goal: '' });
   h.check('an empty goal is left out, so the planner opens at its example', sent(empty) === sent([['course', 'berlin']]), empty);
+  // November 11, 2026 (design review D10): nothing typed on All courses sends nothing, so the planner shows its example label.
+  const untouched = await submit({}, { goal: '', course: 'all' });
+  h.check('an empty goal on All courses sends no query, so the planner opens at its labelled example', sent(untouched) === sent([]), untouched);
   const emptyNoScript = await submit({ javaScript: false }, { goal: '' });
   h.check('without JavaScript an empty goal is sent as goal=', sent(emptyNoScript) === sent([['course', 'berlin'], ['goal', '']]), emptyNoScript);
   // What the planner then shows, for each address (with its JavaScript).

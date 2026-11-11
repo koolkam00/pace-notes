@@ -1,10 +1,19 @@
-import BigNumber from './BigNumber';
+import type { BigNumberSize } from './BigNumber';
 import { joinRanges } from '@/components/ui/keepTogether';
 import MarkerBadge from './MarkerBadge';
 import Arrow from './Arrow';
 import ChapterLink from '@/components/ChapterLink';
 import { DistanceTag } from '@/components/tools/DistanceTag';
-import { CHAPTERS, chapterHref, livePages, partLabel, type Chapter, type ChapterPage, type PageKind, type ReadingOf } from '@/lib/chapters';
+import { CHAPTERS, chapterHref, livePages, partLabel, type Chapter, type ChapterPage, type ChapterReading, type PageKind, type ReadingOf } from '@/lib/chapters';
+
+/**
+ * How a row draws its reading's figure: pages pass components/ui/ReadingFigure (the units pair). It is a prop, not an
+ * import, so the menu's compact list (app/layout.tsx, every page) carries no units island in its first-load JavaScript
+ * (November 11, 2026: importing it here added about 130 B to every page).
+ */
+export type FigureOf = (props: { reading: ChapterReading; size: BigNumberSize }) => JSX.Element;
+/** Readings come with the component that draws their figure; the compact list takes neither. */
+type Readings = { readingOf?: undefined; Figure?: undefined } | { readingOf: ReadingOf; Figure: FigureOf };
 
 /**
  * The chapters as a course line (the redesign spec, section 3.5): each chapter's marker on a dashed line, its title and
@@ -39,15 +48,15 @@ function KeyText({ text }: { text: string }) {
   return <>{joinRanges(text)}</>;
 }
 
-function Reading({ readingOf, id, fallbackKey, size, href }: { readingOf?: ReadingOf; id: Chapter['lead']; fallbackKey?: string; size: 's' | 'm';
+function Reading({ readingOf, Figure, id, fallbackKey, size, href }: { readingOf?: ReadingOf; Figure?: FigureOf; id: Chapter['lead']; fallbackKey?: string; size: 's' | 'm';
   /** The page the reading is from, when the reading itself links there (a half reading on the contents, below). */
   href?: string }) {
   const reading = readingOf?.(id);
-  if (!reading) return null;
+  if (!reading || !Figure) return null;
   const key = reading.key ?? fallbackKey;
   const body = (
     <>
-      <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size={size} />
+      <Figure reading={reading} size={size} />
       {key ? <span className="chapter-key"><KeyText text={key} /></span> : null}
       {/* A half reading compares a half with a later marathon: it says so where it is repeated (owner decision, November
           5, 2026), as plain words, since the row is already a link. */}
@@ -61,20 +70,20 @@ function Reading({ readingOf, id, fallbackKey, size, href }: { readingOf?: Readi
 }
 
 /** A page's reading on one quiet line (/stories, /analyses): the figure, then its key ("47% of the field had not …"). */
-function PageReading({ readingOf, page }: { readingOf?: ReadingOf; page: ChapterPage }) {
+function PageReading({ readingOf, Figure, page }: { readingOf?: ReadingOf; Figure?: FigureOf; page: ChapterPage }) {
   const reading = readingOf?.(page.nugget);
-  if (!reading?.key) return null;
+  if (!reading?.key || !Figure) return null;
   return (
     <span className={`page-reading${page.nugget.startsWith('half.') ? ' has-distance' : ''}`}>
-      <BigNumber value={reading.value} unit={reading.unit} sr={reading.sr} size="s" />
+      <Figure reading={reading} size="s" />
       <span className="page-reading-key"><KeyText text={reading.key} /></span>
       {page.nugget.startsWith('half.') ? <DistanceTag link={false} className="page-reading-distance" /> : null}
     </span>
   );
 }
 
-export default function ChapterList({ variant = 'full', readingOf, label = 'Chapters', className, extra = {} }: {
-  variant?: Variant; readingOf?: ReadingOf; label?: string; className?: string;
+export default function ChapterList({ variant = 'full', readingOf, Figure, label = 'Chapters', className, extra = {} }: Readings & {
+  variant?: Variant; label?: string; className?: string;
   /** Expanded only: plain links a chapter also holds (pages still in the sitemap that no chapter lists), by chapter id. */
   extra?: Record<string, { href: string; label: string }[]>;
 }) {
@@ -93,7 +102,7 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                   <h2 className="chapter-text">
                     <span className="chapter-name">{chapter.title}</span>
                   </h2>
-                  <Reading readingOf={readingOf} id={chapter.lead} fallbackKey={chapter.key} size="s"
+                  <Reading readingOf={readingOf} Figure={Figure} id={chapter.lead} fallbackKey={chapter.key} size="s"
                     href={chapter.lead.startsWith('half.') ? livePages(chapter).find((p) => p.nugget === chapter.lead)?.href : undefined} />
                 </div>
                 <ol className="chapter-pages">
@@ -125,7 +134,7 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
                     <span className="chapter-name">{chapter.title}</span>
                     <span className="chapter-sub">{chapter.subtitle}</span>
                   </span>
-                  {compact ? null : <Reading readingOf={readingOf} id={chapter.lead} fallbackKey={chapter.key} size="s" />}
+                  {compact ? null : <Reading readingOf={readingOf} Figure={Figure} id={chapter.lead} fallbackKey={chapter.key} size="s" />}
                   {compact ? null : <Arrow className="chapter-go" />}
                 </ChapterLink>
               </li>
@@ -143,7 +152,7 @@ export default function ChapterList({ variant = 'full', readingOf, label = 'Chap
  * title as its link, then its reading. The link covers the whole row from behind (its ::after), so the row is one tap
  * target; its key is plain text, never a second link.
  */
-export function PageList({ kind, prefix, readingOf, label }: { kind: PageKind | PageKind[]; prefix?: string; readingOf?: ReadingOf; label: string }) {
+export function PageList({ kind, prefix, readingOf, Figure, label }: Readings & { kind: PageKind | PageKind[]; prefix?: string; label: string }) {
   const kinds = Array.isArray(kind) ? kind : [kind];
   const groups = CHAPTERS.map((chapter) => ({ chapter, pages: livePages(chapter).filter((p) => kinds.includes(p.kind) && (!prefix || p.href.startsWith(prefix))) })).filter((g) => g.pages.length);
   return (
@@ -156,7 +165,7 @@ export function PageList({ kind, prefix, readingOf, label }: { kind: PageKind | 
               {pages.map((page) => (
                 <li key={page.href} className="page-list-row" {...(readingOf && page.nugget.startsWith('half.') ? { 'data-half-link': 'linked' } : {})}>
                   <ChapterLink href={page.href} className="page-list-link"><span className="page-list-title">{page.title}</span></ChapterLink>
-                  <PageReading readingOf={readingOf} page={page} />
+                  <PageReading readingOf={readingOf} Figure={Figure} page={page} />
                   <Arrow className="page-list-go" />
                 </li>
               ))}

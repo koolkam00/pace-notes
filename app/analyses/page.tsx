@@ -1,3 +1,4 @@
+import ReadingFigure from '@/components/ui/ReadingFigure';
 import { PageList } from '@/components/ui/ChapterList';
 import { getNugget, readingOf, type NuggetId } from '@/lib/nuggets';
 import { listedAnalyses } from '@/lib/chapters';
@@ -27,7 +28,7 @@ export default function AnalysesPage() {
         <p className="contents-dek">Each one answers a pacing question, then lets you set it to your course and time.</p>
       </header>
       <section className="contents-body" aria-label="Every analysis">
-        <PageList kind="analysis" prefix="/analyses/" readingOf={verifiedReadingOf} label="Analyses" />
+        <PageList kind="analysis" prefix="/analyses/" readingOf={verifiedReadingOf} Figure={ReadingFigure} label="Analyses" />
       </section>
     </div>
   );

@@ -622,7 +622,9 @@ for (const [file, argument] of failureCalls) {
   if (file === 'lib/analytics.ts' && argument.startsWith('category:')) continue; // The definition.
   assert.match(argument, /^'(?:js_error|unhandled_rejection|chunk_load|data_fetch|render|export)'$/, `${file}: trackFailure(${argument}) must name one literal category, never a message`);
 }
-for (const [file, count] of [['components/SiteAnalytics.tsx', 6], ['app/error.tsx', 2], ['app/global-error.tsx', 2], ['components/QuestionViz.tsx', 2], ['lib/data-fetch.ts', 2]]) assert.equal(failureCalls.filter(([f]) => f === file).length, count, `${file} reports its failures`);
+for (const [file, count] of [['components/SiteAnalytics.tsx', 6], ['app/error.tsx', 2], ['app/global-error.tsx', 2], ['lib/data-fetch.ts', 2]]) assert.equal(failureCalls.filter(([f]) => f === file).length, count, `${file} reports its failures`);
+// (November 11, 2026: the ['components/QuestionViz.tsx', 2] entry, its failed Recharts chunk, went with that unshipped
+// component; architecture review P1-6.)
 // A failed file reloads the page, usually before any of the site's code runs (the <head> script in lib/chunk-reload.ts):
 // the page it reloads into reports chunk_load, once, and a page that is about to reload reports nothing.
 assert.match(read('components/SiteAnalytics.tsx'), /if \(reloadedAfterChunkError\(\)\) trackFailure\('chunk_load'\);/, 'The page a failed file reloaded reports it');

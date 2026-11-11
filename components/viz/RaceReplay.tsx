@@ -112,6 +112,14 @@ export default function RaceReplay({ edition, flag, view = 'field', band = false
     return () => io.disconnect();
   }, [phase, reduced, autoplay, flag]);
 
+  // Motion turned off (the footer switch, or the system setting) while the replay runs pauses it, as the switch says;
+  // only the change does, so pressing play afterwards still plays (design review D9, November 11, 2026).
+  const wasReduced = useRef(reduced);
+  useEffect(() => {
+    if (reduced && !wasReduced.current && (phase === 'intro' || phase === 'playing')) setPhase('paused');
+    wasReduced.current = reduced;
+  }, [reduced, phase]);
+
   useEffect(() => {
     if (phase !== 'intro' && phase !== 'playing') return;
     let frame = 0;

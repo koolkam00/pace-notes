@@ -48,7 +48,7 @@
    form controls and disclosure rows. Plain element selectors, so any class outranks them. */
 ul, ol { padding-left: 1.35rem; }
 li + li { margin-top: .45rem; }
-figcaption, .chart-note { margin-top: .7rem; font-size: .8125rem; line-height: 1.6; color: var(--ink-3); }
+figcaption { margin-top: .7rem; font-size: .8125rem; line-height: 1.6; color: var(--ink-3); }
 /* A link inside running text is underlined, so it never depends on colour alone. */
 p > a:not([class]), li > a:not([class]) { text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--rule-strong); text-underline-offset: .18em; }
 p > a:not([class]):hover, li > a:not([class]):hover { text-decoration-color: currentColor; }

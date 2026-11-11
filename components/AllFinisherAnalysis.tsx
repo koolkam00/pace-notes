@@ -20,6 +20,7 @@ import Values from './ui/Values';
 import DotStrip from './viz/DotStrip';
 import LineProfile from './viz/LineProfile';
 import Columns from '@/components/viz/Columns';
+import { loadErrorText } from '@/lib/error-text';
 
 /** Shares in whole percent everywhere in the explorer, as the page's charts and answer show them. */
 const percent = (value: number) => `${Math.round(value)}%`;
@@ -255,7 +256,7 @@ function AllFinisherExplorer({ kind, start, historyNode, title, description, arc
   useEffect(() => {
     if (!all || initial || data) { setLoading(false); setError(''); return; }
     const controller = new AbortController(); setLoading(true); setError('');
-    loadAllFinisherContext(start, controller.signal).then(value => { if (!controller.signal.aborted) { setData(value); setLoading(false); } }).catch(reason => { if (!controller.signal.aborted) { setError(reason instanceof Error ? reason.message : 'The comparison could not load.'); setLoading(false); } });
+    loadAllFinisherContext(start, controller.signal).then(value => { if (!controller.signal.aborted) { setData(value); setLoading(false); } }).catch(reason => { if (!controller.signal.aborted) { setError(loadErrorText(reason, 'The comparison could not load.')); setLoading(false); } });
     return () => controller.abort();
   }, [all, initial, data, start, retry]);
   const row = initial || (data ? allFinisherRow(data.rows, selection) : undefined);
