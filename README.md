@@ -23,7 +23,7 @@ The initial comparison for the main analyses is All courses / 4:00, all ages, al
 
 ## Data and current release
 
-The adopted marathon release is named in [`analysis/release.json`](analysis/release.json) (weather in [`analysis/weather-release.json`](analysis/weather-release.json), half marathons in [`analysis/half-release.json`](analysis/half-release.json)); its counts are in the current refresh record, [REFRESH_20261021_1050.md](docs/REFRESH_20261021_1050.md). What production serves is named by [`/version.json`](https://splithappens.run/version.json) (the deployed commit) and [`/data/live.json`](https://splithappens.run/data/live.json) (the release behind its data). A newer export does not automatically update the website; the [project handoff](docs/PROJECT_HANDOFF.md) records the dated state.
+The adopted marathon release is named in [`analysis/release.json`](analysis/release.json) (weather in [`analysis/weather-release.json`](analysis/weather-release.json), half marathons in [`analysis/half-release.json`](analysis/half-release.json)); its counts are in the current refresh record, [REFRESH_20261103b.md](docs/REFRESH_20261103b.md). What production serves is named by [`/version.json`](https://splithappens.run/version.json) (the deployed commit) and [`/data/live.json`](https://splithappens.run/data/live.json) (the release behind its data). A newer export does not automatically update the website; the [project handoff](docs/PROJECT_HANDOFF.md) records the dated state.
 
 Project policy makes the source code, complete runner records, database snapshots, exports and overlays available for anyone to open and download without an account. Use ordinary unencrypted Parquet/SQLite files; compression is optional. Large binary datasets are distributed through public [GitHub Releases](https://github.com/koolkam00/pace-notes/releases) (the repository was renamed from `koolkam00/htw-live-study`, whose links redirect), with files, sizes and checksums in [export access](analysis/ACCESS.md). The website has no direct connection to the ingestion database. See the dated [public-access verification status](docs/PROJECT_HANDOFF.md#public-access-and-operations) for the latest anonymous-download checks. Legacy tags containing `private` are retained identifiers, not access requirements.
 
@@ -42,7 +42,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. `npm run build` writes the static site to `out/`. The calculations need Python 3.12 with `analysis/requirements.txt`; their commands, checksums, imports and per-release ID contracts are in [analysis/README.md](analysis/README.md) and the [operations runbook](docs/OPERATIONS.md). An optional `NEXT_PUBLIC_BASE_PATH` supports hosting under a subpath.
+Open `http://localhost:3000`. `npm run build` writes the static site to `out/`. The calculations need Python 3.12 or 3.13 (the workflows pin `3.12` or `3.13.16`) with `analysis/requirements.txt`; their commands, checksums, imports and per-release ID contracts are in [analysis/README.md](analysis/README.md) and the [operations runbook](docs/OPERATIONS.md). An optional `NEXT_PUBLIC_BASE_PATH` supports hosting under a subpath.
 
 Before a pull request, run the checks for your kind of change: they are listed in [operations: checks by change type](docs/OPERATIONS.md#checks-by-change-type), and CI's "Website data validation" workflow runs the site set (`verify` and `privacy-e2e`) on every pull request.
 

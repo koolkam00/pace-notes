@@ -154,6 +154,14 @@ const BANNED = [
   ['"htw-db-…" (release tags stay out of copy)', /htw-db-\d/i],
   ['"20261016" (release tags stay out of copy)', /20261016/],
   ['"20261021" (release tags stay out of copy)', /20261021/],
+  // November 11, 2026: in step with RELEASE_LABEL in scripts/lib/words.cjs, which the site's own checks read
+  // (constitution §3.4 names the same labels). The half and person-ID tags are matched with what follows the prefix.
+  ['"master-2026…" (release tags stay out of copy)', /master-\d{8}/i],
+  ['"20261103" (release tags stay out of copy)', /20261103/],
+  ['"half-dataset-…" (release tags stay out of copy)', /half-dataset-\d/i],
+  ['"half-snapshot-…" (release tags stay out of copy)', /half-snapshot-\d/i],
+  ['"runner-links-…" (release tags stay out of copy)', /runner-links-\d/i],
+  ['"person-ids-…" (release tags stay out of copy)', /person-ids-v?\d/i],
 ];
 
 const LEDGER_REQUIRED = ['id', 'date', 'kind', 'title', 'hypothesis', 'primary_metric', 'guardrails', 'baseline', 'decision_rule', 'evaluate_after', 'status', 'pr', 'verdict', 'result'];
@@ -1770,7 +1778,9 @@ function selfTest() {
     expect('a line copied, not moved, is reported', { setup: () => write('components/store-read.ts', READ), rules: ['forbidden-pattern'], messages: ['components/store-read.ts:2 browser storage'] });
 
     // Banned copy
-    for (const [label, text] of [['arithmetic', 'Simple arithmetic.'], ['the wall', 'Runners hit the wall.'], ['the wall', 'Before the  wall'], ['your chance', 'Your chance of finishing'], ['private-export', 'From private-export-20260912-0934'], ['20260912', 'Built 20260912'], ['htw-db', 'From htw-db-2026-10-16-1652'], ['20261016', 'Built 20261016'], ['20261021', 'Built 20261021']]) {
+    for (const [label, text] of [['arithmetic', 'Simple arithmetic.'], ['the wall', 'Runners hit the wall.'], ['the wall', 'Before the  wall'], ['your chance', 'Your chance of finishing'], ['private-export', 'From private-export-20260912-0934'], ['20260912', 'Built 20260912'], ['htw-db', 'From htw-db-2026-10-16-1652'], ['20261016', 'Built 20261016'], ['20261021', 'Built 20261021'],
+      ['master', 'From master-20261103b'], ['20261103', 'Built 20261103'], ['half-dataset', 'From half-dataset-20261030-1904'], ['half-snapshot', 'From half-snapshot-20261029-1133'],
+      ['runner-links', 'From runner-links-20261029-1156'], ['person-ids', 'From person-ids-v4-20261030-1150']]) {
       expect(`banned ${label}`, { setup: () => write('components/Card.tsx', `export function Card() {\n  return <p>${text}</p>;\n}\n`), rules: ['banned-copy'] });
     }
 

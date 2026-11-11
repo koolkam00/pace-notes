@@ -37,9 +37,11 @@ Two workflows run on every pull request, whatever it touches. **Website data val
 - `node scripts/font-fallbacks.cjs --check`, after a build, with the Liberation fonts installed.
 - `node scripts/verify-chapters.cjs --html` and `node scripts/verify-half.cjs --html`, after a build.
 - `npm run design:lint` and `npm run design:shoot`, each with `--routes=` ([design system](DESIGN_SYSTEM.md)).
-- `npx tsc --noEmit -p .` (there is no `typecheck` script).
 - `npm run verify:half-source` writes the receipt locally. CI repeats the recount, with `--no-write`, only in the Half marathon `source` job.
 - `npm run verify:seo:live` reads the live site. The autopilot merge workflow runs it; owner merges do not.
+
+Types are not on this list: `next build` checks them in the `verify` job.
+`npx tsc --noEmit -p .` gives the same answer locally without a build (there is no `typecheck` script).
 
 ### First-load budgets (S8)
 
@@ -55,7 +57,7 @@ S8 measures the gzipped bytes of every script a page's exported HTML names, for 
 
 ### The link and anchor check
 
-No script or CI job checks the documents' links yet (a CI check awaits the owner: [handoff](PROJECT_HANDOFF.md#open-for-the-owner), item 12). Run this from the repository root; it reads every tracked Markdown file, resolves each relative link and each `#anchor` the way GitHub writes heading anchors, skips fenced code, and exits 1 on any broken link:
+No script or CI job checks the documents' links yet (a CI check awaits the owner: [handoff](PROJECT_HANDOFF.md#open-for-the-owner), the tooling item). Run this from the repository root; it reads every tracked Markdown file, resolves each relative link and each `#anchor` the way GitHub writes heading anchors, skips fenced code, and exits 1 on any broken link:
 
 ```bash
 python3 -I - $(git ls-files '*.md') <<'EOF'
@@ -92,6 +94,18 @@ for f in sys.argv[1:]:
 print('broken links:', bad); sys.exit(1 if bad else 0)
 EOF
 ```
+
+### Writing in the documents
+
+For new paragraphs, write one sentence per line.
+Markdown joins the lines when it renders, and a one-word change then shows as a one-line diff.
+Table rows and list items keep their present form.
+Do not reflow old text: that would touch every line of a contract and hide the real changes.
+
+Say what is not merged yet, and what production serves, only in the handoff's [Current state](PROJECT_HANDOFF.md#current-state).
+In a contract, "on branch X, not merged" becomes false when the branch merges; a dated fact such as "on `main` since #89" stays true.
+A contract names the adopted release from `analysis/release.json` and links the refresh record for its counts; a count that a contract must keep carries its release tag (rule 21).
+A dated History section that outgrows its file moves whole to [docs/history](history/README.md), leaving a one-line pointer under the heading so `#history` links still resolve.
 
 ## Before you push
 
@@ -161,7 +175,7 @@ Releases come from two repositories:
 6. **Check every new asset URL anonymously and date the result** ([access checks](#access-checks)). Then rewrite the top of [analysis/ACCESS.md](../analysis/ACCESS.md) (step 5 of [verify access and source state](#verify-access-and-source-state)).
 7. **The half binds the marathon release.** `lib/half-server.ts` stops the site build ("Half data must use the adopted marathon release.") until the half pin's `marathon_release` names the adopted tag and the half data are rebuilt, and the person-ID build must be redone for the new release, because its marathon record ids are the marathon release's canonical ids (v4 keys them to `private-export-20261021-1050`) ([half refresh](#half-refresh)). Ask the producer for a person-ID build on the new release before adoption; then follow the half refresh (the half pin, `EXPECTED` in `analysis/half_marathon.py`, `REVIEWED_MARATHON` in `scripts/verify-half-source.cjs`, a new receipt). Whether an adoption waits for that link build or the half is withdrawn meanwhile is for the owner; no decision is recorded ([handoff](PROJECT_HANDOFF.md#open-for-the-owner)).
 8. **Write `docs/REFRESH_<tag>.md`** (the [1050 record](REFRESH_20261021_1050.md) is the model), set `tag` in `analysis/release.json` and `analysis/weather-release.json` to the audited tag, update the code that names the adopted tag (below), and run the refresh sequences.
-9. **Sweep the documents for the previous release.** Use `git grep -n -E "<previous tag>|<its headline counts>" -- '*.md' ':!docs/history' ':!docs/REFRESH_*' ':!docs/evidence'`, then update each hit or label it with its release. PR #78 (1050) updated eleven existing documents and added two refresh records. On October 30, 2026, six it did not touch (STORIES, TOOLS, TOP_TEN_ANALYSES, ANALYSIS_CATALOG, WEBSITE_ARCHITECTURE and SEO) still named the 1652 tag or its eligible count.
+9. **Sweep the documents for the previous release.** Use `git grep -n -E "<previous tag>|<its headline counts>" -- '*.md' ':!docs/history' ':!docs/REFRESH_*' ':!docs/evidence'`, then update each hit or label it with its release. PR #78 (1050) updated eleven existing documents and added two refresh records. On October 30, 2026, six it did not touch (STORIES, TOOLS, TOP_TEN_ANALYSES, ANALYSIS_CATALOG, WEBSITE_ARCHITECTURE and SEO) still named the 1652 tag or its eligible count. Sweep for the branch as well (`git grep -n -E "<branch>|not merged|not deployed"` over the same paths): a sentence such as "on branch X, not merged" becomes false when the branch merges. On November 9, 2026, a review found 31 such lines in fifteen documents after #89, #90 and #91; they were swept on November 11, 2026 ([record](history/state-sweep-2026-11-11.md)).
 10. **A published release starts Marathon pacing analysis. Read its steps, not its colour.** The half-dataset releases gave skipped runs, because the job accepts only `private-export-` and `htw-db-` tags. The 0829 and 1050 releases gave failed runs on October 21, 2026: both stopped at "Download verified FULL export" (runs 39601391082 and 39623893354).
 
 **Code that names the adopted tag** (update it in the adoption pull request; each check fails until it is):
@@ -172,7 +186,7 @@ Releases come from two repositories:
 - The half: `EXPECTED` in `analysis/half_marathon.py`, `REVIEWED_MARATHON` in `scripts/verify-half-source.cjs` and `marathon_release` in `analysis/half-release.json` (step 7). A new half pin names its own identities: the `key` fields of `analysis/half-release.json`, the reviewed entry and its `*_<stamp>` lists in `analysis/half_quality.py` and `analysis/half_policy_lists.py`, `EXPECTED` in `analysis/half_links_extract.py` and `analysis/half_pairs.py` (keyed by the person-ID build), the frozen constants of `scripts/verify-half-source.cjs` and `scripts/half/policy.cjs`, and `RELEASE_LABEL` in `scripts/lib/words.cjs` and `analysis/half_common.py` (which ban the new tags and stamps in visible copy).
 - The release dates kept out of visible copy: `RELEASE_LABEL` in `scripts/lib/words.cjs` and `analysis/half_common.py`, `BANNED` in `scripts/verify-courses.cjs`, and the label regexes in `scripts/verify-insights.cjs`, `scripts/verify-fast-start-client.cjs` and `scripts/verify-all-finisher-context-client.cjs` (`master-\d{8}` and `20261103` added for `master-20261103b`).
 - The tag forms the weather checks accept: `scripts/verify-weather.cjs`, `.github/workflows/weather-analysis.yml` and the release condition of `.github/workflows/pacing-analysis.yml`.
-- Owner-only: the current tag in `autopilot/CONSTITUTION.md` §2.1, its release dates in §3.4 and `BANNED` in `scripts/autopilot-guard.cjs`. PR #78 edited the constitution for 1050; propose such changes to the owner as the handoff's [Open for the owner](PROJECT_HANDOFF.md#open-for-the-owner) item 13 does.
+- Owner-only: the adopted tags in `autopilot/CONSTITUTION.md` §2.1 and the release labels in §3.4, which name what `RELEASE_LABEL` in `scripts/lib/words.cjs` holds; the release labels in `BANNED` in `scripts/autopilot-guard.cjs` follow the same list, with a self-test case each. PR #78 edited the constitution for 1050, and the lines were corrected for `master-20261103b` on November 11, 2026 under the owner's request of that day ([register](OWNER_DECISIONS.md)). Without such a request, propose the change in the handoff's [Open for the owner](PROJECT_HANDOFF.md#open-for-the-owner).
 
 ## Access checks
 
@@ -241,7 +255,7 @@ Inspection artifacts retain seven days and main aggregate artifacts thirty days 
 
 ## Verify access and source state
 
-Use [analysis/README.md](../analysis/README.md) for the complete calculation and import contracts. The adopted source is the tag in `analysis/release.json` (repository `koolkam00/pace-notes`). On `main` that is **`private-export-20261021-1050`**, prepared on October 21, 2026 and merged as PR #78 (`39f3057`) on October 22, 2026; on the branch `feat/half-v4` (draft PR #89, November 4–5, 2026) it is **`master-20261103b`** ([refresh](REFRESH_20261103b.md)). What production serves is recorded in the [project handoff](PROJECT_HANDOFF.md). The [current refresh](REFRESH_20261021_1050.md) records source, calculation and import evidence; the [1652 refresh](REFRESH_20261016_1652.md) keeps its own. The release before it, `private-export-20261021-0829`, was verified and reviewed but **not adopted** (its FULL file lacked the producer's runner identities; [review](REFRESH_20261021_0829.md)); the [0934 refresh](REFRESH_20260912_0934.md) keeps its own; earlier feature updates have their own dated records; a prior deployment does not certify a later change.
+Use [analysis/README.md](../analysis/README.md) for the complete calculation and import contracts. The adopted source is the tag in `analysis/release.json` (repository `koolkam00/pace-notes`). It is **`master-20261103b`**, prepared on November 4–5, 2026 and merged as #89 (`b35789b8`) on November 5, 2026. What production serves is recorded in the [project handoff](PROJECT_HANDOFF.md#current-state). The [current refresh](REFRESH_20261103b.md) records source, calculation and import evidence; the [1050 refresh](REFRESH_20261021_1050.md) and the [1652 refresh](REFRESH_20261016_1652.md) keep their own. `private-export-20261021-0829`, published before 1050, was verified and reviewed but **not adopted** (its FULL file lacked the producer's runner identities; [review](REFRESH_20261021_0829.md)); the [0934 refresh](REFRESH_20260912_0934.md) keeps its own; earlier feature updates have their own dated records; a prior deployment does not certify a later change.
 
 1. Read AGENTS.md and PROJECT_HANDOFF.md; record the branch, commit, both analysis pins, relevant Releases/Actions and public `live.json.as_of` separately.
 2. Fetch public repository metadata and full-record assets without a token, cookies or an account. Confirm actual bytes and checksums, not only a visible release page. The legacy word `private` in a tag is not an access control. Use the [access checks](#access-checks): a ranged GET of each github.com download URL, never api.github.com or a HEAD request.
@@ -251,7 +265,7 @@ Use [analysis/README.md](../analysis/README.md) for the complete calculation and
 
 ## Reproduce and audit the current input
 
-Run from the repository root with Python 3.12 and fresh output directories. The commands here and in the next two sections use `TAG`, which defaults to the pin's tag. For a candidate release, `export TAG=<new tag>` first ([release intake](#release-intake) step 5): the pins change only when the release is adopted (step 8). `PREV` is the input folder of the previously adopted release, downloaded the same way (1050 was audited against `htw-db-2026-10-16-1652`). `LIVE_AS_OF` is the current compatibility-metadata timestamp, read from the live site as the pacing workflow does; it is context, not the source release.
+Run from the repository root with the Python the workflows pin (`3.12` or `3.13.16`; the six workflows that adapt a `master-*` release pin `3.13.16`) and fresh output directories. The commands here and in the next two sections use `TAG`, which defaults to the pin's tag. For a candidate release, `export TAG=<new tag>` first ([release intake](#release-intake) step 5): the pins change only when the release is adopted (step 8). `PREV` is the input folder of the previously adopted release, downloaded the same way (1050 was audited against `htw-db-2026-10-16-1652`). `LIVE_AS_OF` is the current compatibility-metadata timestamp, read from the live site as the pacing workflow does; it is context, not the source release.
 
 ```bash
 python -m pip install -r analysis/requirements.txt
@@ -310,7 +324,7 @@ npm run build
 
 Review and copy the weather JSON to `public/data/weather/evidence.json` with its exact `analysis/weather-release.json` pin. Both pins hold only `repository` and `tag`; at adoption, set `tag` in both to the audited tag ([release intake](#release-intake) step 8). The weather file is outside the two ZIP importer contracts. Verify source/script/policy hashes, raw-to-eligible and weather-cohort reconciliation, all candidate gates, dynamic routes, exact source labels and display units. For the current audited release, `calculation_provenance.py` requires the exact reviewed builder and supporting-script hashes before either import; a valid-looking 64-character hash is insufficient. Website data validation repeats these checks on PRs and main. Review the full diff before committing or merging. Verify the deployed source tags and exact commit separately after publication.
 
-Every active analysis must now use the same adopted release. The supporting-study and runner importer replaces only `public/data/study`, `public/data/runners` and current `live.json` compatibility metadata. It validates every shard, every record and every eligible timing that the runner manifest counts (`raw_records` and `eligible_records` in `public/data/runners/manifest.json`: 5,327,504 and 4,108,749 under 1050), name-index membership and calculation/source hashes before import. Historical S/R/RN/P numerical files remain in Git history, outside deployed output. The source pin alone never certifies a refresh.
+Every active analysis must now use the same adopted release. The supporting-study and runner importer replaces only `public/data/study`, `public/data/runners` and current `live.json` compatibility metadata. It validates every shard, every record and every eligible timing that the runner manifest counts (`raw_records` and `eligible_records` in `public/data/runners/manifest.json`), name-index membership and calculation/source hashes before import. Historical S/R/RN/P numerical files remain in Git history, outside deployed output. The source pin alone never certifies a refresh.
 
 Forecast and validated course-adjustment outputs remain explicitly unavailable where the current inputs cannot support them. Historical outputs remain recoverable in Git history and are never relabeled as fresh. Weather publication follows the existing evidence rule. A previously published candidate can become withheld and vice versa; all three results remain in the downloadable audit. See [weather methods and decisions](WEATHER_ANALYSES.md).
 
