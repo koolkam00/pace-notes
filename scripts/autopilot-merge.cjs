@@ -81,7 +81,22 @@ const REQUIRED_CONCLUSIONS = ['success'];
 const RECONCILE_DAYS = 14;
 const VERSION_TIMEOUT_MINUTES = 5;
 const POLL_MS = 20000;
-const LABEL_COLORS = { [CONFIG.pauseLabel]: 'b60205', [CONFIG.incidentLabel]: 'd93f0b' };
+// Added to a wait for the ready time, so that the second look at the gates falls after it and not on it.
+const READY_MARGIN_MS = 5000;
+/**
+ * The labels the autopilot works with. The session puts `autopilot` on its pull request, the gates read the three block
+ * labels, and nothing else creates them (on November 9, 2026 four of the six did not exist), so every evaluate run
+ * creates whichever the repository lacks (ensureLabels). GitHub allows a description of at most 100 characters.
+ */
+const LABELS = {
+  [CONFIG.label]: { color: '1d76db', description: 'An autopilot pull request: only the Autopilot merge workflow merges it' },
+  [CONFIG.pauseLabel]: { color: 'b60205', description: 'Stops autopilot merges and runs while any open issue carries it' },
+  'autopilot:needs-owner': { color: 'fbca04', description: 'An autopilot pull request waiting for the owner: it never merges by itself' },
+  'do-not-merge': { color: 'b60205', description: 'The Autopilot merge workflow never merges a pull request that carries it' },
+  [CONFIG.incidentLabel]: { color: 'd93f0b', description: 'Opened by the autopilot merge workflow' },
+  // The session finds the "Autopilot log" issue by this label.
+  'autopilot-log': { color: '5319e7', description: 'The one open issue where every autopilot run reports' },
+};
 
 // ---------- Small helpers ----------
 
@@ -283,7 +298,7 @@ async function readyGate(gh, repo, pr, now) {
   const since = arrived && Date.parse(arrived) > Date.parse(readySince) ? arrived : readySince;
   const due = Date.parse(since) + CONFIG.minReadyMinutes * 60000;
   const detail = `ready since ${utc(readySince)}${ready ? '' : ' (opened ready)'}${since === arrived ? `; head commit pushed ${utc(arrived)}` : ''}`;
-  return now() >= due ? { ok: true, detail } : { ok: null, detail: `${detail}; can merge from ${utc(due)}` };
+  return now() >= due ? { ok: true, detail } : { ok: null, detail: `${detail}; can merge from ${utc(due)}`, due };
 }
 
 /** Also records `base`, the main commit it compared with: the merge job merges only while main is still that commit. */
@@ -522,6 +537,7 @@ function headline(result, { stage } = {}) {
   if (stage === 'smoke-incomplete') return '**Not merging yet:** the preview checks did not finish. The workflow tries again on its next run.';
   if (stage === 'merge-refused') return '**Blocked: GitHub refused to merge this commit.** The reason is in the table. Push a commit to try again.';
   if (stage === 'moved') return '**Not merged in this run:** `main` or the pull request changed after the gates checked them (last row). The next run checks again.';
+  if (stage === 'ready-wait') return `**Every other gate passes.** This run waits for the ready time (${utc(result.gates.find((g) => g.id === 'ready').due)}), then checks every gate again.`;
   const failing = result.gates.filter((g) => g.ok === false).map((g) => g.id);
   const waiting = result.gates.filter((g) => g.ok === null).map((g) => g.id);
   if (!failing.length && !waiting.length) return '**All gates pass.** Next: the preview checks, then a squash merge pinned to this commit.';
@@ -543,7 +559,7 @@ function statusBody(deps, result, { stage, extraRows = [] } = {}) {
     headline(result, { stage }), '',
     `Head commit \`${short(result.sha)}\`.`, '',
     ...gateTable([...result.gates, ...extraRows]), '',
-    `The **Autopilot merge** workflow on \`main\` checks again every 15 minutes and whenever CI finishes. Gates and how to pause it: [docs/AUTOPILOT.md](${deps.serverUrl}/${deps.repo}/blob/main/docs/AUTOPILOT.md).`,
+    `The **Autopilot merge** workflow on \`main\` checks again whenever CI finishes or the pull request changes, and on a timer that GitHub can deliver hours late. Gates and how to pause it: [docs/AUTOPILOT.md](${deps.serverUrl}/${deps.repo}/blob/main/docs/AUTOPILOT.md).`,
   ].join('\n');
 }
 
@@ -555,32 +571,83 @@ async function upsertStatusComment(gh, deps, number, existing, body) {
   return 'created';
 }
 
+/**
+ * Creates whichever of the named labels the repository lacks, and returns their names (on a dry run: the ones a real
+ * run would create). It never fails a run: a label that cannot be read or created is logged and left to the next run.
+ */
+async function ensureLabels(gh, deps, names = Object.keys(LABELS), where = '') {
+  const created = [];
+  for (const name of names) {
+    try {
+      const existing = await gh.get(`/repos/${deps.repo}/labels/${encodeURIComponent(name)}`, { allow404: true });
+      if (existing) continue;
+      await gh.write('POST', `/repos/${deps.repo}/labels`, { name, ...LABELS[name] }, `create the ${name} label`);
+      created.push(name);
+    } catch (error) { deps.log(`${where}label ${name}: ${error.message}`); }
+  }
+  return created;
+}
+
 // ---------- Commands ----------
 
 function statePath(deps) { return path.join(deps.env.RUNNER_TEMP || os.tmpdir(), 'autopilot-merge-state.json'); }
+
+/**
+ * Whether a run should wait for the ready time, and for how long. The ready gate is the one gate that passes by
+ * waiting, and nothing wakes the workflow when its time comes: marking a pull request ready starts a run at once,
+ * the timer is the only later trigger, and GitHub delivers a 15-minute timer hours apart on a quiet repository
+ * (measured November 9, 2026: docs/AUTOPILOT.md). So the run that finds the ready time the only thing missing waits
+ * for it. Never longer than the ready time itself, never for two candidates, and never when another gate fails or
+ * waits; the caller then checks every gate again, from fresh reads.
+ */
+function readyWait(results, now) {
+  if (results.length !== 1 || results[0].eligible) return null;
+  const [result] = results;
+  const ready = result.gates.find((g) => g.id === 'ready');
+  if (!ready || ready.ok !== null || !Number.isFinite(ready.due)) return null;
+  if (!result.gates.every((g) => g === ready || g.ok === true)) return null;
+  const ms = Math.max(0, ready.due - now) + READY_MARGIN_MS;
+  return ms > CONFIG.minReadyMinutes * 60000 + READY_MARGIN_MS ? null : { result, ms };
+}
 
 async function cmdEvaluate(argv, deps) {
   const dryRun = argv.includes('--dry-run');
   const only = option(argv, '--pr');
   const gh = deps.client({ dryRun });
-  let unchecked = { items: [], error: null };
-  try { unchecked = { ...(await reconcileMerges(gh, deps)), error: null }; } catch (error) { unchecked = { items: [], error: error.message }; }
-  const pause = await pausedItems(gh, deps.repo);
-  const autopilot = await openAutopilotPrs(gh, deps.repo);
-  const prs = [];
-  for (const p of only ? [{ number: Number(only) }] : autopilot) prs.push(await gh.get(`/repos/${deps.repo}/pulls/${p.number}`));
-  const several = autopilot.length > 1 ? autopilot.map((p) => `#${p.number}`).join(', ') : null;
-  deps.log(`autopilot-merge evaluate${dryRun ? ' (dry run)' : ''}: ${deps.repo}; ${only ? `pull request #${only}; ` : ''}${plural(autopilot.length, 'open autopilot pull request')}${autopilot.length ? ` (${autopilot.map((p) => `#${p.number}`).join(', ')})` : ''}${several ? ', so none merges' : ''}; ${pause.length ? `paused by ${pause.map((i) => `#${i.number}`).join(', ')}` : 'not paused'}; ${unchecked.error ? `merge history not checked (${unchecked.error})` : unchecked.found && unchecked.found.length ? `${plural(unchecked.found.length, 'merge')} without a live-check record (${unchecked.found.map((m) => `#${m.number}`).join(', ')})` : 'every recent autopilot merge accounted for'}; AUTOPILOT_MERGE ${deps.env.AUTOPILOT_MERGE ? `"${deps.env.AUTOPILOT_MERGE}"` : 'not set'}; ${gh.authenticated ? 'authenticated' : 'unauthenticated (read-only)'}`);
+  // One look at everything, from fresh reads: the merge record, the pause, the open pull requests and every gate.
+  const look = async () => {
+    let unchecked = { items: [], error: null };
+    try { unchecked = { ...(await reconcileMerges(gh, deps)), error: null }; } catch (error) { unchecked = { items: [], error: error.message }; }
+    const pause = await pausedItems(gh, deps.repo);
+    const autopilot = await openAutopilotPrs(gh, deps.repo);
+    const prs = [];
+    for (const p of only ? [{ number: Number(only) }] : autopilot) prs.push(await gh.get(`/repos/${deps.repo}/pulls/${p.number}`));
+    const several = autopilot.length > 1 ? autopilot.map((p) => `#${p.number}`).join(', ') : null;
+    deps.log(`autopilot-merge evaluate${dryRun ? ' (dry run)' : ''}: ${deps.repo}; ${only ? `pull request #${only}; ` : ''}${plural(autopilot.length, 'open autopilot pull request')}${autopilot.length ? ` (${autopilot.map((p) => `#${p.number}`).join(', ')})` : ''}${several ? ', so none merges' : ''}; ${pause.length ? `paused by ${pause.map((i) => `#${i.number}`).join(', ')}` : 'not paused'}; ${unchecked.error ? `merge history not checked (${unchecked.error})` : unchecked.found && unchecked.found.length ? `${plural(unchecked.found.length, 'merge')} without a live-check record (${unchecked.found.map((m) => `#${m.number}`).join(', ')})` : 'every recent autopilot merge accounted for'}; AUTOPILOT_MERGE ${deps.env.AUTOPILOT_MERGE ? `"${deps.env.AUTOPILOT_MERGE}"` : 'not set'}; ${gh.authenticated ? 'authenticated' : 'unauthenticated (read-only)'}`);
 
-  const results = [];
-  for (const pr of prs) {
-    let statusComment = null;
-    try { statusComment = await findStatusComment(gh, deps.repo, pr.number); } catch (error) { deps.log(`#${pr.number}: could not read comments: ${error.message}`); }
-    const result = await evaluateGates(gh, deps, pr, { pause, autopilot, statusComment, unchecked });
-    results.push({ ...result, statusComment });
-    deps.log(`\n#${pr.number} ${pr.title} (${short(result.sha)}): ${result.eligible ? 'ELIGIBLE' : 'not eligible'}`);
-    for (const g of result.gates) deps.log(`  ${g.ok === true ? 'pass   ' : g.ok === false ? 'FAIL   ' : 'waiting'} ${g.id.padEnd(13)} ${g.detail}`);
+    const results = [];
+    for (const pr of prs) {
+      let statusComment = null;
+      try { statusComment = await findStatusComment(gh, deps.repo, pr.number); } catch (error) { deps.log(`#${pr.number}: could not read comments: ${error.message}`); }
+      const result = await evaluateGates(gh, deps, pr, { pause, autopilot, statusComment, unchecked });
+      results.push({ ...result, statusComment });
+      deps.log(`\n#${pr.number} ${pr.title} (${short(result.sha)}): ${result.eligible ? 'ELIGIBLE' : 'not eligible'}`);
+      for (const g of result.gates) deps.log(`  ${g.ok === true ? 'pass   ' : g.ok === false ? 'FAIL   ' : 'waiting'} ${g.id.padEnd(13)} ${g.detail}`);
+    }
+    return { pause, autopilot, several, results };
+  };
+  let looked = await look();
+  // A dry run reports and never waits. A real run waits at most once: a ready time that restarted meanwhile (a new
+  // commit, or ready again after a draft) is left to the run its own event starts.
+  const wait = dryRun ? null : readyWait(looked.results, deps.now());
+  if (wait) {
+    const { result, ms } = wait;
+    deps.log(`\n#${result.number}: every other gate passes; waiting ${Math.ceil(ms / 1000)} s for the ready time, then checking every gate again`);
+    try { await upsertStatusComment(gh, deps, result.number, result.statusComment, statusBody(deps, result, { stage: 'ready-wait' })); } catch (error) { deps.log(`#${result.number}: could not write the status comment: ${error.message}`); }
+    await deps.sleep(ms);
+    looked = await look();
   }
+  const { pause, autopilot, several, results } = looked;
   const chosen = results.find((r) => r.eligible) || null;
   deps.setOutput('eligible', chosen && !dryRun ? 'true' : 'false');
   deps.setOutput('candidate', chosen ? 'true' : 'false');
@@ -590,7 +657,12 @@ async function cmdEvaluate(argv, deps) {
   deps.setOutput('preview_url', chosen ? chosen.previewUrl : '');
   if (chosen) fs.writeFileSync(statePath(deps), JSON.stringify({ number: chosen.number, title: chosen.title, sha: chosen.sha, headRef: chosen.headRef, gates: chosen.gates, previewUrl: chosen.previewUrl, notes: chosen.notes }));
 
+  // Housekeeping, after the gates are judged so that it can never hold one up: the labels the session and the gates use.
+  const labels = gh.authenticated ? await ensureLabels(gh, deps) : [];
+  if (labels.length) deps.log(`labels: ${dryRun ? 'missing' : 'created'} ${labels.join(', ')}`);
+
   const summary = [`## Autopilot merge gate${dryRun ? ' (dry run)' : ''}`, ''];
+  if (labels.length) summary.push(`${dryRun ? 'Missing labels, which the next real run creates' : 'Created the missing labels'}: ${labels.map((name) => `\`${name}\``).join(', ')}.`, '');
   if (several) summary.push(`**${autopilot.length} autopilot pull requests are open (${several}), so none merges in this run.** Only one may be open at a time: close all but one.`, '');
   if (!results.length) summary.push(`No open autopilot pull request (a branch starting \`${CONFIG.branchPrefix}\` or the \`${CONFIG.label}\` label).${pause.length ? ` Merges are paused by ${pause.map((i) => `#${i.number}`).join(', ')}.` : ''}`);
   for (const result of results) summary.push(`### #${result.number} ${cell(result.title)}`, '', headline(result), '', ...gateTable(result.gates), '');
@@ -723,7 +795,7 @@ async function cmdMerge(argv, deps) {
     mergeSha = await mergedAnyway(gh, deps, number, sha);
     if (mergeSha) deps.log(`#${number}: the merge request failed (${error.message}), but the pull request is merged as ${mergeSha}; carrying on`);
     else {
-      // GitHub said no (a ruleset, a merge queue, squash merging turned off): record it, so the commit is not retried every 15 minutes.
+      // GitHub said no (a ruleset, a merge queue, squash merging turned off): record it, so the commit is not retried on every run.
       if (error.status >= 400 && error.status < 500) {
         const why = `${error.status} ${error.apiMessage || error.message}`.slice(0, 300);
         const gates = result.gates.map((g) => (g.id === 'merge-refused' ? { ...g, ok: false, detail: `GitHub refused to merge this commit: ${why}. Push a commit to try again` } : g));
@@ -931,12 +1003,7 @@ function revertOnMain(sha, { cwd = ROOT, pr = null } = {}) {
 
 /** Opens the incident issue (with both labels) and comments on the pull request. Returns the issue, or null on a dry run. */
 async function openIncident(gh, deps, { number, title, sha, step, reason, revert, excerpt = '' }) {
-  for (const name of [CONFIG.incidentLabel, CONFIG.pauseLabel]) {
-    try {
-      const existing = await gh.get(`/repos/${deps.repo}/labels/${encodeURIComponent(name)}`, { allow404: true });
-      if (!existing) await gh.write('POST', `/repos/${deps.repo}/labels`, { name, color: LABEL_COLORS[name], description: name === CONFIG.pauseLabel ? 'Stops autopilot merges and runs while any open issue carries it' : 'Opened by the autopilot merge workflow' }, `create the ${name} label`);
-    } catch (error) { deps.log(`incident: label ${name}: ${error.message}`); }
-  }
+  await ensureLabels(gh, deps, [CONFIG.incidentLabel, CONFIG.pauseLabel], 'incident: ');
   const prLink = `${deps.serverUrl}/${deps.repo}/pull/${number}`;
   const body = [
     incidentMarker(number),
@@ -1150,7 +1217,7 @@ function fixture() {
     deployments: [{ id: 501, sha: head, environment: 'Preview', creator: vercel, created_at: '2026-10-14T10:06:00Z' }],
     deploymentStatuses: { 501: [{ id: 1, state: 'success', environment_url: 'https://htw-live-study-abc-koolkam00s-projects.vercel.app', creator: vercel, created_at: '2026-10-14T10:08:00Z' }] },
     comments: { 7: [] },
-    labels: ['autopilot'],
+    labels: Object.keys(LABELS),
     createdIssues: [],
     merges: [],
     faults: [],
@@ -1454,6 +1521,69 @@ async function selfTestAsync() {
       ok('evaluate: its status comment says the gate passes now', state.comments[7].length === 1 && state.comments[7][0].body.includes('| One open autopilot pull request | pass | no other autopilot pull request is open |'));
     }
     {
+      // The ready time. Nothing wakes the workflow when it comes, so the run that finds it the only thing missing waits.
+      const readyAt = (s, at = '2026-10-14T11:55:00Z') => { s.timeline[7].push({ event: 'ready_for_review', created_at: at }); };
+      const waited = (run, state) => run.deps.now() - state.now;
+      const tenMinutes = 10 * 60000 + READY_MARGIN_MS;
+      {
+        const state = fresh(readyAt);
+        const run = mockDeps(state);
+        let during = null;
+        state.onSleep = () => { if (during === null) during = bodyOf(state, 7); };
+        const code = await cmdEvaluate([], run.deps);
+        ok('ready wait: the run that finds only the ready time missing waits for it, then passes', code === 0 && run.outputs.eligible === 'true' && run.outputs.pr === '7' && waited(run, state) === tenMinutes, `${JSON.stringify(run.outputs)} after ${waited(run, state)} ms`);
+        ok('ready wait: the pull request says the run is waiting, and until when', Boolean(during) && during.includes('**Every other gate passes.** This run waits for the ready time (2026-10-14 12:10 UTC), then checks every gate again.'), during || 'no comment');
+        ok('ready wait: afterwards the same comment says every gate passes', state.comments[7].length === 1 && bodyOf(state, 7).includes('**All gates pass.**'), bodyOf(state, 7));
+        ok('ready wait: the live baseline runs once, after the wait', run.counts.liveSeo === 1, `${run.counts.liveSeo} runs`);
+        ok('ready wait: the log says how long', run.logs.some((l) => l.includes('waiting 605 s for the ready time')), run.logs.join('\n').slice(0, 400));
+      }
+      {
+        const state = fresh(readyAt);
+        const run = mockDeps(state);
+        state.onSleep = () => { if (!state.prs[7].labels.some((l) => l.name === 'do-not-merge')) state.prs[7].labels.push({ name: 'do-not-merge' }); };
+        await cmdEvaluate([], run.deps);
+        ok('ready wait: a do-not-merge label added during the wait stops the merge', run.outputs.eligible === 'false' && run.outputs.pr === '' && bodyOf(state, 7).includes('labelled do-not-merge') && run.counts.liveSeo === 0, bodyOf(state, 7));
+      }
+      {
+        const state = fresh(readyAt);
+        const run = mockDeps(state);
+        state.onSleep = () => { if (!state.issues.some((i) => i.number === 3)) state.issues.push({ number: 3, state: 'open', title: 'Autopilot log', labels: [{ name: 'autopilot:paused' }] }); };
+        await cmdEvaluate([], run.deps);
+        ok('ready wait: a pause label added during the wait stops the merge', run.outputs.eligible === 'false' && bodyOf(state, 7).includes('#3 is labelled autopilot:paused'), bodyOf(state, 7));
+      }
+      {
+        const state = fresh(readyAt);
+        const run = mockDeps(state);
+        state.onSleep = () => { if (state.timeline[7].length < 3) readyAt(state, '2026-10-14T12:09:00Z'); };
+        await cmdEvaluate([], run.deps);
+        ok('ready wait: a ready time that restarted during the wait is not waited for again', run.outputs.eligible === 'false' && waited(run, state) === tenMinutes && bodyOf(state, 7).includes('can merge from 2026-10-14 12:24 UTC') && bodyOf(state, 7).includes('**Not merging yet:** 1 waiting (ready).'), `${waited(run, state)} ms; ${bodyOf(state, 7)}`);
+      }
+      {
+        const state = fresh(readyAt);
+        const run = mockDeps(state);
+        await cmdEvaluate(['--dry-run'], run.deps);
+        ok('ready wait: a dry run reports and does not wait', waited(run, state) === 0 && run.outputs.eligible === 'false' && run.outputs.candidate === 'false', `${waited(run, state)} ms`);
+      }
+      {
+        const state = fresh((s) => { readyAt(s); s.prs[7].labels.push({ name: 'do-not-merge' }); });
+        const run = mockDeps(state);
+        await cmdEvaluate([], run.deps);
+        ok('ready wait: no wait while another gate fails', waited(run, state) === 0 && run.outputs.eligible === 'false', `${waited(run, state)} ms`);
+        const pending = fresh((s) => { readyAt(s); s.deployments = []; });
+        const pendingRun = mockDeps(pending);
+        await cmdEvaluate([], pendingRun.deps);
+        ok('ready wait: no wait while another gate is still waiting', waited(pendingRun, pending) === 0 && pendingRun.outputs.eligible === 'false', `${waited(pendingRun, pending)} ms`);
+      }
+      const t0 = Date.parse('2026-10-14T12:00:00Z');
+      const one = (due, others = true) => ({ number: 7, eligible: false, gates: [{ id: 'open', ok: others }, { id: 'ready', ok: null, due }] });
+      ok('ready wait: the wait is the time left plus a margin', readyWait([one(t0 + 60000)], t0).ms === 60000 + READY_MARGIN_MS);
+      ok('ready wait: a due time already past waits only the margin', readyWait([one(t0 - 1000)], t0).ms === READY_MARGIN_MS);
+      ok('ready wait: never longer than the ready time itself', readyWait([one(t0 + CONFIG.minReadyMinutes * 60000)], t0) !== null && readyWait([one(t0 + CONFIG.minReadyMinutes * 60000 + 1)], t0) === null);
+      ok('ready wait: a ready gate that could not be read is not waited for', readyWait([{ number: 7, eligible: false, gates: [{ id: 'open', ok: true }, { id: 'ready', ok: null }] }], t0) === null);
+      ok('ready wait: not for two candidates, an eligible one, or none', readyWait([one(t0 + 60000), one(t0 + 60000)], t0) === null && readyWait([{ ...one(t0 + 60000), eligible: true }], t0) === null && readyWait([], t0) === null);
+      ok('ready wait: not while another gate fails or waits', readyWait([one(t0 + 60000, false)], t0) === null && readyWait([one(t0 + 60000, null)], t0) === null);
+    }
+    {
       // An unlabelled autopilot/ branch, found on the second page of open pull requests.
       const state = fresh((s) => { s.pullsPerPage = 1; openPr(s, 8, { labels: [], head: { ref: 'autopilot/2026-10-14-other', sha: old, repo: { full_name: s.repo } } }); });
       const run = mockDeps(state);
@@ -1539,6 +1669,39 @@ async function selfTestAsync() {
       const run = mockDeps(state, { token: '' });
       await cmdEvaluate([], run.deps);
       ok('unauthenticated evaluate: reads without a token and writes nothing', run.calls.every((c) => !c.auth) && run.calls.every((c) => c.method === 'GET') && state.comments[7].length === 0 && run.outputs.eligible === 'false');
+    }
+
+    // Labels: a session can label its pull request but cannot create a label, so evaluate keeps the set whole.
+    {
+      const every = Object.keys(LABELS);
+      ok('labels: every label the gates and the workflow name has a colour and a description', [CONFIG.label, CONFIG.pauseLabel, CONFIG.incidentLabel, ...CONFIG.blockLabels].every((name) => LABELS[name]) && every.every((name) => /^[0-9a-f]{6}$/.test(LABELS[name].color) && LABELS[name].description.length > 0 && LABELS[name].description.length <= 100));
+      // The repository as it was on November 9, 2026: only the log and pause labels existed.
+      const state = fresh((s) => { s.labels = ['autopilot-log', 'autopilot:paused']; });
+      const run = mockDeps(state);
+      const code = await cmdEvaluate([], run.deps);
+      const posts = run.calls.filter((c) => c.method === 'POST' && c.path === '/repos/koolkam00/pace-notes/labels');
+      ok('labels: evaluate creates the missing ones, each with its colour and description', code === 0 && every.every((name) => state.labels.includes(name)) && posts.map((c) => c.body.name).join(',') === 'autopilot,autopilot:needs-owner,do-not-merge,autopilot-incident' && posts.every((c) => c.body.color === LABELS[c.body.name].color && c.body.description === LABELS[c.body.name].description), posts.map((c) => c.body.name).join(','));
+      ok('labels: the run says which it created, and the gates are judged as before', run.outputs.eligible === 'true' && run.logs.includes('labels: created autopilot, autopilot:needs-owner, do-not-merge, autopilot-incident') && run.summaries[0].includes('Created the missing labels: `autopilot`, `autopilot:needs-owner`, `do-not-merge`, `autopilot-incident`.'), run.summaries[0]);
+      await cmdEvaluate([], run.deps);
+      ok('labels: nothing is created twice', run.calls.filter((c) => c.method === 'POST' && c.path.endsWith('/labels')).length === 4 && !run.summaries[1].includes('labels'));
+
+      const dry = fresh((s) => { s.labels = ['autopilot-log', 'autopilot:paused']; });
+      const dryRun = mockDeps(dry);
+      await cmdEvaluate(['--dry-run'], dryRun.deps);
+      ok('labels: a dry run names the missing ones and creates none', dry.labels.length === 2 && dryRun.calls.every((c) => c.method === 'GET' || c.path === '/graphql') && dryRun.logs.includes('dry run: would create the autopilot label') && dryRun.logs.includes('labels: missing autopilot, autopilot:needs-owner, do-not-merge, autopilot-incident') && dryRun.summaries[0].includes('Missing labels, which the next real run creates: `autopilot`'), dryRun.summaries[0]);
+
+      const anonymous = fresh((s) => { s.labels = []; });
+      const anonymousRun = mockDeps(anonymous, { token: '' });
+      await cmdEvaluate([], anonymousRun.deps);
+      ok('labels: without a token they are not read or created', anonymous.labels.length === 0 && !anonymousRun.calls.some((c) => c.path.includes('/labels')));
+
+      // A label that cannot be read or created never fails the run or changes the verdict; the next run tries again.
+      const flaky = fresh((s) => { s.labels = ['autopilot-log', 'autopilot:paused']; s.faults.push({ method: 'GET', path: /\/labels\/autopilot$/, status: 503, times: 9 }, { method: 'POST', path: /\/labels$/, status: 403, times: 1, message: 'Resource not accessible by integration' }); });
+      const flakyRun = mockDeps(flaky);
+      const flakyCode = await cmdEvaluate([], flakyRun.deps);
+      ok('labels: one that cannot be read or created is logged and the run carries on', flakyCode === 0 && flakyRun.outputs.eligible === 'true' && bodyOf(flaky, 7).includes(MARKER) && flakyRun.logs.some((l) => /^label autopilot: .*answered 503/.test(l)) && flakyRun.logs.some((l) => /^label autopilot:needs-owner: .*answered 403: Resource not accessible by integration/.test(l)) && flaky.labels.includes('do-not-merge') && flaky.labels.includes('autopilot-incident') && !flaky.labels.includes('autopilot') && !flaky.labels.includes('autopilot:needs-owner'), flakyRun.logs.filter((l) => l.startsWith('label')).join(' | '));
+      await cmdEvaluate([], flakyRun.deps);
+      ok('labels: the next run creates the one that was refused', flaky.labels.includes('autopilot:needs-owner'));
     }
 
     // Reads are retried: one bad answer from GitHub does not fail a scheduled run; a refusal is not retried.
@@ -1901,7 +2064,7 @@ async function selfTestAsync() {
 
     // incident.
     {
-      const state = fresh((s) => { s.faults.push({ method: 'POST', path: /\/issues$/, status: 502, times: 1 }); });
+      const state = fresh((s) => { s.labels = ['autopilot']; s.faults.push({ method: 'POST', path: /\/issues$/, status: 502, times: 1 }); });
       fs.writeFileSync(path.join(tmp, 'smoke.log'), 'line 1\n```\nFAIL: / [mobile]: pageerror: boom\n');
       const run = mockDeps(state);
       const code = await cmdIncident(['--pr', '7', '--sha', merged, '--reason', 'live smoke test failed', '--revert', '--step', 'live smoke test', '--log', path.join(tmp, 'smoke.log')], run.deps);
@@ -2016,7 +2179,7 @@ async function selfTestAsync() {
     for (const failure of failures) console.error(`  ${failure}`);
     return 1;
   }
-  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, one open autopilot pull request, merge history, every check run and required checks that must succeed, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge pinned to the main the gates checked, and lost or refused merges, deploy wait, live failure-set comparisons, the version.json reading after the SEO check, live record, incident, report-driven reverts that keep the ledger and the learnings, and a stopped experiment stopped)`);
+  console.log(`autopilot-merge self-test: ${checks} checks passed (every gate on its own, pause, one open autopilot pull request, the labels, merge history, every check run and required checks that must succeed, stale and re-run checks, reviews, status comment and its notes, dry run, retried reads, merge pinned to the main the gates checked, and lost or refused merges, deploy wait, live failure-set comparisons, the version.json reading after the SEO check, live record, incident, report-driven reverts that keep the ledger and the learnings, and a stopped experiment stopped)`);
   return 0;
 }
 function selfTest() { return selfTestAsync(); }
