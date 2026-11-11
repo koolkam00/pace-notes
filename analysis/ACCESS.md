@@ -1,6 +1,6 @@
 # Public export access
 
-Updated November 5, 2026 for **`master-20261103b`**, the release every page uses on the branch `feat/half-v4` (draft PR #89; not merged: production still uses `private-export-20261021-1050`, whose section is [below](#the-1050-release-october-21-2026-historical); production state is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md)). Full source records, recorded names, overlays and the producer's documents are public research material. Files are compressed or plain, never encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption.
+Updated November 5, 2026 for **`master-20261103b`**, the release every page uses: both pins name it, on `main` since #89 (`b35789b8`, squash-merged November 5, 2026). What production serves is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md#current-state). The release before it, `private-export-20261021-1050`, has its section [below](#the-1050-release-october-21-2026-historical). Full source records, recorded names, overlays and the producer's documents are public research material. Files are compressed or plain, never encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption.
 
 ## Open the full records
 
@@ -43,7 +43,7 @@ The audit, the identity contract, the edition policy and the delta against 1050 
 
 ## Half-marathon releases (October 31, 2026)
 
-The half-marathon pages (`/half`, the half-to-full story and the tools' half panels) read the owner's public half releases in the same repository, under CC BY 4.0, pinned by sha256 in [`analysis/half-release.json`](half-release.json) (schema 3). This is the pin of the branch `feat/half-v4`, measured and reviewed on October 31, 2026 and not merged; `main` and production still read the first pin, [below](#half-marathon-releases-october-30-2026-historical). Contract, rules and evidence: [half marathons](../docs/HALF_MARATHON.md#sources-and-access).
+The half-marathon pages (`/half`, the half-to-full story and the tools' half panels) read the owner's public half releases in the same repository, under CC BY 4.0, pinned by sha256 in [`analysis/half-release.json`](half-release.json) (schema 3). This pin was measured and reviewed on October 31, 2026 and is on `main` since #89 (`b35789b8`, squash-merged November 5, 2026). The first pin, which it replaced, is [below](#half-marathon-releases-october-30-2026-historical). Contract, rules and evidence: [half marathons](../docs/HALF_MARATHON.md#sources-and-access).
 
 - [`half-dataset-20261030-1904`](https://github.com/koolkam00/pace-notes/releases/tag/half-dataset-20261030-1904) (published 2026-10-30 23:52 UTC; `immutable: false` on GitHub; no DOI is stated for it): the half snapshot of October 30, 2026, 19:04 ET, and the producer's person IDs v4, which link half and marathon records, with the release's README, comma-separated tables and [`SHA256SUMS`](https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261030-1904/SHA256SUMS) (1,383 bytes, itself pinned: sha256 `9a9759bf6aff47a2dbc5c53f97d295dd55d440392e492cca9fec6a1bc06d9446`). The pages use:
 
@@ -93,7 +93,7 @@ In the same run the release page of `half-dataset-20261030-1904` answered 200, `
 
 ## Half-marathon releases (October 30, 2026, historical)
 
-> Historical (October 31, 2026): the first half pin, which `main` and production still read; the branch `feat/half-v4` replaces it with `half-dataset-20261030-1904` ([above](#half-marathon-releases-october-31-2026)). This section is kept as written on October 30, 2026; its heading gained "historical".
+> Historical: the first half pin, replaced on `main` by `half-dataset-20261030-1904` ([above](#half-marathon-releases-october-31-2026)) when #89 merged on November 5, 2026. This section is kept as written on October 30, 2026; its heading gained "historical".
 
 The half-marathon pages (`/half`, the half-to-full story and the tools' half panels) read the owner's public half releases in the same repository, under CC BY 4.0, pinned by sha256 in [`analysis/half-release.json`](half-release.json). Contract, rules and evidence: [half marathons](../docs/HALF_MARATHON.md#sources-and-access).
 
