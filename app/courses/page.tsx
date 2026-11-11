@@ -20,11 +20,13 @@ import '@/app/styles/pages/courses.css';
 export function generateMetadata() {
   const pages = [...coursePages().values()];
   const names = pages.map((p) => p.city).sort();
-  const drawn = pages.filter((p) => p.geometry).length;
+  // The courses whose row prints a climb (climbOf below): a supplied route whose profile does not read the water under a
+  // bridge. Until November 9, 2026 this counted every route file, two more than the rows that print a climb.
+  const drawn = pages.filter((p) => p.geometry && !profileUnderWater(p)).length;
   const display = (city: string) => (city === 'New York' ? 'New York City' : city);
   const span = names.length > 1 ? `, from ${display(names[0])} to ${display(names[names.length - 1])}` : '';
   const describe = (from: string) => `Sustained slowdown, climb, finishes and race-morning weather for ${names.length} marathon courses${from}, with route and elevation for ${drawn}.`;
-  // Every course has a pacing profile; only those with a supplied route file have elevation, so the title counts both.
+  // Every course has a pacing profile; only those whose row prints a climb have elevation, so the title counts both.
   const title = drawn === names.length ? `Marathon Courses: Elevation and Pacing for ${names.length} Races` : `Marathon Courses: Pacing for ${names.length} Races, Elevation for ${drawn}`;
   return pageMetadata({ title, description: describe(span).length <= 155 ? describe(span) : describe(''), path: '/courses' });
 }

@@ -5,7 +5,7 @@
  */
 import type { Metadata } from 'next';
 import { getInsightsManifest } from './insights-server';
-import { absoluteUrl, assertCleanPath, movedTo } from './seo-routes';
+import { absoluteUrl, assertCleanPath, movedTo, sitemapEntries } from './seo-routes';
 import { DEFAULT_OG_IMAGE, ogImageFor } from './og-paths';
 import { chapterNumber, placeOf } from './chapters';
 
@@ -79,6 +79,48 @@ export function movedMetadata(path: string, title: string, description: string):
   const target = movedTo(path);
   if (!target) throw new Error(`${path} is not a moved address in lib/seo-routes.ts`);
   return pageMetadata({ title, description, path, noindex: true, canonicalPath: target.split('#')[0] });
+}
+
+/** A page's lastmod in the sitemap (lib/seo-routes.ts sitemapEntries()), read once per build; undefined where it has none. */
+let lastmods: Map<string, string | undefined> | null = null;
+export function sitemapLastmod(path: string): string | undefined {
+  return (lastmods ??= new Map(sitemapEntries().map((entry) => [entry.path, entry.lastmod]))).get(path);
+}
+
+export type ArticleInput = {
+  /** The page's H1 text; the one accent's asterisks (*…*) are removed here. */
+  headline: string;
+  description: string;
+  /** The page's own clean path: `url`, `mainEntityOfPage` and the share image follow it. */
+  path: string;
+  /** The day the page was first published, only where one is recorded: never a guess. */
+  published?: string;
+  /** The page's sitemap lastmod (never earlier than `published`), so the sitemap, the Open Graph tag and this node agree. */
+  modified?: string;
+};
+
+/**
+ * schema.org Article for a page whose H1 states its finding (the stories and the analyses). The headline is the page's
+ * H1, so a machine reader's name for the page is the sentence a visitor reads first; the author and publisher are named
+ * and carry no link. verify-seo's `article` check reads every built page: the headline against the H1, the dates
+ * against the Open Graph tags and the sitemap. Pass `type: 'article'` and the same dates to pageMetadata.
+ */
+export function articleLd({ headline, description, path, published, modified }: ArticleInput) {
+  const image = ogImageFor(path) ?? DEFAULT_OG_IMAGE;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: headline.replace(/\*/g, ''),
+    description,
+    url: absoluteUrl(path),
+    mainEntityOfPage: absoluteUrl(path),
+    image: [/^https?:\/\//.test(image) ? image : absoluteUrl(image)],
+    ...(published ? { datePublished: published } : {}),
+    ...(modified ? { dateModified: modified } : {}),
+    inLanguage: 'en',
+    author: [{ '@type': 'Person', name: 'Andrew Kam' }],
+    publisher: { '@type': 'Person', name: 'Andrew Kam' },
+  };
 }
 
 /** A JSON-LD block. `<` is escaped so the data can never close the script element. */

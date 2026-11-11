@@ -53,11 +53,13 @@
 .viz-frame .l-type { fill: none; stroke: var(--type); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .viz-frame .a-silhouette { fill: var(--fill-quiet); }
 .viz-frame .a-edge { fill: none; stroke: var(--mark-quiet); stroke-width: 1.5; stroke-linejoin: round; }
-/* A band's two strengths: --wash, and --wash-thin where it rests on few finishes (LineProfile band.faint), so a noisy
-   edge stays quiet; a chart may set both (the half profile does, for contrast in dark mode). The stretch between them
-   fades through a gradient whose stops take the same two values. */
-.viz-frame .a-band { fill: var(--ink); opacity: var(--wash, .1); }
-.viz-frame .a-band.is-faint { opacity: var(--wash-thin, .045); }
+/* A band's two strengths: --band-wash, and --band-wash-thin where it rests on few finishes (LineProfile band.faint), so a
+   noisy edge stays quiet; a chart may set both (the half profile does, for contrast in dark mode). The stretch between
+   them fades through a gradient whose stops take the same two values. The names are not --wash and --wash-thin: tokens.css
+   keeps --wash as a colour alias, and an opacity that reads a colour is invalid, so it computes to 1 and the fallback
+   never applies (October 30 to November 10, 2026: every band outside the half profile drew solid). verify-css rule 11. */
+.viz-frame .a-band { fill: var(--ink); opacity: var(--band-wash, .1); }
+.viz-frame .a-band.is-faint { opacity: var(--band-wash-thin, .045); }
 .viz-frame .a-band.is-fade { opacity: 1; }
 .viz-frame .a-band-stop { stop-color: var(--ink); }
 .viz-frame .a-wash { fill: var(--ink); opacity: .028; }
@@ -127,8 +129,8 @@
 .viz-frame .viz-key-mark.is-band.is-quiet { background: var(--paper-sunk); box-shadow: none; }
 /* A LineProfile wash keyed with the plot's own fill and strength (no edge: the plot's wash has none). */
 .viz-frame .viz-key-mark.is-wash, .viz-frame .viz-key-mark.is-wash-thin { position: relative; width: 18px; height: 10px; border-radius: 2px; background: none; box-shadow: none; }
-.viz-frame .viz-key-mark.is-wash::before, .viz-frame .viz-key-mark.is-wash-thin::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--ink); opacity: var(--wash, .1); }
-.viz-frame .viz-key-mark.is-wash-thin::before { opacity: var(--wash-thin, .045); }
+.viz-frame .viz-key-mark.is-wash::before, .viz-frame .viz-key-mark.is-wash-thin::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--ink); opacity: var(--band-wash, .1); }
+.viz-frame .viz-key-mark.is-wash-thin::before { opacity: var(--band-wash-thin, .045); }
 /* An interval keyed as the plot draws it: a vertical 1.5 px stem with 9 px caps in the second ink, not a horizontal
    bar a reader could match to a chart's baseline (the /half round-times columns; round 5 review). */
 .viz-frame .viz-key-mark.is-whisker {

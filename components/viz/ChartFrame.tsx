@@ -15,7 +15,7 @@ import Readout, { type ReadoutProps } from './Readout';
  * `status="error"` "This chart could not load" with a Retry link (role="alert"). An answer is never empty.
  */
 /** `none` is a key line with no swatch, for what holds for every mark ("Each dot ≈ 38,700 finishes"). */
-/** `wash` and `wash-thin`: a LineProfile band's two fills, drawn exactly as the plot draws them (--wash, --wash-thin). */
+/** `wash` and `wash-thin`: a LineProfile band's two fills, drawn exactly as the plot draws them (--band-wash, --band-wash-thin). */
 /** `whisker`: an interval drawn as a vertical I-beam (a 1.5 px stem with caps), so it is not read as a horizontal line. */
 export type KeyItem = { label: string; mark: 'dot' | 'ring' | 'line' | 'dash' | 'square' | 'hollow' | 'band' | 'wash' | 'wash-thin' | 'whisker' | 'none'; tone?: 'ink' | 'signal' | 'quiet' };
 

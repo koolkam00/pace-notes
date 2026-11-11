@@ -1,8 +1,6 @@
 import { notFound } from 'next/navigation';
 import { STORIES, storyHref, storyPublished, type StoryDefinition } from '@/lib/stories';
-import { JsonLd, absoluteUrl, breadcrumbs, pageMetadata } from '@/lib/seo';
-import { sitemapEntries } from '@/lib/seo-routes';
-import { DEFAULT_OG_IMAGE, ogImageFor } from '@/lib/og-paths';
+import { JsonLd, articleLd, breadcrumbs, pageMetadata, sitemapLastmod } from '@/lib/seo';
 import { placeOf, chapterNumber } from '@/lib/chapters';
 import PacingTypesBody from '@/components/story/bodies/PacingTypesBody';
 import RoundNumbersBody from '@/components/story/bodies/RoundNumbersBody';
@@ -28,16 +26,12 @@ function available() {
   return STORIES.filter((s) => BODIES[s.slug] && storyPublished(s));
 }
 
-/** The sitemap's lastmod for each story (the later of its CONTENT_DATES entry and the insights as_of day), read once per build. */
-let lastmods: Map<string, string | undefined> | null = null;
-const sitemapLastmod = (path: string) => (lastmods ??= new Map(sitemapEntries().map((entry) => [entry.path, entry.lastmod]))).get(path);
-
 /** Search and social text for a story: its SEO fields, or the visible title and dek. */
 function storySeo(story: StoryDefinition) {
   const path = storyHref(story);
   const description = story.seoDescription ?? story.dek;
-  // The same date as the story's sitemap lastmod, so dateModified, article:modified_time and the sitemap agree;
-  // never earlier than the day the story was first published.
+  // The same date as the story's sitemap lastmod (the later of its CONTENT_DATES entry and the insights as_of day), so
+  // dateModified, article:modified_time and the sitemap agree; never earlier than the day the story was first published.
   const modified = [story.published, sitemapLastmod(path)].filter((date): date is string => !!date).sort().pop()!;
   return { path, title: story.seoTitle ?? `${story.title} | Pace Notes`, description, published: story.published, modified };
 }
@@ -57,21 +51,9 @@ export default function StoryPage({ params }: { params: { slug: string } }) {
   const story = available().find((s) => s.slug === params.slug);
   if (!story) notFound();
   const seo = storySeo(story);
-  const image = ogImageFor(seo.path) ?? DEFAULT_OG_IMAGE;
-  const article = {
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: story.title,
-    description: seo.description,
-    url: absoluteUrl(seo.path),
-    mainEntityOfPage: absoluteUrl(seo.path),
-    image: [/^https?:\/\//.test(image) ? image : absoluteUrl(image)],
-    datePublished: seo.published,
-    dateModified: seo.modified,
-    inLanguage: 'en',
-    author: [{ '@type': 'Person', name: 'Andrew Kam' }],
-    publisher: { '@type': 'Person', name: 'Andrew Kam' },
-  };
+  // The headline is the page's H1: the heading every story body hands StoryHero (until November 9, 2026 it was the
+  // display title, "Round numbers" where the page opens on its finding). verify-seo's article check compares the two.
+  const article = articleLd({ headline: story.heading ?? story.title, description: seo.description, path: seo.path, published: seo.published, modified: seo.modified });
   const place = placeOf(seo.path);
   const crumb = place ? `Chapter ${chapterNumber(place.chapter)} · ${place.chapter.title}` : 'Stories';
   const Body = BODIES[story.slug];

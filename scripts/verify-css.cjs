@@ -24,7 +24,12 @@
 //      component rule written for [data-theme="dark"] has the same rule under the media query, and none without one;
 //  10. every component that colours a block from the pace ramp (paceColour) also hands it the dark theme's ramp
 //      (PACE_RAMP_DARK), so no light-ramp colour is painted inline on the dark page (round 5: the elevation blocks' cream
-//      "0" was the brightest mark on the night page).
+//      "0" was the brightest mark on the night page);
+//  11. a var() whose fallback is a plain number (opacity: var(--name, .1)) names no property that tokens.css declares as
+//      something else: the token's value wins over the fallback, and a colour where a number belongs makes the whole
+//      declaration invalid, so an opacity computes to 1. Checked in app/styles/** and in the var() strings components
+//      write (October 30 to November 10, 2026: tokens.css's colour alias --wash met the charts' band strength of the
+//      same name, and every band outside the half profile drew solid).
 //
 //   node scripts/verify-css.cjs            checks app/styles
 //   node scripts/verify-css.cjs --self-test checks the checker against planted mistakes
@@ -42,6 +47,25 @@ const LOCAL = new Set(['--i', '--fill', '--thumb-x', '--thumb-w', '--bg', '--bg-
 const declared = (css) => new Set([...uncomment(css).matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1]));
 let TOKENS = null;
 const tokens = () => (TOKENS ??= declared(fs.existsSync(path.join(STYLES, 'tokens.css')) ? fs.readFileSync(path.join(STYLES, 'tokens.css'), 'utf8') : ''));
+/** Every value tokens.css gives a custom property (a name may be declared once per theme): Map(name → [value, …]). */
+let TOKEN_VALUES = null;
+function tokenValues() {
+  if (TOKEN_VALUES) return TOKEN_VALUES;
+  TOKEN_VALUES = new Map();
+  const file = path.join(STYLES, 'tokens.css');
+  for (const m of uncomment(fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '').matchAll(/(--[a-z0-9-]+)\s*:\s*([^;}]+)/gi)) TOKEN_VALUES.set(m[1], [...(TOKEN_VALUES.get(m[1]) || []), m[2].trim()]);
+  return TOKEN_VALUES;
+}
+const NUMBER = /^-?[\d.]+%?$/;
+/** 11. The var(--name, <number>) uses in a text whose name tokens.css declares as something that is not a number. */
+function numberFallbackClashes(text) {
+  const clashes = [];
+  for (const m of text.matchAll(/var\(\s*(--[a-z0-9-]+)\s*,\s*-?[\d.]+%?\s*\)/gi)) {
+    const other = (tokenValues().get(m[1]) || []).find((v) => !NUMBER.test(v));
+    if (other !== undefined) clashes.push(`${m[0]} falls back to a number, but tokens.css declares ${m[1]} as ${other}: the token wins, the declaration is invalid and the fallback never applies`);
+  }
+  return clashes;
+}
 
 /** Strips comments, keeping line numbers. */
 const uncomment = (css) => css.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
@@ -90,6 +114,8 @@ function check(file, css) {
       if (!tokens().has(m[1]) && !own.has(m[1]) && !LOCAL.has(m[1])) add(r.line, `var(${m[1]}) is not a token in tokens.css or a property this file declares`);
     }
   }
+  // 11. a number fallback behind a token of another type
+  for (const r of rules) for (const clash of numberFallbackClashes(r.body)) add(r.line, clash);
   const isTokens = rel === 'tokens.css';
   const isFonts = rel === 'fonts.css';
   for (const r of rules) {
@@ -247,6 +273,8 @@ function selfTest() {
       ['.a { padding: var(--s4); }', /not a token/],
       ['.a { padding: var(--s-4); }', null],
       ['.a { padding: var(--nope, 4px); }', null],
+      ['.a { opacity: var(--ink, .1); }', /falls back to a number/],
+      ['.a { opacity: var(--band-wash, .1); }', null],
       ['.a { --tooth: 8px; } .b { height: var(--tooth); }', null],
       ['.bin { fill: var(--fill-quiet); }', /no --mark-quiet edge/],
       ['.bin { fill: var(--fill-quiet); stroke: var(--mark-quiet); stroke-width: 1.5px; }', null],
@@ -286,13 +314,21 @@ function checkRampUse(root) {
   return problems;
 }
 
+/** 11, in the components: a var(--name, <number>) string a component writes (a gradient stop's strength, an inline style). */
+function checkNumberFallbacks(root) {
+  const walk = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(path.join(dir, d.name)) : /\.tsx?$/.test(d.name) ? [path.join(dir, d.name)] : [])) : []);
+  return ['components', 'app', 'lib'].flatMap((dir) => walk(path.join(root, dir)))
+    .flatMap((file) => numberFallbackClashes(fs.readFileSync(file, 'utf8')).map((clash) => `${path.relative(root, file)}: ${clash}`));
+}
+
 function main() {
   if (process.argv.includes('--self-test')) process.exit(selfTest());
   const list = files(STYLES);
   const problems = list.flatMap((f) => check(f, fs.readFileSync(f, 'utf8')))
     .concat(checkDark(list.map((f) => [path.relative(STYLES, f), fs.readFileSync(f, 'utf8')])))
     .concat(checkRamp(fs.readFileSync(path.join(ROOT, 'lib', 'viz', 'format.ts'), 'utf8'), fs.readFileSync(path.join(STYLES, 'tokens.css'), 'utf8')))
-    .concat(checkRampUse(ROOT));
+    .concat(checkRampUse(ROOT))
+    .concat(checkNumberFallbacks(ROOT));
   if (problems.length) {
     console.error(`verify-css: ${problems.length} problem${problems.length === 1 ? '' : 's'}`);
     for (const p of problems) console.error('  ' + p);

@@ -12,6 +12,8 @@ import ChapterList from '@/components/ui/ChapterList';
 import type { Metadata } from 'next';
 import { DEFAULT_OG_IMAGE, OG_IMAGE_SIZE, OG_LOCALE, SITE_NAME, SITE_URL, finishesM } from '@/lib/seo';
 import { RELOAD_ON_FAILED_FILE } from '@/lib/chunk-reload';
+import { listedAnalyses } from '@/lib/chapters';
+import { countWord } from '@/lib/nuggets/format';
 
 // Site-wide defaults only. Pages set their own title, description, canonical and full openGraph through
 // pageMetadata() in lib/seo.tsx. Never put a canonical, openGraph.url or title.template here (docs/SEO.md).
@@ -19,7 +21,9 @@ export const metadata: Metadata = {
   // Hard-coded so canonical and social URLs never fall back to a Vercel deployment host.
   metadataBase: new URL(SITE_URL),
   title: 'Pace Notes | Understand your next 26.2 miles',
-  description: `What ${finishesM()} million recorded marathon finishes reveal about pacing: interactive stories, race replays and ten essential runner questions.`,
+  // The questions are the analyses /analyses lists, counted as its title counts them (typed "ten" until November 9, 2026,
+  // when the hub listed eleven). No page uses this default while every page sets its own description.
+  description: `What ${finishesM()} million recorded marathon finishes reveal about pacing: interactive stories, race replays and ${countWord(listedAnalyses().length)} essential runner questions.`,
   openGraph: { type: 'website', siteName: SITE_NAME, locale: OG_LOCALE, images: [{ url: DEFAULT_OG_IMAGE, ...OG_IMAGE_SIZE, alt: SITE_NAME }] },
   twitter: { card: 'summary_large_image', images: [DEFAULT_OG_IMAGE] },
   robots: { index: true, follow: true, 'max-image-preview': 'large' },

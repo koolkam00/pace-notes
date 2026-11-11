@@ -7,11 +7,11 @@ import ChapterEnd from '@/components/ChapterEnd';
 import Columns from '@/components/viz/Columns';
 import { Beat, Say } from '@/components/analysis/Shell';
 import { getStudyEvidence } from '@/lib/research-data';
-import { howWeKnowOf, readingAttrs } from '@/lib/chapters';
+import { howWeKnowOf, placeOf, readingAttrs } from '@/lib/chapters';
 import { getNugget, settledReadingOf } from '@/lib/nuggets';
 import { approxWords, count, pct, sectionLabel } from '@/lib/nuggets/format';
 import { capitalize } from '@/lib/nuggets/build';
-import { pageMetadata } from '@/lib/seo';
+import { JsonLd, pageCrumbs, pageMetadata } from '@/lib/seo';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 
 const PATH = '/slowdown';
@@ -56,7 +56,14 @@ export default function Page() {
   const title = { ...onset, headline: 'Most sustained slowdowns began at *30K or later*.', fallback: 'Sustained slowdown: when it began, and where.' };
   const bands = (study?.figures.find((f) => f.id === 'history')?.charts[0]?.rows ?? []).filter((r) => Number(r.n_value) >= 100);
   const first = bands[0];
+  // The breadcrumb's last name is the page's name in the chapters registry (lib/chapters.ts), the one the rail and the
+  // contents print, never typed here; until November 9, 2026 this page carried no structured data.
+  const place = placeOf(PATH);
+  const name = place && 'page' in place ? place.page.title : null;
   return (
+    <>
+    {/* Before the page's root, as on the analyses (app/analyses/[slug]/page.tsx), so the rail's layout is unchanged. */}
+    {name ? <JsonLd data={pageCrumbs(PATH, name)} /> : null}
     <div className="analysis-page slowdown-page with-rail" {...readingAttrs(PATH)}>
       <ChapterRail path={PATH} />
       <article className="analysis-flow">
@@ -83,5 +90,6 @@ export default function Page() {
         <ChapterEnd path={PATH} readingOf={settledReadingOf} how={!first} />
       </article>
     </div>
+    </>
   );
 }

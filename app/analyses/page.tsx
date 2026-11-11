@@ -1,10 +1,10 @@
 import { PageList } from '@/components/ui/ChapterList';
 import { getNugget, readingOf, type NuggetId } from '@/lib/nuggets';
-import { CHAPTERS, livePages } from '@/lib/chapters';
+import { listedAnalyses } from '@/lib/chapters';
 import { pageMetadata } from '@/lib/seo';
 
 /** The analyses the page lists (every live analysis page in the chapters), so the title counts what the list shows. */
-const listed = CHAPTERS.flatMap((c) => livePages(c)).filter((p) => p.kind === 'analysis' && p.href.startsWith('/analyses/')).length;
+const listed = listedAnalyses().length;
 
 export const metadata = pageMetadata({
   title: `Marathon Pacing: ${listed} Analyses | Pace Notes`,

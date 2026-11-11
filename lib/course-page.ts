@@ -67,20 +67,25 @@ export function hotCoolShown<T extends { hot: { temp: number }; cool: { temp: nu
   return Math.round((entry.hot.temp - entry.cool.temp) * 10) / 10 >= minGap ? entry : null;
 }
 
-/** Search title: "{race}: Elevation, Pacing and Finish Times", or "… Pacing and Finish Times by Year" without a route; the brand when it fits. */
-export function courseTitle(race: string, hasRoute: boolean): string {
-  const branded = `${race}: ${hasRoute ? 'Elevation, Pacing and Finish Times' : 'Pacing and Finish Times by Year'} | Pace Notes`;
+/**
+ * Search title: "{race}: Elevation, Pacing and Finish Times", or "… Pacing and Finish Times by Year" where the page prints
+ * no elevation (`hasElevation` false: no supplied route, or a profile that reads the water under a bridge, whose climb no
+ * page prints); the brand when it fits.
+ */
+export function courseTitle(race: string, hasElevation: boolean): string {
+  const branded = `${race}: ${hasElevation ? 'Elevation, Pacing and Finish Times' : 'Pacing and Finish Times by Year'} | Pace Notes`;
   return branded.length <= MAX_TITLE ? branded : branded.replace(/ \| Pace Notes$/, '');
 }
 
 /**
  * Search description from the same figures the page prints: richest wording first, clauses dropped while the text would
  * run past 155 characters. The editions and years are the ones that make up the finishes (`counted`), as on the page.
+ * The elevation clause only where the page prints the route's elevation (`hasElevation`, as for the title).
  */
-export function courseDescription(race: string, total: { finishes: number; editions: number; years: number[] }, hasRoute: boolean, hasWeather: boolean): string {
+export function courseDescription(race: string, total: { finishes: number; editions: number; years: number[] }, hasElevation: boolean, hasWeather: boolean): string {
   const years = total.years.length ? [Math.min(...total.years), Math.max(...total.years)] : null;
   const span = total.editions === 1 && years ? ` in its ${years[0]} edition` : ` across ${count(total.editions)} editions${years && years[0] !== years[1] ? ` (${years[0]}–${years[1]})` : ''}`;
-  const lead = hasRoute ? `${race} elevation profile, finish times by year and how` : `${race} finish times by year and how`;
+  const lead = hasElevation ? `${race} elevation profile, finish times by year and how` : `${race} finish times by year and how`;
   const variants = [span, ''].flatMap((spanText) => [hasWeather, false].flatMap((weather) => [true, false].map((recorded) =>
     `${lead} ${count(total.finishes)}${recorded ? ' recorded' : ''} finishes paced each 5 km${spanText}${weather ? ', with race-morning weather' : ''}.`)));
   return variants.find((text) => text.length <= MAX_DESCRIPTION) ?? variants[variants.length - 1];

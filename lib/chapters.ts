@@ -199,6 +199,12 @@ export function cleanPath(path: string): string {
 
 /** The chapter's pages that are built (pending ones left out). */
 export const livePages = (chapter: Chapter) => chapter.pages.filter((p) => !p.pending);
+/**
+ * The analyses /analyses lists (its PageList): the built analysis pages under it, in race order. One count for the hub's
+ * title and description, the site's default description and the section's share card (scripts/build-og-images.cjs), so
+ * none of them is typed; verify-seo's hub-counts check recounts them against the rows the built hub lists.
+ */
+export const listedAnalyses = () => CHAPTERS.flatMap((c) => livePages(c)).filter((p) => p.kind === 'analysis' && p.href.startsWith('/analyses/'));
 /** "06". */
 export const chapterNumber = (chapter: Chapter) => String(chapter.n).padStart(2, '0');
 /** The chapter's first built page: where its row in a list goes. */
