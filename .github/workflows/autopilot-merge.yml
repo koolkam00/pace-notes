@@ -8,6 +8,7 @@ name: Autopilot merge
 # Five jobs, so that the two that open pages in a browser (the pull request's preview, and production after the
 # merge) run on machines of their own with a read-only token and no credentials on disk:
 #   gate     check every gate and output the eligible pull request, if any (writes status comments and incidents)
+#            and, when the ready time is the only gate still missing, wait for it once and check every gate again
 #   preview  smoke test and verify:seo:live on the pull request's Vercel preview, then a full smoke test of
 #            production as a baseline (read-only)
 #   merge    record the preview checks, squash-merge pinned to the checked commit while main is still the commit the
@@ -39,10 +40,12 @@ concurrency:
 permissions: {}
 
 jobs:
+  # The gate job may wait once for the ready time (at most 15 minutes: readyWait in scripts/autopilot-merge.cjs), so
+  # its limit covers that wait, two full looks at the gates and the live baseline (up to 5 minutes).
   gate:
     if: github.repository == 'koolkam00/pace-notes'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
     permissions:
       contents: read
       pull-requests: write
