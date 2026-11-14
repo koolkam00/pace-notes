@@ -1,9 +1,12 @@
-"""Runner lookup v2 across the two languages: the Node verifier (scripts/verify-lookup.cjs) and the source-side
-audit (analysis/lookup_audit.py) on the small made-up release of test_runner_lookup.py, and the parity fixture of name
-normalisation (scripts/lib/lookup-parity.json) that Python writes and both languages must reproduce.
+"""Runner lookup v2 across the two languages: the Node verifier (scripts/verify-lookup.cjs), the source-side audit
+(analysis/lookup_audit.py) and the importer (analysis/import_runner_lookup.py) on the small made-up release of
+test_runner_lookup.py, and the parity fixture of name normalisation (scripts/lib/lookup-parity.json) that Python writes
+and both languages must reproduce.
 
     python3 analysis/test_runner_lookup_verifier.py --write-parity     regenerate the fixture after adding a case
 """
+import contextlib
+import io
 import json
 import shutil
 import subprocess
@@ -11,8 +14,10 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import import_runner_lookup as importer  # noqa: E402
 import lookup_audit  # noqa: E402
 import lookup_format as fmt  # noqa: E402
 import lookup_names as names  # noqa: E402
@@ -180,6 +185,44 @@ class Verifier(unittest.TestCase):
         data['c'] = '3' + data['c'][1:]                                        # a high link shown as medium
         path.write_bytes(fmt.compress(fmt.encode(data)))
         self.assertEqual(self.audit(build=other), 1)
+
+    def test_the_importer_publishes_only_what_the_verifier_passes(self):
+        source = self.root / 'to-import'
+        shutil.copytree(self.build, source)
+        (source / 'runners' / 'beside-the-chain.txt').write_text('not a file of the lookup')
+        destination = self.root / 'published'
+        (destination / 'runners').mkdir(parents=True)
+        (destination / 'runners' / 'manifest.json').write_text('{"the build before": true}')
+        (destination / 'live.json').write_text('{}')
+        real, commands = subprocess.run, []
+
+        def verifier(*extra):
+            def run(command, **options):
+                commands.append(command)
+                return real(command + list(extra), **{**options, 'capture_output': True})
+            return run
+        # As it stands the made-up build is provisional and of another release than the pin: the verifier refuses the
+        # staged copy, nothing is published and nothing is left beside the destination's own files.
+        with mock.patch.object(importer.subprocess, 'run', verifier()), self.assertRaises(subprocess.CalledProcessError):
+            importer.run(source, destination)
+        self.assertEqual(sorted(path.name for path in destination.iterdir()), ['live.json', 'runners'])
+        self.assertEqual((destination / 'runners' / 'manifest.json').read_text(), '{"the build before": true}')
+        self.assertEqual(commands[0][:3], ['node', str(REPO / 'scripts/verify-lookup.cjs'), '--data-root'])
+        self.assertFalse({'--allow-provisional', '--fixture'} & set(commands[0]))      # the importer never asks for less
+        # Verified as the tests' build, the staged copy replaces the build before it: the chain's files and no other.
+        keys = self.root / 'never-shown-import.json'
+        self.assertEqual(self.audit('--never-shown', str(keys)), 0)
+        with mock.patch.object(importer.subprocess, 'run', verifier('--fixture', '--allow-provisional')), contextlib.redirect_stdout(io.StringIO()) as said:
+            importer.run(source, destination, never_shown=keys)
+        self.assertIn('Imported the runner lookup', said.getvalue())
+        self.assertEqual(commands[1][-2:], ['--never-shown', str(keys.resolve())])
+        self.assertNotEqual(commands[1][3], str(source))                               # what is verified is the copy
+        published = destination / 'runners'
+        files = sorted(str(path.relative_to(published)) for path in published.rglob('*') if path.is_file())
+        self.assertEqual(files, sorted(importer.members(json.loads((source / 'runners/manifest.json').read_text()))))
+        for name in files:
+            self.assertEqual((published / name).read_bytes(), (source / 'runners' / name).read_bytes(), name)
+        self.assertEqual(sorted(path.name for path in destination.iterdir()), ['live.json', 'runners'])
 
 
 if __name__ == '__main__':
