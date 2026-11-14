@@ -455,6 +455,54 @@ class CourseGeometryTest(unittest.TestCase):
                 build_course_geometry.run(profiles, output, manifest)
 
 
+class LinkedRunners(unittest.TestCase):
+    """The readings that follow a runner from race to race, on the runner key in use and on high links alone
+    (added 2026-11-14, lead ruling R6: insights_kick.high_link_profile)."""
+
+    def field(self):
+        """Three editions of one course, 2015 to 2017, 120 unlinked finishes each at one pace, and one runner with a
+        race in each year: record 1 (2015, linked at the tier medium; it is the smallest record of the runner, so the
+        runner's id is 1), record 2 (2016, high; a sustained slowdown) and record 3 (2017, high)."""
+        editions = [dict(city='A', year=2015 + e) for e in range(3)]
+        steady, slowed = [300] * 9, [300] * 5 + [400] * 3 + [300]
+        rows, record_id, runner, high = [], [], [], []
+        for e in range(3):
+            for i in range(120):
+                rid = 1000 * (e + 1) + i
+                rows.append((e, 1, None, steady, rid)); record_id.append(rid); runner.append(rid); high.append(False)
+            rid = e + 1
+            rows.append((e, 1, None, slowed if e == 1 else steady, 1)); record_id.append(rid); runner.append(1); high.append(e > 0)
+        f = make(rows, editions)
+        f.record_id, f.runner, f.link_high = np.array(record_id), np.array(runner), np.array(high)
+        f.profile = f.runner
+        return f
+
+    def test_recurrence_pairs_on_each_runner_key(self):
+        f = self.field()
+        R = f.paces / f.baseline[:, None] - 1
+        detected, _, _ = insights_kick.episodes(R)
+        key = f.edition.astype(np.int64) * 1000 + np.floor(f.baseline / 5).astype(np.int64)
+        loo = insights_kick.strata_loo(key, np.c_[detected.astype(float)] * np.ones((1, 4)))
+        ok = np.isfinite(loo[:, 0])
+        every = insights_kick.follow(f, detected, key, loo, ok, f.profile)
+        self.assertEqual(every['pairs'], 2)                                   # 2015 to 2016 and 2016 to 2017
+        self.assertIsNone(every['after_slowdown'])                            # one pair is no published cell
+        high = insights_kick.high_link_profile(f)
+        # The medium-linked record stands alone under its own negative id: it cannot be taken for runner 1, whose id it bears.
+        self.assertEqual((int(high[120]), int(high[241]), int(high[362])), (-1, 1, 1))
+        self.assertEqual(len(np.unique(high)), 360 + 2)
+        self.assertEqual(insights_kick.follow(f, detected, key, loo, ok, high)['pairs'], 1)   # 2016 to 2017 only
+
+    def test_type_transitions_on_each_runner_key(self):
+        f = self.field()
+        lab = np.zeros(f.n, dtype=np.int64)
+        lab[241] = 4                                                           # the 2016 race is another type
+        every = insights_archetypes.repeat_pairs(f, lab, f.profile)
+        self.assertEqual((every['pairs'], every['rows'][0]['pairs'], every['rows'][4]['pairs']), (2, 1, 1))
+        high = insights_archetypes.repeat_pairs(f, lab, insights_kick.high_link_profile(f))
+        self.assertEqual((high['pairs'], high['rows'][4]['pairs']), (1, 1))
+
+
 class Context(unittest.TestCase):
     """insights_courses.edition_context on a small cohort and runner context (added 2026-11-14: the context is bound to
     the marathon cohort's manifest and lists a file only for a counted edition with peers, weather or terrain)."""
