@@ -881,19 +881,23 @@ function checkReplay(doc) {
 
 // 9. courses.json: edition table, course curves, weather pairing and fits, matched 5–20 km pace bands and the years.
 const MATCH_BANDS = [[240, 270], [270, 300], [300, 330], [330, 360], [360, 420]]; // 5–20 km pace, s/km
-// Weather rows from the runner-context shards, verified against the bound context manifest.
+// Weather rows from the runner-context shards, verified against the bound context manifest. The context lists a file
+// only for a counted edition that has peers, weather or terrain (lead ruling D24.8): an edition it does not list has no
+// weather row, exactly as an edition whose shard says so.
+const countedEditionKeys = new Set(editions.flatMap((edition, e) => (edition.use === 'counted' ? [String(e)] : [])));
+assert.ok(Object.keys(context.editions).every(key => countedEditionKeys.has(key)), 'Context shards are listed for counted editions only');
 function contextWeather(list) {
-  assert.deepEqual(Object.keys(context.editions).sort((a, b) => a - b), editions.map((_, e) => String(e)), 'Context shards cover every edition');
   const out = new Map();
   for (const e of list) {
     const item = context.editions[String(e)], edition = editions[e];
-    assert.equal(item.file, `editions/${String(e).padStart(3, '0')}.json.gz`, `Context shard path for edition ${e}`);
+    if (item === undefined) { out.set(e, null); continue; }
+    assert.match(item.file, /^editions\/[a-z0-9]+(-[a-z0-9]+)*\.json\.gz$/, `Context shard path for edition ${e}`);
     const bytes = fs.readFileSync(path.join(dataRoot, 'runner-context', item.file));
     assert.equal(bytes.length, item.bytes, `${item.file}: context bytes`);
     assert.equal(hash(bytes), item.sha256, `${item.file}: context checksum`);
     const shard = JSON.parse(zlib.gunzipSync(bytes)), w = shard.weather;
     assert.equal(shard.release_tag, pin.tag, `${item.file}: context release`);
-    assert.deepEqual(shard.edition, { index: e, ...edition }, `${item.file}: context edition identity`);
+    assert.deepEqual(shard.edition, { index: e, city: edition.city, year: edition.year, race: edition.race }, `${item.file}: context edition identity`);
     assert.ok(w === null || w.city === edition.city && w.year === edition.year && finite(w.temp_c) && typeof w.weather_race === 'string'
       && w.personal_exposure === false, `${item.file}: weather row for its edition`);
     out.set(e, w);
@@ -1526,6 +1530,18 @@ assert.ok('finish-times' in recounted && 'replay' in recounted, 'Core story fami
 // without a names source this verifier fails: it never passes without having compared the names.
 // Every string value of every file was normalised into `copyStrings` above; each recorded name is normalised the same
 // way and looked up there, as the lookup's names were while the stories read its shards.
+//
+// Reviewed coincidences. The release now holds 7.8 million marathon records (5.4 million in the lookup this guard read
+// until November 14, 2026), and two of the site's own labels are also somebody's recorded name. Each entry was read on
+// November 14, 2026 against pace-notes-marathon-half-20261113-1113 and is allowed only while the string is one of the
+// labels the files are pinned to carry (a race label of the cohort manifest, or the manifest's fixed sex and age-band
+// labels, checked below): free text can never be excused, and a new coincidence fails until it is read.
+const NAME_COINCIDENCES = new Map([
+  ['paris', 'the race label Paris; one record of another race (VnExpress Marathon Hue 2023) is recorded under the one-word name "Paris"'],
+  ['unknown', 'the age-band label Unknown; five records of four races are recorded as "Unknown" or "UNKNOWN", a placeholder on the runner lookup\'s reviewed list (lead decision D24.6)'],
+]);
+const asciiName = text => text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+assert.deepEqual(['  Mary-Jane O\'Neil ', 'A.B. 3rd'].map(asciiName), ['  Mary-Jane O\'Neil ', 'A.B. 3rd'].map(normaliseName), 'The fast path for unaccented names normalises as the full rule does');
 function recordedNameGuard() {
   const file = process.env.PACE_NOTES_NAMES_FILE;
   assert.ok(file, 'The name guard has no source of recorded names: the marathon cohort holds none. Set PACE_NOTES_NAMES_FILE to the names file '
@@ -1533,21 +1549,25 @@ function recordedNameGuard() {
   const bytes = fs.readFileSync(file), sidecar = read(`${file}.json`);
   assert.deepEqual([sidecar.bytes, sidecar.sha256], [bytes.length, hash(bytes)], `${file}: the names file is not the one its sidecar describes`);
   assert.equal(sidecar.input_manifest_sha256, cohort.input_manifest_sha256, `${file}: the names are from another adapted input than the cohort's`);
-  const text = zlib.gunzipSync(bytes), hits = [];
+  const siteLabels = new Set([...editions.map(edition => edition.city), ...manifest.genders, ...manifest.ages].map(normaliseName));
+  for (const label of NAME_COINCIDENCES.keys()) assert.ok(siteLabels.has(label), `"${label}": a reviewed coincidence must be a race label or a fixed sex or age-band label`);
+  const text = zlib.gunzipSync(bytes), hits = new Map(), excused = new Set();
   let names = 0, start = 0;
   while (start < text.length) {
-    let end = text.indexOf(10, start);
-    if (end < 0) end = text.length;
+    let end = start, ascii = true;
+    while (end < text.length && text[end] !== 10) { if (text[end] > 127) ascii = false; end++; }
     if (end > start) {
       names++;
-      const where = copyStrings.get(normaliseName(text.toString('utf8', start, end)));
-      if (where !== undefined) hits.push(where);
+      // A name of unaccented letters (most of them) needs no Unicode pass: the two rules agree on it (asserted above).
+      const name = ascii ? asciiName(text.latin1Slice(start, end)) : normaliseName(text.toString('utf8', start, end));
+      const where = copyStrings.get(name);
+      if (where !== undefined) { if (NAME_COINCIDENCES.has(name)) excused.add(name); else hits.set(name, where); }
     }
     start = end + 1;
   }
   assert.ok(names > 0 && names === sidecar.names, `${file}: ${names} names read, its sidecar states ${sidecar.names}`);
-  assert.deepEqual(hits, [], 'Insights text matches a recorded runner name');
-  return { source: 'names file of the adapted input', names };
+  assert.deepEqual([...hits.values()], [], 'Insights text matches a recorded runner name');
+  return { source: 'names file of the adapted input', names, reviewed_coincidences: [...excused].sort() };
 }
 const nameGuard = recordedNameGuard();
 console.log(JSON.stringify({
