@@ -1,38 +1,39 @@
 {
  "document": "Review of the race registry’s naming rule on this release (measured; nothing typed).",
- "registry_sha256": "163ec25db62491bbc0d49262334a72dd3a50ea9e77da718c2aa03692bef6c6a2",
+ "registry_sha256": "446e9c1d954b6de6f41cce7415f32fb94ad79b30e4132d9e3c1920e88c1cd72b",
  "expected": {
   "keys": 894,
   "plain_keys": 34,
-  "races": 811,
+  "races": 805,
   "races_by_join": {
-   "reviewed join": 16,
+   "reviewed join": 22,
    "rule": 28,
-   "single": 767
+   "single": 755
   },
-  "keys_in_races_of_several_keys": 127,
+  "keys_in_races_of_several_keys": 139,
   "races_by_label": {
-   "name": 651,
-   "name and first year": 2,
-   "name and place": 86,
+   "name": 584,
+   "name and first year": 1,
+   "name and place": 85,
    "name, place and first year": 2,
    "plain key": 34,
-   "reviewed label": 36
+   "reviewed label": 99
   },
   "races_by_flag": {
    "cancelled_in_title": 7,
    "mountain_or_trail_course": 3,
    "no_marathon_word_in_title": 157,
-   "other_event_in_title": 156,
+   "other_event_in_title": 155,
    "placeholder_place": 3,
    "platform_prefix": 26,
-   "platform_title_misleads": 7,
+   "platform_title_misleads": 9,
    "several_race_names": 1,
    "title_names_a_hand_cycle_race": 1,
    "trail_or_mountain_word_in_title": 20,
    "virtual_in_title": 1
   },
-  "rows": 7820439,
+  "races_with_series": 1,
+  "rows": 7820442,
   "editions": 2688
  },
  "course_slugs_unchanged": "analysis/test_race_registry.py holds the 27 slugs of lib/analytics-policy.ts COURSE_SLUGS and requires each as a race_id",
@@ -99,7 +100,7 @@
    "editions": 11,
    "verified_editions": 1,
    "counted_editions": 3,
-   "rows": 328801
+   "rows": 328804
   },
   {
    "race_id": "paris",
@@ -1525,6 +1526,48 @@
    "own_record_editions": 0
   },
   {
+   "label": "Edmonton",
+   "race_id": "edmonton",
+   "name": "Edmonton Marathon",
+   "place": "Edmonton, AB",
+   "keys": [
+    "Edmonton, AB: Edmonton Marathon"
+   ],
+   "rank_by_rows": 62,
+   "rows": 14210,
+   "editions": 20,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Québec",
+   "race_id": "quebec",
+   "name": "Marathon Beneva de Québec",
+   "place": "Québec City, QC",
+   "keys": [
+    "Québec City, QC: Marathon Beneva de Québec"
+   ],
+   "rank_by_rows": 65,
+   "rows": 12287,
+   "editions": 8,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Niagara Falls",
+   "race_id": "niagara-falls",
+   "name": "Niagara Falls International Marathon",
+   "place": "Niagara Falls, ON",
+   "keys": [
+    "Niagara Falls, ON: Niagara Falls International Marathon"
+   ],
+   "rank_by_rows": 69,
+   "rows": 11156,
+   "editions": 12,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
    "label": "Oklahoma City",
    "race_id": "oklahoma-city",
    "name": "Oklahoma City Memorial Marathon",
@@ -1538,6 +1581,161 @@
    "rows": 11052,
    "editions": 6,
    "counted_editions": 1,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Manitoba",
+   "race_id": "manitoba",
+   "name": "Manitoba Marathon",
+   "place": "MB",
+   "keys": [
+    "MB, MB: Manitoba Marathon"
+   ],
+   "rank_by_rows": 72,
+   "rows": 11027,
+   "editions": 17,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Napa Valley",
+   "race_id": "napa-valley",
+   "name": "Napa Valley Marathon",
+   "place": "Napa, CA",
+   "keys": [
+    "Napa, CA: Napa Valley Marathon"
+   ],
+   "rank_by_rows": 74,
+   "rows": 10287,
+   "editions": 7,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Glass City",
+   "race_id": "glass-city",
+   "name": "Glass City Marathon",
+   "place": "Toledo, OH",
+   "keys": [
+    "XACT: Glass City Marathon",
+    "Toledo, OH: MERCY HEALTH GLASS CITY MARATHON"
+   ],
+   "rank_by_rows": 76,
+   "rows": 9139,
+   "editions": 8,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Grand Rapids",
+   "race_id": "grand-rapids",
+   "name": "University of Michigan Health-West Grand Rapids Marathon",
+   "place": "Grand Rapids, MI",
+   "keys": [
+    "Grand Rapids, MI: University of Michigan Health-West Grand Rapids Marathon"
+   ],
+   "rank_by_rows": 80,
+   "rows": 8969,
+   "editions": 9,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Queen City",
+   "race_id": "queen-city",
+   "name": "GMS Queen City Marathon",
+   "place": "Regina, SK",
+   "keys": [
+    "Regina, SK: GMS Queen City Marathon"
+   ],
+   "rank_by_rows": 81,
+   "rows": 8940,
+   "editions": 24,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Okanagan",
+   "race_id": "okanagan",
+   "name": "SunRype Okanagan Marathon",
+   "place": "Kelowna, BC",
+   "keys": [
+    "Kelowna, BC: SunRype Okanagan Marathon"
+   ],
+   "rank_by_rows": 83,
+   "rows": 8809,
+   "editions": 18,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Bayshore",
+   "race_id": "bayshore",
+   "name": "Bayshore Marathon",
+   "place": "Traverse City, MI",
+   "keys": [
+    "Traverse City, MI: Bayshore Marathon, Half Marathon, 10K, & Kids Fun Run"
+   ],
+   "rank_by_rows": 84,
+   "rows": 8802,
+   "editions": 6,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "The Woodlands",
+   "race_id": "the-woodlands",
+   "name": "The Woodlands Marathon",
+   "place": "The Woodlands, TX",
+   "keys": [
+    "The Woodlands, TX: The Woodlands Marathon"
+   ],
+   "rank_by_rows": 100,
+   "rows": 6202,
+   "editions": 7,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Space Coast",
+   "race_id": "space-coast",
+   "name": "Space Coast Marathon",
+   "place": "Cocoa, FL",
+   "keys": [
+    "Cocoa, FL: Space Coast Marathon & Half Marathon"
+   ],
+   "rank_by_rows": 102,
+   "rows": 5935,
+   "editions": 7,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Colfax",
+   "race_id": "colfax",
+   "name": "Colfax Marathon",
+   "place": null,
+   "keys": [
+    "XACT: Colfax Marathon"
+   ],
+   "rank_by_rows": 108,
+   "rows": 5209,
+   "editions": 4,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Ventura",
+   "race_id": "ventura",
+   "name": "Ventura Marathon",
+   "place": "Ventura, CA",
+   "keys": [
+    "Ventura, CA: Ventura Marathon"
+   ],
+   "rank_by_rows": 109,
+   "rows": 5208,
+   "editions": 7,
+   "counted_editions": 0,
    "own_record_editions": 0
   },
   {
@@ -1556,6 +1754,20 @@
    "own_record_editions": 2
   },
   {
+   "label": "Blue Nose",
+   "race_id": "blue-nose",
+   "name": "Scotiabank Blue Nose Marathon",
+   "place": "Halifax, NS",
+   "keys": [
+    "Halifax, NS: Scotiabank Blue Nose Marathon"
+   ],
+   "rank_by_rows": 115,
+   "rows": 4498,
+   "editions": 16,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
    "label": "Querétaro",
    "race_id": "queretaro",
    "name": "Querétaro Maratón",
@@ -1569,15 +1781,693 @@
    "editions": 5,
    "counted_editions": 0,
    "own_record_editions": 1
+  },
+  {
+   "label": "Rimouski",
+   "race_id": "rimouski",
+   "name": "Marathon de Rimouski",
+   "place": "Rimouski, QC",
+   "keys": [
+    "Rimouski, QC: Marathon de Rimouski- Annulé",
+    "Rimouski, QC: Marathon Groupe Ouellet Bolduc de Rimouski"
+   ],
+   "rank_by_rows": 125,
+   "rows": 3725,
+   "editions": 17,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Kansas City",
+   "race_id": "kansas-city",
+   "name": "Garmin Kansas City Marathon",
+   "place": "Kansas City, MO",
+   "keys": [
+    "Kansas City, MO: Garmin Kansas City Marathon"
+   ],
+   "rank_by_rows": 130,
+   "rows": 3526,
+   "editions": 3,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Big Beach",
+   "race_id": "big-beach",
+   "name": "Big Beach Marathon",
+   "place": "Gulf Shores, AL",
+   "keys": [
+    "Gulf Shores, AL: Big Beach Marathon, Half Marathon & Safari 5K"
+   ],
+   "rank_by_rows": 134,
+   "rows": 3375,
+   "editions": 11,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Saskatchewan",
+   "race_id": "saskatchewan",
+   "name": "Saskatchewan Marathon",
+   "place": "Saskatoon, SK",
+   "keys": [
+    "Saskatoon, SK: Saskatchewan Marathon"
+   ],
+   "rank_by_rows": 138,
+   "rows": 3249,
+   "editions": 17,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Irving",
+   "race_id": "irving",
+   "name": "Irving Marathon",
+   "place": "Irving, TX",
+   "keys": [
+    "Irving, TX: Irving Marathon",
+    "Irving, TX: Irving Marathon - Full & Half"
+   ],
+   "rank_by_rows": 157,
+   "rows": 2386,
+   "editions": 6,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Blue Ridge",
+   "race_id": "blue-ridge",
+   "name": "Foot Levelers Blue Ridge Marathon",
+   "place": "Roanoke, VA",
+   "keys": [
+    "Roanoke, VA: Foot Levelers Blue Ridge Marathon"
+   ],
+   "rank_by_rows": 160,
+   "rows": 2296,
+   "editions": 5,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "3 Bridges",
+   "race_id": "3-bridges",
+   "name": "Jacob Wells 3 Bridges Marathon",
+   "place": "Little Rock, AR",
+   "keys": [
+    "Little Rock, AR: Jacob Wells 3 Bridges Marathon"
+   ],
+   "rank_by_rows": 166,
+   "rows": 2188,
+   "editions": 10,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Towpath",
+   "race_id": "towpath",
+   "name": "The Towpath Marathon",
+   "place": "Cleveland, OH",
+   "keys": [
+    "Cleveland, OH: The Towpath Marathon"
+   ],
+   "rank_by_rows": 168,
+   "rows": 2096,
+   "editions": 11,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Tomoka",
+   "race_id": "tomoka",
+   "name": "Tomoka Marathon",
+   "place": "Ormond Beach, FL",
+   "keys": [
+    "Ormond Beach, FL: Tomoka Marathon, Half Marathon, and 5K"
+   ],
+   "rank_by_rows": 173,
+   "rows": 1943,
+   "editions": 6,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Lake Placid",
+   "race_id": "lake-placid",
+   "name": "Lake Placid Marathon",
+   "place": "Lake Placid, NY",
+   "keys": [
+    "Lake Placid, NY: Lake Placid Marathon & Half-Marathon",
+    "Lake Placid, NY: Lake Placid Marathon"
+   ],
+   "rank_by_rows": 175,
+   "rows": 1932,
+   "editions": 8,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Ottawa Fall Colours",
+   "race_id": "ottawa-fall-colours",
+   "name": "Ottawa Fall Colours Run",
+   "place": "Ottawa, ON",
+   "keys": [
+    "Ottawa, ON: Ottawa Fall Colours Run"
+   ],
+   "rank_by_rows": 177,
+   "rows": 1900,
+   "editions": 21,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Redding",
+   "race_id": "redding",
+   "name": "The Redding Marathon",
+   "place": "Redding, CA",
+   "keys": [
+    "Redding, CA: The Redding Marathon Events"
+   ],
+   "rank_by_rows": 192,
+   "rows": 1550,
+   "editions": 9,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Horse Capital",
+   "race_id": "horse-capital",
+   "name": "Horse Capital Marathon",
+   "place": "Lexington, KY",
+   "keys": [
+    "Lexington, KY: Horse Capital Marathon & Half Marathon"
+   ],
+   "rank_by_rows": 194,
+   "rows": 1456,
+   "editions": 9,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Soldier",
+   "race_id": "soldier",
+   "name": "Soldier Marathon",
+   "place": "Columbus, GA",
+   "keys": [
+    "Columbus, GA: Soldier Marathon & Half Marathon",
+    "Columbus, GA: Soldier Marathon"
+   ],
+   "rank_by_rows": 199,
+   "rows": 1418,
+   "editions": 3,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Aspen Valley",
+   "race_id": "aspen-valley",
+   "name": "Aspen Valley Marathon",
+   "place": "Aspen, CO",
+   "keys": [
+    "Aspen, CO: Aspen Valley Marathon"
+   ],
+   "rank_by_rows": 200,
+   "rows": 1403,
+   "editions": 8,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Bozeman",
+   "race_id": "bozeman",
+   "name": "Bozeman Half Marathon & 10K",
+   "place": "Bozeman, MT",
+   "keys": [
+    "Bozeman, MT: Bozeman Half Marathon & 10K"
+   ],
+   "rank_by_rows": 205,
+   "rows": 1344,
+   "editions": 8,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Edge to Edge",
+   "race_id": "edge-to-edge",
+   "name": "Edge to Edge Marathon",
+   "place": "Ucluelet, BC",
+   "keys": [
+    "Ucluelet, BC: Edge to Edge Marathon"
+   ],
+   "rank_by_rows": 206,
+   "rows": 1344,
+   "editions": 12,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Cayman Islands",
+   "race_id": "cayman-islands",
+   "name": "Walkers Cayman Islands Marathon",
+   "place": "George Town, Ge",
+   "keys": [
+    "George Town, Ge: Walkers Cayman Islands Marathon"
+   ],
+   "rank_by_rows": 211,
+   "rows": 1261,
+   "editions": 16,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Treasure Coast",
+   "race_id": "treasure-coast",
+   "name": "Game On! Marathon of the Treasure Coast",
+   "place": "Stuart, FL",
+   "keys": [
+    "Stuart, FL: Game On! Marathon of the Treasure Coast"
+   ],
+   "rank_by_rows": 215,
+   "rows": 1219,
+   "editions": 6,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Groundhog Day",
+   "race_id": "groundhog-day",
+   "name": "Groundhog Day Marathon",
+   "place": "Walker, MI",
+   "keys": [
+    "Walker, MI: Groundhog Day Marathon"
+   ],
+   "rank_by_rows": 222,
+   "rows": 1183,
+   "editions": 13,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Jackson Hole",
+   "race_id": "jackson-hole",
+   "name": "Jackson Hole Marathon",
+   "place": "Jackson, WY",
+   "keys": [
+    "Jackson, WY: Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon"
+   ],
+   "rank_by_rows": 225,
+   "rows": 1160,
+   "editions": 5,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "New River",
+   "race_id": "new-river",
+   "name": "New River Marathon",
+   "place": "Todd, NC",
+   "keys": [
+    "Todd, NC: New River Marathon, Half Marathon & 5K"
+   ],
+   "rank_by_rows": 226,
+   "rows": 1158,
+   "editions": 6,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Golden Driller",
+   "race_id": "golden-driller",
+   "name": "Golden Driller Marathon",
+   "place": "Tulsa, OK",
+   "keys": [
+    "Tulsa, OK: Golden Driller Marathon"
+   ],
+   "rank_by_rows": 235,
+   "rows": 1104,
+   "editions": 8,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Coast Guard",
+   "race_id": "coast-guard",
+   "name": "Coast Guard Marathon",
+   "place": "Elizabeth City, NC",
+   "keys": [
+    "Elizabeth City, NC: Coast Guard Marathon"
+   ],
+   "rank_by_rows": 238,
+   "rows": 1077,
+   "editions": 3,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Emerald Isle",
+   "race_id": "emerald-isle",
+   "name": "Emerald Isle Marathon",
+   "place": "Emerald Isle, NC",
+   "keys": [
+    "Emerald Isle, NC: Emerald Isle Marathon, Half Marathon and 5K"
+   ],
+   "rank_by_rows": 241,
+   "rows": 1064,
+   "editions": 5,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Bismarck",
+   "race_id": "bismarck",
+   "name": "The Bismarck Marathon",
+   "place": "Bismarck, ND",
+   "keys": [
+    "Bismarck, ND: The Bismarck Marathon"
+   ],
+   "rank_by_rows": 247,
+   "rows": 1029,
+   "editions": 6,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Bemidji Blue Ox",
+   "race_id": "bemidji-blue-ox",
+   "name": "Bemidji Blue Ox Marathon",
+   "place": "Bemidji, MN",
+   "keys": [
+    "Bemidji, MN: Bemidji Blue Ox Marathon"
+   ],
+   "rank_by_rows": 260,
+   "rows": 928,
+   "editions": 6,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Heartland",
+   "race_id": "heartland",
+   "name": "Heartland Marathon",
+   "place": "Omaha, NE",
+   "keys": [
+    "Omaha, NE: Heartland Marathon"
+   ],
+   "rank_by_rows": 263,
+   "rows": 905,
+   "editions": 5,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Starved Rock Country",
+   "race_id": "starved-rock-country",
+   "name": "Starved Rock Country Marathon",
+   "place": "Ottawa, IL",
+   "keys": [
+    "XACT: Starved Rock Country Marathon",
+    "Ottawa, IL: Starved Rock Country Marathon"
+   ],
+   "rank_by_rows": 265,
+   "rows": 893,
+   "editions": 7,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Montana",
+   "race_id": "montana",
+   "name": "Montana Marathon",
+   "place": "Billings, MT",
+   "keys": [
+    "Billings, MT: Montana Marathon"
+   ],
+   "rank_by_rows": 267,
+   "rows": 875,
+   "editions": 5,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Millennium Meadows",
+   "race_id": "millennium-meadows",
+   "name": "Millennium Meadows Marathon",
+   "place": "Grand Rapids, MI",
+   "keys": [
+    "Grand Rapids, MI: Millennium Meadows Marathon"
+   ],
+   "rank_by_rows": 273,
+   "rows": 834,
+   "editions": 8,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Friendly Massey",
+   "race_id": "friendly-massey",
+   "name": "Friendly Massey Marathon",
+   "place": "MASSEY, On",
+   "keys": [
+    "MASSEY, On: Friendly Massey Marathon - Cancelled"
+   ],
+   "rank_by_rows": 275,
+   "rows": 824,
+   "editions": 15,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Whitefish",
+   "race_id": "whitefish",
+   "name": "Whitefish Marathon",
+   "place": "Whitefish, MT",
+   "keys": [
+    "Whitefish, MT: Whitefish Marathon, Half Marathon & 5K Presented by Hammer Nutrition"
+   ],
+   "rank_by_rows": 276,
+   "rows": 821,
+   "editions": 9,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Grand Lake",
+   "race_id": "grand-lake",
+   "name": "Grand Lake Half Marathon 5k/Kid's Run",
+   "place": "Celina, OH",
+   "keys": [
+    "Celina, OH: Grand Lake Half Marathon 5k/Kid's Run"
+   ],
+   "rank_by_rows": 278,
+   "rows": 812,
+   "editions": 6,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Cannonball",
+   "race_id": "cannonball",
+   "name": "Cannonball Running Festival Marathon",
+   "place": "Greensboro, NC",
+   "keys": [
+    "Greensboro, NC: Long Life Meal Prep Cannonball Running Festival - Marathon, Half Marathon,"
+   ],
+   "rank_by_rows": 297,
+   "rows": 711,
+   "editions": 7,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Daufuskie Island",
+   "race_id": "daufuskie-island",
+   "name": "Daufuskie Island Marathon",
+   "place": "Daufuskie Island, SC",
+   "keys": [
+    "Daufuskie Island, SC: The Palmetto Running Company's Daufuskie Island Marathon and Half"
+   ],
+   "rank_by_rows": 306,
+   "rows": 625,
+   "editions": 4,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Museum of Aviation",
+   "race_id": "museum-of-aviation",
+   "name": "Museum of Aviation Marathon",
+   "place": "Warner Robins, GA",
+   "keys": [
+    "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K",
+    "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race"
+   ],
+   "rank_by_rows": 314,
+   "rows": 589,
+   "editions": 8,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Texas",
+   "race_id": "texas",
+   "name": "Texas Marathon",
+   "place": "Kingwood, TX",
+   "keys": [
+    "Kingwood, TX: Texas Marathon and Half Marathon"
+   ],
+   "rank_by_rows": 329,
+   "rows": 540,
+   "editions": 3,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Antarctica",
+   "race_id": "antarctica",
+   "name": "Antarctica Marathon & Half Marathon - Voyage 2",
+   "place": "King George Island",
+   "keys": [
+    "King George Island, TBD: Antarctica Marathon & Half Marathon - Voyage 2"
+   ],
+   "rank_by_rows": 365,
+   "rows": 454,
+   "editions": 5,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Lock 2 Lock",
+   "race_id": "lock-2-lock",
+   "name": "Lock 2 Lock Marathon",
+   "place": "Williamsport, MD",
+   "keys": [
+    "Williamsport, MD: Lock 2 Lock Marathon/Half Marathon/10k"
+   ],
+   "rank_by_rows": 376,
+   "rows": 424,
+   "editions": 4,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Back Your Badge",
+   "race_id": "back-your-badge",
+   "name": "Back Your Badge Marathon",
+   "place": "Plainfield, IN",
+   "keys": [
+    "Plainfield, IN: Back Your Badge Marathon"
+   ],
+   "rank_by_rows": 403,
+   "rows": 372,
+   "editions": 4,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Wabash Trace",
+   "race_id": "wabash-trace",
+   "name": "Wabash Trace Marathon",
+   "place": "Shenandoah, IA",
+   "keys": [
+    "Shenandoah, IA: Wabash Trace Marathon"
+   ],
+   "rank_by_rows": 406,
+   "rows": 364,
+   "editions": 5,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "London OH",
+   "race_id": "london-oh",
+   "name": "London OH Marathon",
+   "place": "London, OH",
+   "keys": [
+    "London, OH: London OH Marathon"
+   ],
+   "rank_by_rows": 440,
+   "rows": 278,
+   "editions": 4,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Windsor",
+   "race_id": "windsor",
+   "name": "Windsor Marathon",
+   "place": "Windsor, CO",
+   "keys": [
+    "Windsor, CO: Windsor Marathon, Half Marathon, 10k, 5k & 1 Mile Run"
+   ],
+   "rank_by_rows": 451,
+   "rows": 256,
+   "editions": 6,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Priest Lake",
+   "race_id": "priest-lake",
+   "name": "Priest Lake Marathon",
+   "place": "Priest Lake, ID",
+   "keys": [
+    "Priest Lake, ID: Priest Lake Marathon"
+   ],
+   "rank_by_rows": 457,
+   "rows": 243,
+   "editions": 8,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Hayden Lake",
+   "race_id": "hayden-lake",
+   "name": "Hayden Lake Marathon",
+   "place": "Hayden Lake, ID",
+   "keys": [
+    "Hayden Lake, ID: Hayden Lake Marathon"
+   ],
+   "rank_by_rows": 497,
+   "rows": 196,
+   "editions": 4,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "Bear Paw",
+   "race_id": "bear-paw",
+   "name": "Bear Paw Marathon",
+   "place": "Havre, MT",
+   "keys": [
+    "Havre, MT: Bear Paw Marathon"
+   ],
+   "rank_by_rows": 504,
+   "rows": 182,
+   "editions": 6,
+   "counted_editions": 0,
+   "own_record_editions": 0
+  },
+  {
+   "label": "San Juan Island",
+   "race_id": "san-juan-island",
+   "name": "Kings San Juan Island Marathon",
+   "place": "Friday Harbor, WA",
+   "keys": [
+    "Friday Harbor, WA: Kings San Juan Island Marathon, Half Marathon and 10K"
+   ],
+   "rank_by_rows": 583,
+   "rows": 107,
+   "editions": 4,
+   "counted_editions": 0,
+   "own_record_editions": 0
   }
  ],
  "labels_by_kind": {
-  "name": 651,
-  "name and first year": 2,
-  "name and place": 86,
+  "name": 584,
+  "name and first year": 1,
+  "name and place": 85,
   "name, place and first year": 2,
   "plain key": 34,
-  "reviewed label": 36
+  "reviewed label": 99
  },
  "longest_labels": [
   {
@@ -1616,19 +2506,9 @@
    "rows": 853
   },
   {
-   "label": "Long Life Meal Prep Cannonball Running Festival - Marathon, Half Marathon,",
-   "length": 74,
-   "rows": 711
-  },
-  {
    "label": "Fields of Gold Last Runner Standing • 50K • Marathon • Half Marathon & R",
    "length": 72,
    "rows": 13
-  },
-  {
-   "label": "Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon",
-   "length": 72,
-   "rows": 1160
   },
   {
    "label": "AmeriHealth Atlantic City Marathon, Half Marathon, 10K & G. Larry James",
@@ -1646,11 +2526,6 @@
    "rows": 569
   },
   {
-   "label": "Whitefish Marathon, Half Marathon & 5K Presented by Hammer Nutrition",
-   "length": 68,
-   "rows": 821
-  },
-  {
    "label": "Angkor Wat Indochine Marathon Powered By Metfone - Viettel Marathon",
    "length": 67,
    "rows": 108
@@ -1659,11 +2534,6 @@
    "label": "Mid-South Races for Hope (Mid-South Marathon, Half-Marathon and 5K)",
    "length": 67,
    "rows": 44
-  },
-  {
-   "label": "Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race",
-   "length": 67,
-   "rows": 461
   },
   {
    "label": "Tullaroan Marathon, Half Marathon, 10k and 5k (Tullaroan, Kilkenny)",
@@ -1679,6 +2549,26 @@
    "label": "Dingle Marathon & Half Marathon (Dingle Marathon & Half Marathon)",
    "length": 65,
    "rows": 2214
+  },
+  {
+   "label": "Gran Canaria Maspalomas Marathon (Palmas de Gran Canaria (Las))",
+   "length": 63,
+   "rows": 637
+  },
+  {
+   "label": "Gran Canaria - Maspalomas Marathon (San Bartolomé de Tirajana)",
+   "length": 62,
+   "rows": 729
+  },
+  {
+   "label": "Portumna Forest Marathon 50K, Marathon, Half Marathon, and 10K",
+   "length": 62,
+   "rows": 46
+  },
+  {
+   "label": "RunSBY Events (Salisbury Marathon/Salisbury Half Marathon/5k)",
+   "length": 61,
+   "rows": 1953
   }
  ],
  "handled_badly": {
@@ -1846,9 +2736,9 @@
     "rows": 5959
    },
    {
-    "race_id": "colfax-marathon",
-    "label": "Colfax Marathon",
-    "labelled_by": "name",
+    "race_id": "colfax",
+    "label": "Colfax",
+    "labelled_by": "reviewed label",
     "name": "Colfax Marathon",
     "place": null,
     "keys": [
@@ -1953,24 +2843,6 @@
     "verified_editions": 1,
     "counted_editions": 0,
     "rows": 2489
-   },
-   {
-    "race_id": "glass-city-marathon",
-    "label": "Glass City Marathon",
-    "labelled_by": "name",
-    "name": "Glass City Marathon",
-    "place": null,
-    "keys": [
-     "XACT: Glass City Marathon"
-    ],
-    "joined_by": "single key",
-    "flags": [
-     "platform_prefix"
-    ],
-    "editions": 2,
-    "verified_editions": 2,
-    "counted_editions": 0,
-    "rows": 2109
    },
    {
     "race_id": "go-st-louis-marathon-and-half-marathon",
@@ -2083,24 +2955,6 @@
     "rows": 378
    },
    {
-    "race_id": "starved-rock-country-marathon-2014",
-    "label": "Starved Rock Country Marathon (2014)",
-    "labelled_by": "name and first year",
-    "name": "Starved Rock Country Marathon",
-    "place": null,
-    "keys": [
-     "XACT: Starved Rock Country Marathon"
-    ],
-    "joined_by": "single key",
-    "flags": [
-     "platform_prefix"
-    ],
-    "editions": 1,
-    "verified_editions": 0,
-    "counted_editions": 0,
-    "rows": 211
-   },
-   {
     "race_id": "great-lakes-bay-marathon",
     "label": "Great Lakes Bay Marathon",
     "labelled_by": "name",
@@ -2177,9 +3031,9 @@
     "rows": 482
    },
    {
-    "race_id": "antarctica-marathon-half-marathon-voyage-2",
-    "label": "Antarctica Marathon & Half Marathon - Voyage 2",
-    "labelled_by": "name",
+    "race_id": "antarctica",
+    "label": "Antarctica",
+    "labelled_by": "reviewed label",
     "name": "Antarctica Marathon & Half Marathon - Voyage 2",
     "place": "King George Island",
     "keys": [
@@ -2188,7 +3042,8 @@
     "joined_by": "single key",
     "flags": [
      "other_event_in_title",
-     "placeholder_place"
+     "placeholder_place",
+     "platform_title_misleads"
     ],
     "editions": 5,
     "verified_editions": 3,
@@ -2273,16 +3128,6 @@
     "name": "Halfway To The Holidays Marathon, 1/2 Marathon, 1/4 Marathon, 5k & Kids Run"
    },
    {
-    "race_id": "jackson-hole-marathon-hole-half-marathon-jackson-hole-quarter-marathon",
-    "length": 70,
-    "name": "Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon"
-   },
-   {
-    "race_id": "long-life-meal-prep-cannonball-running-festival-marathon-half-marathon",
-    "length": 70,
-    "name": "Long Life Meal Prep Cannonball Running Festival - Marathon, Half Marathon,"
-   },
-   {
     "race_id": "maratona-citta-di-trino-maratonina-terre-d-acqua-trino-trino-che-corre",
     "length": 70,
     "name": "Maratona Città di Trino-Maratonina Terre d'Acqua Trino-Trino che Corre"
@@ -2298,19 +3143,9 @@
     "name": "Angkor Wat Indochine Marathon Powered By Metfone - Viettel Marathon"
    },
    {
-    "race_id": "the-palmetto-running-company-s-daufuskie-island-marathon-and-half",
-    "length": 65,
-    "name": "The Palmetto Running Company's Daufuskie Island Marathon and Half"
-   },
-   {
     "race_id": "tullaroan-marathon-half-marathon-10k-and-5k-tullaroan-co-kilkenny",
     "length": 65,
     "name": "Tullaroan Marathon, Half Marathon, 10k and 5k"
-   },
-   {
-    "race_id": "whitefish-marathon-half-marathon-5k-presented-by-hammer-nutrition",
-    "length": 65,
-    "name": "Whitefish Marathon, Half Marathon & 5K Presented by Hammer Nutrition"
    },
    {
     "race_id": "fields-of-gold-last-runner-standing-50k-marathon-half-marathon-r",
@@ -2321,11 +3156,6 @@
     "race_id": "mid-south-races-for-hope-mid-south-marathon-half-marathon-and-5k",
     "length": 64,
     "name": "Mid-South Races for Hope (Mid-South Marathon, Half-Marathon and 5K)"
-   },
-   {
-    "race_id": "museum-of-aviation-marathon-half-marathon-5k-and-hand-cycle-race",
-    "length": 64,
-    "name": "Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race"
    },
    {
     "race_id": "clare-burren-marathon-challenge-clare-burren-marathon-challenge",
@@ -2482,10 +3312,6 @@
     "santa-eularia-ibiza-marathon-eivissa",
     "santa-eularia-ibiza-marathon-santa-eulalia-del-rio"
    ],
-   "starved-rock-country-marathon": [
-    "starved-rock-country-marathon-2014",
-    "starved-rock-country-marathon-ottawa-il"
-   ],
    "trapline-marathon": [
     "trapline-marathon-goose-bay-nl",
     "trapline-marathon-happy-valley-goose-bay-nl"
@@ -2622,10 +3448,10 @@
     "rows": 11052
    },
    {
-    "race_id": "bayshore-marathon-half-marathon-10k-kids-fun-run",
-    "label": "Bayshore Marathon, Half Marathon, 10K, & Kids Fun Run",
-    "labelled_by": "name",
-    "name": "Bayshore Marathon, Half Marathon, 10K, & Kids Fun Run",
+    "race_id": "bayshore",
+    "label": "Bayshore",
+    "labelled_by": "reviewed label",
+    "name": "Bayshore Marathon",
     "place": "Traverse City, MI",
     "keys": [
      "Traverse City, MI: Bayshore Marathon, Half Marathon, 10K, & Kids Fun Run"
@@ -2676,10 +3502,10 @@
     "rows": 6308
    },
    {
-    "race_id": "space-coast-marathon-half-marathon",
-    "label": "Space Coast Marathon & Half Marathon",
-    "labelled_by": "name",
-    "name": "Space Coast Marathon & Half Marathon",
+    "race_id": "space-coast",
+    "label": "Space Coast",
+    "labelled_by": "reviewed label",
+    "name": "Space Coast Marathon",
     "place": "Cocoa, FL",
     "keys": [
      "Cocoa, FL: Space Coast Marathon & Half Marathon"
@@ -2821,10 +3647,10 @@
     "rows": 3539
    },
    {
-    "race_id": "big-beach-marathon-half-marathon-safari-5k",
-    "label": "Big Beach Marathon, Half Marathon & Safari 5K",
-    "labelled_by": "name",
-    "name": "Big Beach Marathon, Half Marathon & Safari 5K",
+    "race_id": "big-beach",
+    "label": "Big Beach",
+    "labelled_by": "reviewed label",
+    "name": "Big Beach Marathon",
     "place": "Gulf Shores, AL",
     "keys": [
      "Gulf Shores, AL: Big Beach Marathon, Half Marathon & Safari 5K"
@@ -2931,6 +3757,25 @@
     "rows": 2646
    },
    {
+    "race_id": "irving",
+    "label": "Irving",
+    "labelled_by": "reviewed label",
+    "name": "Irving Marathon",
+    "place": "Irving, TX",
+    "keys": [
+     "Irving, TX: Irving Marathon",
+     "Irving, TX: Irving Marathon - Full & Half"
+    ],
+    "joined_by": "reviewed join irving",
+    "flags": [
+     "other_event_in_title"
+    ],
+    "editions": 6,
+    "verified_editions": 4,
+    "counted_editions": 0,
+    "rows": 2386
+   },
+   {
     "race_id": "town-of-celebration-marathon-half-marathon",
     "label": "Town of Celebration Marathon & Half Marathon",
     "labelled_by": "name",
@@ -3003,10 +3848,10 @@
     "rows": 1953
    },
    {
-    "race_id": "tomoka-marathon-half-marathon-and-5k",
-    "label": "Tomoka Marathon, Half Marathon, and 5K",
-    "labelled_by": "name",
-    "name": "Tomoka Marathon, Half Marathon, and 5K",
+    "race_id": "tomoka",
+    "label": "Tomoka",
+    "labelled_by": "reviewed label",
+    "name": "Tomoka Marathon",
     "place": "Ormond Beach, FL",
     "keys": [
      "Ormond Beach, FL: Tomoka Marathon, Half Marathon, and 5K"
@@ -3019,6 +3864,25 @@
     "verified_editions": 4,
     "counted_editions": 0,
     "rows": 1943
+   },
+   {
+    "race_id": "lake-placid",
+    "label": "Lake Placid",
+    "labelled_by": "reviewed label",
+    "name": "Lake Placid Marathon",
+    "place": "Lake Placid, NY",
+    "keys": [
+     "Lake Placid, NY: Lake Placid Marathon & Half-Marathon",
+     "Lake Placid, NY: Lake Placid Marathon"
+    ],
+    "joined_by": "reviewed join lake-placid",
+    "flags": [
+     "other_event_in_title"
+    ],
+    "editions": 8,
+    "verified_editions": 4,
+    "counted_editions": 0,
+    "rows": 1932
    },
    {
     "race_id": "amerihealth-atlantic-city-marathon-half-marathon-10k-g-larry-james",
@@ -3039,9 +3903,9 @@
     "rows": 1930
    },
    {
-    "race_id": "ottawa-fall-colours-run",
-    "label": "Ottawa Fall Colours Run",
-    "labelled_by": "name",
+    "race_id": "ottawa-fall-colours",
+    "label": "Ottawa Fall Colours",
+    "labelled_by": "reviewed label",
     "name": "Ottawa Fall Colours Run",
     "place": "Ottawa, ON",
     "keys": [
@@ -3148,10 +4012,10 @@
     "rows": 1588
    },
    {
-    "race_id": "horse-capital-marathon-half-marathon",
-    "label": "Horse Capital Marathon & Half Marathon",
-    "labelled_by": "name",
-    "name": "Horse Capital Marathon & Half Marathon",
+    "race_id": "horse-capital",
+    "label": "Horse Capital",
+    "labelled_by": "reviewed label",
+    "name": "Horse Capital Marathon",
     "place": "Lexington, KY",
     "keys": [
      "Lexington, KY: Horse Capital Marathon & Half Marathon"
@@ -3185,9 +4049,9 @@
     "rows": 1430
    },
    {
-    "race_id": "soldier-marathon",
-    "label": "Soldier Marathon",
-    "labelled_by": "name",
+    "race_id": "soldier",
+    "label": "Soldier",
+    "labelled_by": "reviewed label",
     "name": "Soldier Marathon",
     "place": "Columbus, GA",
     "keys": [
@@ -3204,9 +4068,9 @@
     "rows": 1418
    },
    {
-    "race_id": "bozeman-half-marathon-10k",
-    "label": "Bozeman Half Marathon & 10K",
-    "labelled_by": "name",
+    "race_id": "bozeman",
+    "label": "Bozeman",
+    "labelled_by": "reviewed label",
     "name": "Bozeman Half Marathon & 10K",
     "place": "Bozeman, MT",
     "keys": [
@@ -3242,10 +4106,10 @@
     "rows": 1264
    },
    {
-    "race_id": "jackson-hole-marathon-hole-half-marathon-jackson-hole-quarter-marathon",
-    "label": "Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon",
-    "labelled_by": "name",
-    "name": "Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon",
+    "race_id": "jackson-hole",
+    "label": "Jackson Hole",
+    "labelled_by": "reviewed label",
+    "name": "Jackson Hole Marathon",
     "place": "Jackson, WY",
     "keys": [
      "Jackson, WY: Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon"
@@ -3261,10 +4125,10 @@
     "rows": 1160
    },
    {
-    "race_id": "new-river-marathon-half-marathon-5k",
-    "label": "New River Marathon, Half Marathon & 5K",
-    "labelled_by": "name",
-    "name": "New River Marathon, Half Marathon & 5K",
+    "race_id": "new-river",
+    "label": "New River",
+    "labelled_by": "reviewed label",
+    "name": "New River Marathon",
     "place": "Todd, NC",
     "keys": [
      "Todd, NC: New River Marathon, Half Marathon & 5K"
@@ -3315,10 +4179,10 @@
     "rows": 1099
    },
    {
-    "race_id": "emerald-isle-marathon-half-marathon-and-5k",
-    "label": "Emerald Isle Marathon, Half Marathon and 5K",
-    "labelled_by": "name",
-    "name": "Emerald Isle Marathon, Half Marathon and 5K",
+    "race_id": "emerald-isle",
+    "label": "Emerald Isle",
+    "labelled_by": "reviewed label",
+    "name": "Emerald Isle Marathon",
     "place": "Emerald Isle, NC",
     "keys": [
      "Emerald Isle, NC: Emerald Isle Marathon, Half Marathon and 5K"
@@ -3385,24 +4249,6 @@
     "verified_editions": 2,
     "counted_editions": 0,
     "rows": 991
-   },
-   {
-    "race_id": "irving-marathon-full-half",
-    "label": "Irving Marathon - Full & Half",
-    "labelled_by": "name",
-    "name": "Irving Marathon - Full & Half",
-    "place": "Irving, TX",
-    "keys": [
-     "Irving, TX: Irving Marathon - Full & Half"
-    ],
-    "joined_by": "single key",
-    "flags": [
-     "other_event_in_title"
-    ],
-    "editions": 2,
-    "verified_editions": 1,
-    "counted_editions": 0,
-    "rows": 972
    },
    {
     "race_id": "44th-the-cowtown-marathon-half-marathon-ultra-healthy-hig-marathon-relay",
@@ -3478,10 +4324,10 @@
     "rows": 842
    },
    {
-    "race_id": "whitefish-marathon-half-marathon-5k-presented-by-hammer-nutrition",
-    "label": "Whitefish Marathon, Half Marathon & 5K Presented by Hammer Nutrition",
-    "labelled_by": "name",
-    "name": "Whitefish Marathon, Half Marathon & 5K Presented by Hammer Nutrition",
+    "race_id": "whitefish",
+    "label": "Whitefish",
+    "labelled_by": "reviewed label",
+    "name": "Whitefish Marathon",
     "place": "Whitefish, MT",
     "keys": [
      "Whitefish, MT: Whitefish Marathon, Half Marathon & 5K Presented by Hammer Nutrition"
@@ -3496,9 +4342,9 @@
     "rows": 821
    },
    {
-    "race_id": "grand-lake-half-marathon-5k-kid-s-run",
-    "label": "Grand Lake Half Marathon 5k/Kid's Run",
-    "labelled_by": "name",
+    "race_id": "grand-lake",
+    "label": "Grand Lake",
+    "labelled_by": "reviewed label",
     "name": "Grand Lake Half Marathon 5k/Kid's Run",
     "place": "Celina, OH",
     "keys": [
@@ -3507,7 +4353,8 @@
     "joined_by": "single key",
     "flags": [
      "no_marathon_word_in_title",
-     "other_event_in_title"
+     "other_event_in_title",
+     "platform_title_misleads"
     ],
     "editions": 6,
     "verified_editions": 4,
@@ -3587,26 +4434,6 @@
     "verified_editions": 1,
     "counted_editions": 0,
     "rows": 740
-   },
-   {
-    "race_id": "run-barbados-festival",
-    "label": "Run Barbados Festival",
-    "labelled_by": "name",
-    "name": "Run Barbados Festival",
-    "place": null,
-    "keys": [
-     "TBD, TBD: Run Barbados Festival"
-    ],
-    "joined_by": "single key",
-    "flags": [
-     "no_marathon_word_in_title",
-     "placeholder_place",
-     "platform_title_misleads"
-    ],
-    "editions": 9,
-    "verified_editions": 0,
-    "counted_editions": 0,
-    "rows": 733
    }
   ],
   "all_capitals_title_recased": [
@@ -3617,6 +4444,7 @@
    "Christie Clinic Illinois Marathon",
    "Endurance Race - Westport",
    "Fitteam Palm Beaches Marathon",
+   "Glass City Marathon",
    "Iii Campofrio Maraton De Burgos",
    "Long Island Marathon Festival",
    "Mandiri Bintan Marathon",
@@ -3628,7 +4456,6 @@
    "Maratón Internacional Elche-alicante",
    "Mci Marathon Lough Derg Back2back 5th & 6th",
    "Mci Marathon Lough Derg Back2back 6th Day2",
-   "Mercy Health Glass City Marathon",
    "Palma Marathon Mallorca",
    "Querétaro Maratón",
    "Run Muk-savan Marathon",
@@ -3670,23 +4497,24 @@
   ],
   "cancelled_in_title": [
    {
-    "race_id": "marathon-de-rimouski-annule",
-    "label": "Marathon de Rimouski- Annulé",
-    "labelled_by": "name",
-    "name": "Marathon de Rimouski- Annulé",
+    "race_id": "rimouski",
+    "label": "Rimouski",
+    "labelled_by": "reviewed label",
+    "name": "Marathon de Rimouski",
     "place": "Rimouski, QC",
     "keys": [
-     "Rimouski, QC: Marathon de Rimouski- Annulé"
+     "Rimouski, QC: Marathon de Rimouski- Annulé",
+     "Rimouski, QC: Marathon Groupe Ouellet Bolduc de Rimouski"
     ],
-    "joined_by": "single key",
+    "joined_by": "reviewed join rimouski",
     "flags": [
      "cancelled_in_title",
      "platform_title_misleads"
     ],
-    "editions": 13,
-    "verified_editions": 6,
+    "editions": 17,
+    "verified_editions": 9,
     "counted_editions": 0,
-    "rows": 2553
+    "rows": 3725
    },
    {
     "race_id": "the-county-marathon-cancelled",
@@ -3726,10 +4554,10 @@
     "rows": 853
    },
    {
-    "race_id": "friendly-massey-marathon-cancelled",
-    "label": "Friendly Massey Marathon - Cancelled",
-    "labelled_by": "name",
-    "name": "Friendly Massey Marathon - Cancelled",
+    "race_id": "friendly-massey",
+    "label": "Friendly Massey",
+    "labelled_by": "reviewed label",
+    "name": "Friendly Massey Marathon",
     "place": "MASSEY, On",
     "keys": [
      "MASSEY, On: Friendly Massey Marathon - Cancelled"
@@ -3822,23 +4650,24 @@
     "rows": 16929
    },
    {
-    "race_id": "marathon-de-rimouski-annule",
-    "label": "Marathon de Rimouski- Annulé",
-    "labelled_by": "name",
-    "name": "Marathon de Rimouski- Annulé",
+    "race_id": "rimouski",
+    "label": "Rimouski",
+    "labelled_by": "reviewed label",
+    "name": "Marathon de Rimouski",
     "place": "Rimouski, QC",
     "keys": [
-     "Rimouski, QC: Marathon de Rimouski- Annulé"
+     "Rimouski, QC: Marathon de Rimouski- Annulé",
+     "Rimouski, QC: Marathon Groupe Ouellet Bolduc de Rimouski"
     ],
-    "joined_by": "single key",
+    "joined_by": "reviewed join rimouski",
     "flags": [
      "cancelled_in_title",
      "platform_title_misleads"
     ],
-    "editions": 13,
-    "verified_editions": 6,
+    "editions": 17,
+    "verified_editions": 9,
     "counted_editions": 0,
-    "rows": 2553
+    "rows": 3725
    },
    {
     "race_id": "the-county-marathon-cancelled",
@@ -3860,9 +4689,9 @@
     "rows": 1767
    },
    {
-    "race_id": "bozeman-half-marathon-10k",
-    "label": "Bozeman Half Marathon & 10K",
-    "labelled_by": "name",
+    "race_id": "bozeman",
+    "label": "Bozeman",
+    "labelled_by": "reviewed label",
     "name": "Bozeman Half Marathon & 10K",
     "place": "Bozeman, MT",
     "keys": [
@@ -3880,10 +4709,10 @@
     "rows": 1344
    },
    {
-    "race_id": "friendly-massey-marathon-cancelled",
-    "label": "Friendly Massey Marathon - Cancelled",
-    "labelled_by": "name",
-    "name": "Friendly Massey Marathon - Cancelled",
+    "race_id": "friendly-massey",
+    "label": "Friendly Massey",
+    "labelled_by": "reviewed label",
+    "name": "Friendly Massey Marathon",
     "place": "MASSEY, On",
     "keys": [
      "MASSEY, On: Friendly Massey Marathon - Cancelled"
@@ -3897,6 +4726,26 @@
     "verified_editions": 9,
     "counted_editions": 0,
     "rows": 824
+   },
+   {
+    "race_id": "grand-lake",
+    "label": "Grand Lake",
+    "labelled_by": "reviewed label",
+    "name": "Grand Lake Half Marathon 5k/Kid's Run",
+    "place": "Celina, OH",
+    "keys": [
+     "Celina, OH: Grand Lake Half Marathon 5k/Kid's Run"
+    ],
+    "joined_by": "single key",
+    "flags": [
+     "no_marathon_word_in_title",
+     "other_event_in_title",
+     "platform_title_misleads"
+    ],
+    "editions": 6,
+    "verified_editions": 4,
+    "counted_editions": 0,
+    "rows": 812
    },
    {
     "race_id": "physical-distancing-5k",
@@ -3937,6 +4786,26 @@
     "verified_editions": 0,
     "counted_editions": 0,
     "rows": 733
+   },
+   {
+    "race_id": "antarctica",
+    "label": "Antarctica",
+    "labelled_by": "reviewed label",
+    "name": "Antarctica Marathon & Half Marathon - Voyage 2",
+    "place": "King George Island",
+    "keys": [
+     "King George Island, TBD: Antarctica Marathon & Half Marathon - Voyage 2"
+    ],
+    "joined_by": "single key",
+    "flags": [
+     "other_event_in_title",
+     "placeholder_place",
+     "platform_title_misleads"
+    ],
+    "editions": 5,
+    "verified_editions": 3,
+    "counted_editions": 0,
+    "rows": 454
    }
   ],
   "mountain_or_trail_course": [
@@ -3961,9 +4830,9 @@
     "rows": 2297
    },
    {
-    "race_id": "foot-levelers-blue-ridge-marathon",
-    "label": "Foot Levelers Blue Ridge Marathon",
-    "labelled_by": "name",
+    "race_id": "blue-ridge",
+    "label": "Blue Ridge",
+    "labelled_by": "reviewed label",
     "name": "Foot Levelers Blue Ridge Marathon",
     "place": "Roanoke, VA",
     "keys": [
@@ -3979,10 +4848,10 @@
     "rows": 2296
    },
    {
-    "race_id": "jackson-hole-marathon-hole-half-marathon-jackson-hole-quarter-marathon",
-    "label": "Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon",
-    "labelled_by": "name",
-    "name": "Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon",
+    "race_id": "jackson-hole",
+    "label": "Jackson Hole",
+    "labelled_by": "reviewed label",
+    "name": "Jackson Hole Marathon",
     "place": "Jackson, WY",
     "keys": [
      "Jackson, WY: Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon"
@@ -4383,23 +5252,24 @@
   ],
   "title_names_a_hand_cycle_race": [
    {
-    "race_id": "museum-of-aviation-marathon-half-marathon-5k-and-hand-cycle-race",
-    "label": "Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race",
-    "labelled_by": "name",
-    "name": "Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race",
+    "race_id": "museum-of-aviation",
+    "label": "Museum of Aviation",
+    "labelled_by": "reviewed label",
+    "name": "Museum of Aviation Marathon",
     "place": "Warner Robins, GA",
     "keys": [
+     "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K",
      "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race"
     ],
-    "joined_by": "single key",
+    "joined_by": "reviewed join museum-of-aviation",
     "flags": [
      "other_event_in_title",
      "title_names_a_hand_cycle_race"
     ],
-    "editions": 7,
+    "editions": 8,
     "verified_editions": 5,
     "counted_editions": 0,
-    "rows": 461
+    "rows": 589
    }
   ],
   "several_race_names": [
@@ -4645,26 +5515,6 @@
      812
     ],
     "keyed_runners_in_both": 133
-   },
-   {
-    "races": [
-     "marathon-de-rimouski-annule",
-     "marathon-groupe-ouellet-bolduc-de-rimouski"
-    ],
-    "names": [
-     "Marathon de Rimouski- Annulé",
-     "Marathon Groupe Ouellet Bolduc de Rimouski"
-    ],
-    "place": "rimouski qc",
-    "years": [
-     "2004 to 2016",
-     "2017 to 2023"
-    ],
-    "keyed_runners": [
-     1389,
-     881
-    ],
-    "keyed_runners_in_both": 126
    },
    {
     "races": [

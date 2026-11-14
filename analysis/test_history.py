@@ -65,7 +65,11 @@ class HistoryValidation(unittest.TestCase):
     def test_canonical_link_retains_missing_name_but_rejects_bad_timing_and_future_history(self):
         self.check_history(canonical=True)
 
-    def check_history(self, canonical):
+    def test_a_combined_release_reads_its_identity_file(self):
+        """Adoption ruling D24.2 (2026-11-14): one identity rule over both distances, delivered as a file; nothing is derived here."""
+        self.check_history(canonical=True, identity=True)
+
+    def check_history(self, canonical, identity=False):
         with tempfile.TemporaryDirectory() as folder:
             source=Path(folder);db=duckdb.connect()
             if canonical:
@@ -101,6 +105,38 @@ class HistoryValidation(unittest.TestCase):
             for table,file in [('raw','race_records'),('feature','features'),('weather_fixture','race_conditions')]:
                 db.execute(f'COPY {table} TO ? (FORMAT PARQUET)',[str(source/(file+'.parquet'))])
             prepare(db,source,keep_record_id=True)
+            if identity:
+                # The file keys runner A and the runner with equivalent labels. Runner B passes the three checks on its
+                # marathon records alone and has no key in the file (over both distances it failed one): it is not linked.
+                import hashlib
+                sha=lambda path: hashlib.sha256(Path(path).read_bytes()).hexdigest()  # noqa: E731
+                (source/'MANIFEST.json').write_text('{}')
+                provenance={'release_tag':'private-export-20260911-1107','layout':'combined','manifest_sha256':sha(source/'MANIFEST.json')}
+                (source/'provenance.json').write_text(json.dumps(provenance))
+                with self.assertRaisesRegex(AssertionError,'pass --identity'): prepare_history(duckdb.connect(),source)
+                file=source/'identity.parquet'
+                db.execute('CREATE TABLE ident (source_db VARCHAR,record_id BIGINT,distance VARCHAR,runner_key VARCHAR)')
+                db.executemany("INSERT INTO ident VALUES ('full',?,'marathon',?)",[[rid,uid if uid in ('A','EquivalentWoman') else None] for rid,(uid,*_) in enumerate(cases,1)])
+                db.execute("INSERT INTO ident VALUES ('half',1,'half','A')")   # a half result of runner A: another id space, never a marathon record
+                db.execute('COPY ident TO ? (FORMAT PARQUET)',[str(file)])
+                record={'release_tag':provenance['release_tag'],'input_manifest_sha256':provenance['manifest_sha256'],'file':{'sha256':sha(file)}}
+                Path(str(file)+'.json').write_text(json.dumps(record))
+                audit=prepare_history(db,source,file)
+                self.assertEqual((audit['safe_identity_groups'],audit['linked_eligible_finishes'],audit['identity_file']['marathon_records_with_a_runner_key']),(2,7,7))
+                self.assertEqual(audit['identity_file']['file_sha256'],sha(file))
+                self.assertEqual(db.execute("SELECT count(*) FROM linked WHERE uid='B'").fetchone()[0],0)
+                # A file for another input, a file changed after its record was written, or a key the features do not give stops the build.
+                for change,message in ((dict(input_manifest_sha256='0'*64),'another input'),(dict(file={'sha256':'0'*64}),'differs from its own record')):
+                    Path(str(file)+'.json').write_text(json.dumps({**record,**change}))
+                    with self.assertRaisesRegex(AssertionError,message): prepare_history(duckdb.connect(),source,file)
+                db.execute("UPDATE ident SET runner_key='Someone' WHERE distance='marathon' AND record_id=1")
+                db.execute('COPY ident TO ? (FORMAT PARQUET)',[str(file)])
+                Path(str(file)+'.json').write_text(json.dumps({**record,'file':{'sha256':sha(file)}}))
+                other=duckdb.connect()
+                other.execute(f"CREATE TEMP VIEW features AS SELECT * FROM read_parquet('{source/'features.parquet'}')")
+                from build_extended import screened_identities
+                with self.assertRaisesRegex(AssertionError,'not a record of this input with that runner id'): screened_identities(other,source,file)
+                return
             audit=prepare_history(db,source)
             self.assertEqual(audit['record_join_method'],'canonical_record_id' if canonical else 'natural_key')
             self.assertEqual(audit['canonical_id_contract_verified'],canonical)

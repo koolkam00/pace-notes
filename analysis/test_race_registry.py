@@ -108,9 +108,38 @@ class Rule(unittest.TestCase):
             race_registry.build(rows, dict(reviewed, labels=reviewed['labels'] + [{'key': 'Roma: Run Rome the Marathon', 'label': 'Roma'}]))
         with self.assertRaisesRegex(AssertionError, 'share a slug'):
             race_registry.build(rows, dict(reviewed, labels=reviewed['labels'] + [{'key': 'Rome, GA: Rome Marathon', 'label': 'Rome'}]))
+        # A reviewed label has at most 30 characters, and no label's slug is a reserved route word (lead ruling of 2026-11-14).
+        with self.assertRaisesRegex(AssertionError, 'longer than 30 characters'):
+            race_registry.build(rows + editions(('Far, ON: The Very Long Named Marathon Of The North Shore', 2020, 'x', 2)),
+                                dict(reviewed, labels=reviewed['labels'] + [{'key': 'Far, ON: The Very Long Named Marathon Of The North Shore', 'label': 'Very Long Named Marathon Of The North'}]))
+        with self.assertRaisesRegex(AssertionError, 'reserved route word'):
+            race_registry.build(rows + editions(('Far, ON: All', 2020, 'x', 2)), reviewed)
         self.assertTrue(race_registry.states('Lévis-Québec', ['Québec, QC: Marathon SSQ Lévis-Québec']))
         self.assertTrue(race_registry.states('St. George', ['XACT: St. George Marathon']))
         self.assertFalse(race_registry.states('Venice', ['Venezia: Wizz Air Venicemarathon']))   # a whole word, never part of one
+
+
+    def test_a_series_note_names_the_races_of_one_plain_key(self):
+        """Lead ruling D29 (2026-11-14): a plain key that holds two races stays one race; the note says which editions are which."""
+        rows = editions(('Twotown', 2015, 'Spring Marathon', 5), ('Twotown', 2016, 'Spring Marathon', 6), ('Twotown', 2019, 'Autumn Marathon', 7),
+                        ('Berlin', 2024, 'Berlin Marathon', 10), ('Roma: Run Rome The Marathon', 2026, 'x', 6))
+        note = {'key': 'Twotown', 'series': [{'name': 'Spring Marathon', 'first_year': 2015, 'last_year': 2016}, {'name': 'Autumn Marathon', 'first_year': 2019, 'last_year': 2019}]}
+        reviewed = {'joins': [], 'flags': [], 'labels': [], 'series': [note]}
+        races = {r['race_id']: r for r in race_registry.build(rows, reviewed)}
+        self.assertEqual(races['twotown']['series'], [{'name': 'Spring Marathon', 'first_year': 2015, 'last_year': 2016, 'editions': 2},
+                                                      {'name': 'Autumn Marathon', 'first_year': 2019, 'last_year': 2019, 'editions': 1}])
+        # Nothing else changes: one race, one label, the name of its latest edition; a race without a note has no series.
+        self.assertEqual((races['twotown']['label'], races['twotown']['name'], races['twotown']['editions'], 'series' in races['berlin']), ('Twotown', 'Autumn Marathon', 3, False))
+        self.assertEqual([race_registry.series_of(races['twotown'], y) for y in (2015, 2016, 2019, 2020)], ['Spring Marathon', 'Spring Marathon', 'Autumn Marathon', None])
+        self.assertIsNone(race_registry.series_of(races['berlin'], 2024))
+        part = note['series']
+        for series, message in (([part[0], {**part[1], 'name': 'Fall Marathon'}], 'carries another race name'), ([part[0]], 'fewer than two series'),
+                                ([{**part[0], 'last_year': 2019}, part[1]], 'carries another race name'), ([part[0], {**part[1], 'first_year': 2018}], 'not editions of the key'),
+                                ([part[0], part[0], part[1]], 'overlap another series')):
+            with self.assertRaisesRegex(AssertionError, message):
+                race_registry.build(rows, {**reviewed, 'series': [{'key': 'Twotown', 'series': series}]})
+        with self.assertRaisesRegex(AssertionError, 'not a plain key'):
+            race_registry.build(rows, {**reviewed, 'series': [{**note, 'key': 'Roma: Run Rome The Marathon'}]})
 
 
 class FrozenRegistry(unittest.TestCase):
@@ -120,7 +149,8 @@ class FrozenRegistry(unittest.TestCase):
     def test_every_key_in_one_race_and_slugs_unique(self):
         races = self.registry['races']
         keys = [k for r in races for k in r['keys']]
-        self.assertEqual((len(keys), len(set(keys)), len(races)), (894, 894, 811))
+        # 811 races until 2026-11-14, when six reviewed joins came with the labels of lead ruling 5 (M2-C): 805.
+        self.assertEqual((len(keys), len(set(keys)), len(races)), (894, 894, 805))
         self.assertEqual(self.registry['keys_sha256'], race_registry.digest(sorted(keys)))
         self.assertEqual(self.registry['races_sha256'], race_registry.digest(races))
         ids = [r['race_id'] for r in races]
@@ -128,7 +158,8 @@ class FrozenRegistry(unittest.TestCase):
         self.assertTrue(all(r['race_id'] == r['slug'] == race_registry.slug(r['label']) and r['name'] for r in races))
         labels = [r['label'] for r in races]
         self.assertEqual(len(labels), len(set(labels)))
-        self.assertEqual((sum(r['rows'] for r in races), sum(r['editions'] for r in races)), (7820439, 2688))
+        # 7,820,439 rows until 2026-11-14; lead ruling D33 writes three rows of London 2026 by reviewed exception.
+        self.assertEqual((sum(r['rows'] for r in races), sum(r['editions'] for r in races)), (7820442, 2688))
         self.assertEqual(self.registry['tag'], 'pace-notes-marathon-half-20261113-1113')
         self.assertEqual(self.registry['rule'], race_registry.RULE)
 
@@ -152,8 +183,13 @@ class FrozenRegistry(unittest.TestCase):
     def test_joins_and_names(self):
         races = {r['race_id']: r for r in self.registry['races']}
         expected = self.registry['expected']
-        self.assertEqual(expected['races_by_join'], {'reviewed join': 16, 'rule': 28, 'single': 767})
-        self.assertEqual(len(self.registry['reviewed']['joins']), 16)
+        # 16 reviewed joins until 2026-11-14 (single keys 767); the labels of lead ruling 5 (M2-C) came with six more:
+        # Glass City, Rimouski, Lake Placid, Irving, Starved Rock Country and Museum of Aviation.
+        self.assertEqual(expected['races_by_join'], {'reviewed join': 22, 'rule': 28, 'single': 755})
+        self.assertEqual(len(self.registry['reviewed']['joins']), 22)
+        self.assertEqual({j['id'] for j in self.registry['reviewed']['joins'][16:]}, {'glass-city', 'rimouski', 'lake-placid', 'irving', 'starved-rock-country', 'museum-of-aviation'})
+        self.assertEqual((races['glass-city']['name'], races['rimouski']['name'], races['rimouski']['editions'], races['irving']['keys']),
+                         ('Glass City Marathon', 'Marathon de Rimouski', 17, ['Irving, TX: Irving Marathon', 'Irving, TX: Irving Marathon - Full & Half']))
         self.assertTrue(all(j['reason'] and j['evidence']['keyed_runners_in_two_or_more_of_the_keys'] > 0 for j in self.registry['reviewed']['joins']))
         self.assertEqual((len(races['rome']['keys']), races['rome']['name']), (4, 'Run Rome The Marathon'))
         self.assertEqual(races['houston']['place'], 'Houston, TX')
@@ -170,14 +206,35 @@ class FrozenRegistry(unittest.TestCase):
 
     def test_labels(self):
         races = self.registry['races']
+        # 36 reviewed labels until 2026-11-14 (name 651, name and place 86, name and first year 2); lead ruling 5 (M2-C) added 63.
         self.assertEqual(self.registry['expected']['races_by_label'],
-                         {'name': 651, 'name and first year': 2, 'name and place': 86, 'name, place and first year': 2, 'plain key': 34, 'reviewed label': 36})
-        self.assertEqual(len(self.registry['reviewed']['labels']), 36)
+                         {'name': 584, 'name and first year': 1, 'name and place': 85, 'name, place and first year': 2, 'plain key': 34, 'reviewed label': 99})
+        self.assertEqual(len(self.registry['reviewed']['labels']), 99)
+        # The first 36 are the labels of lead decision D19, unchanged; every reviewed label has at most 30 characters.
+        self.assertEqual([e['label'] for e in self.registry['reviewed']['labels'][:3] + self.registry['reviewed']['labels'][33:36]],
+                         ['Los Angeles', 'Houston', 'Philadelphia', 'Oklahoma City', 'San Sebastián', 'Querétaro'])
+        self.assertTrue(all(len(r['label']) <= race_registry.LABEL_MAX for r in races if r['labelled_by'] == 'reviewed label'))
+        self.assertFalse({r['slug'] for r in races} & race_registry.RESERVED_SLUGS)
         # The 60 races with most written rows carry a plain or reviewed label (lead decision D19, 2026-11-14).
         largest = sorted(races, key=lambda r: (-r['rows'], r['race_id']))[:race_registry.LARGEST]
         self.assertEqual({r['labelled_by'] for r in largest}, {'plain key', 'reviewed label'})
         # No label is a release key of another kind: none keeps a platform's name, an HTML entity or the ": " of a composite key.
         self.assertEqual([r['label'] for r in races if ': ' in r['label'] or '&#' in r['label'] or r['label'].startswith('XACT')], [])
+
+
+    def test_warsaw_is_one_race_with_two_series(self):
+        """Lead ruling D29 (2026-11-14): the plain key Warsaw holds two races; the note changes no label or grouping."""
+        races = {r['race_id']: r for r in self.registry['races']}
+        warsaw = races['warsaw']
+        self.assertEqual((warsaw['label'], warsaw['editions'], warsaw['labelled_by']), ('Warsaw', 12, 'plain key'))
+        self.assertEqual(warsaw['series'], [{'name': 'Orlen Warsaw Marathon', 'first_year': 2015, 'last_year': 2018, 'editions': 4},
+                                            {'name': 'PZU Warsaw Marathon', 'first_year': 2019, 'last_year': 2026, 'editions': 8}])
+        self.assertEqual([r['race_id'] for r in races.values() if 'series' in r], ['warsaw'])
+        self.assertEqual(self.registry['expected']['races_with_series'], 1)
+        note = self.registry['reviewed']['series'][0]
+        self.assertEqual(sorted(note['evidence']['weather_row_race_dates']), ['Orlen Warsaw Marathon', 'PZU Warsaw Marathon'])
+        self.assertTrue(all(day[5:7] == '04' for day in note['evidence']['weather_row_race_dates']['Orlen Warsaw Marathon']))
+        self.assertTrue(all(day[5:7] == '09' for day in note['evidence']['weather_row_race_dates']['PZU Warsaw Marathon']))
 
 
 if __name__ == '__main__':

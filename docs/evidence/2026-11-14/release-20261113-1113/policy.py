@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[4]
 TAG = 'pace-notes-marathon-half-20261113-1113'
 FROZEN = ROOT / 'analysis' / 'edition-policy-20261113-1113.json'
 REGISTRY = ROOT / 'analysis' / 'race-registry.json'
+ROW_EXCEPTIONS = ROOT / 'analysis' / 'reviewed-row-exceptions.json'
 OWN_RECORD_CATEGORIES = ('unverified', 'partial_coverage')
 COVERAGE = (0.95, 1.05)          # recorded finishes / official finishers, both ends included
 USABLE_MIN_PCT = 5.0             # screen (a): under this share of finishers with a usable grid fails
@@ -58,6 +59,8 @@ RULE = {
                    'times only'),
     'labels': ('every counted edition and every edition with an own-record view belongs to a race whose label is a plain key or a reviewed label of the '
                'race registry (lead decision D19, 2026-11-14); the build fails otherwise'),
+    'row_exceptions': ('every edition with a reviewed row exception (analysis/reviewed-row-exceptions.json; lead ruling D33, 2026-11-14) is counted: the adapter '
+                       'writes a listed row only when the frozen policy counts its edition, and this build fails when the policy it rebuilds would not'),
     'order': 'the frozen list is sorted by city label, then year (Unicode code point order)',
 }
 REASONS = {
@@ -178,6 +181,17 @@ def check_labels(counted, excluded):
     return hashlib.sha256(data).hexdigest()
 
 
+def check_row_exceptions(counted):
+    """Every edition with a reviewed row exception (analysis/reviewed-row-exceptions.json; lead ruling D33, 2026-11-14)
+    is counted: the adapter wrote the row because the policy frozen at the time counted its edition, and a policy that
+    stops counting it must not be frozen while the exception stands. Returns the editions."""
+    listed = json.loads(ROW_EXCEPTIONS.read_text())['releases'].get(TAG, []) if ROW_EXCEPTIONS.exists() else []
+    editions = sorted({(entry['city'], entry['year']) for entry in listed})
+    missing = [f'{city} {year}' for city, year in editions if [city, year] not in counted]
+    assert not missing, f'editions with a reviewed row exception that this policy does not count: {missing}'
+    return [[city, year] for city, year in editions]
+
+
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
 
@@ -221,6 +235,7 @@ def main(argv):
     counted, excluded, review = build(editions, screens, exceptions)
     inputs = {'adapted_manifest_sha256': hashlib.sha256((args.source / 'MANIFEST.json').read_bytes()).hexdigest(),
               'race_registry_sha256': check_labels(counted, excluded),
+              'editions_with_a_reviewed_row_exception': check_row_exceptions(counted),
               'editions_json_sha256': hashlib.sha256((args.source / 'EDITIONS.json').read_bytes()).hexdigest(),
               'edition_screen_csv_sha256': hashlib.sha256(args.screens.read_bytes()).hexdigest(),
               'screen_script': 'docs/evidence/2026-10-21/release-0829/screen.py',

@@ -1,5 +1,5 @@
 {
- "document": "Race dates for editions the weather evidence has no row for, reviewed by hand and cited (2026-11-05; 2026-11-14 for the combined release). Every builder that orders a runner’s linked finishes by race date reads this file after the weather evidence; a date here never changes a weather figure, because the edition still has no weather row. `city` is the edition’s label as the pipeline writes it; `release_city`, where given, is the release’s own key. An entry with `weekday` was accepted only because its date falls on that weekday, which analysis/adapt_combined.py checks again; an edition with no recorded evidence of its date has no entry and stays undated.",
+ "document": "Race dates for editions the weather evidence has no row for, reviewed by hand and cited (2026-11-05; 2026-11-14 for the combined release). Every builder that orders a runner’s linked finishes by race date reads this file after the weather evidence; a date here never changes a weather figure, because the edition still has no weather row. `city` is the edition’s label as the pipeline writes it; `release_city`, where given, is the release’s own key. An entry with `weekday` was accepted only because its date falls on that weekday, which analysis/adapt_combined.py checks again; an entry with `evidence: external` (lead ruling D27 of the adoption plan, 2026-11-14) rests on a cited source outside the release: the adapter accepts it only for an edition whose producer note states no date, and it records the source’s name, URL and quoted words and who read it and when; its date is written with `race_date_source` external. An edition with no recorded evidence of its date has no entry and stays undated.",
  "releases": {
   "master-20261103b": [
    {
@@ -117,6 +117,39 @@
     "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2022-10-16\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
     "evidence_text": "date=2022-10-16",
     "weekday_check": "2022-10-16 is a Sunday. Of the 23 editions of this race whose producer note states one date in the edition’s year (2000 to 2026), 19 state a Sunday; the notes of 2015 (a Thursday), 2024 (a Saturday), 2025 (a Saturday), 2026 (a Saturday) do not, and date nothing."
+   },
+   {
+    "city": "Los Angeles",
+    "release_city": "Los Angeles, CA: Los Angeles Marathon",
+    "year": 2026,
+    "date": "2026-03-08",
+    "weekday": "Sunday",
+    "evidence": "external",
+    "source": "Two news reports read by the adoption lead on 2026-11-14 (lead ruling D27). The producer’s completeness note for this edition states no race date (it states counts, winners and the day the edition was stamped), the release has no weather row for it and its race_date column is empty.",
+    "external": {
+     "read_by": "the adoption lead",
+     "read_on": "2026-11-14",
+     "sources": [
+      {
+       "name": "NBC Los Angeles, \"2026 LA Marathon results\"",
+       "url": "https://www.nbclosangeles.com/news/sports/2026-la-marathon-results-winners/3858968/",
+       "published": "March 9, 2026",
+       "quotes": [
+        "More than 27,000 runners hit the pavement for the 2026 Los Angeles Marathon on Sunday.",
+        "... at 8:30 p.m. on March 8, 2026"
+       ]
+      },
+      {
+       "name": "ABC7",
+       "url": "https://abc7.com/post/heat-prompts-safety-changes-la-marathon-higher-usual-temperatures-expected/18692488/",
+       "dated": "Monday, March 9, 2026",
+       "quotes": [
+        "The hot weather forecasted for Sunday prompted marathon organizers to implement safety changes to the event."
+       ]
+      }
+     ]
+    },
+    "weekday_check": "2026-03-08 is a Sunday. The first report, published March 9, 2026, says the runners ran \"on Sunday\" and captions a video \"March 8, 2026\"; the second, dated Monday, March 9, 2026, speaks of the weather forecast for Sunday that changed the event."
    }
   ]
  }
