@@ -1,28 +1,28 @@
 {
  "release_tag": "pace-notes-marathon-half-20261113-1113",
- "input_manifest_sha256": "c0ddc847837382ae9b9ed7a52812a851588c7add8d04368e77226bf075d8310b",
+ "input_manifest_sha256": "e994ac1590d8b3204c02cc6327c83cb7315b5cc5fd2914a445f07fa809ba085c",
  "policy": {
   "version": 2,
   "reviewed_edition_policy": true,
-  "policy_sha256": "be5f84977d1b72fa81b0a0f680a4b9d4c27f50600f70d4ecec9b8241885e758d",
-  "script_sha256": "13937ede2fd9fe886b50cb6cc148e79b982a428fb3a7d460c74599e0896eeec8"
+  "policy_sha256": "6fd848dba85aa5b745a023d101cd80303607d506c03aea708774d0b5dd0c22cd",
+  "script_sha256": "10b6bee6fb47807aa86236d0e11e44dc763768b557fd9e0ee364619de70a8965"
  },
  "policy_editions": 2487,
  "cohort": {
-  "deduplicated": 7820393,
-  "complete": 4736952,
-  "increasing": 4705518,
-  "timing_eligible": 4687794,
-  "eligible": 4124023,
+  "deduplicated": 7820396,
+  "complete": 4736955,
+  "increasing": 4705521,
+  "timing_eligible": 4687797,
+  "eligible": 4124026,
   "source_quality_excluded": 563771,
-  "raw": 7820439,
+  "raw": 7820442,
   "duplicates_removed": 46,
   "missing_or_unparsed": 3083441,
   "non_increasing": 31434,
   "outside_quality_bounds": 17724
  },
  "editions_with_records": 2688,
- "cities_with_records": 811,
+ "cities_with_records": 805,
  "timing_eligible_editions": 270,
  "timing_eligible_cities": 36,
  "policy_excluded_by_category": {
@@ -65,7 +65,7 @@
  },
  "readings": {
   "a_policy": {
-   "eligible_finishes": 4124023,
+   "eligible_finishes": 4124026,
    "eligible_editions": 201,
    "eligible_cities": 28,
    "sustained_slowdown": 1288216,
@@ -87,11 +87,11 @@
      "sustained_slowdown_pct": 46.1901
     },
     "partial": {
-     "eligible_finishes": 721041,
+     "eligible_finishes": 721044,
      "eligible_editions": 27,
      "eligible_cities": 13,
      "sustained_slowdown": 229836,
-     "sustained_slowdown_pct": 31.8756
+     "sustained_slowdown_pct": 31.8754
     }
    }
   },
@@ -101,18 +101,18 @@
    "eligible_cities": 28,
    "sustained_slowdown": 1058380,
    "sustained_slowdown_pct": 31.1015,
-   "policy_excluded_finishes": 1284812
+   "policy_excluded_finishes": 1284815
   },
   "c_without_weaker_source_editions": {
-   "eligible_finishes": 3961514,
+   "eligible_finishes": 3961517,
    "eligible_editions": 189,
    "eligible_cities": 25,
    "sustained_slowdown": 1213153,
-   "sustained_slowdown_pct": 30.6235,
+   "sustained_slowdown_pct": 30.6234,
    "policy_excluded_finishes": 726280
   },
   "d_policy_plus_own_record_editions": {
-   "eligible_finishes": 4342458,
+   "eligible_finishes": 4342461,
    "eligible_editions": 233,
    "eligible_cities": 33,
    "sustained_slowdown": 1356790,
@@ -186,7 +186,7 @@
   "leave": 28,
   "join": 11,
   "finishes_then_in_staying_editions": 4015827,
-  "finishes_now_in_staying_editions": 4015789,
+  "finishes_now_in_staying_editions": 4015792,
   "leaving": [
    {
     "edition": "Auckland 2016",
@@ -918,7 +918,7 @@
    },
    "a": {
     "editions": 3,
-    "finishes": 152320
+    "finishes": 152323
    },
    "b": {
     "editions": 1,
@@ -926,11 +926,11 @@
    },
    "c": {
     "editions": 3,
-    "finishes": 152320
+    "finishes": 152323
    },
    "d": {
     "editions": 3,
-    "finishes": 152320
+    "finishes": 152323
    },
    "own_record": {
     "editions": 0,
@@ -2825,9 +2825,9 @@
    "reading_d": true
   },
   "London|2026": {
-   "timing_eligible": 56759,
+   "timing_eligible": 56762,
    "sustained_slowdown": 17298,
-   "median_finish_s": 16069.0,
+   "median_finish_s": 16068.0,
    "eligible": true,
    "tier": "partial",
    "own_record": false,

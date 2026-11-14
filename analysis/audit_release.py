@@ -11,6 +11,7 @@ import duckdb
 from build_pacing import FIELDS, records
 from download_release import EXPECTED, HTW_DB_DOCS, HTW_DB_FULL_DOCS, PACE_NOTES_DOCS, PACE_NOTES_MATCHING, PACE_NOTES_WITHOUT_MATCHING
 from adapt_master import EXPECTED_MASTER, RACE_RECORDS
+import adapt_combined
 from adapt_combined import EXPECTED_COMBINED, IDENTITY, LINKS, QA_FLAGS, ROW_RULE
 import race_registry
 
@@ -240,8 +241,21 @@ def combined_reconciliation(db, source, provenance, manifest):
     db.execute(f'''CREATE TEMP TABLE audit_wide AS SELECT a.city, a.year, a.flag, count(*) AS n FROM audit_flagged a
       JOIN (SELECT city, year, count(*) AS n FROM pr GROUP BY ALL) e ON e.city=a.city AND e.year=a.year
       WHERE a.flag IN ({wide}) GROUP BY a.city, a.year, a.flag, e.n HAVING count(*)=e.n''')
+    # The reviewed row exceptions (lead ruling D33, 2026-11-14), read from the reviewed list and recounted here: a listed
+    # row carries exactly one flag, one the rule allows an exception for, and is written; every other flagged row is out.
+    listed = json.loads(adapt_combined.ROW_EXCEPTIONS_PATH.read_text())['releases'].get(provenance['release_tag'], []) if adapt_combined.ROW_EXCEPTIONS_PATH.exists() else []
+    allowed = (rule.get('reviewed_exceptions') or {}).get('qa_row_flags', [])
+    db.execute('CREATE TEMP TABLE audit_excepted (record_id BIGINT, flag VARCHAR)')
+    for entry in listed:
+        carried = [flag for (flag,) in db.execute('SELECT flag FROM audit_flagged WHERE record_id=?', [entry['record_id']]).fetchall()]
+        assert carried == [entry['flag']] and entry['flag'] in allowed, f"The reviewed row exception {entry['record_id']} carries {carried}"
+        assert db.execute('SELECT count(*) FROM pp WHERE record_id=?', [entry['record_id']]).fetchone()[0] == 0, f"The reviewed row exception {entry['record_id']} carries a pending flag"
+        db.execute('INSERT INTO audit_excepted VALUES (?,?)', [entry['record_id'], entry['flag']])
+    assert [[e['record_id'], f"{e['city']} {e['year']}", e['flag'], e['finish']] for e in listed] == manifest.get('rows_written_by_reviewed_exception', []), \
+        'The reviewed row exceptions are not the ones the folder was adapted with'
     db.execute('''CREATE TEMP TABLE audit_left_out AS SELECT DISTINCT a.record_id FROM audit_flagged a
-      ANTI JOIN audit_wide w ON w.city=a.city AND w.year=a.year AND w.flag=a.flag''')
+      ANTI JOIN audit_wide w ON w.city=a.city AND w.year=a.year AND w.flag=a.flag
+      ANTI JOIN audit_excepted x ON x.record_id=a.record_id''')
     # The labels: the side member gives each written edition's own key and race name; the registry rebuilt from it must
     # be the frozen one, and each edition must carry that registry's label and race name (a plain key keeps its own).
     location = str(source/'release_keys.parquet').replace("'", "''")
@@ -269,6 +283,8 @@ def combined_reconciliation(db, source, provenance, manifest):
     for city, year, flag, n in db.execute('SELECT city, year, flag, n FROM audit_wide ORDER BY 3, 1, 2').fetchall():
         kept.setdefault(flag, {})[f'{city} {year}'] = n
     out['rows_kept_edition_wide'] = kept
+    out['rows_written_by_reviewed_exception'] = manifest.get('rows_written_by_reviewed_exception', [])
+    assert db.execute('SELECT count(*) FROM audit_excepted x JOIN r ON r.id=x.record_id').fetchone()[0] == len(listed), 'A reviewed row exception is not written'
     assert kept == {name.split('.', 1)[1]: editions for name, editions in manifest['rows_kept_edition_wide'].items()}, kept
     out['labels'] = records(db, '''SELECT count(*) AS editions, count(DISTINCT city) AS labels, count(DISTINCT release_city) AS release_keys,
       count(*) FILTER(WHERE city <> release_city) AS editions_relabelled, count(*) FILTER(WHERE race <> release_race) AS editions_renamed,

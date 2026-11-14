@@ -2,7 +2,7 @@
 'use strict';
 // Runner lookup v2: the complete verifier of a build, from its files alone (docs/RUNNERS_AND_REPORT.md).
 //
-//   node scripts/verify-lookup.cjs [--data-root DIR] [--cohort FILE] [--pipeline DIR] [--never-shown FILE] [--allow-provisional] [--fixture] [--self-test] [--quiet]
+//   node scripts/verify-lookup.cjs [--data-root DIR] [--cohort FILE] [--race-notes FILE] [--pipeline DIR] [--never-shown FILE] [--allow-provisional] [--fixture] [--self-test] [--quiet]
 //
 // DIR holds the `runners` folder (default public/data). It reads every file once and collects every failure, so one
 // run shows them all. What it proves:
@@ -15,7 +15,8 @@
 //      and never of two sexes; a person's confirmed tiers all keyed or none); marathon status against the result's own
 //      times and its edition; no person id and no release tag in any body.
 //   4. Counts: results, statuses, link codes, tiers, profiles, names, search names, index rows and heavy words each
-//      recounted and compared with the manifest; the rows of each distance add up.
+//      recounted and compared with the manifest; the rows of each distance add up; an edition the race notes set
+//      aside has no listed result and is counted among the editions with none.
 //   5. Index, rebuilt: from the profile shards alone it forms every posting the rules require (search words by this
 //      file's own JavaScript normalisation, so the Python builder and the browser agree on every name), assigns each
 //      to its leaf by the directory, and compares count and two 256-bit accumulators per leaf with the leaf's rows;
@@ -34,11 +35,14 @@
 // cohort, the verifier checks the digest and the counts and then compares every marathon result of every cohort
 // edition with the cohort's own record (scripts/lib/cohort.cjs): status, nine times, sex, age, and that the cohort's
 // runners are exactly the confirmed links and each sits in one profile.
+// --race-notes FILE names the race directory's notes (default analysis/race-notes.json): the build must have read that
+// file, and the editions it sets aside must be the ones the manifest says were skipped.
 // --pipeline DIR compares the build with the pipeline's own descriptions of its two files (record-status.parquet.json
-// and identity.parquet.json): the digests the build read and the counts by status. Row by row, against the release
+// and identity.parquet.json): the digests the build read, the counts by status and the rows left out by distance. Row by row, against the release
 // and those files, is analysis/lookup_audit.py's work (it needs the release; this needs only the published files).
-// --never-shown FILE takes the keys of the rows that must not appear (rows left out, unnamed, placeholder names),
-// written by that audit from the release, and checks that none is in a shard and that their counts are the manifest's.
+// --never-shown FILE takes the keys of the rows that must not appear (rows left out, rows of editions set aside,
+// unnamed, placeholder names), written by that audit from the release, and checks that none is in a shard and that
+// their counts are the manifest's.
 // Measured 2026-11-14 on the development build of pace-notes-marathon-half-20261113-1113: see the contract.
 
 const fs = require('node:fs');
@@ -167,6 +171,15 @@ function verify(dataRoot, options = {}) {
     c.check(m.profiles && m.profiles.shards === L.PROFILE_SHARDS && Array.isArray(m.profiles.pages) && m.profiles.pages.length === L.PROFILE_SHARDS / L.PAGE_SIZE &&
       m.profiles.pages.every(page => Array.isArray(page) && page.length === 2 && Number.isSafeInteger(page[0]) && HEX64.test(page[1])), 'manifest', 'profiles entry');
     c.check(m.counts && m.counts.marathon && m.counts.half, 'manifest', 'counts are missing');
+    for (const distance of ['marathon', 'half']) {
+      const block = (m.counts || {})[distance] || {}, aside = block.set_aside;
+      c.check(aside && Number.isSafeInteger(aside.rows) && Array.isArray(aside.editions) &&
+        aside.editions.every(row => Array.isArray(row) && row.length === 3 && typeof row[0] === 'string' && Number.isSafeInteger(row[1]) && Number.isSafeInteger(row[2]) && row[2] > 0) &&
+        aside.editions.reduce((sum, row) => sum + row[2], 0) === aside.rows, 'manifest', `${distance}: set_aside is not {rows, editions: [[label, year, rows]]} adding up`);
+      c.check(Number.isSafeInteger(block.finish_unread) && block.finish_unread >= 0, 'manifest', `${distance}: finish_unread is missing`);
+    }
+    c.check(m.counts && m.counts.half && m.counts.half.set_aside && m.counts.half.set_aside.rows === 0, 'manifest', 'a half edition is set aside: the race notes are of the marathon directory');
+    c.check(m.counts && m.counts.marathon && m.counts.marathon.finish_unread === 0, 'manifest', 'a marathon result has a finish text that is not a time: the builder stops on that');
   };
   try { shape(); } catch (error) { c.fail('manifest', `the manifest is not in the published shape: ${error.message}`); }
   if (c.total) return { failures: c, facts };
@@ -186,6 +199,17 @@ function verify(dataRoot, options = {}) {
       if (!same && !(name === 'race-registry.json' && manifest.provisional.includes('race_registry'))) c.fail('stale', `the build read another analysis/${name}`);
     }
     for (const name of Object.keys(pin.assets || {})) if (name in manifest.inputs) c.check(manifest.inputs[name] === pin.assets[name], 'pin', `${name} is not the pinned file`);
+  }
+  const asideListed = manifest.counts.marathon.set_aside.editions.map(row => row[0] + '\u0000' + row[1]).sort();
+  if (manifest.inputs['race-notes.json']) {
+    const file = options.raceNotes || path.join(repo, 'analysis/race-notes.json');
+    if (!options.fixture && c.check(fs.existsSync(file) && sha256(fs.readFileSync(file)) === manifest.inputs['race-notes.json'], 'stale', `the build read other race notes than ${options.raceNotes ? file : 'analysis/race-notes.json'}`)) {
+      const notes = JSON.parse(fs.readFileSync(file, 'utf8'));
+      c.check(JSON.stringify((notes.set_aside_editions || []).map(entry => entry.label + '\u0000' + entry.year).sort()) === JSON.stringify(asideListed), 'counts', 'the editions set aside are not the set_aside_editions of the race notes');
+    }
+  } else {
+    c.check(manifest.provisional.includes('race_notes'), 'manifest', 'the manifest names no race notes and does not say so in `provisional`');
+    c.check(asideListed.length === 0, 'manifest', 'editions are set aside and no race notes were read');
   }
   let policyRows = null;
   if (!options.fixture && manifest.inputs['edition-policy.json']) {
@@ -568,14 +592,16 @@ function verify(dataRoot, options = {}) {
       const kinds = list.kinds[distance] || {}, stated = counts[distance];
       const size = kind => Object.values(kinds[kind] || {}).reduce((sum, ids) => sum + ids.length, 0);
       for (const byDb of Object.values(kinds)) for (const [letter, ids] of Object.entries(byDb)) for (const id of ids) { listed++; if (has(id * 2 + (letter === 'h' ? 1 : 0))) present++; }
-      c.check(size('left_out') === stated.left_out.rows && size('unnamed') === stated.unnamed && size('placeholder_flagged') === stated.placeholder.flagged && size('placeholder_listed') === stated.placeholder.listed,
-        'never-shown', `${distance}: the release has ${size('left_out')} rows left out, ${size('unnamed')} unnamed, ${size('placeholder_flagged')} and ${size('placeholder_listed')} placeholder; the manifest states ${stated.left_out.rows}, ${stated.unnamed}, ${stated.placeholder.flagged} and ${stated.placeholder.listed}`);
+      c.check(size('left_out') === stated.left_out.rows && size('set_aside') === stated.set_aside.rows && size('unnamed') === stated.unnamed && size('placeholder_flagged') === stated.placeholder.flagged && size('placeholder_listed') === stated.placeholder.listed,
+        'never-shown', `${distance}: the release has ${size('left_out')} rows left out, ${size('set_aside')} set aside, ${size('unnamed')} unnamed, ${size('placeholder_flagged')} and ${size('placeholder_listed')} placeholder; the manifest states ${stated.left_out.rows}, ${stated.set_aside.rows}, ${stated.unnamed}, ${stated.placeholder.flagged} and ${stated.placeholder.listed}`);
+      c.check(Object.keys(kinds).every(kind => ['left_out', 'set_aside', 'unnamed', 'placeholder_flagged', 'placeholder_listed'].includes(kind)), 'never-shown', `${distance}: the list holds a kind of row this verifier does not know (${Object.keys(kinds).join(', ')})`);
     }
     c.check(present === 0, 'never-shown', `${present} rows that must not appear are in a shard`);
     facts.neverShown = listed;
   }
   // ---- 4. counts
   const equal = (name, actualValue, stated) => c.check(JSON.stringify(actualValue) === JSON.stringify(stated), 'counts', `${name}: the files give ${JSON.stringify(actualValue)}, the manifest states ${JSON.stringify(stated)}`);
+  const notListed = block => block.set_aside.rows + block.unnamed + block.placeholder.flagged + block.placeholder.listed;       // kept rows that are not listed
   const sorted = object => Object.fromEntries(Object.keys(object).sort().map(key => [key, object[key]]));
   equal('results', count.results, counts.results);
   equal('profiles', count.profiles, counts.profiles);
@@ -590,18 +616,24 @@ function verify(dataRoot, options = {}) {
     equal(`${distance} results by tier`, sorted(count.tier[distance]), block.tier);
     equal(`${distance} results by link code`, sorted(count.link[distance]), block.link);
     equal(`${distance} editions`, editions.filter(e => e.distance === distance).length, block.editions);
-    c.check(block.release_rows === block.left_out.rows + block.unnamed + block.placeholder.flagged + block.placeholder.listed + block.results, 'counts', `${distance}: release rows are not the rows left out, unnamed, placeholder and listed`);
-    equal(`${distance} rows kept and not listed`, editions.filter(e => e.distance === distance).reduce((sum, e) => sum + e.unlisted, 0) + block.unlisted_editions.reduce((sum, row) => sum + row[4], 0), block.unnamed + block.placeholder.flagged + block.placeholder.listed);
+    c.check(block.release_rows === block.left_out.rows + notListed(block) + block.results, 'counts', `${distance}: release rows are not the rows left out, set aside, unnamed, placeholder and listed`);
+    equal(`${distance} rows kept and not listed`, editions.filter(e => e.distance === distance).reduce((sum, e) => sum + e.unlisted, 0) + block.unlisted_editions.reduce((sum, row) => sum + row[4], 0), notListed(block));
+    c.check(block.finish_unread <= block.no_finish, 'counts', `${distance}: ${block.finish_unread} results have a finish text that is not a time and ${block.no_finish} have no finish`);
+  }
+  // An edition set aside has no listed result: it is not in the editions file, and the editions with no listed result hold its rows.
+  for (const [label, year, rows] of counts.marathon.set_aside.editions) {
+    c.check(!editions.some(e => e.distance === 'marathon' && e.city === label && e.year === year), 'counts', `the edition set aside (${year}) is in the editions file`);
+    equal(`rows of the edition set aside (${year})`, counts.marathon.unlisted_editions.filter(row => row[1] === label && row[2] === year).reduce((sum, row) => sum + row[4], 0), rows);
   }
   equal('marathon results by status', sorted(count.status), counts.marathon.status);
   const unlistedStatus = counts.marathon.unlisted_status || {};
-  equal('marathon rows kept and not listed, by status', Object.values(unlistedStatus).reduce((sum, value) => sum + value, 0), counts.marathon.unnamed + counts.marathon.placeholder.flagged + counts.marathon.placeholder.listed);
+  equal('marathon rows kept and not listed, by status', Object.values(unlistedStatus).reduce((sum, value) => sum + value, 0), notListed(counts.marathon));
   const statusFile = manifest.pipeline && manifest.pipeline.record_status;
   if (statusFile) {
     const totals = { counted: 0, limited: 0, own_record: 0 };
     for (const source of [count.status, unlistedStatus]) for (const [digit, value] of Object.entries(source)) totals[digit === '0' ? 'counted' : digit === '1' ? 'own_record' : 'limited'] += value;
     equal('marathon rows by status against the status file', totals, sorted(statusFile.by_status));
-    equal('marathon rows against the status file', counts.marathon.results + counts.marathon.unnamed + counts.marathon.placeholder.flagged + counts.marathon.placeholder.listed, statusFile.records);
+    equal('marathon rows against the status file', counts.marathon.results + notListed(counts.marathon), statusFile.records);
   } else if (!manifest.provisional.includes('record-status')) c.check(options.fixture, 'pipeline', 'the manifest carries no counts of the status file');
   if (options.pipeline) {
     const sidecar = name => { try { return JSON.parse(fs.readFileSync(path.join(options.pipeline, name + '.json'), 'utf8')); } catch { return null; } };
@@ -611,7 +643,15 @@ function verify(dataRoot, options = {}) {
       c.check(statusFile && JSON.stringify(sorted(status.counts.by_status)) === JSON.stringify(sorted(statusFile.by_status)) && status.counts.records === statusFile.records, 'pipeline', 'the status file’s counts differ from the manifest’s');
       c.check(status.policy_sha256 === manifest.pipeline.policy_sha256 && status.input_manifest_sha256 === manifest.pipeline.input_manifest_sha256, 'pipeline', 'the status file’s policy or input digest differs from the manifest’s');
     }
-    if (c.check(identity !== null, 'pipeline', `${options.pipeline} has no identity.parquet.json`)) c.check(identity.file.sha256 === manifest.inputs['identity.parquet'], 'pipeline', 'the build did not read this identity.parquet');
+    if (c.check(identity !== null, 'pipeline', `${options.pipeline} has no identity.parquet.json`)) {
+      c.check(identity.file.sha256 === manifest.inputs['identity.parquet'], 'pipeline', 'the build did not read this identity.parquet');
+      // The rows left out are the identity file's (for marathon rows the status file says the same): its own count of them is the manifest's.
+      const stated = (identity.counts && identity.counts.by_status) || {};
+      for (const distance of ['marathon', 'half']) {
+        c.check(stated[distance] && stated[distance].left_out === counts[distance].left_out.rows, 'pipeline',
+          `${distance}: the identity file leaves out ${stated[distance] ? stated[distance].left_out : 'an unstated number of'} rows; the manifest states ${counts[distance].left_out.rows}`);
+      }
+    }
   }
   equal('half results in editions never compared', sorted(count.noComparison), counts.half.no_comparison);
   const heavyFound = Array.from(wordCount).filter(([, n]) => n > rules.heavy_over).sort((a, b) => cmp(a[0], b[0]));
@@ -733,7 +773,7 @@ function verify(dataRoot, options = {}) {
     for (const [name, key] of [['record-status.parquet', 'record_status'], ['identity.parquet', 'identity']]) {
       c.check(document.inputs && document.inputs[key] && document.inputs[key].sha256 === manifest.inputs[name], 'cohort', `the cohort and the lookup were not built from the same ${name}`);
     }
-    c.check(document.raw_records === m.results + m.unnamed + m.placeholder.flagged + m.placeholder.listed, 'cohort', `the cohort’s raw records are ${document.raw_records}; the lookup’s marathon results with the unnamed and placeholder rows are ${m.results + m.unnamed + m.placeholder.flagged + m.placeholder.listed}`);
+    c.check(document.raw_records === m.results + notListed(m), 'cohort', `the cohort’s raw records are ${document.raw_records}; the lookup’s marathon results with the set-aside, unnamed and placeholder rows are ${m.results + notListed(m)}`);
     c.check(document.eligible_records === (count.status['0'] || 0) + (unlisted['0'] || 0), 'cohort', `the cohort holds ${document.eligible_records} eligible records; ${(count.status['0'] || 0) + (unlisted['0'] || 0)} kept marathon rows are counted`);
     c.check(document.own_record_records === (count.status['1'] || 0) + (unlisted['1'] || 0), 'cohort', `the cohort holds ${document.own_record_records} own-record records; ${(count.status['1'] || 0) + (unlisted['1'] || 0)} kept marathon rows are own-record`);
     c.check(manifest.cohort.raw_records === document.raw_records && manifest.cohort.eligible_records === document.eligible_records && manifest.cohort.editions === document.editions.length &&
@@ -955,18 +995,19 @@ function selfTest(dataRoot, options) {
 
 function main() {
   const args = process.argv.slice(2);
-  const options = { fixture: false, allowProvisional: false, quiet: false, cohort: null, pipeline: null, neverShown: null };
+  const options = { fixture: false, allowProvisional: false, quiet: false, cohort: null, raceNotes: null, pipeline: null, neverShown: null };
   let dataRoot = path.join(repo, 'public/data'), self = false;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--data-root' && args[i + 1]) dataRoot = path.resolve(args[++i]);
     else if (args[i] === '--cohort' && args[i + 1]) options.cohort = path.resolve(args[++i]);
     else if (args[i] === '--pipeline' && args[i + 1]) options.pipeline = path.resolve(args[++i]);
     else if (args[i] === '--never-shown' && args[i + 1]) options.neverShown = path.resolve(args[++i]);
+    else if (args[i] === '--race-notes' && args[i + 1]) options.raceNotes = path.resolve(args[++i]);
     else if (args[i] === '--fixture') options.fixture = true;
     else if (args[i] === '--allow-provisional') options.allowProvisional = true;
     else if (args[i] === '--self-test') self = true;
     else if (args[i] === '--quiet') options.quiet = true;
-    else { console.error('Usage: node scripts/verify-lookup.cjs [--data-root DIR] [--cohort FILE] [--pipeline DIR] [--never-shown FILE] [--allow-provisional] [--fixture] [--self-test] [--quiet]'); process.exit(2); }
+    else { console.error('Usage: node scripts/verify-lookup.cjs [--data-root DIR] [--cohort FILE] [--race-notes FILE] [--pipeline DIR] [--never-shown FILE] [--allow-provisional] [--fixture] [--self-test] [--quiet]'); process.exit(2); }
   }
   const planner = plannerCases();
   if (planner.length) { console.error(`verify-lookup: ${planner.length} planner case${planner.length === 1 ? '' : 's'} failed`); for (const line of planner.slice(0, 40)) console.error(`  ${line}`); process.exit(1); }

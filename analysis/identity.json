@@ -1,0 +1,215 @@
+{
+ "schema_version": 1,
+ "release_tag": "pace-notes-marathon-half-20261113-1113",
+ "input_manifest_sha256": "e994ac1590d8b3204c02cc6327c83cb7315b5cc5fd2914a445f07fa809ba085c",
+ "link_file": {
+  "asset": "person-ids-v5.1-race_results_linked.parquet",
+  "sha256": "60d528ee5f47360a6222674ea684af0e3631fd9ed1a696d825c88babe9f3a593"
+ },
+ "identity_rule": {
+  "build": "person-ids v5.1",
+  "prefix": "p51_",
+  "keyed_confidences": [
+   "high_elite",
+   "high",
+   "medium"
+  ],
+  "possible_confidences": [
+   "medium_variant",
+   "low",
+   "low_noage",
+   "low_noage_series",
+   "low_nosex",
+   "low_city_pace",
+   "low_carryover"
+  ]
+ },
+ "half_row_rule": {
+  "pending_review_flags": [
+   "wheelchair_handcycle_published_category",
+   "published_disqualified_status",
+   "sportstats_nonfinish_status",
+   "philadelphia_2010_place_sequence_outlier"
+  ],
+  "qa_row_flags": [
+   "finish_faster_than_world_record",
+   "finish_ge_24h",
+   "finish_zero",
+   "finish_equals_earlier_split",
+   "finish_implausibly_fast"
+  ],
+  "kept_when_edition_wide": [
+   "finish_equals_earlier_split",
+   "sportstats_nonfinish_status"
+  ]
+ },
+ "birth_year_spread_max": 2,
+ "rule": {
+  "key": "a release row (source_db, record_id) gets a runner key when conditions 1 to 3 all hold; the key is the producer’s person id of its link, so one runner has one key across marathons and half marathons",
+  "1_written": "the row takes part: a marathon row the adapter’s row rule (ROW_RULE) leaves out of the adapted input, and a half row that the frozen half row rule (HALF_ROW_RULE in analysis/adapt_combined.py: the pending flags wheelchair_handcycle_published_category and published_disqualified_status, every flag of the marathon’s row rule, and the row-quality flag finish_implausibly_fast; a flag that every row of an edition carries removes nothing from it) leaves out, gets no key and takes no part in any screen (status left_out)",
+  "2_tier": "the confidence of its link in the producer’s build is one of the keyed tiers of IDENTITY in analysis/adapt_combined.py (high_elite, high, medium)",
+  "3_screens": "the person passes three screens, each evaluated once over all of the person’s rows that meet conditions 1 and 2, marathon and half together: (a) sex: the rows carry at most one of the sexes M and F (the link file’s `sex`: the published sex, else the published category’s; a blank and X are ignored); (b) birth year: the birth years the link build derived for the rows (`age_key` of the form yob:YYYY) span at most 2 years (rows without one are ignored); (c) one result per edition: no two of the rows are in the same edition (distance, the release’s city key, year)",
+  "not_keyed": "a row without a key carries the first reason that applies: left_out_by_row_rule (condition 1), unlinked (no link), tier_below_medium (condition 2), then sex_conflict, birth_year_spread, two_results_in_one_edition (condition 3). A linked row without a key is a possible match of its person id and is never joined into a runner’s figures",
+  "origin": "conditions 2 and 3 are the screens analysis/build_extended.py applied to a marathon input until this file existed (safe_ids: one recorded sex, birth years within two, one record per edition), now over both distances at once"
+ },
+ "scripts": {
+  "build_identity.py": "e728f544c12dc9110a922d259ea6b82b20b072ca25a495d7498ad6b2a0054080",
+  "adapt_combined.py": "ead29ea49571f63091d8278bdd291633c2c393804da925568d8a366d6bf1c023"
+ },
+ "counts": {
+  "rows": {
+   "half": {
+    "rows": 7893466
+   },
+   "marathon": {
+    "rows": 7822422
+   }
+  },
+  "by_status": {
+   "half": {
+    "keyed": 4974021,
+    "left_out": 951,
+    "possible_match": 2377381,
+    "unlinked": 541113
+   },
+   "marathon": {
+    "keyed": 6004382,
+    "left_out": 1980,
+    "possible_match": 1673608,
+    "unlinked": 142452
+   }
+  },
+  "by_link_tier": {
+   "half": {
+    "high": 2068856,
+    "high_elite": 5669,
+    "low": 603221,
+    "low_carryover": 12999,
+    "low_city_pace": 15788,
+    "low_noage": 1473764,
+    "low_noage_series": 66462,
+    "low_nosex": 56610,
+    "medium": 2937704,
+    "medium_variant": 110713,
+    "unlinked": 541680
+   },
+   "marathon": {
+    "high": 3459539,
+    "high_elite": 12051,
+    "low": 731493,
+    "low_carryover": 3041,
+    "low_city_pace": 15431,
+    "low_noage": 537013,
+    "low_noage_series": 11662,
+    "low_nosex": 14396,
+    "medium": 2710022,
+    "medium_variant": 184970,
+    "unlinked": 142804
+   }
+  },
+  "keyed_by_link_tier": {
+   "half": {
+    "high": 2041995,
+    "high_elite": 5543,
+    "medium": 2926483
+   },
+   "marathon": {
+    "high": 3333030,
+    "high_elite": 11642,
+    "medium": 2659710
+   }
+  },
+  "by_not_keyed_reason": {
+   "half": {
+    "birth_year_spread": 38031,
+    "left_out_by_row_rule": 951,
+    "tier_below_medium": 2339350,
+    "unlinked": 541113
+   },
+   "marathon": {
+    "birth_year_spread": 175978,
+    "left_out_by_row_rule": 1980,
+    "tier_below_medium": 1497630,
+    "unlinked": 142452
+   }
+  },
+  "screens": {
+   "sex_conflict": {
+    "persons": 0,
+    "results": 0,
+    "marathon": 0,
+    "half": 0
+   },
+   "birth_year_spread": {
+    "persons": 27509,
+    "results": 214009,
+    "marathon": 175978,
+    "half": 38031
+   },
+   "two_results_in_one_edition": {
+    "persons": 0,
+    "results": 0,
+    "marathon": 0,
+    "half": 0
+   },
+   "any": {
+    "persons": 27509,
+    "results": 214009,
+    "marathon": 175978,
+    "half": 38031
+   }
+  },
+  "candidate_persons": 5619633,
+  "runner_keys": {
+   "all": 5592124,
+   "with_a_marathon": 3322175,
+   "with_a_half": 2961992,
+   "with_both_distances": 692043,
+   "with_two_or_more_marathons": 1126396
+  },
+  "half_rows_left_out": {
+   "rows_by_flag": {
+    "pending_review_flags.philadelphia_2010_place_sequence_outlier": 0,
+    "pending_review_flags.published_disqualified_status": 15,
+    "pending_review_flags.sportstats_nonfinish_status": 0,
+    "pending_review_flags.wheelchair_handcycle_published_category": 257,
+    "qa_row_flags.finish_equals_earlier_split": 28,
+    "qa_row_flags.finish_faster_than_world_record": 221,
+    "qa_row_flags.finish_ge_24h": 361,
+    "qa_row_flags.finish_implausibly_fast": 62,
+    "qa_row_flags.finish_zero": 30
+   },
+   "kept_edition_wide": {},
+   "left_out_by_flag": {
+    "pending_review_flags.philadelphia_2010_place_sequence_outlier": 0,
+    "pending_review_flags.published_disqualified_status": 15,
+    "pending_review_flags.sportstats_nonfinish_status": 0,
+    "pending_review_flags.wheelchair_handcycle_published_category": 257,
+    "qa_row_flags.finish_equals_earlier_split": 28,
+    "qa_row_flags.finish_faster_than_world_record": 221,
+    "qa_row_flags.finish_ge_24h": 361,
+    "qa_row_flags.finish_implausibly_fast": 62,
+    "qa_row_flags.finish_zero": 30
+   },
+   "left_out": 951,
+   "left_out_by_source_db": {
+    "full": 13,
+    "half": 938
+   },
+   "left_out_with_two_or_more_flags": 23
+  },
+  "marathon_rows_alone": {
+   "note": "the three screens on the written marathon records alone, as analysis/build_extended.py evaluated them before this file",
+   "keys_passing": 3322883,
+   "records_passing": 6006372,
+   "keys_failing": 26800,
+   "records_failing": 173988,
+   "marathon_records_keyed_alone_and_not_over_both_distances": 1990
+  }
+ },
+ "file": {
+  "name": "identity.parquet",
+  "bytes": 269815077,
+  "sha256": "0bde20d232f5483a367c469ba8a228b06f3a16a2698571e5823a71dd0fe13383"
+ }
+}

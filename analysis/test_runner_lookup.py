@@ -64,17 +64,20 @@ class Release:
         person_id = None if person is None else P % person
         self.links.append({'person_id': person_id, 'confidence': tier if person is not None else None, 'unlinked_reason': unlinked_reason,
                            'source_db': source_db, 'record_id': record_id, 'course_shortened_suspect': short})
-        left_out = bool(pending) or any(flag in builder.MARATHON_LEFT_OUT['qa_row_flags'] for flag in (qa or ()))
+        rule = builder.MARATHON_LEFT_OUT if distance == 'marathon' else builder.HALF_LEFT_OUT
+        left_out = any(flag in rule['pending_review_flags'] for flag in (pending or ())) or any(flag in rule['qa_row_flags'] for flag in (qa or ()))
         if distance == 'marathon' and not left_out:
             self.status.append({'record_id': record_id, 'status': status[0], 'reason': status[1], 'city': self.labels.get(city, city), 'year': year})
-        self.identity.append({'source_db': source_db, 'record_id': record_id,
-                              'runner_key': person_id if key and tier in ('high_elite', 'high', 'medium') and not left_out else None, 'link_tier': tier if person is not None else None})
+        keyed = key and tier in ('high_elite', 'high', 'medium') and not left_out
+        self.identity.append({'source_db': source_db, 'record_id': record_id, 'runner_key': person_id if keyed else None,
+                              'link_tier': tier if person is not None else None,
+                              'status': 'left_out' if left_out else 'keyed' if keyed else 'possible_match' if person is not None else 'unlinked'})
         if qa or sex_from_category:
             self.qa.append({'distance': distance, 'source_db': source_db, 'record_id': record_id, 'flags': list(qa or ()), 'sex_from_category': sex_from_category})
         for flag in pending or ():
             self.pending.append({'distance': distance, 'source_db': source_db, 'record_id': record_id, 'flag': flag})
 
-    def write(self, registry, policy, half_expected, placeholders, gun=(), short=()):
+    def write(self, registry, policy, placeholders, gun=(), short=(), set_aside=()):
         core = self.root / 'core'
         core.mkdir(parents=True)
         db = duckdb.connect()
@@ -113,11 +116,8 @@ class Release:
         db.executemany('INSERT INTO s VALUES (?, ?, ?, ?, ?)', [[row['record_id'], row['city'], row['year'], row['status'], row['reason']] for row in self.status])
         self.status_path = self.root / 'record-status.parquet'
         db.execute(f"COPY s TO '{self.status_path}' (FORMAT PARQUET)")
-        db.execute('CREATE TABLE i (source_db VARCHAR, record_id BIGINT, runner_key VARCHAR, link_tier VARCHAR)')
-        db.executemany('INSERT INTO i VALUES (?, ?, ?, ?)', [[row[c] for c in ['source_db', 'record_id', 'runner_key', 'link_tier']] for row in self.identity])
-        self.identity_path = self.root / 'identity.parquet'
-        db.execute(f"COPY i TO '{self.identity_path}' (FORMAT PARQUET)")
         db.close()
+        self.identity_path = self.write_identity(self.root / 'identity.parquet', self.identity)
         self.core = core
         self.pin_path = self.root / 'release.json'
         self.pin_path.write_text(json.dumps({
@@ -132,12 +132,24 @@ class Release:
                                                               row.get('own_record', False)] for row in policy]}))
         self.half_path = self.root / 'lookup-half-records.json'
         rule = json.loads(builder.HALF_RECORDS_PATH.read_text())
-        rule.update(tag=TAG, expected=half_expected)
+        rule.update(tag=TAG)
         rule['no_comparison']['gun_times']['editions'] = [list(e) for e in gun]
         rule['no_comparison']['course_suspected_short']['editions'] = [list(e) for e in short]
         self.half_path.write_text(json.dumps(rule))
         self.placeholders_path = self.root / 'lookup-placeholders.json'
         self.placeholders_path.write_text(json.dumps({'tag': TAG, 'names': placeholders}))
+        self.race_notes_path = self.root / 'race-notes.json'
+        self.race_notes_path.write_text(json.dumps({'tag': TAG, 'set_aside_editions': [
+            {'label': label, 'year': year, 'kept': {'label': 'Berlin', 'year': 2019}, 'reason': 'one_list_two_years'} for label, year in set_aside]}))
+
+    @staticmethod
+    def write_identity(path, rows):
+        db = duckdb.connect()
+        db.execute('CREATE TABLE i (source_db VARCHAR, record_id BIGINT, runner_key VARCHAR, link_tier VARCHAR, status VARCHAR)')
+        db.executemany('INSERT INTO i VALUES (?, ?, ?, ?, ?)', [[row[c] for c in ['source_db', 'record_id', 'runner_key', 'link_tier', 'status']] for row in rows])
+        db.execute(f"COPY i TO '{path}' (FORMAT PARQUET)")
+        db.close()
+        return path
 
     def write_cohort(self, name='cohort', change=None):
         """A cohort manifest in the shape of analysis/marathon-cohort/manifest.json, for the status rows of this release."""
@@ -175,17 +187,12 @@ class Release:
         """The identity file with one change, as another file: `change` gets the rows by (source_db, record_id) and as a list."""
         rows = [dict(row) for row in self.identity]
         change({(row['source_db'], row['record_id']): row for row in rows}, rows)
-        path = self.root / f'identity-{name}.parquet'
-        db = duckdb.connect()
-        db.execute('CREATE TABLE i (source_db VARCHAR, record_id BIGINT, runner_key VARCHAR, link_tier VARCHAR)')
-        db.executemany('INSERT INTO i VALUES (?, ?, ?, ?)', [[row[c] for c in ['source_db', 'record_id', 'runner_key', 'link_tier']] for row in rows])
-        db.execute(f"COPY i TO '{path}' (FORMAT PARQUET)")
-        db.close()
-        return path
+        return self.write_identity(self.root / f'identity-{name}.parquet', rows)
 
 
-def small_release(root):
-    """Two marathon races and three half races; the rows each test names are numbered below 100, the crowd above."""
+def small_release(root, set_aside=False):
+    """Two marathon races and three half races; the rows each test names are numbered below 100, the crowd above.
+    With `set_aside`, a third marathon race of one edition that the race notes set aside (rows 91 and 92)."""
     release = Release(root)
     release.edition('marathon', 'full', 'Berlin', 2019)
     release.edition('marathon', 'full', 'Berlin', 2021)
@@ -222,7 +229,7 @@ def small_release(root):
     release.add('marathon', 'full', 51, 'Berlin', 2019, 'Never Shown', marathon_times(200), pending=['wheelchair_handcycle_published_category'])
     release.add('marathon', 'full', 52, 'Berlin', 2019, 'Never Shownalso', marathon_times(100), qa=['finish_faster_than_world_record'])
     release.add('half', 'half', 53, 'Berlin', 2019, 'Never Shownhalf', half_times(4000), pending=['wheelchair_handcycle_published_category'])
-    release.add('half', 'half', 54, 'Berlin', 2019, 'Never Negative', half_times('-1:20:09'))
+    release.add('half', 'half', 54, 'Berlin', 2019, 'Never Zero', half_times('0:00:00'), qa=['finish_zero'])
     release.add('half', 'half', 55, 'Berlin', 2019, 'Never Fast', half_times(1500), qa=['finish_implausibly_fast'])
     release.add('marathon', 'full', 56, 'Berlin', 2019, 'Anonymous Anonymous', marathon_times(340), unlinked_reason='placeholder_name')
     release.add('marathon', 'full', 57, 'Berlin', 2019, 'Entry, Late (USA)', marathon_times(341))
@@ -236,7 +243,8 @@ def small_release(root):
         release.add('marathon', 'full', record_id + 1, 'Berlin', 2021, f'Smith, {first}', marathon_times(282 + at), person=100 + at, tier='high')
         record_id += 2
     for at, last in enumerate(['Aa', 'Berg', 'Camp', 'Dam', 'Eck', 'Fliet', 'Graaf', 'Heide', 'Ijssel', 'Jagt', 'Kolk']):
-        release.add('half', 'half', record_id, 'Berlin', 2019, f'Van der {last}', half_times(5000 + at), sex=None)
+        # The last one's finish text is not a time and no flag says so: the row is kept, and listed without a finish.
+        release.add('half', 'half', record_id, 'Berlin', 2019, f'Van der {last}', half_times('-1:23:20' if last == 'Kolk' else 5000 + at), sex=None)
         record_id += 1
     for at, word in enumerate(['Quill', 'Rook', 'Stone', 'Tarn', 'Umber', 'Vale', 'Wren', 'Yew', 'Zed', '𠮷野', 'ไทย']):
         release.add('half', 'half', record_id, 'Drammen Half', 2017, f'{word} Only{at}', half_times(6500 + at), short=True)
@@ -244,11 +252,18 @@ def small_release(root):
     registry = [{'race_id': 'berlin', 'label': 'Berlin', 'name': 'Berlin Marathon', 'keys': ['Berlin']},
                 {'race_id': 'smallville-marathon', 'label': 'Smallville Marathon', 'name': 'Smallville Marathon', 'keys': ['Smallville, XX: Smallville Marathon 2020']}]
     policy = [{'city': 'Smallville Marathon', 'year': 2020, 'category': 'finish_time_only', 'reason': 'Finish times only: this edition supplies no pacing statistic.'}]
-    release.write(registry, policy,
-                  half_expected={'release_rows': 32, 'left_out_rows': 3,
-                                 'by_flag': {'finish_implausibly_fast': 1, 'finish_not_a_positive_time': 1, 'wheelchair_handcycle_published_category': 1}},
-                  placeholders=[{'name': 'Late Entry', 'release_rows': 1, 'reason': 'test'}],
-                  gun=[('half', 'Berlin', 2019)], short=[('half', 'Drammen Half', 2017)])
+    if set_aside:
+        # One list recorded twice: the second copy holds a stranger and a confirmed result of person 100.
+        twin = 'Twin Town, YY: Twin Town Marathon 2015'
+        release.labels[twin] = 'Twin Town Marathon'
+        release.edition('marathon', 'full', twin, 2015, tier='unverified', split='finish_time_only')
+        release.add('marathon', 'full', 91, twin, 2015, 'Tia Twin', finish_only, sex='F', status=('limited', 'finish_time_only'))
+        release.add('marathon', 'full', 92, twin, 2015, 'Ada Smith', finish_only, person=100, tier='high', status=('limited', 'finish_time_only'))
+        registry.append({'race_id': 'twin-town-marathon', 'label': 'Twin Town Marathon', 'name': 'Twin Town Marathon', 'keys': [twin]})
+        policy.append({'city': 'Twin Town Marathon', 'year': 2015, 'category': 'finish_time_only', 'reason': policy[0]['reason']})
+    release.write(registry, policy, placeholders=[{'name': 'Late Entry', 'release_rows': 1, 'reason': 'test'}],
+                  gun=[('half', 'Berlin', 2019)], short=[('half', 'Drammen Half', 2017)],
+                  set_aside=[('Twin Town Marathon', 2015)] if set_aside else [])
     return release
 
 
@@ -414,13 +429,14 @@ class Build(unittest.TestCase):
             self.assertNotIn(word, text)
         counts = self.manifest['counts']
         self.assertEqual(counts['marathon']['left_out'], {'rows': 2, 'by_flag': {'finish_faster_than_world_record': 1, 'wheelchair_handcycle_published_category': 1}})
-        self.assertEqual(counts['half']['left_out']['rows'], 3)
+        self.assertEqual(counts['half']['left_out'], {'rows': 3, 'by_flag': {'finish_implausibly_fast': 1, 'finish_zero': 1, 'wheelchair_handcycle_published_category': 1}})
         self.assertEqual(counts['marathon']['placeholder'], {'flagged': 1, 'listed': 1})
         self.assertEqual(counts['half']['unnamed'], 2)
         self.assertEqual(counts['marathon']['results'] + counts['half']['results'], len(results))
         for name in ('marathon', 'half'):
             block = counts[name]
             self.assertEqual(block['release_rows'], block['left_out']['rows'] + block['unnamed'] + sum(block['placeholder'].values()) + block['results'])
+            self.assertEqual(block['set_aside'], {'rows': 0, 'editions': []})
 
     def test_a_profile_with_confirmed_and_possible_links(self):
         results = self.results()
@@ -463,6 +479,11 @@ class Build(unittest.TestCase):
         self.assertEqual(self.manifest['counts']['half']['checkpoints_unread'], 1)
         self.assertEqual(self.manifest['counts']['marathon']['age_hidden'], 1)
         self.assertEqual(self.manifest['counts']['marathon']['no_finish'], 1)
+        # A half finish whose text is not a time, on a row no rule leaves out: listed, with no finish and no trace of the text.
+        unread = results[('h', 122)][3]
+        self.assertEqual((unread['name'], unread['f'], unread['times']), ('Van der Kolk', -1, [None, None, None, None, None]))
+        self.assertEqual([(block['no_finish'], block['finish_unread']) for block in (self.manifest['counts']['marathon'], self.manifest['counts']['half'])],
+                         [(1, 0), (1, 1)])
 
     def test_editions(self):
         manifest, editions, shards, leaves, entries = self.read
@@ -550,7 +571,7 @@ class Build(unittest.TestCase):
         page = fmt.read_gz(self.output / fmt.profile_page_path(0))
         self.assertEqual(page['shards'][0][3], digest(self.output / fmt.shard_path(0)))
         self.assertEqual(manifest['schema_version'], 2)
-        self.assertEqual(manifest['provisional'], ['cohort', 'half_registry', 'race_registry'])   # no cohort, no half registry, not the checked-in registry
+        self.assertEqual(manifest['provisional'], ['cohort', 'half_registry', 'race_notes', 'race_registry'])   # none of the three read; not the checked-in registry
         self.assertEqual(manifest['rules']['index'], RULES)
         # Counted: records 11, 21, 22, 77 and the twelve of the crowd. Gun times: 12, 60 and the eleven "Van der"; short course: 32 and eleven more.
         self.assertEqual(manifest['counts']['marathon']['status'], {'0': 16, '3': 2, '4': 1, '6': 1})
@@ -564,7 +585,7 @@ class Build(unittest.TestCase):
         cohort = self.release.write_cohort()
         output = self.root / 'bound' / 'runners'
         manifest = self.release.build(output, cohort_path=cohort)
-        self.assertEqual(manifest['provisional'], ['half_registry', 'race_registry'])
+        self.assertEqual(manifest['provisional'], ['half_registry', 'race_notes', 'race_registry'])
         self.assertEqual(manifest['cohort'], {'manifest_sha256': hashlib.sha256(cohort.read_bytes()).hexdigest(), 'release_tag': TAG, 'as_of': '2099-01-01T12:00:00Z',
                                               'input_as_of': '2099-01-01T00:00:00Z', 'raw_records': 22, 'eligible_records': 18, 'own_record_records': 0, 'editions': 2})
         editions = fmt.decode_editions(fmt.read_gz(output / 'editions.json.gz'))
@@ -618,12 +639,8 @@ class Build(unittest.TestCase):
         self.assertIn('EDITION-TIERS.csv differs from the digest', str(caught.exception))
         # Reviewed counts and lists that no longer fit.
         rule = json.loads(self.release.half_path.read_text())
-        rule['expected']['left_out_rows'] = 4
-        path = self.root / 'half-rule.json'
-        path.write_text(json.dumps(rule))
-        refused('differ from the reviewed counts', half_records_path=path)
-        rule = json.loads(self.release.half_path.read_text())
         rule['no_comparison']['gun_times']['editions'] = []
+        path = self.root / 'half-rule.json'
         path.write_text(json.dumps(rule))
         refused('reviewed gun-time list', half_records_path=path)
         path = self.root / 'placeholders.json'
@@ -643,12 +660,23 @@ class Build(unittest.TestCase):
             ('tier', '1 have another link tier than the person-links file', lambda at, rows: at[('full', 11)].update(link_tier='medium')),
             # a key on a possible match (person 1's low link) and on a result with no link
             ('possible', '2 carry a runner key without a confirmed tier',
-             lambda at, rows: (at[('full', 13)].update(runner_key=P % 1), at[('half', 77)].update(runner_key=P % 9))),
+             lambda at, rows: (at[('full', 13)].update(runner_key=P % 1, status='keyed'), at[('half', 77)].update(runner_key=P % 9, status='keyed'))),
             # person 1's half result under the key of person 100: that key then names two persons
             ('shared', 'runner keys and persons do not pair one to one among confirmed links (7 keys, 7 persons, 8 pairs)',
              lambda at, rows: at[('half', 12)].update(runner_key=P % 100)),
             # person 1 keeps the key on the marathon and loses it on the half: a screen applies to a whole person
-            ('mixed', '1 persons have both keyed and unkeyed links of a confirmed tier', lambda at, rows: at[('half', 12)].update(runner_key=None)),
+            ('mixed', '1 persons have both keyed and unkeyed links of a confirmed tier',
+             lambda at, rows: at[('half', 12)].update(runner_key=None, status='possible_match')),
+            # the file's own columns
+            ('status', "status values this builder does not know: ['maybe']", lambda at, rows: at[('half', 77)].update(status='maybe')),
+            ('unkeyed', '1 rows are keyed without a runner key, or carry a runner key without being keyed', lambda at, rows: at[('half', 12)].update(runner_key=None)),
+            # the rows it leaves out: a marathon row the status file holds; a row with no flag of its rule; a record the release does not hold
+            ('apart', 'the status file and the identity file disagree on 1 marathon rows',
+             lambda at, rows: at[('full', 77)].update(status='left_out')),
+            ('unflagged', '0 marathon rows and 1 half rows are left out by the pipeline’s files and carry no flag of their row rule',
+             lambda at, rows: at[('half', 77)].update(status='left_out')),
+            ('stray', 'the identity file marks 1 records left out that are not rows of the release',
+             lambda at, rows: rows.append({'source_db': 'half', 'record_id': 9999, 'runner_key': None, 'link_tier': None, 'status': 'left_out'})),
         ]
         for name, message, change in cases:
             target = self.root / f'identity-{name}' / 'runners'
@@ -656,6 +684,64 @@ class Build(unittest.TestCase):
                 self.release.build(target, identity_path=self.release.identity_with(name, change))
             self.assertIn(message, str(caught.exception))
             self.assertFalse(target.exists())
+
+    def test_the_identity_files_own_description_is_checked(self):
+        folder = self.root / 'described'
+        folder.mkdir()
+        identity = folder / 'identity.parquet'
+        identity.write_bytes(self.release.identity_path.read_bytes())
+        described = {'release_tag': TAG, 'file': {'sha256': hashlib.sha256(identity.read_bytes()).hexdigest()},
+                     'half_row_rule': {**builder.HALF_LEFT_OUT, 'kept_when_edition_wide': ['finish_equals_earlier_split']},
+                     'counts': {'by_status': {'marathon': {'left_out': 2, 'keyed': 13}, 'half': {'left_out': 3}}}}
+        sidecar = folder / 'identity.parquet.json'
+        sidecar.write_text(json.dumps(described))
+        self.assertEqual(self.release.build(folder / 'ok' / 'runners', identity_path=identity)['counts'], self.manifest['counts'])
+        for name, message, change in [
+                ('count', 'the identity file’s own description counts {"marathon": 2, "half": 4}', lambda d: d['counts']['by_status']['half'].update(left_out=4)),
+                ('flags', 'names other flags for the half row rule', lambda d: d['half_row_rule']['qa_row_flags'].remove('finish_zero')),
+                ('digest', 'does not describe identity.parquet', lambda d: d['file'].update(sha256='0' * 64)),
+                ('tag', 'the identity file is of', lambda d: d.update(release_tag='another'))]:
+            changed = json.loads(json.dumps(described))
+            change(changed)
+            sidecar.write_text(json.dumps(changed))
+            with self.assertRaises(builder.BuildError, msg=name) as caught:
+                self.release.build(folder / name / 'runners', identity_path=identity)
+            self.assertIn(message, str(caught.exception))
+
+    def test_an_edition_set_aside_is_kept_and_never_listed(self):
+        release = small_release(self.root / 'aside-release', set_aside=True)
+        target = self.root / 'aside' / 'runners'
+        manifest = release.build(target, race_notes_path=release.race_notes_path)
+        self.assertNotIn('race_notes', manifest['provisional'])
+        base, block = self.manifest['counts']['marathon'], manifest['counts']['marathon']
+        self.assertEqual(block['set_aside'], {'rows': 2, 'editions': [['Twin Town Marathon', 2015, 2]]})
+        self.assertEqual((block['results'], block['release_rows']), (base['results'], base['release_rows'] + 2))
+        self.assertIn(['m', 'Twin Town Marathon', 2015, 'f', 2], block['unlisted_editions'])
+        self.assertEqual(block['unlisted_status'], {'0': 2, '6': 2})                 # the two placeholder rows of Berlin 2019 (counted), then these two
+        self.assertEqual(manifest['counts']['half'], self.manifest['counts']['half'])
+        # No file of the lookup knows the edition: all but the manifest are those of the release without it.
+        files = sorted(path.relative_to(target) for path in target.rglob('*') if path.is_file())
+        self.assertEqual(files, sorted(path.relative_to(self.output) for path in self.output.rglob('*') if path.is_file()))
+        for relative in files:
+            if relative.name != 'manifest.json':
+                self.assertEqual((target / relative).read_bytes(), (self.output / relative).read_bytes(), str(relative))
+        # Without the notes the same release lists the edition, and the build says the notes were not read.
+        listed = release.build(self.root / 'aside-listed' / 'runners')
+        self.assertIn('race_notes', listed['provisional'])
+        self.assertEqual((listed['counts']['marathon']['results'], listed['counts']['marathon']['set_aside']['rows']), (base['results'] + 2, 0))
+        # Notes of another release, an edition the release does not hold, an edition named twice.
+        notes = json.loads(release.race_notes_path.read_text())
+        for name, message, change in [
+                ('tag', 'review it for this release', lambda d: d.update(tag='another-release')),
+                ('absent', "sets aside [('Twin Town Marathon', 2016)]: no kept marathon row", lambda d: d['set_aside_editions'][0].update(year=2016)),
+                ('twice', 'is listed twice', lambda d: d['set_aside_editions'].append(dict(d['set_aside_editions'][0])))]:
+            changed = json.loads(json.dumps(notes))
+            change(changed)
+            path = self.root / f'race-notes-{name}.json'
+            path.write_text(json.dumps(changed))
+            with self.assertRaises(builder.BuildError, msg=name) as caught:
+                release.build(self.root / f'aside-{name}' / 'runners', race_notes_path=path)
+            self.assertIn(message, str(caught.exception))
 
     def test_a_build_that_does_not_finish_leaves_nothing_behind(self):
         target = self.root / 'nothing' / 'runners'

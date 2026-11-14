@@ -34,7 +34,11 @@ EDITIONS = [('Testville', 2020, 'stamped', 'splits', 4.0, 'DB 4 vs official 4'),
 IDENTITY = {'build': 'person-ids v5.1', 'prefix': 'p51_', 'keyed_confidences': ['high_elite', 'high', 'medium'],
             'possible_confidences': ['medium_variant', 'low', 'low_noage']}
 ROW_RULE = {'pending_review_flags': ['wheelchair_handcycle_published_category'], 'qa_row_flags': ['finish_faster_than_world_record', 'finish_zero'],
-            'kept_unlabelled': ['adaptive_division_published_category'], 'kept_when_edition_wide': ['finish_zero']}
+            'kept_unlabelled': ['adaptive_division_published_category'], 'kept_when_edition_wide': ['finish_zero'],
+            'reviewed_exceptions': {'qa_row_flags': ['finish_faster_than_world_record'], 'edition': 'counted by the frozen edition policy'}}
+# The half rows that take no part in the identity rule (as HALF_ROW_RULE holds a real release's; added 2026-11-14, lead ruling D28).
+HALF_ROW_RULE = {'pending_review_flags': ['wheelchair_handcycle_published_category', 'published_disqualified_status'],
+                 'qa_row_flags': ['finish_faster_than_world_record', 'finish_zero', 'finish_implausibly_fast'], 'kept_when_edition_wide': ['finish_zero']}
 RACE_DATES = {'releases': {TAG: []}}
 # The reviewed part of the synthetic race registry: the composite key gets a reviewed label, as a large race would.
 REGISTRY_REVIEWED = {'joins': [], 'flags': [], 'labels': [{'key': NEWTOWN, 'label': 'Newtown'}]}
@@ -100,7 +104,7 @@ class Fixture:
         self.pin = self.make_pin()
         self.claims = self.make_claims()
         self.review = {'baseline_equal': ['race_conditions', 'course_profiles', 'course_segments'], 'left_out': 2, 'written_rows': 9,
-                       'edition_wide_kept': {}, 'known_mismatches': []}
+                       'edition_wide_kept': {}, 'row_exceptions': [], 'half_left_out': 0, 'half_edition_wide_kept': {}, 'known_mismatches': []}
 
     def tables(self):
         db = self.db
@@ -330,8 +334,13 @@ class AdaptCombined(unittest.TestCase):
         self.root = Path(self.tmp.name)
         dates = self.root / 'reviewed-race-dates.json'
         dates.write_text(json.dumps(RACE_DATES))
+        # The reviewed row exceptions (none unless a test lists one) and the frozen edition policy they are checked against.
+        self.exceptions, self.policy = self.root / 'reviewed-row-exceptions.json', self.root / 'edition-policy.json'
+        self.exceptions.write_text(json.dumps({'releases': {TAG: []}}))
+        self.policy.write_text(json.dumps({'counted': [['Testville', 2020], ['Testville', 2021]]}))
         for patcher in (mock.patch.object(adapt_combined, 'RACE_DATES_PATH', dates), mock.patch.dict(adapt_combined.IDENTITY, {TAG: IDENTITY}),
-                        mock.patch.dict(adapt_combined.ROW_RULE, {TAG: ROW_RULE})):
+                        mock.patch.object(adapt_combined, 'ROW_EXCEPTIONS_PATH', self.exceptions), mock.patch.dict(adapt_combined.EDITION_POLICY_PATHS, {TAG: self.policy}),
+                        mock.patch.dict(adapt_combined.ROW_RULE, {TAG: ROW_RULE}), mock.patch.dict(adapt_combined.HALF_ROW_RULE, {TAG: HALF_ROW_RULE})):
             patcher.start()
             self.addCleanup(patcher.stop)
 
@@ -438,6 +447,7 @@ class AdaptCombined(unittest.TestCase):
         self.assertEqual(manifest['document'], adapt_combined.LABEL)
         self.assertEqual((manifest['n_records'], manifest['n_cities'], manifest['n_editions'], manifest['rows_left_out']), (9, 2, 3, 2))
         self.assertEqual((manifest['n_release_keys'], manifest['editions_without_rows'], manifest['rows_kept_edition_wide']), (2, 1, {}))
+        self.assertEqual((manifest['half_row_rule']['rows_left_out'], manifest['half_row_rule']['rows_kept_edition_wide']), (0, {}))
         self.assertEqual(manifest['race_registry'], {'file': 'analysis/race-registry.json', 'sha256': sha(race_registry.FROZEN), 'races': 2, 'keys': 2})
         self.assertEqual(provenance['race_registry_sha256'], sha(race_registry.FROZEN))
         self.assertEqual(manifest['created_at'], '2099-01-01T12:00:00Z')
@@ -618,6 +628,147 @@ class AdaptCombined(unittest.TestCase):
                     fx.adapt(out)
                     self.assertEqual(duckdb.connect().execute(f"SELECT DISTINCT race_date FROM read_parquet({literal(out / 'features.parquet')}) WHERE city='Newtown'").fetchall(),
                                      [('2022-10-02',)])
+        # Lead ruling D27 (2026-11-14): a cited source outside the release dates an edition only when the producer's own
+        # note states no date; it needs the weekday, who read it and when, and each source's name, URL and quoted words.
+        external = {'city': 'Testville', 'year': 2021, 'date': '2021-10-03', 'weekday': 'Sunday', 'evidence': 'external', 'source': 'synthetic',
+                    'external': {'read_by': 'a reviewer', 'read_on': '2099-01-03',
+                                 'sources': [{'name': 'A newspaper', 'url': 'https://example.org/race', 'quotes': ['The race was run on Sunday.']}]}}
+        noted = {**external, 'city': 'Newtown', 'release_city': NEWTOWN, 'year': 2022, 'date': '2022-10-02'}
+        for entry, message in ((external, None), (noted, 'the producer note states a date'), ({**external, 'weekday': 'Saturday'}, 'not on the weekday the entry states'),
+                               ({k: v for k, v in external.items() if k != 'weekday'}, 'external evidence needs a weekday'),
+                               ({**external, 'external': {**external['external'], 'sources': []}}, 'external evidence needs a weekday'),
+                               ({**external, 'external': {**external['external'], 'sources': [{'name': 'A newspaper', 'url': 'http://example.org', 'quotes': ['x']}]}},
+                                'external evidence needs a weekday'),
+                               ({**external, 'external': {'sources': external['external']['sources']}}, 'external evidence needs a weekday'),
+                               ({**external, 'evidence': 'hearsay'}, 'an evidence kind the adapter does not know')):
+            with self.subTest(entry=entry):
+                dates['releases'][TAG] = [entry]
+                adapt_combined.RACE_DATES_PATH.write_text(json.dumps(dates))
+                if message:
+                    self.assertFails(message, fx)
+                else:
+                    fx.adapt(out)
+                    self.assertEqual(duckdb.connect().execute(f"SELECT race_date, race_date_source FROM read_parquet({literal(out / 'edition_meta.parquet')}) "
+                                                              "WHERE city='Testville' AND year=2021").fetchone(), ('2021-10-03', 'external'))
+                    self.assertEqual(json.loads((out / 'RECONCILIATION.json').read_text())['race_dates'],
+                                     {'editions_with_rows': 3, 'weather': 1, 'reviewed': 0, 'external': 1, 'without_a_race_date': 1, 'of_those_with_a_producer_note_date': 1})
+
+    def test_a_reviewed_row_exception_restores_a_listed_row_and_nothing_else(self):
+        """Lead ruling D33 (2026-11-14): a listed row is written although it carries one flag of the rule, when every condition holds."""
+        def flagged(*pending):
+            def mutate(f):   # record 101 (Testville 2020, stamped, 4 rows against 4 official) is faster than the flag's bound
+                f.db.execute(f"INSERT INTO qa (distance, source_db, record_id, city, year, {', '.join(adapt_combined.QA_FLAGS)}) VALUES ('marathon', 'full', 101, 'Testville', 2020, "
+                             + ', '.join('true' if q == 'finish_faster_than_world_record' else 'false' for q in adapt_combined.QA_FLAGS) + ')')
+                for flag in pending:
+                    f.db.execute("INSERT INTO pend VALUES ('marathon', 'full', 101, 'Testville', 2020, ?, 'x', true, 'pending')", [flag])
+            return mutate
+        entry = {'source_db': 'full', 'record_id': 101, 'city': 'Testville', 'release_city': 'Testville', 'year': 2020, 'finish': '3:30:58',
+                 'flag': 'finish_faster_than_world_record', 'flag_definition': 'synthetic README.md',
+                 'edition': {'tier': 'stamped', 'rows_in_release': 4, 'official_finishers': 4, 'coverage_pct': 0.0}, 'producer_record_note': None,
+                 'external': {'read_by': 'a reviewer', 'read_on': '2099-01-03', 'sources': [{'name': 'A newspaper', 'url': 'https://example.org/race', 'quotes': ['won in 3:30:58']}]}}
+        listed = [[101, 'Testville 2020', 'finish_faster_than_world_record', '3:30:58']]
+
+        def write(*entries):
+            self.exceptions.write_text(json.dumps({'releases': {TAG: list(entries)}}))
+        # Without an entry the flagged row is left out with the two others; with it, it is written and counted as an exception.
+        plain = self.fixture('exc-none', mutate=flagged(), review=dict(left_out=3, written_rows=8))
+        plain.adapt(self.root / 'exc-none-out')
+        self.assertEqual(json.loads((self.root / 'exc-none-out' / 'MANIFEST.json').read_text())['rows_written_by_reviewed_exception'], [])
+        write(entry)   # before the fixture: its registry is frozen from the rows the adapter is about to write
+        fx = self.fixture('exc', mutate=flagged(), review=dict(row_exceptions=listed))
+        out = self.root / 'exc-out'
+        fx.adapt(out)
+        manifest = json.loads((out / 'MANIFEST.json').read_text())
+        self.assertEqual((manifest['rows_left_out'], manifest['n_records'], manifest['rows_written_by_reviewed_exception']), (2, 9, listed))
+        db = duckdb.connect()
+        self.assertEqual(db.execute(f"SELECT list(id ORDER BY id) FROM read_parquet({literal(out / 'race_records.parquet')}) WHERE city='Testville' AND year=2020").fetchone()[0],
+                         [101, 103, 104])
+        # The row keeps its flag in the adapted flags member: it is written, not relabelled.
+        self.assertTrue(db.execute(f"SELECT finish_faster_than_world_record FROM read_parquet({literal(out / 'qa_row_flags.parquet')}) WHERE record_id=101").fetchone()[0])
+        checks = {c['check']: c for c in json.loads((out / 'RECONCILIATION.json').read_text())['checks'] if c['family'] == 'rows_left_out'}
+        self.assertEqual(checks['rows that finish_faster_than_world_record leaves out, by edition (rows, fastest and slowest finish)']['measured'],
+                         {'Testville 2020': [1, clock(POINTS[-1] * 310), clock(POINTS[-1] * 310)]})
+        # Every condition binds. A list the review has not read, and each fact of the entry.
+        self.reviewed(fx)
+        self.assertFails('rows written although flagged, by reviewed exception', fx)
+        self.reviewed(fx, row_exceptions=listed)
+        for change, message in ((dict(finish='3:30:59'), 'is not the reviewed finish'), (dict(flag_definition='another definition'), 'no longer defines the flag'),
+                                (dict(flag='finish_zero'), 'allows no reviewed exception for the flag'), (dict(year=2021), 'not in the edition the entry names'),
+                                (dict(record_id=999), 'no such marathon row'), (dict(source_db='half'), 'source_db full'),
+                                (dict(edition={**entry['edition'], 'tier': 'partial'}), 'are not the release’s'),
+                                (dict(edition={**entry['edition'], 'rows_in_release': 5, 'coverage_pct': 25.0}), 'are not the release’s'),
+                                (dict(producer_record_note='DQ step1: finish <2:00'), 'record note'),
+                                (dict(external={**entry['external'], 'sources': []}), 'external evidence needs'),
+                                (dict(external={'sources': entry['external']['sources']}), 'external evidence needs'), (dict(city='Newtown'), 'does not count Newtown 2020')):
+            with self.subTest(change=change):
+                write({**entry, **change})
+                self.assertFails(message, fx)
+        write({k: v for k, v in entry.items() if k != 'edition'})
+        self.assertFails("the entry lacks \\['edition'\\]", fx)
+        write(entry, entry)
+        self.assertFails('a row is listed once', fx)
+        write(entry)
+        # The frozen policy must count the edition; without a policy no exception can be reviewed.
+        self.policy.write_text(json.dumps({'counted': [['Testville', 2021]]}))
+        self.assertFails('does not count Testville 2020', fx)
+        self.policy.unlink()
+        self.assertFails('needs the frozen edition policy', fx)
+        self.policy.write_text(json.dumps({'counted': [['Testville', 2020]]}))
+        # A second flag of the rule, or any pending flag, and the row stays out whatever the list says.
+        self.assertFails('no other flag of the row rule', self.fixture('exc-two', mutate=flagged('wheelchair_handcycle_published_category'), review=dict(row_exceptions=listed)))
+        self.assertFails('carries a pending-review flag', self.fixture('exc-pending', mutate=flagged('adaptive_division_published_category'), review=dict(row_exceptions=listed)))
+        # A row that does not carry the flag has nothing to be excepted from.
+        self.assertFails('must carry the flag', self.fixture('exc-unflagged', review=dict(row_exceptions=listed)))
+        # A rule without the clause allows none.
+        with mock.patch.dict(adapt_combined.ROW_RULE, {TAG: {k: v for k, v in ROW_RULE.items() if k != 'reviewed_exceptions'}}):
+            self.assertFails('allows no reviewed exception', fx)
+
+    def test_the_half_row_rule_is_counted_reviewed_and_bound(self):
+        """Lead ruling D28: the half rows a frozen flag rule leaves out of the identity rule are counted by the adapter,
+        which writes no half row; the identity builder evaluates the same function on the same files."""
+        def flags(disqualified=(), fast=(), zero=(), pending=None):
+            def mutate(f):
+                for source_db, rid in disqualified:
+                    f.db.execute("INSERT INTO pend VALUES ('half', ?, ?, 'Halfville', 2020, ?, 'x', true, 'pending')", [source_db, rid, pending or 'published_disqualified_status'])
+                for column, ids in (('finish_implausibly_fast', fast), ('finish_zero', zero)):
+                    for source_db, rid in ids:
+                        f.db.execute(f"INSERT INTO qa (distance, source_db, record_id, city, year, {', '.join(adapt_combined.QA_FLAGS)}) VALUES ('half', ?, ?, 'Halfville', 2020, "
+                                     + ', '.join('true' if q == column else 'false' for q in adapt_combined.QA_FLAGS) + ')', [source_db, rid])
+            return mutate
+        fx = self.fixture('half', mutate=flags(disqualified=[('half', 101)], fast=[('half', 101), ('half', 102)]), review=dict(half_left_out=2))
+        out = self.root / 'half-out'
+        fx.adapt(out)
+        rule = json.loads((out / 'MANIFEST.json').read_text())['half_row_rule']
+        self.assertEqual((rule['rows_left_out'], rule['rows_kept_edition_wide']), (2, {}))
+        self.assertEqual(rule['rows_left_out_by_flag'], {'pending_review_flags.published_disqualified_status': 1, 'pending_review_flags.wheelchair_handcycle_published_category': 0,
+                                                        'qa_row_flags.finish_faster_than_world_record': 0, 'qa_row_flags.finish_implausibly_fast': 2, 'qa_row_flags.finish_zero': 0})
+        checks = {c['check']: c for c in json.loads((out / 'RECONCILIATION.json').read_text())['checks'] if c['family'] == 'half_rows_left_out'}
+        self.assertEqual(checks['half rows carrying two or more of the flags that leave them out']['measured'], 1)
+        self.assertEqual(checks['half rows left out, by source_db']['measured'], {'half': 2})
+        self.assertTrue(checks['half rows by flag of the half row rule']['ok'])
+        # No half row is written: the marathon members are the ones of the unflagged fixture.
+        self.assertEqual(duckdb.connect().execute(f"SELECT count(*) FROM read_parquet({literal(out / 'race_records.parquet')})").fetchone()[0], 9)
+        # The reviewed count binds; a pending flag the rule has not reviewed stops the run; so does an edition kept whole that no review has read.
+        self.assertFails('distinct half rows left out of the identity rule', self.fixture('half-stale', mutate=flags(disqualified=[('half', 101)])))
+        self.assertFails('half row rule has not reviewed', self.fixture('half-new', mutate=flags(disqualified=[('half', 101)], pending='another_status')))
+        # Halfville 2020 from the marathon lists is one row (source_db full): a flag on every row of an edition removes nothing.
+        kept = {'qa_row_flags.finish_zero': {'full: Halfville 2020': 1}}
+        wide = self.fixture('half-wide', mutate=flags(zero=[('full', 201)]), review=dict(half_edition_wide_kept=kept))
+        wide.adapt(self.root / 'half-wide-out')
+        self.assertEqual(json.loads((self.root / 'half-wide-out' / 'MANIFEST.json').read_text())['half_row_rule']['rows_kept_edition_wide'], kept)
+        self.assertFails('half rows kept although flagged', self.fixture('half-wide-unreviewed', mutate=flags(zero=[('full', 201)])))
+
+    def test_a_race_with_verified_editions_needs_a_plain_or_reviewed_label(self):
+        """Registry rule 4 (lead ruling of 2026-11-14): three or more written editions of a verified tier; here one, of any tier written."""
+        with mock.patch.object(race_registry, 'VERIFIED_EDITIONS', 1), mock.patch.object(race_registry, 'VERIFIED_TIERS', ('stamped', 'partial', 'unverified')), \
+                mock.patch.object(race_registry, 'LARGEST', 1):
+            fx = self.fixture('tier')
+            out = self.root / 'tier-out'
+            fx.adapt(out)
+            check = next(c for c in json.loads((out / 'RECONCILIATION.json').read_text())['checks'] if c['check'].startswith('races with three or more written editions'))
+            self.assertEqual((check['expected'], check['measured'], check['ok']), (2, 2, True))
+            self.freeze_registry(fx, {'joins': [], 'flags': [], 'labels': []})
+            self.assertFails('need a reviewed label; these have none', fx)
 
     def test_an_edition_wide_flag_removes_nothing(self):
         """Ruling R2: a flag of `kept_when_edition_wide` on every row of an edition describes the source, not the row."""
@@ -708,6 +859,22 @@ class AdaptCombined(unittest.TestCase):
         self.assertEqual(sorted(rule['qa_row_flags']), ['finish_equals_earlier_split', 'finish_faster_than_world_record', 'finish_ge_24h', 'finish_zero'])
         self.assertEqual(identity['keyed_confidences'], ['high_elite', 'high', 'medium'])
         self.assertFalse(set(identity['keyed_confidences']) & set(identity['possible_confidences']))
+        # Lead ruling D28 (2026-11-14): the half rows outside the identity rule carry one of the two pending flags of half
+        # rows, a flag of the marathon's row rule, or finish_implausibly_fast; 951 rows of this release.
+        half = adapt_combined.HALF_ROW_RULE[pin['tag']]
+        self.assertTrue(set(rule['pending_review_flags']) | {'published_disqualified_status'} == set(half['pending_review_flags']))
+        self.assertTrue(set(rule['qa_row_flags']) | {'finish_implausibly_fast'} == set(half['qa_row_flags']))
+        self.assertEqual((half['kept_when_edition_wide'], rule['kept_when_edition_wide']), (['finish_equals_earlier_split', 'sportstats_nonfinish_status'],) * 2)
+        self.assertEqual((adapt_combined.REVIEWED[pin['tag']]['half_left_out'], adapt_combined.REVIEWED[pin['tag']]['half_edition_wide_kept']), (951, {}))
+        # Lead ruling D33 (2026-11-14): three rows of London 2026 are written by reviewed exception; the list and the reviewed counts agree.
+        reviewed = adapt_combined.REVIEWED[pin['tag']]
+        entries = json.loads(Path(adapt_combined.__file__).with_name('reviewed-row-exceptions.json').read_text())['releases'][pin['tag']]
+        self.assertEqual([[e['record_id'], f"{e['city']} {e['year']}", e['flag'], e['finish']] for e in entries], reviewed['row_exceptions'])
+        self.assertEqual((reviewed['left_out'], reviewed['written_rows'], [e[0] for e in reviewed['row_exceptions']]), (1980, 7820442, [782236, 782238, 782242]))
+        self.assertEqual(rule['reviewed_exceptions']['qa_row_flags'], ['finish_faster_than_world_record'])
+        self.assertTrue(all(e['edition'] == {'tier': 'partial', 'rows_in_release': 59519, 'official_finishers': 59830, 'coverage_pct': -0.52} for e in entries))
+        policy = json.loads(adapt_combined.EDITION_POLICY_PATHS[pin['tag']].read_text())
+        self.assertIn(['London', 2026], policy['counted'])
 
 
     def test_audit_reads_the_adapted_folder(self):

@@ -253,7 +253,7 @@ RULES_MASTER_20261103B = [
 #   reader checks that file against the digest its output states.
 RELEASE_20261113_1113 = 'pace-notes-marathon-half-20261113-1113'
 POLICY_FILE_20261113_1113 = Path(__file__).with_name('edition-policy-20261113-1113.json')
-POLICY_FILE_SHA256_20261113_1113 = 'ab43c75ef52ba9b18d63e5fd4ce9e604e2cbca152a25c4773d85b14c5b133541'
+POLICY_FILE_SHA256_20261113_1113 = 'fe5707e1e436ef894726e7fd6bcb6f1482762f360539af001f9721a971f475a2'
 
 
 def frozen_policy(path, sha256, tag):
