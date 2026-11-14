@@ -578,42 +578,44 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     step('names normalised', distinct=distinct)
 
     # ---- listed results
-    link_code = ' '.join(f"WHEN k.confidence={quote(tier)} THEN CASE WHEN i.runner_key IS NOT NULL THEN '{code}' ELSE '{LINK_SCREENED.get(code, code)}' END"
-                         for tier, code in LINK_TIERS.items())
-    db.execute(f"""CREATE TABLE sorted AS SELECT k.h, k.dbh, k.id, k.city, k.year, k.name, k.x, k.age::INTEGER AS a, k.age_hidden, k.fin,
+    # A join of the wide rows runs as it is written, wide rows first: what they are joined to (the names, the editions)
+    # is hashed in memory and the 15.7 million rows stream past it. Left to its estimates DuckDB hashed the wide rows
+    # themselves and spilled 3 GB (measured November 14, 2026), so its two choices of side are switched off for these.
+    def as_written(statement):
+        db.execute("SET disabled_optimizers='join_order,build_side_probe_side'")
+        try:
+            db.execute(statement)
+        finally:
+            db.execute("SET disabled_optimizers=''")
+    as_written("""CREATE TABLE sorted AS SELECT k.h, k.dbh, k.id, k.city, k.year, k.name, k.x, k.age::INTEGER AS a, k.age_hidden, k.fin,
         k.s0, k.s1, k.s2, k.s3, k.s4, k.s5, k.s6, k.s7, k.unread, k.st, k.status_city, k.status_year, k.short, n.skey,
-        CASE WHEN n.norm='' THEN 'unnamed' WHEN k.flagged THEN 'flagged' WHEN l.skey IS NOT NULL THEN 'listed' ELSE 'result' END AS kind,
-        CASE WHEN k.person_id IS NULL THEN '0' {link_code} END AS c,
-        coalesce(k.person_id, CASE WHEN k.dbh THEN 'h:' ELSE 'f:' END || k.id::VARCHAR) AS pk, k.person_id IS NOT NULL AS linked,
-        k.person_id, i.runner_key, i.link_tier, k.confidence, i.record_id IS NOT NULL AS in_identity
-      FROM kept k JOIN names n ON n.name=k.name LEFT JOIN listed_names l ON l.skey=n.skey
-      LEFT JOIN ident i ON i.dbh=k.dbh AND i.record_id=k.id""")
+        CASE WHEN n.blank THEN 'unnamed' WHEN k.flagged THEN 'flagged' WHEN l.skey IS NOT NULL THEN 'listed' ELSE 'result' END AS kind,
+        coalesce(k.person_id, CASE WHEN k.dbh THEN 'h:' ELSE 'f:' END || k.id::VARCHAR) AS pk, k.person_id IS NOT NULL AS linked, k.confidence
+      FROM kept k JOIN (SELECT name, skey, norm='' AS blank FROM names) n ON n.name=k.name LEFT JOIN listed_names l ON l.skey=n.skey""")
     kept_rows, sorted_rows = sum(rows for rows, _ in kept_by.values()), db.execute('SELECT count(*) FROM sorted').fetchone()[0]
     if kept_rows != sorted_rows:
         fail(f'{kept_rows} kept rows became {sorted_rows} after the name join')
-    absent, tier_differs, key_on_possible = db.execute(f"""SELECT count(*) FILTER (WHERE NOT in_identity),
-        count(*) FILTER (WHERE in_identity AND link_tier IS DISTINCT FROM confidence),
-        count(*) FILTER (WHERE runner_key IS NOT NULL AND (person_id IS NULL OR c NOT IN ({', '.join(quote(c) for c in CONFIRMED)})))
-      FROM sorted WHERE kind='result'""").fetchone()
+    db.execute('DROP VIEW kept')
+    for table in ('base', 'names'):       # read into `sorted`; their space is used again
+        db.execute(f'DROP TABLE {table}')
+    db.execute('CHECKPOINT')
+    # The identity file against the listed results, on the few columns it takes: every listed result has a row of it,
+    # with the release's own link tier; only a confirmed tier carries a runner key; a key is one person.
+    confirmed = ', '.join(quote(tier) for tier, code in LINK_TIERS.items() if code in CONFIRMED)
+    absent, tier_differs, key_on_possible = db.execute(f"""SELECT count(*) FILTER (WHERE i.record_id IS NULL),
+        count(*) FILTER (WHERE i.record_id IS NOT NULL AND i.link_tier IS DISTINCT FROM s.confidence),
+        count(*) FILTER (WHERE i.runner_key IS NOT NULL AND (NOT s.linked OR s.confidence NOT IN ({confirmed})))
+      FROM (SELECT dbh, id, linked, confidence FROM sorted WHERE kind='result') s
+      LEFT JOIN (SELECT dbh, record_id, link_tier, runner_key FROM ident) i ON i.dbh=s.dbh AND i.record_id=s.id""").fetchone()
     if absent or tier_differs or key_on_possible:
         fail(f'the identity file does not fit the release: {absent} listed results have no identity row, {tier_differs} have another '
              f'link tier than the person-links file, {key_on_possible} carry a runner key without a confirmed tier')
-    keys, persons, pairs = db.execute("""SELECT count(DISTINCT runner_key), count(DISTINCT person_id), count(DISTINCT (runner_key, person_id))
-        FROM sorted WHERE kind='result' AND runner_key IS NOT NULL""").fetchone()
+    keys, persons, pairs = db.execute("""SELECT count(DISTINCT i.runner_key), count(DISTINCT s.pk), count(DISTINCT {'key': i.runner_key, 'person': s.pk})
+        FROM (SELECT dbh, id, pk FROM sorted WHERE kind='result' AND linked) s
+        JOIN (SELECT dbh, record_id, runner_key FROM ident WHERE runner_key IS NOT NULL) i ON i.dbh=s.dbh AND i.record_id=s.id""").fetchone()
     if not keys == persons == pairs:
         fail(f'runner keys and persons do not pair one to one among confirmed links ({keys} keys, {persons} persons, {pairs} pairs)')
-    mixed = db.execute(f"""SELECT count(*) FROM (SELECT pk FROM sorted WHERE kind='result' AND linked GROUP BY pk
-        HAVING count(*) FILTER (WHERE c IN ('1', '2', '3'))>0 AND count(*) FILTER (WHERE c IN ('b', 'c', 'd'))>0)""").fetchone()[0]
-    if mixed:
-        fail(f'{mixed} persons have both keyed and unkeyed links of a confirmed tier: a screen applies to a whole person')
-    # The parsed rows, the names and the columns only the checks above read are done with: their space is used again.
-    db.execute('DROP VIEW kept')
-    for table in ('base', 'names'):
-        db.execute(f'DROP TABLE {table}')
-    for column in ('person_id', 'runner_key', 'link_tier', 'confidence', 'in_identity'):
-        db.execute(f'ALTER TABLE sorted DROP COLUMN {column}')
-    db.execute('CHECKPOINT')
-    step('rows joined to their names and links', rows=sorted_rows)
+    step('rows joined to their names', rows=sorted_rows)
 
     # ---- editions
     db.execute("""CREATE TEMP TABLE ed AS SELECT h, dbh, city, year, count(*) FILTER (WHERE kind='result') AS n,
@@ -754,13 +756,23 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     step('editions written', editions=len(editions), races=len(races), bytes=editions_bytes)
 
     # ---- results with their edition, profile and shard
-    db.execute("""CREATE TABLE res AS SELECT s.h, s.dbh, s.id, s.year, s.name, s.x, s.a, s.fin, s.s0, s.s1, s.s2, s.s3, s.s4, s.s5, s.s6, s.s7,
-        CASE WHEN s.h THEN '-' ELSE s.st END AS st, s.skey, s.c, s.pk, s.linked, x.e,
+    # A link of a confirmed tier is confirmed when the identity file gives its record a runner key; else a screen failed.
+    # (One number names a record of either database: twice its id, plus one in the half database.)
+    link_code = ' '.join(f"WHEN s.confidence={quote(tier)} THEN CASE WHEN s.keyed THEN '{code}' ELSE '{LINK_SCREENED.get(code, code)}' END"
+                         for tier, code in LINK_TIERS.items())
+    as_written(f"""CREATE TABLE res AS SELECT s.h, s.dbh, s.id, s.year, s.name, s.x, s.a, s.fin, s.s0, s.s1, s.s2, s.s3, s.s4, s.s5, s.s6, s.s7,
+        CASE WHEN s.h THEN '-' ELSE s.st END AS st, s.skey, CASE WHEN NOT s.linked THEN '0' {link_code} END AS c, s.pk, s.linked, x.e,
         CASE WHEN s.linked THEN ('0x' || substr(s.pk, 5, 3))::INTEGER ELSE ('0x' || substr(sha256(s.pk), 1, 3))::INTEGER END AS shard
-      FROM sorted s JOIN edx x ON x.h=s.h AND x.dbh=s.dbh AND x.city=s.city AND x.year=s.year WHERE s.kind='result'""")
+      FROM (SELECT *, (id*2 + dbh::INTEGER) IN (SELECT record_id*2 + dbh::INTEGER FROM ident WHERE runner_key IS NOT NULL) AS keyed
+            FROM sorted WHERE kind='result') s
+      JOIN edx x ON x.h=s.h AND x.dbh=s.dbh AND x.city=s.city AND x.year=s.year""")
     results = db.execute('SELECT count(*) FROM res').fetchone()[0]
     if results != db.execute("SELECT count(*) FROM sorted WHERE kind='result'").fetchone()[0]:
         fail('listed results were lost in the edition join')
+    mixed = db.execute("""SELECT count(*) FROM (SELECT pk FROM res WHERE linked GROUP BY pk
+        HAVING count(*) FILTER (WHERE c IN ('1', '2', '3'))>0 AND count(*) FILTER (WHERE c IN ('b', 'c', 'd'))>0)""").fetchone()[0]
+    if mixed:
+        fail(f'{mixed} persons have both keyed and unkeyed links of a confirmed tier: a screen applies to a whole person')
     doubled = db.execute('SELECT count(*) FROM (SELECT pk FROM res GROUP BY pk HAVING count(DISTINCT shard)>1)').fetchone()[0]
     if doubled:
         fail(f'{doubled} profiles fall in two shards')

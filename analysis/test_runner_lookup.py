@@ -168,7 +168,20 @@ class Release:
         options = dict(pin_path=self.pin_path, registry_path=self.registry_path, policy_path=self.policy_path, half_records_path=self.half_path,
                        placeholders_path=self.placeholders_path, as_of='2099-01-02T00:00:00Z', index_rules=RULES, memory='1GB')
         options.update(overrides)
-        return builder.build(self.core, self.links_path, self.status_path, self.identity_path, output, **options)
+        identity = options.pop('identity_path', self.identity_path)
+        return builder.build(self.core, self.links_path, self.status_path, identity, output, **options)
+
+    def identity_with(self, name, change):
+        """The identity file with one change, as another file: `change` gets the rows by (source_db, record_id) and as a list."""
+        rows = [dict(row) for row in self.identity]
+        change({(row['source_db'], row['record_id']): row for row in rows}, rows)
+        path = self.root / f'identity-{name}.parquet'
+        db = duckdb.connect()
+        db.execute('CREATE TABLE i (source_db VARCHAR, record_id BIGINT, runner_key VARCHAR, link_tier VARCHAR)')
+        db.executemany('INSERT INTO i VALUES (?, ?, ?, ?)', [[row[c] for c in ['source_db', 'record_id', 'runner_key', 'link_tier']] for row in rows])
+        db.execute(f"COPY i TO '{path}' (FORMAT PARQUET)")
+        db.close()
+        return path
 
 
 def small_release(root):
@@ -623,6 +636,26 @@ class Build(unittest.TestCase):
         path = self.root / 'registry.json'
         path.write_text(json.dumps(registry))
         refused('has no race', registry_path=path)
+
+    def test_an_identity_file_that_does_not_fit_the_release_is_refused(self):
+        cases = [
+            ('absent', '1 listed results have no identity row', lambda at, rows: rows.remove(at[('full', 77)])),
+            ('tier', '1 have another link tier than the person-links file', lambda at, rows: at[('full', 11)].update(link_tier='medium')),
+            # a key on a possible match (person 1's low link) and on a result with no link
+            ('possible', '2 carry a runner key without a confirmed tier',
+             lambda at, rows: (at[('full', 13)].update(runner_key=P % 1), at[('half', 77)].update(runner_key=P % 9))),
+            # person 1's half result under the key of person 100: that key then names two persons
+            ('shared', 'runner keys and persons do not pair one to one among confirmed links (7 keys, 7 persons, 8 pairs)',
+             lambda at, rows: at[('half', 12)].update(runner_key=P % 100)),
+            # person 1 keeps the key on the marathon and loses it on the half: a screen applies to a whole person
+            ('mixed', '1 persons have both keyed and unkeyed links of a confirmed tier', lambda at, rows: at[('half', 12)].update(runner_key=None)),
+        ]
+        for name, message, change in cases:
+            target = self.root / f'identity-{name}' / 'runners'
+            with self.assertRaises(builder.BuildError, msg=name) as caught:
+                self.release.build(target, identity_path=self.release.identity_with(name, change))
+            self.assertIn(message, str(caught.exception))
+            self.assertFalse(target.exists())
 
     def test_a_build_that_does_not_finish_leaves_nothing_behind(self):
         target = self.root / 'nothing' / 'runners'
