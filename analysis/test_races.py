@@ -101,6 +101,7 @@ class Fixture:
         self.hold_notes = {('Alpha', 2022): 'Re-pull on hold (source 403)'}
         self.timing = {('Alpha', 2019): 'chip', ('Alpha', 2020): 'gun', ('Gamma City', 2018): 'chip (clock if no chip)'}
         self.source_types = {}
+        self.dates = {}
         self.records_written = False
 
     def rows(self):
@@ -143,7 +144,8 @@ class Fixture:
                 'official_source_type': self.source_types.get((label, year), 'stats_site (a race summary)' if official is not None else 'sometimer result rows (internal only)'),
                 'verification_tier': tier, 'verified_badge': tier in br.BADGE_TIERS, 'weaker_source': tier == 'stamped_weaker_source',
                 'split_tier': split, 'release_note': None, 'hold_note': self.hold_notes.get((label, year)),
-                'timing_basis': self.timing.get((label, year)), 'race_date': None, 'race_date_source': None})
+                'timing_basis': self.timing.get((label, year)), 'race_date': self.dates.get((label, year), (None, None))[0],
+                'race_date_source': self.dates.get((label, year), (None, None))[1]})
             if use == 'counted':
                 counted.append([label, year])
             else:
@@ -572,6 +574,12 @@ class Refusals(Base):
         del self.fx.source_types[('Alpha', 2021)]
         self.fx.races[0][6][0] = (2019, 'gold', 'splits', 120, 0, 'counted', 120, 0)
         self.refused('is not one this family knows')
+        self.fx.races[0][6][0] = RACES[0][6][0]
+        self.fx.dates[('Alpha', 2019)] = ('2019-04-07', 'hearsay')
+        self.refused('the race date source')
+        self.fx.dates[('Alpha', 2019)] = ('2019-04-07', 'external')
+        row = next(r for r in csv.DictReader(io.StringIO(self.fx.build()[0]['editions.csv'].decode())) if (r['race'], r['year']) == ('Alpha', '2019'))
+        self.assertEqual((row['race_date'], row['race_date_source']), ('2019-04-07', 'external'))
 
     def test_the_universe_must_agree_with_the_policy(self):
         self.fx.races[0][6][3] = (2022, 'partial', 'splits', 150, 0, 'counted', 300, 0)    # counted, yet 50% of the official count

@@ -197,7 +197,9 @@ One row per edition, sorted by race label and year, with these columns: `race`, 
 `official_count_source` (the source in words, or that there is no independent count), `official_source_type` (the
 producer's own words), `coverage_pct` (the release's finishes over the official count), `use`, `use_in_words`,
 `not_counted_category`, `reason_not_counted` (the policy's sentence), `timing`, `timing_basis` (the producer's
-words), `race_date`, `race_date_source`, `hold_note`, `release_note`, `review`, `copy_of_race` and `copy_of_year`
+words), `race_date`, `race_date_source` (`weather`: the weather row's date; `reviewed`: a reviewed entry resting on
+the producer's own note; `external`: a reviewed entry resting on a cited source outside the release), `hold_note`,
+`release_note`, `review`, `copy_of_race` and `copy_of_year`
 (the edition a copy copies), `reviewed_note` (the reviewed note of an edition of a listed pair: `one_list_two_years`,
 `one_race_two_keys` or `repeated_finish_times`), `release_key` (the release's own race key, the join to the release's
 tables; never shown as a name). The table holds every edition with rows, copies and the editions of left-out races

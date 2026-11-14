@@ -518,7 +518,7 @@ function verify(dataDir, root = ROOT) {
       ok(r.official_count === String(f.official_finishers) && SOURCE_WORDS.includes(r.official_count_source) && r.official_source_type.length > 0, `${where}: the official count of the policy’s facts, with its source in words`);
       ok(f.official_finishers === 0 ? r.coverage_pct === '' : Math.abs(Number(r.coverage_pct) - 100 * f.finishes_in_release / f.official_finishers) <= 0.005 + 1e-9, `${where}: coverage is the release’s finishes over the official count`);
     }
-    ok(/^(|\d{4}-\d{2}-\d{2})$/.test(r.race_date) && ['', 'weather', 'reviewed'].includes(r.race_date_source) && (r.race_date === '') === (r.race_date_source === ''), `${where}: a race date with its source, or neither`);
+    ok(/^(|\d{4}-\d{2}-\d{2})$/.test(r.race_date) && ['', 'weather', 'reviewed', 'external'].includes(r.race_date_source) && (r.race_date === '') === (r.race_date_source === ''), `${where}: a race date with its source, or neither`);
     if (r.hold_note) holdNotes.push({ label: r.race, year: e.year, tier: e.tier, note: r.hold_note });
     if (r.release_note) releaseNotes.push({ label: r.race, year: e.year, tier: e.tier, note: r.release_note });
   }

@@ -121,6 +121,9 @@ FLAGS = tuple(FLAG_FROM_REGISTRY)
 BLOCKING_FLAGS = ('virtual', 'cancelled', 'placeholder', 'not_a_marathon_title', 'hand_cycle_title')
 NOTE_FLAGS = ('virtual', 'cancelled', 'placeholder', 'not_a_marathon_title')
 RULINGS = ('pending', 'set_aside', 'keep_both')
+# Where a race date comes from: the weather row, a reviewed entry resting on the producer's own note, or a reviewed
+# entry resting on a cited source outside the release (plan decision D27). Anything else stops the build.
+DATE_SOURCES = (None, 'weather', 'reviewed', 'external')
 # Reviewed notes on an edition of a listed pair, and the reasons an edition is set aside (the lead's rulings of 2026-11-14).
 EDITION_NOTES = ('one_list_two_years', 'one_race_two_keys', 'repeated_finish_times')
 
@@ -404,6 +407,8 @@ def edition_table(inputs: Inputs) -> list[dict]:
             fail(f'{key}: an edition with no written row, or more finishes than rows')
         if e['timing_basis'] not in TIMING_CLASS:
             fail(f"{key}: the timing basis {e['timing_basis']!r} is not classed in analysis/build_races.py TIMING_CLASS; class it in a reviewed change")
+        if e['race_date_source'] not in DATE_SOURCES or (e['race_date'] is None) != (e['race_date_source'] is None):
+            fail(f"{key}: the race date source {e['race_date_source']!r} is not one this family knows, or a date and its source do not come together")
         official = None if e['official_finishers'] is None else int(e['official_finishers'])
         if official is not None and official != e['official_finishers']:
             fail(f'{key}: the official count is not a whole number')
@@ -762,7 +767,7 @@ def summary_file(inputs: Inputs, races: list[dict], editions: list[dict]) -> dic
     return {
         'schema_version': SCHEMA_VERSION, 'family': 'races', 'distance': 'marathon',
         'races': {
-            'total': {'n': len(races), 'what': 'marathon races with at least one recorded result'},
+            'total': {'n': len(races), 'what': 'marathon races with at least one recorded result in an edition that is not set aside as a copy'},
             'by_page': {page: sum(1 for r in races if r['page'] == page) for page in PAGES},
             'course_pages_kept': {'n': sum(1 for r in races if r['page_before']), 'what': 'course pages the site had before this release, all kept'},
             'flagged': {'n': sum(1 for r in races if any(f in BLOCKING_FLAGS for f in r['flags'])),
