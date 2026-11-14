@@ -1,5 +1,5 @@
 // Recounts of the racing charts, second batch (scripts/verify-charts.cjs), each written from its definition:
-// start-screened editions only, places as clock ranks within an edition (ties in shard order).
+// start-screened editions only, places as clock ranks within an edition (ties in cohort order).
 const KM = [5, 10, 15, 20, 25, 30, 35, 40, 42.195];
 const MATS = ['5K', '10K', '15K', '20K', '25K', '30K', '35K', '40K', 'Finish'];
 const SECTIONS = ['0–5K', '5–10K', '10–15K', '15–20K', '20–25K', '25–30K', '30–35K', '35–40K', '40K–finish'];
@@ -88,7 +88,7 @@ module.exports = {
     for (const e of bigEditions(C, 1000)) {
       const rows = Array.from(C.rowsOf(e));
       n += rows.length;
-      rows.sort((a, b) => C.finish[a] - C.finish[b]); // stable: ties keep shard order
+      rows.sort((a, b) => C.finish[a] - C.finish[b]); // stable: ties keep cohort order
       for (let j = 1; j < rows.length; j++) {
         const a = rows[j - 1], b = rows[j];
         if (C.finish[a] !== C.finish[b]) continue;

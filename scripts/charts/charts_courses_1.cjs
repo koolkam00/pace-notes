@@ -40,7 +40,8 @@ module.exports = {
       if (gap < 1 || gap > 2 || !Number.isFinite(temp[ea]) || !Number.isFinite(temp[eb])) continue;
       if (!C.shapeKeep[a] || !C.shapeKeep[b]) continue;
       pairs++; eds.add(ea); eds.add(eb);
-      const j = groupOf(Math.round((temp[eb] - temp[ea]) * 10) / 10);
+      // np.round(x, 1): the nearest tenth, a tie to the even tenth (Math.round would send a tie up).
+      const j = groupOf(H.roundHalfEven((temp[eb] - temp[ea]) * 10) / 10);
       if (j < 0) continue;
       const g = G[j], key = `${ea}|${eb}`, ch = [];
       for (let s = 0; s < 9; s++) { ch.push(C.pace(b, s) / C.pace(a, s) - 1); g.sec[s].push(ch[s]); }

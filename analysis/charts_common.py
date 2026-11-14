@@ -1,9 +1,11 @@
 """Shared cohort and helpers for the Top 100 charts (/charts).
 
-analysis/build_charts.py loads the adopted release once through the verified runner shards (the same reader as the
-stories), wraps it in a ChartCohort and hands it to every chart builder in the charts_*.py modules. A builder returns
-the raw numbers its takeaway reads (`values`), the chart spec (`plot`, lib/charts/spec.ts), an optional table, its
-cohort size and a method line for /methodology. scripts/verify-charts.cjs recounts every chart from the shards.
+analysis/build_charts.py loads the adopted release once through the verified marathon cohort (the same reader as the
+stories, insights_data.read_finishes), wraps it in a ChartCohort and hands it to every chart builder in the charts_*.py
+modules. A builder returns the raw numbers its takeaway reads (`values`), the chart spec (`plot`, lib/charts/spec.ts),
+an optional table, its cohort size and a method line for /methodology. scripts/verify-charts.cjs recounts every chart
+from the cohort. The finishes are in cohort order (by edition as the manifest lists them, then record id); `c.editions`
+is the cohort manifest's list, which also names the editions that keep only an own-record view and hold no finish.
 
 Rules every builder keeps (AGENTS.md): counts are finishes, not runners; a published group has at least 100 finishes;
 shares are observed shares; associations only; linked records are candidates, not verified people; exact ages only in

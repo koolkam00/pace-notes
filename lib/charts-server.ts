@@ -10,15 +10,19 @@ const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex
 
 let verified: { key: string; manifest: ChartsManifest } | undefined;
 
-/** The charts manifest, verified once per process: release pin, runner-manifest binding, catalog and every file digest. */
+/**
+ * The charts manifest, verified once per process: release pin, the marathon cohort it was built from (the SHA-256 of
+ * analysis/marathon-cohort/manifest.json, read from the checkout at build time; the field keeps the name it had when it
+ * held the runner lookup's manifest), catalog and every file digest.
+ */
 export function getChartsManifest(): ChartsManifest {
   const stat = fs.statSync(path.join(ROOT(), 'manifest.json'));
   const key = `${stat.size}:${stat.mtimeMs}`;
   if (verified?.key === key) return verified.manifest;
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT(), 'manifest.json')).toString()) as ChartsManifest;
-  const runnerBytes = fs.readFileSync(path.join(process.cwd(), 'public/data/runners/manifest.json'));
+  const cohortBytes = fs.readFileSync(path.join(process.cwd(), 'analysis/marathon-cohort/manifest.json'));
   if (manifest.schema_version !== 1 || manifest.release_tag !== release.tag) throw new Error('Chart data must use the adopted release.');
-  if (manifest.runner_manifest_sha256 !== sha256(runnerBytes)) throw new Error('Chart data must be rebuilt for the current runner records.');
+  if (manifest.runner_manifest_sha256 !== sha256(cohortBytes)) throw new Error('Chart data must be rebuilt for the current marathon cohort.');
   if (manifest.catalog_sha256 !== sha256(fs.readFileSync(path.join(process.cwd(), 'lib/charts/catalog.json')))) throw new Error('Chart data must be rebuilt for the current catalog.');
   for (const [name, meta] of Object.entries(manifest.files)) {
     const file = fs.readFileSync(path.join(ROOT(), name));

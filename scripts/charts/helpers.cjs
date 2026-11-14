@@ -6,7 +6,7 @@
 // or `cats`), notes, keys, bands, heights, domains and the like. Numbers compare exactly when both are integers;
 // otherwise within 0.051 at 50 and above (seconds published to a tenth) and within 1e-6 below (shares, ratios).
 const assert = require('node:assert/strict');
-const { quantile, quantileSorted, median, MIN_CELL } = require('./cohort.cjs');
+const { quantile, quantileSorted, median, roundHalfEven, MIN_CELL } = require('./cohort.cjs');
 
 module.exports = function helpers(C) {
   let counted = 0;
@@ -62,7 +62,7 @@ module.exports = function helpers(C) {
     walk(doc.plot, mine.plot, `${slug}.plot`);
   }
 
-  /** Within-edition places from 0 (lowest value) to 1, ties in shard order, as charts_common.edition_ranks. */
+  /** Within-edition places from 0 (lowest value) to 1, ties in cohort order, as charts_common.edition_ranks. */
   function editionRanks(valueOf, include = () => true) {
     const out = new Float64Array(C.n).fill(NaN);
     for (let e = 0; e < C.editions.length; e++) {
@@ -82,5 +82,5 @@ module.exports = function helpers(C) {
     return { share: d ? hit / d : NaN, n: d, hits: hit };
   }
 
-  return { compare, editionRanks, share, quantile, quantileSorted, median, MIN_CELL, counted: () => counted };
+  return { compare, editionRanks, share, quantile, quantileSorted, median, roundHalfEven, MIN_CELL, counted: () => counted };
 };

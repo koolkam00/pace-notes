@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // Independent reconciliation of the Top 100 charts (public/data/charts, /charts).
-// It does not import the Python builders: the eligible finishes are rebuilt from the checksum-verified runner shards
-// (scripts/charts/cohort.cjs) and every chart's takeaway values and plotted numbers are recounted by its own function in
-// scripts/charts/<module>.cjs. A registered chart without a recount fails. Before the recounts it checks provenance (the
-// adopted release, the exact runner manifest, the catalog, the weather evidence, every script hash), the inventory, the
-// group-size threshold, identifier fields, release labels in copy, the words every title and takeaway may not use,
-// title and description lengths, and that no chart string equals a recorded runner name.
+// It does not import the Python builders: the eligible finishes are rebuilt from the marathon cohort
+// (analysis/marathon-cohort, read through scripts/lib/cohort.cjs by scripts/charts/cohort.cjs) and every chart's takeaway
+// values and plotted numbers are recounted by its own function in scripts/charts/<module>.cjs. A registered chart without
+// a recount fails. Before the recounts it checks provenance (the adopted release, the exact cohort manifest, the edition
+// policy the cohort states, the catalog, the weather evidence, every script hash), the inventory, the group-size
+// threshold, identifier fields, release labels in copy, the words every title and takeaway may not use, title and
+// description lengths, and that no chart string equals a recorded runner name. The cohort holds no names: they are read
+// through scripts/charts/names.cjs (the committed runner lookup of the adopted release, or the names file that
+// PACE_NOTES_NAMES_FILE points at), and without either the verifier fails; it never passes without checking them.
 //
 //   node scripts/verify-charts.cjs [--input public/data/charts] [--data-root public/data] [--text-only] [--only slug,...]
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
@@ -29,7 +32,7 @@ const scope = (list) => (only ? list.filter((c) => only.has(c.slug)) : list);
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const hash = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const finite = (x) => typeof x === 'number' && Number.isFinite(x);
-const { loadCohort, quantile, quantileSorted, median, normaliseName, MIN_CELL, LENGTHS, AGE_LABELS, GENDER_LABELS } = require('./charts/cohort.cjs');
+const { loadCohort, verifiedManifest, quantile, quantileSorted, median, normaliseName, MIN_CELL, LENGTHS, AGE_LABELS, GENDER_LABELS } = require('./charts/cohort.cjs');
 let checks = 0;
 const ok = (cond, message) => { assert.ok(cond, message); checks++; };
 
@@ -43,15 +46,19 @@ for (const c of catalog) {
   ok(THEMES.includes(c.theme), `${c.slug}: a known theme`);
   ok(/^charts_[a-z0-9_]+$/.test(c.module) && fs.existsSync(path.join(root, 'analysis', `${c.module}.py`)), `${c.slug}: its builder module exists`);
 }
-const pin = read(path.join(root, 'analysis/release.json'));
-const runnerBytes = fs.readFileSync(path.join(dataRoot, 'runners/manifest.json'));
-const runners = JSON.parse(runnerBytes);
+// The marathon cohort the charts must be built from (since November 14, 2026; before it, the runner lookup's manifest):
+// the adopted release's, with its checkpoints, identity contract, script list, counts and edition policy checked.
+const { pin, manifest: cohort, sha256: cohortSha } = verifiedManifest(root);
 const manifest = read(path.join(input, 'manifest.json'));
 assert.equal(manifest.schema_version, 1, 'Charts manifest schema');
-assert.equal(runners.release_tag, pin.tag, 'Adopted runner source');
 assert.equal(manifest.release_tag, pin.tag, 'Charts use the adopted release');
-assert.equal(manifest.runner_manifest_sha256, hash(runnerBytes), 'Exact runner manifest binding');
-assert.equal(manifest.runner_manifest_as_of, runners.as_of); assert.equal(manifest.input_as_of, runners.input_as_of);
+// The field keeps its name from the lookup's time; it holds the SHA-256 of analysis/marathon-cohort/manifest.json.
+assert.equal(manifest.runner_manifest_sha256, cohortSha, 'Exact marathon cohort binding');
+assert.equal(manifest.runner_manifest_as_of, cohort.as_of); assert.equal(manifest.input_as_of, cohort.input_as_of);
+// The edition policy and the scripts of the cohort, as the charts state them (the policy's digests and counts were
+// checked against the published list, public/data/edition-policy.json, when the cohort manifest was read).
+assert.deepEqual(manifest.source_quality, cohort.source_quality, 'The charts state the edition policy of the cohort they were built from');
+assert.deepEqual(manifest.source_scripts, cohort.scripts, 'The charts state the scripts that wrote the cohort');
 // With --only (development), other charts' catalog rows may have changed since this folder was built; the listed charts'
 // rows are still checked file by file below. A full run requires the exact catalog.
 const catalogSha = hash(fs.readFileSync(path.join(root, 'lib/charts/catalog.json')));
@@ -59,7 +66,7 @@ if (only && manifest.catalog_sha256 !== catalogSha) console.warn('Note: the cata
 else assert.equal(manifest.catalog_sha256, catalogSha, 'The charts were built from the current catalog');
 assert.equal(manifest.weather.release_tag, read(path.join(root, 'analysis/weather-release.json')).tag, 'Weather evidence pin');
 assert.equal(manifest.weather.evidence_sha256, hash(fs.readFileSync(path.join(dataRoot, 'weather/evidence.json'))), 'Exact weather evidence binding');
-assert.equal(manifest.eligible_records, runners.eligible_records, 'Eligible source records');
+assert.equal(manifest.eligible_records, cohort.eligible_records, 'Eligible source records');
 assert.deepEqual(manifest.genders, GENDER_LABELS); assert.deepEqual(manifest.ages, AGE_LABELS);
 assert.deepEqual(manifest.duplicate_edition_screen, [], 'No duplicate-edition screen in this release');
 const analysisDir = path.join(root, 'analysis');
@@ -68,7 +75,7 @@ const unbound = fs.readdirSync(analysisDir).filter((n) => /^charts_.*\.py$/.test
 assert.deepEqual(unbound, [], 'Every charts_*.py module is bound to the manifest');
 // With --only, other themes' modules may have moved on since this folder was built; only the listed charts' modules count.
 const ownModules = only ? new Set(catalog.filter((c) => only.has(c.slug)).map((c) => `${c.module}.py`)) : null;
-const bound = Object.entries({ ...runners.scripts, ...manifest.scripts }).filter(([name]) => !ownModules || !/^charts_/.test(name) || name === 'charts_common.py' || ownModules.has(name));
+const bound = Object.entries({ ...cohort.scripts, ...manifest.scripts }).filter(([name]) => !ownModules || !/^charts_/.test(name) || name === 'charts_common.py' || ownModules.has(name));
 for (const [name, digest] of bound) {
   assert.match(name, /^[a-z0-9_]+\.py$/);
   assert.equal(digest, hash(fs.readFileSync(path.join(analysisDir, name))), `Stale calculation script: ${name}`);
@@ -156,6 +163,8 @@ if (opt.textOnly) process.exit(0);
 
 // ---------- 4. Cohort and recounts ----------
 const C = loadCohort({ root, dataRoot, strings });
+assert.equal(C.manifestSha, cohortSha, 'The cohort did not change while it was read');
+assert.ok(C.names.names > 0, 'The name guard read no recorded names');
 assert.deepEqual(C.nameHits, [], 'A chart string equals a recorded runner name');
 assert.equal(C.n, manifest.analysis_n, 'The story cohort (no duplicate-edition screen in this release)');
 const H = require('./charts/helpers.cjs')(C);
@@ -180,4 +189,4 @@ for (const c of scope(catalog)) {
   checks++;
 }
 const slowest = timings.sort((a, b) => b[1] - a[1]).slice(0, 5);
-console.log(JSON.stringify({ charts: timings.length, checks: checks + H.counted(), cohort: C.n, seconds: Math.round((Date.now() - started) / 100) / 10, slowest }));
+console.log(JSON.stringify({ charts: timings.length, checks: checks + H.counted(), cohort: C.n, names: { source: C.names.source, where: C.names.where, read: C.names.names }, seconds: Math.round((Date.now() - started) / 100) / 10, slowest }));

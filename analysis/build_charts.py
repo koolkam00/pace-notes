@@ -1,9 +1,13 @@
-"""Build the Top 100 charts (/charts) from the verified public runner shards.
+"""Build the Top 100 charts (/charts) from the marathon cohort.
 
 The catalog (lib/charts/catalog.json) lists every chart: its number, slug, theme and the charts_*.py module that
 builds it. Each chart writes public/data/charts/<slug>.json; manifest.json binds them to the adopted release, the exact
-runner manifest, the weather evidence, the catalog and every script hash. scripts/verify-charts.cjs recounts every chart
-independently from the shards.
+cohort manifest (analysis/marathon-cohort/manifest.json, read through insights_data.read_finishes; until November 14,
+2026 the runner lookup's manifest), the edition policy and the scripts that cohort states, the weather evidence, the
+catalog and every script hash. scripts/verify-charts.cjs recounts every chart independently from the cohort.
+
+The fields `runner_manifest_sha256` and `runner_manifest_as_of` keep their names: they hold the SHA-256 of the cohort
+manifest's exact bytes and its timestamp.
 
 Usage:
   python analysis/build_charts.py [--output public/data/charts] [--only slug,...]
@@ -124,7 +128,9 @@ def run(output, only=None, cache=None, partial=False):
         **common, as_of=datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
         catalog_sha256=sha256_file(CATALOG),
         weather=dict(release_tag=weather['input']['release_tag'], evidence_sha256=sha256_file(ROOT / 'public/data/weather/evidence.json')),
-        scripts=scripts, source_scripts=manifest['scripts'],
+        # What the cohort states about itself: the scripts that wrote it and the edition policy it was built under (the
+        # policy's digests and counts; the listed editions are one published file, public/data/edition-policy.json).
+        scripts=scripts, source_scripts=manifest['scripts'], source_quality=manifest['source_quality'],
         cohort=dict(eligible=int(full.n), after_duplicate_screen=int(story.n), editions=int(len(np.unique(story.edition))),
                     cities=len({story.editions[e]['city'] for e in np.unique(story.edition)}),
                     shape=int(cohort.shape_keep.sum()), shape_editions_left_out=len(cohort.shape_audit),

@@ -50,7 +50,7 @@ class Helpers(unittest.TestCase):
         edition = np.array([0, 0, 0, 1, 1])
         self.assertEqual(edition_ranks(values, edition).tolist(), [1.0, 0.0, 0.5, 1.0, 0.0])
 
-    def test_ties_keep_shard_order(self):
+    def test_ties_keep_cohort_order(self):
         self.assertEqual(edition_ranks(np.array([2., 2., 2.]), np.array([0, 0, 0])).tolist(), [0.0, 0.5, 1.0])
 
     def test_share_and_threshold(self):
