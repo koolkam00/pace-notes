@@ -1,0 +1,199 @@
+{
+ "document": "Names that are not a person's: the reviewed list of the runner lookup (lead decision D24.6). A result is not listed when the producer flags its name as a placeholder (unlinked_reason = placeholder_name in the person-links file), or when the set of its search words equals the set of search words of a name below (analysis/lookup_names.py: a trailing country code dropped, accents and case aside, word order and repeats aside). The results stay in the release, the cohort and the analyses. A name is on the list only when its own words say it is not a person's name; initials and one-letter names (\"N N\", \"X X\", \"N A\", \"M Name\") were read and left off.",
+ "schema_version": 1,
+ "tag": "pace-notes-marathon-half-20261113-1113",
+ "reviewed_on": "2026-11-14",
+ "counts": "release_rows is the number of rows of pace-notes-marathon-half-20261113-1113, both distances, flagged or not, whose search words equal the name's (measured 2026-11-14). The builder recounts each and stops on a difference: read the difference, then update the count.",
+ "names": [
+  {
+   "name": "Anonymous Anonymous",
+   "release_rows": 11353,
+   "reason": "says the entrant is anonymous; the producer flags 11,187 of these rows as placeholder names"
+  },
+  {
+   "name": "Zawodnik Anonimowy",
+   "release_rows": 6553,
+   "reason": "Polish for an anonymous competitor; the producer flags 6,536 of these rows"
+  },
+  {
+   "name": "Late Entry",
+   "release_rows": 3324,
+   "reason": "a late entry recorded without a name"
+  },
+  {
+   "name": "Anonimowa Zawodniczka",
+   "release_rows": 563,
+   "reason": "Polish for an anonymous (female) competitor; every row is flagged by the producer"
+  },
+  {
+   "name": "Runner Unknown",
+   "release_rows": 554,
+   "reason": "says the runner is unknown; the producer flags 490 of these rows"
+  },
+  {
+   "name": "None None",
+   "release_rows": 279,
+   "reason": "an empty name field written out as None"
+  },
+  {
+   "name": "Zawodnik Do Uzup",
+   "release_rows": 265,
+   "reason": "Polish, cut short, for a competitor to be filled in"
+  },
+  {
+   "name": "Zawodnik Anonimowy 0",
+   "release_rows": 160,
+   "reason": "Polish for an anonymous competitor, with a number; every row is flagged by the producer"
+  },
+  {
+   "name": "Missing Info Email Us Your Info",
+   "release_rows": 97,
+   "reason": "a timing company's request for the entrant's details"
+  },
+  {
+   "name": "Pacer",
+   "release_rows": 95,
+   "reason": "a pace-team runner recorded without a name"
+  },
+  {
+   "name": "Unknown",
+   "release_rows": 61,
+   "reason": "says the name is unknown; the producer flags 39 of these rows"
+  },
+  {
+   "name": "Pacer Runner's World",
+   "release_rows": 51,
+   "reason": "a pace-team entry recorded without a name"
+  },
+  {
+   "name": "No Name",
+   "release_rows": 49,
+   "reason": "says no name was recorded"
+  },
+  {
+   "name": "Dorsal Sin Datos",
+   "release_rows": 44,
+   "reason": "Spanish for a bib with no details"
+  },
+  {
+   "name": "Spare Entry",
+   "release_rows": 44,
+   "reason": "a spare entry recorded without a name"
+  },
+  {
+   "name": "Unknown Male",
+   "release_rows": 41,
+   "reason": "says the runner is unknown"
+  },
+  {
+   "name": "Corredor Sin Inscripción",
+   "release_rows": 41,
+   "reason": "Spanish for a runner without a registration"
+  },
+  {
+   "name": "Anonyme Anonyme",
+   "release_rows": 34,
+   "reason": "French for anonymous; every row is flagged by the producer"
+  },
+  {
+   "name": "Corredor Desconocido",
+   "release_rows": 33,
+   "reason": "Spanish for an unknown runner"
+  },
+  {
+   "name": "Unknown Athlete",
+   "release_rows": 32,
+   "reason": "says the athlete is unknown"
+  },
+  {
+   "name": "Atleta Não Cadastrado",
+   "release_rows": 28,
+   "reason": "Portuguese for an athlete who is not registered"
+  },
+  {
+   "name": "No Name See Sportstats",
+   "release_rows": 19,
+   "reason": "a timing company's note in place of a name"
+  },
+  {
+   "name": "Missing Name",
+   "release_rows": 17,
+   "reason": "says the name is missing"
+  },
+  {
+   "name": "Unsaved Runner",
+   "release_rows": 15,
+   "reason": "a timing system's entry for a runner it did not save"
+  },
+  {
+   "name": "RM Anonymous",
+   "release_rows": 13,
+   "reason": "says the entrant is anonymous; the producer flags 11 of these rows"
+  },
+  {
+   "name": "Unknown Person",
+   "release_rows": 13,
+   "reason": "says the person is unknown"
+  },
+  {
+   "name": "Null",
+   "release_rows": 10,
+   "reason": "an empty name field written out as Null"
+  },
+  {
+   "name": "Contact results@runnersfit.com",
+   "release_rows": 10,
+   "reason": "a timing company's contact line in place of a name"
+  },
+  {
+   "name": "Unknown Contact Sportstats",
+   "release_rows": 10,
+   "reason": "a timing company's note in place of a name"
+  },
+  {
+   "name": "Anonym",
+   "release_rows": 8,
+   "reason": "says the entrant is anonymous; every row is flagged by the producer"
+  },
+  {
+   "name": "Unknown Runner Contact Timer",
+   "release_rows": 7,
+   "reason": "a timing company's note in place of a name"
+  },
+  {
+   "name": "Unknown Runner See Timing",
+   "release_rows": 7,
+   "reason": "a timing company's note in place of a name"
+  },
+  {
+   "name": "Unknown Participant",
+   "release_rows": 7,
+   "reason": "says the participant is unknown"
+  },
+  {
+   "name": "Unknown Name",
+   "release_rows": 7,
+   "reason": "says the name is unknown"
+  },
+  {
+   "name": "Unknown Female",
+   "release_rows": 5,
+   "reason": "says the runner is unknown"
+  },
+  {
+   "name": "Name For Verification",
+   "release_rows": 5,
+   "reason": "a timing company's note in place of a name"
+  },
+  {
+   "name": "Anonymous Runner",
+   "release_rows": 5,
+   "reason": "says the entrant is anonymous; every row is flagged by the producer"
+  },
+  {
+   "name": "Anonymous Unknown",
+   "release_rows": 2,
+   "reason": "says the entrant is anonymous; every row is flagged by the producer"
+  }
+ ]
+}
