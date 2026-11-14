@@ -218,6 +218,12 @@ function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = n
   const reviewed = read(path.join(root, 'analysis/reviewed-race-dates.json')).releases[weather.input.release_tag] || [];
   const raceDates = [...weather.editions.map((row) => ({ city: row.city, year: row.year, date: row.date })),
     ...reviewed.filter((d) => !(byKey.get(key(d.city, d.year)) || {}).date).map((d) => ({ city: d.city, year: d.year, date: d.date }))];
+  // The cohort manifest states a race date for each edition from the same two sources; for every edition with finishes
+  // the date the charts order by is that date (both absent for an edition no source dates).
+  const dateOf = new Map(raceDates.map((d) => [key(d.city, d.year), d.date]));
+  editions.forEach((e, index) => {
+    if (edN[index]) assert.equal(dateOf.get(key(e.city, e.year)) ?? null, e.race_date ?? null, `${e.city} ${e.year}: the race date the charts order by is not the cohort manifest's`);
+  });
   const col = (k) => Float64Array.from(editions, (e) => { const row = byKey.get(key(e.city, e.year)); return row && finite(row[k]) ? row[k] : NaN; });
   const geometryPath = path.join(dataRoot, 'insights/course-geometry.json');
   const geometry = fs.existsSync(geometryPath) ? read(geometryPath) : { courses: [] };

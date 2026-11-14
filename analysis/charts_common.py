@@ -79,7 +79,10 @@ def count_phrase(n, noun):
 def race_dates(c):
     """{(city, year): 'YYYY-MM-DD'}: each edition's race date from the weather evidence, and for an edition the evidence has
     no row for, the reviewed and cited date in analysis/reviewed-race-dates.json for the evidence's release (New York 2026
-    in master-20261103b, November 5, 2026). A reviewed date orders linked finishes only; it is never a weather row."""
+    in master-20261103b, November 5, 2026; in the combined release of November 13, 2026 also the counted editions of
+    Austin, Los Angeles, Oklahoma City and Toronto Waterfront, which have no weather row). A reviewed date orders linked
+    finishes only; it is never a weather row. The cohort manifest states the same dates for its editions, and
+    scripts/charts/cohort.cjs holds the two together."""
     by = {(row['city'], row['year']): row.get('date') for row in c.weather['editions']}
     reviewed = json.loads((ROOT / 'analysis/reviewed-race-dates.json').read_text())['releases']
     for d in reviewed.get((c.weather.get('input') or {}).get('release_tag'), []):
