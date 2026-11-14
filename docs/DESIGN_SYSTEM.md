@@ -55,6 +55,58 @@ Spacing `--s-1…10`, the beat, head and figure gaps, radii `--r-xs…pill`, two
 - **Moved addresses:** `components/MovedPage.tsx` with `LegacyAnalysisLink.tsx`: one heading, one plain sentence saying where the page went ("Warming through the race now has its own tab in race-day weather."), one outline button ([SEO](SEO.md#moved-addresses-october-18-2026)).
 - **Info pages** (`app/styles/pages/info.css`): an H1, one dek, then short sections divided by hairlines at the reading measure, ending on `InfoNext`. `/privacy`'s short facts (`.info-facts`) also open `/methodology` (its four-fact short version, October 22, 2026), and `/about` opens on its ways in (`.info-ways`: one row per visitor goal over the page that answers it, the `/tools` row's shape). `/about` measures 2.32 phone screens of its 2.5 (October 22, 2026, after the owner's additions to How it is made; 2.22 before them and 1.49 with who and why only).
 
+## Tier and link labels
+
+Added November 14, 2026 with the adoption of `pace-notes-marathon-half-20261113-1113`, on the adoption branch `claude/release-20261113`; it is not on `main` or the live site until that branch merges. In that release every edition (one race in one year) has a verification tier and a split tier, and every link between a runner's results has a confidence. One module says them, so no page writes a badge or its words by hand (lead decision D16).
+
+- **`lib/tiers.ts`** holds the vocabulary: the words, the release's codes they answer to (every tier, split tier and link confidence the release uses), the two `/methodology` anchors, and the plain-text helpers. It imports nothing, so a builder's verifier, a card script and a client component can all read it.
+- **`components/ui/TierTag.tsx`** is the only file that draws the labels: `TierTag`, `SplitTierTag`, `TimingTag`, `LinkMark`, an edition's labels as one group (`EditionTags`), a list row's text (`TierLine`), and two terms for running copy (`TierTerm`, `LinkTerm`). It has no client script, so it renders in a server page and in a client component alike. It is a module of its own, apart from the evidence badges, so a page carries only the labels it shows.
+- **The look** is the last block of `app/styles/components/badge.css`, built from the evidence badge's and the scope chip's rules and tokens: `--ink-2` words, a `--rule-strong` hairline on the pills, no hue, no fill. A tier is not a reading, so nothing is orange. The tokens change with the surface, so the labels read on paper, on `.night` and in the dark theme with no rule of their own.
+- **`scripts/verify-tiers.cjs`** holds all of it together (below).
+
+### The words
+
+Sentence case, no number, no hue. These are the only words; a page takes them from the module.
+
+| In the data | Words | Form |
+| --- | --- | --- |
+| tier `stamped` | Verified | the badge: a tick and the word, drawn as the evidence badge is |
+| tier `stamped_weaker_source` | Verified, weaker source | the same badge, always with the two extra words |
+| tier `partial` | Partial results | an outlined pill, drawn as the scope chip is |
+| tier `unverified` | Unverified | pill |
+| tier `held_for_review` | Held for review | pill |
+| split tier `finish_time_only` | Finish times only | pill, beside the tier |
+| timing basis gross (the Berlin half marathon of 2018, 2019, 2021, 2022 and 2023) | Gun times | pill |
+| link confidence `medium_variant` and every `low…`; any link whose person the identity file leaves without a runner key | Possible match | pill |
+| split tier `splits`; link confidence `high_elite`, `high` or `medium`; a result with no link | nothing | the usual case says nothing more |
+
+The tiers `excluded` and `no_rows` belong to editions with no result. They are never shown, and asking the module for their words is an error. So is a code the module does not know, `undefined` (a misspelt field), and a `weaker_source` flag that disagrees with its tier: a build stops; no label is ever a default. Check a data file's codes in its builder's verifier with the same functions (`isShownTier`, `tierWords`, `splitTierWords`, `timingWords`, `linkWords`), so that a page never meets a bad one at run time.
+
+### Where each goes
+
+- **A label qualifies one edition or one link, where it is named:** an edition's row in a table, a race in a runner's list, a result in a list of possible matches. Tier, split-tier and timing labels link to `/methodology#edition-tiers`, the link mark to `/methodology#link-confidence`. The definitions, the counts by tier, the rule for counted editions, the release's hold notes and the link rule are written there and nowhere else ([AGENTS.md](../AGENTS.md) rule 15): a page shows the label, and the label is the way to them.
+- **Two modes.** `link` (the default) is a link to the definition with a 44 px hit area. `link={false}` is a bare label, for a row, a card or a checkbox label that is itself a control: a link holds no link.
+- **The badge only on the two verified tiers** (the release's `verified_badge`), and a weaker-source stamp always says so. Pass the release's `weaker_source` flag where the data has it (`<TierTag tier={e.tier} weakerSource={e.weaker_source} />`).
+- **"Finish times only" sits beside the tier, "Gun times" beside both.** `EditionTags` draws the three in that order in one wrapping group.
+- **A list row that stands for several editions** (a race in a directory) prints a tier line as plain words with counts: `tierLine({ stamped_weaker_source: 6, held_for_review: 10 })` reads "6 verified, weaker source · 10 held for review", and one tier for all reads "16 verified". The parts follow the table's order and add up to the editions shown; they are joined as the list rows join their facts (a no-break space, a middle dot, a space). The line is the row's text, not a badge, so it may carry counts and is never a link; the list's key line links the words to their definition once (`TierTerm`).
+- **Possible matches are listed apart** from a runner's confirmed results, each row tagged with the mark, under one line that links to the definition (`LinkTerm`). They enter no figure. In a sentence or a count the words come from the module too: `POSSIBLE_MATCHES` (the list's heading), `possibleMatchCount(2)` ("2 possible matches"), `inline(POSSIBLE_MATCH)`.
+- **Layout.** Every label is 24 px tall on one line and wraps at its spaces in a narrow column, the tick staying on the first line. A wrapping row of label links needs 22 px between its rows to keep each 44 px hit area clear (`EditionTags` has it); 27 px where a 17 px evidence badge shares the row. In a `.table` give the tier column `className="is-text"`: the other cells do not wrap and align right.
+
+### What never to do
+
+- Never write one of the phrases, in any case, in a string or in JSX text outside `lib/tiers.ts`, and never one of the classes (`tier-badge`, `tier-chip`, `tier-line`, `tier-tags`) outside `TierTag.tsx`. A sentence that needs the words takes them from the module.
+- Never give a label a hue, a fill, an icon of its own or a number, and never change its look from a page's sheet. A page sheet may place a label (margin, alignment, order); its colours, edge and type are `badge.css`'s alone.
+- Never print "Verified" for a weaker-source stamp, never show an `excluded` or `no_rows` edition, and never fall back to a default for a code the module does not know.
+- Never put a linked label inside a link, a button or a form label, and never repeat next to a label what it links to (a definition, a hold note, an official count, a coverage figure).
+- Never join a possible match into a profile's figures, and never present one as certain.
+- Never use the words for anything else. "Possible match" means the link mark; "Gun times" means an edition timed gross.
+
+### The check
+
+`node scripts/verify-tiers.cjs` fails when the module's words, codes, forms or anchors differ from the table above; when a tier, split tier or link confidence in the pinned release's checked-in files (the release contract and the edition directory in its evidence folder, and the marathon cohort manifest) has no words and is not on the never-shown list; when a function accepts what it should refuse; when a label does not render as a link to its anchor and as a bare label; when the styles drift from the evidence badge's and the scope chip's declarations, use a token those do not, or stop wrapping; and when any other file under `app/`, `components/` or `lib/` writes a phrase or a label class. Four uses stood before the module (three sentences on `/methodology` and one analysis request); they are the verifier's `BASELINE`, each listed with its file, counted and printed on every run, and a new use or a stale entry fails. `--list` prints every use it finds, `--self-test` checks the checker against planted mistakes, and `--source=<folders>` recounts the codes from the release's own files (the edition table, `EDITION-TIERS.csv`, the link file and the identity file; it needs Python with DuckDB). It is not part of `npm run verify:data` yet. `scripts/verify-tools.cjs` also fails a tool file that names a label class.
+
+When a release adds, renames or drops a code, the build stops at the first page or verifier that asks for it. Add the code and its words to `lib/tiers.ts` and to the table in `verify-tiers.cjs` only after the lead or the owner has given the words, then run `--source` on the new release's files. A share card that prints a tier takes the words from the module; add `lib/tiers.ts` to the card stamp's list (`CODE` in `scripts/build-chart-cards.cjs`) in the same change.
+
 ## Motion and accessibility
 
 Only transform and opacity animate, and only where motion explains (the replay, a scrub, the reveal of an answer); durations scale with `--motion`, which is 0 under reduced motion and the footer's Motion switch. Every interactive element is at least 44 × 44 px (`scripts/design/lint-layout.cjs`), focus is a 2 px `--focus` ring (`--focus-paper` where a night card's ring is drawn outside it on paper), every chart has a label that states its finding and a table twin, and grey text holds 4.5:1 and marks 3:1 in both themes.
