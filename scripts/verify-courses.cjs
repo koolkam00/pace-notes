@@ -684,10 +684,14 @@ if (html) {
     check(JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text), labels[0]?.tier])) === JSON.stringify(editions.map((e) => [e.year, tierTexts(e, e.timing), e.tier])), where,
       `the editions listed ${JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text)]))} are not the race's editions with their tier labels`);
     check(rows.every(([, labels]) => labels.every((l) => l.href === T.TIER_ANCHOR)), where, 'a tier label does not link to its definition');
-    // No number but the years: nothing on the page is a count, a share or a time.
-    const numbers = textOf(main.replace(/<nav\b[\s\S]*?<\/nav>/g, '').replace(/<section[^>]*id="other-courses"[\s\S]*$/, '')).match(/\d[\d,.:]*%?/g) ?? [];
+    // No number but the years and how many editions there are: nothing the page itself says is a share, a count of
+    // finishes or a time. The page's own text is its hero (without the chapter crumbs, which carry the chapter's
+    // number) and its editions section; the closing stack belongs to the chapter.
+    const ownText = textOf(((/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '').replace(/<div class="reading-crumbs[\s\S]*?<\/div>/, '')) + (sectionOf(body, 'editions') ?? ''));
+    const numbers = ownText.match(/\d[\d,.:]*%?/g) ?? [];
     const years = new Set(editions.map((e) => String(e.year)));
     check(numbers.every((n) => years.has(n) || n === String(editions.length)), where, `a number that is not one of the race's years: ${numbers.filter((n) => !years.has(n) && n !== String(editions.length)).join(', ')}`);
+    check(ownText.includes(race) && numbers.length >= editions.length, where, 'the page\'s own text does not name the race and each edition\'s year');
     check(/<p class="course-hero-sentence[^"]*"[^>]*>No pacing figures for this race\.<\/p>/.test(body), where, 'the page does not say that it has no pacing figures');
     check(sectionStart(body, 'other-courses') >= 0 && /data-track-section="hero"/.test(body), where, 'the hero or the closing stack is missing');
     for (const id of ['at-a-glance', 'finish-times', 'elevation', 'pacing', 'slowdown', 'goals', 'weather']) check(sectionStart(body, id) < 0, where, `section #${id} on a page with no counted edition`);
