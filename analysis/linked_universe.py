@@ -6,9 +6,10 @@ Everything here is a frozen rule of docs/LINKED_RECORDS.md:
   stamped, or partial with its finishes within 5% of the official count; never an edition the edition policy lists
   for a reason that is not about its split grid. **V** is F without the partial editions; **W** is F with the
   unverified editions that the policy lists for no other reason (a sensitivity reading, never published as a figure).
-- **A linked runner** is a `runner_id` of the adapted input (the producer's person id under the adapter's frozen
-  IDENTITY rule: links of high_elite, high or medium) that passes the existing screens of analysis/build_extended.py:
-  at most one recorded sex, recorded birth years at most two apart, never two records in one edition.
+- **A linked runner** is a runner key of the release's identity file (analysis/build_identity.py; plan decision
+  D24.2): the producer's person id of a link of high_elite, high or medium whose person passes three screens over
+  all of its keyed rows, marathon and half together: at most one recorded sex, birth years at most two apart, never
+  two results in one edition. No builder of this family derives a key itself.
 - **A kept result** is a record of a linked runner in W with a finish time from 2:00:00 to 12:00:00.
 - **An exact birth year** comes only from a record whose age key is a birth year and that the link build does not flag
   as an age-group floor; a runner has one when such records exist and agree to within one year.
@@ -31,19 +32,22 @@ SEX_CODE = {'M': 1, 'F': 2}
 TIER_CODE = {tier: i for i, tier in enumerate(('stamped', 'stamped_weaker_source', 'partial', 'unverified'))}
 TIERS = tuple(TIER_CODE)
 INPUT_MEMBERS = ('features.parquet', 'edition_meta.parquet', 'race_conditions.parquet', 'race_records.parquet', 'EDITIONS.json')
+IDENTITY_BUILDER = 'build_identity.py'
 
 
 # ---------------------------------------------------------------------------------------------------------------
 # Input checks
 # ---------------------------------------------------------------------------------------------------------------
-def check_inputs(source: Path, links: Path, *, release_path: Path = lc.RELEASE_PATH, registry_path: Path = lc.REGISTRY_PATH) -> dict:
-    """The adapted input, the link file, the edition policy and the race registry must be the pinned ones.
+def check_inputs(source: Path, links: Path, identity: Path, *, release_path: Path = lc.RELEASE_PATH, registry_path: Path = lc.REGISTRY_PATH) -> dict:
+    """The adapted input, the link file, the identity file, the edition policy and the race registry must be the pinned
+    ones, and the identity file must have been built from this input, this link file and the identity builder in the
+    repository.
 
     Returns what the manifest binds: the release tag, the adapted input's manifest digest and time, the policy file
-    and digest, the registry digest and the link file's digest."""
+    and digest, the registry digest, the link file's digest, and the identity file's digest with its builder's."""
     import source_quality
-    source, links = Path(source), Path(links)
-    for path in (source, links):
+    source, links, identity = Path(source), Path(links), Path(identity)
+    for path in (source, links, identity):
         if lc.inside(path, lc.ROOT):
             fail(f'{path} is inside the repository; record-level sources stay outside it (the family publishes aggregates)')
     release = json.loads(release_path.read_text())
@@ -78,12 +82,32 @@ def check_inputs(source: Path, links: Path, *, release_path: Path = lc.RELEASE_P
     if links.name != lc.LINK_ASSET or release['assets'].get(lc.LINK_ASSET) != link_sha:
         fail(f'{links} is not the pinned {lc.LINK_ASSET} (sha256 {link_sha})')
     return {
+        **check_identity(identity, tag, manifest_sha, link_sha),
         'release_tag': tag, 'input_manifest_sha256': manifest_sha, 'input_as_of': manifest['created_at'],
         'adapter_sha256': manifest['adapter']['sha256'],
         'policy_file': f'analysis/{policy_path.name}', 'policy_sha256': lc.bytes_sha256(policy_bytes),
         'registry_file': f'analysis/{registry_path.name}', 'registry_sha256': lc.bytes_sha256(registry_bytes),
         'link_file': lc.LINK_ASSET, 'link_file_sha256': link_sha,
     }
+
+
+def check_identity(identity: Path, tag: str, manifest_sha: str, link_sha: str, *, builder: Path | None = None) -> dict:
+    """The identity file states beside itself (`<file>.json`) what it was built from; each must be what this build reads:
+    the file itself, the release, the adapted input, the link file, and the identity builder in the repository."""
+    identity = Path(identity)
+    builder = lc.ANALYSIS / IDENTITY_BUILDER if builder is None else Path(builder)
+    side = Path(f'{identity}.json')
+    if not identity.is_file() or not side.is_file():
+        fail(f'{identity}: the identity file or the .json beside it is missing (analysis/{IDENTITY_BUILDER} writes both)')
+    sidecar = json.loads(side.read_text())
+    identity_sha, builder_sha = lc.file_sha256(identity), lc.file_sha256(builder)
+    if sidecar.get('file', {}).get('sha256') != identity_sha:
+        fail(f'{identity} is not the file its .json describes (sha256 {identity_sha})')
+    if sidecar.get('release_tag') != tag or sidecar.get('input_manifest_sha256') != manifest_sha or sidecar.get('link_file', {}).get('sha256') != link_sha:
+        fail(f'{identity} was built for another release, adapted input or link file; rebuild it (analysis/{IDENTITY_BUILDER})')
+    if sidecar.get('scripts', {}).get(IDENTITY_BUILDER) != builder_sha:
+        fail(f'{identity} was built by another analysis/{IDENTITY_BUILDER} than the one in the repository; rebuild it')
+    return {'identity_file': identity.name, 'identity_sha256': identity_sha, 'identity_builder_sha256': builder_sha}
 
 
 def policy_file(tag: str) -> Path:
@@ -159,8 +183,9 @@ class Universe:
     counts: dict = field(default_factory=dict)
 
 
-def load(source: Path, links: Path, policy: dict, registry: dict, *, log=print) -> Universe:
-    """Read the adapted input (and the link file's age-group-floor flag) through DuckDB into arrays."""
+def load(source: Path, links: Path, identity: Path, policy: dict, registry: dict, *, log=print) -> Universe:
+    """Read the adapted input, the identity file's runner keys and the link file's age-group-floor flag through DuckDB
+    into arrays."""
     from build_pacing import prepare
     from build_public_explorer import RATIO_EPSILON, threshold_sql
     source = Path(source)
@@ -198,7 +223,9 @@ def load(source: Path, links: Path, policy: dict, registry: dict, *, log=print) 
     for table in ('eligible', 'timing_eligible', 'paced', 'parsed', 'unique_records'):
         db.execute(f'DROP TABLE {table}')
 
-    # Linked runners: the adapter's key, then the screens the existing builders apply (analysis/build_extended.py safe_ids).
+    # Linked runners: the runner keys of the identity file, never derived here. The adapted features carry the tier
+    # condition of the same rule as `runner_id`, so every key must be that id, and a record that has the id and no key
+    # must be one a screen took out.
     checks = db.execute(f"""SELECT count(*) FILTER(WHERE (runner_id IS NOT NULL) <> coalesce(link_confidence IN {lc.LINK_TIERS}, false)),
         count(*) FILTER(WHERE runner_id IS NOT NULL AND runner_id IS DISTINCT FROM person_id),
         count(*) FILTER(WHERE runner_id IS NOT NULL AND is_ambiguous IS DISTINCT FROM false),
@@ -206,13 +233,18 @@ def load(source: Path, links: Path, policy: dict, registry: dict, *, log=print) 
     if checks[0] or checks[1] or checks[2] or checks[3] != checks[4]:
         fail(f'the adapted features do not follow the identity rule this family reads (keys off the link tiers: {checks[0]}, keys that are not the '
              f'person id: {checks[1]}, ambiguous keys: {checks[2]}, repeated record ids: {checks[3] - checks[4]})')
-    db.execute("""CREATE TEMP TABLE safe AS SELECT runner_id FROM features WHERE runner_id IS NOT NULL GROUP BY runner_id
-        HAVING count(DISTINCT CASE WHEN lower(trim(sex)) IN ('m','male','men','man') THEN 'm'
-                                   WHEN lower(trim(sex)) IN ('f','female','women','woman') THEN 'f' END) <= 1
-           AND coalesce(max(yob) - min(yob), 0) <= 2
-           AND count(*) = count(DISTINCT (city, year))""")
+    db.execute(f"""CREATE TEMP TABLE identity AS SELECT record_id, runner_key, status, not_keyed_reason FROM read_parquet('{q(identity)}')
+        WHERE distance = 'marathon' AND source_db = 'full' AND status <> 'left_out'""")
+    differ = db.execute("""SELECT count(*) FROM features f FULL JOIN identity i USING (record_id)
+        WHERE f.record_id IS NULL OR i.record_id IS NULL OR (i.runner_key IS NULL) <> (i.status <> 'keyed')
+           OR (i.runner_key IS NOT NULL AND i.runner_key IS DISTINCT FROM f.runner_id)
+           OR (i.runner_key IS NULL AND f.runner_id IS NOT NULL
+               AND coalesce(i.not_keyed_reason, '') NOT IN ('sex_conflict', 'birth_year_spread', 'two_results_in_one_edition'))""").fetchone()[0]
+    if differ:
+        fail(f'{differ} marathon records: the identity file and the adapted features disagree on a record or its key')
+    db.execute("CREATE TEMP TABLE keyed AS SELECT record_id, runner_key FROM identity WHERE status = 'keyed'")
     keys = db.execute('SELECT count(DISTINCT runner_id), count(*) FROM features WHERE runner_id IS NOT NULL').fetchone()
-    safe = db.execute('SELECT count(*) FROM safe').fetchone()[0]
+    safe = db.execute('SELECT count(DISTINCT runner_key), count(*) FROM keyed').fetchone()
 
     # The age-group-floor flag lives only in the release's link file (the adapted record_flags lost its values).
     db.execute(f"""CREATE TEMP TABLE floors AS SELECT record_id, age_key FROM read_parquet('{q(links)}')
@@ -225,12 +257,12 @@ def load(source: Path, links: Path, policy: dict, registry: dict, *, log=print) 
         fail(f'{mismatch} records: the link file and the adapted features disagree on a birth-year key or a person id')
 
     db.execute('CREATE TEMP TABLE ed AS SELECT label, year, code, in_w FROM editions')
-    db.execute(f"""CREATE TEMP TABLE kept AS SELECT f.runner_id AS pid, e.code AS edition, f.year::SMALLINT AS year, round(f.finish_time * 60, 3) AS fin,
+    db.execute(f"""CREATE TEMP TABLE kept AS SELECT k.runner_key AS pid, e.code AS edition, f.year::SMALLINT AS year, round(f.finish_time * 60, 3) AS fin,
           CASE f.sex WHEN 'M' THEN 1 WHEN 'F' THEN 2 ELSE 0 END::TINYINT AS sex,
           (f.link_confidence IN {lc.HIGH_TIERS}) AS high,
           coalesce(CASE WHEN f.yob IS NOT NULL AND g.record_id IS NULL THEN f.yob END, -1)::SMALLINT AS exact_yob,
           s.rid IS NOT NULL AS eligible, coalesce(s.slow, false) AS slow
-        FROM features f JOIN safe USING (runner_id) JOIN ed e ON e.label = f.city AND e.year = f.year
+        FROM features f JOIN keyed k USING (record_id) JOIN ed e ON e.label = f.city AND e.year = f.year
         LEFT JOIN floors g ON g.record_id = f.record_id LEFT JOIN slowdown s ON s.rid = f.record_id
         WHERE e.in_w AND round(f.finish_time * 60, 3) BETWEEN {lc.FINISH_RANGE[0]} AND {lc.FINISH_RANGE[1]}""")
     # Runner codes in the order of the person ids; every linked record of the person, on any tier and any link
@@ -252,6 +284,7 @@ def load(source: Path, links: Path, policy: dict, registry: dict, *, log=print) 
         'exact_yob': frame.exact_yob.to_numpy(np.int16), 'eligible': frame.eligible.to_numpy(bool), 'slow': frame.slow.to_numpy(bool),
         'n_any': frame.n_any.to_numpy(np.int32), 'first_any': frame.first_any.to_numpy(np.int16),
     })
-    counts = {'keys': int(keys[0]), 'keyed_records': int(keys[1]), 'linked_runners': int(safe), 'kept_results_wider': int(len(results)),
+    counts = {'keys_before_the_screens': int(keys[0]), 'keyed_records_before_the_screens': int(keys[1]), 'linked_runners': int(safe[0]),
+              'keyed_records': int(safe[1]), 'kept_results_wider': int(len(results)),
               'kept_runners_wider': int(results.person.max()) + 1 if len(results) else 0}
     return Universe(editions=editions, results=results, field_share=share[['code', 'eligible', 'slow']].reset_index(drop=True), counts=counts)

@@ -163,7 +163,16 @@ def build_bests(results: pd.DataFrame, editions: pd.DataFrame, masks: dict) -> d
     n_by, k_by = np.bincount(binned, minlength=cap + 1), np.bincount(binned, weights=best3, minlength=cap + 1).astype(np.int64)
     if n_by[1:].min() < MIN_CELL:
         fail('years since the previous recorded best: no bin holds 100 results')
-    by_years = [{'years': y, 'or_more': y == cap, 'results': int(n_by[y]), 'recorded_bests': int(k_by[y]), 'share': sh(k_by[y] / n_by[y])} for y in range(1, cap + 1)]
+    by_years = [{'years': y, 'or_more': y == cap, 'results': int(n_by[y]), 'recorded_bests': int(k_by[y]), 'share': sh(k_by[y] / n_by[y]), 'variants': {}}
+                for y in range(1, cap + 1)]
+    for name in VARIANTS:   # the same bins on each variant's own histories
+        vl = hist[name][hist[name].one_per_year & (hist[name].attempt >= 3)]
+        vs = np.minimum((vl.year.to_numpy() - vl.best_year.to_numpy()).astype(np.int64), cap)
+        vn = np.bincount(vs, minlength=cap + 1)
+        vk = np.bincount(vs, weights=vl.fin.to_numpy() < vl.best_prior.to_numpy(), minlength=cap + 1).astype(np.int64)
+        for row in by_years:
+            y = row['years']
+            row['variants'][name] = {'results': int(vn[y]), 'recorded_bests': int(vk[y])} if vn[y] >= MIN_CELL else None
 
     # the size of a new recorded best
     new = later[is_best]
@@ -174,7 +183,13 @@ def build_bests(results: pd.DataFrame, editions: pd.DataFrame, masks: dict) -> d
     g, m = _quantiles(gain), _quantiles(minutes)
     size = {'recorded_bests': int(len(new)), 'median_pct': pct(g[1]), 'q25_pct': pct(g[0]), 'q75_pct': pct(g[2]),
             'median_minutes': num(m[1], 2), 'q25_minutes': num(m[0], 2), 'q75_minutes': num(m[2], 2),
-            'under_one_minute': int((new.best_prior.to_numpy() - new.fin.to_numpy() < 60).sum())}
+            'under_one_minute': int((new.best_prior.to_numpy() - new.fin.to_numpy() < 60).sum()), 'variants': {}}
+    for name in VARIANTS:
+        vl = hist[name][hist[name].one_per_year & (hist[name].attempt >= 2)]
+        vnew = vl[vl.fin.to_numpy() < vl.best_prior.to_numpy()]
+        size['variants'][name] = None if len(vnew) < MIN_CELL else {
+            'recorded_bests': int(len(vnew)), 'median_pct': pct(_quantiles(100.0 * (1.0 - vnew.fin.to_numpy() / vnew.best_prior.to_numpy()))[1]),
+            'median_minutes': num(_quantiles((vnew.best_prior.to_numpy() - vnew.fin.to_numpy()) / 60.0)[1], 2)}
 
     # the steps: consecutive recorded marathons at most two calendar years apart
     steps = {name: step_pairs(x) for name, x in hist.items()}
@@ -210,7 +225,17 @@ def build_bests(results: pd.DataFrame, editions: pd.DataFrame, masks: dict) -> d
         bands.pop()
     if any(len(b[2]) < MIN_CELL for b in bands):
         fail('a band of the mean of the two finishes holds fewer than 100 pairs between two that hold more')
-    by_mean = [{'mean_finish_from_s': lo, 'mean_finish_to_s': hi, **_step_row(d), 'share_faster': sh((d < 0).mean())} for lo, hi, d in bands]
+    by_mean = [{'mean_finish_from_s': lo, 'mean_finish_to_s': hi, **_step_row(d), 'share_faster': sh((d < 0).mean()), 'variants': {}} for lo, hi, d in bands]
+    first_any_row = _step_row(first_any) | {'share_faster': sh((first_any < 0).mean()), 'variants': {}}
+    for name in VARIANTS:
+        va = step_pairs(hist[name], max_gap=None)
+        vd = va.d.to_numpy()[va.step.to_numpy() == 1]
+        first_any_row['variants'][name] = _step_row(vd) if len(vd) >= MIN_CELL else None
+        vf = steps[name][steps[name].step == 1]
+        vmean = (vf.f1.to_numpy() + vf.f2.to_numpy()) / 2.0
+        for row in by_mean:
+            vb = vf.d.to_numpy()[(vmean >= (row['mean_finish_from_s'] or 0)) & (vmean < (row['mean_finish_to_s'] or np.inf))]
+            row['variants'][name] = _step_row(vb) if len(vb) >= MIN_CELL else None
 
     with_prior = h[h.one_per_year & (h.attempt >= 2)]
     cohort = {
@@ -225,7 +250,7 @@ def build_bests(results: pd.DataFrame, editions: pd.DataFrame, masks: dict) -> d
     return {'cohort': cohort, 'margin': lc.BESTS_MARGIN, 'min_results': MIN_CELL, 'by_recorded_attempt': by_attempt,
             'by_years_since_previous_recorded_best': by_years, 'new_recorded_best_size': size,
             'steps': {'max_years_apart': lc.STEP_MAX_GAP, 'by_step': by_step,
-                      'first_recorded_to_second_any_years_apart': _step_row(first_any) | {'share_faster': sh((first_any < 0).mean())},
+                      'first_recorded_to_second_any_years_apart': first_any_row,
                       'first_recorded_to_second_by_mean_finish': by_mean}}
 
 

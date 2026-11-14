@@ -470,6 +470,23 @@ class Bests(unittest.TestCase):
         self.assertTrue(all(row['variants']['high'] is None for row in b['by_recorded_attempt']))
         self.assertTrue(all(row['variants']['verified'] is not None for row in b['by_recorded_attempt'][:1]))
 
+    def test_every_table_carries_its_variants(self):
+        b = lh.build_bests(self.r, self.editions, self.masks)
+        h = {name: lh.history(self.r[mask]) for name, mask in self.masks.items()}
+        for row in b['by_years_since_previous_recorded_best']:
+            self.assertEqual(sorted(row['variants']), ['complete', 'high', 'verified'])
+            for name, v in row['variants'].items():
+                self.assertTrue(v is None or v['results'] >= 100)
+                x = h[name][h[name].one_per_year & (h[name].attempt >= 3)]
+                since = np.minimum((x.year - x.best_year).to_numpy(), len(b['by_years_since_previous_recorded_best']))
+                if v is not None:
+                    self.assertEqual(v['results'], int((since == row['years']).sum()))
+        self.assertEqual(b['new_recorded_best_size']['variants']['complete']['recorded_bests'], b['new_recorded_best_size']['recorded_bests'])
+        self.assertEqual(b['steps']['first_recorded_to_second_any_years_apart']['variants']['complete']['pairs'], b['steps']['first_recorded_to_second_any_years_apart']['pairs'])
+        for band in b['steps']['first_recorded_to_second_by_mean_finish']:
+            self.assertEqual(band['variants']['complete']['pairs'], band['pairs'])
+            self.assertTrue(band['variants']['high'] is None or band['variants']['high']['pairs'] >= 100)
+
     def test_the_first_step_is_banded_by_the_mean_of_the_two_finishes_only(self):
         b = lh.build_bests(self.r, self.editions, self.masks)
         bands = b['steps']['first_recorded_to_second_by_mean_finish']
@@ -552,12 +569,15 @@ class Return(unittest.TestCase):
         self.assertAlmostEqual(without, (40 * 0.5 + 60 * 0.25 + 30 * 0.2) / 130)
         self.assertEqual(raw['with_slowdown'], {'finishes': 149, 'seen_again': 62})
         editions = pd.DataFrame({'code': np.arange(10), 'tier': ['stamped'] * 10})
-        out = lret.build(r, editions, {'F': np.ones(len(r), dtype=bool), 'high': np.ones(len(r), dtype=bool)}, reps=50)
+        ones = np.ones(len(r), dtype=bool)
+        out = lret.build(r, editions, {'F': ones, 'verified': r.edition.to_numpy() != 3, 'high': ones}, reps=50)
+        self.assertIsNone(out['verified'])                                        # two editions left: under the floor of three
+        self.assertEqual(out['high']['with_slowdown'], out['with_slowdown'])
         self.assertEqual((out['cells'], out['editions'], out['with_slowdown']['finishes']), (3, 3, 130))
         self.assertLessEqual(out['difference_lo_points'], out['difference_points'])
         self.assertLessEqual(out['difference_points'], out['difference_hi_points'])
         two = results_frame([row for row in rows if row[1] in (0, 1, 9)])
-        self.assertIsNone(lret.build(two, editions, {'F': np.ones(len(two), dtype=bool), 'high': np.ones(len(two), dtype=bool)}, reps=10))   # two editions
+        self.assertIsNone(lret.build(two, editions, {k: np.ones(len(two), dtype=bool) for k in ('F', 'verified', 'high')}, reps=10))   # two editions
 
 
 class Published(unittest.TestCase):

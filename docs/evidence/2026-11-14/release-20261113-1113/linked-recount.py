@@ -1,10 +1,11 @@
 """An independent recount of the linked-records family's histories (docs/LINKED_RECORDS.md) from the adapted input.
 
-    python3 -I linked-recount.py <adapted FULL dir> <person-ids-v5.1-race_results_linked.parquet> [<public/data/linked>]
+    python3 -I linked-recount.py <adapted FULL dir> <person-ids-v5.1-race_results_linked.parquet> <identity.parquet> [<public/data/linked>]
 
 It shares one thing with the builders, the edition sets (analysis/linked_universe.classify_editions, which has its own
-tests), and nothing else: linked runners, kept results, recorded attempts, recorded bests, steps, exact birth years and
-age pairs are counted again in SQL with window functions, where the builders use sorted arrays. It compares each count
+tests), and nothing else: kept results, recorded attempts, recorded bests, steps, exact birth years and age pairs are
+counted again in SQL with window functions, where the builders use sorted arrays. The runner keys are the identity
+file's, as the builders'; the same three screens on the marathon rows alone are counted beside them for comparison. It compares each count
 with the published files and exits 1 on a difference. It does not recount the pair model's fit (the tests compare that
 with a dense least-squares solution, and linked-build.txt records a comparison with the research prototype's solver).
 DuckDB is capped at 2.5 GB; about 15 seconds.
@@ -19,7 +20,7 @@ import duckdb  # noqa: E402
 import linked_universe  # noqa: E402
 
 
-def main(source, links, family):
+def main(source, links, identity, family):
     policy = json.loads((ROOT / 'analysis' / 'edition-policy-20261113-1113.json').read_text())
     db = duckdb.connect()
     db.execute("SET memory_limit='2500MB'; SET threads=2")
@@ -27,16 +28,18 @@ def main(source, links, family):
     rows = [{**r, 'timing_basis': r['timing_basis'] if isinstance(r['timing_basis'], str) else None} for r in meta.to_dict('records')]
     editions = linked_universe.classify_editions(rows, json.loads((source / 'EDITIONS.json').read_text())['editions'], policy)   # noqa: F841 (read by SQL)
     db.execute(f"CREATE VIEW f AS SELECT * FROM read_parquet('{source}/features.parquet')")
-    # linked runners: the adapter's key, one recorded sex, birth years at most two apart, never two records in an edition
-    db.execute("""CREATE TEMP TABLE safe AS SELECT runner_id FROM f WHERE runner_id IS NOT NULL GROUP BY 1
-        HAVING count(DISTINCT CASE WHEN sex IN ('M','F') THEN sex END) <= 1 AND coalesce(max(yob) - min(yob), 0) <= 2 AND count(*) = count(DISTINCT (city, year))""")
-    db.execute("""CREATE TEMP TABLE k AS SELECT f.runner_id pid, f.year, round(f.finish_time * 60, 3) fin, f.sex, f.yob, f.record_id
-        FROM f JOIN safe USING (runner_id) JOIN editions e ON e.label = f.city AND e.year = f.year
+    # linked runners: the identity file's keys (marathon rows); beside them, the three screens on the marathon rows alone
+    db.execute(f"""CREATE TEMP TABLE keyed AS SELECT record_id, runner_key FROM read_parquet('{identity}')
+        WHERE distance = 'marathon' AND source_db = 'full' AND status = 'keyed'""")
+    alone = db.execute("""SELECT count(*) FROM (SELECT runner_id FROM f WHERE runner_id IS NOT NULL GROUP BY 1
+        HAVING count(DISTINCT CASE WHEN sex IN ('M','F') THEN sex END) <= 1 AND coalesce(max(yob) - min(yob), 0) <= 2 AND count(*) = count(DISTINCT (city, year)))""").fetchone()[0]
+    db.execute("""CREATE TEMP TABLE k AS SELECT i.runner_key pid, f.year, round(f.finish_time * 60, 3) fin, f.sex, f.yob, f.record_id
+        FROM f JOIN keyed i USING (record_id) JOIN editions e ON e.label = f.city AND e.year = f.year
         WHERE e.in_f AND round(f.finish_time * 60, 3) BETWEEN 7200 AND 43200""")
     db.execute("""CREATE TEMP TABLE h AS SELECT *, row_number() OVER (PARTITION BY pid ORDER BY year) att, max(ny) OVER (PARTITION BY pid) max_per_year,
         min(fin) OVER (PARTITION BY pid ORDER BY year RANGE BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) best_prior
         FROM (SELECT *, count(*) OVER (PARTITION BY pid, year) ny FROM k)""")
-    out = {'linked_runners': db.execute('SELECT count(*) FROM safe').fetchone()[0]}
+    out = {'linked_runners': db.execute('SELECT count(DISTINCT runner_key) FROM keyed').fetchone()[0], 'keys_passing_the_screens_on_marathon_rows_alone': alone}
     out['kept_results'], out['people'] = db.execute('SELECT count(*), count(DISTINCT pid) FROM k').fetchone()
     out['bests'] = {a: [n, b] for a, n, b in db.execute('SELECT att, count(*), sum((fin < best_prior)::INT) FROM h WHERE max_per_year = 1 AND att >= 2 GROUP BY 1 ORDER BY 1').fetchall()}
     out['steps'] = {a: [n, b, m] for a, n, b, m in db.execute("""SELECT a.att, count(*), sum((b.fin < a.fin)::INT), round(100 * (exp(median(ln(b.fin / a.fin))) - 1), 3)
@@ -87,6 +90,6 @@ def main(source, links, family):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) not in (3, 4):
+    if len(sys.argv) not in (4, 5):
         sys.exit(__doc__)
-    sys.exit(main(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]) if len(sys.argv) == 4 else None))
+    sys.exit(main(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]) if len(sys.argv) == 5 else None))

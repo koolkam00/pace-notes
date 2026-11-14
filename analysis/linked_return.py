@@ -5,7 +5,8 @@ sustained slowdown is compared with the finishes without one in the same edition
 with at least 20 finishes on each side; each cell weighs its finishes with a slowdown). "Seen again within two years"
 means a kept result of the same linked runner in the finish-time universe in one of the next two calendar years; a
 marathon outside these records does not count, so the two shares are floors and only their difference is read. The
-interval of the difference resamples whole editions.
+interval of the difference resamples whole editions. The verified-tiers and high-links variants repeat the comparison
+on their own results (both the finishes compared and the later results that count as seen again).
 """
 from __future__ import annotations
 
@@ -91,13 +92,16 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, masks: dict, *, reps: i
         if len(part) and part.n1.sum() >= MIN_CELL and part.edition.nunique() >= lc.MIN_EDITIONS:
             bands.append({'finish_from_s': lo, 'finish_to_s': hi, **summary(part)})
     out['by_finish'] = bands
-    hc, _ = cells(results[masks['high']])
-    out['high'] = summary(hc) if len(hc) and hc.n1.sum() >= MIN_CELL and hc.edition.nunique() >= lc.MIN_EDITIONS else None
-    high_diff = None if out['high'] is None else out['high']['difference_points']
+    variants = []
+    for name in ('verified', 'high'):   # the same comparison on verified tiers only and on high links only
+        vc, _ = cells(results[masks[name]])
+        out[name] = summary(vc) if len(vc) and vc.n1.sum() >= MIN_CELL and vc.edition.nunique() >= lc.MIN_EDITIONS else None
+        if out[name] is not None:
+            variants.append(out[name]['difference_points'])
     lo_p, hi_p = out['difference_lo_points'], out['difference_hi_points']
-    if hi_p < 0 and (high_diff is None or high_diff < 0):
+    if hi_p < 0 and all(v < 0 for v in variants):
         out['verdict'] = 'less_often'
-    elif lo_p > 0 and (high_diff is None or high_diff > 0):
+    elif lo_p > 0 and all(v > 0 for v in variants):
         out['verdict'] = 'more_often'
     else:
         out['verdict'] = None

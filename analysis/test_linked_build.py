@@ -59,7 +59,7 @@ def write_input(folder: Path, seed=1, runners=3000):
     editions = edition_table()
     year_effect = {y: e for y, e in zip(YEARS, rng.normal(0, 0.015, len(YEARS)))}
     race_effect = {'Alpha': -0.02, 'Beta': 0.0, 'Gamma': 0.03}
-    records, features, links = [], [], []
+    records, features, links, identity = [], [], [], []
     rid = 1000
     labels = list(RACES)
     for p in range(runners):
@@ -68,6 +68,7 @@ def write_input(folder: Path, seed=1, runners=3000):
         sex = 'M' if p % 6 else 'F'
         conf = ('high', 'medium', 'high_elite', 'low')[p % 4] if p % 97 else None
         floor_only = p % 5 == 0          # this runner's ages are age-group floors: no exact birth year
+        screened = p % 53 == 0           # the identity file takes this runner's key: a half result widens the birth years
         years = sorted(rng.choice(YEARS, size=4, replace=False).tolist())
         for k, year in enumerate(years):
             label = labels[int(rng.integers(0, 3))]
@@ -92,6 +93,9 @@ def write_input(folder: Path, seed=1, runners=3000):
             features.append((rid, label, year, f'{label} Marathon', name, sex, float(year - yob), yob, fin_s / 60.0, pid if keyed else None,
                              False if keyed else None, pid if keyed else None, pid, conf))
             links.append((rid, 'marathon', 'full', f'yob:{yob}', 'age_is_group_floor' if floor_only else None, pid))
+            status = 'unlinked' if pid is None else 'keyed' if keyed and not screened else 'possible_match'
+            reason = {'unlinked': 'unlinked', 'keyed': None}.get(status, 'birth_year_spread' if keyed else 'tier_below_medium')
+            identity.append(('full', rid, 'marathon', pid if status == 'keyed' else None, status, conf, pid, reason))
             rid += 1
     rec = pd.DataFrame(records, columns=['id', 'race', 'year', 'city', 'runner', 'sex', 'age', 'age_group', *[f'split_{k}km' for k in (5, 10, 15, 20, 25, 30, 35, 40)],
                                          'split_42_2km', 'source_url', 'ingested_at', 'age_or_group'])
@@ -110,6 +114,11 @@ def write_input(folder: Path, seed=1, runners=3000):
     (folder / 'links').mkdir()
     con.register('frame', link)
     con.execute(f"COPY (SELECT * FROM frame) TO '{folder / 'links' / lc.LINK_ASSET}' (FORMAT parquet)")
+    con.unregister('frame')
+    # the identity file: one row per release row; a half row and a row the row rule left out are there too and are never read
+    extra = [('half', 1, 'half', 'px_half', 'keyed', 'high', 'px_half', None), ('full', 1, 'marathon', None, 'left_out', 'high', 'px_out', 'left_out_by_row_rule')]
+    con.register('frame', pd.DataFrame(identity + extra, columns=['source_db', 'record_id', 'distance', 'runner_key', 'status', 'link_tier', 'person_id', 'not_keyed_reason']))
+    con.execute(f"COPY (SELECT * FROM frame) TO '{folder / 'links' / 'identity.parquet'}' (FORMAT parquet)")
     con.close()
     counts = rec.groupby(['city', 'year']).size().to_dict()
     editions_json = [{'city': k[0], 'year': k[1], 'n_records': int(counts.get(k, 0)), 'n_finishes': int(counts.get(k, 0)),
@@ -196,17 +205,19 @@ class Build(unittest.TestCase):
         (cls.folder / 'policy.json').write_text(json.dumps(cls.policy))
         (cls.folder / 'registry.json').write_text(json.dumps(cls.registry))
         cls.links = cls.source / 'links' / lc.LINK_ASSET
+        cls.identity = cls.source / 'links' / 'identity.parquet'
         cls.binding = {'release_tag': TAG, 'input_manifest_sha256': 'a' * 64, 'input_as_of': '2026-01-01T00:00:00Z', 'adapter_sha256': 'b' * 64,
                        'policy_file': str(cls.folder / 'policy.json'), 'policy_sha256': 'c' * 64, 'registry_file': 'registry.json',
-                       'registry_sha256': 'd' * 64, 'link_file': lc.LINK_ASSET, 'link_file_sha256': 'e' * 64}
+                       'registry_sha256': 'd' * 64, 'link_file': lc.LINK_ASSET, 'link_file_sha256': 'e' * 64,
+                       'identity_file': 'identity.parquet', 'identity_sha256': 'f' * 64, 'identity_builder_sha256': '0' * 64}
         # The site's cohort code applies the reviewed policy of the input's release tag: give the test tag the same list.
         import source_quality
         original = lu.check_inputs
         lu.check_inputs = lambda *a, **k: dict(cls.binding)
         source_quality.REVIEWED_POLICIES[TAG] = [(e['city'], e['year'], e['category'], 'a test edition') for e in cls.policy['editions']]
         try:
-            cls.meta = build_linked.run(cls.source, cls.links, cls.folder / 'out1', boot=25, registry_path=cls.folder / 'registry.json')
-            cls.again = build_linked.run(cls.source, cls.links, cls.folder / 'out2', boot=25, registry_path=cls.folder / 'registry.json')
+            cls.meta = build_linked.run(cls.source, cls.links, cls.identity, cls.folder / 'out1', boot=25, registry_path=cls.folder / 'registry.json')
+            cls.again = build_linked.run(cls.source, cls.links, cls.identity, cls.folder / 'out2', boot=25, registry_path=cls.folder / 'registry.json')
         finally:
             lu.check_inputs = original
             del source_quality.REVIEWED_POLICIES[TAG]
@@ -227,6 +238,7 @@ class Build(unittest.TestCase):
         m = self.files['manifest.json']
         self.assertEqual((m['family'], m['release_tag'], m['input']['manifest_sha256'], m['policy']['sha256'], m['registry']['sha256'], m['links']['sha256']),
                          ('linked', TAG, 'a' * 64, 'c' * 64, 'd' * 64, 'e' * 64))
+        self.assertEqual(m['identity'], {'file': 'identity.parquet', 'sha256': 'f' * 64, 'builder': 'analysis/build_identity.py', 'builder_sha256': '0' * 64})
         self.assertEqual(sorted(m['scripts']), sorted(f'analysis/{n}' for n in build_linked.SCRIPTS + build_linked.SHARED_SCRIPTS))
         for name, digest in m['scripts'].items():
             self.assertEqual(digest, lc.file_sha256(lc.ROOT / name))
@@ -244,9 +256,12 @@ class Build(unittest.TestCase):
         self.assertEqual(u['wider']['editions'], 22)
         self.assertEqual(u['F']['editions_by_tier'], {'partial': 5, 'stamped': 8, 'stamped_weaker_source': 8})
         self.assertEqual(u['counted']['editions'], 19)    # the split editions of F
-        # links: a quarter of the runners carry a low link, one in 97 none; neither keys a runner
-        self.assertLess(u['linked_runners'], 3000 * 0.76)
-        self.assertGreater(u['linked_runners'], 3000 * 0.70)
+        # links: a quarter of the runners carry a low link, one in 97 none; neither keys a runner. Of the others the
+        # identity file takes the key of one in 53 (a screen over both distances): the adapted features still carry it.
+        keyed = [p for p in range(3000) if p % 97 and p % 4 != 3]
+        self.assertEqual(u['keys_before_the_screens'], len(keyed))
+        self.assertEqual(u['linked_runners'], len([p for p in keyed if p % 53]))
+        self.assertEqual(u['keyed_records'], 4 * u['linked_runners'])
 
     def test_edition_readings_floors_and_bases(self):
         e = self.files['editions.json']
@@ -260,6 +275,8 @@ class Build(unittest.TestCase):
                 self.assertLessEqual(row['lo_pct'], row['reading_pct'])
                 self.assertLessEqual(row['reading_pct'], row['hi_pct'])
                 self.assertIn(row['verdict'], ('fast', 'slow', 'usual', None))
+                group = [math.log1p(r['reading_pct'] / 100) for r in years.values() if r['basis'] == row['basis']]
+                self.assertAlmostEqual(row['year_sd_pct'], 100 * float(np.std(group, ddof=1)) * (len(group) - 1) / len(group), delta=2e-3)
                 self.assertEqual(row['basis'], 'gun' if label == 'Gamma' else 'chip_or_net')
         self.assertEqual(e['summary']['editions'], 19)
 
@@ -327,7 +344,28 @@ class Build(unittest.TestCase):
 class Inputs(unittest.TestCase):
     def test_a_source_inside_the_repository_is_refused(self):
         with self.assertRaises(lc.LinkedError):
-            lu.check_inputs(lc.ROOT / 'public' / 'data', Path('/nowhere') / lc.LINK_ASSET)
+            lu.check_inputs(lc.ROOT / 'public' / 'data', Path('/nowhere') / lc.LINK_ASSET, Path('/nowhere') / 'identity.parquet')
+
+    def test_the_identity_file_must_be_the_one_built_for_this_input(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            identity, builder = folder / 'identity.parquet', folder / 'build_identity.py'
+            identity.write_bytes(b'rows')
+            builder.write_text('# the identity builder')
+            good = {'release_tag': 'tag', 'input_manifest_sha256': 'm' * 64, 'link_file': {'sha256': 'l' * 64},
+                    'file': {'sha256': lc.file_sha256(identity)}, 'scripts': {'build_identity.py': lc.file_sha256(builder)}}
+
+            def check(**change):
+                (folder / 'identity.parquet.json').write_text(json.dumps({**good, **change}))
+                return lu.check_identity(identity, 'tag', 'm' * 64, 'l' * 64, builder=builder)
+            self.assertEqual(check(), {'identity_file': 'identity.parquet', 'identity_sha256': lc.file_sha256(identity), 'identity_builder_sha256': lc.file_sha256(builder)})
+            for change in ({'release_tag': 'another'}, {'input_manifest_sha256': 'x' * 64}, {'link_file': {'sha256': 'x' * 64}},
+                           {'file': {'sha256': 'x' * 64}}, {'scripts': {'build_identity.py': 'x' * 64}}):
+                with self.assertRaises(lc.LinkedError):
+                    check(**change)
+            (folder / 'identity.parquet.json').unlink()
+            with self.assertRaises(lc.LinkedError):
+                lu.check_identity(identity, 'tag', 'm' * 64, 'l' * 64, builder=builder)
 
     def test_the_registry_must_carry_labels(self):
         with self.assertRaises(lc.LinkedError):

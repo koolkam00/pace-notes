@@ -1,12 +1,13 @@
 """Build the linked-records family, public/data/linked/ (docs/LINKED_RECORDS.md).
 
-    python3 -I analysis/build_linked.py --input "$PACE_INPUT_DIR" --links "$PACE_RELEASE_DIR/person-ids-v5.1-race_results_linked.parquet" \
-        [--out public/data/linked] [--boot 400] [--accept-counts]
+    python3 -I analysis/build_linked.py --input "$PACE_INPUT_DIR" --identity "$PACE_INPUT_DIR/../identity.parquet" \
+        --links "$PACE_RELEASE_DIR/person-ids-v5.1-race_results_linked.parquet" [--out public/data/linked] [--boot 400] [--accept-counts]
 
-Reads the adapted marathon input (analysis/adapt_combined.py; FULL bundle) and, for the age-group-floor flag only, the
-release's link file, both read-only and both checked against their pins: the input's MANIFEST.json is the one the frozen
-edition policy was built on, every member read is the file the manifest lists, the link file is the release asset
-analysis/release.json pins. Writes aggregates only:
+Reads the adapted marathon input (analysis/adapt_combined.py; FULL bundle), the release's identity file for the runner
+keys (analysis/build_identity.py) and, for the age-group-floor flag only, the release's link file, all read-only and all
+checked: the input's MANIFEST.json is the one the frozen edition policy was built on, every member read is the file the
+manifest lists, the link file is the release asset analysis/release.json pins, and the identity file was built from
+this input and this link file by the identity builder in the repository. Writes aggregates only:
 
     editions.json   fast years and slow years: an edition against the race's other years, by registry label and year
     races.json      the same linked runners at different races: a reading per race, in label order, no rank
@@ -70,7 +71,7 @@ def definitions() -> dict:
 
 def universe_counts(u, masks: dict) -> dict:
     e, r = u.editions, u.results
-    out = {'editions_with_rows': int(len(e)), 'linked_runners': u.counts['linked_runners'], 'keys': u.counts['keys'], 'keyed_records': u.counts['keyed_records']}
+    out = {'editions_with_rows': int(len(e)), **{k: u.counts[k] for k in ('linked_runners', 'keyed_records', 'keys_before_the_screens', 'keyed_records_before_the_screens')}}
     for name, column in (('F', 'in_f'), ('verified', 'in_v'), ('wider', 'in_w')):
         part = e[e[column]]
         kept = r[masks[name]]
@@ -104,6 +105,8 @@ def manifest(binding: dict, counts: dict, out_bytes: dict, boot: int) -> dict:
         'policy': {'file': binding['policy_file'], 'sha256': binding['policy_sha256']},
         'registry': {'file': binding['registry_file'], 'sha256': binding['registry_sha256']},
         'links': {'file': binding['link_file'], 'sha256': binding['link_file_sha256'], 'use': 'the age-group-floor flag of a record'},
+        'identity': {'file': binding['identity_file'], 'sha256': binding['identity_sha256'], 'builder': 'analysis/build_identity.py',
+                     'builder_sha256': binding['identity_builder_sha256']},
         'scripts': {f'analysis/{name}': file_sha256(ANALYSIS / name) for name in SCRIPTS + SHARED_SCRIPTS},
         'definitions': definitions() | {'bootstrap_draws': int(boot)},
         'cohort': counts,
@@ -131,14 +134,15 @@ def write(path: Path, data: bytes) -> None:
     tmp.replace(path)
 
 
-def run(source: Path, links: Path, out: Path, *, boot: int = lc.BOOT_REPS, accept_counts: bool = False, registry_path: Path = lc.REGISTRY_PATH) -> dict:
+def run(source: Path, links: Path, identity: Path, out: Path, *, boot: int = lc.BOOT_REPS, accept_counts: bool = False,
+        registry_path: Path = lc.REGISTRY_PATH) -> dict:
     started = time.time()
     import linked_universe
-    binding = linked_universe.check_inputs(source, links, registry_path=registry_path)
+    binding = linked_universe.check_inputs(source, links, identity, registry_path=registry_path)
     policy = json.loads((lc.ROOT / binding['policy_file']).read_text())
     registry = json.loads(Path(registry_path).read_text())
     log(f'linked: inputs match their pins ({time.time() - started:.0f} s)')
-    u = linked_universe.load(source, links, policy, registry, log=log)
+    u = linked_universe.load(source, links, identity, policy, registry, log=log)
     return assemble(u, binding, registry, out, boot=boot, accept_counts=accept_counts, started=started)
 
 
@@ -200,15 +204,17 @@ def main(argv=None) -> int:
     parser.add_argument('--input', type=Path, default=Path(os.environ['PACE_INPUT_DIR']) if os.environ.get('PACE_INPUT_DIR') else None,
                         help='the adapted FULL input folder (analysis/adapt_combined.py)')
     parser.add_argument('--links', type=Path, default=None, help=f'the release asset {lc.LINK_ASSET}')
+    parser.add_argument('--identity', type=Path, default=None, help='the release\'s identity file (analysis/build_identity.py), with its .json beside it')
     parser.add_argument('--out', type=Path, default=OUTPUT)
     parser.add_argument('--boot', type=int, default=lc.BOOT_REPS, help='runner bootstrap draws (the published build uses the default)')
     parser.add_argument('--accept-counts', action='store_true', help='accept reviewed count changes (a refresh only)')
     parser.add_argument('--registry', type=Path, default=lc.REGISTRY_PATH, help=argparse.SUPPRESS)   # development only; the verifier pins the real one
     args = parser.parse_args(argv)
-    if args.input is None or args.links is None:
-        parser.error('--input and --links are required')
+    if args.input is None or args.links is None or args.identity is None:
+        parser.error('--input, --links and --identity are required')
     try:
-        run(args.input.expanduser(), args.links.expanduser(), args.out, boot=args.boot, accept_counts=args.accept_counts, registry_path=args.registry)
+        run(args.input.expanduser(), args.links.expanduser(), args.identity.expanduser(), args.out, boot=args.boot, accept_counts=args.accept_counts,
+            registry_path=args.registry)
     except LinkedError as error:
         print(f'build_linked: {error}', file=sys.stderr)
         return 1

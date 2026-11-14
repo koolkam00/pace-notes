@@ -1,40 +1,71 @@
 Linked records (public/data/linked): the kept build, its second build, the verifier and two independent recounts.
 Release pace-notes-marathon-half-20261113-1113; machine: 4 CPUs, 15 GB; every time is UTC, November 14, 2026.
 Contract: docs/LINKED_RECORDS.md. Commands as in its Rebuild section, under the heavy-job lock.
+This is the third build of the day and the one the branch holds. The first (03:56) applied the linked-runner screens to
+marathon rows alone; the second (04:28) corrected the standard error of a race level; this one reads the runner keys
+from identity.parquet (plan decision D24 item 2) and adds the variants on every recorded-bests table, the verified-tiers
+variant of the return comparison and the year-to-year spread on each edition row. The count changes it prints are
+against the second build and come from the 708 runners (1,990 marathon records) that lose their key over both distances.
 
 == 1. The kept build and a second build into a scratch folder (analysis/build_linked.py, 400 bootstrap draws) ==
-start 2026-11-14T04:28:20Z head 9d552004a38795376ccdb57483479a320905d7d6 input c0ddc847837382ae9b9ed7a52812a851588c7add8d04368e77226bf075d8310b
+start 2026-11-14T05:01:16Z head 77adf8d208a12c2b863ff1bd267343588a37a3ca input c0ddc847837382ae9b9ed7a52812a851588c7add8d04368e77226bf075d8310b identity 
+152f451b66c39f4e3c3b3ae15bfb5ff2c0d445820721860f79be72625112be5c
 linked: inputs match their pins (2 s)
-linked: 5,068,249 kept results read
-linked: universe F 845 editions, 4,416,448 kept results (27 s)
-linked: main fit 2,099,809 pairs, 645,733 linked runners, 514 editions
-linked: verified fit 1,525,833 pairs, 479 editions
-linked: high fit 1,313,389 pairs, 432 editions
-linked: wider fit 2,564,605 pairs, 996 editions
-linked: readings done (163 s)
-linked: histories done (170 s)
-{"files": {"editions.json": 83104, "races.json": 33853, "checks.json": 60165, "bests.json": 14914, "age.json": 6410, "return.json": 1979}, "seconds": 170, "peak_rss_mb": 5417}
+linked: 5,066,426 kept results read
+linked: universe F 845 editions, 4,414,671 kept results (29 s)
+linked: main fit 2,098,553 pairs, 645,355 linked runners, 514 editions
+linked: verified fit 1,525,214 pairs, 479 editions
+linked: high fit 1,312,591 pairs, 432 editions
+linked: wider fit 2,563,294 pairs, 996 editions
+linked: readings done (191 s)
+linked: histories done (200 s)
+count changes against the published manifest:
+  age: {"pairs": 553604, "pairs_from_the_third_recorded_marathon": 131872, "people_with_an_exact_birth_year": 1210068} -> {"people_with_an_exact_birth_year": 1210020, "pairs": 553565, 
+"pairs_from_the_third_recorded_marathon": 131857}
+  bests: {"people_with_two_or_more": 691613, "recorded_bests": 522648, "results_with_an_earlier_recorded_marathon": 1244499} -> {"results_with_an_earlier_recorded_marathon": 1243901, 
+"people_with_two_or_more": 691281, "recorded_bests": 522401}
+  editions: {"by_tier": {"partial": 27, "stamped": 162, "stamped_weaker_source": 248}, "by_verdict": {"fast": 81, "slow": 76, "usual": 69}, "editions": 437, "no_verdict": 211, "races": 58} -> 
+{"editions": 437, "races": 58, "by_tier": {"stamped": 162, "stamped_weaker_source": 248, "partial": 27}, "by_verdict": {"fast": 82, "slow": 74, "usual": 71}, "no_verdict": 210}
+  fit: {"bootstrap_draws": 400, "drift_pct": [-0.15, 0.209], "editions_fitted": 514, "fitted_by_tier": {"partial": 31, "stamped": 182, "stamped_weaker_source": 301}, "fitted_by_timing": {"chip": 291, 
+"chip_fallback": 162, "gun": 8, "mixed": 2, "not_stated": 51}, "held_for_review": 2, "not_fitted": {"outside_largest_component": 0, "under_connected_floor": 318, "undetermined": 0}, "pairs": 2099809, 
+"people": 645733, "races_fitted": 102, "same_year_pairs": 212404} -> {"pairs": 2098553, "people": 645355, "same_year_pairs": 212235, "editions_fitted": 514, "races_fitted": 102, "fitted_by_tier": 
+{"stamped": 182, "stamped_weaker_source": 301, "partial": 31}, "fitted_by_timing": {"chip": 291, "chip_fallback": 162, "gun": 8, "mixed": 2, "not_stated": 51}, "not_fitted": {"under_connected_floor": 
+318, "outside_largest_component": 0, "undetermined": 0}, "held_for_review": 2, "drift_pct": [-0.15, 0.208], "bootstrap_draws": 400}
+  return: {"cells": 2719, "editions": 98, "finishes_with_slowdown": 506944} -> {"cells": 2719, "editions": 98, "finishes_with_slowdown": 506860}
+  universe: {"F": {"editions": 845, "editions_by_split_tier": {"finish_time_only": 486, "splits": 359}, "editions_by_tier": {"partial": 35, "stamped": 194, "stamped_weaker_source": 616}, 
+"editions_by_timing": {"chip": 376, "chip_fallback": 370, "gun": 15, "mixed": 4, "not_stated": 80}, "kept_results": 4416448, "people": 2583213, "people_with_two_or_more": 825849, "races": 203}, 
+"complete": {"kept_results": 3064672, "people": 2037240}, "counted": {"editions": 201, "eligible_finishes": 4124023, "sustained_slowdowns": 1288216}, "editions_with_rows": 2688, "high": 
+{"kept_results": 2672644, "people": 1514999}, "keyed_records": 6180357, "keys": 3349682, "linked_runners": 3322882, "verified": {"editions": 810, "editions_by_tier": {"stamped": 194, 
+"stamped_weaker_source": 616}, "kept_results": 3713546, "people": 2257087, "people_with_two_or_more": 692818, "races": 201}, "wider": {"editions": 2067, "editions_by_tier": {"partial": 35, "stamped": 
+194, "stamped_weaker_source": 616, "unverified": 1222}, "kept_results": 5068249, "people": 2912846, "people_with_two_or_more": 953951, "races": 704}} -> {"editions_with_rows": 2688, "linked_runners": 
+3322174, "keyed_records": 6004379, "keys_before_the_screens": 3349682, "keyed_records_before_the_screens": 6180357, "F": {"editions": 845, "races": 203, "editions_by_tier": {"partial": 35, "stamped": 
+194, "stamped_weaker_source": 616}, "kept_results": 4414671, "people": 2582515, "people_with_two_or_more": 825387, "editions_by_timing": {"chip": 376, "chip_fallback": 370, "gun": 15, "mixed": 4, 
+"not_stated": 80}, "editions_by_split_tier": {"finish_time_only": 486, "splits": 359}}, "verified": {"editions": 810, "races": 201, "editions_by_tier": {"stamped": 194, "stamped_weaker_source": 616}, 
+"kept_results": 3712355, "people": 2256530, "people_with_two_or_more": 692518}, "wider": {"editions": 2067, "races": 704, "editions_by_tier": {"partial": 35, "stamped": 194, "stamped_weaker_source": 
+616, "unverified": 1222}, "kept_results": 5066426, "people": 2912147, "people_with_two_or_more": 953479}, "high": {"kept_results": 2671552, "people": 1514566}, "complete": {"kept_results": 3063475, 
+"people": 2036738}, "counted": {"editions": 201, "eligible_finishes": 4124023, "sustained_slowdowns": 1288216}}
+{"files": {"editions.json": 91841, "races.json": 33856, "checks.json": 60225, "bests.json": 19132, "age.json": 6409, "return.json": 2180}, "seconds": 200, "peak_rss_mb": 5389}
 
-real	2m50.669s
-user	3m22.691s
-sys	0m9.054s
+real	3m20.220s
+user	3m50.845s
+sys	0m9.314s
 exit 0
 linked: inputs match their pins (2 s)
-linked: 5,068,249 kept results read
-linked: universe F 845 editions, 4,416,448 kept results (28 s)
-linked: main fit 2,099,809 pairs, 645,733 linked runners, 514 editions
-linked: verified fit 1,525,833 pairs, 479 editions
-linked: high fit 1,313,389 pairs, 432 editions
-linked: wider fit 2,564,605 pairs, 996 editions
-linked: readings done (159 s)
-linked: histories done (165 s)
-{"files": {"editions.json": 83104, "races.json": 33853, "checks.json": 60165, "bests.json": 14914, "age.json": 6410, "return.json": 1979}, "seconds": 165, "peak_rss_mb": 5197}
+linked: 5,066,426 kept results read
+linked: universe F 845 editions, 4,414,671 kept results (28 s)
+linked: main fit 2,098,553 pairs, 645,355 linked runners, 514 editions
+linked: verified fit 1,525,214 pairs, 479 editions
+linked: high fit 1,312,591 pairs, 432 editions
+linked: wider fit 2,563,294 pairs, 996 editions
+linked: readings done (194 s)
+linked: histories done (202 s)
+{"files": {"editions.json": 91841, "races.json": 33856, "checks.json": 60225, "bests.json": 19132, "age.json": 6409, "return.json": 2180}, "seconds": 202, "peak_rss_mb": 5093}
 
-real	2m45.148s
-user	3m17.974s
-sys	0m8.633s
+real	3m22.657s
+user	3m56.443s
+sys	0m9.042s
 exit 0
-end 2026-11-14T04:33:56Z
+end 2026-11-14T05:07:59Z
 same bytes: age.json
 same bytes: bests.json
 same bytes: checks.json
@@ -45,39 +76,49 @@ same bytes: return.json
 
 == 2. node scripts/verify-linked.cjs ; node scripts/verify-linked.cjs --self-test ==
 verify-linked: note: the counted finishes (4124023) are not compared with the runner lookup (master-20261103b)
-verify-linked: 61504 checks passed in 0.1 s
+verify-linked: 64501 checks passed in 0.1 s
 verify-linked self-test: 15 broken copies refused
 
 == 3. sha256 of the published files ==
-0fd58d7d9c012d708fd630545851a251196526481211c4cb74f346c1cf845611  age.json
-22e51e680c20b4b3b4c92ce904e4532a88dc8e67f20065b0035d9bc4d2a4cadd  bests.json
-51ecb5d5f70875b800030eb1d0ab9b09779e49d9e51e0431940b73056f16ba9c  checks.json
-1563fbefed6cffd7c4e916a7adcfe3a66278ce99dc5c3c9028257fc97ef3b65e  editions.json
-393aae0f6bb534b780dc4b8538dc0e7bdbe6c390ff90f3ab24da6dac73754752  manifest.json
-a7e6f7ca7bcbe84babe48998226e41cc6b6ac6ce3d03d50e611436a53885730c  races.json
-2865f337fdf7c386546522f510a732bdd2bbbd3f5e5223a485b318f03e0ef3cd  return.json
+3cc6f7c51ac31e859b7a2e3a61c9968d0b83b086ae48288d7ae22c2304769d85  age.json
+3347f700e9c6c0801cc1fb24d3d4c3917af8082db4966fa6265d248a4fd880c3  bests.json
+1ff7834938243a7a643c6545f20fb5656e67c3860b326bfd2b34732367000d67  checks.json
+cd98402e715bc106f3514577d14d165dc1edf7c36015168a22059a9423dae686  editions.json
+ee3c7da6bf96f75b93e2f703e58db0aa55a22d36a39305b9388f31449af59846  manifest.json
+1dbb72b5fadaac1f932e06583c2839933067f4a7bf8db3c4f68cd68503541ac9  races.json
+56e4415b3a11dd4f60f6da8481afa88b72360d39ca3a3120e97cbe4b3248dd2f  return.json
 
-== 4. The independent recount in SQL: python3 -I docs/evidence/2026-11-14/release-20261113-1113/linked-recount.py <input> <link file> public/data/linked ==
-{"linked_runners": 3322882, "kept_results": 4416448, "people": 2583213, "bests": {"2": [691613, 373035], "3": [280045, 98482], "4": [128425, 32048], "5": [63227
-, 11290], "6": [32993, 4529], "7": [18157, 1788], "8": [10745, 765], "9": [6736, 350], "10": [4380, 168], "11": [2866, 91], "12": [1894, 50], "13": [1228, 22], 
-"14": [836, 14], "15": [560, 7], "16": [360, 5], "17": [248, 2], "18": [135, 1], "19": [40, 1], "20": [11, 0]}, "steps": {"1": [460059, 262147, -1.319], "2": [2
-01428, 100476, 0.018], "3": [95646, 44970, 0.535], "4": [48622, 21421, 1.035], "5": [26464, 11692, 0.985], "6": [14909, 6357, 1.208], "7": [9117, 3766, 1.38], "
-8": [5939, 2419, 1.401], "9": [3951, 1633, 1.42], "10": [2549, 993, 1.638], "11": [1697, 666, 1.863], "12": [1111, 454, 1.305], "13": [776, 294, 2.321], "14": [
-509, 196, 1.75], "15": [340, 128, 1.874], "16": [246, 84, 2.384], "17": [129, 43, 3.155], "18": [36, 16, 0.792], "19": [11, 2, 6.266]}, "people_with_an_exact_bi
-rth_year": 1210068, "age_pairs": 553604, "age_bands": {"18": [939, -1.117], "25": [6663, -0.24], "30": [12222, 0.062], "35": [17280, 0.26], "40": [22497, 0.565]
-, "45": [23875, 0.793], "50": [20100, 0.988], "55": [14130, 1.287], "60": [8290, 1.395], "65": [3941, 1.823], "70": [1935, 2.547]}, "pairs_at_most_two_years_apa
-rt": 2126332}
+== 4. The independent recount in SQL: python3 -I docs/evidence/2026-11-14/release-20261113-1113/linked-recount.py <input> <link file> <identity file> public/data/linked ==
+{"linked_runners": 3322174, "keys_passing_the_screens_on_marathon_rows_alone": 3322882, "kept_results": 4414671, "people": 2582515, "bests": {"2": [691281, 3728
+55], "3": [279904, 98440], "4": [128364, 32031], "5": [63198, 11287], "6": [32978, 4527], "7": [18149, 1787], "8": [10739, 763], "9": [6734, 350], "10": [4379, 
+168], "11": [2865, 91], "12": [1893, 50], "13": [1227, 22], "14": [836, 14], "15": [560, 7], "16": [360, 5], "17": [248, 2], "18": [135, 1], "19": [40, 1], "20"
+: [11, 0]}, "steps": {"1": [459860, 262034, -1.319], "2": [201330, 100435, 0.017], "3": [95604, 44942, 0.536], "4": [48597, 21411, 1.035], "5": [26451, 11684, 0
+.987], "6": [14901, 6353, 1.21], "7": [9112, 3764, 1.378], "8": [5937, 2417, 1.403], "9": [3950, 1633, 1.418], "10": [2548, 993, 1.636], "11": [1696, 666, 1.848
+], "12": [1110, 453, 1.307], "13": [776, 294, 2.321], "14": [509, 196, 1.75], "15": [340, 128, 1.874], "16": [246, 84, 2.384], "17": [129, 43, 3.155], "18": [36
+, 16, 0.792], "19": [11, 2, 6.266]}, "people_with_an_exact_birth_year": 1210020, "age_pairs": 553565, "age_bands": {"18": [939, -1.117], "25": [6663, -0.24], "3
+0": [12222, 0.062], "35": [17280, 0.26], "40": [22494, 0.566], "45": [23870, 0.793], "50": [20097, 0.988], "55": [14128, 1.287], "60": [8288, 1.395], "65": [394
+1, 1.823], "70": [1935, 2.547]}, "pairs_at_most_two_years_apart": 2125065}
 linked-recount: 50 published groups compared, 0 differ
 
 == 5. The main fit against the research prototype's solver (pairmodel2.fit2 of the scout's scripts, not in the repository) ==
-   on the same 2,099,809 pairs and weights; both sets of readings under the model's three rules (mean zero, no trend over the years, order terms mean zero).
-pairs 2099809 same as the fit True
-max |reading difference| after the same three rules: 2.4330728404242663e-12
-max |order-term difference|: 4.691986382754365e-12
-the prototype raw trend per year (min-norm), in log points x 100: -0.04740739666806053
+   on the same pairs and weights; both sets of readings under the model's three rules (mean zero, no trend over the years, order terms mean zero).
+pairs 2098553 same as the fit True
+max |reading difference| after the same three rules: 2.421639277994103e-12
+max |order-term difference|: 4.685918320035398e-12
+the prototype raw trend per year (min-norm), in log points x 100: -0.04758361508493983
 
-== 6. Python tests and the type check ==
-python3 -m unittest discover -s analysis -p 'test_*.py': Ran 337 tests in 75.580s ; FAILED (failures=3, errors=7, skipped=12) (run before three more linked tests were added)
-   the ten that fail are the test_half tests bound to the earlier marathon release, as the pipeline report names them;
-   python3 -I -m unittest discover -s analysis -p 'test_linked*.py': Ran 56 tests in 1.845s OK 
+== 6. Python tests and the type check, on the tree that holds this build ==
+python3 -m unittest discover -s analysis -p 'test_*.py': Ran 345 tests in 63.613s ; FAILED (failures=3, errors=7, skipped=12)
+   the ten that fail are the test_half tests bound to the earlier marathon release, as the pipeline report names them:
+   ERROR: test_the_links_are_cut_from_the_v4_files_beside_the_snapshot (test_half.DownloadHalf.test_the_links_are_cut_from_the_v4_files_besi
+   ERROR: test_the_real_pin_names_the_public_releases (test_half.DownloadHalf.test_the_real_pin_names_the_public_releases)
+   ERROR: test_the_v4_links_spec_names_the_parquet_files (test_half.DownloadHalf.test_the_v4_links_spec_names_the_parquet_files)
+   ERROR: test_main_refuses_link_editions_of_another_build_or_boundary (test_half.LinksExtract.test_main_refuses_link_editions_of_another_bu
+   ERROR: test_the_build_table_must_name_what_the_build_reads (test_half.LinksExtract.test_the_build_table_must_name_what_the_build_reads)
+   ERROR: test_the_pinned_link_build_has_reviewed_counts (test_half.LinksExtract.test_the_pinned_link_build_has_reviewed_counts)
+   ERROR: test_the_pin_is_schema_3 (test_half.Pin.test_the_pin_is_schema_3)
+   FAIL: test_refusals_name_what_is_missing (test_half.Determinism.test_refusals_name_what_is_missing)
+   FAIL: test_a_symlinked_snapshot_is_checked_beside_its_target (test_half.Pin.test_a_symlinked_snapshot_is_checked_beside_its_target)
+   FAIL: test_broken_pins_fail (test_half.Pin.test_broken_pins_fail)
+python3 -I -m unittest discover -s analysis -p 'test_linked*.py': Ran 58 tests in 2.080s OK 
 npx tsc --noEmit -p .: tsc exit 0

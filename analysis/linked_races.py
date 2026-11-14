@@ -4,7 +4,7 @@ Both read one fit of the pair model (analysis/linked_model.py) on the finish-tim
 
 - **An edition reading** (editions.json): the edition's reading minus the mean reading of the race's other fitted
   editions on the same timing basis, as a percent of the finish time, with the 2.5th and 97.5th percentiles of the
-  runner bootstrap. It is published for a race and timing basis with at least three such editions; an edition more
+  runner bootstrap, and beside it the year-to-year spread of those editions. It is published for a race and timing basis with at least three such editions; an edition more
   than 6% from the median of its race and basis is held for review and enters nothing.
 - **A race reading** (races.json): the level of the race's chip- or net-timed fitted editions (at least three) once
   the level every race shares in a calendar year is taken out (a least-squares split of the edition readings into a
@@ -281,7 +281,9 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
     lo = np.full(len(t), np.nan)
     hi = np.full(len(t), np.nan)
     others = np.zeros(len(t), dtype=int)
+    spread = np.full(len(t), np.nan)
     for positions in groups.values():
+        spread[positions] = 100.0 * beta[positions].std(ddof=1)   # the year-to-year spread of the race on this basis
         reading[positions] = against_others(beta[positions])
         draws = against_others(main.boot_beta[:, positions])
         lo[positions] = np.percentile(draws, 2.5, axis=0)
@@ -306,7 +308,7 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
         hv = variant_reading['high'].get(row.code)
         hv = None if hv is None else pct(log_pct(hv))
         entry = {'tier': row.tier, 'timing': row.timing, 'basis': row.basis, 'finishes': int(row.finishes), 'others': int(others[row.pos]),
-                 'reading_pct': pct(r), 'lo_pct': pct(l), 'hi_pct': pct(h), 'high_pct': hv}
+                 'reading_pct': pct(r), 'lo_pct': pct(l), 'hi_pct': pct(h), 'high_pct': hv, 'year_sd_pct': num(spread[row.pos], 3)}
         entry['verdict'] = year_verdict(entry['lo_pct'], entry['hi_pct'], hv)
         if entry['finishes'] < MIN_CELL or entry['others'] < MIN_EDITIONS - 1:
             fail(f'{row.label} {row.year}: an edition reading under a floor')

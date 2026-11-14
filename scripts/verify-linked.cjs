@@ -187,6 +187,11 @@ function verify(dataDir, { pins = true } = {}) {
     eq([manifest.registry?.file, manifest.registry?.sha256], ['analysis/race-registry.json', sha(registryBytes)], 'the exact race registry');
     eq(registry.tag, release.tag, 'the race registry is the adopted release’s');
     eq([manifest.links?.file, manifest.links?.sha256], ['person-ids-v5.1-race_results_linked.parquet', release.assets?.['person-ids-v5.1-race_results_linked.parquet']], 'the link file is the pinned release asset');
+    // The runner keys come from the release's identity file (analysis/build_identity.py), which lives outside the repository:
+    // the manifest states its digest and the digest of the builder that wrote it, and that builder must be the repository's.
+    eq([manifest.identity?.file, manifest.identity?.builder], ['identity.parquet', 'analysis/build_identity.py'], 'the manifest names the identity file and its builder');
+    ok(/^[0-9a-f]{64}$/.test(manifest.identity?.sha256 || ''), 'the manifest states the identity file’s digest');
+    ok(manifest.identity?.builder_sha256 === sha(read('analysis/build_identity.py')), 'stale linked data: analysis/build_identity.py changed after the identity file was built (rebuild the identity file, then the family)');
     ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(manifest.input_as_of || ''), 'input_as_of is the adapted input’s time');
     const builders = fs.readdirSync(rel('analysis')).filter((n) => BUILDERS.test(n)).map((n) => `analysis/${n}`);
     eq(Object.keys(manifest.scripts || {}).sort(), [...builders, ...SHARED].sort(), 'every linked builder module and each shared definition is bound to the manifest');
@@ -261,7 +266,7 @@ function verify(dataDir, { pins = true } = {}) {
     for (const [year, row] of Object.entries(years)) {
       const where = `editions.json ${label} ${year}`;
       ok(/^(19|20)\d{2}$/.test(year), `${where}: a year key`);
-      eq(Object.keys(row).sort(), ['basis', 'finishes', 'hi_pct', 'high_pct', 'lo_pct', 'others', 'reading_pct', 'tier', 'timing', 'verdict'], `${where}: its fields`);
+      eq(Object.keys(row).sort(), ['basis', 'finishes', 'hi_pct', 'high_pct', 'lo_pct', 'others', 'reading_pct', 'tier', 'timing', 'verdict', 'year_sd_pct'], `${where}: its fields`);
       ok(F_TIERS.includes(row.tier), `${where}: a tier of the finish-time universe (${row.tier})`);
       ok(TIMING_CODES.includes(row.timing) && TIMING_BASIS[row.timing] === row.basis && row.basis !== null, `${where}: timing ${row.timing} on basis ${row.basis}`);
       ok(int(row.finishes, MIN_CELL), `${where}: ${row.finishes} finishes, under the floor of ${MIN_CELL}`);
@@ -276,6 +281,10 @@ function verify(dataDir, { pins = true } = {}) {
       ok(rows.every((r) => r.others === rows.length - 1), `editions.json ${label} (${basis}): each edition is compared with the ${rows.length - 1} others on its basis`);
       // each reading is the edition against the mean of the others, so the log readings of a group sum to zero
       close(rows.reduce((a, r) => a + logOf(r.reading_pct), 0), 0, 2e-5 * rows.length, `editions.json ${label} (${basis}): the readings against the other years sum to zero`);
+      // ... and the spread of the group's model readings is the spread of those log readings times (n - 1) / n
+      const n = rows.length;
+      ok(rows.every((r) => finite(r.year_sd_pct) && r.year_sd_pct === rows[0].year_sd_pct), `editions.json ${label} (${basis}): one year-to-year spread for the group`);
+      close(rows[0].year_sd_pct, 100 * sd(rows.map((r) => logOf(r.reading_pct))) * (n - 1) / n, 2e-3, `editions.json ${label} (${basis}): the year-to-year spread recounted from the readings`);
     }
   }
   const tally = (rows, key, values) => Object.fromEntries(values.map((v) => [v, rows.filter((r) => r[key] === v).length]));
@@ -298,6 +307,7 @@ function verify(dataDir, { pins = true } = {}) {
     eq(r.tiers, tally(mine, 'tier', F_TIERS), `${where}: the tier mix of its editions`);
     eq(r.years, [Math.min(...mine.map((e) => e.year)), Math.max(...mine.map((e) => e.year))], `${where}: its first and last year`);
     eq(r.finishes, mine.reduce((a, e) => a + e.finishes, 0), `${where}: its finishes`);
+    ok(mine.every((e) => e.year_sd_pct === r.year_sd_pct), `${where}: the year-to-year spread of its editions`);
     eq(Object.keys(r.timing).sort(), [...TIMING_CODES].sort(), `${where}: the timing codes of its fitted editions`);
     ok(Object.values(r.timing).every((n) => int(n)) && Object.values(r.timing).reduce((a, b) => a + b, 0) === r.editions_fitted, `${where}: the timing codes add up to its fitted editions`);
     ok(int(r.held_for_review) && r.editions_fitted >= editionRows.filter((e) => e.label === label).length + r.held_for_review, `${where}: fitted editions hold its readings and its held editions`);
@@ -421,10 +431,19 @@ function verify(dataDir, { pins = true } = {}) {
     });
     const years = B.by_years_since_previous_recorded_best || [];
     eq(years.map((r) => [r.years, r.or_more]), years.map((_, i) => [i + 1, i === years.length - 1]), 'bests.json: years since the previous recorded best from one, the last bin open');
-    for (const r of years) { ok(int(r.results, MIN_CELL) && int(r.recorded_bests) && r.recorded_bests <= r.results, `bests.json ${r.years} years since: under the floor`); close(r.share, r.recorded_bests / r.results, 1e-9, `bests.json ${r.years} years since: the share`); }
+    const VARIANT_NAMES = ['complete', 'high', 'verified'];
+    const countsOk = (v) => v === null || (int(v.results, MIN_CELL) && int(v.recorded_bests) && v.recorded_bests <= v.results);
+    for (const r of years) {
+      ok(int(r.results, MIN_CELL) && int(r.recorded_bests) && r.recorded_bests <= r.results, `bests.json ${r.years} years since: under the floor`);
+      close(r.share, r.recorded_bests / r.results, 1e-9, `bests.json ${r.years} years since: the share`);
+      ok(JSON.stringify(Object.keys(r.variants || {}).sort()) === JSON.stringify(VARIANT_NAMES) && Object.values(r.variants).every(countsOk), `bests.json ${r.years} years since: a variant under the floor`);
+    }
     const size = B.new_recorded_best_size || {};
     ok(int(size.recorded_bests, MIN_CELL) && size.q25_pct <= size.median_pct && size.median_pct <= size.q75_pct && size.q25_minutes <= size.median_minutes && size.median_minutes <= size.q75_minutes
       && size.q25_pct > 0 && int(size.under_one_minute) && size.under_one_minute <= size.recorded_bests, 'bests.json: the size of a new recorded best');
+    ok(JSON.stringify(Object.keys(size.variants || {}).sort()) === JSON.stringify(VARIANT_NAMES)
+      && Object.values(size.variants).every((v) => v === null || (int(v.recorded_bests, MIN_CELL) && finite(v.median_pct) && v.median_pct > 0 && finite(v.median_minutes) && v.median_minutes > 0)),
+    'bests.json: the size of a new recorded best on each variant, none under the floor');
     const cohort = B.cohort || {};
     eq(size.recorded_bests, cohort.recorded_bests, 'bests.json: every new recorded best is sized');
     ok(attempts.reduce((a, r) => a + r.recorded_bests, 0) <= cohort.recorded_bests && attempts.reduce((a, r) => a + r.results, 0) <= cohort.results_with_an_earlier_recorded_marathon, 'bests.json: the attempts within the cohort');
@@ -443,12 +462,16 @@ function verify(dataDir, { pins = true } = {}) {
       eq(r.verdict, shareVerdict(r.faster, r.pairs, 0.5, Object.values(r.variants).map((v) => variantShare(v, 'faster', 'pairs'))), `${where}: the verdict recomputed`);
       if (attempts[i]) ok(r.pairs <= attempts[i].results, `${where}: no more pairs than results of the later attempt`);
     });
+    const stepVariants = (r, where) => ok(JSON.stringify(Object.keys(r.variants || {}).sort()) === JSON.stringify(VARIANT_NAMES)
+      && Object.entries(r.variants).every(([name, v]) => v === null || stepOk(v, `${where} (${name})`)), `${where}: its variants, none under the floor`);
     const any = B.steps?.first_recorded_to_second_any_years_apart || {};
     ok(stepOk(any, 'bests.json first recorded to second, any years apart') && any.pairs >= (steps[0]?.pairs ?? Infinity) && Math.abs(any.share_faster - any.faster / any.pairs) <= 1e-9, 'bests.json: the first step over any years apart holds the two-year pairs');
+    stepVariants(any, 'bests.json first recorded to second, any years apart');
     eq(any.pairs, attempts[0]?.results, 'bests.json: one first-to-second pair per second recorded marathon');
     const bands = B.steps?.first_recorded_to_second_by_mean_finish || [];
     ok(bands.length > 0 && bands.every((b, i) => stepOk(b, `bests.json mean-finish band ${i}`) && Math.abs(b.share_faster - b.faster / b.pairs) <= 1e-9 && (i === 0 || b.mean_finish_from_s === bands[i - 1].mean_finish_to_s)), 'bests.json: the bands of the mean finish are contiguous');
     ok(bands.reduce((a, b) => a + b.pairs, 0) <= (steps[0]?.pairs ?? 0), 'bests.json: the bands hold no more than the first step');
+    bands.forEach((b, i) => stepVariants(b, `bests.json mean-finish band ${i}`));
     ok(!/"(?:first|second)_finish_(?:from|to)_s"/.test(raw['bests.json']), 'bests.json: no banding by the first or the second finish alone');
   }
 
@@ -485,8 +508,9 @@ function verify(dataDir, { pins = true } = {}) {
     part(back, 'return.json');
     ok(back.difference_lo_points <= back.difference_points && back.difference_points <= back.difference_hi_points, 'return.json: the difference inside its interval');
     ok(back.high === null || part(back.high, 'return.json high links'), 'return.json: the high-links variant');
-    const hd = back.high === null ? null : back.high.difference_points;
-    eq(back.verdict, back.difference_hi_points < 0 && (hd === null || hd < 0) ? 'less_often' : back.difference_lo_points > 0 && (hd === null || hd > 0) ? 'more_often' : null, 'return.json: the verdict recomputed');
+    ok(back.verified === null || part(back.verified, 'return.json verified tiers'), 'return.json: the verified-tiers variant');
+    const others = [back.verified, back.high].filter((v) => v !== null).map((v) => v.difference_points);
+    eq(back.verdict, back.difference_hi_points < 0 && others.every((v) => v < 0) ? 'less_often' : back.difference_lo_points > 0 && others.every((v) => v > 0) ? 'more_often' : null, 'return.json: the verdict recomputed');
     ok(Array.isArray(back.by_finish) && back.by_finish.every((b) => part(b, `return.json finish band from ${b.finish_from_s}`)) && back.by_finish.reduce((a, b) => a + b.with_slowdown.finishes, 0) <= back.with_slowdown.finishes, 'return.json: the finish bands within the whole');
     eq(Object.values(back.tiers).reduce((a, b) => a + b, 0), back.editions, 'return.json: the tier mix adds up');
     ok(back.unmatched.with_slowdown.finishes >= back.with_slowdown.finishes && back.unmatched.without.finishes >= back.matched_without.finishes, 'return.json: the matched cells within the unmatched counts');
@@ -502,6 +526,8 @@ function verify(dataDir, { pins = true } = {}) {
     eq(c.return, back ? { cells: back.cells, editions: back.editions, finishes_with_slowdown: back.with_slowdown.finishes } : null, 'manifest: the return counts are the file’s');
     const u = c.universe || {};
     ok(u.F && u.verified && u.wider && u.verified.editions <= u.F.editions && u.F.editions <= u.wider.editions && u.F.editions <= u.editions_with_rows, 'manifest: verified within F within the wider set');
+    ok(int(u.linked_runners, 1) && u.linked_runners <= u.keys_before_the_screens && u.keyed_records <= u.keyed_records_before_the_screens && u.F && u.F.people <= u.linked_runners
+      && u.F.kept_results <= u.keyed_records, 'manifest: the kept results within the keyed records, the linked runners within the keys the screens saw');
     ok(u.F && Object.keys(u.F.editions_by_tier).every((t) => F_TIERS.includes(t)) && Object.values(u.F.editions_by_tier).reduce((a, b) => a + b, 0) === u.F.editions, 'manifest: F holds stamped, weaker-source and partial editions only');
     ok(u.F && c.fit && c.fit.editions_fitted <= u.F.editions && E.summary.editions + c.fit.held_for_review <= c.fit.editions_fitted, 'manifest: the readings within the fitted editions within F');
     eq(c.fit?.held_for_review, (C.held_for_review || []).length, 'manifest: the held editions are those checks.json lists');
