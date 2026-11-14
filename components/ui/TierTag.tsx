@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { LINK_ANCHOR, TIER_ANCHOR, linkWords, splitTierWords, tierHasBadge, tierLine, tierWords, timingWords } from '@/lib/tiers';
+import { GUN_TIMES, LINK_ANCHOR, TIER_ANCHOR, isGunTiming, linkQuietWords, linkWords, splitTierWords, tierHasBadge, tierLine, tierWords, timingWords } from '@/lib/tiers';
 
 // The tier and link labels (lead decision D16, November 14, 2026) are drawn here and nowhere else. Their words, and the
 // release's codes they answer to, are lib/tiers.ts; their look is app/styles/components/badge.css. A module of its own,
@@ -10,6 +10,10 @@ import { LINK_ANCHOR, TIER_ANCHOR, linkWords, splitTierWords, tierHasBadge, tier
 // alike. Every label has two modes. `link` (the default) is a link to the word's definition on /methodology with a
 // 44 px hit area; `link={false}` is a bare label, for a row, card or checkbox label that is itself a control (a link
 // holds no link). A label never carries a number or a hue. A code the vocabulary does not know stops the render.
+//
+// A client component that shows labels imports only what it draws. `TimingTag` and `EditionTags` read the release's
+// timing-basis text and so carry the list of every such text (lib/tiers.ts TIMING_BASES); a client page that holds the
+// timing class uses `TimingClassTag` inside a `TagGroup` instead, and that list stays out of its script.
 
 type Look = { link?: boolean; className?: string };
 type Data = Record<`data-${string}`, string>;
@@ -37,12 +41,21 @@ export function SplitTierTag({ splitTier, link = true, className }: { splitTier:
 }
 
 /**
- * "Gun times", on an edition the release times gross; nothing for every other. `timingBasis` is the release's
- * `timing_basis` text, the short code GROSS_TIMING, or null where the release states none.
+ * "Gun times", on an edition whose timing basis the release states as gun or gross time, at either distance; nothing
+ * for every other. `timingBasis` is the release's `timing_basis` text, or a timing class where the data file stores
+ * that, or null where the release states none. A text the vocabulary has not classed stops the render.
  */
 export function TimingTag({ timingBasis, link = true, className }: { timingBasis: string | null } & Look) {
   const words = timingWords(timingBasis);
-  return words ? <Label form="tier-chip" href={TIER_ANCHOR} link={link} className={className} data={{ 'data-timing': 'gross' }}>{words}</Label> : null;
+  return words ? <Label form="tier-chip" href={TIER_ANCHOR} link={link} className={className} data={{ 'data-timing': 'gun' }}>{words}</Label> : null;
+}
+
+/**
+ * The same label from a timing class (`chip`, `chip_fallback`, `gun`, `mixed` or `not_stated`): "Gun times" for `gun`,
+ * nothing for the others. For a page that holds the class and not the release's text; it reads no list of texts.
+ */
+export function TimingClassTag({ timing, link = true, className }: { timing: string } & Look) {
+  return isGunTiming(timing) ? <Label form="tier-chip" href={TIER_ANCHOR} link={link} className={className} data={{ 'data-timing': 'gun' }}>{GUN_TIMES}</Label> : null;
 }
 
 /**
@@ -56,18 +69,50 @@ export function LinkMark({ confidence, keyed, link = true, className }: { confid
 }
 
 /**
+ * The quiet text of a link's confidence: "High", "Medium, name variant", "Low, no age". Every link shows its tier
+ * (owner, November 13, 2026), as plain words beside the result, never a pill. For a link of a keyed confidence that
+ * the identity file left without a runner key, pass its `not_keyed_reason` and the text says why ("High · recorded ages
+ * differ"). Nothing for a result with no link.
+ */
+export function LinkTier({ confidence, keyed, reason, className }: { confidence: string | null; keyed?: boolean; reason?: string | null; className?: string }) {
+  const words = linkQuietWords(confidence, { keyed, reason });
+  return words && confidence ? <span className={className ? `tier-quiet ${className}` : 'tier-quiet'} data-link-tier={confidence}>{words}</span> : null;
+}
+
+/**
+ * A link as a page shows it. A keyed link prints its quiet words and no pill. A link that is not keyed prints the
+ * "Possible match" pill and its quiet words: the confidence, and for a keyed confidence the reason it has no runner
+ * key (`reason` is then required). `link` is the pill's mode; the quiet words are never a link.
+ */
+export function LinkLabel({ confidence, keyed, reason, link = true, className }: { confidence: string | null; keyed?: boolean; reason?: string | null } & Look) {
+  // A not-keyed reason alone says the link is not keyed.
+  const state = reason != null && reason !== 'unlinked' ? false : keyed;
+  if (!linkWords(confidence, { keyed: state })) return <LinkTier confidence={confidence} keyed={state} reason={reason} className={className} />;
+  return <TagGroup link={link} className={className}><LinkMark confidence={confidence} keyed={state} link={link} /><LinkTier confidence={confidence} keyed={state} reason={reason} /></TagGroup>;
+}
+
+/**
+ * A wrapping group of labels: what `EditionTags` and `LinkLabel` are drawn in. As links it keeps each label's 44 px
+ * hit area clear of the row under it. For a page that composes its own set (a client page: `TierTag`, `SplitTierTag`,
+ * `TimingClassTag`).
+ */
+export function TagGroup({ link = true, className, children }: Look & { children: ReactNode }) {
+  return <span className={`tier-tags${link ? ' tier-tags-links' : ''}${className ? ` ${className}` : ''}`}>{children}</span>;
+}
+
+/**
  * An edition's labels in one wrapping group: its tier, then "Finish times only" and "Gun times" where they apply. As
  * links the group keeps each label's 44 px hit area clear of the next when they wrap.
  */
 export function EditionTags({ tier, weakerSource, splitTier, timingBasis, link = true, className }: { tier: string; weakerSource?: boolean | null; splitTier: string; timingBasis: string | null } & Look) {
-  const cls = `tier-tags${link ? ' tier-tags-links' : ''}${className ? ` ${className}` : ''}`;
-  return <span className={cls}><TierTag tier={tier} weakerSource={weakerSource} link={link} /><SplitTierTag splitTier={splitTier} link={link} /><TimingTag timingBasis={timingBasis} link={link} /></span>;
+  return <TagGroup link={link} className={className}><TierTag tier={tier} weakerSource={weakerSource} link={link} /><SplitTierTag splitTier={splitTier} link={link} /><TimingTag timingBasis={timingBasis} link={link} /></TagGroup>;
 }
 
 /**
  * A race's tier line for a list row, as plain words from its editions' counts by tier: "6 verified, weaker source ·
- * 10 held for review"; one tier for all reads "16 verified". It is the row's text, not a badge, so it carries the counts
- * and no link: the list's key line links the words to their definition once (TierTerm).
+ * 10 held for review"; one tier for all reads "16 verified"; partial editions read "3 with partial results". It is the
+ * row's text, not a badge, so it carries the counts and no link: the list's key line links the words to their
+ * definition once (TierTerm).
  */
 export function TierLine({ counts, format, className }: { counts: Readonly<Record<string, number | undefined>>; format?: (n: number) => string; className?: string }) {
   return <span className={className ? `tier-line ${className}` : 'tier-line'}>{tierLine(counts, format)}</span>;
