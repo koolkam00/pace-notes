@@ -1,8 +1,8 @@
 """Runner lookup v2: every named marathon and half-marathon result of the adopted release, as static search files.
 
     python3 -I analysis/build_runner_lookup.py --core <unpacked CORE folder> --links <person-ids linked parquet> \\
-        --status <record-status.parquet> --identity <identity.parquet> [--cohort <cohort manifest.json>] \\
-        [--policy <edition policy json>] [--registry analysis/race-registry.json] [--half-registry FILE] \\
+        --status <record-status.parquet> --identity <identity.parquet> [--cohort analysis/marathon-cohort/manifest.json] \\
+        [--policy public/data/edition-policy.json] [--registry analysis/race-registry.json] [--half-registry FILE] \\
         --output <dir>/runners [--as-of 2026-11-14T00:00:00Z]
     node scripts/verify-lookup.cjs --data-root <dir>
     python3 -I analysis/import_runner_lookup.py --input <dir>        # verifies again, then replaces public/data/runners
@@ -63,6 +63,7 @@ HALF_RECORDS_PATH = HERE / 'lookup-half-records.json'
 PLACEHOLDERS_PATH = HERE / 'lookup-placeholders.json'
 REGISTRY_PATH = HERE / 'race-registry.json'
 POLICY_PATH = HERE.parent / 'public/data/edition-policy.json'
+COHORT_PATH = HERE / 'marathon-cohort/manifest.json'
 SCRIPTS = ['build_runner_lookup.py', 'lookup_format.py', 'lookup_names.py', 'lookup_races.py', 'race_registry.py']
 CORE_FILES = ['race_records.parquet', 'qa_row_flags.parquet', 'pending_review_flags.parquet', 'edition_meta.parquet',
               'EDITION-TIERS.csv', 'MANIFEST.json']
@@ -276,22 +277,33 @@ def load_policy(path):
 
 
 def load_cohort(path):
-    """The cohort manifest's digest and the fields the lookup repeats; its edition list keys the context files."""
+    """The cohort manifest (analysis/marathon-cohort/manifest.json, format in analysis/cohort.py): the block the lookup
+    repeats, {(city, year): index} of the editions that have a cohort file (the index keys the runner-context files),
+    {(city, year): raw records} of every edition it knows, and the manifest itself."""
     data = path.read_bytes()
     cohort = json.loads(data)
     editions = cohort.get('editions')
     if not isinstance(editions, list) or not editions:
         fail(f'{path}: the cohort manifest lists no editions')
-    index = {}
+    index, raw = {}, {}
     for at, edition in enumerate(editions):
         key = (edition['city'], int(edition['year']))
         if key in index:
             fail(f'{path}: the cohort manifest lists {key} twice')
         index[key] = at
+        raw[key] = edition['raw']
+    others = cohort.get('other_editions') or {'columns': ['city', 'year', 'raw'], 'rows': []}
+    at = {name: others['columns'].index(name) for name in ('city', 'year', 'raw')}
+    for row in others['rows']:
+        key = (row[at['city']], int(row[at['year']]))
+        if key in raw:
+            fail(f'{path}: the cohort manifest lists {key} twice')
+        raw[key] = row[at['raw']]
     block = {'manifest_sha256': hashlib.sha256(data).hexdigest(), 'release_tag': cohort.get('release_tag'), 'as_of': cohort.get('as_of'),
              'input_as_of': cohort.get('input_as_of'), 'raw_records': cohort.get('raw_records'),
-             'eligible_records': cohort.get('eligible_records'), 'editions': len(editions)}
-    return block, index, editions
+             'eligible_records': cohort.get('eligible_records'), 'own_record_records': cohort.get('own_record_records'),
+             'editions': len(editions)}
+    return block, index, raw, cohort
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -578,10 +590,16 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     wrong = [(city, year, named, named_year) for city, named, year, named_year, n in labels if marathon_keys[city][0] != named or year != named_year]
     if wrong:
         fail(f'{len(wrong)} marathon editions are named differently by the status file and the race registry, for example {wrong[:3]}')
+    cohort_raw = {}
     if cohort_path:
-        cohort, cohort_index, _ = load_cohort(Path(cohort_path))
-        if cohort.get('release_tag') not in (None, tag):
+        cohort, cohort_index, cohort_raw, cohort_document = load_cohort(Path(cohort_path))
+        if cohort.get('release_tag') != tag:
             fail(f"the cohort manifest is of {cohort['release_tag']!r}, not {tag!r}")
+        # The cohort and the lookup must be cut from the same two files of the pipeline.
+        for name, key in (('record-status.parquet', 'record_status'), ('identity.parquet', 'identity')):
+            listed = (cohort_document.get('inputs') or {}).get(key, {}).get('sha256')
+            if listed != digests[name]:
+                fail(f'the cohort was built from another {name} than this build reads ({listed} against {digests[name]})')
     else:
         notes.add('cohort')
 
@@ -599,6 +617,8 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         entry = {'h': h, 'dbh': dbh, 'city': city, 'label': label, 'name': name, 'year': year, 'tier': TIERS.index(tier),
                  'splits': split == 'splits', 'db': 'h' if dbh else 'f', 'unlisted': unlisted,
                  'no_comparison': 0 if not h else 1 if (dbh, city, year) in listed_gross else 2 if (dbh, city, year) in listed_short else 0}
+        if cohort_raw and not h and cohort_raw.get((label, year)) != rows:
+            fail(f'{label} {year} holds {rows} kept rows; the cohort manifest counts {cohort_raw.get((label, year))} raw records')
         if not n:
             unlisted_editions.append(['h' if h else 'm', label, year, entry['db'], unlisted])
             continue
@@ -620,12 +640,12 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         if at and (entry['h'], entry['label'], entry['year'], entry['dbh']) == tuple(editions[at - 1][k] for k in ('h', 'label', 'year', 'dbh')):
             fail(f"two editions share the distance, race label, year and database: {entry['label']!r} {entry['year']}")
         triple = ('h' if entry['h'] else 'm', entry['label'], entry['name'])
-        if triple not in race_index:
-            if any(other[0] == triple[0] and other[1] == triple[1] for other in race_index):
-                fail(f'the race label {triple[1]!r} has two display names')
-            race_index[triple] = len(races)
+        if triple[:2] not in race_index:
+            race_index[triple[:2]] = len(races)
             races.append(list(triple))
-        entry['race'] = race_index[triple]
+        elif races[race_index[triple[:2]]][2] != triple[2]:
+            fail(f'the race label {triple[1]!r} has two display names')
+        entry['race'] = race_index[triple[:2]]
     # Reason sentences in first-use order of the final edition order, so the file does not depend on the scan order above.
     order, remap = [], {}
     for entry in editions:
@@ -818,10 +838,13 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         pipeline['record_status'] = {'records': status_sidecar['counts']['records'], 'by_status': status_sidecar['counts']['by_status']}
     if cohort:
         raw = counts['marathon']['results'] + counts['marathon']['unnamed'] + sum(counts['marathon']['placeholder'].values())
-        if cohort['raw_records'] is not None and cohort['raw_records'] != raw:
+        if cohort['raw_records'] != raw:
             fail(f"the marathon results with the unnamed and placeholder rows are {raw}; the cohort’s raw records are {cohort['raw_records']}")
-        if cohort['eligible_records'] is not None and cohort['eligible_records'] != counts['marathon']['status'].get('0', 0):
-            fail(f"{counts['marathon']['status'].get('0', 0)} results are counted; the cohort holds {cohort['eligible_records']} eligible records")
+        # Counted and own-record rows: the listed results and the kept rows that are not listed (no usable name, a placeholder name).
+        for digit, field, what in (('0', 'eligible_records', 'counted'), ('1', 'own_record_records', 'own-record')):
+            kept = counts['marathon']['status'].get(digit, 0) + counts['marathon']['unlisted_status'].get(digit, 0)
+            if cohort[field] is not None and cohort[field] != kept:
+                fail(f'{kept} kept marathon rows are {what}; the cohort holds {cohort[field]}')
 
     manifest = {
         'schema_version': SCHEMA_VERSION, 'release_tag': tag, 'input_as_of': input_as_of,
@@ -859,7 +882,8 @@ def main(argv=None):
     parser.add_argument('--links', type=Path, required=True, help='the pinned person-links Parquet file')
     parser.add_argument('--status', type=Path, required=True, help='the pipeline’s record-status.parquet')
     parser.add_argument('--identity', type=Path, required=True, help='the pipeline’s identity.parquet')
-    parser.add_argument('--cohort', type=Path, help='the cohort manifest (without it the build is provisional)')
+    parser.add_argument('--cohort', type=Path, default=COHORT_PATH if COHORT_PATH.is_file() else None,
+                        help='the cohort manifest (default analysis/marathon-cohort/manifest.json; without one the build is provisional)')
     parser.add_argument('--policy', type=Path, default=POLICY_PATH if POLICY_PATH.is_file() else None,
                         help='the edition policy with its reason sentences (default public/data/edition-policy.json; without one the build is provisional)')
     parser.add_argument('--registry', type=Path, default=REGISTRY_PATH)

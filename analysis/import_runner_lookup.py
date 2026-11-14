@@ -47,8 +47,6 @@ def run(source, destination, pipeline=None, never_shown=None):
             (staged / 'runners' / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source / 'runners' / name, staged / 'runners' / name)
         command = ['node', str(repository / 'scripts/verify-lookup.cjs'), '--data-root', str(staged)]
-        if manifest.get('cohort'):
-            command += ['--cohort', str(destination / 'cohort/manifest.json')]
         if pipeline:
             command += ['--pipeline', str(pipeline.resolve())]
         if never_shown:

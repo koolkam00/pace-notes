@@ -120,6 +120,17 @@ class Verifier(unittest.TestCase):
         self.assertEqual(done.returncode, 1)
         self.assertIn('rules.index', done.stderr)
 
+    def test_the_cohort_binding_is_checked(self):
+        cohort = self.release.write_cohort()
+        bound = self.root / 'bound'
+        self.release.build(bound / 'runners', cohort_path=cohort)
+        done = self.verify('--fixture', '--allow-provisional', '--cohort', str(cohort), root=bound)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        other = self.release.write_cohort('cohort-other', lambda document: document['editions'][0].update(raw=12))
+        done = self.verify('--fixture', '--allow-provisional', '--cohort', str(other), root=bound)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn('the cohort manifest is not the one this build names', done.stderr)
+
     def test_every_mutation_fails(self):
         done = self.verify('--fixture', '--allow-provisional', '--self-test')
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)

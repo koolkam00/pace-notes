@@ -136,6 +136,31 @@ class Release:
         self.placeholders_path = self.root / 'lookup-placeholders.json'
         self.placeholders_path.write_text(json.dumps({'tag': TAG, 'names': placeholders}))
 
+    def write_cohort(self, name='cohort', change=None):
+        """A cohort manifest in the shape of analysis/marathon-cohort/manifest.json, for the status rows of this release."""
+        digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+        raw, used = {}, set()
+        for row in self.status:
+            key = (row['city'], row['year'])
+            raw[key] = raw.get(key, 0) + 1
+            if row['status'] in ('counted', 'own_record'):
+                used.add(key)
+        document = {
+            'schema_version': 1, 'release_tag': TAG, 'input_as_of': '2099-01-01T00:00:00Z', 'as_of': '2099-01-01T12:00:00Z',
+            'inputs': {'record_status': {'sha256': digest(self.status_path)}, 'identity': {'sha256': digest(self.identity_path)}},
+            'raw_records': len(self.status), 'eligible_records': sum(row['status'] == 'counted' for row in self.status),
+            'own_record_records': sum(row['status'] == 'own_record' for row in self.status),
+            'editions': [{'city': city, 'year': year, 'use': 'counted', 'raw': raw[(city, year)]} for city, year in sorted(used)],
+            'other_editions': {'columns': ['city', 'year', 'raw', 'category'],
+                               'rows': [[city, year, n, 'finish_time_only'] for (city, year), n in sorted(raw.items()) if (city, year) not in used]},
+        }
+        if change:
+            change(document)
+        path = self.root / name / 'manifest.json'
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(json.dumps(document))
+        return path
+
     def build(self, output, **overrides):
         options = dict(pin_path=self.pin_path, registry_path=self.registry_path, policy_path=self.policy_path, half_records_path=self.half_path,
                        placeholders_path=self.placeholders_path, as_of='2099-01-02T00:00:00Z', index_rules=RULES, memory='1GB')
@@ -518,6 +543,25 @@ class Build(unittest.TestCase):
             self.assertNotIn(TAG.encode(), __import__('gzip').decompress(path.read_bytes()))   # no tag in any shard body
         self.assertNotIn('p51_', (self.output / 'manifest.json').read_text() + ''.join(
             __import__('gzip').decompress(path.read_bytes()).decode() for path in self.output.rglob('*.json.gz')))
+
+    def test_the_cohort_binding(self):
+        cohort = self.release.write_cohort()
+        output = self.root / 'bound' / 'runners'
+        manifest = self.release.build(output, cohort_path=cohort)
+        self.assertEqual(manifest['provisional'], ['half_registry', 'race_registry'])
+        self.assertEqual(manifest['cohort'], {'manifest_sha256': hashlib.sha256(cohort.read_bytes()).hexdigest(), 'release_tag': TAG, 'as_of': '2099-01-01T12:00:00Z',
+                                              'input_as_of': '2099-01-01T00:00:00Z', 'raw_records': 22, 'eligible_records': 18, 'own_record_records': 0, 'editions': 2})
+        editions = fmt.decode_editions(fmt.read_gz(output / 'editions.json.gz'))
+        self.assertEqual([e['context'] for e in editions], [0, 1, None, None, None, None, None])      # Berlin 2019 and 2021; an edition of recorded times only has none
+        # A cohort of other files, or with another count, is refused.
+        for message, change in [('the cohort was built from another record-status.parquet', lambda d: d['inputs']['record_status'].update(sha256='0' * 64)),
+                                ('the cohort manifest counts 12 raw records', lambda d: d['editions'][0].update(raw=12)),
+                                ('kept marathon rows are counted; the cohort holds 17', lambda d: d.update(eligible_records=17)),
+                                ('the cohort manifest is of', lambda d: d.update(release_tag='another'))]:
+            other = self.release.write_cohort('cohort-' + hashlib.sha256(message.encode()).hexdigest()[:6], change)
+            with self.assertRaises(builder.BuildError) as caught:
+                self.release.build(self.root / ('bound-' + other.parent.name) / 'runners', cohort_path=other)
+            self.assertIn(message, str(caught.exception))
 
     def test_two_builds_give_the_same_bytes(self):
         second = self.root / 'b' / 'runners'

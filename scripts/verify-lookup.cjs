@@ -30,7 +30,10 @@
 //
 // --fixture reads the index rules and floors from the manifest instead of the production constants and skips the
 // checks against the repository's pin and reviewed files: it is for the small build of the Python tests and says so.
-// --cohort FILE (default <DIR>/cohort/manifest.json when the manifest names a cohort) checks the binding.
+// --cohort FILE names the cohort manifest (default analysis/marathon-cohort/manifest.json). When the build names a
+// cohort, the verifier checks the digest and the counts and then compares every marathon result of every cohort
+// edition with the cohort's own record (scripts/lib/cohort.cjs): status, nine times, sex, age, and that the cohort's
+// runners are exactly the confirmed links and each sits in one profile.
 // --pipeline DIR compares the build with the pipeline's own descriptions of its two files (record-status.parquet.json
 // and identity.parquet.json): the digests the build read and the counts by status. Row by row, against the release
 // and those files, is analysis/lookup_audit.py's work (it needs the release; this needs only the published files).
@@ -340,6 +343,23 @@ function verify(dataRoot, options = {}) {
     if (query.exact[0]) { if (!exactFirst.has(query.tokens[0])) exactFirst.set(query.tokens[0], []); exactFirst.get(query.tokens[0]).push(query); } else prefixFirst.push(query);
   }
 
+  // ---- the cohort this build names: its manifest now, its records after the profile pass
+  let cohort = null, held = null;
+  const cohortPath = options.cohort || path.join(repo, 'analysis/marathon-cohort/manifest.json');
+  if (manifest.cohort) {
+    if (!fs.existsSync(cohortPath)) c.fail('cohort', `the manifest names a cohort and ${cohortPath} does not exist`);
+    else {
+      const cohortBytes = fs.readFileSync(cohortPath);
+      if (c.check(sha256(cohortBytes) === manifest.cohort.manifest_sha256, 'cohort', 'the cohort manifest is not the one this build names')) cohort = { root: path.dirname(cohortPath), manifest: JSON.parse(cohortBytes.toString('utf8')) };
+    }
+  } else if (!manifest.provisional.includes('cohort')) c.fail('cohort', 'the manifest names no cohort and does not say so in `provisional`');
+  if (cohort && !options.fixture) {
+    // every marathon result of an edition the cohort holds, kept in typed arrays for the record-by-record comparison
+    const size = cohort.manifest.editions.reduce((sum, entry) => sum + entry.raw, 0);
+    held = { n: 0, size, maxId: 0, id: new Float64Array(size), edition: new Uint16Array(size), status: new Uint8Array(size), sex: new Uint8Array(size), age: new Int16Array(size),
+      confirmed: new Uint8Array(size), profile: new Float64Array(size), times: new Int32Array(size * 9).fill(-1) };
+  }
+
   // ---- 3 to 5. the profile pass
   const expected = new Accumulators(Lc), actual = new Accumulators(Lc);
   const resultKeys = new Float64Array(Math.max(1, manifest.counts.results | 0));
@@ -406,9 +426,17 @@ function verify(dataRoot, options = {}) {
         // times
         const points = L.CHECKPOINTS[distance];
         let total = 0, complete = finish >= 0, increasing = true, last = 0, inBounds = true, clearlyInside = true;
+        const slot = held && !half && edition.context !== null ? held.n++ : -1;
+        const keep = slot >= 0 && slot < held.size;
+        if (keep) {
+          held.id[slot] = id; held.edition[slot] = edition.context; held.status[slot] = Number(status); held.sex[slot] = SEX.indexOf(d.x[row]); held.age[slot] = d.a[row];
+          held.confirmed[slot] = L.CONFIRMED_LINKS.includes(link) ? 1 : 0; held.profile[slot] = number * 4194304 + p; held.times[slot * 9 + 8] = finish;
+          if (id > held.maxId) held.maxId = id;
+        }
         for (let bit = 0; bit < points; bit++) {
           if (mask >> bit & 1) {
             total += d.d[gapAt++];
+            if (keep) held.times[slot * 9 + bit] = total;
             if (!half) {
               const elapsed = total - last, pace = elapsed / LENGTHS_KM[bit];
               if (!(elapsed > 0)) increasing = false;
@@ -697,22 +725,83 @@ function verify(dataRoot, options = {}) {
   facts.queries = { asked: run.queries, read: run.executed, refusedOver1MB: run.refused, wrong: run.wrong, largestRead: run.bytes.length ? Math.max(...run.bytes) : 0 };
   if (!options.fixture) c.check(run.executed >= 20 && run.refused >= 1, 'search', `the sample ran ${run.executed} queries and refused ${run.refused}: too few to mean anything`);
 
-  // ---- the cohort binding
-  const cohortPath = options.cohort || (manifest.cohort ? path.join(dataRoot, 'cohort/manifest.json') : null);
-  if (manifest.cohort) {
-    if (!fs.existsSync(cohortPath)) c.fail('cohort', `the manifest names a cohort and ${cohortPath} does not exist`);
-    else {
-      const cohortBytes = fs.readFileSync(cohortPath), cohort = JSON.parse(cohortBytes.toString('utf8'));
-      c.check(sha256(cohortBytes) === manifest.cohort.manifest_sha256, 'cohort', 'the cohort manifest is not the one this build names');
-      const raw = counts.marathon.results + counts.marathon.unnamed + counts.marathon.placeholder.flagged + counts.marathon.placeholder.listed;
-      if (Number.isSafeInteger(cohort.raw_records)) c.check(cohort.raw_records === raw, 'cohort', `the cohort’s raw records are ${cohort.raw_records}; the lookup’s marathon results with the unnamed and placeholder rows are ${raw}`);
-      if (Number.isSafeInteger(cohort.eligible_records)) c.check(cohort.eligible_records === (counts.marathon.status['0'] || 0), 'cohort', `the cohort holds ${cohort.eligible_records} eligible records; ${counts.marathon.status['0'] || 0} results are counted`);
-      if (Array.isArray(cohort.editions)) for (const e of editions) if (e.context !== null) {
-        const listed = cohort.editions[e.context];
-        c.check(listed && listed.city === e.city && Number(listed.year) === e.year, 'cohort', `edition ${e.index}: its cohort index names another edition`);
-      }
+  // ---- the cohort binding: counts, then every marathon result of a cohort edition against the cohort's own record
+  if (cohort) {
+    const document = cohort.manifest, m = counts.marathon;
+    const unlisted = m.unlisted_status || {};
+    c.check(document.release_tag === tag, 'cohort', `the cohort is of ${document.release_tag}`);
+    for (const [name, key] of [['record-status.parquet', 'record_status'], ['identity.parquet', 'identity']]) {
+      c.check(document.inputs && document.inputs[key] && document.inputs[key].sha256 === manifest.inputs[name], 'cohort', `the cohort and the lookup were not built from the same ${name}`);
     }
-  } else if (!manifest.provisional.includes('cohort')) c.fail('cohort', 'the manifest names no cohort and does not say so in `provisional`');
+    c.check(document.raw_records === m.results + m.unnamed + m.placeholder.flagged + m.placeholder.listed, 'cohort', `the cohort’s raw records are ${document.raw_records}; the lookup’s marathon results with the unnamed and placeholder rows are ${m.results + m.unnamed + m.placeholder.flagged + m.placeholder.listed}`);
+    c.check(document.eligible_records === (count.status['0'] || 0) + (unlisted['0'] || 0), 'cohort', `the cohort holds ${document.eligible_records} eligible records; ${(count.status['0'] || 0) + (unlisted['0'] || 0)} kept marathon rows are counted`);
+    c.check(document.own_record_records === (count.status['1'] || 0) + (unlisted['1'] || 0), 'cohort', `the cohort holds ${document.own_record_records} own-record records; ${(count.status['1'] || 0) + (unlisted['1'] || 0)} kept marathon rows are own-record`);
+    c.check(manifest.cohort.raw_records === document.raw_records && manifest.cohort.eligible_records === document.eligible_records && manifest.cohort.editions === document.editions.length &&
+      manifest.cohort.as_of === document.as_of && manifest.cohort.input_as_of === document.input_as_of, 'cohort', 'the manifest’s cohort block does not repeat the cohort manifest');
+    // raw records per edition: the edition's listed results and its kept rows that are not listed
+    const raw = new Map(document.editions.map(entry => [entry.city + '\u0000' + entry.year, entry.raw]));
+    const others = document.other_editions || { columns: ['city', 'year', 'raw'], rows: [] };
+    const column = name => others.columns.indexOf(name);
+    for (const row of others.rows) raw.set(row[column('city')] + '\u0000' + row[column('year')], row[column('raw')]);
+    const byContext = new Map();
+    let known = 0;
+    for (const e of editions) if (e.distance === 'marathon') {
+      const key = e.city + '\u0000' + e.year;
+      c.check(raw.get(key) === perEdition[e.index] + e.unlisted, 'cohort', `edition ${e.index}: ${perEdition[e.index] + e.unlisted} kept rows; the cohort counts ${raw.get(key)} raw records`);
+      known++;
+      const listed = e.context === null ? undefined : document.editions[e.context];
+      if (e.context !== null) { c.check(listed && listed.city === e.city && Number(listed.year) === e.year, 'cohort', `edition ${e.index}: its cohort index names another edition`); byContext.set(e.context, e); }
+      else c.check(!document.editions.some(entry => entry.city === e.city && Number(entry.year) === e.year), 'cohort', `edition ${e.index}: the cohort holds it and the lookup gives it no cohort index`);
+      if (e.context === null) c.check(statusSeen[e.index] === 0b1000000, 'cohort', `edition ${e.index} has no cohort file and holds a result that is not "recorded times only"`);
+    }
+    for (const row of m.unlisted_editions) { c.check(raw.get(row[1] + '\u0000' + row[2]) === row[4], 'cohort', `the edition with no listed result (${row[2]}) does not hold the cohort’s raw count`); known++; }
+    c.check(known === raw.size, 'cohort', `the lookup knows ${known} marathon editions, the cohort ${raw.size}`);
+    if (held) {
+      c.check(held.n <= held.size, 'cohort', `${held.n} results sit in cohort editions that hold ${held.size} records`);
+      const n = Math.min(held.n, held.size), C = document.editions.length;
+      const start = new Uint32Array(C + 1), order = new Uint32Array(n);
+      for (let i = 0; i < n; i++) start[held.edition[i] + 1]++;
+      for (let ci = 0; ci < C; ci++) start[ci + 1] += start[ci];
+      const cursor = start.slice(0, C);
+      for (let i = 0; i < n; i++) order[cursor[held.edition[i]]++] = i;
+      const Cohort = require('./lib/cohort.cjs');
+      const runnerProfile = new Float64Array(held.maxId + 2).fill(-1);
+      const reasonStatus = { duplicate: 2, missing_checkpoints: 3, times_out_of_order: 4, outside_bounds: 5 };
+      let compared = 0, hiddenAges = 0;
+      for (let ci = 0; ci < C; ci++) {
+        const entry = document.editions[ci];
+        let edition;
+        try { edition = Cohort.readEdition(entry, cohort.root); } catch (error) { c.fail('cohort', `${entry.file}: ${error.message}`); continue; }
+        const eligible = new Map(edition.ids.map((id, k) => [id, k])), other = new Map(edition.otherIds.map((id, k) => [id, k]));
+        const where = `${entry.file}`;
+        for (let at = start[ci]; at < start[ci + 1]; at++) {
+          const i = order[at], id = held.id[i], k = eligible.get(id);
+          compared++;
+          if (k === undefined) {
+            const j = other.get(id);
+            if (!c.check(j !== undefined, 'cohort', `${where}: a result of the lookup is not a record of the cohort`)) continue;
+            c.check(reasonStatus[edition.otherReasons[j]] === held.status[i], 'cohort', `${where}: a record’s status is ${held.status[i]}, the cohort says ${edition.otherReasons[j]}`);
+            continue;
+          }
+          c.check(held.status[i] === (entry.use === 'counted' ? 0 : 1), 'cohort', `${where}: a record the cohort holds as ${entry.use} has status ${held.status[i]}`);
+          let same = true;
+          for (let point = 0; point < 9; point++) if (held.times[i * 9 + point] !== edition.times[k][point]) same = false;
+          c.check(same, 'cohort', `${where}: a record’s nine times differ from the cohort’s`);
+          c.check(SEX[held.sex[i]] === (edition.sex[k] === null ? '-' : edition.sex[k]), 'cohort', `${where}: a record’s sex differs from the cohort’s`);
+          if (held.age[i] >= 0) c.check(edition.age[k] === held.age[i], 'cohort', `${where}: a record’s age differs from the cohort’s`); else if (edition.age[k] !== null) hiddenAges++;
+          const runner = edition.runner[k];
+          c.check((runner !== 0) === (held.confirmed[i] === 1), 'cohort', `${where}: a record ${runner ? 'with' : 'without'} a runner in the cohort has ${held.confirmed[i] ? 'a confirmed' : 'no confirmed'} link in the lookup`);
+          if (runner !== 0 && runner < runnerProfile.length) {
+            if (runnerProfile[runner] === -1) runnerProfile[runner] = held.profile[i];
+            else c.check(runnerProfile[runner] === held.profile[i], 'cohort', `${where}: two records of one cohort runner sit in two profiles`);
+          }
+        }
+        const lookupEdition = byContext.get(ci);
+        if (lookupEdition) c.check(start[ci + 1] - start[ci] === perEdition[lookupEdition.index], 'cohort', `${where}: not every result of the edition was compared`);
+      }
+      facts.cohort = { editions: C, compared, hiddenAges };
+    }
+  }
 
   facts.seconds = Math.round((Date.now() - started) / 100) / 10;
   return { failures: c, facts, manifest };
@@ -902,7 +991,7 @@ function main() {
     `leaves of ${n(facts.leafRows[0])} to ${n(facts.leafRows[1])} rows and at least ${n(facts.fewestProfiles)} profiles.`);
   console.log(`Search: all ${n(full.checked)} search names typed in full are reached by their stage-1 plan (median ${n(full.median)} B, 99th percentile ${n(full.p99)}, 99.9th ${n(full.p999)}, largest ${n(full.largest)}; ` +
     `${n(full.over300KB)} over 300 KB, ${n(full.over1MB)} over 1 MB; leaves per plan ${JSON.stringify(full.leaves)}). ${n(facts.queries.read)} sample queries read their leaves and matched a scan of every name (largest ${n(facts.queries.largestRead)} B); ` +
-    `${n(facts.queries.refusedOver1MB)} planned over 1 MB and were not read.${facts.neverShown === undefined ? '' : ` None of the ${n(facts.neverShown)} rows that must not appear is in a shard.`} ${facts.seconds} s, peak memory ${n(Math.round(process.resourceUsage().maxRSS / 1024))} MB.`);
+    `${n(facts.queries.refusedOver1MB)} planned over 1 MB and were not read.${facts.neverShown === undefined ? '' : ` None of the ${n(facts.neverShown)} rows that must not appear is in a shard.`}${facts.cohort ? ` ${n(facts.cohort.compared)} marathon results equal the cohort’s records in ${n(facts.cohort.editions)} editions.` : ''} ${facts.seconds} s, peak memory ${n(Math.round(process.resourceUsage().maxRSS / 1024))} MB.`);
 }
 
 if (require.main === module) main();
