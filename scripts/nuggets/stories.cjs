@@ -70,8 +70,11 @@ module.exports = function stories({ json, eq, ok, core }) {
 
   R['replay.title'] = (n) => {
     eq(n.guard, first.s >= 0.45 && first.s < 0.5, 'replay.title: "nearly half" only from 0.45 to under 0.5');
-    // The H1 names its race (round 6): the share is the most extreme replay's, never a rule for every race.
-    ok(shown(n).includes(`${first.e.city === 'New York' ? 'New York City' : first.e.city} ${first.e.year}’s first finish`), 'replay.title: the H1 names the race it is true of');
+    // The H1 names its race (round 6): the share is the most extreme replay's, never a rule for every race. While the
+    // guard fails the H1 is the story's plain title and states no reading, so it names no race and no share (AGENTS rule
+    // 13; November 14, 2026: this recount had required the race's name in either state, which the fallback never had).
+    if (n.guard) ok(shown(n).includes(`${first.e.city === 'New York' ? 'New York City' : first.e.city} ${first.e.year}’s first finish`), 'replay.title: the H1 names the race it is true of');
+    else eq(shown(n), 'Watch a marathon unfold', 'replay.title: the fallback is the plain title, with no race, share or reading');
   };
 
   R['replay.back'] = (n) => {

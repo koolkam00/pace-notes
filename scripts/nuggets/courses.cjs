@@ -1,14 +1,21 @@
 'use strict';
 // The course nuggets' recount (lib/nuggets/courses.ts; WP5), run by scripts/verify-nuggets.cjs. Every value is recomputed
 // from the raw files with a second, deliberately plain implementation: courses.json, archetypes.json, course-geometry.json,
-// the course chooser's rows, the course-profile pack's source policy, the duplicate-edition screen and each city's
-// runner-context shards (for the supplied route's 5 km sections). For every course it checks each nugget's values, its
-// guard and that the sentence a page shows names the recounted numbers; the fixtures prove the fallbacks render and that
-// a flipped guard is caught.
+// the course chooser's rows, the edition policy's published list (through the marathon cohort's manifest, which states its
+// digests), the duplicate-edition screen and each city's runner-context shards (for the supplied route's 5 km sections).
+// For every course with a full page it checks each nugget's values, its guard and that the sentence a page shows names
+// the recounted numbers; the fixtures prove the fallbacks render and that a flipped guard is caught.
+//
+// Since November 14, 2026 (pace-notes-marathon-half-20261113-1113) a course in courses.json is not always a page and a
+// page is not always in courses.json: the pages are the races with three or more counted editions plus the 27 kept
+// courses (lib/course-data.ts), recounted here from the cohort manifest. A course without a page has no page nugget (a
+// city nobody has a page for falls back, checked below), and a kept course without a counted edition has a page that
+// only lists its editions, so it has no course nugget either.
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const { policyEditions } = require('../lib/edition-policy.cjs');
+const cohortReader = require('../lib/cohort.cjs');
 
 module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   const json = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
@@ -17,9 +24,10 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   const geometry = json('public/data/insights/course-geometry.json').courses;
   const goalFile = json('public/data/insights/tools/course-goal.json');
   const manifest = json('public/data/insights/manifest.json');
-  // The listed editions: in the pack up to master-20261103b, the one published list from the combined release on.
-  const policy = policyEditions(json('public/data/packs/ext_course_pacing_profiles/pack_meta.json').source_quality, 'ext_course_pacing_profiles');
-  const runners = json('public/data/runners/manifest.json');
+  // The listed editions: the one published list (public/data/edition-policy.json) whose digests the cohort manifest states.
+  // The page code reads the cohort manifest's own lists (lib/course-page.ts heldEditions); the two must agree.
+  const cohort = cohortReader.readManifest(path.join(ROOT, 'analysis/marathon-cohort')).manifest;
+  const policy = policyEditions(cohort.source_quality, 'marathon cohort');
   const context = json('public/data/runner-context/manifest.json');
   const copies = manifest.duplicate_edition_screen ?? [];
   const held = new Set([...policy, ...copies].map((e) => `${e.city}|${e.year}`));
@@ -46,14 +54,25 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   let checks = 0;
   const step = (fn) => { fn(); checks++; };
 
-  // The supplied route's sections for each city: the first eligible edition's shard with nine sections.
+  // The supplied route's sections for each city: the first counted edition's shard with nine sections. The context lists
+  // a shard only for a counted edition with peers, weather or terrain; an edition without one has no sections.
   const terrain = new Map();
-  runners.editions.forEach((edition, index) => {
+  cohort.editions.forEach((edition, index) => {
     if (terrain.has(edition.city) || copies.some((c) => c.city === edition.city && c.year === edition.year)) return;
     const meta = context.editions[String(index)];
+    if (!meta) return;
     const shard = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(ROOT, 'public/data/runner-context', meta.file))));
     if (Array.isArray(shard.terrain?.sections) && shard.terrain.sections.length === 9) terrain.set(edition.city, shard.terrain.sections);
   });
+
+  // The course pages, recounted: three or more counted editions, or one of the 27 kept courses. A full page is one whose
+  // course has a summary in courses.json; the others only list their editions.
+  const { KEPT_COURSE_PAGES, COURSE_PAGE_MIN_EDITIONS } = require(path.join(ROOT, 'lib/course-data.ts'));
+  const countedEditions = new Map();
+  for (const edition of cohort.editions) if (edition.use === 'counted') countedEditions.set(edition.city, (countedEditions.get(edition.city) ?? 0) + 1);
+  const pageCities = new Set([...KEPT_COURSE_PAGES, ...[...countedEditions].filter(([, n]) => n >= COURSE_PAGE_MIN_EDITIONS).map(([city]) => city)]);
+  const fullPages = courses.courses.filter((c) => pageCities.has(c.city));
+  step(() => ok(COURSE_PAGE_MIN_EDITIONS === 3 && courses.courses.every((c) => c.editions < 3 || pageCities.has(c.city)), 'every course with three or more editions in courses.json has a page'));
 
   const solid = courses.courses.filter((c) => c.editions >= 3);
   const tally = new Map();
@@ -65,10 +84,10 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   {
     const n = N.getNugget('courses.index');
     // The card into the list promises what the list holds: its count of course pages, as the dek says it.
-    step(() => eq([n.values.courses, n.guard, n.figure && n.figure.value], [courses.courses.length, courses.courses.length > 0, courses.courses.length.toLocaleString('en-US')], 'courses.index recounts the course pages, its figure the count'));
+    step(() => eq([n.values.courses, n.guard, n.figure && n.figure.value], [pageCities.size, pageCities.size > 0, pageCities.size.toLocaleString('en-US')], 'courses.index recounts the course pages, its figure the count'));
   }
 
-  for (const c of courses.courses) {
+  for (const c of fullPages) {
     const city = c.city;
     const at = (id) => N.getNugget(id, { city });
     const route = geometry.find((g) => g.city === city);
@@ -341,5 +360,10 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   const none = N.getNugget('course.weather', { city: 'Nowhere' });
   step(() => eq([none.guard, core.sentenceOf(none)], [false, 'Race mornings.'], 'fixture course.weather: a city with no page falls back'));
   for (const id of N.CONTEXT_NUGGETS) step(() => eq(N.getNugget(id, { city: 'Nowhere' }).guard, false, `fixture ${id}: no page, no claim`));
-  return { checks, cities: courses.courses.length };
+  // A course in the story data that has no page (fewer than three counted editions and not a kept course), and a kept
+  // course whose page only lists its editions: neither has a course nugget that says anything.
+  for (const city of [...courses.courses.filter((c) => !pageCities.has(c.city)).map((c) => c.city), ...[...pageCities].filter((city) => !courses.courses.some((c) => c.city === city))]) {
+    for (const id of N.CONTEXT_NUGGETS) step(() => eq(N.getNugget(id, { city }).guard, false, `${id} (${city}): no full page, no claim`));
+  }
+  return { checks, cities: fullPages.length };
 };
