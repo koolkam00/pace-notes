@@ -30,6 +30,14 @@ def results_frame(rows):
                      'exact_yob': np.int16, 'eligible': bool, 'slow': bool, 'n_any': np.int32})
 
 
+def keyed(t, series=None):
+    """A unit table with the race keys the builders group by: the label, or the label and a series (plan decision D29)."""
+    t = t.copy()
+    t['series'] = pd.Series([None] * len(t) if series is None else list(series), index=t.index, dtype=object)
+    t['rkey'] = [label if name is None else f'{label}\x1f{name}' for label, name in zip(t.label, t.series)]
+    return t
+
+
 class Synthetic:
     """Runners with two results each, generated from the model itself: a later result carries its race's order term
     and the drift, an earlier one the opposite order term."""
@@ -255,8 +263,8 @@ class Readings(unittest.TestCase):
             lc.t_multiplier(1)
 
     def test_an_edition_far_from_its_race_is_held_and_enters_nothing(self):
-        t = pd.DataFrame({'label': ['A'] * 5 + ['B'] * 2, 'basis': ['chip_or_net'] * 7, 'year': [2015, 2016, 2017, 2018, 2019, 2015, 2016],
-                          'beta': [0.0, 0.01, -0.01, 0.005, 0.08, 0.0, 0.5], 'code': np.arange(7), 'pos': np.arange(7)})
+        t = keyed(pd.DataFrame({'label': ['A'] * 5 + ['B'] * 2, 'basis': ['chip_or_net'] * 7, 'year': [2015, 2016, 2017, 2018, 2019, 2015, 2016],
+                                'beta': [0.0, 0.01, -0.01, 0.005, 0.08, 0.0, 0.5], 'code': np.arange(7), 'pos': np.arange(7)}))
         held = lr.held_outliers(t)
         self.assertEqual(held.tolist(), [False, False, False, False, True, False, False])   # B has two editions: no median to hold against
         self.assertAlmostEqual(lr.from_median(t)[4], 100 * math.expm1(0.08 - 0.005), places=9)
@@ -265,8 +273,8 @@ class Readings(unittest.TestCase):
         self.assertEqual({k: v.tolist() for k, v in groups.items()}, {('A', 'chip_or_net'): [0, 1, 2, 3]})
 
     def test_editions_are_compared_only_on_the_same_timing_basis(self):
-        t = pd.DataFrame({'label': ['A'] * 7, 'basis': ['chip_or_net'] * 3 + ['gun'] * 3 + [None], 'year': list(range(2010, 2017)),
-                          'beta': np.zeros(7), 'code': np.arange(7), 'pos': np.arange(7)})
+        t = keyed(pd.DataFrame({'label': ['A'] * 7, 'basis': ['chip_or_net'] * 3 + ['gun'] * 3 + [None], 'year': list(range(2010, 2017)),
+                                'beta': np.zeros(7), 'code': np.arange(7), 'pos': np.arange(7)}))
         groups = lr.comparison_groups(t)
         self.assertEqual({k: v.tolist() for k, v in groups.items()}, {('A', 'chip_or_net'): [0, 1, 2], ('A', 'gun'): [3, 4, 5]})
         self.assertEqual(lr.comparison_groups(t, min_editions=4), {})
@@ -285,11 +293,38 @@ class Readings(unittest.TestCase):
         self.assertEqual(lr.people_by_way(fit, t, np.array([3])), (0, 2))
 
     def test_the_relation_inside_races_removes_each_race_mean(self):
-        frame = pd.DataFrame({'label': ['A'] * 3 + ['B'] * 3 + ['C'] * 2, 'basis': ['chip_or_net'] * 8,
-                              'x': [1.0, 2.0, 3.0, 11.0, 12.0, 13.0, 50.0, 90.0], 'y': [10.0, 20.0, 30.0, 0.0, 10.0, 20.0, 5.0, 500.0]})
+        frame = keyed(pd.DataFrame({'label': ['A'] * 3 + ['B'] * 3 + ['C'] * 2, 'basis': ['chip_or_net'] * 8,
+                                    'x': [1.0, 2.0, 3.0, 11.0, 12.0, 13.0, 50.0, 90.0], 'y': [10.0, 20.0, 30.0, 0.0, 10.0, 20.0, 5.0, 500.0]}))
         rel = lr.within_relation(frame, 'x', 'y', 3)
         self.assertEqual((rel['editions'], rel['groups'], rel['r'], rel['slope']), (6, 2, 1.0, 10.0))
         self.assertIsNone(lr.within_relation(frame, 'x', 'y', 4))
+
+    def test_a_label_with_a_series_note_is_two_races(self):
+        # One label, two races (plan decision D29): four spring years near 0 and four autumn years near +8%.
+        frame = pd.DataFrame({'label': ['W'] * 8 + ['X'] * 3, 'basis': ['chip_or_net'] * 11, 'year': list(range(2015, 2023)) + [2017, 2019, 2021],
+                              'beta': [0.0, 0.01, -0.01, 0.005, 0.08, 0.09, 0.075, 0.085, 0.0, 0.0, 0.0], 'code': np.arange(11), 'pos': np.arange(11)})
+        whole = keyed(frame)
+        # read as one race, the autumn years would sit far from the label's median and the comparison would mix the two
+        self.assertEqual(list(lr.comparison_groups(whole)), [('W', 'chip_or_net'), ('X', 'chip_or_net')])
+        self.assertGreater(np.abs(lr.from_median(whole)[:8]).max(), 4.0)
+        split = keyed(frame, ['Spring'] * 4 + ['Autumn'] * 4 + [None] * 3)
+        groups = lr.comparison_groups(split)
+        self.assertEqual({k: v.tolist() for k, v in groups.items()},
+                         {('W\x1fAutumn', 'chip_or_net'): [4, 5, 6, 7], ('W\x1fSpring', 'chip_or_net'): [0, 1, 2, 3], ('X', 'chip_or_net'): [8, 9, 10]})
+        self.assertLess(np.abs(lr.from_median(split)[:8]).max(), 1.6)                 # each year against the median of its own series
+        self.assertFalse(lr.held_outliers(split).any())
+        np.testing.assert_allclose(lr.against_others(split.beta.to_numpy()[groups[('W\x1fSpring', 'chip_or_net')]]).sum(), 0, atol=1e-12)
+        # the model's race codes: one per race key, so each series takes its own order term
+        split['code'] = np.arange(len(split))
+        self.assertEqual(lr.race_codes(split).tolist(), [1] * 4 + [0] * 4 + [2] * 3)
+        self.assertEqual(lr.race_codes(whole).tolist(), [0] * 8 + [1] * 3)
+        with self.assertRaises(lc.LinkedError):
+            lr.race_codes(frame)                                                    # a table without race keys is refused, never read by label
+        # the split of readings into race and year levels gives each series its own level (X ties the two series' years together)
+        two = lr.TwoWay(split, np.ones(len(split)))
+        self.assertEqual(two.groups, [('W\x1fAutumn', 'chip_or_net'), ('W\x1fSpring', 'chip_or_net'), ('X', 'chip_or_net')])
+        rel = lr.within_relation(split.assign(x=np.arange(11.0), y=np.arange(11.0) * 2), 'x', 'y', 3)
+        self.assertEqual((rel['editions'], rel['groups']), (11, 3))
 
 
 class RaceLevels(unittest.TestCase):
@@ -305,7 +340,7 @@ class RaceLevels(unittest.TestCase):
         t = pd.DataFrame(rows)
         t['code'] = np.arange(len(t))
         t['pos'] = np.arange(len(t))
-        return t
+        return keyed(t)
 
     def test_race_and_year_levels_are_recovered(self):
         t = self.table()
@@ -336,7 +371,7 @@ class RaceLevels(unittest.TestCase):
         rng = np.random.default_rng(4)
         # Dense years: twelve races in every year. The leverage-corrected form is close to the plain spread over root n.
         rows = [{'label': f'R{r:02d}', 'basis': 'chip_or_net', 'year': y, 'beta': rng.normal(0, 0.02)} for r in range(12) for y in range(2010, 2020)]
-        t = pd.DataFrame(rows)
+        t = keyed(pd.DataFrame(rows))
         t['code'] = t['pos'] = np.arange(len(t))
         two = lr.TwoWay(t, np.ones(len(t)))
         _, _, resid = two.split(t.beta.to_numpy())
@@ -348,7 +383,7 @@ class RaceLevels(unittest.TestCase):
         # deviations, so the plain spread understates what is known about its level.
         thin = [{'label': 'Thin', 'basis': 'chip_or_net', 'year': y, 'beta': b} for y, b in zip((2001, 2002, 2003), (0.03, -0.02, 0.01))]
         mate = [{'label': 'R00', 'basis': 'chip_or_net', 'year': y, 'beta': 0.0} for y in (2001, 2002, 2003)]
-        t2 = pd.concat([t, pd.DataFrame(thin + mate)], ignore_index=True)
+        t2 = keyed(pd.concat([t, pd.DataFrame(thin + mate)], ignore_index=True))
         t2['code'] = t2['pos'] = np.arange(len(t2))
         two2 = lr.TwoWay(t2, np.ones(len(t2)))
         _, _, resid2 = two2.split(t2.beta.to_numpy())
@@ -361,7 +396,7 @@ class RaceLevels(unittest.TestCase):
         t = self.table()
         island = pd.DataFrame({'label': ['Z'] * 3, 'basis': ['chip_or_net'] * 3, 'year': [1990, 1991, 1992], 'beta': [0.5, 0.5, 0.5],
                                'code': [100, 101, 102], 'pos': [18, 19, 20]})
-        t = pd.concat([t, island], ignore_index=True)
+        t = keyed(pd.concat([t, island], ignore_index=True))
         two = lr.TwoWay(t, np.ones(len(t)))
         self.assertEqual(two.groups, [(x, 'chip_or_net') for x in 'ABC'])
         self.assertEqual(len(two.pos), 18)
@@ -600,6 +635,19 @@ class Published(unittest.TestCase):
         self.bad({'note': 'a free string'})
         self.bad({'tier': 'held_for_review'})
         self.bad({'list': ['Berlin']})
+
+    def test_a_series_is_a_name_of_the_registry(self):
+        names = frozenset({'Spring Marathon', 'Autumn Marathon'})
+        row = {'tier': 'stamped', 'finishes': 5000, 'verdict': None}
+        lc.check_published({'races': {'Berlin': {'2019': {**row, 'series': 'Spring Marathon'}}}}, 'file', self.LABELS, series=names)
+        lc.check_published({'series': {'Berlin': {'Autumn Marathon': row, 'Spring Marathon': row}}}, 'file', self.LABELS, series=names)
+        for broken in ({'races': {'Berlin': {'2019': {**row, 'series': 'Winter Marathon'}}}},       # not a series of the registry
+                       {'series': {'Berlin': {'Winter Marathon': row}}},
+                       {'series': {'Springfield': {'Spring Marathon': row}}},                       # not a registry label
+                       {'series': {'Berlin': {'Spring Marathon': {**row, 'name': 'x'}}}}):          # the bans hold inside a series
+            with self.assertRaises(lc.LinkedError):
+                lc.check_published(broken, 'file', self.LABELS, series=names)
+        self.bad({'races': {'Berlin': {'2019': {**row, 'series': 'Spring Marathon'}}}})              # no series without a note
 
     def test_no_rank_no_order_no_converted_time(self):
         for key in ('rank', 'race_rank', 'order', 'sorted_order', 'position', 'fastest', 'equivalent_time', 'adjusted_s', 'converted'):

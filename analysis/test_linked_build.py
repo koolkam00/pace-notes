@@ -5,8 +5,11 @@ Run: python3 -I -m unittest discover -s analysis -p 'test_linked*.py'
 """
 from __future__ import annotations
 
+import copy
 import json
 import math
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,6 +24,9 @@ import linked_universe as lu
 TAG = 'test-linked-release'
 YEARS = list(range(2012, 2020))
 RACES = {'Alpha': 'stamped', 'Beta': 'stamped_weaker_source', 'Gamma': 'partial'}
+# A reviewed series note as the registry carries it (plan decision D29): the label Alpha holds two races.
+ALPHA_SERIES = [{'name': 'Alpha Spring Marathon', 'first_year': 2012, 'last_year': 2015},
+                {'name': 'Alpha Autumn Marathon', 'first_year': 2016, 'last_year': 2019, 'months': 'September and October'}]
 KM = [5, 10, 15, 20, 25, 30, 35, 40, 42.195]
 
 
@@ -104,7 +110,10 @@ def write_input(folder: Path, seed=1, runners=3000):
     link = pd.DataFrame(links, columns=['record_id', 'distance', 'source_db', 'age_key', 'record_flags', 'person_id'])
     meta = pd.DataFrame([{'city': k[0], 'year': k[1], 'verification_tier': v['tier'], 'split_tier': v['split_tier'], 'timing_basis': v['timing_basis']}
                          for k, v in editions.items()])
-    weather = pd.DataFrame([{'city': k[0], 'year': k[1], 'temp_c': 8.0 + 60 * year_effect[k[1]] + i % 3, 'temp_c_win_mean': 10.0 + 400 * year_effect[k[1]] + i % 2}
+    # as the release's weather rows are: the start temperature to a tenth of a degree, the window mean to a hundredth (the
+    # family publishes both to a hundredth, so the verifier's recount from the published points is exact)
+    weather = pd.DataFrame([{'city': k[0], 'year': k[1], 'temp_c': round(8.0 + 60 * year_effect[k[1]] + i % 3, 1),
+                             'temp_c_win_mean': round(10.0 + 400 * year_effect[k[1]] + i % 2, 2)}
                             for i, k in enumerate(editions) if k[0] != 'Beta'])
     con = duckdb.connect()
     for frame, name in ((rec, 'race_records'), (feat, 'features'), (meta, 'edition_meta'), (weather, 'race_conditions')):
@@ -194,34 +203,49 @@ class Editions(unittest.TestCase):
             self.classify([self.row('stamped')], [self.fact()], counted=[])
 
 
+def build_synthetic(cls, *, runners=3000, series=None, outs=('out1', 'out2')):
+    """Write the synthetic input into a temp folder of the test class and build the family once per name in `outs`."""
+    cls.tmp = tempfile.TemporaryDirectory()
+    cls.folder = Path(cls.tmp.name)
+    cls.source = cls.folder / 'input'
+    cls.source.mkdir()
+    cls.policy, cls.registry = write_input(cls.source, runners=runners)
+    if series is not None:
+        for race in cls.registry['races']:
+            if race['label'] in series:
+                race['series'] = copy.deepcopy(series[race['label']])
+    (cls.folder / 'policy.json').write_text(json.dumps(cls.policy))
+    (cls.folder / 'registry.json').write_text(json.dumps(cls.registry))
+    cls.links = cls.source / 'links' / lc.LINK_ASSET
+    cls.identity = cls.source / 'links' / 'identity.parquet'
+    cls.binding = {'release_tag': TAG, 'input_manifest_sha256': 'a' * 64, 'input_as_of': '2026-01-01T00:00:00Z', 'adapter_sha256': 'b' * 64,
+                   'policy_file': str(cls.folder / 'policy.json'), 'policy_sha256': 'c' * 64, 'registry_file': 'registry.json',
+                   'registry_sha256': 'd' * 64, 'link_file': lc.LINK_ASSET, 'link_file_sha256': 'e' * 64,
+                   'identity_file': 'identity.parquet', 'identity_sha256': 'f' * 64, 'identity_builder_sha256': '0' * 64}
+    # The site's cohort code applies the reviewed policy of the input's release tag: give the test tag the same list.
+    import source_quality
+    original = lu.check_inputs
+    lu.check_inputs = lambda *a, **k: dict(cls.binding)
+    source_quality.REVIEWED_POLICIES[TAG] = [(e['city'], e['year'], e['category'], 'a test edition') for e in cls.policy['editions']]
+    try:
+        cls.metas = [build_linked.run(cls.source, cls.links, cls.identity, cls.folder / name, boot=25, registry_path=cls.folder / 'registry.json') for name in outs]
+    finally:
+        lu.check_inputs = original
+        del source_quality.REVIEWED_POLICIES[TAG]
+    cls.files = {name: json.loads((cls.folder / outs[0] / name).read_text()) for name in (*build_linked.FILES, 'manifest.json')}
+
+
+def verify_family(folder: Path, registry: Path):
+    """scripts/verify-linked.cjs on a synthetic family, against the family's own registry (its test-only mode)."""
+    return subprocess.run(['node', str(lc.ROOT / 'scripts' / 'verify-linked.cjs'), '--data', str(folder), '--registry', str(registry), '--family-only'],
+                          capture_output=True, text=True, check=False)
+
+
 class Build(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
-        cls.folder = Path(cls.tmp.name)
-        cls.source = cls.folder / 'input'
-        cls.source.mkdir()
-        cls.policy, cls.registry = write_input(cls.source)
-        (cls.folder / 'policy.json').write_text(json.dumps(cls.policy))
-        (cls.folder / 'registry.json').write_text(json.dumps(cls.registry))
-        cls.links = cls.source / 'links' / lc.LINK_ASSET
-        cls.identity = cls.source / 'links' / 'identity.parquet'
-        cls.binding = {'release_tag': TAG, 'input_manifest_sha256': 'a' * 64, 'input_as_of': '2026-01-01T00:00:00Z', 'adapter_sha256': 'b' * 64,
-                       'policy_file': str(cls.folder / 'policy.json'), 'policy_sha256': 'c' * 64, 'registry_file': 'registry.json',
-                       'registry_sha256': 'd' * 64, 'link_file': lc.LINK_ASSET, 'link_file_sha256': 'e' * 64,
-                       'identity_file': 'identity.parquet', 'identity_sha256': 'f' * 64, 'identity_builder_sha256': '0' * 64}
-        # The site's cohort code applies the reviewed policy of the input's release tag: give the test tag the same list.
-        import source_quality
-        original = lu.check_inputs
-        lu.check_inputs = lambda *a, **k: dict(cls.binding)
-        source_quality.REVIEWED_POLICIES[TAG] = [(e['city'], e['year'], e['category'], 'a test edition') for e in cls.policy['editions']]
-        try:
-            cls.meta = build_linked.run(cls.source, cls.links, cls.identity, cls.folder / 'out1', boot=25, registry_path=cls.folder / 'registry.json')
-            cls.again = build_linked.run(cls.source, cls.links, cls.identity, cls.folder / 'out2', boot=25, registry_path=cls.folder / 'registry.json')
-        finally:
-            lu.check_inputs = original
-            del source_quality.REVIEWED_POLICIES[TAG]
-        cls.files = {name: json.loads((cls.folder / 'out1' / name).read_text()) for name in (*build_linked.FILES, 'manifest.json')}
+        build_synthetic(cls)
+        cls.meta, cls.again = cls.metas
 
     @classmethod
     def tearDownClass(cls):
@@ -341,6 +365,112 @@ class Build(unittest.TestCase):
         build_linked.compare_counts(out, self.files['manifest.json'], accept=True)
 
 
+class BuildWithSeries(unittest.TestCase):
+    """The same synthetic input, read with a registry whose label Alpha holds two races (plan decision D29). The fixture is
+    larger so that the counted editions hold the 1,000 timing-eligible finishes of the whole-field check and the Node
+    verifier can check the whole family."""
+
+    @classmethod
+    def setUpClass(cls):
+        build_synthetic(cls, runners=8000, series={'Alpha': ALPHA_SERIES}, outs=('out1',))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_an_edition_is_compared_inside_its_series(self):
+        e = self.files['editions.json']
+        alpha = e['races']['Alpha']
+        self.assertEqual(sorted(alpha), [str(y) for y in YEARS])
+        for year, row in alpha.items():
+            self.assertEqual(row['series'], 'Alpha Spring Marathon' if int(year) <= 2015 else 'Alpha Autumn Marathon')
+            self.assertEqual(row['others'], 3)                                    # the three other years of its own series, not seven
+        for name in ('Alpha Spring Marathon', 'Alpha Autumn Marathon'):
+            logs = [math.log1p(row['reading_pct'] / 100) for row in alpha.values() if row['series'] == name]
+            self.assertAlmostEqual(sum(logs), 0.0, delta=1e-4)                    # each series' readings are against its own other years
+            self.assertEqual(len({row['year_sd_pct'] for row in alpha.values() if row['series'] == name}), 1)
+        self.assertTrue(all('series' not in row for label in ('Beta', 'Gamma') for row in e['races'][label].values()))
+        self.assertEqual(e['summary']['races'], 4)                                # two series of Alpha, Beta, and Gamma's gun-timed years
+
+    def test_a_label_with_series_is_read_per_series(self):
+        r = self.files['races.json']
+        self.assertEqual(list(r['races']), ['Beta'])                              # no reading for the label Alpha itself
+        self.assertEqual(list(r['series']), ['Alpha'])
+        self.assertEqual(list(r['series']['Alpha']), ['Alpha Autumn Marathon', 'Alpha Spring Marathon'])
+        for row in r['series']['Alpha'].values():
+            self.assertEqual((row['editions'], row['editions_fitted']), (4, 4))
+            self.assertGreaterEqual(min(row['people_earlier'], row['people_later']), 100)   # the other series counts as another race
+            self.assertLess(row['reading_pct'], r['races']['Beta']['reading_pct'])           # the fixture makes Alpha 2% quicker than Beta
+            self.assertIs(row['trail_or_mountain'], False)
+        self.assertEqual(r['summary']['races'], 3)
+        raw = (self.folder / 'out1' / 'races.json').read_text()
+        self.assertNotRegex(raw, r'rank|order|position|fastest|equivalent')
+        self.assertEqual(self.files['manifest.json']['cohort']['universe']['series'], {'labels': 1, 'races': 2, 'editions': 8})
+        self.assertEqual(self.files['manifest.json']['cohort']['universe']['F']['races'], 4)
+        self.assertEqual(self.files['manifest.json']['cohort']['fit']['races_fitted'], 4)
+
+    def test_the_checks_group_by_series(self):
+        c = self.files['checks.json']
+        sizes = {}
+        for p in c['temperature']['points']:
+            self.assertEqual(p.get('series'), None if p['label'] != 'Alpha' else 'Alpha Spring Marathon' if p['year'] <= 2015 else 'Alpha Autumn Marathon')
+            key = (p['label'], p.get('series'), p['basis'])
+            sizes[key] = sizes.get(key, 0) + 1
+        self.assertEqual(sizes[('Alpha', 'Alpha Spring Marathon', 'chip_or_net')], 4)
+        self.assertTrue(all(n >= 3 for n in sizes.values()))
+        self.assertIsNotNone(c['slowdown'])                                       # this fixture is large enough for the whole-field check
+        self.assertTrue(all(('series' in p) == (p['label'] == 'Alpha') for p in c['slowdown']['points']))
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not installed')
+    def test_the_node_verifier_checks_a_family_with_series(self):
+        out, registry = self.folder / 'out1', self.folder / 'registry.json'
+        done = verify_family(out, registry)
+        self.assertEqual(done.returncode, 0, done.stdout[-3000:] + done.stderr[-3000:])
+        self.assertIn('checks passed', done.stdout)
+
+        def broken(name, change, registry_change=None):
+            folder = self.folder / 'broken'
+            shutil.rmtree(folder, ignore_errors=True)
+            shutil.copytree(out, folder)
+            doc = json.loads((folder / name).read_text())
+            change(doc)
+            data = (json.dumps(doc, ensure_ascii=False, sort_keys=True, separators=(',', ':')) + '\n').encode()
+            (folder / name).write_bytes(data)
+            manifest = json.loads((folder / 'manifest.json').read_text())
+            manifest['files'][name] = {'bytes': len(data), 'sha256': lc.bytes_sha256(data)}
+            (folder / 'manifest.json').write_text(json.dumps(manifest) + '\n')
+            other = registry
+            if registry_change is not None:
+                reg = copy.deepcopy(self.registry)
+                registry_change(reg)
+                other = self.folder / 'registry-broken.json'
+                other.write_text(json.dumps(reg))
+            return verify_family(folder, other)
+
+        def swap_series(d):
+            d['races']['Alpha']['2013']['series'] = 'Alpha Autumn Marathon'
+
+        def drop_series(d):
+            del d['races']['Alpha']['2013']['series']
+
+        def label_reading(d):
+            d['races']['Alpha'] = d['series']['Alpha']['Alpha Spring Marathon']
+
+        def unknown_series(d):
+            d['series']['Alpha']['Alpha Winter Marathon'] = d['series']['Alpha'].pop('Alpha Spring Marathon')
+
+        def drop_note(reg):
+            for race in reg['races']:
+                race.pop('series', None)
+        for what, result in (('an edition in the other series', broken('editions.json', swap_series)),
+                             ('an edition without its series', broken('editions.json', drop_series)),
+                             ('a reading for a label that holds two races', broken('races.json', label_reading)),
+                             ('a series the registry does not name', broken('races.json', unknown_series)),
+                             ('a registry without the note', broken('editions.json', lambda d: None, drop_note))):
+            self.assertNotEqual(result.returncode, 0, what)
+            self.assertIn('checks failed', result.stderr, what)
+
+
 class Inputs(unittest.TestCase):
     def test_a_source_inside_the_repository_is_refused(self):
         with self.assertRaises(lc.LinkedError):
@@ -366,6 +496,45 @@ class Inputs(unittest.TestCase):
             (folder / 'identity.parquet.json').unlink()
             with self.assertRaises(lc.LinkedError):
                 lu.check_identity(identity, 'tag', 'm' * 64, 'l' * 64, builder=builder)
+
+    def test_the_series_note_is_read_strictly(self):
+        def registry(note, **extra):
+            return {'races': [{'label': 'W', 'series': note}, {'label': 'X'}], **extra}
+        good = [{'name': 'Spring', 'first_year': 2015, 'last_year': 2018, 'months': 'April'}, {'name': 'Autumn', 'first_year': 2019, 'last_year': 2026}]
+        self.assertEqual(lu.series_notes(registry(good)), {'W': [('Spring', 2015, 2018), ('Autumn', 2019, 2026)]})
+        self.assertEqual(lu.series_notes(registry(list(reversed(good)))), {'W': [('Spring', 2015, 2018), ('Autumn', 2019, 2026)]})   # in year order
+        self.assertEqual(lu.series_names(registry(good)), frozenset({'Spring', 'Autumn'}))
+        self.assertEqual(lu.series_notes({'races': [{'label': 'W'}, {'label': 'X', 'series': None}]}), {})
+        for note in ('Spring 2015 to 2018; Autumn 2019 to 2026',                                    # prose is not read, and not guessed
+                     good[:1],                                                                      # one series is no split
+                     [{'name': 'Spring', 'years': [2015, 2018]}, good[1]],                          # another shape
+                     [{**good[0], 'first_year': '2015'}, good[1]], [{**good[0], 'first_year': True}, good[1]],
+                     [{**good[0], 'last_year': 2014}, good[1]],                                     # ends before it starts
+                     [{**good[0], 'last_year': 2019}, good[1]],                                     # two series share 2019
+                     [good[0], {**good[1], 'name': 'Spring'}], [{**good[0], 'name': ' '}, good[1]], [{**good[0], 'name': 'A\x1fB'}, good[1]]):
+            with self.assertRaises(lc.LinkedError, msg=repr(note)):
+                lu.series_notes(registry(note))
+        # a registry that names series where this reader does not look is refused, never read as "no series"
+        for extra in ({'reviewed': {'series': [{'key': 'W'}]}}, {'rule': {'series': 'a label that holds two races'}}, {'series_notes': []}):
+            with self.assertRaises(lc.LinkedError, msg=repr(extra)):
+                lu.series_notes({'races': [{'label': 'W'}], **extra})
+        with self.assertRaises(lc.LinkedError):
+            lu.series_notes({'races': [{'label': 'W', 'series_note': 'two races'}]})
+        self.assertEqual(lu.series_notes({'races': [{'label': 'W'}], 'reviewed': {'joins': [{'evidence': {'years_by_key': {'W: Marathon Series': '2015'}}}]}}), {})   # a race title may say "series"
+
+    def test_editions_take_the_series_that_holds_their_year(self):
+        good = [{'name': 'Spring', 'first_year': 2015, 'last_year': 2018}, {'name': 'Autumn', 'first_year': 2019, 'last_year': 2026}]
+        registry = {'races': [{'label': 'W', 'series': good}, {'label': 'X'}]}
+        editions = pd.DataFrame({'label': ['W', 'W', 'X', 'W'], 'year': [2015, 2019, 2019, 2026]})
+        out = lu.with_series(editions, registry)
+        self.assertEqual(out.series.tolist(), ['Spring', 'Autumn', None, 'Autumn'])
+        self.assertEqual(out.rkey.tolist(), ['W\x1fSpring', 'W\x1fAutumn', 'X', 'W\x1fAutumn'])
+        plain = lu.with_series(editions, {'races': [{'label': 'W'}, {'label': 'X'}]})
+        self.assertEqual((plain.series.tolist(), plain.rkey.tolist()), ([None] * 4, ['W', 'W', 'X', 'W']))       # without a note the race is the label
+        with self.assertRaises(lc.LinkedError):                                                    # an edition outside every series of its label
+            lu.with_series(pd.DataFrame({'label': ['W'], 'year': [2014]}), registry)
+        with self.assertRaises(lc.LinkedError):                                                    # a note for a label the input does not hold
+            lu.with_series(pd.DataFrame({'label': ['X'], 'year': [2019]}), registry)
 
     def test_the_registry_must_carry_labels(self):
         with self.assertRaises(lc.LinkedError):

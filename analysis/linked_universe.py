@@ -132,6 +132,78 @@ def registry_labels(registry: dict) -> dict:
     return out
 
 
+SERIES_SEPARATOR = '\x1f'     # joins a label and a series name into a race key; no label and no name may hold it
+
+
+def series_notes(registry: dict) -> dict:
+    """label -> [(series name, first year, last year), ...] in year order, for the labels whose registry entry carries
+    a reviewed `series` note: one label that holds two or more races, such as Warsaw (plan decision D29).
+
+    The note this family reads is a list on the race entry with one object per series: `name`, `first_year` and
+    `last_year` (other fields of the object, such as the review's evidence, are not read). Any other shape stops the
+    build. So does a registry that names series anywhere while no race entry carries a note in this shape: a note
+    must never be skipped because it sits somewhere this reader does not look."""
+    out = {}
+    for race in registry['races']:
+        if 'series' not in race or race['series'] is None:
+            continue
+        label, note = race.get('label'), race['series']
+        if not isinstance(note, list) or len(note) < 2 or not all(isinstance(item, dict) for item in note):
+            fail(f'{label}: the registry’s series note is not a list of two or more series (name, first_year, last_year)')
+        spans = []
+        for item in note:
+            name, first, last = item.get('name'), item.get('first_year'), item.get('last_year')
+            if not isinstance(name, str) or not name.strip() or name != name.strip() or SERIES_SEPARATOR in name:
+                fail(f'{label}: a series of the registry’s note has no usable name ({name!r})')
+            if any(isinstance(y, bool) or not isinstance(y, int) for y in (first, last)) or first > last:
+                fail(f'{label}: the series {name!r} has no first_year and last_year the registry can be read by ({first!r}, {last!r})')
+            spans.append((name, first, last))
+        spans.sort(key=lambda s: (s[1], s[2], s[0]))
+        if len({s[0] for s in spans}) != len(spans):
+            fail(f'{label}: the registry’s series note repeats a name')
+        if any(a[2] >= b[1] for a, b in zip(spans, spans[1:])):
+            fail(f'{label}: two series of the registry’s note share a year')
+        out[label] = spans
+
+    if not out:
+        # The registry's own field names only (the document, its rule, its expectations, its reviewed lists and the race
+        # entries); race titles, which are keys of the review's evidence, may say "series" freely.
+        fields = set(registry) | {key for part in ('rule', 'expected', 'reviewed') if isinstance(registry.get(part), dict) for key in registry[part]}
+        fields |= {key for race in registry['races'] for key in race if key != 'series'}
+        if any('series' in str(key).lower() for key in fields):
+            fail('the race registry names series, but no race entry carries a `series` note this family reads (a list of name, first_year, last_year)')
+    return out
+
+
+def with_series(editions: pd.DataFrame, registry: dict) -> pd.DataFrame:
+    """The edition table with `series` (the series of the edition's label that holds its year; None where the label
+    has no series note) and `rkey`, the race every analysis of this family groups by: the label, or the label and the
+    series. Every edition with rows of a label that has a note must lie in exactly one of its series."""
+    notes = series_notes(registry)
+    labels = editions.label.tolist()
+    if any(SERIES_SEPARATOR in label for label in labels):
+        fail('a race label holds the separator this family keeps for series')
+    unknown = sorted(set(notes) - set(labels))
+    if unknown:
+        fail(f'the registry’s series note names a label with no edition in the adapted input ({unknown[0]!r})')
+    series = []
+    for label, year in zip(labels, editions.year.tolist()):
+        spans = notes.get(label)
+        inside = [] if spans is None else [name for name, first, last in spans if first <= year <= last]
+        if spans is not None and len(inside) != 1:
+            fail(f'{label} {year}: the registry’s series note does not place this edition in one series')
+        series.append(inside[0] if inside else None)
+    out = editions.copy()
+    out['series'] = pd.Series(series, index=out.index, dtype=object)
+    out['rkey'] = [label if name is None else f'{label}{SERIES_SEPARATOR}{name}' for label, name in zip(labels, series)]
+    return out
+
+
+def series_names(registry: dict) -> frozenset:
+    """Every series name of the registry: the only strings a published `series` may hold."""
+    return frozenset(name for spans in series_notes(registry).values() for name, _, _ in spans)
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # Editions
 # ---------------------------------------------------------------------------------------------------------------
@@ -177,7 +249,7 @@ def classify_editions(meta: list[dict], editions_json: list[dict], policy: dict)
 @dataclass
 class Universe:
     """Everything the analyses read, as plain arrays (no name, no record id, no person id)."""
-    editions: pd.DataFrame          # one row per edition with rows; index = edition code
+    editions: pd.DataFrame          # one row per edition with rows, with its series and race key; `code` is its position
     results: pd.DataFrame           # kept results of linked runners in W, sorted by (person, year, edition)
     field_share: pd.DataFrame       # counted editions: edition code, eligible finishes, sustained slowdowns
     counts: dict = field(default_factory=dict)
@@ -208,6 +280,7 @@ def load(source: Path, links: Path, identity: Path, policy: dict, registry: dict
         fail('race_conditions holds two rows for one edition')
     editions = editions.merge(weather.drop(columns='n').rename(columns={'city': 'label'}), on=['label', 'year'], how='left')
     editions['code'] = np.arange(len(editions), dtype=np.int32)
+    editions = with_series(editions, registry)
 
     # The site's own cohort: timing-eligible finishes of counted editions and their sustained slowdowns.
     prepare(db, source, keep_record_id=True)

@@ -17,6 +17,11 @@ Both read one fit of the pair model (analysis/linked_model.py) on the finish-tim
   on verified tiers only, on high links only and on the wider set with unverified editions.
 
 Verdicts are computed here and recomputed by scripts/verify-linked.cjs from the published numbers.
+
+A race is a registry label, or, where the registry's reviewed `series` note says that a label holds two or more races
+(plan decision D29: Warsaw), one series of the label. Everything here groups by that race key (`rkey`, which
+analysis/linked_universe.py with_series writes): the order term of the model, the editions an edition is compared
+with, the race reading and every check. Without a note the key is the label.
 """
 from __future__ import annotations
 
@@ -48,9 +53,22 @@ def fit_universe(results: pd.DataFrame, editions: pd.DataFrame, mask, *, boot: i
                             np.log(part.fin.to_numpy()), boot=boot, keep_pairs=keep_pairs)
 
 
+def race_codes(editions: pd.DataFrame) -> np.ndarray:
+    """An integer per edition: its race, in the order of the race keys."""
+    if 'rkey' not in editions.columns or 'series' not in editions.columns:
+        fail('the edition table carries no race keys (analysis/linked_universe.py with_series writes them)')
+    keys = sorted(editions.rkey.unique())
+    return editions.rkey.map({key: i for i, key in enumerate(keys)}).to_numpy(np.int64)
+
+
+def series_of(row) -> str | None:
+    """The series name of a row of the edition or unit table, or None."""
+    return row.series if isinstance(row.series, str) else None
+
+
 def unit_table(fit, editions: pd.DataFrame) -> pd.DataFrame:
     """One row per fitted edition, in the order of the edition codes."""
-    t = editions.loc[fit.units, ['label', 'year', 'tier', 'timing', 'basis', 'race']].reset_index(drop=True)
+    t = editions.loc[fit.units, ['label', 'series', 'rkey', 'year', 'tier', 'timing', 'basis', 'race']].reset_index(drop=True)
     t['code'] = fit.units
     t['beta'] = fit.beta
     t['finishes'] = fit.runners
@@ -62,7 +80,7 @@ def from_median(t: pd.DataFrame) -> np.ndarray:
     """Each edition's reading against the median reading of its race and timing basis, as a percent (NaN where the
     race and basis hold fewer than three fitted editions)."""
     out = np.full(len(t), np.nan)
-    for _, g in t[t.basis.notna()].groupby(['label', 'basis'], sort=True):
+    for _, g in t[t.basis.notna()].groupby(['rkey', 'basis'], sort=True):
         if len(g) >= MIN_EDITIONS:
             out[g.pos.to_numpy()] = 100.0 * np.expm1(g.beta.to_numpy() - float(np.median(g.beta.to_numpy())))
     return out
@@ -75,10 +93,10 @@ def held_outliers(t: pd.DataFrame) -> np.ndarray:
 
 
 def comparison_groups(t: pd.DataFrame, exclude_codes=frozenset(), min_editions: int = MIN_EDITIONS) -> dict:
-    """(label, basis) -> positions (in year order) of the fitted editions that are compared with one another."""
+    """(race key, basis) -> positions (in year order) of the fitted editions that are compared with one another."""
     out = {}
     usable = t[t.basis.notna() & ~t.code.isin(list(exclude_codes))]
-    for key, g in usable.groupby(['label', 'basis'], sort=True):
+    for key, g in usable.groupby(['rkey', 'basis'], sort=True):
         if len(g) >= min_editions:
             out[key] = g.sort_values('year').pos.to_numpy()
     return out
@@ -97,7 +115,7 @@ class TwoWay:
 
     def __init__(self, t: pd.DataFrame, weight: np.ndarray, exclude_codes=frozenset()):
         usable = t[t.basis.notna() & ~t.code.isin(list(exclude_codes))]
-        keys = list(zip(usable.label, usable.basis))
+        keys = list(zip(usable.rkey, usable.basis))
         years = usable.year.to_numpy()
         # the largest connected set of (group, year)
         parent = {}
@@ -117,11 +135,11 @@ class TwoWay:
         keep = np.array([r == main for r in roots], dtype=bool)
         usable = usable[keep]
         self.pos = usable.pos.to_numpy()
-        self.groups = sorted(set(zip(usable.label, usable.basis)))
+        self.groups = sorted(set(zip(usable.rkey, usable.basis)))
         self.years = sorted(set(usable.year.tolist()))
         gi = {g: i for i, g in enumerate(self.groups)}
         yi = {y: i for i, y in enumerate(self.years)}
-        self.g = np.array([gi[k] for k in zip(usable.label, usable.basis)], dtype=np.int64)
+        self.g = np.array([gi[k] for k in zip(usable.rkey, usable.basis)], dtype=np.int64)
         self.y = np.array([yi[y] for y in usable.year.tolist()], dtype=np.int64)
         n, G, Y = len(usable), len(self.groups), len(self.years)
         X = np.zeros((n, G + Y))
@@ -203,9 +221,9 @@ def align(variant_t: pd.DataFrame, main_t: pd.DataFrame, main_weight: np.ndarray
 
 
 def within_relation(frame: pd.DataFrame, x: str, y: str, min_editions: int) -> dict | None:
-    """Correlation and slope of y on x after removing each (label, basis) mean, over groups of at least `min_editions`."""
+    """Correlation and slope of y on x after removing each (race, basis) mean, over groups of at least `min_editions`."""
     xs, ys, races = [], [], 0
-    for _, g in frame.groupby(['label', 'basis'], sort=True):
+    for _, g in frame.groupby(['rkey', 'basis'], sort=True):
         if len(g) >= min_editions:
             xs.append(g[x].to_numpy(float) - g[x].mean())
             ys.append(g[y].to_numpy(float) - g[y].mean())
@@ -233,17 +251,17 @@ def people_by_way(fit, t: pd.DataFrame, positions: np.ndarray) -> tuple[int, int
 
 
 def race_levels(fit, t: pd.DataFrame, held_codes, min_editions: int = MIN_EDITIONS) -> tuple[dict, TwoWay]:
-    """label -> the race level of its chip- or net-timed fitted editions (at least `min_editions`), in log units."""
+    """race key -> the race level of its chip- or net-timed fitted editions (at least `min_editions`), in log units."""
     two = TwoWay(t, fit.unit_weight, held_codes)
     rho, tau, resid = two.split(t.beta.to_numpy())
     kappa = dict(zip(fit.groups.tolist(), fit.kappa.tolist()))
     out = {}
-    for gi, (label, basis) in enumerate(two.groups):
+    for gi, (rkey, basis) in enumerate(two.groups):
         members = np.flatnonzero(two.g == gi)
         if basis != lc.RACE_BASIS or len(members) < min_editions:
             continue
         positions = two.pos[members]
-        out[label] = {'index': gi, 'positions': positions, 'editions': int(len(members)), 'level': float(rho[gi]),
+        out[rkey] = {'index': gi, 'positions': positions, 'editions': int(len(members)), 'level': float(rho[gi]),
                       'se': two.level_se(resid, gi), 'kappa': kappa[int(t.race.to_numpy()[positions[0]])],
                       'plain_mean': float(t.beta.to_numpy()[positions].mean()), 'year_sd': float(t.beta.to_numpy()[positions].std(ddof=1))}
     return out, two
@@ -255,8 +273,7 @@ def race_levels(fit, t: pd.DataFrame, held_codes, min_editions: int = MIN_EDITIO
 def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFrame, *, boot: int = lc.BOOT_REPS, log=print) -> dict:
     """editions.json, races.json and checks.json (the three as dicts), with the counts the manifest keeps."""
     editions = editions.set_index('code', drop=False).sort_index()
-    labels = sorted(editions.label.unique())
-    editions['race'] = editions.label.map({label: i for i, label in enumerate(labels)}).astype(np.int64)
+    editions['race'] = race_codes(editions)
     code = results.edition.to_numpy()
     in_f, in_v, in_w = (editions[c].to_numpy()[code] for c in ('in_f', 'in_v', 'in_w'))
     high = results.high.to_numpy()
@@ -310,10 +327,12 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
         entry = {'tier': row.tier, 'timing': row.timing, 'basis': row.basis, 'finishes': int(row.finishes), 'others': int(others[row.pos]),
                  'reading_pct': pct(r), 'lo_pct': pct(l), 'hi_pct': pct(h), 'high_pct': hv, 'year_sd_pct': num(spread[row.pos], 3)}
         entry['verdict'] = year_verdict(entry['lo_pct'], entry['hi_pct'], hv)
+        if series_of(row) is not None:
+            entry['series'] = series_of(row)      # the label holds several races: this edition is compared inside its own
         if entry['finishes'] < MIN_CELL or entry['others'] < MIN_EDITIONS - 1:
             fail(f'{row.label} {row.year}: an edition reading under a floor')
         edition_rows.setdefault(row.label, {})[str(int(row.year))] = entry
-        published.append((row.label, int(row.year), row.tier, entry))
+        published.append((row.label, int(row.year), row.tier, entry, row.rkey))
 
     # ---- race readings ----
     levels, two = race_levels(main, t, held_codes)
@@ -323,12 +342,14 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
         lv, _ = race_levels(f, vt, held_codes)
         both = sorted(set(lv) & set(levels))
         shift = float(np.mean([levels[x]['level'] - lv[x]['level'] for x in both])) if both else 0.0   # the races both fits read have the same mean reading
-        variant_levels[name] = {label: {'editions': v['editions'], 'level': v['level'] + shift} for label, v in lv.items()}
-    race_rows = {}
+        variant_levels[name] = {rkey: {'editions': v['editions'], 'level': v['level'] + shift} for rkey, v in lv.items()}
+    readings = {}       # race key -> the published reading
     under_way_floor = 0
-    fitted_by_label = t.groupby('label').size().to_dict()
+    fitted_by_race = t.groupby('rkey').size().to_dict()
+    name_of = {row.rkey: (row.label, series_of(row)) for row in t.itertuples()}
+    said = {rkey: label if series is None else f'{label} ({series})' for rkey, (label, series) in name_of.items()}
     pair_people = main.pair_person
-    for label, r in levels.items():
+    for rkey, r in levels.items():
         positions = r['positions']
         earlier, later = people_by_way(main, t, positions)
         if earlier < MIN_CELL or later < MIN_CELL:
@@ -337,9 +358,9 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
         mult = lc.t_multiplier(r['editions'])
         draws = boot_rho[:, r['index']]
         members = t.iloc[positions]
-        race_fitted = t[t.label == label]
+        race_fitted = t[t.rkey == rkey]
         entry = {
-            'editions': r['editions'], 'editions_fitted': int(fitted_by_label[label]),
+            'editions': r['editions'], 'editions_fitted': int(fitted_by_race[rkey]),
             'years': [int(members.year.min()), int(members.year.max())],
             'tiers': {tier: int((members.tier == tier).sum()) for tier in lc.F_TIERS},
             'timing': {c: int((race_fitted.timing == c).sum()) for c in lc.TIMING_CODES},
@@ -351,37 +372,51 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
             'lo_pct': pct(log_pct(r['level'] - mult * r['se'])), 'hi_pct': pct(log_pct(r['level'] + mult * r['se'])),
             'boot_lo_pct': pct(log_pct(np.percentile(draws, 2.5))), 'boot_hi_pct': pct(log_pct(np.percentile(draws, 97.5))),
             'earlier_pct': pct(log_pct(r['level'] - r['kappa'])), 'later_pct': pct(log_pct(r['level'] + r['kappa'])),
-            'variants': {name: (None if label not in variant_levels[name] else
-                                {'editions': int(variant_levels[name][label]['editions']), 'reading_pct': pct(log_pct(variant_levels[name][label]['level']))})
+            'variants': {name: (None if rkey not in variant_levels[name] else
+                                {'editions': int(variant_levels[name][rkey]['editions']), 'reading_pct': pct(log_pct(variant_levels[name][rkey]['level']))})
                          for name in VARIANTS},
         }
         if boot >= MIN_BOOT_FOR_CHECK and not entry['boot_lo_pct'] <= entry['reading_pct'] <= entry['boot_hi_pct']:
-            fail(f'{label}: the race reading lies outside its own bootstrap interval')
+            fail(f'{said[rkey]}: the race reading lies outside its own bootstrap interval')
         entry['verdict'] = race_verdict(entry)
-        race_rows[label] = entry
+        readings[rkey] = entry
+    # as published: a label without a series note under `races`; the series of a label that has one under `series`
+    race_rows, series_rows = {}, {}
+    for rkey, entry in readings.items():
+        label, series = name_of[rkey]
+        if series is None:
+            race_rows[label] = entry
+        else:
+            series_rows.setdefault(label, {})[series] = entry
 
-    checks = build_checks(main, t, held, reading, variants, variant_reading, levels, variant_levels, race_rows, published, editions, field_share, two)
-    summary_e = {'editions': len(published), 'races': len(edition_rows),
+    checks = build_checks(main, t, held, reading, variants, variant_reading, levels, variant_levels, readings, published, editions, field_share, two)
+    summary_e = {'editions': len(published), 'races': len({p[4] for p in published}),
                  'by_tier': {tier: sum(1 for p in published if p[2] == tier) for tier in lc.F_TIERS},
                  'by_verdict': {v: sum(1 for p in published if p[3]['verdict'] == v) for v in ('fast', 'slow', 'usual')},
                  'no_verdict': sum(1 for p in published if p[3]['verdict'] is None)}
-    summary_r = {'races': len(race_rows), 'under_the_floor_each_way': under_way_floor,
-                 'by_verdict': {v: sum(1 for r in race_rows.values() if r['verdict'] == v) for v in ('faster', 'slower', 'about_the_same')},
-                 'no_verdict': sum(1 for r in race_rows.values() if r['verdict'] is None)}
+    summary_r = {'races': len(readings), 'under_the_floor_each_way': under_way_floor,
+                 'by_verdict': {v: sum(1 for r in readings.values() if r['verdict'] == v) for v in ('faster', 'slower', 'about_the_same')},
+                 'no_verdict': sum(1 for r in readings.values() if r['verdict'] is None)}
     fit_counts = {'pairs': main.pairs, 'people': main.people, 'same_year_pairs': main.same_year_pairs, 'editions_fitted': int(len(main.units)),
-                  'races_fitted': int(t.label.nunique()), 'fitted_by_tier': {tier: int((t.tier == tier).sum()) for tier in lc.F_TIERS},
+                  'races_fitted': int(t.rkey.nunique()), 'fitted_by_tier': {tier: int((t.tier == tier).sum()) for tier in lc.F_TIERS},
                   'fitted_by_timing': {c: int((t.timing == c).sum()) for c in lc.TIMING_CODES},
                   'not_fitted': {k: int(v) for k, v in main.dropped.items()}, 'held_for_review': int(held.sum()),
                   'drift_pct': [pct(log_pct(g)) for g in main.gamma.tolist()], 'bootstrap_draws': int(boot)}
+    races_json = {'band_pct': lc.RACE_BAND_PCT, 'min_editions': MIN_EDITIONS, 'min_people_each_way': MIN_CELL, 'summary': summary_r, 'races': race_rows}
+    if series_rows:
+        races_json['series'] = series_rows
     return {
         'editions.json': {'margin_pct': lc.YEAR_MARGIN_PCT, 'min_editions': MIN_EDITIONS, 'min_finishes': MIN_CELL, 'summary': summary_e, 'races': edition_rows},
-        'races.json': {'band_pct': lc.RACE_BAND_PCT, 'min_editions': MIN_EDITIONS, 'min_people_each_way': MIN_CELL, 'summary': summary_r, 'races': race_rows},
+        'races.json': races_json,
         'checks.json': checks,
         'counts': {'fit': fit_counts, 'editions': summary_e, 'races': summary_r},
     }
 
 
 def build_checks(main, t, held, reading, variants, variant_reading, levels, variant_levels, race_rows, published, editions, field_share, two) -> dict:
+    """`race_rows`, `levels` and `variant_levels` are keyed by race key."""
+    def named(r) -> dict:
+        return {'label': r.label} if series_of(r) is None else {'label': r.label, 'series': series_of(r)}
     kept = t[~held & t.basis.notna()].copy()
     kept['level'] = 100.0 * kept.beta    # the edition's reading against the average fitted edition, in log points x 100
     ed = editions.loc[kept.code]
@@ -391,20 +426,20 @@ def build_checks(main, t, held, reading, variants, variant_reading, levels, vari
 
     # 1. temperature of the race window (dated editions only; no weather enters the fit)
     dated = kept[kept.temp_window.notna()].copy()
-    dated = dated[dated.groupby(['label', 'basis'])['label'].transform('size') >= MIN_EDITIONS]
+    dated = dated[dated.groupby(['rkey', 'basis'])['rkey'].transform('size') >= MIN_EDITIONS]
     temperature = None
     if len(dated):
         temperature = {'window': within_relation(dated, 'temp_window', 'level', MIN_EDITIONS),
                        'start': within_relation(dated[dated.temp_start.notna()], 'temp_start', 'level', MIN_EDITIONS)}
-        dev = dated['level'] - dated.groupby(['label', 'basis'])['level'].transform('mean')
+        dev = dated['level'] - dated.groupby(['rkey', 'basis'])['level'].transform('mean')
         bands = []
         for lo_t, hi_t in TEMP_BANDS:
             m = (dated.temp_window >= (lo_t if lo_t is not None else -np.inf)) & (dated.temp_window < (hi_t if hi_t is not None else np.inf))
             n = int(m.sum())
-            bands.append({'temp_from': lo_t, 'temp_to': hi_t, 'editions': n, 'races': int(dated.label[m].nunique()),
+            bands.append({'temp_from': lo_t, 'temp_to': hi_t, 'editions': n, 'races': int(dated.rkey[m].nunique()),
                           'mean_pct': pct(dev[m].mean()) if n >= MIN_EDITIONS else None})
         temperature['bands'] = bands
-        temperature['points'] = [{'label': r.label, 'year': int(r.year), 'basis': r.basis, 'level': num(r.level, 4),
+        temperature['points'] = [{**named(r), 'year': int(r.year), 'basis': r.basis, 'level': num(r.level, 4),
                                   'temp_window': num(r.temp_window, 2), 'temp_start': None if pd.isna(r.temp_start) else num(r.temp_start, 2)}
                                  for r in dated.sort_values(['label', 'year']).itertuples()]
 
@@ -414,14 +449,14 @@ def build_checks(main, t, held, reading, variants, variant_reading, levels, vari
     field['eligible'] = fs.eligible.reindex(field.code).to_numpy()
     field['slow'] = fs.slow.reindex(field.code).to_numpy()
     field = field[(field.eligible >= FIELD_MIN_ELIGIBLE) & (field.eligible >= FIELD_MIN_SHARE * field.all_finishes)]
-    field = field[field.groupby(['label', 'basis'])['label'].transform('size') >= FIELD_MIN_EDITIONS].copy()
+    field = field[field.groupby(['rkey', 'basis'])['rkey'].transform('size') >= FIELD_MIN_EDITIONS].copy()
     field['share_points'] = 100.0 * field.slow / field.eligible
     slowdown = None
     if len(field):
         rel = within_relation(field, 'level', 'share_points', FIELD_MIN_EDITIONS)
         slowdown = {'relation': rel, 'bar': lc.FIELD_R_MIN, 'verdict': 'holds' if rel is not None and rel['r'] >= lc.FIELD_R_MIN else None,
                     'min_eligible': FIELD_MIN_ELIGIBLE, 'min_share_of_finishes': FIELD_MIN_SHARE, 'min_editions': FIELD_MIN_EDITIONS,
-                    'points': [{'label': r.label, 'year': int(r.year), 'basis': r.basis, 'level': num(r.level, 4), 'eligible': int(r.eligible),
+                    'points': [{**named(r), 'year': int(r.year), 'basis': r.basis, 'level': num(r.level, 4), 'eligible': int(r.eligible),
                                 'slow': int(r.slow)} for r in field.sort_values(['label', 'year']).itertuples()]}
 
     # 3. the same fit on verified tiers only, on high links only and on the wider set
@@ -431,7 +466,7 @@ def build_checks(main, t, held, reading, variants, variant_reading, levels, vari
         both = sorted(set(main_reading) & set(variant_reading[name]))
         pairs_e = [[pct(log_pct(main_reading[c])), pct(log_pct(variant_reading[name][c]))] for c in both]
         both_r = sorted(set(race_rows) & set(variant_levels[name]))
-        pairs_r = [[race_rows[label]['reading_pct'], pct(log_pct(variant_levels[name][label]['level']))] for label in both_r]
+        pairs_r = [[race_rows[rkey]['reading_pct'], pct(log_pct(variant_levels[name][rkey]['level']))] for rkey in both_r]
         fits[name] = {'pairs': f.pairs, 'people': f.people, 'editions_fitted': int(len(f.units)),
                       'editions': {'both': len(pairs_e), 'r': corr(pairs_e), 'points': pairs_e},
                       'races': {'both': len(pairs_r), 'r': corr(pairs_r), 'sd_of_difference': sd_diff(pairs_r), 'points': pairs_r,
@@ -456,18 +491,18 @@ def build_checks(main, t, held, reading, variants, variant_reading, levels, vari
     five['no_verdict'] = five['races'] - sum(five['by_verdict'].values())
     # the scout's rule alone, for comparison: the plain mean of the edition readings, two standard errors of that mean, and the order readings
     plain = {'faster': 0, 'slower': 0, 'neither': 0, 'points': []}
-    for label in sorted(race_rows):
-        lv = levels[label]
+    for rkey in sorted(race_rows):
+        lv = levels[rkey]
         mean, se, kappa = lv['plain_mean'], lv['year_sd'] / math.sqrt(lv['editions']), lv['kappa']
         word = 'neither'
         for sign, name in ((-1, 'faster'), (1, 'slower')):
             if sign * (mean - sign * 2 * se) > 0 and sign * (mean - kappa) > 0 and sign * (mean + kappa) > 0:
                 word = name
         plain[word] += 1
-        plain['points'].append([race_rows[label]['reading_pct'], pct(log_pct(mean))])
+        plain['points'].append([race_rows[rkey]['reading_pct'], pct(log_pct(mean))])
     plain['r'] = corr(plain['points'])
     distance = from_median(t)
-    held_rows = [{'label': r.label, 'year': int(r.year), 'tier': r.tier, 'basis': r.basis, 'finishes': int(r.finishes),
+    held_rows = [{**named(r), 'year': int(r.year), 'tier': r.tier, 'basis': r.basis, 'finishes': int(r.finishes),
                   'from_median_pct': pct(distance[r.pos])} for r in t[held].sort_values(['label', 'year']).itertuples()]
     return {'temperature': temperature, 'slowdown': slowdown, 'fits': fits, 'beyond': beyond, 'spread': spread, 'year_levels': year_levels,
             'floor_of_five': five, 'plain_mean_and_two_standard_errors': plain, 'held_for_review': held_rows, 'outlier_pct': lc.OUTLIER_PCT}
@@ -491,4 +526,5 @@ def sd_diff(pairs) -> float | None:
     return num(float(np.std(a[:, 1] - a[:, 0], ddof=1)), 3)
 
 
-__all__ = ['build', 'against_others', 'year_verdict', 'race_verdict', 'held_outliers', 'comparison_groups', 'within_relation', 'TwoWay', 'align']
+__all__ = ['build', 'against_others', 'year_verdict', 'race_verdict', 'held_outliers', 'comparison_groups', 'within_relation', 'TwoWay', 'align',
+           'race_codes', 'series_of']

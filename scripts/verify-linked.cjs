@@ -24,11 +24,18 @@
 //      file, which is what shows an identity file rebuilt outside the repository. And the counted editions' finishes
 //      and sustained slowdowns, with every edition of the whole-field check, are counted again from the cohort's
 //      records, not from any number this family published.
+//   6. Series (plan decision D29). A label whose registry entry carries a reviewed `series` note (a list of name,
+//      first_year, last_year) holds two or more races: every edition row of the label names its series, is compared
+//      with the other years of that series only, and the label's readings are per series (`series` in races.json, never
+//      `races`). The note is read here from the registry, not from the family, and the cohort manifest's rows must say
+//      the same.
 //
-//   node scripts/verify-linked.cjs [--data <folder>] [--self-test]
+//   node scripts/verify-linked.cjs [--data <folder>] [--self-test] [--registry <file> --family-only]
 //
 // `--data` reads another copy of the family (development only). `--self-test` checks that the verifier itself refuses
 // broken files: it copies the family to a temp folder, breaks one thing at a time and expects a failure each time.
+// `--family-only` (tests only, with `--registry`) checks a family's own files against another registry and skips what
+// binds the family to this repository's pins; it never stands for the real check.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -38,11 +45,13 @@ const ROOT = path.resolve(__dirname, '..');
 const W = require('./lib/words.cjs');
 const cohortFiles = require('./lib/cohort.cjs');
 const args = process.argv.slice(2);
-const opt = { data: path.join(ROOT, 'public/data/linked'), selfTest: args.includes('--self-test') };
+const opt = { data: path.join(ROOT, 'public/data/linked'), selfTest: args.includes('--self-test'), familyOnly: args.includes('--family-only'), registry: null };
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--data' && args[i + 1]) opt.data = path.resolve(args[++i]);
-  else if (args[i] !== '--self-test') throw new Error('Usage: node scripts/verify-linked.cjs [--data <folder>] [--self-test]');
+  else if (args[i] === '--registry' && args[i + 1]) opt.registry = path.resolve(args[++i]);
+  else if (args[i] !== '--self-test' && args[i] !== '--family-only') throw new Error('Usage: node scripts/verify-linked.cjs [--data <folder>] [--self-test] [--registry <file> --family-only]');
 }
+if ((opt.registry !== null) !== opt.familyOnly || (opt.familyOnly && opt.selfTest)) throw new Error('--registry and --family-only go together (tests only), and never with --self-test');
 
 // ---------- The frozen numbers (analysis/linked_common.py holds the same; the manifest must carry them) ----------
 const MIN_CELL = 100;
@@ -163,10 +172,11 @@ const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const m = s.le
 let cohortCount = null;
 function countedFromCohort() {
   if (cohortCount) return cohortCount;
-  const out = { error: null, manifest: null, editions: new Map(), eligible: 0, slow: 0 };
+  const out = { error: null, manifest: null, editions: new Map(), rows: new Map(), eligible: 0, slow: 0 };
   try {
     out.manifest = cohortFiles.readManifest().manifest;
     for (const entry of out.manifest.editions) {
+      out.rows.set(`${entry.city}|${entry.year}`, entry);
       if (entry.use !== 'counted') continue;
       const { times } = cohortFiles.readEdition(entry);   // the reader checks the file's size and sha256 first
       let slow = 0;
@@ -184,7 +194,7 @@ function countedFromCohort() {
 }
 
 // ---------- The check ----------
-function verify(dataDir, { pins = true } = {}) {
+function verify(dataDir, { pins = true, registryPath = null } = {}) {
   const problems = [];
   const notes = [];
   let checks = 0;
@@ -199,9 +209,31 @@ function verify(dataDir, { pins = true } = {}) {
 
   // ---------- 1. Provenance ----------
   const release = JSON.parse(read('analysis/release.json'));
-  const registryBytes = read('analysis/race-registry.json');
+  const registryBytes = registryPath === null ? read('analysis/race-registry.json') : fs.readFileSync(registryPath);
   const registry = JSON.parse(registryBytes);
   const labels = new Set(registry.races.map((r) => r.label));
+  // Series (plan decision D29): the note is a list on the race entry, one object per series with name, first_year and
+  // last_year. Any other shape is a problem, and so is a registry that names series while no race entry carries a note.
+  const seriesNotes = new Map();
+  for (const race of registry.races) {
+    if (race.series === undefined || race.series === null) continue;
+    const spans = Array.isArray(race.series) ? race.series.map((x) => ({ name: x?.name, first: x?.first_year, last: x?.last_year })).sort((a, b) => a.first - b.first) : [];
+    const good = spans.length >= 2 && spans.every((x) => typeof x.name === 'string' && x.name !== '' && x.name.trim() === x.name && int(x.first) && int(x.last) && x.first <= x.last)
+      && new Set(spans.map((x) => x.name)).size === spans.length && spans.every((x, i) => i === 0 || spans[i - 1].last < x.first);
+    if (ok(good, `the registry’s series note of ${race.label} is a list of two or more series (name, first_year, last_year) that share no year`)) seriesNotes.set(race.label, spans);
+  }
+  const registryFields = new Set([...Object.keys(registry), ...['rule', 'expected', 'reviewed'].flatMap((k) => (registry[k] && typeof registry[k] === 'object' ? Object.keys(registry[k]) : []))]);
+  for (const race of registry.races) for (const k of Object.keys(race)) if (k !== 'series') registryFields.add(k);
+  ok(seriesNotes.size > 0 || ![...registryFields].some((k) => /series/i.test(k)), 'the registry names series, but no race entry carries a series note this verifier reads (a list of name, first_year, last_year)');
+  const seriesNames = new Set([...seriesNotes.values()].flatMap((spans) => spans.map((x) => x.name)));
+  /** The series of an edition: null where the label has no note, undefined where the note does not place the year in one series. */
+  const seriesOf = (label, year) => {
+    const spans = seriesNotes.get(label);
+    if (!spans) return null;
+    const inside = spans.filter((x) => x.first <= year && year <= x.last);
+    return inside.length === 1 ? inside[0].name : undefined;
+  };
+  const raceOf = (x) => `${x.label}|${x.series ?? ''}`;     // the race an edition row or a point belongs to
   eq([manifest.schema_version, manifest.family], [1, 'linked'], 'the manifest’s schema and family');
   let policy = null;
   let fromCohort = null;
@@ -264,12 +296,13 @@ function verify(dataDir, { pins = true } = {}) {
 
   // ---------- 3. Bans: keys, strings, labels ----------
   const strings = [];
-  const scan = (value, where, labelKeys) => {
+  const scan = (value, where, keyedBy) => {
     if (Array.isArray(value)) {
       value.forEach((v, i) => { ok(typeof v !== 'string', `${where}[${i}]: a bare string in a list`); scan(v, `${where}[${i}]`, false); });
     } else if (value && typeof value === 'object') {
       for (const [k, v] of Object.entries(value)) {
-        if (labelKeys) ok(labels.has(k), `${where}: "${k}" is not a registry label`);
+        if (keyedBy === 'label') ok(labels.has(k), `${where}: "${k}" is not a registry label`);
+        else if (keyedBy === 'series') ok(seriesNames.has(k), `${where}: "${k}" is not a series name of the registry`);
         else {
           ok(!IDENTITY_KEY.test(k), `${where}.${k}: an identifier or name key`);
           ok(!RANK_KEY.test(k), `${where}.${k}: a rank, order or converted-time key`);
@@ -279,11 +312,14 @@ function verify(dataDir, { pins = true } = {}) {
           ok(!PERSON_ID.test(v), `${where}.${k}: a person id`);
           ok(!W.RELEASE_LABEL.test(v), `${where}.${k}: a release label in a family file`);
           if (k === 'label') ok(labels.has(v), `${where}.${k}: "${v}" is not a registry label`);
+          else if (k === 'series') ok(seriesNames.has(v), `${where}.${k}: "${v}" is not a series name of the registry`);
           else if (CODES[k]) ok(CODES[k].has(v), `${where}.${k}: "${v}" is not one of the codes this key may hold`);
           else ok(false, `${where}.${k}: a string under a key that may not hold one (${JSON.stringify(v)})`);
           strings.push([`${where}.${k}`, v, k]);
         }
-        scan(v, `${where}.${k}`, k === 'races' && (where === 'editions.json' || where === 'races.json'));
+        // maps keyed by label: `races` in the two reading files and `series` in races.json; under a label of `series`, by series name
+        const byLabel = (k === 'races' && (where === 'editions.json' || where === 'races.json')) || (k === 'series' && where === 'races.json');
+        scan(v, `${where}.${k}`, byLabel ? 'label' : keyedBy === 'label' && where === 'races.json.series' ? 'series' : false);
       }
     } else if (typeof value === 'number') ok(Number.isFinite(value), `${where}: a non-finite number`);
     else ok(value === null || typeof value === 'boolean' || typeof value === 'string', `${where}: an unexpected value`);
@@ -291,7 +327,7 @@ function verify(dataDir, { pins = true } = {}) {
   for (const [name, doc] of Object.entries(files)) scan(doc, name, false);
   // The "must not print" words: on every string that is not a registry label or a closed code, and on every key.
   for (const [where, v, k] of strings) {
-    if (k === 'label' || CODES[k]) continue;
+    if (k === 'label' || k === 'series' || CODES[k]) continue;
     const found = wordsOf(v);
     ok(!found.length, `${where}: ${found.join(', ')}: ${v}`);
   }
@@ -308,7 +344,10 @@ function verify(dataDir, { pins = true } = {}) {
     for (const [year, row] of Object.entries(years)) {
       const where = `editions.json ${label} ${year}`;
       ok(/^(19|20)\d{2}$/.test(year), `${where}: a year key`);
-      eq(Object.keys(row).sort(), ['basis', 'finishes', 'hi_pct', 'high_pct', 'lo_pct', 'others', 'reading_pct', 'tier', 'timing', 'verdict', 'year_sd_pct'], `${where}: its fields`);
+      const fields = ['basis', 'finishes', 'hi_pct', 'high_pct', 'lo_pct', 'others', 'reading_pct', 'tier', 'timing', 'verdict', 'year_sd_pct'];
+      eq(Object.keys(row).sort(), seriesNotes.has(label) ? [...fields, 'series'].sort() : fields, `${where}: its fields (a series only where the registry notes one)`);
+      const series = seriesOf(label, Number(year));
+      ok(series !== undefined && (row.series ?? null) === series, `${where}: its series is the registry’s (${row.series ?? null} vs ${series})`);
       ok(F_TIERS.includes(row.tier), `${where}: a tier of the finish-time universe (${row.tier})`);
       ok(TIMING_CODES.includes(row.timing) && TIMING_BASIS[row.timing] === row.basis && row.basis !== null, `${where}: timing ${row.timing} on basis ${row.basis}`);
       ok(int(row.finishes, MIN_CELL), `${where}: ${row.finishes} finishes, under the floor of ${MIN_CELL}`);
@@ -316,7 +355,7 @@ function verify(dataDir, { pins = true } = {}) {
       ok([row.reading_pct, row.lo_pct, row.hi_pct].every(finite) && row.lo_pct <= row.reading_pct && row.reading_pct <= row.hi_pct, `${where}: the reading inside its interval`);
       ok(row.high_pct === null || finite(row.high_pct), `${where}: the high-links reading`);
       if ([row.lo_pct, row.hi_pct].every(finite)) eq(row.verdict, yearVerdict(row.lo_pct, row.hi_pct, row.high_pct), `${where}: the verdict recomputed`);
-      (groups[row.basis] ||= []).push(row);
+      (groups[row.series === undefined ? row.basis : `${row.basis}, ${row.series}`] ||= []).push(row);   // compared inside one series and one basis
       editionRows.push({ label, year: Number(year), ...row });
     }
     for (const [basis, rows] of Object.entries(groups)) {
@@ -330,7 +369,7 @@ function verify(dataDir, { pins = true } = {}) {
     }
   }
   const tally = (rows, key, values) => Object.fromEntries(values.map((v) => [v, rows.filter((r) => r[key] === v).length]));
-  eq(E.summary, { editions: editionRows.length, races: Object.keys(E.races || {}).length, by_tier: tally(editionRows, 'tier', F_TIERS),
+  eq(E.summary, { editions: editionRows.length, races: new Set(editionRows.map(raceOf)).size, by_tier: tally(editionRows, 'tier', F_TIERS),
     by_verdict: tally(editionRows, 'verdict', ['fast', 'slow', 'usual']), no_verdict: editionRows.filter((r) => r.verdict === null).length }, 'editions.json: the summary recounted');
   ok(editionRows.length > 0, 'editions.json holds readings');
 
@@ -340,10 +379,22 @@ function verify(dataDir, { pins = true } = {}) {
   eq(raceLabels, [...raceLabels].sort(byCodePoint), 'races.json: races in label order');
   const raceFields = ['boot_hi_pct', 'boot_lo_pct', 'earlier_pct', 'editions', 'editions_fitted', 'finishes', 'held_for_review', 'hi_pct', 'later_pct', 'lo_pct', 'people',
     'people_earlier', 'people_later', 'reading_pct', 'se', 'tiers', 'timing', 'trail_or_mountain', 'variants', 'verdict', 'year_sd_pct', 'years'];
-  for (const [label, r] of Object.entries(R.races || {})) {
-    const where = `races.json ${label}`;
-    if (!eq(Object.keys(r).sort(), raceFields, `${where}: its fields`)) continue;
-    const mine = editionRows.filter((e) => e.label === label && e.basis === 'chip_or_net');
+  // A reading per race: a label without a series note under `races`, each series of a label that has one under `series`.
+  const readings = Object.entries(R.races || {}).map(([label, r]) => [label, null, r]);
+  ok(raceLabels.every((label) => !seriesNotes.has(label)), 'races.json: a label with a series note has no reading of its own');
+  ok(R.series === undefined || (R.series !== null && typeof R.series === 'object' && Object.keys(R.series).length > 0), 'races.json: a series map only when a series is read');
+  for (const [label, byName] of Object.entries(R.series || {})) {
+    const names = Object.keys(byName || {});
+    ok(seriesNotes.has(label) && names.length > 0 && names.every((name) => seriesNotes.get(label).some((x) => x.name === name)), `races.json series ${label}: its series are the registry’s`);
+    eq(names, [...names].sort(byCodePoint), `races.json series ${label}: series in name order`);
+    for (const name of names) readings.push([label, name, byName[name]]);
+  }
+  eq(Object.keys(R.series || {}), Object.keys(R.series || {}).sort(byCodePoint), 'races.json: series in label order');
+  for (const [label, series, r] of readings) {
+    const where = series === null ? `races.json ${label}` : `races.json ${label} (${series})`;
+    if (!eq(Object.keys(r || {}).sort(), raceFields, `${where}: its fields`)) continue;
+    const ofRace = editionRows.filter((e) => e.label === label && (e.series ?? null) === series);
+    const mine = ofRace.filter((e) => e.basis === 'chip_or_net');
     ok(int(r.editions, MIN_EDITIONS), `${where}: ${r.editions} editions, under the floor of ${MIN_EDITIONS}`);
     eq(r.editions, mine.length, `${where}: its editions are its chip- or net-timed readings in editions.json`);
     eq(r.tiers, tally(mine, 'tier', F_TIERS), `${where}: the tier mix of its editions`);
@@ -352,7 +403,7 @@ function verify(dataDir, { pins = true } = {}) {
     ok(mine.every((e) => e.year_sd_pct === r.year_sd_pct), `${where}: the year-to-year spread of its editions`);
     eq(Object.keys(r.timing).sort(), [...TIMING_CODES].sort(), `${where}: the timing codes of its fitted editions`);
     ok(Object.values(r.timing).every((n) => int(n)) && Object.values(r.timing).reduce((a, b) => a + b, 0) === r.editions_fitted, `${where}: the timing codes add up to its fitted editions`);
-    ok(int(r.held_for_review) && r.editions_fitted >= editionRows.filter((e) => e.label === label).length + r.held_for_review, `${where}: fitted editions hold its readings and its held editions`);
+    ok(int(r.held_for_review) && r.editions_fitted >= ofRace.length + r.held_for_review, `${where}: fitted editions hold its readings and its held editions`);
     ok(int(r.people_earlier, MIN_CELL) && int(r.people_later, MIN_CELL), `${where}: ${r.people_earlier} and ${r.people_later} linked runners tie it to other races, under the floor each way`);
     ok(int(r.people) && r.people >= Math.max(r.people_earlier, r.people_later) && r.people <= r.finishes, `${where}: people within its finishes`);
     ok(typeof r.trail_or_mountain === 'boolean', `${where}: the trail-or-mountain flag`);
@@ -367,7 +418,7 @@ function verify(dataDir, { pins = true } = {}) {
     for (const [name, v] of Object.entries(r.variants)) ok(v === null || (int(v.editions, MIN_EDITIONS) && finite(v.reading_pct)), `${where}: the ${name} variant rests on three editions`);
     eq(r.verdict, raceVerdict(r), `${where}: the verdict recomputed`);
   }
-  const raceRows = Object.values(R.races || {});
+  const raceRows = readings.map((x) => x[2]);
   if (raceRows.every((r) => r && typeof r.editions === 'number')) {
     const { under_the_floor_each_way: under, ...summary } = R.summary || {};
     eq(summary, { races: raceRows.length, by_verdict: tally(raceRows, 'verdict', ['faster', 'slower', 'about_the_same']), no_verdict: raceRows.filter((r) => r.verdict === null).length }, 'races.json: the summary recounted');
@@ -376,12 +427,14 @@ function verify(dataDir, { pins = true } = {}) {
 
   // ---------- 6. checks.json: the evidence, recounted from its points ----------
   const hasEdition = (label, year) => E.races?.[label]?.[String(year)] !== undefined;
+  const inItsSeries = (p) => { const series = seriesOf(p.label, p.year); return series !== undefined && (p.series ?? null) === series && (series === null) === (p.series === undefined); };
   eq(C.outlier_pct, OUTLIER_PCT, 'checks.json: the outlier bar');
   {
     const s = C.slowdown;
     if (ok(s && Array.isArray(s.points) && s.relation, 'checks.json: the whole-field check is published')) {
       eq([s.bar, s.min_eligible, s.min_share_of_finishes, s.min_editions], [FIELD_R_MIN, 1000, 0.5, 4], 'checks.json slowdown: its bar and floors');
       ok(s.points.every((p) => labels.has(p.label) && int(p.eligible, s.min_eligible) && int(p.slow) && p.slow <= p.eligible && finite(p.level) && hasEdition(p.label, p.year)), 'checks.json slowdown: every point is a published edition with at least 1,000 eligible finishes');
+      ok(s.points.every(inItsSeries), 'checks.json slowdown: every point names the series the registry gives its edition, or none');
       if (policy) { const counted = new Set(policy.counted.map(([c, y]) => `${c}|${y}`)); ok(s.points.every((p) => counted.has(`${p.label}|${p.year}`)), 'checks.json slowdown: every point is a counted edition of the policy'); }
       if (fromCohort) {
         for (const p of s.points) {
@@ -389,7 +442,7 @@ function verify(dataDir, { pins = true } = {}) {
           eq([p.eligible, p.slow], again ? [again.eligible, again.slow] : null, `checks.json slowdown: ${p.label} ${p.year}, its finishes and sustained slowdowns against the marathon cohort’s records`);
         }
       }
-      const again = withinRelation(s.points, (p) => `${p.label}|${p.basis}`, (p) => p.level, (p) => 100 * p.slow / p.eligible, s.min_editions);
+      const again = withinRelation(s.points, (p) => `${raceOf(p)}|${p.basis}`, (p) => p.level, (p) => 100 * p.slow / p.eligible, s.min_editions);
       if (ok(again !== null, 'checks.json slowdown: the relation can be recounted')) {
         eq([s.relation.editions, s.relation.groups], [again.editions, again.groups], 'checks.json slowdown: editions and groups recounted');
         eq(again.editions, s.points.length, 'checks.json slowdown: every point sits in a group of at least four');
@@ -401,7 +454,8 @@ function verify(dataDir, { pins = true } = {}) {
     const t = C.temperature;
     if (ok(t && Array.isArray(t.points) && t.window, 'checks.json: the temperature check is published')) {
       ok(t.points.every((p) => labels.has(p.label) && finite(p.temp_window) && (p.temp_start === null || finite(p.temp_start)) && finite(p.level)), 'checks.json temperature: its points');
-      const key = (p) => `${p.label}|${p.basis}`;
+      ok(t.points.every(inItsSeries), 'checks.json temperature: every point names the series the registry gives its edition, or none');
+      const key = (p) => `${raceOf(p)}|${p.basis}`;
       const again = withinRelation(t.points, key, (p) => p.temp_window, (p) => p.level, MIN_EDITIONS);
       if (ok(again !== null, 'checks.json temperature: the relation can be recounted')) {
         eq([t.window.editions, t.window.groups], [again.editions, again.groups], 'checks.json temperature: editions and groups recounted');
@@ -416,7 +470,7 @@ function verify(dataDir, { pins = true } = {}) {
       eq(t.bands.map((b) => [b.temp_from, b.temp_to]), [[null, 8], [8, 12], [12, 16], [16, 20], [20, null]], 'checks.json temperature: its bands');
       for (const b of t.bands) {
         const inBand = t.points.filter((p) => p.temp_window >= (b.temp_from ?? -Infinity) && p.temp_window < (b.temp_to ?? Infinity));
-        eq([b.editions, b.races], [inBand.length, new Set(inBand.map((p) => p.label)).size], `checks.json temperature ${b.temp_from}–${b.temp_to}: editions and races recounted`);
+        eq([b.editions, b.races], [inBand.length, new Set(inBand.map(raceOf)).size], `checks.json temperature ${b.temp_from}–${b.temp_to}: editions and races recounted`);
         if (inBand.length >= MIN_EDITIONS) close(b.mean_pct, inBand.reduce((a, p) => a + dev(p), 0) / inBand.length, 2e-3, `checks.json temperature ${b.temp_from}–${b.temp_to}: the mean against the race’s own mean`);
         else eq(b.mean_pct, null, `checks.json temperature ${b.temp_from}–${b.temp_to}: under three editions, no mean`);
       }
@@ -456,7 +510,7 @@ function verify(dataDir, { pins = true } = {}) {
     ok(plain && plain.points.length === raceRows.length && plain.faster + plain.slower + plain.neither === raceRows.length, 'checks.json: the plain-mean rule covers the same races');
     if (plain && plain.points.length >= MIN_EDITIONS) close(plain.r, corr(plain.points), 1e-4, 'checks.json: the plain means against the readings, recounted');
     ok(Array.isArray(C.year_levels) && C.year_levels.every((y, i) => int(y.year, 1900) && int(y.editions, 1) && (i === 0 || y.year > C.year_levels[i - 1].year) && ((y.level_pct === null) === (y.editions < MIN_EDITIONS))), 'checks.json: year levels in year order, none under three editions');
-    ok(Array.isArray(C.held_for_review) && C.held_for_review.every((h) => labels.has(h.label) && !hasEdition(h.label, h.year) && F_TIERS.includes(h.tier) && int(h.finishes, MIN_CELL)
+    ok(Array.isArray(C.held_for_review) && C.held_for_review.every((h) => labels.has(h.label) && inItsSeries(h) && !hasEdition(h.label, h.year) && F_TIERS.includes(h.tier) && int(h.finishes, MIN_CELL)
       && finite(h.from_median_pct) && Math.abs(h.from_median_pct) > OUTLIER_PCT), 'checks.json: an edition held for review is more than 6% from its race’s median and has no reading');
     eq(raceRows.reduce((a, r) => a + (r.held_for_review || 0), 0) <= (C.held_for_review || []).length, true, 'checks.json: the held editions cover those the races count');
   }
@@ -590,6 +644,13 @@ function verify(dataDir, { pins = true } = {}) {
         eq([listed.input_manifest_sha256, listed.cohort?.eligible, listed.editions_counted, listed.editions_with_records],
           [manifest.input?.manifest_sha256, u.counted?.eligible_finishes, u.counted?.editions, u.editions_with_rows], 'manifest: the adapted input, the counted finishes and the edition counts are the published edition-policy list’s');
       }
+      // The cohort manifest carries the series of an edition too (null where the label has none): the two must agree.
+      if (fromCohort) {
+        const differ = editionRows.filter((e) => fromCohort.rows.has(`${e.label}|${e.year}`) && (fromCohort.rows.get(`${e.label}|${e.year}`).series ?? null) !== (e.series ?? null));
+        ok(differ.length === 0, `the series of ${differ.length} edition rows differ from the marathon cohort manifest’s (first: ${differ[0]?.label} ${differ[0]?.year})`);
+        const noted = [...fromCohort.rows.values()].filter((e) => (e.series ?? null) !== (seriesOf(e.city, e.year) ?? null));
+        ok(noted.length === 0, `the series of ${noted.length} cohort editions differ from the registry’s note as this verifier reads it (first: ${noted[0]?.city} ${noted[0]?.year})`);
+      }
       // And the same three numbers counted again from the marathon cohort's records.
       if (fromCohort) eq([u.counted?.editions, u.counted?.eligible_finishes, u.counted?.sustained_slowdowns], [fromCohort.editions.size, fromCohort.eligible, fromCohort.slow], 'manifest: the counted editions, finishes and sustained slowdowns against the marathon cohort’s records');
       const runners = JSON.parse(read('public/data/runners/manifest.json'));
@@ -621,6 +682,7 @@ function selfTest() {
     ['an age verdict without agreement', 'age.json', (d) => { const b = d.bands[0]; b.verdict = 'stated'; b.same_race = null; }],
     ['a whole-field correlation that is not its points', 'checks.json', (d) => { d.slowdown.relation.r = 0.99; }],
     ['a banned word in a string', 'checks.json', (d) => { d.temperature.note = 'the heat cost five percent'; }],
+    ['a series on a label the registry gives none', 'editions.json', (d) => { Object.values(Object.values(d.races)[0])[0].series = 'Spring Marathon'; }],
     ['a sustained-slowdown count that is not the cohort’s', 'checks.json', (d) => { const p = d.slowdown.points[0]; p.slow += p.slow < p.eligible ? 1 : -1; }],
     ['an identity file that is not the cohort’s', 'manifest.json', (d) => { d.identity.sha256 = d.identity.sha256.replace(/^./, (c) => (c === '0' ? '1' : '0')); }],
     ['a counted total that is not the cohort’s', 'manifest.json', (d) => { d.cohort.universe.counted.sustained_slowdowns += 1; }],
@@ -651,7 +713,8 @@ if (require.main === module) {
   const started = Date.now();
   if (opt.selfTest) selfTest();
   else {
-    const { problems, checks, notes } = verify(opt.data);
+    const { problems, checks, notes } = verify(opt.data, opt.familyOnly ? { pins: false, registryPath: opt.registry } : {});
+    if (opt.familyOnly) notes.push('family-only mode (tests): the pins of this repository were not checked');
     for (const note of notes) console.log(`verify-linked: note: ${note}`);
     if (problems.length) {
       console.error(`verify-linked: ${problems.length} of ${checks} checks failed`);

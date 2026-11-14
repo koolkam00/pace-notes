@@ -11,6 +11,8 @@ this input and this link file by the identity builder in the repository. Writes 
 
     editions.json   fast years and slow years: an edition against the race's other years, by registry label and year
     races.json      the same linked runners at different races: a reading per race, in label order, no rank
+                    (a label whose registry entry has a reviewed series note holds several races: its editions are
+                    compared inside their series, and its readings are per series)
     bests.json      recorded bests by recorded attempt, and the steps between recorded marathons
     age.json        the change per year of age in the same linked runner, with the cross-section beside it
     return.json     seen again after a sustained slowdown: one matched comparison
@@ -75,7 +77,7 @@ def universe_counts(u, masks: dict) -> dict:
     for name, column in (('F', 'in_f'), ('verified', 'in_v'), ('wider', 'in_w')):
         part = e[e[column]]
         kept = r[masks[name]]
-        out[name] = {'editions': int(len(part)), 'races': int(part.label.nunique()),
+        out[name] = {'editions': int(len(part)), 'races': int(part.rkey.nunique()),
                      'editions_by_tier': {tier: int((part.tier == tier).sum()) for tier in sorted(part.tier.unique())},
                      'kept_results': int(len(kept)), 'people': int(kept.person.nunique()),
                      'people_with_two_or_more': int((np.bincount(kept.person.to_numpy()) >= 2).sum())}
@@ -84,6 +86,8 @@ def universe_counts(u, masks: dict) -> dict:
     f = e[e.in_f]
     out['F']['editions_by_timing'] = {c: int((f.timing == c).sum()) for c in lc.TIMING_CODES}
     out['F']['editions_by_split_tier'] = {c: int((f.split_tier == c).sum()) for c in sorted(f.split_tier.unique())}
+    noted = e[e.series.notna()]
+    out['series'] = {'labels': int(noted.label.nunique()), 'races': int(noted.rkey.nunique()), 'editions': int(len(noted))}   # labels that hold several races
     share = u.field_share
     out['counted'] = {'editions': int(len(share)), 'eligible_finishes': int(share.eligible.sum()), 'sustained_slowdowns': int(share.slow.sum())}
     return out
@@ -157,18 +161,23 @@ def assemble(u, binding: dict, registry: dict, out: Path, *, boot: int = lc.BOOT
     started = time.time() if started is None else started
     by_label = linked_universe.registry_labels(registry)
     labels = frozenset(by_label)
+    series = linked_universe.series_names(registry)
+    if 'rkey' not in u.editions.columns:
+        fail('the edition table carries no race keys (analysis/linked_universe.py with_series writes them)')
     masks = make_masks(u)
     counts = {'universe': universe_counts(u, masks)}
     log(f"linked: universe F {counts['universe']['F']['editions']} editions, {counts['universe']['F']['kept_results']:,} kept results ({time.time() - started:.0f} s)")
 
     races = linked_races.build(u.results, u.editions, u.field_share, boot=boot, log=log)
-    for label, row in races['races.json']['races'].items():   # so that a page can set a mountain or trail course apart
-        row['trail_or_mountain'] = any(f in TRAIL_FLAGS for f in by_label[label].get('flags', []))
+    for label, rows in [*((label, [row]) for label, row in races['races.json']['races'].items()),
+                        *((label, list(rows.values())) for label, rows in races['races.json'].get('series', {}).items())]:
+        for row in rows:   # so that a page can set a mountain or trail course apart
+            row['trail_or_mountain'] = any(f in TRAIL_FLAGS for f in by_label[label].get('flags', []))
     counts.update(races['counts'])
     log(f'linked: readings done ({time.time() - started:.0f} s)')
     history_masks = {k: masks[k] for k in ('F', 'verified', 'high', 'complete')}
     editions = u.editions.sort_values('code').copy()
-    editions['race'] = editions.label.map({label: i for i, label in enumerate(sorted(editions.label.unique()))}).astype(np.int64)
+    editions['race'] = linked_races.race_codes(editions)
     bests = linked_histories.build_bests(u.results, editions, history_masks)
     age = linked_histories.build_age(u.results, editions, history_masks)
     back = linked_return.build(u.results, editions, history_masks, reps=boot)
@@ -184,7 +193,7 @@ def assemble(u, binding: dict, registry: dict, out: Path, *, boot: int = lc.BOOT
     out_bytes = {}
     for name, body in families.items():
         value = {'family': 'linked', 'file': name, 'schema_version': lc.SCHEMA_VERSION, **body}
-        check_published(value, name, labels)
+        check_published(value, name, labels, series=series)
         out_bytes[name] = encode(value)
     meta = manifest(binding, counts, out_bytes, boot)
     compare_counts(out, meta, accept_counts)

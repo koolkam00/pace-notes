@@ -212,6 +212,7 @@ CODE_KEYS = {
     'scope': {'F', 'verified', 'high', 'wider', 'complete'},
 }
 LABEL_KEYS = {'label'}
+SERIES_KEYS = {'series'}     # a string here is a series name of the registry's reviewed note (plan decision D29)
 DIGEST_KEYS = {'sha256'}
 # Words no string of a published family file may hold (the scout's "must not print" lists and AGENTS rule 17).
 BANNED_WORDS = [
@@ -241,16 +242,22 @@ def word_problems(text: str) -> list[str]:
     return found
 
 
-def check_published(value, where: str, labels: frozenset, *, in_rule: bool = False) -> None:
-    """Finite numbers; no identifier, rank or converter keys; strings only as closed codes, registry labels, digests or
-    `rule` prose; no person id, release tag or banned word in any string; a key that says best or first says recorded.
-    The floors are checked by each builder where it forms a group and again by scripts/verify-linked.cjs."""
+def check_published(value, where: str, labels: frozenset, *, series: frozenset = frozenset(), in_rule: bool = False, by_series: bool = False) -> None:
+    """Finite numbers; no identifier, rank or converter keys; strings only as closed codes, registry labels, series
+    names of the registry, digests or `rule` prose; no person id, release tag or banned word in any string; a key that
+    says best or first says recorded. A map may be keyed by label (`races`, `editions`, `series`) and, under a label of
+    `series`, by series name. The floors are checked by each builder where it forms a group and again by
+    scripts/verify-linked.cjs."""
     if isinstance(value, dict):
         for key, item in value.items():
             if not isinstance(key, str):
                 fail(f'{where}: a non-string key')
-            keyed_by_label = key in labels and where.endswith(('.races', '.editions'))
-            if not keyed_by_label:
+            keyed_by_label = key in labels and where.endswith(('.races', '.editions', '.series'))
+            if where.endswith('.series') and key not in labels:
+                fail(f'{where}.{key}: the series map is keyed by registry label')
+            if by_series and key not in series:
+                fail(f'{where}.{key}: not a series name of the race registry')
+            if not keyed_by_label and not by_series:
                 if IDENTITY_KEY.match(key):
                     fail(f'{where}.{key}: an identifier or name key')
                 if RANK_KEY.search(key):
@@ -266,6 +273,9 @@ def check_published(value, where: str, labels: frozenset, *, in_rule: bool = Fal
                 elif key in LABEL_KEYS:
                     if item not in labels:
                         fail(f'{where}.{key}: {item!r} is not a registry label')
+                elif key in SERIES_KEYS and not in_rule:
+                    if item not in series:
+                        fail(f'{where}.{key}: {item!r} is not a series name of the race registry')
                 elif key in CODE_KEYS and not in_rule:
                     if item not in CODE_KEYS[key]:
                         fail(f'{where}.{key}: {item!r} is not one of the codes this key may hold')
@@ -277,12 +287,13 @@ def check_published(value, where: str, labels: frozenset, *, in_rule: bool = Fal
                     fail(f'{where}.{key}: a string under a key that may not hold one ({item!r})')
                 if RELEASE_LABEL.search(item) and key != 'release_tag':
                     fail(f'{where}.{key}: a release tag in a published family file')
-            check_published(item, f'{where}.{key}', labels, in_rule=in_rule or key == 'rule')
+            check_published(item, f'{where}.{key}', labels, series=series, in_rule=in_rule or key == 'rule',
+                            by_series=keyed_by_label and where.endswith('.series') and isinstance(item, dict))
     elif isinstance(value, list):
         for i, item in enumerate(value):
             if isinstance(item, str) and not in_rule:
                 fail(f'{where}[{i}]: a bare string in a list')
-            check_published(item, f'{where}[{i}]', labels, in_rule=in_rule)
+            check_published(item, f'{where}[{i}]', labels, series=series, in_rule=in_rule)
     elif isinstance(value, bool) or value is None or isinstance(value, (int, str)):
         return
     elif isinstance(value, float):
