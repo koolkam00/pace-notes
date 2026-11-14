@@ -79,18 +79,17 @@ def write(path, data):
 
 def load_cohort(cache=None):
     pin = json.loads((ROOT / 'analysis/release.json').read_text())
-    runner_root = ROOT / 'public/data/runners'
+    cohort_root = ROOT / 'analysis/marathon-cohort'   # the marathon cohort (analysis/cohort.py), since November 14, 2026
     if cache and Path(cache).exists():
-        # Development shortcut only: arrays previously written from the verified shards.
-        from build_fast_start import verified_manifest
-        manifest, manifest_sha = verified_manifest(runner_root, pin, ROOT / 'analysis')
+        # Development shortcut only: arrays previously written from the verified cohort.
+        manifest, manifest_sha = insights_data.verified_cohort_manifest(cohort_root, pin, ROOT / 'analysis')
         z = np.load(cache)
         f = insights_data.Finishes(z['times'], z['edition'], z['gender'], z['age'], z['exact_age'], z['profile'], manifest['editions'])
         f.raw_by_edition = z['raw_by_edition'] if 'raw_by_edition' in z else None
         if f.n != manifest['eligible_records']:
-            raise ValueError('Cached arrays do not match the runner manifest')
+            raise ValueError('Cached arrays do not match the cohort manifest')
     else:
-        f, manifest, manifest_sha = read_finishes(runner_root, pin, ROOT / 'analysis')
+        f, manifest, manifest_sha = read_finishes(cohort_root, pin, ROOT / 'analysis')
     return pin, f, manifest, manifest_sha
 
 
