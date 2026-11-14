@@ -11,7 +11,8 @@
 //   3. the module's functions refuse what they should: an unknown code, a never-shown tier, `undefined`, a weaker-source
 //      flag that disagrees with its tier; and a tier line reads as its two reference examples;
 //   4. the components render each label in both modes (a link to its anchor, a bare label) and have no client script;
-//      the design system's section names the same words, codes and anchors;
+//      /methodology defines every label under the two ids the labels link to, beside the evidence badges, with no
+//      typed number; the design system's section names the same words, codes and anchors;
 //   5. the styles in app/styles/components/badge.css are built from the evidence badge's and the scope chip's
 //      declarations and tokens (so no hue, no fill and no theme rule of their own), wrap at spaces and have a 44 px hit
 //      area as links; no other sheet changes a label's look;
@@ -101,9 +102,9 @@ const PIN = 'analysis/release.json';
 
 // ---- 6. What stood before the module (November 14, 2026). Not edited by the module's author; each is reported to
 // the lead with the file that owns it. `count` is the number of strings or JSX texts of the file that hold the phrase.
+// The fourth, "a possible match" for any name the search returns (components/methods/MethodsPages.tsx), was reworded
+// to "a name match" on the lead's ruling of November 14, 2026, so the words have one meaning on the site.
 const BASELINE = [
-  { file: 'components/methods/MethodsPages.tsx', phrase: 'Possible match', count: 1,
-    why: '/methodology#runner-search says a matching name "is a possible match": any name match, not the link mark. D16 rewords it so the term has one meaning.' },
   { file: 'components/methods/MethodsHalf.tsx', phrase: 'Held for review', count: 1,
     why: '/methodology on the half’s editions: "are held for review by the producer". Prose on the one page that defines the words; the half rebuild rewrites the paragraph.' },
   { file: 'components/methods/MethodsHalf.tsx', phrase: 'Gun times', count: 1,
@@ -707,6 +708,27 @@ function main() {
   ok(!/['"]use client['"]|\buse[A-Z]\w*\(|\bon[A-Z]\w*=|\bwindow\b|\bdocument\b/.test(code), `${COMPONENTS} has no client script: no state, effect, handler or browser object`);
   for (const cls of t.TIER_CLASSES) ok(code.includes(cls), `${COMPONENTS} draws with ${cls}`);
   ok(!/^\s*import\s|\brequire\(/m.test(read(MODULE)), `${MODULE} imports nothing`);
+
+  // The page that defines them: /methodology has the two ids the labels link to, beside the evidence badges, with every
+  // label drawn bare (a definition does not link to itself) and no typed number (the counts come later, from data).
+  const METHODS = 'components/methods/MethodsTiers.tsx';
+  const methods = html(require(path.join(ROOT, METHODS)).default, {});
+  const ids = [...methods.matchAll(/<section id="([^"]+)" class="methods-definition"/g)].map((m) => m[1]);
+  eq(ids, [ANCHOR.tier.split('#')[1], ANCHOR.link.split('#')[1]], `${METHODS} renders the two definitions the labels link to`);
+  const [tiersHtml, linksHtml] = methods.split(/(?=<section id="link-confidence")/);
+  for (const row of TABLE.filter((row) => row.kind !== 'link')) ok(tiersHtml.includes(`<span class="${CLASS[row.form]}" data-${row.kind === 'tier' ? 'tier' : row.kind === 'split' ? 'split-tier' : 'timing'}="${row.code}">${row.words}</span>`), `#edition-tiers defines "${row.words}" beside its label`);
+  ok(/<span class="tier-chip" data-link="[a-z_]+">Possible match<\/span>/.test(linksHtml), '#link-confidence defines "Possible match" beside its pill');
+  for (const [code, words] of Object.entries(QUIET_WORDS)) ok(linksHtml.includes(`<span class="tier-quiet" data-link-tier="${code}">${words}</span>`), `#link-confidence defines "${words}"`);
+  eq((methods.match(/<dd>/g) || []).length, TABLE.filter((row) => row.kind !== 'link').length + 1 + Object.keys(QUIET_WORDS).length, 'one meaning for each label, and no other');
+  ok(!/<a [^>]*class="tier-/.test(methods), 'on the page that defines them the labels are bare');
+  const methodsText = methods.replace(/<[^>]+>/g, ' ');
+  ok(!/\d/.test(methodsText), `${METHODS} types no number: counts and thresholds come from data files`);
+  ok(/counted/i.test(tiersHtml) && /tick/.test(linksHtml), 'the definitions say what counted means and that a visitor may tick a possible match');
+  const hrefs = [...methods.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
+  ok(hrefs.length > 0 && hrefs.every((id) => walk(path.join(ROOT, 'components', 'methods'), /\.tsx$/).some((file) => fs.readFileSync(file, 'utf8').includes(`id="${id}"`))), `every in-page link of ${METHODS} names an id the methodology components have (${hrefs.join(', ')})`);
+  const definitions = read('components/methods/MethodsDefinitions.tsx');
+  const at = (text) => definitions.indexOf(text);
+  ok(at('<MethodsTiers />') > at('<Definition id="evidence"') && at('<MethodsTiers />') < at('<Definition id="percentiles"') && at('<Definition id="evidence"') > 0, 'the two definitions sit beside the evidence badges in Part 2');
 
   // The design system's section says the same words and anchors.
   const doc = read('docs/DESIGN_SYSTEM.md');
