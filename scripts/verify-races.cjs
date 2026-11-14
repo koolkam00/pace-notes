@@ -421,10 +421,11 @@ function verify(dataDir) {
   const all = derived.flatMap((d) => d.rows.map((e) => ({ ...e, label: d.label })));
   const live = all.filter((e) => e.review !== 'copy');
   const what = (o) => typeof o?.what === 'string' && o.what.length > 10 && !/\d/.test(o.what);
+  const tally = (own) => ({ races: new Set(own.map((e) => e.label)).size, editions: own.length, results: sum(own, (e) => e.results), finishes: sum(own, (e) => e.finishes) });
   const cells = [];
   for (const tier of TIERS) for (const split of SPLITS) {
     const own = live.filter((e) => e.tier === tier && e.split_tier === split);
-    if (own.length) cells.push({ tier, split_tier: split, editions: own.length, results: sum(own, (e) => e.results), finishes: sum(own, (e) => e.finishes) });
+    if (own.length) cells.push({ tier, split_tier: split, ...tally(own) });
   }
   const strip = ({ what: _, ...rest }) => rest;
   eq([summary.schema_version, summary.family, summary.distance], [1, 'races', 'marathon'], 'summary.json: schema');
@@ -435,8 +436,10 @@ function verify(dataDir) {
     page_withheld_by_a_flag: derived.filter((d) => d.withheld).length,
   }, 'summary.json: races recounted from the directory');
   eq({ ...summary.editions, total: strip(summary.editions.total), badge_verified: strip(summary.editions.badge_verified) }, {
-    total: { n: live.length, results: sum(live, (e) => e.results), finishes: sum(live, (e) => e.finishes) }, by_tier: cells,
-    badge_verified: { n: live.filter((e) => BADGE.includes(e.tier)).length },
+    total: { n: live.length, results: sum(live, (e) => e.results), finishes: sum(live, (e) => e.finishes) }, by_tier_and_split_tier: cells,
+    by_tier: Object.fromEntries(TIERS.filter((t) => live.some((e) => e.tier === t)).map((t) => [t, tally(live.filter((e) => e.tier === t))])),
+    by_split_tier: Object.fromEntries(SPLITS.filter((x) => live.some((e) => e.split_tier === x)).map((x) => [x, tally(live.filter((e) => e.split_tier === x))])),
+    badge_verified: tally(live.filter((e) => BADGE.includes(e.tier))),
     by_use: Object.fromEntries(USES.map((u) => [u, { editions: live.filter((e) => e.use === u).length, results: sum(live.filter((e) => e.use === u), (e) => e.results) }])),
     not_counted_by_category: Object.fromEntries(CATEGORIES.filter((c) => live.some((e) => e.category === c)).map((c) => [c, live.filter((e) => e.category === c).length])),
   }, 'summary.json: editions recounted from the directory');

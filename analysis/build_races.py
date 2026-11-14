@@ -692,13 +692,14 @@ def editions_csv(races: list[dict]) -> bytes:
 
 def summary_file(inputs: Inputs, races: list[dict], editions: list[dict]) -> dict:
     live = [e for e in editions if e['review'] != 'copy']
+    tally = lambda own: {'races': len({e['label'] for e in own}), 'editions': len(own), 'results': sum(e['results'] for e in own),  # noqa: E731
+                         'finishes': sum(e['finishes'] for e in own)}
     cells = []
     for tier in TIERS:
         for split in SPLIT_TIERS:
             own = [e for e in live if e['tier'] == tier and e['split_tier'] == split]
             if own:
-                cells.append({'tier': tier, 'split_tier': split, 'editions': len(own), 'results': sum(e['results'] for e in own),
-                              'finishes': sum(e['finishes'] for e in own)})
+                cells.append({'tier': tier, 'split_tier': split, **tally(own)})
     counted = [e for e in live if e['use'] == 'counted']
     readings = inputs.sensitivity['readings']
     policy_reading = readings['policy']
@@ -723,9 +724,12 @@ def summary_file(inputs: Inputs, races: list[dict], editions: list[dict]) -> dic
         },
         'editions': {
             'total': {'n': len(live), 'results': sum(e['results'] for e in live), 'finishes': sum(e['finishes'] for e in live),
-                      'what': 'marathon editions with at least one recorded result; results are recorded results, finishes those with a finish time'},
-            'by_tier': cells,
-            'badge_verified': {'n': sum(1 for e in live if e['tier'] in BADGE_TIERS), 'what': 'editions whose tier is stamped or stamped_weaker_source'},
+                      'what': ('marathon editions with at least one recorded result; results are recorded results, finishes those with a finish time; in a '
+                               'breakdown, races are the races with at least one such edition')},
+            'by_tier_and_split_tier': cells,
+            'by_tier': {tier: tally([e for e in live if e['tier'] == tier]) for tier in TIERS if any(e['tier'] == tier for e in live)},
+            'by_split_tier': {split: tally([e for e in live if e['split_tier'] == split]) for split in SPLIT_TIERS if any(e['split_tier'] == split for e in live)},
+            'badge_verified': {**tally([e for e in live if e['tier'] in BADGE_TIERS]), 'what': 'editions whose tier is stamped or stamped_weaker_source; races with at least one'},
             'by_use': {use: {'editions': sum(1 for e in live if e['use'] == use), 'results': sum(e['results'] for e in live if e['use'] == use)} for use in USES},
             'not_counted_by_category': {c: sum(1 for e in live if e['category'] == c) for c in CATEGORIES if any(e['category'] == c for e in live)},
         },

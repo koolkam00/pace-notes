@@ -171,8 +171,8 @@ directory.
 ### `summary.json`: the counts a page prints
 
 `races` (`total`, `by_page`, `course_pages_kept`, `flagged`, `page_withheld_by_a_flag`), `editions` (`total` with
-results and finishes, `by_tier`: one cell per tier and split tier, `badge_verified`, `by_use`,
-`not_counted_by_category`), `counted` (editions, races, finishes that pass the timing checks, sustained slowdowns and
+results and finishes; `by_tier_and_split_tier`, `by_tier`, `by_split_tier` and `badge_verified`, each with races,
+editions, results and finishes; `by_use`; `not_counted_by_category`), `counted` (editions, races, finishes that pass the timing checks, sustained slowdowns and
 their share, as the pipeline's evidence states them), `sensitivity` (the same without partial editions, without
 weaker-source editions, and by tier: lead ruling R5), `finish_time_universe`, `notes` (`hold`, `release`: the
 producer's notes with label, year and tier), `duplicates` and `words`. Counts leave out editions set aside as copies.

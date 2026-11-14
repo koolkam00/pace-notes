@@ -302,7 +302,10 @@ class Build(Base):
         self.assertEqual(summary['races']['total']['n'], len(directory['races']))
         self.assertEqual((summary['editions']['total']['n'], summary['editions']['total']['results'], summary['editions']['total']['finishes']),
                          (len(rows), sum(row[3] for row in rows), sum(row[4] for row in rows)))
-        self.assertEqual(sum(cell['editions'] for cell in summary['editions']['by_tier']), len(rows))
+        self.assertEqual(sum(cell['editions'] for cell in summary['editions']['by_tier_and_split_tier']), len(rows))
+        self.assertEqual(summary['editions']['by_tier']['stamped_weaker_source'], {'races': 2, 'editions': 6, 'results': 1500 + 1200 + 400 + 3 * 1050, 'finishes': 1480 + 1200 + 400 + 3 * 1050})
+        self.assertEqual(summary['editions']['by_split_tier']['splits']['races'], 3)   # Alpha, Berlin and Epsilon
+        self.assertEqual(summary['editions']['badge_verified']['editions'], sum(1 for *_, editions in RACES for e in editions if e[1] in br.BADGE_TIERS))
         self.assertEqual(summary['races']['by_page'], {'course': 2, 'results': 2, 'row': 2})
         self.assertEqual((summary['counted']['editions'], summary['counted']['races'], summary['counted']['finishes']), (3, 1, 120 + 125 + 140))
         self.assertEqual(summary['sensitivity']['verified_tiers_only']['editions'], 2)
