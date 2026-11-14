@@ -48,7 +48,7 @@ RACES = [
     ('Epsilon Marathon', 'epsilon-marathon', 'Epsilon Marathon', None, [], 'name', [
         (2018, 'unverified', 'finish_time_only', 30, 0, 'finish_time_only', None, 0),
         (2019, 'stamped', 'splits', 110, 0, 'selected_field', 110, 0)]),                              # stamped, but a selected field: outside the universe
-    ('Zeta', 'zeta', 'New Zeta Marathon', 'Zeta', ['several_race_names'], 'plain key', [
+    ('Zeta', 'zeta', 'New Zeta Marathon', 'Zeta', ['several_race_names', 'platform_title_misleads'], 'plain key', [
         (2015, 'stamped', 'finish_time_only', 620, 0, 'finish_time_only', 620, 0),
         (2016, 'stamped', 'finish_time_only', 620, 0, 'finish_time_only', 620, 0),
         (2017, 'stamped', 'finish_time_only', 620, 0, 'finish_time_only', 620, 0),
@@ -502,6 +502,16 @@ class Rulings(Base):
         self.assertEqual(built['review']['races_left_out'], ['Eta Run'])
         rows = [r for r in csv.DictReader(io.StringIO(files['editions.csv'].decode())) if r['race'] == 'Eta Run']
         self.assertEqual([(r['review'], r['copy_of_race'], r['copy_of_year'], r['reviewed_note']) for r in rows], [('copy', 'Epsilon Marathon', '2019', '')])
+
+    def test_a_misleading_platform_title_is_flagged_and_withholds_nothing(self):
+        files, built, _ = self.fx.build()
+        zeta = next(r for r in files['directory.json']['races'] if r['label'] == 'Zeta')
+        self.assertEqual((zeta['flags'], zeta.get('withheld'), 'slug' in zeta), (['two_races', 'title_misleads'], None, True))
+        self.assertEqual(next(p for p in files['pages.json']['pages'] if p['label'] == 'Zeta')['flags'], ['two_races', 'title_misleads'])
+        self.assertEqual(files['race/zeta.json']['flags'], ['two_races', 'title_misleads'])
+        self.assertEqual(files['directory.json']['codes']['flags'][-1], 'title_misleads')
+        self.assertNotIn('Zeta', [r['label'] for r in built['review']['flagged_races']])      # the flag blocks no page
+        self.assertEqual([r['label'] for r in files['directory.json']['races'] if 'title_misleads' in r.get('flags', [])], ['Zeta'])
 
     def test_a_noted_flag_withholds_a_page_and_a_ruling_allows_it(self):
         self.fx.notes['flags'] = [{'label': 'Gamma City', 'flag': 'virtual', 'evidence': 'Every edition of this made-up race was run remotely.'}]

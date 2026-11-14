@@ -62,15 +62,20 @@ A stranger can recount every file from these and the inputs above.
 6. **Flags.** From the registry's flags by rule: `virtual` (`virtual_in_title`), `cancelled` (`cancelled_in_title`),
    `placeholder` (`placeholder_place`), `not_a_marathon_title` (`no_marathon_word_in_title` together with
    `other_event_in_title`), `hand_cycle_title` (`title_names_a_hand_cycle_race`), `mountain_or_trail`
-   (`mountain_or_trail_course` or `trail_or_mountain_word_in_title`), `two_races` (`several_race_names`). The notes
-   file adds a flag the rule does not give and clears one it gives wrongly, each with its evidence. The first five
-   are blocking: a race that carries one has no page unless the notes file records the lead's ruling that allows it
+   (`mountain_or_trail_course` or `trail_or_mountain_word_in_title`), `two_races` (`several_race_names`),
+   `title_misleads` (`platform_title_misleads`, the registry's reviewed flag: the timing platform's title does not
+   describe the marathon results under it). The notes file adds a flag the rule does not give and clears one it gives
+   wrongly, each with its evidence. The first five are blocking: a race that carries one has no page unless the notes file records the lead's ruling that allows it
    (`page_rulings`, with the words and the date). `hand_cycle_title` also means the title is never printed beside a
    runner. One ruling on this release (the lead, 2026-11-14): Rimouski gets its results page. "- Annulé" is the
    timing platform's current title for the whole key, not a statement about the years that hold results; nine of its
    editions are verified against an independent count and the registry's reviewed name drops the words. The race
    keeps the flag in the data, because the flag says what the title says; the rule stays for a race whose flagged
-   title has no verified edition.
+   title has no verified edition. `title_misleads` blocks nothing and decides how a race is shown (the lead,
+   2026-11-14, in the registry's reviewed flags and in the message with the final inputs: "the list shows the label
+   and the place for such a race, never the title"). `name` stays the registry's, which for some of these races is the
+   platform's title (Antarctica's keeps "& Half Marathon - Voyage 2", Grand Lake's names a half marathon, a 5k and a
+   kids' run), so a list never prints `name` for a race with this flag.
 7. **Search aliases.** The notes file holds a reviewed table of place words as the release writes them and their
    common English names (Milano: Milan). A race takes the alias when its label, name or place holds the word and none
    of them holds the alias. An alias is for the list's search only and is never shown as a name. A difference of
@@ -290,7 +295,7 @@ The runner-lookup builder skips the rows of those editions, so one run is not sh
 
 ## How it is verified
 
-- `python3 -m unittest analysis/test_races.py analysis/test_races_duplicates.py`: 45 tests on made-up releases (page
+- `python3 -m unittest analysis/test_races.py analysis/test_races_duplicates.py`: 46 tests on made-up releases (page
   types, the floors at their edge, readings and series, flags, aliases, rulings, a race left out, refusals of inputs
   that do not belong together, each audit rule and kind, no runner detail in any output). One compares the builder's
   lists, words and timing classes with `lib/tiers.ts`. Two build a
@@ -301,7 +306,7 @@ The runner-lookup builder skips the rows of those editions, so one run is not sh
   cohort manifest, holds the code lists, the words and every timing class to `lib/tiers.ts`, recomputes flags,
   aliases, page types, the finish-time universe, the floors, every reading, the summary, the head and the edition
   table, requires the reviewed duplicate list to be the audit's, and refuses any key or text outside its
-  vocabularies. `--self-test` breaks 24 copies of the folder one way at a time and requires each to be refused for
+  vocabularies. `--self-test` breaks 25 copies of the folder one way at a time and requires each to be refused for
   the reason it names. It needs `typescript` from `node_modules` to read the module, as `scripts/verify-tiers.cjs` does.
 - What the verifier cannot recount, because the records are not in the repository: an edition's finishes, its
   quartiles and its women, and the count of editions without results. [`analysis/races_recount.py`](../analysis/races_recount.py) recounts them from the adapted
@@ -339,6 +344,9 @@ input or an audit script changes, and review the notes when its list moves; run 
 - A race flagged `hand_cycle_title` never has its title printed beside a runner. Flagged races have no page, except
   by a recorded ruling (Rimouski): a flag says what the platform's title or place says and is never printed as a
   fact about the race.
+- A race flagged `title_misleads` is shown by its `label` and its `place`, never by `name` (rule 6): in the list, in
+  the edition table (`race` and `place`, not `race_name`) and wherever else a row names the race. `place` may be
+  `null`; the label then stands alone.
 - An edition whose review is `copy` is not an edition of the race on a page: show the rows whose review is `none`
   or `possible_duplicate`. A race under `left_out` is not listed.
 - An alias is matched by the search and never displayed. The search must fold accents itself.

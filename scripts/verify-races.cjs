@@ -58,7 +58,7 @@ const CATEGORIES = ['finish_time_only', 'held_for_review', 'unverified', 'partia
 const TIMINGS = [...T.TIMING_CLASSES];
 const PAGES = ['course', 'results', 'row'];
 const REVIEWS = ['none', 'possible_duplicate', 'copy'];
-const FLAGS = ['virtual', 'cancelled', 'placeholder', 'not_a_marathon_title', 'hand_cycle_title', 'mountain_or_trail', 'two_races'];
+const FLAGS = ['virtual', 'cancelled', 'placeholder', 'not_a_marathon_title', 'hand_cycle_title', 'mountain_or_trail', 'two_races', 'title_misleads'];
 const BLOCKING = ['virtual', 'cancelled', 'placeholder', 'not_a_marathon_title', 'hand_cycle_title'];
 const NOT_ABOUT_GRID = ['incomplete_ingestion', 'mixed_distance_list', 'selected_field', 'unreconciled_hold'];
 const EDITION_COLUMNS = ['year', 'tier', 'split_tier', 'results', 'finishes', 'use', 'category', 'timing', 'review'];
@@ -280,6 +280,7 @@ function verify(dataDir, root = ROOT) {
       virtual: f.has('virtual_in_title'), cancelled: f.has('cancelled_in_title'), placeholder: f.has('placeholder_place'),
       not_a_marathon_title: f.has('no_marathon_word_in_title') && f.has('other_event_in_title'), hand_cycle_title: f.has('title_names_a_hand_cycle_race'),
       mountain_or_trail: f.has('mountain_or_trail_course') || f.has('trail_or_mountain_word_in_title'), two_races: f.has('several_race_names'),
+      title_misleads: f.has('platform_title_misleads'),
     };
   };
   for (const [label, flags] of cleared) ok(registryByLabel.has(label) && flags.every((f) => ruleFlags(registryByLabel.get(label))[f]), `${label}: a cleared flag is one the rule gives the race`);
@@ -620,6 +621,7 @@ function selfTest(source, root = ROOT) {
     ['an edition counted that the policy does not count', (dir) => rewrite(dir, 'directory.json', (v) => { const row = v.races[first(results.label)].editions[0]; row[5] = 0; row[6] = null; }), /use and category equal the frozen edition policy/],
     ['a page type that the rule does not give', (dir) => rewrite(dir, 'directory.json', (v) => { v.races[first(results.label)].page = 'course'; }), /the page type by rule/],
     ['a slug on a race without a page', (dir) => rewrite(dir, 'directory.json', (v) => { v.races.find((r) => r.page === 'row').slug = 'made-up'; }), /a slug only when the race has a page/],
+    ['a flag that the registry and the notes do not give', (dir) => rewrite(dir, 'directory.json', (v) => { v.races.find((r) => !r.flags).flags = ['title_misleads']; }), /flags from the registry and the notes/],
     ['a name that is not the registry’s', (dir) => rewrite(dir, 'directory.json', (v) => { v.races[first(results.label)].name = 'Somebody Else'; }), /the registry’s name and place/],
     ['a total that the editions do not give', (dir) => rewrite(dir, 'summary.json', (v) => { v.editions.total.results += 1; }), /summary\.json: editions recounted/],
     ['a counted cohort that is not the evidence’s', (dir) => rewrite(dir, 'summary.json', (v) => { v.counted.finishes += 1; }), /the counted cohort as the pipeline’s evidence states it/],

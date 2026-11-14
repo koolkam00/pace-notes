@@ -117,6 +117,7 @@ FLAG_FROM_REGISTRY = {
     'hand_cycle_title': lambda f: 'title_names_a_hand_cycle_race' in f,
     'mountain_or_trail': lambda f: 'mountain_or_trail_course' in f or 'trail_or_mountain_word_in_title' in f,
     'two_races': lambda f: 'several_race_names' in f,
+    'title_misleads': lambda f: 'platform_title_misleads' in f,
 }
 FLAGS = tuple(FLAG_FROM_REGISTRY)
 BLOCKING_FLAGS = ('virtual', 'cancelled', 'placeholder', 'not_a_marathon_title', 'hand_cycle_title')
@@ -139,7 +140,9 @@ RULES = {
     'flags': ('virtual, cancelled, placeholder: the registry flags the title or place (virtual_in_title, cancelled_in_title, placeholder_place) or the notes file '
               'flags the race; not_a_marathon_title: the registry finds no marathon word in the title and another event named in it, or the notes file flags '
               'it; hand_cycle_title: the registry’s reviewed flag (the title is never printed beside a runner); mountain_or_trail and two_races are for '
-              'information. The notes file may clear a flag the rule gives, with its evidence. A race with virtual, cancelled, placeholder, '
+              'information; title_misleads: the registry’s reviewed flag platform_title_misleads (the timing platform’s title does not describe the '
+              'marathon results under it: a list shows the label and the place of such a race, never the title). The notes file may clear a flag the '
+              'rule gives, with its evidence. A race with virtual, cancelled, placeholder, '
               'not_a_marathon_title or hand_cycle_title has no page unless the notes file records the lead’s ruling that allows it'),
     'aliases': ('for the list’s search only, never shown as a name: the notes file holds a reviewed table of place words as the release writes them and their '
                 'common English names; a race takes the alias when its label, name or place holds the word and none of them holds the alias. A difference '
