@@ -22,6 +22,9 @@ export const CHARTS_PEOPLE_1_TEXT: Record<string, ChartText> = {
   },
   'age-barely-shows-until-45': {
     title: "Men's finish times barely move until 45",
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: 'Median finish time, age by age',
     takeaway: (v) => ({
       guard: n(v.d1) > 0 && n(v.d2) > 3 * n(v.d1) && n(v.w1) > 0 && n(v.w2) > 3 * n(v.w1) && n(v.races_n) === 5,
       headline: `In ${v.races}, men's median finish was *${minutes(n(v.d1))}* slower at 45 than 25, then ${Math.round(n(v.d2) / 60)} more by 65.`,
@@ -30,6 +33,9 @@ export const CHARTS_PEOPLE_1_TEXT: Record<string, ChartText> = {
   },
   'women-outnumber-men-mid-20s': {
     title: "Only at ages 23–28 were most finishes women's",
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: "Women's share of finishes, age by age",
     takeaway: (v) => ({
       guard: n(v.a0) === 23 && n(v.a1) === 28 && n(v.peak) > 0.5 && n(v.contiguous) === 1 && n(v.n_min) >= 100
         && n(v.races_n) === 5 && n(v.under_after) === 1 && n(v.first_under) === n(v.a1) + 1,
@@ -55,6 +61,9 @@ export const CHARTS_PEOPLE_1_TEXT: Record<string, ChartText> = {
   },
   'sub-3-not-only-for-the-young': {
     title: 'Sub-3:00 finishes are not only for the young',
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: "The ages of men's finishes under 3:00",
     takeaway: (v) => ({
       guard: n(v.m40) > 0.25 && n(v.m50) < n(v.m40) && n(v.med) < 40 && n(v.n) >= 100 && n(v.races_n) === 5,
       headline: `In ${v.races}, *${pct(n(v.m40))}* of men's finishes under 3:00 came at a recorded age of 40 or older.`,

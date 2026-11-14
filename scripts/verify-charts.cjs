@@ -6,7 +6,9 @@
 // a recount fails. Before the recounts it checks provenance (the adopted release, the exact cohort manifest, the edition
 // policy the cohort states, the catalog, the weather evidence, every script hash), the inventory, the group-size
 // threshold, identifier fields, release labels in copy, the words every title and takeaway may not use, title and
-// description lengths, and that no chart string equals a recorded runner name. The cohort holds no names: they are read
+// description lengths, and that no chart string equals a recorded runner name. A chart whose takeaway's guard does not
+// hold is not an error: it must be in the fallback state in every slot (a neutral title, the fallback sentence, a
+// drawing with no mark of the reading, no share card, no caption). The cohort holds no names: they are read
 // through scripts/charts/names.cjs (the committed runner lookup of the adopted release, or the names file that
 // PACE_NOTES_NAMES_FILE points at), and without either the verifier fails; it never passes without checking them.
 //
@@ -138,15 +140,40 @@ for (const ext of ['.ts', '.tsx']) require.extensions[ext] = (m, f) => m._compil
 const resolveFilename = Module._resolveFilename;
 Module._resolveFilename = function (request, ...rest) { return resolveFilename.call(this, request.startsWith('@/') ? path.join(root, request.slice(2)) : request, ...rest); };
 const { CHART_TEXT, chartWords } = require(path.join(root, 'lib/charts/registry.ts'));
+const { neutralSpec, readingMarks } = require(path.join(root, 'lib/charts/neutral.ts'));
+const { typo } = require(path.join(root, 'lib/charts/typo.ts'));
 const titles = new Set(), descriptions = new Set();
+// The charts whose takeaway's guard does not hold on these values. They are in the fallback state (AGENTS rule 13): a
+// guard is never loosened to keep a headline, and no slot may still state the reading it rejected. Each slot the words
+// and the drawing feed is checked here; the card and the caption are checked against the files below.
+const fallen = [];
 for (const c of scope(catalog)) {
   const text = CHART_TEXT[c.slug];
   ok(text, `${c.slug}: its words are registered in lib/charts/text`);
-  const words = chartWords(c, files.get(c.slug));
-  ok(words.guard, `${c.slug}: the takeaway's guard no longer holds for this release; rewrite the chart's words (${words.fallback})`);
+  const doc = files.get(c.slug);
+  const words = chartWords(c, doc);
+  if (words.guard) {
+    ok((words.headline.match(/\*/g) || []).length === 2, `${c.slug}: the takeaway has exactly one *…* accent`);
+  } else {
+    fallen.push(c);
+    // The title: most titles state the reading, so the chart needs a title that names what it shows and no more.
+    ok(typeof text.neutral === 'string' && text.neutral.trim().length > 0, `${c.slug}: the takeaway's guard does not hold on these values, so the chart is in the fallback state, and it has no neutral title: add \`neutral\` to its words in lib/charts/text (its fallback sentence: ${words.fallback})`);
+    ok(text.neutral !== text.title, `${c.slug}: the neutral title is the title that states the reading`);
+    ok(words.title === typo(text.neutral), `${c.slug}: in the fallback state the title is the neutral title`);
+    // The takeaway, the chart's accessible name and the search description: the fallback sentence, with no accent.
+    ok(words.headline === words.fallback && words.plain === words.fallback && words.description === words.fallback, `${c.slug}: in the fallback state the takeaway and the description are the fallback sentence`);
+    ok(!words.fallback.includes('*'), `${c.slug}: a fallback sentence has no accent`);
+    // The drawing and its table twin: no signal mark, no accent series, no note, no ring, no signal figure.
+    const left = readingMarks(neutralSpec(doc.plot));
+    ok(left.length === 0, `${c.slug}: the fallback drawing still marks a reading (${left.join(', ')})`);
+  }
+  if (text.neutral !== undefined) {
+    ok(typo(text.neutral).length <= 47, `${c.slug}: the neutral title is ${typo(text.neutral).length} characters (at most 47)`);
+    for (const [re, what] of BANNED) ok(!re.test(text.neutral), `${c.slug} neutral title: ${what}: ${text.neutral}`);
+    ok(!RELEASE_LABEL.test(text.neutral), `${c.slug} neutral title: an internal export label`);
+  }
   ok(words.title.length <= 47, `${c.slug}: the title is ${words.title.length} characters (at most 47, so the page title fits 60)`);
   ok(words.description.length <= 155, `${c.slug}: the description is ${words.description.length} characters (at most 155)`);
-  ok((words.headline.match(/\*/g) || []).length === 2, `${c.slug}: the takeaway has exactly one *…* accent`);
   ok(words.plain.length <= 150, `${c.slug}: the takeaway is ${words.plain.length} characters (at most 150, two lines on the card)`);
   ok(!titles.has(words.title) && !descriptions.has(words.description), `${c.slug}: a unique title and description`);
   titles.add(words.title); descriptions.add(words.description);
@@ -158,7 +185,21 @@ for (const c of scope(catalog)) {
     if (norm) strings.set(norm, `${c.slug} ${field}`);
   }
 }
-console.log(JSON.stringify({ text: 'ok', charts: catalog.length, checks }));
+// The share cards and the captions of the published charts (not of a folder built elsewhere): a chart has its card and
+// its caption exactly while its guard holds. scripts/build-chart-cards.cjs --check holds each card to its stamp.
+if (!opt.input) {
+  const captions = fs.readFileSync(path.join(root, 'docs/CHARTS_INSTAGRAM.md'), 'utf8');
+  for (const c of scope(catalog)) {
+    const words = chartWords(c, files.get(c.slug));
+    const png = fs.existsSync(path.join(root, 'public/charts/cards', `${c.number}.png`));
+    ok(words.guard === png, words.guard ? `${c.slug}: its guard holds but public/charts/cards/${c.number}.png is missing (node scripts/build-chart-cards.cjs)`
+      : `${c.slug}: the takeaway's guard fails on the published values, so the card is withdrawn; public/charts/cards/${c.number}.png must go (node scripts/build-chart-cards.cjs removes it)`);
+    const heading = new RegExp(`^## ${c.number}\\. `, 'm');
+    if (words.guard) ok(captions.includes(`\n## ${c.number}. ${words.title}\n\n${words.plain}\n\nChart ${c.number} of ${catalog.length} from Pace Notes.`), `${c.slug}: its caption in docs/CHARTS_INSTAGRAM.md is not its title and takeaway (node scripts/build-chart-cards.cjs --captions)`);
+    else ok(!heading.test(captions), `${c.slug}: its card is withdrawn, but docs/CHARTS_INSTAGRAM.md still carries a caption for chart ${c.number} (node scripts/build-chart-cards.cjs --captions)`);
+  }
+}
+console.log(JSON.stringify({ text: 'ok', charts: scope(catalog).length, fallback: fallen.map((c) => c.number), checks }));
 if (opt.textOnly) process.exit(0);
 
 // ---------- 4. Cohort and recounts ----------
@@ -189,4 +230,4 @@ for (const c of scope(catalog)) {
   checks++;
 }
 const slowest = timings.sort((a, b) => b[1] - a[1]).slice(0, 5);
-console.log(JSON.stringify({ charts: timings.length, checks: checks + H.counted(), cohort: C.n, names: { source: C.names.source, where: C.names.where, read: C.names.names }, seconds: Math.round((Date.now() - started) / 100) / 10, slowest }));
+console.log(JSON.stringify({ charts: timings.length, fallback: fallen.map((c) => c.number), checks: checks + H.counted(), cohort: C.n, names: { source: C.names.source, where: C.names.where, read: C.names.names }, seconds: Math.round((Date.now() - started) / 100) / 10, slowest }));

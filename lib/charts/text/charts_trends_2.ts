@@ -11,6 +11,9 @@ export const CHARTS_TRENDS_2_TEXT: Record<string, ChartText> = {
     // so records with three or more finishes went from 5.4% of records holding 16.9% of finishes (1 in 18 records) to
     // 10.8% holding 30.1% (1 in 9.2). "A sixth" no longer holds; the title and the pinned range follow the data.
     title: 'Names seen 3+ times hold 3 in 10 finishes',
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: 'Finishes per record linked by name',
     takeaway: (v) => ({
       guard: n(v.one_in) >= 8.5 && n(v.one_in) < 10 && n(v.held3) > 0.29 && n(v.held3) < 0.31 && n(v.records3) >= 100,
       headline: `${pct(n(v.rec3), 1)} of records linked by name have three or more finishes but hold *${pct(n(v.held3), 1)}* of all finishes.`,
@@ -24,6 +27,9 @@ export const CHARTS_TRENDS_2_TEXT: Record<string, ChartText> = {
     // editions; 81 records finished all 18, under the 100-record floor, so the builder narrows the top to 17 ("at least
     // 17 of the 18": 214). The guard pins 18 editions and a top of 17; "every edition" returns only with 100 records.
     title: 'Seventeen New Yorks under one name',
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: 'New York editions under one name',
     takeaway: (v) => ({
       guard: n(v.n_eds) === 18 && n(v.top) === 17 && n(v.all16) >= 100 && n(v.ten) > n(v.all16),
       headline: `*${count(n(v.all16))}* records linked by name finished ${count(n(v.top))}+ of ${count(n(v.n_eds))} New York editions, and ${count(n(v.ten))} at least 10.`,

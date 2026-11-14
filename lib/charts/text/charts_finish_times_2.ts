@@ -16,6 +16,9 @@ export const CHARTS_FINISH_TIMES_2_TEXT: Record<string, ChartText> = {
   },
   'mens-median-on-the-mark': {
     title: "4:00 divides men's finishes in half",
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: "Men's finishes under 4:00",
     takeaway: (v) => ({
       guard: Math.round(n(v.men) / 60) === 240 && Math.abs(n(v.men_eq) - 14400) < 300 && Math.abs(n(v.men_under4) - 0.5) < 0.01
         && n(v.all_under4) < n(v.men_under4),

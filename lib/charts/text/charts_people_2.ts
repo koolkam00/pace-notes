@@ -32,6 +32,9 @@ export const CHARTS_PEOPLE_2_TEXT: Record<string, ChartText> = {
   },
   'sixties-beat-the-young-median': {
     title: "Men's 60–64: over a fifth beat the 25–34 median",
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: "Men's finishes against the 25–34 median",
     takeaway: (v) => ({
       // The title says "over a fifth": the guard holds the share between a fifth and a quarter.
       guard: n(v.m6064) > 0.2 && n(v.m6064) < 0.25 && n(v.races_n) === 5,
@@ -65,6 +68,9 @@ export const CHARTS_PEOPLE_2_TEXT: Record<string, ChartText> = {
   },
   'womens-share-by-city': {
     title: "Under 4:00, women's share was highest in Boston",
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: "Women's share under 4:00, race by race",
     takeaway: (v) => ({
       // The title names Boston as the top row; one decimal keeps it apart from the next row (the bars print one decimal too).
       guard: v.top_city === 'Boston' && n(v.top) - n(v.second) >= 0.005 && n(v.top) > 3 * n(v.low) && n(v.n_min) >= 100 && n(v.latest_min_year) >= 2023,

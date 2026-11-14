@@ -44,6 +44,12 @@ export type Takeaway = { guard: boolean; headline: string; fallback: string };
 export type ChartText = {
   /** The card's headline and the page's H1: at most 47 characters, so "<title> | Pace Notes" fits 60. */
   title: string;
+  /**
+   * The title while the takeaway's guard does not hold on the published values: it names what the chart shows and
+   * states no reading (at most 47 characters). Most titles state the reading, so a chart in the fallback state needs
+   * one; scripts/verify-charts.cjs fails when a chart whose guard fails has none.
+   */
+  neutral?: string;
   takeaway: (v: V) => Takeaway;
   /** The search description when the takeaway alone would not do (at most 155 characters). */
   description?: (v: V) => string;
