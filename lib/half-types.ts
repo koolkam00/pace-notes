@@ -395,6 +395,66 @@ export type HalfPacing = {
 };
 
 // ---------------------------------------------------------------------------------------------------------------
+// races/: the half race list, a family of its own (analysis/half_races.py; docs/HALF_MARATHON.md rule R6)
+// ---------------------------------------------------------------------------------------------------------------
+
+/**
+ * One edition as a compact row, in the order of `edition_columns`: year; positions in codes.tier and codes.split_tier;
+ * results (after the record rules; null on a copy); position in codes.use; in codes.category, or null when the edition
+ * is used; in codes.timing; in codes.mark, or null; the median finish in seconds, or null; position in codes.review.
+ */
+export type HalfRaceEditionRow = [number, number, number, number | null, number, number | null, number, number | null, number | null, number];
+
+export type HalfRace = {
+  /** Unique among half races; never shown as a name. */
+  label: string; name: string; place: string | null;
+  /** First and last year of the editions shown. */
+  years: [number, number];
+  /** The results of the editions shown, added up: a count of what is listed, not a statistic. */
+  results: number;
+  /** The editions shown, by tier code (for the tier line). */
+  tiers: Record<string, number>;
+  editions: HalfRaceEditionRow[];
+  flags?: string[]; aliases?: string[];
+};
+
+export type HalfRaceDirectory = {
+  schema_version: 1; family: 'races'; distance: 'half';
+  codes: { tier: string[]; split_tier: string[]; use: string[]; category: string[]; timing: string[]; mark: string[]; review: string[]; flags: string[] };
+  edition_columns: string[];
+  /** The races the page lists in full: at least `min_verified_editions` editions of a verified tier. */
+  full_list: { min_verified_editions: number; races: string[] };
+  races: HalfRace[];
+  left_out: { label: string; name: string; place: string | null; editions: HalfRaceEditionRow[] }[];
+  set_aside_editions: { label: string; year: number; kept: { label: string | null; year: number } | null; reason: string }[];
+};
+
+type HalfRaceTally = Record<string, { editions: number; results: number }>;
+export type HalfRaceSummary = {
+  schema_version: 1; family: 'races'; distance: 'half';
+  races: { total: number; full_list: number; with_a_verified_edition: number; flagged: number; left_out: number };
+  editions: {
+    total: { editions: number; results: number }; by_tier: HalfRaceTally; by_split_tier: HalfRaceTally; by_timing: HalfRaceTally; by_use: HalfRaceTally;
+    not_used_by_category: HalfRaceTally; by_source_db: HalfRaceTally; badge_verified: { editions: number; results: number };
+    with_a_median: number; marked: HalfRaceTally; set_aside_as_copies: number;
+  };
+};
+
+export type HalfRaceManifest = {
+  schema_version: 1; family: 'races'; distance: 'half'; release_tag: string;
+  policy: { file: string; sha256: string; module_sha256: string };
+  registry: { file: string; sha256: string; reviewed: number };
+  tier_table_sha256: string;
+  scripts: Record<string, string>;
+  rules: Record<string, string>; flags: Record<string, string>;
+  floors: { median_min_results: number; full_list_min_verified_editions: number };
+  counts: { races: number; editions: number; results: number; keys: number };
+  files: Record<string, { bytes: number; sha256: string }>;
+};
+
+export type HalfRaceFiles = { 'directory.json': HalfRaceDirectory; 'summary.json': HalfRaceSummary };
+
+// ---------------------------------------------------------------------------------------------------------------
 // manifest.json: provenance, policy counts, scripts, files
 // ---------------------------------------------------------------------------------------------------------------
 

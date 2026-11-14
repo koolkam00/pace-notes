@@ -69,6 +69,7 @@ RULES = {
     'copy': 'an edition the half policy sets aside as a copy of another edition is listed with no number and is not shown',
     'order': 'races by name (accents and case aside), then place, then label; a race’s editions by year, then source database',
     'never': 'no runner name, bib, winner, source URL, producer status or reason text, or official count',
+    'codes': 'tier, split-tier and timing codes are the lists of lib/tiers.ts when the files were built; scripts/verify-half.cjs compares every code, class and word with the module itself',
 }
 
 
@@ -368,7 +369,6 @@ def build(db, policy, source, pin: dict, policy_sha: str, module_sha: str) -> di
         'schema_version': 1, 'family': 'races', 'distance': 'half', 'release_tag': pin['half']['tag'],
         'policy': {'file': pin['policy'], 'sha256': policy_sha, 'module_sha256': module_sha},
         'registry': {'file': 'analysis/half-race-registry.json', 'sha256': file_sha256(REGISTRY_PATH), 'reviewed': len(registry['reviewed'])},
-        'tier_module': {'file': 'lib/tiers.ts', 'sha256': file_sha256(TIER_MODULE)},
         'tier_table_sha256': pin['half']['core']['members']['EDITION-TIERS.csv'],
         'scripts': {f'analysis/{name}': file_sha256(ANALYSIS / name) for name in ('half_races.py', 'race_registry.py')},
         'rules': RULES, 'flags': FLAGS, 'floors': {'median_min_results': MEDIAN_MIN_RESULTS, 'full_list_min_verified_editions': FULL_LIST_MIN_VERIFIED},

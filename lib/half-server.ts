@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import release from '@/analysis/release.json';
 import pin from '@/analysis/half-release.json';
-import type { HalfDataFile, HalfFiles, HalfManifest, HalfReleasePin, HalfTiers } from '@/lib/half-types';
+import type { HalfDataFile, HalfFiles, HalfManifest, HalfRaceFiles, HalfRaceManifest, HalfReleasePin, HalfTiers } from '@/lib/half-types';
 
 /**
  * The half-marathon aggregates (public/data/half/, analysis/build_half.py), verified once per process at build time.
@@ -91,4 +91,34 @@ function halfPolicy(): { tiers: HalfTiers } {
  * stamps, the gun-time editions and the course-suspected-short ones. */
 export function halfTiers(): HalfTiers {
   return halfPolicy().tiers;
+}
+
+let races: { key: string; manifest: HalfRaceManifest } | undefined;
+
+/**
+ * The half race list's manifest (public/data/half/races/, analysis/half_races.py), verified once per process: it must
+ * be built for the pinned release and the policy the half data bind, and every file's bytes and sha256 must be the
+ * manifest's. The race list is a family of its own beside the half aggregates.
+ */
+export function getHalfRaceManifest(): HalfRaceManifest {
+  const file = path.join(ROOT(), 'races', 'manifest.json');
+  const stat = fs.statSync(file);
+  const key = `${stat.size}:${stat.mtimeMs}`;
+  if (races?.key === key) return races.manifest;
+  const manifest = JSON.parse(fs.readFileSync(file).toString()) as HalfRaceManifest;
+  const half = getHalfManifest();
+  if (manifest.schema_version !== 1 || manifest.family !== 'races' || manifest.distance !== 'half') throw new Error('Half race list: unexpected manifest.');
+  if (manifest.release_tag !== PIN.half.tag || manifest.policy.sha256 !== half.policy.sha256 || manifest.policy.file !== half.policy.file) throw new Error('The half race list must be rebuilt for the pinned release and policy.');
+  for (const [name, meta] of Object.entries(manifest.files)) {
+    const bytes = fs.readFileSync(path.join(ROOT(), 'races', name));
+    if (bytes.length !== meta.bytes || sha256(bytes) !== meta.sha256) throw new Error(`Half race list file changed after its manifest was written: ${name}`);
+  }
+  races = { key, manifest };
+  return manifest;
+}
+
+/** One verified file of the half race list. */
+export function readHalfRaces<K extends keyof HalfRaceFiles>(name: K): HalfRaceFiles[K] {
+  if (!getHalfRaceManifest().files[name]) throw new Error(`Unknown half race list file: ${name}`);
+  return JSON.parse(fs.readFileSync(path.join(ROOT(), 'races', name)).toString()) as HalfRaceFiles[K];
 }
