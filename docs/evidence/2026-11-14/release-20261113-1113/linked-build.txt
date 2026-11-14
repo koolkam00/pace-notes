@@ -122,3 +122,23 @@ python3 -m unittest discover -s analysis -p 'test_*.py': Ran 345 tests in 63.613
    FAIL: test_broken_pins_fail (test_half.Pin.test_broken_pins_fail)
 python3 -I -m unittest discover -s analysis -p 'test_linked*.py': Ran 58 tests in 2.080s OK 
 npx tsc --noEmit -p .: tsc exit 0
+
+== 7. After the merge of the release branch at 87d096ac8 (the marathon cohort, plan decision D24 item 1), the same day ==
+   No rebuild: the merge changed no file of the family and no input it binds, and the seven files are the bytes of section 3.
+   scripts/verify-linked.cjs gained the cohort checks (docs/LINKED_RECORDS.md, How it is verified, item 5) and three broken copies.
+2026-11-14T05:24:20Z on merge commit 40e944f06267380a5ac063c5dc95f267f3711c24, with the verifier of the commit that adds this section
+the published files against section 3: all seven unchanged
+inputs on disk: MANIFEST.json c0ddc847837382ae9b9ed7a52812a851588c7add8d04368e77226bf075d8310b ; identity.parquet 152f451b66c39f4e3c3b3ae15bfb5ff2c0d445820721860f79be72625112be5c
+analysis/marathon-cohort/manifest.json: sha256 4e3117627052653412d726e795b08309aa661fc960eea56a333ce2e8565b767e ; it names input c0ddc847837382ae9b9ed7a52812a851588c7add8d04368e77226bf075d8310b and identity 152f451b66c39f4e3c3b3ae15bfb5ff2c0d445820721860f79be72625112be5c
+node scripts/verify-cohort.cjs: Verified the marathon cohort (pace-notes-marathon-half-20261113-1113, manifest 4e3117627052): 233 edition files, 4,124,023 counted and 218,435 own-record records, 
+129,470 other records held, 3,348,511 records in 2,455 editions without a file; 1,934,712 runners among the counted; every decoded digest equal to the Python reader's (13 s).
+verify-linked: note: the counted finishes (4124023) are not compared with the runner lookup (master-20261103b)
+verify-linked: 64666 checks passed in 2.4 s
+verify-linked self-test: 18 broken copies refused
+counted again from the cohort's records (Node, scripts/lib/cohort.cjs): 201 counted editions, 4124023 finishes, 1288216 sustained slowdowns
+the family's manifest: 201 counted editions, 4124023 finishes, 1288216 sustained slowdowns
+editions of the whole-field check with both counts equal to the cohort's: 161 of 161
+python3 -m unittest discover -s analysis -p 'test_*.py': Ran 348 tests in 62.810s ; FAILED (failures=3, errors=7, skipped=12)
+   failing outside test_half: 0 ; in test_half: 10 (the same ten as in section 6)
+python3 -I -m unittest discover -s analysis -p 'test_linked*.py': Ran 58 tests in 1.871s OK 
+npx tsc --noEmit -p .: tsc exit 0

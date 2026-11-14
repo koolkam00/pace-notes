@@ -18,6 +18,12 @@
 //   4. Recounts: the checks from their published points (the relation with temperature and with the whole field's
 //      sustained-slowdown share inside races, the other fits), the summaries from the rows, and the files against each
 //      other and against the manifest.
+//   5. The marathon cohort (analysis/marathon-cohort, lead ruling D24 item 1, read with scripts/lib/cohort.cjs). The
+//      family is not built from it (the cohort has no file for an edition that gives recorded times only), but both come
+//      from one adapted input and one identity file: the two manifests must name the same release, input and identity
+//      file, which is what shows an identity file rebuilt outside the repository. And the counted editions' finishes
+//      and sustained slowdowns, with every edition of the whole-field check, are counted again from the cohort's
+//      records, not from any number this family published.
 //
 //   node scripts/verify-linked.cjs [--data <folder>] [--self-test]
 //
@@ -30,6 +36,7 @@ const crypto = require('node:crypto');
 
 const ROOT = path.resolve(__dirname, '..');
 const W = require('./lib/words.cjs');
+const cohortFiles = require('./lib/cohort.cjs');
 const args = process.argv.slice(2);
 const opt = { data: path.join(ROOT, 'public/data/linked'), selfTest: args.includes('--self-test') };
 for (let i = 0; i < args.length; i++) {
@@ -150,6 +157,32 @@ function corr(pairs) {
 const sd = (xs) => { const m = xs.reduce((a, b) => a + b, 0) / xs.length; return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)); };
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 
+// ---------- The counted editions, counted again from the marathon cohort's records (once per run) ----------
+// A sustained slowdown is a whole recorded 5 km section after 20 km at least 25% slower than the 5 to 20 km pace: the
+// test of analysis/build_public_explorer.py threshold_sql(.25, 5), written as scripts/half/marathon.cjs writes it.
+let cohortCount = null;
+function countedFromCohort() {
+  if (cohortCount) return cohortCount;
+  const out = { error: null, manifest: null, editions: new Map(), eligible: 0, slow: 0 };
+  try {
+    out.manifest = cohortFiles.readManifest().manifest;
+    for (const entry of out.manifest.editions) {
+      if (entry.use !== 'counted') continue;
+      const { times } = cohortFiles.readEdition(entry);   // the reader checks the file's size and sha256 first
+      let slow = 0;
+      for (const t of times) {
+        const baseline = (t[3] - t[0]) / 15;
+        for (let j = 4; j < 8; j++) if ((t[j] - t[j - 1]) / 5 / baseline - 1 + 1e-12 >= 0.25) { slow++; break; }
+      }
+      out.editions.set(`${entry.city}|${entry.year}`, { eligible: times.length, slow });
+      out.eligible += times.length;
+      out.slow += slow;
+    }
+  } catch (error) { out.error = error.message; }
+  cohortCount = out;
+  return out;
+}
+
 // ---------- The check ----------
 function verify(dataDir, { pins = true } = {}) {
   const problems = [];
@@ -171,6 +204,7 @@ function verify(dataDir, { pins = true } = {}) {
   const labels = new Set(registry.races.map((r) => r.label));
   eq([manifest.schema_version, manifest.family], [1, 'linked'], 'the manifest’s schema and family');
   let policy = null;
+  let fromCohort = null;
   if (pins) {
     eq(manifest.release_tag, release.tag, 'the family is built on the adopted release');
     const policyFile = manifest.policy?.file || '';
@@ -193,6 +227,14 @@ function verify(dataDir, { pins = true } = {}) {
     ok(/^[0-9a-f]{64}$/.test(manifest.identity?.sha256 || ''), 'the manifest states the identity file’s digest');
     ok(manifest.identity?.builder_sha256 === sha(read('analysis/build_identity.py')), 'stale linked data: analysis/build_identity.py changed after the identity file was built (rebuild the identity file, then the family)');
     ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(manifest.input_as_of || ''), 'input_as_of is the adapted input’s time');
+    // The marathon cohort is in the repository and names the identity file it was built on, so it is what shows an identity
+    // file rebuilt with an unchanged builder: the family and the cohort must be built on one input and one identity file.
+    fromCohort = countedFromCohort();
+    if (ok(fromCohort.error === null, `the marathon cohort (analysis/marathon-cohort) reads: ${fromCohort.error}`)) {
+      const made = fromCohort.manifest;
+      eq([made.release_tag, made.input_manifest_sha256, made.input_as_of], [manifest.release_tag, manifest.input?.manifest_sha256, manifest.input_as_of], 'the marathon cohort and the family are built on one adapted input');
+      ok(made.inputs?.identity?.sha256 === manifest.identity?.sha256, 'stale linked data: the marathon cohort and the family name different identity files (build both on the current identity.parquet; rebuild the older one)');
+    } else fromCohort = null;
     const builders = fs.readdirSync(rel('analysis')).filter((n) => BUILDERS.test(n)).map((n) => `analysis/${n}`);
     eq(Object.keys(manifest.scripts || {}).sort(), [...builders, ...SHARED].sort(), 'every linked builder module and each shared definition is bound to the manifest');
     for (const [name, digest] of Object.entries(manifest.scripts || {})) ok(fs.existsSync(rel(name)) && digest === sha(read(name)), `stale linked data: ${name} changed after the build (rerun analysis/build_linked.py)`);
@@ -341,6 +383,12 @@ function verify(dataDir, { pins = true } = {}) {
       eq([s.bar, s.min_eligible, s.min_share_of_finishes, s.min_editions], [FIELD_R_MIN, 1000, 0.5, 4], 'checks.json slowdown: its bar and floors');
       ok(s.points.every((p) => labels.has(p.label) && int(p.eligible, s.min_eligible) && int(p.slow) && p.slow <= p.eligible && finite(p.level) && hasEdition(p.label, p.year)), 'checks.json slowdown: every point is a published edition with at least 1,000 eligible finishes');
       if (policy) { const counted = new Set(policy.counted.map(([c, y]) => `${c}|${y}`)); ok(s.points.every((p) => counted.has(`${p.label}|${p.year}`)), 'checks.json slowdown: every point is a counted edition of the policy'); }
+      if (fromCohort) {
+        for (const p of s.points) {
+          const again = fromCohort.editions.get(`${p.label}|${p.year}`);
+          eq([p.eligible, p.slow], again ? [again.eligible, again.slow] : null, `checks.json slowdown: ${p.label} ${p.year}, its finishes and sustained slowdowns against the marathon cohort’s records`);
+        }
+      }
       const again = withinRelation(s.points, (p) => `${p.label}|${p.basis}`, (p) => p.level, (p) => 100 * p.slow / p.eligible, s.min_editions);
       if (ok(again !== null, 'checks.json slowdown: the relation can be recounted')) {
         eq([s.relation.editions, s.relation.groups], [again.editions, again.groups], 'checks.json slowdown: editions and groups recounted');
@@ -542,6 +590,8 @@ function verify(dataDir, { pins = true } = {}) {
         eq([listed.input_manifest_sha256, listed.cohort?.eligible, listed.editions_counted, listed.editions_with_records],
           [manifest.input?.manifest_sha256, u.counted?.eligible_finishes, u.counted?.editions, u.editions_with_rows], 'manifest: the adapted input, the counted finishes and the edition counts are the published edition-policy list’s');
       }
+      // And the same three numbers counted again from the marathon cohort's records.
+      if (fromCohort) eq([u.counted?.editions, u.counted?.eligible_finishes, u.counted?.sustained_slowdowns], [fromCohort.editions.size, fromCohort.eligible, fromCohort.slow], 'manifest: the counted editions, finishes and sustained slowdowns against the marathon cohort’s records');
       const runners = JSON.parse(read('public/data/runners/manifest.json'));
       const lookupEligible = runners.eligible_records ?? runners.cohort?.eligible_records;   // the second form is the lookup's next layout
       if (runners.release_tag === manifest.release_tag && int(lookupEligible)) eq(u.counted.eligible_finishes, lookupEligible, 'manifest: the counted finishes are the runner lookup’s eligible records');
@@ -571,6 +621,9 @@ function selfTest() {
     ['an age verdict without agreement', 'age.json', (d) => { const b = d.bands[0]; b.verdict = 'stated'; b.same_race = null; }],
     ['a whole-field correlation that is not its points', 'checks.json', (d) => { d.slowdown.relation.r = 0.99; }],
     ['a banned word in a string', 'checks.json', (d) => { d.temperature.note = 'the heat cost five percent'; }],
+    ['a sustained-slowdown count that is not the cohort’s', 'checks.json', (d) => { const p = d.slowdown.points[0]; p.slow += p.slow < p.eligible ? 1 : -1; }],
+    ['an identity file that is not the cohort’s', 'manifest.json', (d) => { d.identity.sha256 = d.identity.sha256.replace(/^./, (c) => (c === '0' ? '1' : '0')); }],
+    ['a counted total that is not the cohort’s', 'manifest.json', (d) => { d.cohort.universe.counted.sustained_slowdowns += 1; }],
   ];
   let failed = 0;
   for (const [what, file, mutate] of mutations) {
@@ -581,9 +634,11 @@ function selfTest() {
       mutate(doc);
       const bytes = Buffer.from(`${JSON.stringify(doc)}\n`);
       fs.writeFileSync(path.join(dir, file), bytes);
-      const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
-      manifest.files[file] = { bytes: bytes.length, sha256: sha(bytes) };   // so that only the broken content can fail
-      fs.writeFileSync(path.join(dir, 'manifest.json'), `${JSON.stringify(manifest)}\n`);
+      if (file !== 'manifest.json') {
+        const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+        manifest.files[file] = { bytes: bytes.length, sha256: sha(bytes) };   // so that only the broken content can fail
+        fs.writeFileSync(path.join(dir, 'manifest.json'), `${JSON.stringify(manifest)}\n`);
+      }
       const result = verify(dir);
       if (!result.problems.length) { failed++; console.error(`self-test: ${what} was not refused`); }
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
@@ -606,4 +661,4 @@ if (require.main === module) {
     console.log(`verify-linked: ${checks} checks passed in ${((Date.now() - started) / 1000).toFixed(1)} s`);
   }
 }
-module.exports = { verify, yearVerdict, raceVerdict, shareVerdict, tMultiplier };
+module.exports = { verify, countedFromCohort, yearVerdict, raceVerdict, shareVerdict, tMultiplier };
