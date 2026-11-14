@@ -7,6 +7,10 @@ finishes. Rows report the pooled share finishing under G, the edition-balanced s
 share and the edition-balanced median time after 20 km beyond the 5–20 km pace, plus pooled finish
 percentiles. Context per course (race months, start temperatures, supplied route gain/loss/net) is
 descriptive only. This is not a difficulty ranking and no course is called fastest.
+
+A course's race months are the months of its editions' race dates: the marathon cohort's reviewed
+date of the edition (every counted edition has one), else the date of its weather row. Until
+November 14, 2026 only the weather row gave a date, so an edition without one named no month.
 """
 import numpy as np
 
@@ -40,10 +44,12 @@ def build(cohort):
         for e in eds:
             ctx = context[e]
             w = ctx['weather']
-            if w and w.get('temp_c') is not None and w['weather_race'].strip().casefold() == s.editions[e].get('race', '').strip().casefold():
+            matched = bool(w and w.get('temp_c') is not None and w['weather_race'].strip().casefold() == s.editions[e].get('race', '').strip().casefold())
+            if matched:
                 temps.append(w['temp_c'])
-                if w.get('date'):
-                    months.add(int(w['date'][5:7]))
+            dated = s.editions[e].get('race_date') or (w.get('date') if matched else None)
+            if dated:
+                months.add(int(dated[5:7]))
             if terrain is None and ctx.get('terrain'):
                 terrain = ctx['terrain']
         first = (terrain or {}).get('sections') or []

@@ -1470,7 +1470,23 @@ function checkCourseGoal(doc) {
   });
   assert.deepEqual(doc.unavailable.map(u => [u.goal, u.city]), expectedGaps, 'Course goal unavailable rows');
   assert.deepEqual(doc.courses.map(c => c.city), cities, 'Course goal course list');
-  return { rows: doc.rows.length, unavailable: doc.unavailable.length };
+  // Each course's context: its editions and finishes in the tool cohort, its race months (the cohort's reviewed race
+  // date of each edition, else its matched weather row's date) and the start temperatures of its matched weather rows.
+  const weather = toolWeather(eds);
+  for (const course of doc.courses) {
+    const cityEds = eds.filter(e => editions[e].city === course.city), months = new Set(), temps = [];
+    for (const e of cityEds) {
+      const w = weather.get(e);
+      if (w) temps.push(w.temp_c);
+      const dated = editions[e].race_date || (w ? w.date : null);
+      if (dated) months.add(Number(dated.slice(5, 7)));
+    }
+    assert.deepEqual([course.slug, course.editions, course.finishes, course.months, course.weather_editions],
+      [slugify(course.city), cityEds.length, sum(cityEds.map(e => storyCount[e])), [...months].sort((a, b) => a - b), temps.length], `${course.city}: course context (editions, finishes, race months, weather editions)`);
+    assert.equal(course.start_temp_c === null, temps.length === 0, `${course.city}: start temperatures exactly where a weather row matched`);
+    if (temps.length) { near(course.start_temp_c[0], Math.min(...temps), `${course.city}: coolest start`, .051); near(course.start_temp_c[1], Math.max(...temps), `${course.city}: warmest start`, .051); }
+  }
+  return { rows: doc.rows.length, unavailable: doc.unavailable.length, courses: doc.courses.length };
 }
 
 // Terrain splits (tools/course-terrain.json): the visitor's goal spread over a corrected route profile with one published
