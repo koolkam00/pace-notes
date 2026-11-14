@@ -217,9 +217,21 @@ function captions() {
     if (!words.guard) continue;
     lines.push(`## ${item.number}. ${words.title}`, '', `${words.plain}`, '', `Chart ${item.number} of ${CATALOG.length} from Pace Notes. Every chart, its numbers and how it was made: splithappens.run/charts/${item.number}`, '');
   }
-  const half = halfSet().captions();
-  fs.writeFileSync(path.join(ROOT, 'docs/CHARTS_INSTAGRAM.md'), lines.concat(half).join('\n'));
-  console.log(`docs/CHARTS_INSTAGRAM.md: ${all.length - withdrawn.length} captions${withdrawn.length ? ` (${withdrawn.length} withdrawn)` : ''}${half.length ? ' and the half cards' : ''}`);
+  const target = path.join(ROOT, 'docs/CHARTS_INSTAGRAM.md');
+  let half, kept = '';
+  try {
+    half = halfSet().captions();
+  } catch (error) {
+    // The half cards are read through the half manifest, which binds the adopted marathon release: during an adoption
+    // the charts are rebuilt before the half, and the half data cannot be read yet. The half section then stays exactly
+    // as it is (scripts/verify-half.cjs holds it to the half cards' words once the half is rebuilt), and the run says so.
+    const existing = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
+    const at = existing.indexOf('\n## From the half (not numbered)\n');
+    half = at >= 0 ? existing.slice(at + 1).split('\n') : [];
+    kept = ` (the half cards' section is kept as it was: ${error.message})`;
+  }
+  fs.writeFileSync(target, lines.concat(half).join('\n'));
+  console.log(`docs/CHARTS_INSTAGRAM.md: ${all.length - withdrawn.length} captions${withdrawn.length ? ` (${withdrawn.length} withdrawn)` : ''}${kept || (half.length ? ' and the half cards' : '')}`);
 }
 
 async function main() {
