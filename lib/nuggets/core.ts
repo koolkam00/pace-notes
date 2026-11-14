@@ -5,16 +5,14 @@
  * One surface uses one count family. The eligible family (finishes the analyses use, their cities and race-years) is
  * the default; the raw family (every result in the release) is for the data pages only. Never put the two side by side.
  */
-import fs from 'node:fs';
-import path from 'node:path';
-import { getInsightsManifest, readInsight } from '@/lib/insights-server';
+import { getCohortManifest, getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { Courses } from '@/lib/insights';
 import type { UnitSystem } from '@/lib/units';
 import { millions } from './format';
 import type { Nugget, NuggetText } from './types';
 
 export type SiteTotals = {
-  /** Every runner result in the adopted release (the raw family). */
+  /** Every written marathon result in the adopted release (the raw family). */
   results: number;
   /** Eligible finishes: the cohort every analysis and story counts from. */
   finishesEligible: number;
@@ -24,27 +22,30 @@ export type SiteTotals = {
   raceYears: number;
   firstYear: number;
   lastYear: number;
-  /** The raw family, for the data pages: cities, race-years and years of every result in the release. */
+  /**
+   * The raw family, for the data pages: races (the pipeline's `city` is a race label), race-years and years of every
+   * written marathon result in the release, whether or not an analysis may read its edition.
+   */
   raw: { cities: number; raceYears: number; firstYear: number; lastYear: number };
 };
 
-type RunnerManifest = { release_tag: string; raw_records: number; eligible_records: number; editions: { city: string; year: number }[] };
-
 let cached: { key: string; totals: SiteTotals } | undefined;
 
-/** The site totals from the runner manifest and the verified insights manifest. Throws when the two disagree. */
+/** The site totals from the marathon cohort's manifest and the verified insights manifest. Throws when the two disagree. */
 export function siteTotals(): SiteTotals {
   const insights = getInsightsManifest();
   const key = `${insights.release_tag}:${insights.as_of}:${insights.runner_manifest_sha256}`;
   if (cached?.key === key) return cached.totals;
-  const runner = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public/data/runners/manifest.json'), 'utf8')) as RunnerManifest;
-  if (runner.release_tag !== insights.release_tag) throw new Error('Site totals: the runner and insights manifests name different releases.');
+  // getInsightsManifest has checked that the story data names this exact cohort manifest and its release.
+  const runner = getCohortManifest().manifest;
   if (runner.eligible_records !== insights.analysis_n || insights.cohort.eligible !== insights.analysis_n) throw new Error('Site totals: eligible finishes disagree between the manifests.');
   const courses = readInsight<Courses>('courses.json');
   const years = courses.courses.flatMap((c) => c.years);
   const editions = courses.courses.reduce((sum, c) => sum + c.years.length, 0);
   if (courses.courses.length !== insights.cohort.cities || editions !== insights.cohort.editions) throw new Error('Site totals: the course list disagrees with the cohort.');
-  const rawYears = runner.editions.map((e) => e.year);
+  // Every edition with written records: those with a cohort file, and the others the manifest lists with their counts.
+  const rawEditions = [...runner.editions.map((e) => ({ city: e.city, year: e.year })), ...runner.other_editions.rows.map(([city, year]) => ({ city, year }))];
+  const rawYears = rawEditions.map((e) => e.year);
   const totals: SiteTotals = {
     results: runner.raw_records,
     finishesEligible: insights.analysis_n,
@@ -52,7 +53,7 @@ export function siteTotals(): SiteTotals {
     raceYears: insights.cohort.editions,
     firstYear: Math.min(...years),
     lastYear: Math.max(...years),
-    raw: { cities: new Set(runner.editions.map((e) => e.city)).size, raceYears: runner.editions.length, firstYear: Math.min(...rawYears), lastYear: Math.max(...rawYears) },
+    raw: { cities: new Set(rawEditions.map((e) => e.city)).size, raceYears: rawEditions.length, firstYear: Math.min(...rawYears), lastYear: Math.max(...rawYears) },
   };
   cached = { key, totals };
   return totals;

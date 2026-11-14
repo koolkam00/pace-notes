@@ -2,14 +2,14 @@
 //   1. the pure helpers on small hand-made bins;
 //   2. an independent recount from the raw JSON (finish-times.json, courses.json and the insights manifest),
 //      written without the helper's code, compared figure by figure with what the helper returns;
-//   3. the full finish records: the story cohort is rebuilt in whole seconds from the checksum-verified runner
-//      shards, and every figure the page prints must match the exact value. This is what backs the statement on
-//      /methodology that counting the finishes outside the published 2:00–7:00 minutes as slower changes no figure.
-// Usage: node scripts/verify-finish-times.cjs [--skip-records]   (step 3 reads about 400 MB and takes ~30 s)
+//   3. the full finish records: the story cohort is rebuilt from the checksum-verified marathon cohort
+//      (analysis/marathon-cohort, read through scripts/lib/cohort.cjs; from the runner lookup's shards until
+//      November 14, 2026), and every figure the page prints must match the exact value. This is what backs the
+//      statement on /methodology that counting the finishes outside the published 2:00–7:00 minutes as slower changes
+//      no figure.
+// Usage: node scripts/verify-finish-times.cjs [--skip-records]   (step 3 reads the cohort's 75 MB and takes ~10 s)
 const fs = require('node:fs');
 const path = require('node:path');
-const zlib = require('node:zlib');
-const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const Module = require('node:module');
 const ts = require('typescript');
@@ -206,36 +206,30 @@ for (const g of GROUPS) {
 // ---------- 3. The full finish records ----------
 let records = 'skipped (--skip-records)';
 if (!skipRecords) {
-  const runners = read('public/data/runners/manifest.json');
-  assert.equal(runners.release_tag, manifest.release_tag, 'Runner records and insights share a release');
-  assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root, 'public/data/runners/manifest.json'))).digest('hex'), manifest.runner_manifest_sha256, 'Insights were built from these runner records');
+  const cohortReader = require('./lib/cohort.cjs');
+  const cohort = cohortReader.readManifest();
+  assert.equal(cohort.manifest.release_tag, manifest.release_tag, 'The cohort and the insights share a release');
+  assert.equal(cohort.sha256, manifest.runner_manifest_sha256, 'Insights were built from this marathon cohort');
   const duplicate = new Set(manifest.duplicate_edition_screen.map((d) => `${d.city}\u0000${d.year}`));
-  // Same normalisation as scripts/verify-insights.cjs: 1 men, 2 women, 0 other or not recorded.
+  // Same coding as scripts/verify-insights.cjs: 1 men, 2 women, 0 other or not recorded (the cohort records M, F, X or nothing).
   const genderCode = (sex) => {
     const v = (sex || '').trim().toLowerCase();
     return ['m', 'male', 'man', 'men'].includes(v) ? 1 : ['f', 'female', 'woman', 'women'].includes(v) ? 2 : 0;
   };
-  const finish = new Float64Array(runners.eligible_records), gender = new Uint8Array(runners.eligible_records);
-  const editionsSeen = new Set();
+  const finish = new Float64Array(cohort.manifest.eligible_records), gender = new Uint8Array(cohort.manifest.eligible_records);
+  const editionList = [];
   let n = 0;
-  for (const file of Object.keys(runners.shards).sort()) {
-    if (!file.startsWith('profiles/')) continue;
-    const bytes = fs.readFileSync(path.join(root, 'public/data/runners', file));
-    assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), runners.shards[file].sha256, `${file}: checksum`);
-    for (const profile of JSON.parse(zlib.gunzipSync(bytes)).profiles) {
-      for (const race of profile.races) {
-        if (race.eligible !== true) continue;
-        const edition = runners.editions[race.edition];
-        if (duplicate.has(`${edition.city}\u0000${edition.year}`)) continue;
-        finish[n] = race.times[8];
-        gender[n] = genderCode(race.sex);
-        editionsSeen.add(race.edition);
-        n++;
-      }
-    }
-  }
-  assert.equal(n, manifest.analysis_n, 'Story cohort rebuilt from the runner records');
-  const editionList = [...editionsSeen].map((e) => runners.editions[e]);
+  // readEdition checks each file's size and SHA-256 against the manifest before it is decoded.
+  cohortReader.forEachEdition((edition, entry) => {
+    if (entry.use !== 'counted' || duplicate.has(`${entry.city}\u0000${entry.year}`)) return;
+    if (edition.ids.length) editionList.push(entry);
+    edition.times.forEach((t, k) => {
+      finish[n] = t[8];
+      gender[n] = genderCode(edition.sex[k]);
+      n++;
+    });
+  });
+  assert.equal(n, manifest.analysis_n, 'Story cohort rebuilt from the marathon cohort');
   assert.equal(editionList.length, summary.coverage.editions, 'Editions');
   assert.equal(new Set(editionList.map((e) => e.city)).size, summary.coverage.races, 'Races');
   assert.equal(Math.min(...editionList.map((e) => e.year)), summary.coverage.firstYear, 'First year');

@@ -7,8 +7,14 @@ export interface InsightsManifest {
   release_tag: string;
   input_as_of: string;
   as_of: string;
+  /**
+   * The marathon cohort the story data was built from: the SHA-256 of analysis/marathon-cohort/manifest.json and its
+   * `as_of`. The two fields keep the names they had while the stories read the runner lookup (until November 14, 2026);
+   * `cohort_manifest_sha256` states the same digest under its own name.
+   */
   runner_manifest_sha256: string;
   runner_manifest_as_of: string;
+  cohort_manifest_sha256: string;
   /** The runner-context manifest the story data was built from (course geometry records the same hash). */
   context_manifest_sha256: string;
   eligible_records: number;

@@ -350,33 +350,28 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
     assert.equal(plan.courseGoalResult(goals, gap.city, gap.goal * 60, null).reason, plan.courseGoalReason(gap.reason, goals.min_editions), 'A gap prints the file\'s reason'); ok();
     assert.equal(plan.courseGoalResult(goals, 'Berlin', 7 * 3600, null).reason, 'Course results are published for goals from 2:30 to 6:30.'); ok();
 
-    // The row the planner shows for its worked example (Berlin, 3:30), recounted from the checksum-verified runner records
-    // with the course chooser's rule: 5–20 km pace within ±2% of the goal's even pace; editions with 20 such finishes, at
-    // least 3 and 100 in all; pooled share under the goal and finish percentiles; edition-balanced sustained slowdown and
-    // time after 20 km. verify-insights recounts every row's finishes, editions and shares; this adds the times.
-    const zlib = require('node:zlib');
-    const crypto = require('node:crypto');
-    const runnersDir = path.join(__dirname, '..', 'public/data/runners');
-    const runners = JSON.parse(fs.readFileSync(path.join(runnersDir, 'manifest.json'), 'utf8'));
+    // The row the planner shows for its worked example (Berlin, 3:30), recounted from the checksum-verified marathon
+    // cohort (analysis/marathon-cohort through scripts/lib/cohort.cjs; from the runner lookup's shards until November 14,
+    // 2026) with the course chooser's rule: 5–20 km pace within ±2% of the goal's even pace; editions with 20 such
+    // finishes, at least 3 and 100 in all; pooled share under the goal and finish percentiles; edition-balanced sustained
+    // slowdown and time after 20 km. verify-insights recounts every row's finishes, editions and shares; this adds the times.
+    const cohortReader = require('./lib/cohort.cjs');
+    const cohort = cohortReader.readManifest();
+    assert.equal(cohort.sha256, goals.runner_manifest_sha256, 'The course chooser was built from this marathon cohort'); ok();
     const screened = new Set([...(goals.duplicate_edition_screen ?? []), ...(goals.screens?.start_offset ?? []), ...(goals.screens?.grid ?? [])].map((e) => `${e.city} ${e.year}`));
     const CITY = 'Berlin', G = 210, row = goals.rows.find((r) => r.city === CITY && r.goal === G);
-    const editionsOf = new Set(runners.editions.flatMap((e, i) => (e.city === CITY && !screened.has(`${e.city} ${e.year}`) ? [i] : [])));
     const g = G * 60 / 42.195, byEdition = new Map();
-    for (const [name, meta] of Object.entries(runners.shards).filter(([name]) => name.startsWith('profiles/'))) {
-      const bytes = fs.readFileSync(path.join(runnersDir, name));
-      assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), meta.sha256, `${name}: runner shard checksum`);
-      for (const profile of JSON.parse(zlib.gunzipSync(bytes)).profiles) {
-        for (const r of profile.races) {
-          if (!r.eligible || !editionsOf.has(r.edition)) continue;
-          const t = r.times;
-          assert.ok(t.length === 9 && t.every(Number.isFinite), 'An eligible record has nine times');
-          const base = (t[3] - t[0]) / 15;
-          if (Math.abs(base / g - 1) > 0.02) continue;
-          if (!byEdition.has(r.edition)) byEdition.set(r.edition, []);
-          byEdition.get(r.edition).push(t);
-        }
+    // Only the course's counted editions outside the screens are read; readEdition checks each file's size and SHA-256.
+    cohort.manifest.editions.forEach((entry, index) => {
+      if (entry.city !== CITY || entry.use !== 'counted' || screened.has(`${entry.city} ${entry.year}`)) return;
+      for (const t of cohortReader.readEdition(entry).times) {
+        assert.ok(t.length === 9 && t.every(Number.isFinite), 'An eligible record has nine times');
+        const base = (t[3] - t[0]) / 15;
+        if (Math.abs(base / g - 1) > 0.02) continue;
+        if (!byEdition.has(index)) byEdition.set(index, []);
+        byEdition.get(index).push(t);
       }
-    }
+    });
     const parts = [...byEdition.values()].filter((p) => p.length >= goals.min_edition_finishes);
     const pooled = parts.flat();
     const sustained = (t) => { const base = (t[3] - t[0]) / 15; for (let k = 4; k < 8; k++) if ((t[k] - t[k - 1]) / 5 / base - 1 + 1e-12 >= 0.25) return true; return false; };
@@ -679,7 +674,16 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const paceIndex = insight(band.PACE_BAND_INDEX);
   const scopes = paceIndex.scopes.filter((s) => s.slug !== 'all');
   assert.ok(TEN.every((slug) => scopes.some((s) => s.slug === slug)), 'Every terrain course is a pace-band course'); ok();
-  assert.deepEqual(scopes.filter((s) => !terrain[s.slug] && !why[s.slug]).map((s) => s.slug), [], 'Every other pace-band course has its reason'); ok();
+  // Changed November 14, 2026 (pace-notes-marathon-half-20261113-1113): this read "every other pace-band course has its
+  // reason" while every pace-band course had a supplied course profile. Los Angeles and Toronto Waterfront now have
+  // pace-band finishes and the release supplies no profile for either, so the audited registry of the 33 supplied
+  // profiles (analysis/course_terrain/corrections.json, frozen) names neither and the terrain file can state no reason
+  // for them. The rule is kept for every course the registry knows, and a course it does not know must be exactly one
+  // without a supplied profile: both pages then print no terrain control and no line for it (BandChoice, checked below).
+  const profiled = new Set(JSON.parse(sourceOf('analysis/course_terrain/corrections.json')).courses.map((c) => c.slug));
+  const unreasoned = scopes.filter((s) => !terrain[s.slug] && !why[s.slug]).map((s) => s.slug);
+  assert.deepEqual(unreasoned.filter((slug) => profiled.has(slug)), [], 'Every other pace-band course with a supplied profile has its reason'); ok();
+  assert.ok(scopes.every((s) => profiled.has(s.slug) === Boolean(terrain[s.slug] || why[s.slug])), 'A pace-band course has terrain splits or a reason exactly when the release supplies its profile'); ok();
   assert.ok(Object.keys(why).every((slug) => !terrain[slug]) && why.all === undefined && terrain.all === undefined, 'All courses has neither'); ok();
   // The control: Terrain | Even pace where the course has terrain splits, one line where it has none, nothing on All
   // courses or for a course the data does not know (no line to say).
@@ -764,14 +768,17 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const nyShard = insight(band.paceBandShardPath('new-york', 'all'));
   const [nyAll, nyHeld, nySlow] = ['all', 'held', 'slowdown'].map((k) => band.cellOf(nyShard.groups[k], tb.bandMinute(G)));
   // November 4, 2026 (master-20261103b): New York 2026 joins the cell, 15,623 finishes and 5K 32:52 before.
-  assert.deepEqual([F(nyAll.e50[0]), F(nyAll.e50[8]), nyAll.n, Math.round(nyAll.sd * 100)], ['32:56', '5:12:28', 17566, 48], 'New York 5:15 as run: 5K 32:56, finish 5:12:28, 17,566 finishes, 48% sustained slowdown'); ok();
+  // November 14, 2026 (pace-notes-marathon-half-20261113-1113): New York 2014 is no longer a counted edition (its
+  // recorded results are outside 5% of the official count, so it keeps only an own-record view) and leaves the cell:
+  // 17,566 finishes, 5K 32:56 and finish 5:12:28 before.
+  assert.deepEqual([F(nyAll.e50[0]), F(nyAll.e50[8]), nyAll.n, Math.round(nyAll.sd * 100)], ['32:57', '5:12:29', 16599, 48], 'New York 5:15 as run: 5K 32:57, finish 5:12:29, 16,599 finishes, 48% sustained slowdown'); ok();
   assert.equal(tb.asRunLine(nyAll.sd).join(''), 'As run, slowdowns included: 48% had a sustained slowdown. Not splits to copy.'); ok();
   for (const short of [false, true]) {
     const html = renderToStaticMarkup(React.createElement(AsRunTable.default, { cells: { all: nyAll, held: nyHeld, slow: nySlow }, units: 'mi', short }));
     assert.deepEqual(heads(html), short ? ['Mat', 'All', 'Held', 'Slowed'] : ['Mat', 'All', 'No sustained slowdown', 'Sustained slowdown']);
     const cells = tds(html);
     assert.deepEqual(cells.slice(0, 9), POINTS.map((_, i) => [nyAll, nyHeld, nySlow].map((c) => F(c.e50[i]))), 'As run: the shard\'s e50, unscaled');
-    assert.deepEqual(cells[9], [nyAll, nyHeld, nySlow].map((c) => c.n.toLocaleString('en-US')), 'As run: the Finishes row'); assert.equal(cells[9][0], '17,566'); // 15,623 on 1050 (November 4, 2026)
+    assert.deepEqual(cells[9], [nyAll, nyHeld, nySlow].map((c) => c.n.toLocaleString('en-US')), 'As run: the Finishes row'); assert.equal(cells[9][0], '16,599'); // 15,623 on 1050 (November 4, 2026); 17,566 on master-20261103b (November 14, 2026: New York 2014 is no longer counted)
     checks += 3;
   }
   const asRunNote = renderToStaticMarkup(React.createElement(AsRunTable.AsRunNote, { sd: nyAll.sd }));
@@ -1145,7 +1152,12 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   const goalsFile = insight('tools/course-goal.json');
   const thin = scopes.filter((sc) => sc.editions < goalsFile.min_editions).map((sc) => `${sc.city} ${sc.editions}`).sort();
   // Auckland joined the list with the October 21, 2026 release, which held its 2017 edition (a misplaced 30 km mat).
-  assert.deepEqual(thin, ['Auckland 2', 'Barcelona 2', 'Paris 2', 'Singapore 1'], 'The courses whose groups rest on one or two editions'); ok();
+  // November 14, 2026 (pace-notes-marathon-half-20261113-1113, whose edition policy counts an edition only with an
+  // independent official count within 5%): Auckland and Singapore have no counted edition left and leave the pace band;
+  // Frankfurt keeps two counted editions (2018, 2019), Gold Coast one (2023), Stockholm two (2021, 2024) and Sydney one
+  // (2018), their other editions keeping only an own-record view; Toronto Waterfront joins with two (2019, 2022).
+  // ['Auckland 2', 'Barcelona 2', 'Paris 2', 'Singapore 1'] before.
+  assert.deepEqual(thin, ['Barcelona 2', 'Frankfurt 2', 'Gold Coast 1', 'Paris 2', 'Stockholm 2', 'Sydney 1', 'Toronto Waterfront 2'], 'The courses whose groups rest on one or two editions'); ok();
   // /methodology's "a goal at the edge of a course's range can pool fewer editions than the course has": Helsinki 4:27 pools
   // two of its three (and under the October 21, 2026 release Stockholm's slow goals, from 5:23).
   const edge = [];
@@ -1155,12 +1167,20 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
   }
   assert.ok(edge.includes('Helsinki 267 2') && edge.every((e) => / [12]$/.test(e)), `A goal at the edge of a course's range on fewer editions than a course result needs (${edge.length})`); ok();
   assert.deepEqual(paceIndex.goals, [150, 390]); ok();
-  // Singapore, Barcelona and Paris have no course results on goal pace ("3 are needed for any goal") and no terrain splits.
+  // Barcelona and Paris (and Singapore until November 14, 2026) have no course results on goal pace ("3 are needed for
+  // any goal") and no terrain splits. Changed November 14, 2026 (pace-notes-marathon-half-20261113-1113): Singapore has
+  // no counted edition left and is no pace-band course, so the typed example is gone; the rule is now checked on every
+  // pace-band course with fewer editions than a course result needs (the list pinned above), at three goals each, and a
+  // course of that list has a reason exactly when the release supplies its profile (Toronto Waterfront has none).
   const planLib = require('../lib/tools/plan.ts');
-  for (const [city, goal] of [['Singapore', 14400], ['Barcelona', 10800], ['Paris', 14400]]) {
-    const slug = scopes.find((sc) => sc.city === city).slug;
-    const r = planLib.courseGoalResult(goalsFile, city, goal, null);
-    assert.ok(r.state === 'unavailable' && /3 are needed for any goal/.test(r.reason) && !terrain[slug] && why[slug] === 'profile', `${city}: no results on goal pace, and even pace`); ok();
+  const thinScopes = scopes.filter((sc) => sc.editions < goalsFile.min_editions);
+  assert.ok(['Barcelona', 'Paris'].every((city) => thinScopes.some((sc) => sc.city === city)), 'Barcelona and Paris rest on two editions'); ok();
+  for (const sc of thinScopes) {
+    for (const goal of [10800, 14400, 18000]) {
+      const r = planLib.courseGoalResult(goalsFile, sc.city, goal, null);
+      assert.ok(r.state === 'unavailable' && /3 are needed for any goal/.test(r.reason) && !terrain[sc.slug], `${sc.city}: no results on goal pace, and no terrain splits`);
+    }
+    assert.equal(why[sc.slug], profiled.has(sc.slug) ? 'profile' : undefined, `${sc.city}: even pace for want of a checked profile where the release supplies one`); ok();
   }
   assert.equal(planLib.goalPaceNote({ state: 'unavailable', course: { editions: 10 }, minutes: 240, reason: 'Only 2 editions had 20 or more finishes at this pace; 3 are needed.' }, 'Boston'),
     'No results on goal pace for Boston at this goal. Only 2 editions had 20 or more finishes at this pace; 3 are needed.'); ok();
@@ -1732,4 +1752,4 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
   }
 }
 
-console.log(`Tool libraries passed ${checks} checks: the marathons after a half (the predictor's half panel, the goal pages' half before and the calculator's handoff, from the committed half files), time parsing and keypad input (the dot key types a colon in race-time fields; every time reader takes dots and commas), pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the runner records, and the rendered plan), the terrain splits (an independent model recomputing every published share and the parity fixture, every terrain course at every whole-minute goal from 1:30 to 8:00 and +30 s at miles, km and the 5K mats, the pinned plans, the rules, wording, folds, strips and wiring, and each 5K's and each mile's or km's time and pace for the paces option), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);
+console.log(`Tool libraries passed ${checks} checks: the marathons after a half (the predictor's half panel, the goal pages' half before and the calculator's handoff, from the committed half files), time parsing and keypad input (the dot key types a colon in race-time fields; every time reader takes dots and commas), pace calculations and splits, pace charts by goal time and goal-page links, result handoffs to the planner, the pace band and the pacing-pattern analysis, the race planner (its goal, the course-goal row it shows, recounted from the marathon cohort, and the rendered plan), the terrain splits (an independent model recomputing every published share and the parity fixture, every terrain course at every whole-minute goal from 1:30 to 8:00 and +30 s at miles, km and the 5K mats, the pinned plans, the rules, wording, folds, strips and wiring, and each 5K's and each mile's or km's time and pace for the paces option), goal-page sentences, published predictor and heat formulas, qualifying standards with official worked examples and age rules, sustained-slowdown reading, the pacing-type classifier, and the cohort note, which says only the tools with Pace Notes data start from the screened finishes.`);
