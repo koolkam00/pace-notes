@@ -12,13 +12,16 @@ on:
       - 'analysis/test_insights.py'
       - 'analysis/test_course_terrain.py'
       - 'analysis/build_fast_start.py'
-      - 'analysis/build_all_finisher_context.py'
+      - 'analysis/cohort.py'
+      - 'analysis/marathon-cohort/**'
       - 'analysis/release.json'
       - 'analysis/requirements.txt'
       - 'public/data/insights/**'
-      - 'public/data/runners/**'
+      - 'public/data/edition-policy.json'
       - 'public/data/runner-context/**'
       - 'scripts/verify-insights.cjs'
+      - 'scripts/lib/cohort.cjs'
+      - 'scripts/lib/edition-policy.cjs'
       - '.github/workflows/insights.yml'
   workflow_dispatch:
 

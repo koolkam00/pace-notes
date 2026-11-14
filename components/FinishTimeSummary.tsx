@@ -25,7 +25,7 @@ const signedMin = (v: number) => `${v > 0 ? '+' : v < 0 ? MINUS : ''}${Math.abs(
  * course. Every number comes from the field.* nuggets and the verified story data; what the numbers cover and how they
  * are counted is on /methodology.
  */
-export default function FinishTimeSummary({ summary, courses }: { summary: Summary; courses: Courses }) {
+export default function FinishTimeSummary({ summary, courses, pages }: { summary: Summary; courses: Courses; pages: readonly string[] }) {
   const { groups } = summary;
   const title = getNugget('field.title'), median = getNugget('field.median'), middle = getNugget('field.middle'), front = getNugget('field.front'), byRace = getNugget('field.byrace');
 
@@ -85,7 +85,8 @@ export default function FinishTimeSummary({ summary, courses }: { summary: Summa
           <tbody>
             {[...list].sort((a, b) => a.median_s - b.median_s).map((c) => (
               <tr key={c.city}>
-                <th scope="row" className="is-text"><Link href={`/courses/${courseSlug(c.city)}`}>{c.city}</Link></th>
+                {/* A course links to its page where it has one (`pages`: three or more counted editions, or a kept course). */}
+                <th scope="row" className="is-text">{pages.includes(c.city) ? <Link href={`/courses/${courseSlug(c.city)}`}>{c.city}</Link> : c.city}</th>
                 <td>{finishMinute(c.median_s)}</td><td>{c.editions}</td><td>{count(c.finishes)}</td>
               </tr>
             ))}
