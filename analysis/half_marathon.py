@@ -1,22 +1,19 @@
-"""The marathon side of the half-marathon analyses, from public files only (spec 1.4).
+"""The marathon side of the half-marathon analyses, from the checked-in marathon cohort (docs/HALF_MARATHON.md, R0).
 
-Eligible finishes, their canonical record ids, nine mat times, recorded sex and edition come from the committed runner
-shards (public/data/runners), checked exactly as analysis/insights_data.read_finishes checks them (every shard's size
-and sha against the verified runner manifest, the timing contract of every eligible race). The shard race `id` is the
-adopted release's canonical `race_records.id`, the id the link build uses for its marathon records. Sustained slowdown
-is `insights_data.sustained_slowdown` (at least 25% slower for at least 5 km after 20 km against the 5–20 km pace).
-Race dates come from public/data/weather/evidence.json, pinned by analysis/weather-release.json.
+Eligible finishes, their record ids, nine mat times, recorded sex and edition are the counted records of the names-free
+marathon cohort (analysis/marathon-cohort, read through analysis/insights_data.read_finishes, which verifies the cohort
+manifest, every edition file and the timing contract of every record). A record id is the release's `race_records.id` of
+the marathon database (`source_db = full`), the id the person links and the identity file use. Sustained slowdown is
+`insights_data.sustained_slowdown` (at least 25% slower for at least 5 km after 20 km against the 5–20 km pace). Race
+dates are the cohort manifest's (`race_date` of each edition: the weather evidence's date, or a reviewed one).
 
-No raw names are read: the shards' profile names are skipped and nothing here leaves the process except counts.
+The cohort holds no name, and nothing here leaves the process except counts.
 """
 from __future__ import annotations
 
-import gzip
 import json
-import math
 import re
 import sys
-from array import array
 from pathlib import Path
 
 if str(Path(__file__).resolve().parent) not in sys.path:
@@ -24,40 +21,34 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 
 import numpy as np  # noqa: E402
 
-from build_fast_start import LENGTHS, PACE_BOUND_EPSILON, digest, gender_code, require, verified_manifest  # noqa: E402
-from half_common import ROOT, fail, file_sha256  # noqa: E402
-from insights_data import Finishes, sustained_slowdown  # noqa: E402
+from half_common import ANALYSIS, ROOT, fail  # noqa: E402
+from insights_data import read_finishes, sustained_slowdown  # noqa: E402
 
-RUNNERS = ROOT / 'public' / 'data' / 'runners'
-WEATHER_EVIDENCE = ROOT / 'public' / 'data' / 'weather' / 'evidence.json'
-WEATHER_PIN = ROOT / 'analysis' / 'weather-release.json'
+COHORT = ROOT / 'analysis' / 'marathon-cohort'
 
-# The adopted release's reviewed counts (analysis/release.json private-export-20261021-1050).
-EXPECTED = {'private-export-20261021-1050': {'eligible': 4_108_749, 'sustained': 1_266_780, 'dated_editions': 215},
-            # November 4, 2026: the adopted master-20261103b (the study's 1,298,524 sustained slowdowns of 4,222,246);
-            # New York 2026 has no weather row, so no race date, and supplies no pair.
-            # November 5, 2026: New York 2026 takes its reviewed race date (analysis/reviewed-race-dates.json, 2026-11-01)
-            # once its finishes link to other races (the marathon identity became the producer's person_id), so every
-            # eligible edition is dated. The eligible and sustained counts are set from the rebuilt study.
-            'master-20261103b': {'eligible': 4_222_246, 'sustained': 1_298_524, 'dated_editions': 218}}
+# The adopted release's reviewed counts, keyed by its tag: the cohort's eligible finishes (its counted records), those
+# with a sustained slowdown and the counted editions with a race date. An edition without one is allowed only on the
+# release's reviewed `undated` list; it keeps its finishes and supplies no pair. Set from the real run on the final
+# inputs after reading them against the pipeline's cohort record; earlier releases (the runner shards of
+# private-export-20261021-1050 and master-20261103b) are in Git history.
+EXPECTED = {}
 
 
 class Marathons:
     """Every eligible marathon finish: record id, edition (city-year), recorded sex, finish and sustained slowdown."""
 
     def __init__(self, record_id, edition, gender, finish, sustained, editions, raw_by_edition, dates, manifest_sha,
-                 manifest, weather_sha):
-        self.record_id = record_id          # (n,) uint64, the canonical race_records.id
+                 manifest):
+        self.record_id = record_id          # (n,) the release's race_records.id (source_db = full)
         self.edition = edition              # (n,) index into editions
         self.gender = gender                # 0 other or not recorded, 1 men, 2 women (build_fast_start.gender_code)
         self.finish = finish                # seconds
         self.sustained = sustained          # bool
-        self.editions = editions            # [{city, year, race}] from the runner manifest
+        self.editions = editions            # the cohort manifest's editions: city (the race's registry label), year, race, …
         self.raw_by_edition = raw_by_edition
         self.dates = dates                  # {edition index: 'YYYY-MM-DD'}; a reviewed undated edition has none
-        self.manifest_sha256 = manifest_sha
+        self.manifest_sha256 = manifest_sha # sha256 of the cohort manifest's exact bytes
         self.manifest = manifest
-        self.weather_sha256 = weather_sha
         self.n = len(record_id)
 
     def frame(self):
@@ -73,99 +64,50 @@ class Marathons:
         })
 
 
-def _dates(editions, eligible_editions, weather, undated=()):
-    """Race date of every edition with eligible finishes, from the weather evidence (one row per city and year).
-
-    An edition the weather evidence has no row for takes its reviewed date in analysis/reviewed-race-dates.json (New
-    York 2026 in master-20261103b, November 5, 2026); without one it is allowed only on the release's reviewed `undated`
-    list, keeps its finishes and supplies no pair, since a pair needs both dates (November 4, 2026)."""
-    by_key = {}
-    for row in weather['editions']:
-        key = (row['city'], int(row['year']))
-        if key in by_key and by_key[key] != row.get('date'):
-            fail(f'weather evidence holds two dates for {key}')
-        by_key[key] = row.get('date')
-    # The reviewed and cited date of an edition the weather evidence has no row for (charts_common.race_dates' rule).
-    reviewed = json.loads((ROOT / 'analysis' / 'reviewed-race-dates.json').read_text())['releases']
-    for d in reviewed.get(weather.get('input', {}).get('release_tag'), []):
-        if not by_key.get((d['city'], int(d['year']))):
-            by_key[(d['city'], int(d['year']))] = d['date']
+def _dates(editions, eligible_editions, undated=()):
+    """Race date of every edition with eligible finishes, from the cohort manifest. An edition without one is allowed
+    only on the release's reviewed `undated` list: it keeps its finishes and supplies no pair, since a pair needs both
+    dates."""
     dates = {}
     for e in eligible_editions:
         ed = editions[e]
-        date = by_key.get((ed['city'], int(ed['year'])))
+        date = ed.get('race_date')
         if date is None and [ed['city'], int(ed['year'])] in [list(u) for u in undated]:
             continue
         if not isinstance(date, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date) or int(date[:4]) != int(ed['year']):
-            fail(f"no race date in the weather evidence for {ed['city']} {ed['year']}")
+            fail(f"no race date in the marathon cohort for {ed['city']} {ed['year']}")
         dates[int(e)] = date
     return dates
 
 
-def load(runner_root: Path = RUNNERS, weather_path: Path = WEATHER_EVIDENCE, expected: dict | None = None) -> Marathons:
-    """Verify the runner manifest and every shard; return every eligible finish with its record id."""
+def load(cohort_root: Path = COHORT, expected: dict | None = None, check: bool = True) -> Marathons:
+    """Verify the cohort and return every eligible finish with its record id. With `check` (always, outside tests and
+    discovery runs) the counts must equal the reviewed ones of the adopted release."""
     pin = json.loads((ROOT / 'analysis' / 'release.json').read_text())
-    manifest, manifest_sha = verified_manifest(runner_root, pin, ROOT / 'analysis')
+    try:
+        f, manifest, manifest_sha = read_finishes(cohort_root, pin, ANALYSIS)
+    except ValueError as error:
+        fail(f'the marathon cohort: {error}')
     editions = manifest['editions']
-    ids, times, edition, gender = array('Q'), array('d'), array('H'), array('B')
-    all_ids = array('Q')
-    raw_by_edition = np.zeros(len(editions), dtype=np.int64)
-    raw = eligible = 0
-    for relative, meta in sorted(manifest['shards'].items()):
-        require(re.fullmatch(r'(profiles|index)/[0-9a-f]{3}\.json\.gz', relative) is not None, 'Unexpected shard path')
-        compressed = (runner_root / relative).read_bytes()
-        require(len(compressed) == meta['bytes'] and digest(compressed) == meta['sha256'], f'Runner shard checksum/size mismatch: {relative}')
-        if not relative.startswith('profiles/'):
-            continue
-        shard = json.loads(gzip.decompress(compressed))
-        require(shard['release_tag'] == manifest['release_tag'], f'Shard release mismatch: {relative}')
-        for profile in shard['profiles']:
-            for race in profile['races']:
-                raw += 1
-                raw_by_edition[race['edition']] += 1
-                all_ids.append(race['id'])
-                if not race['eligible']:
-                    continue
-                eligible += 1
-                t = race['times']
-                require(len(t) == 9 and all(isinstance(v, (int, float)) and math.isfinite(v) for v in t), 'Eligible race must have nine finite times')
-                require(0 < t[0] and all(a < b for a, b in zip(t, t[1:])) and 5400 <= t[-1] <= 43200, 'Eligible race violates the timing contract')
-                durations = [t[0], *[b - a for a, b in zip(t, t[1:])]]
-                require(all(120 - PACE_BOUND_EPSILON <= d / L <= 1200 + PACE_BOUND_EPSILON for d, L in zip(durations, LENGTHS)),
-                        'Eligible race violates section pace bounds')
-                ids.append(race['id'])
-                times.extend(t)
-                edition.append(race['edition'])
-                gender.append(gender_code(race['sex']))
-    require(raw == manifest['raw_records'], 'Raw record count does not reconcile')
-    require(eligible == manifest['eligible_records'], 'Eligible record count does not reconcile')
-    every = np.sort(np.frombuffer(all_ids, dtype=np.uint64))
-    require(len(every) and bool(np.all(np.diff(every) > 0)), 'Duplicate record ids')
-    times_arr = np.frombuffer(times, dtype=np.float64).reshape(-1, 9).copy()
-    edition_arr = np.frombuffer(edition, dtype=np.uint16).astype(np.int32)
-    gender_arr = np.frombuffer(gender, dtype=np.uint8).copy()
-    n = len(edition_arr)
-    f = Finishes(times_arr, edition_arr, gender_arr, np.zeros(n, np.uint8), np.full(n, np.nan), np.zeros(n, np.uint64), editions)
     sustained, _ = sustained_slowdown(f)
-
-    weather_pin = json.loads(WEATHER_PIN.read_text())
-    weather = json.loads(Path(weather_path).read_text())
-    if weather['input']['release_tag'] != weather_pin['tag']:
-        fail('the weather evidence does not match analysis/weather-release.json')
-    eligible_editions = np.unique(edition_arr)
+    eligible_editions = np.unique(f.edition)
     keys = [(editions[e]['city'], editions[e]['year']) for e in eligible_editions]
     if len(set(keys)) != len(keys):
-        fail('two eligible marathon editions share a city and year')
-    want = (expected or EXPECTED).get(manifest['release_tag'])
-    if want is None:
+        fail('two eligible marathon editions share a label and year')
+    if any(editions[e]['use'] != 'counted' for e in eligible_editions):
+        fail('an eligible marathon finish sits in an edition the cohort does not count')
+    want = (expected if expected is not None else EXPECTED).get(manifest['release_tag'])
+    if want is None and check:
         fail(f"no reviewed marathon counts for {manifest['release_tag']}")
-    dates = _dates(editions, eligible_editions, weather, want.get('undated', ()))
-    m = Marathons(np.frombuffer(ids, dtype=np.uint64).copy(), edition_arr, gender_arr, times_arr[:, 8].copy(), sustained,
-                  editions, raw_by_edition, dates, manifest_sha, manifest, file_sha256(weather_path))
+    undated_ok = (want or {}).get('undated', ()) if check else [[editions[e]['city'], int(editions[e]['year'])] for e in eligible_editions]
+    dates = _dates(editions, eligible_editions, undated_ok)
+    m = Marathons(np.asarray(f.record_id, dtype=np.int64), f.edition.astype(np.int32), f.gender, f.finish.copy(), sustained,
+                  editions, f.raw_by_edition, dates, manifest_sha, manifest)
     got = {'eligible': int(m.n), 'sustained': int(sustained.sum()), 'dated_editions': len(dates)}
     undated = sorted([editions[e]['city'], int(editions[e]['year'])] for e in eligible_editions if int(e) not in dates)
-    if undated or 'undated' in want:
+    if undated or (want and 'undated' in want):
         got['undated'] = undated
-    if got != want:
+    m.counts = got
+    if check and got != want:
         fail(f'marathon side counts {got} differ from the reviewed {want}')
     return m

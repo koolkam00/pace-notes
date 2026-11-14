@@ -1,0 +1,2397 @@
+{
+ "battery": {
+  "leave_outs": "for verified_halves and for verified_federation, one variant per verified half edition with a pair in the member, that edition left out; every variant must pass each clause its member must pass (its median multiple within [2.15, 2.25]; that multiple at the pooled median half within 180 s of the pooled minutes over double; under double under 15%; for verified_halves also its own minutes over double within 180 s of the pooled), with no minimum edition size and no exemption; a variant under 100 pairs cannot pass",
+  "off_road_labels": [
+   "Kystleden Half",
+   "Nordmarka Skogsmaraton Half",
+   "Trondheim Skogsmaraton Half"
+  ],
+  "reviewed": "2026-11-14",
+  "verified_federation": "the verified halves without the weaker-source stamps (tiers.weaker_source, by edition id)",
+  "verified_road": "the verified halves whose edition label is not one of off_road_labels"
+ },
+ "date_suspect_rule": "carried by edition id and year; each must still carry `date` as its race date, else the build fails for review; a changed label is reported",
+ "date_suspects": [
+  {
+   "city": "Gdańsk",
+   "date": "2026-09-27",
+   "edition_id": 8712,
+   "reason": "Dated 2026-09-27, the date of the Warsaw marathon; carried from the reviews of the 1133 and 1904 snapshots, the date unchanged in this release.",
+   "year": 2026
+  },
+  {
+   "city": "Ribera: Half Marathon Arancia di Ribera D.O.P.",
+   "date": "2019-12-01",
+   "edition_id": 7565,
+   "reason": "Ribera 2019 and Gela 2019 are both dated 2019-12-01 and linked people finished both with different times; carried from the reviews of the 1133 and 1904 snapshots, the date unchanged in this release.",
+   "year": 2019
+  },
+  {
+   "city": "Gela: Maratonina del Golfo",
+   "date": "2019-12-01",
+   "edition_id": 7677,
+   "reason": "Ribera 2019 and Gela 2019 are both dated 2019-12-01 and linked people finished both with different times; carried from the reviews of the 1133 and 1904 snapshots, the date unchanged in this release.",
+   "year": 2019
+  }
+ ],
+ "edition_rules": {
+  "E0": {
+   "rule": "a city and year with records but no registry row (no edition_meta.parquet row), or tier partial: it supplies nothing"
+  },
+  "E1": {
+   "held": [
+    "held_for_review"
+   ],
+   "removed": [
+    "excluded"
+   ],
+   "rule": "a held tier supplies nothing; a removed tier (the release excluded the whole edition) supplies nothing and must hold no rows, else the build fails"
+  },
+  "E2": {
+   "course_suspected_short": "an edition on tiers.course_suspected_short supplies nothing to any figure, after the reviewed decisions and before the virtual-event rule",
+   "decisions": [
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 6690,
+     "reason": "Same 564 results (names and times) as Celina, OH: Grand Lake Half Marathon 5k/Kid's Run 2015 (id 2860), loaded from a second RunSignup race id."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 3707,
+     "reason": "Same results as Valparaiso, IN: Valparaiso Half Marathon 2014 (id 3559): 365 of 365 finish times and 359 names shared, same race date."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 7854,
+     "reason": "All 318 rows repeat names and times from Southport 2016 (id 7860, 1,154 rows): a subset list of the same race."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 7508,
+     "reason": "Identical 81 results to Coupeville, WA: Race the Reserve Whidbey Island 2019 (id 7482), second RunSignup race id."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 7509,
+     "reason": "Identical 86 results to Coupeville, WA: Race the Reserve Whidbey Island 2018 (id 7483), second RunSignup race id."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 3666,
+     "reason": "Same 376 runners and race date as South Hero, VT: Champlain Islands Marathon & Half Marathon 2015 (id 687); times differ by a few seconds (a second timing basis)."
+    },
+    {
+     "category": "cross_edition_overlap_hold",
+     "edition_id": 6740,
+     "reason": "Run Holden Beach 2017 shares 193 identical finish times and 314 of 372 names with Run Ocean Isle Beach 2017, a race three weeks later: one list contains rows of the other."
+    },
+    {
+     "category": "cross_edition_overlap_hold",
+     "edition_id": 7012,
+     "reason": "Run Ocean Isle Beach 2017 shares 193 identical finish times and 314 names with Run Holden Beach 2017 (see id 6740)."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8961,
+     "reason": "Same results (names and finish times) as Louisville, KY: Urban Bourbon Half Marathon and 5K 2017 (id 3109), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8956,
+     "reason": "Same results (names and finish times) as Louisville, KY: Urban Bourbon Half Marathon and 5K 2018 (id 3108), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8957,
+     "reason": "Same results (names and finish times) as Louisville, KY: Urban Bourbon Half Marathon and 5K 2018 (id 3108), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8949,
+     "reason": "Same results (names and finish times) as Louisville, KY: Urban Bourbon Half Marathon and 5K 2019 (id 3106), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8939,
+     "reason": "Same results (names and finish times) as Louisville, KY: Urban Bourbon Half Marathon and 5K 2021 (id 3105), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8917,
+     "reason": "Same results (names and finish times) as Louisville, KY: Urban Bourbon Half Marathon and 5K 2022 (id 3104), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8900,
+     "reason": "Same results (names and finish times) as Louisville, KY: Urban Bourbon Half Marathon and 5K 2023 (id 3103), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8888,
+     "reason": "Same results (names and finish times) as Louisville, KY: Urban Bourbon Half Marathon and 5K 2024 (id 3102), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8876,
+     "reason": "Same results (names and finish times) as Louisville, KY: Urban Bourbon Half Marathon and 5K 2025 (id 3101), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8843,
+     "reason": "Same results (names and finish times) as Louisville, KY: Urban Bourbon Half Marathon and 5K 2026 (id 3100), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8951,
+     "reason": "Same results (names and finish times) as KELLER, TX: WW Military Miles 5k, 10k and Half Marathon 2019 (id 3330), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8922,
+     "reason": "Same results (names and finish times) as KELLER, TX: WW Military Miles 5k, 10k and Half Marathon 2022 (id 3329), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8905,
+     "reason": "Same results (names and finish times) as KELLER, TX: WW Military Miles 5k, 10k and Half Marathon 2023 (id 3328), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8893,
+     "reason": "Same results (names and finish times) as KELLER, TX: WW Military Miles 5k, 10k and Half Marathon 2024 (id 3327), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8882,
+     "reason": "Same results (names and finish times) as KELLER, TX: WW Military Miles 5k, 10k and Half Marathon 2025 (id 3325), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8846,
+     "reason": "Same results (names and finish times) as KELLER, TX: WW Military Miles 5k, 10k and Half Marathon 2026 (id 3324), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8943,
+     "reason": "Same results (names and finish times) as Irving, TX: Fiesta De Mayo Half Marathon 2021 (id 974), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8924,
+     "reason": "Same results (names and finish times) as Irving, TX: Fiesta De Mayo Half Marathon 2022 (id 973), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8918,
+     "reason": "Same results (names and finish times) as Fort Worth, TX: Rock of Ages 5K, 10K & Half Marathon Run 2022 (id 1781), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8902,
+     "reason": "Same results (names and finish times) as Fort Worth, TX: Rock of Ages 5K, 10K & Half Marathon Run 2023 (id 1780), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8853,
+     "reason": "Same results (names and finish times) as Dallas, TX: DRC's Tal Morrison Half Marathon (13.1, 10K & 5K) 2026 (id 930), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 9070,
+     "reason": "Same results (names and finish times) as Detroit Lakes, MN: Essentia Health Dick Beardsley Races 2025 (id 7293), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 9016,
+     "reason": "Same results (names and finish times) as Fargo, ND: Fargo Mini Marathon 2026 (id 5843), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 9333,
+     "reason": "Same results (names and finish times) as Coshocton, OH: Friends of the Parks Half Marathon, 10k, & 5k 2022 (id 1000), loaded again from a second source."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8904,
+     "reason": "Same runners and race date as Dallas: Too Hot To Handle 5K, 10K & Half 2023 (id 8576); times differ by a few seconds (a second timing basis)."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8892,
+     "reason": "Same runners and race date as Dallas: Too Hot To Handle 5K, 10K & Half 2024 (id 8578); times differ by a few seconds (a second timing basis)."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8881,
+     "reason": "Same runners and race date as Dallas: Too Hot To Handle 5K, 10K & Half 2025 (id 8508); times differ by a few seconds (a second timing basis)."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8845,
+     "reason": "Same runners and race date as Dallas: Too Hot To Handle 5K, 10K & Half 2026 (id 8579); times differ by a few seconds (a second timing basis)."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8906,
+     "reason": "Same runners and race date as Waco: Badass Texas Half-Marathon, 10K & 5K 2023 (id 8570); times differ by a few seconds (a second timing basis)."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8894,
+     "reason": "Same runners and race date as Waco: Badass Texas Half-Marathon, 10K & 5K 2024 (id 8571); times differ by a few seconds (a second timing basis)."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8883,
+     "reason": "Same runners and race date as Waco: Badass Texas Half-Marathon, 10K & 5K 2025 (id 8506); times differ by a few seconds (a second timing basis)."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 8847,
+     "reason": "Same runners and race date as Waco: Badass Texas Half-Marathon, 10K & 5K 2026 (id 8572); times differ by a few seconds (a second timing basis)."
+    },
+    {
+     "category": "cross_edition_duplicate",
+     "edition_id": 9014,
+     "reason": "A test copy of Dallas, TX: DRC Half Marathon & 5K 2014 (id 8975): the same names and finish times under a test label; the producer’s own link build excludes it."
+    },
+    {
+     "category": "cross_edition_overlap_hold",
+     "edition_id": 9006,
+     "reason": "Identical results to San Marcos, TX: ARA Moe's Better Half Marathon 2009 (id 9001) a year apart: one list is a copy of the other, so both are held."
+    },
+    {
+     "category": "cross_edition_overlap_hold",
+     "edition_id": 9001,
+     "reason": "Identical results to San Marcos, TX: Moes Half Marathon 2008 (id 9006) a year apart: one list is a copy of the other, so both are held."
+    }
+   ],
+   "decisions_by_key": [
+    {
+     "category": "not_half_distance",
+     "city": "Brunico: 3/4 Mezza Maratona",
+     "reason": "The race is a three-quarter half marathon (about 15.8 km), not a half marathon.",
+     "year": 2013
+    }
+   ],
+   "order": "reviewed decisions by edition id, then by city and year, then course suspected short, then virtual events",
+   "twin_rule": "a reviewed duplicate or overlap decision (by edition id) applies only while the twin its reason names, by edition id in `twins`, still has rows in race_records; where the release kept only the listed copy, that copy is the only one and is usable. A decision whose own edition has no rows is moot",
+   "twins": {
+    "3666": 687,
+    "3707": 3559,
+    "6690": 2860,
+    "6740": 7012,
+    "7012": 6740,
+    "7508": 7482,
+    "7509": 7483,
+    "7854": 7860,
+    "8843": 3100,
+    "8845": 8579,
+    "8846": 3324,
+    "8847": 8572,
+    "8853": 930,
+    "8876": 3101,
+    "8881": 8508,
+    "8882": 3325,
+    "8883": 8506,
+    "8888": 3102,
+    "8892": 8578,
+    "8893": 3327,
+    "8894": 8571,
+    "8900": 3103,
+    "8902": 1780,
+    "8904": 8576,
+    "8905": 3328,
+    "8906": 8570,
+    "8917": 3104,
+    "8918": 1781,
+    "8922": 3329,
+    "8924": 973,
+    "8939": 3105,
+    "8943": 974,
+    "8949": 3106,
+    "8951": 3330,
+    "8956": 3108,
+    "8957": 3108,
+    "8961": 3109,
+    "9001": 9006,
+    "9006": 9001,
+    "9014": 8975,
+    "9016": 5843,
+    "9070": 7293,
+    "9333": 1000
+   },
+   "virtual_event": {
+    "applies_to": "the edition label (edition_meta.city, as race_records writes it), lowercased; the place is the label before its first ':' with surrounding spaces trimmed",
+    "label_pattern": "virtual|virtuel",
+    "not_virtual": [],
+    "order": "after the reviewed E2 decisions and before E3, on editions no earlier rule removes",
+    "placeholder_place_pattern": "^anywhere\\b",
+    "reason": "A virtual race: self-timed efforts, not a race field."
+   }
+  },
+  "E3": {
+   "conditions": {
+    "count_excess_vs_independent": "the source is independent, the edition's status group is not verified, official_finishers is present, and n_db > (1 + tolerance) × official_finishers",
+    "count_shortfall_vs_independent": "the source is independent, the edition's status group is not verified, official_finishers is present, and n_usable < (1 - tolerance) × official_finishers",
+    "independent": "official_source_type, lowercased (a null as empty), matches independent_pattern and does not match not_independent_pattern",
+    "order": "the first of the three that applies, in this order; every inequality is strict",
+    "rows_short_of_source_list": "the source is not independent (any status group), official_finishers is present and above 0, and n_db < (1 - tolerance) × official_finishers"
+   },
+   "independent_pattern": "independent|organiser|press|kondis|ffa federation|wikipedia|rfea|club|race report|media guide|racenerd|official results pdf|racecast|marathon4you|uitslagen|enduhub|aggregator",
+   "not_independent_pattern": "not independent|internal only|derived",
+   "tolerance": 0.02
+  },
+  "E4": {
+   "min_coverage": 0.9,
+   "min_finishes": 50,
+   "min_share": 0.03,
+   "single_sex_event_pattern": "(?:women|woman|womens|girl|mujer|femme|filly|mother|divas|pink series|ladies|dames|frauen|damer|kvinn|men's half|mens half|herren)"
+  },
+  "E5": {
+   "max_p99_over_median": 1.2,
+   "min_finishes": 200
+  },
+  "E6": {
+   "caps": [
+    500,
+    1000,
+    2000,
+    5000,
+    10000
+   ],
+   "condition": "the edition's status group is not verified and n_db equals one of caps exactly"
+  },
+  "E7": {
+   "fast_median_s": 4500,
+   "fast_share": 0.03,
+   "fast_share_under_s": 3900,
+   "slow_median_s": 12600
+  },
+  "E8": {
+   "max_abs_log_ratio": 0.15,
+   "min_editions": 3,
+   "min_finishes": 100,
+   "reference": "the median of the edition medians of the label's other editions with at least 100 record-usable finishes (counted before R7) and a verified, unverified or held status, held (E1) editions and editions an earlier rule removes included, except that an edition on tiers.gross_timing or tiers.course_suspected_short is never a reference edition; the label needs at least 3 editions, the reference editions and the edition itself counted, and the screen applies only to editions no earlier rule removes"
+  },
+  "categories": {
+   "atypical_fast_field": "E7",
+   "atypical_slow_field": "E7",
+   "count_excess_vs_independent": "E3",
+   "count_shortfall_vs_independent": "E3",
+   "course_suspected_short": "E2",
+   "cross_edition_duplicate": "E2",
+   "cross_edition_overlap_hold": "E2",
+   "held_by_producer": "E1",
+   "no_edition_meta": "E0",
+   "not_half_distance": "E2",
+   "one_sex_list": "E4",
+   "partial_tier": "E0",
+   "removed_by_producer": "E1",
+   "round_count_cap": "E6",
+   "rows_short_of_source_list": "E3",
+   "series_median_shift": "E8",
+   "truncated_top_list": "E5",
+   "virtual_event": "E2"
+  },
+  "computed_on": "named per screen. n_db is every row loaded for the edition's city and year: its race_records rows of the half database, whatever record rule removes them, plus its rows in RELEASE-ROW-EXCLUSIONS.parquet (the release removes rows the earlier snapshots still held); an edition with no row in race_records has n_db 0. n_usable is the edition's record-usable rows before R7 (rows no record rule R1, R8, R2–R6 removes, R7 not applied), and the edition's median, 99th percentile, share under 1:05 and recorded-sex counts are over those rows. E3 count_excess_vs_independent, E3 rows_short_of_source_list and E6 compare n_db; E3 count_shortfall_vs_independent, E4, E5, E7 and E8 use n_usable",
+  "edition": "city and year within the half database (source_db = half); the tier from EDITION-TIERS.csv, the registry row from edition_meta.parquet, both joined on city and year",
+  "editions": [
+   {
+    "category": "no_edition_meta",
+    "city": "México: III EDICION MARATON CAPITAL 21K",
+    "edition_id": null,
+    "finishes": 899,
+    "reason": "Records exist for this city and year but the edition registry has no row: no count, date or status; not verified.",
+    "rule": "E0",
+    "year": 2026
+   },
+   {
+    "category": "no_edition_meta",
+    "city": "México: MARATÓN PUEBLA 21K",
+    "edition_id": null,
+    "finishes": 2277,
+    "reason": "Records exist for this city and year but the edition registry has no row: no count, date or status; not verified.",
+    "rule": "E0",
+    "year": 2025
+   },
+   {
+    "category": "partial_tier",
+    "city": "New York",
+    "edition_id": null,
+    "finishes": 9640,
+    "reason": "Tier partial: the release marks the list as partial results.",
+    "rule": "E0",
+    "year": 2016
+   },
+   {
+    "category": "partial_tier",
+    "city": "New York",
+    "edition_id": null,
+    "finishes": 9800,
+    "reason": "Tier partial: the release marks the list as partial results.",
+    "rule": "E0",
+    "year": 2022
+   },
+   {
+    "category": "virtual_event",
+    "city": "Anywhere USA, OH: Columbus Half Marathon 10K + 5K",
+    "edition_id": 3417,
+    "finishes": 379,
+    "reason": "A virtual race: self-timed efforts, not a race field.",
+    "rule": "E2",
+    "year": 2014
+   },
+   {
+    "category": "virtual_event",
+    "city": "Anywhere USA, OH: Columbus Half Marathon 10K + 5K",
+    "edition_id": 3416,
+    "finishes": 270,
+    "reason": "A virtual race: self-timed efforts, not a race field.",
+    "rule": "E2",
+    "year": 2015
+   },
+   {
+    "category": "virtual_event",
+    "city": "Anywhere USA, OH: Columbus Half Marathon 10K + 5K",
+    "edition_id": 3415,
+    "finishes": 245,
+    "reason": "A virtual race: self-timed efforts, not a race field.",
+    "rule": "E2",
+    "year": 2016
+   },
+   {
+    "category": "virtual_event",
+    "city": "Anywhere USA, OH: Columbus Half Marathon 10K + 5K",
+    "edition_id": 3414,
+    "finishes": 237,
+    "reason": "A virtual race: self-timed efforts, not a race field.",
+    "rule": "E2",
+    "year": 2017
+   },
+   {
+    "category": "virtual_event",
+    "city": "Anywhere USA, OH: Columbus Half Marathon 10K + 5K",
+    "edition_id": 3413,
+    "finishes": 168,
+    "reason": "A virtual race: self-timed efforts, not a race field.",
+    "rule": "E2",
+    "year": 2018
+   },
+   {
+    "category": "virtual_event",
+    "city": "Anywhere USA, OH: Columbus Half Marathon 10K + 5K",
+    "edition_id": 3412,
+    "finishes": 187,
+    "reason": "A virtual race: self-timed efforts, not a race field.",
+    "rule": "E2",
+    "year": 2019
+   },
+   {
+    "category": "not_half_distance",
+    "city": "Brunico: 3/4 Mezza Maratona",
+    "edition_id": 8408,
+    "finishes": 595,
+    "reason": "The race is a three-quarter half marathon (about 15.8 km), not a half marathon.",
+    "rule": "E2",
+    "year": 2013
+   },
+   {
+    "category": "course_suspected_short",
+    "city": "Drammen Half",
+    "edition_id": 7935,
+    "finishes": 466,
+    "reason": "Every row carries the link build's course_shortened_suspect flag: the course is suspected to have been short, so the edition is listed and marked and its times are never compared.",
+    "rule": "E2",
+    "year": 2017
+   },
+   {
+    "category": "course_suspected_short",
+    "city": "Drammen Half",
+    "edition_id": 7937,
+    "finishes": 555,
+    "reason": "Every row carries the link build's course_shortened_suspect flag: the course is suspected to have been short, so the edition is listed and marked and its times are never compared.",
+    "rule": "E2",
+    "year": 2019
+   },
+   {
+    "category": "cross_edition_duplicate",
+    "city": "South Hero, VT: 45th GMAA Green Mtn. Marathon & Half Marathon",
+    "edition_id": 3666,
+    "finishes": 376,
+    "reason": "Same 376 runners and race date as South Hero, VT: Champlain Islands Marathon & Half Marathon 2015 (id 687); times differ by a few seconds (a second timing basis).",
+    "rule": "E2",
+    "year": 2015
+   },
+   {
+    "category": "rows_short_of_source_list",
+    "city": "Kystleden Half",
+    "edition_id": 7599,
+    "finishes": 467,
+    "reason": "467 rows loaded from a source list of 489 rows (4.5% short).",
+    "rule": "E3",
+    "year": 2018
+   },
+   {
+    "category": "rows_short_of_source_list",
+    "city": "Kystleden Half",
+    "edition_id": 7598,
+    "finishes": 540,
+    "reason": "540 rows loaded from a source list of 596 rows (9.4% short).",
+    "rule": "E3",
+    "year": 2019
+   },
+   {
+    "category": "rows_short_of_source_list",
+    "city": "Stavanger: 3-Sjøersløpet",
+    "edition_id": 6762,
+    "finishes": 430,
+    "reason": "430 rows loaded from a source list of 460 rows (6.5% short).",
+    "rule": "E3",
+    "year": 2009
+   },
+   {
+    "category": "rows_short_of_source_list",
+    "city": "Stavanger: 3-Sjøersløpet",
+    "edition_id": 6758,
+    "finishes": 1545,
+    "reason": "1,545 rows loaded from a source list of 1,577 rows (2.0% short).",
+    "rule": "E3",
+    "year": 2013
+   },
+   {
+    "category": "one_sex_list",
+    "city": "Casablanca: 15ème Édition du Marathon internation de Casablanca",
+    "edition_id": 3749,
+    "finishes": 2652,
+    "reason": "Sex is published for 100% of rows but only one sex is present (2,652 men, 0 women) and the event is not a single-sex race: the other list is missing.",
+    "rule": "E4",
+    "year": 2024
+   },
+   {
+    "category": "one_sex_list",
+    "city": "Fayetteville, NC: Cape Fear River Run",
+    "edition_id": 9027,
+    "finishes": 72,
+    "reason": "Sex is published for 100% of rows but only one sex is present (0 men, 72 women) and the event is not a single-sex race: the other list is missing.",
+    "rule": "E4",
+    "year": 2024
+   },
+   {
+    "category": "one_sex_list",
+    "city": "Fayetteville, NC: Cape Fear River Run",
+    "edition_id": 9026,
+    "finishes": 133,
+    "reason": "Sex is published for 100% of rows but only one sex is present (133 men, 0 women) and the event is not a single-sex race: the other list is missing.",
+    "rule": "E4",
+    "year": 2025
+   },
+   {
+    "category": "one_sex_list",
+    "city": "Louisville, CO: Colorado 13er (Half Marathon/10k/5k)",
+    "edition_id": 808,
+    "finishes": 183,
+    "reason": "Sex is published for 100% of rows but only one sex is present (0 men, 183 women) and the event is not a single-sex race: the other list is missing.",
+    "rule": "E4",
+    "year": 2017
+   },
+   {
+    "category": "truncated_top_list",
+    "city": "Columbus, OH: The Capital City Half Marathon",
+    "edition_id": 9890,
+    "finishes": 1869,
+    "reason": "The slowest finishes stop close to the median (99th percentile 1.19 x median): a top-finisher list, not the field.",
+    "rule": "E5",
+    "year": 2004
+   },
+   {
+    "category": "round_count_cap",
+    "city": "Bari: Ganten Bari21 Half Marathon",
+    "edition_id": 7441,
+    "finishes": 500,
+    "reason": "Exactly 500 rows with no independent count: the list may be cut at a page size.",
+    "rule": "E6",
+    "year": 2022
+   },
+   {
+    "category": "round_count_cap",
+    "city": "Berlin S25",
+    "edition_id": 1881,
+    "finishes": 1000,
+    "reason": "Exactly 1,000 rows with no independent count: the list may be cut at a page size.",
+    "rule": "E6",
+    "year": 2022
+   },
+   {
+    "category": "round_count_cap",
+    "city": "Bowling Green, OH: SCOUTING AMERICA HALF MARATHON & TENDERFOOT 5K",
+    "edition_id": 1916,
+    "finishes": 500,
+    "reason": "Exactly 500 rows with no independent count: the list may be cut at a page size.",
+    "rule": "E6",
+    "year": 2018
+   },
+   {
+    "category": "round_count_cap",
+    "city": "Cernusco Sul Naviglio: Mezza del Naviglio",
+    "edition_id": 7498,
+    "finishes": 500,
+    "reason": "Exactly 500 rows with no independent count: the list may be cut at a page size.",
+    "rule": "E6",
+    "year": 2022
+   },
+   {
+    "category": "round_count_cap",
+    "city": "Colchester UK: Colchester Half Marathon",
+    "edition_id": 5413,
+    "finishes": 2000,
+    "reason": "Exactly 2,000 rows with no independent count: the list may be cut at a page size.",
+    "rule": "E6",
+    "year": 2015
+   },
+   {
+    "category": "round_count_cap",
+    "city": "Gießen: Sparkasse Gießen Silvesterlauf",
+    "edition_id": 2809,
+    "finishes": 500,
+    "reason": "Exactly 500 rows with no independent count: the list may be cut at a page size.",
+    "rule": "E6",
+    "year": 2025
+   },
+   {
+    "category": "round_count_cap",
+    "city": "Hood River, OR: Columbia Gorge Marathon",
+    "edition_id": 6674,
+    "finishes": 1000,
+    "reason": "Exactly 1,000 rows with no independent count: the list may be cut at a page size.",
+    "rule": "E6",
+    "year": 2017
+   },
+   {
+    "category": "round_count_cap",
+    "city": "Orbetello: 12° Giro della Laguna - Orbetello Half Marathon",
+    "edition_id": 7501,
+    "finishes": 500,
+    "reason": "Exactly 500 rows with no independent count: the list may be cut at a page size.",
+    "rule": "E6",
+    "year": 2022
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Azilal: 2nd Edition International Half-Marathon GeoPark M'goun of Azilal",
+    "edition_id": 3988,
+    "finishes": 85,
+    "reason": "3.5% of finishes under 1:05 (median 91 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2023
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Bel Air, MD: Pirate 5K, 10K, & Half Marathon at Cedar Lane Regional Park, Bel Ai",
+    "edition_id": 2766,
+    "finishes": 24,
+    "reason": "4.2% of finishes under 1:05 (median 111 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2024
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Cave City, AR: Cave City Easter Run 5k, 10k & 1/2 Marathon",
+    "edition_id": 6259,
+    "finishes": 19,
+    "reason": "5.3% of finishes under 1:05 (median 147 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2024
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Colonial Heights, VA: Medal Madness 5K, 10K, & 13.1M at Colonial Heights, VA (26",
+    "edition_id": 4988,
+    "finishes": 10,
+    "reason": "10.0% of finishes under 1:05 (median 149 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2025
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Duluth, MN: Grandma&#39;s Marathon",
+    "edition_id": 10020,
+    "finishes": 169,
+    "reason": "7.7% of finishes under 1:05 (median 72 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2012
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Duluth, MN: Grandma&#39;s Marathon",
+    "edition_id": 9994,
+    "finishes": 193,
+    "reason": "20.2% of finishes under 1:05 (median 69 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2013
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Henrico, VA: Mens Half-Marathon Championship",
+    "edition_id": 3380,
+    "finishes": 110,
+    "reason": "3.6% of finishes under 1:05 (median 78 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2021
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Irving, TX: Labor Day Dash",
+    "edition_id": 8325,
+    "finishes": 31,
+    "reason": "3.2% of finishes under 1:05 (median 135 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2022
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Lilliput: Celtic Warrior Day 3",
+    "edition_id": 4435,
+    "finishes": 4,
+    "reason": "0.0% of finishes under 1:05 (median 75 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2020
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Little Elm, TX: Spring Fling - Dallas",
+    "edition_id": 9354,
+    "finishes": 21,
+    "reason": "4.8% of finishes under 1:05 (median 89 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2025
+   },
+   {
+    "category": "atypical_slow_field",
+    "city": "Naples, FL: Luau 5K, 10K, & 13.1M at Naples, FL (20)",
+    "edition_id": 4808,
+    "finishes": 2,
+    "reason": "Median finish 3.53 h: a trail, walking or challenge event rather than a road half-marathon field.",
+    "rule": "E7",
+    "year": 2025
+   },
+   {
+    "category": "atypical_slow_field",
+    "city": "Neu Wulmstorf: Standortübungsplatz Fischbeker Heide Marathon am 22.09.",
+    "edition_id": 6063,
+    "finishes": 1,
+    "reason": "Median finish 3.59 h: a trail, walking or challenge event rather than a road half-marathon field.",
+    "rule": "E7",
+    "year": 2019
+   },
+   {
+    "category": "atypical_slow_field",
+    "city": "North Pole: UVU North Pole Marathon 2014",
+    "edition_id": 5538,
+    "finishes": 5,
+    "reason": "Median finish 4.49 h: a trail, walking or challenge event rather than a road half-marathon field.",
+    "rule": "E7",
+    "year": 2014
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Nukus: SQB Eco Half Marathon",
+    "edition_id": 2388,
+    "finishes": 57,
+    "reason": "3.5% of finishes under 1:05 (median 97 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2025
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Olympia, WA: Holiday 5K, 10K, & Half Marathon at Heritage Park, Olympia, WA (12-",
+    "edition_id": 2903,
+    "finishes": 19,
+    "reason": "5.3% of finishes under 1:05 (median 117 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2023
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Pompano Beach, FL: Medal Madness 5K & 10K at Pompano Beach, FL (22)",
+    "edition_id": 9191,
+    "finishes": 12,
+    "reason": "25.0% of finishes under 1:05 (median 74 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2025
+   },
+   {
+    "category": "atypical_slow_field",
+    "city": "Pooler, GA: Gobbler 5K, 10K, & 13.1M at Pooler, GA (47)",
+    "edition_id": 4386,
+    "finishes": 1,
+    "reason": "Median finish 3.87 h: a trail, walking or challenge event rather than a road half-marathon field.",
+    "rule": "E7",
+    "year": 2025
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Toledo, OH: TOLEDO MINI MARATHON",
+    "edition_id": 5857,
+    "finishes": 13,
+    "reason": "15.4% of finishes under 1:05 (median 77 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2018
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Westminster, MD: Ninja 1M, 5K, 10K, 15K, & Half Marathon at Wakefield Valley Par",
+    "edition_id": 2709,
+    "finishes": 24,
+    "reason": "4.2% of finishes under 1:05 (median 120 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2024
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "Weston, FL: Squirrel 5K, 10K, & Half Marathon at Weston Regional Park, Weston, F",
+    "edition_id": 3048,
+    "finishes": 4,
+    "reason": "25.0% of finishes under 1:05 (median 105 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2023
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "York, PA: Ninja 1M, 5K, 10K, 15K, & Half Marathon at Cousler Park, York, PA (5-1",
+    "edition_id": 2697,
+    "finishes": 17,
+    "reason": "5.9% of finishes under 1:05 (median 80 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2024
+   },
+   {
+    "category": "atypical_fast_field",
+    "city": "l'aayoune: Semi Marathon international de L'aayoune",
+    "edition_id": 5766,
+    "finishes": 100,
+    "reason": "9.0% of finishes under 1:05 (median 78 min): an elite or championship-only list, or other distances mixed in.",
+    "rule": "E7",
+    "year": 2011
+   },
+   {
+    "category": "series_median_shift",
+    "city": "Columbus, OH: OhioHealth Capital City Half Marathon",
+    "edition_id": 9930,
+    "finishes": 7718,
+    "reason": "Median finish 134 min against 115 min in the same race’s other editions (+16%): the time column may include the start delay or another contest.",
+    "rule": "E8",
+    "year": 2015
+   },
+   {
+    "category": "series_median_shift",
+    "city": "Fultondale, AL: Highlands College Half Marathon, 10K, and 5K",
+    "edition_id": 1121,
+    "finishes": 277,
+    "reason": "Median finish 177 min against 142 min in the same race’s other editions (+24%): the time column may include the start delay or another contest.",
+    "rule": "E8",
+    "year": 2022
+   },
+   {
+    "category": "series_median_shift",
+    "city": "Fultondale, AL: Highlands College Half Marathon, 10K, and 5K",
+    "edition_id": 1120,
+    "finishes": 334,
+    "reason": "Median finish 168 min against 142 min in the same race’s other editions (+18%): the time column may include the start delay or another contest.",
+    "rule": "E8",
+    "year": 2023
+   },
+   {
+    "category": "series_median_shift",
+    "city": "Fultondale, AL: Highlands College Half Marathon, 10K, and 5K",
+    "edition_id": 1118,
+    "finishes": 437,
+    "reason": "Median finish 134 min against 159 min in the same race’s other editions (-16%): the time column may include the start delay or another contest.",
+    "rule": "E8",
+    "year": 2025
+   },
+   {
+    "category": "series_median_shift",
+    "city": "Fultondale, AL: Highlands College Half Marathon, 10K, and 5K",
+    "edition_id": 1117,
+    "finishes": 401,
+    "reason": "Median finish 125 min against 159 min in the same race’s other editions (-21%): the time column may include the start delay or another contest.",
+    "rule": "E8",
+    "year": 2026
+   },
+   {
+    "category": "series_median_shift",
+    "city": "Holden Beach, NC: Run Holden Beach",
+    "edition_id": 6739,
+    "finishes": 157,
+    "reason": "Median finish 131 min against 155 min in the same race’s other editions (-15%): the time column may include the start delay or another contest.",
+    "rule": "E8",
+    "year": 2022
+   },
+   {
+    "category": "series_median_shift",
+    "city": "Kingston, JA: Kingston City Run",
+    "edition_id": 9841,
+    "finishes": 165,
+    "reason": "Median finish 105 min against 127 min in the same race’s other editions (-17%): the time column may include the start delay or another contest.",
+    "rule": "E8",
+    "year": 2017
+   },
+   {
+    "category": "series_median_shift",
+    "city": "Walker, MI: Groundhog Day Marathon",
+    "edition_id": 6338,
+    "finishes": 205,
+    "reason": "Median finish 161 min against 136 min in the same race’s other editions (+19%): the time column may include the start delay or another contest.",
+    "rule": "E8",
+    "year": 2015
+   },
+   {
+    "category": "series_median_shift",
+    "city": "Williamstown, NJ: Run the Vineyards - Cork High & Bottle Deep - Half Marathon",
+    "edition_id": 1840,
+    "finishes": 361,
+    "reason": "Median finish 98 min against 135 min in the same race’s other editions (-28%): the time column may include the start delay or another contest.",
+    "rule": "E8",
+    "year": 2024
+   }
+  ],
+  "order": [
+   "E0",
+   "E1",
+   "E2",
+   "E3",
+   "E4",
+   "E5",
+   "E6",
+   "E7",
+   "E8"
+  ]
+ },
+ "empty_status": "an edition whose registry tier is in the empty group (the producer's placeholder for an edition with nothing loaded) must hold no rows, else the build fails",
+ "expected": {
+  "E0_editions": 4,
+  "E0_finishes": 22616,
+  "E1_held_editions": 1199,
+  "E1_held_finishes": 860889,
+  "E1_removed_editions": 200,
+  "E2_E8_editions": 58,
+  "E2_E8_finishes": 28845,
+  "R1": 1446,
+  "R2": 0,
+  "R3": 131,
+  "R4": 0,
+  "R5_fast": 0,
+  "R5_slow": 262,
+  "R6": 1368,
+  "R7": 606,
+  "R8": 342,
+  "raw": 7873385,
+  "record_usable": 7869836,
+  "record_usable_after_R7": 7869230,
+  "tier_check": {
+   "badge": 239,
+   "course_suspected_short": 2,
+   "gross_timing": 5,
+   "never_stamp": 78,
+   "verified_usable": 237,
+   "weaker_source": 17
+  },
+  "undated": {
+   "editions": 260,
+   "finishes": 845690
+  },
+  "use_finish": {
+   "editions": 8329,
+   "finishes": 6956880
+  },
+  "verified": {
+   "editions": 237,
+   "finishes": 756946
+  },
+  "verified_use_sex": {
+   "editions": 230,
+   "finishes": 737779
+  }
+ },
+ "half_records": {
+  "left_out": {
+   "finish_not_a_positive_time": true,
+   "kept_when_edition_wide": [
+    "finish_equals_earlier_split",
+    "sportstats_nonfinish_status"
+   ],
+   "pending_review_flags": [
+    "wheelchair_handcycle_published_category",
+    "published_disqualified_status",
+    "sportstats_nonfinish_status",
+    "philadelphia_2010_place_sequence_outlier"
+   ],
+   "qa_row_flags": [
+    "finish_faster_than_world_record",
+    "finish_ge_24h",
+    "finish_zero",
+    "finish_equals_earlier_split",
+    "finish_implausibly_fast"
+   ],
+   "source": "HALF_ROW_RULE of analysis/adapt_combined.py (lead decision D28 of the adoption plan, 2026-11-14)",
+   "words": "A half row never counts and never shows when it carries one of these pending-review flags (present in CORE) or one of these row-quality flags, unless the flag is one of kept_when_edition_wide and every row of its edition carries it, or when its finish does not read as a time greater than zero. Nothing else about such a row is written anywhere: no label, no count by person."
+  },
+  "no_comparison": {
+   "course_suspected_short": {
+    "code": 2,
+    "editions": [
+     [
+      "half",
+      "Drammen Half",
+      2017
+     ],
+     [
+      "half",
+      "Drammen Half",
+      2019
+     ]
+    ],
+    "rule": "every row of the edition carries course_shortened_suspect in the person-links file (lead decision D24, item 10; the build stops unless the flagged editions equal this list and are flagged in full)"
+   },
+   "gun_times": {
+    "code": 1,
+    "editions": [
+     [
+      "half",
+      "Berlin",
+      2018
+     ],
+     [
+      "half",
+      "Berlin",
+      2019
+     ],
+     [
+      "half",
+      "Berlin",
+      2021
+     ],
+     [
+      "half",
+      "Berlin",
+      2022
+     ],
+     [
+      "half",
+      "Berlin",
+      2023
+     ]
+    ],
+    "rule": "the release's edition_meta.timing_basis starts with \"gross\" (lead decision D6; the build stops unless that set equals this list and each is held)"
+   },
+   "words": "These editions are listed with their results and marked; a marked edition's results are never compared with other years or races and never enter a best, a ranking, an average or any half figure. Editions are [source database, release key, year]."
+  },
+  "scope": "every row of race_records with distance = half, from either source database"
+ },
+ "record_rules": {
+  "R1": {
+   "flags": [
+    "duplicate",
+    "duplicate_load",
+    "duplicate_subset_list",
+    "wrong_year_copy",
+    "not_running",
+    "not_half_distance",
+    "separate_edition",
+    "separate_championship_list",
+    "trail_not_road_half",
+    "implausible_time",
+    "slow_outlier",
+    "disqualified",
+    "suspect_result_set"
+   ],
+   "never_alone": [
+    "time_hour_reconstructed"
+   ]
+  },
+  "R2": {
+   "column": "split_21_1km",
+   "min_s_exclusive": 0,
+   "pattern": "^[0-9]+:[0-9]{2}:[0-9]{2}$"
+  },
+  "R3": {
+   "applies_to": "lower(race), on rows passing R1, R8 and R2",
+   "pattern": "(rullaluistelu|patinaje|patines|\\bmtb\\b|sillas?\\s+de\\s+rueda|\\bsillas?\\b|wheelchair|\\bwch\\b|veh[ií]culo adaptado|pmrs?-puolimaraton|jo[eë]lette|combinata|half duathlon|discapacitad|discapacidad|capacidades (especiales|diferentes)|categor[ií]as especiales)",
+   "subraces": [
+    {
+     "city": "Chetumal: 21k Chetumal",
+     "finishes": 1,
+     "race": "21k Chetumal 2023 - 21K Capacidades Diferentes (sportmaniacs)",
+     "year": 2023
+    },
+    {
+     "city": "Gijón: 9ª EDP Media Maratón Gijón “Villa de Jovellanos”",
+     "finishes": 1,
+     "race": "9ª EDP Media Maratón Gijón “Villa de Jovellanos” - Vehículo adaptado  (sportmaniacs)",
+     "year": 2019
+    },
+    {
+     "city": "Guatemala City: 21 K Ciudad de Guatemala",
+     "finishes": 8,
+     "race": "21 K Ciudad de Guatemala - 21K Capacidades Especiales  (sportmaniacs)",
+     "year": 2024
+    },
+    {
+     "city": "Guatemala City: 21K CIUDAD DE GUATEMALA",
+     "finishes": 9,
+     "race": "21K CIUDAD DE GUATEMALA - 21k Discapacidad (sportmaniacs)",
+     "year": 2025
+    },
+    {
+     "city": "Querétaro: Querétaro Maratón",
+     "finishes": 3,
+     "race": "Querétaro Maratón 2019 - 21K Categorías Especiales (sportmaniacs)",
+     "year": 2019
+    },
+    {
+     "city": "Sevilla: EDP Media Maraton de Sevilla",
+     "finishes": 72,
+     "race": "EDP Media Maraton de Sevilla 2019 - Discapacitados EDP Media Maraton de Sevilla 2019 (sportmaniacs)",
+     "year": 2019
+    },
+    {
+     "city": "Spokane, WA: Stache Dash Run - Half Marathon, 10K, 5K, Kids Race, & 5k Wheelchai",
+     "finishes": 15,
+     "race": "Stache Dash Run - Half Marathon, 10K, 5K, Kids Race, & 5k Wheelchair Race (RunSignup 125844)",
+     "year": 2023
+    },
+    {
+     "city": "Spokane, WA: Stache Dash Run - Half Marathon, 10K, 5K, Kids Race, & 5k Wheelchai",
+     "finishes": 20,
+     "race": "Stache Dash Run - Half Marathon, 10K, 5K, Kids Race, & 5k Wheelchair Race (RunSignup 125844)",
+     "year": 2024
+    },
+    {
+     "city": "Stockholm: Kungsholmen runt",
+     "finishes": 2,
+     "race": "Kungsholmen runt — Halvmara Joëletter (racetimer)",
+     "year": 2013
+    }
+   ]
+  },
+  "R4": {
+   "applies_to": "sub-races (city, year, race) counted on rows passing R1, R8 and R2",
+   "floor_s": 3402,
+   "min_count": 2,
+   "min_share": 0.05,
+   "subraces": []
+  },
+  "R5": {
+   "max_s": 21600,
+   "min_s": 3402
+  },
+  "R6": {
+   "anonymous_pattern": "anonim|anonym|unknown|zawodnik",
+   "keep": "the copy from the largest sub-race list (R3 and R4 counts), then the lowest record id",
+   "key": "city, year, md5 of the name lowercased with accents stripped, commas and every character outside a-z0-9 and space made spaces, split on spaces, empty tokens dropped, tokens sorted and joined by one space; finish; sex as the sex rule gives it (null as ?)",
+   "name_required": "trim(name) longer than 3 characters and not matching the anonymous pattern",
+   "no_key": "a name with no a-z or 0-9 character left after this normalisation has no key and is never compared, so it is never an R6 duplicate"
+  },
+  "R7": {
+   "applies_to": "record-usable rows",
+   "bib": [
+    73000,
+    75999
+   ],
+   "bib_rule": "try_cast(bib AS INTEGER) in the range, inclusive",
+   "city": "Oslo Half",
+   "reason": "Same-day Oslo marathon finishers listed under the half in a bib block.",
+   "years": [
+    2016,
+    2025
+   ]
+  },
+  "R8": {
+   "identity": "every half row the identity file marks left_out must be removed by these record rules, else the build fails",
+   "kept_when_edition_wide": [
+    "finish_equals_earlier_split",
+    "sportstats_nonfinish_status"
+   ],
+   "pending_review_flags": [
+    "wheelchair_handcycle_published_category",
+    "published_disqualified_status",
+    "sportstats_nonfinish_status",
+    "philadelphia_2010_place_sequence_outlier"
+   ],
+   "qa_row_flags": [
+    "finish_faster_than_world_record",
+    "finish_ge_24h",
+    "finish_zero",
+    "finish_equals_earlier_split",
+    "finish_implausibly_fast"
+   ],
+   "rule": "a row the pipeline's frozen half row rule leaves out: it carries one of pending_review_flags (present in CORE) or one of qa_row_flags, unless that flag is one of kept_when_edition_wide and every race_records row of its edition carries it",
+   "source": "HALF_ROW_RULE of analysis/adapt_combined.py (lead decision D28 of the adoption plan, 2026-11-14)"
+  },
+  "order": [
+   "R1",
+   "R8",
+   "R2",
+   "R3",
+   "R4",
+   "R5",
+   "R6",
+   "R7"
+  ]
+ },
+ "reviewed": "2026-11-14",
+ "same_city_labels": {
+  "Amsterdam": [
+   "Amsterdam"
+  ],
+  "Berlin": [
+   "Berlin"
+  ],
+  "Cologne": [
+   "Cologne"
+  ],
+  "Copenhagen": [
+   "Copenhagen Half"
+  ],
+  "Eindhoven": [
+   "Eindhoven"
+  ],
+  "Hamburg": [
+   "Hamburg"
+  ],
+  "Helsinki": [
+   "Helsinki Half"
+  ],
+  "London": [
+   "London Big Half"
+  ],
+  "Madrid": [
+   "Madrid: XXII Movistar Madrid Medio Maratón"
+  ],
+  "New York": [
+   "New York"
+  ],
+  "Oslo": [
+   "Oslo Half"
+  ],
+  "Paris": [
+   "Paris"
+  ],
+  "Prague": [
+   "Prague: Generali Prague Half Marathon",
+   "Prague: Prague Half Marathon"
+  ],
+  "Stockholm": [
+   "Stockholm"
+  ],
+  "Valencia": [
+   "Valencia"
+  ],
+  "Vienna": [
+   "Vienna"
+  ],
+  "Warsaw": [
+   "Warszawa",
+   "Warszawa: Półmaraton Warszawski"
+  ],
+  "Washington": [
+   "Washington, DC: DC Half Races"
+  ]
+ },
+ "same_city_rule": "half labels for each marathon city; a marathon city is the marathon race's registry label",
+ "schema_version": 3,
+ "scope": "the half rows of the half database: race_records rows with distance = half and source_db = half; a record is (source_db, id), an edition (source_db, city, year). The half rows of the marathon database (source_db = full) supply nothing to any figure",
+ "sex": "a record's sex is its published sex; when that is blank (null, or empty after trimming), qa_row_flags.sex_from_category; the recorded sex is that value when it is M or F; never inferred from a name. Every rule and figure that reads sex reads this value",
+ "statuses": {
+  "empty": [
+   "no_rows"
+  ],
+  "held": [
+   "held_for_review"
+  ],
+  "partial": [
+   "partial"
+  ],
+  "removed": [
+   "excluded"
+  ],
+  "unverified": [
+   "unverified"
+  ],
+  "verified": [
+   "stamped",
+   "stamped_weaker_source"
+  ]
+ },
+ "tag": "pace-notes-marathon-half-20261113-1113",
+ "tiers": {
+  "course_suspected_short": [
+   {
+    "city": "Drammen Half",
+    "edition_id": 7935,
+    "year": 2017
+   },
+   {
+    "city": "Drammen Half",
+    "edition_id": 7937,
+    "year": 2019
+   }
+  ],
+  "gross_timing": [
+   {
+    "city": "Berlin",
+    "edition_id": 5956,
+    "year": 2018
+   },
+   {
+    "city": "Berlin",
+    "edition_id": 5942,
+    "year": 2019
+   },
+   {
+    "city": "Berlin",
+    "edition_id": 3752,
+    "year": 2021
+   },
+   {
+    "city": "Berlin",
+    "edition_id": 3662,
+    "year": 2022
+   },
+   {
+    "city": "Berlin",
+    "edition_id": 3511,
+    "year": 2023
+   }
+  ],
+  "never_stamp": [
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Valencia",
+    "edition_id": 1,
+    "reason": "unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Valencia",
+    "edition_id": 2,
+    "reason": "unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Valencia",
+    "edition_id": 3,
+    "reason": "unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal",
+    "year": 2023
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Valencia",
+    "edition_id": 4,
+    "reason": "unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal",
+    "year": 2022
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Valencia",
+    "edition_id": 5,
+    "reason": "unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal",
+    "year": 2021
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Valencia",
+    "edition_id": 8,
+    "reason": "unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal",
+    "year": 2018
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Valencia",
+    "edition_id": 9,
+    "reason": "unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal",
+    "year": 2017
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Valencia",
+    "edition_id": 10,
+    "reason": "unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Valencia",
+    "edition_id": 11,
+    "reason": "unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal",
+    "year": 2016
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Amsterdam",
+    "edition_id": 12,
+    "reason": "unstamped 2026-10-29: (NOT independent) sporthive_classificationsCount",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Cologne",
+    "edition_id": 13,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Cologne",
+    "edition_id": 14,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Cologne",
+    "edition_id": 15,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2023
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Cologne",
+    "edition_id": 17,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2019
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Paris",
+    "edition_id": 24,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Paris",
+    "edition_id": 25,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Paris",
+    "edition_id": 26,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Paris",
+    "edition_id": 27,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2023
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Paris",
+    "edition_id": 28,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2022
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Paris",
+    "edition_id": 31,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2019
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Paris",
+    "edition_id": 34,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2017
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Lyon",
+    "edition_id": 39,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Lyon",
+    "edition_id": 40,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Lyon",
+    "edition_id": 41,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2023
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Lyon",
+    "edition_id": 42,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2022
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Lyon",
+    "edition_id": 43,
+    "reason": "unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows",
+    "year": 2021
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Freiburg",
+    "edition_id": 51,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2019
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Freiburg",
+    "edition_id": 53,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2022
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Freiburg",
+    "edition_id": 54,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2023
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Freiburg",
+    "edition_id": 56,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Freiburg",
+    "edition_id": 57,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Freiburg",
+    "edition_id": 58,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Graz",
+    "edition_id": 83,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2021
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Graz",
+    "edition_id": 85,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2023
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Graz",
+    "edition_id": 86,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Mainz",
+    "edition_id": 91,
+    "reason": "unstamped 2026-10-29: (NOT independent) de.wikipedia (7,329 finishers: 4,382 M / 2,947 W)",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Eindhoven",
+    "edition_id": 93,
+    "reason": "unstamped 2026-10-29: (NOT independent) chronorace table: ranked rows",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Antwerp",
+    "edition_id": 95,
+    "reason": "unstamped 2026-10-29: (NOT independent) chronorace table: ranked rows",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Antwerp",
+    "edition_id": 96,
+    "reason": "unstamped 2026-10-29: (NOT independent) chronorace table: ranked rows",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Oberelbe",
+    "edition_id": 101,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2016
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Oberelbe",
+    "edition_id": 102,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2017
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Oberelbe",
+    "edition_id": 103,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2018
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Oberelbe",
+    "edition_id": 104,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2019
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Zurich",
+    "edition_id": 114,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2022
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Zurich",
+    "edition_id": 115,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Zurich",
+    "edition_id": 116,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Magdeburg",
+    "edition_id": 118,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2016
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Magdeburg",
+    "edition_id": 119,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2017
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Magdeburg",
+    "edition_id": 120,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2018
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Magdeburg",
+    "edition_id": 121,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2019
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Venlo",
+    "edition_id": 122,
+    "reason": "unstamped 2026-10-29: (NOT independent) uitslagen.nl max placing",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Venlo",
+    "edition_id": 124,
+    "reason": "unstamped 2026-10-29: (NOT independent) chronorace table: ranked rows",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Karlsruhe",
+    "edition_id": 131,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2019
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Karlsruhe",
+    "edition_id": 132,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2022
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Karlsruhe",
+    "edition_id": 133,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2023
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Karlsruhe",
+    "edition_id": 134,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Karlsruhe",
+    "edition_id": 135,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Ulm",
+    "edition_id": 139,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2022
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Ulm",
+    "edition_id": 140,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows; hdsports.de Finisherzahlen 3,139 is a third-party portal tally, not an organiser",
+    "year": 2023
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Ulm",
+    "edition_id": 141,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Oberelbe",
+    "edition_id": 144,
+    "reason": "unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)",
+    "year": 2022
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Wałbrzych: Toyota Eko Półmaraton Wałbrzych",
+    "edition_id": 641,
+    "reason": "unstamped 2026-10-29: (NOT independent) sport.co.pl article syndicated from biegowe.pl (page image hosted on biegowe.pl); no other count sourc",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Warszawa: Nocny Półmaraton Praski",
+    "edition_id": 1259,
+    "reason": "unstamped 2026-10-29: (NOT independent) enduhub results table (6466)",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Białystok: PKO Białystok Półmaraton",
+    "edition_id": 1350,
+    "reason": "unstamped 2026-10-29: (NOT independent) DERIVED from newspaper comparison (Kurier Poranny: 2025 = 3548, \"766 more than 2024\"), not a published",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Warszawa: Nocny Półmaraton Praski",
+    "edition_id": 1486,
+    "reason": "unstamped 2026-10-29: (NOT independent) timer results page finisher total (half-only event page) + biegowe.pl (~4.5k)",
+    "year": 2023
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Berlin",
+    "edition_id": 3107,
+    "reason": "unstamped 2026-10-29: (NOT independent) results aggregator (spoferan 36,588); organiser press release 29.03.2026 gives no finisher count (orga",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "datasport.pl: PKO Białystok Półmaraton",
+    "edition_id": 4149,
+    "reason": "unstamped 2026-10-29: (NOT independent) race report (biegowe.pl) + organiser winners page",
+    "year": 2019
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Vartdalsstranda Half",
+    "edition_id": 7993,
+    "reason": "unstamped 2026-10-29: (NOT independent) WEAKER/DERIVED: Kondis-published full result list (KM 37 + open 104 half rows; list appears to be repo",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:44",
+    "city": "Gniezno",
+    "edition_id": 8643,
+    "reason": "unstamped 2026-10-29: (NOT independent) sport.co.pl article = biegowe.pl repost (identical text); no organiser count found",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Wrocław: 12. Tarczyński Nocny Wrocław Półmaraton",
+    "edition_id": 8661,
+    "reason": "unstamped 2026-10-29: (NOT independent) Biegowe.pl race report (independent running media; finisher count) — weaker than federation",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Wrocław",
+    "edition_id": 8674,
+    "reason": "unstamped 2026-10-29: (NOT independent) press (Biegowe.pl; Bieganie.pl agrees) finisher total",
+    "year": 2023
+   },
+   {
+    "added_at": "2026-10-29 17:31:44",
+    "city": "Warszawa",
+    "edition_id": 8675,
+    "reason": "unstamped 2026-10-29: (NOT independent) sport.co.pl article = biegowe.pl repost (identical text); no organiser count found",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:44",
+    "city": "Warszawa",
+    "edition_id": 8705,
+    "reason": "unstamped 2026-10-29: (NOT independent) sport.co.pl article = biegowe.pl repost (identical text); no organiser count found",
+    "year": 2026
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Warszawa: Półmaraton Warszawski",
+    "edition_id": 8708,
+    "reason": "unstamped 2026-10-29: (NOT independent) press (Biegowe.pl) finisher total; runinternational.eu also 14,605",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:44",
+    "city": "Warszawa: Półmaraton Warszawski",
+    "edition_id": 8709,
+    "reason": "unstamped 2026-10-29: (NOT independent) hdsports.org portal tally 13,422; organiser only \"niemal 13,5 tys.\" (approximate)",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:44",
+    "city": "Szczecin",
+    "edition_id": 8728,
+    "reason": "unstamped 2026-10-29: (NOT independent) sport.co.pl article = biegowe.pl repost (identical text); no organiser count found",
+    "year": 2025
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "Szczecin",
+    "edition_id": 8747,
+    "reason": "unstamped 2026-10-29: (NOT independent) press (Biegowe.pl) finisher total",
+    "year": 2024
+   },
+   {
+    "added_at": "2026-10-29 17:31:08",
+    "city": "New York",
+    "edition_id": 8749,
+    "reason": "unstamped 2026-10-29: (NOT independent) nyrr_api_totalItems — platform-internal count",
+    "year": 2025
+   }
+  ],
+  "never_stamp_from": {
+   "asset": "csv-edition_meta.csv.zst",
+   "repository": "koolkam00/pace-notes",
+   "sha256": "2b8ad1106a6ee8845147ebd4563b5dcb64a2a8fe9a9044b83a0f1e34f681e842",
+   "table": "the never_stamp table of half-dataset-20261030-1904 (analysis/half-policy-20261030-1904.json stamps.never_stamp)",
+   "tag": "half-dataset-20261029-2157"
+  },
+  "reads": {
+   "course_suspected_short": "the editions whose every row of the half database carries course_shortened_suspect in the person-links file: equal to `course_suspected_short`; an edition flagged on some rows only fails (lead decision D24, item 10)",
+   "gross_timing": "the editions whose edition_meta.timing_basis, lowercased, starts with gross: equal to `gross_timing`, and each held (lead decision D6)",
+   "never_stamp": "each row of `never_stamp` (the 1904 snapshot's never_stamp table, carried verbatim with the year and label its edition id carries in this release): the edition with that id must exist with that year and must not carry a badge tier; a changed label is reported, not failed",
+   "removed_and_empty": "an edition whose tier is excluded, or whose registry tier is no_rows, holds no row in race_records",
+   "stamped": "the edition ids whose tier is stamped or stamped_weaker_source, equal to `stamped`",
+   "weaker_source": "the edition ids whose tier is stamped_weaker_source, equal to `weaker_source`, each with its city, year and official_source_type under the reason rule's length cut; after the edition rules each is a verified usable edition"
+  },
+  "reason_rule": "the first ' | '-separated part of the corrected completeness_reason that contains 'unstamped', else the first part; runs of spaces, tabs and newlines made one space; over 160 characters, cut to the last space within the first 159 and ended with '…'",
+  "reviewed": "2026-11-14",
+  "rule": "verified = tier stamped or stamped_weaker_source in the release's EDITION-TIERS.csv, equal to the policy's reviewed list, never an edition of the frozen never-stamp list",
+  "source": "EDITION-TIERS.csv (verification_tier, weaker_source, split_tier), joined on source_db = half, city and year: the complete tier table. The registry row of an edition (edition id, race date, official count and source type, timing basis) is edition_meta.parquet's; where both name an edition their tiers must be equal",
+  "stamped": [
+   50,
+   52,
+   55,
+   136,
+   275,
+   429,
+   782,
+   1890,
+   4145,
+   4831,
+   4976,
+   5148,
+   5287,
+   5386,
+   5423,
+   5876,
+   5879,
+   5882,
+   5884,
+   5886,
+   5934,
+   5939,
+   6263,
+   6413,
+   6474,
+   6520,
+   6569,
+   6664,
+   6714,
+   6718,
+   6723,
+   6724,
+   6725,
+   6731,
+   6746,
+   6747,
+   6748,
+   6749,
+   6750,
+   6751,
+   6753,
+   6782,
+   7097,
+   7181,
+   7204,
+   7226,
+   7306,
+   7349,
+   7351,
+   7352,
+   7355,
+   7356,
+   7357,
+   7358,
+   7375,
+   7377,
+   7378,
+   7381,
+   7384,
+   7388,
+   7391,
+   7397,
+   7398,
+   7399,
+   7400,
+   7402,
+   7405,
+   7406,
+   7407,
+   7590,
+   7593,
+   7594,
+   7597,
+   7602,
+   7605,
+   7606,
+   7608,
+   7609,
+   7610,
+   7622,
+   7623,
+   7624,
+   7627,
+   7629,
+   7630,
+   7632,
+   7633,
+   7635,
+   7639,
+   7640,
+   7644,
+   7647,
+   7648,
+   7652,
+   7654,
+   7655,
+   7657,
+   7659,
+   7664,
+   7665,
+   7668,
+   7669,
+   7695,
+   7696,
+   7699,
+   7702,
+   7709,
+   7713,
+   7725,
+   7735,
+   7738,
+   7742,
+   7759,
+   7760,
+   7765,
+   7768,
+   7773,
+   7781,
+   7787,
+   7788,
+   7792,
+   7806,
+   7825,
+   7831,
+   7846,
+   7852,
+   7868,
+   7892,
+   7899,
+   7919,
+   7932,
+   7933,
+   7935,
+   7936,
+   7937,
+   7943,
+   7945,
+   7946,
+   7947,
+   7949,
+   7952,
+   7957,
+   7982,
+   8033,
+   8036,
+   8037,
+   8039,
+   8097,
+   8098,
+   8111,
+   8123,
+   8127,
+   8218,
+   8230,
+   8255,
+   8260,
+   8265,
+   8296,
+   8306,
+   8313,
+   8330,
+   8331,
+   8335,
+   8347,
+   8348,
+   8356,
+   8359,
+   8361,
+   8373,
+   8392,
+   8413,
+   8436,
+   8439,
+   8441,
+   8443,
+   8448,
+   8449,
+   8453,
+   8455,
+   8467,
+   8486,
+   8490,
+   8492,
+   8497,
+   8499,
+   8509,
+   8529,
+   8551,
+   8565,
+   8569,
+   8573,
+   8591,
+   8605,
+   8608,
+   8613,
+   8618,
+   8622,
+   8624,
+   8628,
+   8629,
+   8631,
+   8632,
+   8636,
+   8637,
+   8638,
+   8640,
+   8641,
+   8645,
+   8646,
+   8647,
+   8648,
+   8650,
+   8652,
+   8656,
+   8660,
+   8663,
+   8665,
+   8666,
+   8667,
+   8668,
+   8670,
+   8671,
+   8672,
+   8673,
+   8676,
+   8680,
+   8682,
+   8683,
+   8688,
+   8695,
+   8700,
+   8701,
+   8704,
+   8706,
+   8710,
+   8713,
+   8725,
+   8748,
+   8823
+  ],
+  "weaker_source": [
+   {
+    "city": "Barcelos",
+    "edition_id": 8605,
+    "source": "Revista Atletismo race report (independent press; finisher count) — weaker than federation",
+    "year": 2024
+   },
+   {
+    "city": "Barcelos",
+    "edition_id": 8618,
+    "source": "Revista Atletismo race report (independent press; finisher count) — weaker than federation",
+    "year": 2025
+   },
+   {
+    "city": "Barcelos",
+    "edition_id": 8628,
+    "source": "Revista Atletismo race report (independent press; finisher count) — weaker than federation",
+    "year": 2026
+   },
+   {
+    "city": "Gniezno",
+    "edition_id": 8680,
+    "source": "press (SportoweGniezno.pl) finisher total",
+    "year": 2025
+   },
+   {
+    "city": "Grodzisk Wielkopolski",
+    "edition_id": 8682,
+    "source": "press (Nasze Miasto Grodzisk, local) finisher total",
+    "year": 2025
+   },
+   {
+    "city": "Kraków",
+    "edition_id": 8710,
+    "source": "organiser published finisher total (cracoviapolmaraton.pl, 14,129) — weaker than federation",
+    "year": 2025
+   },
+   {
+    "city": "Kraków: Cracovia Półmaraton Królewski",
+    "edition_id": 1890,
+    "source": "organiser press release (ZIS Kraków, 16.10.2022: 5,807 of 5,844 starters finished) — weaker than federation",
+    "year": 2022
+   },
+   {
+    "city": "Ovar",
+    "edition_id": 8613,
+    "source": "Revista Atletismo race report 2025 citing 2024 count (independent press) — weaker than federation",
+    "year": 2024
+   },
+   {
+    "city": "Ovar",
+    "edition_id": 8622,
+    "source": "Revista Atletismo race report (independent press; finisher count) — weaker than federation",
+    "year": 2025
+   },
+   {
+    "city": "Piła",
+    "edition_id": 8652,
+    "source": "local press (Piła Online, own text: \"Bieg ukończyło 879\") — weaker than federation",
+    "year": 2026
+   },
+   {
+    "city": "Pombal",
+    "edition_id": 8624,
+    "source": "Revista Atletismo race report (independent press; finisher count) — weaker than federation",
+    "year": 2025
+   },
+   {
+    "city": "Praia de Cortegaça",
+    "edition_id": 8629,
+    "source": "OvarNews race report (independent local press; finisher count) — weaker than federation",
+    "year": 2026
+   },
+   {
+    "city": "Szczecin",
+    "edition_id": 8748,
+    "source": "local press (Kamienskie.info) own finisher total 1,280 — weaker than federation",
+    "year": 2023
+   },
+   {
+    "city": "Szczecin",
+    "edition_id": 8725,
+    "source": "local press (24Kurier own count 4,533; dzienniknarodowy also 4,533) — weaker than federation; Biegowe/sport.co.pl 4,535 not used",
+    "year": 2026
+   },
+   {
+    "city": "Wrocław",
+    "edition_id": 8713,
+    "source": "press (tuwroclaw.com, quoting organiser MCS Wrocław) finisher total",
+    "year": 2025
+   },
+   {
+    "city": "belém: GENERALI TRANQUILIDADE MEIA MARATONA DESCOBRIMENTOS",
+    "edition_id": 8823,
+    "source": "press: Revista Atletismo (count text mirrors the timer Xistarca news release; labelled weaker press)",
+    "year": 2024
+   },
+   {
+    "city": "Łódź",
+    "edition_id": 8650,
+    "source": "press (Biegam po Łodzi, local) finisher total",
+    "year": 2026
+   }
+  ]
+ },
+ "unknown_status": "a tier in none of the status groups fails the build, and so does an edition with rows and no row in EDITION-TIERS.csv",
+ "use_sex": {
+  "max_share": 0.97,
+  "min_coverage": 0.95,
+  "min_share": 0.03
+ },
+ "verified_label_countries": {
+  "Ambarès-et-Lagrave: Les Foulées du Plan d'Eau d'Ambarès": "FR",
+  "Amsterdam": "NL",
+  "Antwerp": "BE",
+  "Barcelos": "PT",
+  "Bergen City Half": "NO",
+  "Bergen Maraton Half": "NO",
+  "Berlin": "DE",
+  "Białystok: PKO Białystok Półmaraton": "PL",
+  "Bodø Half": "NO",
+  "Bordeaux: Semi Marathon de Bordeaux": "FR",
+  "Bruges: 10km et Semi Marathon des Jalles": "FR",
+  "Bruges: Semi Marathon des Jalles": "FR",
+  "Chartres: Semi Marathon de Chartres": "FR",
+  "Chaumont-sur-Tharonne: Semi Marathon de Center Parcs des Hauts de Bruyères": "FR",
+  "Cissac: Foulées Cissacaises": "FR",
+  "Cologne": "DE",
+  "Drammen Half": "NO",
+  "Egersund Half": "NO",
+  "Eindhoven": "NL",
+  "Fredrikstad Half": "NO",
+  "Freiburg": "DE",
+  "Gien: Les Foulées Giennoises": "FR",
+  "Gien: Semi-Marathon Gien-Briare-Gien": "FR",
+  "Gloppen Half": "NO",
+  "Gniezno": "PL",
+  "Graz": "AT",
+  "Grodzisk Wielkopolski": "PL",
+  "Hardanger Half": "NO",
+  "Haugesund Half": "NO",
+  "Holmestrand Maraton Half": "NO",
+  "Håkøya Half": "NO",
+  "Hålandsvannet Half": "NO",
+  "Jargeau: Les Foulées du Bord de Loire": "FR",
+  "Jessheim Half": "NO",
+  "Jessheim Vintermaraton": "NO",
+  "Jølster Half": "NO",
+  "Karlsruhe": "DE",
+  "Karmøy Half": "NO",
+  "Katowice: Silesia Marathon": "PL",
+  "Knarvik Half": "NO",
+  "Kraków": "PL",
+  "Kraków: Cracovia Półmaraton Królewski": "PL",
+  "Kystleden Half": "NO",
+  "Lacanau: Semi Marathon de Lacanau": "FR",
+  "Lisbon": "PT",
+  "London Big Half": "GB",
+  "Lyon": "FR",
+  "Lège Cap Ferret: Semi-Marathon de la Presqu'Ile": "FR",
+  "Lège-Cap-Ferret: Semi-Marathon de la Presqu'Ile": "FR",
+  "Madrid: XXII Movistar Madrid Medio Maratón": "ES",
+  "Magdeburg": "DE",
+  "Mainz": "DE",
+  "Mandal Half": "NO",
+  "Montargis: Semi Marathon de Montargis": "FR",
+  "New York": "US",
+  "Nordmarka Skogsmaraton Half": "NO",
+  "Norges Vakreste Half": "NO",
+  "Nîmes: Semi Marathon de Nîmes": "FR",
+  "Oberelbe": "DE",
+  "Orléans: Les Foulées d'Orléans": "FR",
+  "Oslo Half": "NO",
+  "Ovar": "PT",
+  "Paris": "FR",
+  "Paris: Semi Marathon du Bois de Vincennes": "FR",
+  "Piła": "PL",
+  "Pombal": "PT",
+  "Porsgrunn Half": "NO",
+  "Poznań": "PL",
+  "Prague: Generali Prague Half Marathon": "CZ",
+  "Praia de Cortegaça": "PT",
+  "Roma: Rome Half Marathon": "IT",
+  "Ryfast Half": "NO",
+  "Saclas: Semi et Boucles de la Juine": "FR",
+  "Saint Selve: Foulées Saint Selvaises": "FR",
+  "Saint-Selve: Les Foulées St Selvaises": "FR",
+  "Sandnes Half": "NO",
+  "Semi Marathon De Briere": "FR",
+  "Semi Marathon De Laval": "FR",
+  "Sobótka: PANAS Półmaraton Ślężański i Piątka Ślężysława": "PL",
+  "Solastranden Half": "NO",
+  "Stavanger Marathon Half": "NO",
+  "Stavanger: 3-Sjøersløpet": "NO",
+  "Stockholm": "SE",
+  "Sully sur Loire: Marathon de l'Espoir": "FR",
+  "Szczecin": "PL",
+  "Sørfjorden Half": "NO",
+  "The Arctic Run Half": "NO",
+  "Tinqueux: Les Foulées Aquatintiennes": "FR",
+  "Tours: Les Foulées de l'Arche": "FR",
+  "Tromsø Midnight Sun": "NO",
+  "Tromsø Polar Night": "NO",
+  "Trondheim": "NO",
+  "Trondheim Skogsmaraton Half": "NO",
+  "Ulm": "DE",
+  "Valencia": "ES",
+  "Vartdalsstranda Half": "NO",
+  "Venlo": "NL",
+  "Vincennes: Semi Marathon du Bois de Vincennes": "FR",
+  "Warszawa": "PL",
+  "Warszawa: Nocny Półmaraton Praski": "PL",
+  "Warszawa: Półmaraton Warszawski": "PL",
+  "Wałbrzych: Toyota Eko Półmaraton Wałbrzych": "PL",
+  "Wrocław": "PL",
+  "Zurich": "CH",
+  "belém: GENERALI TRANQUILIDADE MEIA MARATONA DESCOBRIMENTOS": "PT",
+  "datasport.pl: Nocny 4F Półmaraton Praski": "PL",
+  "Ålesund Half": "NO",
+  "Łódź": "PL"
+ }
+}

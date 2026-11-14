@@ -948,3 +948,129 @@ NOT_VIRTUAL_20261113_1113 = []
 OFF_ROAD_LABELS_20261113_1113 = list(OFF_ROAD_LABELS_20261030_1904)
 LABEL_COUNTRIES_20261113_1113 = dict(LABEL_COUNTRIES_20261030_1904)
 DATE_SUSPECT_DATES_20261113_1113 = {8712: '2026-09-27', 7565: '2019-12-01', 7677: '2019-12-01'}
+
+# The frozen lists of the reviewed run (2026-11-14, on pace-notes-marathon-half-20261113-1113 with the half row rule of lead
+# decision D28): R3 and R4 as computed, and every edition E0 and E2-E8 remove (62: E0 4, E2 10, E3 4, E4 4, E5 1, E6 8,
+# E7 22, E8 9). Each entry was read against its rule before it was frozen: the two New York partial tiers and the two
+# México editions without a registry row; the six Columbus "Anywhere USA" virtual events, Brunico's three-quarter half, the
+# two course-suspected-short Drammen editions and the one carried duplicate whose twin still has rows (South Hero 2015);
+# the four count screens of 1904 again; the screens as computed. 42 carried E2 decisions no longer apply (34 because the
+# release kept only the listed copy, 8 because the listed edition itself has no rows) and are printed by every run. The
+# builder and the Node recount recompute each list and fail on a difference.
+FROZEN_20261113_1113 = {
+    'R3': [
+        {'city': 'Chetumal: 21k Chetumal', 'year': 2023, 'race': '21k Chetumal 2023 - 21K Capacidades Diferentes (sportmaniacs)', 'finishes': 1},
+        {'city': 'Gijón: 9ª EDP Media Maratón Gijón “Villa de Jovellanos”', 'year': 2019, 'race': '9ª EDP Media Maratón Gijón “Villa de Jovellanos” - Vehículo adaptado  (sportmaniacs)', 'finishes': 1},
+        {'city': 'Guatemala City: 21 K Ciudad de Guatemala', 'year': 2024, 'race': '21 K Ciudad de Guatemala - 21K Capacidades Especiales  (sportmaniacs)', 'finishes': 8},
+        {'city': 'Guatemala City: 21K CIUDAD DE GUATEMALA', 'year': 2025, 'race': '21K CIUDAD DE GUATEMALA - 21k Discapacidad (sportmaniacs)', 'finishes': 9},
+        {'city': 'Querétaro: Querétaro Maratón', 'year': 2019, 'race': 'Querétaro Maratón 2019 - 21K Categorías Especiales (sportmaniacs)', 'finishes': 3},
+        {'city': 'Sevilla: EDP Media Maraton de Sevilla', 'year': 2019, 'race': 'EDP Media Maraton de Sevilla 2019 - Discapacitados EDP Media Maraton de Sevilla 2019 (sportmaniacs)', 'finishes': 72},
+        {'city': 'Spokane, WA: Stache Dash Run - Half Marathon, 10K, 5K, Kids Race, & 5k Wheelchai', 'year': 2023, 'race': 'Stache Dash Run - Half Marathon, 10K, 5K, Kids Race, & 5k Wheelchair Race (RunSignup 125844)', 'finishes': 15},
+        {'city': 'Spokane, WA: Stache Dash Run - Half Marathon, 10K, 5K, Kids Race, & 5k Wheelchai', 'year': 2024, 'race': 'Stache Dash Run - Half Marathon, 10K, 5K, Kids Race, & 5k Wheelchair Race (RunSignup 125844)', 'finishes': 20},
+        {'city': 'Stockholm: Kungsholmen runt', 'year': 2013, 'race': 'Kungsholmen runt — Halvmara Joëletter (racetimer)', 'finishes': 2},
+    ],
+    'R4': [
+
+    ],
+    'editions': [
+        {'edition_id': None, 'city': 'México: III EDICION MARATON CAPITAL 21K', 'year': 2026, 'rule': 'E0', 'category': 'no_edition_meta', 'reason': 'Records exist for this city and year but the edition registry has no row: no count, date or status; not verified.', 'finishes': 899},
+        {'edition_id': None, 'city': 'México: MARATÓN PUEBLA 21K', 'year': 2025, 'rule': 'E0', 'category': 'no_edition_meta', 'reason': 'Records exist for this city and year but the edition registry has no row: no count, date or status; not verified.', 'finishes': 2277},
+        {'edition_id': None, 'city': 'New York', 'year': 2016, 'rule': 'E0', 'category': 'partial_tier', 'reason': 'Tier partial: the release marks the list as partial results.', 'finishes': 9640},
+        {'edition_id': None, 'city': 'New York', 'year': 2022, 'rule': 'E0', 'category': 'partial_tier', 'reason': 'Tier partial: the release marks the list as partial results.', 'finishes': 9800},
+        {'edition_id': 3417, 'city': 'Anywhere USA, OH: Columbus Half Marathon 10K + 5K', 'year': 2014, 'rule': 'E2', 'category': 'virtual_event', 'reason': 'A virtual race: self-timed efforts, not a race field.', 'finishes': 379},
+        {'edition_id': 3416, 'city': 'Anywhere USA, OH: Columbus Half Marathon 10K + 5K', 'year': 2015, 'rule': 'E2', 'category': 'virtual_event', 'reason': 'A virtual race: self-timed efforts, not a race field.', 'finishes': 270},
+        {'edition_id': 3415, 'city': 'Anywhere USA, OH: Columbus Half Marathon 10K + 5K', 'year': 2016, 'rule': 'E2', 'category': 'virtual_event', 'reason': 'A virtual race: self-timed efforts, not a race field.', 'finishes': 245},
+        {'edition_id': 3414, 'city': 'Anywhere USA, OH: Columbus Half Marathon 10K + 5K', 'year': 2017, 'rule': 'E2', 'category': 'virtual_event', 'reason': 'A virtual race: self-timed efforts, not a race field.', 'finishes': 237},
+        {'edition_id': 3413, 'city': 'Anywhere USA, OH: Columbus Half Marathon 10K + 5K', 'year': 2018, 'rule': 'E2', 'category': 'virtual_event', 'reason': 'A virtual race: self-timed efforts, not a race field.', 'finishes': 168},
+        {'edition_id': 3412, 'city': 'Anywhere USA, OH: Columbus Half Marathon 10K + 5K', 'year': 2019, 'rule': 'E2', 'category': 'virtual_event', 'reason': 'A virtual race: self-timed efforts, not a race field.', 'finishes': 187},
+        {'edition_id': 8408, 'city': 'Brunico: 3/4 Mezza Maratona', 'year': 2013, 'rule': 'E2', 'category': 'not_half_distance', 'reason': 'The race is a three-quarter half marathon (about 15.8 km), not a half marathon.', 'finishes': 595},
+        {'edition_id': 7935, 'city': 'Drammen Half', 'year': 2017, 'rule': 'E2', 'category': 'course_suspected_short', 'reason': "Every row carries the link build's course_shortened_suspect flag: the course is suspected to have been short, so the edition is listed and marked and its times are never compared.", 'finishes': 466},
+        {'edition_id': 7937, 'city': 'Drammen Half', 'year': 2019, 'rule': 'E2', 'category': 'course_suspected_short', 'reason': "Every row carries the link build's course_shortened_suspect flag: the course is suspected to have been short, so the edition is listed and marked and its times are never compared.", 'finishes': 555},
+        {'edition_id': 3666, 'city': 'South Hero, VT: 45th GMAA Green Mtn. Marathon & Half Marathon', 'year': 2015, 'rule': 'E2', 'category': 'cross_edition_duplicate', 'reason': 'Same 376 runners and race date as South Hero, VT: Champlain Islands Marathon & Half Marathon 2015 (id 687); times differ by a few seconds (a second timing basis).', 'finishes': 376},
+        {'edition_id': 7599, 'city': 'Kystleden Half', 'year': 2018, 'rule': 'E3', 'category': 'rows_short_of_source_list', 'reason': '467 rows loaded from a source list of 489 rows (4.5% short).', 'finishes': 467},
+        {'edition_id': 7598, 'city': 'Kystleden Half', 'year': 2019, 'rule': 'E3', 'category': 'rows_short_of_source_list', 'reason': '540 rows loaded from a source list of 596 rows (9.4% short).', 'finishes': 540},
+        {'edition_id': 6762, 'city': 'Stavanger: 3-Sjøersløpet', 'year': 2009, 'rule': 'E3', 'category': 'rows_short_of_source_list', 'reason': '430 rows loaded from a source list of 460 rows (6.5% short).', 'finishes': 430},
+        {'edition_id': 6758, 'city': 'Stavanger: 3-Sjøersløpet', 'year': 2013, 'rule': 'E3', 'category': 'rows_short_of_source_list', 'reason': '1,545 rows loaded from a source list of 1,577 rows (2.0% short).', 'finishes': 1545},
+        {'edition_id': 3749, 'city': 'Casablanca: 15ème Édition du Marathon internation de Casablanca', 'year': 2024, 'rule': 'E4', 'category': 'one_sex_list', 'reason': 'Sex is published for 100% of rows but only one sex is present (2,652 men, 0 women) and the event is not a single-sex race: the other list is missing.', 'finishes': 2652},
+        {'edition_id': 9027, 'city': 'Fayetteville, NC: Cape Fear River Run', 'year': 2024, 'rule': 'E4', 'category': 'one_sex_list', 'reason': 'Sex is published for 100% of rows but only one sex is present (0 men, 72 women) and the event is not a single-sex race: the other list is missing.', 'finishes': 72},
+        {'edition_id': 9026, 'city': 'Fayetteville, NC: Cape Fear River Run', 'year': 2025, 'rule': 'E4', 'category': 'one_sex_list', 'reason': 'Sex is published for 100% of rows but only one sex is present (133 men, 0 women) and the event is not a single-sex race: the other list is missing.', 'finishes': 133},
+        {'edition_id': 808, 'city': 'Louisville, CO: Colorado 13er (Half Marathon/10k/5k)', 'year': 2017, 'rule': 'E4', 'category': 'one_sex_list', 'reason': 'Sex is published for 100% of rows but only one sex is present (0 men, 183 women) and the event is not a single-sex race: the other list is missing.', 'finishes': 183},
+        {'edition_id': 9890, 'city': 'Columbus, OH: The Capital City Half Marathon', 'year': 2004, 'rule': 'E5', 'category': 'truncated_top_list', 'reason': 'The slowest finishes stop close to the median (99th percentile 1.19 x median): a top-finisher list, not the field.', 'finishes': 1869},
+        {'edition_id': 7441, 'city': 'Bari: Ganten Bari21 Half Marathon', 'year': 2022, 'rule': 'E6', 'category': 'round_count_cap', 'reason': 'Exactly 500 rows with no independent count: the list may be cut at a page size.', 'finishes': 500},
+        {'edition_id': 1881, 'city': 'Berlin S25', 'year': 2022, 'rule': 'E6', 'category': 'round_count_cap', 'reason': 'Exactly 1,000 rows with no independent count: the list may be cut at a page size.', 'finishes': 1000},
+        {'edition_id': 1916, 'city': 'Bowling Green, OH: SCOUTING AMERICA HALF MARATHON & TENDERFOOT 5K', 'year': 2018, 'rule': 'E6', 'category': 'round_count_cap', 'reason': 'Exactly 500 rows with no independent count: the list may be cut at a page size.', 'finishes': 500},
+        {'edition_id': 7498, 'city': 'Cernusco Sul Naviglio: Mezza del Naviglio', 'year': 2022, 'rule': 'E6', 'category': 'round_count_cap', 'reason': 'Exactly 500 rows with no independent count: the list may be cut at a page size.', 'finishes': 500},
+        {'edition_id': 5413, 'city': 'Colchester UK: Colchester Half Marathon', 'year': 2015, 'rule': 'E6', 'category': 'round_count_cap', 'reason': 'Exactly 2,000 rows with no independent count: the list may be cut at a page size.', 'finishes': 2000},
+        {'edition_id': 2809, 'city': 'Gießen: Sparkasse Gießen Silvesterlauf', 'year': 2025, 'rule': 'E6', 'category': 'round_count_cap', 'reason': 'Exactly 500 rows with no independent count: the list may be cut at a page size.', 'finishes': 500},
+        {'edition_id': 6674, 'city': 'Hood River, OR: Columbia Gorge Marathon', 'year': 2017, 'rule': 'E6', 'category': 'round_count_cap', 'reason': 'Exactly 1,000 rows with no independent count: the list may be cut at a page size.', 'finishes': 1000},
+        {'edition_id': 7501, 'city': 'Orbetello: 12° Giro della Laguna - Orbetello Half Marathon', 'year': 2022, 'rule': 'E6', 'category': 'round_count_cap', 'reason': 'Exactly 500 rows with no independent count: the list may be cut at a page size.', 'finishes': 500},
+        {'edition_id': 3988, 'city': "Azilal: 2nd Edition International Half-Marathon GeoPark M'goun of Azilal", 'year': 2023, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '3.5% of finishes under 1:05 (median 91 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 85},
+        {'edition_id': 2766, 'city': 'Bel Air, MD: Pirate 5K, 10K, & Half Marathon at Cedar Lane Regional Park, Bel Ai', 'year': 2024, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '4.2% of finishes under 1:05 (median 111 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 24},
+        {'edition_id': 6259, 'city': 'Cave City, AR: Cave City Easter Run 5k, 10k & 1/2 Marathon', 'year': 2024, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '5.3% of finishes under 1:05 (median 147 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 19},
+        {'edition_id': 4988, 'city': 'Colonial Heights, VA: Medal Madness 5K, 10K, & 13.1M at Colonial Heights, VA (26', 'year': 2025, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '10.0% of finishes under 1:05 (median 149 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 10},
+        {'edition_id': 10020, 'city': 'Duluth, MN: Grandma&#39;s Marathon', 'year': 2012, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '7.7% of finishes under 1:05 (median 72 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 169},
+        {'edition_id': 9994, 'city': 'Duluth, MN: Grandma&#39;s Marathon', 'year': 2013, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '20.2% of finishes under 1:05 (median 69 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 193},
+        {'edition_id': 3380, 'city': 'Henrico, VA: Mens Half-Marathon Championship', 'year': 2021, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '3.6% of finishes under 1:05 (median 78 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 110},
+        {'edition_id': 8325, 'city': 'Irving, TX: Labor Day Dash', 'year': 2022, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '3.2% of finishes under 1:05 (median 135 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 31},
+        {'edition_id': 4435, 'city': 'Lilliput: Celtic Warrior Day 3', 'year': 2020, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '0.0% of finishes under 1:05 (median 75 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 4},
+        {'edition_id': 9354, 'city': 'Little Elm, TX: Spring Fling - Dallas', 'year': 2025, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '4.8% of finishes under 1:05 (median 89 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 21},
+        {'edition_id': 4808, 'city': 'Naples, FL: Luau 5K, 10K, & 13.1M at Naples, FL (20)', 'year': 2025, 'rule': 'E7', 'category': 'atypical_slow_field', 'reason': 'Median finish 3.53 h: a trail, walking or challenge event rather than a road half-marathon field.', 'finishes': 2},
+        {'edition_id': 6063, 'city': 'Neu Wulmstorf: Standortübungsplatz Fischbeker Heide Marathon am 22.09.', 'year': 2019, 'rule': 'E7', 'category': 'atypical_slow_field', 'reason': 'Median finish 3.59 h: a trail, walking or challenge event rather than a road half-marathon field.', 'finishes': 1},
+        {'edition_id': 5538, 'city': 'North Pole: UVU North Pole Marathon 2014', 'year': 2014, 'rule': 'E7', 'category': 'atypical_slow_field', 'reason': 'Median finish 4.49 h: a trail, walking or challenge event rather than a road half-marathon field.', 'finishes': 5},
+        {'edition_id': 2388, 'city': 'Nukus: SQB Eco Half Marathon', 'year': 2025, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '3.5% of finishes under 1:05 (median 97 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 57},
+        {'edition_id': 2903, 'city': 'Olympia, WA: Holiday 5K, 10K, & Half Marathon at Heritage Park, Olympia, WA (12-', 'year': 2023, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '5.3% of finishes under 1:05 (median 117 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 19},
+        {'edition_id': 9191, 'city': 'Pompano Beach, FL: Medal Madness 5K & 10K at Pompano Beach, FL (22)', 'year': 2025, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '25.0% of finishes under 1:05 (median 74 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 12},
+        {'edition_id': 4386, 'city': 'Pooler, GA: Gobbler 5K, 10K, & 13.1M at Pooler, GA (47)', 'year': 2025, 'rule': 'E7', 'category': 'atypical_slow_field', 'reason': 'Median finish 3.87 h: a trail, walking or challenge event rather than a road half-marathon field.', 'finishes': 1},
+        {'edition_id': 5857, 'city': 'Toledo, OH: TOLEDO MINI MARATHON', 'year': 2018, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '15.4% of finishes under 1:05 (median 77 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 13},
+        {'edition_id': 2709, 'city': 'Westminster, MD: Ninja 1M, 5K, 10K, 15K, & Half Marathon at Wakefield Valley Par', 'year': 2024, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '4.2% of finishes under 1:05 (median 120 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 24},
+        {'edition_id': 3048, 'city': 'Weston, FL: Squirrel 5K, 10K, & Half Marathon at Weston Regional Park, Weston, F', 'year': 2023, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '25.0% of finishes under 1:05 (median 105 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 4},
+        {'edition_id': 2697, 'city': 'York, PA: Ninja 1M, 5K, 10K, 15K, & Half Marathon at Cousler Park, York, PA (5-1', 'year': 2024, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '5.9% of finishes under 1:05 (median 80 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 17},
+        {'edition_id': 5766, 'city': "l'aayoune: Semi Marathon international de L'aayoune", 'year': 2011, 'rule': 'E7', 'category': 'atypical_fast_field', 'reason': '9.0% of finishes under 1:05 (median 78 min): an elite or championship-only list, or other distances mixed in.', 'finishes': 100},
+        {'edition_id': 9930, 'city': 'Columbus, OH: OhioHealth Capital City Half Marathon', 'year': 2015, 'rule': 'E8', 'category': 'series_median_shift', 'reason': 'Median finish 134 min against 115 min in the same race’s other editions (+16%): the time column may include the start delay or another contest.', 'finishes': 7718},
+        {'edition_id': 1121, 'city': 'Fultondale, AL: Highlands College Half Marathon, 10K, and 5K', 'year': 2022, 'rule': 'E8', 'category': 'series_median_shift', 'reason': 'Median finish 177 min against 142 min in the same race’s other editions (+24%): the time column may include the start delay or another contest.', 'finishes': 277},
+        {'edition_id': 1120, 'city': 'Fultondale, AL: Highlands College Half Marathon, 10K, and 5K', 'year': 2023, 'rule': 'E8', 'category': 'series_median_shift', 'reason': 'Median finish 168 min against 142 min in the same race’s other editions (+18%): the time column may include the start delay or another contest.', 'finishes': 334},
+        {'edition_id': 1118, 'city': 'Fultondale, AL: Highlands College Half Marathon, 10K, and 5K', 'year': 2025, 'rule': 'E8', 'category': 'series_median_shift', 'reason': 'Median finish 134 min against 159 min in the same race’s other editions (-16%): the time column may include the start delay or another contest.', 'finishes': 437},
+        {'edition_id': 1117, 'city': 'Fultondale, AL: Highlands College Half Marathon, 10K, and 5K', 'year': 2026, 'rule': 'E8', 'category': 'series_median_shift', 'reason': 'Median finish 125 min against 159 min in the same race’s other editions (-21%): the time column may include the start delay or another contest.', 'finishes': 401},
+        {'edition_id': 6739, 'city': 'Holden Beach, NC: Run Holden Beach', 'year': 2022, 'rule': 'E8', 'category': 'series_median_shift', 'reason': 'Median finish 131 min against 155 min in the same race’s other editions (-15%): the time column may include the start delay or another contest.', 'finishes': 157},
+        {'edition_id': 9841, 'city': 'Kingston, JA: Kingston City Run', 'year': 2017, 'rule': 'E8', 'category': 'series_median_shift', 'reason': 'Median finish 105 min against 127 min in the same race’s other editions (-17%): the time column may include the start delay or another contest.', 'finishes': 165},
+        {'edition_id': 6338, 'city': 'Walker, MI: Groundhog Day Marathon', 'year': 2015, 'rule': 'E8', 'category': 'series_median_shift', 'reason': 'Median finish 161 min against 136 min in the same race’s other editions (+19%): the time column may include the start delay or another contest.', 'finishes': 205},
+        {'edition_id': 1840, 'city': 'Williamstown, NJ: Run the Vineyards - Cork High & Bottle Deep - Half Marathon', 'year': 2024, 'rule': 'E8', 'category': 'series_median_shift', 'reason': 'Median finish 98 min against 135 min in the same race’s other editions (-28%): the time column may include the start delay or another contest.', 'finishes': 361},
+    ],
+}
+
+# The reviewed counts of that run. Against the 1904 policy (half-dataset-20261030-1904): 208,168 more rows in scope
+# (7,665,217 -> 7,873,385) while the release itself leaves 153,110 rows out, so R1 falls from 99,056 to 1,446, R3 from
+# 1,395 to 131, R4 from 1,180 to 0, R6 from 3,292 to 1,368; R8 is new (342 rows no earlier rule removes; its fast
+# finishes are why R5's lower bound removes none); held editions 1,518 -> 1,199 (744,406 -> 860,889 finishes: the five
+# gun-time Berlin years among them); E2-E8 116 -> 58; usable 6,622,622 in 8,200 -> 6,956,880 in 8,329; verified 757,985 in
+# 239 -> 756,946 in 237 (the same editions without Drammen Half 2017 and 2019, course suspected short, lead decision
+# D24.10; with them 757,967 in 239, 18 finishes fewer than in 1904).
+EXPECTED_20261113_1113 = {'raw': 7873385,
+ 'R1': 1446,
+ 'R2': 0,
+ 'R3': 131,
+ 'R4': 0,
+ 'R5_fast': 0,
+ 'R5_slow': 262,
+ 'R6': 1368,
+ 'record_usable': 7869836,
+ 'R7': 606,
+ 'record_usable_after_R7': 7869230,
+ 'E0_editions': 4,
+ 'E0_finishes': 22616,
+ 'E1_held_editions': 1199,
+ 'E1_held_finishes': 860889,
+ 'E2_E8_editions': 58,
+ 'E2_E8_finishes': 28845,
+ 'use_finish': {'finishes': 6956880, 'editions': 8329},
+ 'verified': {'finishes': 756946, 'editions': 237},
+ 'verified_use_sex': {'finishes': 737779, 'editions': 230},
+ 'undated': {'finishes': 845690, 'editions': 260},
+ 'E1_removed_editions': 200,
+ 'R8': 342,
+ 'tier_check': {'badge': 239,
+                'verified_usable': 237,
+                'weaker_source': 17,
+                'never_stamp': 78,
+                'gross_timing': 5,
+                'course_suspected_short': 2}}

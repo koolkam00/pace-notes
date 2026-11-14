@@ -244,7 +244,15 @@ def row_rule() -> dict:
         from adapt_combined import HALF_ROW_RULE
     except ImportError:
         fail('analysis/adapt_combined.py holds no HALF_ROW_RULE yet: the half record rule R8 imports it (lead decision D28)')
-    return HALF_ROW_RULE
+    rule = HALF_ROW_RULE
+    if 'pending_review_flags' not in rule:      # keyed by release tag, as ROW_RULE is
+        tag = json.loads((ROOT / 'analysis' / 'release.json').read_text())['tag']
+        if tag not in rule:
+            fail(f'HALF_ROW_RULE of analysis/adapt_combined.py has no entry for the adopted release {tag}')
+        rule = rule[tag]
+    if not (isinstance(rule.get('pending_review_flags'), (list, tuple)) and isinstance(rule.get('qa_row_flags'), (list, tuple))):
+        fail('HALF_ROW_RULE of analysis/adapt_combined.py: pending_review_flags and qa_row_flags are required')
+    return rule
 
 
 def left_out_sql(rule: dict) -> str:
@@ -254,9 +262,8 @@ def left_out_sql(rule: dict) -> str:
     known_p, known_q = set(rule['pending_review_flags']), set(rule['qa_row_flags'])
     if not known_q <= set(QA_FLAGS):
         fail(f'the half row rule names row-quality flags the release does not have: {sorted(known_q - set(QA_FLAGS))}')
-    wide = list(rule.get('kept_when_edition_wide', ()))
-    if not set(wide) <= known_p | known_q:
-        fail('the half row rule keeps an edition-wide flag that it does not leave out')
+    # A kept-when-edition-wide flag the rule does not leave out on half rows (a marathon-only flag) is inert here.
+    wide = [f for f in rule.get('kept_when_edition_wide', ()) if f in known_p | known_q]
     p = ', '.join(lit(f) for f in sorted(known_p)) or 'NULL'
     q = ', '.join(lit(f) for f in sorted(known_q)) or 'NULL'
     w = ', '.join(lit(f) for f in wide) or 'NULL'

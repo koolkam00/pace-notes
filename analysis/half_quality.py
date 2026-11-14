@@ -556,12 +556,132 @@ def _edition_rules_doc(p: dict) -> dict:
     return doc
 
 
+def half_records_block(p: dict) -> dict:
+    """Which half rows never count or show, and which editions are listed but never compared: the one statement of the
+    half record rule, in the shape the runner lookup's builder reads (its analysis/lookup-half-records.json). The flag
+    lists are the pipeline's frozen HALF_ROW_RULE, imported, never typed here."""
+    rule = p['rules']['row_rule']()
+    return {
+        'scope': 'every row of race_records with distance = half, from either source database',
+        'left_out': {
+            'words': ('A half row never counts and never shows when it carries one of these pending-review flags (present in '
+                      'CORE) or one of these row-quality flags, unless the flag is one of kept_when_edition_wide and every row of '
+                      'its edition carries it, or when its finish does not read as a time greater than zero. Nothing else about '
+                      'such a row is written anywhere: no label, no count by person.'),
+            'source': 'HALF_ROW_RULE of analysis/adapt_combined.py (lead decision D28 of the adoption plan, 2026-11-14)',
+            'pending_review_flags': list(rule['pending_review_flags']), 'qa_row_flags': list(rule['qa_row_flags']),
+            'kept_when_edition_wide': list(rule.get('kept_when_edition_wide', ())),
+            'finish_not_a_positive_time': True,
+        },
+        'no_comparison': {
+            'words': ("These editions are listed with their results and marked; a marked edition's results are never compared with "
+                      'other years or races and never enter a best, a ranking, an average or any half figure. Editions are [source '
+                      'database, release key, year].'),
+            'gun_times': {'code': 1, 'rule': ('the release\'s edition_meta.timing_basis starts with "gross" (lead decision D6; the build '
+                                              'stops unless that set equals this list and each is held)'),
+                          'editions': [['half', x['city'], x['year']] for x in p['tiers']['gross_timing']]},
+            'course_suspected_short': {'code': 2, 'rule': ('every row of the edition carries course_shortened_suspect in the person-links '
+                                                           'file (lead decision D24, item 10; the build stops unless the flagged editions '
+                                                           'equal this list and are flagged in full)'),
+                                       'editions': [['half', x['city'], x['year']] for x in p['tiers']['course_suspected_short']]},
+        },
+    }
+
+
+def _policy_document_3(p: dict, tag: str) -> dict:
+    """The policy JSON of the combined release (schema 3): the rules in the words of docs/HALF_MARATHON.md, R0 to R3."""
+    rules, frozen = p['rules'], p['frozen']
+    row_rule = rules['row_rule']()
+    edition = _edition_rules_doc(p)
+    edition['edition'] = ('city and year within the half database (source_db = half); the tier from EDITION-TIERS.csv, the registry '
+                          'row from edition_meta.parquet, both joined on city and year')
+    edition['E0'] = {'rule': ('a city and year with records but no registry row (no edition_meta.parquet row), or tier partial: it '
+                              'supplies nothing')}
+    edition['E1'] = {'rule': ('a held tier supplies nothing; a removed tier (the release excluded the whole edition) supplies nothing '
+                              'and must hold no rows, else the build fails'),
+                     'held': list(rules['statuses']['held']), 'removed': list(rules['statuses']['removed'])}
+    edition['E2'] = {
+        **edition['E2'],
+        'twin_rule': ('a reviewed duplicate or overlap decision (by edition id) applies only while the twin its reason names, by '
+                      'edition id in `twins`, still has rows in race_records; where the release kept only the listed copy, that copy '
+                      'is the only one and is usable. A decision whose own edition has no rows is moot'),
+        'twins': {str(e): t for e, t in sorted(rules['reviewed_e2_twins'].items())},
+        'decisions': [{'edition_id': e, 'category': c, 'reason': r} for e, c, r in rules['reviewed_e2']],
+        'decisions_by_key': [{'city': c, 'year': y, 'category': k, 'reason': r} for c, y, k, r in rules['reviewed_e2_by_key']],
+        'course_suspected_short': ('an edition on tiers.course_suspected_short supplies nothing to any figure, after the reviewed '
+                                   'decisions and before the virtual-event rule'),
+        'order': 'reviewed decisions by edition id, then by city and year, then course suspected short, then virtual events',
+    }
+    edition['E8'] = {**edition['E8'], 'reference': (
+        "the median of the edition medians of the label's other editions with at least 100 record-usable finishes (counted "
+        'before R7) and a verified, unverified or held status, held (E1) editions and editions an earlier rule removes '
+        'included, except that an edition on tiers.gross_timing or tiers.course_suspected_short is never a reference edition; '
+        'the label needs at least 3 editions, the reference editions and the edition itself counted, and the screen applies '
+        'only to editions no earlier rule removes')}
+    doc = {
+        'schema_version': p['schema_version'],
+        'tag': tag,
+        'reviewed': p['reviewed'],
+        'scope': ('the half rows of the half database: race_records rows with distance = half and source_db = half; a record is '
+                  '(source_db, id), an edition (source_db, city, year). The half rows of the marathon database (source_db = full) '
+                  'supply nothing to any figure'),
+        'sex': ('a record\'s sex is its published sex; when that is blank (null, or empty after trimming), '
+                'qa_row_flags.sex_from_category; the recorded sex is that value when it is M or F; never inferred from a name. '
+                'Every rule and figure that reads sex reads this value'),
+        'record_rules': {
+            'order': ['R1', 'R8', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7'],
+            'R1': {'flags': list(PRODUCER_EXCLUDE), 'never_alone': ['time_hour_reconstructed']},
+            'R8': {'rule': ('a row the pipeline\'s frozen half row rule leaves out: it carries one of pending_review_flags (present in '
+                            'CORE) or one of qa_row_flags, unless that flag is one of kept_when_edition_wide and every race_records row '
+                            'of its edition carries it'),
+                   'source': 'HALF_ROW_RULE of analysis/adapt_combined.py (lead decision D28 of the adoption plan, 2026-11-14)',
+                   'pending_review_flags': list(row_rule['pending_review_flags']), 'qa_row_flags': list(row_rule['qa_row_flags']),
+                   'kept_when_edition_wide': list(row_rule.get('kept_when_edition_wide', ())),
+                   'identity': ('every half row the identity file marks left_out must be removed by these record rules, else the '
+                                'build fails')},
+            'R2': {'column': 'split_21_1km', 'pattern': '^[0-9]+:[0-9]{2}:[0-9]{2}$', 'min_s_exclusive': 0},
+            'R3': {'pattern': rules['nonrun_subrace_re'], 'applies_to': 'lower(race), on rows passing R1, R8 and R2', 'subraces': frozen['R3']},
+            'R4': {'floor_s': WR_FLOOR_S, 'min_share': SUBRACE_FAST_SHARE, 'min_count': SUBRACE_FAST_MIN,
+                   'applies_to': 'sub-races (city, year, race) counted on rows passing R1, R8 and R2', 'subraces': frozen['R4']},
+            'R5': {'min_s': WR_FLOOR_S, 'max_s': SLOW_CAP_S},
+            'R6': {'key': ('city, year, md5 of the name lowercased with accents stripped, commas and every character '
+                           'outside a-z0-9 and space made spaces, split on spaces, empty tokens dropped, tokens sorted and '
+                           'joined by one space; finish; sex as the sex rule gives it (null as ?)'),
+                   'name_required': 'trim(name) longer than 3 characters and not matching the anonymous pattern',
+                   'anonymous_pattern': NAME_ANONYMOUS_RE,
+                   'keep': 'the copy from the largest sub-race list (R3 and R4 counts), then the lowest record id',
+                   'no_key': rules['policy_words']['R6_no_key']},
+            'R7': {**R7, 'applies_to': 'record-usable rows', 'bib_rule': 'try_cast(bib AS INTEGER) in the range, inclusive'},
+        },
+        'half_records': half_records_block(p),
+        'statuses': {g: list(v) for g, v in rules['statuses'].items()},
+        'edition_rules': edition,
+        'tiers': p['tiers'],
+        'use_sex': USE_SEX,
+        'date_suspects': [{'edition_id': e, 'city': c, 'year': y, 'date': rules['date_suspect_dates'][e], 'reason': r}
+                          for e, c, y, r in rules['date_suspects']],
+        'date_suspect_rule': ('carried by edition id and year; each must still carry `date` as its race date, else the build fails for '
+                              'review; a changed label is reported'),
+        'same_city_labels': rules['same_city_labels'],
+        'same_city_rule': "half labels for each marathon city; a marathon city is the marathon race's registry label",
+        'verified_label_countries': p['label_countries'],
+        'battery': {**rules['battery_rules'], **p['battery']},
+        'expected': p['expected'],
+        'unknown_status': 'a tier in none of the status groups fails the build, and so does an edition with rows and no row in EDITION-TIERS.csv',
+        'empty_status': ("an edition whose registry tier is in the empty group (the producer's placeholder for an edition with nothing "
+                         'loaded) must hold no rows, else the build fails'),
+    }
+    return doc
+
+
 def policy_document(tag: str = TAG) -> dict:
     """The frozen policy JSON: every rule, threshold, reviewed list and expected count the recount needs."""
     p = entry(tag)
     rules, frozen = p['rules'], p['frozen']
-    if p['expected'] is None:
-        fail(f'the policy for {tag} has no reviewed counts yet (review the real run, then set its EXPECTED)')
+    if p['expected'] is None or frozen is None:
+        fail(f'the policy for {tag} has no reviewed counts or frozen lists yet (review the real run, then set them)')
+    if p['schema_version'] >= 3:
+        return _policy_document_3(p, tag)
     doc = {
         'schema_version': p['schema_version'],
         'tag': tag,
@@ -701,6 +821,7 @@ def record_rules(db, rules: dict | None = None) -> None:
         r.finish_s, r.r7_block, r.distance_km,
         CASE WHEN r.rule0 IS NOT NULL THEN r.rule0 WHEN d.record_id IS NOT NULL THEN 'R6' END AS rule
         FROM hr1 r LEFT JOIN hdup d USING (record_id)""")
+    db.execute('CREATE OR REPLACE TEMP TABLE hrow8_ids AS SELECT record_id FROM hrow8')
     for t in ('hfl', 'hr0', 'hsub2', 'hr1', 'hdup', 'hrow8'):
         db.execute(f'DROP TABLE {t}')
 
@@ -1160,11 +1281,102 @@ def stamp_counts(m, never_stamp: list, stamps: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------------------------------------------
+# The tier check (the combined release on): verified = a badge tier of EDITION-TIERS.csv
+# ---------------------------------------------------------------------------------------------------------------
+
+def check_tiers(m, tiers: dict) -> list:
+    """Before the edition rules: the release's tiers against the reviewed lists (TIER_RULE_20261113_1113 `reads`). Fails
+    loudly on any difference; returns the label changes it reports (never-stamp editions whose label changed)."""
+    reg = m[m.edition_id.notna()]
+    by_id = {int(r.edition_id): r for r in reg.itertuples(index=False)}
+    badge = set(reg[reg.status_group == 'verified'].edition_id.astype(int))
+    if badge != set(tiers['stamped']):
+        fail(f'the badge-tier editions differ from the reviewed list: {_diff(badge, tiers["stamped"])}')
+    changed = []
+    for x in tiers['never_stamp']:
+        r = by_id.get(x['edition_id'])
+        if r is None or int(r.year) != x['year']:
+            fail(f"never-stamp edition {x['edition_id']} ({x['city']} {x['year']}) is not an edition of that id and year in this release")
+        if r.status_group == 'verified':
+            fail(f"never-stamp edition {x['edition_id']} ({x['city']} {x['year']}) carries a badge tier")
+        if r.city != x['city']:
+            changed.append({'edition_id': x['edition_id'], 'was': x['city'], 'now': r.city})
+    weaker = set(reg[reg.completeness_status == 'stamped_weaker_source'].edition_id.astype(int)) | set(reg[reg.weaker_source].edition_id.astype(int))
+    if weaker != {x['edition_id'] for x in tiers['weaker_source']}:
+        fail(f"the weaker-source stamps differ from the reviewed list: {_diff(weaker, [x['edition_id'] for x in tiers['weaker_source']])}")
+    for x in tiers['weaker_source']:
+        r = by_id[x['edition_id']]
+        if (r.city, int(r.year), r.completeness_status) != (x['city'], x['year'], 'stamped_weaker_source') or trim_text(r.official_source_type) != x['source']:
+            fail(f"weaker-source stamp {x['edition_id']} ({x['city']} {x['year']}) is not that edition with that source in this release")
+    import pandas as pd
+    key = lambda rows: {(None if pd.isna(r.edition_id) else int(r.edition_id), r.city, int(r.year)) for r in rows.itertuples(index=False)}  # noqa: E731
+    want = lambda name: {(x['edition_id'], x['city'], x['year']) for x in tiers[name]}  # noqa: E731
+    if key(m[m.gross_timing]) != want('gross_timing'):
+        fail(f"the gun-time editions differ from the reviewed list: {_diff(key(m[m.gross_timing]), want('gross_timing'))}")
+    if not (m[m.gross_timing].status_group == 'held').all():
+        fail('a gun-time edition is not held: it must never enter a comparison (lead decision D6)')
+    if key(m[m.course_suspect]) != want('course_suspected_short'):
+        fail(f"the course-suspected-short editions differ from the reviewed list: {_diff(key(m[m.course_suspect]), want('course_suspected_short'))}")
+    return changed
+
+
+def check_tiers_verified(m, tiers: dict) -> None:
+    """After the edition rules: every weaker-source stamp is a verified usable edition, and a course-suspected-short
+    edition supplies nothing."""
+    usable = set(m[m.use_finish & (m.status_group == 'verified')].edition_id.astype(int))
+    for x in tiers['weaker_source']:
+        if x['edition_id'] not in usable:
+            fail(f"weaker-source stamp {x['city']} {x['year']} is not a verified usable edition of the build")
+    if m[m.course_suspect].use_finish.any() or m[m.gross_timing].use_finish.any():
+        fail('a gun-time or course-suspected-short edition supplies finishes')
+
+
+def tier_counts(m, tiers: dict) -> dict:
+    return {'badge': int((m.status_group == 'verified').sum()),
+            'verified_usable': int((m.use_finish & (m.status_group == 'verified')).sum()),
+            'weaker_source': int((m.completeness_status == 'stamped_weaker_source').sum()),
+            'never_stamp': len(tiers['never_stamp']),
+            'gross_timing': int(m.gross_timing.sum()), 'course_suspected_short': int(m.course_suspect.sum())}
+
+
+def check_date_suspects(m, rules: dict) -> list:
+    """The date suspects are carried by edition id and year and must still carry the date their reason names; returns the
+    label changes it reports."""
+    by_id = {int(r.edition_id): r for r in m[m.edition_id.notna()].itertuples(index=False)}
+    changed = []
+    for eid, city, year, _ in rules['date_suspects']:
+        r = by_id.get(eid)
+        if r is None or int(r.year) != year:
+            fail(f'date suspect {eid} ({city} {year}) is not an edition of that id and year in this release')
+        if str(r.race_day)[:10] != rules['date_suspect_dates'][eid]:
+            fail(f"date suspect {eid} ({city} {year}) is dated {r.race_date}, not {rules['date_suspect_dates'][eid]}: review it")
+        if r.city != city:
+            changed.append({'edition_id': eid, 'was': city, 'now': r.city})
+    return changed
+
+
+def check_identity_left_out(db) -> dict:
+    """Every half row the identity file marks left_out is removed by the record rules (lead decision D28); also whether
+    the rows R8's rule names and the identity file's left_out rows are the same set."""
+    kept = db.execute("""SELECT count(*) FROM h.identity_left_out i JOIN hr ON hr.record_id = i.record_id
+        WHERE hr.rule IS NULL AND NOT hr.r7_block""").fetchone()[0]
+    missing = db.execute('SELECT count(*) FROM h.identity_left_out i WHERE i.record_id NOT IN (SELECT record_id FROM hr)').fetchone()[0]
+    if kept or missing:
+        fail(f'{kept} half rows the identity file marks left_out are record-usable, and {missing} are not rows of the half database')
+    n_identity = db.execute('SELECT count(*) FROM h.identity_left_out').fetchone()[0]
+    n_rule = db.execute('SELECT count(*) FROM hrow8_ids').fetchone()[0]
+    both = db.execute('SELECT count(*) FROM hrow8_ids JOIN h.identity_left_out USING (record_id)').fetchone()[0]
+    return {'rows_the_rule_names': int(n_rule), 'identity_left_out': int(n_identity), 'in_both': int(both)}
+
+
+# ---------------------------------------------------------------------------------------------------------------
 # The flagship battery's lists and the link-build edition lists
 # ---------------------------------------------------------------------------------------------------------------
 
 def weaker_source(tag: str = TAG) -> list:
     p = entry(tag)
+    if 'tiers' in p:
+        return p['tiers']['weaker_source']
     return p['stamps']['weaker_source'] if 'stamps' in p else p['correction']['weaker_source']
 
 
@@ -1236,13 +1448,13 @@ def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | N
     `stamp_inputs` (read_stamp_inputs) for an entry with a stamp check."""
     reviewed = entry(tag)
     rules = reviewed['rules']
-    has_correction, has_stamps = 'correction' in reviewed, 'stamps' in reviewed
+    has_correction, has_stamps, has_tiers = 'correction' in reviewed, 'stamps' in reviewed, 'tiers' in reviewed
     if compare and has_correction and correction_rows is None:
         fail('the corrected metadata is required (read_correction; build_half.py --stamp-reference)')
     if compare and has_stamps and stamp_inputs is None:
         fail('the stamp reference and the release edition_meta CSV are required (read_stamp_inputs)')
-    if compare and reviewed['expected'] is None:
-        fail(f'no reviewed counts for {tag} yet')
+    if compare and (reviewed['expected'] is None or reviewed['frozen'] is None):
+        fail(f'no reviewed counts or frozen lists for {tag} yet')
     record_rules(db, rules)
     subs = subrace_lists(db)
     m = edition_table(db, rules)
@@ -1253,7 +1465,17 @@ def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | N
         never_stamp = snapshot_never_stamp(db)
         if compare:
             check_stamps(snapshot_meta(db), never_stamp, reviewed['stamps'], stamp_inputs)
+    reported = {}
+    if has_tiers:
+        # The tier check runs on every run, a discovery run included: it reads no frozen computed list.
+        reported['never_stamp_label_changes'] = check_tiers(m, reviewed['tiers'])
+        reported['date_suspect_label_changes'] = check_date_suspects(m, rules)
+        reported['row_rule'] = check_identity_left_out(db)
     m = edition_rules(m, rules)
+    if has_tiers:
+        check_tiers_verified(m, reviewed['tiers'])
+        check_battery_lists(m, tag)
+        reported['e2_decisions_dropped'] = [{'edition_id': e, 'category': c, 'twin': t, 'why': w} for e, c, t, w in m.attrs.get('e2_dropped', [])]
     if compare:
         if has_correction:
             check_corrected_verified(m, reviewed['correction'], correction_rows)
@@ -1261,6 +1483,8 @@ def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | N
             check_stamps_verified(m, reviewed['stamps'])
         check_battery_lists(m, tag)
     lists = {'R3': subs['R3'], 'R4': subs['R4'], 'editions': edition_list(m)}
+    if has_tiers:
+        lists['reported'] = reported
     if compare:
         for key in ('R3', 'R4', 'editions'):
             if lists[key] != reviewed['frozen'][key]:
@@ -1312,6 +1536,9 @@ def apply(db, tag: str = TAG, *, compare: bool = True, correction_rows: dict | N
         counts['E1_removed_editions'] = len(removed)
     if has_stamps:
         counts['stamp_check'] = stamp_counts(m, never_stamp, reviewed['stamps'])
+    if has_tiers:
+        counts['R8'] = by_rule.get('R8', 0)
+        counts['tier_check'] = tier_counts(m, reviewed['tiers'])
     # Every record-usable finish after R7 is either used or removed by exactly one edition rule (E0, E1 held, E2–E8): a
     # status or category without a rule would otherwise drop finishes silently (verify round 1, October 31, 2026).
     accounted = counts['use_finish']['finishes'] + counts['E0_finishes'] + counts['E1_held_finishes'] + counts['E2_E8_finishes']

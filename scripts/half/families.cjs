@@ -211,6 +211,14 @@ function women({ fin, editions, marathons, labels, chart, chartSha }) {
 
 const Q = Array.from({ length: 19 }, (_, i) => D.pyRound(0.05 * (i + 1), 2));
 
+/** The `other_marathons` member's rule (recorded 2026-11-14 before any build): the two marathon cities that hold the most
+ * pairs on the build, ties by name; the member and its check are set B without them. */
+function otherThan(p) {
+  const n = new Map();
+  for (const c of p.city) n.set(c, (n.get(c) || 0) + 1);
+  return [...n.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).slice(0, 2).map(([c]) => c);
+}
+
 /** Set B as columns. `P` holds h, m (seconds), sex ('F'|'M'), ed (marathon edition key), city, sus, verified, nsKeys, inUnion (a row of the person joined by one of the link build's unions), person, mDay, mId, hEd (the half's edition id) and hLabel (its edition label). */
 function subset(P, keep) {
   const out = {};
@@ -358,7 +366,8 @@ function battery(p, { weakerSource, offRoad }) {
   pairsMember('verified_halves', columns(subset(p, p.verified)));
   pairsMember('verified_federation', columns(subset(p, federation)));
   pairsMember('verified_road', columns(subset(p, road)));
-  pairsMember('other_marathons', columns(subset(p, p.city.map((c) => !['Valencia', 'Warsaw'].includes(c)))));
+  const without = otherThan(p);
+  pairsMember('other_marathons', columns(subset(p, p.city.map((c) => !without.includes(c)))));
   pairsMember('ns_keys_1', columns(subset(p, p.nsKeys.map((k) => k === 1))));
   pairsMember('one_per_person', latestPerPerson(p));
   const groupsMember = (id, keys, k, minEditions) => {
@@ -389,7 +398,8 @@ function checks(p, lists) {
   const wBy = new Map();
   p.ed.forEach((key, i) => { if (!win[i]) return; if (!wBy.has(key)) wBy.set(key, []); wBy.get(key).push(i); });
   const wEds = [...wBy.keys()].sort().filter((k) => wBy.get(k).length >= 20).map((k) => { const idx = wBy.get(k); return idx.filter((i) => p.m[i] < 14400).length / idx.length; });
-  const other = columns(subset(p, p.city.map((c) => !['Valencia', 'Warsaw'].includes(c))));
+  const without = otherThan(p);
+  const other = columns(subset(p, p.city.map((c) => !without.includes(c))));
   const ns1 = columns(subset(p, p.nsKeys.map((k) => k === 1)));
   const one = latestPerPerson(p);
   const noUnion = columns(subset(p, p.inUnion.map((x) => !x)));
@@ -397,7 +407,7 @@ function checks(p, lists) {
   return {
     verified: { pairs: ver.n, extra_p50_s: D.sec(median50(ver.extra)), under_double: D.sh(ver.extra.filter((x) => x < 0).length / ver.n), w105_under_14400: underGoalAt(ver), sexes: { strata: vs.strata, women_lower: vs.women_lower, diff_points: vs.diff_points } },
     editions_equal: { min_pairs: 20, editions: eds.length, extra_p50_s: D.sec(D.npMedian(eds.map((v) => v[0]))), under_double: D.sh(D.npMedian(eds.map((v) => v[1]))), w105_under_14400: D.sh(D.npMedian(wEds)) },
-    other_marathons: { pairs: other.n, extra_p50_s: D.sec(median50(other.extra)), w105_under_14400: underGoalAt(other) },
+    other_marathons: { pairs: other.n, extra_p50_s: D.sec(median50(other.extra)), w105_under_14400: underGoalAt(other), without: without.map((city) => ({ city })) },
     ns_keys_1: { pairs: ns1.n, w105_under_14400: underGoalAt(ns1) },
     one_per_person: { pairs: one.n, w105_under_14400: underGoalAt(one) },
     no_union_people: { pairs: noUnion.n, extra_p50_s: D.sec(median50(noUnion.extra)) },
