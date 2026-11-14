@@ -273,8 +273,9 @@ assert.equal(C.n, manifest.analysis_n, 'The story cohort (no duplicate-edition s
 }
 const H = require('./charts/helpers.cjs')(C);
 const recounts = {};
-// Every recount module in scripts/charts/ (one per builder module), the cohort and helpers aside.
-for (const name of fs.readdirSync(path.join(__dirname, 'charts')).filter((f) => f.endsWith('.cjs') && !['cohort.cjs', 'helpers.cjs'].includes(f)).sort()) {
+// Every recount module in scripts/charts/ (one per builder module); the cohort reader, the helpers and the name
+// guard's reader aside.
+for (const name of fs.readdirSync(path.join(__dirname, 'charts')).filter((f) => f.endsWith('.cjs') && !['cohort.cjs', 'helpers.cjs', 'names.cjs'].includes(f)).sort()) {
   const file = path.join(__dirname, 'charts', name);
   for (const [slug, fn] of Object.entries(require(file))) {
     assert.ok(!recounts[slug], `${slug}: recounted twice`);
