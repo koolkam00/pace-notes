@@ -20,8 +20,8 @@ const LENGTHS = POINTS.map((km, i) => km - (i ? POINTS[i - 1] : 0));
 const AGE_LABELS = ['Unknown', '18–24', ...Array.from({ length: 13 }, (_, i) => `${25 + 5 * i}–${29 + 5 * i}`)];
 const GENDER_LABELS = ['Other / not recorded', 'Men', 'Women'];
 const GENDER_GAP_EDITIONS = [['London', 2023], ['London', 2025], ['London', 2026], ['Berlin', 2024], ['Berlin', 2025], ['Chicago', 2024]];
-// The scripts a cohort manifest must name (analysis/insights_data.py COHORT_SCRIPTS).
-const COHORT_SCRIPTS = ['build_cohort.py', 'cohort.py', 'build_pacing.py', 'source_quality.py', 'build_record_status.py', 'build_identity.py'];
+// The scripts a cohort manifest must name (analysis/cohort.py SCRIPTS, through the shared reader).
+const COHORT_SCRIPTS = cohortFiles.SCRIPTS;
 
 const hash = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const finite = (x) => typeof x === 'number' && Number.isFinite(x);
@@ -52,18 +52,15 @@ function quantile(values, q) {
 const median = (values) => quantile(values, 0.5);
 
 /**
- * The cohort manifest after the checks a reader makes before it trusts the cohort (the twin of
- * insights_data.verified_cohort_manifest): the adopted release, the nine checkpoints, the canonical id contract, the
- * scripts it names, counts that agree with each other, and the edition policy it states against the published list.
+ * The cohort manifest after the checks a recount makes before it trusts the cohort: those of the shared reader
+ * (scripts/lib/cohort.cjs verifiedManifest, the twin of analysis/cohort.py: the adopted release, the nine checkpoints,
+ * the canonical id contract, the scripts of the checkout, counts that agree, a race date for every counted edition),
+ * and the edition policy the manifest states, against the published list.
  */
 function verifiedManifest(root, cohortRoot) {
   const pin = JSON.parse(fs.readFileSync(path.join(root, 'analysis/release.json'), 'utf8'));
-  const { manifest, sha256 } = cohortFiles.readManifest(cohortRoot);
-  assert.equal(manifest.release_tag, pin.tag, 'The marathon cohort is the adopted release');
-  assert.deepEqual(manifest.points_km, POINTS, 'The cohort’s nine checkpoints');
-  assert.equal(manifest.linkage.record_join_method, 'canonical_record_id', 'The audited canonical identity contract');
-  for (const name of COHORT_SCRIPTS) assert.ok(name in manifest.scripts, `The cohort manifest names its script ${name}`);
-  assert.ok(manifest.raw_records === manifest.cohort.raw && manifest.eligible_records === manifest.cohort.eligible, 'Consistent source cohort metadata');
+  const { manifest, sha256 } = cohortFiles.verifiedManifest(pin, cohortRoot, path.join(root, 'analysis'));
+  assert.deepEqual(manifest.points_km, POINTS, 'The cohort’s nine checkpoints are the charts’');
   // The edition policy the cohort was built under: the published list is the one this manifest's digests name, its rules
   // hash to the policy digest, and it lists no counted edition and every own-record edition.
   const listed = policyEditions(manifest.source_quality, 'cohort manifest source_quality');
@@ -87,7 +84,7 @@ function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = n
   // The same runner when only high-confidence links key a linked record (lead rulings R6 and D38): a keyed record
   // whose link is of the medium class stands alone, numbered by its own id, negated so that it can never equal a
   // runner id (a runner is named by the smallest record id of its key, which can be this very record).
-  const runnerHigh = new Float64Array(n);
+  const runnerHigh = new Float64Array(n), keyed = new Uint8Array(n), highLink = new Uint8Array(n);
   let linkClasses = true;
   // Every written record of each edition (the manifest's raw count, checked against the file): recounts apply their
   // own retention screens to it.
@@ -124,6 +121,8 @@ function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = n
       if (link === undefined) linkClasses = false;
       else assert.ok(own === 0 ? link === null : link === 'h' || link === 'm', 'A link class exactly where a record has a runner');
       runnerHigh[eligible] = own !== 0 && link !== 'h' ? -id : who;
+      keyed[eligible] = own !== 0 ? 1 : 0;
+      highLink[eligible] = own !== 0 && link === 'h' ? 1 : 0;
       assert.ok(!runners.has(who), `${entry.file}: a runner has at most one counted record in an edition`);
       runners.add(who);
       times.set(t, eligible * 9);
@@ -136,7 +135,7 @@ function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = n
     }
   }, cohortRoot);
   assert.equal(raw, recordIds.length, 'Complete traversal of the cohort’s edition files');
-  assert.equal(raw + manifest.other_editions.rows.reduce((total, row) => total + row[2], 0), manifest.raw_records, 'Every written record is in an edition file or in an edition the manifest lists without one');
+  assert.equal(raw + cohortFiles.otherEditions(manifest).reduce((total, row) => total + row.raw, 0), manifest.raw_records, 'Every written record is in an edition file or in an edition the manifest lists without one');
   assert.equal(eligible, n, 'Eligible finishes reconcile with the cohort manifest');
   recordIds.sort();
   for (let i = 1; i < recordIds.length; i++) assert.notEqual(recordIds[i], recordIds[i - 1], 'Unique record IDs');
@@ -157,6 +156,19 @@ function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = n
   };
   const { index: profile, count: profiles } = dense(runner);
   const high = linkClasses ? dense(runnerHigh) : null;
+  // The two readings against the counts the cohort manifest states for them (`linkage`, and `linkage.high_links` for
+  // high links alone): the counted records with a runner, the runners with one, and those with two or more.
+  const linked = (index, count, has) => {
+    const per = new Int32Array(count);
+    let records = 0;
+    for (let i = 0; i < n; i++) if (has(i)) { per[index[i]]++; records++; }
+    let runners = 0, repeat = 0, ofRepeat = 0;
+    for (const k of per) if (k) { runners++; if (k >= 2) { repeat++; ofRepeat += k; } }
+    return { counted_records_with_a_runner: records, runners_with_a_counted_record: runners, runners_with_two_or_more_counted_records: repeat, counted_records_of_those_runners: ofRepeat };
+  };
+  const stated = (o) => Object.fromEntries(['counted_records_with_a_runner', 'runners_with_a_counted_record', 'runners_with_two_or_more_counted_records', 'counted_records_of_those_runners'].map((k) => [k, o[k]]));
+  assert.deepEqual(linked(profile, profiles, (i) => keyed[i] === 1), stated(manifest.linkage), 'Linked records as the cohort manifest counts them');
+  if (high) assert.deepEqual(linked(high.index, high.count, (i) => highLink[i] === 1), stated(manifest.linkage.high_links), 'Linked records on high links alone as the cohort manifest counts them');
 
   // The name guard: the charts' strings against the recorded runner names.
   const names = strings.size
