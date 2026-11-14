@@ -1,7 +1,8 @@
 """The duplicate-edition audit: pairs of written marathon editions that hold the same finishers (docs/RACES.md,
 "Duplicate editions"; lead's addendum of 2026-11-14 to the race-directory brief).
 
-    python3 -I analysis/races_duplicates.py --input <adapted FULL or CORE dir> --out <evidence .json> [--work DIR] [--check-names]
+    python3 -I analysis/races_duplicates.py --input <adapted FULL or CORE dir> --out <evidence .json> [--work DIR]
+    python3 -I analysis/races_duplicates.py --input <adapted FULL or CORE dir> --check-names     (the name rule in SQL against the one in Python)
 
 The site's duplicate guard (scripts/verify-duplicate-editions.cjs) compares nine-checkpoint records inside one city and
 reads the marathon cohort, so it sees only the editions an analysis may read. This audit reads every written marathon
@@ -17,8 +18,9 @@ them for the evidence file):
   names and half of the names in common are.
 - **time_only** (no names; for a list loaded twice with the names written differently): the finish times two editions
   of one race, or of one year, have in common, second by second, less what they would have in common by chance (the
-  same count with one edition's times moved by seven seconds either way). A pair is listed when that excess is at
-  least a fifth of the smaller edition's finish times and the smaller edition has at least 20.
+  same count with one edition's times moved by one minute either way; a whole minute, so that two lists whose times
+  are rounded to a minute or half a minute do not look alike). A pair is listed when the smaller edition has at least
+  20 finish times and that excess is at least half of them, or at least 50 and a fifth of them.
 
 It excludes nothing and names nobody: the evidence file gives edition pairs and counts only (no runner name, bib,
 record id or person id; a name is read only to be compared). The lead rules on each listed pair in
@@ -51,16 +53,19 @@ BIN_SECONDS = 60           # near: the width of a bin of the finish-time differe
 NEAR_NAMES = 10            # near: at least this many aligned names beside the fifth of the smaller edition
 NEAR_PART_NAMES = 50       # near, a list inside a longer list: at least this many aligned names ...
 NEAR_PART_OF_COMMON = (1, 2)   # ... and at least this fraction (one half) of the names in common
-SHIFT_SECONDS = 7          # time_only: the shift that measures the chance level
+SHIFT_SECONDS = 60         # time_only: the shift that measures the chance level
 TIME_ROWS = 20             # time_only: the smaller edition has at least this many finish times
+TIME_PART_ROWS = 50        # time_only, part of a list: an excess of at least this many rows, beside the fifth of the smaller edition
+TIME_WHOLE = (1, 2)        # time_only, a whole small list: an excess of at least this fraction (one half) of the smaller edition
 WHOLE = (4, 5)             # a list is "whole" in a pair when at least four fifths of it is matched
 LISTED = 10                # how many of the closest unlisted pairs the evidence file shows per measure
 
 RULE = {
     'universe': 'every row of race_records.parquet of the adapted marathon input; an edition is a race label and a year',
-    'name': ('the recorded name with accents dropped (canonical decomposition, combining marks removed), lower case, ł ø đ ð ß æ œ þ ı written as '
+    'name': ('the recorded name with accents dropped (canonical decomposition, every mark removed), lower case, ł ø đ ð ß æ œ þ ı written as '
              'l o d d ss ae oe th i (and the final sigma as σ); every run of characters that are not letters or digits separates words; the words in sorted order, joined by one '
-             'space, so "Surname, Given" and "Given Surname" are one name. A row with no word has no name'),
+             'space, so "Surname, Given" and "Given Surname" are one name. A row with no word has no name. Names are compared through the 128-bit MD5 '
+             'number of this text'),
     'finish': ('the finish time in whole seconds: the clock string parsed as the pacing pipeline parses it (H:MM:SS or M:SS, decimals allowed), rounded '
                'down. A row whose finish does not parse has none'),
     'key': 'a row with a name and a finish has the key (name, finish); an edition’s keys are its distinct keys',
@@ -73,7 +78,8 @@ RULE = {
              'least half of the names in common'),
     'time_only': (f'for two editions of one race, or of one year: matched(s) = the sum over finish seconds t of the smaller of the first edition’s rows at t '
                   f'and the second edition’s rows at t + s. excess = matched(0) minus the mean of matched(+{SHIFT_SECONDS}) and matched(-{SHIFT_SECONDS}). '
-                  f'Listed when the smaller edition has at least {TIME_ROWS} rows with a finish and excess is at least one fifth of that count'),
+                  f'Listed when the smaller edition has at least {TIME_ROWS} rows with a finish and excess is at least half of that count, or at least '
+                  f'{TIME_PART_ROWS} and one fifth of that count (two small unrelated lists share a few seconds by chance, so a fifth alone is not enough)'),
     'kind': ('matched = the largest of shared, aligned and the time-only excess among the rules that list the pair, as a share of each edition (of its '
              'keys, its single names or its rows with a finish, by that rule); a list is whole when the share is at least four fifths. '
              'One race, two years: same_list_twice when the smaller list is whole. Two races, one year: one_race_two_keys when both lists are whole, '
@@ -90,7 +96,7 @@ KIND_WORDS = {
     'partial_overlap': 'part of one list repeated in the other',
 }
 
-# SQL twins of name_key() below. DuckDB's strip_accents drops the combining marks of the decomposed text.
+# SQL twins of name_key() below. DuckDB's strip_accents drops every mark (Unicode categories Mn, Mc, Me) of the decomposed text.
 NAME_MACROS = (
     """CREATE MACRO fold_name(s) AS (
       replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(lower(strip_accents(s)),
@@ -105,7 +111,7 @@ def name_key(name) -> str:
     """The rule's name in plain Python (the reference the SQL macro is tested against)."""
     if not name:
         return ''
-    text = ''.join(ch for ch in unicodedata.normalize('NFD', name) if not unicodedata.combining(ch)).lower()
+    text = ''.join(ch for ch in unicodedata.normalize('NFD', name) if not unicodedata.category(ch).startswith('M')).lower()
     text = ''.join(_FOLD.get(ch, ch) for ch in text)
     return ' '.join(sorted(''.join(ch if ch.isalnum() else ' ' for ch in text).split()))
 
@@ -132,12 +138,15 @@ def scan(db, records: Path, *, same_year_times: bool = True, log=print) -> dict:
     started = time.time()
     for macro in NAME_MACROS:
         db.execute(macro)
-    db.execute(f"""CREATE TABLE r AS SELECT city, year, coalesce(name_key(runner), '') AS nk,
-        CAST(floor(seconds(split_42_2km)) AS INTEGER) AS fin FROM read_parquet('{rc.quote(records)}')""")
+    # A name is held as the 128-bit MD5 number of its key (`nk`), so that no later step sorts or joins on text: two
+    # different names share a number with a probability of about 10^-25 over the whole release.
+    db.execute(f"""CREATE TABLE r AS SELECT city, year, CASE WHEN name = '' THEN NULL ELSE md5_number(name) END AS nk, fin
+        FROM (SELECT city, year, coalesce(name_key(runner), '') AS name, CAST(floor(seconds(split_42_2km)) AS INTEGER) AS fin
+              FROM read_parquet('{rc.quote(records)}'))""")
     db.execute("""CREATE TABLE ed AS SELECT city, year, (row_number() OVER (ORDER BY city, year) - 1)::INTEGER AS code, n, named, timed
-        FROM (SELECT city, year, count(*) AS n, count(*) FILTER(WHERE nk <> '') AS named, count(fin) AS timed FROM r GROUP BY ALL)""")
+        FROM (SELECT city, year, count(*) AS n, count(nk) AS named, count(fin) AS timed FROM r GROUP BY ALL)""")
     db.execute("""CREATE TABLE k AS SELECT e.code, r.nk, r.fin, count(*)::INTEGER AS c FROM r JOIN ed e USING (city, year)
-        WHERE r.nk <> '' AND r.fin IS NOT NULL GROUP BY ALL""")
+        WHERE r.nk IS NOT NULL AND r.fin IS NOT NULL GROUP BY ALL""")
     db.execute("""CREATE TABLE dk AS SELECT code, count(*) AS keys, sum(c) AS keyed_rows, count(*) FILTER(WHERE c > 1) AS repeated_keys,
         coalesce(sum(c) FILTER(WHERE c > 1), 0) AS repeated_rows FROM k GROUP BY 1""")
     log(f'duplicates: rows read and keyed ({time.time() - started:.0f} s)')
@@ -157,14 +166,16 @@ def scan(db, records: Path, *, same_year_times: bool = True, log=print) -> dict:
         GROUP BY ALL""")
     log(f'duplicates: exact and near rules ({time.time() - started:.0f} s)')
 
-    # time_only: one race, or one year
+    # time_only: one race, or one year. The second edition's seconds are moved first, so that each comparison is a
+    # plain equality join on (race or year, second).
     db.execute('CREATE TABLE fs AS SELECT e.code, e.city, e.year, r.fin, count(*)::INTEGER AS c FROM r JOIN ed e USING (city, year) WHERE r.fin IS NOT NULL GROUP BY ALL')
-    shifts = f'(VALUES (0), ({SHIFT_SECONDS}), (-{SHIFT_SECONDS})) s(shift)'
-    db.execute(f"""CREATE TABLE tm AS SELECT x.code AS a, y.code AS b, s.shift, sum(least(x.c, y.c)) AS matched
-        FROM fs x CROSS JOIN {shifts} JOIN fs y ON y.city = x.city AND y.fin = x.fin + s.shift AND x.code < y.code GROUP BY ALL""")
+    db.execute(f"""CREATE TABLE fm AS SELECT f.code, f.city, f.year, f.fin - s.shift AS fin, f.c, s.shift
+        FROM fs f CROSS JOIN (VALUES (0), ({SHIFT_SECONDS}), (-{SHIFT_SECONDS})) s(shift)""")
+    db.execute("""CREATE TABLE tm AS SELECT x.code AS a, y.code AS b, y.shift, sum(least(x.c, y.c)) AS matched
+        FROM fs x JOIN fm y ON y.city = x.city AND y.fin = x.fin WHERE x.code < y.code GROUP BY ALL""")
     if same_year_times:
-        db.execute(f"""INSERT INTO tm SELECT x.code AS a, y.code AS b, s.shift, sum(least(x.c, y.c)) AS matched
-            FROM fs x CROSS JOIN {shifts} JOIN fs y ON y.year = x.year AND y.fin = x.fin + s.shift AND x.code < y.code AND y.city <> x.city GROUP BY ALL""")
+        db.execute("""INSERT INTO tm SELECT x.code AS a, y.code AS b, y.shift, sum(least(x.c, y.c)) AS matched
+            FROM fs x JOIN fm y ON y.year = x.year AND y.fin = x.fin WHERE x.code < y.code AND y.city <> x.city GROUP BY ALL""")
     db.execute(f"""CREATE TABLE tr AS SELECT a, b, coalesce(sum(matched) FILTER(WHERE shift = 0), 0) AS same,
         coalesce(sum(matched) FILTER(WHERE shift = {SHIFT_SECONDS}), 0) AS plus, coalesce(sum(matched) FILTER(WHERE shift = -{SHIFT_SECONDS}), 0) AS minus
         FROM tm GROUP BY ALL""")
@@ -184,8 +195,11 @@ def scan(db, records: Path, *, same_year_times: bool = True, log=print) -> dict:
     exact = f'(shared >= {EXACT_ROWS} OR (shared > 0 AND {SHARE[1]} * shared >= {SHARE[0]} * least(keys_a, keys_b)))'
     near = (f'((aligned >= {NEAR_NAMES} AND {SHARE[1]} * aligned >= {SHARE[0]} * least(names_a, names_b)) '
             f'OR (aligned >= {NEAR_PART_NAMES} AND {NEAR_PART_OF_COMMON[1]} * aligned >= {NEAR_PART_OF_COMMON[0]} * common))')
-    # excess / smaller >= 1/5  <=>  5 * (2 * same - plus - minus) >= 2 * smaller
-    timed = f'(timed_pair AND least(timed_a, timed_b) >= {TIME_ROWS} AND {SHARE[1]} * (2 * same - plus - minus) >= 2 * {SHARE[0]} * least(timed_a, timed_b))'
+    # With twice the excess, d = 2 * same - plus - minus: excess >= smaller / 2 <=> d >= smaller; excess >= 50 <=> d >= 100;
+    # excess >= smaller / 5 <=> 5 * d >= 2 * smaller.
+    twice = '(2 * same - plus - minus)'
+    timed = (f'(timed_pair AND least(timed_a, timed_b) >= {TIME_ROWS} AND ({TIME_WHOLE[1]} * {twice} >= 2 * {TIME_WHOLE[0]} * least(timed_a, timed_b) '
+             f'OR ({twice} >= 2 * {TIME_PART_ROWS} AND {SHARE[1]} * {twice} >= 2 * {SHARE[0]} * least(timed_a, timed_b))))')
     db.execute(f'CREATE TABLE listed AS SELECT *, {exact} AS by_exact, {near} AS by_near, {timed} AS by_time FROM measured')
 
     columns = 'a, b, city_a, year_a, city_b, year_b, rows_a, rows_b, timed_a, timed_b, keys_a, keys_b, names_a, names_b, shared, common, aligned, bin, timed_pair, same, plus, minus, by_exact, by_near, by_time'
@@ -322,7 +336,7 @@ def policy_file(tag: str) -> Path:
     return Path(path)
 
 
-def audit(source: Path, *, work: Path | None = None, check_names: bool = False, same_year_times: bool = True, log=print) -> dict:
+def audit(source: Path, *, work: Path | None = None, same_year_times: bool = True, log=print) -> dict:
     """The evidence document for the adapted input at `source`."""
     source = Path(source)
     if rc.inside(source, rc.ROOT):
@@ -337,7 +351,6 @@ def audit(source: Path, *, work: Path | None = None, check_names: bool = False, 
     try:
         db = rc.connect(str(folder / 'work.duckdb'))
         result = scan(db, source / 'race_records.parquet', same_year_times=same_year_times, log=log)
-        parity = check_name_parity(db, source / 'race_records.parquet', log=log) if check_names else None
         db.close()
     finally:
         shutil.rmtree(folder, ignore_errors=True)
@@ -357,26 +370,32 @@ def audit(source: Path, *, work: Path | None = None, check_names: bool = False, 
         'rule': RULE,
         'thresholds': {'exact_rows': EXACT_ROWS, 'share_of_the_smaller': list(SHARE), 'bin_seconds': BIN_SECONDS, 'near_names': NEAR_NAMES,
                        'near_part_names': NEAR_PART_NAMES, 'near_part_of_the_names_in_common': list(NEAR_PART_OF_COMMON), 'shift_seconds': SHIFT_SECONDS,
-                       'time_rows': TIME_ROWS, 'whole_list': list(WHOLE)},
+                       'time_rows': TIME_ROWS, 'time_part_rows': TIME_PART_ROWS, 'time_whole_list': list(TIME_WHOLE), 'whole_list': list(WHOLE)},
         **result['counts'],
         'pairs': result['pairs'],
         'closest_unlisted': result['closest_unlisted'],
     }
-    if parity is not None:
-        document['name_rule_parity'] = parity
     return document
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     parser.add_argument('--input', type=Path, required=True, help='the adapted marathon input (FULL or CORE folder)')
-    parser.add_argument('--out', type=Path, required=True, help='the evidence file to write')
+    parser.add_argument('--out', type=Path, help='the evidence file to write')
     parser.add_argument('--work', type=Path, default=None, help='a folder for the temporary database (default: the system temporary folder)')
-    parser.add_argument('--check-names', action='store_true', help='also compare the SQL name rule with the Python one over every distinct recorded name')
+    parser.add_argument('--check-names', action='store_true', help='only compare the SQL name rule with the Python one over every distinct recorded name')
     parser.add_argument('--no-same-year-times', action='store_true', help='apply the time-only rule to pairs of one race only')
     args = parser.parse_args(argv)
+    if args.check_names:
+        db = rc.connect()
+        for macro in NAME_MACROS:
+            db.execute(macro)
+        print(json.dumps(check_name_parity(db, args.input.expanduser() / 'race_records.parquet', log=lambda *_: None)))
+        return 0
+    if args.out is None:
+        parser.error('--out is required')
     try:
-        document = audit(args.input.expanduser(), work=args.work, check_names=args.check_names, same_year_times=not args.no_same_year_times)
+        document = audit(args.input.expanduser(), work=args.work, same_year_times=not args.no_same_year_times)
     except RacesError as error:
         print(f'races_duplicates: {error}', file=sys.stderr)
         return 1

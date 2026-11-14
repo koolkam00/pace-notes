@@ -65,6 +65,12 @@ def fixture():
     add('Mu', 2010, mu, [8000 + 29 * i for i in range(400)])
     add('Nu', 2009, mu[:45] + mu[45:100] + people('nu', 400),
         [8090 + 29 * i for i in range(45)] + [8000 + 29 * i + 600 * (i - 44) for i in range(45, 100)] + [20000 + 31 * i for i in range(400)])
+    # 8. Finish times alone. Sixty identical seconds of 250 are listed (50 rows and a fifth); eight of 30 are not (a small
+    #    list shares that many seconds with a longer one by chance: under 50 rows and under half of the list).
+    add('Omicron', 2007, people('oa', 250), [7000 + 23 * i for i in range(250)])
+    add('Omicron', 2008, people('ob', 250), [7000 + 23 * i for i in range(60)] + [14000 + 23 * i for i in range(190)])
+    add('Pi', 2006, people('pi', 30), [26000 + 97 * i for i in range(30)])
+    add('Rho', 2006, people('rh', 300), [26000 + 97 * i for i in range(8)] + [30000 + 19 * i for i in range(292)])
     # Rows without a key, and a key repeated inside its edition (one key, and no single name).
     add('Epsilon', 2017, ['', None, '?!', 'Epunparsed Finish', 'Eprepeated Key', 'KEY, Eprepeated'], ['4:00:00', '4:00:01', '4:00:02', 'DNF', '5:00:00', '5:00:00.4'])
     return rows
@@ -101,6 +107,7 @@ class Rules(unittest.TestCase):
             ('Epsilon', 2017, 'Zeta', 2014): (['exact'], 'partial_overlap'),
             ('Eta', 2016, 'Theta', 2015): (['exact'], 'partial_overlap'),
             ('Kappa', 2012, 'Lambda', 2011): (['near'], 'partial_overlap'),
+            ('Omicron', 2007, 'Omicron', 2008): (['time_only'], 'partial_overlap'),
         })
 
     def test_exact_counts_distinct_keys_whatever_the_form_of_the_name(self):
@@ -129,6 +136,11 @@ class Rules(unittest.TestCase):
     def test_time_only_needs_no_name(self):
         pair = self.pairs[('Delta', 2018, 'Delta', 2021)]
         self.assertEqual((pair['exact']['shared'], pair['near']['names_in_common'], pair['time_only']['excess'], pair['matched']), (0, 0, 30.0, 30.0))
+        part = self.pairs[('Omicron', 2007, 'Omicron', 2008)]
+        self.assertEqual((part['time_only']['matched'], part['time_only']['excess'], part['share_of_a']), (60, 60.0, 0.24))
+        self.assertNotIn(('Pi', 2006, 'Rho', 2006), self.pairs)
+        shown = [p for p in self.result['closest_unlisted']['time_only_by_excess'] if p['a']['city'] == 'Pi']
+        self.assertEqual([(p['time_only']['matched'], p['rules']) for p in shown], [(8, [])])
 
     def test_the_fifth_of_the_smaller_edition_at_its_edge(self):
         self.assertEqual(self.pairs[('Eta', 2016, 'Theta', 2015)]['exact']['shared'], 2)     # 2 of 10
@@ -222,7 +234,7 @@ class Audit(unittest.TestCase):
             self.assertEqual(document['release_tag'], release['tag'])
             self.assertEqual(document['input_manifest_sha256'], rc.file_sha256(source / 'MANIFEST.json'))
             self.assertEqual(sorted(document['scripts']), ['analysis/races_common.py', 'analysis/races_duplicates.py'])
-            self.assertEqual(len(document['pairs']), 7)
+            self.assertEqual(len(document['pairs']), 8)
             first = document['pairs'][0]
             self.assertEqual((first['a']['city'], first['a']['tier'], first['a']['split_tier'], first['a']['release_key']), ('Alpha', 'unverified', 'finish_time_only', 'Somewhere: Alpha'))
             self.assertEqual([p['a']['city'] for p in document['pairs']], sorted(p['a']['city'] for p in document['pairs']))

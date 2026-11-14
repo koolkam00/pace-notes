@@ -79,13 +79,21 @@ TIMING_CLASS = {
     'gun': 'gun', 'mixed': 'mixed', 'unknown': 'not_stated', 'as published': 'not_stated', 'as published (Time)': 'not_stated', None: 'not_stated',
 }
 # Where the official count comes from, in words a visitor can read, by the start of the producer's source-type string.
+# The first start that matches classes the string (all 72 strings of pace-notes-marathon-half-20261113-1113 that come
+# with a count, read 2026-11-14); a string no start matches stops the build, so that it is classed in a reviewed change.
 SOURCE_CLASS = (
     ('stats_site', 'A statistics site'),
     ('wikipedia_', 'A Wikipedia results table'),
-    ('official_stats', 'The organiser’s statistics'),
     ('official_press_release', 'The organiser’s press release'),
+    ('organizer press release', 'The organiser’s press release'),
+    ('official_stats', 'The organiser’s statistics or results'),
+    ('official_results', 'The organiser’s statistics or results'),
+    ('official timing results list', 'The organiser’s statistics or results'),
+    ('NYRR ', 'The organiser’s statistics or results'),
     ('government_stats', 'Government statistics'),
     ('peer_reviewed_paper', 'A peer-reviewed paper'),
+    ('press/stats', 'A press report'),
+    ('press (', 'A press report'),
 )
 NO_INDEPENDENT_COUNT = 'No independent count: the timing platform’s own result list'
 
@@ -377,7 +385,7 @@ def edition_table(inputs: Inputs) -> list[dict]:
             fail(f'{key}: this module and the edition policy read the 5% coverage band differently')
         if facts is not None:
             f = facts[key]
-            if (f['tier'], f['split_tier'], int(f['rows']), int(f['finishes']), bool(f['counted']), f.get('category'), bool(f['own_record'])) != \
+            if (f['tier'], f['split_tier'], int(f['rows']), int(f['finishes']), bool(f['counted']), f.get('category'), bool(f.get('own_record'))) != \
                     (tier, split, results, finishes, key in counted, category, use == 'own_record'):
                 fail(f'{key}: EDITIONS.json and the edition facts evidence disagree')
         state, other = states.get(key, ('none', None))
