@@ -19,9 +19,13 @@ on:
       - 'public/data/insights/**'
       - 'public/data/edition-policy.json'
       - 'public/data/runner-context/**'
+      # The recount's name guard asks the runner lookup whether a published string is a recorded name.
+      - 'public/data/runners/**'
       - 'scripts/verify-insights.cjs'
       - 'scripts/lib/cohort.cjs'
       - 'scripts/lib/edition-policy.cjs'
+      - 'scripts/lib/lookup.cjs'
+      - 'scripts/lib/lookup-files.cjs'
       - '.github/workflows/insights.yml'
   workflow_dispatch:
 

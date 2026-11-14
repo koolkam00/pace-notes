@@ -337,6 +337,9 @@ const identityKey = /^(ids?|rids?|record_?ids?|profile_?ids?|runners?|runner_?id
 const groupKey = key => key === 'n' || /^(women|men|young|older)_n$/.test(key) || key === 'n_comparison' || key === 'matched_weight';
 const labelNames = new Set(families.get('archetypes')?.classifier?.names || []);
 const copyStrings = new Map();
+// The same strings as written, for the runner lookup's own comparison (it drops a trailing country code before it
+// normalises, so it is asked about the text itself as well as about the normalised form).
+const copyTexts = new Map();
 let scannedValues = 0;
 function scan(value, where, key) {
   if (Array.isArray(value)) return value.forEach((item, i) => scan(item, `${where}[${i}]`, key));
@@ -368,7 +371,7 @@ function scan(value, where, key) {
   if (typeof value === 'string') {
     if (key !== 'release_tag') assert.ok(!/private-export|20260912|htw-db-|20261016|20261021|half-snapshot-|runner-links-|master-\d{8}|20261103|pace-notes-marathon-half|20261113/.test(value), `${where}: copy cites an internal export label`);
     const normalised = normaliseName(value);
-    if (normalised) copyStrings.set(normalised, where);
+    if (normalised) { copyStrings.set(normalised, where); copyTexts.set(value, where); }
   }
 }
 for (const [file, doc] of [['manifest.json', manifest], ...docs]) scan(doc, file, null);
@@ -1648,34 +1651,84 @@ recounted['tool-course-terrain'] = checkCourseTerrain(docs.get(TERRAIN_FILE));
 assert.ok('finish-times' in recounted && 'replay' in recounted, 'Core story families are present');
 
 // 10. No published string equals a recorded runner name. The cohort holds no names (it is names-free by design), so
-// the guard reads them from where the release's names are: the names file PACE_NOTES_NAMES_FILE names (gzip text, one
-// recorded marathon name per line; scripts/charts/extract-names.py writes it from the adapted input, with a sidecar
-// <file>.json that states the input it came from). It is the last check, so everything above is recounted first, and
-// without a names source this verifier fails: it never passes without having compared the names.
-// Every string value of every file was normalised into `copyStrings` above; each recorded name is normalised the same
-// way and looked up there, as the lookup's names were while the stories read its shards.
+// the guard reads them where the release's names are. It reads every source it is given and needs at least one:
 //
-// Reviewed coincidences. The release now holds 7.8 million marathon records (5.4 million in the lookup this guard read
-// until November 14, 2026), and two of the site's own labels are also somebody's recorded name. Each entry was read on
-// November 14, 2026 against pace-notes-marathon-half-20261113-1113 and is allowed only while the string is one of the
-// labels the files are pinned to carry (a race label of the cohort manifest, or the manifest's fixed sex and age-band
-// labels, checked below): free text can never be excused, and a new coincidence fails until it is read.
+//   1. The runner lookup, through the lookup's own Node reader (scripts/lib/lookup-files.cjs; every file it opens is
+//      checked against the manifest's hash chain). The folder is the one PACE_NOTES_LOOKUP_DIR names (the `runners`
+//      folder of a lookup build) or, without the variable, the data root's `runners` once that is a schema-2 lookup;
+//      it must be the adopted release's. Each published string is asked of it twice (`nameExists`): as written, so a
+//      trailing country code is dropped as the lookup drops it, and in this verifier's normalised form. A string
+//      matches when some search name has exactly its search words (word order, case, accents and a repeated word
+//      aside), over the release's marathon and half results. First source since November 14, 2026 (lead routing):
+//      the workflow needs no names file once the lookup of the adopted release is committed.
+//   2. The names file PACE_NOTES_NAMES_FILE names (gzip text, one recorded marathon name per line;
+//      scripts/charts/extract-names.py writes it from the adapted input, with a sidecar <file>.json that states the
+//      input it came from), kept for now as the second source: read as well whenever the variable is set, and alone
+//      while no schema-2 lookup can be read. Every string value of every file was normalised into `copyStrings`
+//      above; each recorded name is normalised the same way and looked up there.
+//
+// It is the last check, so everything above is recounted first, and without a source this verifier fails: it never
+// passes without having compared the names.
+//
+// Reviewed coincidences. The release holds 7.8 million marathon records and 2.5 million half records (5.4 million
+// records in the lookup this guard read until November 14, 2026), and a few of the site's own fixed labels are also
+// somebody's recorded name. Each entry was read on November 14, 2026 against pace-notes-marathon-half-20261113-1113
+// and is allowed only while the string is one of the labels the files are pinned to carry (a race label of the cohort
+// manifest, the manifest's fixed sex and age-band labels, or a class code of the audited terrain registry, all
+// checked below): free text can never be excused, and a new coincidence fails until it is read. "Madrid", "London"
+// and "b" were added with the lookup as a source: it compares search words, so a repeated word counts once, and it
+// holds the half results too.
 const NAME_COINCIDENCES = new Map([
-  ['paris', 'the race label Paris; one record of another race (VnExpress Marathon Hue 2023) is recorded under the one-word name "Paris"'],
-  ['unknown', 'the age-band label Unknown; five records of four races are recorded as "Unknown" or "UNKNOWN", a placeholder on the runner lookup\'s reviewed list (lead decision D24.6)'],
+  ['paris', 'the race label Paris; one record of another race (VnExpress Marathon Hue 2023) is recorded under the one-word name "Paris", and one half record (Semi Marathon de Montargis 2019) as "PARIS PARIS"'],
+  ['unknown', 'the age-band label Unknown; five records of four races are recorded as "Unknown" or "UNKNOWN", a placeholder on the runner lookup\'s reviewed list (lead decision D24.6), so only the names file holds it'],
+  ['madrid', 'the race label Madrid; one record of Madrid 2019 is recorded under the name "MADRID MADRID"'],
+  ['london', 'the race label London; one half record (Himmelgeister Brückenlauf 2018) is recorded under the one-word name "London"'],
+  ['b', 'the terrain registry\'s class code b (tools/course-terrain.json, a course\'s `class`); seven search names of the lookup are "B" or "B B"'],
 ]);
+const LOOKUP_ENV = 'PACE_NOTES_LOOKUP_DIR', NAMES_ENV = 'PACE_NOTES_NAMES_FILE';
 const asciiName = text => text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 assert.deepEqual(['  Mary-Jane O\'Neil ', 'A.B. 3rd'].map(asciiName), ['  Mary-Jane O\'Neil ', 'A.B. 3rd'].map(normaliseName), 'The fast path for unaccented names normalises as the full rule does');
-function recordedNameGuard() {
-  const file = process.env.PACE_NOTES_NAMES_FILE;
-  assert.ok(file, 'The name guard has no source of recorded names: the marathon cohort holds none. Set PACE_NOTES_NAMES_FILE to the names file '
-    + 'of the adapted input (scripts/charts/extract-names.py writes it) and run again; this check is never skipped.');
+
+/** The runner lookup as a source of names: the folder to read, or the sentence that says why there is none. */
+function lookupFolder() {
+  if (process.env[LOOKUP_ENV]) return { folder: path.resolve(process.env[LOOKUP_ENV]), where: LOOKUP_ENV };
+  const folder = path.join(dataRoot, 'runners'), file = path.join(folder, 'manifest.json');
+  if (!fs.existsSync(file)) return { reason: `no runner lookup under ${path.relative(root, folder) || folder}` };
+  const version = read(file).schema_version ?? 1;
+  // A schema-1 lookup is an earlier release's (it has no index the reader can ask); it is no source, not an error.
+  if (version !== 2) return { reason: `the runner lookup under ${path.relative(root, folder) || folder} is schema ${version}, an earlier release's` };
+  return { folder, where: path.relative(root, folder) || folder };
+}
+
+/** Source 1: every published string asked of the runner lookup. `seen(name)` records a match by its normalised form. */
+function namesFromLookup({ folder, where }, seen) {
+  const { openLookup } = require('./lib/lookup-files.cjs');
+  // openLookup refuses a folder that is not a schema-2 lookup or not the adopted release's; a folder named in the
+  // environment that cannot be read is an error, never a silent fall back to the other source.
+  const lookup = openLookup(folder, { tag: pin.tag, leafCache: 256 });
+  const counts = lookup.manifest.counts;
+  assert.ok(integer(counts.names, 1) && integer(counts.search_names, 1), 'The runner lookup states how many names it holds');
+  let asked = 0;
+  for (const text of copyTexts.keys()) {
+    asked++;
+    const normalised = normaliseName(text);
+    if (lookup.nameExists(text) || lookup.nameExists(normalised)) seen(normalised);
+  }
+  assert.ok(asked > 0 && asked === copyTexts.size, 'Every published string was asked of the runner lookup');
+  // Which records the lookup was built from: this cohort, the adapted input the cohort came from, or another issue of
+  // the adopted release's inputs (a development build). Stated, not required: the release is what the names are of.
+  const built = lookup.manifest.cohort?.manifest_sha256 === cohortSha ? 'this cohort'
+    : lookup.manifest.pipeline?.input_manifest_sha256 === cohort.input_manifest_sha256 ? 'the adapted input of this cohort' : 'another issue of the adopted release\'s inputs';
+  return { source: 'runner lookup', where, lookup_manifest_sha256: lookup.manifestSha256, lookup_as_of: lookup.manifest.as_of, built_from: built,
+    names: counts.names, search_names: counts.search_names, strings_asked: asked };
+}
+
+/** Source 2: every recorded name of the names file looked up among the published strings. */
+function namesFromFile(file, seen) {
   const bytes = fs.readFileSync(file), sidecar = read(`${file}.json`);
   assert.deepEqual([sidecar.bytes, sidecar.sha256], [bytes.length, hash(bytes)], `${file}: the names file is not the one its sidecar describes`);
   assert.equal(sidecar.input_manifest_sha256, cohort.input_manifest_sha256, `${file}: the names are from another adapted input than the cohort's`);
-  const siteLabels = new Set([...editions.map(edition => edition.city), ...manifest.genders, ...manifest.ages].map(normaliseName));
-  for (const label of NAME_COINCIDENCES.keys()) assert.ok(siteLabels.has(label), `"${label}": a reviewed coincidence must be a race label or a fixed sex or age-band label`);
-  const text = zlib.gunzipSync(bytes), hits = new Map(), excused = new Set();
+  const text = zlib.gunzipSync(bytes);
   let names = 0, start = 0;
   while (start < text.length) {
     let end = start, ascii = true;
@@ -1684,14 +1737,27 @@ function recordedNameGuard() {
       names++;
       // A name of unaccented letters (most of them) needs no Unicode pass: the two rules agree on it (asserted above).
       const name = ascii ? asciiName(text.latin1Slice(start, end)) : normaliseName(text.toString('utf8', start, end));
-      const where = copyStrings.get(name);
-      if (where !== undefined) { if (NAME_COINCIDENCES.has(name)) excused.add(name); else hits.set(name, where); }
+      if (copyStrings.has(name)) seen(name);
     }
     start = end + 1;
   }
   assert.ok(names > 0 && names === sidecar.names, `${file}: ${names} names read, its sidecar states ${sidecar.names}`);
-  assert.deepEqual([...hits.values()], [], 'Insights text matches a recorded runner name');
-  return { source: 'names file of the adapted input', names, reviewed_coincidences: [...excused].sort() };
+  return { source: 'names file of the adapted input', where: NAMES_ENV, names };
+}
+
+function recordedNameGuard() {
+  const siteLabels = new Set([...editions.map(edition => edition.city), ...manifest.genders, ...manifest.ages, ...terrainRegistry.courses.map(course => course.class)].map(normaliseName));
+  for (const label of NAME_COINCIDENCES.keys()) assert.ok(siteLabels.has(label), `"${label}": a reviewed coincidence must be a race label, a fixed sex or age-band label or a terrain class code`);
+  const hits = new Map(), excused = new Set();
+  const seen = name => { if (NAME_COINCIDENCES.has(name)) excused.add(name); else hits.set(name, copyStrings.get(name)); };
+  const sources = [], lookup = lookupFolder(), file = process.env[NAMES_ENV];
+  if (!lookup.reason) sources.push(namesFromLookup(lookup, seen));
+  if (file) sources.push(namesFromFile(file, seen));
+  assert.ok(sources.length > 0, `The name guard has no source of recorded names: the marathon cohort holds none. The lookup: ${lookup.reason}. The names file: ${NAMES_ENV} is not set. `
+    + `Set ${LOOKUP_ENV} to the \`runners\` folder of a lookup build of the adopted release, or ${NAMES_ENV} to the names file of the adapted input `
+    + '(scripts/charts/extract-names.py writes it), and run again; this check is never skipped.');
+  assert.deepEqual([...hits].map(([name, where]) => `${where}: "${name}"`), [], 'Insights text matches a recorded runner name');
+  return { sources, reviewed_coincidences: [...excused].sort() };
 }
 const nameGuard = recordedNameGuard();
 console.log(JSON.stringify({
