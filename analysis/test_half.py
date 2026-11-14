@@ -1006,260 +1006,142 @@ class StampCorrection(unittest.TestCase):
 
 
 class DownloadHalf(unittest.TestCase):
-    """analysis/download_half.py on synthetic parts: SHA256SUMS and the pin, reassembly, anonymous public URLs only."""
+    """analysis/download_half.py: the pinned release files, fetched anonymously or read from a folder, never trusted unseen."""
 
-    def setUp(self):
+    def release_folder(self, folder, members=None, extra=()):
+        """A folder shaped like the adopted release: a CORE archive, the two link files and the checksum file, with a
+        pin-shaped spec that names their digests."""
+        import io
+        import tarfile
         import download_half
-        self.dh = download_half
-        self.tmp = tempfile.TemporaryDirectory()
-        self.folder = Path(self.tmp.name)
+        folder = Path(folder)
+        members = members or {name: f'{name} bytes'.encode() for name in hc.CORE_MEMBERS}
+        archive = folder / 'core.tar.gz'
+        with tarfile.open(archive, 'w:gz') as tar:
+            for name, data in list(members.items()) + list(extra):
+                info = tarfile.TarInfo(name if '/' in name else f'the-release/{name}')
+                info.size = len(data)
+                tar.addfile(info, io.BytesIO(data))
+        for name in download_half.LINK_FILES:
+            (folder / name).write_bytes(f'{name} bytes'.encode())
+        assets = {name: hc.file_sha256(folder / name) for name in ('core.tar.gz', *download_half.LINK_FILES)}
+        sums = ''.join(f'{digest}  {name}\n' for name, digest in assets.items())
+        (folder / 'SUMS.txt').write_text(sums)
+        return {'repository': 'owner/repo', 'tag': 'the-release', 'sums': {'asset': 'SUMS.txt', 'sha256': hc.bytes_sha256(sums.encode())}, 'assets': assets,
+                'core': {'asset': 'core.tar.gz', 'folder': 'the-release', 'members': {name: hc.bytes_sha256(data) for name, data in members.items()}}}
 
-    def tearDown(self):
-        self.tmp.cleanup()
-
-    def parts(self, name='half-20990101-0000.sqlite.zst', wal=False):
-        """A tiny SQLite, compressed with zstd and split into two parts; returns (sqlite sha, {part: sha})."""
-        import shutil
-        import subprocess
-        if shutil.which('zstd') is None:
-            self.skipTest('the zstd command is not installed')
-        db = self.folder / 'source.sqlite'
-        con = sqlite3.connect(db)
-        if wal:   # the links release is a WAL-mode SQLite: reading it leaves -wal and -shm files beside it
-            con.execute('PRAGMA journal_mode=WAL')
-        con.executescript('CREATE TABLE t (x INTEGER); ' + ' '.join(f'INSERT INTO t VALUES ({i});' for i in range(500)))
-        con.commit()
-        con.close()
-        packed = subprocess.run(['zstd', '-q', '-c', str(db)], check=True, capture_output=True).stdout
-        cut = len(packed) // 2
-        shas = {}
-        for i, chunk in enumerate((packed[:cut], packed[cut:])):
-            path = self.folder / f'{name}.part{i:02d}'
-            path.write_bytes(chunk)
-            shas[path.name] = hc.bytes_sha256(chunk)
-        sqlite_sha = hc.file_sha256(db)
-        db.unlink()
-        return sqlite_sha, shas
-
-    def spec(self, shas, sqlite_sha):
-        return {'key': 'half', 'tag': 'half-snapshot-20990101-0000', 'assets': dict(shas), 'parts': sorted(shas),
-                'target': 'platform_half.sqlite', 'target_sha256': sqlite_sha}
-
-    def test_sums_file(self):
-        good = self.folder / 'SHA256SUMS'
-        good.write_text(f"{'a' * 64}  one.md\n{'b' * 64} *two.zst.part00\n")
-        self.assertEqual(self.dh.read_sums(good), {'one.md': 'a' * 64, 'two.zst.part00': 'b' * 64})
-        good.write_text(f"{'a' * 64}  one.md\n{'a' * 64}  one.md\n")
-        with self.assertRaises(hc.HalfError):
-            self.dh.read_sums(good)
-
-    def test_the_real_pin_names_the_public_releases(self):
+    def test_the_real_pin_names_the_public_release(self):
+        import download_half
         pin = hc.load_pin()
-        specs = self.dh.all_specs(pin)
-        self.assertEqual([s['key'] for s in specs], ['half', 'links', 'stamps'])
-        self.assertEqual([s['tag'] for s in specs], ['half-dataset-20261030-1904', 'half-dataset-20261030-1904', 'half-dataset-20261029-2157'])
-        self.assertEqual(specs[0]['parts'], ['half-20261030-1904.sqlite.zst.part00'])
-        self.assertEqual(specs[0]['target_sha256'], pin['half']['sqlite_sha256'])
-        self.assertEqual(specs[0]['assets']['csv-edition_meta.csv.zst'], hq.entry()['stamps']['edition_meta_csv']['sha256'])
-        self.assertEqual(specs[1]['parts'], [], 'the v4 links are parquet files, not SQLite parts')
-        self.assertTrue({'race_results_linked.parquet', 'persons.parquet', 'MATCHING_V4.md', 'code.tgz'} <= set(specs[1]['assets']))
-        self.assertEqual(specs[1]['target'], 'links-v4.sqlite')
-        self.assertEqual(specs[2]['assets']['csv-edition_meta.csv.zst'], hq.CORRECTION_20261029_2157['sha256'])
-        self.assertEqual(pin['repository'], 'koolkam00/pace-notes')
-        self.assertEqual([pin['half']['key'], pin['links']['key']], [hq.TAG, 'person-ids-v4-20261030-1150'])
-        self.assertEqual([pin['half']['private_tag'], pin['links']['private_tag'], pin['half']['doi']], [None, 'person-ids-v4-20261030-1150', None],
-                         'no private twin of the 19:04 snapshot; the v4 build\'s private twin matched the public digests (2026-10-31); no DOI')
-        sums = self.dh.sums_digests(pin)
-        self.assertEqual(sums, {'half-dataset-20261030-1904': '9a9759bf6aff47a2dbc5c53f97d295dd55d440392e492cca9fec6a1bc06d9446',
-                                'half-dataset-20261029-2157': 'fe72490f32557e4464cb5fa9577726b663a8d7c125f7456944bad6a84e4051b6'})
+        what = download_half.spec(pin)
+        self.assertEqual([what['repository'], what['tag']], [pin['repository'], pin['half']['tag']])
+        self.assertEqual(set(what['assets']), {pin['half']['core']['asset'], *download_half.LINK_FILES})
+        self.assertEqual(set(what['core']['members']), set(hc.CORE_MEMBERS))
+        self.assertEqual(set(download_half.spec(pin, 'links')['assets']), set(download_half.LINK_FILES))
+        self.assertEqual(set(download_half.spec(pin, 'core')['assets']), {pin['half']['core']['asset']})
+        for name in what['assets']:
+            url = download_half.public_url(what['repository'], what['tag'], name)
+            self.assertTrue(url.startswith(f"https://github.com/{pin['repository']}/releases/download/{pin['half']['tag']}/"))
 
-    def test_folder_check_and_reassembly(self):
-        sqlite_sha, shas = self.parts()
-        spec = self.spec(shas, sqlite_sha)
-        sums = self.folder / 'SHA256SUMS'
-        sums.write_text(''.join(f'{d}  {n}\n' for n, d in shas.items()))
-        found = self.dh.check_folder(self.folder, spec)
-        self.assertEqual(sorted(found), sorted(shas))
-        self.assertEqual(self.dh.identify(self.folder, [spec]), [spec])
-        out = self.folder / 'out'
-        out.mkdir()
-        record = self.dh.place(spec, found, out, downloaded=False, replace=False)
-        self.assertEqual(record['sqlite']['sha256'], sqlite_sha)
-        self.assertTrue(all(p.exists() for p in found.values()), 'an owner folder keeps its parts')
-        self.assertEqual(self.dh.place(spec, found, out, downloaded=False, replace=False)['sqlite']['kept'], True)
-        # A snapshot in place with an empty -wal and a -shm (an earlier read) is kept and its sidecars removed; a non-empty
-        # -wal holds pages the pinned file does not, so it is refused.
-        (out / 'platform_half.sqlite-wal').write_bytes(b'')
-        (out / 'platform_half.sqlite-shm').write_bytes(b'x' * 64)
-        self.assertEqual(self.dh.place(spec, found, out, downloaded=False, replace=False)['sqlite']['kept'], True)
-        self.assertEqual(sorted(p.name for p in out.iterdir()), ['platform_half.sqlite'])
-        (out / 'platform_half.sqlite-wal').write_bytes(b'pages')
-        with self.assertRaisesRegex(hc.HalfError, 'is not empty'):
-            self.dh.place(spec, found, out, downloaded=False, replace=False)
-        (out / 'platform_half.sqlite-wal').unlink()
-        # The release's SHA256SUMS itself must be the pinned one.
-        with self.assertRaisesRegex(hc.HalfError, 'not the pinned SHA256SUMS'):
-            self.dh.check_folder(self.folder, spec, 'e' * 64)
-        self.assertEqual(sorted(self.dh.check_folder(self.folder, spec, hc.file_sha256(sums))), sorted(shas))
-        # A part that differs from SHA256SUMS, a SHA256SUMS that differs from the pin, a wrong decompressed digest.
-        first = self.folder / spec['parts'][0]
-        first.write_bytes(first.read_bytes()[:-1] + b'\0')
-        with self.assertRaisesRegex(hc.HalfError, 'does not match SHA256SUMS'):
-            self.dh.check_folder(self.folder, spec)
-        with self.assertRaisesRegex(hc.HalfError, 'with the digest pinned'):
-            self.dh.check_folder(self.folder, {**spec, 'assets': {**shas, spec['parts'][0]: 'c' * 64}})
-        sqlite_sha, shas = self.parts()
-        with self.assertRaisesRegex(hc.HalfError, 'not the pinned one'):
-            self.dh.reassemble([self.folder / n for n in sorted(shas)], out / 'again.sqlite', 'd' * 64)
-        self.assertFalse((out / 'again.sqlite').exists(), 'nothing is left behind after a refused decompress')
-
-    def test_downloaded_parts_are_deleted_after_a_verified_decompress(self):
-        sqlite_sha, shas = self.parts()
-        spec = self.spec(shas, sqlite_sha)
-        out = self.folder / 'out'
-        out.mkdir()
-        record = self.dh.place(spec, {n: self.folder / n for n in shas}, out, downloaded=True, replace=False)
-        self.assertEqual(record['parts'], 'downloaded, verified and deleted')
-        self.assertFalse(any((self.folder / n).exists() for n in shas))
-
-    def test_reassembly_leaves_no_sqlite_sidecar_files(self):
-        sqlite_sha, shas = self.parts(wal=True)
-        out = self.folder / 'out'
-        out.mkdir()
-        self.assertEqual(self.dh.reassemble([self.folder / n for n in sorted(shas)], out / 'links.sqlite', sqlite_sha), sqlite_sha)
-        self.assertEqual(sorted(p.name for p in out.iterdir()), ['links.sqlite'], 'no -wal or -shm file is left beside it')
-
-    def test_one_folder_holds_the_half_and_the_links(self):
-        a, b = 'a' * 64, 'b' * 64
-        (self.folder / 'SHA256SUMS').write_text(f'{a}  half.sqlite.zst.part00\n{b}  links.sqlite.zst.part00\n')
-        specs = [{'key': 'half', 'tag': 't', 'assets': {'half.sqlite.zst.part00': a}}, {'key': 'links', 'tag': 't', 'assets': {'links.sqlite.zst.part00': b}},
-                 {'key': 'stamps', 'tag': 'u', 'assets': {'csv-edition_meta.csv.zst': 'c' * 64}}]
-        self.assertEqual([s['key'] for s in self.dh.identify(self.folder, specs)], ['half', 'links'])
-
-    def test_the_stamp_reference_lands_in_its_tag_folder(self):
-        csv = self.folder / 'csv-edition_meta.csv.zst'
-        csv.write_bytes(b'meta')
-        readme = self.folder / 'README.md'
-        readme.write_bytes(b'readme')
-        spec = {'key': 'stamps', 'tag': 'half-dataset-20990101-0000', 'parts': [], 'target': csv.name,
-                'assets': {csv.name: hc.bytes_sha256(b'meta'), 'README.md': hc.bytes_sha256(b'readme')}}
-        out = self.folder / 'out'
-        out.mkdir()
-        record = self.dh.place(spec, {csv.name: csv, 'README.md': readme}, out, downloaded=False, replace=False)
-        self.assertEqual(record['file'], 'half-dataset-20990101-0000/csv-edition_meta.csv.zst')
-        self.assertEqual((out / 'half-dataset-20990101-0000' / csv.name).read_bytes(), b'meta')
-
-    def test_downloads_are_anonymous_public_release_urls(self):
-        from unittest.mock import patch
-        url = self.dh.public_url('koolkam00/pace-notes', 'half-dataset-20261029-1202', 'SHA256SUMS')
-        self.assertEqual(url, 'https://github.com/koolkam00/pace-notes/releases/download/half-dataset-20261029-1202/SHA256SUMS')
-        request = self.dh.public_request(url)
-        self.assertNotIn('Authorization', request.headers)
-        self.assertNotIn('Authorization', request.unredirected_hdrs)
-        for bad in ('https://api.github.com/repos/koolkam00/pace-notes/releases/tags/x', 'http://github.com/o/r/releases/download/t/f',
-                    'https://github.com/o/r/archive/main.zip', 'https://example.com/o/r/releases/download/t/f'):
-            with self.assertRaises(hc.HalfError, msg=bad):
-                self.dh.public_request(bad)
+    def test_requests_are_anonymous_and_go_to_public_release_urls_only(self):
+        import download_half
+        request = download_half.public_request(download_half.public_url('owner/repo', 'tag-1', 'a file.parquet'))
+        self.assertEqual(request.full_url, 'https://github.com/owner/repo/releases/download/tag-1/a%20file.parquet')
+        self.assertNotIn('Authorization', {k.title() for k in request.headers})
+        for url in ('https://api.github.com/repos/owner/repo/releases', 'http://github.com/owner/repo/releases/download/t/x', 'https://example.org/owner/repo/releases/download/t/x'):
+            with self.assertRaises(hc.HalfError):
+                download_half.public_request(url)
         with self.assertRaises(hc.HalfError):
-            self.dh.public_url('o/r/../x', 't', 'f')
-        body = b'part bytes'
+            download_half.public_url('owner/repo/extra', 'tag', 'x')
+        source = (ROOT / 'analysis' / 'download_half.py').read_text()
+        self.assertNotRegex(source, r'GITHUB_TOKEN|GH_TOKEN|api\.github\.com/|X-Amz|Bearer ')
 
-        class Response:
-            def __init__(self):
-                self.left = body
+    def test_a_checksum_file_is_read_strictly(self):
+        import download_half
+        good = f"{'a' * 64}  one.parquet\n{'b' * 64} *two.csv\n\n"
+        self.assertEqual(download_half.parse_sums(good), {'one.parquet': 'a' * 64, 'two.csv': 'b' * 64})
+        for bad in ('short  one.parquet\n', f"{'a' * 64}  dir/one.parquet\n", f"{'a' * 64}  x\n{'b' * 64}  x\n", 'onlyonefield\n'):
+            with self.assertRaises(hc.HalfError):
+                download_half.parse_sums(bad)
 
-            def read(self, n=-1):
-                out, self.left = (self.left, b'') if n < 0 else (self.left[:n], self.left[n:])
-                return out
+    def test_a_folder_already_filled_is_checked_and_placed(self):
+        import download_half
+        with tempfile.TemporaryDirectory() as folder, tempfile.TemporaryDirectory() as out:
+            what = self.release_folder(folder, extra=[('the-release/NOT-PINNED.txt', b'x'), ('other/race_records.parquet', b'another folder')])
+            assets = download_half.from_folders(what, [Path(folder)])
+            record = download_half.place(what, assets, Path(out))
+            self.assertEqual(sorted(p.name for p in (Path(out) / 'core').iterdir()), sorted(hc.CORE_MEMBERS), 'only the pinned members are written')
+            self.assertEqual((Path(out) / 'core' / 'race_records.parquet').read_bytes(), b'race_records.parquet bytes', 'the member of the pinned folder, not of another')
+            self.assertEqual(sorted(p.name for p in (Path(out) / 'release').iterdir()), sorted(download_half.LINK_FILES))
+            self.assertEqual(record['core'], what['core']['members'])
+            # A second run keeps what is in place; the source folder is never changed.
+            before = sorted(p.name for p in Path(folder).iterdir())
+            download_half.place(what, assets, Path(out))
+            self.assertEqual(sorted(p.name for p in Path(folder).iterdir()), before)
 
-            def __enter__(self):
-                return self
+    def test_a_changed_release_is_refused(self):
+        import download_half
+        with tempfile.TemporaryDirectory() as folder, tempfile.TemporaryDirectory() as out:
+            what = self.release_folder(folder)
+            # The checksum file is not the pinned one.
+            with self.assertRaisesRegex(hc.HalfError, 'is not the pinned one'):
+                download_half.from_folders({**what, 'sums': {**what['sums'], 'sha256': '0' * 64}}, [Path(folder)])
+            # The checksum file lists another digest than the pin for an asset.
+            with self.assertRaisesRegex(hc.HalfError, 'does not list .* with the pinned digest'):
+                download_half.check_sums((Path(folder) / 'SUMS.txt').read_bytes(), {**what, 'assets': {**what['assets'], 'core.tar.gz': 'f' * 64}}, 'SUMS.txt')
+            # An asset's bytes are not the pinned ones.
+            link = Path(folder) / download_half.LINK_FILES[0]
+            link.write_bytes(b'tampered')
+            with self.assertRaisesRegex(hc.HalfError, 'is not the pinned'):
+                download_half.from_folders(what, [Path(folder)])
+            # A member of the archive is not the pinned one, or is missing: nothing of it stays behind.
+            assets = {'core.tar.gz': Path(folder) / 'core.tar.gz'}
+            wrong = {**what['core'], 'members': {**what['core']['members'], 'race_records.parquet': '1' * 64}}
+            with self.assertRaisesRegex(hc.HalfError, 'is not the pinned member'):
+                download_half.unpack_core(assets['core.tar.gz'], wrong, Path(out) / 'core')
+            self.assertFalse((Path(out) / 'core' / 'race_records.parquet').exists())
+            self.assertFalse(any(p.name.endswith('.unpack') for p in (Path(out) / 'core').iterdir()))
+            with self.assertRaisesRegex(hc.HalfError, 'holds no the-release/absent.parquet'):
+                download_half.unpack_core(assets['core.tar.gz'], {**what['core'], 'members': {'absent.parquet': '2' * 64}}, Path(out) / 'core2')
+            with self.assertRaisesRegex(hc.HalfError, 'no SUMS.txt'):
+                download_half.from_folders(what, [Path(out)])
 
-            def __exit__(self, *a):
-                return False
+    def test_nothing_is_written_inside_the_repository(self):
+        import contextlib
+        import io
+        import download_half
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(download_half.main(['--out', str(ROOT / 'public' / 'data'), '--from-dir', str(ROOT)]), 1)
+        self.assertIn('inside the repository', err.getvalue())
 
-        seen = []
+    def test_the_download_checks_the_bytes_as_they_stream(self):
+        import io
+        import download_half
+        saved = download_half._opener
 
         class Opener:
-            def open(self, req, timeout):
-                seen.append(req)
-                return Response()
+            def __init__(self, data):
+                self.data = data
 
-        with patch.object(self.dh, '_opener', return_value=Opener()):
-            with self.assertRaisesRegex(hc.HalfError, 'not the pinned one'):
-                self.dh.fetch_sums('koolkam00/pace-notes', 'half-dataset-20261029-1202', 'f' * 64)
-            self.dh.download(url, self.folder / 'x.part00', hc.bytes_sha256(body))
-            self.assertEqual((self.folder / 'x.part00').read_bytes(), body)
-            self.assertTrue(all('Authorization' not in r.headers and 'Authorization' not in r.unredirected_hdrs for r in seen))
-            with self.assertRaises(hc.HalfError):
-                self.dh.download(url, self.folder / 'z.part00', 'e' * 64)
-            self.assertFalse((self.folder / 'z.part00').exists(), 'nothing is left behind after a refused download')
-            spec = {'key': 'half', 'tag': 'half-dataset-20261029-1202', 'assets': {'x.part00': hc.bytes_sha256(body)}}
-            with self.assertRaisesRegex(hc.HalfError, 'SHA256SUMS does not list'):
-                self.dh.fetch_release(spec, 'koolkam00/pace-notes', self.folder / 'dl', {'x.part00': 'f' * 64})
-        source = Path(self.dh.__file__).read_text()
-        self.assertNotIn('api.github.com/repos', source, 'the downloader never asks the API')
-        self.assertNotIn('add_unredirected_header', source)
+            def open(self, request, timeout=None):
+                self.request = request
+                return contextlib_closing(io.BytesIO(self.data))
 
-    def test_the_links_are_cut_from_the_v4_files_beside_the_snapshot(self):
-        pin = hc.load_pin()
-        spec = self.dh.releases(pin)[1]
-        out = self.folder / 'out'
-        out.mkdir()
-        v4 = self.folder / 'v4'
-        v4.mkdir()
-        assets = {name: v4 / name for name in spec['assets']}
-        for path in assets.values():
-            path.write_bytes(b'x')
-        with self.assertRaisesRegex(hc.HalfError, 'reads the snapshot'):
-            self.dh.place(spec, assets, out, downloaded=True, replace=False)
-        (out / pin['half']['sqlite']).write_bytes(b'')
-        from unittest.mock import patch
-        import half_links_extract
-        seen = []
-        with patch.object(half_links_extract, 'main', side_effect=lambda argv: seen.append(argv) or 0):
-            record = self.dh.place(spec, assets, out, downloaded=True, replace=False)
-        self.assertEqual(seen, [['--v4-dir', str(v4), '--half', str(out / pin['half']['sqlite']), '--out', str(out / 'links-v4.sqlite')]])
-        self.assertEqual(record['parquet'], 'downloaded, verified, cut and deleted')
-        self.assertFalse((v4 / 'race_results_linked.parquet').exists() or (v4 / 'persons.parquet').exists())
-        self.assertTrue((v4 / 'MATCHING_V4.md').exists(), 'only the two parquet files are deleted')
-        for name in ('race_results_linked.parquet', 'persons.parquet'):
-            (v4 / name).write_bytes(b'x')
-        def refuse(argv):
-            raise SystemExit(2)
-        with patch.object(half_links_extract, 'main', side_effect=refuse):
-            with self.assertRaisesRegex(hc.HalfError, 'could not be cut'):
-                self.dh.place(spec, assets, out, downloaded=False, replace=False)
-        self.assertTrue((v4 / 'persons.parquet').exists(), 'files read in place are never deleted')
-
-    def test_the_v4_links_spec_names_the_parquet_files(self):
-        import copy
-        pin = copy.deepcopy(hc.load_pin())
-        pin['links']['assets'].pop('persons.parquet')
-        with self.assertRaisesRegex(hc.HalfError, 'persons.parquet'):
-            self.dh.releases(pin)
-        pin = copy.deepcopy(hc.load_pin())
-        pin['stamps']['reference']['sha256sums_sha256'] = None
-        with self.assertRaisesRegex(hc.HalfError, 'no SHA256SUMS digest'):
-            self.dh.sums_digests(pin)
-
-    def test_refuses_an_output_inside_the_repository(self):
-        self.assertEqual(self.dh.main(['--from-dir', str(self.folder), '--out', str(ROOT / 'public' / 'data' / 'half')]), 1)
-
-
-# The release's own schema of half-dataset-20261030-1904's v4 person links (COLUMNS_V4.md and the parquet types), so the
-# fixtures are read the way the real files are (the October 30, 2026 lesson: a fixture in another form hid a type bug).
-RRL_SCHEMA = [('person_id', 'VARCHAR'), ('confidence', 'VARCHAR'), ('method', 'VARCHAR'), ('unlinked_reason', 'VARCHAR'),
-              ('person_id_v2', 'VARCHAR'), ('person_id_v3', 'VARCHAR'), ('runner_id_v1', 'VARCHAR'), ('distance', 'VARCHAR'),
-              ('distance_km', 'DOUBLE'), ('race_series', 'VARCHAR'), ('race', 'VARCHAR'), ('year', 'BIGINT'), ('city', 'VARCHAR'),
-              ('finish_seconds', 'DOUBLE'), ('finish_raw', 'VARCHAR'), ('sex', 'VARCHAR'), ('age', 'BIGINT'), ('age_group', 'VARCHAR'),
-              ('age_key', 'VARCHAR'), ('nationality', 'VARCHAR'), ('name_raw', 'VARCHAR'), ('name_norm', 'VARCHAR'),
-              ('source_db', 'VARCHAR'), ('record_id', 'BIGINT'), ('record_flags', 'VARCHAR'), ('finish_time_only_tier', 'BOOLEAN'),
-              ('course_shortened_suspect', 'BOOLEAN'), ('excluded_by_record_flag', 'BOOLEAN'), ('noage_tier', 'BOOLEAN')]
-PERSONS_SCHEMA = [('person_id', 'VARCHAR'), ('name_norm_example', 'VARCHAR'), ('sex', 'VARCHAR'), ('n_results', 'BIGINT'),
-                  ('n_halves', 'BIGINT'), ('n_marathons', 'BIGINT'), ('n_series', 'BIGINT'), ('first_year', 'BIGINT'),
-                  ('last_year', 'BIGINT'), ('n_runner_ids_v1', 'BIGINT'), ('n_person_ids_v2', 'BIGINT'), ('n_person_ids_v3', 'BIGINT'),
-                  ('confidences', 'VARCHAR'), ('nationality_example', 'VARCHAR')]
+        import contextlib
+        contextlib_closing = contextlib.closing
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / 'asset.bin'
+            try:
+                download_half._opener = lambda: Opener(b'the bytes')
+                url = download_half.public_url('owner/repo', 'tag', 'asset.bin')
+                with self.assertRaisesRegex(hc.HalfError, 'differ from the pinned sha256'):
+                    download_half.download(url, target, '0' * 64)
+                self.assertEqual(list(Path(folder).iterdir()), [], 'nothing is left behind on a mismatch')
+                download_half.download(url, target, hc.bytes_sha256(b'the bytes'))
+                self.assertEqual(target.read_bytes(), b'the bytes')
+            finally:
+                download_half._opener = saved
 
 
 class Extract(unittest.TestCase):
@@ -1686,43 +1568,46 @@ class PolicyFiles(unittest.TestCase):
                                                           'withdrawn_unstamped': 72, 'never_stamp': 78})
 
 
-SOURCE_DIR = Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1904')
+def real_source():
+    """The pinned release files on this machine (python3 -I analysis/download_half.py and the pipeline's identity file),
+    or None: the source tests run only where they are and PACE_HALF_SOURCE_TESTS=1 asks for them."""
+    if os.environ.get('PACE_HALF_SOURCE_TESTS') != '1':
+        return None
+    import half_source
+    source = half_source.default_source(None, None, None)
+    return source if source.member('race_records.parquet').is_file() and source.links.is_file() and source.identity.is_file() else None
 
 
-@unittest.skipUnless((SOURCE_DIR / 'platform_half.sqlite').is_file() and os.environ.get('PACE_HALF_SOURCE_TESTS') == '1',
-                     'the half snapshot is not on this machine (python3 -I analysis/download_half.py; set PACE_HALF_DIR and PACE_HALF_SOURCE_TESTS=1)')
+@unittest.skipUnless(real_source() is not None, 'the release files are not on this machine, or PACE_HALF_SOURCE_TESTS is not 1 '
+                     '(python3 -I analysis/download_half.py; analysis/build_identity.py; set PACE_HALF_DIR)')
 class RealSource(unittest.TestCase):
-    def test_frozen_lists_and_counts_recompute_from_the_snapshot(self):
-        db = hc.connect(half=SOURCE_DIR / 'platform_half.sqlite')
-        reference = os.environ.get('PACE_HALF_STAMP_REFERENCE')
-        inputs = hq.read_stamp_inputs(hq.TAG, Path(reference) if reference else None, SOURCE_DIR / 'csv-edition_meta.csv.zst')
-        # fails unless R3, R4, E0, E2–E8, the stamps, never_stamp, the CSV and the link-partial editions equal the review
-        result = hq.apply(db, stamp_inputs=inputs)
-        self.assertEqual(result.counts, hq.EXPECTED_20261030_1904)
+    def test_frozen_lists_and_counts_recompute_from_the_release(self):
+        import half_source
+        source = real_source()
+        half_source.check_files(hc.load_pin(), source)
+        db = hc.connect()
+        half_source.attach(db, source)
+        # fails unless R3, R4, R8, E0, E2–E8, the tier check and the never-stamp list equal the review
+        result = hq.apply(db, hq.TAG)
+        self.assertEqual(result.counts, hq.REVIEWED_HALF_POLICIES[hq.TAG]['expected'])
         m = result.editions
         verified = m[m.use_finish & (m.status_group == 'verified')]
-        stamps = hq.entry()['stamps']
-        self.assertEqual(len(verified), result.counts['stamp_check']['verified_usable'])
-        self.assertTrue(set(verified.edition_id.astype(int)) <= set(stamps['stamped']))
-        self.assertTrue({x['edition_id'] for x in stamps['weaker_source']} <= set(verified.edition_id.astype(int)), 'the weaker-source stamps stay verified')
-        self.assertEqual(result.lists['link_partial'], hq.entry()['link_editions']['link_partial'])
+        tiers = hq.REVIEWED_HALF_POLICIES[hq.TAG]['tiers']
+        self.assertEqual(len(verified), result.counts['tier_check']['verified_usable'])
+        self.assertTrue(set(verified.edition_id.astype(int)) <= set(tiers['stamped']))
+        self.assertFalse(set(verified.edition_id.astype(int)) & {x['edition_id'] for x in tiers['never_stamp']}, 'no never-stamp edition is verified')
 
-    def test_the_links_extract_is_the_pinned_one(self):
-        import half_links_extract
-        path = SOURCE_DIR / 'links-v4.sqlite'
-        if not path.is_file():
-            self.skipTest('no links-v4.sqlite beside the snapshot (python3 -I analysis/half_links_extract.py)')
-        pin = hc.load_pin()
-        con = sqlite3.connect(f'file:{path.as_posix()}?mode=ro', uri=True)
-        try:
-            build = dict(con.execute('SELECT k, v FROM build').fetchall())
-            self.assertEqual(half_links_extract.content_sha256(con), pin['links']['extract_content_sha256'])
-            people = con.execute('SELECT count(*) FROM people').fetchone()[0]
-        finally:
-            con.close()
-        self.assertEqual([build['links_key'], build['applies_to'], build['extract_content_sha256']],
-                         [pin['links']['key'], pin['links']['applies_to'], pin['links']['extract_content_sha256']])
-        self.assertEqual(people, half_links_extract.EXPECTED[pin['links']['key']]['people']['all'])
+    def test_the_pacing_family_meets_its_floors_on_the_release(self):
+        import half_pacing
+        import half_source
+        source = real_source()
+        db = hc.connect()
+        half_source.attach(db, source)
+        hq.apply(db, hq.TAG)
+        out = half_pacing.build(db)
+        self.assertIsNotNone(out)
+        hc.check_published(out, 'pacing.json')
+        self.assertEqual(out['cohort']['results'], out['overall']['n'])
 
 
 def pacing_db(editions, flags=()):
