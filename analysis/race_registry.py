@@ -31,12 +31,18 @@ The rule (RULE repeats it for the frozen file):
    entities decoded, a trailing year removed and, when it is written all in capitals, each word capitalised. The
    name of a race of several keys is the name of the key with its latest edition, unless a reviewed join names it.
 4. A race's label is unique among the races. A race with a plain key takes that key ("Berlin" stays "Berlin", and
-   Austin's three keys are "Austin"). A race with a reviewed label takes it: the 60 races with most written rows and
-   every race with a counted or own-record edition have one (the second is checked against the edition policy by its
-   builder). Every other race takes its name; where the slugs of two labels would be the same, each such race adds its
-   place in brackets, then its first year. A plain key's label and a reviewed label are never changed.
-5. A race's slug is its label under the course rule, so the slug the site derives from a `city` is the registry's.
+   Austin's three keys are "Austin"). A race with a reviewed label takes it: the 60 races with most written rows,
+   every race with a counted or own-record edition (checked against the edition policy by its builder) and every race
+   with three or more written editions whose tier is stamped, weaker-source or partial (checked by the adapter, which
+   reads the tiers; lead ruling of 2026-11-14 on the M2-C labels) have one, of at most 30 characters. Every other race
+   takes its name; where the slugs of two labels would be the same, each such race adds its place in brackets, then
+   its first year. A plain key's label and a reviewed label are never changed.
+5. A race's slug is its label under the course rule, so the slug the site derives from a `city` is the registry's. No
+   slug is a reserved route word (`all`).
 6. Flags mark titles that need a reader's care before they are shown; they change nothing else.
+7. A reviewed `series` note names the races one plain key holds, each with its years (Warsaw: two races under one
+   key, lead ruling D29 of 2026-11-14). It changes no label, slug or grouping: the key stays one race for every
+   existing builder, and an analysis across editions can read which series an edition belongs to.
 """
 from __future__ import annotations
 
@@ -62,10 +68,14 @@ RULE = {
                       'platform’s name (XACT); name: the part after it, HTML entities decoded, a trailing year removed, each word capitalised when the title is '
                       'all capitals; a race of several keys takes the name and place of the key with its latest edition unless a reviewed join names it'),
     'label': ('unique among the races: a race with a plain key takes that key; a race with a reviewed label takes it (a phrase one of its keys or race '
-              'names states; the 60 races with most written rows have one, and so has every race with a counted or own-record edition, which the edition '
-              'policy’s builder checks); every other race takes its name, adding its place in brackets and then its first year where the slugs of two '
-              'labels would be the same; a plain key’s label and a reviewed label are never changed'),
-    'slug': 'a race’s slug is its label under the course rule, so no two races share one and a plain key’s slug is the course page’s',
+              'names states, of at most 30 characters; the 60 races with most written rows have one, so has every race with a counted or own-record '
+              'edition, which the edition policy’s builder checks, and so has every race with three or more written editions whose tier is stamped, '
+              'weaker-source or partial, which the adapter checks); every other race takes its name, adding its place in brackets and then its first '
+              'year where the slugs of two labels would be the same; a plain key’s label and a reviewed label are never changed'),
+    'slug': ('a race’s slug is its label under the course rule, so no two races share one and a plain key’s slug is the course page’s; no slug is a '
+             'reserved route word (all)'),
+    'series': ('a reviewed series note names the races that one plain key holds, each with the years in which every edition of the key carries that race '
+               'name; together they cover every edition of the key. It changes no label, slug or grouping'),
     'flags': {
         'virtual_in_title': 'the key contains "virtual" or "virtuel"',
         'cancelled_in_title': 'the key contains "cancel" or "annul"',
@@ -79,6 +89,10 @@ RULE = {
     'order': 'races are sorted by race_id; a race’s keys by first year, then key',
 }
 LARGEST = 60   # the races with most written rows that must carry a plain or reviewed label (lead decision D19)
+LABEL_MAX = 30   # a reviewed label's greatest length (lead ruling of 2026-11-14 on the M2-C labels)
+RESERVED_SLUGS = frozenset({'all'})   # route words no race may take as its slug (the race directory's "all" view)
+VERIFIED_TIERS = ('stamped', 'stamped_weaker_source', 'partial')   # the tiers that count towards VERIFIED_EDITIONS
+VERIFIED_EDITIONS = 3   # a race with this many written editions of those tiers must carry a plain or reviewed label
 COMPARED = ('tag', 'rule', 'expected', 'keys_sha256', 'races_sha256', 'reviewed', 'races')
 
 
@@ -162,8 +176,8 @@ def states(phrase, texts):
 
 
 def build(editions, reviewed):
-    """`editions`: rows (key, year, race name, rows). `reviewed`: {'joins': [...], 'flags': [...], 'labels': [...]}.
-    Returns the races."""
+    """`editions`: rows (key, year, race name, rows). `reviewed`: {'joins': [...], 'flags': [...], 'labels': [...],
+    'series': [...]} (the last is optional). Returns the races."""
     keys = {}
     for key, year, race, n in editions:
         entry = keys.setdefault(key, {'years': {}, 'names': {}})
@@ -203,7 +217,26 @@ def build(editions, reviewed):
     for entry in reviewed.get('labels', []):
         assert entry['key'] in keys, f"reviewed label on an unknown key {entry['key']}"
         assert find(entry['key']) not in labelled, f"two reviewed labels for the race of {entry['key']}"
+        assert len(entry['label']) <= LABEL_MAX, f"reviewed label {entry['label']!r} is longer than {LABEL_MAX} characters"
         labelled[find(entry['key'])] = entry
+    # A series note names the races one plain key holds: each name is the race name of every edition in its years, and
+    # the years of the names together are the key's editions.
+    series = {}
+    for note in reviewed.get('series', []):
+        key = note['key']
+        assert key in keys and ': ' not in key and key not in series, f"reviewed series on {key!r}: not a plain key of the release, or noted twice"
+        covered = set()
+        parts = []
+        for part in note['series']:
+            years = sorted(year for year in keys[key]['years'] if part['first_year'] <= year <= part['last_year'])
+            assert years and years[0] == part['first_year'] and years[-1] == part['last_year'] and not covered & set(years), \
+                f"reviewed series {part['name']!r} of {key!r}: its years are not editions of the key, or overlap another series"
+            assert all(race == part['name'] for (year, race) in keys[key]['names'] if year in years), \
+                f"reviewed series {part['name']!r} of {key!r}: an edition of {part['first_year']} to {part['last_year']} carries another race name"
+            covered |= set(years)
+            parts.append({'name': part['name'], 'first_year': part['first_year'], 'last_year': part['last_year'], 'editions': len(years)})
+        assert covered == set(keys[key]['years']) and len(parts) > 1, f"reviewed series of {key!r}: fewer than two series, or an edition in none"
+        series[key] = parts
     races = []
     for root, members in groups.items():
         years = {}
@@ -238,6 +271,7 @@ def build(editions, reviewed):
             'labelled_by': 'plain key' if plain else 'reviewed label' if entry else None,
             'flags': flags, 'first_year': min(years), 'last_year': max(years), 'editions': len(years),
             'rows': sum(sum(keys[key]['years'].values()) for key in members),
+            **({'series': series[plain[0]]} if plain and plain[0] in series else {}),
         })
     # Labels: a plain key and a reviewed label are fixed. Every other race takes its name, and those whose label would
     # give the slug of another add their place, then their first year (all races of a collision move together, so
@@ -268,10 +302,21 @@ def build(editions, reviewed):
         at = race.pop('at')
         race['label'], race['labelled_by'] = race.pop('steps')[at], race.pop('kinds')[at]
     assert len({race['label'] for race in races}) == len({slug(race['label']) for race in races}) == len(races), 'labels or slugs are not unique'
+    reserved = [race['label'] for race in races if slug(race['label']) in RESERVED_SLUGS]
+    assert not reserved, f'labels whose slug is a reserved route word: {reserved}'
     out = []
     for race in sorted(races, key=lambda r: slug(r['label'])):
         out.append({'race_id': slug(race['label']), 'slug': slug(race['label']), **race})
     return out
+
+
+def series_of(race, year):
+    """The name of the series of `race` (a registry entry) that holds `year`, or None: only a race with a reviewed
+    series note has one."""
+    for part in race.get('series', []):
+        if part['first_year'] <= year <= part['last_year']:
+            return part['name']
+    return None
 
 
 def digest(value):
@@ -302,12 +347,13 @@ def document(editions, reviewed, tag):
     assert not unreviewed, f'the {LARGEST} races with most rows need a reviewed label; these have none: {unreviewed}'
     return {
         'document': ('The reviewed marathon race registry of this release: every race key with written rows in the adapted input, grouped into races by the '
-                     'rule below and the reviewed joins, flags and labels. `label` is the pipeline’s `city`. analysis/adapt_combined.py rebuilds `races` '
-                     'from the rows it writes and `reviewed`, and stops on any difference; analysis/race_registry.py rebuilds it from an adapted folder.'),
+                     'rule below and the reviewed joins, flags, labels and series notes. `label` is the pipeline’s `city`. analysis/adapt_combined.py rebuilds '
+                     '`races` from the rows it writes and `reviewed`, and stops on any difference; analysis/race_registry.py rebuilds it from an adapted folder.'),
         'schema_version': 2, 'tag': tag, 'distance': 'marathon', 'reviewed_on': '2026-11-14', 'rule': RULE,
         'expected': {'keys': len(keys), 'plain_keys': sum(1 for k in keys if ': ' not in k), 'races': len(races),
                      'races_by_join': dict(sorted(joined.items())), 'keys_in_races_of_several_keys': sum(len(r['keys']) for r in races if len(r['keys']) > 1),
                      'races_by_label': dict(sorted(labels.items())), 'races_by_flag': dict(sorted(flags.items())),
+                     'races_with_series': sum(1 for r in races if 'series' in r),
                      'rows': sum(r['rows'] for r in races), 'editions': sum(r['editions'] for r in races)},
         'keys_sha256': digest(keys), 'races_sha256': digest(races),
         'reviewed': reviewed,
@@ -334,7 +380,7 @@ def main(argv=None):
     parser.add_argument('--editions', type=Path, help='instead of --input: the written editions as JSON rows [key, year, race name, rows]')
     parser.add_argument('--tag', help='with --editions: the release tag')
     parser.add_argument('--write', action='store_true')
-    parser.add_argument('--reviewed', type=Path, help='with --write: the reviewed joins, flags and labels to freeze (default: the frozen file’s own)')
+    parser.add_argument('--reviewed', type=Path, help='with --write: the reviewed joins, flags, labels and series notes to freeze (default: the frozen file’s own)')
     args = parser.parse_args(argv)
     if (args.input is None) == (args.editions is None) or (args.editions is not None and not args.tag):
         parser.error('give --input DIR, or --editions FILE with --tag TAG')

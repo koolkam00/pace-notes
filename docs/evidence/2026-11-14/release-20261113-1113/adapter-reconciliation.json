@@ -1,9 +1,9 @@
 {
   "document": "Adapter output (analysis/adapt_combined.py), not a producer document.",
   "tag": "pace-notes-marathon-half-20261113-1113",
-  "adapter_version": 2,
+  "adapter_version": 3,
   "summary": {
-    "checks": 134,
+    "checks": 143,
     "mismatched": 3,
     "by_family": {
       "manifest_files": {
@@ -61,8 +61,14 @@
         "measured_only": 1
       },
       "rows_left_out": {
-        "checks": 8,
-        "matched": 5,
+        "checks": 10,
+        "matched": 6,
+        "mismatched": 0,
+        "measured_only": 4
+      },
+      "half_rows_left_out": {
+        "checks": 6,
+        "matched": 3,
         "mismatched": 0,
         "measured_only": 3
       },
@@ -85,8 +91,8 @@
         "measured_only": 1
       },
       "race_registry": {
-        "checks": 2,
-        "matched": 1,
+        "checks": 3,
+        "matched": 2,
         "mismatched": 0,
         "measured_only": 1
       }
@@ -117,19 +123,19 @@
     "qa_row_flags": "the release’s marathon rows of the written records, under their labels"
   },
   "features": {
-    "rows": 7820439,
-    "with_key": 6180357,
-    "keys": 3349682,
-    "with_person_id": 7677987,
+    "rows": 7820442,
+    "with_key": 6180360,
+    "keys": 3349683,
+    "with_person_id": 7677990,
     "possible_match_rows": 1497630,
     "unlinked": 142452,
     "with_yob": 2898396,
-    "without_race_date": 2334750,
+    "without_race_date": 2312771,
     "sex_from_category": 68277
   },
   "features_by_link_confidence": {
     "high": 3459427,
-    "high_elite": 12016,
+    "high_elite": 12019,
     "low": 731260,
     "low_carryover": 3041,
     "low_city_pace": 15417,
@@ -176,7 +182,13 @@
     "kept_when_edition_wide": [
       "finish_equals_earlier_split",
       "sportstats_nonfinish_status"
-    ]
+    ],
+    "reviewed_exceptions": {
+      "qa_row_flags": [
+        "finish_faster_than_world_record"
+      ],
+      "edition": "counted by the frozen edition policy"
+    }
   },
   "birth_year_keys": {
     "link_age_key_years": 2898468,
@@ -189,13 +201,14 @@
     "editions_with_rows": 2688,
     "weather": 298,
     "reviewed": 11,
-    "without_a_race_date": 2379,
+    "external": 1,
+    "without_a_race_date": 2378,
     "of_those_with_a_producer_note_date": 2221
   },
   "race_registry": {
     "file": "analysis/race-registry.json",
-    "sha256": "163ec25db62491bbc0d49262334a72dd3a50ea9e77da718c2aa03692bef6c6a2",
-    "races": 811,
+    "sha256": "446e9c1d954b6de6f41cce7415f32fb94ad79b30e4132d9e3c1920e88c1cd72b",
+    "races": 805,
     "keys": 894
   },
   "checks": [
@@ -1797,6 +1810,52 @@
     },
     {
       "family": "rows_left_out",
+      "check": "rows written although flagged, by reviewed exception (record, edition, flag and reviewed finish)",
+      "source": "analysis/reviewed-row-exceptions.json and analysis/adapt_combined.py REVIEWED row_exceptions (lead ruling D33, 2026-11-14; a condition that fails stops the adapter)",
+      "expected": [
+        [
+          782236,
+          "London 2026",
+          "finish_faster_than_world_record",
+          "1:59:30"
+        ],
+        [
+          782238,
+          "London 2026",
+          "finish_faster_than_world_record",
+          "1:59:41"
+        ],
+        [
+          782242,
+          "London 2026",
+          "finish_faster_than_world_record",
+          "2:00:28"
+        ]
+      ],
+      "measured": [
+        [
+          782236,
+          "London 2026",
+          "finish_faster_than_world_record",
+          "1:59:30"
+        ],
+        [
+          782238,
+          "London 2026",
+          "finish_faster_than_world_record",
+          "1:59:41"
+        ],
+        [
+          782242,
+          "London 2026",
+          "finish_faster_than_world_record",
+          "2:00:28"
+        ]
+      ],
+      "ok": true
+    },
+    {
+      "family": "rows_left_out",
       "check": "rows left out, by flag (a row can carry two)",
       "source": "measured",
       "expected": null,
@@ -1805,7 +1864,7 @@
         "pending_review_flags.sportstats_nonfinish_status": 1385,
         "pending_review_flags.wheelchair_handcycle_published_category": 32,
         "qa_row_flags.finish_equals_earlier_split": 120,
-        "qa_row_flags.finish_faster_than_world_record": 159,
+        "qa_row_flags.finish_faster_than_world_record": 156,
         "qa_row_flags.finish_ge_24h": 281,
         "qa_row_flags.finish_zero": 12
       },
@@ -1815,8 +1874,8 @@
       "family": "rows_left_out",
       "check": "distinct rows left out",
       "source": "analysis/adapt_combined.py REVIEWED",
-      "expected": 1983,
-      "measured": 1983,
+      "expected": 1980,
+      "measured": 1980,
       "ok": true
     },
     {
@@ -1837,10 +1896,274 @@
     },
     {
       "family": "rows_left_out",
+      "check": "rows that finish_faster_than_world_record leaves out, by edition (rows, fastest and slowest finish)",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "Amsterdam 2012": [
+          1,
+          "01:49:53",
+          "01:49:53"
+        ],
+        "Amsterdam 2013": [
+          1,
+          "01:58:12",
+          "01:58:12"
+        ],
+        "Amsterdam 2014": [
+          3,
+          "01:47:17",
+          "01:56:00"
+        ],
+        "Amsterdam 2015": [
+          8,
+          "01:32:01",
+          "01:54:15"
+        ],
+        "Casablanca: 15ème Édition du Marathon internation de Casablanca 2024": [
+          3,
+          "01:37:31",
+          "01:43:00"
+        ],
+        "Casablanca: Marathon international de Casablanca 2018": [
+          2,
+          "01:48:01",
+          "01:50:37"
+        ],
+        "Chambly, QC: Course MEC Grand Montreal Route #2 - Marathon de Chambly 2019": [
+          1,
+          "01:18:44",
+          "01:18:44"
+        ],
+        "Charlotte, NC: Novant Health Charlotte Marathon 2024": [
+          2,
+          "01:51:37",
+          "01:59:11"
+        ],
+        "Chicago 2024": [
+          41,
+          "01:23:10",
+          "02:00:31"
+        ],
+        "Clonakilty, West Cork: Clonakilty Waterfront Marathon X 2019": [
+          1,
+          "01:55:47",
+          "01:55:47"
+        ],
+        "Cocoa, FL: Space Coast Marathon & Half Marathon 2025": [
+          1,
+          "01:54:44",
+          "01:54:44"
+        ],
+        "Cologne 2024": [
+          1,
+          "01:53:48",
+          "01:53:48"
+        ],
+        "East Meadow, NY: LONG ISLAND MARATHON FESTIVAL 2016": [
+          3,
+          "01:30:21",
+          "01:47:03"
+        ],
+        "Edmonton, AB: Edmonton Marathon 2016": [
+          1,
+          "01:23:09",
+          "01:23:09"
+        ],
+        "Hoi An, Viet Nam: Hoi An Discovery Marathon - Postponed 2017": [
+          1,
+          "01:54:23",
+          "01:54:23"
+        ],
+        "Houston, TX: Houston Marathon 2020": [
+          10,
+          "01:24:50",
+          "02:00:25"
+        ],
+        "Kilcock Kilomarathon, 6k & Marathon: Kilcock Kilomarathon, 6k & Marathon 2013": [
+          1,
+          "01:29:33",
+          "01:29:33"
+        ],
+        "MARRAKECH: 34éme MARATHON INTERNATIONAL DE MARRAKECH 2024 2024": [
+          9,
+          "01:17:14",
+          "01:48:09"
+        ],
+        "MARRAKECH: Marathon Marrakech 2017": [
+          3,
+          "01:52:36",
+          "01:59:39"
+        ],
+        "MASSEY, On: Friendly Massey Marathon - Cancelled 2012": [
+          1,
+          "01:58:30",
+          "01:58:30"
+        ],
+        "Marrakech: Marathon International de Marakech 2020": [
+          1,
+          "01:52:12",
+          "01:52:12"
+        ],
+        "Marrakech: Marrakech Marathon 2019": [
+          1,
+          "01:54:43",
+          "01:54:43"
+        ],
+        "Nashville, TN: Rock 'n' Roll Nashville 2019": [
+          1,
+          "01:37:54",
+          "01:37:54"
+        ],
+        "Nashville, TN: Rock 'n' Roll Nashville 2023": [
+          1,
+          "01:52:54",
+          "01:52:54"
+        ],
+        "Nashville, TN: Rock 'n' Roll Nashville 2024": [
+          2,
+          "01:53:30",
+          "01:55:00"
+        ],
+        "Nong Khai, Thailand: Nong Khai ASEAN Marathon 2015": [
+          1,
+          "01:24:50",
+          "01:24:50"
+        ],
+        "Padova: Maratona Sant'Antonio 2010": [
+          3,
+          "01:45:43",
+          "02:00:22"
+        ],
+        "Padova: Maratona Sant'Antonio 2011": [
+          2,
+          "01:40:08",
+          "01:49:44"
+        ],
+        "Padova: Maratona Sant'Antonio 2013": [
+          4,
+          "01:45:46",
+          "01:52:01"
+        ],
+        "Padova: Padova Marathon 2017": [
+          1,
+          "01:49:08",
+          "01:49:08"
+        ],
+        "Padova: Padova Marathon 2024": [
+          3,
+          "01:30:00",
+          "01:44:16"
+        ],
+        "Richland, WA: Tri Cities Marathon 2018": [
+          1,
+          "01:32:00",
+          "01:32:00"
+        ],
+        "Rimouski, QC: Marathon de Rimouski- Annulé 2013": [
+          2,
+          "01:32:44",
+          "01:54:14"
+        ],
+        "Rimouski, QC: Marathon de Rimouski- Annulé 2014": [
+          5,
+          "01:16:20",
+          "01:54:39"
+        ],
+        "Rochester, NY: Fleet Feet Rochester Half Marathon | 5K | Kids 1/2 Mile 2016": [
+          3,
+          "01:42:10",
+          "01:47:57"
+        ],
+        "San Antonio, TX: Rock 'n' Roll San Antonio 2018": [
+          1,
+          "01:53:53",
+          "01:53:53"
+        ],
+        "San Antonio, TX: Rock 'n' Roll San Antonio 2022": [
+          1,
+          "01:51:08",
+          "01:51:08"
+        ],
+        "San Bartolomé de Tirajana: Gran Canaria - Maspalomas Marathon 2023": [
+          2,
+          "01:40:43",
+          "01:48:55"
+        ],
+        "San Diego, CA: Rock 'n' Roll San Diego 2018": [
+          1,
+          "02:00:26",
+          "02:00:26"
+        ],
+        "San Diego, CA: Rock 'n' Roll San Diego 2019": [
+          3,
+          "01:50:39",
+          "01:54:30"
+        ],
+        "San Luis Potosí: BMW MARATON INTERNACIONAL TANGAMANGA 2025": [
+          1,
+          "01:53:50",
+          "01:53:50"
+        ],
+        "Santiago: Maratón Monumental Primer Santiago de América 2023": [
+          1,
+          "01:08:48",
+          "01:08:48"
+        ],
+        "Saskatoon, SK: Saskatchewan Marathon 2022": [
+          2,
+          "01:37:30",
+          "01:58:58"
+        ],
+        "Savannah, GA: Rock 'n' Roll Savannah 2019": [
+          1,
+          "01:51:28",
+          "01:51:28"
+        ],
+        "South Hero, VT: Champlain Islands Marathon & Half Marathon 2018": [
+          1,
+          "01:52:40",
+          "01:52:40"
+        ],
+        "Toledo, OH: MERCY HEALTH GLASS CITY MARATHON 2021": [
+          7,
+          "01:40:55",
+          "01:58:21"
+        ],
+        "Torino: Torino City Marathon 2025": [
+          1,
+          "01:37:06",
+          "01:37:06"
+        ],
+        "XACT: Air Force Marathon 2012": [
+          6,
+          "01:22:43",
+          "01:52:54"
+        ],
+        "XACT: Albany Marathon 2018": [
+          1,
+          "01:57:35",
+          "01:57:35"
+        ],
+        "XACT: Palm Beaches Marathon & RunFest 2013": [
+          1,
+          "01:34:35",
+          "01:34:35"
+        ],
+        "XACT: The Miami Marathon & Half Marathon 2014": [
+          1,
+          "01:32:45",
+          "01:32:45"
+        ]
+      },
+      "ok": null
+    },
+    {
+      "family": "rows_left_out",
       "check": "marathon rows written",
       "source": "analysis/adapt_combined.py REVIEWED",
-      "expected": 7820439,
-      "measured": 7820439,
+      "expected": 7820442,
+      "measured": 7820442,
       "ok": true
     },
     {
@@ -1854,6 +2177,87 @@
         "adaptive_division_published_category": 4
       },
       "ok": true
+    },
+    {
+      "family": "half_rows_left_out",
+      "check": "half rows by flag of the half row rule",
+      "source": "MANIFEST.json by_distance.half (pending_flags, qa_row_flags)",
+      "expected": {
+        "pending_review_flags.philadelphia_2010_place_sequence_outlier": 0,
+        "pending_review_flags.published_disqualified_status": 15,
+        "pending_review_flags.sportstats_nonfinish_status": 0,
+        "pending_review_flags.wheelchair_handcycle_published_category": 257,
+        "qa_row_flags.finish_equals_earlier_split": 28,
+        "qa_row_flags.finish_faster_than_world_record": 221,
+        "qa_row_flags.finish_ge_24h": 361,
+        "qa_row_flags.finish_implausibly_fast": 62,
+        "qa_row_flags.finish_zero": 30
+      },
+      "measured": {
+        "pending_review_flags.philadelphia_2010_place_sequence_outlier": 0,
+        "pending_review_flags.published_disqualified_status": 15,
+        "pending_review_flags.sportstats_nonfinish_status": 0,
+        "pending_review_flags.wheelchair_handcycle_published_category": 257,
+        "qa_row_flags.finish_equals_earlier_split": 28,
+        "qa_row_flags.finish_faster_than_world_record": 221,
+        "qa_row_flags.finish_ge_24h": 361,
+        "qa_row_flags.finish_implausibly_fast": 62,
+        "qa_row_flags.finish_zero": 30
+      },
+      "ok": true
+    },
+    {
+      "family": "half_rows_left_out",
+      "check": "half rows kept although flagged, because every row of their edition carries the flag (by flag and edition)",
+      "source": "analysis/adapt_combined.py REVIEWED half_edition_wide_kept (lead ruling D28, 2026-11-14)",
+      "expected": {},
+      "measured": {},
+      "ok": true
+    },
+    {
+      "family": "half_rows_left_out",
+      "check": "half rows left out of the identity rule, by flag (a row can carry two)",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "pending_review_flags.philadelphia_2010_place_sequence_outlier": 0,
+        "pending_review_flags.published_disqualified_status": 15,
+        "pending_review_flags.sportstats_nonfinish_status": 0,
+        "pending_review_flags.wheelchair_handcycle_published_category": 257,
+        "qa_row_flags.finish_equals_earlier_split": 28,
+        "qa_row_flags.finish_faster_than_world_record": 221,
+        "qa_row_flags.finish_ge_24h": 361,
+        "qa_row_flags.finish_implausibly_fast": 62,
+        "qa_row_flags.finish_zero": 30
+      },
+      "ok": null
+    },
+    {
+      "family": "half_rows_left_out",
+      "check": "distinct half rows left out of the identity rule",
+      "source": "analysis/adapt_combined.py REVIEWED",
+      "expected": 951,
+      "measured": 951,
+      "ok": true
+    },
+    {
+      "family": "half_rows_left_out",
+      "check": "half rows left out, by source_db",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "full": 13,
+        "half": 938
+      },
+      "ok": null
+    },
+    {
+      "family": "half_rows_left_out",
+      "check": "half rows carrying two or more of the flags that leave them out",
+      "source": "measured",
+      "expected": null,
+      "measured": 23,
+      "ok": null
     },
     {
       "family": "sex",
@@ -2034,19 +2438,27 @@
     },
     {
       "family": "race_registry",
+      "check": "races with three or more written editions whose tier is stamped, weaker-source or partial; each has a plain or reviewed label",
+      "source": "analysis/race_registry.py rule 4 (a race without one stops the adapter)",
+      "expected": 107,
+      "measured": 107,
+      "ok": true
+    },
+    {
+      "family": "race_registry",
       "check": "the frozen registry equals a rebuild from the written rows (keys, races, written editions and rows)",
       "source": "analysis/race-registry.json (rebuilt by analysis/race_registry.py from the rows about to be written; a difference stops the adapter)",
       "expected": {
         "keys": 894,
-        "races": 811,
+        "races": 805,
         "editions": 2688,
-        "rows": 7820439
+        "rows": 7820442
       },
       "measured": {
         "keys": 894,
-        "races": 811,
+        "races": 805,
         "editions": 2688,
-        "rows": 7820439
+        "rows": 7820442
       },
       "ok": true
     },
