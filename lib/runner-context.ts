@@ -1,4 +1,4 @@
-import { RUNNER_RELEASE, RUNNER_POINTS, runnerMetrics, runnerManifestDigest, type RunnerRace, type RunnerManifest, type RunnerEdition } from './runner-search';
+import { RUNNER_RELEASE, RUNNER_POINTS, runnerMetrics, runnerManifestDigest, type RunnerRace, type RunnerManifest } from './runner-search';
 import { dataFetch } from './data-fetch';
 
 export type Quantiles = { q25: number; median: number; q75: number };
@@ -10,11 +10,22 @@ export type WeatherHour = { time: string; temp_c: number; feels_like_c: number |
 export type RunnerWeather = { date: string; scheduled_start: string; start_hour: string; four_hour: string; temp_c: number; feels_like_c: number | null; dewpoint_c: number; humidity_pct: number; wind_mps: number; wind_dir_deg: number | null; precip_mm: number | null; cloud_pct: number | null; pressure_hpa: number | null; warming_c: number; hours: WeatherHour[]; source: string; source_url: string | null; notes: string; context_label: string; precipitation_note: string };
 export type TerrainSection = { start_km: number; end_km: number; gain_m: number; loss_m: number; net_m: number };
 export type RunnerTerrain = { course_key: string; gain_m: number; loss_m: number; net_m: number; sections: TerrainSection[]; source: string; source_url: string | null; notes: string; context_label: string; historical_validity_known: boolean; valid_from_year: number | null; valid_to_year: number | null; profile_distance_km: number; segment_span_km: number; reported_profile_gain_m: number | null; reported_profile_loss_m: number | null; aggregation_method: string };
+/**
+ * One counted marathon edition's context. `edition.index` is the edition's index in the marathon cohort's manifest
+ * (the lookup's `editions[e].context`), not its position in the lookup's own edition table.
+ */
 export type EditionContext = {
-  schema_version: 1; release_tag: string; edition: RunnerEdition & { index: number };
+  schema_version: 1; release_tag: string; edition: { index: number; city: string; year: number; race: string };
   eligible_n: number; age_n: number; gender_n: number; groups: Record<string, PeerGroup>;
   weather: RunnerWeather | null; weather_reason: string | null; terrain: RunnerTerrain | null; terrain_reason: string | null;
 };
+/**
+ * The runner-context manifest. Since lookup version 2 (November 14, 2026) it is bound to the marathon cohort, not to
+ * the lookup: `runner_manifest_sha256` and `runner_manifest_as_of` keep their names and hold the cohort manifest's
+ * SHA-256 and time, which the lookup's manifest repeats (`cohort`). `editions` maps a cohort edition index to its
+ * file, and lists only the counted editions that have peers, weather or terrain: an index it does not list means no
+ * comparison for that edition (lead ruling D24.8), never an error.
+ */
 export type ContextManifest = {
   schema_version: 1; release_tag: string; input_as_of: string; as_of: string; runner_manifest_as_of: string;
   runner_manifest_sha256: string; cohort: { raw: number; eligible: number };
@@ -65,20 +76,28 @@ export function raceInsights(data: EditionContext, race: RunnerRace): RaceInsigh
 /** Every signed section difference sums to the signed finish difference. */
 export function compareRunnerRaces(focus: RunnerRace, reference: RunnerRace, runners: RunnerManifest): RaceDifference | null {
   const a = runnerMetrics(focus), b = runnerMetrics(reference);
-  if (!a || !b || focus.id === reference.id) return null;
+  if (!a || !b || focus.key === reference.key) return null;
   const sections = a.sections.map((s, i) => ({ start: s.start, end: s.end, seconds: s.elapsed - b.sections[i].elapsed }));
   return { finish: a.finish - b.finish, early: Number(focus.times[5]) - Number(reference.times[5]), late: (a.finish - Number(focus.times[5])) - (b.finish - Number(reference.times[5])), sections, sameCourse: runners.editions[focus.edition].city === runners.editions[reference.edition].city };
 }
-export function validateContextManifest(value: unknown, runners: RunnerManifest, expectedRunnerSha: string): ContextManifest {
-  const d = value as ContextManifest;
-  if (!/^[a-f0-9]{64}$/.test(expectedRunnerSha) || d?.runner_manifest_sha256 !== expectedRunnerSha) throw error();
-  if (!d || d.schema_version !== 1 || d.release_tag !== RUNNER_RELEASE || d.release_tag !== runners.release_tag || d.input_as_of !== runners.input_as_of || d.runner_manifest_as_of !== runners.as_of || !Number.isFinite(Date.parse(d.as_of)) || !/^[a-f0-9]{64}$/.test(d.runner_manifest_sha256) || d.cohort?.raw !== runners.raw_records || !integer(d.cohort.eligible, 1) || !d.editions || Object.keys(d.editions).length !== runners.editions.length) throw error();
-  for (let i = 0; i < runners.editions.length; i++) { const meta = d.editions[String(i)]; if (!meta || meta.file !== `editions/${String(i).padStart(3, '0')}.json.gz` || !integer(meta.bytes, 1) || !/^[a-f0-9]{64}$/.test(meta.sha256)) throw error(); }
+/**
+ * The context manifest, checked against the verified lookup manifest: built on the cohort the lookup names (its
+ * SHA-256, the release, the input time and the cohort's own time and raw count), with a file entry only under a
+ * cohort edition index.
+ */
+export function validateContextManifest(value: unknown, runners: RunnerManifest): ContextManifest {
+  const d = value as ContextManifest, cohort = runners.cohort;
+  if (!/^[a-f0-9]{64}$/.test(cohort?.manifest_sha256 ?? '') || d?.runner_manifest_sha256 !== cohort.manifest_sha256) throw error();
+  if (!d || d.schema_version !== 1 || d.release_tag !== RUNNER_RELEASE || d.release_tag !== runners.release_tag || d.input_as_of !== cohort.input_as_of || d.runner_manifest_as_of !== cohort.as_of || !Number.isFinite(Date.parse(d.as_of)) || d.cohort?.raw !== cohort.raw_records || !integer(d.cohort.eligible, 1) || d.cohort.eligible !== cohort.eligible_records || !d.editions || typeof d.editions !== 'object' || Array.isArray(d.editions)) throw error();
+  for (const [index, meta] of Object.entries(d.editions)) {
+    if (!/^(0|[1-9]\d{0,5})$/.test(index) || Number(index) >= cohort.editions || !meta || typeof meta.file !== 'string' || !/^editions\/[a-z0-9]+(-[a-z0-9]+)*\.json\.gz$/.test(meta.file) || !integer(meta.bytes, 1) || !/^[a-f0-9]{64}$/.test(meta.sha256)) throw error();
+  }
   return d;
 }
-export function validateEditionContext(value: unknown, index: number, runners: RunnerManifest): EditionContext {
-  const d = value as EditionContext, edition = runners.editions[index];
-  if (!d || d.schema_version !== 1 || d.release_tag !== runners.release_tag || d.edition?.index !== index || !edition || ['city', 'year', 'race'].some(key => d.edition[key as keyof RunnerEdition] !== edition[key as keyof RunnerEdition]) || !integer(d.eligible_n) || !integer(d.age_n) || !integer(d.gender_n) || d.age_n > d.eligible_n || d.gender_n > d.eligible_n || !d.groups || typeof d.groups !== 'object') throw error();
+/** One edition's context, checked against the lookup's edition that names its cohort index (`context`). */
+export function validateEditionContext(value: unknown, index: number, runners: Pick<RunnerManifest, 'release_tag' | 'editions'>): EditionContext {
+  const d = value as EditionContext, edition = runners.editions.find(row => row.context === index);
+  if (!d || d.schema_version !== 1 || d.release_tag !== runners.release_tag || d.edition?.index !== index || !edition || edition.distance !== 'marathon' || d.edition.city !== edition.city || d.edition.year !== edition.year || d.edition.race !== edition.race || !integer(d.eligible_n) || !integer(d.age_n) || !integer(d.gender_n) || d.age_n > d.eligible_n || d.gender_n > d.eligible_n || !d.groups || typeof d.groups !== 'object') throw error();
   for (const [key, group] of Object.entries(d.groups)) {
     if (!/^(all|gender:(Men|Women)|age:[0-9]{2}-[0-9]{2}|age_gender:[0-9]{2}-[0-9]{2}:(Men|Women))$/.test(key) || !integer(group.n, 101) || group.n > d.eligible_n || !Array.isArray(group.finish) || !group.finish.length || !group.pace) throw error();
     let previous = 0, n = 0;
@@ -105,16 +124,25 @@ async function loadEdition(index: number, manifest: ContextManifest, runners: Ru
   cache.set(key, data); if (cache.size > 3) cache.delete(cache.keys().next().value!);
   return data;
 }
-export async function loadRaceInsights(races: RunnerRace[], runners: RunnerManifest, signal: AbortSignal): Promise<Record<number, RaceInsights>> {
+/**
+ * Same-edition peers, weather and route for the counted races among `races`, by record key. A race gets an entry only
+ * when it is counted (status 0) and the context manifest lists its edition: an own-record or limited race is compared
+ * with no one, and an edition without a file has no comparison. Nothing is requested when no race is counted.
+ */
+export async function loadRaceInsights(races: RunnerRace[], runners: RunnerManifest, signal: AbortSignal): Promise<Record<string, RaceInsights>> {
   const digest = runnerManifestDigest(runners);
   if (!digest) throw error();
+  const counted = races.filter(race => race.counted && runners.editions[race.edition]?.context !== null && runners.editions[race.edition]?.context !== undefined);
+  const result: Record<string, RaceInsights> = {};
+  if (!counted.length) { if (signal.aborted) throw new DOMException('Aborted', 'AbortError'); return result; }
   const response = await dataFetch(base + 'manifest.json?v=' + encodeURIComponent(RUNNER_RELEASE), { signal });
   if (!response.ok) throw new Error('Race comparisons could not load. Check your connection and try again.');
-  const manifest = validateContextManifest(await response.json(), runners, digest);
-  const editions = [...new Set(races.map(r => r.edition))], result: Record<number, RaceInsights> = {};
+  const manifest = validateContextManifest(await response.json(), runners);
+  const indexOf = (race: RunnerRace) => runners.editions[race.edition].context as number;
+  const editions = [...new Set(counted.map(indexOf))].filter(index => Object.prototype.hasOwnProperty.call(manifest.editions, String(index)));
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(3, editions.length) }, async () => {
-    while (next < editions.length) { const index = editions[next++]; const data = await loadEdition(index, manifest, runners, signal); for (const race of races.filter(r => r.edition === index)) result[race.id] = raceInsights(data, race); }
+    while (next < editions.length) { const index = editions[next++]; const data = await loadEdition(index, manifest, runners, signal); for (const race of counted.filter(r => indexOf(r) === index)) result[race.key] = raceInsights(data, race); }
   }));
   return result;
 }
