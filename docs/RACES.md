@@ -36,6 +36,7 @@ Keep these apart:
 | The cohort's sensitivity readings | `docs/evidence/<date>/<release>/cohort-sensitivity.json` (the pipeline's) | its sha256; it must name this adapted input and policy |
 | Every edition's facts | `docs/evidence/<date>/<release>/edition-policy-review.json` (the pipeline's) | its sha256; it must name this policy |
 | The builder | `analysis/build_races.py`, `analysis/races_common.py` | their sha256: a changed builder without a rebuild fails the verifier |
+| The source recount | `docs/evidence/<date>/<release>/races-recount.json`, written after the build | it names the manifest's own sha256, so the manifest cannot name it; the verifier checks it |
 
 The notes file names the three evidence files, so a new release needs a reviewed notes file before it can be built.
 The manifest has no clock time: two builds give the same bytes.
@@ -269,7 +270,7 @@ The runner-lookup builder skips the rows of those editions, so one run is not sh
 
 ## How it is verified
 
-- `python3 -m unittest analysis/test_races.py analysis/test_races_duplicates.py`: 43 tests on made-up releases (page
+- `python3 -m unittest analysis/test_races.py analysis/test_races_duplicates.py`: 44 tests on made-up releases (page
   types, the floors at their edge, readings and series, flags, aliases, rulings, a race left out, refusals of inputs
   that do not belong together, each audit rule and kind, no runner detail in any output). Two of them build a
   made-up repository and run `scripts/verify-races.cjs --root` on it, self-test included, so the builder and the
@@ -280,22 +281,26 @@ The runner-lookup builder skips the rows of those editions, so one run is not sh
   summary, the head and the edition table, requires the reviewed duplicate list to be the audit's, and refuses any
   key or text outside its vocabularies. `--self-test` breaks 22 copies of the folder one way at a time and requires
   each to be refused for the reason it names.
-- What the verifier cannot recount: the medians, quartiles and women's counts of an edition (the finish times are
-  not in the repository). It checks their floors, order and arithmetic; the builder checks each edition's finishes
-  against `EDITIONS.json`.
+- What the verifier cannot recount, because the finish times are not in the repository: an edition's finishes, its
+  quartiles and its women. [`analysis/races_recount.py`](../analysis/races_recount.py) recounts them from the adapted
+  input with other code than the builder's (every finish time read into numpy, each edition sorted and interpolated
+  by hand, where the builder asks DuckDB for the quantiles) and writes a receipt, `races-recount.json`, beside the
+  audit's evidence. The verifier requires the receipt to be clean and bound to the published manifest, the adapted
+  input and the recount script, so a rebuild without a fresh recount fails.
 
 ## Build
 
 ```
 python3 -I analysis/races_duplicates.py --input <adapted FULL dir> --out docs/evidence/<date>/<release>/duplicate-editions.json --work <a folder outside the repository>
 python3 -I analysis/build_races.py --input <adapted FULL dir>
+python3 -I analysis/races_recount.py --input <adapted FULL dir> --out docs/evidence/<date>/<release>/races-recount.json
 node scripts/verify-races.cjs --self-test
 ```
 
 Measured on November 14, 2026 on a 4-CPU, 15 GB machine: the audit 31 s and 1.2 GB with
 `PACE_RACES_DUCKDB_MEMORY=1000MB`; the builder 3 s and 0.3 GB; the verifier under a second. Rebuild when the adapted
 input, the edition policy, the registry, the notes or a builder script changes; run the audit again when the adapted
-input or an audit script changes, and review the notes when its list moves.
+input or an audit script changes, and review the notes when its list moves; run the recount after every rebuild.
 
 ## What a page builder must know
 

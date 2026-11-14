@@ -18,6 +18,7 @@ import duckdb
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_races as br  # noqa: E402
 import races_common as rc  # noqa: E402
+import races_recount  # noqa: E402
 
 TAG = 'pace-notes-marathon-half-20990101-0000'
 EVIDENCE = 'docs/evidence/2099-01-01/release-20990101-0000'
@@ -169,7 +170,7 @@ class Fixture:
         policy_sha = rc.file_sha256(self.p['policy'])
         # What the verifier reads beside the family's own inputs: the pinned policy digest, the scripts, the cohort manifest.
         (self.root / 'analysis' / 'source_quality.py').write_text(f"POLICY_FILE_SHA256_20990101_0000 = '{policy_sha}'\n")
-        for name in ('build_races.py', 'races_common.py', 'races_duplicates.py'):
+        for name in ('build_races.py', 'races_common.py', 'races_duplicates.py', 'races_recount.py'):
             shutil.copyfile(rc.ANALYSIS / name, self.root / 'analysis' / name)
         eligible = sum(n - unfinished for *_, n, unfinished, use, _, _ in self.rows() if use == 'counted')
         held = [e for e in editions if [e['city'], e['year']] in counted or any(x['city'] == e['city'] and x['year'] == e['year'] and x['own_record'] for x in listed)]
@@ -607,6 +608,9 @@ class Verifier(unittest.TestCase):
     def verify(self, *options):
         with mock.patch.object(br, 'log', lambda *_: None):
             br.run(self.fx.write().source, self.fx.out, accept_counts=True, **self.fx.kwargs())
+        receipt = races_recount.recount(self.fx.source, self.fx.out)
+        self.assertEqual((receipt['status'], receipt['mismatch_count']), ('pass', 0))
+        (self.fx.root / EVIDENCE / 'races-recount.json').write_bytes(rc.encode_readable(receipt))
         return subprocess.run(['node', str(rc.ROOT / 'scripts' / 'verify-races.cjs'), '--root', str(self.fx.root), *options], capture_output=True, text=True)
 
     def test_the_verifier_recounts_the_build_and_its_self_test_bites(self):
@@ -643,6 +647,40 @@ class Verifier(unittest.TestCase):
         result = subprocess.run(['node', str(rc.ROOT / 'scripts' / 'verify-races.cjs'), '--root', str(fx.root)], capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('the manifest binds the reviewed notes', result.stderr)
+
+
+class Recount(Base):
+    def test_the_recount_reads_the_same_numbers_with_other_code(self):
+        fx = self.fx.write()
+        with mock.patch.object(br, 'log', lambda *_: None):
+            meta = br.run(fx.source, fx.out, **fx.kwargs())
+        receipt = races_recount.recount(fx.source, fx.out)
+        self.assertEqual((receipt['status'], receipt['mismatches'], receipt['races_manifest_sha256']), ('pass', [], rc.file_sha256(fx.out / 'manifest.json')))
+        self.assertEqual(receipt['compared'], {'editions': sum(len(e) for *_, e in RACES), 'editions_with_finishes': 3 + 4 + 5, 'editions_with_quartiles': 3 + 3 + 5,
+                                               'editions_with_a_share_of_women': meta['counts']['editions_with_a_share_of_women'], 'race_files': 4})
+        self.assertNotIn('qqfixture', json.dumps(receipt).lower())
+
+        def tampered(name, change):
+            original, listing = (fx.out / name).read_bytes(), (fx.out / 'manifest.json').read_bytes()
+            value = json.loads(original)
+            change(value)
+            (fx.out / name).write_bytes(rc.encode(value))
+            manifest = json.loads(listing)
+            manifest['files'][name] = {'bytes': (fx.out / name).stat().st_size, 'sha256': rc.file_sha256(fx.out / name)}
+            (fx.out / 'manifest.json').write_bytes(rc.encode(manifest))
+            found = races_recount.recount(fx.source, fx.out)
+            (fx.out / name).write_bytes(original)
+            (fx.out / 'manifest.json').write_bytes(listing)
+            return found
+        wrong = tampered('race/alpha.json', lambda v: v['editions'][0].update(median_s=v['editions'][0]['median_s'] + 0.25))
+        self.assertEqual((wrong['status'], [m['what'] for m in wrong['mismatches']]), ('fail', ['quartiles']))
+        wrong = tampered('race/gamma-city.json', lambda v: v['editions'][0]['women'].update(n=v['editions'][0]['women']['n'] + 1))
+        self.assertEqual((wrong['status'], [m['what'] for m in wrong['mismatches']]), ('fail', ['women']))
+        wrong = tampered('directory.json', lambda v: v['races'][0]['editions'][0].__setitem__(4, v['races'][0]['editions'][0][4] - 1))
+        self.assertEqual((wrong['status'], [(m['what'], m['label'], m['year']) for m in wrong['mismatches']]), ('fail', [('finishes', 'Alpha', 2019)]))
+        (fx.out / 'summary.json').write_text('{}')                                            # a file that is not the manifest's stops the recount
+        with self.assertRaises(rc.RacesError):
+            races_recount.recount(fx.source, fx.out)
 
 
 class Constants(unittest.TestCase):

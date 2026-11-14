@@ -21,6 +21,10 @@
 //      number and counts toward nothing; the audit was run on this adapted input by the scripts in the repository.
 //   7. No identifier: only known keys, every string from a known vocabulary (the registry's labels, names and places,
 //      the notes' aliases, the code lists), no release label, no person id.
+//   8. The source recount's receipt (races-recount.json beside the audit's evidence, written by
+//      analysis/races_recount.py from the adapted input): clean, and bound to this manifest, this adapted input and the
+//      recount script in the repository. What this verifier cannot recount (an edition's finishes, quartiles and
+//      women) is recounted there, so a rebuild without a fresh recount fails.
 //
 //   node scripts/verify-races.cjs [--data <races folder>] [--root <repository>] [--self-test]
 //
@@ -548,6 +552,18 @@ function verify(dataDir, root = ROOT) {
   scan(summary, 'summary.json', '');
   for (const name of listedFiles.filter((n) => n.startsWith('race/'))) scan(JSON.parse(data(name)), name, '');
   for (const r of table) for (const c of ['hold_note', 'release_note', 'reason_not_counted']) ok(!/\bp(51|4)_[0-9a-z]/i.test(r[c]) && !/\bbib\b/i.test(r[c]), `editions.csv ${r.race} ${r.year}: no identifier in ${c}`);
+
+  // ---------- 8. The source recount's receipt ----------
+  const receiptPath = path.posix.join(path.posix.dirname(manifest.evidence.duplicate_editions.file), 'races-recount.json');
+  if (ok(fs.existsSync(rel(receiptPath)), `${receiptPath}: the source recount’s receipt is missing (run analysis/races_recount.py after the build)`)) {
+    const receipt = readJson(receiptPath);
+    eq([receipt.status, receipt.mismatch_count, receipt.mismatches], ['pass', 0, []], 'the source recount is clean');
+    eq([receipt.release_tag, receipt.input_manifest_sha256, receipt.races_manifest_sha256], [release.tag, manifest.input.manifest_sha256, sha(data('manifest.json'))],
+      'the source recount is bound to this release, adapted input and manifest (run it again after a rebuild)');
+    eq(receipt.script, { 'analysis/races_recount.py': sha(fs.readFileSync(rel('analysis/races_recount.py'))) }, 'the source recount was made by the script in the repository');
+    eq(receipt.compared, { editions: all.length, editions_with_finishes: pageRaces.flatMap((d) => d.rows).filter((e) => inUniverse(e.k) && e.review !== 'copy').length,
+      editions_with_quartiles: counts.numbers, editions_with_a_share_of_women: counts.women, race_files: pageRaces.length }, 'the source recount compared every edition and every number of a race file');
+  }
 
   // ---------- The manifest's own counts and review lists ----------
   eq(manifest.counts, {
