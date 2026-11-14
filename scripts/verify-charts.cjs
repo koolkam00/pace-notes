@@ -140,8 +140,17 @@ for (const ext of ['.ts', '.tsx']) require.extensions[ext] = (m, f) => m._compil
 const resolveFilename = Module._resolveFilename;
 Module._resolveFilename = function (request, ...rest) { return resolveFilename.call(this, request.startsWith('@/') ? path.join(root, request.slice(2)) : request, ...rest); };
 const { CHART_TEXT, chartWords } = require(path.join(root, 'lib/charts/registry.ts'));
-const { neutralSpec, readingMarks } = require(path.join(root, 'lib/charts/neutral.ts'));
+const { readingMarks } = require(path.join(root, 'lib/charts/neutral.ts'));
+const { chartPageState, chartCardPath } = require(path.join(root, 'lib/charts/page.ts'));
+const { THEME_NAMES } = require(path.join(root, 'lib/charts/types.ts'));
 const { typo } = require(path.join(root, 'lib/charts/typo.ts'));
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+const ChartCard = require(path.join(root, 'components/charts/ChartCard.tsx')).default;
+// The card as the page draws it (components/charts/ChartPage.tsx hands ChartCard the same state), as text and markup.
+const drawn = (c, state) => renderToStaticMarkup(React.createElement(ChartCard, { number: c.number, theme: THEME_NAMES[c.theme], title: state.words.title,
+  takeaway: state.words.plain, label: state.words.plain, spec: state.plot, units: 'mi', heading: 'h1', foot: null }));
+const textOf = (html) => html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ');
 const titles = new Set(), descriptions = new Set();
 // The charts whose takeaway's guard does not hold on these values. They are in the fallback state (AGENTS rule 13): a
 // guard is never loosened to keep a headline, and no slot may still state the reading it rejected. Each slot the words
@@ -152,8 +161,14 @@ for (const c of scope(catalog)) {
   ok(text, `${c.slug}: its words are registered in lib/charts/text`);
   const doc = files.get(c.slug);
   const words = chartWords(c, doc);
+  // What the page shows (lib/charts/page.ts): the same words, the spec it draws and the card it links.
+  const state = chartPageState(c, doc);
+  assert.deepEqual(state.words, words, `${c.slug}: the page's words are the chart's words`);
+  const html = drawn(c, state);
+  ok((/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html) || [])[1] !== undefined && textOf(/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)[1]).trim() === words.title, `${c.slug}: the page's H1 is the title`);
   if (words.guard) {
     ok((words.headline.match(/\*/g) || []).length === 2, `${c.slug}: the takeaway has exactly one *…* accent`);
+    ok(state.plot === doc.plot && state.card === chartCardPath(c.number), `${c.slug}: the page draws the chart's own spec and links its card`);
   } else {
     fallen.push(c);
     // The title: most titles state the reading, so the chart needs a title that names what it shows and no more.
@@ -163,9 +178,13 @@ for (const c of scope(catalog)) {
     // The takeaway, the chart's accessible name and the search description: the fallback sentence, with no accent.
     ok(words.headline === words.fallback && words.plain === words.fallback && words.description === words.fallback, `${c.slug}: in the fallback state the takeaway and the description are the fallback sentence`);
     ok(!words.fallback.includes('*'), `${c.slug}: a fallback sentence has no accent`);
-    // The drawing and its table twin: no signal mark, no accent series, no note, no ring, no signal figure.
-    const left = readingMarks(neutralSpec(doc.plot));
+    // The drawing and its table twin: no signal mark, no accent series, no note, no ring, no signal figure, in the
+    // spec the page draws and in the markup that comes out of it; and no card to save.
+    const left = readingMarks(state.plot);
     ok(left.length === 0, `${c.slug}: the fallback drawing still marks a reading (${left.join(', ')})`);
+    const mark = /tf-signal|ts-signal|is-signal|is-lit|cx-notes|cx-cell-ring|class="cx-big"/.exec(html);
+    ok(!mark, `${c.slug}: the fallback drawing's markup still carries a reading's mark (${mark && mark[0]})`);
+    ok(state.card === null, `${c.slug}: in the fallback state the page links no share card`);
   }
   if (text.neutral !== undefined) {
     ok(typo(text.neutral).length <= 47, `${c.slug}: the neutral title is ${typo(text.neutral).length} characters (at most 47)`);

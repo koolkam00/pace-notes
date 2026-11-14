@@ -6,7 +6,7 @@ import Arrow from '@/components/ui/Arrow';
 import PageFeedback from '@/components/PageFeedback';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { rich } from '@/components/story/StoryPage';
-import { neutralSpec } from '@/lib/charts/neutral';
+import { chartPageState } from '@/lib/charts/page';
 import { chartWords } from '@/lib/charts/registry';
 import { tableOf, unitAware } from '@/lib/charts/table';
 import { THEME_NAMES, type CatalogItem } from '@/lib/charts/types';
@@ -20,14 +20,13 @@ export function CardFoot({ number }: { number: number }) {
 /**
  * One chart's page: the card (its title is the page's H1, its takeaway links the sustained-slowdown term once), the
  * image to save, the chart's table twin with the one link to /methodology, and the way to the charts on either side.
- * While the takeaway's guard does not hold, every slot falls back (AGENTS rule 13): the neutral title and sentence
- * (chartWords), the chart and its table without the reading's marks (neutralSpec), and no image to save, since the
- * share card is withdrawn.
+ * While the takeaway's guard does not hold, every slot falls back (AGENTS rule 13): the neutral title and sentence,
+ * the chart and its table without the reading's marks, and no image to save, since the share card is withdrawn. The
+ * state comes from chartPageState (lib/charts/page.ts), which scripts/verify-charts.cjs checks slot by slot.
  */
 export default function ChartPage({ item }: { item: CatalogItem }) {
   const file = readChart(item.slug);
-  const words = chartWords(item, file);
-  const plot = words.guard ? file.plot : neutralSpec(file.plot);
+  const { words, plot, card } = chartPageState(item, file);
   const dual = unitAware(plot);
   const svg = (units: 'mi' | 'km') => <ChartSvg spec={plot} label={words.plain} units={units} />;
   const table = (units: 'mi' | 'km') => {
@@ -43,7 +42,7 @@ export default function ChartPage({ item }: { item: CatalogItem }) {
       <ChartCard number={item.number} theme={THEME_NAMES[item.theme]} title={words.title} takeaway={rich(words.headline, { term: true })}
         label={words.plain} spec={plot} heading="h1" foot={<CardFoot number={item.number} />}
         plot={dual ? <ByUnits mi={svg('mi')} km={svg('km')} /> : undefined} />
-      {words.guard ? <p className="chart-save"><a href={`/charts/cards/${item.number}.png`} download={`pace-notes-chart-${item.number}.png`}>Save the image</a></p> : null}
+      {card ? <p className="chart-save"><a href={card} download={`pace-notes-chart-${item.number}.png`}>Save the image</a></p> : null}
       <div className="chart-numbers">{dual ? <ByUnits mi={table('mi')} km={table('km')} /> : table('mi')}</div>
       <nav className="chart-pager" aria-label="More charts" data-track-section="related">
         {prev ? <Link href={chartHref(prev.number)} className="chart-pager-prev"><Arrow dir="left" /><span><span className="chart-pager-n">No. {prev.number}</span>{titleOf(prev)}</span></Link> : <span />}
