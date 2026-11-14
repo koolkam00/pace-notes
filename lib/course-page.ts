@@ -120,8 +120,8 @@ export type EditionContext = {
   startVerified: boolean | null;
   /** The weather record's source and its documentation page (Open-Meteo's historical weather archive today). */
   source: { name: string; url: string } | null;
-  /** The release's verification tier code of the edition and its weaker-source flag (null where the cohort manifest states none). */
-  tier: string | null; weakerSource: boolean | null;
+  /** The release's verification tier code of the edition, its weaker-source flag and its timing basis text (null where the cohort manifest states none). */
+  tier: string | null; weakerSource: boolean | null; timingBasis: string | null;
   /** Counted, kept for an own-record view, or giving recorded times only. */
   use: ListedEdition['use'];
 };
@@ -193,7 +193,7 @@ export function editionContexts(): Map<string, EditionContext> {
   const found = new Map<string, EditionContext>();
   for (const e of listedEditions()) {
     if (isCopyEdition(e, copies)) continue;
-    found.set(editionKey(e.city, e.year), { eligible: e.eligible, date: e.raceDate, start: null, terrain: null, startVerified: null, source: null, tier: e.tier, weakerSource: e.weakerSource, use: e.use });
+    found.set(editionKey(e.city, e.year), { eligible: e.eligible, date: e.raceDate, start: null, terrain: null, startVerified: null, source: null, tier: e.tier, weakerSource: e.weakerSource, timingBasis: e.timingBasis, use: e.use });
   }
   cohort.editions.forEach((edition, index) => {
     const meta = manifest.editions[String(index)];
@@ -221,12 +221,14 @@ export function editionContexts(): Map<string, EditionContext> {
 // ---------- The page model ----------
 
 /** One counted edition with a row (100 finishes or more); `tier` is the release's verification tier code of the edition. */
-export type EditionRow = { year: number; n: number; median_s: number; slowdown: number; temp: number | null; date: string | null; tier: string | null; weakerSource: boolean | null };
+export type EditionRow = { year: number; n: number; median_s: number; slowdown: number; temp: number | null; date: string | null; tier: string | null; weakerSource: boolean | null; timingBasis: string | null };
 /**
- * One edition of a course as the release holds it, counted or not: the year, how the site uses it and its tier code. A
- * page that names an edition can name its tier from here (lead decisions D3 and D5); `tierLabel` gives the word.
+ * One edition of a course as the release holds it, counted or not: the year, how the site uses it and the release's
+ * codes of its tier, split tier and timing basis. A page that names an edition draws its labels from these (lead
+ * decisions D3, D5 and D16) with the shared `EditionTags`; `tier` and `splitTier` are null only where a cohort manifest
+ * does not state them, which scripts/verify-courses.cjs refuses.
  */
-export type ListedRow = { year: number; use: ListedEdition['use']; tier: string | null; weakerSource: boolean | null; splitTier: string | null };
+export type ListedRow = { year: number; use: ListedEdition['use']; tier: string | null; weakerSource: boolean | null; splitTier: string | null; timingBasis: string | null };
 export type WeatherRow = WeatherEdition & { start: string | null };
 /** A goal's row on this course, and the share that made it across the other courses with rows (`every`, pooled by finishes; this course left out). */
 export type GoalLine = { goal: number; row: CourseGoalRow | null; reason: string | null; every: GoalPooled | null };
@@ -351,29 +353,11 @@ export function heldEditions(): Set<string> {
 }
 
 /**
- * The word a page prints for an edition's tier (lead decision D16, November 14, 2026; the site-wide module that draws
- * tier labels and the /methodology text that defines them come with the later site milestone, and this function then
- * gives way to it). Null for a tier the vocabulary does not know, so a page prints no label it cannot stand behind.
+ * A course's editions as the release holds them, by year. Each carries the codes the shared tier labels are drawn from
+ * (components/ui/TierTag.tsx `EditionTags`; the words are lib/tiers.ts and no page writes one).
  */
-export function tierLabel(row: Pick<ListedRow, 'tier' | 'weakerSource'>): string | null {
-  switch (row.tier) {
-    case 'stamped': return row.weakerSource ? 'Verified, weaker source' : 'Verified';
-    case 'stamped_weaker_source': return 'Verified, weaker source';
-    case 'partial': return 'Partial results';
-    case 'unverified': return 'Unverified';
-    case 'held_for_review': return 'Held for review';
-    default: return null;
-  }
-}
-/** The words a list prints for one edition: its tier, then "Finish times only" where the edition records no 5K splits. */
-export function tierWords(row: Pick<ListedRow, 'tier' | 'weakerSource' | 'splitTier'>): string[] {
-  const tier = tierLabel(row);
-  return [...(tier ? [tier] : []), ...(row.splitTier === 'finish_time_only' ? ['Finish times only'] : [])];
-}
-
-/** A course's editions as the release holds them, by year. */
 function listedRows(city: string): ListedRow[] {
-  return listedEditions().filter((e) => e.city === city).map(({ year, use, tier, weakerSource, splitTier }) => ({ year, use, tier, weakerSource, splitTier }));
+  return listedEditions().filter((e) => e.city === city).map(({ year, use, tier, weakerSource, splitTier, timingBasis }) => ({ year, use, tier, weakerSource, splitTier, timingBasis }));
 }
 
 /**
@@ -444,7 +428,7 @@ export function coursePages(): Map<string, CoursePageData> {
       const edition = all.get(editionKey(city, c.year));
       // A row is a counted edition's: anything else in courses.json would be a figure the edition policy does not allow.
       if (edition?.use !== 'counted') throw new Error(`courses.json has a row for ${city} ${c.year}, which the marathon cohort does not count.`);
-      return { year: c.year, n: c.n, median_s: c.median_s, slowdown: c.slowdown, temp: c.temp, date: edition.date, tier: edition.tier, weakerSource: edition.weakerSource };
+      return { year: c.year, n: c.n, median_s: c.median_s, slowdown: c.slowdown, temp: c.temp, date: edition.date, tier: edition.tier, weakerSource: edition.weakerSource, timingBasis: edition.timingBasis };
     });
     const listed = new Set(cells.map((c) => c.year));
     // The editions under 100 finishes (no row) that the course total also counts: the city's other counted editions.

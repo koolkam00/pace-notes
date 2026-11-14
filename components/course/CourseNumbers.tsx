@@ -1,4 +1,5 @@
 import { Elevation } from '@/components/story/Units';
+import { EditionTags } from '@/components/ui/TierTag';
 import { clock, count, goalText, minutes, pct, routeClimb, shortDate, type CoursePageData } from '@/lib/course-page';
 import { sectionLabel } from '@/lib/nuggets/format';
 import { profileUnderWater } from '@/lib/nuggets/courses';
@@ -11,7 +12,7 @@ import { howWeKnowOf } from '@/lib/chapters';
 
 /**
  * "All numbers" (the redesign spec, section 00, cut 7): every long table on the course page in one disclosure after
- * the race's last chart: the whole course, edition by edition (with each race morning), 5K by 5K, goal by goal, and the
+ * the race's last chart: the whole course, edition by edition (with each edition's tier label and race morning), 5K by 5K, goal by goal, and the
  * pacing types. Every figure is a checked <data> (scripts/verify-courses.cjs); a missing value is a dash. A duration given
  * back carries its "+", so it never reads as a clock time or a pace. Its last line is the page's methods link (release:
  * every page with an "All numbers" ends it there; CourseOthers' closing row is the way back alone).
@@ -48,7 +49,7 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
         </CourseTable>
         <CourseTable id="numbers-editions-caption" caption={`${display}, edition by edition`}>
           <thead>
-            <tr><th scope="col">Year</th><th scope="col">Race date</th><th scope="col">Finishes</th><th scope="col">Median finish</th><th scope="col">Sustained slowdown</th><th scope="col">At the start</th><th scope="col">Dew point</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Start time</th></tr>
+            <tr><th scope="col">Year</th><th scope="col">Results</th><th scope="col">Race date</th><th scope="col">Finishes</th><th scope="col">Median finish</th><th scope="col">Sustained slowdown</th><th scope="col">At the start</th><th scope="col">Dew point</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Start time</th></tr>
           </thead>
           <tbody>
             {editions.map((e) => {
@@ -56,6 +57,9 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
               return (
                 <tr key={e.year}>
                   <th scope="row">{e.year}</th>
+                  {/* The edition's tier in the shared words (lead decisions D3 and D16): every row is a counted edition, whose
+                      split tier is `splits`. A row's cells are 44 px tall, so each linked label keeps its own hit area. */}
+                  <td><EditionTags tier={e.tier as string} weakerSource={e.weakerSource} splitTier="splits" timingBasis={e.timingBasis} /></td>
                   <td>{e.date ? <Fact k={`date@${e.year}`} v={e.date}>{shortDate(e.date)}</Fact> : '—'}</td>
                   <td><Fact k={`n@${e.year}`} v={e.n}>{count(e.n)}</Fact></td>
                   <td><Fact k={`median@${e.year}`} v={e.median_s}>{clock(e.median_s)}</Fact></td>

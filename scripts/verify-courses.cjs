@@ -276,12 +276,18 @@ for (const column of ['city', 'year', 'raw', 'category', 'tier', 'weaker_source'
 }
 const col = (name) => otherColumns.indexOf(name);
 const LISTED = [
-  ...cohort.editions.map((e) => ({ city: e.city, year: e.year, use: e.use, tier: e.tier, weaker: e.weaker_source === true, split: 'splits' })),
-  ...cohort.other_editions.rows.map((row) => ({ city: row[col('city')], year: row[col('year')], use: 'other', tier: col('tier') < 0 ? null : row[col('tier')], weaker: col('weaker_source') >= 0 && row[col('weaker_source')] === true, split: col('split_tier') < 0 ? null : row[col('split_tier')] })),
+  ...cohort.editions.map((e) => ({ city: e.city, year: e.year, use: e.use, tier: e.tier, weaker: e.weaker_source === true, split: 'splits', timing: e.timing_basis ?? null })),
+  ...cohort.other_editions.rows.map((row) => ({ city: row[col('city')], year: row[col('year')], use: 'other', tier: col('tier') < 0 ? null : row[col('tier')], weaker: col('weaker_source') >= 0 && row[col('weaker_source')] === true, split: col('split_tier') < 0 ? null : row[col('split_tier')], timing: null })),
 ];
-// The words a list prints for an edition's tier (lead decision D16), written out here a second time.
-const TIER_WORDS = { stamped: 'Verified', stamped_weaker_source: 'Verified, weaker source', partial: 'Partial results', unverified: 'Unverified', held_for_review: 'Held for review' };
-const tierText = (e) => [e.tier === 'stamped' && e.weaker ? 'Verified, weaker source' : TIER_WORDS[e.tier], e.split === 'finish_time_only' ? 'Finish times only' : null].filter(Boolean).join(' · ');
+// An edition with a cohort file has 5K splits by the edition policy's first condition; the manifest says so where it states the split tier.
+check(cohort.editions.every((e) => e.split_tier === undefined || e.split_tier === 'splits'), 'data', 'an edition with a cohort file is not of the split tier "splits"');
+// The words a page prints for an edition (lead decision D16) come from the shared vocabulary and from nowhere else:
+// lib/tiers.ts holds them, components/ui/TierTag.tsx draws them, and scripts/verify-tiers.cjs fails any other file that
+// writes one. Here the same functions check the codes of every edition a course page names, so no page meets a code the
+// vocabulary does not know, a tier that is never shown, or a weaker-source flag that disagrees with its tier.
+const T = require(path.join(root, 'lib/tiers.ts'));
+/** The label texts of one edition, in the order EditionTags draws them; throws on a code the vocabulary refuses. */
+const tierTexts = (e, timingBasis = null) => [T.tierWords(e.tier, e.weaker), T.splitTierWords(e.split), T.timingWords(timingBasis)].filter(Boolean);
 // The edition policy's published list against the cohort's own: an edition is counted exactly when the policy does not list it.
 const policyKeys = new Set(policyEditions(cohort.source_quality, 'marathon cohort').map((e) => key(e.city, e.year)));
 check(LISTED.every((e) => (e.use === 'counted') === !policyKeys.has(key(e.city, e.year))) && policyKeys.size === LISTED.filter((e) => e.use !== 'counted').length, 'data', 'the cohort\'s counted editions are not exactly the editions the published edition policy leaves unlisted');
@@ -326,14 +332,24 @@ const LIST_CITIES = PAGES.filter((city) => !CITIES.includes(city));
     const editions = LISTED.filter((e) => e.city === city).sort((a, b) => a.year - b.year);
     check(editions.every((e) => countedFinishes(city, e.year) < 100), `data ${city}`, 'a list-only page has an edition of 100 counted finishes');
     check(model && JSON.stringify(model.listed.map((e) => [e.year, e.use, e.tier])) === JSON.stringify(editions.map((e) => [e.year, e.use, e.tier])), `data ${city}`, 'the list-only page does not list exactly the race\'s editions with their tiers');
-    check(model && model.listed.every((e, i) => P.tierWords(e).join(' · ') === tierText(editions[i]) && tierText(editions[i]).length > 0), `data ${city}`, 'an edition of the list-only page has no tier word, or another than its tier\'s');
+    // Every edition of the list has labels the vocabulary can draw (the page's build would stop on one it cannot).
+    for (const e of editions) {
+      let words = null;
+      try { words = tierTexts(e, e.timing); } catch (error) { fail(`data ${city}`, `${e.year}: ${error.message}`); }
+      if (words) check(words.length > 0, `data ${city}`, `${e.year}: an edition without a tier label`);
+    }
+    check(model && model.listed.every((e, i) => e.splitTier === editions[i].split && e.weakerSource === (editions[i].use === 'other' && col('weaker_source') < 0 ? null : editions[i].weaker) && e.timingBasis === editions[i].timing), `data ${city}`, 'the list-only page carries another split tier, weaker-source flag or timing basis than the cohort manifest states');
   }
   // Every full page lists the race's editions with their tiers too, and its rows are counted editions with their tier.
   for (const city of PAGE_CITIES) {
     const model = P.coursePages().get(slugOf(city));
     const editions = LISTED.filter((e) => e.city === city).sort((a, b) => a.year - b.year);
     check(model && JSON.stringify(model.listed.map((e) => [e.year, e.use, e.tier])) === JSON.stringify(editions.map((e) => [e.year, e.use, e.tier])), `data ${city}`, 'the page model does not list exactly the race\'s editions with their tiers');
-    check(model && model.editions.every((row) => { const e = cohortEditions.get(key(city, row.year)); return e && e.use === 'counted' && e.tier === row.tier && typeof row.tier === 'string'; }), `data ${city}`, 'an edition row is not a counted edition with its tier');
+    check(model && model.editions.every((row) => { const e = cohortEditions.get(key(city, row.year)); return e && e.use === 'counted' && e.tier === row.tier && typeof row.tier === 'string' && row.weakerSource === (e.weaker_source === true) && row.timingBasis === (e.timing_basis ?? null); }), `data ${city}`, 'an edition row is not a counted edition with its tier, weaker-source flag and timing basis');
+    // Each row's labels can be drawn: a tier the vocabulary shows, and a flag that agrees with it.
+    for (const row of model?.editions ?? []) {
+      try { tierTexts({ tier: row.tier, weaker: row.weakerSource, split: 'splits' }, row.timingBasis); } catch (error) { fail(`data ${city}`, `${row.year}: ${error.message}`); }
+    }
   }
 }
 
@@ -661,8 +677,13 @@ if (html) {
     check(h1.length === 1 && innerText(h1[0][1]) === race, where, `the H1 is not the race name "${race}"`);
     for (const m of body.matchAll(/<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/g)) check(textOf(m[2]).length > 0, where, `an empty <${m[1]}>`);
     check(!/<data\b/.test(main), where, 'a list-only page prints a figure from the data files');
-    const rows = [...(sectionOf(body, 'editions') ?? '').matchAll(/<tr><th scope="row">(\d{4})<\/th><td\b([^>]*)>([\s\S]*?)<\/td><\/tr>/g)].map((m) => [Number(m[1]), attr(m[2], 'data-tier'), textOf(m[3])]);
-    check(JSON.stringify(rows) === JSON.stringify(editions.map((e) => [e.year, e.tier ?? '', tierText(e)])), where, `the editions listed ${JSON.stringify(rows)} are not the race's editions with their tier words`);
+    // Each row: the year, then the edition's labels as the shared component draws them (their texts in order, the tier's
+    // code on its label, each a link to the definitions).
+    const labelsOf = (cell) => [...cell.matchAll(/<(?:a|span)\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>([\s\S]*?)<\/(?:a|span)>/g)].map((m) => ({ text: textOf(m[2]), tier: attr(m[1], 'data-tier'), href: attr(m[1], 'href') }));
+    const rows = [...(sectionOf(body, 'editions') ?? '').matchAll(/<tr><th scope="row">(\d{4})<\/th><td\b[^>]*>([\s\S]*?)<\/td><\/tr>/g)].map((m) => [Number(m[1]), labelsOf(m[2])]);
+    check(JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text), labels[0]?.tier])) === JSON.stringify(editions.map((e) => [e.year, tierTexts(e, e.timing), e.tier])), where,
+      `the editions listed ${JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text)]))} are not the race's editions with their tier labels`);
+    check(rows.every(([, labels]) => labels.every((l) => l.href === T.TIER_ANCHOR)), where, 'a tier label does not link to its definition');
     // No number but the years: nothing on the page is a count, a share or a time.
     const numbers = textOf(main.replace(/<nav\b[\s\S]*?<\/nav>/g, '').replace(/<section[^>]*id="other-courses"[\s\S]*$/, '')).match(/\d[\d,.:]*%?/g) ?? [];
     const years = new Set(editions.map((e) => String(e.year)));
@@ -867,6 +888,18 @@ if (html) {
       check(!table.includes(`<th scope="row">${copy.year}</th>`), where, `copy edition ${copy.year} has a row in the finish-times table`);
       check(!/largely repeat|shown as recorded times only/.test(visible), where, `copy edition ${copy.year}: the copy-edition sentence is on the page`);
       if (f.allFinisherPct) check(!visible.includes(f.allFinisherPct), where, `the all-finisher figure ${f.allFinisherPct}, which counts the copies, is printed`);
+    }
+
+    // Every edition row names its tier in the shared words (lead decisions D3 and D16): one tier label per row, the
+    // row's own, drawn by the shared component and linked to its definition.
+    {
+      const tierOf = new Map([...editionTable.matchAll(/<tr><th scope="row">(\d{4})<\/th><td\b[^>]*>([\s\S]*?)<\/td>/g)].map((m) => [Number(m[1]),
+        [...m[2].matchAll(/<a\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>([\s\S]*?)<\/a>/g)].map((l) => ({ text: textOf(l[2]), tier: attr(l[1], 'data-tier'), href: attr(l[1], 'href') }))]));
+      for (const c of f.cells) {
+        const e = cohortEditions.get(key(city, c.year)), labels = tierOf.get(c.year) ?? [];
+        check(e && JSON.stringify(labels.map((l) => l.text)) === JSON.stringify(tierTexts({ tier: e.tier, weaker: e.weaker_source === true, split: 'splits' }, e.timing_basis ?? null)) && labels[0]?.tier === e.tier
+          && labels.every((l) => l.href === T.TIER_ANCHOR), where, `the ${c.year} row's tier labels ${JSON.stringify(labels.map((l) => l.text))} are not the edition's`);
+      }
     }
 
     // Elevation: the two climb totals each under its own label where both are printed, and "two ways" only over two.

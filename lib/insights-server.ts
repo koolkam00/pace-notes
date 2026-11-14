@@ -15,6 +15,8 @@ export type CohortEdition = {
   city: string; year: number; race: string; race_id: string;
   /** The release's verification tier of the edition: stamped, stamped_weaker_source, partial or unverified. */
   tier: string; weaker_source: boolean;
+  /** The release's timing basis text of the edition, or null where it states none. */
+  timing_basis?: string | null;
   race_date: string | null;
   use: 'counted' | 'own_record';
   /** Every written record, and the counted (eligible) finishes among them: zero unless `use` is counted. */
@@ -41,6 +43,8 @@ export type CohortManifest = {
 export type ListedEdition = {
   city: string; year: number; use: 'counted' | 'own_record' | 'other'; raw: number; eligible: number;
   tier: string | null; weakerSource: boolean | null; splitTier: string | null; category: string | null; raceDate: string | null;
+  /** The release's timing basis text; null where it states none or the cohort manifest does not carry it (an edition without a file). */
+  timingBasis: string | null;
 };
 
 let cohort: { key: string; manifest: CohortManifest; sha256: string } | undefined;
@@ -81,11 +85,12 @@ export function listedEditions(): ListedEdition[] {
       city: e.city, year: e.year, use: e.use, raw: e.raw, eligible: e.use === 'counted' ? e.eligible : 0,
       // An edition has a file only when its split tier is `splits`: the policy counts or keeps no other.
       tier: text(e.tier), weakerSource: typeof e.weaker_source === 'boolean' ? e.weaker_source : null, splitTier: 'splits', category: null, raceDate: e.race_date ?? null,
+      timingBasis: text(e.timing_basis),
     })),
     ...manifest.other_editions.rows.map((row) => ({
       city: String(row[city]), year: Number(row[year]), use: 'other' as const, raw: Number(row[raw]), eligible: 0,
       tier: tier < 0 ? null : text(row[tier]), weakerSource: weaker < 0 || typeof row[weaker] !== 'boolean' ? null : (row[weaker] as boolean),
-      splitTier: split < 0 ? null : text(row[split]), category: text(row[category]), raceDate: null,
+      splitTier: split < 0 ? null : text(row[split]), category: text(row[category]), raceDate: null, timingBasis: null,
     })),
   ];
   const seen = new Set<string>();
