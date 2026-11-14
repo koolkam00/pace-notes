@@ -532,12 +532,12 @@ export type HalfTiers = {
 /** The producer's evaluation of the link build (person-ids-v5.1-MATCHING.md): precision and recall on labelled pairs. */
 export type HalfProducerReview = {
   source: string; claim: string;
-  labelled_sets: { set: string; pairs: number; same: number; precision: number; precision_ci95: [number, number]; recall: number; recall_ci95: [number, number] }[];
+  labelled_sets: { set: string; pairs: number; same: number; precision: number; precision_ci95: number[]; recall: number; recall_ci95: number[] }[];
   false_links_in_labelled_sets: number;
   hand_checked_people: {
     people: number;
-    elite: { people: number; pair_recall: number; pairs: [number, number]; known_wrong_pairs_linked: number };
-    non_elite: { people: number; pair_recall: number; pairs: [number, number]; known_wrong_pairs_linked: number };
+    elite: { people: number; pair_recall: number; pairs: number[]; known_wrong_pairs_linked: number };
+    non_elite: { people: number; pair_recall: number; pairs: number[]; known_wrong_pairs_linked: number };
   };
 };
 

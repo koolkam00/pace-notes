@@ -1,0 +1,7 @@
+{
+ "schema_version": 1,
+ "distance": "half",
+ "rule": "A release key of a half-marathon edition (its source database and its key) joins a race only by an entry of `reviewed`. A key with no entry is its own race, named from the key alone by the marathon registry's frozen naming rule (analysis/race_registry.py split_key and display_name; analysis/half_races.py default_race): a plain key is its own name and place; a composite key gives the place before the first \": \" and the event title after it. An entry states its label (unique among half races), its name and place (phrases one of its keys states), its keys as [source_db, key], the review date and why; it may add search aliases and flags. Half and marathon races are separate name spaces: nothing here is read by the marathon registry, and no marathon key appears here.",
+ "flags": {},
+ "reviewed": []
+}

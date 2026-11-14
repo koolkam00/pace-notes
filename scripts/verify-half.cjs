@@ -187,7 +187,8 @@ const { set_b: setB, ...policyCounts } = counts;
 eq(policyCounts, policy.expected, 'the manifest’s policy counts are the reviewed ones');
 // Every half builder module is bound, and each sha is the file in the repository. half_extract.py cuts the Node
 // recount's input and is not read by the build; the receipt binds the extract's content instead.
-const NOT_BUILDERS = new Set(['analysis/half_extract.py']);
+// half_races.py builds the race list, a family of its own whose manifest binds it (section 4c); half_duplicates.py is an audit.
+const NOT_BUILDERS = new Set(['analysis/half_extract.py', 'analysis/half_races.py', 'analysis/half_duplicates.py']);
 const halfModules = fs.readdirSync(rel('analysis')).filter((n) => /^(half_.*|build_half)\.py$/.test(n)).map((n) => `analysis/${n}`).filter((n) => !NOT_BUILDERS.has(n)).sort();
 eq(Object.keys(manifest.scripts).sort(), halfModules, 'every half builder module is bound to the manifest');
 for (const [name, digest] of Object.entries(manifest.scripts)) ok(digest === fileSha(name), `stale half data: ${name} changed after the build (rerun analysis/build_half.py)`);
@@ -229,7 +230,8 @@ const SCOPES = { 'field.json': 'verified', 'women.json': 'verified', 'linked.jso
 // Published only while the family meets its builder floors (analysis/half_pacing.py): under one it is left out with its beat.
 const OPTIONAL = new Set(['pacing.json']);
 const present = [];
-(function walk(dir, prefix) { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { if (e.isDirectory()) walk(path.join(dir, e.name), `${prefix}${e.name}/`); else present.push(`${prefix}${e.name}`); } })(opt.data, '');
+// races/ is the half race list, a family of its own with its own manifest (section 4c).
+(function walk(dir, prefix) { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { if (e.isDirectory()) { if (`${prefix}${e.name}` !== 'races') walk(path.join(dir, e.name), `${prefix}${e.name}/`); } else present.push(`${prefix}${e.name}`); } })(opt.data, '');
 eq(present.filter((f) => f !== 'manifest.json').sort(), Object.keys(manifest.files).sort(), 'exactly the manifest’s files are published, and nothing else');
 eq(Object.keys(manifest.files).filter((f) => !OPTIONAL.has(f)).sort(), Object.keys(SCOPES).filter((f) => !OPTIONAL.has(f)).sort(), 'the half families');
 ok(Object.keys(manifest.files).every((f) => f in SCOPES), 'no family the verifier does not know');

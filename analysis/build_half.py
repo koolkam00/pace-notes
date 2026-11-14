@@ -13,6 +13,7 @@ from the checked-in marathon cohort (analysis/marathon-cohort).
 Writes aggregates only: field.json and women.json (verified half finishes), linked.json and tools/half-to-full.json
 (half and marathon records linked by name), cards.json (the card plots, read from those files), pacing.json (how halves
 are paced, from every usable result with a 10 km time; left out under a builder floor), then manifest.json,
+(and, as a family of its own with its own manifest, the half race list under races/: analysis/half_races.py)
 which binds every file to the pin, the policy, the files read, the identity file, the marathon cohort (and through it
 the counted list), the cited marathon files and every builder script. The output is deterministic: two builds give the
 same bytes (no timestamps; `as_of` is the release's date).
@@ -187,6 +188,9 @@ def run(source, out: Path, accept_counts: bool = False) -> dict:
     log(f"link tables: {link_counts['people']:,} people, {link_counts['links']:,} rows ({time.time() - started:.0f} s)")
     families, set_b = build_families(db, pin, policy, marathons, reviewed, key, policy_sha, module_sha)
     log(f"set B: {set_b['pairs']:,} pairs ({time.time() - started:.0f} s)")
+    # The half race list: a family of its own under races/, with its own manifest (analysis/half_races.py).
+    import half_races
+    race_files = half_races.build(db, policy, source, pin, policy_sha, module_sha)
     db.close()
 
     out_bytes = {}
@@ -200,6 +204,8 @@ def run(source, out: Path, accept_counts: bool = False) -> dict:
     for name in OPTIONAL_FILES:
         if name not in out_bytes:
             (out / name).unlink(missing_ok=True)
+    for name, data in race_files.items():
+        write(out / 'races' / name, data)
     write(out / 'manifest.json', encode(meta))
     log(json.dumps({'files': {k: len(v) for k, v in out_bytes.items()}, 'seconds': round(time.time() - started)}))
     return meta
