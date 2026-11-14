@@ -182,7 +182,7 @@ directory.
                   "finishes", "p25_s", "median_s", "p75_s", "women": { "n", "of", "share" } | null,
                   "category"?, "review"?, "copy_of"? }, ... ],
   "reading": { "measure": "median_finish_in_a_typical_verified_year", "median_s", "editions", "years": [...],
-               "lowest_s", "highest_s", "finishes", "timing": { "net": 8 } } | null,
+               "lowest_s", "highest_s", "finishes", "timing": { "chip_fallback": 8 } } | null,
   "reading_note": null | "fewer_than_three_verified_editions_of_100_finishes" | "per_series",
   "series"?: [ { "name", "first_year", "last_year", "years": [...], "reading": {...} | null } ] }
 ```
@@ -342,7 +342,9 @@ input or an audit script changes, and review the notes when its list moves; run 
 ## Measured
 
 Trial build of November 14, 2026 from `pace-notes-marathon-half-20261113-1113` (adapted input manifest
-`c0ddc847…8310b`, edition policy `ab43c75e…3541`, registry `163ec25d…c6a2`); replaced by the kept build's numbers.
+`c0ddc847…8310b`, edition policy `ab43c75e…3541`, registry `163ec25d…c6a2`), made before the lead's rulings on the
+duplicate pairs and before the timing classes became those of `lib/tiers.ts`: it lists every race, sets no edition
+aside and its verifier had 22 self-test cases. These numbers are replaced by the kept build's.
 
 - 811 races, 2,688 editions, 7,820,439 recorded results, 7,807,547 finishes.
 - Page types: 28 course (the 27 earlier pages and Los Angeles), 34 results, 749 rows. No page is withheld by a flag;
