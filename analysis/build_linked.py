@@ -1,0 +1,205 @@
+"""Build the linked-records family, public/data/linked/ (docs/LINKED_RECORDS.md).
+
+    python3 -I analysis/build_linked.py --input "$PACE_INPUT_DIR" --links "$PACE_RELEASE_DIR/person-ids-v5.1-race_results_linked.parquet" \
+        [--out public/data/linked] [--boot 400] [--accept-counts]
+
+Reads the adapted marathon input (analysis/adapt_combined.py; FULL bundle) and, for the age-group-floor flag only, the
+release's link file, both read-only and both checked against their pins: the input's MANIFEST.json is the one the frozen
+edition policy was built on, every member read is the file the manifest lists, the link file is the release asset
+analysis/release.json pins. Writes aggregates only:
+
+    editions.json   fast years and slow years: an edition against the race's other years, by registry label and year
+    races.json      the same linked runners at different races: a reading per race, in label order, no rank
+    bests.json      recorded bests by recorded attempt, and the steps between recorded marathons
+    age.json        the change per year of age in the same linked runner, with the cross-section beside it
+    return.json     seen again after a sustained slowdown: one matched comparison
+    checks.json     the evidence behind the first two files, recomputed on every build
+    manifest.json   binds every file to the release, the input, the policy, the registry and every builder script
+
+The output is deterministic: two builds give the same bytes (no timestamp; a fixed bootstrap seed; one BLAS thread).
+A rebuild whose cohort counts differ from the manifest already in --out prints the change and fails unless
+--accept-counts (a reviewed refresh only). DuckDB settings: PACE_LINKED_DUCKDB_THREADS, PACE_LINKED_DUCKDB_MEMORY,
+PACE_LINKED_DUCKDB_MAX_TEMP, TMPDIR.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+for _name in ('OPENBLAS_NUM_THREADS', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS'):   # one BLAS thread: the same bytes on every run
+    os.environ.setdefault(_name, '1')
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import numpy as np  # noqa: E402
+
+import linked_common as lc  # noqa: E402
+from linked_common import ANALYSIS, OUTPUT, LinkedError, bytes_sha256, check_published, encode, fail, file_sha256  # noqa: E402
+
+SCRIPTS = ('build_linked.py', 'linked_common.py', 'linked_universe.py', 'linked_model.py', 'linked_races.py', 'linked_histories.py',
+           'linked_return.py')
+# The definitions this family imports from the site's builders: the cohort, the sustained-slowdown test, the policy.
+SHARED_SCRIPTS = ('build_pacing.py', 'build_public_explorer.py', 'source_quality.py')
+FILES = ('editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'checks.json')
+
+
+def log(message: str) -> None:
+    print(message, flush=True)
+
+
+def definitions() -> dict:
+    """The frozen numbers, as the manifest carries them (scripts/verify-linked.cjs compares them with its own)."""
+    return {
+        'min_cell': lc.MIN_CELL, 'min_editions': lc.MIN_EDITIONS, 'min_connected': lc.MIN_CONNECTED, 'min_match_side': lc.MIN_MATCH_SIDE,
+        'max_years_apart': lc.MAX_GAP, 'finish_range_s': list(lc.FINISH_RANGE), 'link_tiers': list(lc.LINK_TIERS),
+        'high_tiers': list(lc.HIGH_TIERS), 'universe_tiers': list(lc.F_TIERS), 'coverage': list(lc.COVERAGE),
+        'never_for_a_reason_other_than_the_split_grid': list(lc.NOT_ABOUT_GRID),
+        'year_margin_pct': lc.YEAR_MARGIN_PCT, 'race_band_pct': lc.RACE_BAND_PCT, 'outlier_pct': lc.OUTLIER_PCT, 'field_r_min': lc.FIELD_R_MIN,
+        'bests_margin': lc.BESTS_MARGIN, 'age_agree_pct': lc.AGE_AGREE_PCT, 'age_range': list(lc.AGE_RANGE), 'pair_years': list(lc.PAIR_YEARS),
+        'step_max_years_apart': lc.STEP_MAX_GAP, 'seed': lc.SEED, 't975': list(lc.T975),
+        'timing_classes': {str(k): v for k, v in lc.TIMING_CLASS.items() if k is not None} | {'': lc.TIMING_CLASS[None]},
+    }
+
+
+def universe_counts(u, masks: dict) -> dict:
+    e, r = u.editions, u.results
+    out = {'editions_with_rows': int(len(e)), 'linked_runners': u.counts['linked_runners'], 'keys': u.counts['keys'], 'keyed_records': u.counts['keyed_records']}
+    for name, column in (('F', 'in_f'), ('verified', 'in_v'), ('wider', 'in_w')):
+        part = e[e[column]]
+        kept = r[masks[name]]
+        out[name] = {'editions': int(len(part)), 'races': int(part.label.nunique()),
+                     'editions_by_tier': {tier: int((part.tier == tier).sum()) for tier in sorted(part.tier.unique())},
+                     'kept_results': int(len(kept)), 'people': int(kept.person.nunique()),
+                     'people_with_two_or_more': int((np.bincount(kept.person.to_numpy()) >= 2).sum())}
+    out['high'] = {'kept_results': int(masks['high'].sum()), 'people': int(r[masks['high']].person.nunique())}
+    out['complete'] = {'kept_results': int(masks['complete'].sum()), 'people': int(r[masks['complete']].person.nunique())}
+    f = e[e.in_f]
+    out['F']['editions_by_timing'] = {c: int((f.timing == c).sum()) for c in lc.TIMING_CODES}
+    out['F']['editions_by_split_tier'] = {c: int((f.split_tier == c).sum()) for c in sorted(f.split_tier.unique())}
+    share = u.field_share
+    out['counted'] = {'editions': int(len(share)), 'eligible_finishes': int(share.eligible.sum()), 'sustained_slowdowns': int(share.slow.sum())}
+    return out
+
+
+def make_masks(u) -> dict:
+    r, e = u.results, u.editions.sort_values('code')
+    code = r.edition.to_numpy()
+    in_f, in_v, in_w = (e[c].to_numpy()[code] for c in ('in_f', 'in_v', 'in_w'))
+    kept_f = np.bincount(r.person.to_numpy()[in_f], minlength=int(r.person.max()) + 1)
+    complete = in_f & (kept_f[r.person.to_numpy()] == r.n_any.to_numpy())
+    return {'F': in_f, 'verified': in_v, 'wider': in_w, 'high': in_f & r.high.to_numpy(), 'complete': complete}
+
+
+def manifest(binding: dict, counts: dict, out_bytes: dict, boot: int) -> dict:
+    return {
+        'schema_version': lc.SCHEMA_VERSION, 'family': 'linked', 'release_tag': binding['release_tag'], 'input_as_of': binding['input_as_of'],
+        'input': {'manifest_sha256': binding['input_manifest_sha256'], 'adapter_sha256': binding['adapter_sha256']},
+        'policy': {'file': binding['policy_file'], 'sha256': binding['policy_sha256']},
+        'registry': {'file': binding['registry_file'], 'sha256': binding['registry_sha256']},
+        'links': {'file': binding['link_file'], 'sha256': binding['link_file_sha256'], 'use': 'the age-group-floor flag of a record'},
+        'scripts': {f'analysis/{name}': file_sha256(ANALYSIS / name) for name in SCRIPTS + SHARED_SCRIPTS},
+        'definitions': definitions() | {'bootstrap_draws': int(boot)},
+        'cohort': counts,
+        'files': {name: {'bytes': len(data), 'sha256': bytes_sha256(data)} for name, data in sorted(out_bytes.items())},
+    }
+
+
+def compare_counts(out: Path, new: dict, accept: bool) -> None:
+    path = out / 'manifest.json'
+    if not path.exists():
+        return
+    old = json.loads(path.read_text())
+    if old.get('cohort') != new['cohort']:
+        changes = [f'  {key}: {json.dumps(old.get("cohort", {}).get(key))} -> {json.dumps(new["cohort"].get(key))}'
+                   for key in sorted(set(old.get('cohort', {})) | set(new['cohort'])) if old.get('cohort', {}).get(key) != new['cohort'].get(key)]
+        print('count changes against the published manifest:\n' + '\n'.join(changes), file=sys.stderr)
+        if not accept:
+            fail('counts changed; review them, then rebuild with --accept-counts')
+
+
+def write(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + '.tmp')
+    tmp.write_bytes(data)
+    tmp.replace(path)
+
+
+def run(source: Path, links: Path, out: Path, *, boot: int = lc.BOOT_REPS, accept_counts: bool = False, registry_path: Path = lc.REGISTRY_PATH) -> dict:
+    started = time.time()
+    import linked_histories
+    import linked_races
+    import linked_return
+    import linked_universe
+    binding = linked_universe.check_inputs(source, links, registry_path=registry_path)
+    policy = json.loads((lc.ROOT / binding['policy_file']).read_text())
+    registry = json.loads(Path(registry_path).read_text())
+    labels = frozenset(linked_universe.registry_labels(registry))
+    log(f'linked: inputs match their pins ({time.time() - started:.0f} s)')
+    u = linked_universe.load(source, links, policy, registry, log=log)
+    masks = make_masks(u)
+    counts = {'universe': universe_counts(u, masks)}
+    log(f"linked: universe F {counts['universe']['F']['editions']} editions, {counts['universe']['F']['kept_results']:,} kept results ({time.time() - started:.0f} s)")
+
+    races = linked_races.build(u.results, u.editions, u.field_share, boot=boot, log=log)
+    counts.update(races['counts'])
+    log(f'linked: readings done ({time.time() - started:.0f} s)')
+    history_masks = {k: masks[k] for k in ('F', 'verified', 'high', 'complete')}
+    editions = u.editions.sort_values('code').copy()
+    editions['race'] = editions.label.map({label: i for i, label in enumerate(sorted(editions.label.unique()))}).astype(np.int64)
+    bests = linked_histories.build_bests(u.results, editions, history_masks)
+    age = linked_histories.build_age(u.results, editions, history_masks)
+    back = linked_return.build(u.results, editions, history_masks, reps=boot)
+    counts['bests'] = {k: bests['cohort'][k] for k in ('results_with_an_earlier_recorded_marathon', 'people_with_two_or_more', 'recorded_bests')}
+    counts['age'] = {k: age['cohort'][k] for k in ('people_with_an_exact_birth_year', 'pairs', 'pairs_from_the_third_recorded_marathon')}
+    counts['return'] = None if back is None else {'cells': back['cells'], 'editions': back['editions'], 'finishes_with_slowdown': back['with_slowdown']['finishes']}
+    log(f'linked: histories done ({time.time() - started:.0f} s)')
+
+    families = {'editions.json': races['editions.json'], 'races.json': races['races.json'], 'checks.json': races['checks.json'],
+                'bests.json': bests, 'age.json': age}
+    if back is not None:
+        families['return.json'] = back
+    out_bytes = {}
+    for name, body in families.items():
+        value = {'family': 'linked', 'file': name, 'schema_version': lc.SCHEMA_VERSION, **body}
+        check_published(value, name, labels)
+        out_bytes[name] = encode(value)
+    meta = manifest(binding, counts, out_bytes, boot)
+    compare_counts(out, meta, accept_counts)
+    for stale in FILES:
+        if stale not in out_bytes and (out / stale).exists():
+            (out / stale).unlink()
+    for name, data in out_bytes.items():
+        write(out / name, data)
+    write(out / 'manifest.json', encode(meta))
+    import resource
+    log(json.dumps({'files': {k: len(v) for k, v in out_bytes.items()}, 'seconds': round(time.time() - started),
+                    'peak_rss_mb': round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)}))
+    return meta
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
+    parser.add_argument('--input', type=Path, default=Path(os.environ['PACE_INPUT_DIR']) if os.environ.get('PACE_INPUT_DIR') else None,
+                        help='the adapted FULL input folder (analysis/adapt_combined.py)')
+    parser.add_argument('--links', type=Path, default=None, help=f'the release asset {lc.LINK_ASSET}')
+    parser.add_argument('--out', type=Path, default=OUTPUT)
+    parser.add_argument('--boot', type=int, default=lc.BOOT_REPS, help='runner bootstrap draws (the published build uses the default)')
+    parser.add_argument('--accept-counts', action='store_true', help='accept reviewed count changes (a refresh only)')
+    parser.add_argument('--registry', type=Path, default=lc.REGISTRY_PATH, help=argparse.SUPPRESS)   # development only; the verifier pins the real one
+    args = parser.parse_args(argv)
+    if args.input is None or args.links is None:
+        parser.error('--input and --links are required')
+    try:
+        run(args.input.expanduser(), args.links.expanduser(), args.out, boot=args.boot, accept_counts=args.accept_counts, registry_path=args.registry)
+    except LinkedError as error:
+        print(f'build_linked: {error}', file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
