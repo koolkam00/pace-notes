@@ -25,6 +25,12 @@ export interface InsightsManifest {
   methodology: string[];
 }
 
+/** One cell of the recurrence reading: pairs of races, the share of later races with a sustained slowdown and the share expected of their strata. */
+export type RecurrenceCell = { pairs: number; observed: number; expected: number } | null;
+export type RecurrenceCells = { pairs: number; after_slowdown: RecurrenceCell; after_none: RecurrenceCell; after_slowdown_same_course: RecurrenceCell; after_slowdown_other_course: RecurrenceCell; note: string };
+/** Pacing type of one race against the type of the same runner's next: counts and shares over pairs of races. */
+export type TypeTransitions = { pairs: number; repeat_share: number; rows: { name: string; pairs: number; next_shares: number[]; repeat_share: number | null; overall_share: number }[] };
+
 export interface FinishTimeMark {
   mark: string; minutes: number; kind: string;
   minute_before: number; minute_after: number; expected_minute_before: number;
@@ -117,7 +123,8 @@ export interface Archetypes {
   /** Published for download; no chart reads it, so pages drop it before passing data to the browser. */
   barcode_minutes?: { minute: number; n: number; median: number[]; metronome_share: number }[];
   sentences: { total_distinct: number; published: { sentence: string; n: number }[]; published_n: number; all_even_n: number };
-  transitions: { pairs: number; repeat_share: number; rows: { name: string; pairs: number; next_shares: number[]; repeat_share: number | null; overall_share: number }[] };
+  /** `high_links_only`: the same table when only links of the tiers high_elite and high join records (lead ruling R6). */
+  transitions: TypeTransitions & { high_links_only: TypeTransitions };
   classifier: { section_km: number[]; clip_lo: number[]; clip_hi: number[]; weights: number[]; centroids: number[][]; names: string[]; rule: string };
   method: string;
 }
@@ -239,7 +246,11 @@ export interface Kick {
   cost: { bands: { label: string; lo_min: number; slowdown_n: number; other_n: number; slowdown_20km_s: number; other_20km_s: number; slowdown_finish_s: number; other_finish_s: number }[];
     stratified: { strata: number; slowdown_finishes: number; mean_gap_s: number; median_gap_s: number } };
   gender_kick: { label: string; women_n: number; women: number; women_35_40: number; men_n: number; men: number; men_35_40: number }[];
-  recurrence: { pairs: number; after_slowdown: { pairs: number; observed: number; expected: number } | null; after_none: { pairs: number; observed: number; expected: number } | null;
-    after_slowdown_same_course: { pairs: number; observed: number; expected: number } | null; after_slowdown_other_course: { pairs: number; observed: number; expected: number } | null; note: string };
+  /**
+   * The next race after a sustained slowdown, over consecutive races of one runner key; `high_links_only` is the same
+   * reading when only links of the tiers high_elite and high join records (lead ruling R6, November 14, 2026: stored
+   * beside the reading for /methodology; no page states it as its reading).
+   */
+  recurrence: RecurrenceCells & { high_links_only: RecurrenceCells };
   method: string;
 }

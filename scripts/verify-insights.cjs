@@ -481,6 +481,8 @@ for (let i = 1; i < recordIds.length; i++) assert.notEqual(recordIds[i], recordI
       cohort.linkage.counted_records_of_those_runners], 'Every screened runner of the cohort: keyed records, runners, runners with two or more and their records');
 }
 
+// The year of each finish's edition, for the readings that follow a runner from one year's race to the next.
+const rowYear = Int16Array.from(editionOf.subarray(0, eligible), e => editions[e].year);
 // Rows grouped by edition, keeping cohort order: the manifest's editions, then record id (the builder's stable order).
 const editionCount = new Uint32Array(editions.length), editionStart = new Uint32Array(editions.length + 1);
 for (let i = 0; i < eligible; i++) editionCount[editionOf[i]]++;
@@ -605,8 +607,11 @@ function checkArchetypes(doc) {
   const counts = new Float64Array(k6), slow = new Float64Array(k6), profile = Array.from({ length: k6 }, () => new Float64Array(9));
   const sentences = new Int32Array(3 ** 9), riverStarts = Array.from({ length: 16 }, (_, j) => 150 + 15 * j);
   const river = riverStarts.map(() => new Float64Array(k6));
+  const typeOf = new Uint8Array(eligible), shapeRows = new Uint32Array(shapeN);
+  let shapeAt = 0;
   eachRow(shapeEditions, i => {
     const o = i * 9, label = nearest(relativePace(times, o, R), classifier);
+    typeOf[i] = label; shapeRows[shapeAt++] = i;
     counts[label]++;
     for (let k = 0; k < 9; k++) profile[label][k] += R[k];
     if (sustained(times, o)) slow[label]++;
@@ -632,6 +637,48 @@ function checkArchetypes(doc) {
   assert.equal(doc.sentences.total_distinct, distinct, 'Distinct pacing sentences');
   assert.equal(doc.sentences.published_n, sum(published.map(row => row.n)));
   assert.equal(doc.sentences.all_even_n, sentences[EVEN_SENTENCE], 'All-even sentence count');
+  // Transitions (insights_archetypes.repeat_pairs): within one runner key, the races of the years that hold exactly
+  // one of its finishes, in year order; each race and the next, 1 to 3 years apart, is a pair from its type to the
+  // next one's. Recounted for the runner key in use and for the key on high links alone (lead ruling R6, November 14,
+  // 2026); until then this table was checked for structure only.
+  {
+    const yearOfRow = i => rowYear[i];
+    const recount = keys => {
+      const order = shapeRows.slice().sort((a, b) => keys[a] - keys[b] || rowYear[a] - rowYear[b]);
+      const matrix = Array.from({ length: k6 }, () => new Float64Array(k6));
+      for (let start = 0; start < order.length;) {
+        let end = start + 1;
+        while (end < order.length && keys[order[end]] === keys[order[start]]) end++;
+        let previous = -1;
+        for (let p = start; p < end; p++) {
+          const year = yearOfRow(order[p]);
+          const alone = (p === start || yearOfRow(order[p - 1]) !== year) && (p + 1 === end || yearOfRow(order[p + 1]) !== year);
+          if (!alone) continue;
+          if (previous >= 0) { const gap = year - yearOfRow(order[previous]); if (gap >= 1 && gap <= 3) matrix[typeOf[order[previous]]][typeOf[order[p]]]++; }
+          previous = p;
+        }
+        start = end;
+      }
+      return matrix;
+    };
+    const compare = (published, matrix, label) => {
+      const total = sum(matrix.map(row => sum([...row])));
+      assert.equal(published.pairs, total, `${label}: pairs`);
+      near(published.repeat_share, sum(matrix.map((row, x) => row[x])) / Math.max(1, total), `${label}: share of pairs that repeat their type`, 1e-9);
+      assert.deepEqual(published.rows.map(row => row.name), classifier.names, `${label}: one row per pacing type`);
+      published.rows.forEach((row, x) => {
+        const out = sum([...matrix[x]]);
+        assert.equal(row.pairs, out, `${label} ${row.name}: pairs`);
+        row.next_shares.forEach((share, y) => near(share, out ? matrix[x][y] / out : 0, `${label} ${row.name}: share next run as ${classifier.names[y]}`, 1e-9));
+        assert.equal(row.repeat_share === null, out === 0, `${label} ${row.name}: repeat share exactly where the type has pairs`);
+        if (out) near(row.repeat_share, matrix[x][x] / out, `${label} ${row.name}: repeat share`, 1e-9);
+        near(row.overall_share, sum(matrix.map(from => from[x])) / Math.max(1, total), `${label} ${row.name}: share of all next races`, 1e-9);
+      });
+    };
+    assert.ok(doc.transitions.high_links_only, 'Transitions carry their high-links-only variant');
+    compare(doc.transitions, recount(runnerOf), 'Transitions');
+    compare(doc.transitions.high_links_only, recount(runnerHighOf), 'Transitions on high links alone');
+  }
   const bands = riverStarts.map((lo, j) => ({ lo, counts: river[j], n: sum([...river[j]]) })).filter(row => row.n >= MIN_CELL);
   assert.deepEqual(doc.river.map(row => [row.lo_min, row.label, row.n]), bands.map(row => [row.lo, `${clock(row.lo)}–${clock(row.lo + 15)}`, row.n]), 'Finish-band mix counts');
   doc.river.forEach((row, j) => row.shares.forEach((share, k) => near(share, bands[j].counts[k] / bands[j].n, `${row.label}: archetype ${k} share`, 1.1e-5)));
@@ -1212,7 +1259,7 @@ function checkKick(doc) {
       cell[0]++; cell[1] += d; strata.set(key, cell);
       j++;
     });
-    const yearOf = j => editions[editionOf[idx[j]]].year, cityOf = j => editions[editionOf[idx[j]]].city;
+    const yearOf = j => rowYear[idx[j]], cityOf = j => editions[editionOf[idx[j]]].city;
     const recount = keys => {
       // Ordered by runner key, then year (two finishes of one key in one year are both left out, so their order is immaterial).
       const years = Int16Array.from({ length: count }, (_, j) => yearOf(j));
