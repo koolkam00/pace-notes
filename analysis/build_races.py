@@ -132,8 +132,11 @@ RULES = {
     'flags': ('virtual, cancelled, placeholder: the registry flags the title or place (virtual_in_title, cancelled_in_title, placeholder_place) or the notes file '
               'flags the race; not_a_marathon_title: the registry finds no marathon word in the title and another event named in it, or the notes file flags '
               'it; hand_cycle_title: the registry’s reviewed flag (the title is never printed beside a runner); mountain_or_trail and two_races are for '
-              'information. A race with virtual, cancelled, placeholder, not_a_marathon_title or hand_cycle_title has no page unless the notes file records '
-              'the lead’s ruling that allows it'),
+              'information. The notes file may clear a flag the rule gives, with its evidence. A race with virtual, cancelled, placeholder, '
+              'not_a_marathon_title or hand_cycle_title has no page unless the notes file records the lead’s ruling that allows it'),
+    'aliases': ('for the list’s search only, never shown as a name: the notes file holds a reviewed table of place words as the release writes them and their '
+                'common English names; a race takes the alias when its label, name or place holds the word and none of them holds the alias. A difference '
+                'of accents alone needs no alias: the search folds accents'),
     'page': (f'course = {MIN_EDITIONS} or more counted editions, or one of the {len(COURSE_SLUGS_BEFORE)} course pages the site had before this adoption whatever it has '
              f'left; results = not a course page, {MIN_EDITIONS} or more badge-verified editions (stamped or stamped_weaker_source) of at least {RESULTS_PAGE_EDITION} '
              f'recorded results each, and at least {RESULTS_PAGE_TOTAL} recorded results in all; row = every other race. An edition set aside as a copy counts '
@@ -406,9 +409,15 @@ def edition_table(inputs: Inputs) -> list[dict]:
 # ---------------------------------------------------------------------------------------------------------------
 # Races
 # ---------------------------------------------------------------------------------------------------------------
-def race_flags(race: dict, noted: dict) -> list[str]:
+def race_flags(race: dict, noted: dict, cleared: dict | None = None) -> list[str]:
+    """The flags of a race: what the rule reads from the registry's flags, plus the flags the notes add, less the
+    rule-made flags the notes clear (each with its evidence)."""
     registry_flags = set(race.get('flags') or [])
-    found = {name for name, test in FLAG_FROM_REGISTRY.items() if test(registry_flags)} | set(noted.get(race['label'], []))
+    by_rule = {name for name, test in FLAG_FROM_REGISTRY.items() if test(registry_flags)}
+    removed = set((cleared or {}).get(race['label'], []))
+    if not removed <= by_rule:
+        fail(f"race-notes: {race['label']}: a cleared flag ({sorted(removed - by_rule)}) is not one the rule gives the race")
+    found = (by_rule - removed) | set(noted.get(race['label'], []))
     return [name for name in FLAGS if name in found]
 
 
@@ -442,28 +451,35 @@ def race_table(inputs: Inputs, editions: list[dict]) -> list[dict]:
         by_label.setdefault(e['label'], []).append(e)
     if set(by_label) != labels:
         fail(f'the race registry and the adapted input name different races ({len(labels ^ set(by_label))} differ)')
-    noted, aliases, allowed = {}, {}, {}
+    noted, cleared, aliases, allowed = {}, {}, {}, {}
     for entry in notes.get('flags', []):
         if entry.get('label') not in labels or entry.get('flag') not in NOTE_FLAGS or not entry.get('evidence'):
             fail(f'race-notes: a flag needs a registry label, one of {NOTE_FLAGS} and its evidence: {entry}')
         noted.setdefault(entry['label'], []).append(entry['flag'])
+    for entry in notes.get('clears', []):
+        if entry.get('label') not in labels or entry.get('flag') not in FLAGS or not entry.get('evidence'):
+            fail(f'race-notes: a cleared flag needs a registry label, one of {FLAGS} and its evidence: {entry}')
+        cleared.setdefault(entry['label'], []).append(entry['flag'])
     for entry in notes.get('page_rulings', []):
         if entry.get('label') not in labels or entry.get('page') != 'allowed' or not entry.get('ruled_by') or not entry.get('ruled_on') or not entry.get('words'):
             fail(f'race-notes: a page ruling needs a registry label, page "allowed", ruled_by, ruled_on and the words of the ruling: {entry}')
         allowed[entry['label']] = entry
-    registry_by_label = {race['label']: race for race in inputs.registry['races']}
-    for entry in notes.get('aliases', []):
-        race = registry_by_label.get(entry.get('label'))
-        if race is None or not entry.get('alias') or not entry.get('for'):
-            fail(f'race-notes: an alias needs a registry label, the alias and the word it stands for: {entry}')
-        texts = [race['label'], race['name'], race.get('place') or '']
-        if not any(_has_word(text, entry['for']) for text in texts):
-            fail(f"race-notes: the alias {entry['alias']!r} stands for {entry['for']!r}, which the label, name and place of {race['label']!r} do not hold")
-        if any(_has_word(text, entry['alias']) for text in texts):
-            fail(f"race-notes: the alias {entry['alias']!r} is already a word of {race['label']!r}")
-        if entry['alias'] in aliases.setdefault(race['label'], []):
-            fail(f"race-notes: the alias {entry['alias']!r} is listed twice for {race['label']!r}")
-        aliases[race['label']].append(entry['alias'])
+    # Search aliases: a reviewed table of words (a place name as the release writes it) and the common English name.
+    # A race takes the alias when its label, name or place holds the word and none of them holds the alias.
+    words = notes.get('aliases', [])
+    if len({entry.get('word') for entry in words}) != len(words):
+        fail('race-notes: an alias word is listed twice')
+    for entry in words:
+        if not entry.get('word') or not entry.get('alias') or not entry.get('evidence'):
+            fail(f'race-notes: an alias needs the word it stands for, the alias and its evidence: {entry}')
+        taken = 0
+        for race in inputs.registry['races']:
+            texts = [race['label'], race['name'], race.get('place') or '']
+            if any(_has_word(text, entry['word']) for text in texts) and not any(_has_word(text, entry['alias']) for text in texts):
+                aliases.setdefault(race['label'], []).append(entry['alias'])
+                taken += 1
+        if not taken:
+            fail(f"race-notes: the alias {entry['alias']!r} stands for {entry['word']!r}, which no race needs (no label, name or place holds it without the alias)")
     races = []
     for race in inputs.registry['races']:
         own = sorted(by_label[race['label']], key=lambda e: e['year'])
@@ -472,7 +488,7 @@ def race_table(inputs: Inputs, editions: list[dict]) -> list[dict]:
         if (len(own), sum(e['results'] for e in own), own[0]['year'], own[-1]['year']) != (race['editions'], race['rows'], race['first_year'], race['last_year']):
             fail(f"{race['label']}: the registry’s editions, rows or years differ from the adapted input")
         live = [e for e in own if e['review'] != 'copy']
-        flags = race_flags(race, noted)
+        flags = race_flags(race, noted, cleared)
         counted = sum(1 for e in live if e['use'] == 'counted')
         verified = sum(1 for e in live if e['tier'] in BADGE_TIERS and e['results'] >= RESULTS_PAGE_EDITION)
         results = sum(e['results'] for e in live)
@@ -722,7 +738,7 @@ def summary_file(inputs: Inputs, races: list[dict], editions: list[dict]) -> dic
         },
         'finish_time_universe': {'editions': len(universe), 'races': len({e['label'] for e in universe}), 'finishes': sum(e['finishes'] for e in universe),
                                  'editions_with_100_finishes': sum(1 for e in universe if e['finishes'] >= MIN_FINISHES),
-                                 'what': 'editions whose finish times a linked analysis or a results page may read (plan decision D22)'},
+                                 'what': 'editions whose finish times a linked analysis or a results page may read'},
         'notes': {
             'what': 'the producer’s notes, for /methodology only',
             'hold': [{'label': e['label'], 'year': e['year'], 'tier': e['tier'], 'note': e['hold_note']} for e in editions if e['hold_note']],

@@ -84,7 +84,7 @@ class Fixture:
         self.notes = {'schema_version': 1, 'tag': TAG, 'reviewed': '2099-01-01',
                       'evidence': {'duplicate_editions': 'evidence/duplicate-editions.json', 'cohort_sensitivity': 'evidence/cohort-sensitivity.json',
                                    'edition_facts': 'evidence/edition-policy-review.json'},
-                      'flags': [], 'page_rulings': [], 'aliases': [], 'duplicate_editions': []}
+                      'flags': [], 'clears': [], 'page_rulings': [], 'aliases': [], 'duplicate_editions': []}
         self.audit_pairs = []
         self.series = {'Zeta': SERIES}
         self.hold_notes = {('Alpha', 2022): 'Re-pull on hold (source 403)'}
@@ -433,15 +433,28 @@ class Rulings(Base):
         self.fx.notes['page_rulings'] = []
         self.refused('needs the lead’s ruling')
 
-    def test_an_alias_stands_for_a_word_the_race_states(self):
-        self.fx.notes['aliases'] = [{'label': 'Gamma City', 'alias': 'Gammatown', 'for': 'Gamma City'}]
+    def test_an_alias_goes_to_every_race_that_states_its_word(self):
+        self.fx.notes['aliases'] = [{'word': 'Gamma City', 'alias': 'Gammatown', 'evidence': 'The made-up English name of Gamma City.'},
+                                    {'word': 'Zeta', 'alias': 'Zed', 'evidence': 'The made-up English name of Zeta.'}]
         files, _, _ = self.fx.build()
-        self.assertEqual(next(r for r in files['directory.json']['races'] if r['label'] == 'Gamma City')['aliases'], ['Gammatown'])
+        self.assertEqual({r['label']: r['aliases'] for r in files['directory.json']['races'] if 'aliases' in r}, {'Gamma City': ['Gammatown'], 'Zeta': ['Zed']})
         self.assertEqual(next(p for p in files['pages.json']['pages'] if p['label'] == 'Gamma City')['aliases'], ['Gammatown'])
-        self.fx.notes['aliases'] = [{'label': 'Gamma City', 'alias': 'Gammatown', 'for': 'Gammastadt'}]
-        self.refused('do not hold')
-        self.fx.notes['aliases'] = [{'label': 'Gamma City', 'alias': 'Gamma', 'for': 'City'}]
-        self.refused('already a word')
+        self.fx.notes['aliases'] = [{'word': 'Gammastadt', 'alias': 'Gammatown', 'evidence': 'x'}]
+        self.refused('which no race needs')
+        self.fx.notes['aliases'] = [{'word': 'City', 'alias': 'Gamma', 'evidence': 'x'}]      # the alias is already a word of the only race that holds the word
+        self.refused('which no race needs')
+        self.fx.notes['aliases'] = [{'word': 'Zeta', 'alias': 'Zed'}]
+        self.refused('an alias needs')
+
+    def test_the_notes_may_clear_a_flag_the_rule_gives(self):
+        self.fx.notes['clears'] = [{'label': 'Delta Half & 10K', 'flag': 'not_a_marathon_title', 'evidence': 'The made-up title names a marathon in its small print.'}]
+        files, _, _ = self.fx.build()
+        delta = next(r for r in files['directory.json']['races'] if r['label'] == 'Delta Half & 10K')
+        self.assertEqual((delta['page'], delta.get('flags'), delta.get('withheld')), ('results', None, None))
+        self.fx.notes['clears'] = [{'label': 'Gamma City', 'flag': 'virtual', 'evidence': 'x'}]
+        self.refused('is not one the rule gives the race')
+        self.fx.notes['clears'] = [{'label': 'Delta Half & 10K', 'flag': 'not_a_marathon_title'}]
+        self.refused('a cleared flag needs')
 
 
 class Refusals(Base):
