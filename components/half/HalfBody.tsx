@@ -10,6 +10,7 @@ import ArrowTail from '@/components/ui/ArrowTail';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { STORIES, storyHref, storyPublished } from '@/lib/stories';
 import HalfPage, { HALF_PATH, HalfCrumbs } from './HalfPage';
+import HalfPacing from './HalfPacing';
 import { FieldHistogram, RatioColumns, SaveImage, ShareColumns } from './HalfCharts';
 
 /** The round time the reading names (2:00) and the one beat 1's readout opens on (1:45), in minutes. */
@@ -43,7 +44,8 @@ const gapPoints = (half: number, marathon: number) => { const d = tenths(half) -
  *
  * The reading (just over half under 2:00, the median 1:57, every minute as a histogram), then four beats: where any time
  * sits (the share under it, scrubbable), the crowd in the minute before 2:00, women the majority of finishes from 2:15,
- * and the same city's half and marathon. One All numbers fold at the foot holds every chart's table.
+ * and the same city's half and marathon. One All numbers fold at the foot holds every chart's table. After it, on a
+ * surface of its own with its own scope and chip, how halves are paced (HalfPacing; every usable result).
  *
  * Beat 3 and its table are drawn only while women.json publishes the band medians (at least 20 editions; 15 qualify since
  * the stamp correction, October 30, 2026, so the page has three beats and the others keep their track ids). A beat whose
@@ -79,7 +81,7 @@ export default function HalfBody() {
 
   const histLabel = `Half marathon finishes in each minute from ${hm(lo)} to ${hm(field.minutes.hi - 1)}: the median ${hm(Math.floor(field.quantiles.all.p50 / 60))}, ${pct(at(READING_MARK * 60).all)} under ${hm(READING_MARK)}.`;
   return (
-    <HalfPage scope="verified" how="/methodology#half-field" numbers={[
+    <HalfPage scope="verified" how="/methodology#half-field" foot={<HalfPacing />} numbers={[
       <Values key="under" bare id="hf-under" caption="Half finishes under each time: all, recorded women’s and recorded men’s"
         columns={[{ key: 't', label: 'Under' }, { key: 'a', label: 'All' }, { key: 'f', label: 'Women’s' }, { key: 'm', label: 'Men’s' }]}
         rows={marks.map((u) => [hm(u.s / 60), pct(u.all, 1), pct(u.F, 1), pct(u.M, 1)])} reading={markIndex(OPEN_MARK)} />,

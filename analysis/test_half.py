@@ -821,16 +821,23 @@ class Determinism(unittest.TestCase):
         self.assertEqual(hc.encode({'b': 1, 'a': [2.5, 3]}), b'{"a":[2.5,3],"b":1}\n')
 
     def test_refusals_name_what_is_missing(self):
-        import build_half
-        with self.assertRaisesRegex(hc.HalfError, 'missing'):
-            hc.connect(half=Path(tempfile.gettempdir()) / 'no-such-half.sqlite')
-        with self.assertRaisesRegex(hc.HalfError, 'inside the repository'):
-            build_half.check_sources(hc.load_pin(), ROOT / 'analysis' / 'half-release.json', ROOT / 'analysis' / 'release.json')
+        import half_extract
+        import half_source
+        pin = hc.load_pin()
         with tempfile.TemporaryDirectory() as folder:
-            wrong = Path(folder) / 'other.sqlite'
-            wrong.write_bytes(b'')
-            with self.assertRaisesRegex(hc.HalfError, 'pinned platform_half.sqlite'):
-                build_half.check_sources(hc.load_pin(), wrong, wrong)
+            source = half_source.Source(core=Path(folder) / 'core', release=Path(folder) / 'release', identity=Path(folder) / 'identity.parquet')
+            with self.assertRaisesRegex(hc.HalfError, 'missing .*download_half.py'):
+                half_source.check_files(pin, source)
+            # A file that is not the pinned one is refused by name, before anything reads it.
+            (Path(folder) / 'core').mkdir()
+            (Path(folder) / 'core' / 'race_records.parquet').write_bytes(b'not the release')
+            with self.assertRaisesRegex(hc.HalfError, 'is not the pinned race_records.parquet'):
+                half_source.check_files(pin, source)
+            # The extract is record-level: it is never written inside the repository, and only under its pinned name.
+            with self.assertRaisesRegex(hc.HalfError, 'inside the repository'):
+                half_extract.cut(source, ROOT / 'analysis' / pin['links']['extract'])
+            with self.assertRaisesRegex(hc.HalfError, 'must be named'):
+                half_extract.cut(source, Path(folder) / 'other.sqlite')
 
 
 class Cards(unittest.TestCase):
@@ -1255,444 +1262,165 @@ PERSONS_SCHEMA = [('person_id', 'VARCHAR'), ('name_norm_example', 'VARCHAR'), ('
                   ('confidences', 'VARCHAR'), ('nationality_example', 'VARCHAR')]
 
 
-class V4Source:
-    """A synthetic v4 link build (the two parquet files), its half snapshot and the eligible marathons."""
+class Extract(unittest.TestCase):
+    """analysis/half_extract.py: the extract the Node recount reads, its canonical digest and its pin."""
 
-    def __init__(self):
-        self.rows = []
-        self.snapshot_only = []   # snapshot rows the link build does not cover
-        self.overrides = {}       # record_id -> snapshot fields that differ from the v4 row
-        self.persons_over = {}    # person_id -> persons.parquet fields to replace
-        self.unloaded = set()     # half record ids the link build has but the snapshot does not
-        self.eligible = []        # (record_id, city, year, gender, finish)
+    def test_a_field_is_written_one_way(self):
+        import half_extract
+        self.assertEqual([half_extract.field(v) for v in (None, True, False, 7, 7.0, 'a\tb', 'a\nb', 'a\\b', 'a\rb', '')],
+                         ['\\N', '1', '0', '7', '7', 'a\\tb', 'a\\nb', 'a\\\\b', 'a\\rb', ''])
+        with self.assertRaisesRegex(hc.HalfError, 'fractional'):
+            half_extract.field(7.5)
 
-    def row(self, person, db, record_id, *, confidence='medium', method='merged', name='anna berg', sex='F', age=None,
-            age_key='yob:1980', finish=6300, finish_raw=None, city=None, year=2022, race=None, eligible=True):
-        city = city or ('Halfton' if db == 'half' else 'Fullton')
-        r = {'person_id': person, 'confidence': confidence if person else None, 'method': method if person else None,
-             'distance': 'half' if db == 'half' else 'marathon', 'distance_km': 21.0975 if db == 'half' else 42.195,
-             'race_series': city, 'race': race or f'{city} {db} {record_id}', 'year': year, 'city': city,
-             'finish_seconds': float(finish), 'finish_raw': finish_raw or hms(finish), 'sex': sex, 'age': age,
-             'age_key': age_key, 'name_raw': name.title() if name else None, 'name_norm': name, 'source_db': db,
-             'record_id': record_id, 'finish_time_only_tier': True, 'course_shortened_suspect': False,
-             'excluded_by_record_flag': False, 'noage_tier': confidence.startswith('low_noage') if person else None}
-        self.rows.append(r)
-        if db == 'full' and eligible:
-            self.eligible.append((record_id, city, year, {'M': 1, 'F': 2}.get(sex, 0), float(finish)))
-        return r
+    def extract(self, folder, rows):
+        import half_extract
+        path = Path(folder) / 'x.sqlite'
+        con = sqlite3.connect(path)
+        for table, columns, _ in half_extract.TABLES:
+            con.execute(f"CREATE TABLE {table} ({', '.join(f'{name} {kind}' for name, kind in columns)})")
+        for table, values in rows.items():
+            con.executemany(f"INSERT INTO {table} VALUES ({', '.join('?' for _ in values[0])})", values)
+        con.execute('CREATE TABLE build (k TEXT PRIMARY KEY, v TEXT NOT NULL)')
+        con.execute("INSERT INTO build VALUES ('cut', 'now')")
+        con.commit()
+        return con
 
-    def write(self, folder):
-        import duckdb
-        folder = Path(folder)
-        v4 = folder / 'v4'
-        v4.mkdir(exist_ok=True)
-        con = duckdb.connect()
-        con.execute(f"CREATE TABLE rrl ({', '.join(f'{c} {t}' for c, t in RRL_SCHEMA)})")
-        cols = [c for c, _ in RRL_SCHEMA]
-        con.executemany(f"INSERT INTO rrl VALUES ({', '.join('?' for _ in cols)})", [[r.get(c) for c in cols] for r in self.rows])
-        con.execute(f"COPY rrl TO '{(v4 / 'race_results_linked.parquet').as_posix()}' (FORMAT parquet)")
-        con.execute(f"CREATE TABLE persons ({', '.join(f'{c} {t}' for c, t in PERSONS_SCHEMA)})")
-        people = {}
-        for r in self.rows:
-            if r['person_id']:
-                x = people.setdefault(r['person_id'], {'person_id': r['person_id'], 'sex': None, 'n_results': 0, 'n_halves': 0, 'n_marathons': 0})
-                x['n_results'] += 1
-                x['n_halves' if r['source_db'] == 'half' else 'n_marathons'] += 1
-                x['sex'] = x['sex'] or r['sex']
-        pcols = [c for c, _ in PERSONS_SCHEMA]
-        con.executemany(f"INSERT INTO persons VALUES ({', '.join('?' for _ in pcols)})",
-                        [[{**x, **self.persons_over.get(x['person_id'], {})}.get(c) for c in pcols] for x in people.values()])
-        con.execute(f"COPY persons TO '{(v4 / 'persons.parquet').as_posix()}' (FORMAT parquet)")
-        con.close()
-        snap = folder / 'platform_half.sqlite'
-        sq = sqlite3.connect(snap)
-        sq.executescript(HALF_SCHEMA)
-        for r in [x for x in self.rows if x['source_db'] == 'half' and x['record_id'] not in self.unloaded] + self.snapshot_only:
-            o = {'id': r['record_id'], 'race': r['race'], 'year': r['year'], 'city': r['city'], 'runner': r.get('name_raw'),
-                 'sex': r['sex'], 'age': r.get('age'), 'split_21_1km': r['finish_raw'], **self.overrides.get(r['record_id'], {})}
-            sq.execute('INSERT INTO race_records (id, race, year, city, runner, sex, age, split_21_1km, source_url, ingested_at) '
-                       "VALUES (:id, :race, :year, :city, :runner, :sex, :age, :split_21_1km, 'fixture://' || :id, '2026-10-30')", o)
-        sq.commit()
-        sq.close()
-        editions = sorted({(c, y) for _, c, y, _, _ in self.eligible})
-        index = {e: i for i, e in enumerate(editions)}
-        n = len(self.eligible)
-        m = Marathons(np.array([e[0] for e in self.eligible], np.uint64), np.array([index[(e[1], e[2])] for e in self.eligible], np.int32),
-                      np.array([e[3] for e in self.eligible], np.uint8), np.array([e[4] for e in self.eligible]), np.zeros(n, bool),
-                      [{'city': c, 'year': y, 'race': c} for c, y in editions], np.ones(len(editions), np.int64),
-                      {i: f'{y}-10-01' for i, (c, y) in enumerate(editions)}, 'manifest-sha', {}, 'weather-sha')
-        return v4, snap, m
+    def test_the_digest_binds_every_table_but_the_build_table(self):
+        import half_extract
+        rows = {'race_records': [(1, 1, 'F', None, '1:30:00', '12', 'A B', '0:42:00'), (2, 1, None, 'M', '1:40:00', None, 'C D', None)],
+                'qa_flags': [(2, 'split_after_finish')], 'people': [(1, 'p51_0000000000000001', 'F', 1, 0)],
+                'links': [(1, 'half', 'half', 1, 'high', 1, 0, 5400, 'F', 1)]}
+        with tempfile.TemporaryDirectory() as folder:
+            con = self.extract(folder, rows)
+            base = half_extract.content_sha256(con)
+            self.assertRegex(base, r'^[0-9a-f]{64}$')
+            con.execute("UPDATE build SET v = 'later'")
+            self.assertEqual(half_extract.content_sha256(con), base, 'the build table is not content')
+            for change in ("UPDATE race_records SET split_10km = '0:42:01' WHERE id = 1", "UPDATE links SET confidence = 'medium'",
+                           "INSERT INTO qa_flags VALUES (1, 'split_nonmonotonic')", "UPDATE people SET ns_keys = 2", "UPDATE race_records SET sex = NULL WHERE id = 1"):
+                con.execute(change)
+                changed = half_extract.content_sha256(con)
+                self.assertNotEqual(changed, base, change)
+                base = changed
+            con.close()
 
-
-def v4_source():
-    """The reference fixture: people of each kind, the checks' reviewed exceptions, a snapshot row beyond the boundary."""
-    s = V4Source()
-    A, B, C, D, E, F, G, H = (pid(i) for i in range(1, 9))
-    # A: high, yob; a half row attached without an age stays in links; the unlinked row and H's row share A's name and sex.
-    s.row(A, 'half', 1, confidence='high', name='anna berg', age=42, age_key='yob:1980')
-    s.row(A, 'half', 2, confidence='low_noage', method='noage_attach', name='anna berg', age_key=None)
-    s.row(A, 'full', 101, confidence='high', name='anna berg', age_key='yob:1980', finish=14000)
-    s.row(None, 'half', 3, name='anna berg', age_key='ag:40-44')
-    s.row(H, 'half', 4, confidence='low', method='new', name='berg anna', age_key='yob:1985')
-    # B: medium, age bins only.
-    s.row(B, 'half', 5, name='bo li', sex='M', age_key='ag:40-44')
-    s.row(B, 'full', 102, name='bo li', sex='M', age_key='ag:40-44', finish=13000)
-    # C: high, a union person (two names; the smallest sorted name is its block), yob and bin keys.
-    s.row(C, 'half', 6, confidence='high', method='merged+middle_name_union', name='carl de jong', sex='M', age_key='yob:1970')
-    s.row(C, 'full', 103, confidence='high', method='merged', name='carl jong', sex='M', age_key='ag:50-54', finish=12000)
-    # D: low tier; E: medium without a marathon row that may pair; G: medium in a block with no age key.
-    s.row(D, 'half', 7, confidence='low', method='new', name='dan ek', sex='M')
-    s.row(D, 'full', 104, confidence='low', method='new', name='dan ek', sex='M', finish=15000)
-    s.row(E, 'half', 8, name='eva ros')
-    s.row(E, 'full', 105, confidence='low_noage', method='noage_attach', name='eva ros', age_key=None, finish=16000)
-    s.row(G, 'half', 9, name='zed', sex='M', age_key=None)
-    s.row(G, 'full', 106, name='zed', sex='M', age_key=None, finish=13500)
-    # F: a marathon only (not in people) and an ineligible marathon of B.
-    s.row(F, 'full', 107, name='fay ng', finish=14100)
-    s.row(B, 'full', 108, name='bo li', sex='M', age_key='ag:40-44', finish=13100, eligible=False)
-    # The reviewed exceptions: a re-timed edition, an unparsed equal text, an X sex, a name sharing no token.
-    s.row(None, 'half', 10, name='rex', city='Retimed City', year=2024, finish=5000)
-    s.overrides[10] = {'split_21_1km': hms(5100)}
-    s.row(None, 'half', 11, name='neg', finish=-3600, finish_raw='-1:00:00')
-    s.row(None, 'half', 12, name='sam', sex=None)
-    s.overrides[12] = {'sex': 'X'}
-    s.row(None, 'half', 13, name='lol')
-    s.overrides[13] = {'runner': 'Somebody Else'}
-    s.snapshot_only.append({'record_id': 20, 'race': 'Late Half', 'year': 2026, 'city': 'Late', 'name_raw': 'Late Runner', 'sex': 'M',
-                            'finish_raw': hms(6000)})
-    return s
-
-
-V4_PIN = {'links': {'coverage': {'half_rows': 13, 'half_max_record_id': 13, 'marathon_rows': 8, 'producer_build_info': 'x'}}}
-V4_LINK_EDITIONS = {'link_build': 'fixture', 'half_max_record_id': 13,
-                    'retimed': [{'edition_id': 1, 'city': 'Retimed City', 'year': 2024, 'rows': 1}], 'link_partial': []}
-
-
-class LinksExtract(unittest.TestCase):
-    """links-v4.sqlite from synthetic v4 parquet files in the release's own schema: the source and join checks, the people
-    and their rows (ns_keys, k, unions), the content digest."""
-
-    def setUp(self):
-        import half_links_extract
-        self.hle = half_links_extract
-        self.tmp = tempfile.TemporaryDirectory()
-        self.dir = Path(self.tmp.name)
-
-    def tearDown(self):
-        self.tmp.cleanup()
-
-    def run_checks(self, s, pin=V4_PIN, le=V4_LINK_EDITIONS):
-        folder = Path(tempfile.mkdtemp(dir=self.dir))
-        v4, snap, m = s.write(folder)
-        db = self.hle.connect()
-        self.hle.open_v4(db, v4)
-        self.hle.attach_half(db, snap)
-        self.hle.register_marathons(db, m)
-        got = {'source': self.hle.check_source(db, pin), 'joins': self.hle.check_half_join(db, pin, le)}
-        got['joins']['marathons'] = self.hle.check_marathon_join(db)
-        got['joins']['marathons_beyond_coverage'] = self.hle.marathon_coverage(db)
-        self.hle.select_people(db)
-        got.update(self.hle.counts(db))
-        return db, got, folder
-
-    def test_people_links_and_counts(self):
-        db, got, folder = self.run_checks(v4_source())
-        A, B, C, G = pid(1), pid(2), pid(3), pid(7)
-        people = db.execute(f"SELECT {', '.join(self.hle.PEOPLE_COLUMNS)} FROM pe ORDER BY person_id").fetchall()
-        block = lambda ns, sx: hc.bytes_sha256(f'{ns}\t{sx}'.encode())[:16]
-        self.assertEqual(people, [
-            (A, 'F', 'high', 2, 'yob', 0, 2, block('anna berg', 'F')),
-            (B, 'M', 'medium', 1, 'age_bin', 0, 1, block('bo li', 'M')),
-            (C, 'M', 'high', 1, 'mixed', 1, 1, block('carl de jong', 'M')),
-            (G, 'M', 'medium', 0, 'none', 0, 1, block('zed', 'M')),
-        ], 'ns_keys counts every row with an age key, linked or not; k counts the aged persons of the sorted-name block')
-        links = db.execute(f"SELECT {', '.join(self.hle.LINKS_COLUMNS)} FROM le ORDER BY person_id, db, record_id").fetchall()
-        self.assertEqual([(r[0], r[1], r[2], r[3]) for r in links if r[0] == A],
-                         [(A, 'full', 101, 'high'), (A, 'half', 1, 'high'), (A, 'half', 2, 'low_noage')], 'every linked row of a person')
-        self.assertEqual([r[4:] for r in links if r[2] == 101], [(14000, 'F', 'Fullton', 2022, 2)], 'finish, sex, city, year and the row’s block count')
-        self.assertEqual(sorted(r[2] for r in links if r[0] == B), [5, 102, 108])
-        self.assertEqual(got['joins'], {'half_finish_unparsed': 1, 'half_sex': [{'snapshot': 'X', 'v4': None, 'rows': 1}],
-                                        'half_name_no_shared_token': [{'city': 'Halfton', 'year': 2022, 'rows': 1}], 'marathons': 7,
-                                        'marathons_beyond_coverage': []})
-        self.assertEqual(got['people'], {'F': 1, 'M': 3, 'all': 4, 'high': 2, 'in_union': 1, 'medium': 2, 'ns_keys_0': 1})
-        self.assertEqual(got['links'], {'full': 5, 'half': 5})
-        self.assertEqual(got['k'], {'high_k_not_1': 1}, 'A is high but shares its block with the aged H')
-        self.assertEqual(got['source']['confidence'], {'high': 4, 'low': 3, 'low_noage': 2, 'medium': 7, 'null': 5})
-        out = folder / 'links-v4.sqlite'
-        digest, rows = self.hle.write_extract(db, out, {'links_key': 'fixture'})
-        self.assertEqual(rows, {'people': 4, 'links': 10})
-        con = sqlite3.connect(out)
-        text = ''.join('\t'.join('\\N' if v is None else str(v) for v in row) + '\n'
-                       for table, cols in (('people', self.hle.PEOPLE_COLUMNS), ('links', self.hle.LINKS_COLUMNS))
-                       for row in con.execute(f"SELECT {', '.join(cols)} FROM {table} ORDER BY {', '.join(cols)}"))
-        build = dict(con.execute('SELECT k, v FROM build').fetchall())
-        con.close()
-        self.assertEqual(digest, hc.bytes_sha256(text.encode()), 'the canonical TSV digest')
-        self.assertEqual(build['extract_content_sha256'], digest)
-        again = folder / 'again'
-        again.mkdir()
-        db2, _, _ = self.run_checks(v4_source())
-        self.assertEqual(self.hle.write_extract(db2, again / 'links-v4.sqlite', {'links_key': 'fixture'})[0], digest, 'two cuts give one digest')
-
-    def test_each_check_fails_loudly(self):
-        def broken(change):
-            s = v4_source()
-            change(s)
-            return s
-        row = lambda s, rid, db='half': next(r for r in s.rows if r['record_id'] == rid and r['source_db'] == db)
-        cases = [
-            (lambda s: s.overrides.setdefault(5, {}).update(city='Elsewhere'), 'city, year or race differ'),
-            (lambda s: s.overrides.setdefault(5, {}).update(age=33), 'age differs'),
-            (lambda s: s.overrides.setdefault(5, {}).update(split_21_1km=hms(6400)), 're-timed editions'),
-            (lambda s: row(s, 5).update(finish_seconds=6302.0), 'seconds differ'),
-            (lambda s: s.snapshot_only.append({'record_id': 0, 'race': 'x', 'year': 2022, 'city': 'x', 'sex': 'M', 'finish_raw': '1:40:00'}),
-             'inside the coverage boundary without a v4 row'),
-            (lambda s: row(s, 101, 'full').update(finish_seconds=14001.0), 'finish differs by more than 0.5 s'),
-            (lambda s: s.eligible.__setitem__(1, (102, 'Fullton', 2022, 2, 13000.0)), 'does not map'),
-            # November 4, 2026: an id at or below the build's largest marathon id without a v4 row still fails
-            (lambda s: s.eligible.append((100, 'Fullton', 2022, 2, 14000.0)), 'eligible marathons without a v4 row inside'),
-            (lambda s: row(s, 1).update(person_id='p4_ANNA'), 'person ids not matching'),
-            (lambda s: row(s, 2).update(sex='M'), 'two published sexes'),
-            (lambda s: row(s, 108, 'full').update(record_id=107), 'repeated (source_db, record_id)'),
-            (lambda s: row(s, 2).update(confidence='medium', method='merged'), 'more than one tier'),
-            (lambda s: s.persons_over.setdefault(pid(2), {}).update(n_results=9), 'persons.parquet and the linked rows disagree'),
-            # verify round 1 (October 31, 2026): every pair takes persons.parquet's sex, so it must be the rows' sex
-            (lambda s: s.persons_over.setdefault(pid(2), {}).update(sex='F'), 'persons.parquet and the linked rows disagree'),
-            (lambda s: row(s, 1).update(age_key='1980'), 'age keys of another form'),
-            (lambda s: row(s, 5).update(name_norm=None), 'without a normalized name'),
-            # verify round 2 (October 31, 2026): checks that had no failing fixture
-            (lambda s: s.overrides.setdefault(5, {}).update(race='Other'), 'city, year or race differ'),
-            (lambda s: s.unloaded.add(8), 'v4 half rows without a snapshot row'),
-            (lambda s: s.persons_over.setdefault(pid(2), {}).update(n_halves=2), 'persons.parquet and the linked rows disagree'),
-            (lambda s: s.persons_over.setdefault(pid(2), {}).update(n_marathons=1), 'persons.parquet and the linked rows disagree'),
-        ]
-        for change, message in cases:
-            with self.subTest(message):
-                with self.assertRaisesRegex(SystemExit, re.escape(message)):
-                    self.run_checks(broken(change))
-
-    def test_marathons_beyond_the_link_builds_coverage_are_counted_not_joined(self):
-        """An eligible marathon above the link build's largest marathon record id (loaded after the build, as New York
-        2026 in master-20261103b) has no v4 row: it is counted by edition, never joined (November 4, 2026)."""
-        s = v4_source()
-        s.eligible += [(999, 'Late City', 2026, 2, 14000.0), (1000, 'Late City', 2026, 1, 13000.0)]
-        _, got, _ = self.run_checks(s)
-        self.assertEqual(got['joins']['marathons'], 9)
-        self.assertEqual(got['joins']['marathons_beyond_coverage'], [{'city': 'Late City', 'year': 2026, 'rows': 2}])
-
-    def test_main_refuses_link_editions_of_another_build_or_boundary(self):
-        """The policy's link_editions must name the pinned link build and coverage boundary, before anything is read
-        (verify round 2, October 31, 2026: the check had no failing fixture)."""
-        from unittest import mock
-        pin = hc.load_pin()
-        entry = hq.REVIEWED_HALF_POLICIES[pin['half']['key']]
-        args = ['--v4-dir', str(self.dir / 'v4'), '--half', str(self.dir / 'platform_half.sqlite'), '--out', str(self.dir / pin['links']['extract'])]
-        for change in ({'link_build': 'person-ids-v3-20261030-0000'}, {'half_max_record_id': pin['links']['coverage']['half_max_record_id'] + 1}):
-            with self.subTest(change), mock.patch.dict(entry, {'link_editions': {**entry['link_editions'], **change}}):
-                with self.assertRaisesRegex(SystemExit, 'link_editions were reviewed for another link build or coverage boundary'):
-                    self.hle.main(args)
-
-    def test_the_build_table_must_name_what_the_build_reads(self):
-        """build_half.check_sources compares every provenance key of the extract's build table (verify round 2, October 31,
-        2026): the link build and its snapshot, the marathon release, the snapshot key, the source digests, the runner
-        manifest its marathon joins ran on and the frozen ns_keys and k SQL. One key off fails."""
+    def test_the_tables_carry_what_the_recount_reads(self):
+        import half_extract
+        tables = {name: [c for c, _ in columns] for name, columns, _ in half_extract.TABLES}
+        self.assertEqual(tables['race_records'], ['id', 'sub_id', 'sex', 'sex_category', 'split_21_1km', 'bib', 'runner', 'split_10km'])
+        self.assertEqual(tables['links'], ['pid', 'db', 'distance', 'record_id', 'confidence', 'keyed', 'variant_union', 'finish_s', 'sex', 'ns_keys'])
+        self.assertEqual(tables['people'], ['pid', 'person_id', 'sex', 'ns_keys', 'in_union'])
+        self.assertTrue({'qa_flags', 'pending_flags', 'record_flags', 'tiers', 'excluded_rows', 'course_suspect', 'identity_left_out', 'edition_meta', 'subraces'} <= set(tables))
+        # Every SELECT names each column it fills (the writer reads them back by name).
+        for name, columns, select in half_extract.TABLES:
+            for column, _ in columns:
+                self.assertRegex(select, rf'\b{column}\b', f'{name}.{column}')
+        # The builders never read the extract: it is not one of the scripts the manifest binds.
         import build_half
-        pin = hc.load_pin()
-        good = {'links_key': pin['links']['key'], 'applies_to': pin['links']['applies_to'], 'marathon_release': pin['marathon_release'],
-                'half_key': pin['half']['key'], f"source_sha256:{pin['half']['sqlite']}": pin['half']['sqlite_sha256'],
-                **{f'source_sha256:{n}': d for n, d in pin['links']['assets'].items()},
-                'runner_manifest_sha256': hc.file_sha256(ROOT / 'public' / 'data' / 'runners' / 'manifest.json'),
-                'ns_keys_sql_sha256': self.hle.sql_sha256(self.hle.NS_KEYS_SQL), 'k_sql_sha256': self.hle.sql_sha256(self.hle.K_SQL)}
-        links = self.dir / pin['links']['extract']
-        build_half.check_extract_build(pin, links, good)
-        for key, message in (('links_key', 'another link build'), ('applies_to', 'another link build'), ('marathon_release', 'another marathon release'),
-                             ('half_key', 'another marathon release or half snapshot'), (f"source_sha256:{pin['half']['sqlite']}", 'other sources'),
-                             ('source_sha256:persons.parquet', 'other sources'), ('runner_manifest_sha256', 'another runner manifest'),
-                             ('ns_keys_sql_sha256', 'frozen ns_keys SQL'), ('k_sql_sha256', 'frozen k SQL')):
-            with self.subTest(key):
-                with self.assertRaisesRegex(hc.HalfError, message):
-                    build_half.check_extract_build(pin, links, {**good, key: 'x'})
-                with self.assertRaisesRegex(hc.HalfError, message):
-                    build_half.check_extract_build(pin, links, {k: v for k, v in good.items() if k != key})
+        self.assertNotIn('half_extract.py', build_half.SCRIPTS)
 
-    def test_the_coverage_must_equal_the_pin(self):
-        pin = {'links': {'coverage': {**V4_PIN['links']['coverage'], 'half_max_record_id': 14}}}
-        with self.assertRaisesRegex(SystemExit, 'coverage'):
-            self.run_checks(v4_source(), pin=pin)
-
-    def test_a_column_of_another_type_fails(self):
-        s = v4_source()
-        folder = Path(tempfile.mkdtemp(dir=self.dir))
-        v4, _, _ = s.write(folder)
-        import duckdb
-        con = duckdb.connect()
-        path = (v4 / 'race_results_linked.parquet').as_posix()
-        con.execute(f"COPY (SELECT * REPLACE (CAST(record_id AS VARCHAR) AS record_id) FROM read_parquet('{path}')) TO '{path}.x' (FORMAT parquet)")
-        con.close()
-        os.replace(f'{path}.x', path)
-        with self.assertRaisesRegex(SystemExit, 'record_id'):
-            self.hle.open_v4(self.hle.connect(), v4)
-
-    def test_the_pinned_link_build_has_reviewed_counts(self):
-        pin = hc.load_pin()
-        key = pin['links']['key']
-        self.assertTrue(all(v is not None for v in self.hle.EXPECTED[key].values()), 'every extract count is reviewed')
-        want = half_pairs.EXPECTED[key]
-        self.assertEqual(set(want), set(half_pairs.summary(pd.DataFrame({c: [] for c in ('h_record_id', 'person_id', 'm_ed', 'm_city', 'h_edition_id', 'sex', 'verified', 'm_close_marathon')}))))
-        self.assertEqual(want['women_pairs'] + want['men_pairs'], want['pairs'])
-        self.assertRegex(pin['links']['extract_content_sha256'] or '', '^[0-9a-f]{64}$')
-
-    def test_the_frozen_rules_are_hashed(self):
-        self.assertEqual(self.hle.sql_sha256(self.hle.NS_KEYS_SQL), hc.bytes_sha256(self.hle.NS_KEYS_SQL.encode()))
-        self.assertIn("count(DISTINCT age_key)", self.hle.NS_KEYS_SQL)
-        self.assertIn("WHERE age_key IS NOT NULL AND name_norm IS NOT NULL AND sex IN ('M', 'F')", self.hle.NS_KEYS_SQL)
-        self.assertIn("max(ns_keys) AS ns_keys FROM lr WHERE confidence IN ('high_elite', 'high', 'medium') GROUP BY person_id", self.hle.NS_KEYS_SQL)
-        self.assertIn('min(array_to_string(list_sort(string_split(l.name_norm', self.hle.K_SQL)
+    def test_the_pin_takes_the_digest(self):
+        import half_extract
+        saved = hc.PIN_PATH
+        with tempfile.TemporaryDirectory() as folder:
+            copy = Path(folder) / 'half-release.json'
+            copy.write_text(saved.read_text())
+            try:
+                hc.PIN_PATH = half_extract.half_common.PIN_PATH = copy
+                half_extract.write_pin('ab' * 32)
+                self.assertEqual(json.loads(copy.read_text())['links']['extract_content_sha256'], 'ab' * 32)
+            finally:
+                hc.PIN_PATH = half_extract.half_common.PIN_PATH = saved
 
 
 class Pin(unittest.TestCase):
-    """analysis/half-release.json schema 3 (half_common.check_pin) and the snapshot sidecar rule."""
+    """analysis/half-release.json, schema 4: the half rows, the tiers and the person links are assets of the adopted release."""
 
     def setUp(self):
         self.pin = json.loads(hc.PIN_PATH.read_text())
-        self.release = json.loads(hc.RELEASE_PATH.read_text())['tag']
+        self.release = json.loads(hc.RELEASE_PATH.read_text())
 
-    def test_the_pin_is_schema_3(self):
-        pin = hc.load_pin()
-        self.assertEqual(pin['schema_version'], 3)
-        self.assertEqual(hc.snapshot_date(pin), '2026-10-30', 'the date comes from half.key (private_tag is null)')
-        self.assertEqual(pin['links']['applies_to'], pin['half']['key'])
-        self.assertEqual(pin['policy'], hq.entry()['file'])
-        self.assertEqual(pin['half']['key'], hq.TAG)
-        self.assertEqual(pin['stamps']['rule'], hq.entry()['stamps']['rule'])
-        self.assertEqual({k: pin['stamps']['reference'][k] for k in ('tag', 'asset', 'sha256', 'readme_sha256')},
-                         {k: hq.entry()['stamps']['reference'][k] for k in ('tag', 'asset', 'sha256', 'readme_sha256')})
-        self.assertEqual(pin['links']['coverage']['half_max_record_id'], hq.entry()['link_editions']['half_max_record_id'])
-        self.assertNotIn('metadata_correction', pin)
-        self.assertNotIn('pairs_with', pin['links'])
-        self.assertNotIn('built_at', pin['links'])
+    def test_the_pin_is_schema_4_and_binds_the_adopted_release(self):
+        pin = hc.check_pin(self.pin, self.release)
+        self.assertEqual(pin['schema_version'], 4)
+        self.assertEqual([pin['half']['tag'], pin['half']['key'], pin['links']['tag'], pin['links']['applies_to'], pin['marathon_release']], [self.release['tag']] * 5)
+        self.assertEqual(pin['links']['key'], 'person-ids-v5.1')
+        self.assertEqual(set(pin['half']['core']['members']), set(hc.CORE_MEMBERS))
+        self.assertEqual(pin['policy'], hq.REVIEWED_HALF_POLICIES[hq.TAG]['file'])
 
     def test_broken_pins_fail(self):
-        import copy
-        cases = [
-            (lambda p: p.update(schema_version=2), 'schema'),
-            (lambda p: p['links'].update(applies_to='half-dataset-20261029-1202'), 'does not apply'),
-            (lambda p: p['half'].pop('key'), 'a tag and a key'),
-            (lambda p: p['links'].update(private_tag='Not A Tag'), 'private_tag'),
-            (lambda p: p['half']['assets'].update({'x.md': 'nope'}), 'assets'),
-            (lambda p: p['links'].update(extract_content_sha256='abc'), 'extract_content_sha256'),
-            (lambda p: p['links']['coverage'].pop('half_max_record_id'), 'coverage'),
-            (lambda p: p['stamps']['reference'].pop('sha256'), 'stamps.reference'),
-            (lambda p: p.update(marathon_release='private-export-20261021-0829'), 'marathon release'),
-        ]
-        for change, what in cases:
-            pin = copy.deepcopy(self.pin)
+        def broken(change):
+            pin = json.loads(json.dumps(self.pin))
             change(pin)
-            with self.assertRaisesRegex(hc.HalfError, what, msg=what):
-                hc.check_pin(pin, self.release)
-        pin = copy.deepcopy(self.pin)
+            return pin
+        cases = [
+            (lambda p: p.update(schema_version=3), 'schema 3'),
+            (lambda p: p.update(marathon_release='pace-notes-marathon-half-20990101-0000'), 'binds marathon release'),
+            (lambda p: p['half'].update(tag='half-dataset-20261030-1904'), 'assets of the adopted release'),
+            (lambda p: p['half'].update(key='half-dataset-20261030-1904'), 'half.key must be the adopted release'),
+            (lambda p: p['links'].update(applies_to='half-dataset-20261030-1904'), 'does not apply to the pinned half rows'),
+            (lambda p: p['links']['assets'].update({'person-ids-v5.1-persons.parquet': 'abc'}), 'names and sha256 digests'),
+            (lambda p: p['half']['core']['members'].pop('qa_row_flags.parquet'), 'half.core'),
+            (lambda p: p['half']['core'].update(sha256sums_sha256='0' * 63), 'half.core'),
+            (lambda p: p['half'].update(checksums={'asset': 'x'}), 'half.checksums'),
+            (lambda p: p['links'].update(extract_content_sha256='nope'), 'a sha256 digest or null'),
+            (lambda p: p['links'].update(extract='folder/half-extract.sqlite'), 'links.extract'),
+            (lambda p: p['stamps'].update(rule=None), 'stamps'),
+            (lambda p: p['stamps']['never_stamp']['reference'].update(sha256='0'), 'stamps'),
+            (lambda p: p['half'].update(doi=5), 'half.doi'),
+        ]
+        for change, message in cases:
+            with self.assertRaisesRegex(hc.HalfError, message, msg=message):
+                hc.check_pin(broken(change), self.release)
+
+    def test_a_digest_the_marathon_pin_holds_must_be_the_same(self):
+        release = json.loads(json.dumps(self.release))
+        name = next(iter(self.pin['links']['assets']))
+        release['assets'][name] = 'f' * 64
+        with self.assertRaisesRegex(hc.HalfError, 'another sha256 than analysis/release.json'):
+            hc.check_pin(self.pin, release)
+        # With only the tag (a test, a discovery run) the digests are not compared.
+        self.assertIs(hc.check_pin(self.pin, self.release['tag']), self.pin)
+
+    def test_a_builder_refuses_a_pin_without_an_extract_digest(self):
+        pin = json.loads(json.dumps(self.pin))
         pin['links']['extract_content_sha256'] = None
-        hc.check_pin(pin, self.release)
-        with self.assertRaisesRegex(hc.HalfError, 'no links extract digest'):
+        with self.assertRaisesRegex(hc.HalfError, 'half_extract.py --pin'):
             hc.pinned_digest(pin)
-        pin['half']['doi'] = '10.6084/m9.figshare.1.v2'
-        hc.check_pin(pin, self.release)
 
-    def test_a_non_empty_wal_beside_the_snapshot_is_refused(self):
-        with tempfile.TemporaryDirectory() as folder:
-            path = Path(folder) / 'platform_half.sqlite'
-            con = sqlite3.connect(path)
-            con.execute('CREATE TABLE t (x INTEGER)')
-            con.commit()
-            con.close()
-            Path(f'{path}-wal').write_bytes(b'')
-            hc.connect(half=path).close()
-            Path(f'{path}-wal').write_bytes(b'uncommitted pages')
-            with self.assertRaisesRegex(hc.HalfError, 'is not empty'):
-                hc.connect(half=path)
-
-    def test_a_symlinked_snapshot_is_checked_beside_its_target(self):
-        """SQLite follows a symlinked database to its target and reads the target's -wal, so every guard looks there too
-        (verify round 2, October 31, 2026: the builders', the downloader's and the Node recount's guards looked only
-        beside the link, and the link passed while the target's -wal held rows the pinned bytes do not)."""
-        import shutil
-        import subprocess
-        import download_half
-        with tempfile.TemporaryDirectory() as folder:
-            a, b = Path(folder) / 'a', Path(folder) / 'b'
-            a.mkdir()
-            b.mkdir()
-            target = a / 'platform_half.sqlite'
-            con = sqlite3.connect(target)
-            con.execute('CREATE TABLE t (x INTEGER)')
-            con.commit()
-            con.close()
-            link = b / 'platform_half.sqlite'
-            link.symlink_to(target)
-            hc.check_no_wal(link)
-            Path(f'{target}-wal').write_bytes(b'uncommitted pages')
-            self.assertFalse(Path(f'{link}-wal').exists(), 'nothing beside the link itself')
-            for check in (hc.check_no_wal, hc.connect):
-                with self.assertRaisesRegex(hc.HalfError, 'is not empty', msg=check.__name__):
-                    check(link) if check is hc.check_no_wal else check(half=link)
-            with self.assertRaisesRegex(hc.HalfError, 'is not empty'):
-                download_half.check_sidecars(link)
-            node = shutil.which('node')
-            # The recount needs node:sqlite (Node 22 and later, as half.yml runs); workflows on an older Node that run
-            # every test (runner context runs Node 20) cannot start it at all, so its guard is checked where it can run.
-            if node and subprocess.run([node, '-e', "require('node:sqlite')"], capture_output=True).returncode == 0:
-                # The Node recount refuses before it reads anything (its sources need only exist for this check).
-                ref, meta = Path(folder) / 'ref.csv.zst', Path(folder) / 'meta.csv.zst'
-                ref.write_bytes(b'')
-                meta.write_bytes(b'')
-                run = subprocess.run([node, str(ROOT / 'scripts' / 'verify-half-source.cjs'), '--half', str(link), '--stamp-reference', str(ref),
-                                      '--edition-meta', str(meta), '--policy-only'], capture_output=True, text=True, timeout=60)
-                self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
-                self.assertIn(f'{target}-wal is not empty', run.stderr)
-
-
-V4_DIR = Path(os.environ.get('PACE_HALF_V4_DIR') or Path.home() / 'data' / 'v4')
+    def test_the_policy_and_the_pin_agree_on_a_verified_edition(self):
+        import build_half
+        reviewed = hq.REVIEWED_HALF_POLICIES[hq.TAG]
+        build_half.check_policy_pin(self.pin, reviewed)
+        pin = json.loads(json.dumps(self.pin))
+        pin['stamps']['never_stamp']['rows'] += 1
+        with self.assertRaisesRegex(hc.HalfError, 'never-stamp list'):
+            build_half.check_policy_pin(pin, reviewed)
+        pin = json.loads(json.dumps(self.pin))
+        pin['stamps']['rule'] = 'verified = anything'
+        with self.assertRaisesRegex(hc.HalfError, 'stamps.rule'):
+            build_half.check_policy_pin(pin, reviewed)
 
 
 class ProducerClaims(unittest.TestCase):
-    """The producer's claims /methodology cites from the pin (v4 adoption, October 31, 2026): the hand review of the link
-    build, transcribed from the pinned MATCHING_V4.md, and the two archive DOIs of the stamp reference. The transcription
-    is compared with the file itself wherever it is on disk with the pinned digest (PACE_HALF_V4_DIR, default ~/data/v4)."""
+    """What the pin quotes from the producer is marked as a claim and has the shape /methodology reads."""
 
-    def setUp(self):
-        self.pin = json.loads(hc.PIN_PATH.read_text())
-
-    def test_the_review_and_the_dois_have_their_shape(self):
-        rv = self.pin['links']['producer_review']
-        self.assertIn(rv['source'], self.pin['links']['assets'])
-        self.assertGreater(rv['n_per_cell'], 0)
-        self.assertTrue(rv['last_rounds'])
-        for r in rv['last_rounds']:
-            for k in ('rare_missed', 'common_missed', 'rare_false_merge', 'common_false_merge'):
-                self.assertTrue(0 <= r[k] <= 1, (r['round'], k))
-        ref = self.pin['stamps']['reference']
-        for k in ('doi', 'supersedes_doi'):
-            self.assertRegex(ref[k], r'^10\.\d{4,9}/\S+\.v\d+$')
-        self.assertNotEqual(ref['doi'], ref['supersedes_doi'])
-
-    @unittest.skipUnless((V4_DIR / 'MATCHING_V4.md').is_file(), 'MATCHING_V4.md is not on this machine (set PACE_HALF_V4_DIR)')
-    def test_the_review_is_the_files_last_rounds(self):
-        rv = self.pin['links']['producer_review']
-        data = (V4_DIR / rv['source']).read_bytes()
-        self.assertEqual(hc.bytes_sha256(data), self.pin['links']['assets'][rv['source']], 'the file on disk is the pinned one')
-        text = data.decode('utf-8')
-        rows = re.findall(r'^\| (r\d+) \([^)]*\) \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$', text, re.M)
-        self.assertGreaterEqual(len(rows), len(rv['last_rounds']))
-
-        def share(cell):
-            cell = cell.strip()
-            return 0.0 if cell == '0' else round(float(cell.rstrip('%')) / 100, 6)
-        last = rows[-len(rv['last_rounds']):]
-        self.assertEqual([[r[0], *map(share, r[1:])] for r in last],
-                         [[x['round'], x['rare_missed'], x['common_missed'], x['rare_false_merge'], x['common_false_merge']] for x in rv['last_rounds']])
-        self.assertIn(f"n={rv['n_per_cell']} per cell", text)
-        self.assertIn(f"0/{rv['n_per_cell']} means an upper 95% bound of about {round(rv['zero_of_n_upper95'] * 100)}%", text)
-        self.assertIn('met in two consecutive rounds', text)
+    def test_the_evaluation_and_the_doi_have_their_shape(self):
+        pin = hc.load_pin()
+        review = pin['links']['producer_review']
+        self.assertEqual(review['source'], 'person-ids-v5.1-MATCHING.md')
+        self.assertIn(review['source'], pin['links']['assets'], 'the document the claim is quoted from is a pinned asset')
+        self.assertGreaterEqual(len(review['labelled_sets']), 2)
+        for row in review['labelled_sets']:
+            self.assertTrue(isinstance(row['set'], str) and row['pairs'] >= 1)
+            for key in ('precision', 'recall'):
+                lo, hi = row[f'{key}_ci95']
+                self.assertTrue(0 <= lo <= row[key] <= hi <= 1, f"{row['set']}: {key} within its interval")
+        hold_out = [row for row in review['labelled_sets'] if row['set'].startswith('B')]
+        self.assertEqual(len(hold_out), 1, 'one hold-out set, which /methodology names')
+        self.assertIsInstance(review['false_links_in_labelled_sets'], int)
+        self.assertRegex(pin['half']['doi'], r'^10\.[0-9]+/[A-Za-z0-9.]+$')
+        self.assertIn('claim', pin['half']['doi_note'])
 
 
 class StampCheck(unittest.TestCase):
@@ -1885,15 +1613,15 @@ class Policy1904(unittest.TestCase):
                 hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['link_editions'] = {
                     **saved, 'half_max_record_id': boundary, 'retimed': [],
                     'link_partial': [{'edition_id': ids[('Alpha', 2022)], 'city': 'Alpha', 'year': 2022, 'rows_covered': 100, 'rows_uncovered': alpha[2] - 100}]}
-                got = hq.check_link_editions(db, result.editions)
+                got = hq.check_link_editions(db, result.editions, hq.TAG_1904)
                 self.assertEqual([x['city'] for x in got], ['Alpha'], 'only the edition with rows on both sides of the boundary')
                 hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['link_editions']['link_partial'] = []
                 with self.assertRaisesRegex(hc.HalfError, 'link-partial editions differ'):
-                    hq.check_link_editions(db, result.editions)
+                    hq.check_link_editions(db, result.editions, hq.TAG_1904)
                 hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['link_editions'].update(
                     link_partial=got, retimed=[{'edition_id': 99999, 'city': 'Nowhere', 'year': 2020, 'rows': 1}])
                 with self.assertRaisesRegex(hc.HalfError, 're-timed edition'):
-                    hq.check_link_editions(db, result.editions)
+                    hq.check_link_editions(db, result.editions, hq.TAG_1904)
             finally:
                 hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['link_editions'] = saved
                 db.close()
@@ -1995,6 +1723,164 @@ class RealSource(unittest.TestCase):
         self.assertEqual([build['links_key'], build['applies_to'], build['extract_content_sha256']],
                          [pin['links']['key'], pin['links']['applies_to'], pin['links']['extract_content_sha256']])
         self.assertEqual(people, half_links_extract.EXPECTED[pin['links']['key']]['people']['all'])
+
+
+def pacing_db(editions, flags=()):
+    """A DuckDB connection holding the three relations analysis/half_pacing.py reads: hfin, h.race_records, h.qa_flags.
+    `editions`: (edition_id, label, year, verified, [(finish_s, split text or None), …]). Record ids count from 1."""
+    import duckdb
+    db = duckdb.connect()
+    db.execute("ATTACH ':memory:' AS h")
+    fin, rec, rid = [], [], 0
+    for eid, label, year, verified, rows in editions:
+        for finish, text in rows:
+            rid += 1
+            fin.append((rid, eid, label, year, 'verified' if verified else 'unverified', float(finish), False))
+            rec.append((rid, text))
+    fin_df = pd.DataFrame(fin, columns=['record_id', 'edition_id', 'city', 'year', 'status_group', 'finish_s', 'r7_block'])
+    rec_df = pd.DataFrame(rec, columns=['id', 'split_10km']).astype({'split_10km': 'object'})
+    flag_df = pd.DataFrame(list(flags), columns=['record_id', 'flag']).astype({'record_id': 'int64', 'flag': 'object'})
+    for name, frame in (('fin_df', fin_df), ('rec_df', rec_df), ('flag_df', flag_df)):
+        db.register(name, frame)
+    db.execute("""CREATE TABLE hfin AS SELECT record_id::BIGINT AS record_id, edition_id::BIGINT AS edition_id, city::VARCHAR AS city,
+        year::INTEGER AS year, status_group::VARCHAR AS status_group, finish_s::DOUBLE AS finish_s, r7_block::BOOLEAN AS r7_block FROM fin_df""")
+    db.execute('CREATE TABLE h.race_records AS SELECT id::BIGINT AS id, split_10km::VARCHAR AS split_10km FROM rec_df')
+    db.execute('CREATE TABLE h.qa_flags AS SELECT record_id::BIGINT AS record_id, flag::VARCHAR AS flag FROM flag_df')
+    return db
+
+
+def pacing_rows(n, seed, centre=0.03, spread=0.05, finish=(5400, 10800)):
+    """n results of an edition: finishes spread over `finish`, the change of pace normal around `centre`."""
+    import half_pacing
+    rng = np.random.default_rng(seed)
+    f = np.round(rng.uniform(*finish, n))
+    c = rng.normal(centre, spread, n)
+    # change = ((f - t) / LAST) / (t / FIRST) - 1  =>  t = f / (1 + (1 + change) * LAST / FIRST)
+    t = np.round(f / (1 + (1 + c) * half_pacing.LAST_KM / half_pacing.FIRST_KM)).astype(int)
+    return [(float(a), hms(b)) for a, b in zip(f, t)]
+
+
+class Pacing(unittest.TestCase):
+    """How halves are paced (docs/HALF_MARATHON.md rule R5): the measure, the result and edition rules, the floors."""
+
+    def test_the_measure_is_the_last_11_1_km_against_the_first_10(self):
+        import half_pacing
+        t10 = 3000.0                                    # 5:00 per km
+        even = t10 + 300.0 * half_pacing.LAST_KM
+        self.assertAlmostEqual(half_pacing.change_of(even, t10), 0.0, places=12)
+        self.assertAlmostEqual(half_pacing.change_of(t10 + 330.0 * half_pacing.LAST_KM, t10), 0.10, places=12)
+        self.assertLess(half_pacing.change_of(t10 + 290.0 * half_pacing.LAST_KM, t10), 0)
+
+    def test_a_result_qualifies_by_each_rule_once(self):
+        import half_pacing
+        nan = float('nan')
+        finish = np.array([6300.0, 6300.0, 6300.0, 6300.0, 6300.0, 2400.0 + 120.0 * 11.0975, 12000.0 + 1200.0 * 11.0975, 3000.0, 6300.0])
+        t10 = np.array([3000.0, nan, 3000.0, 0.0, 6300.0, 1200.0, 12000.0, 1199.0, 600.0])
+        flagged = np.array([False, False, True, False, False, False, False, False, False])
+        ok, counts = half_pacing.qualifying(finish, t10, flagged)
+        # 0 qualifies; 1 unparsed; 2 flagged; 3 and 4 out of order (t10 = 0, t10 = finish); 5 and 6 sit on the bounds
+        # (2:00 and 20:00 per km in both parts) and qualify; 7 opens faster than 2:00 per km; 8 opens at 1:00 per km.
+        self.assertEqual(ok.tolist(), [True, False, False, False, False, True, True, False, False])
+        self.assertEqual(counts, {'with_10km_time': 9, 'unparsed': 1, 'flagged': 1, 'out_of_order': 2, 'out_of_pace_bounds': 2, 'qualifying': 3})
+        self.assertEqual(sum(v for k, v in counts.items() if k != 'with_10km_time'), counts['with_10km_time'], 'every result is counted once')
+
+    def test_the_10_km_time_parses_as_the_marathon_pipeline_reads_a_clock(self):
+        import half_pacing
+        texts = ['0:45:00', '45:00', ' 45:00 ', '45:00.5', '1:02:03.25', '-0:45:00', '45:60', '0:61:00', '', 'abc', '45', None]
+        db = pacing_db([(1, 'A', 2020, False, [(6000.0, t) for t in texts])])
+        got = [x[0] for x in db.execute(f'SELECT {half_pacing.T10_SQL} FROM h.race_records r ORDER BY r.id').fetchall()]
+        self.assertEqual(got, [2700.0, 2700.0, 2700.0, 2700.5, 3723.25, None, None, None, None, None, None, None])
+
+    def test_the_histogram_keeps_every_bin_and_tail_at_the_floor_and_restates_the_shares(self):
+        import half_pacing
+        rng = np.random.default_rng(1)
+        c = rng.normal(0.03, 0.05, 60000)
+        h = half_pacing.histogram(c)
+        self.assertTrue(min(h['counts']) >= 100 and h['under_lo'] >= 100 and h['at_or_over_hi'] >= 100)
+        self.assertEqual(h['under_lo'] + sum(h['counts']) + h['at_or_over_hi'], len(c))
+        self.assertTrue(h['lo'] <= 0 and h['hi'] >= 10 and len(h['counts']) == h['hi'] - h['lo'])
+        self.assertEqual(h['under_lo'] + sum(h['counts'][:-h['lo']]), int((c < 0).sum()), 'the share faster, restated from the bins')
+        self.assertEqual(h['at_or_over_hi'] + sum(h['counts'][10 - h['lo']:]), int((c > 0.10).sum()), 'the share over +10%, restated from the bins')
+        # A narrow group whose bins of 100 stop short of +10 points has no histogram, so the group is left out.
+        self.assertIsNone(half_pacing.histogram(rng.normal(0.01, 0.01, 5000)))
+        # Too few results for any bin of 100.
+        self.assertIsNone(half_pacing.histogram(rng.normal(0.03, 0.05, 150)))
+
+    def editions(self, n_labels=12, per_label=2, n=600, **kw):
+        out, eid = [], 0
+        for i in range(n_labels):
+            for j in range(per_label):
+                eid += 1
+                out.append((eid, f'Race {i:02d}', 2015 + j, False, pacing_rows(n, 1000 + eid, **kw)))
+        return out
+
+    def test_the_family_is_built_from_qualifying_editions_and_recounts_from_its_own_rows(self):
+        import half_pacing
+        eds = self.editions()
+        # One edition under 500 qualifying results, one whose qualifying results are under half of its finishes, one the
+        # screen removes above (+20%) and one below (−10%): none supplies a result.
+        eds.append((101, 'Small', 2020, False, pacing_rows(499, 5)))
+        eds.append((102, 'Partial', 2020, False, pacing_rows(600, 6) + [(7000.0, None)] * 601))
+        eds.append((103, 'Mat elsewhere', 2020, False, pacing_rows(600, 7, centre=0.20)))
+        eds.append((104, 'Mat before', 2020, False, pacing_rows(600, 8, centre=-0.10)))
+        out = half_pacing.build(pacing_db(eds))
+        hc.check_published(out, 'pacing.json')
+        self.assertEqual([out['cohort']['editions'], out['cohort']['labels'], out['cohort']['results']], [24, 12, 24 * 600])
+        self.assertEqual(out['screen'], {'candidates': 26, 'removed': [{'label': 'Mat before', 'year': 2020, 'n': 600, 'below': True},
+                                                                      {'label': 'Mat elsewhere', 'year': 2020, 'n': 600, 'below': False}]})
+        self.assertEqual(out['cohort']['funnel']['with_10km_time'], 24 * 600 + 499 + 600 + 600 + 600)
+        self.assertEqual(out['cohort']['verified'], {'editions': 0, 'results': 0})
+        o = out['overall']
+        self.assertEqual([o['n'], o['e'], o['l']], [14400, 24, 12])
+        self.assertEqual(o['hist']['under_lo'] + sum(o['hist']['counts']) + o['hist']['at_or_over_hi'], o['n'])
+        # The equal-edition values are the medians of the unnamed rows, and the rows hold every result once.
+        rows = out['edition_rows']
+        self.assertEqual(sum(x['n'] for x in rows), o['n'])
+        self.assertEqual(out['editions_equal'], {'editions': 24, 'median': hc.sh(np.median([x['median'] for x in rows])),
+                                                 'faster': hc.sh(np.median([x['faster'] for x in rows])),
+                                                 'slower10': hc.sh(np.median([x['slower10'] for x in rows])),
+                                                 'above_zero': sum(1 for x in rows if x['median'] > 0)})
+        # A label of two editions shows no value of its own (the 3-edition floor); what is left without it always shows.
+        self.assertTrue(all(x['median'] is None and x['faster'] is None and x['slower10'] is None and x['e'] == 2 for x in out['labels']))
+        self.assertTrue(all(0 < x['without']['faster'] < 1 for x in out['labels']))
+        self.assertEqual(out['leave_label_out']['median_min'], min(x['without']['median'] for x in out['labels']))
+        self.assertAlmostEqual(sum(x['share'] for x in out['labels']), 1.0, places=8)
+        for band in out['bands']:
+            self.assertTrue(band['n'] >= 100 and band['e'] >= 3 and band['l'] >= 3 and min(band['hist']['counts']) >= 100)
+        self.assertTrue({b['lo_s'] for b in out['bands']} <= set(range(3600, 12000, 1200)))
+
+    def test_a_label_of_three_editions_shows_its_own_values(self):
+        import half_pacing
+        out = half_pacing.build(pacing_db(self.editions(n_labels=10, per_label=3)))
+        self.assertTrue(all(x['e'] == 3 and x['median'] is not None for x in out['labels']))
+        self.assertEqual(out['labels_equal']['median'], hc.sh(np.median([x['median'] for x in out['labels']])))
+
+    def test_the_family_floors_leave_the_whole_family_out(self):
+        import half_pacing
+        # 19 editions (the floor is 20), 9 labels (the floor is 10), and one label with over half of the results.
+        self.assertIsNone(half_pacing.build(pacing_db(self.editions(n_labels=19, per_label=1))))
+        self.assertIsNone(half_pacing.build(pacing_db(self.editions(n_labels=9, per_label=3))))
+        big = self.editions(n_labels=11, per_label=2)
+        big.append((500, 'Race 00', 2030, False, pacing_rows(15000, 9)))
+        self.assertIsNone(half_pacing.build(pacing_db(big)))
+        self.assertIsNotNone(half_pacing.build(pacing_db(self.editions(n_labels=10, per_label=2))))
+
+    def test_a_flagged_or_r7_result_never_counts(self):
+        import half_pacing
+        eds = self.editions(n_labels=10, per_label=2)
+        db = pacing_db(eds, flags=[(1, 'split_nonmonotonic'), (2, 'split_after_finish'), (3, 'finish_ge_24h')])
+        db.execute('UPDATE hfin SET r7_block = true WHERE record_id IN (4, 5)')
+        out = half_pacing.build(db)
+        base = half_pacing.build(pacing_db(eds))
+        self.assertEqual(base['cohort']['results'] - out['cohort']['results'], 4, 'two flagged and two in the R7 block')
+        self.assertEqual(out['cohort']['funnel']['flagged'], 2)
+        self.assertEqual(base['cohort']['usable_finishes'] - out['cohort']['usable_finishes'], 2, 'the R7 block is no usable finish of the edition')
+
+    def test_the_words_never_name_a_split_or_a_half_way_point(self):
+        import half_pacing
+        text = json.dumps(half_pacing.RULE)
+        for banned in ('sustained slowdown', 'halfway', 'second half', 'first half'):
+            self.assertNotIn(banned, text)
 
 
 if __name__ == '__main__':

@@ -65,7 +65,7 @@ TABLES = (
      'SELECT sub_id, city, year, race FROM x_subraces'),
     ('race_records', (('id', 'INTEGER'), ('sub_id', 'INTEGER'), ('sex', 'TEXT'), ('sex_category', 'TEXT'), ('split_21_1km', 'TEXT'),
                       ('bib', 'TEXT'), ('runner', 'TEXT'), ('split_10km', 'TEXT')),
-     """SELECT r.id, s.sub_id, r.sex_published, r.sex_category, r.split_21_1km, r.bib, r.runner, r.split_10km
+     """SELECT r.id, s.sub_id, r.sex_published AS sex, r.sex_category, r.split_21_1km, r.bib, r.runner, r.split_10km
         FROM h.race_records r JOIN x_subraces s ON s.city IS NOT DISTINCT FROM r.city AND s.year = r.year AND s.race IS NOT DISTINCT FROM r.race"""),
     ('record_flags', (('record_id', 'INTEGER'), ('flag', 'TEXT')), 'SELECT record_id, flag FROM h.record_flags'),
     ('qa_flags', (('record_id', 'INTEGER'), ('flag', 'TEXT')), 'SELECT record_id, flag FROM h.qa_flags'),
@@ -73,11 +73,11 @@ TABLES = (
     ('edition_meta', (('id', 'INTEGER'), ('city', 'TEXT'), ('year', 'INTEGER'), ('race', 'TEXT'), ('race_date', 'TEXT'),
                       ('official_finishers', 'INTEGER'), ('official_source_type', 'TEXT'), ('completeness_status', 'TEXT'),
                       ('timing_basis', 'TEXT')),
-     """SELECT id, city, year, race, race_date, official_finishers::BIGINT, official_source_type, completeness_status, timing_basis
+     """SELECT id, city, year, race, race_date, official_finishers::BIGINT AS official_finishers, official_source_type, completeness_status, timing_basis
         FROM h.edition_meta"""),
     ('tiers', (('source_db', 'TEXT'), ('city', 'TEXT'), ('year', 'INTEGER'), ('n_records', 'INTEGER'), ('verification_tier', 'TEXT'),
                ('weaker_source', 'INTEGER'), ('split_tier', 'TEXT')),
-     'SELECT source_db, city, year, n_records, verification_tier, weaker_source::INTEGER, split_tier FROM h.tiers'),
+     'SELECT source_db, city, year, n_records, verification_tier, weaker_source::INTEGER AS weaker_source, split_tier FROM h.tiers'),
     ('excluded_rows', (('city', 'TEXT'), ('year', 'INTEGER'), ('n', 'INTEGER')), 'SELECT city, year, n FROM h.excluded_rows'),
     ('course_suspect', (('city', 'TEXT'), ('year', 'INTEGER'), ('n', 'INTEGER'), ('flagged', 'INTEGER')),
      'SELECT city, year, n, flagged FROM h.course_suspect'),
@@ -86,7 +86,7 @@ TABLES = (
      'SELECT pid, person_id, sex, ns_keys, in_union FROM x_people'),
     ('links', (('pid', 'INTEGER'), ('db', 'TEXT'), ('distance', 'TEXT'), ('record_id', 'INTEGER'), ('confidence', 'TEXT'), ('keyed', 'INTEGER'),
                ('variant_union', 'INTEGER'), ('finish_s', 'INTEGER'), ('sex', 'TEXT'), ('ns_keys', 'INTEGER')),
-     """SELECT p.pid, k.db, k.distance, k.record_id, k.confidence, k.keyed, k.variant_union, k.finish_s::BIGINT, k.sex, k.ns_keys
+     """SELECT p.pid, k.db, k.distance, k.record_id, k.confidence, k.keyed, k.variant_union, k.finish_s::BIGINT AS finish_s, k.sex, k.ns_keys
         FROM l.links k JOIN x_people p USING (person_id)"""),
 )
 INDEXES = ('CREATE INDEX links_pid ON links (pid)', 'CREATE INDEX links_record ON links (db, distance, record_id)')

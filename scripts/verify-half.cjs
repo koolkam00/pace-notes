@@ -225,11 +225,14 @@ eq(frozen.filter((e) => e.rule !== 'E0').reduce((a, e) => a + e.finishes, 0), co
 eq(frozen.filter((e) => e.rule === 'E0').reduce((a, e) => a + e.finishes, 0), counts.E0_finishes, 'the frozen E0 finishes');
 
 // ---------- 2. Inventory ----------
-const SCOPES = { 'field.json': 'verified', 'women.json': 'verified', 'linked.json': 'linked', 'tools/half-to-full.json': 'linked', 'cards.json': 'per-card' };
+const SCOPES = { 'field.json': 'verified', 'women.json': 'verified', 'linked.json': 'linked', 'tools/half-to-full.json': 'linked', 'cards.json': 'per-card', 'pacing.json': 'usable' };
+// Published only while the family meets its builder floors (analysis/half_pacing.py): under one it is left out with its beat.
+const OPTIONAL = new Set(['pacing.json']);
 const present = [];
 (function walk(dir, prefix) { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { if (e.isDirectory()) walk(path.join(dir, e.name), `${prefix}${e.name}/`); else present.push(`${prefix}${e.name}`); } })(opt.data, '');
 eq(present.filter((f) => f !== 'manifest.json').sort(), Object.keys(manifest.files).sort(), 'exactly the manifest’s files are published, and nothing else');
-eq(Object.keys(manifest.files).sort(), Object.keys(SCOPES).sort(), 'the half families');
+eq(Object.keys(manifest.files).filter((f) => !OPTIONAL.has(f)).sort(), Object.keys(SCOPES).filter((f) => !OPTIONAL.has(f)).sort(), 'the half families');
+ok(Object.keys(manifest.files).every((f) => f in SCOPES), 'no family the verifier does not know');
 const files = {};
 for (const [name, meta] of Object.entries(manifest.files)) {
   const bytes = fs.readFileSync(path.join(opt.data, name));
@@ -241,6 +244,7 @@ for (const [name, meta] of Object.entries(manifest.files)) {
   if (meta.scope !== 'per-card') eq(files[name].scope, meta.scope, `${name}: the file’s own scope`);
 }
 const field = files['field.json'], women = files['women.json'], linked = files['linked.json'], tool = files['tools/half-to-full.json'], cards = files['cards.json'];
+const pacing = files['pacing.json'] || null;
 eq(field.policy, { sha256: manifest.policy.sha256, module_sha256: manifest.policy.module_sha256 }, 'field.json binds the policy');
 
 // ---------- 3. Bans: keys, strings, labels, floors (analysis/half_common.check_published, independently) ----------
@@ -264,7 +268,8 @@ function scan(value, where, { inRule = false, plot = false } = {}) {
         if (k === 'sha256' || k === 'module_sha256') ok(/^[0-9a-f]{64}$/.test(v), `${where}.${k}: not a sha256 digest`);
         else ok(inRule || k === 'rule' || STRING_KEYS.has(k) || (plot && PLOT_STRING_KEYS.has(k)), `${where}.${k}: a string under a key that may not hold one (${JSON.stringify(v)})`);
         ok(!W.RELEASE_LABEL.test(v), `${where}.${k}: a release label in a family file`);
-        if (!/sha256$/.test(k) && k !== 'scope' && k !== 'id') fileStrings.push([`${where}.${k}`, v]);
+        // A race label of the pacing family is the release's own key: a name is data and passes no copy word rule.
+        if (!/sha256$/.test(k) && k !== 'scope' && k !== 'id' && !(k === 'label' && /^pacing\.json\.(labels|screen\.removed)\[\d+\]$/.test(where))) fileStrings.push([`${where}.${k}`, v]);
       }
       scan(v, `${where}.${k}`, { inRule: inRule || k === 'rule', plot });
     }
@@ -276,6 +281,75 @@ for (const [name, doc] of Object.entries(files)) scan(doc, name, { plot: name ==
 for (const [where, v] of fileStrings) {
   const problemsHere = W.wordProblems(v, [...W.BANNED, ...W.HALF_BANNED, ...W.STATUS_WORDS, ...W.VERIFICATION_WORDS]);
   ok(!problemsHere.length, `${where}: ${problemsHere.join(', ')}: ${v}`);
+}
+
+// ---------- 4b. pacing.json: how halves are paced, recounted from the file (docs/HALF_MARATHON.md, rule R5) ----------
+if (pacing) {
+  const P = pacing, R = P.rules, C = P.cohort, O = P.overall;
+  eq([P.family, P.schema_version, P.scope], ['half-pacing', 1, 'usable'], 'pacing: family, schema and scope (every usable result, verified or not)');
+  // The frozen rules (recorded November 14, 2026, before any build).
+  eq(R, { first_km: 10, last_km: 11.0975, pace_s_per_km: [120, 1200], edition_min_results: 500, edition_min_share: 0.5, screen: [-0.06, 0.12], slower: 0.1,
+    band_s: 1200, bands_from_s: 3600, bands_to_s: 12000, min_band_labels: 3, family_min_editions: 20, family_min_labels: 10, family_max_label_share: 0.5 }, 'pacing: the frozen rules');
+  for (const text of Object.values(P.rule)) ok(!/sustained slowdown|halfway|half-way|second half|first half/i.test(text), `pacing: a rule text names a half of the race or the marathon’s metric: ${text}`);
+  // The family floors.
+  ok(C.editions >= R.family_min_editions && C.labels >= R.family_min_labels, `pacing: the family floors (${C.editions} editions, ${C.labels} labels)`);
+  ok(P.labels.every((l) => l.n <= R.family_max_label_share * C.results), 'pacing: no race label holds over half of the results');
+  // The funnel adds up, and the cohort is what the rows hold.
+  const F = C.funnel;
+  eq(F.unparsed + F.flagged + F.out_of_order + F.out_of_pace_bounds + F.qualifying, F.with_10km_time, 'pacing: every result with a 10 km time is counted once');
+  ok(C.results <= F.qualifying && C.results <= C.usable_finishes, 'pacing: the cohort is within the qualifying results and within its editions’ usable finishes');
+  ok(2 * C.results >= C.usable_finishes && C.usable_finishes <= counts.use_finish.finishes, 'pacing: the qualifying results are at least half of their editions’ usable finishes');
+  eq([O.n, O.e, O.l], [C.results, C.editions, C.labels], 'pacing: the overall group is the cohort');
+  eq([P.edition_rows.length, P.edition_rows.reduce((a, r) => a + r.n, 0)], [C.editions, C.results], 'pacing: the unnamed edition rows hold every result once');
+  eq([P.labels.length, P.labels.reduce((a, l) => a + l.n, 0), P.labels.reduce((a, l) => a + l.e, 0)], [C.labels, C.results, C.editions], 'pacing: the race labels hold every result and edition once');
+  ok(C.verified.editions <= C.editions && C.verified.results <= C.results && C.verified.results <= counts.verified.finishes, 'pacing: the verified counts lie within the cohort');
+  eq(P.screen.candidates, C.editions + P.screen.removed.length, 'pacing: the screen’s candidates are the kept and the removed editions');
+  ok(P.screen.removed.every((x) => int(x.n, R.edition_min_results) && typeof x.below === 'boolean' && Number.isInteger(x.year)), 'pacing: every edition the screen removes met the size rule');
+  eq(P.screen.removed.map((x) => `${x.label}\u0000${x.year}`), P.screen.removed.map((x) => `${x.label}\u0000${x.year}`).sort((a, b) => { const [la, ya] = a.split('\u0000'), [lb, yb] = b.split('\u0000'); return la < lb ? -1 : la > lb ? 1 : ya - yb; }), 'pacing: the removed editions in label and year order');
+
+  // A group: its floors, its histogram (every bin and tail at least 100) and its values restated from the bins.
+  const group = (g, where, band) => {
+    ok(int(g.n, D.MIN_CELL) && int(g.e, D.MIN_EDITIONS) && int(g.l, band ? R.min_band_labels : 1), `${where}: at least 100 results from 3 editions${band ? ' of 3 labels' : ''}`);
+    const h = g.hist;
+    ok(Number.isInteger(h.lo) && Number.isInteger(h.hi) && h.counts.length === h.hi - h.lo && h.lo <= 0 && h.hi >= 10, `${where}: whole-point bins that hold the edges 0 and +10`);
+    ok(h.counts.every((c) => int(c, D.MIN_CELL)) && int(h.under_lo, D.MIN_CELL) && int(h.at_or_over_hi, D.MIN_CELL), `${where}: every bin and both open tails hold at least 100 results`);
+    eq(h.under_lo + h.counts.reduce((a, b) => a + b, 0) + h.at_or_over_hi, g.n, `${where}: the histogram holds every result`);
+    const below = h.under_lo + h.counts.slice(0, -h.lo).reduce((a, b) => a + b, 0);
+    const over = h.at_or_over_hi + h.counts.slice(10 - h.lo).reduce((a, b) => a + b, 0);
+    eq(g.faster, D.sh(below / g.n), `${where}: the share faster is the bins below zero`);
+    eq(g.slower10, D.sh(over / g.n), `${where}: the share over +10% is the bins from +10`);
+    // The median lies in the bin of the middle result (between the two middle ones when the count is even).
+    const binOf = (rank) => { let seen = h.under_lo; if (rank < seen) return h.lo - 1; for (let i = 0; i < h.counts.length; i++) { seen += h.counts[i]; if (rank < seen) return h.lo + i; } return h.hi; };
+    const a = binOf(Math.floor((g.n - 1) / 2)), b = binOf(Math.floor(g.n / 2)), m = Math.floor(g.median * 100);
+    ok(m >= a && m <= b && a >= h.lo && b < h.hi, `${where}: the median ${g.median} lies in the bin of the middle result (${a} to ${b})`);
+    ok(g.faster > 0 && g.faster < 1 && g.slower10 > 0 && g.slower10 < 1 && g.faster + g.slower10 < 1, `${where}: the two shares are shares of one group`);
+  };
+  group(O, 'pacing overall', false);
+  const grid = Array.from({ length: (R.bands_to_s - R.bands_from_s) / R.band_s }, (_, i) => R.bands_from_s + i * R.band_s);
+  ok(P.bands.every((b, i) => grid.includes(b.lo_s) && (!i || b.lo_s > P.bands[i - 1].lo_s)), 'pacing: the bands are 20-minute finish bands from 1:00 to 3:19, in order');
+  for (const b of P.bands) group(b, `pacing band ${D.clock(b.lo_s)}`, true);
+  ok(P.bands.reduce((a, b) => a + b.n, 0) <= O.n && P.bands.every((b) => b.e <= O.e && b.l <= O.l), 'pacing: the bands lie within the cohort');
+
+  // Editions weighted equally: the medians of the unnamed rows.
+  const E = P.editions_equal, rows = P.edition_rows;
+  ok(rows.every((r) => int(r.n, R.edition_min_results) && r.median >= R.screen[0] && r.median <= R.screen[1]), 'pacing: every edition row meets the size rule and the screen');
+  eq(rows.map((r) => [r.n, r.median, r.faster, r.slower10]), [...rows].sort((a, b) => a.n - b.n || a.median - b.median || a.faster - b.faster || a.slower10 - b.slower10).map((r) => [r.n, r.median, r.faster, r.slower10]), 'pacing: the edition rows are unnamed and in value order');
+  eq([E.editions, E.median, E.faster, E.slower10, E.above_zero], [rows.length, ...['median', 'faster', 'slower10'].map((k) => D.sh(D.npMedian(rows.map((r) => r[k])))), rows.filter((r) => r.median > 0).length], 'pacing: editions weighted equally, from the rows');
+
+  // Race labels: most results first; a label's own values only from 100 results of 3 editions; the leave-out range.
+  const L = P.labels;
+  eq(L.map((l) => l.label), [...L].sort((a, b) => b.n - a.n || (a.label < b.label ? -1 : a.label > b.label ? 1 : 0)).map((l) => l.label), 'pacing: the labels, most results first');
+  eq(new Set(L.map((l) => l.label)).size, L.length, 'pacing: each race label once');
+  for (const l of L) {
+    eq(l.share, D.sh(l.n / C.results), `pacing ${l.label}: its share of the results`);
+    const shown = l.n >= D.MIN_CELL && l.e >= D.MIN_EDITIONS;
+    ok([l.median, l.faster, l.slower10].every((v) => (v === null) === !shown), `pacing ${l.label}: its own values exactly when it holds 100 results of 3 editions`);
+    ok(Number.isFinite(l.without.median) && l.without.faster > 0 && l.without.faster < 1, `pacing ${l.label}: the rest’s values`);
+  }
+  eq(P.labels_equal.labels, L.length, 'pacing: labels weighted equally counts every label');
+  if (L.every((l) => l.median !== null)) eq([P.labels_equal.median, P.labels_equal.faster, P.labels_equal.slower10], ['median', 'faster', 'slower10'].map((k) => D.sh(D.npMedian(L.map((l) => l[k])))), 'pacing: labels weighted equally, from the rows');
+  eq(P.leave_label_out, { median_min: Math.min(...L.map((l) => l.without.median)), median_max: Math.max(...L.map((l) => l.without.median)),
+    faster_min: Math.min(...L.map((l) => l.without.faster)), faster_max: Math.max(...L.map((l) => l.without.faster)) }, 'pacing: the leave-one-label-out range');
 }
 
 // ---------- 4. field.json: exact recounts ----------
@@ -981,7 +1055,7 @@ if (opt.html) {
       if (q.get('d') === 'half') ok(/^\d:\d\d:\d\d$/.test(q.get('t') || ''), `${route}: the tool link ${m[1]} opens on a half with no time (t=H:MM:SS)`);
     }
     for (const slug of withdrawnCards) ok(!html.includes(`/charts/cards/${slug}.png`), `${route}: links the withdrawn card ${slug}`);
-    const scoped = elements(html, /data-half-scope="(?:verified|linked)"/);
+    const scoped = elements(html, /data-half-scope="(?:verified|linked|usable)"/);
     const links = elements(html, /data-half-link="linked"/);
     for (const el of links) {
       readings++;
@@ -1004,21 +1078,35 @@ if (opt.html) {
     // Outside the half surfaces the label appears only in a reading link or beside a stated reading.
     {
       let rest = html;
-      for (const re of [/data-half-scope="(?:verified|linked)"/, /data-half-link="linked"/, /data-half-said="stated"/]) rest = remove(rest, re);
+      for (const re of [/data-half-scope="(?:verified|linked|usable)"/, /data-half-link="linked"/, /data-half-said="stated"/]) rest = remove(rest, re);
       if (route !== '/methodology') ok(!DIST.test(rest), `${route}: a distance label outside a half-to-marathon figure`);
     }
     if (!scoped.length) {
       if (route !== '/methodology') ok(!CHIP.test(html), `${route}: a scope chip outside any half surface`);
       continue;
     }
-    for (const el of scoped) {
+    for (const whole of scoped) {
       surfaces++;
-      const scope = /data-half-scope="(verified|linked)"/.exec(el.tag)[1];
+      const scope = /data-half-scope="(verified|linked|usable)"/.exec(whole.tag)[1];
+      // A surface of every usable result (how halves are paced) sits at the foot of a verified page: each is read apart.
+      const el = scope === 'usable' ? whole : { tag: whole.tag, html: remove(whole.html, /data-half-scope="usable"/) };
       const chips = elements(el.html, CHIP).length;
       const own = elements(remove(el.html, /data-half-link="linked"/), DIST).length;
       if (scope === 'linked') {
         eq(chips, 1, `${route}: a linked surface carries exactly one scope chip`);
         eq(own, 1, `${route}: a linked surface carries exactly one distance label ("${DISTANCE}")`);
+      } else if (scope === 'usable') {
+        // Mostly unverified results: the chip is not optional. No pair of distances, so no distance label; and the 10 km
+        // time is never a half of the race, a split of it or the marathon's metric (docs/HALF_MARATHON.md, rule R5).
+        eq(chips, 1, `${route}: the pacing surface carries exactly one scope chip`);
+        eq(own, 0, `${route}: the pacing surface carries no distance label`);
+        ok(Boolean(pacing), `${route}: a pacing surface without a published pacing family`);
+        const said = textOf(remove(el.html, CHIP));
+        for (const [re, what] of [[/sustained slowdowns?/i, '"sustained slowdown"'], [/\bhalfway\b|\bhalf-way\b/i, '"halfway"'], [/\bsecond half\b|\bfirst half\b/i, 'a half of the race'], [/\bsplits?\b/i, '"split"'], [/\bmarathons?\b(?<!half marathons?)/i, 'the marathon']]) {
+          const hit = re.exec(said);
+          ok(!hit, `${route}: ${what} on the pacing surface: …${hit ? said.slice(Math.max(0, hit.index - 40), hit.index + 40) : ''}…`);
+        }
+        for (const re of LINKED_FIGURES) ok(!re.test(said), `${route}: the pacing surface shows a linked figure (${re})`);
       } else {
         eq(chips, 0, `${route}: a verified surface carries no scope chip`);
         eq(own, 0, `${route}: a half-only surface carries no distance label outside a reading link`);

@@ -347,11 +347,59 @@ export type HalfCard = {
 export type HalfCards = { schema_version: 1; family: 'half-cards'; cards: HalfCard[] };
 
 // ---------------------------------------------------------------------------------------------------------------
+// pacing.json: how halves are paced (scope `usable`: every usable result, verified or not; analysis/half_pacing.py)
+// ---------------------------------------------------------------------------------------------------------------
+
+/** The three values of a group: the median change of pace (last 11.0975 km against the first 10 km, 0.03 = 3% slower),
+ * the share that ran the last part faster (change below zero) and the share more than 10% slower. */
+export type HalfPacingValues = { median: number; faster: number; slower10: number };
+/** Whole points of the change, rounded down: bins `lo` to `hi − 1` and the two open tails, each at least 100 results. */
+export type HalfPacingHist = { lo: number; hi: number; under_lo: number; at_or_over_hi: number; counts: number[] };
+/** A shown group: its results, editions and race labels, its three values and its histogram. */
+export type HalfPacingGroup = HalfPacingValues & { n: number; e: number; l: number; hist: HalfPacingHist };
+
+export type HalfPacing = {
+  family: 'half-pacing'; schema_version: 1; scope: 'usable';
+  /** The measure and the rules in words (analysis/half_pacing.py RULE). */
+  rule: Record<'measure' | 'result' | 'edition' | 'label' | 'faster' | 'slower10' | 'histogram', string>;
+  rules: {
+    first_km: number; last_km: number; pace_s_per_km: [number, number]; edition_min_results: number; edition_min_share: number;
+    screen: [number, number]; slower: number; band_s: number; bands_from_s: number; bands_to_s: number; min_band_labels: number;
+    family_min_editions: number; family_min_labels: number; family_max_label_share: number;
+  };
+  cohort: {
+    results: number; editions: number; labels: number;
+    /** Usable finishes of the qualifying editions (with or without a 10 km time). */
+    usable_finishes: number;
+    /** Usable finishes with a 10 km time, and what each rule leaves out of them, in order. */
+    funnel: { with_10km_time: number; unparsed: number; flagged: number; out_of_order: number; out_of_pace_bounds: number; qualifying: number };
+    /** The verified editions among the qualifying ones: counts only, no value is shown for them. */
+    verified: { editions: number; results: number };
+  };
+  /** Editions that met the size rule, and those the screen removed (their own median outside the screen). */
+  screen: { candidates: number; removed: { label: string; year: number; n: number; below: boolean }[] };
+  overall: HalfPacingGroup;
+  /** The median over editions of each edition's own value; `above_zero` editions have a median above zero. */
+  editions_equal: HalfPacingValues & { editions: number; above_zero: number };
+  /** The median over race labels of each label's own value (its results pooled). */
+  labels_equal: HalfPacingValues & { labels: number };
+  /** The range of the pooled median and of the pooled share faster with one race label left out. */
+  leave_label_out: { median_min: number; median_max: number; faster_min: number; faster_max: number };
+  /** Every race label, most results first: its own values only from 100 results of 3 editions; `without` is the rest. */
+  labels: { label: string; n: number; e: number; share: number; median: number | null; faster: number | null; slower10: number | null;
+    without: { median: number; faster: number } }[];
+  /** Each qualifying edition's own values, unnamed. */
+  edition_rows: (HalfPacingValues & { n: number })[];
+  /** The 20-minute finish bands that meet the floors, by the band's start. */
+  bands: (HalfPacingGroup & { lo_s: number })[];
+};
+
+// ---------------------------------------------------------------------------------------------------------------
 // manifest.json: provenance, policy counts, scripts, files
 // ---------------------------------------------------------------------------------------------------------------
 
 /** The family files (paths relative to public/data/half/). */
-export type HalfDataFile = 'field.json' | 'women.json' | 'linked.json' | 'tools/half-to-full.json' | 'cards.json';
+export type HalfDataFile = 'field.json' | 'women.json' | 'linked.json' | 'tools/half-to-full.json' | 'cards.json' | 'pacing.json';
 
 export type HalfFiles = {
   'field.json': HalfField;
@@ -359,9 +407,11 @@ export type HalfFiles = {
   'linked.json': HalfLinked;
   'tools/half-to-full.json': HalfTool;
   'cards.json': HalfCards;
+  /** Published only while the family meets its builder floors (lib/half-server.ts halfPublished). */
+  'pacing.json': HalfPacing;
 };
 
-export type HalfFileMeta = { bytes: number; sha256: string; scope: HalfScope | 'per-card' };
+export type HalfFileMeta = { bytes: number; sha256: string; scope: HalfScope | HalfPacing['scope'] | 'per-card' };
 
 export type HalfFinishesEditions = { finishes: number; editions: number };
 
@@ -398,7 +448,7 @@ export type HalfScript =
   | 'analysis/build_half.py' | 'analysis/half_common.py' | 'analysis/half_quality.py' | 'analysis/half_policy_lists.py'
   | 'analysis/half_source.py'
   | 'analysis/half_marathon.py' | 'analysis/half_pairs.py' | 'analysis/half_field.py' | 'analysis/half_women.py'
-  | 'analysis/half_linked.py' | 'analysis/half_cards.py';
+  | 'analysis/half_linked.py' | 'analysis/half_cards.py' | 'analysis/half_pacing.py';
 
 export type HalfManifest = {
   schema_version: 3;

@@ -49,6 +49,7 @@ const D = require('./half/derive.cjs');
 const { applyPolicy, checkTiers } = require('./half/policy.cjs');
 const { loadMarathons } = require('./half/marathon.cjs');
 const Fam = require('./half/families.cjs');
+const { pacing: pacingOf } = require('./half/pacing.cjs');
 
 const started = Date.now();
 const log = (message) => console.log(`[${Math.round((Date.now() - started) / 1000)} s] ${message}`);
@@ -432,6 +433,13 @@ const { linked: linkedMine, tool: toolMine } = Fam.linked(pairs, { people: setB.
 compare('linked.json', '', readHalf('linked.json'), linkedMine);
 compare('tools/half-to-full.json', '', readHalf('tools/half-to-full.json'), toolMine);
 compare('cards.json', '', readHalf('cards.json'), Fam.cards(fieldMine, womenMine, linkedMine));
+// How halves are paced: published only while the family meets its builder floors, in the recount as in the build.
+{
+  const mine = pacingOf({ db: xdb, fin, editions: ED });
+  if (manifest.files['pacing.json']) compare('pacing.json', '', readHalf('pacing.json'), mine === null ? {} : mine);
+  else compare('policy', 'pacing.json: left out under a builder floor in the recount too', null, mine === null ? null : 'built');
+  log(mine ? `pacing: ${mine.cohort.results.toLocaleString('en-US')} results in ${mine.cohort.editions} editions of ${mine.cohort.labels} labels` : 'pacing: under a builder floor');
+}
 
 // The comparison itself must bite: a copy of the recount with three values moved reports exactly three mismatches.
 {

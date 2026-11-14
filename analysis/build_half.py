@@ -11,7 +11,8 @@ marathon cohort was built on). Defaults: $PACE_HALF_CORE, $PACE_HALF_RELEASE, $P
 policy (analysis/half-policy-20261113-1113.json, checked against analysis/half_quality.py) and takes the marathon side
 from the checked-in marathon cohort (analysis/marathon-cohort).
 Writes aggregates only: field.json and women.json (verified half finishes), linked.json and tools/half-to-full.json
-(half and marathon records linked by name), cards.json (the card plots, read from those files), then manifest.json,
+(half and marathon records linked by name), cards.json (the card plots, read from those files), pacing.json (how halves
+are paced, from every usable result with a 10 km time; left out under a builder floor), then manifest.json,
 which binds every file to the pin, the policy, the files read, the identity file, the marathon cohort (and through it
 the counted list), the cited marathon files and every builder script. The output is deterministic: two builds give the
 same bytes (no timestamps; `as_of` is the release's date).
@@ -36,10 +37,12 @@ import half_common  # noqa: E402
 from half_common import ANALYSIS, OUTPUT, ROOT, HalfError, bytes_sha256, check_published, encode, fail, file_sha256, load_pin  # noqa: E402
 
 SCRIPTS = ('build_half.py', 'half_common.py', 'half_quality.py', 'half_policy_lists.py', 'half_source.py',
-           'half_marathon.py', 'half_pairs.py', 'half_field.py', 'half_women.py', 'half_linked.py', 'half_cards.py')
+           'half_marathon.py', 'half_pairs.py', 'half_field.py', 'half_women.py', 'half_linked.py', 'half_cards.py', 'half_pacing.py')
 MARATHON_INPUTS = ('insights/finish-times.json', 'charts/womens-share-by-finish-time.json')
 FILES = {'field.json': 'verified', 'women.json': 'verified', 'linked.json': 'linked', 'tools/half-to-full.json': 'linked',
-         'cards.json': 'per-card'}
+         'cards.json': 'per-card', 'pacing.json': 'usable'}
+# Published only while the family meets its builder floors (analysis/half_pacing.py): under one it is left out with its beat.
+OPTIONAL_FILES = ('pacing.json',)
 
 
 def log(message: str) -> None:
@@ -134,6 +137,7 @@ def build_families(db, pin, policy, marathons, reviewed, key, policy_sha, module
     import half_cards
     import half_field
     import half_linked
+    import half_pacing
     import half_pairs
     import half_quality
     import half_women
@@ -149,6 +153,9 @@ def build_families(db, pin, policy, marathons, reviewed, key, policy_sha, module
     families['linked.json'], families['tools/half-to-full.json'], _ = half_linked.build(pairs, coverage=coverage,
                                                                                     **half_quality.battery_lists(key))
     families['cards.json'] = half_cards.build(families['field.json'], families['women.json'], families['linked.json'])
+    pacing = half_pacing.build(db)
+    if pacing is not None:
+        families['pacing.json'] = pacing
     return families, set_b
 
 
@@ -190,6 +197,9 @@ def run(source, out: Path, accept_counts: bool = False) -> dict:
     compare_counts(out, meta, accept_counts)
     for name, data in out_bytes.items():
         write(out / name, data)
+    for name in OPTIONAL_FILES:
+        if name not in out_bytes:
+            (out / name).unlink(missing_ok=True)
     write(out / 'manifest.json', encode(meta))
     log(json.dumps({'files': {k: len(v) for k, v in out_bytes.items()}, 'seconds': round(time.time() - started)}))
     return meta
