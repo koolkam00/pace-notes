@@ -276,7 +276,7 @@ near(pace.watchTarget(298.613, 0.01), 295.656, 0.001, 'watch target'); ok();
 }
 
 // ---- the race planner (/tools/plan): its link, its reading of a goal, the course-goal row it shows for a course and goal
-// (lib/tools/plan.ts), that row recounted from the runner records, the pace band window beside it, and the rendered plan.
+// (lib/tools/plan.ts), that row recounted from the marathon cohort, the pace band window beside it, and the rendered plan.
 {
   const links = require('../lib/tools/links.ts');
   const plan = require('../lib/tools/plan.ts');

@@ -1,12 +1,18 @@
 /**
  * Everything a course page (/courses/<slug>) prints, read at build time from published files only: the story summaries
  * (courses.json, archetypes.json, course-geometry.json), the course chooser's rows (tools/course-goal.json), the tools'
- * and analyses' scopes (the course comparison's from its all-finisher file), the duplicate-edition screen and, for each
- * edition's race date, scheduled start and the supplied route's 5 km sections, the checksum-verified runner-context
- * shards, whose manifest must be the exact one the story data was built from. Every field is printed as published;
- * nothing is re-derived from the records. The page's sentences are nuggets (lib/nuggets/courses.ts) built from this
- * model. `scripts/verify-courses.cjs` recounts each figure from the files on its own and checks the built pages
- * (docs/SEO.md, "Course pages").
+ * and analyses' scopes (the course comparison's from its all-finisher file), the duplicate-edition screen, the marathon
+ * cohort's manifest (each edition's counted finishes, tier and reviewed race date) and, for each edition's scheduled
+ * start and the supplied route's 5 km sections, the checksum-verified runner-context shards, whose manifest must be the
+ * exact one the story data was built from. Every field is printed as published; nothing is re-derived from the
+ * records. The page's sentences are nuggets (lib/nuggets/courses.ts) built from this model.
+ * `scripts/verify-courses.cjs` recounts each figure from the files on its own and checks the built pages (docs/SEO.md,
+ * "Course pages").
+ *
+ * Two kinds of page since the combined release (November 14, 2026). A course with a summary in courses.json (an edition
+ * of 100 counted finishes) has the full page; its readings across editions each need three (lib/nuggets/courses.ts). A
+ * kept course with no counted edition (`courseLists`) has a page that lists its editions with their tiers and states
+ * no pooled figure.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,9 +22,7 @@ import release from '@/analysis/release.json';
 import { getCourseNames } from './course-data';
 import { copyEditions, isCopyEdition } from './duplicate-editions';
 import type { Archetypes, CourseGeometry, Courses, CourseSummary, InsightsManifest, WeatherEdition } from './insights';
-import { getInsightsManifest, readInsight } from './insights-server';
-import { validateContextManifest, type ContextManifest } from './runner-context';
-import type { RunnerManifest } from './runner-search';
+import { getCohortManifest, getInsightsManifest, listedEditions, readInsight, type CohortManifest, type ListedEdition } from './insights-server';
 import type { CourseContext, CourseGoal, CourseGoalRow, PaceBandIndex } from './tools/data';
 import { courseSlug } from './tools/links';
 import { courseGoalReason, screenedReason, tooFewEditions } from './tools/plan';
@@ -104,15 +108,30 @@ export function countedEditions(city: string, total: number, rows: { year: numbe
   return { editions: years.length, years };
 }
 
-// ---------- Runner-context shards: race dates, scheduled starts and 5 km sections ----------
+// ---------- Editions: the cohort's counts, tiers and race dates; the runner context's starts and 5 km sections ----------
 
 export type TerrainSection = { start_km: number; end_km: number; gain_m: number; loss_m: number; net_m: number };
 export type EditionContext = {
-  eligible: number; date: string | null; start: string | null; terrain: TerrainSection[] | null;
+  /** Counted finishes (zero for an edition that is not counted). */
+  eligible: number;
+  /** The race date: the weather record's, else the cohort's reviewed date. */
+  date: string | null; start: string | null; terrain: TerrainSection[] | null;
   /** The weather record's own flag: false when the data producer's race date and scheduled start were not independently verified. */
   startVerified: boolean | null;
   /** The weather record's source and its documentation page (Open-Meteo's historical weather archive today). */
   source: { name: string; url: string } | null;
+  /** The release's verification tier code of the edition and its weaker-source flag (null where the cohort manifest states none). */
+  tier: string | null; weakerSource: boolean | null;
+  /** Counted, kept for an own-record view, or giving recorded times only. */
+  use: ListedEdition['use'];
+};
+/** The runner-context manifest's fields a course page checks and reads. */
+export type ContextManifest = {
+  schema_version: number; release_tag: string; input_as_of: string;
+  /** The marathon cohort the context was built on (the fields keep the names they had while it named the runner lookup). */
+  runner_manifest_sha256: string; runner_manifest_as_of: string;
+  /** One file per counted edition with peers, weather or terrain, keyed by the cohort manifest's edition index. */
+  editions: Record<string, { file: string; bytes: number; sha256: string }>;
 };
 
 const DATA = () => path.join(process.cwd(), 'public/data');
@@ -120,24 +139,35 @@ const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex
 const editionKey = (city: string, year: number) => `${city}|${year}`;
 let contexts: Map<string, EditionContext> | undefined;
 
-const UNBOUND = 'Course pages need runner context built from the same runner records as the story data.';
+const UNBOUND = 'Course pages need runner context built from the same marathon cohort as the story data.';
 
 /**
- * The runner-context manifest, checked with the race reports' own validator (`validateContextManifest`: the adopted
- * release, the runner manifest's hash and timestamps, one shard per edition) and bound to the exact context the story data
- * was built from: its SHA-256 must be the one the insights manifest and the course geometry record. Context rebuilt from
- * the same runner records passes every other check, so without that hash the pages would print its race dates, starts,
- * weather sources and sections beside story figures built from the context before it. Throws otherwise.
+ * The runner-context manifest, checked against the marathon cohort it must be built on (the adopted release, the
+ * cohort manifest's hash and timestamps, files listed for counted editions only) and bound to the exact context the
+ * story data was built from: its SHA-256 must be the one the insights manifest and the course geometry record. Context
+ * rebuilt from the same cohort passes every other check, so without that hash the pages would print its starts, weather
+ * sources and sections beside story figures built from the context before it. Throws otherwise.
+ *
+ * Until November 14, 2026 the context listed one file for every edition of the runner lookup. It now lists a file only
+ * for a counted edition with peers, weather or terrain (lead ruling D24.8): an edition without one is not an error.
  */
-export function boundContextManifest(contextBytes: Buffer, runnerBytes: Buffer, story: Pick<InsightsManifest, 'release_tag' | 'input_as_of' | 'runner_manifest_sha256' | 'runner_manifest_as_of' | 'context_manifest_sha256'>, geometryContextSha: string | undefined): ContextManifest {
-  const runnerSha = sha256(runnerBytes);
-  let manifest: ContextManifest;
+export function boundContextManifest(contextBytes: Buffer, cohortBytes: Buffer, story: Pick<InsightsManifest, 'release_tag' | 'input_as_of' | 'runner_manifest_sha256' | 'runner_manifest_as_of' | 'context_manifest_sha256'>, geometryContextSha: string | undefined): ContextManifest {
+  const cohortSha = sha256(cohortBytes);
+  let manifest: ContextManifest, cohort: CohortManifest;
   try {
-    manifest = validateContextManifest(JSON.parse(contextBytes.toString()), JSON.parse(runnerBytes.toString()) as RunnerManifest, runnerSha);
+    manifest = JSON.parse(contextBytes.toString()) as ContextManifest;
+    cohort = JSON.parse(cohortBytes.toString()) as CohortManifest;
   } catch {
     throw new Error(UNBOUND);
   }
-  if (story.release_tag !== manifest.release_tag || story.runner_manifest_sha256 !== runnerSha || story.input_as_of !== manifest.input_as_of || story.runner_manifest_as_of !== manifest.runner_manifest_as_of) throw new Error(UNBOUND);
+  const counted = new Set((cohort?.editions ?? []).flatMap((e, i) => (e.use === 'counted' ? [String(i)] : [])));
+  const valid = manifest?.schema_version === 1 && manifest.release_tag === release.tag && manifest.release_tag === cohort.release_tag
+    && manifest.runner_manifest_sha256 === cohortSha && manifest.input_as_of === cohort.input_as_of && manifest.runner_manifest_as_of === cohort.as_of
+    && !!manifest.editions && typeof manifest.editions === 'object' && !Array.isArray(manifest.editions)
+    && Object.entries(manifest.editions).every(([index, meta]) => counted.has(index) && typeof meta?.file === 'string' && /^editions\/[a-z0-9]+(-[a-z0-9]+)*\.json\.gz$/.test(meta.file)
+      && Number.isInteger(meta.bytes) && meta.bytes > 0 && /^[a-f0-9]{64}$/.test(meta.sha256));
+  if (!valid) throw new Error(UNBOUND);
+  if (story.release_tag !== manifest.release_tag || story.runner_manifest_sha256 !== cohortSha || story.input_as_of !== manifest.input_as_of || story.runner_manifest_as_of !== manifest.runner_manifest_as_of) throw new Error(UNBOUND);
   const contextSha = sha256(contextBytes);
   if (story.context_manifest_sha256 !== contextSha || geometryContextSha !== contextSha) {
     throw new Error('Course pages need the runner context the story data was built from: the runner-context manifest is not the one the insights manifest records. Rebuild the story data after the runner context.');
@@ -146,31 +176,40 @@ export function boundContextManifest(contextBytes: Buffer, runnerBytes: Buffer, 
 }
 
 /**
- * Each edition's eligible count, race date, scheduled start and supplied-route sections, from the runner-context shards,
- * each checked against its manifest (bytes and SHA-256), which must be the exact one the story data was built from
- * (`boundContextManifest`). Copy editions are never read. About a second, once per build process.
+ * Every edition with written records, by "city|year": its counted finishes, tier, use and reviewed race date from the
+ * marathon cohort's manifest and, where the runner context lists a shard for it (a counted edition with peers, weather
+ * or terrain), its scheduled start, weather source and supplied-route sections, each shard checked against its manifest
+ * (bytes and SHA-256), which must be the exact one the story data was built from (`boundContextManifest`). An edition
+ * without a shard has no start, source or sections. Copy editions are never read. About a second, once per build process.
  */
 export function editionContexts(): Map<string, EditionContext> {
   if (contexts) return contexts;
-  const runnerBytes = fs.readFileSync(path.join(DATA(), 'runners/manifest.json'));
-  const runners = JSON.parse(runnerBytes.toString()) as { editions: { city: string; year: number }[] };
+  const cohortBytes = fs.readFileSync(path.join(process.cwd(), 'analysis/marathon-cohort/manifest.json'));
+  const { manifest: cohort, sha256: cohortSha } = getCohortManifest();
+  if (sha256(cohortBytes) !== cohortSha) throw new Error('The marathon cohort manifest changed while it was read.');
   const geometry = readInsight<{ context_manifest_sha256?: string }>('course-geometry.json');
-  const manifest = boundContextManifest(fs.readFileSync(path.join(DATA(), 'runner-context/manifest.json')), runnerBytes, getInsightsManifest(), geometry.context_manifest_sha256);
+  const manifest = boundContextManifest(fs.readFileSync(path.join(DATA(), 'runner-context/manifest.json')), cohortBytes, getInsightsManifest(), geometry.context_manifest_sha256);
   const copies = copyEditions();
   const found = new Map<string, EditionContext>();
-  runners.editions.forEach((edition, index) => {
-    if (isCopyEdition(edition, copies)) return;
+  for (const e of listedEditions()) {
+    if (isCopyEdition(e, copies)) continue;
+    found.set(editionKey(e.city, e.year), { eligible: e.eligible, date: e.raceDate, start: null, terrain: null, startVerified: null, source: null, tier: e.tier, weakerSource: e.weakerSource, use: e.use });
+  }
+  cohort.editions.forEach((edition, index) => {
     const meta = manifest.editions[String(index)];
-    if (!meta || meta.file !== `editions/${String(index).padStart(3, '0')}.json.gz`) throw new Error(`Runner context has no shard for edition ${index}.`);
+    const entry = found.get(editionKey(edition.city, edition.year));
+    if (!meta || !entry) return;
     const bytes = fs.readFileSync(path.join(DATA(), 'runner-context', meta.file));
     if (bytes.length !== meta.bytes || sha256(bytes) !== meta.sha256) throw new Error(`Runner context shard changed after its manifest was written: ${meta.file}`);
     const shard = JSON.parse(zlib.gunzipSync(bytes).toString());
-    if (shard.edition?.city !== edition.city || shard.edition?.year !== edition.year || !Number.isInteger(shard.eligible_n)) throw new Error(`Runner context shard ${meta.file} is for another edition.`);
+    if (shard.edition?.index !== index || shard.edition?.city !== edition.city || shard.edition?.year !== edition.year || shard.eligible_n !== edition.eligible) throw new Error(`Runner context shard ${meta.file} is for another edition.`);
     const sections: TerrainSection[] | null = Array.isArray(shard.terrain?.sections) && shard.terrain.sections.length === 9
       ? shard.terrain.sections.map(({ start_km, end_km, gain_m, loss_m, net_m }: TerrainSection) => ({ start_km, end_km, gain_m, loss_m, net_m })) : null;
     const w = shard.weather;
-    found.set(editionKey(edition.city, edition.year), {
-      eligible: shard.eligible_n, date: w?.date ?? null, start: w?.scheduled_start ?? null, terrain: sections,
+    // Where the cohort's date came from the weather record, the two must be the same day.
+    if (typeof w?.date === 'string' && edition.race_date && w.date !== edition.race_date) throw new Error(`Runner context shard ${meta.file} dates ${edition.city} ${edition.year} on another day than the marathon cohort.`);
+    Object.assign(entry, {
+      date: w?.date ?? entry.date, start: w?.scheduled_start ?? null, terrain: sections,
       startVerified: typeof w?.start_time_independently_verified === 'boolean' ? w.start_time_independently_verified : null,
       source: typeof w?.source === 'string' && typeof w?.documentation_url === 'string' && /^https:\/\//.test(w.documentation_url) ? { name: w.source, url: w.documentation_url } : null,
     });
@@ -181,7 +220,13 @@ export function editionContexts(): Map<string, EditionContext> {
 
 // ---------- The page model ----------
 
-export type EditionRow = { year: number; n: number; median_s: number; slowdown: number; temp: number | null; date: string | null };
+/** One counted edition with a row (100 finishes or more); `tier` is the release's verification tier code of the edition. */
+export type EditionRow = { year: number; n: number; median_s: number; slowdown: number; temp: number | null; date: string | null; tier: string | null; weakerSource: boolean | null };
+/**
+ * One edition of a course as the release holds it, counted or not: the year, how the site uses it and its tier code. A
+ * page that names an edition can name its tier from here (lead decisions D3 and D5); `tierLabel` gives the word.
+ */
+export type ListedRow = { year: number; use: ListedEdition['use']; tier: string | null; weakerSource: boolean | null; splitTier: string | null };
 export type WeatherRow = WeatherEdition & { start: string | null };
 /** A goal's row on this course, and the share that made it across the other courses with rows (`every`, pooled by finishes; this course left out). */
 export type GoalLine = { goal: number; row: CourseGoalRow | null; reason: string | null; every: GoalPooled | null };
@@ -217,6 +262,8 @@ export type CoursePageData = {
   /** The course chooser's context for this course: the supplied route's section sums and the downhill-opening flag. */
   context: CourseContext | null;
   editions: EditionRow[];
+  /** Every edition of the race with written records in the release, counted or not, by year, each with its tier code. */
+  listed: ListedRow[];
   /**
    * The editions whose finishes make up `summary.finishes` (`countedEditions`), which a sentence printing the total names.
    * `summary.editions` and `summary.years` are the editions with a row, over which the medians and shares are averaged.
@@ -292,35 +339,79 @@ export function sharedRelief(routes: { min_m: number; max_m: number }[]): number
 }
 
 /**
- * The editions a page never names as a range end: those the reviewed source policy for the adopted release holds or
- * excludes (analysis/source_quality.py's list, as the course-profile pack records it), and the duplicate-edition
- * screen's copies. Keys are "city|year". Up to master-20261103b the pack carries the list; from the combined release
- * on it states the policy's digests, and the list is the one published file those digests name
- * (public/data/edition-policy.json, whose rows start with city and year).
+ * The editions a page never names as a range end: those the edition policy of the adopted release does not count (the
+ * marathon cohort's own-record editions and every edition it lists without a file), and the duplicate-edition screen's
+ * copies. Keys are "city|year". Until November 14, 2026 the list was read from the course-profile pack's copy of the
+ * policy; the cohort manifest is the list every story figure was built on. scripts/nuggets/courses.cjs recounts it
+ * from the published policy list (public/data/edition-policy.json).
  */
 export function heldEditions(): Set<string> {
-  const meta = JSON.parse(fs.readFileSync(path.join(DATA(), 'packs/ext_course_pacing_profiles/pack_meta.json'), 'utf8'));
-  const policy = meta.source_quality;
-  if (policy?.release_tag !== release.tag) throw new Error('The course-profile source policy must be for the adopted release.');
-  let listed: { city: string; year: number }[];
-  if (Array.isArray(policy.editions)) listed = policy.editions;
-  else {
-    const file = JSON.parse(fs.readFileSync(path.join(DATA(), String(policy.editions_file)), 'utf8'));
-    if (file.release_tag !== policy.release_tag || file.policy_sha256 !== policy.policy_sha256 || file.editions_sha256 !== policy.editions_sha256
-      || file.columns?.[0] !== 'city' || file.columns?.[1] !== 'year') throw new Error('The published edition list is not the one the course-profile pack was built with.');
-    listed = (file.editions as [string, number][]).map(([city, year]) => ({ city, year }));
-  }
-  const held = listed.map((e) => editionKey(e.city, e.year));
+  const held = listedEditions().filter((e) => e.use !== 'counted').map((e) => editionKey(e.city, e.year));
   return new Set([...held, ...copyEditions().map((c) => editionKey(c.city, c.year))]);
 }
 
-let pages: Map<string, CoursePageData> | undefined;
+/**
+ * The word a page prints for an edition's tier (lead decision D16, November 14, 2026; the site-wide module that draws
+ * tier labels and the /methodology text that defines them come with the later site milestone, and this function then
+ * gives way to it). Null for a tier the vocabulary does not know, so a page prints no label it cannot stand behind.
+ */
+export function tierLabel(row: Pick<ListedRow, 'tier' | 'weakerSource'>): string | null {
+  switch (row.tier) {
+    case 'stamped': return row.weakerSource ? 'Verified, weaker source' : 'Verified';
+    case 'stamped_weaker_source': return 'Verified, weaker source';
+    case 'partial': return 'Partial results';
+    case 'unverified': return 'Unverified';
+    case 'held_for_review': return 'Held for review';
+    default: return null;
+  }
+}
+/** The words a list prints for one edition: its tier, then "Finish times only" where the edition records no 5K splits. */
+export function tierWords(row: Pick<ListedRow, 'tier' | 'weakerSource' | 'splitTier'>): string[] {
+  const tier = tierLabel(row);
+  return [...(tier ? [tier] : []), ...(row.splitTier === 'finish_time_only' ? ['Finish times only'] : [])];
+}
 
-/** Every course page's data, keyed by slug, built once per process. */
+/** A course's editions as the release holds them, by year. */
+function listedRows(city: string): ListedRow[] {
+  return listedEditions().filter((e) => e.city === city).map(({ year, use, tier, weakerSource, splitTier }) => ({ year, use, tier, weakerSource, splitTier }));
+}
+
+/**
+ * A kept course page with no counted edition (lead decision D15: its address stays): the race, and its editions with
+ * their tiers. It has no summary, so the page states no pooled figure, no reading and no comparison.
+ */
+export type CourseList = { city: string; slug: string; race: string; display: string; listed: ListedRow[] };
+
+let pages: Map<string, CoursePageData> | undefined;
+let lists: Map<string, CourseList> | undefined;
+
+/**
+ * The course pages that only list their editions, keyed by slug: each course with a page (`getCourseNames`) and no
+ * summary in courses.json, which is a kept course with no counted edition of 100 finishes. The race is named from its
+ * latest edition in the marathon cohort.
+ */
+export function courseLists(): Map<string, CourseList> {
+  if (lists) return lists;
+  const summaries = new Set(readInsight<Courses>('courses.json').courses.map((c) => c.city));
+  const { manifest } = getCohortManifest();
+  const built = new Map<string, CourseList>();
+  for (const city of getCourseNames()) {
+    if (summaries.has(city)) continue;
+    const named = manifest.editions.filter((e) => e.city === city && e.race).sort((a, b) => a.year - b.year).at(-1);
+    built.set(courseSlug(city), { city, slug: courseSlug(city), race: raceName(city, null, named ? { race: named.race } : null), display: displayCity(city), listed: listedRows(city) });
+  }
+  lists = built;
+  return built;
+}
+
+export const courseList = (slug: string): CourseList | null => courseLists().get(slug) ?? null;
+
+/** Every full course page's data (a course with a summary in courses.json), keyed by slug, built once per process. */
 export function coursePages(): Map<string, CoursePageData> {
   if (pages) return pages;
-  const names = getCourseNames();
   const courses = readInsight<Courses>('courses.json');
+  // A course with a page and no summary lists its editions only (`courseLists`).
+  const names = getCourseNames().filter((city) => courses.courses.some((c) => c.city === city));
   const geometry = readInsight<{ courses: CourseGeometry[] }>('course-geometry.json').courses;
   const archetypes = readInsight<Archetypes>('archetypes.json');
   const goal = optional<CourseGoal>('tools/course-goal.json');
@@ -349,9 +440,14 @@ export function coursePages(): Map<string, CoursePageData> {
     const slug = courseSlug(city);
     const route = routes.find((g) => g.city === city) ?? null;
     const cells = courses.years.cells.filter((c) => c.city === city).sort((a, b) => a.year - b.year);
-    const editions = cells.map((c) => ({ year: c.year, n: c.n, median_s: c.median_s, slowdown: c.slowdown, temp: c.temp, date: all.get(editionKey(city, c.year))?.date ?? null }));
+    const editions = cells.map((c) => {
+      const edition = all.get(editionKey(city, c.year));
+      // A row is a counted edition's: anything else in courses.json would be a figure the edition policy does not allow.
+      if (edition?.use !== 'counted') throw new Error(`courses.json has a row for ${city} ${c.year}, which the marathon cohort does not count.`);
+      return { year: c.year, n: c.n, median_s: c.median_s, slowdown: c.slowdown, temp: c.temp, date: edition.date, tier: edition.tier, weakerSource: edition.weakerSource };
+    });
     const listed = new Set(cells.map((c) => c.year));
-    // The editions under 100 finishes (no row) that the course total also counts: the city's other shards with finishes.
+    // The editions under 100 finishes (no row) that the course total also counts: the city's other counted editions.
     const smallEditions = [...all].filter(([key, ctx]) => key.startsWith(`${city}|`) && ctx.eligible > 0 && !listed.has(Number(key.split('|')[1])))
       .map(([key, ctx]) => ({ year: Number(key.split('|')[1]), n: ctx.eligible })).sort((a, b) => a.year - b.year);
     const counted = countedEditions(city, summary.finishes, cells, smallEditions);
@@ -375,7 +471,7 @@ export function coursePages(): Map<string, CoursePageData> {
     const near = nearestShapes(courses.courses.filter((c) => names.includes(c.city)), city);
     built.set(slug, {
       city, slug, race: raceName(city, route, summary), display: displayCity(city),
-      summary, sections: courses.sections, counted, geometry: route, context, editions, terrain, weather,
+      summary, sections: courses.sections, counted, geometry: route, context, editions, listed: listedRows(city), terrain, weather,
       hotCool: hotCoolShown(courses.weather.hot_cool.find((h) => h.city === city), courses.weather.pairs.min_gap_c),
       types: types ? { finishes: types.finishes, editions: types.editions, shares: types.shares } : null,
       archetypes: archetypes.archetypes.map(({ name, slug: s, share, profile }) => ({ name, slug: s, share, profile })),

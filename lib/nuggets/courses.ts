@@ -8,7 +8,7 @@
  * source policy holds or the duplicate-edition screen copies. scripts/nuggets/courses.cjs recounts every one from the raw
  * files for every course, and checks that its guard and sentence follow.
  */
-import { coursePage, coursePages, finishMinute, heldEditions, type CoursePageData } from '@/lib/course-page';
+import { courseLists, coursePage, coursePages, finishMinute, heldEditions, type CoursePageData } from '@/lib/course-page';
 import { readInsight } from '@/lib/insights-server';
 import type { Archetypes, Courses } from '@/lib/insights';
 import { courseSlug } from '@/lib/tools/links';
@@ -80,7 +80,8 @@ function pageFor(ctx?: NuggetContext): CoursePageData | null {
  * course-comparison's alone.
  */
 function coursesIndex(): Nugget {
-  const n = coursePages().size;
+  // Every course with a page: the full pages and the pages that only list their editions (both are rows of the list).
+  const n = coursePages().size + courseLists().size;
   return {
     id: 'courses.index', page: '/courses', denominator: 'course', values: { courses: n }, guard: n > 0,
     headline: `*${count(n)}* city marathons.`,

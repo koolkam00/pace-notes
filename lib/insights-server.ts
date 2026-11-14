@@ -27,8 +27,20 @@ export type CohortManifest = {
   /** Every written marathon record of the release, and the counted finishes every analysis reads. */
   raw_records: number; eligible_records: number;
   editions: CohortEdition[];
-  /** Every other edition with written records, as [city, year, raw, category]: recorded times only, no file. */
-  other_editions: { columns: string[]; rows: [string, number, number, string][] };
+  /**
+   * Every other edition with written records (recorded times only, no file), as rows in the order of `columns`: city,
+   * year, raw, category, and the release's tier, weaker-source flag and split tier (read by name: `listedEditions`).
+   */
+  other_editions: { columns: string[]; rows: (string | number | boolean | null)[][] };
+};
+/**
+ * One edition with written records as a page may name it: counted, kept for an own-record view, or giving recorded
+ * times only (`other`, with the edition policy's category). `tier` is the release's verification tier code; it is null
+ * only where a cohort manifest does not state it.
+ */
+export type ListedEdition = {
+  city: string; year: number; use: 'counted' | 'own_record' | 'other'; raw: number; eligible: number;
+  tier: string | null; weakerSource: boolean | null; splitTier: string | null; category: string | null; raceDate: string | null;
 };
 
 let cohort: { key: string; manifest: CohortManifest; sha256: string } | undefined;
@@ -45,9 +57,46 @@ export function getCohortManifest(): { manifest: CohortManifest; sha256: string 
   const bytes = fs.readFileSync(file);
   const manifest = JSON.parse(bytes.toString()) as CohortManifest;
   if (manifest.schema_version !== 1 || manifest.release_tag !== release.tag) throw new Error('The marathon cohort must be the adopted release\'s.');
-  if (manifest.other_editions?.columns?.join() !== 'city,year,raw,category') throw new Error('The marathon cohort lists its other editions in an unexpected shape.');
+  for (const column of ['city', 'year', 'raw', 'category']) {
+    if (!manifest.other_editions?.columns?.includes(column)) throw new Error('The marathon cohort lists its other editions in an unexpected shape.');
+  }
   cohort = { key, manifest, sha256: sha256(bytes) };
   return cohort;
+}
+
+let listed: { key: string; editions: ListedEdition[] } | undefined;
+
+/**
+ * Every marathon edition with written records in the release, from the cohort manifest: the editions with a file and
+ * the others it lists, each once, ordered by city and year. A course page names its editions and their tiers from here.
+ */
+export function listedEditions(): ListedEdition[] {
+  const { manifest, sha256: digest } = getCohortManifest();
+  if (listed?.key === digest) return listed.editions;
+  const at = (name: string) => manifest.other_editions.columns.indexOf(name);
+  const [city, year, raw, category, tier, weaker, split] = ['city', 'year', 'raw', 'category', 'tier', 'weaker_source', 'split_tier'].map(at);
+  const text = (value: unknown) => (typeof value === 'string' && value ? value : null);
+  const editions: ListedEdition[] = [
+    ...manifest.editions.map((e) => ({
+      city: e.city, year: e.year, use: e.use, raw: e.raw, eligible: e.use === 'counted' ? e.eligible : 0,
+      // An edition has a file only when its split tier is `splits`: the policy counts or keeps no other.
+      tier: text(e.tier), weakerSource: typeof e.weaker_source === 'boolean' ? e.weaker_source : null, splitTier: 'splits', category: null, raceDate: e.race_date ?? null,
+    })),
+    ...manifest.other_editions.rows.map((row) => ({
+      city: String(row[city]), year: Number(row[year]), use: 'other' as const, raw: Number(row[raw]), eligible: 0,
+      tier: tier < 0 ? null : text(row[tier]), weakerSource: weaker < 0 || typeof row[weaker] !== 'boolean' ? null : (row[weaker] as boolean),
+      splitTier: split < 0 ? null : text(row[split]), category: text(row[category]), raceDate: null,
+    })),
+  ];
+  const seen = new Set<string>();
+  for (const e of editions) {
+    const k = `${e.city}|${e.year}`;
+    if (seen.has(k) || !Number.isInteger(e.year) || !Number.isInteger(e.raw) || e.raw < 1) throw new Error(`The marathon cohort lists ${e.city} ${e.year} twice or without its records.`);
+    seen.add(k);
+  }
+  editions.sort((a, b) => (a.city < b.city ? -1 : a.city > b.city ? 1 : a.year - b.year));
+  listed = { key: digest, editions };
+  return editions;
 }
 
 let verified: { key: string; manifest: InsightsManifest } | undefined;

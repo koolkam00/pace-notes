@@ -5,7 +5,7 @@
  * One surface uses one count family. The eligible family (finishes the analyses use, their cities and race-years) is
  * the default; the raw family (every result in the release) is for the data pages only. Never put the two side by side.
  */
-import { getCohortManifest, getInsightsManifest, readInsight } from '@/lib/insights-server';
+import { getCohortManifest, getInsightsManifest, listedEditions, readInsight } from '@/lib/insights-server';
 import type { Courses } from '@/lib/insights';
 import type { UnitSystem } from '@/lib/units';
 import { millions } from './format';
@@ -44,7 +44,7 @@ export function siteTotals(): SiteTotals {
   const editions = courses.courses.reduce((sum, c) => sum + c.years.length, 0);
   if (courses.courses.length !== insights.cohort.cities || editions !== insights.cohort.editions) throw new Error('Site totals: the course list disagrees with the cohort.');
   // Every edition with written records: those with a cohort file, and the others the manifest lists with their counts.
-  const rawEditions = [...runner.editions.map((e) => ({ city: e.city, year: e.year })), ...runner.other_editions.rows.map(([city, year]) => ({ city, year }))];
+  const rawEditions = listedEditions();
   const rawYears = rawEditions.map((e) => e.year);
   const totals: SiteTotals = {
     results: runner.raw_records,
