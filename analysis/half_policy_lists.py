@@ -775,3 +775,176 @@ FROZEN_20261030_1904 = {
         {'edition_id': 1840, 'city': 'Williamstown, NJ: Run the Vineyards - Cork High & Bottle Deep - Half Marathon', 'year': 2024, 'rule': 'E8', 'category': 'series_median_shift', 'reason': 'Median finish 98 min against 135 min in the same race’s other editions (-28%): the time column may include the start delay or another contest.', 'finishes': 361},
     ],
 }
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# pace-notes-marathon-half-20261113-1113 (the combined release; rules recorded 2026-11-14 before any build,
+# docs/HALF_MARATHON.md "The combined release: rules recorded before any build")
+# ---------------------------------------------------------------------------------------------------------------
+
+# The editions the release tiers `stamped` or `stamped_weaker_source` in EDITION-TIERS.csv (the badge tiers), by edition
+# id: the reviewed list the tier check compares the release with. Read 2026-11-14: they are the 243 stamps of the 1904
+# snapshot without Berlin 2018, 2019, 2022 and 2023 (ids 5956, 5942, 3662 and 3511), which the release holds for review
+# (gun times); no edition gained a stamp.
+STAMPED_20261113_1113 = (
+    50, 52, 55, 136, 275, 429, 782, 1890, 4145, 4831, 4976, 5148, 5287, 5386, 5423, 5876, 5879, 5882, 5884, 5886,
+    5934, 5939, 6263, 6413, 6474, 6520, 6569, 6664, 6714, 6718, 6723, 6724, 6725, 6731, 6746, 6747, 6748, 6749, 6750, 6751,
+    6753, 6782, 7097, 7181, 7204, 7226, 7306, 7349, 7351, 7352, 7355, 7356, 7357, 7358, 7375, 7377, 7378, 7381, 7384, 7388,
+    7391, 7397, 7398, 7399, 7400, 7402, 7405, 7406, 7407, 7590, 7593, 7594, 7597, 7602, 7605, 7606, 7608, 7609, 7610, 7622,
+    7623, 7624, 7627, 7629, 7630, 7632, 7633, 7635, 7639, 7640, 7644, 7647, 7648, 7652, 7654, 7655, 7657, 7659, 7664, 7665,
+    7668, 7669, 7695, 7696, 7699, 7702, 7709, 7713, 7725, 7735, 7738, 7742, 7759, 7760, 7765, 7768, 7773, 7781, 7787, 7788,
+    7792, 7806, 7825, 7831, 7846, 7852, 7868, 7892, 7899, 7919, 7932, 7933, 7935, 7936, 7937, 7943, 7945, 7946, 7947, 7949,
+    7952, 7957, 7982, 8033, 8036, 8037, 8039, 8097, 8098, 8111, 8123, 8127, 8218, 8230, 8255, 8260, 8265, 8296, 8306, 8313,
+    8330, 8331, 8335, 8347, 8348, 8356, 8359, 8361, 8373, 8392, 8413, 8436, 8439, 8441, 8443, 8448, 8449, 8453, 8455, 8467,
+    8486, 8490, 8492, 8497, 8499, 8509, 8529, 8551, 8565, 8569, 8573, 8591, 8605, 8608, 8613, 8618, 8622, 8624, 8628, 8629,
+    8631, 8632, 8636, 8637, 8638, 8640, 8641, 8645, 8646, 8647, 8648, 8650, 8652, 8656, 8660, 8663, 8665, 8666, 8667, 8668,
+    8670, 8671, 8672, 8673, 8676, 8680, 8682, 8683, 8688, 8695, 8700, 8701, 8704, 8706, 8710, 8713, 8725, 8748, 8823,
+)
+
+# The frozen never-stamp list: the 78 rows of the 1904 snapshot's never_stamp table (NEVER_STAMP_20261030_1904: the 72
+# stamps the producer withdrew on 2026-10-29 and six Polish press stamps), carried verbatim because this release ships no
+# such table, each with the year and the label its edition id carries in this release (read 2026-11-14: the 72 withdrawn
+# stamps have the year and label of WITHDRAWN_STAMPS_20261029_2157; the other six were read from this release's
+# edition_meta). (edition_id, year, label, reason, added_at). The tier check fails when one carries a badge tier or
+# another year, and reports a changed label.
+NEVER_STAMP_20261113_1113 = [
+    (1, 2025, 'Valencia', 'unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal', '2026-10-29 17:31:08'),
+    (2, 2024, 'Valencia', 'unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal', '2026-10-29 17:31:08'),
+    (3, 2023, 'Valencia', 'unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal', '2026-10-29 17:31:08'),
+    (4, 2022, 'Valencia', 'unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal', '2026-10-29 17:31:08'),
+    (5, 2021, 'Valencia', 'unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal', '2026-10-29 17:31:08'),
+    (8, 2018, 'Valencia', 'unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal', '2026-10-29 17:31:08'),
+    (9, 2017, 'Valencia', 'unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal', '2026-10-29 17:31:08'),
+    (10, 2026, 'Valencia', 'unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal', '2026-10-29 17:31:08'),
+    (11, 2016, 'Valencia', 'unstamped 2026-10-29: (NOT independent) dt-server-side recordsTotal', '2026-10-29 17:31:08'),
+    (12, 2025, 'Amsterdam', 'unstamped 2026-10-29: (NOT independent) sporthive_classificationsCount', '2026-10-29 17:31:08'),
+    (13, 2025, 'Cologne', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (14, 2024, 'Cologne', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (15, 2023, 'Cologne', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (17, 2019, 'Cologne', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (24, 2026, 'Paris', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (25, 2025, 'Paris', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (26, 2024, 'Paris', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (27, 2023, 'Paris', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (28, 2022, 'Paris', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (31, 2019, 'Paris', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (34, 2017, 'Paris', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (39, 2025, 'Lyon', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (40, 2024, 'Lyon', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (41, 2023, 'Lyon', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (42, 2022, 'Lyon', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (43, 2021, 'Lyon', 'unstamped 2026-10-29: (NOT independent) timeto totals.maxGeneralRanking / results rows', '2026-10-29 17:31:08'),
+    (51, 2019, 'Freiburg', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (53, 2022, 'Freiburg', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (54, 2023, 'Freiburg', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (56, 2024, 'Freiburg', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (57, 2025, 'Freiburg', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (58, 2026, 'Freiburg', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (83, 2021, 'Graz', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (85, 2023, 'Graz', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (86, 2024, 'Graz', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (91, 2025, 'Mainz', 'unstamped 2026-10-29: (NOT independent) de.wikipedia (7,329 finishers: 4,382 M / 2,947 W)', '2026-10-29 17:31:08'),
+    (93, 2026, 'Eindhoven', 'unstamped 2026-10-29: (NOT independent) chronorace table: ranked rows', '2026-10-29 17:31:08'),
+    (95, 2026, 'Antwerp', 'unstamped 2026-10-29: (NOT independent) chronorace table: ranked rows', '2026-10-29 17:31:08'),
+    (96, 2025, 'Antwerp', 'unstamped 2026-10-29: (NOT independent) chronorace table: ranked rows', '2026-10-29 17:31:08'),
+    (101, 2016, 'Oberelbe', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (102, 2017, 'Oberelbe', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (103, 2018, 'Oberelbe', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (104, 2019, 'Oberelbe', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (114, 2022, 'Zurich', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (115, 2024, 'Zurich', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (116, 2025, 'Zurich', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (118, 2016, 'Magdeburg', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (119, 2017, 'Magdeburg', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (120, 2018, 'Magdeburg', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (121, 2019, 'Magdeburg', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (122, 2025, 'Venlo', 'unstamped 2026-10-29: (NOT independent) uitslagen.nl max placing', '2026-10-29 17:31:08'),
+    (124, 2026, 'Venlo', 'unstamped 2026-10-29: (NOT independent) chronorace table: ranked rows', '2026-10-29 17:31:08'),
+    (131, 2019, 'Karlsruhe', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (132, 2022, 'Karlsruhe', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (133, 2023, 'Karlsruhe', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (134, 2024, 'Karlsruhe', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (135, 2025, 'Karlsruhe', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (139, 2022, 'Ulm', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (140, 2023, 'Ulm', 'unstamped 2026-10-29: (NOT independent) raceresult list rows; hdsports.de Finisherzahlen 3,139 is a third-party portal tally, not an organiser', '2026-10-29 17:31:08'),
+    (141, 2024, 'Ulm', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (144, 2022, 'Oberelbe', 'unstamped 2026-10-29: (NOT independent) raceresult list rows (finishers w/ time)', '2026-10-29 17:31:08'),
+    (641, 2026, 'Wałbrzych: Toyota Eko Półmaraton Wałbrzych', 'unstamped 2026-10-29: (NOT independent) sport.co.pl article syndicated from biegowe.pl (page image hosted on biegowe.pl); no other count sourc', '2026-10-29 17:31:08'),
+    (1259, 2024, 'Warszawa: Nocny Półmaraton Praski', 'unstamped 2026-10-29: (NOT independent) enduhub results table (6466)', '2026-10-29 17:31:08'),
+    (1350, 2024, 'Białystok: PKO Białystok Półmaraton', 'unstamped 2026-10-29: (NOT independent) DERIVED from newspaper comparison (Kurier Poranny: 2025 = 3548, "766 more than 2024"), not a published', '2026-10-29 17:31:08'),
+    (1486, 2023, 'Warszawa: Nocny Półmaraton Praski', 'unstamped 2026-10-29: (NOT independent) timer results page finisher total (half-only event page) + biegowe.pl (~4.5k)', '2026-10-29 17:31:08'),
+    (3107, 2026, 'Berlin', 'unstamped 2026-10-29: (NOT independent) results aggregator (spoferan 36,588); organiser press release 29.03.2026 gives no finisher count (orga', '2026-10-29 17:31:08'),
+    (4149, 2019, 'datasport.pl: PKO Białystok Półmaraton', 'unstamped 2026-10-29: (NOT independent) race report (biegowe.pl) + organiser winners page', '2026-10-29 17:31:08'),
+    (7993, 2025, 'Vartdalsstranda Half', 'unstamped 2026-10-29: (NOT independent) WEAKER/DERIVED: Kondis-published full result list (KM 37 + open 104 half rows; list appears to be repo', '2026-10-29 17:31:08'),
+    (8643, 2026, 'Gniezno', 'unstamped 2026-10-29: (NOT independent) sport.co.pl article = biegowe.pl repost (identical text); no organiser count found', '2026-10-29 17:31:44'),
+    (8661, 2026, 'Wrocław: 12. Tarczyński Nocny Wrocław Półmaraton', 'unstamped 2026-10-29: (NOT independent) Biegowe.pl race report (independent running media; finisher count) — weaker than federation', '2026-10-29 17:31:08'),
+    (8674, 2023, 'Wrocław', 'unstamped 2026-10-29: (NOT independent) press (Biegowe.pl; Bieganie.pl agrees) finisher total', '2026-10-29 17:31:08'),
+    (8675, 2025, 'Warszawa', 'unstamped 2026-10-29: (NOT independent) sport.co.pl article = biegowe.pl repost (identical text); no organiser count found', '2026-10-29 17:31:44'),
+    (8705, 2026, 'Warszawa', 'unstamped 2026-10-29: (NOT independent) sport.co.pl article = biegowe.pl repost (identical text); no organiser count found', '2026-10-29 17:31:44'),
+    (8708, 2025, 'Warszawa: Półmaraton Warszawski', 'unstamped 2026-10-29: (NOT independent) press (Biegowe.pl) finisher total; runinternational.eu also 14,605', '2026-10-29 17:31:08'),
+    (8709, 2024, 'Warszawa: Półmaraton Warszawski', 'unstamped 2026-10-29: (NOT independent) hdsports.org portal tally 13,422; organiser only "niemal 13,5 tys." (approximate)', '2026-10-29 17:31:44'),
+    (8728, 2025, 'Szczecin', 'unstamped 2026-10-29: (NOT independent) sport.co.pl article = biegowe.pl repost (identical text); no organiser count found', '2026-10-29 17:31:44'),
+    (8747, 2024, 'Szczecin', 'unstamped 2026-10-29: (NOT independent) press (Biegowe.pl) finisher total', '2026-10-29 17:31:08'),
+    (8749, 2025, 'New York', 'unstamped 2026-10-29: (NOT independent) nyrr_api_totalItems — platform-internal count', '2026-10-29 17:31:08'),
+]
+
+# The weaker-source stamps: the editions the release tiers `stamped_weaker_source`, each with its official_source_type
+# (under the reason rule's length cut). Read 2026-11-14 against the seven of the 1904 policy: six stay (Kraków 2025,
+# Kraków Cracovia 2022, Piła 2026, Szczecin 2023 and 2026, Belém 2024); Lisbon 2024 (edition 275, the EDP half) is plain
+# `stamped` in this release, which settles the question the 1904 policy asked the producer; eleven are new. They stay in
+# the verified pool (lead decision D23, choice C1), /methodology names each by city, and they define the battery member
+# verified_federation.
+WEAKER_SOURCE_20261113_1113 = [
+    {'edition_id': 8605, 'city': 'Barcelos', 'year': 2024, 'source': 'Revista Atletismo race report (independent press; finisher count) — weaker than federation'},
+    {'edition_id': 8618, 'city': 'Barcelos', 'year': 2025, 'source': 'Revista Atletismo race report (independent press; finisher count) — weaker than federation'},
+    {'edition_id': 8628, 'city': 'Barcelos', 'year': 2026, 'source': 'Revista Atletismo race report (independent press; finisher count) — weaker than federation'},
+    {'edition_id': 8680, 'city': 'Gniezno', 'year': 2025, 'source': 'press (SportoweGniezno.pl) finisher total'},
+    {'edition_id': 8682, 'city': 'Grodzisk Wielkopolski', 'year': 2025, 'source': 'press (Nasze Miasto Grodzisk, local) finisher total'},
+    {'edition_id': 8710, 'city': 'Kraków', 'year': 2025, 'source': 'organiser published finisher total (cracoviapolmaraton.pl, 14,129) — weaker than federation'},
+    {'edition_id': 1890, 'city': 'Kraków: Cracovia Półmaraton Królewski', 'year': 2022, 'source': 'organiser press release (ZIS Kraków, 16.10.2022: 5,807 of 5,844 starters finished) — weaker than federation'},
+    {'edition_id': 8613, 'city': 'Ovar', 'year': 2024, 'source': 'Revista Atletismo race report 2025 citing 2024 count (independent press) — weaker than federation'},
+    {'edition_id': 8622, 'city': 'Ovar', 'year': 2025, 'source': 'Revista Atletismo race report (independent press; finisher count) — weaker than federation'},
+    {'edition_id': 8652, 'city': 'Piła', 'year': 2026, 'source': 'local press (Piła Online, own text: "Bieg ukończyło 879") — weaker than federation'},
+    {'edition_id': 8624, 'city': 'Pombal', 'year': 2025, 'source': 'Revista Atletismo race report (independent press; finisher count) — weaker than federation'},
+    {'edition_id': 8629, 'city': 'Praia de Cortegaça', 'year': 2026, 'source': 'OvarNews race report (independent local press; finisher count) — weaker than federation'},
+    {'edition_id': 8748, 'city': 'Szczecin', 'year': 2023, 'source': 'local press (Kamienskie.info) own finisher total 1,280 — weaker than federation'},
+    {'edition_id': 8725, 'city': 'Szczecin', 'year': 2026, 'source': 'local press (24Kurier own count 4,533; dzienniknarodowy also 4,533) — weaker than federation; Biegowe/sport.co.pl 4,535 not used'},
+    {'edition_id': 8713, 'city': 'Wrocław', 'year': 2025, 'source': 'press (tuwroclaw.com, quoting organiser MCS Wrocław) finisher total'},
+    {'edition_id': 8823, 'city': 'belém: GENERALI TRANQUILIDADE MEIA MARATONA DESCOBRIMENTOS', 'year': 2024, 'source': 'press: Revista Atletismo (count text mirrors the timer Xistarca news release; labelled weaker press)'},
+    {'edition_id': 8650, 'city': 'Łódź', 'year': 2026, 'source': 'press (Biegam po Łodzi, local) finisher total'},
+]
+
+# Gun times (lead decision D6): the editions whose timing_basis starts with "gross". Each must be held, never enters a
+# comparison and is never a reference edition of E8. (edition_id, city, year)
+GROSS_TIMING_20261113_1113 = [(5956, 'Berlin', 2018), (5942, 'Berlin', 2019), (3752, 'Berlin', 2021), (3662, 'Berlin', 2022), (3511, 'Berlin', 2023)]
+
+# Course suspected short (lead decision D24 item 10, confirmed for the half figures 2026-11-14): the editions whose every
+# row carries course_shortened_suspect in the person-links file. They supply nothing to any figure (rule E2, category
+# course_suspected_short), are never a reference edition of E8, and the race list shows them with tier, count and the
+# mark, no time. (edition_id, city, year)
+COURSE_SUSPECT_20261113_1113 = [(7935, 'Drammen Half', 2017), (7937, 'Drammen Half', 2019)]
+
+# The reviewed E2 decisions carried from the 1904 policy (its REVIEWED_E2: the 8 of 1133 and the 35 added for 1904), each
+# with the twin its reason names, by edition id (read 2026-11-14 from each reason; edition 6740's reason names its twin
+# only in the entry of 7012, "see id 6740"). A decision applies only while its twin still has rows in the release.
+REVIEWED_E2_TWINS_20261113_1113 = {
+    6690: 2860, 3707: 3559, 7854: 7860, 7508: 7482, 7509: 7483, 3666: 687, 6740: 7012, 7012: 6740,
+    8961: 3109, 8956: 3108, 8957: 3108, 8949: 3106, 8939: 3105, 8917: 3104, 8900: 3103, 8888: 3102, 8876: 3101, 8843: 3100,
+    8951: 3330, 8922: 3329, 8905: 3328, 8893: 3327, 8882: 3325, 8846: 3324, 8943: 974, 8924: 973, 8918: 1781, 8902: 1780,
+    8853: 930, 9070: 7293, 9016: 5843, 9333: 1000, 8904: 8576, 8892: 8578, 8881: 8508, 8845: 8579, 8906: 8570, 8894: 8571,
+    8883: 8506, 8847: 8572, 9014: 8975, 9006: 9001, 9001: 9006,
+}
+
+# Labels the virtual-event rule matches that are not virtual races: none. Lead decision D23 (choice C6) admits the six
+# Columbus "Anywhere USA" editions of 2014 to 2019 only if the release's change report states they were run in person;
+# it says they "match only because of their current source titles and stay" (a RunSignup placeholder location, before
+# 2020), which does not state it, so they stay out (the lead confirmed this reading on 2026-11-14).
+NOT_VIRTUAL_20261113_1113 = []
+
+# The off-road halves among the verified labels (`verified_road`), the country of each verified label and the three date
+# suspects with the date each reason names: carried from the 1904 policy, each checked against the release on every
+# build (an off-road label must be the label of a verified usable edition; every verified usable label needs a country;
+# a date suspect is carried by edition id and year and must still carry its date).
+OFF_ROAD_LABELS_20261113_1113 = list(OFF_ROAD_LABELS_20261030_1904)
+LABEL_COUNTRIES_20261113_1113 = dict(LABEL_COUNTRIES_20261030_1904)
+DATE_SUSPECT_DATES_20261113_1113 = {8712: '2026-09-27', 7565: '2019-12-01', 7677: '2019-12-01'}

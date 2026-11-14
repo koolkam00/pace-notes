@@ -1,14 +1,15 @@
 """Shared helpers for the half-marathon builders (docs/HALF_MARATHON.md).
 
-The half snapshot and its person links (the owner's public CC BY 4.0 release half-dataset-20261030-1904) are
-record-level files that stay outside the repository. Every builder reads them read-only through DuckDB and publishes aggregates only
+The half results and their person links are assets of the combined release the site adopts (the owner's public CC BY
+4.0 release pace-notes-marathon-half-20261113-1113): record-level files that stay outside the repository. Every builder
+reads them read-only through DuckDB (analysis/half_source.py makes the views) and publishes aggregates only
 (public/data/half/): every shown group holds at least
 `MIN_CELL` finishes or pairs and at least `MIN_EDITIONS` editions behind any claim that crosses editions.
 
-This module holds what every builder shares: the pin reader, the DuckDB connection (`ATTACH … (TYPE sqlite, READ_ONLY)`,
-refused when a non-empty -wal sits beside the file, since DuckDB cannot open a SQLite immutable), the finish
+This module holds what every builder shares: the pin reader, the DuckDB connection, the finish
 time parser, the repository quantile, the publication rounding, the deterministic JSON encoding and the scan that
-keeps identifiers, names and stray strings out of the published files.
+keeps identifiers, names and stray strings out of the published files. `connect(half=…, links=…)` still attaches two
+SQLite files as `h` and `l`: the tests of the earlier policies (the 1133 and 1904 snapshots) read fixtures that way.
 
 Data-reading scripts run with `python3 -I`, which leaves the script's folder off `sys.path`; the entry points
 (build_half.py, half_quality.py) add the analysis folder themselves before importing their siblings.
@@ -39,7 +40,7 @@ MIN_CELL = 100          # finishes or pairs behind every shown group
 MIN_EDITIONS = 3        # editions behind any claim that crosses editions
 MIN_EDGE_SLICE = 10     # pairs in each one-minute edge slice of a published linked window (spec 1.5)
 
-__all__ = ['ANALYSIS', 'ROOT', 'PIN_PATH', 'RELEASE_PATH', 'OUTPUT', 'MIN_CELL', 'MIN_EDITIONS', 'MIN_EDGE_SLICE', 'SEED',
+__all__ = ['ANALYSIS', 'ROOT', 'PIN_PATH', 'RELEASE_PATH', 'OUTPUT', 'MIN_CELL', 'MIN_EDITIONS', 'MIN_EDGE_SLICE', 'SEED', 'CORE_MEMBERS',
            'SHARE_DIGITS', 'quantile', 'HalfError', 'fail', 'file_sha256', 'bytes_sha256', 'load_pin', 'check_pin', 'pinned_digest',
            'snapshot_date', 'check_no_wal', 'wal_paths', 'connect',
            'TIME_PATTERN', 'secs_sql', 'parse_time', 'sh', 'sec', 'encode', 'check_published', 'inside']
@@ -65,17 +66,23 @@ def file_sha256(path) -> str:
     return digest.hexdigest()
 
 
-PIN_SCHEMA = 3
-_KEY = re.compile(r'[a-z0-9]+(-[a-z0-9]+)+')
+PIN_SCHEMA = 4
+_KEY = re.compile(r'[a-z0-9.]+(-[a-z0-9.]+)+')
 _DIGEST = re.compile(r'[0-9a-f]{64}')
+# The CORE members the half builders read, each pinned by the digest of the archive's own SHA256SUMS.txt.
+CORE_MEMBERS = ('race_records.parquet', 'edition_meta.parquet', 'record_flags.parquet', 'qa_row_flags.parquet',
+                'pending_review_flags.parquet', 'RELEASE-ROW-EXCLUSIONS.parquet', 'EDITION-TIERS.csv')
 
 
-def check_pin(pin: dict, release_tag: str) -> dict:
-    """Schema 3 of the half pin (analysis/half-release.json): `half.key` and `links.key` name the snapshot and the link
-    build (the identities the policy and the reviewed counts are keyed by); `private_tag` and `doi` are provenance and may
-    be null; `links.applies_to` is the snapshot the link build's half record ids are joined to; `stamps.reference` is the
-    pinned cross-check of the verified stamps; `links.extract_content_sha256` is null until the extract is cut and pinned
-    (a builder then refuses). Returns the pin."""
+def check_pin(pin: dict, release: dict | str) -> dict:
+    """Schema 4 of the half pin (analysis/half-release.json): the half results, the edition tiers and the person links are
+    assets of the combined release the site adopts, so `half.tag`, `half.key` and `marathon_release` are that release's
+    tag; `links.key` names the link build (the identity the reviewed counts are keyed by) and `links.applies_to` the
+    release its rows are; every asset digest the marathon pin (analysis/release.json) also holds must be equal there;
+    `half.core.members` pins the CORE members the builders read; `links.extract_content_sha256` is null until the
+    extract for the Node recount is cut and pinned (a builder then refuses). `release` is the marathon pin, or only its
+    tag (the digests are then not compared). Returns the pin."""
+    release_tag = release if isinstance(release, str) else release['tag']
     if pin.get('schema_version') != PIN_SCHEMA:
         fail(f"analysis/half-release.json is schema {pin.get('schema_version')}, the builders read schema {PIN_SCHEMA}")
     if pin['marathon_release'] != release_tag:
@@ -88,21 +95,40 @@ def check_pin(pin: dict, release_tag: str) -> dict:
             fail(f'analysis/half-release.json {part}.private_tag: a release name or null')
         if not x.get('assets') or not all(isinstance(d, str) and _DIGEST.fullmatch(d) and '/' not in n for n, d in x['assets'].items()):
             fail(f'analysis/half-release.json {part}.assets: names and sha256 digests')
+        if x['tag'] != release_tag:
+            fail(f'analysis/half-release.json {part}.tag is {x["tag"]}: the half and its links are assets of the adopted release {release_tag}')
+    if pin['half']['key'] != release_tag:
+        fail('analysis/half-release.json half.key must be the adopted release (the half rows are its rows)')
     if pin['half'].get('doi') is not None and not isinstance(pin['half']['doi'], str):
         fail('analysis/half-release.json half.doi: a DOI or null')
-    if not _DIGEST.fullmatch(pin['half'].get('sqlite_sha256') or ''):
-        fail('analysis/half-release.json half.sqlite_sha256: a sha256 digest')
+    core = pin['half'].get('core') or {}
+    members = core.get('members') or {}
+    if not (core.get('asset') in pin['half']['assets'] and isinstance(core.get('folder'), str) and _DIGEST.fullmatch(core.get('sha256sums_sha256') or '')
+            and set(members) == set(CORE_MEMBERS) and all(_DIGEST.fullmatch(d or '') for d in members.values())):
+        fail('analysis/half-release.json half.core: the archive, its folder, its SHA256SUMS digest and the members the builders read')
+    sums = pin['half'].get('checksums') or {}
+    if not (isinstance(sums.get('asset'), str) and _DIGEST.fullmatch(sums.get('sha256') or '')):
+        fail("analysis/half-release.json half.checksums: the release's checksum file and its sha256")
     if pin['links']['applies_to'] != pin['half']['key']:
-        fail('the pinned link build does not apply to the pinned half snapshot (links.applies_to is not half.key)')
-    cov = pin['links'].get('coverage') or {}
-    if not all(isinstance(cov.get(k), int) and cov[k] > 0 for k in ('half_rows', 'half_max_record_id', 'marathon_rows')):
-        fail('analysis/half-release.json links.coverage: the link build\'s half rows, half record id boundary and marathon rows')
+        fail('the pinned link build does not apply to the pinned half rows (links.applies_to is not half.key)')
     digest = pin['links'].get('extract_content_sha256')
     if digest is not None and not _DIGEST.fullmatch(digest):
         fail('analysis/half-release.json links.extract_content_sha256: a sha256 digest or null')
-    ref = (pin.get('stamps') or {}).get('reference') or {}
-    if not (_KEY.fullmatch(ref.get('tag') or '') and ref.get('asset') and all(_DIGEST.fullmatch(ref.get(k) or '') for k in ('sha256', 'readme_sha256'))):
-        fail('analysis/half-release.json stamps.reference: a release tag, asset, sha256 and readme_sha256')
+    if not isinstance(pin['links'].get('extract'), str) or '/' in pin['links']['extract']:
+        fail('analysis/half-release.json links.extract: the name of the extract the Node recount reads')
+    stamps = pin.get('stamps') or {}
+    ref = (stamps.get('never_stamp') or {}).get('reference') or {}
+    if not (isinstance(stamps.get('rule'), str) and _KEY.fullmatch(ref.get('tag') or '') and ref.get('asset') and _DIGEST.fullmatch(ref.get('sha256') or '')):
+        fail('analysis/half-release.json stamps: the rule and the provenance of the frozen never-stamp list')
+    if not isinstance(release, str):
+        shared = {**pin['half']['assets'], **pin['links']['assets']}
+        for name, d in shared.items():
+            if release.get('assets', {}).get(name) != d:
+                fail(f'analysis/half-release.json pins {name} with another sha256 than analysis/release.json')
+        if release.get('core', {}).get('sha256sums_sha256') != core['sha256sums_sha256'] or release.get('checksums') != sums:
+            fail("analysis/half-release.json and analysis/release.json name different checksum files for the release")
+        if members.get('EDITION-TIERS.csv') != pin['half']['assets'].get('EDITION-TIERS.csv'):
+            fail('EDITION-TIERS.csv in the CORE archive and as a release asset must be the same file')
     return pin
 
 
@@ -110,14 +136,14 @@ def load_pin() -> dict:
     """The half pin, checked (check_pin) and bound to the adopted marathon release (the link record ids follow it)."""
     pin = json.loads(PIN_PATH.read_text())
     release = json.loads(RELEASE_PATH.read_text())
-    return check_pin(pin, release['tag'])
+    return check_pin(pin, release)
 
 
 def pinned_digest(pin: dict, key: str = 'extract_content_sha256') -> str:
     """links.extract_content_sha256, refusing a pin that has none yet."""
     digest = pin['links'].get(key)
     if digest is None:
-        fail('the pin holds no links extract digest yet: cut the extract with python3 -I analysis/half_links_extract.py --pin')
+        fail('the pin holds no extract digest yet: cut the extract with python3 -I analysis/half_extract.py --pin')
     return digest
 
 
@@ -154,7 +180,10 @@ def inside(path, parent) -> bool:
 
 
 def connect(half: Path | None = None, links: Path | None = None):
-    """A DuckDB connection with the half snapshot attached as `h` and the links extract as `l`, both read-only.
+    """A DuckDB connection. The builders of the pinned release pass none of the arguments and let
+    analysis/half_source.py make the views `h.*` and the tables `l.*` from the release's files; `half` and `links`
+    attach two SQLite files as `h` and `l`, read-only, as the builders of the 1133 and 1904 snapshots read them (kept for
+    the tests of those policies).
 
     Settings come from the environment: PACE_HALF_DUCKDB_THREADS (default 2), PACE_HALF_DUCKDB_MEMORY (default 4GB),
     PACE_HALF_DUCKDB_MAX_TEMP (the spill cap, default 4GB, as in analysis/half_links_extract.py; review R13) and TMPDIR
@@ -254,7 +283,7 @@ BATTERY_IDS = {'pooled', 'verified_halves', 'verified_federation', 'verified_roa
 # snapshot's integer edition id (no label), under linked.json checks.battery.leave_outs.<member>.worst.<clause>.
 HALF_EDITION_KEY = 'half_edition'
 HALF_EDITION_AT = re.compile(r'\.checks\.battery\.leave_outs\.(verified_halves|verified_federation)\.worst\.[a-z_]+$')
-RELEASE_LABEL = re.compile(r'private-export|half-snapshot-|half-dataset-|runner-links-|person-ids-|htw-db-|20260912|20261016|20261021|20261029|20261030|master-[0-9]{8}|20261103|pace-notes-marathon-half|20261113')
+RELEASE_LABEL = re.compile(r'private-export|half-snapshot-|half-dataset-|runner-links-|person-ids-|htw-db-|20260912|20261016|20261021|20261029|20261030|master-[0-9]{8}|20261103|pace-notes-marathon-half|pace-notes-CORE-|20261112|20261113')
 
 
 def check_published(value, where: str, *, in_rule: bool = False, extra_string_keys: frozenset = frozenset()) -> None:

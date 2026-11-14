@@ -63,8 +63,9 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 
 from half_common import ANALYSIS, ROOT, encode, fail, file_sha256, secs_sql  # noqa: E402
 
-TAG = 'half-dataset-20261030-1904'          # the pinned snapshot's key (analysis/half-release.json half.key)
-TAG_1133 = 'half-snapshot-20261029-1133'    # the previous pin's snapshot, kept as history (its policy file is frozen)
+TAG = 'pace-notes-marathon-half-20261113-1113'   # the pinned release's key (analysis/half-release.json half.key)
+TAG_1904 = 'half-dataset-20261030-1904'          # the previous pin's snapshot, kept as history (its policy file is frozen)
+TAG_1133 = 'half-snapshot-20261029-1133'         # the first pin's snapshot, kept as history (its policy file is frozen)
 
 # ---------------------------------------------------------------------------------------------------------------
 # Rules and thresholds shared by every reviewed entry (fixed before the editions were read; an entry that changed one
@@ -342,7 +343,7 @@ EXPECTED_20261030_1904 = {
     'stamp_check': {'stamped': 243, 'verified_usable': 239, 'withdrawn_unstamped': 72, 'never_stamp': 78},
 }
 
-REVIEWED_HALF_POLICIES[TAG] = {
+REVIEWED_HALF_POLICIES[TAG_1904] = {
     'file': 'analysis/half-policy-20261030-1904.json',
     'schema_version': 2,
     'reviewed': '2026-10-31',
@@ -370,6 +371,130 @@ REVIEWED_HALF_POLICIES[TAG] = {
         'unknown_status': 'fail', 'partial_loads': tuple(KNOWN_PARTIAL_LOADS_20261030_1904),
         'virtual': VIRTUAL_RULE_20261030_1904, 'not_virtual': tuple(NOT_VIRTUAL_20261030_1904),
         'policy_words': POLICY_WORDS_20261030_1904,
+    },
+}
+
+# ---------------------------------------------------------------------------------------------------------------
+# pace-notes-marathon-half-20261113-1113 (the combined release). Its rules were recorded on 2026-11-14 before any build
+# (docs/HALF_MARATHON.md, "The combined release: rules recorded before any build"): the 1904 rules translated like for
+# like, with the lead's decisions D6, D23, D24 and D28 of the adoption plan. What changes, each versioned here:
+# - statuses are the release's tiers (EDITION-TIERS.csv); a partial tier is E0;
+# - R8, applied after R1: the rows the pipeline's frozen half row rule leaves out (adapt_combined.HALF_ROW_RULE);
+# - the sex a rule reads is the published sex, else the published category's (the view h.race_records, half_source.py);
+# - "every row loaded" (E3, E6) counts the release's listed row exclusions as well as the rows in CORE;
+# - a reviewed duplicate or overlap decision applies only while the twin it names still has rows;
+# - gun-time editions must be held; course-suspected-short editions supply nothing; neither is an E8 reference;
+# - the tier check replaces the stamp check; there are no partial loads by name and no link editions.
+# ---------------------------------------------------------------------------------------------------------------
+
+from half_policy_lists import (  # noqa: E402
+    COURSE_SUSPECT_20261113_1113, DATE_SUSPECT_DATES_20261113_1113, GROSS_TIMING_20261113_1113, LABEL_COUNTRIES_20261113_1113,
+    NEVER_STAMP_20261113_1113, NOT_VIRTUAL_20261113_1113, OFF_ROAD_LABELS_20261113_1113, REVIEWED_E2_TWINS_20261113_1113,
+    STAMPED_20261113_1113, WEAKER_SOURCE_20261113_1113)
+import half_policy_lists as _lists  # noqa: E402
+
+STATUSES_20261113_1113 = {
+    'verified': ('stamped', 'stamped_weaker_source'),
+    'unverified': ('unverified',),
+    'held': ('held_for_review',),
+    'partial': ('partial',),
+    'removed': ('excluded',),
+    'empty': ('no_rows',),
+}
+CATEGORY_RULE_20261113_1113 = {
+    'no_edition_meta': 'E0', 'partial_tier': 'E0', 'held_by_producer': 'E1', 'removed_by_producer': 'E1',
+    'cross_edition_duplicate': 'E2', 'cross_edition_overlap_hold': 'E2', 'not_half_distance': 'E2', 'virtual_event': 'E2',
+    'course_suspected_short': 'E2',
+    'count_excess_vs_independent': 'E3', 'count_shortfall_vs_independent': 'E3', 'rows_short_of_source_list': 'E3',
+    'one_sex_list': 'E4', 'truncated_top_list': 'E5', 'round_count_cap': 'E6', 'atypical_fast_field': 'E7',
+    'atypical_slow_field': 'E7', 'series_median_shift': 'E8',
+}
+# The three date suspects, carried by edition id and year with the label each id carries in this release (Ribera's and
+# Gela's labels were renamed since 1904) and the date each reason names (DATE_SUSPECT_DATES_20261113_1113).
+DATE_SUSPECTS_20261113_1113 = (
+    (8712, 'Gdańsk', 2026, 'Dated 2026-09-27, the date of the Warsaw marathon; carried from the reviews of the 1133 and 1904 snapshots, the date unchanged in this release.'),
+    (7565, 'Ribera: Half Marathon Arancia di Ribera D.O.P.', 2019, 'Ribera 2019 and Gela 2019 are both dated 2019-12-01 and linked people finished both with different times; carried from the reviews of the 1133 and 1904 snapshots, the date unchanged in this release.'),
+    (7677, 'Gela: Maratonina del Golfo', 2019, 'Ribera 2019 and Gela 2019 are both dated 2019-12-01 and linked people finished both with different times; carried from the reviews of the 1133 and 1904 snapshots, the date unchanged in this release.'),
+)
+POLICY_WORDS_20261113_1113 = {
+    **POLICY_WORDS_20261030_1904,
+    'computed_on': (
+        "named per screen. n_db is every row loaded for the edition's city and year: its race_records rows of the half "
+        "database, whatever record rule removes them, plus its rows in RELEASE-ROW-EXCLUSIONS.parquet (the release removes rows "
+        "the earlier snapshots still held); an edition with no row in race_records has n_db 0. n_usable is the edition's "
+        "record-usable rows before R7 (rows no record rule R1, R8, R2–R6 removes, R7 not applied), and the edition's median, "
+        "99th percentile, share under 1:05 and recorded-sex counts are over those rows. E3 count_excess_vs_independent, E3 "
+        "rows_short_of_source_list and E6 compare n_db; E3 count_shortfall_vs_independent, E4, E5, E7 and E8 use n_usable"),
+}
+TIER_RULE_20261113_1113 = {
+    'rule': ("verified = tier stamped or stamped_weaker_source in the release's EDITION-TIERS.csv, equal to the policy's reviewed "
+             "list, never an edition of the frozen never-stamp list"),
+    'reviewed': '2026-11-14',
+    'source': ("EDITION-TIERS.csv (verification_tier, weaker_source, split_tier), joined on source_db = half, city and year: the "
+               "complete tier table. The registry row of an edition (edition id, race date, official count and source type, "
+               "timing basis) is edition_meta.parquet's; where both name an edition their tiers must be equal"),
+    'reads': {
+        'stamped': 'the edition ids whose tier is stamped or stamped_weaker_source, equal to `stamped`',
+        'never_stamp': ("each row of `never_stamp` (the 1904 snapshot's never_stamp table, carried verbatim with the year and "
+                        "label its edition id carries in this release): the edition with that id must exist with that year and "
+                        "must not carry a badge tier; a changed label is reported, not failed"),
+        'weaker_source': ("the edition ids whose tier is stamped_weaker_source, equal to `weaker_source`, each with its city, "
+                          "year and official_source_type under the reason rule's length cut; after the edition rules each is a "
+                          "verified usable edition"),
+        'gross_timing': ("the editions whose edition_meta.timing_basis, lowercased, starts with gross: equal to `gross_timing`, "
+                         "and each held (lead decision D6)"),
+        'course_suspected_short': ("the editions whose every row of the half database carries course_shortened_suspect in the "
+                                   "person-links file: equal to `course_suspected_short`; an edition flagged on some rows only "
+                                   "fails (lead decision D24, item 10)"),
+        'removed_and_empty': 'an edition whose tier is excluded, or whose registry tier is no_rows, holds no row in race_records',
+    },
+    'reason_rule': CORRECTION_20261029_2157['reason_rule'],
+}
+BATTERY_RULES_20261113_1113 = {
+    'verified_federation': 'the verified halves without the weaker-source stamps (tiers.weaker_source, by edition id)',
+    'verified_road': 'the verified halves whose edition label is not one of off_road_labels',
+    'leave_outs': LEAVE_OUTS_RULE,
+}
+# The reviewed counts and the frozen computed lists: set from the real run on the final inputs, after each list entry is
+# read against its rule and each difference from the plan's measurements is read. None until then: a build refuses.
+EXPECTED_20261113_1113 = getattr(_lists, 'EXPECTED_20261113_1113', None)
+FROZEN_20261113_1113 = getattr(_lists, 'FROZEN_20261113_1113', None)
+
+
+def _half_row_rule():
+    import half_source
+    return half_source.row_rule()
+
+
+REVIEWED_HALF_POLICIES[TAG] = {
+    'file': 'analysis/half-policy-20261113-1113.json',
+    'schema_version': 3,
+    'reviewed': '2026-11-14',
+    'expected': EXPECTED_20261113_1113,
+    'frozen': FROZEN_20261113_1113,
+    'label_countries': LABEL_COUNTRIES_20261113_1113,
+    'tiers': {
+        **TIER_RULE_20261113_1113,
+        'stamped': list(STAMPED_20261113_1113),
+        'never_stamp': [{'edition_id': e, 'year': y, 'city': c, 'reason': r, 'added_at': a} for e, y, c, r, a in NEVER_STAMP_20261113_1113],
+        'never_stamp_from': {**{k: CORRECTION_20261029_2157[k] for k in ('repository', 'tag', 'asset', 'sha256')},
+                             'table': "the never_stamp table of half-dataset-20261030-1904 (analysis/half-policy-20261030-1904.json stamps.never_stamp)"},
+        'weaker_source': WEAKER_SOURCE_20261113_1113,
+        'gross_timing': [{'edition_id': e, 'city': c, 'year': y} for e, c, y in GROSS_TIMING_20261113_1113],
+        'course_suspected_short': [{'edition_id': e, 'city': c, 'year': y} for e, c, y in COURSE_SUSPECT_20261113_1113],
+    },
+    'battery': {'reviewed': '2026-11-14', 'off_road_labels': OFF_ROAD_LABELS_20261113_1113},
+    'rules': {
+        'nonrun_subrace_re': NONRUN_SUBRACE_RE_20261030_1904, 'statuses': STATUSES_20261113_1113,
+        'independent_re': INDEPENDENT_RE_20261030_1904, 'not_independent_re': NOT_INDEPENDENT_RE_20261030_1904,
+        'category_rule': CATEGORY_RULE_20261113_1113, 'reviewed_e2': REVIEWED_E2_20261030_1904,
+        'reviewed_e2_twins': REVIEWED_E2_TWINS_20261113_1113,
+        'reviewed_e2_by_key': REVIEWED_E2_BY_KEY_20261030_1904, 'date_suspects': DATE_SUSPECTS_20261113_1113,
+        'date_suspect_dates': DATE_SUSPECT_DATES_20261113_1113,
+        'same_city_labels': SAME_CITY_LABELS_20261030_1904, 'battery_rules': BATTERY_RULES_20261113_1113,
+        'unknown_status': 'fail', 'partial_loads': (), 'virtual': VIRTUAL_RULE_20261030_1904,
+        'not_virtual': tuple(NOT_VIRTUAL_20261113_1113), 'policy_words': POLICY_WORDS_20261113_1113,
+        'tiers': True, 'row_rule': _half_row_rule,
     },
 }
 
@@ -533,9 +658,18 @@ def record_rules(db, rules: dict | None = None) -> None:
                    FROM h.record_flags GROUP BY record_id""")
     lo, hi = R7['bib']
     y0, y1 = R7['years']
+    # R8 (the combined release on): the rows the pipeline's frozen half row rule leaves out, applied after R1.
+    row_rule = rules.get('row_rule')
+    if callable(row_rule):
+        row_rule = row_rule()
+    if row_rule:
+        import half_source
+        db.execute(f'CREATE OR REPLACE TEMP TABLE hrow8 AS {half_source.left_out_sql(row_rule)}')
+    else:
+        db.execute('CREATE OR REPLACE TEMP TABLE hrow8 AS SELECT NULL::BIGINT AS record_id WHERE false')
     db.execute(f"""CREATE OR REPLACE TEMP TABLE hr0 AS SELECT r.id AS record_id, r.city, r.year::INTEGER AS year, r.race,
         CASE WHEN r.sex IN ('M', 'F') THEN r.sex END AS sex, r.sex AS sex_published, {secs_sql('r.split_21_1km')} AS finish_s,
-        coalesce(f.producer_excluded, false) AS producer_excluded,
+        coalesce(f.producer_excluded, false) AS producer_excluded, r.id IN (SELECT record_id FROM hrow8) AS row_rule,
         CASE WHEN r.name_ok AND len(r.name_tokens) > 0 THEN md5(array_to_string(r.name_tokens, ' ')) END AS name_key,
         coalesce(r.city = '{R7['city']}' AND r.year BETWEEN {y0} AND {y1} AND try_cast(r.bib AS INTEGER) BETWEEN {lo} AND {hi}, false) AS r7_block,
         r.distance_km
@@ -547,12 +681,13 @@ def record_rules(db, rules: dict | None = None) -> None:
     db.execute(f"""CREATE OR REPLACE TEMP TABLE hsub AS SELECT city, year, race, count(*) AS n,
         count(*) FILTER (WHERE finish_s < {WR_FLOOR_S}) AS n_fast,
         regexp_matches(lower(race), '{nonrun.replace("'", "''")}') AS name_nonrun
-        FROM hr0 WHERE NOT producer_excluded AND finish_s IS NOT NULL AND finish_s > 0 GROUP BY city, year, race""")
+        FROM hr0 WHERE NOT producer_excluded AND NOT row_rule AND finish_s IS NOT NULL AND finish_s > 0 GROUP BY city, year, race""")
     db.execute(f"""CREATE OR REPLACE TEMP TABLE hsub2 AS SELECT city, year, race, n AS sub_n,
         CASE WHEN name_nonrun THEN 'R3' WHEN n_fast >= {SUBRACE_FAST_MIN} AND n_fast >= {SUBRACE_FAST_SHARE} * n THEN 'R4' END AS sub_rule
         FROM hsub""")
     db.execute(f"""CREATE OR REPLACE TEMP TABLE hr1 AS SELECT r.*, s.sub_n, CASE
         WHEN r.producer_excluded THEN 'R1'
+        WHEN r.row_rule THEN 'R8'
         WHEN r.finish_s IS NULL OR r.finish_s <= 0 THEN 'R2'
         WHEN s.sub_rule IS NOT NULL THEN s.sub_rule
         WHEN r.finish_s < {WR_FLOOR_S} THEN 'R5_fast'
@@ -566,7 +701,7 @@ def record_rules(db, rules: dict | None = None) -> None:
         r.finish_s, r.r7_block, r.distance_km,
         CASE WHEN r.rule0 IS NOT NULL THEN r.rule0 WHEN d.record_id IS NOT NULL THEN 'R6' END AS rule
         FROM hr1 r LEFT JOIN hdup d USING (record_id)""")
-    for t in ('hfl', 'hr0', 'hsub2', 'hr1', 'hdup'):
+    for t in ('hfl', 'hr0', 'hsub2', 'hr1', 'hdup', 'hrow8'):
         db.execute(f'DROP TABLE {t}')
 
 
@@ -594,7 +729,14 @@ def edition_table(db, rules: dict | None = None):
     dup = db.execute('SELECT count(*) FROM (SELECT city, year FROM h.edition_meta GROUP BY 1, 2 HAVING count(*) > 1)').fetchone()[0]
     if dup:
         fail(f'{dup} registry city-years have more than one edition_meta row')
-    m = db.execute("""WITH a AS (SELECT city, year, count(*) AS n_db, count(*) FILTER (WHERE rule IS NULL) AS n_usable,
+    tiered = bool(rules.get('tiers'))
+    extra = (", e.timing_basis, t.verification_tier AS tier, coalesce(t.weaker_source, false) AS weaker_source, t.split_tier, "
+             "coalesce(x.n, 0) AS n_excluded, coalesce(cs.flagged, 0) AS n_course_suspect, coalesce(cs.n, 0) AS n_link_rows") if tiered else ''
+    joins = (""" LEFT JOIN h.tiers t ON t.source_db = 'half' AND t.city = coalesce(e.city, a.city) AND t.year = coalesce(e.year, a.year)
+          LEFT JOIN h.excluded_rows x ON x.city = coalesce(e.city, a.city) AND x.year = coalesce(e.year, a.year)
+          LEFT JOIN h.course_suspect cs ON cs.city = coalesce(e.city, a.city) AND cs.year = coalesce(e.year, a.year)""") if tiered else ''
+    status = 'coalesce(t.verification_tier, e.completeness_status)' if tiered else 'e.completeness_status'
+    m = db.execute(f"""WITH a AS (SELECT city, year, count(*) AS n_db, count(*) FILTER (WHERE rule IS NULL) AS n_usable,
             median(finish_s) FILTER (WHERE rule IS NULL) AS med_s,
             quantile_cont(finish_s, 0.99) FILTER (WHERE rule IS NULL) AS p99_s,
             avg(CASE WHEN finish_s < 3900 THEN 1 ELSE 0 END) FILTER (WHERE rule IS NULL) AS share_sub65,
@@ -602,11 +744,24 @@ def edition_table(db, rules: dict | None = None):
             count(*) FILTER (WHERE rule IS NULL AND sex_published = 'F') AS n_f
           FROM hr GROUP BY city, year)
         SELECT coalesce(e.city, a.city) AS city, coalesce(e.year, a.year)::INTEGER AS year, e.id AS edition_id, e.race AS race_meta,
-          e.race_date, try_cast(e.race_date AS DATE) AS race_day, e.completeness_status, e.official_finishers, e.official_source_type,
+          e.race_date, try_cast(e.race_date AS DATE) AS race_day, {status} AS completeness_status, e.official_finishers, e.official_source_type,
           coalesce(a.n_db, 0) AS n_db, coalesce(a.n_usable, 0) AS n_usable, a.med_s, a.p99_s, a.share_sub65,
-          coalesce(a.n_m, 0) AS n_m, coalesce(a.n_f, 0) AS n_f
-        FROM h.edition_meta e FULL OUTER JOIN a ON a.city = e.city AND a.year = e.year
+          coalesce(a.n_m, 0) AS n_m, coalesce(a.n_f, 0) AS n_f{extra}
+        FROM h.edition_meta e FULL OUTER JOIN a ON a.city = e.city AND a.year = e.year{joins}
         ORDER BY 1, 2""").df()
+    if tiered:
+        # Rows loaded (E3, E6): the release removes rows the earlier snapshots still held, so an edition's loaded rows are
+        # its rows in CORE plus its rows in RELEASE-ROW-EXCLUSIONS.parquet (docs/HALF_MARATHON.md, rule R2).
+        m['n_core'] = m.n_db.astype('int64')
+        m['n_db'] = m.n_db.where(m.n_db == 0, m.n_db + m.n_excluded)
+        no_tier = m[(m.n_core > 0) & m.tier.isna()]
+        if len(no_tier):
+            fail(f'{len(no_tier)} half editions with rows have no row in EDITION-TIERS.csv: {no_tier.city.tolist()[:5]}')
+        m['gross_timing'] = m.timing_basis.fillna('').str.lower().str.startswith('gross')
+        partly = m[(m.n_course_suspect > 0) & ((m.n_course_suspect != m.n_link_rows) | (m.n_link_rows != m.n_core))]
+        if len(partly):
+            fail(f'{len(partly)} editions are only partly flagged course_shortened_suspect in the link file: {partly.city.tolist()[:5]}')
+        m['course_suspect'] = m.n_course_suspect > 0
     m['edition_id'] = m['edition_id'].astype('Int64')
     for col in ('official_finishers', 'med_s', 'p99_s', 'share_sub65'):
         m[col] = m[col].astype('float')
@@ -620,10 +775,12 @@ def edition_table(db, rules: dict | None = None):
     m.loc[st.isin(groups['verified']), 'status_group'] = 'verified'
     if 'removed' in groups:
         m.loc[st.isin(groups['removed']), 'status_group'] = 'removed'
+    if 'partial' in groups:
+        m.loc[st.isin(groups['partial']), 'status_group'] = 'partial'
     m.loc[m.edition_id.isna(), 'status_group'] = 'no_edition_meta'
     if rules['unknown_status'] == 'fail':
         known = {s for g in groups.values() for s in g}
-        unknown = sorted(set(st[m.edition_id.notna()]) - known)
+        unknown = sorted(set(st[m.edition_id.notna() | (tiered & (m.n_db > 0))]) - known)
         if unknown:
             fail(f'completeness_status in no status group of the reviewed policy: {unknown}')
     t = m.official_source_type.fillna('').str.lower()
@@ -652,6 +809,8 @@ def _edition_rule(r, by_id, by_key, rules=None):
     partial = {(c, y): reason for c, y, reason in rules['partial_loads']}
     if (r.city, int(r.year)) in partial:
         return ('partial_load', partial[(r.city, int(r.year))])
+    if rules.get('tiers') and r.completeness_status in rules['statuses'].get('partial', ()):
+        return ('partial_tier', f'Tier {r.completeness_status}: the release marks the list as partial results.')
     if r.status_group == 'no_edition_meta':
         return ('no_edition_meta', 'Records exist for this city and year but the edition registry has no row: no count, date or status; not verified.')
     if r.status_group == 'removed':
@@ -659,12 +818,15 @@ def _edition_rule(r, by_id, by_key, rules=None):
     if r.status_group == 'no_rows' or (r.n_usable == 0 and r.status_group != 'held'):
         return ('no_usable_rows', 'No usable finish rows.')
     if r.status_group == 'held':
-        return ('held_by_producer', f'Producer status {r.completeness_status}.')
+        return ('held_by_producer', f"{'Tier' if rules.get('tiers') else 'Producer status'} {r.completeness_status}.")
     eid = int(r.edition_id)
     if eid in by_id:
         return by_id[eid]
     if (r.city, int(r.year)) in by_key:
         return by_key[(r.city, int(r.year))]
+    if rules.get('tiers') and r.course_suspect:
+        return ('course_suspected_short', "Every row carries the link build's course_shortened_suspect flag: the course is suspected "
+                                          'to have been short, so the edition is listed and marked and its times are never compared.')
     if is_virtual_label(r.city, rules['virtual']) and eid not in {e for e, _ in rules['not_virtual']}:
         return ('virtual_event', 'A virtual race: self-timed efforts, not a race field.')
     off = r.official_finishers
@@ -697,18 +859,31 @@ def edition_rules(m, rules: dict | None = None):
     import pandas as pd
     rules = rules or rules_of()
     by_id = {e: (c, r) for e, c, r in rules['reviewed_e2']}
+    if rules.get('reviewed_e2_twins') is not None:
+        # A reviewed duplicate or overlap decision applies only while the twin its reason names still has rows (the
+        # combined release on: where the release kept only the listed copy, that copy is the only one and is usable).
+        have_rows = set(m[m.edition_id.notna() & (m.n_db > 0)].edition_id.astype(int))
+        twins = rules['reviewed_e2_twins']
+        if set(twins) != set(by_id):
+            fail('every reviewed E2 decision by edition id needs its twin (an edition id, or None for a decision that names none)')
+        m.attrs['e2_dropped'] = sorted((e, by_id[e][0], twins[e], 'no rows itself' if e not in have_rows else 'the twin has no rows')
+                                       for e in by_id if e not in have_rows or (twins[e] is not None and twins[e] not in have_rows))
+        by_id = {e: v for e, v in by_id.items() if twins[e] is None or twins[e] in have_rows}
     by_key = {(city, year): (c, r) for city, year, c, r in rules['reviewed_e2_by_key']}
     rows = [_edition_rule(r, by_id, by_key, rules) for r in m.itertuples(index=False)]
     m['category'] = [c for c, _ in rows]
     m['reason'] = [r for _, r in rows]
     s_ok = (m.n_usable >= MEDIAN_SCREEN['min_finishes']) & m.status_group.isin(['verified', 'unverified', 'held'])
+    # The reference editions of E8: every screened edition, except (the combined release on) a gun-time edition or one
+    # whose course is suspected short, which never enter a comparison.
+    ref_ok = s_ok & ~(m.gross_timing | m.course_suspect) if rules.get('tiers') else s_ok
     others = pd.Series(np.nan, index=m.index)
     n_eds = pd.Series(0, index=m.index)
     for _, idx in m[s_ok].groupby('city').groups.items():
-        values = m.loc[idx, 'med_s']
+        values = m.loc[[i for i in idx if ref_ok[i]], 'med_s']
         for i in idx:
-            rest = values.drop(i)
-            n_eds[i] = len(values)
+            rest = values.drop(i, errors='ignore')
+            n_eds[i] = len(rest) + 1
             others[i] = rest.median() if len(rest) else np.nan
     log_dev = np.log(m.med_s / others)
     shift = m.category.isna() & s_ok & (n_eds >= MEDIAN_SCREEN['min_editions']) & (log_dev.abs() > MEDIAN_SCREEN['max_abs_log_ratio'])
@@ -728,7 +903,7 @@ def edition_rules(m, rules: dict | None = None):
              f'{sorted(int(e) for e in removed_rows.edition_id)[:5]}')
     # The producer's empty placeholder (the `empty` status group, from 1904 on) means nothing was loaded: such an edition
     # has no E rule, so record-usable rows in it would leave every count unnoticed (verify round 1, October 31, 2026).
-    empty_rows = m[m.completeness_status.isin(rules['statuses'].get('empty', ())) & (m.n_usable > 0)]
+    empty_rows = m[m.completeness_status.isin(rules['statuses'].get('empty', ())) & ((m.n_db if rules.get('tiers') else m.n_usable) > 0)]
     if len(empty_rows):
         fail(f'{len(empty_rows)} editions with an empty status hold record-usable rows: '
              f'{sorted(int(e) for e in empty_rows.edition_id)[:5]}')
