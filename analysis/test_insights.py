@@ -8,6 +8,7 @@ import unittest
 
 import numpy as np
 
+import cohort as marathon_cohort
 import insights_data
 from insights_data import (DUPLICATE_EDITIONS, Finishes, faster_pace, granular_age_editions, relative_pace, screen_duplicates,
                            start_offset_screen, sustained_slowdown)
@@ -339,34 +340,78 @@ class Tools(unittest.TestCase):
 
 
 class Reader(unittest.TestCase):
-    def test_reader_verifies_shards_and_counts(self):
-        good = dict(id=1, edition=0, eligible=True, age=30, sex='F', times=times_for([300] * 9))
-        held = dict(id=2, edition=0, eligible=False, age=None, sex='M', times=[None] * 9)
-        profiles = [{'id': 1, 'races': [good]}, {'id': 2, 'races': [held]}]
+    """read_finishes on a small marathon cohort (changed 2026-11-14: the reader moved from the runner lookup's
+    profile shards to the cohort, analysis/cohort.py)."""
+
+    def cohort(self, root, edit=None):
+        """A cohort folder of one counted and one own-record edition, with the six scripts its manifest names."""
+        scripts = {}
+        for name in sorted(insights_data.COHORT_SCRIPTS):
+            (root / name).write_bytes(name.encode())
+            scripts[name] = digest(name.encode())
+        steady, slower = times_for([300] * 9), times_for([330] * 9)
+        # (id, smallest record id of the runner or 0, sex, age, nine times); then the other records (id, reason, times)
+        files = {
+            ('Example', 2020, 'counted'): ([(5, 5, 'F', 30, steady), (7, 0, 'M', None, slower), (8, 0, None, 17, steady), (9, 5, 'F', 31.5, slower)],
+                                           [(6, 'missing_checkpoints', None)]),
+            ('Other', 2021, 'own_record'): ([(11, 5, 'F', 32, steady)], []),
+        }
+        (root / 'editions').mkdir()
+        editions = []
+        for (city, year, use), (records, others) in files.items():
+            data = marathon_cohort.encode_edition(city, year, use, records, others)
+            name = marathon_cohort.file_name(city.lower(), year)
+            (root / name).write_bytes(data)
+            editions.append(dict(city=city, year=year, race=f'{city} Marathon', use=use, raw=len(records) + len(others), timing_eligible=len(records),
+                                 eligible=len(records) if use == 'counted' else 0, other=len(others), file=name, bytes=len(data), sha256=digest(data)))
+        manifest = dict(schema_version=1, release_tag='example', points_km=KM, linkage=dict(record_join_method='canonical_record_id'), scripts=scripts,
+                        raw_records=9, eligible_records=4, cohort=dict(raw=9, eligible=4), editions=editions,
+                        other_editions=dict(columns=['city', 'year', 'raw', 'category'], rows=[['Held', 2019, 3, 'held_for_review']]))
+        if edit:
+            edit(manifest)
+        (root / 'manifest.json').write_text(json.dumps(manifest))
+
+    def test_reader_verifies_the_cohort_and_counts(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root / 'profiles').mkdir()
-            shard = gzip.compress(json.dumps({'release_tag': 'example', 'profiles': profiles}).encode())
-            (root / 'profiles/000.json.gz').write_bytes(shard)
-            manifest = dict(release_tag='example', editions=[dict(city='Example', year=2020)],
-                            shards={'profiles/000.json.gz': dict(bytes=len(shard), sha256=digest(shard))},
-                            raw_records=2, eligible_records=1)
-            original = insights_data.verified_manifest
-            insights_data.verified_manifest = lambda *_: (manifest, 'sha')
-            try:
-                f, _, _ = insights_data.read_finishes(root, {'tag': 'example'}, root)
-                self.assertEqual(f.n, 1)
-                self.assertEqual(f.gender.tolist(), [2])
-                self.assertEqual(f.raw_by_edition.tolist(), [2])
-                manifest['eligible_records'] = 2
-                with self.assertRaisesRegex(ValueError, 'Eligible record count'):
+            self.cohort(root)
+            f, manifest, sha = insights_data.read_finishes(root, {'tag': 'example'}, root)
+            self.assertEqual(sha, digest((root / 'manifest.json').read_bytes()))
+            self.assertEqual((f.n, f.edition.tolist(), f.record_id.tolist()), (4, [0, 0, 0, 0], [5, 7, 8, 9]))
+            self.assertEqual(f.gender.tolist(), [2, 1, 0, 2])
+            self.assertEqual(f.age.tolist(), [insights_data.AGE_LABELS.index('30–34'), 0, 0, 0])      # no age, under 18 and 31.5 are not exact ages
+            self.assertEqual([None if np.isnan(a) else a for a in f.exact_age.tolist()], [30.0, None, None, None])
+            self.assertEqual(f.profile.tolist(), [0, 1, 2, 0])                                         # records 5 and 9 are one runner
+            self.assertEqual((f.runner.tolist(), f.keyed.tolist()), ([5, 7, 8, 5], [True, False, False, True]))
+            self.assertEqual(f.raw_by_edition.tolist(), [5, 1])                                        # the own-record edition is listed and has no finish
+            self.assertEqual(([e['city'] for e in f.editions], f.cities), (['Example', 'Other'], ['Example', 'Other']))
+            self.assertEqual(f.times[1].tolist(), times_for([330] * 9))
+            kept = f.subset(np.array([True, False, False, True]))
+            self.assertEqual((kept.n, kept.record_id.tolist(), kept.profile.tolist()), (2, [5, 9], [0, 0]))
+
+    def test_reader_refuses_a_cohort_that_does_not_check(self):
+        cases = [
+            (lambda m: m.update(eligible_records=5, cohort=dict(raw=9, eligible=5)), 'Eligible record count'),
+            (lambda m: m.update(raw_records=10, cohort=dict(raw=10, eligible=4)), 'Raw record count'),
+            (lambda m: m.update(cohort=dict(raw=9, eligible=3)), 'Inconsistent source cohort metadata'),
+            (lambda m: m.update(release_tag='another'), 'does not match adopted pin'),
+            (lambda m: m['scripts'].update({'cohort.py': '0' * 64}), 'Source script changed: cohort.py'),
+            (lambda m: m['scripts'].pop('build_identity.py'), 'Unexpected source script contract'),
+            (lambda m: m.update(schema_version=2), 'Unreadable cohort manifest'),
+        ]
+        for edit, message in cases:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self.cohort(root, edit)
+                with self.assertRaisesRegex(ValueError, message):
                     insights_data.read_finishes(root, {'tag': 'example'}, root)
-                manifest['eligible_records'] = 1
-                (root / 'profiles/000.json.gz').write_bytes(shard + b'x')
-                with self.assertRaisesRegex(ValueError, 'checksum/size mismatch'):
-                    insights_data.read_finishes(root, {'tag': 'example'}, root)
-            finally:
-                insights_data.verified_manifest = original
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.cohort(root)
+            file = root / 'editions/example-2020.json.gz'
+            file.write_bytes(file.read_bytes() + b'x')
+            with self.assertRaisesRegex(ValueError, 'size or checksum differs'):
+                insights_data.read_finishes(root, {'tag': 'example'}, root)
 
 
 
