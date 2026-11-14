@@ -51,31 +51,32 @@ COURSE_SLUGS_BEFORE = ('amsterdam', 'auckland', 'austin', 'barcelona', 'berlin',
                        'stockholm', 'sydney', 'valencia', 'warsaw', 'washington')
 RESERVED_SLUGS = ('all',)
 
-# Code lists: a data file stores the position in these lists.
-TIERS = ('stamped', 'stamped_weaker_source', 'partial', 'held_for_review', 'unverified')
+# Code lists: a data file stores the position in these lists. The tiers, split tiers and timing classes, their order
+# and their words are those of lib/tiers.ts, the site's one module for them (plan decision D16); the builder cannot
+# import it, so scripts/verify-races.cjs holds every list, word and class below to the module's.
+TIERS = ('stamped', 'stamped_weaker_source', 'partial', 'unverified', 'held_for_review')
 BADGE_TIERS = ('stamped', 'stamped_weaker_source')
 SPLIT_TIERS = ('splits', 'finish_time_only')
 USES = ('counted', 'own_record', 'recorded_times_only')
 CATEGORIES = ('finish_time_only', 'held_for_review', 'unverified', 'partial_coverage', 'invalid_split_grid', 'unreconciled_hold', 'selected_field',
               'mixed_distance_list', 'incomplete_ingestion')
-TIMINGS = ('net', 'gun', 'mixed', 'not_stated')
+TIMINGS = ('chip', 'chip_fallback', 'gun', 'mixed', 'not_stated')
 PAGES = ('course', 'results', 'row')
 REVIEWS = ('none', 'possible_duplicate', 'copy')
-# Plan decision D16: the words of each tier; the site draws them with one module and links them to /methodology.
+# The words lib/tiers.ts gives a tier, a split tier and a timing class: only these are written in words (the edition
+# table); an edition with checkpoint times and one not timed by the gun say nothing more.
 TIER_WORDS = {'stamped': 'Verified', 'stamped_weaker_source': 'Verified, weaker source', 'partial': 'Partial results',
-              'held_for_review': 'Held for review', 'unverified': 'Unverified'}
-SPLIT_WORDS = {'splits': 'Checkpoint times', 'finish_time_only': 'Finish times only'}
-USE_WORDS = {'counted': 'Counted', 'own_record': 'Own-record view', 'recorded_times_only': 'Recorded times only'}
-TIMING_WORDS = {'net': 'Chip or net times', 'gun': 'Gun times', 'mixed': 'Mixed', 'not_stated': 'Not stated'}
-REVIEW_WORDS = {'none': '', 'possible_duplicate': 'Possible duplicate, under review', 'copy': 'Set aside as a copy'}
+              'unverified': 'Unverified', 'held_for_review': 'Held for review'}
+FINISH_TIMES_ONLY = 'Finish times only'
+GUN_TIMES = 'Gun times'
 
-# The producer's timing-basis strings, classed once (the classes of analysis/linked_common.py TIMING_CLASS; an unknown
-# string stops the build so that it is classed in a reviewed change).
+# The producer's marathon timing-basis texts of this release, classed as lib/tiers.ts TIMING_BASES classes them (the
+# linked-records contract's classes). An unknown text stops the build, so that it is classed there in a reviewed change.
 TIMING_CLASS = {
-    'chip': 'net', 'chip (ot) as published': 'net', 'real time as published': 'net',
-    'realTime (net) as published, else officialTime': 'net', 'chip (clock if no chip)': 'net', 'chip (delta_net), clock if no chip': 'net',
-    'chip (gun if no chip)': 'net', 'chip time else gun': 'net', 'chip elapsed (gun if no chip)': 'net', 'chip where published, else gun': 'net',
-    "net 'time' (gun if none)": 'net',
+    'chip': 'chip', 'chip (ot) as published': 'chip', 'real time as published': 'chip',
+    'realTime (net) as published, else officialTime': 'chip_fallback', 'chip (clock if no chip)': 'chip_fallback',
+    'chip (delta_net), clock if no chip': 'chip_fallback', 'chip (gun if no chip)': 'chip_fallback', 'chip time else gun': 'chip_fallback',
+    'chip elapsed (gun if no chip)': 'chip_fallback', 'chip where published, else gun': 'chip_fallback', "net 'time' (gun if none)": 'chip_fallback',
     'gun': 'gun', 'mixed': 'mixed', 'unknown': 'not_stated', 'as published': 'not_stated', 'as published (Time)': 'not_stated', None: 'not_stated',
 }
 # Where the official count comes from, in words a visitor can read, by the start of the producer's source-type string.
@@ -133,7 +134,8 @@ RULES = {
     'results': 'recorded results = written rows of the edition; finishes = written rows with a finish time',
     'use': ('counted = the edition policy counts it (it supplies pooled pacing statistics); own_record = not counted, but a record keeps its own pacing view; '
             'recorded_times_only = every other edition; `category` is the policy’s category of an edition that is not counted'),
-    'timing': 'the producer’s timing basis classed as net (chip or net time, with any stated fallback), gun, mixed or not_stated',
+    'timing': ('the producer’s timing basis classed as lib/tiers.ts classes it: chip (chip or net time), chip_fallback (chip or net time where the source '
+               'has one, else gun or clock time), gun, mixed or not_stated'),
     'flags': ('virtual, cancelled, placeholder: the registry flags the title or place (virtual_in_title, cancelled_in_title, placeholder_place) or the notes file '
               'flags the race; not_a_marathon_title: the registry finds no marathon word in the title and another event named in it, or the notes file flags '
               'it; hand_cycle_title: the registry’s reviewed flag (the title is never printed beside a runner); mountain_or_trail and two_races are for '
@@ -194,6 +196,7 @@ class Inputs:
     facts: dict | None         # the pipeline's per-edition facts (edition-policy-review.json), when the notes name it
     facts_path: Path | None
     root: Path = rc.ROOT       # the repository the inputs were read under: file names in the manifest are relative to it
+    without_results: int = 0   # EDITIONS.json `not_written`: editions the release names that have no written row
     digests: dict = field(default_factory=dict)
 
 
@@ -233,6 +236,9 @@ def load_inputs(source: Path, *, release_path: Path = rc.RELEASE_PATH, registry_
     document, _ = _read(source / 'EDITIONS.json')
     if document.get('tag') != tag:
         fail('EDITIONS.json of the adapted input is for another release')
+    not_written = document.get('not_written')
+    if not isinstance(not_written, list) or (meta['editions_without_rows'] is not None and meta['editions_without_rows'] != len(not_written)):
+        fail('EDITIONS.json does not list the editions without a written row that the adapted input’s MANIFEST.json counts')
 
     policy_path = Path(policy_path) if policy_path else default_policy_path(tag)
     policy, policy_sha = _read(policy_path)
@@ -276,7 +282,7 @@ def load_inputs(source: Path, *, release_path: Path = rc.RELEASE_PATH, registry_
     digests = {'policy': policy_sha, 'published_policy': published_sha, 'registry': registry_sha, 'notes': notes_sha, 'audit': audit_sha,
                'sensitivity': sensitivity_sha, 'facts': facts_sha,
                'members': {name: meta['files'][name]['sha256'] for name in MEMBERS}}
-    return Inputs(source=source, tag=tag, meta=meta, editions=document['editions'], policy=policy, policy_path=policy_path, published_policy=published,
+    return Inputs(source=source, tag=tag, meta=meta, editions=document['editions'], without_results=len(not_written), policy=policy, policy_path=policy_path, published_policy=published,
                   published_policy_path=published_policy_path, registry=registry, registry_path=Path(registry_path), notes=notes, notes_path=Path(notes_path),
                   audit=audit, audit_path=paths['duplicate_editions'], sensitivity=sensitivity, sensitivity_path=paths['cohort_sensitivity'],
                   facts=facts, facts_path=facts_path, root=Path(root), digests=digests)
@@ -674,13 +680,20 @@ def edition_row(e: dict) -> list:
             None if e['category'] is None else CATEGORIES.index(e['category']), TIMINGS.index(e['timing']), REVIEWS.index(e['review'])]
 
 
+def tier_counts(race: dict) -> dict:
+    """The race's live editions by tier, tiers without an edition left out: what lib/tiers.ts `tierLine` takes to write a
+    list row's tier line (it orders the tiers itself; a published object has its keys sorted)."""
+    live = [e for e in race['editions'] if e['review'] != 'copy']
+    return {tier: sum(1 for e in live if e['tier'] == tier) for tier in TIERS if any(e['tier'] == tier for e in live)}
+
+
 def directory_file(races: list[dict], set_aside: list[dict]) -> dict:
     out = []
     for race in races:
         if race['left_out']:
             continue
         row = {'label': race['label'], 'name': race['name'], 'place': race['place'], 'page': race['page'],
-               'years': race['years'], 'results': race['results'], 'finishes': race['finishes'],
+               'years': race['years'], 'results': race['results'], 'finishes': race['finishes'], 'tiers': tier_counts(race),
                'editions': [edition_row(e) for e in race['editions']]}
         if race['page'] != 'row':
             row['slug'] = race['slug']
@@ -708,7 +721,7 @@ def pages_file(races: list[dict]) -> dict:
         live = [e for e in race['editions'] if e['review'] != 'copy']
         out.append({'label': race['label'], 'name': race['name'], 'place': race['place'], 'slug': race['slug'], 'page': race['page'],
                     'years': race['years'], 'editions': len(live), 'results': race['results'], 'finishes': race['finishes'],
-                    'tiers': {tier: sum(1 for e in live if e['tier'] == tier) for tier in TIERS if any(e['tier'] == tier for e in live)},
+                    'tiers': tier_counts(race),
                     'with_checkpoint_times': sum(1 for e in live if e['split_tier'] == 'splits'),
                     'counted_editions': race['counted_editions'], 'own_record_editions': sum(1 for e in live if e['use'] == 'own_record'),
                     'universe_editions': sum(1 for e in live if e['universe']), 'page_before': race['page_before'],
@@ -717,8 +730,8 @@ def pages_file(races: list[dict]) -> dict:
 
 
 CSV_COLUMNS = ('race', 'race_name', 'place', 'year', 'tier', 'tier_in_words', 'split_tier', 'split_tier_in_words', 'recorded_results', 'finishes_with_a_time',
-               'official_count', 'official_count_source', 'official_source_type', 'coverage_pct', 'use', 'use_in_words', 'not_counted_category',
-               'reason_not_counted', 'timing', 'timing_basis', 'race_date', 'race_date_source', 'hold_note', 'release_note', 'review', 'copy_of_race',
+               'official_count', 'official_count_source', 'official_source_type', 'coverage_pct', 'use', 'not_counted_category', 'reason_not_counted',
+               'timing', 'timing_in_words', 'timing_basis', 'race_date', 'race_date_source', 'hold_note', 'release_note', 'review', 'copy_of_race',
                'copy_of_year', 'reviewed_note', 'release_key')
 
 
@@ -730,11 +743,11 @@ def editions_csv(races: list[dict]) -> bytes:
     for race in sorted(races, key=lambda r: r['label']):
         for e in race['editions']:
             writer.writerow([race['label'], race['name'], blank(race['place']), e['year'], e['tier'], TIER_WORDS[e['tier']], e['split_tier'],
-                             SPLIT_WORDS[e['split_tier']], e['results'], e['finishes'], blank(e['official']),
+                             FINISH_TIMES_ONLY if e['split_tier'] == 'finish_time_only' else '', e['results'], e['finishes'], blank(e['official']),
                              blank(e['official_source']) if e['official'] is not None else NO_INDEPENDENT_COUNT,
-                             blank(e['official_source_type']), blank(e['coverage_pct']), e['use'], USE_WORDS[e['use']], blank(e['category']),
-                             blank(e['reason']), TIMING_WORDS[e['timing']], blank(e['timing_basis']), blank(e['race_date']), blank(e['race_date_source']),
-                             blank(e['hold_note']), blank(e['release_note']), REVIEW_WORDS[e['review']],
+                             blank(e['official_source_type']), blank(e['coverage_pct']), e['use'], blank(e['category']),
+                             blank(e['reason']), e['timing'], GUN_TIMES if e['timing'] == 'gun' else '', blank(e['timing_basis']), blank(e['race_date']),
+                             blank(e['race_date_source']), blank(e['hold_note']), blank(e['release_note']), '' if e['review'] == 'none' else e['review'],
                              e['review_other'][0] if e['review'] == 'copy' else '', e['review_other'][1] if e['review'] == 'copy' else '',
                              blank(e['reviewed_note']), e['release_key']])
     return stream.getvalue().encode()
@@ -782,6 +795,8 @@ def summary_file(inputs: Inputs, races: list[dict], editions: list[dict]) -> dic
             'by_tier_and_split_tier': cells,
             'by_tier': {tier: tally([e for e in live if e['tier'] == tier]) for tier in TIERS if any(e['tier'] == tier for e in live)},
             'by_split_tier': {split: tally([e for e in live if e['split_tier'] == split]) for split in SPLIT_TIERS if any(e['split_tier'] == split for e in live)},
+            'by_timing': {timing: tally([e for e in live if e['timing'] == timing]) for timing in TIMINGS if any(e['timing'] == timing for e in live)},
+            'without_results': {'n': inputs.without_results, 'what': 'editions the release names that have no recorded result; they are listed nowhere and are in no count here'},
             'badge_verified': {**tally([e for e in live if e['tier'] in BADGE_TIERS]), 'what': 'editions whose tier is stamped or stamped_weaker_source; races with at least one'},
             'by_use': {use: {'editions': sum(1 for e in live if e['use'] == use), 'results': sum(e['results'] for e in live if e['use'] == use)} for use in USES},
             'not_counted_by_category': {c: sum(1 for e in live if e['category'] == c) for c in CATEGORIES if any(e['category'] == c for e in live)},
@@ -805,7 +820,6 @@ def summary_file(inputs: Inputs, races: list[dict], editions: list[dict]) -> dic
                        'pairs_kept_as_two_editions': sum(1 for entry in inputs.notes.get('duplicate_editions', []) if entry.get('ruling') == 'keep_both'),
                        'editions_set_aside': len(copies), 'results_set_aside': sum(e['results'] for e in copies),
                        'what': 'pairs of editions that hold the same finishers; an edition set aside as a copy is in no count above'},
-        'words': {'tier': TIER_WORDS, 'split_tier': SPLIT_WORDS, 'use': USE_WORDS, 'timing': TIMING_WORDS},
     }
 
 

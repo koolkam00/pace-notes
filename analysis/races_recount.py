@@ -7,8 +7,9 @@ repository, so it cannot recount an edition's finishes, its quartiles or its wom
 input, with other code than the builder's: analysis/build_races.py asks DuckDB for `quantile_cont` per edition; here
 every finish time is read into numpy and each edition's values are sorted and interpolated by hand. It compares
 
-- recorded results and finishes of every edition in directory.json (listed races and those left out), and
-- finishes, the three quartiles and the women's count, denominator and share of every edition in a race file,
+- recorded results and finishes of every edition in directory.json (listed races and those left out),
+- finishes, the three quartiles and the women's count, denominator and share of every edition in a race file, and
+- the count of editions the release names that have no written row (EDITIONS.json `not_written`),
 
 and writes a receipt bound to the adapted input and to the exact manifest of the published folder. The verifier fails
 on a receipt that is missing, not clean, or bound to another build, so a rebuild needs a fresh recount. It reads the
@@ -69,7 +70,8 @@ def recount(source: Path, data: Path) -> dict:
     if rc.inside(source, rc.ROOT):
         fail(f'{source} is inside the repository; record-level sources stay outside it')
     meta = rc.adapted_input(source)
-    rc.check_member(source, meta['files'], 'race_records.parquet')
+    for name in ('race_records.parquet', 'EDITIONS.json'):
+        rc.check_member(source, meta['files'], name)
     manifest_bytes = (data / 'manifest.json').read_bytes()
     manifest = json.loads(manifest_bytes)
     if manifest['release_tag'] != meta['release_tag'] or manifest['input']['manifest_sha256'] != meta['input_manifest_sha256']:
@@ -121,9 +123,15 @@ def recount(source: Path, data: Path) -> dict:
                 recorded = mine['women'] + mine['men']
                 differs('women', *key, [row['women']['n'], row['women']['of'], row['women']['share']],
                         [mine['women'], recorded, round(mine['women'] / recorded, 4) if recorded else None])
+    without = len(json.loads((source / 'EDITIONS.json').read_text())['not_written'])
+    compared['editions_without_results'] = without
+    published = json.loads((data / 'summary.json').read_text())['editions']['without_results']['n']
+    if published != without:
+        mismatches.append({'what': 'editions without results', 'published': published, 'recounted': without})
     return {
-        'document': ('The source recount of the race directory (analysis/races_recount.py): recorded results and finishes of every edition, and the finishes, '
-                     'quartiles and women of every edition in a race file, counted again from the adapted input with other code than the builder’s. '
+        'document': ('The source recount of the race directory (analysis/races_recount.py): recorded results and finishes of every edition, the finishes, '
+                     'quartiles and women of every edition in a race file and the count of editions without results, counted again from the adapted input '
+                     'with other code than the builder’s. '
                      'scripts/verify-races.cjs requires it to be clean and bound to the published manifest.'),
         'schema_version': 1, 'status': 'pass' if not mismatches else 'fail',
         'release_tag': meta['release_tag'], 'input_manifest_sha256': meta['input_manifest_sha256'],

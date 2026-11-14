@@ -39,14 +39,23 @@ const crypto = require('node:crypto');
 const ROOT = path.resolve(__dirname, '..');
 const { RELEASE_LABEL } = require('./lib/words.cjs');
 
+// The tier, split-tier and timing vocabulary is the site's one module, lib/tiers.ts (plan decision D16): its lists, its
+// words, its class of each timing text and its tier line. The Python builder cannot import it and writes its own copy
+// of the lists and words; every one of them is held to the module's here, in the data it wrote.
+const ts = require('typescript');
+require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, filename);
+const T = require('../lib/tiers.ts');
+
 // ---------- The family's rules, written here independently of analysis/build_races.py ----------
-const TIERS = ['stamped', 'stamped_weaker_source', 'partial', 'held_for_review', 'unverified'];
-const BADGE = ['stamped', 'stamped_weaker_source'];
-const SPLITS = ['splits', 'finish_time_only'];
+const TIERS = [...T.SHOWN_TIERS];
+const BADGE = [...T.BADGE_TIERS];
+const SPLITS = [...T.SPLIT_TIERS];
 const USES = ['counted', 'own_record', 'recorded_times_only'];
 const CATEGORIES = ['finish_time_only', 'held_for_review', 'unverified', 'partial_coverage', 'invalid_split_grid', 'unreconciled_hold', 'selected_field',
   'mixed_distance_list', 'incomplete_ingestion'];
-const TIMINGS = ['net', 'gun', 'mixed', 'not_stated'];
+const TIMINGS = [...T.TIMING_CLASSES];
 const PAGES = ['course', 'results', 'row'];
 const REVIEWS = ['none', 'possible_duplicate', 'copy'];
 const FLAGS = ['virtual', 'cancelled', 'placeholder', 'not_a_marathon_title', 'hand_cycle_title', 'mountain_or_trail', 'two_races'];
@@ -58,20 +67,8 @@ const COURSE_SLUGS = ['amsterdam', 'auckland', 'austin', 'barcelona', 'berlin', 
   'hamburg', 'helsinki', 'london', 'madrid', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'warsaw', 'washington'];
 const FLOORS = { finishes_behind_a_number: 100, editions_behind_a_statement: 3, results_page_edition_results: 100, results_page_results: 3000,
   sex_recorded_share: [9, 10], coverage: [0.95, 1.05] };
-// Plan decision D16: the words of each tier.
-const TIER_WORDS = { stamped: 'Verified', stamped_weaker_source: 'Verified, weaker source', partial: 'Partial results', held_for_review: 'Held for review', unverified: 'Unverified' };
-const SPLIT_WORDS = { splits: 'Checkpoint times', finish_time_only: 'Finish times only' };
-const USE_WORDS = { counted: 'Counted', own_record: 'Own-record view', recorded_times_only: 'Recorded times only' };
-const TIMING_WORDS = { net: 'Chip or net times', gun: 'Gun times', mixed: 'Mixed', not_stated: 'Not stated' };
-const REVIEW_WORDS = { none: '', possible_duplicate: 'Possible duplicate, under review', copy: 'Set aside as a copy' };
-const TIMING_CLASS = new Map([
-  ['chip', 'net'], ['chip (ot) as published', 'net'], ['real time as published', 'net'], ['realTime (net) as published, else officialTime', 'net'],
-  ['chip (clock if no chip)', 'net'], ['chip (delta_net), clock if no chip', 'net'], ['chip (gun if no chip)', 'net'], ['chip time else gun', 'net'],
-  ['chip elapsed (gun if no chip)', 'net'], ['chip where published, else gun', 'net'], ["net 'time' (gun if none)", 'net'],
-  ['gun', 'gun'], ['mixed', 'mixed'], ['unknown', 'not_stated'], ['as published', 'not_stated'], ['as published (Time)', 'not_stated'], ['', 'not_stated'],
-]);
 const CSV_COLUMNS = ['race', 'race_name', 'place', 'year', 'tier', 'tier_in_words', 'split_tier', 'split_tier_in_words', 'recorded_results', 'finishes_with_a_time',
-  'official_count', 'official_count_source', 'official_source_type', 'coverage_pct', 'use', 'use_in_words', 'not_counted_category', 'reason_not_counted', 'timing',
+  'official_count', 'official_count_source', 'official_source_type', 'coverage_pct', 'use', 'not_counted_category', 'reason_not_counted', 'timing', 'timing_in_words',
   'timing_basis', 'race_date', 'race_date_source', 'hold_note', 'release_note', 'review', 'copy_of_race', 'copy_of_year', 'reviewed_note', 'release_key'];
 const EDITION_NOTES = ['one_list_two_years', 'one_race_two_keys', 'repeated_finish_times'];
 const SOURCE_WORDS = ['A statistics site', 'A Wikipedia results table', 'The organiser’s press release', 'The organiser’s statistics or results', 'Government statistics',
@@ -306,7 +303,7 @@ function verify(dataDir, root = ROOT) {
     if (!reg) continue;
     const out = noLive(race.label);
     const where = `directory.json ${race.label}`;
-    ok(Object.keys(race).every((k) => (out ? ['label', 'name', 'place', 'editions'] : ['label', 'name', 'place', 'page', 'years', 'results', 'finishes', 'editions', 'slug', 'flags', 'aliases', 'withheld']).includes(k)), `${where}: only known keys`);
+    ok(Object.keys(race).every((k) => (out ? ['label', 'name', 'place', 'editions'] : ['label', 'name', 'place', 'page', 'years', 'results', 'finishes', 'tiers', 'editions', 'slug', 'flags', 'aliases', 'withheld']).includes(k)), `${where}: only known keys`);
     eq([race.name, race.place], [reg.name, reg.place ?? null], `${where}: the registry’s name and place`);
     const rows = [];
     let ordered = true;
@@ -331,7 +328,7 @@ function verify(dataDir, root = ROOT) {
       const c = cohortRaw.get(k);
       if (cohort && ok(c, `${race.label} ${year}: the cohort manifest names the edition`)) {
         eq([c.raw, c.use], [results, e.use], `${race.label} ${year}: recorded results and use equal the cohort manifest’s`);
-        if (c.tier) eq([c.tier, TIMING_CLASS.get(c.timing_basis)], [e.tier, e.timing], `${race.label} ${year}: tier and timing class equal the cohort manifest’s`);
+        if (c.tier) eq([c.tier, T.timingClass(c.timing_basis || null)], [e.tier, e.timing], `${race.label} ${year}: tier, and the module’s class of the timing basis, equal the cohort manifest’s`);
         else eq(c.category, e.category, `${race.label} ${year}: the category equals the cohort manifest’s`);
       }
       rows.push(e);
@@ -342,6 +339,11 @@ function verify(dataDir, root = ROOT) {
     const live = rows.filter((e) => e.review !== 'copy');
     if (out) { leftOut.push({ label: race.label, reg, rows }); continue; }
     eq([race.years, race.results, race.finishes], [[live[0]?.year, live[live.length - 1]?.year], sum(live, (e) => e.results), sum(live, (e) => e.finishes)], `${where}: years, results and finishes recounted over the live editions`);
+    eq(race.tiers, T.countTiers(live.map((e) => e.tier)), `${where}: the live editions by tier`);
+    // The list row's text is the module's tier line of these counts (it orders the tiers itself): it must be writable.
+    let line = null;
+    try { line = T.tierLine(race.tiers ?? {}); } catch (error) { line = null; }
+    ok(typeof line === 'string' && line.length > 0, `${where}: lib/tiers.ts writes the tier line of its counts`);
     const flags = flagsOf(reg), blocking = flags.filter((f) => BLOCKING.includes(f));
     const countedN = live.filter((e) => e.use === 'counted').length;
     const verified = live.filter((e) => BADGE.includes(e.tier) && e.results >= FLOORS.results_page_edition_results).length;
@@ -441,7 +443,7 @@ function verify(dataDir, root = ROOT) {
   eq(pagesFile.pages, pageRaces.map((d) => ({
     label: d.label, name: d.reg.name, place: d.reg.place ?? null, slug: d.reg.slug, page: d.page, years: [d.live[0].year, d.live[d.live.length - 1].year], editions: d.live.length,
     results: sum(d.live, (e) => e.results), finishes: sum(d.live, (e) => e.finishes),
-    tiers: Object.fromEntries(TIERS.filter((t) => d.live.some((e) => e.tier === t)).map((t) => [t, d.live.filter((e) => e.tier === t).length])),
+    tiers: T.countTiers(d.live.map((e) => e.tier)),
     with_checkpoint_times: d.live.filter((e) => e.split_tier === 'splits').length, counted_editions: d.countedN, own_record_editions: d.live.filter((e) => e.use === 'own_record').length,
     universe_editions: d.live.filter((e) => inUniverse(e.k)).length, page_before: d.before, flags: d.flags, aliases: aliasOf.get(d.label) || [],
   })), 'pages.json: the races with a page, recounted');
@@ -457,13 +459,16 @@ function verify(dataDir, root = ROOT) {
   }
   const strip = ({ what: _, ...rest }) => rest;
   eq([summary.schema_version, summary.family, summary.distance], [1, 'races', 'marathon'], 'summary.json: schema');
-  eq(Object.keys(summary).sort(), ['counted', 'distance', 'duplicates', 'editions', 'family', 'finish_time_universe', 'notes', 'races', 'schema_version', 'sensitivity', 'words'], 'summary.json: its keys');
+  eq(Object.keys(summary).sort(), ['counted', 'distance', 'duplicates', 'editions', 'family', 'finish_time_universe', 'notes', 'races', 'schema_version', 'sensitivity'], 'summary.json: its keys');
   eq({ ...summary.races, total: strip(summary.races.total), course_pages_kept: strip(summary.races.course_pages_kept), flagged: strip(summary.races.flagged), left_out: strip(summary.races.left_out) }, {
     total: { n: derived.length }, by_page: Object.fromEntries(PAGES.map((p) => [p, derived.filter((d) => d.page === p).length])),
     course_pages_kept: { n: derived.filter((d) => d.before).length }, flagged: { n: derived.filter((d) => d.blocking.length).length },
     page_withheld_by_a_flag: derived.filter((d) => d.withheld).length, left_out: { n: leftOut.length },
   }, 'summary.json: races recounted from the directory');
-  eq({ ...summary.editions, total: strip(summary.editions.total), badge_verified: strip(summary.editions.badge_verified) }, {
+  ok(Number.isSafeInteger(summary.editions.without_results?.n) && summary.editions.without_results.n >= 0, 'summary.json: the count of editions without results (the source recount compares it)');
+  eq({ ...summary.editions, total: strip(summary.editions.total), badge_verified: strip(summary.editions.badge_verified), without_results: null }, {
+    without_results: null,
+    by_timing: Object.fromEntries(TIMINGS.filter((x) => live.some((e) => e.timing === x)).map((x) => [x, tally(live.filter((e) => e.timing === x))])),
     total: { n: live.length, results: sum(live, (e) => e.results), finishes: sum(live, (e) => e.finishes) }, by_tier_and_split_tier: cells,
     by_tier: Object.fromEntries(TIERS.filter((t) => live.some((e) => e.tier === t)).map((t) => [t, tally(live.filter((e) => e.tier === t))])),
     by_split_tier: Object.fromEntries(SPLITS.filter((x) => live.some((e) => e.split_tier === x)).map((x) => [x, tally(live.filter((e) => e.split_tier === x))])),
@@ -471,7 +476,7 @@ function verify(dataDir, root = ROOT) {
     by_use: Object.fromEntries(USES.map((u) => [u, { editions: live.filter((e) => e.use === u).length, results: sum(live.filter((e) => e.use === u), (e) => e.results) }])),
     not_counted_by_category: Object.fromEntries(CATEGORIES.filter((c) => live.some((e) => e.category === c)).map((c) => [c, live.filter((e) => e.category === c).length])),
   }, 'summary.json: editions recounted from the directory');
-  ok([summary.races.total, summary.races.course_pages_kept, summary.races.flagged, summary.editions.total, summary.editions.badge_verified, summary.counted, summary.finish_time_universe,
+  ok([summary.races.total, summary.races.course_pages_kept, summary.races.flagged, summary.races.left_out, summary.editions.total, summary.editions.badge_verified, summary.editions.without_results, summary.counted, summary.finish_time_universe,
     summary.notes, summary.duplicates, summary.sensitivity.verified_tiers_only, summary.sensitivity.without_weaker_source_editions].every(what), 'summary.json: every count says what it counts, in words without a number');
   const reading = (r) => ({ editions: r.eligible_editions, races: r.eligible_cities, finishes: r.eligible_finishes, sustained_slowdown: r.sustained_slowdown, sustained_slowdown_pct: r.sustained_slowdown_pct });
   const countedLive = live.filter((e) => e.use === 'counted');
@@ -490,7 +495,6 @@ function verify(dataDir, root = ROOT) {
   const copies = all.filter((e) => e.review === 'copy');
   eq(strip(summary.duplicates), { pairs_listed_by_the_audit: audited.size, pairs_pending: pending, pairs_kept_as_two_editions: [...reviewed.values()].filter((r) => r.ruling === 'keep_both').length,
     editions_set_aside: copies.length, results_set_aside: sum(copies, (e) => e.results) }, 'summary.json: the duplicate review recounted');
-  eq(summary.words, { tier: TIER_WORDS, split_tier: SPLIT_WORDS, use: USE_WORDS, timing: TIMING_WORDS }, 'summary.json: the words of the tiers (plan decision D16)');
 
   const csvRows = parseCsv(data('editions.csv').toString('utf8'));
   eq(csvRows[0], CSV_COLUMNS, 'editions.csv: its columns');
@@ -505,13 +509,16 @@ function verify(dataDir, root = ROOT) {
     if (!ok(e && reg && f && !tableKeys.has(k), `editions.csv: ${r.race} ${r.year} is an edition of the directory, once`)) continue;
     tableKeys.add(k);
     const where = `editions.csv ${r.race} ${r.year}`;
-    eq([r.race_name, r.place, r.tier, r.tier_in_words, r.split_tier, r.split_tier_in_words, r.recorded_results, r.finishes_with_a_time, r.use, r.use_in_words, r.not_counted_category, r.timing, r.review],
-      [reg.name, reg.place ?? '', e.tier, TIER_WORDS[e.tier], e.split_tier, SPLIT_WORDS[e.split_tier], String(e.results), String(e.finishes), e.use, USE_WORDS[e.use], e.category ?? '',
-        TIMING_WORDS[e.timing], REVIEW_WORDS[e.review]], `${where}: the edition as the directory has it, in words`);
+    eq([r.race_name, r.place, r.tier, r.split_tier, r.recorded_results, r.finishes_with_a_time, r.use, r.not_counted_category, r.timing, r.review],
+      [reg.name, reg.place ?? '', e.tier, e.split_tier, String(e.results), String(e.finishes), e.use, e.category ?? '', e.timing, e.review === 'none' ? '' : e.review],
+      `${where}: the edition as the directory has it`);
+    // Words are the module's: a tier's, "Finish times only" and "Gun times"; nothing else is put in words.
+    eq([r.tier_in_words, r.split_tier_in_words, r.timing_in_words], [T.tierWords(e.tier, e.tier === 'stamped_weaker_source'), T.splitTierWords(e.split_tier) ?? '', T.timingWords(r.timing_basis || null) ?? ''],
+      `${where}: the words of lib/tiers.ts`);
     eq(r.reason_not_counted, listed.get(k)?.reason ?? '', `${where}: the policy’s reason`);
     const kept = e.review === 'copy' ? review.get(k)[1].split('\u0000') : ['', ''];
     eq([r.copy_of_race, r.copy_of_year, r.reviewed_note], [kept[0], kept[1], reviewedNote.get(k) ?? ''], `${where}: the edition a copy copies, and the reviewed note`);
-    eq(TIMING_CLASS.get(r.timing_basis), e.timing, `${where}: the producer’s timing basis gives the timing class`);
+    eq(T.timingClass(r.timing_basis || null), e.timing, `${where}: the timing class is the module’s class of the producer’s timing basis`);
     ok(reg.keys.includes(r.release_key), `${where}: the release key is one of the race’s keys in the registry`);
     if (f.official_finishers == null) eq([r.official_count, r.official_count_source, r.coverage_pct], ['', NO_INDEPENDENT_COUNT, ''], `${where}: no official count`);
     else {
@@ -530,8 +537,7 @@ function verify(dataDir, root = ROOT) {
   const names = new Set(), places = new Set(), seriesNames = new Set(), aliases = new Set((notes.aliases || []).map((a) => a.alias));
   for (const r of registry.races) { names.add(r.label); names.add(r.name); if (r.place) places.add(r.place); for (const s of seriesOf(r) || []) seriesNames.add(s.name); }
   const vocabulary = new Set([...TIERS, ...SPLITS, ...USES, ...CATEGORIES, ...TIMINGS, ...PAGES, ...REVIEWS, ...FLAGS, ...EDITION_COLUMNS, 'races', 'marathon', 'per_series',
-    'fewer_than_three_verified_editions_of_100_finishes', 'median_finish_in_a_typical_verified_year',
-    ...Object.values(TIER_WORDS), ...Object.values(SPLIT_WORDS), ...Object.values(USE_WORDS), ...Object.values(TIMING_WORDS)]);
+    'fewer_than_three_verified_editions_of_100_finishes', 'median_finish_in_a_typical_verified_year']);
   const noteTexts = new Set([...holdNotes, ...releaseNotes].map((n) => n.note));
   const scan = (value, file, under) => {
     if (Array.isArray(value)) { for (const v of value) scan(v, file, under); return; }
@@ -562,7 +568,8 @@ function verify(dataDir, root = ROOT) {
       'the source recount is bound to this release, adapted input and manifest (run it again after a rebuild)');
     eq(receipt.script, { 'analysis/races_recount.py': sha(fs.readFileSync(rel('analysis/races_recount.py'))) }, 'the source recount was made by the script in the repository');
     eq(receipt.compared, { editions: all.length, editions_with_finishes: pageRaces.flatMap((d) => d.rows).filter((e) => inUniverse(e.k) && e.review !== 'copy').length,
-      editions_with_quartiles: counts.numbers, editions_with_a_share_of_women: counts.women, race_files: pageRaces.length }, 'the source recount compared every edition and every number of a race file');
+      editions_with_quartiles: counts.numbers, editions_with_a_share_of_women: counts.women, race_files: pageRaces.length, editions_without_results: summary.editions.without_results?.n },
+    'the source recount compared every edition, every number of a race file and the count of editions without results');
   }
 
   // ---------- The manifest's own counts and review lists ----------
@@ -625,7 +632,9 @@ function selfTest(source, root = ROOT) {
     ['an identifier key', (dir) => rewrite(dir, 'pages.json', (v) => { v.pages[0].record_id = 12; }), /the key record_id may not be published|pages\.json: the races with a page/],
     ['a release label in a file', (dir) => rewrite(dir, 'summary.json', (v) => { v.counted.what += ' pace-notes-marathon-half'; }), /a release label or a person id/],
     ['an official count on a page file', (dir) => rewrite(dir, 'directory.json', (v) => { v.races[0].official_count = 5; }), /only known keys/],
-    ['an edition table row that is not the directory’s', (dir) => rewrite(dir, 'editions.csv', (text) => text.replace(/,Verified,/, ',Unverified,')), /the edition as the directory has it, in words/],
+    ['an edition table row whose words are not the module’s', (dir) => rewrite(dir, 'editions.csv', (text) => text.replace(/,Verified,/, ',Unverified,')), /the words of lib\/tiers\.ts/],
+    ['a timing class that is not the module’s', (dir) => rewrite(dir, 'directory.json', (v) => { const row = v.races[first(course.label)].editions[0]; row[7] = (row[7] + 1) % 5; }), /timing class|the edition as the directory has it/],
+    ['tier counts that are not the editions’', (dir) => rewrite(dir, 'directory.json', (v) => { const r = v.races[first(course.label)]; const t = Object.keys(r.tiers)[0]; r.tiers[t] += 1; }), /the live editions by tier/],
     ['a builder count that the files do not give', (dir) => { const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')); m.counts.readings += 1; fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(m)); }, /the manifest’s counts recounted/],
   ];
   let refused = 0;

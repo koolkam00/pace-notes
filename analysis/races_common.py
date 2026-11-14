@@ -99,7 +99,7 @@ def adapted_input(source: Path) -> dict:
     if provenance.get('manifest_sha256') != digest:
         fail('the adapted input: provenance.json names another MANIFEST.json than the one beside it')
     return {'release_tag': provenance.get('release_tag'), 'input_manifest_sha256': digest, 'input_as_of': manifest.get('created_at'),
-            'files': manifest.get('files', {}), 'adapter': manifest.get('adapter', {})}
+            'files': manifest.get('files', {}), 'adapter': manifest.get('adapter', {}), 'editions_without_rows': manifest.get('editions_without_rows')}
 
 
 def check_member(source: Path, files: dict, name: str) -> None:

@@ -102,6 +102,7 @@ class Fixture:
         self.timing = {('Alpha', 2019): 'chip', ('Alpha', 2020): 'gun', ('Gamma City', 2018): 'chip (clock if no chip)'}
         self.source_types = {}
         self.dates = {}
+        self.without = 3
         self.records_written = False
 
     def rows(self):
@@ -151,8 +152,9 @@ class Fixture:
             else:
                 category = 'unverified' if use == 'own_record' else use
                 listed.append({'city': label, 'year': year, 'category': category, 'reason': REASONS[category], 'rule': 'x', 'own_record': use == 'own_record'})
-        dump(self.source / 'EDITIONS.json', {'tag': TAG, 'editions': editions, 'not_written': []})
-        manifest = {'created_at': '2099-01-01T00:00:00Z', 'files': {name: {'sha256': rc.file_sha256(self.source / name)} for name in br.MEMBERS}}
+        dump(self.source / 'EDITIONS.json', {'tag': TAG, 'editions': editions, 'not_written': [{'release_city': f'Nowhere: Excluded {i}', 'year': 2000 + i} for i in range(self.without)]})
+        manifest = {'created_at': '2099-01-01T00:00:00Z', 'editions_without_rows': self.without,
+                    'files': {name: {'sha256': rc.file_sha256(self.source / name)} for name in br.MEMBERS}}
         dump(self.source / 'MANIFEST.json', manifest)
         manifest_sha = rc.file_sha256(self.source / 'MANIFEST.json')
         dump(self.source / 'provenance.json', {'release_tag': TAG, 'manifest_sha256': manifest_sha})
@@ -269,6 +271,13 @@ class Build(Base):
         self.assertEqual((row['year'], codes['tier'][row['tier']], codes['split_tier'][row['split_tier']], row['results'], row['finishes'],
                           codes['use'][row['use']], row['category'], codes['timing'][row['timing']], codes['review'][row['review']]),
                          (2020, 'stamped', 'splits', 130, 125, 'counted', None, 'gun', 'none'))
+        self.assertEqual(codes['timing'][self.directory['Alpha']['editions'][0][7]], 'chip')
+        self.assertEqual(codes['timing'][self.directory['Gamma City']['editions'][0][7]], 'chip_fallback')
+        self.assertEqual((codes['tier'], codes['timing']), (['stamped', 'stamped_weaker_source', 'partial', 'unverified', 'held_for_review'],
+                                                           ['chip', 'chip_fallback', 'gun', 'mixed', 'not_stated']))   # the order of lib/tiers.ts
+        self.assertEqual((self.directory['Alpha']['tiers'], self.directory['Gamma City']['tiers']),
+                         ({'stamped': 2, 'partial': 2, 'unverified': 1}, {'stamped': 1, 'stamped_weaker_source': 3, 'held_for_review': 1}))
+
         last = dict(zip(directory['edition_columns'], self.directory['Alpha']['editions'][3]))
         self.assertEqual((codes['use'][last['use']], codes['category'][last['category']]), ('recorded_times_only', 'partial_coverage'))
         self.assertEqual(codes['use'][dict(zip(directory['edition_columns'], self.directory['Berlin']['editions'][0]))['use']], 'own_record')
@@ -313,7 +322,7 @@ class Build(Base):
         gamma = self.files['race/gamma-city.json']
         medians = [linear_quantile([finish('Gamma City', year, i) for i in range(n)], .5) for year, n in ((2018, 1480), (2019, 1200), (2020, 400))]
         self.assertEqual(gamma['reading'], {'measure': 'median_finish_in_a_typical_verified_year', 'median_s': sorted(medians)[1], 'editions': 3, 'years': [2018, 2019, 2020],
-                                            'lowest_s': min(medians), 'highest_s': max(medians), 'finishes': 1480 + 1200 + 400, 'timing': {'net': 1, 'not_stated': 2}})
+                                            'lowest_s': min(medians), 'highest_s': max(medians), 'finishes': 1480 + 1200 + 400, 'timing': {'chip_fallback': 1, 'not_stated': 2}})
         self.assertIsNone(gamma['reading_note'])
         alpha = self.files['race/alpha.json']                                              # two stamped editions and a partial one: the partial one is not badge-verified
         self.assertEqual((alpha['reading'], alpha['reading_note']), (None, 'fewer_than_three_verified_editions_of_100_finishes'))
@@ -340,7 +349,9 @@ class Build(Base):
         self.assertEqual((summary['counted']['editions'], summary['counted']['races'], summary['counted']['finishes']), (3, 1, 120 + 125 + 140))
         self.assertEqual(summary['sensitivity']['verified_tiers_only']['editions'], 2)
         self.assertEqual(summary['editions']['by_use']['own_record']['editions'], 1)
-        self.assertEqual(summary['words']['tier']['stamped_weaker_source'], 'Verified, weaker source')
+        self.assertNotIn('words', summary)                                                 # the words are lib/tiers.ts's; the data carries codes
+        self.assertEqual({k: v['editions'] for k, v in summary['editions']['by_timing'].items()}, {'chip': 1, 'chip_fallback': 1, 'gun': 1, 'not_stated': len(rows) - 3})
+        self.assertEqual(summary['editions']['without_results']['n'], 3)
         self.assertTrue(all('what' in summary[key] for key in ('counted', 'finish_time_universe', 'duplicates', 'notes')))
 
     def test_the_edition_table_for_download(self):
@@ -348,13 +359,16 @@ class Build(Base):
         self.assertEqual(len(rows), sum(len(editions) for *_, editions in RACES))
         self.assertEqual(list(rows[0]), list(br.CSV_COLUMNS))
         row = next(r for r in rows if (r['race'], r['year']) == ('Alpha', '2022'))
-        self.assertEqual((row['tier_in_words'], row['official_count'], row['official_count_source'], row['coverage_pct'], row['use_in_words'], row['not_counted_category'],
-                          row['reason_not_counted'], row['hold_note'], row['release_key']),
-                         ('Partial results', '300', 'A statistics site', '50.0', 'Recorded times only', 'partial_coverage', 'Partial, outside the band.',
-                          'Re-pull on hold (source 403)', 'Somewhere: Alpha Marathon'))
+        self.assertEqual((row['tier_in_words'], row['official_count'], row['official_count_source'], row['coverage_pct'], row['use'], row['not_counted_category'],
+                          row['reason_not_counted'], row['hold_note'], row['release_key'], row['review']),
+                         ('Partial results', '300', 'A statistics site', '50.0', 'recorded_times_only', 'partial_coverage', 'Partial, outside the band.',
+                          'Re-pull on hold (source 403)', 'Somewhere: Alpha Marathon', ''))
         none = next(r for r in rows if (r['race'], r['year']) == ('Berlin', '2024'))
-        self.assertEqual((none['official_count'], none['official_count_source'], none['use_in_words'], none['split_tier_in_words']),
-                         ('', br.NO_INDEPENDENT_COUNT, 'Own-record view', 'Checkpoint times'))
+        self.assertEqual((none['official_count'], none['official_count_source'], none['use'], none['split_tier_in_words'], none['timing'], none['timing_in_words']),
+                         ('', br.NO_INDEPENDENT_COUNT, 'own_record', '', 'not_stated', ''))
+        gun = next(r for r in rows if (r['race'], r['year']) == ('Alpha', '2020'))
+        only = next(r for r in rows if (r['race'], r['year']) == ('Gamma City', '2018'))
+        self.assertEqual((gun['timing'], gun['timing_in_words'], only['split_tier_in_words'], only['tier_in_words']), ('gun', 'Gun times', 'Finish times only', 'Verified, weaker source'))
 
     def test_no_runner_detail_reaches_a_published_file(self):
         for name, data in self.raw.items():
@@ -437,7 +451,7 @@ class Rulings(Base):
         self.assertEqual((gamma['page'], gamma['results'], [row[8] for row in gamma['editions']]), ('row', 1500 + 1200 + 50 + 101, [0, 0, 2, 0, 0]))   # under 3,000 results without the copy
         self.assertEqual((files['directory.json']['set_aside_editions'], files['directory.json']['left_out'], gamma['years']), ([listed], [], [2018, 2022]))
         row = next(r for r in csv.DictReader(io.StringIO(files['editions.csv'].decode())) if (r['race'], r['year']) == ('Gamma City', '2020'))
-        self.assertEqual((row['review'], row['copy_of_race'], row['copy_of_year']), ('Set aside as a copy', 'Gamma City', '2019'))
+        self.assertEqual((row['review'], row['copy_of_race'], row['copy_of_year']), ('copy', 'Gamma City', '2019'))
         self.assertNotIn('race/gamma-city.json', files)
         self.assertEqual((files['summary.json']['duplicates']['editions_set_aside'], files['summary.json']['duplicates']['results_set_aside']), (1, 400))
         self.assertEqual(files['summary.json']['editions']['total']['n'], sum(len(e) for *_, e in RACES) - 1)
@@ -480,14 +494,14 @@ class Rulings(Base):
         files, built, _ = self.fx.build()
         directory, summary = files['directory.json'], files['summary.json']
         self.assertNotIn('Eta Run', [r['label'] for r in directory['races']])
-        self.assertEqual(directory['left_out'], [{'label': 'Eta Run', 'name': 'Eta Run', 'place': 'Eta', 'editions': [[2019, 4, 1, 40, 40, 2, 0, 3, 2]]}])
+        self.assertEqual(directory['left_out'], [{'label': 'Eta Run', 'name': 'Eta Run', 'place': 'Eta', 'editions': [[2019, 3, 1, 40, 40, 2, 0, 4, 2]]}])
         listed = [(r['label'], row[0]) for r in directory['races'] + directory['left_out'] for row in r['editions']]
         self.assertEqual((len(listed), len(set(listed))), (sum(len(e) for *_, e in self.fx.races), sum(len(e) for *_, e in self.fx.races)))   # every edition once
         self.assertEqual((summary['races']['total']['n'], summary['races']['left_out']['n'], summary['editions']['total']['n'], built['counts']['races_left_out']),
                          (6, 1, sum(len(e) for *_, e in RACES), 1))
         self.assertEqual(built['review']['races_left_out'], ['Eta Run'])
         rows = [r for r in csv.DictReader(io.StringIO(files['editions.csv'].decode())) if r['race'] == 'Eta Run']
-        self.assertEqual([(r['review'], r['copy_of_race'], r['copy_of_year'], r['reviewed_note']) for r in rows], [('Set aside as a copy', 'Epsilon Marathon', '2019', '')])
+        self.assertEqual([(r['review'], r['copy_of_race'], r['copy_of_year'], r['reviewed_note']) for r in rows], [('copy', 'Epsilon Marathon', '2019', '')])
 
     def test_a_noted_flag_withholds_a_page_and_a_ruling_allows_it(self):
         self.fx.notes['flags'] = [{'label': 'Gamma City', 'flag': 'virtual', 'evidence': 'Every edition of this made-up race was run remotely.'}]
@@ -665,7 +679,8 @@ class Recount(Base):
         receipt = races_recount.recount(fx.source, fx.out)
         self.assertEqual((receipt['status'], receipt['mismatches'], receipt['races_manifest_sha256']), ('pass', [], rc.file_sha256(fx.out / 'manifest.json')))
         self.assertEqual(receipt['compared'], {'editions': sum(len(e) for *_, e in RACES), 'editions_with_finishes': 3 + 4 + 5, 'editions_with_quartiles': 3 + 3 + 5,
-                                               'editions_with_a_share_of_women': meta['counts']['editions_with_a_share_of_women'], 'race_files': 4})
+                                               'editions_with_a_share_of_women': meta['counts']['editions_with_a_share_of_women'], 'race_files': 4,
+                                               'editions_without_results': 3})
         self.assertNotIn('qqfixture', json.dumps(receipt).lower())
 
         def tampered(name, change):
@@ -686,6 +701,8 @@ class Recount(Base):
         self.assertEqual((wrong['status'], [m['what'] for m in wrong['mismatches']]), ('fail', ['women']))
         wrong = tampered('directory.json', lambda v: v['races'][0]['editions'][0].__setitem__(4, v['races'][0]['editions'][0][4] - 1))
         self.assertEqual((wrong['status'], [(m['what'], m['label'], m['year']) for m in wrong['mismatches']]), ('fail', [('finishes', 'Alpha', 2019)]))
+        wrong = tampered('summary.json', lambda v: v['editions']['without_results'].update(n=4))
+        self.assertEqual((wrong['status'], [m['what'] for m in wrong['mismatches']]), ('fail', ['editions without results']))
         (fx.out / 'summary.json').write_text('{}')                                            # a file that is not the manifest's stops the recount
         with self.assertRaises(rc.RacesError):
             races_recount.recount(fx.source, fx.out)
@@ -701,8 +718,25 @@ class Constants(unittest.TestCase):
         self.assertEqual(set(br.TIMING_CLASS.values()), set(br.TIMINGS))
         self.assertEqual(set(br.TIER_WORDS), set(br.TIERS))
         # Plan decision D16, word for word.
-        self.assertEqual([br.TIER_WORDS[t] for t in br.TIERS], ['Verified', 'Verified, weaker source', 'Partial results', 'Held for review', 'Unverified'])
-        self.assertEqual(br.SPLIT_WORDS['finish_time_only'], 'Finish times only')
+        self.assertEqual([br.TIER_WORDS[t] for t in br.TIERS], ['Verified', 'Verified, weaker source', 'Partial results', 'Unverified', 'Held for review'])
+        self.assertEqual((br.FINISH_TIMES_ONLY, br.GUN_TIMES), ('Finish times only', 'Gun times'))
+
+    @unittest.skipUnless(shutil.which('node') and (rc.ROOT / 'node_modules' / 'typescript').exists(), 'node or typescript is not installed')
+    def test_the_lists_words_and_timing_classes_are_those_of_the_tier_module(self):
+        """lib/tiers.ts is the site's one module for tiers and timing; the builder's copies must say the same."""
+        script = (
+            "const ts = require('typescript'), fs = require('fs');"
+            "require.extensions['.ts'] = (m, f) => m._compile(ts.transpileModule(fs.readFileSync(f, 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).outputText, f);"
+            "const T = require('./lib/tiers.ts'); const texts = JSON.parse(process.argv[1]);"
+            "console.log(JSON.stringify({tiers: T.SHOWN_TIERS, badge: T.BADGE_TIERS, splits: T.SPLIT_TIERS, timings: T.TIMING_CLASSES, words: T.TIER_WORDS, only: T.FINISH_TIMES_ONLY, gun: T.GUN_TIMES,"
+            " classes: texts.map((t) => T.timingClass(t))}));")
+        texts = list(br.TIMING_CLASS)
+        result = subprocess.run(['node', '-e', script, json.dumps(texts)], capture_output=True, text=True, cwd=rc.ROOT)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        module = json.loads(result.stdout)
+        self.assertEqual((tuple(module['tiers']), tuple(module['badge']), tuple(module['splits']), tuple(module['timings'])), (br.TIERS, br.BADGE_TIERS, br.SPLIT_TIERS, br.TIMINGS))
+        self.assertEqual((module['words'], module['only'], module['gun']), (br.TIER_WORDS, br.FINISH_TIMES_ONLY, br.GUN_TIMES))
+        self.assertEqual(dict(zip(texts, module['classes'])), br.TIMING_CLASS)
 
     def test_quantile_values_are_published_exactly(self):
         self.assertEqual([br.seconds_value(v) for v in (9000.0, 9000.25, 9000.5, 9000.75)], [9000, 9000.25, 9000.5, 9000.75])

@@ -56,8 +56,9 @@ A stranger can recount every file from these and the inputs above.
 4. **Use.** `counted`: the edition policy counts the edition (it supplies pooled pacing statistics). `own_record`:
    not counted, but a record keeps its own pacing view. `recorded_times_only`: every other edition. `category` is the
    policy's category of an edition that is not counted.
-5. **Timing.** The producer's timing-basis string classed as `net` (chip or net time, with any stated fallback),
-   `gun`, `mixed` or `not_stated`. An unknown string stops the build.
+5. **Timing.** The producer's timing-basis text classed as [`lib/tiers.ts`](../lib/tiers.ts) classes it, the one list
+   for the whole site: `chip` (chip or net time), `chip_fallback` (chip or net time where the source has one, else gun
+   or clock time), `gun`, `mixed` or `not_stated`. An unknown text stops the build.
 6. **Flags.** From the registry's flags by rule: `virtual` (`virtual_in_title`), `cancelled` (`cancelled_in_title`),
    `placeholder` (`placeholder_place`), `not_a_marathon_title` (`no_marathon_word_in_title` together with
    `other_event_in_title`), `hand_cycle_title` (`title_names_a_hand_cycle_race`), `mountain_or_trail`
@@ -107,17 +108,26 @@ A stranger can recount every file from these and the inputs above.
 
 ## Tier words (plan decision D16) and what stays on `/methodology`
 
-Data files carry codes; the site draws the words with one module and links them to `/methodology#edition-tiers`.
-`summary.json` repeats the words (`words`) so that module and the edition table cannot drift apart.
+The words of a tier, a split tier and a timing class are those of [`lib/tiers.ts`](../lib/tiers.ts), the site's one
+module for them; `components/ui/TierTag.tsx` is the only file that draws them, and a label links to
+`/methodology#edition-tiers`. Data files carry codes. The builder is Python and cannot import the module, so it holds
+a copy of the lists, the words and the class of each timing text of this release, and the verifier holds every one of
+them to the module in the data: the code lists and their order, the words in the edition table, the class of every
+edition's timing text, and the tier counts of every race.
 
-| Code | Words |
+| Code | Words (from `lib/tiers.ts`) |
 | --- | --- |
 | `stamped` | Verified |
 | `stamped_weaker_source` | Verified, weaker source |
 | `partial` | Partial results |
-| `held_for_review` | Held for review |
 | `unverified` | Unverified |
+| `held_for_review` | Held for review |
 | split tier `finish_time_only` | Finish times only |
+| timing class `gun` | Gun times |
+
+An edition with checkpoint times, and one not timed by the gun, say nothing more. A list row's tier text is the
+module's `tierLine(race.tiers)` ("6 verified, weaker source · 10 held for review"): every race row carries `tiers`, its
+live editions by tier, in the shape that function takes.
 
 Official counts, their sources, coverage, hold notes, release notes and the reasons an edition is not counted are in
 `editions.csv` and `summary.json` (`notes`) only: they are for `/methodology` and the download (AGENTS rule 15, plan
@@ -137,7 +147,7 @@ release. A count never appears in a sentence: `what` says what a number counts.
   "edition_columns": ["year", "tier", "split_tier", "results", "finishes", "use", "category", "timing", "review"],
   "left_out": [...], "set_aside_editions": [...],
   "races": [ { "label": <registry label>, "name": <registry name>, "place": <registry place or null>, "page": "course", "slug": <registry slug>,
-               "years": [<first year>, <last year>], "results": <recorded results>, "finishes": <finishes>,
+               "years": [<first year>, <last year>], "results": <recorded results>, "finishes": <finishes>, "tiers": { <tier>: <editions> },
                "editions": [[<year>, 0, 0, <recorded results>, <finishes>, 0, null, 0, 0], ...] }, ... ] }
 ```
 
@@ -151,7 +161,9 @@ release. A count never appears in a sentence: `what` says what a number counts.
   review is not `copy`.
 - An edition row holds, in the order of `edition_columns`: the year; positions in `codes.tier`, `codes.split_tier`;
   recorded results; finishes; positions in `codes.use`, `codes.category` (or `null` when counted), `codes.timing` and
-  `codes.review` (`none`, `possible_duplicate`, `copy`). Rows are in year order.
+  `codes.review` (`none`, `possible_duplicate`, `copy`). Rows are in year order. `codes.tier`, `codes.split_tier` and
+  `codes.timing` are the module's lists, in its order.
+- `tiers`: the race's live editions by tier (`{ "stamped": 12, "partial": 2 }`), for `tierLine`.
 - `results` and `finishes` of a race leave out editions set aside as copies.
 
 ### `pages.json`: the short head
@@ -184,22 +196,24 @@ directory.
 ### `summary.json`: the counts a page prints
 
 `races` (`total`, `by_page`, `course_pages_kept`, `flagged`, `page_withheld_by_a_flag`, `left_out`), `editions` (`total` with
-results and finishes; `by_tier_and_split_tier`, `by_tier`, `by_split_tier` and `badge_verified`, each with races,
-editions, results and finishes; `by_use`; `not_counted_by_category`), `counted` (editions, races, finishes that pass the timing checks, sustained slowdowns and
+results and finishes; `by_tier_and_split_tier`, `by_tier`, `by_split_tier`, `by_timing` and `badge_verified`, each
+with races, editions, results and finishes; `by_use`; `not_counted_by_category`; `without_results`: the editions the
+release names that have no recorded result, read from the adapted input's list of editions with no written row), `counted` (editions, races, finishes that pass the timing checks, sustained slowdowns and
 their share, as the pipeline's evidence states them), `sensitivity` (the same without partial editions, without
 weaker-source editions, and by tier: lead ruling R5), `finish_time_universe`, `notes` (`hold`, `release`: the
-producer's notes with label, year and tier), `duplicates` and `words`. Counts leave out editions set aside as copies.
+producer's notes with label, year and tier) and `duplicates`. Counts leave out editions set aside as copies. The
+file holds no words for a tier: those are the module's.
 
 ### `editions.csv`: the edition table for `/methodology` and the download
 
 One row per edition, sorted by race label and year, with these columns: `race`, `race_name`, `place`, `year`, `tier`,
-`tier_in_words`, `split_tier`, `split_tier_in_words`, `recorded_results`, `finishes_with_a_time`, `official_count`,
-`official_count_source` (the source in words, or that there is no independent count), `official_source_type` (the
-producer's own words), `coverage_pct` (the release's finishes over the official count), `use`, `use_in_words`,
-`not_counted_category`, `reason_not_counted` (the policy's sentence), `timing`, `timing_basis` (the producer's
-words), `race_date`, `race_date_source` (`weather`: the weather row's date; `reviewed`: a reviewed entry resting on
+`tier_in_words` (the module's words), `split_tier`, `split_tier_in_words` ("Finish times only" or empty),
+`recorded_results`, `finishes_with_a_time`, `official_count`, `official_count_source` (the source in words, or that
+there is no independent count), `official_source_type` (the producer's own words), `coverage_pct` (the release's
+finishes over the official count), `use`, `not_counted_category`, `reason_not_counted` (the policy's sentence),
+`timing` (the class), `timing_in_words` ("Gun times" or empty), `timing_basis` (the producer's words), `race_date`, `race_date_source` (`weather`: the weather row's date; `reviewed`: a reviewed entry resting on
 the producer's own note; `external`: a reviewed entry resting on a cited source outside the release), `hold_note`,
-`release_note`, `review`, `copy_of_race` and `copy_of_year`
+`release_note`, `review` (empty, `possible_duplicate` or `copy`), `copy_of_race` and `copy_of_year`
 (the edition a copy copies), `reviewed_note` (the reviewed note of an edition of a listed pair: `one_list_two_years`,
 `one_race_two_keys` or `repeated_finish_times`), `release_key` (the release's own race key, the join to the release's
 tables; never shown as a name). The table holds every edition with rows, copies and the editions of left-out races
@@ -272,19 +286,21 @@ The runner-lookup builder skips the rows of those editions, so one run is not sh
 
 ## How it is verified
 
-- `python3 -m unittest analysis/test_races.py analysis/test_races_duplicates.py`: 44 tests on made-up releases (page
+- `python3 -m unittest analysis/test_races.py analysis/test_races_duplicates.py`: 45 tests on made-up releases (page
   types, the floors at their edge, readings and series, flags, aliases, rulings, a race left out, refusals of inputs
-  that do not belong together, each audit rule and kind, no runner detail in any output). Two of them build a
+  that do not belong together, each audit rule and kind, no runner detail in any output). One compares the builder's
+  lists, words and timing classes with `lib/tiers.ts`. Two build a
   made-up repository and run `scripts/verify-races.cjs --root` on it, self-test included, so the builder and the
   verifier, written apart, must agree on every rule.
 - `node scripts/verify-races.cjs [--root <repository>]` (in `npm run verify:data` once the family is built): from the repository alone it
   checks the manifest against the pins, recounts every edition against the policy, the pipeline's facts and the
-  cohort manifest, recomputes flags, aliases, page types, the finish-time universe, the floors, every reading, the
-  summary, the head and the edition table, requires the reviewed duplicate list to be the audit's, and refuses any
-  key or text outside its vocabularies. `--self-test` breaks 22 copies of the folder one way at a time and requires
-  each to be refused for the reason it names.
-- What the verifier cannot recount, because the finish times are not in the repository: an edition's finishes, its
-  quartiles and its women. [`analysis/races_recount.py`](../analysis/races_recount.py) recounts them from the adapted
+  cohort manifest, holds the code lists, the words and every timing class to `lib/tiers.ts`, recomputes flags,
+  aliases, page types, the finish-time universe, the floors, every reading, the summary, the head and the edition
+  table, requires the reviewed duplicate list to be the audit's, and refuses any key or text outside its
+  vocabularies. `--self-test` breaks 24 copies of the folder one way at a time and requires each to be refused for
+  the reason it names. It needs `typescript` from `node_modules` to read the module, as `scripts/verify-tiers.cjs` does.
+- What the verifier cannot recount, because the records are not in the repository: an edition's finishes, its
+  quartiles and its women, and the count of editions without results. [`analysis/races_recount.py`](../analysis/races_recount.py) recounts them from the adapted
   input with other code than the builder's (every finish time read into numpy, each edition sorted and interpolated
   by hand, where the builder asks DuckDB for the quantiles) and writes a receipt, `races-recount.json`, beside the
   audit's evidence. The verifier requires the receipt to be clean and bound to the published manifest, the adapted
@@ -307,12 +323,13 @@ input or an audit script changes, and review the notes when its list moves; run 
 ## What a page builder must know
 
 - Join on `label` and year. A race without `slug` has no page and its row is not a link.
-- Tier words come from the code, by the table above; a tier label links to `/methodology#edition-tiers`. No official
-  count, coverage, note or reason on any page but `/methodology`.
+- Tier words come from the code through `lib/tiers.ts`, and a list row's tier text from its `tierLine(race.tiers)`;
+  a tier label links to `/methodology#edition-tiers`. No official count, coverage, note or reason on any page but
+  `/methodology`.
 - A `null` reading is the fallback: no reading in any slot. Each sentence about a reading or an edition number is a
   nugget with its own guard and recount, as on every other page.
-- A reading may rest on years timed differently: `timing` counts them. Editions whose class is `gun` or
-  `not_stated` beside `net` years are not like for like.
+- A reading may rest on years timed differently: `timing` counts them by class. Years whose class is `gun` or
+  `not_stated` beside `chip` years are not like for like.
 - On a course page, the median finish by year in the story data counts finishes with nine checkpoint times; the race
   file counts every finish with a time. They differ for the same edition: show one, or name the measure.
 - A race flagged `hand_cycle_title` never has its title printed beside a runner. Flagged races have no page.
