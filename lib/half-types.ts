@@ -271,6 +271,21 @@ export type HalfLinked = {
     ns_keys_1: { pairs: number; w105_under_14400: number };
     one_per_person: { pairs: number; w105_under_14400: number };
     no_union_people: { pairs: number; extra_p50_s: number };
+    /**
+     * Ruling R6 of the adoption (lead decision D38, November 14, 2026): every reading built on set B, recounted on the
+     * pairs whose two rows both carry a link of tier high_elite or high. A published sensitivity for /methodology; no
+     * guard reads it. A value whose group is under the floor is null; the block is null when those pairs are under it.
+     */
+    high_links: null | {
+      pairs: number; share: number; marathon_editions: number;
+      multiple_p50: number; extra_p50_s: number; under_double: number; sustained: number;
+      /** The 1:45 window and the 4:00 mark (half.range). */
+      w105: { n: number; under_14400: number } | null;
+      /** Half band x marathon city strata of at least 20 pairs per sex (half.sexes). */
+      sexes: { strata: number; women_lower: number; women_std: number; men_std: number; diff_points: number } | null;
+      /** The flagship half's window by recorded sex (half.sexesGuess). */
+      flagship: { h: number; F: { n: number; sus: number } | null; M: { n: number; sus: number } | null };
+    };
     battery: { pooled_half_p50_s: number; members: HalfBatteryMember[]; leave_outs: Record<HalfLeaveOutParent, HalfLeaveOuts> };
     /** The median multiple in each 5-minute band of the all-pairs range. */
     multiple_by_band: { h: number; ratio_p50: number }[];

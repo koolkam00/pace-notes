@@ -393,6 +393,34 @@ function battery(p, { weakerSource, offRoad }) {
   return { pooled_half_p50_s: half, members, leave_outs: Object.fromEntries(Object.entries(D.LEAVE_OUTS).map(([id, clauses]) => [id, leaveOuts(p, masks[id], clauses, extra, half)])) };
 }
 
+/**
+ * Ruling R6 of the adoption (lead decision D38, 2026-11-14): every reading built on set B, recounted on the pairs whose
+ * two rows both carry a link of tier high_elite or high (`p.high`). A published sensitivity for /methodology; no guard
+ * reads it. A value whose group is under the floor is null; the block is null when the high-link pairs are under it.
+ */
+function highLinks(p, flagshipH) {
+  need(Array.isArray(p.high) && p.high.length === p.n, 'set B carries no link tiers');
+  const q = columns(subset(p, p.high));
+  if (q.n < MIN_CELL || new Set(q.ed).size < MIN_EDITIONS) return null;
+  const win = inWindow(q, 105);
+  const w = q.m.filter((_, i) => win[i]);
+  const out = {
+    pairs: q.n, share: D.sh(q.n / p.n), marathon_editions: new Set(q.ed).size,
+    multiple_p50: D.r(median50(q.m.map((m, i) => m / q.h[i])), 4), extra_p50_s: D.sec(median50(q.extra)), under_double: D.sh(q.extra.filter((x) => x < 0).length / q.n),
+    sustained: D.sh(q.sus.filter(Boolean).length / q.n),
+    w105: w.length >= MIN_CELL ? { n: w.length, under_14400: D.sh(w.filter((x) => x < 14400).length / w.length) } : null,
+  };
+  try { const s = sexes(q); out.sexes = { strata: s.strata, women_lower: s.women_lower, women_std: s.women_std, men_std: s.men_std, diff_points: s.diff_points }; }
+  catch (error) { if (!/no sex strata/.test(String(error.message))) throw error; out.sexes = null; }
+  const at = inWindow(q, flagshipH / 60);
+  out.flagship = { h: flagshipH };
+  for (const g of ['F', 'M']) {
+    const idx = []; for (let i = 0; i < q.n; i++) if (at[i] && q.sex[i] === g) idx.push(i);
+    out.flagship[g] = idx.length >= MIN_CELL ? { n: idx.length, sus: D.sh(idx.filter((i) => q.sus[i]).length / idx.length) } : null;
+  }
+  return out;
+}
+
 function checks(p, lists) {
   const ver = columns(subset(p, p.verified));
   const by = new Map();
@@ -415,6 +443,8 @@ function checks(p, lists) {
     ns_keys_1: { pairs: ns1.n, w105_under_14400: underGoalAt(ns1) },
     one_per_person: { pairs: one.n, w105_under_14400: underGoalAt(one) },
     no_union_people: { pairs: noUnion.n, extra_p50_s: D.sec(median50(noUnion.extra)) },
+    // The flagship half as the page picks it: the 5-minute band nearest the published pooled median half (half up).
+    high_links: highLinks(p, Math.floor(D.sec(median50(p.h)) / 300 + 0.5) * 300),
     battery: battery(p, lists),
   };
 }

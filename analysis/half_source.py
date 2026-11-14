@@ -75,24 +75,32 @@ RRL_COLUMNS = {'person_id': 'VARCHAR', 'confidence': 'VARCHAR', 'method': 'VARCH
                'source_db': 'VARCHAR', 'record_id': 'BIGINT', 'course_shortened_suspect': 'BOOLEAN'}
 PERSONS_COLUMNS = {'person_id': 'VARCHAR', 'sex': 'VARCHAR'}
 IDENTITY_COLUMNS = {'source_db': 'VARCHAR', 'record_id': 'BIGINT', 'distance': 'VARCHAR', 'runner_key': 'VARCHAR', 'status': 'VARCHAR',
-                    'person_id': 'VARCHAR'}
+                    'link_tier': 'VARCHAR', 'person_id': 'VARCHAR'}
 
 # ns_keys, like for like with runner links v1 and the v4 extract (docs/HALF_MARATHON.md, rule R3.2): distinct age keys per
 # normalized name and sex over every row of the link file with one; each linked row's block count (0 when its block holds
 # no age key, NULL when the row has no name or no sex M or F); a person's value, the largest over the person's rows whose
-# own confidence is high_elite, high or medium (either distance, whatever the record's status). Frozen: its sha256 is in
-# the extract's build table and in the manifest.
+# own confidence is high_elite, high or medium (either distance, whatever the record's status). It is the SQL of the v4
+# extract with one change that moves no value: `lr` holds the linked rows of the people set B can use (`cand`: the runner
+# keys with a keyed half of the half database and a keyed marathon) instead of every linked row of the link file, and
+# the blocks are counted only for the names those rows carry, still over every row of the link file (`rrl`). Frozen: its
+# sha256 is in the extract's build table and in the manifest.
 NS_KEYS_SQL = """
+CREATE TEMP TABLE lr0 AS
+  SELECT r.person_id, r.source_db AS db, r.distance, r.record_id, r.confidence, r.method, r.sex, r.finish_seconds,
+         r.city, r.year, r.name_norm
+  FROM rrl r SEMI JOIN cand c ON c.person_id = r.person_id;
+CREATE TEMP TABLE ns_names AS
+  SELECT DISTINCT name_norm, sex FROM lr0 WHERE name_norm IS NOT NULL AND sex IN ('M', 'F');
 CREATE TEMP TABLE ns_block AS
-  SELECT name_norm, sex, count(DISTINCT age_key) AS ns_keys FROM rrl
-  WHERE age_key IS NOT NULL AND name_norm IS NOT NULL AND sex IN ('M', 'F')
-  GROUP BY name_norm, sex;
+  SELECT r.name_norm, r.sex, count(DISTINCT r.age_key) AS ns_keys
+  FROM rrl r SEMI JOIN ns_names n ON n.name_norm = r.name_norm AND n.sex = r.sex
+  WHERE r.age_key IS NOT NULL
+  GROUP BY r.name_norm, r.sex;
 CREATE TEMP TABLE lr AS
-  SELECT r.person_id, r.source_db AS db, r.distance, r.record_id, r.confidence, r.method, r.sex,
-         r.finish_seconds, r.city, r.year,
+  SELECT r.person_id, r.db, r.distance, r.record_id, r.confidence, r.method, r.sex, r.finish_seconds, r.city, r.year,
          CASE WHEN r.name_norm IS NOT NULL AND r.sex IN ('M', 'F') THEN coalesce(b.ns_keys, 0) END AS ns_keys
-  FROM rrl r LEFT JOIN ns_block b ON b.name_norm = r.name_norm AND b.sex = r.sex
-  WHERE r.person_id IS NOT NULL;
+  FROM lr0 r LEFT JOIN ns_block b ON b.name_norm = r.name_norm AND b.sex = r.sex;
 CREATE TEMP TABLE person_ns AS
   SELECT person_id, max(ns_keys) AS ns_keys FROM lr WHERE confidence IN ('high_elite', 'high', 'medium') GROUP BY person_id;
 """
@@ -281,37 +289,41 @@ def link_tables(db, source: Source) -> dict:
     """The schema `l` (module docstring). Returns the counts the extract and the manifest record."""
     links, persons, identity = (lit(p.as_posix()) for p in (source.links, source.persons, source.identity))
     _require_columns(db, f'read_parquet({persons})', PERSONS_COLUMNS, PERSONS_FILE)
+    strong = ', '.join(lit(t) for t in STRONG)
+    # The identity file as a whole, in one pass: person ids are v5.1 ids, a keyed row's key is its person id and no other
+    # row has a key.
+    bad = db.execute(f"""SELECT count(*) FILTER (WHERE person_id IS NOT NULL AND NOT regexp_full_match(person_id, '{PERSON_ID}')),
+        count(*) FILTER (WHERE status = 'keyed' AND runner_key IS DISTINCT FROM person_id),
+        count(*) FILTER (WHERE status <> 'keyed' AND runner_key IS NOT NULL),
+        count(*) FILTER (WHERE status = 'keyed' AND (link_tier IS NULL OR link_tier NOT IN ({strong})))
+        FROM read_parquet({identity})""").fetchone()
+    if any(bad):
+        fail(f'the identity file: {bad[0]} person ids that are not v5.1 ids, {bad[1]} keyed rows whose key is not their person id, '
+             f'{bad[2]} rows with a key and another status, {bad[3]} keyed rows whose link tier is below medium')
+    # The people set B can use: a runner key with a keyed half of the half database and a keyed marathon.
+    db.execute(f"""CREATE TEMP TABLE cand AS SELECT person_id FROM read_parquet({identity}) WHERE status = 'keyed'
+        GROUP BY person_id HAVING bool_or(distance = 'half' AND source_db = 'half') AND bool_or(distance = 'marathon')""")
     db.execute(f"CREATE TEMP VIEW rrl AS SELECT {', '.join(RRL_COLUMNS)} FROM read_parquet({links})")
     for statement in NS_KEYS_SQL.strip().split(';'):
         if statement.strip():
             db.execute(statement)
-    db.execute(f"""CREATE TEMP TABLE ident AS SELECT source_db AS db, distance, record_id, runner_key, status, person_id
-        FROM read_parquet({identity}) WHERE person_id IS NOT NULL""")
-    bad = db.execute(f"""SELECT count(*) FILTER (WHERE NOT regexp_full_match(person_id, '{PERSON_ID}')),
-        count(*) FILTER (WHERE status = 'keyed' AND runner_key IS DISTINCT FROM person_id),
-        count(*) FILTER (WHERE status <> 'keyed' AND runner_key IS NOT NULL) FROM ident""").fetchone()
-    if any(bad):
-        fail(f'the identity file: {bad[0]} person ids that are not v5.1 ids, {bad[1]} keyed rows whose key is not their person id, '
-             f'{bad[2]} rows with a key and another status')
-    # Every linked row of the link file has its identity row with the same person id, and the reverse.
-    differ = db.execute("""SELECT count(*) FROM lr FULL JOIN ident i ON i.db = lr.db AND i.record_id = lr.record_id AND i.distance = lr.distance
-        WHERE lr.person_id IS DISTINCT FROM i.person_id""").fetchone()[0]
-    if differ:
-        fail(f'{differ} rows carry another person id in the identity file than in the pinned link file')
-    strong = ', '.join(lit(t) for t in STRONG)
-    weak_keyed = db.execute(f"""SELECT count(*) FROM lr JOIN ident i ON i.db = lr.db AND i.record_id = lr.record_id AND i.distance = lr.distance
-        WHERE i.status = 'keyed' AND lr.confidence NOT IN ({strong})""").fetchone()[0]
-    if weak_keyed:
-        fail(f'{weak_keyed} keyed rows of the identity file carry a link below medium in the link file')
+    db.execute(f"""CREATE TEMP TABLE ident AS SELECT i.source_db AS db, i.distance, i.record_id, i.status, i.link_tier, i.person_id
+        FROM read_parquet({identity}) i SEMI JOIN cand c ON c.person_id = i.person_id""")
+    # For those people, every linked row of the link file has its identity row, with the same person id and the same
+    # tier (lead ruling D38 reads the tier from the identity file: it is the link file's confidence), and the reverse.
+    n_lr, n_ident = (db.execute(f'SELECT count(*) FROM {t}').fetchone()[0] for t in ('lr', 'ident'))
+    same = db.execute("""SELECT count(*) FROM lr JOIN ident i ON i.db = lr.db AND i.record_id = lr.record_id AND i.distance = lr.distance
+        WHERE i.person_id = lr.person_id AND i.link_tier IS NOT DISTINCT FROM lr.confidence""").fetchone()[0]
+    if not (n_lr == n_ident == same):
+        fail(f'the identity file and the pinned link file disagree on the linked rows of the people set B can use: {n_lr:,} link rows, '
+             f'{n_ident:,} identity rows, {same:,} with the same person id and tier')
     unions = ' OR '.join(f"lr.method LIKE '%{u}%'" for u in UNION_METHODS)
     db.execute("ATTACH ':memory:' AS l")
     db.execute(f"""CREATE TABLE l.people AS
-        WITH keyed AS (SELECT i.person_id, bool_or(i.distance = 'half' AND i.db = 'half') AS half, bool_or(i.distance = 'marathon') AS marathon
-                       FROM ident i WHERE i.status = 'keyed' GROUP BY 1),
-             u AS (SELECT lr.person_id, bool_or({unions}) AS in_union FROM lr GROUP BY 1)
-        SELECT k.person_id, p.sex, n.ns_keys, u.in_union::INTEGER AS in_union
-        FROM keyed k JOIN read_parquet({persons}) p USING (person_id) JOIN person_ns n USING (person_id) JOIN u USING (person_id)
-        WHERE k.half AND k.marathon AND p.sex IN ('M', 'F')""")
+        WITH u AS (SELECT lr.person_id, bool_or({unions}) AS in_union FROM lr GROUP BY 1)
+        SELECT c.person_id, p.sex, n.ns_keys, u.in_union::INTEGER AS in_union
+        FROM cand c JOIN read_parquet({persons}) p USING (person_id) JOIN person_ns n USING (person_id) JOIN u USING (person_id)
+        WHERE p.sex IN ('M', 'F')""")
     db.execute(f"""CREATE TABLE l.links AS
         SELECT lr.person_id, lr.db, lr.distance, lr.record_id, lr.confidence, (i.status = 'keyed')::INTEGER AS keyed,
                (lr.method LIKE '%{VARIANT_UNION}%')::INTEGER AS variant_union, lr.finish_seconds AS finish_s, lr.sex, lr.city, lr.year::INTEGER AS year,
@@ -327,6 +339,9 @@ def link_tables(db, source: Source) -> dict:
         'a person ns_keys that is not the largest of its strong rows': f"""SELECT count(*) FROM l.people p JOIN (
             SELECT person_id, max(ns_keys) AS m FROM l.links WHERE confidence IN ({strong}) GROUP BY 1) x USING (person_id)
             WHERE x.m IS DISTINCT FROM p.ns_keys""",
+        'people without a keyed half of the half database and a keyed marathon': """SELECT count(*) FROM l.people p WHERE NOT EXISTS (
+            SELECT 1 FROM l.links k WHERE k.person_id = p.person_id AND k.keyed = 1 AND k.db = 'half' AND k.distance = 'half')
+            OR NOT EXISTS (SELECT 1 FROM l.links k WHERE k.person_id = p.person_id AND k.keyed = 1 AND k.distance = 'marathon')""",
     }
     for what, sql in zero.items():
         n = db.execute(sql).fetchone()[0]
@@ -338,7 +353,8 @@ def link_tables(db, source: Source) -> dict:
     counts['links_keyed'] = db.execute('SELECT count(*) FROM l.links WHERE keyed = 1').fetchone()[0]
     counts['links_variant_union'] = db.execute('SELECT count(*) FROM l.links WHERE variant_union = 1').fetchone()[0]
     counts['people_in_union'] = db.execute('SELECT count(*) FROM l.people WHERE in_union = 1').fetchone()[0]
-    for t in ('ns_block', 'lr', 'person_ns', 'ident'):
+    counts['runner_keys_with_both_distances'] = db.execute('SELECT count(*) FROM cand').fetchone()[0]
+    for t in ('lr0', 'ns_names', 'ns_block', 'lr', 'person_ns', 'ident', 'cand'):
         db.execute(f'DROP TABLE {t}')
     db.execute('DROP VIEW rrl')
     return {k: int(v) for k, v in counts.items()}

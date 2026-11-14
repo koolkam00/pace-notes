@@ -117,7 +117,7 @@ class Parsing(unittest.TestCase):
 
     def test_subrace_pattern_is_whole_word(self):
         import re
-        pattern = re.compile(hq.rules_of()['nonrun_subrace_re'])
+        pattern = re.compile(hq.rules_of(hq.TAG_1904)['nonrun_subrace_re'])
         self.assertIsNone(pattern.search('media maratón de tordesillas'))
         for name in ('10k sillas de ruedas', 'half wheelchair', 'mtb 21k', 'wch half marathon', 'categorías especiales'):
             self.assertIsNotNone(pattern.search(name), name)
@@ -209,7 +209,7 @@ class Rules(unittest.TestCase):
         ids['bib_text'] = s.record('Oslo Half', 2016, 7002, bib='A12')      # a bib that is no integer: outside too
         s.close()
         cls.db = hc.connect(half=s.path)
-        cls.result = hq.apply(cls.db, compare=False)
+        cls.result = hq.apply(cls.db, hq.TAG_1904, compare=False)
         cls.rule = dict(cls.db.execute('SELECT record_id, rule FROM hr').fetchall())
         cls.r7 = dict(cls.db.execute('SELECT record_id, r7_block FROM hr').fetchall())
 
@@ -302,91 +302,98 @@ class Rules(unittest.TestCase):
         self.assertEqual(lists['off_road_labels'], set(doc['battery']['off_road_labels']))
 
     def test_off_road_labels_must_be_verified_labels(self):
-        labels = hq.REVIEWED_HALF_POLICIES[hq.TAG]['battery']['off_road_labels']
+        labels = hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['battery']['off_road_labels']
         m = pd.DataFrame({'city': [*labels, 'Oslo Half'], 'use_finish': True, 'status_group': 'verified'})
-        hq.check_battery_lists(m)
+        hq.check_battery_lists(m, hq.TAG_1904)
         for broken in (m.iloc[1:], m.assign(status_group=['unverified'] + ['verified'] * len(labels)), m.assign(use_finish=[False] + [True] * len(labels))):
             with self.assertRaisesRegex(hc.HalfError, 'off-road label'):
-                hq.check_battery_lists(broken)
+                hq.check_battery_lists(broken, hq.TAG_1904)
 
 
 def pid(i: int) -> str:
-    """A v4 person id (^p4_[0-9a-f]{16}$)."""
-    return f'p4_{i:016x}'
+    """A v5.1 person id (^p51_[0-9a-f]{16}$)."""
+    return f'p51_{i:016x}'
 
 
 class SetB(unittest.TestCase):
-    """The pairing rules (lead rulings L) on a synthetic links extract and marathon side."""
+    """The pairing rules (docs/HALF_MARATHON.md, rule R3 of the combined release) on synthetic link tables and a
+    synthetic marathon side."""
 
-    def build(self, people, halves, marathons, link_editions=None, coverage=False):
-        """people: (person, sex, tier, ns_keys); halves: (person, record, date or None, flags) with flags 'r7', 'suspect',
-        'noage' (the row's own confidence low_noage), 'link' (a link edition); marathons: (person, record, date[, flags])
-        with flag 'noage'."""
+    def build(self, people, halves, marathons, coverage=False):
+        """people: (person, sex, ns_keys); halves: (person, record, date or None, flags) with flags 'r7', 'suspect',
+        'weak' (the row's own confidence low_noage, so it is not keyed), 'unkeyed' (a strong confidence, not keyed: a row a
+        row rule leaves out), 'variant' (keyed, joined by a variant union) and 'high' (the link's tier; else medium);
+        marathons: (person, record, date[, flags]) with the same flags (their tier is high unless 'medium')."""
         db = hc.connect()
         db.execute("ATTACH ':memory:' AS l")
-        db.execute('CREATE TABLE l.people (person_id TEXT, sex TEXT, tier TEXT, ns_keys INT, key_type TEXT, in_union INT, k INT, k_block TEXT)')
-        db.execute('CREATE TABLE l.links (person_id TEXT, db TEXT, record_id BIGINT, confidence TEXT, finish_s BIGINT, sex TEXT, city TEXT, year INT, ns_keys INT)')
-        for p, sex, tier, ns in people:
-            db.execute('INSERT INTO l.people VALUES (?, ?, ?, ?, ?, 0, 1, ?)', [p, sex, tier, ns, 'yob', 'b' * 16])
+        db.execute('CREATE TABLE l.people (person_id TEXT, sex TEXT, ns_keys INT, in_union INT)')
+        db.execute('CREATE TABLE l.links (person_id TEXT, db TEXT, distance TEXT, record_id BIGINT, confidence TEXT, keyed INT, variant_union INT, '
+                   'finish_s BIGINT, sex TEXT, city TEXT, year INT, ns_keys INT)')
+        for person, sex, ns in people:
+            db.execute('INSERT INTO l.people VALUES (?, ?, ?, 0)', [person, sex, ns])
         db.execute("""CREATE TEMP TABLE hfin (record_id BIGINT, edition_id BIGINT, city VARCHAR, year INTEGER, race VARCHAR, race_date DATE,
             status_group VARCHAR, sex VARCHAR, use_sex BOOLEAN, finish_s DOUBLE, r7_block BOOLEAN, date_suspect BOOLEAN)""")
-        link = set()
-        for p, rid, day, flags in halves:
-            db.execute('INSERT INTO l.links VALUES (?, ?, ?, ?, 6300, NULL, ?, 2022, 1)', [p, 'half', rid, 'low_noage' if 'noage' in flags else 'medium', 'H'])
+
+        def link(person, db_name, distance, rid, flags, default_tier, finish):
+            tier = 'low_noage' if 'weak' in flags else 'high' if 'high' in flags else 'medium' if 'medium' in flags else default_tier
+            keyed = 0 if ('weak' in flags or 'unkeyed' in flags) else 1
+            db.execute('INSERT INTO l.links VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 2022, 1)',
+                       [person, db_name, distance, rid, tier, keyed, 1 if 'variant' in flags else 0, finish, 'X'])
+
+        for person, rid, day, flags in halves:
+            link(person, 'half', 'half', rid, flags, 'medium', 6300)
             db.execute('INSERT INTO hfin VALUES (?, ?, ?, ?, ?, ?, ?, NULL, false, ?, ?, ?)',
                        [rid, rid, 'H', 2022, 'H', day, 'verified', 6300.0, 'r7' in flags, 'suspect' in flags])
-            if 'link' in flags:
-                link.add(rid)
         editions, dates, ids, ed = [], {}, [], []
         for i, row in enumerate(marathons):
-            p, rid, day = row[:3]
-            flags = row[3] if len(row) > 3 else ''
-            db.execute('INSERT INTO l.links VALUES (?, ?, ?, ?, 14000, NULL, ?, 2022, 1)', [p, 'full', rid, 'low_noage' if 'noage' in flags else 'high', f'M{i}'])
+            person, rid, day = row[:3]
+            link(person, 'full', 'marathon', rid, row[3] if len(row) > 3 else '', 'high', 14000)
             editions.append({'city': f'M{i}', 'year': 2022, 'race': f'M{i}'})
-            dates[i] = day.isoformat()
+            if day is not None:
+                dates[i] = day.isoformat()
             ids.append(rid)
             ed.append(i)
-        m = Marathons(np.array(ids, np.uint64), np.array(ed, np.int32), np.ones(len(ids), np.uint8), np.full(len(ids), 14000.0),
-                      np.zeros(len(ids), bool), editions, np.ones(len(ids), np.int64), dates, 'x', {}, 'y')
-        le = link_editions or {'link_partial': frozenset(link), 'retimed': frozenset()}
-        pairs = half_pairs.build(db, m, 'fixture', link_editions=le, check=False)
+        m = Marathons(np.array(ids, np.int64), np.array(ed, np.int32), np.ones(len(ids), np.uint8), np.full(len(ids), 14000.0),
+                      np.zeros(len(ids), bool), editions, np.ones(len(ids), np.int64), dates, 'x', {})
+        pairs = half_pairs.build(db, m, 'fixture', check=False)
         got = {(r.person_id, int(r.m_record_id)): int(r.h_record_id) for r in pairs.itertuples()}
         if coverage:
-            return got, pairs, half_pairs.coverage(db, m, link_editions=le)
+            return got, pairs, half_pairs.coverage(db, m)
         return got, pairs
 
     def test_pairing_rules(self):
         d = date(2022, 6, 1)
         before = lambda days: d - timedelta(days=days)
         P = {i: pid(i) for i in range(1, 30)}
-        people = [(P[1], 'F', 'medium', 1), (P[2], 'M', 'high', 2), (P[3], 'M', 'medium', 1), (P[4], 'M', 'medium', 1),
-                  (P[5], 'F', 'medium', 3), (P[6], 'M', 'medium', 4), (P[7], 'M', 'low', 1), (P[8], 'F', 'medium', 1), (P[9], 'M', 'medium', 1),
-                  (P[10], 'M', 'medium', 1), (P[11], 'F', 'high', 1), (P[12], 'M', 'medium', 0), (P[13], 'M', 'medium', 1),
-                  (P[14], 'F', 'medium', 1), (P[15], 'M', 'high', 1), (P[16], 'F', 'high_elite', 1), (P[17], 'M', 'medium', 2), (P[18], 'F', 'medium', 1)]
+        people = [(P[1], 'F', 1), (P[2], 'M', 2), (P[3], 'M', 1), (P[4], 'M', 1), (P[5], 'F', 3), (P[6], 'M', 4), (P[7], 'M', 1), (P[8], 'F', 1),
+                  (P[9], 'M', 1), (P[10], 'M', 1), (P[11], 'F', 1), (P[12], 'M', 0), (P[13], 'M', 1), (P[14], 'F', 1), (P[15], 'M', 1),
+                  (P[16], 'F', 1), (P[17], 'M', 2), (P[18], 'F', 1), (P[19], 'M', 1), (P[20], 'F', 1)]
         halves = [
             (P[1], 11, before(21), ''), (P[1], 12, before(54), ''), (P[1], 13, before(20), ''),
             (P[2], 21, before(112), ''), (P[2], 22, before(113), ''),
             (P[3], 31, before(30), ''), (P[3], 32, before(30), ''),
             (P[4], 41, before(31), ''),
             (P[5], 51, before(40), 'suspect'), (P[5], 52, before(41), 'r7'),
-            (P[6], 61, before(30), ''), (P[7], 71, before(30), ''),
+            (P[6], 61, before(30), ''), (P[7], 71, before(30), 'unkeyed'),
             (P[8], 81, before(60), ''),
             (P[9], 91, None, ''),
-            (P[10], 101, before(30), 'noage'),
-            (P[11], 111, before(30), ''), (P[11], 112, before(30), 'noage'),
+            (P[10], 101, before(30), 'weak'),
+            (P[11], 111, before(30), ''), (P[11], 112, before(30), 'weak'),
             (P[12], 121, before(30), ''),
-            (P[13], 131, before(30), 'link'),
-            (P[14], 141, before(30), ''), (P[14], 142, before(30), 'link'),
+            (P[13], 131, before(30), 'variant'),
+            (P[14], 141, before(30), ''), (P[14], 142, before(30), 'variant'),
             (P[15], 151, before(30), ''),
-            (P[16], 161, before(30), ''),
+            (P[16], 161, before(30), 'high'),
             (P[17], 171, before(40), ''),
             (P[18], 181, before(40), ''),
+            (P[19], 191, before(30), ''),
+            (P[20], 201, before(30), ''),
         ]
         marathons = [(P[1], 101, d), (P[2], 201, d), (P[3], 301, d), (P[4], 401, d), (P[4], 402, before(31)), (P[5], 501, d),
                      (P[6], 601, d), (P[7], 701, d), (P[8], 801, d), (P[8], 802, d - timedelta(days=30)), (P[9], 901, d),
-                     (P[10], 1001, d), (P[11], 1101, d), (P[12], 1201, d), (P[12], 1202, before(30), 'noage'), (P[13], 1301, d),
-                     (P[14], 1401, d), (P[15], 1501, d, 'noage'), (P[16], 1601, d), (P[17], 1701, d), (P[17], 1702, d + timedelta(days=10)),
-                     (P[18], 1801, d), (P[18], 1802, d - timedelta(days=5), 'noage')]
+                     (P[10], 1001, d), (P[11], 1101, d), (P[12], 1201, d), (P[12], 1202, before(30), 'weak'), (P[13], 1301, d),
+                     (P[14], 1401, d), (P[15], 1501, d, 'weak'), (P[16], 1601, d), (P[17], 1701, d), (P[17], 1702, d + timedelta(days=10)),
+                     (P[18], 1801, d), (P[18], 1802, d - timedelta(days=5), 'weak'), (P[19], 1901, d, 'variant'), (P[20], 2001, None)]
         got, pairs = self.build(people, halves, marathons)
         self.assertEqual(got[(P[1], 101)], 11, 'the nearest earlier half from 21 days (20 days is out)')
         self.assertEqual(got[(P[2], 201)], 21, '112 days is in, 113 out')
@@ -394,54 +401,56 @@ class SetB(unittest.TestCase):
         self.assertNotIn((P[4], 401), got, 'a half on the date of one of the person’s marathons never pairs')
         self.assertNotIn((P[5], 501), got, 'date suspects and the R7 block never pair')
         self.assertNotIn((P[6], 601), got, 'ns_keys over 3 is out')
-        self.assertNotIn((P[7], 701), got, 'the low tier is out')
+        self.assertNotIn((P[7], 701), got, 'a row the identity file does not key never pairs, whatever its confidence')
         self.assertEqual((got[(P[8], 801)], got[(P[8], 802)]), (81, 81), 'one pair per person and marathon; a half may serve two')
         self.assertNotIn((P[9], 901), got, 'undated halves enter no window')
         self.assertNotIn((P[10], 1001), got, 'a half attached without an age never pairs')
-        self.assertNotIn((P[11], 1101), got, 'a second half on the date blocks, whatever its own confidence')
-        self.assertNotIn((P[12], 1201), got, 'a marathon on the half’s date blocks, whatever its own confidence')
-        self.assertNotIn((P[13], 1301), got, 'a half in a link edition never pairs')
-        self.assertNotIn((P[14], 1401), got, 'a half in a link edition on the same date still blocks')
+        self.assertNotIn((P[11], 1101), got, 'a second half on the date blocks, whatever its own confidence or status')
+        self.assertNotIn((P[12], 1201), got, 'a marathon on the half’s date blocks, whatever its own confidence or status')
+        self.assertNotIn((P[13], 1301), got, 'a half joined by a variant union never pairs')
+        self.assertNotIn((P[14], 1401), got, 'a variant-union half on the same date still blocks')
         self.assertNotIn((P[15], 1501), got, 'a marathon attached without an age never pairs')
-        self.assertEqual(got[(P[16], 1601)], 161, 'high_elite counts as high')
+        self.assertEqual(got[(P[16], 1601)], 161)
         self.assertEqual((got[(P[17], 1701)], got[(P[17], 1702)]), (171, 171))
         self.assertEqual(got[(P[18], 1801)], 181)
+        self.assertNotIn((P[19], 1901), got, 'a marathon joined by a variant union never pairs')
+        self.assertNotIn((P[20], 2001), got, 'a marathon without a race date supplies no pair')
         self.assertEqual(len(got), 8)
         s = half_pairs.summary(pairs)
         self.assertEqual(s['halves_in_two_or_more_pairs'], 2, 'halves 81 and 171 each serve two pairs')
         self.assertEqual(s['pairs_with_a_close_marathon'], 3, '1701 and 1702 are 10 days apart; 1802 (attached without an age) is 5 days from 1801')
         self.assertEqual([s['pairs'], s['people'], s['women_pairs'], s['men_pairs']], [8, 6, 5, 3])
-        self.assertEqual(set(pairs.tier), {'medium', 'high', 'high_elite'})
+        # Ruling R6: a pair is a high-links pair only when both rows carry a link of tier high_elite or high.
+        high = {(r.person_id, int(r.m_record_id)) for r in pairs.itertuples() if r.high_links}
+        self.assertEqual(high, {(P[16], 1601)}, 'only the pair whose half and marathon links are both high')
 
-    def test_the_link_rule_refuses_ids_that_are_not_v4(self):
-        with self.assertRaisesRegex(hc.HalfError, 'without a v4 person id'):
-            self.build([('p1', 'F', 'medium', 1)], [('p1', 11, date(2022, 5, 1), '')], [('p1', 101, date(2022, 6, 1))])
+    def test_the_link_rule_refuses_ids_that_are_not_v51(self):
+        with self.assertRaisesRegex(hc.HalfError, 'without a v5.1 person id'):
+            self.build([('p4_0000000000000001', 'F', 1)], [('p4_0000000000000001', 11, date(2022, 5, 1), '')], [('p4_0000000000000001', 101, date(2022, 6, 1))])
 
     def test_coverage_counts_rows_that_may_pair(self):
         d = date(2022, 6, 1)
-        people = [(pid(1), 'F', 'medium', 1), (pid(2), 'M', 'medium', 1), (pid(3), 'M', 'medium', 5), (pid(4), 'F', 'high', 1)]
-        halves = [(pid(1), 11, d - timedelta(days=300), ''), (pid(2), 21, d - timedelta(days=30), 'noage'), (pid(3), 31, d, ''),
-                  (pid(4), 41, d, 'link')]
-        marathons = [(pid(1), 101, d), (pid(2), 201, d), (pid(3), 301, d), (pid(4), 401, d), (pid(1), 102, d, 'noage')]
+        people = [(pid(1), 'F', 1), (pid(2), 'M', 1), (pid(3), 'M', 5), (pid(4), 'F', 1)]
+        halves = [(pid(1), 11, d - timedelta(days=300), ''), (pid(2), 21, d - timedelta(days=30), 'weak'), (pid(3), 31, d, ''),
+                  (pid(4), 41, d, 'variant')]
+        marathons = [(pid(1), 101, d), (pid(2), 201, d), (pid(3), 301, d), (pid(4), 401, d), (pid(1), 102, d, 'weak')]
         _, _, cov = self.build(people, halves, marathons, coverage=True)
         linked = {c['city']: c['linked'] for c in cov}
         self.assertEqual(linked, {'M0': 1, 'M1': 0, 'M2': 0, 'M3': 0, 'M4': 0},
-                         'only a strong marathon row, of a person with a strong row on a usable half, counts as linked')
+                         'only a keyed marathon row that is not a variant-union row, of a runner with such a row on a usable half, counts as linked')
 
-    def test_marathon_dates_come_from_the_evidence(self):
-        editions = [{'city': 'A', 'year': 2022}, {'city': 'B', 'year': 2022}]
-        weather = {'editions': [{'city': 'A', 'year': 2022, 'date': '2022-10-09'}, {'city': 'B', 'year': 2022, 'date': '2022-04-03'}]}
-        self.assertEqual(_dates(editions, np.array([0, 1]), weather), {0: '2022-10-09', 1: '2022-04-03'})
+    def test_marathon_dates_come_from_the_cohort_manifest(self):
+        editions = [{'city': 'A', 'year': 2022, 'race_date': '2022-10-09'}, {'city': 'B', 'year': 2022, 'race_date': '2022-04-03'}]
+        self.assertEqual(_dates(editions, np.array([0, 1])), {0: '2022-10-09', 1: '2022-04-03'})
         with self.assertRaises(hc.HalfError):
-            _dates(editions, np.array([0, 1]), {'editions': [{'city': 'A', 'year': 2022, 'date': '2021-10-09'}]})
-        # November 4, 2026: an edition without a weather row has no date; it passes only on the reviewed undated list,
-        # and a wrong date still fails there
-        only_a = {'editions': [{'city': 'A', 'year': 2022, 'date': '2022-10-09'}]}
+            _dates([{'city': 'A', 'year': 2022, 'race_date': '2021-10-09'}], np.array([0]))
+        # An edition without a race date passes only on the reviewed undated list, and a wrong date still fails there.
+        only_a = [editions[0], {'city': 'B', 'year': 2022, 'race_date': None}]
         with self.assertRaises(hc.HalfError):
-            _dates(editions, np.array([0, 1]), only_a)
-        self.assertEqual(_dates(editions, np.array([0, 1]), only_a, [['B', 2022]]), {0: '2022-10-09'})
+            _dates(only_a, np.array([0, 1]))
+        self.assertEqual(_dates(only_a, np.array([0, 1]), [['B', 2022]]), {0: '2022-10-09'})
         with self.assertRaises(hc.HalfError):
-            _dates(editions, np.array([0, 1]), {'editions': [{'city': 'A', 'year': 2022, 'date': '2021-10-09'}]}, [['A', 2022]])
+            _dates([{'city': 'A', 'year': 2022, 'race_date': '2021-10-09'}], np.array([0]), [['A', 2022]])
 
 
 def synthetic_pairs(n=16000, seed=3, multiple=2.2):
@@ -461,6 +470,8 @@ def synthetic_pairs(n=16000, seed=3, multiple=2.2):
     frame['h_label'] = np.where(frame.h_edition_id % 40 == 7, 'Trail Half', 'H' + (frame.h_edition_id % 25).astype(str))
     frame['m_ed'] = frame.m_city + ' ' + frame.m_year.astype(str)
     frame['verified'] = frame.h_status_group == 'verified'
+    # Ruling R6: about 60% of the pairs have a high link on both rows (half_pairs.build sets the flag from the link tiers).
+    frame['high_links'] = np.random.default_rng(seed + 1).random(n) < 0.6
     return frame
 
 
@@ -1785,7 +1796,7 @@ class Policy1904(unittest.TestCase):
 
     def editions(self, path, rules=None):
         db = hc.connect(half=path)
-        rules = rules or hq.rules_of(hq.TAG)
+        rules = rules or hq.rules_of(hq.TAG_1904)
         hq.record_rules(db, rules)
         m = hq.edition_rules(hq.edition_table(db, rules), rules)
         db.close()
@@ -1806,7 +1817,7 @@ class Policy1904(unittest.TestCase):
         self.assertFalse(m.loc[('New York', 2018), 'use_finish'])
 
     def test_the_virtual_rule_and_its_exceptions(self):
-        rule = hq.rules_of(hq.TAG)['virtual']
+        rule = hq.rules_of(hq.TAG_1904)['virtual']
         for label, want in (('Anywhere USA, OH: Columbus Half Marathon 10K + 5K', True), ('anywhere: x', True),
                             ('Houston, TX: Koala Health & Wellness Houston VIRTUAL Half Marathon & 10K', True),
                             ('Phalempin:  Semi-Marathon de Phalempin Virtuel', True), ('Berlin: Virtuelle Halbmarathon', True),
@@ -1818,7 +1829,7 @@ class Policy1904(unittest.TestCase):
             db = hc.connect(half=path)
             eid = db.execute("SELECT id FROM h.edition_meta WHERE city LIKE 'Austin%'").fetchone()[0]
             db.close()
-            rules = {**hq.rules_of(hq.TAG), 'not_virtual': ((eid, 'reviewed: a road race'),)}
+            rules = {**hq.rules_of(hq.TAG_1904), 'not_virtual': ((eid, 'reviewed: a road race'),)}
             m = self.editions(path, rules)
         self.assertTrue(pd.isna(m.loc[('Austin, TX: 2020 Decker Challenge Virtual Half Marathon', 2020), 'category']), 'a reviewed exception is not virtual')
 
@@ -1844,47 +1855,47 @@ class Policy1904(unittest.TestCase):
             path = self.source(folder)
             db = hc.connect(half=path)
             try:
-                c = hq.apply(db, hq.TAG, compare=False).counts
+                c = hq.apply(db, hq.TAG_1904, compare=False).counts
             finally:
                 db.close()
             self.assertEqual(c['use_finish']['finishes'] + c['E0_finishes'] + c['E1_held_finishes'] + c['E2_E8_finishes'], c['record_usable_after_R7'])
         with tempfile.TemporaryDirectory() as folder:
             path = self.source(folder, extra=[('Loaded Late', 2024, 'no_rows', 300)])
-            saved = hq.REVIEWED_HALF_POLICIES[hq.TAG]['rules']
+            saved = hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['rules']
             db = hc.connect(half=path)
             try:   # without the empty group (and with unknown statuses allowed) the rows fall to no rule: apply refuses
-                hq.REVIEWED_HALF_POLICIES[hq.TAG]['rules'] = {**saved, 'unknown_status': None,
+                hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['rules'] = {**saved, 'unknown_status': None,
                                                              'statuses': {g: v for g, v in saved['statuses'].items() if g != 'empty'}}
                 with self.assertRaisesRegex(hc.HalfError, '300 record-usable finishes after R7 are neither used nor removed'):
-                    hq.apply(db, hq.TAG, compare=False)
+                    hq.apply(db, hq.TAG_1904, compare=False)
             finally:
-                hq.REVIEWED_HALF_POLICIES[hq.TAG]['rules'] = saved
+                hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['rules'] = saved
                 db.close()
 
     def test_the_link_partial_editions(self):
         with tempfile.TemporaryDirectory() as folder:
             path = self.source(folder)
             db = hc.connect(half=path)
-            result = hq.apply(db, hq.TAG, compare=False)
+            result = hq.apply(db, hq.TAG_1904, compare=False)
             ids = dict(((c, y), int(e)) for e, c, y in db.execute('SELECT DISTINCT edition_id, city, year FROM hfin').fetchall())
             alpha = db.execute("SELECT min(record_id), max(record_id), count(*) FROM hfin WHERE city = 'Alpha'").fetchone()
             boundary = alpha[0] + 99
-            saved = hq.REVIEWED_HALF_POLICIES[hq.TAG]['link_editions']
+            saved = hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['link_editions']
             try:
-                hq.REVIEWED_HALF_POLICIES[hq.TAG]['link_editions'] = {
+                hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['link_editions'] = {
                     **saved, 'half_max_record_id': boundary, 'retimed': [],
                     'link_partial': [{'edition_id': ids[('Alpha', 2022)], 'city': 'Alpha', 'year': 2022, 'rows_covered': 100, 'rows_uncovered': alpha[2] - 100}]}
                 got = hq.check_link_editions(db, result.editions)
                 self.assertEqual([x['city'] for x in got], ['Alpha'], 'only the edition with rows on both sides of the boundary')
-                hq.REVIEWED_HALF_POLICIES[hq.TAG]['link_editions']['link_partial'] = []
+                hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['link_editions']['link_partial'] = []
                 with self.assertRaisesRegex(hc.HalfError, 'link-partial editions differ'):
                     hq.check_link_editions(db, result.editions)
-                hq.REVIEWED_HALF_POLICIES[hq.TAG]['link_editions'].update(
+                hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['link_editions'].update(
                     link_partial=got, retimed=[{'edition_id': 99999, 'city': 'Nowhere', 'year': 2020, 'rows': 1}])
                 with self.assertRaisesRegex(hc.HalfError, 're-timed edition'):
                     hq.check_link_editions(db, result.editions)
             finally:
-                hq.REVIEWED_HALF_POLICIES[hq.TAG]['link_editions'] = saved
+                hq.REVIEWED_HALF_POLICIES[hq.TAG_1904]['link_editions'] = saved
                 db.close()
         self.assertEqual(result.counts['E1_removed_editions'], 1)
         self.assertNotIn('stamp_withdrawn', result.counts)
@@ -1900,9 +1911,9 @@ class PolicyFiles(unittest.TestCase):
                          'a later entry changed a rule the 1133 entry uses')
 
     def test_the_1904_policy_file_matches_its_entry(self):
-        hq.check_policy_file(hq.TAG)
-        doc = json.loads(hq.policy_path(hq.TAG).read_text())
-        self.assertEqual([doc['tag'], doc['schema_version']], [hq.TAG, 2])
+        hq.check_policy_file(hq.TAG_1904)
+        doc = json.loads(hq.policy_path(hq.TAG_1904).read_text())
+        self.assertEqual([doc['tag'], doc['schema_version']], [hq.TAG_1904, 2])
         self.assertNotIn('stamp_correction', doc)
         self.assertEqual(doc['expected'], hq.EXPECTED_20261030_1904)
         self.assertEqual(set(doc['statuses']), {'verified', 'unverified', 'held', 'removed', 'empty'})
@@ -1924,7 +1935,7 @@ class PolicyFiles(unittest.TestCase):
         self.assertEqual(weaker, {x['edition_id'] for x in st['reference']['weaker_source']} | {8823}, 'the six 2157 stamps and Belém 2024')
         self.assertTrue(weaker <= set(st['stamped']))
         self.assertEqual(doc['battery']['off_road_labels'], ['Kystleden Half', 'Nordmarka Skogsmaraton Half', 'Trondheim Skogsmaraton Half'])
-        self.assertEqual(hq.battery_lists(hq.TAG)['weaker_source'], weaker)
+        self.assertEqual(hq.battery_lists(hq.TAG_1904)['weaker_source'], weaker)
         self.assertEqual(doc['verified_label_countries']['belém: GENERALI TRANQUILIDADE MEIA MARATONA DESCOBRIMENTOS'], 'PT')
         le = doc['link_editions']
         self.assertEqual([le['link_build'], le['half_max_record_id']], ['person-ids-v4-20261030-1150', 7411867])

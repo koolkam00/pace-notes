@@ -548,6 +548,21 @@ ok(!!bat.verified_federation && !!bat.verified_road && bat.verified_federation.n
   }
 }
 ok(C.no_union_people.pairs <= S.pairs && C.ns_keys_1.pairs <= S.pairs && C.other_marathons.pairs < S.pairs, 'linked.checks: subsets of set B');
+// Ruling R6 (lead decision D38, November 14, 2026): every set B reading recounted on the pairs whose two rows both carry
+// a high link. A published sensitivity (no guard reads it): a subset of set B over the floors, exact shares, and a null
+// where a group is under the floor.
+{
+  const HL = C.high_links;
+  if (HL !== null && ok(HL && typeof HL === 'object', 'linked.checks.high_links: the block or null')) {
+    ok(int(HL.pairs, D.MIN_CELL) && HL.pairs <= S.pairs && int(HL.marathon_editions, D.MIN_EDITIONS) && HL.marathon_editions <= S.marathon_editions, 'linked.checks.high_links: a subset of set B over the floors');
+    eq(HL.share, D.sh(HL.pairs / S.pairs), 'linked.checks.high_links.share: its pairs over set B’s');
+    ok(D.isShareOf(HL.under_double, HL.pairs) && D.isShareOf(HL.sustained, HL.pairs) && finite(HL.multiple_p50) && HL.multiple_p50 > 1 && finite(HL.extra_p50_s), 'linked.checks.high_links: its typical multiple, minutes and exact shares');
+    ok(HL.w105 === null || (int(HL.w105.n, D.MIN_CELL) && HL.w105.n <= HL.pairs && D.isShareOf(HL.w105.under_14400, HL.w105.n)), 'linked.checks.high_links.w105: at least 100 pairs and an exact share, or null');
+    ok(HL.sexes === null || (int(HL.sexes.strata, 1) && int(HL.sexes.women_lower) && HL.sexes.women_lower <= HL.sexes.strata && Math.abs(100 * (HL.sexes.men_std - HL.sexes.women_std) - HL.sexes.diff_points) < 1e-6), 'linked.checks.high_links.sexes: strata and the standardised gap, or null');
+    eq(HL.flagship?.h, Math.floor(C.battery.pooled_half_p50_s / 300 + 0.5) * 300, 'linked.checks.high_links.flagship: the flagship half');
+    for (const g of ['F', 'M']) ok(HL.flagship[g] === null || (int(HL.flagship[g].n, D.MIN_CELL) && D.isShareOf(HL.flagship[g].sus, HL.flagship[g].n)), `linked.checks.high_links.flagship.${g}: at least 100 pairs and an exact share, or null`);
+  }
+}
 for (const k of ['verified', 'editions_equal', 'other_marathons', 'ns_keys_1', 'one_per_person']) ok(C[k].w105_under_14400 > 0 && C[k].w105_under_14400 < 1, `linked.checks.${k}: the 1:45 check share`);
 ok(C.battery.pooled_half_p50_s >= linked.windows.all[0].h && C.battery.pooled_half_p50_s <= linked.windows.all.at(-1).h, 'linked.checks.battery: the pooled median half lies in the published range');
 // /methodology only: the multiple by 5-minute band, the marathon cities, link coverage by city.

@@ -36,6 +36,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 from half_common import fail  # noqa: E402
 
 TIERS = ('high_elite', 'high', 'medium')     # the confidences that key a row (adapt_combined.IDENTITY)
+HIGH_TIERS = ('high_elite', 'high')         # ruling R6: the high-links-only sensitivity of every linked reading
 NS_KEYS_MAX = 3
 WINDOW_DAYS = (21, 112)
 CLOSE_MARATHON_DAYS = 13
@@ -78,10 +79,11 @@ def build(db, marathons, links_tag: str, *, expected: dict | None = None, check:
         FROM pp p JOIN l.links k ON k.person_id = p.person_id AND k.db = 'full' AND k.distance = 'marathon' JOIN mar m ON m.m_record_id = k.record_id""")
     # The keyed rows that may form a pair (halves: use_finish; marathons: eligible), never a variant-union row.
     db.execute("""CREATE OR REPLACE TEMP TABLE ph AS SELECT p.person_id, f.record_id AS h_record_id, f.edition_id AS h_edition_id,
-        f.city AS h_label, f.race_date AS h_date, f.status_group AS h_status_group, f.finish_s AS h_finish_s, f.r7_block, f.date_suspect
+        f.city AS h_label, f.race_date AS h_date, f.status_group AS h_status_group, f.finish_s AS h_finish_s, f.r7_block, f.date_suspect,
+        k.confidence AS h_tier
         FROM pp p JOIN l.links k ON k.person_id = p.person_id AND k.db = 'half' AND k.distance = 'half' AND k.keyed = 1 AND k.variant_union = 0
         JOIN hfin f ON f.record_id = k.record_id""")
-    db.execute("""CREATE OR REPLACE TEMP TABLE pm AS SELECT p.person_id, m.*
+    db.execute("""CREATE OR REPLACE TEMP TABLE pm AS SELECT p.person_id, m.*, k.confidence AS m_tier
         FROM pp p JOIN l.links k ON k.person_id = p.person_id AND k.db = 'full' AND k.distance = 'marathon' AND k.keyed = 1 AND k.variant_union = 0
         JOIN mar m ON m.m_record_id = k.record_id""")
     # A second usable half of the person on the same date (the R7 rows included), and a half on the date of one of the
@@ -94,8 +96,8 @@ def build(db, marathons, links_tag: str, *, expected: dict | None = None, check:
     lo, hi = WINDOW_DAYS
     db.execute(f"""CREATE OR REPLACE TEMP TABLE setb AS SELECT * FROM (
         SELECT m.person_id, p.sex, p.ns_keys, p.in_union,
-          h.h_record_id, h.h_edition_id, h.h_label, h.h_date, h.h_status_group, h.h_finish_s,
-          m.m_record_id, m.m_edition, m.m_city, m.m_year, m.m_date, m.m_gender, m.m_finish_s, m.m_sustained,
+          h.h_record_id, h.h_edition_id, h.h_label, h.h_date, h.h_status_group, h.h_finish_s, h.h_tier,
+          m.m_record_id, m.m_edition, m.m_city, m.m_year, m.m_date, m.m_gender, m.m_finish_s, m.m_sustained, m.m_tier,
           date_diff('day', h.h_date, m.m_date) AS days,
           row_number() OVER (PARTITION BY m.person_id, m.m_record_id ORDER BY date_diff('day', h.h_date, m.m_date), h.h_record_id) AS pick
         FROM pm m JOIN ph2 h USING (person_id) JOIN pp p USING (person_id)
@@ -108,12 +110,16 @@ def build(db, marathons, links_tag: str, *, expected: dict | None = None, check:
         WHERE abs(date_diff('day', o.m_date, s.m_date)) <= {CLOSE_MARATHON_DAYS}""")
     pairs = db.execute("""SELECT s.person_id, s.sex, s.ns_keys, s.in_union, s.h_record_id, s.h_edition_id, s.h_label, s.h_date,
         s.h_status_group, s.h_finish_s, s.m_record_id, s.m_edition, s.m_city, s.m_year, s.m_date, s.m_finish_s, s.m_sustained, s.days,
-        c.person_id IS NOT NULL AS m_close_marathon
+        s.h_tier, s.m_tier, c.person_id IS NOT NULL AS m_close_marathon
         FROM setb s LEFT JOIN close13 c USING (person_id, m_record_id) ORDER BY s.m_record_id, s.person_id""").df()
     for t in ('pp', 'phc', 'pmc', 'ph', 'pm', 'ph2', 'setb', 'close13', 'mar'):
         db.execute(f'DROP TABLE {t}')
     pairs['m_ed'] = pairs.m_city.astype(str) + ' ' + pairs.m_year.astype(str)
     pairs['verified'] = pairs.h_status_group == 'verified'
+    # Ruling R6 (lead decision D38): the pairs whose two rows both carry a link of tier high_elite or high.
+    pairs['high_links'] = pairs.h_tier.isin(HIGH_TIERS) & pairs.m_tier.isin(HIGH_TIERS)
+    if not (pairs.h_tier.isin(TIERS) & pairs.m_tier.isin(TIERS)).all():
+        fail('a set B pair with a row whose link tier is below medium')
     if check:
         got = summary(pairs)
         want = (expected if expected is not None else EXPECTED).get(links_tag)

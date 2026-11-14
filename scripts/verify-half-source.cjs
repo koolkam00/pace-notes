@@ -278,7 +278,9 @@ for (const r of xdb.prepare('SELECT pid, person_id, sex, ns_keys, in_union FROM 
 if (badPeople) flagProblem(`${badPeople} people with a malformed field (number, person id, sex, ns_keys or union) or out of person-id order`);
 // Set B, person by person.
 const eligiblePerson = (p) => ['M', 'F'].includes(personSex[p]) && personNs[p] <= LINK.ns_keys_max;
-const pairs = { h: [], m: [], sex: [], ed: [], city: [], sus: [], verified: [], nsKeys: [], inUnion: [], person: [], mDay: [], mId: [], hEd: [], hLabel: [], hId: [], close: [] };
+const pairs = { h: [], m: [], sex: [], ed: [], city: [], sus: [], verified: [], nsKeys: [], inUnion: [], high: [], person: [], mDay: [], mId: [], hEd: [], hLabel: [], hId: [], close: [] };
+const HIGH = ['high_elite', 'high'];   // ruling R6 (lead decision D38): the high-links-only variant of every linked reading
+const tierOf = new Map();   // usable-finish index -> the link tier of the half row that may pair
 const pairPeople = new Set(), halfEds = new Set();
 const linkedMar = new Uint8Array(MAR.n);
 let nsMismatch = 0, sexMismatch = 0, withoutKeyedPair = 0, orphanRows = 0, badRows = 0, persons = 0, keyedWeak = 0;
@@ -303,6 +305,8 @@ function person(p, halves, fulls) {
   const marDaySet = new Set(marDays.map(([, d]) => d));
   // The candidate halves: a keyed row that is not a variant-union row, a usable finish.
   const cand = halves.filter((r) => r.pairs && r.k >= 0).map((r) => r.k);
+  tierOf.clear();
+  for (const r of halves) if (r.pairs && r.k >= 0) tierOf.set(r.k, r.tier);
   if (cand.some((k) => !fin.r7[k])) for (const r of fulls) if (r.pairs && r.j >= 0) linkedMar[r.j] = 1;
   for (const r of fulls) {
     if (!r.pairs || r.j < 0) continue;
@@ -321,6 +325,7 @@ function person(p, halves, fulls) {
     pairs.h.push(fin.finish[best]); pairs.m.push(MAR.finish[j]); pairs.sex.push(personSex[p]);
     pairs.ed.push(`${med.city} ${med.year}`); pairs.city.push(med.city); pairs.sus.push(MAR.sustained[j] === 1);
     pairs.verified.push(he.group === 'verified'); pairs.nsKeys.push(personNs[p]); pairs.inUnion.push(personUnion[p]);
+    pairs.high.push(HIGH.includes(r.tier) && HIGH.includes(tierOf.get(best)));
     pairs.person.push(p); pairs.mDay.push(mDay); pairs.mId.push(MAR.id[j]); pairs.hEd.push(he.edition_id); pairs.hLabel.push(he.city); pairs.hId.push(fin.id[best]);
     // Review R6: another eligible marathon of the person (any linked row) within 13 days of the paired one.
     pairs.close.push(marDays.some(([id, d]) => id !== MAR.id[j] && Math.abs(d - mDay) <= CLOSE_MARATHON_DAYS));
@@ -339,7 +344,7 @@ function person(p, halves, fulls) {
       || !(r.finish_s === null || Number.isSafeInteger(r.finish_s)) || !(r.ns_keys === null || Number.isSafeInteger(r.ns_keys))) badRows++;
     const strong = STRONG.includes(r.confidence), keyed = r.keyed === 1;
     if (keyed && !strong) keyedWeak++;
-    const row = { strong, keyed, pairs: keyed && r.variant_union === 0, ns: r.ns_keys, sex: r.sex };
+    const row = { strong, keyed, pairs: keyed && r.variant_union === 0, ns: r.ns_keys, sex: r.sex, tier: r.confidence };
     if (r.db === 'half' && r.distance === 'half') {
       joins.half_rows++;
       const i = findSorted(ROWS.id, r.record_id);
