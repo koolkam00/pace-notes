@@ -45,6 +45,7 @@ SCRIPTS = ('build_linked.py', 'linked_common.py', 'linked_universe.py', 'linked_
 # The definitions this family imports from the site's builders: the cohort, the sustained-slowdown test, the policy.
 SHARED_SCRIPTS = ('build_pacing.py', 'build_public_explorer.py', 'source_quality.py')
 FILES = ('editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'checks.json')
+TRAIL_FLAGS = ('mountain_or_trail_course', 'trail_or_mountain_word_in_title')   # analysis/race-registry.json: reviewed, and by rule
 
 
 def log(message: str) -> None:
@@ -130,21 +131,33 @@ def write(path: Path, data: bytes) -> None:
 
 def run(source: Path, links: Path, out: Path, *, boot: int = lc.BOOT_REPS, accept_counts: bool = False, registry_path: Path = lc.REGISTRY_PATH) -> dict:
     started = time.time()
-    import linked_histories
-    import linked_races
-    import linked_return
     import linked_universe
     binding = linked_universe.check_inputs(source, links, registry_path=registry_path)
     policy = json.loads((lc.ROOT / binding['policy_file']).read_text())
     registry = json.loads(Path(registry_path).read_text())
-    labels = frozenset(linked_universe.registry_labels(registry))
     log(f'linked: inputs match their pins ({time.time() - started:.0f} s)')
     u = linked_universe.load(source, links, policy, registry, log=log)
+    return assemble(u, binding, registry, out, boot=boot, accept_counts=accept_counts, started=started)
+
+
+def assemble(u, binding: dict, registry: dict, out: Path, *, boot: int = lc.BOOT_REPS, accept_counts: bool = False, started: float | None = None) -> dict:
+    """Everything after the inputs are read: the analyses, the scan of what may be published, the manifest, the files."""
+    import resource
+
+    import linked_histories
+    import linked_races
+    import linked_return
+    import linked_universe
+    started = time.time() if started is None else started
+    by_label = linked_universe.registry_labels(registry)
+    labels = frozenset(by_label)
     masks = make_masks(u)
     counts = {'universe': universe_counts(u, masks)}
     log(f"linked: universe F {counts['universe']['F']['editions']} editions, {counts['universe']['F']['kept_results']:,} kept results ({time.time() - started:.0f} s)")
 
     races = linked_races.build(u.results, u.editions, u.field_share, boot=boot, log=log)
+    for label, row in races['races.json']['races'].items():   # so that a page can set a mountain or trail course apart
+        row['trail_or_mountain'] = any(f in TRAIL_FLAGS for f in by_label[label].get('flags', []))
     counts.update(races['counts'])
     log(f'linked: readings done ({time.time() - started:.0f} s)')
     history_masks = {k: masks[k] for k in ('F', 'verified', 'high', 'complete')}
@@ -175,7 +188,6 @@ def run(source: Path, links: Path, out: Path, *, boot: int = lc.BOOT_REPS, accep
     for name, data in out_bytes.items():
         write(out / name, data)
     write(out / 'manifest.json', encode(meta))
-    import resource
     log(json.dumps({'files': {k: len(v) for k, v in out_bytes.items()}, 'seconds': round(time.time() - started),
                     'peak_rss_mb': round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)}))
     return meta

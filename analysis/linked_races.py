@@ -34,6 +34,7 @@ FIELD_MIN_ELIGIBLE = 1000      # timing-eligible finishes of a counted edition i
 FIELD_MIN_SHARE = 0.5          # ... and at least this share of the edition's finishes
 FIELD_MIN_EDITIONS = 4         # such editions per race and timing basis
 BEYOND = (2.0, 3.0)
+MIN_BOOT_FOR_CHECK = 100       # with fewer draws (development runs) a reading may fall outside its own percentiles by chance
 VARIANTS = ('verified', 'high', 'wider')
 
 
@@ -57,15 +58,20 @@ def unit_table(fit, editions: pd.DataFrame) -> pd.DataFrame:
     return t
 
 
-def held_outliers(t: pd.DataFrame) -> np.ndarray:
-    """True for an edition more than OUTLIER_PCT from the median reading of its race and timing basis (three or more)."""
-    held = np.zeros(len(t), dtype=bool)
+def from_median(t: pd.DataFrame) -> np.ndarray:
+    """Each edition's reading against the median reading of its race and timing basis, as a percent (NaN where the
+    race and basis hold fewer than three fitted editions)."""
+    out = np.full(len(t), np.nan)
     for _, g in t[t.basis.notna()].groupby(['label', 'basis'], sort=True):
         if len(g) >= MIN_EDITIONS:
-            median = float(np.median(g.beta.to_numpy()))
-            far = np.abs(100.0 * np.expm1(g.beta.to_numpy() - median)) > lc.OUTLIER_PCT
-            held[g.pos.to_numpy()[far]] = True
-    return held
+            out[g.pos.to_numpy()] = 100.0 * np.expm1(g.beta.to_numpy() - float(np.median(g.beta.to_numpy())))
+    return out
+
+
+def held_outliers(t: pd.DataFrame) -> np.ndarray:
+    """True for an edition more than OUTLIER_PCT from the median reading of its race and timing basis (three or more)."""
+    distance = from_median(t)
+    return ~np.isnan(distance) & (np.abs(distance) > lc.OUTLIER_PCT)
 
 
 def comparison_groups(t: pd.DataFrame, exclude_codes=frozenset(), min_editions: int = MIN_EDITIONS) -> dict:
@@ -282,7 +288,7 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
         if math.isnan(reading[row.pos]):
             continue
         r, l, h = log_pct(reading[row.pos]), log_pct(lo[row.pos]), log_pct(hi[row.pos])
-        if not l <= r <= h:
+        if boot >= MIN_BOOT_FOR_CHECK and not l <= r <= h:
             fail(f'{row.label} {row.year}: the reading lies outside its own bootstrap interval')
         hv = variant_reading['high'].get(row.code)
         hv = None if hv is None else pct(log_pct(hv))
@@ -334,6 +340,8 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
                                 {'editions': int(variant_levels[name][label]['editions']), 'reading_pct': pct(log_pct(variant_levels[name][label]['level']))})
                          for name in VARIANTS},
         }
+        if boot >= MIN_BOOT_FOR_CHECK and not entry['boot_lo_pct'] <= entry['reading_pct'] <= entry['boot_hi_pct']:
+            fail(f'{label}: the race reading lies outside its own bootstrap interval')
         entry['verdict'] = race_verdict(entry)
         race_rows[label] = entry
 
@@ -443,8 +451,9 @@ def build_checks(main, t, held, reading, variants, variant_reading, levels, vari
         plain[word] += 1
         plain['points'].append([race_rows[label]['reading_pct'], pct(log_pct(mean))])
     plain['r'] = corr(plain['points'])
-    held_rows = [{'label': r.label, 'year': int(r.year), 'tier': r.tier, 'basis': r.basis, 'finishes': int(r.finishes)}
-                 for r in t[held].sort_values(['label', 'year']).itertuples()]
+    distance = from_median(t)
+    held_rows = [{'label': r.label, 'year': int(r.year), 'tier': r.tier, 'basis': r.basis, 'finishes': int(r.finishes),
+                  'from_median_pct': pct(distance[r.pos])} for r in t[held].sort_values(['label', 'year']).itertuples()]
     return {'temperature': temperature, 'slowdown': slowdown, 'fits': fits, 'beyond': beyond, 'spread': spread, 'year_levels': year_levels,
             'floor_of_five': five, 'plain_mean_and_two_standard_errors': plain, 'held_for_review': held_rows, 'outlier_pct': lc.OUTLIER_PCT}
 

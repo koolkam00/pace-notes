@@ -119,6 +119,7 @@ The edition readings (every fitted edition that is not held and has a basis) are
 - `year_sd_pct`: the standard deviation of the race's edition readings (the year-to-year spread a runner meets), in log points × 100.
 - `variants`: the race's reading from the verified, high and wider fits, where that fit reads it (three editions), each shifted so that the races it shares with the main fit have the same mean reading.
 - `tiers`, `timing`, `editions`, `editions_fitted`, `held_for_review`, `years` (first and last used year), `finishes`, `people`.
+- `trail_or_mountain`: true when the race registry flags the race `mountain_or_trail_course` (reviewed) or `trail_or_mountain_word_in_title` (by rule), so a page can set such a course apart. The registry has no flag for a net-downhill road course.
 
 | Verdict | Guard (all must hold) |
 | --- | --- |
@@ -178,7 +179,7 @@ Recomputed on every build and published with the points they are computed from, 
 - **Spread.** The count of edition readings beyond 2% and beyond 3%, over all and over verified-tier editions; the median year-to-year spread of a race and the spread between races.
 - **Year levels** of the split used for the race readings (a year needs three editions).
 - **What other rules would give.** The race verdicts with a floor of five editions; and the scout's rule alone (the plain mean of a race's edition readings, two standard errors of that mean, the order readings) on the same races.
-- **Held for review:** the editions held, by label and year.
+- **Held for review:** the editions held, by label and year, each with how far its reading sits from the median of its race and basis (`from_median_pct`). A page states nothing about a held edition.
 
 ## Floors
 

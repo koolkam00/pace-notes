@@ -259,6 +259,8 @@ class Readings(unittest.TestCase):
                           'beta': [0.0, 0.01, -0.01, 0.005, 0.08, 0.0, 0.5], 'code': np.arange(7), 'pos': np.arange(7)})
         held = lr.held_outliers(t)
         self.assertEqual(held.tolist(), [False, False, False, False, True, False, False])   # B has two editions: no median to hold against
+        self.assertAlmostEqual(lr.from_median(t)[4], 100 * math.expm1(0.08 - 0.005), places=9)
+        self.assertTrue(np.isnan(lr.from_median(t)[5]))
         groups = lr.comparison_groups(t, frozenset(t.code[held].tolist()))
         self.assertEqual({k: v.tolist() for k, v in groups.items()}, {('A', 'chip_or_net'): [0, 1, 2, 3]})
 
@@ -275,6 +277,65 @@ class Readings(unittest.TestCase):
         rel = lr.within_relation(frame, 'x', 'y', 3)
         self.assertEqual((rel['editions'], rel['groups'], rel['r'], rel['slope']), (6, 2, 1.0, 10.0))
         self.assertIsNone(lr.within_relation(frame, 'x', 'y', 4))
+
+
+class RaceLevels(unittest.TestCase):
+    RHO = {'A': -0.02, 'B': 0.01, 'C': 0.03}
+    TAU = {2014: 0.004, 2015: -0.006, 2016: 0.010, 2017: 0.0, 2018: -0.012, 2019: 0.007}
+
+    def table(self, years_of=None):
+        rows = []
+        for label, rho in self.RHO.items():
+            for year, tau in self.TAU.items():
+                if years_of is None or year in years_of[label]:
+                    rows.append({'label': label, 'basis': 'chip_or_net', 'year': year, 'beta': rho + tau})
+        t = pd.DataFrame(rows)
+        t['code'] = np.arange(len(t))
+        t['pos'] = np.arange(len(t))
+        return t
+
+    def test_race_and_year_levels_are_recovered(self):
+        t = self.table()
+        two = lr.TwoWay(t, np.ones(len(t)))
+        rho, tau, resid = two.split(t.beta.to_numpy())
+        self.assertEqual(two.groups, [(x, 'chip_or_net') for x in 'ABC'])
+        mean_tau = np.mean(list(self.TAU.values()))
+        np.testing.assert_allclose(rho, [v + mean_tau for v in self.RHO.values()], atol=1e-12)   # the year levels have mean zero
+        np.testing.assert_allclose(tau, [v - mean_tau for v in self.TAU.values()], atol=1e-12)
+        np.testing.assert_allclose(resid, 0, atol=1e-12)
+        draws = np.vstack([t.beta.to_numpy(), t.beta.to_numpy() + 0.5])
+        np.testing.assert_allclose(two.split(draws)[0][1] - two.split(draws)[0][0], 0.5, atol=1e-12)   # many draws at once
+
+    def test_a_race_is_read_against_the_other_races_of_the_same_years(self):
+        # A is seen in the early years only and C in the late ones: their plain means carry the years they were seen in.
+        t = self.table({'A': {2014, 2015, 2016, 2017}, 'B': set(self.TAU), 'C': {2016, 2017, 2018, 2019}})
+        two = lr.TwoWay(t, np.ones(len(t)))
+        rho, _, _ = two.split(t.beta.to_numpy())
+        np.testing.assert_allclose(rho - rho[1], [-0.03, 0.0, 0.02], atol=1e-12)
+        plain = t.groupby('label').beta.mean()
+        self.assertGreater(abs((plain['A'] - plain['B']) + 0.03), 1e-3)
+        # ... and a trend over the years that every edition shares moves no race against another
+        tilted = t.beta.to_numpy() + 0.004 * (t.year.to_numpy() - 2014)
+        rho2, _, _ = two.split(tilted)
+        np.testing.assert_allclose(rho2 - rho2[1], rho - rho[1], atol=1e-12)
+
+    def test_only_the_largest_tied_set_of_races_and_years_is_split(self):
+        t = self.table()
+        island = pd.DataFrame({'label': ['Z'] * 3, 'basis': ['chip_or_net'] * 3, 'year': [1990, 1991, 1992], 'beta': [0.5, 0.5, 0.5],
+                               'code': [100, 101, 102], 'pos': [18, 19, 20]})
+        t = pd.concat([t, island], ignore_index=True)
+        two = lr.TwoWay(t, np.ones(len(t)))
+        self.assertEqual(two.groups, [(x, 'chip_or_net') for x in 'ABC'])
+        self.assertEqual(len(two.pos), 18)
+        held = lr.TwoWay(t, np.ones(len(t)), exclude_codes=frozenset({0}))
+        self.assertEqual(len(held.pos), 17)
+
+    def test_a_variant_fit_is_put_on_the_main_fits_rules(self):
+        t = self.table()
+        variant = t.iloc[2:].copy()
+        variant['beta'] = variant.beta + 0.02 + 0.003 * (variant.year - 2010)     # another zero and another trend
+        variant['pos'] = np.arange(len(variant))
+        np.testing.assert_allclose(lr.align(variant, t, np.linspace(1, 2, len(t))), t.beta.to_numpy()[2:], atol=1e-12)
 
 
 def history_of(rows):
