@@ -62,8 +62,15 @@ class Rule(unittest.TestCase):
         rome = races['run-rome-the-marathon']
         self.assertEqual(rome['keys'], ['Roma: Run Rome the Marathon', 'Roma: Acea Run Rome The Marathon', 'Roma: Run Rome The Marathon'])
         self.assertEqual((rome['joined_by'], rome['place'], rome['first_year'], rome['last_year'], rome['editions']), ('reviewed join rome', 'Roma', 2022, 2026, 3))
-        # Three races named "City Marathon": each adds its place; the one without a place adds its first year.
+        # Three races named "City Marathon": each adds its place; the one without a place adds its first year. The slug is the label's.
         self.assertEqual({r for r in races if r.startswith('city-marathon')}, {'city-marathon-springfield-il', 'city-marathon-springfield-mo', 'city-marathon-2019'})
+        self.assertEqual({races[r]['label'] for r in races if r.startswith('city-marathon')},
+                         {'City Marathon (Springfield, IL)', 'City Marathon (Springfield, MO)', 'City Marathon (2019)'})
+        self.assertEqual((races['city-marathon-2019']['labelled_by'], races['city-marathon-springfield-il']['labelled_by']), ('name and first year', 'name and place'))
+        # A plain key is its own label; another race takes its name; every slug is its label's; rows are counted per race.
+        self.assertEqual((races['berlin']['label'], races['berlin']['labelled_by'], races['berlin']['rows']), ('Berlin', 'plain key', 22))
+        self.assertEqual((rome['label'], rome['labelled_by'], rome['rows']), ('Run Rome The Marathon', 'name', 18))
+        self.assertTrue(all(r['race_id'] == r['slug'] == race_registry.slug(r['label']) for r in races.values()))
         self.assertEqual(races['old-town-marathon-cancelled']['flags'], ['cancelled_in_title'])
         self.assertEqual(races['spring-festival-5k']['flags'], ['no_marathon_word_in_title', 'other_event_in_title', 'placeholder_place', 'platform_title_misleads'])
         self.assertIsNone(races['spring-festival-5k']['place'])
@@ -73,6 +80,37 @@ class Rule(unittest.TestCase):
             race_registry.build(clash, reviewed)
         with self.assertRaisesRegex(AssertionError, 'joins nothing'):
             race_registry.build(rows, {'joins': [{'id': 'x', 'keys': ['Roma: Run Rome the Marathon', 'Roma: Run Rome The Marathon'], 'reason': 'r'}], 'flags': []})
+
+    def test_reviewed_labels(self):
+        rows = editions(('Berlin', 2024, 'Berlin Marathon', 10), ('Roma: Run Rome the Marathon', 2022, 'Run Rome the Marathon — Marathon (ENDU)', 5),
+                        ('Roma: Acea Run Rome The Marathon', 2025, 'x', 7), ('Ottawa, ON: Tamarack Ottawa Race Weekend', 2024, 'Tamarack Ottawa Race Weekend - Ottawa Marathon (sportstats)', 9),
+                        ('Duluth, MN: Grandma&#39;s Marathon', 2002, 'x', 4), ('Rome, GA: Rome Marathon', 2020, 'x', 3))
+        reviewed = {'joins': [{'id': 'rome', 'keys': ['Roma: Run Rome the Marathon', 'Roma: Acea Run Rome The Marathon'], 'reason': 'sponsor'}], 'flags': [],
+                    'labels': [{'key': 'Roma: Acea Run Rome The Marathon', 'label': 'Rome'}, {'key': 'Duluth, MN: Grandma&#39;s Marathon', 'label': "Grandma's"},
+                               {'key': 'Ottawa, ON: Tamarack Ottawa Race Weekend', 'label': 'Ottawa', 'name': 'Ottawa Marathon'}]}
+        races = {r['race_id']: r for r in race_registry.build(rows, reviewed)}
+        # A reviewed label gives the slug, and names every key of the race; a reviewed name comes from a race name of an edition.
+        self.assertEqual((races['rome']['label'], races['rome']['labelled_by'], len(races['rome']['keys'])), ('Rome', 'reviewed label', 2))
+        self.assertEqual((races['ottawa']['label'], races['ottawa']['name']), ('Ottawa', 'Ottawa Marathon'))
+        self.assertEqual((races['grandma-s']['label'], races['grandma-s']['name']), ("Grandma's", "Grandma's Marathon"))
+        # A reviewed label is fixed: the other race whose name gives the same slug moves, not the reviewed one.
+        other = dict(reviewed, labels=reviewed['labels'] + [{'key': 'Rome, GA: Rome Marathon', 'label': 'Rome Marathon'}])
+        moved = {r['race_id']: r for r in race_registry.build(rows + editions(('Athens, GA: Rome Marathon', 2021, 'x', 2)), other)}
+        self.assertEqual((moved['rome-marathon']['keys'], moved['rome-marathon-athens-ga']['label']), (['Rome, GA: Rome Marathon'], 'Rome Marathon (Athens, GA)'))
+        # Nothing is added: a label or name must be a phrase one of the race's keys or race names states; a plain key keeps its name.
+        for entry, message in [({'key': 'Roma: Acea Run Rome The Marathon', 'label': 'Italy'}, "reviewed label 'Italy'"),
+                               ({'key': 'Roma: Acea Run Rome The Marathon', 'label': 'Rome', 'name': 'Rome City Marathon'}, "reviewed name 'Rome City Marathon'"),
+                               ({'key': 'Berlin', 'label': 'Berlin'}, 'a race with a plain key keeps that key'),
+                               ({'key': 'Nowhere: X', 'label': 'X'}, 'unknown key')]:
+            with self.assertRaisesRegex(AssertionError, message):
+                race_registry.build(rows, dict(reviewed, labels=[entry]))
+        with self.assertRaisesRegex(AssertionError, 'two reviewed labels'):
+            race_registry.build(rows, dict(reviewed, labels=reviewed['labels'] + [{'key': 'Roma: Run Rome the Marathon', 'label': 'Roma'}]))
+        with self.assertRaisesRegex(AssertionError, 'share a slug'):
+            race_registry.build(rows, dict(reviewed, labels=reviewed['labels'] + [{'key': 'Rome, GA: Rome Marathon', 'label': 'Rome'}]))
+        self.assertTrue(race_registry.states('Lévis-Québec', ['Québec, QC: Marathon SSQ Lévis-Québec']))
+        self.assertTrue(race_registry.states('St. George', ['XACT: St. George Marathon']))
+        self.assertFalse(race_registry.states('Venice', ['Venezia: Wizz Air Venicemarathon']))   # a whole word, never part of one
 
 
 class FrozenRegistry(unittest.TestCase):
@@ -87,7 +125,10 @@ class FrozenRegistry(unittest.TestCase):
         self.assertEqual(self.registry['races_sha256'], race_registry.digest(races))
         ids = [r['race_id'] for r in races]
         self.assertEqual(len(ids), len(set(ids)))
-        self.assertTrue(all(r['race_id'] == r['slug'] and r['slug'] == race_registry.slug(r['slug']) and r['name'] for r in races))
+        self.assertTrue(all(r['race_id'] == r['slug'] == race_registry.slug(r['label']) and r['name'] for r in races))
+        labels = [r['label'] for r in races]
+        self.assertEqual(len(labels), len(set(labels)))
+        self.assertEqual((sum(r['rows'] for r in races), sum(r['editions'] for r in races)), (7820439, 2688))
         self.assertEqual(self.registry['tag'], 'pace-notes-marathon-half-20261113-1113')
         self.assertEqual(self.registry['rule'], race_registry.RULE)
 
@@ -103,6 +144,9 @@ class FrozenRegistry(unittest.TestCase):
                 if ': ' not in key:
                     self.assertEqual(race['slug'], slugify(key))
         self.assertEqual(races['austin']['keys'], ['Austin, TX: Austin Marathon and Half Marathon', 'Austin', 'Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K'])
+        # The label, which the adapter writes as the pipeline's `city`, is the plain key itself: no course city changes.
+        self.assertEqual(sorted(r['label'] for r in races.values() if r['labelled_by'] == 'plain key'), sorted(k for r in races.values() for k in r['keys'] if ': ' not in k))
+        self.assertEqual((races['austin']['label'], races['new-york']['label'], races['gold-coast']['label']), ('Austin', 'New York', 'Gold Coast'))
         self.assertEqual((races['austin']['name'], races['new-york']['name'], races['new-york']['place']), ('Austin Marathon', 'New York City Marathon', 'New York'))
 
     def test_joins_and_names(self):
@@ -111,17 +155,29 @@ class FrozenRegistry(unittest.TestCase):
         self.assertEqual(expected['races_by_join'], {'reviewed join': 16, 'rule': 28, 'single': 767})
         self.assertEqual(len(self.registry['reviewed']['joins']), 16)
         self.assertTrue(all(j['reason'] and j['evidence']['keyed_runners_in_two_or_more_of_the_keys'] > 0 for j in self.registry['reviewed']['joins']))
-        self.assertEqual(len(races['run-rome-the-marathon']['keys']), 4)
-        self.assertEqual(races['houston-marathon']['place'], 'Houston, TX')
-        self.assertEqual((races['los-angeles-marathon']['name'], races['los-angeles-marathon']['place']), ('Los Angeles Marathon', 'Los Angeles, CA'))
-        self.assertEqual(races['grandma-s-marathon']['name'], "Grandma's Marathon")
+        self.assertEqual((len(races['rome']['keys']), races['rome']['name']), (4, 'Run Rome The Marathon'))
+        self.assertEqual(races['houston']['place'], 'Houston, TX')
+        self.assertEqual((races['los-angeles']['label'], races['los-angeles']['name'], races['los-angeles']['place']), ('Los Angeles', 'Los Angeles Marathon', 'Los Angeles, CA'))
+        self.assertEqual((races['grandma-s']['label'], races['grandma-s']['name']), ("Grandma's", "Grandma's Marathon"))
         # Two real races of one city stay two; a key under a platform's name has no place.
-        self.assertIn('toronto-marathon', races)
-        self.assertIn('toronto-waterfront-marathon', races)
-        self.assertIsNone(races['philadelphia-marathon-race-weekend']['place'])
-        self.assertIn('platform_title_misleads', races['mississauga-marathon-virtual']['flags'])
+        self.assertEqual((races['toronto']['name'], races['toronto-waterfront']['name']), ('Toronto Marathon', 'Toronto Waterfront Marathon'))
+        self.assertIsNone(races['philadelphia']['place'])
+        self.assertEqual((races['philadelphia']['name'], races['ottawa']['name'], races['mississauga']['name']), ('Philadelphia Marathon', 'Ottawa Marathon', 'Mississauga Marathon'))
+        self.assertIn('platform_title_misleads', races['mississauga']['flags'])
         # No name carries an HTML entity or a platform's bracketed id, and none is empty.
         self.assertEqual([r['race_id'] for r in races.values() if '&#' in r['name'] or '&amp;' in r['name']], [])
+
+
+    def test_labels(self):
+        races = self.registry['races']
+        self.assertEqual(self.registry['expected']['races_by_label'],
+                         {'name': 651, 'name and first year': 2, 'name and place': 86, 'name, place and first year': 2, 'plain key': 34, 'reviewed label': 36})
+        self.assertEqual(len(self.registry['reviewed']['labels']), 36)
+        # The 60 races with most written rows carry a plain or reviewed label (lead decision D19, 2026-11-14).
+        largest = sorted(races, key=lambda r: (-r['rows'], r['race_id']))[:race_registry.LARGEST]
+        self.assertEqual({r['labelled_by'] for r in largest}, {'plain key', 'reviewed label'})
+        # No label is a release key of another kind: none keeps a platform's name, an HTML entity or the ": " of a composite key.
+        self.assertEqual([r['label'] for r in races if ': ' in r['label'] or '&#' in r['label'] or r['label'].startswith('XACT')], [])
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 {
   "feature_values": {
-    "n": 7819991,
-    "unique_record_ids": 7819991,
+    "n": 7820439,
+    "unique_record_ids": 7820439,
     "valid_flag": null,
     "median_finish": 255.76666666666668,
     "median_seg05": 28.433333333333334,
@@ -11,16 +11,16 @@
     "max_segment_sum_error": 3.979039320256561e-13
   },
   "raw_ids": {
-    "n": 7819991,
-    "unique_ids": 7819991
+    "n": 7820439,
+    "unique_ids": 7820439
   },
   "id_join": {
-    "matches": 7819991,
-    "same_race": 7819991,
-    "same_name": 7817636
+    "matches": 7820439,
+    "same_race": 7820439,
+    "same_name": 7818084
   },
   "identity_conflicts": {
-    "linked_ids": 3349468,
+    "linked_ids": 3349682,
     "conflicting_gender": 0,
     "conflicting_birth_year": 26800,
     "repeated_edition": 0
@@ -78,12 +78,12 @@
     },
     {
       "source": "open-meteo",
-      "notes": "Open-Meteo archive hour nearest start_local=09:15; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "notes": "Open-Meteo archive hour nearest start_local=06:20; race_date from Wikipedia/World Athletics/AIMS/official calendars",
       "editions": 7
     },
     {
       "source": "open-meteo",
-      "notes": "Open-Meteo archive hour nearest start_local=06:20; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "notes": "Open-Meteo archive hour nearest start_local=09:15; race_date from Wikipedia/World Athletics/AIMS/official calendars",
       "editions": 7
     },
     {
@@ -93,13 +93,18 @@
     },
     {
       "source": "open-meteo",
+      "notes": "Open-Meteo archive hour at start_local=08:00; start time UNVERIFIED (assumed 8:00 AM, needs DQ check); rebuilt backfill Oct 20 2026",
+      "editions": 4
+    },
+    {
+      "source": "open-meteo",
       "notes": "Open-Meteo archive hour nearest start_local=09:10; race_date from Wikipedia/World Athletics/AIMS/official calendars",
       "editions": 4
     },
     {
       "source": "open-meteo",
-      "notes": "Open-Meteo archive hour at start_local=08:00; start time UNVERIFIED (assumed 8:00 AM, needs DQ check); rebuilt backfill Oct 20 2026",
-      "editions": 4
+      "notes": "Open-Meteo archive hour nearest start_local=15:00; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 3
     },
     {
       "source": "open-meteo",
@@ -109,11 +114,6 @@
     {
       "source": "open-meteo",
       "notes": "Open-Meteo archive hour nearest start_local=06:30; race_date from Wikipedia/World Athletics/AIMS/official calendars",
-      "editions": 3
-    },
-    {
-      "source": "open-meteo",
-      "notes": "Open-Meteo archive hour nearest start_local=15:00; race_date from Wikipedia/World Athletics/AIMS/official calendars",
       "editions": 3
     },
     {
@@ -128,7 +128,12 @@
     },
     {
       "source": "open-meteo",
-      "notes": "Open-Meteo archive hour nearest start_local=10:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; COVID-shifted autumn edition (24 Oct 2021)",
+      "notes": "Open-Meteo archive hour nearest start_local=07:30; race_date from Wikipedia World Marathon Majors table | start_local 07:30->07:35 per official wave 1 (DQ 2026-10-21)",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:40; race_date from Wikipedia/World Athletics/AIMS/official calendars; start 09:40 per official traffic bulletin https://helsinkicityrun.fi/wp-content/uploads/2025/03/HCRD2025_liikennetiedote.pdf (15:00 was the Helsinki City Run half marathon; corrected 2026-10-10 DQ)",
       "editions": 1
     },
     {
@@ -138,27 +143,17 @@
     },
     {
       "source": "open-meteo",
-      "notes": "Open-Meteo archive hour nearest start_local=10:30; race_date from Wikipedia/World Athletics/AIMS/official calendars",
-      "editions": 1
-    },
-    {
-      "source": "open-meteo",
-      "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; COVID-shifted autumn edition (Mon 11 Oct 2021); rolling mass start from 09:00",
-      "editions": 1
-    },
-    {
-      "source": "open-meteo",
-      "notes": "Open-Meteo archive hour nearest start_local=06:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; return edition at Expo City Dubai (12 Feb 2023; start ~06:00)",
-      "editions": 1
-    },
-    {
-      "source": "open-meteo",
       "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; COVID-shifted autumn edition (26 Sep 2021)",
       "editions": 1
     },
     {
       "source": "open-meteo",
-      "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; waves 10:00-11:15 (09:00 kept for Boston consistency)",
+      "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date/start from official Orlen Warsaw Marathon timing+organiser sources (gun 09:00:00; https://domtel-sport.pl/OWM2017/?bieg=1&co=6&dod_filtr=); corrected 2026-10-10 DQ from the autumn PZU date (rows are the spring Orlen race)",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=10:30; race_date from Wikipedia/World Athletics/AIMS/official calendars",
       "editions": 1
     },
     {
@@ -168,12 +163,17 @@
     },
     {
       "source": "open-meteo",
-      "notes": "Open-Meteo archive hour nearest start_local=08:00; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "notes": "Open-Meteo archive hour nearest start_local=06:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; return edition at Expo City Dubai (12 Feb 2023; start ~06:00)",
       "editions": 1
     },
     {
       "source": "open-meteo",
-      "notes": "Open-Meteo archive hour nearest start_local=06:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; Umm Suqeim Rd; elite ~06:00 / masses 07:00 (7 Jan 2024)",
+      "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; COVID-shifted autumn edition (Mon 11 Oct 2021); rolling mass start from 09:00",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; waves 10:00-11:15 (09:00 kept for Boston consistency)",
       "editions": 1
     }
   ],
@@ -2583,8 +2583,53 @@
   ],
   "course_notes": [
     {
-      "source": "gpx:singapore-goandrace.gpx+opentopodata:mapzen+smooth800m",
-      "notes": "GoAndRace GPX for Singapore. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=695; samples=259; points_json=193 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2024/12/01/gpx_20241201_id10067_race1_20241111170942.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "source": "gpx:honolulu-goandrace.gpx+opentopodata:ned10m",
+      "notes": "GoAndRace GPX for Honolulu. Elev: OpenTopoData ned10m DEM @~100m (no smooth). Gain thresh 1.0m. Raw track pts=972; samples=307; points_json=210 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/12/14/gpx_20251214_id10639_race1_20251128120508.gpx. No brochure elev copied. elev_source=opentopodata:ned10m.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:austin-goandrace.gpx+opentopodata:ned10m",
+      "notes": "GoAndRace GPX for Austin. Elev: OpenTopoData ned10m DEM @~100m (no smooth). Gain thresh 1.0m. Raw track pts=1153; samples=309; points_json=221 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/02/15/gpx_20260215_id10707_race1_20260114125519.gpx. No brochure elev copied. elev_source=opentopodata:ned10m.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:athens-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Athens. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=704; samples=292; points_json=211 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/11/09/gpx_20251109_id10295_race1_20250929172209.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:paris-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Paris. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=602; samples=200; points_json=146 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/04/12/gpx_20260412_id10915_race1_20260322120025.gpx. No brochure elev copied. elev_source=opentopodata:mapzen. DQ 2026-10-10: d_km rescaled linearly x1.000356 from 42.18 to 42.195 km (max shift 15 m); elevations unchanged.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:gold-coast-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Gold Coast. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=451; samples=226; points_json=182 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/07/04/gpx_20260704_id11049_race1_20260619154945.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:nyc-goandrace-2025.gpx+opentopodata:ned10m",
+      "notes": "GoAndRace 2025 NYC GPX track. Elev: OpenTopoData NED10m DEM @~100m (no smooth). Bridge decks may differ from ground DEM. Gain thresh 1.0m. Raw track pts=455; DEM/profile samples=225; points_json=181 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/11/02/gpx_20251102_id10470_race1_20250929105512.gpx. No brochure elev copied.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:chicago-goandrace-2025.gpx+opentopodata:ned10m",
+      "notes": "GoAndRace 2025 Chicago GPX track. Elev: OpenTopoData NED10m DEM @~100m (no smooth). Gain thresh 1.0m. Raw track pts=163; DEM/profile samples=114; points_json=102 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/10/12/gpx_20251012_id10457_race1_20250826213208.gpx. No brochure elev copied.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:london-goandrace-2026.gpx",
+      "notes": "GoAndRace 2026 London GPX track WITH embedded <ele>. Elev from GPX points (not brochure). Gain thresh 0.5m on ~100m downsampled track. Raw track pts=990; DEM/profile samples=316; points_json=219 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/04/26/gpx_20260426_id10948_race1_20260415232219.gpx. No brochure elev copied.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:berlin-marathon-bm25.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "Official SCC BMW BERLIN-MARATHON 2025 GPX (no embedded elev). Elev: OpenTopoData Mapzen DEM @~100m + 800m smooth (flat urban; coarse DEM noise). Gain thresh 2.0m. Raw track pts=508; DEM/profile samples=198; points_json=165 (~150m + extrema). GPX: https://www.bmw-berlin-marathon.com/fileadmin/media/events/berlinmarathon/gpx/BM25_Marathon-Strecke.gpx. No brochure elev copied. DQ 2026-10-10: d_km rescaled linearly x1.000261 from 42.184 to 42.195 km (max shift 11 m); elevations unchanged.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:tokyo-marathon-2026.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "kekomat Tokyo_Marathon_2026.gpx track. Elev: OpenTopoData Mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Embedded barometric elev discarded (noisy). Raw track pts=10872; DEM/profile samples=421; points_json=274 (~150m + extrema). GPX: https://raw.githubusercontent.com/kekomat/marathon-gpx-dataset/main/gpx/Tokyo_Marathon_2026.gpx. No brochure elev copied.",
       "profiles": 1
     },
     {
@@ -2613,8 +2658,8 @@
       "profiles": 1
     },
     {
-      "source": "gpx:honolulu-goandrace.gpx+opentopodata:ned10m",
-      "notes": "GoAndRace GPX for Honolulu. Elev: OpenTopoData ned10m DEM @~100m (no smooth). Gain thresh 1.0m. Raw track pts=972; samples=307; points_json=210 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/12/14/gpx_20251214_id10639_race1_20251128120508.gpx. No brochure elev copied. elev_source=opentopodata:ned10m.",
+      "source": "gpx:rotterdam-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Rotterdam. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=650; samples=219; points_json=163 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/04/13/gpx_20250413_id10257_race1_20250407180901.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
       "profiles": 1
     },
     {
@@ -2658,8 +2703,8 @@
       "profiles": 1
     },
     {
-      "source": "gpx:chicago-goandrace-2025.gpx+opentopodata:ned10m",
-      "notes": "GoAndRace 2025 Chicago GPX track. Elev: OpenTopoData NED10m DEM @~100m (no smooth). Gain thresh 1.0m. Raw track pts=163; DEM/profile samples=114; points_json=102 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/10/12/gpx_20251012_id10457_race1_20250826213208.gpx. No brochure elev copied.",
+      "source": "gpx:singapore-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Singapore. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=695; samples=259; points_json=193 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2024/12/01/gpx_20241201_id10067_race1_20241111170942.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
       "profiles": 1
     },
     {
@@ -2685,51 +2730,6 @@
     {
       "source": "gpx:vienna-vcm2026.gpx",
       "notes": "Official Vienna City Marathon 2026 GPX (organizer download https://www.vienna-marathon.com/var/upload/public/2026/ViennaCityMarathon-PoweradeRelayMarathon.gpx; Vienna City Marathon & Powerade Relay Marathon = marathon course; file created via Strava route builder, OSM-based) with embedded <ele>. THIS IS THE 2026 COURSE; DB editions are 2022-24 (layout believed same, unverified). Raw haversine length 42.657 km rescaled linearly x0.989172 to 42.195 km (DQ 2026-10-10). Gain thresh 1.0m on ~100m samples. Raw track pts=731; samples=291; points_json=221 (~150m + extrema). No brochure elev copied. elev_source=gpx-embedded.",
-      "profiles": 1
-    },
-    {
-      "source": "gpx:rotterdam-goandrace.gpx+opentopodata:mapzen+smooth800m",
-      "notes": "GoAndRace GPX for Rotterdam. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=650; samples=219; points_json=163 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/04/13/gpx_20250413_id10257_race1_20250407180901.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
-      "profiles": 1
-    },
-    {
-      "source": "gpx:washington-mcm-rwgps.gpx+opentopodata:ned10m",
-      "notes": "RideWithGPS public Marine Corps Marathon route (VA/DC MCM 26.2; start Rt110/Pentagon area, finish Iwo Jima). Elev: OpenTopoData ned10m DEM @~100m (no smooth). Gain thresh 1.0m. Bridge decks may differ from ground DEM. Raw track pts=3325; samples=397; points_json=255 (~150m + extrema). GPX: https://ridewithgps.com/routes/17446251.json. No brochure elev copied. elev_source=opentopodata:ned10m.",
-      "profiles": 1
-    },
-    {
-      "source": "gpx:mexico-city-quevita.gpx+opentopodata:mapzen+smooth800m",
-      "notes": "Quevita/soymaratonista Maraton CDMX full GPX (GPSies track; start Estadio Olimpico/CU, finish Zocalo; GPSies elev discarded). Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=674; samples=241; points_json=197 (~150m + extrema). GPX: https://calendario.soymaratonista.com/maraton-de-la-ciudad-de-mexico/ (Quevita Race-DB Maraton CDMX.gpx; CU start to Zocalo finish). No brochure elev copied. elev_source=opentopodata:mapzen.",
-      "profiles": 1
-    },
-    {
-      "source": "gpx:oslo-goandrace.gpx+opentopodata:mapzen+smooth800m",
-      "notes": "GoAndRace GPX for Oslo. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=1308; samples=333; points_json=206 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2024/09/21/gpx_20240921_id9988_race2_20240823121459.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
-      "profiles": 1
-    },
-    {
-      "source": "gpx:austin-goandrace.gpx+opentopodata:ned10m",
-      "notes": "GoAndRace GPX for Austin. Elev: OpenTopoData ned10m DEM @~100m (no smooth). Gain thresh 1.0m. Raw track pts=1153; samples=309; points_json=221 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/02/15/gpx_20260215_id10707_race1_20260114125519.gpx. No brochure elev copied. elev_source=opentopodata:ned10m.",
-      "profiles": 1
-    },
-    {
-      "source": "gpx:athens-goandrace.gpx+opentopodata:mapzen+smooth800m",
-      "notes": "GoAndRace GPX for Athens. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=704; samples=292; points_json=211 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/11/09/gpx_20251109_id10295_race1_20250929172209.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
-      "profiles": 1
-    },
-    {
-      "source": "gpx:paris-goandrace.gpx+opentopodata:mapzen+smooth800m",
-      "notes": "GoAndRace GPX for Paris. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=602; samples=200; points_json=146 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/04/12/gpx_20260412_id10915_race1_20260322120025.gpx. No brochure elev copied. elev_source=opentopodata:mapzen. DQ 2026-10-10: d_km rescaled linearly x1.000356 from 42.18 to 42.195 km (max shift 15 m); elevations unchanged.",
-      "profiles": 1
-    },
-    {
-      "source": "gpx:gold-coast-goandrace.gpx+opentopodata:mapzen+smooth800m",
-      "notes": "GoAndRace GPX for Gold Coast. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=451; samples=226; points_json=182 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/07/04/gpx_20260704_id11049_race1_20260619154945.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
-      "profiles": 1
-    },
-    {
-      "source": "gpx:nyc-goandrace-2025.gpx+opentopodata:ned10m",
-      "notes": "GoAndRace 2025 NYC GPX track. Elev: OpenTopoData NED10m DEM @~100m (no smooth). Bridge decks may differ from ground DEM. Gain thresh 1.0m. Raw track pts=455; DEM/profile samples=225; points_json=181 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/11/02/gpx_20251102_id10470_race1_20250929105512.gpx. No brochure elev copied.",
       "profiles": 1
     }
   ],

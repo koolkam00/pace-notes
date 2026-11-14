@@ -1,0 +1,54 @@
+{
+ "document": "The headline cohort and its sustained-slowdown share under the edition policy and under two narrower readings of it (lead ruling R5, 2026-11-14): verified tiers only (the policy without partial editions) and without weaker-source editions (the policy without editions stamped against a weaker source). Counts are finishes that pass the timing checks, summed per edition from the same run of analysis/build_pacing.py prepare(); a sustained slowdown is analysis/build_public_explorer.py threshold_sql(.25, 5). Written by docs/evidence/2026-11-14/release-20261113-1113/cohort.py; no reading other than `policy` is a policy.",
+ "release_tag": "pace-notes-marathon-half-20261113-1113",
+ "input_manifest_sha256": "c0ddc847837382ae9b9ed7a52812a851588c7add8d04368e77226bf075d8310b",
+ "policy_sha256": "be5f84977d1b72fa81b0a0f680a4b9d4c27f50600f70d4ecec9b8241885e758d",
+ "frozen_policy_sha256": "ab43c75ef52ba9b18d63e5fd4ce9e604e2cbca152a25c4773d85b14c5b133541",
+ "timing_eligible_finishes": 4687794,
+ "readings": {
+  "policy": {
+   "eligible_finishes": 4124023,
+   "eligible_editions": 201,
+   "eligible_cities": 28,
+   "sustained_slowdown": 1288216,
+   "sustained_slowdown_pct": 31.2369
+  },
+  "verified_tiers_only": {
+   "eligible_finishes": 3402982,
+   "eligible_editions": 174,
+   "eligible_cities": 28,
+   "sustained_slowdown": 1058380,
+   "sustained_slowdown_pct": 31.1015
+  },
+  "without_weaker_source_editions": {
+   "eligible_finishes": 3961514,
+   "eligible_editions": 189,
+   "eligible_cities": 25,
+   "sustained_slowdown": 1213153,
+   "sustained_slowdown_pct": 30.6235
+  }
+ },
+ "policy_by_tier": {
+  "stamped": {
+   "eligible_finishes": 3240473,
+   "eligible_editions": 162,
+   "eligible_cities": 24,
+   "sustained_slowdown": 983317,
+   "sustained_slowdown_pct": 30.3449
+  },
+  "stamped_weaker_source": {
+   "eligible_finishes": 162509,
+   "eligible_editions": 12,
+   "eligible_cities": 5,
+   "sustained_slowdown": 75063,
+   "sustained_slowdown_pct": 46.1901
+  },
+  "partial": {
+   "eligible_finishes": 721041,
+   "eligible_editions": 27,
+   "eligible_cities": 13,
+   "sustained_slowdown": 229836,
+   "sustained_slowdown_pct": 31.8756
+  }
+ }
+}

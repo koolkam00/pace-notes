@@ -33,8 +33,11 @@ def main(argv):
     eligible = ' AND '.join(f'{s} > 0 AND {s}/{n} BETWEEN 2 AND 20' for s, n in zip(SEGMENTS, LENGTHS)) + ' AND finish_time BETWEEN 90 AND 720'
     slow = ' OR '.join(f'{s}/5/((cum_20 - cum_05)/15) - 1 + 1e-12 >= 0.25' for s in SEGMENTS[4:8])
     features = str(source / 'features.parquet').replace("'", "''")
-    db.execute(f"""CREATE TABLE s AS SELECT f.city, f.year, f.finish_time, {', '.join(SEGMENTS)}, ({slow}) AS slow, (f.city LIKE '%: %') AS new_key
-      FROM read_parquet('{features}') f JOIN counted c ON c.city=f.city AND c.year=f.year WHERE {eligible}""")
+    # `city` is the race's registry label; the release's own key of each edition is in release_keys.parquet.
+    keys = str(source / 'release_keys.parquet').replace("'", "''")
+    db.execute(f"""CREATE TABLE s AS SELECT f.city, f.year, f.finish_time, {', '.join(SEGMENTS)}, ({slow}) AS slow, (k.release_city LIKE '%: %') AS new_key
+      FROM read_parquet('{features}') f JOIN counted c ON c.city=f.city AND c.year=f.year
+      JOIN read_parquet('{keys}') k ON k.city=f.city AND k.year=f.year WHERE {eligible}""")
     rows = lambda q: [dict(zip([d[0] for d in db.description], r)) for r in db.execute(q).fetchall()]  # noqa: E731
     band = 'CASE ' + ' '.join(f"WHEN finish_time < {hi} THEN '{label}'" for _, hi, label in BANDS) + ' END'
     profile = ', '.join(f'round(median(({s}/{n})/(finish_time/42.195)), 3) AS "{label}"' for s, n, label in zip(

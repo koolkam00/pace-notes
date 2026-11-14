@@ -25,7 +25,10 @@ OPENINGS = ['Faster opening', 'Similar opening', 'Slower opening']
 SERIES_SPREAD = [{'key':'p10','label':'10th percentile'}, {'key':'median','label':'Median'}, {'key':'p90','label':'90th percentile'}]
 CANONICAL_ID_RELEASES = {'private-export-20260911-1107', 'private-export-20260912-0934', 'htw-db-2026-10-16-1652', 'private-export-20261021-1050',
                          # Adapted by analysis/adapt_master.py; race_records.id is master source_record_id (checked per row).
-                         'master-20261103b'}
+                         'master-20261103b',
+                         # Adapted by analysis/adapt_combined.py; race_records.id is the release id of the marathon rows
+                         # (source_db full), audited November 14, 2026 (docs/evidence/2026-11-14/release-20261113-1113).
+                         'pace-notes-marathon-half-20261113-1113'}
 
 
 def canonical_id_contract(db, source):

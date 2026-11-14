@@ -26,11 +26,15 @@ marathon folder in the layout of the October 21 export (1050), so this adapter w
    has listed it (`REVIEWED[tag]['known_mismatches']`); a listed mismatch is still written as a mismatch.
 3. **Write** `race_records.parquet` (marathon rows only, `distance = 'marathon'`, in 1050's 20 columns and types, ordered
    by id; the rows of the frozen `ROW_RULE` are left out and counted; blank published sex takes the producer's
-   `sex_from_category`, never a name), the weather and course members (the baseline's own bytes, since their values
+   `sex_from_category`, never a name; `city` is the label of the edition's race in the frozen race registry,
+   `analysis/race-registry.json`, which the adapter rebuilds from the rows it writes and must find unchanged, and `race`
+   is that race's display name, except that an edition under a plain key keeps the race name the release gives it; the
+   release's own key and race name of every written edition are kept in `release_keys.parquet`), the weather and
+   course members (the baseline's own bytes, since their values
    are equal, so pinned hashes such as the course-terrain registry's stay valid), `sources`, `edition_meta` (1050's
    columns, then the tier columns and notes of `EDITION-TIERS.csv`, the tier table that reproduces the README, a race
    date only where the weather table or a reviewed entry gives one, and beside it the unreviewed date the producer's
-   own note states), `qa_row_flags`,
+   own note states; written editions only), `qa_row_flags`,
    `record_flags` (the release's long format), an identity subset `features.parquet` (FULL) whose cross-race key
    follows the frozen `IDENTITY` rule and which keeps every link's `person_id`, confidence tier and method, and
    documents that say on their first line that they are adapter outputs, not producer claims.
@@ -45,6 +49,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime
 import hashlib
 import io
 import json
@@ -62,10 +67,11 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 import duckdb  # noqa: E402
 
 import adapt_master  # noqa: E402
+import race_registry  # noqa: E402
 from adapt_master import (AdaptError, FIELDS, OVERLAY_SCHEMAS, RACE_RECORDS, SECONDS, copy_parquet, encode_json, fail,  # noqa: E402
                           file_sha256, is_digest, literal, parse_sums, place, rows, scalar)
 
-ADAPTER_VERSION = 1
+ADAPTER_VERSION = 2   # 2 (2026-11-14): registry labels in `city`, release_keys.parquet, the edition-wide exception of the row rule
 COMBINED_TAG = re.compile(r'pace-notes-marathon-half-[0-9]{8}-[0-9]{4}')
 LAYOUT = 'combined'
 PIN_PATH = Path(__file__).with_name('release.json')
@@ -124,13 +130,20 @@ TIER_FIELDS = ("""t.verification_tier, lower(t.verified_badge)='true' AS verifie
 EDITION_META_HALF_ONLY = ['distance_km', 'race', 'race_date', 'has_splits', 'split_points', 'winner_m', 'winner_m_time',
                           'winner_f', 'winner_f_time', 'winner_check', 'year_check', 'count_check',
                           'completeness_status_platform']
-SOURCES = OVERLAY_SCHEMAS['sources'] + [('release_status', 'VARCHAR')]
+# sources.parquet is the release's own source list: `city` and `race` there are the source's strings, not labels, and a
+# source row need not belong to a written edition. `edition_city` is the label of the written edition with its key and
+# year, when there is one.
+SOURCES = OVERLAY_SCHEMAS['sources'] + [('release_status', 'VARCHAR'), ('edition_city', 'VARCHAR')]
+# release_keys.parquet: one row per written edition, from the pipeline's (city, year) to the release's own key and race
+# name. `city` is the registry label, `race` the race name written in race_records and features.
+RELEASE_KEYS = [('city', 'VARCHAR'), ('year', 'BIGINT'), ('race', 'VARCHAR'), ('race_id', 'VARCHAR'), ('release_city', 'VARCHAR'),
+                ('release_race', 'VARCHAR'), ('n_records', 'BIGINT')]
 RECORD_FLAGS = [('record_id', 'BIGINT'), ('city', 'VARCHAR'), ('year', 'BIGINT'), ('flag', 'VARCHAR'), ('detail', 'VARCHAR')]
 QA_ROW_FLAGS = [('record_id', 'BIGINT'), ('city', 'VARCHAR'), ('year', 'BIGINT')] + [(f, 'BOOLEAN') for f in QA_FLAGS] + [
     ('sex_from_category', 'VARCHAR')]
 
 DATA_MEMBERS = ['race_records.parquet', 'race_conditions.parquet', 'course_profiles.parquet', 'course_segments.parquet',
-                'sources.parquet', 'edition_meta.parquet', 'record_flags.parquet', 'qa_row_flags.parquet']
+                'sources.parquet', 'edition_meta.parquet', 'record_flags.parquet', 'qa_row_flags.parquet', 'release_keys.parquet']
 DOC_MEMBERS = ['EDITIONS.json', 'races_summary.json', 'EDITION-CHECKSUMS.csv', 'RECONCILIATION.json', 'CHANGE-REPORT.md',
                'ID-CONTRACT.md', 'MATCHING.md', 'FEATURE-FIELD-NOTES.md', 'README.md']
 # The members a combined-layout input holds (CORE); FULL adds features.parquet. provenance.json is local, as for every layout.
@@ -141,12 +154,17 @@ EXPECTED_COMBINED_FULL = EXPECTED_COMBINED | {'features.parquet'}
 # outcome was computed). A marathon row is left out when it carries one of these pending-review flags (present in CORE)
 # or one of these QA flags. `kept_unlabelled` pending flags leave their rows in as ordinary results; the adapter writes
 # no pending-review flag at all, so no row is labelled. Any other pending flag on a marathon row stops the adapter.
+# `kept_when_edition_wide` (lead ruling R2, 2026-11-14, after the first reconciliation showed four small editions losing
+# every row): one of these flags removes nothing from an edition whose every release row carries it, because it then
+# describes how the source laid the edition out (the finish repeated in a split column; a status column that holds
+# place numbers), not the row. A row of such an edition is still left out when it carries another flag of the rule.
 ROW_RULE = {
     'pace-notes-marathon-half-20261113-1113': {
         'pending_review_flags': ['wheelchair_handcycle_published_category', 'sportstats_nonfinish_status',
                                  'philadelphia_2010_place_sequence_outlier'],
         'qa_row_flags': ['finish_faster_than_world_record', 'finish_ge_24h', 'finish_zero', 'finish_equals_earlier_split'],
         'kept_unlabelled': ['adaptive_division_published_category'],
+        'kept_when_edition_wide': ['finish_equals_earlier_split', 'sportstats_nonfinish_status'],
     },
 }
 # The identity rule (lead decision D4, 2026-11-14; frozen before any outcome was computed). A record's cross-race key
@@ -195,12 +213,21 @@ CLAIMS = {
 # What a review of each combined release accepted (docs/evidence/2026-11-14/release-20261113-1113). Anything else fails.
 # - baseline_equal: members whose marathon values must equal the baseline's; its bytes are then kept.
 # - left_out: the rows the ROW_RULE removes (distinct rows; a row can carry two of the flags).
+# - edition_wide_kept: the editions whose every row carries a `kept_when_edition_wide` flag, by flag, with their rows.
 # - written_rows: marathon rows written.
 # - known_mismatches: reconciliation checks reviewed as real mismatches (family, check); still written as mismatches.
 REVIEWED = {
     'pace-notes-marathon-half-20261113-1113': {
         'baseline_equal': ['race_conditions', 'course_profiles', 'course_segments'],
-        'left_out': 2431, 'written_rows': 7819991,
+        # Read on 2026-11-14 after ruling R2: 2,431 rows carry a flag of the rule; 448 of them are every row of four small
+        # editions and stay (none carries another flag of the rule), so 1,983 are left out and 7,820,439 written.
+        'left_out': 1983, 'written_rows': 7820439,
+        'edition_wide_kept': {
+            'pending_review_flags.sportstats_nonfinish_status': {
+                'King George Island, TBD: Antarctica Marathon & Half Marathon - Voyage 2 2019': 116},
+            'qa_row_flags.finish_equals_earlier_split': {
+                'Ottawa, ON: Ottawa Fall Colours Run 2010': 105, 'TBD, TBD: Run Barbados Festival 2002': 95,
+                'TBD, TBD: Run Barbados Festival 2003': 132}},
         # Read on 2026-11-14. The two edition tables are not the same table: on the marathon side edition_meta.parquet
         # keeps an official count for 4 excluded editions (no rows) and the status `unverified` for the 17 mixed-distance
         # lists where EDITION-TIERS.csv is blank; on the half side edition_meta.parquet has 273 `no_rows` editions that
@@ -638,15 +665,35 @@ def reconcile(db, pin, core, assets, baseline):
              for f in rule['pending_review_flags']]
     parts += [f"SELECT record_id, 'qa_row_flags.{f}' AS reason FROM qa WHERE distance='marathon' AND source_db='full' AND {f}" for f in rule['qa_row_flags']]
     db.execute('CREATE OR REPLACE TABLE left_out_flags AS ' + ' UNION ALL '.join(parts))
-    db.execute('CREATE OR REPLACE TABLE left_out AS SELECT record_id, count(*) AS flags FROM left_out_flags GROUP BY 1')
+    # A flag every release row of an edition carries describes the source's layout, not the row: it removes nothing.
+    if not set(rule['kept_when_edition_wide']) <= set(rule['pending_review_flags']) | set(rule['qa_row_flags']):
+        fail('the row rule keeps an edition-wide flag that it does not leave out')
+    wide = [('pending_review_flags.' if f in rule['pending_review_flags'] else 'qa_row_flags.') + f for f in rule['kept_when_edition_wide']]
+    db.execute(f"""CREATE OR REPLACE TABLE edition_wide AS SELECT r.city, r.year, x.reason, count(*) AS n
+      FROM left_out_flags x JOIN rr r ON r.distance='marathon' AND r.source_db='full' AND r.id=x.record_id
+      JOIN ed e ON e.distance='marathon' AND e.source_db='full' AND e.city=r.city AND e.year=r.year
+      WHERE x.reason IN ({', '.join(literal(w) for w in wide) or 'NULL'}) GROUP BY r.city, r.year, x.reason, e.n HAVING count(*) = e.n""")
+    db.execute("""CREATE OR REPLACE TABLE left_out_kept AS SELECT x.record_id, x.reason, w.city IS NOT NULL AS edition_wide
+      FROM left_out_flags x JOIN rr r ON r.distance='marathon' AND r.source_db='full' AND r.id=x.record_id
+      LEFT JOIN edition_wide w ON w.city=r.city AND w.year=r.year AND w.reason=x.reason""")
+    db.execute('CREATE OR REPLACE TABLE left_out AS SELECT record_id, count(*) AS flags FROM left_out_kept WHERE NOT edition_wide GROUP BY 1')
     stated = manifest['by_distance']['marathon']
     expected = {f'pending_review_flags.{f}': stated['pending_flags'].get(f, 0) for f in rule['pending_review_flags']}
     expected.update({f'qa_row_flags.{f}': stated['qa_row_flags'].get(f, 0) for f in rule['qa_row_flags']})
     measured = pairs(db, 'SELECT reason, count(*) FROM left_out_flags GROUP BY 1')
     checks.add('rows_left_out', 'rows by flag', 'MANIFEST.json by_distance.marathon (pending_flags, qa_row_flags)', dict(sorted(expected.items())),
                dict(sorted({**{k: 0 for k in expected}, **measured}.items())))
+    kept = {}
+    for city, year, reason, n in db.execute('SELECT city, year, reason, n FROM edition_wide ORDER BY 3, 1, 2').fetchall():
+        kept.setdefault(reason, {})[f'{city} {year}'] = n
+    checks.add('rows_left_out', 'rows kept although flagged, because every row of their edition carries the flag (by flag and edition)',
+               'analysis/adapt_combined.py REVIEWED edition_wide_kept (lead ruling R2, 2026-11-14)', REVIEWED[tag]['edition_wide_kept'], kept)
+    checks.add('rows_left_out', 'rows left out, by flag (a row can carry two)', 'measured', None,
+               pairs(db, 'SELECT reason, count(*) FROM left_out_kept WHERE NOT edition_wide GROUP BY 1'))
     checks.add('rows_left_out', 'distinct rows left out', 'analysis/adapt_combined.py REVIEWED', REVIEWED[tag]['left_out'], scalar(db, 'SELECT count(*) FROM left_out'))
-    checks.add('rows_left_out', 'rows carrying two of the flags', 'measured', None, scalar(db, 'SELECT count(*) FROM left_out WHERE flags > 1'))
+    checks.add('rows_left_out', 'rows carrying two of the flags that leave them out', 'measured', None, scalar(db, 'SELECT count(*) FROM left_out WHERE flags > 1'))
+    checks.add('rows_left_out', 'rows with an edition-wide flag that another flag still leaves out', 'measured', None,
+               scalar(db, 'SELECT count(DISTINCT record_id) FROM left_out_kept WHERE edition_wide AND record_id IN (SELECT record_id FROM left_out)'))
     checks.add('rows_left_out', 'marathon rows written', 'analysis/adapt_combined.py REVIEWED', REVIEWED[tag]['written_rows'],
                scalar(db, "SELECT count(*) FROM rr WHERE distance='marathon'") - scalar(db, 'SELECT count(*) FROM left_out'))
     checks.add('rows_left_out', 'kept, never labelled: rows with a pending flag the rule keeps', 'MANIFEST.json by_distance.marathon pending_flags',
@@ -708,36 +755,84 @@ def reconcile(db, pin, core, assets, baseline):
     return checks
 
 
+def written_editions(db):
+    """(release key, year, release race name, rows) of the rows the adapter writes: what the race registry is built from."""
+    return [tuple(r) for r in db.execute("""SELECT city, year, race, count(*) FROM rr WHERE distance='marathon'
+      AND id NOT IN (SELECT record_id FROM left_out) GROUP BY ALL ORDER BY 1, 2, 3""").fetchall()]
+
+
+def registry_tables(db, pin, checks):
+    """The frozen race registry (analysis/race-registry.json) over the rows about to be written: `reg`, from a release
+    key to its race's label, display name and id, and `wed`, one row per written edition with the `city` and `race` the
+    adapter writes beside the release's own. The registry is rebuilt from these rows and its reviewed part; any
+    difference from the frozen file stops the run. `race` is the registry's display name, except that an edition under a
+    plain key keeps the race name the release gives it (a plain key's names are already display names, and one key,
+    Warsaw, holds two races that must not be renamed as each other)."""
+    editions = written_editions(db)
+    try:
+        by_key, frozen_sha = race_registry.frozen_races(pin['tag'], editions)
+    except (RuntimeError, AssertionError) as error:
+        fail(f'race registry: {error}')
+    db.execute('CREATE OR REPLACE TABLE reg (release_city VARCHAR, city VARCHAR, race_name VARCHAR, race_id VARCHAR, plain BOOLEAN)')
+    db.executemany('INSERT INTO reg VALUES (?,?,?,?,?)',
+                   [[key, race['label'], race['name'], race['race_id'], ': ' not in key] for key, race in sorted(by_key.items())])
+    db.execute("""CREATE OR REPLACE TABLE wed AS SELECT g.city, e.year, CASE WHEN g.plain THEN e.race ELSE g.race_name END AS race, g.race_id,
+        e.city AS release_city, e.race AS release_race, e.n AS n_records, e.names
+      FROM (SELECT city, year, min(race) AS race, count(DISTINCT race) AS names, count(*) AS n FROM rr WHERE distance='marathon'
+        AND id NOT IN (SELECT record_id FROM left_out) GROUP BY ALL) e JOIN reg g ON g.release_city=e.city""")
+    if scalar(db, 'SELECT count(*) FROM wed') != len({(key, year) for key, year, _, _ in editions}):
+        fail('race registry: a written edition has no race')
+    if scalar(db, 'SELECT count(*) FROM wed WHERE names <> 1'):
+        fail('an edition carries more than one race name; release_keys.parquet keeps one per edition')
+    if scalar(db, 'SELECT count(*) - count(DISTINCT (city, year)) FROM wed'):
+        fail('race registry: two release editions would be written under one label and year')
+    races = {race['race_id']: race for race in by_key.values()}
+    checks.add('race_registry', 'the frozen registry equals a rebuild from the written rows (keys, races, written editions and rows)',
+               'analysis/race-registry.json (rebuilt by analysis/race_registry.py from the rows about to be written; a difference stops the adapter)',
+               {'keys': len(by_key), 'races': len(races), 'editions': sum(r['editions'] for r in races.values()), 'rows': sum(r['rows'] for r in races.values())},
+               {'keys': scalar(db, 'SELECT count(DISTINCT release_city) FROM wed'), 'races': scalar(db, 'SELECT count(DISTINCT city) FROM wed'),
+                'editions': scalar(db, 'SELECT count(*) FROM wed'), 'rows': scalar(db, 'SELECT sum(n_records)::BIGINT FROM wed')})
+    checks.add('race_registry', 'written editions whose label or race name differs from the release’s own key or race name', 'measured', None,
+               rows(db, """SELECT count(*) FILTER(WHERE city <> release_city) AS editions_relabelled, coalesce(sum(n_records) FILTER(WHERE city <> release_city), 0)::BIGINT AS rows_relabelled,
+                 count(*) FILTER(WHERE race <> release_race) AS editions_renamed, coalesce(sum(n_records) FILTER(WHERE race <> release_race), 0)::BIGINT AS rows_renamed,
+                 count(*) FILTER(WHERE city = release_city AND race <> release_race) AS plain_key_editions_renamed FROM wed""")[0])
+    return {'file': 'analysis/race-registry.json', 'sha256': frozen_sha, 'races': len(races), 'keys': len(by_key)}
+
+
 def edition_checksums(db):
     """One pass over the marathon rows in (city, year, id) order: the producer's 27-column checksum of every release
-    edition, and the 20-column checksum (1050's method) of the rows the adapter writes, with the sex it writes."""
+    edition (under the release's own key), and the 20-column checksum (1050's method) of the rows the adapter writes,
+    with the sex, label and race name it writes, under the label."""
     position = {c: i for i, c in enumerate(SOURCE_COLUMNS)}
     keep = [position[c] for c in CHECKSUM_COLUMNS]
     sex_at, age_at = CHECKSUM_COLUMNS.index('sex'), CHECKSUM_COLUMNS.index('age')
+    label_at, race_at = CHECKSUM_COLUMNS.index('city'), CHECKSUM_COLUMNS.index('race')
     city_at, year_at = position['city'], position['year']
-    cursor = db.execute("""SELECT rr.*, coalesce(rr.sex, qa.sex_from_category) AS sex_out, lo.record_id IS NOT NULL AS left_out
+    cursor = db.execute("""SELECT rr.*, coalesce(rr.sex, qa.sex_from_category) AS sex_out, lo.record_id IS NOT NULL AS left_out,
+        g.city AS label, CASE WHEN g.plain THEN rr.race ELSE g.race_name END AS race_out
       FROM rr LEFT JOIN qa ON qa.source_db=rr.source_db AND qa.record_id=rr.id LEFT JOIN left_out lo ON lo.record_id=rr.id
+      LEFT JOIN reg g ON g.release_city=rr.city
       WHERE rr.distance='marathon' ORDER BY rr.city, rr.year, rr.id""")
     produced, written = {}, {}
-    key = source = out = None
+    key = source = out = label = None
     n = m = 0
 
     def close():
         if key is not None:
             produced[key] = (n, source.hexdigest())
             if m:
-                written[key] = (m, out.hexdigest())
+                written[(label, key[1])] = (m, out.hexdigest())
     while batch := cursor.fetchmany(100_000):
         for row in batch:
             here = (row[city_at], row[year_at])
             if here != key:
                 close()
-                key, source, out, n, m = here, hashlib.sha256(), hashlib.sha256(), 0, 0
+                key, source, out, n, m, label = here, hashlib.sha256(), hashlib.sha256(), 0, 0, row[29]
             source.update((json.dumps(row[:27], separators=(',', ':'), ensure_ascii=False) + '\n').encode())
             n += 1
             if not row[28]:
                 record = [row[i] for i in keep]
-                record[sex_at] = row[27]
+                record[sex_at], record[label_at], record[race_at] = row[27], row[29], row[30]
                 if record[age_at] is not None and float(record[age_at]).is_integer():
                     record[age_at] = int(record[age_at])
                 out.update((json.dumps(record, separators=(',', ':'), ensure_ascii=False) + '\n').encode())
@@ -777,15 +872,25 @@ def edition_dates(db, pin):
     analysis/reviewed-race-dates.json. Nothing else dates an edition, so the other editions are ordered by year only.
     `producer_note_date` is kept beside it: the one date the producer's own completeness note states as
     `date=YYYY-MM-DD`, when it lies in the edition's year. It is unreviewed and never used as the race date; a reviewed or
-    weather date that disagrees with it stops the adapter."""
+    weather date that disagrees with it stops the adapter. The table is keyed by the release's own key (`city`) and year."""
     dates = json.loads(RACE_DATES_PATH.read_text())['releases'].get(pin['tag'], [])
+    resolved = []
     for d in dates:
-        note = rows(db, f"SELECT completeness_reason AS r FROM em WHERE distance='marathon' AND city={literal(d['city'])} AND year={int(d['year'])}")
+        # A reviewed entry names the edition as the pipeline does, by its label; the release's own key comes from the registry.
+        found = rows(db, f"SELECT release_city AS k FROM wed WHERE city={literal(d['city'])} AND year={int(d['year'])}")
+        if len(found) != 1 or d.get('release_city', found[0]['k']) != found[0]['k']:
+            fail(f"reviewed race date {d['city']} {d['year']}: no written edition has this label and year, or its release key is not the one the entry names")
+        key = found[0]['k']
+        note = rows(db, f"SELECT completeness_reason AS r FROM em WHERE distance='marathon' AND city={literal(key)} AND year={int(d['year'])}")
         if len(note) != 1 or d['evidence_text'] not in (note[0]['r'] or ''):
             fail(f"reviewed race date {d['city']} {d['year']}: the edition metadata no longer says {d['evidence_text']!r}")
-        if scalar(db, f"SELECT count(*) FROM wx WHERE distance='marathon' AND city={literal(d['city'])} AND year={int(d['year'])}"):
+        if scalar(db, f"SELECT count(*) FROM wx WHERE distance='marathon' AND city={literal(key)} AND year={int(d['year'])}"):
             fail(f"reviewed race date {d['city']} {d['year']}: the weather table now has a row; review the date again")
-    reviewed = ' UNION ALL '.join(f"SELECT {literal(d['city'])} AS city, {int(d['year'])} AS year, {literal(d['date'])} AS race_date" for d in dates) \
+        day = datetime.date.fromisoformat(d['date'])
+        if day.year != int(d['year']) or ('weekday' in d and day.strftime('%A') != d['weekday']):
+            fail(f"reviewed race date {d['city']} {d['year']}: {d['date']} is not in the edition’s year, or not on the weekday the entry states")
+        resolved.append((key, int(d['year']), d['date']))
+    reviewed = ' UNION ALL '.join(f"SELECT {literal(k)} AS city, {y} AS year, {literal(v)} AS race_date" for k, y, v in resolved) \
         or 'SELECT NULL::VARCHAR AS city, NULL::BIGINT AS year, NULL::VARCHAR AS race_date WHERE false'
     db.execute(f"""CREATE OR REPLACE TABLE edition_dates AS WITH note AS (
         SELECT city, year, list_distinct(regexp_extract_all(completeness_reason, '{NOTE_DATE}', 1)) AS found FROM em WHERE distance='marathon'),
@@ -807,8 +912,10 @@ def write_members(db, pin, core, baseline, root, checks):
     tag = pin['tag']
     review, identity = REVIEWED[tag], IDENTITY[tag]
     step('race_records')
-    select = ', '.join('coalesce(r.sex, q.sex_from_category) AS sex' if c == 'sex' else f'CAST(r."{c}" AS {t}) AS "{c}"' for c, t in RACE_RECORDS)
-    copy_parquet(db, f"""SELECT {select} FROM rr r LEFT JOIN qa q ON q.source_db=r.source_db AND q.record_id=r.id
+    adapted = {'sex': 'coalesce(r.sex, q.sex_from_category) AS sex', 'city': 'g.city AS city',
+               'race': 'CASE WHEN g.plain THEN r.race ELSE g.race_name END AS race'}
+    select = ', '.join(adapted.get(c) or f'CAST(r."{c}" AS {t}) AS "{c}"' for c, t in RACE_RECORDS)
+    copy_parquet(db, f"""SELECT {select} FROM rr r JOIN reg g ON g.release_city=r.city LEFT JOIN qa q ON q.source_db=r.source_db AND q.record_id=r.id
       WHERE r.distance='marathon' AND r.id NOT IN (SELECT record_id FROM left_out) ORDER BY r.id""", root / 'race_records.parquet')
     db.execute(f"CREATE OR REPLACE VIEW out_rr AS SELECT * FROM read_parquet({literal(root / 'race_records.parquet')})")
     if scalar(db, 'SELECT count(*) FROM out_rr') != review['written_rows']:
@@ -820,21 +927,26 @@ def write_members(db, pin, core, baseline, root, checks):
             fail(f'{name} is not reviewed to equal the baseline member; the adapter writes these members only as its bytes')
         shutil.copyfile(baseline / f'{name}.parquet', root / f'{name}.parquet')
         written[name] = f"{pin['baseline']['tag']} bytes (marathon values equal to the release member)"
-    copy_parquet(db, 'SELECT ' + ', '.join(f'CAST("{c}" AS {t}) AS "{c}"' for c, t in SOURCES) + " FROM src WHERE distance='marathon' ORDER BY id",
-                 root / 'sources.parquet')
+    copy_parquet(db, 'SELECT ' + ', '.join('w.city AS edition_city' if c == 'edition_city' else f'CAST(s."{c}" AS {t}) AS "{c}"' for c, t in SOURCES)
+                 + " FROM src s LEFT JOIN wed w ON w.release_city=s.city AND w.year=s.year WHERE s.distance='marathon' ORDER BY s.id", root / 'sources.parquet')
+    copy_parquet(db, 'SELECT ' + ', '.join(f'CAST("{c}" AS {t}) AS "{c}"' for c, t in RELEASE_KEYS) + ' FROM wed ORDER BY city, year', root / 'release_keys.parquet')
     edition_dates(db, pin)
-    meta = ', '.join(f'CAST(e."{c}" AS {t}) AS "{c}"' for c, t in OVERLAY_SCHEMAS['edition_meta'])
+    meta = ', '.join('w.city AS city' if c == 'city' else f'CAST(e."{c}" AS {t}) AS "{c}"' for c, t in OVERLAY_SCHEMAS['edition_meta'])
     copy_parquet(db, f"""SELECT {meta}, {TIER_FIELDS}, d.race_date, d.race_date_source, d.producer_note_date
       FROM em e JOIN tiers_csv t ON t.distance=e.distance AND t.source_db=e.source_db AND t.city=e.city AND t.year::BIGINT=e.year
-      JOIN edition_dates d ON d.city=e.city AND d.year=e.year WHERE e.distance='marathon' ORDER BY e.id""", root / 'edition_meta.parquet')
-    if scalar(db, f"SELECT count(*) FROM read_parquet({literal(root / 'edition_meta.parquet')})") != scalar(db, "SELECT count(*) FROM em WHERE distance='marathon'"):
-        fail('edition_meta.parquet does not hold one row per marathon edition')
-    copy_parquet(db, "SELECT record_id, city, year, flag, detail FROM rf WHERE distance='marathon' AND record_id IN (SELECT id FROM out_rr) ORDER BY record_id, flag",
-                 root / 'record_flags.parquet')
-    copy_parquet(db, 'SELECT record_id, city, year, ' + ', '.join(QA_FLAGS) + ", sex_from_category FROM qa WHERE distance='marathon' "
-                 'AND record_id IN (SELECT id FROM out_rr) ORDER BY record_id', root / 'qa_row_flags.parquet')
-    for name in ('sources', 'edition_meta', 'record_flags', 'qa_row_flags'):
-        written[name] = 'the release’s marathon rows' + (' of the written records' if name.endswith('flags') else '')
+      JOIN edition_dates d ON d.city=e.city AND d.year=e.year JOIN wed w ON w.release_city=e.city AND w.year=e.year
+      WHERE e.distance='marathon' ORDER BY e.id""", root / 'edition_meta.parquet')
+    if scalar(db, f"SELECT count(*) FROM read_parquet({literal(root / 'edition_meta.parquet')})") != scalar(db, 'SELECT count(*) FROM wed'):
+        fail('edition_meta.parquet does not hold one row per written edition')
+    copy_parquet(db, """SELECT f.record_id, o.city, f.year, f.flag, f.detail FROM rf f JOIN out_rr o ON o.id=f.record_id
+      WHERE f.distance='marathon' ORDER BY f.record_id, f.flag""", root / 'record_flags.parquet')
+    copy_parquet(db, 'SELECT f.record_id, o.city, f.year, ' + ', '.join(f'f.{flag}' for flag in QA_FLAGS) + """, f.sex_from_category
+      FROM qa f JOIN out_rr o ON o.id=f.record_id WHERE f.distance='marathon' ORDER BY f.record_id""", root / 'qa_row_flags.parquet')
+    written['sources'] = 'the release’s marathon source list, with its own keys; edition_city is the written edition’s label'
+    written['release_keys'] = 'one row per written edition: the label and race name written, the release’s own key and race name'
+    written['edition_meta'] = 'the release’s marathon rows of the written editions, under their labels'
+    for name in ('record_flags', 'qa_row_flags'):
+        written[name] = 'the release’s marathon rows of the written records, under their labels'
     step('features')
     # features.parquet: the identity subset the builders read (FULL; computed for both bundles so their documents agree).
     confidences = rows(db, "SELECT confidence AS c, count(*) AS n, count(person_id) AS with_person FROM lk WHERE distance='marathon' GROUP BY 1")
@@ -857,7 +969,8 @@ def write_members(db, pin, core, baseline, root, checks):
         {seg}, t8/60 AS finish_time, {cum}, k.pid AS match_key, CASE WHEN k.pid IS NOT NULL THEN false END AS is_ambiguous,
         k.pid AS runner_id, CASE WHEN k.pid IS NOT NULL THEN false END AS link_preliminary,
         k.person_id, k.confidence AS link_confidence, k.method AS link_method, k.sex_source
-      FROM k LEFT JOIN edition_dates d ON d.city=k.city AND d.year=k.year ORDER BY record_id""", root / 'features.parquet')
+      FROM k JOIN wed w ON w.city=k.city AND w.year=k.year LEFT JOIN edition_dates d ON d.city=w.release_city AND d.year=k.year
+      ORDER BY record_id""", root / 'features.parquet')
     features = rows(db, f"""SELECT count(*) AS rows, count(runner_id) AS with_key, count(DISTINCT runner_id) AS keys,
       count(person_id) AS with_person_id, count(*) FILTER(WHERE person_id IS NOT NULL AND runner_id IS NULL) AS possible_match_rows,
       count(*) FILTER(WHERE person_id IS NULL) AS unlinked, count(yob) AS with_yob, count(*) FILTER(WHERE race_date IS NULL) AS without_race_date,
@@ -878,7 +991,7 @@ def write_members(db, pin, core, baseline, root, checks):
     dates = rows(db, """SELECT count(*) AS editions_with_rows, count(*) FILTER(WHERE d.race_date_source='weather') AS weather,
       count(*) FILTER(WHERE d.race_date_source='reviewed') AS reviewed, count(*) FILTER(WHERE d.race_date IS NULL) AS without_a_race_date,
       count(*) FILTER(WHERE d.race_date IS NULL AND d.producer_note_date IS NOT NULL) AS of_those_with_a_producer_note_date
-      FROM (SELECT DISTINCT city, year FROM out_rr) e JOIN edition_dates d USING(city, year)""")[0]
+      FROM wed e JOIN edition_dates d ON d.city=e.release_city AND d.year=e.year""")[0]
     return {'members_written': written, 'features': features, 'features_by_link_confidence': by_confidence,
             'identity_rule': identity, 'row_rule': ROW_RULE[tag], 'birth_year_keys': yob, 'race_dates': dates}
 
@@ -890,23 +1003,35 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
     eds = rows(db, f"""SELECT e.city, e.year, e.official_finishers, e.official_source_url, e.official_source_type, e.official_checked_at,
         e.completeness_status, e.completeness_reason, e.timing_basis, {TIER_FIELDS}, d.race_date, d.race_date_source, d.producer_note_date,
         coalesce(c.n, 0) AS rows_in_release,
-        coalesce(c.n_fin, 0) AS finishes_in_release, coalesce(l.n, 0) AS rows_left_out
+        coalesce(c.n_fin, 0) AS finishes_in_release, coalesce(l.n, 0) AS rows_left_out,
+        w.city AS label, w.race AS race_out, w.race_id, w.release_race
       FROM em e JOIN tiers_csv t ON t.distance=e.distance AND t.source_db=e.source_db AND t.city=e.city AND t.year::BIGINT=e.year
-      JOIN edition_dates d ON d.city=e.city AND d.year=e.year
+      JOIN edition_dates d ON d.city=e.city AND d.year=e.year LEFT JOIN wed w ON w.release_city=e.city AND w.year=e.year
       LEFT JOIN (SELECT city, year, n, n_fin FROM ed WHERE distance='marathon') c ON c.city=e.city AND c.year=e.year
       LEFT JOIN (SELECT r.city, r.year, count(*) AS n FROM left_out lo JOIN rr r ON r.source_db='full' AND r.id=lo.record_id GROUP BY ALL) l
         ON l.city=e.city AND l.year=e.year
       WHERE e.distance='marathon' ORDER BY e.city, e.year""")
     counted = {(c, y): (n, f, k) for c, y, n, f, k in db.execute(
         "SELECT city, year, count(*), count(split_42_2km), count(*) FILTER(WHERE nullif(trim(split_5km), '') IS NOT NULL) FROM out_rr GROUP BY ALL").fetchall()}
-    editions_json = []
+    # Written editions are listed as the pipeline names them (`city` is the label), with the release's own key and race
+    # name beside it; a marathon edition of the release tables with no written row (an excluded edition, or one whose
+    # every row the row rule leaves out) is listed apart under its release key and reaches no data member.
+    editions_json, not_written = [], []
     for e in eds:
-        key = (e['city'], e['year'])
-        n, finishes, _ = counted.get(key, (0, 0, 0))
+        key = (e['label'], e['year'])
+        n, finishes, _ = counted.get(key, (0, 0, 0)) if e['label'] is not None else (0, 0, 0)
         if n != e['rows_in_release'] - e['rows_left_out']:
-            fail(f'{key}: written rows differ from the release rows less the rows left out')
+            fail(f"{e['city']} {e['year']}: written rows differ from the release rows less the rows left out")
+        if e['label'] is None:
+            not_written.append({
+                'release_city': e['city'], 'year': e['year'], 'rows_in_release': e['rows_in_release'], 'rows_left_out': e['rows_left_out'],
+                'verification_tier': e['verification_tier'], 'release_exclusion': e['release_exclusion'], 'release_note': e['release_note'],
+                'official_finishers': e['official_finishers'], 'completeness_status': e['completeness_status'],
+                'excluded': e['verification_tier'] == 'excluded'})
+            continue
         editions_json.append({
-            'city': e['city'], 'year': e['year'], 'n_records': n, 'n_finishes': finishes, 'rows_in_release': e['rows_in_release'],
+            'city': e['label'], 'year': e['year'], 'race': e['race_out'], 'race_id': e['race_id'], 'release_city': e['city'],
+            'release_race': e['release_race'], 'n_records': n, 'n_finishes': finishes, 'rows_in_release': e['rows_in_release'],
             'finishes_in_release': e['finishes_in_release'], 'rows_left_out': e['rows_left_out'],
             'official_finishers': e['official_finishers'], 'official_source_url': e['official_source_url'],
             'official_source_type': e['official_source_type'], 'official_checked_at': e['official_checked_at'],
@@ -915,8 +1040,10 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
             'badge_label': e['badge_label'], 'split_tier': e['split_tier'], 'release_exclusion': e['release_exclusion'],
             'release_note': e['release_note'], 'hold_note': e['hold_note'], 'timing_basis': e['timing_basis'], 'race_date': e['race_date'],
             'race_date_source': e['race_date_source'], 'producer_note_date': e['producer_note_date'],
-            'sha256_records': sums[key][1] if key in sums else None, 'excluded': e['verification_tier'] == 'excluded'})
-    if {k for k in counted} != {(e['city'], e['year']) for e in editions_json if e['n_records']} or set(sums) != set(counted):
+            'sha256_records': sums[key][1], 'excluded': False})
+    editions_json.sort(key=lambda e: (e['city'], e['year']))
+    not_written.sort(key=lambda e: (e['release_city'], e['year']))
+    if set(counted) != {(e['city'], e['year']) for e in editions_json} or set(sums) != set(counted):
         fail('race_records.parquet, EDITIONS.json and the edition checksums name different editions')
     summary = [{'city': c, 'year': y, 'n_records': n, 'n_with_5km': k} for (c, y), (n, _, k) in sorted(counted.items())]
     stream = io.StringIO()
@@ -931,7 +1058,7 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
     left = {c['check']: c['measured'] for c in checks.items if c['family'] == 'rows_left_out'}
     delta = next(c['measured'] for c in checks.items if c['family'] == 'baseline_delta' and c['check'].startswith('ids removed'))
     docs = {
-        'EDITIONS.json': encode_json({'document': LABEL, 'tag': tag, 'editions': editions_json}),
+        'EDITIONS.json': encode_json({'document': LABEL, 'tag': tag, 'editions': editions_json, 'not_written': not_written}),
         'races_summary.json': encode_json({'document': LABEL, 'tag': tag, 'editions': summary}),
         'EDITION-CHECKSUMS.csv': stream.getvalue().encode(),
         'RECONCILIATION.json': encode_json(report),
@@ -947,6 +1074,9 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
             f'{head}# ID contract: {tag} (adapted, marathon rows)\n\n'
             '- `race_records.id` is the release’s `id` for `source_db = full`, `distance = marathon`: the marathon platform’s '
             'race-result id. Half rows, whose id space overlaps, are not in this folder.\n'
+            '- An edition is (`city`, `year`). `city` is the label of the edition’s race in the frozen race registry '
+            '(analysis/race-registry.json), not the release’s own key: a plain key keeps its name, and several keys of one race '
+            'share one label. `release_keys.parquet` gives, for every written edition, the release’s own key and race name.\n'
             '- `features.record_id`, `record_flags.record_id` and `qa_row_flags.record_id` use this id. Never use a row index.\n'
             '- `features.runner_id` is the v5.1 `person_id` under the adapter’s frozen identity rule (see MATCHING.md); '
             '`features.person_id` keeps every link. Person ids are not stable between link builds.\n'
@@ -982,8 +1112,12 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
             f'Marathon rows (`distance = marathon`) of the combined release, in the layout of `{pin["baseline"]["tag"]}`. Halves are '
             'not in this folder; never pool the two distances. '
             f'{left["distinct rows left out"]:,} rows are left out by the frozen row rule (pending-review flags '
-            f'{", ".join(rule["pending_review_flags"])}; QA flags {", ".join(rule["qa_row_flags"])}) and no pending-review flag is '
-            'written, so no kept row is labelled. `race_records.sex` is the published sex and, where that is blank, the '
+            f'{", ".join(rule["pending_review_flags"])}; QA flags {", ".join(rule["qa_row_flags"])}; a flag among '
+            f'{", ".join(rule["kept_when_edition_wide"])} removes nothing from an edition whose every row carries it) and no '
+            'pending-review flag is written, so no kept row is labelled. `city` is the label of the edition’s race in the frozen '
+            'race registry and `race` its display name (an edition under a plain key keeps the race name the release gives it); '
+            '`release_keys.parquet` keeps the release’s own key and race name of every written edition, and `sources.parquet` is '
+            'the release’s source list under its own keys. `race_records.sex` is the published sex and, where that is blank, the '
             'producer’s `sex_from_category`. `record_flags.parquet` keeps the release’s long format (`flag`, `detail`), which has '
             'no column for a flag’s 0/1 value. `MANIFEST.json`, `EDITIONS.json`, `races_summary.json`, `EDITION-CHECKSUMS.csv`, '
             '`RECONCILIATION.json`, `features.parquet` and these notes are written by the adapter and are not producer claims; '
@@ -1005,8 +1139,10 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
         'source': {'repository': pin['repository'], 'tag': tag, 'published_at': pin['published_at'], 'checksums': pin['checksums'],
                    'core': pin['core'], 'assets': pin['assets'], 'baseline': pin['baseline']},
         'n_records': coverage[0], 'n_cities': coverage[1], 'n_editions': coverage[2], 'id_min': coverage[3], 'id_max': coverage[4],
-        'rows_left_out': left['distinct rows left out'], 'rows_left_out_by_flag': left['rows by flag'],
-        'editions_without_rows': sum(1 for e in editions_json if not e['n_records']),
+        'n_release_keys': scalar(db, 'SELECT count(DISTINCT release_city) FROM wed'), 'race_registry': details['race_registry'],
+        'rows_left_out': left['distinct rows left out'], 'rows_left_out_by_flag': left['rows left out, by flag (a row can carry two)'],
+        'rows_kept_edition_wide': left['rows kept although flagged, because every row of their edition carries the flag (by flag and edition)'],
+        'editions_without_rows': len(not_written),
         'canonical_record_id': 'race_records.id (= the release id for source_db full, distance marathon)',
         'edition_checksum_method': CHECKSUM_METHOD,
         'tiers': {'CORE': sorted(EXPECTED_COMBINED), 'FULL': 'CORE + features.parquet'},
@@ -1020,8 +1156,11 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
     return manifest
 
 
-def adapt(pin, output, bundle='FULL', from_dirs=(), core_dir=None, baseline_dir=None, memory=None):
-    """Fetch or read the pinned files, reconcile, write the input folder; returns its provenance."""
+def adapt(pin, output, bundle='FULL', from_dirs=(), core_dir=None, baseline_dir=None, memory=None, registry_editions=None):
+    """Fetch or read the pinned files, reconcile, write the input folder; returns its provenance. With
+    `registry_editions` (a path) it writes no member: after the reconciliation it writes there the row-rule checks and
+    the written editions (`editions`: rows [release key, year, release race name, rows]), for analysis/race_registry.py
+    to freeze the registry from before a first adaptation, and returns None."""
     pin = check_pin(pin)
     if bundle not in ('CORE', 'FULL'):
         fail('bundle must be CORE or FULL')
@@ -1036,7 +1175,7 @@ def adapt(pin, output, bundle='FULL', from_dirs=(), core_dir=None, baseline_dir=
             fail(f'the release asset {name} differs from the CORE archive member of the same name')
     baseline = baseline_members(pin, root, from_dirs, Path(baseline_dir).resolve() if baseline_dir else None)
     members = ['features.parquet', 'MANIFEST.json', 'SHA256SUMS.txt'] + DATA_MEMBERS + DOC_MEMBERS
-    for name in ['provenance.json'] + members:
+    for name in ['provenance.json'] + members if registry_editions is None else []:
         (root / name).unlink(missing_ok=True)
     scratch = root / 'adapt-temp'
     scratch.mkdir(exist_ok=True)
@@ -1047,15 +1186,23 @@ def adapt(pin, output, bundle='FULL', from_dirs=(), core_dir=None, baseline_dir=
     db.execute('SET temp_directory=?', [str(scratch)])
     try:
         checks = reconcile(db, pin, core, assets, baseline)
+        if registry_editions is not None:
+            Path(registry_editions).write_text(json.dumps({
+                'document': LABEL, 'tag': pin['tag'], 'rows_left_out': [c for c in checks.items if c['family'] == 'rows_left_out'],
+                'editions': written_editions(db)}, ensure_ascii=False) + '\n')
+            return None
+        step('race registry')
+        registry = registry_tables(db, pin, checks)
         step('edition checksums')
         produced, sums = edition_checksums(db)
         check_producer_checksums(db, checks, produced)
         verdict(pin, checks)
         details = write_members(db, pin, core, baseline, root, checks)
+        details['race_registry'] = registry
         step('documents')
         manifest = write_documents(db, pin, core, assets, root, checks, details, sums)
     except BaseException:
-        for name in members:
+        for name in members if registry_editions is None else []:
             (root / name).unlink(missing_ok=True)
         raise
     finally:
@@ -1071,6 +1218,7 @@ def adapt(pin, output, bundle='FULL', from_dirs=(), core_dir=None, baseline_dir=
         'manifest_sha256': file_sha256(root / 'MANIFEST.json'),
         'release_checksums': dict(pin['checksums']), 'core': pin['core'], 'assets': pin['assets'], 'baseline': pin['baseline'],
         'adapter_sha256': manifest['adapter']['sha256'], 'adapter_version': ADAPTER_VERSION,
+        'race_registry_sha256': manifest['race_registry']['sha256'],
     }
     (root / 'provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
     return provenance
@@ -1084,11 +1232,16 @@ def main(argv=None):
     parser.add_argument('--core-dir', type=Path, help='an already unpacked CORE archive folder')
     parser.add_argument('--baseline-dir', type=Path, help='a verified baseline CORE folder from download_release.py')
     parser.add_argument('--pin', type=Path, default=PIN_PATH)
+    parser.add_argument('--registry-editions', type=Path, help='write only the written editions, as JSON, for a first freeze of the race registry')
     args = parser.parse_args(argv)
     try:
-        provenance = adapt(json.loads(args.pin.read_text()), args.output, args.bundle, args.from_dir, args.core_dir, args.baseline_dir)
+        provenance = adapt(json.loads(args.pin.read_text()), args.output, args.bundle, args.from_dir, args.core_dir, args.baseline_dir,
+                           registry_editions=args.registry_editions)
     except AdaptError as error:
         raise SystemExit(f'adapt_combined: {error}')
+    if provenance is None:
+        print(f'Wrote the written editions to {args.registry_editions}; no member was written.')
+        return
     print(f"Adapted {provenance['release_tag']} ({args.bundle}) into {args.output.resolve()}; manifest {provenance['manifest_sha256']}.")
 
 

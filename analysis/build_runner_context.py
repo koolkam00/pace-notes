@@ -27,7 +27,9 @@ def encode(value):
 
 
 def verified_inputs(source, provenance):
-    if provenance.get('layout') == 'master':
+    # An adapted input (analysis/adapt_master.py; analysis/adapt_combined.py for a combined release, whose pinned asset is
+    # the CORE archive) has no FULL archive of its own: its members are checked against the adapter's manifest.
+    if provenance.get('layout') in ('master', 'combined'):
         return verified_master_inputs(source, provenance)
     archive = source/'full.tar.gz'
     assert digest(archive) == provenance['asset_sha256'], 'FULL archive checksum mismatch'
@@ -50,9 +52,9 @@ def verified_inputs(source, provenance):
 
 
 def verified_master_inputs(source, provenance):
-    """An adapted master input (analysis/adapt_master.py) has no archive: the pinned master results file is re-hashed
-    against provenance.asset_sha256, and each analysis member against the adapter's MANIFEST.json and SHA256SUMS.txt,
-    whose manifest is the one provenance names."""
+    """An adapted input has no FULL archive: the pinned source file the provenance names (the master results file, or a
+    combined release's CORE archive) is re-hashed against provenance.asset_sha256, and each analysis member against the
+    adapter's MANIFEST.json and SHA256SUMS.txt, whose manifest is the one provenance names."""
     assert digest(source/provenance['asset_path']) == provenance['asset_sha256'], 'Master results file checksum mismatch'
     assert digest(source/'MANIFEST.json') == provenance['manifest_sha256'], 'Source manifest checksum mismatch'
     manifest = json.loads((source/'MANIFEST.json').read_text())

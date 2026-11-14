@@ -4,10 +4,18 @@
     python3 -I policy.py <adapted dir> <edition-screen.csv> --review OUT.json  the same, and write every edition's facts
     python3 -I policy.py <adapted dir> <edition-screen.csv> --write [--exceptions FILE]   freeze (a reviewed refresh only)
 
-Inputs: the adapter's EDITIONS.json (tier, split tier, official count and the written rows of every marathon edition),
-the three screens of the 1652 review run on the adapted records (docs/evidence/2026-10-21/release-0829/screen.py), and
-the reviewed exception list kept in the frozen file itself (analysis/edition-policy-20261113-1113.json,
+Inputs: the adapter's EDITIONS.json (tier, split tier, official count and the written rows of every written marathon
+edition, under the race labels the adapter writes as `city`), the three screens of the 1652 review run on the adapted
+records (docs/evidence/2026-10-21/release-0829/screen.py), the frozen race registry (analysis/race-registry.json, read
+only to check that every counted or own-record edition belongs to a race with a plain or reviewed label) and the
+reviewed exception list kept in the frozen file itself (analysis/edition-policy-20261113-1113.json,
 `reviewed_exceptions`). It imports no builder. The rule, in words, is RULE below; the frozen file repeats it.
+
+Two levels of use (lead ruling R4, 2026-11-14). A counted edition supplies every pooled statistic and every peer
+comparison. An edition that is not counted only because it is unverified, or partial and outside the coverage band,
+and whose split grid passes the three screens, keeps an own-record view (`own_record` true in the frozen list): a
+runner's own sections can be shown with the edition's tier, and nothing of it enters a pooled figure or a peer
+comparison. Every other edition that is not counted gives recorded times only.
 """
 import argparse
 import csv
@@ -19,6 +27,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[4]
 TAG = 'pace-notes-marathon-half-20261113-1113'
 FROZEN = ROOT / 'analysis' / 'edition-policy-20261113-1113.json'
+REGISTRY = ROOT / 'analysis' / 'race-registry.json'
+OWN_RECORD_CATEGORIES = ('unverified', 'partial_coverage')
 COVERAGE = (0.95, 1.05)          # recorded finishes / official finishers, both ends included
 USABLE_MIN_PCT = 5.0             # screen (a): under this share of finishers with a usable grid fails
 SELECTIVE = (75.0, 50.0)         # screen (b): at least the first in the quickest quarter, under the second in the slowest
@@ -26,7 +36,8 @@ MIXED_MIN_PCT = 25.0             # screen (c): at least this share of complete g
 VERIFIED_TIERS = ('stamped', 'stamped_weaker_source')
 COUNT_TIERS = VERIFIED_TIERS + ('partial',)
 RULE = {
-    'universe': 'every marathon edition (city key and year) with at least one row in the adapted race_records.parquet',
+    'universe': ('every marathon edition with at least one row in the adapted race_records.parquet, named as the pipeline names it: `city` is the label '
+                 'of the edition’s race in the frozen race registry (a plain key such as Berlin is its own label), with the year'),
     'counted': 'an edition supplies pooled pacing statistics (is counted) only when conditions 1 to 5 all hold',
     '1_split_tier': 'its split tier is `splits` (the producer sets `finish_time_only` when under half the rows have any intermediate split)',
     '2_tier': 'its verification tier is `stamped`, `stamped_weaker_source` or `partial` (never `held_for_review` or `unverified`; an `excluded` edition has no rows)',
@@ -41,7 +52,13 @@ RULE = {
     'category_order': ('an edition that is not counted takes one category and reason, the first that applies: a reviewed exception; '
                        'finish_time_only (condition 1); held_for_review, then unverified (condition 2); partial_coverage (condition 3); '
                        'invalid_split_grid (condition 4, screen a, then b, then c)'),
-    'order': 'the frozen list is sorted by city key, then year (Unicode code point order)',
+    'own_record': ('an edition that is not counted keeps an own-record view (`own_record` true) only when its category is unverified or partial_coverage '
+                   'and it fails none of the three screens of condition 4; it then supplies no pooled statistic and no peer comparison, but a record’s own '
+                   'sections may be shown with the edition’s tier (lead ruling R4, 2026-11-14). Every other edition that is not counted gives recorded '
+                   'times only'),
+    'labels': ('every counted edition and every edition with an own-record view belongs to a race whose label is a plain key or a reviewed label of the '
+               'race registry (lead decision D19, 2026-11-14); the build fails otherwise'),
+    'order': 'the frozen list is sorted by city label, then year (Unicode code point order)',
 }
 REASONS = {
     'finish_time_only': 'Finish times only: fewer than half of this edition’s records have any checkpoint time, so it supplies no pacing statistic.',
@@ -140,10 +157,25 @@ def build(editions, screens, exceptions):
         if decision is None:
             counted.append([key[0], key[1]])
         else:
-            excluded.append({'city': key[0], 'year': key[1], 'category': decision[0], 'reason': decision[1], 'rule': decision[2]})
-            row.update(category=decision[0], reason=decision[1], rule=decision[2])
+            own = decision[0] in OWN_RECORD_CATEGORIES and not (f['screen_a'] or f['screen_b'] or f['screen_c'])
+            excluded.append({'city': key[0], 'year': key[1], 'category': decision[0], 'reason': decision[1], 'rule': decision[2], 'own_record': own})
+            row.update(category=decision[0], reason=decision[1], rule=decision[2], own_record=own)
         review.append(row)
     return counted, excluded, review
+
+
+def check_labels(counted, excluded):
+    """Every counted or own-record edition belongs to a race with a plain or reviewed label. Returns the registry's digest."""
+    data = REGISTRY.read_bytes()
+    registry = json.loads(data)
+    assert registry['tag'] == TAG, 'the race registry is for another release'
+    reviewed = {race['label'] for race in registry['races'] if race['labelled_by'] in ('plain key', 'reviewed label')}
+    known = {race['label'] for race in registry['races']}
+    cities = {city for city, _ in counted} | {e['city'] for e in excluded}
+    assert cities <= known, f'editions under a city the race registry does not label: {sorted(cities - known)[:5]}'
+    unreviewed = sorted(({city for city, _ in counted} | {e['city'] for e in excluded if e['own_record']}) - reviewed)
+    assert not unreviewed, f'races with a counted or own-record edition need a reviewed label in the race registry: {unreviewed}'
+    return hashlib.sha256(data).hexdigest()
 
 
 def digest(value):
@@ -151,20 +183,24 @@ def digest(value):
 
 
 def frozen_document(counted, excluded, exceptions, inputs):
-    by_category = {}
+    by_category, own = {}, {}
     for e in excluded:
         by_category[e['category']] = by_category.get(e['category'], 0) + 1
+        if e['own_record']:
+            own[e['category']] = own.get(e['category'], 0) + 1
     return {
         'document': ('The counted-editions policy of this release (lead decision D3 of the adoption plan, 2026-11-14), frozen. analysis/source_quality.py '
                      'reads `editions` as RULES_20261113_1113 and refuses this file when its digest differs from the one it pins; '
                      'docs/evidence/2026-11-14/release-20261113-1113/policy.py rebuilds it from the rule and fails on any difference.'),
-        'schema_version': 1, 'tag': TAG, 'reviewed': '2026-11-14', 'rule': RULE,
+        'schema_version': 2, 'tag': TAG, 'reviewed': '2026-11-14', 'rule': RULE,
         'thresholds': {'coverage': list(COVERAGE), 'screen_a_min_usable_pct': USABLE_MIN_PCT, 'screen_b_quickest_min_pct': SELECTIVE[0],
                        'screen_b_slowest_under_pct': SELECTIVE[1], 'screen_c_min_mixed_pct': MIXED_MIN_PCT},
         'inputs': inputs,
         'expected': {'editions_with_rows': len(counted) + len(excluded), 'counted': len(counted), 'not_counted': len(excluded),
-                     'not_counted_by_category': dict(sorted(by_category.items())), 'reviewed_exceptions': len(exceptions)},
-        'counted_sha256': digest(counted), 'editions_sha256': digest([[e['city'], e['year'], e['category'], e['reason']] for e in excluded]),
+                     'not_counted_by_category': dict(sorted(by_category.items())), 'own_record': sum(own.values()),
+                     'own_record_by_category': dict(sorted(own.items())), 'reviewed_exceptions': len(exceptions)},
+        'counted_sha256': digest(counted),
+        'editions_sha256': digest([[e['city'], e['year'], e['category'], e['reason'], e['own_record']] for e in excluded]),
         'reviewed_exceptions': exceptions,
         'counted': counted,
         'editions': excluded,
@@ -184,6 +220,7 @@ def main(argv):
     exceptions = exceptions['reviewed_exceptions'] if isinstance(exceptions, dict) else exceptions
     counted, excluded, review = build(editions, screens, exceptions)
     inputs = {'adapted_manifest_sha256': hashlib.sha256((args.source / 'MANIFEST.json').read_bytes()).hexdigest(),
+              'race_registry_sha256': check_labels(counted, excluded),
               'editions_json_sha256': hashlib.sha256((args.source / 'EDITIONS.json').read_bytes()).hexdigest(),
               'edition_screen_csv_sha256': hashlib.sha256(args.screens.read_bytes()).hexdigest(),
               'screen_script': 'docs/evidence/2026-10-21/release-0829/screen.py',
@@ -203,8 +240,8 @@ def main(argv):
         head = {'tag': TAG, 'frozen_policy': str(FROZEN.relative_to(ROOT)), 'frozen_policy_sha256': hashlib.sha256(FROZEN.read_bytes()).hexdigest(),
                 'thresholds': document['thresholds'], 'expected': document['expected'],
                 'fields': ('per edition: the facts the rule reads (tier, split tier, written rows and finishes, the release’s rows and finishes, the official '
-                           'count and the coverage, the screens’ numbers as edition-screen.csv prints them, each screen’s verdict) and the decision; `reason` '
-                           'is in the frozen policy and is not repeated here')}
+                           'count and the coverage, the screens’ numbers as edition-screen.csv prints them, each screen’s verdict) and the decision, with '
+                           'whether an edition that is not counted keeps an own-record view; `reason` is in the frozen policy and is not repeated here')}
         lines = [json.dumps({k: (round(v, 6) if isinstance(v, float) else v) for k, v in row.items() if k != 'reason'}, ensure_ascii=False, separators=(',', ':'))
                  for row in review]
         args.review.write_text(json.dumps(head, indent=1, ensure_ascii=False)[:-2] + ',\n "editions": [\n' + ',\n'.join(lines) + '\n]}\n')

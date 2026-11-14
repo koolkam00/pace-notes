@@ -3,11 +3,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const ts = require('typescript');
 const crypto = require('node:crypto');
-const canonicalJson = value => JSON.stringify((function sort(item) {
-  if (Array.isArray(item)) return item.map(sort);
-  if (item && typeof item === 'object') return Object.fromEntries(Object.keys(item).sort().map(key => [key, sort(item[key])]));
-  return item;
-})(value));
+const { policyEditions, policySha256 } = require('./lib/edition-policy.cjs');
 
 process.chdir(path.resolve(__dirname, '..'));
 require.extensions['.ts'] = (module, filename) => module._compile(
@@ -63,7 +59,7 @@ for (const extension of extensions) {
   assert.equal(question.answer, extension.answer.answer, 'Question must use its verified extension result');
   const metadata = JSON.parse(fs.readFileSync(`public/data/packs/${extension.id}/pack_meta.json`, 'utf8'));
   for (const key of ['input_asset_sha256', 'input_manifest_sha256', 'analysis_script_sha256']) assert.match(metadata[key], /^[a-f0-9]{64}$/);
-  if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652', 'private-20261021-1050', 'master-20261103b'].includes(metadata.input_export_id)) {
+  if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652', 'private-20261021-1050', 'master-20261103b', 'pace-notes-marathon-half-20261113-1113'].includes(metadata.input_export_id)) {
     assert.ok([1, 2].includes(metadata.analysis_version));
     assert.equal(metadata.analysis_script_sha256, scriptHash(metadata.analysis_version === 1 ? 'build_pacing.py' : 'build_extended.py'), `${extension.id}: calculation code mismatch`);
     if (metadata.analysis_version === 2) assert.equal(metadata.supporting_script_sha256, scriptHash('build_pacing.py'), `${extension.id}: eligibility parser mismatch`);
@@ -72,24 +68,25 @@ for (const extension of extensions) {
   assert.ok(Number.isFinite(Date.parse(metadata.live_json_as_of)));
   const c = metadata.cohort;
   assert.equal(c.raw, c.duplicates_removed + c.missing_or_unparsed + c.non_increasing + c.outside_quality_bounds + (c.source_quality_excluded || 0) + c.eligible);
-  if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652', 'private-20261021-1050', 'master-20261103b'].includes(metadata.input_export_id)) assert.ok(metadata.source_quality?.reviewed_edition_policy, 'This source requires the reviewed edition policy');
+  if (['private-20260911-1107', 'private-20260912-0934', 'htw-db-2026-10-16-1652', 'private-20261021-1050', 'master-20261103b', 'pace-notes-marathon-half-20261113-1113'].includes(metadata.input_export_id)) assert.ok(metadata.source_quality?.reviewed_edition_policy, 'This source requires the reviewed edition policy');
   if (metadata.source_quality) {
     const policy = metadata.source_quality;
     const hash = crypto.createHash('sha256').update(fs.readFileSync('analysis/source_quality.py')).digest('hex');
     assert.equal(metadata.source_quality_script_sha256, hash);
     assert.equal(policy.script_sha256, hash);
     assert.match(policy.policy_sha256, /^[a-f0-9]{64}$/);
-    const policyDefinition = { version: policy.version, release_tag: policy.release_tag, reviewed_edition_policy: policy.reviewed_edition_policy,
-      editions: policy.editions.map(({ city, year, category, reason }) => ({ city, year, category, reason })) };
-    assert.equal(policy.policy_sha256, crypto.createHash('sha256').update(canonicalJson(policyDefinition)).digest('hex'), 'Edition reasons must match the recorded policy hash');
+    // The listed editions: in the pack up to master-20261103b; from the combined release on, the one published list,
+    // checked against the digests and counts this pack states (scripts/lib/edition-policy.cjs).
+    const editions = policyEditions(policy, extension.id);
+    assert.equal(policy.policy_sha256, policySha256(policy, editions), 'Edition reasons must match the recorded policy hash');
     assert.equal(policy.release_tag.replace('private-export-', 'private-'), metadata.input_export_id);
-    assert.equal(new Set(policy.editions.map(row => row.city + '/' + row.year)).size, policy.editions.length);
-    for (const row of policy.editions) {
+    assert.equal(new Set(editions.map(row => row.city + '/' + row.year)).size, editions.length);
+    for (const row of editions) {
       assert.ok(row.city && Number.isInteger(row.year) && row.category && row.reason);
       assert.ok([row.raw_records, row.deduplicated_records, row.timing_eligible_excluded].every(n => Number.isInteger(n) && n >= 0));
       assert.ok(row.raw_records >= row.deduplicated_records && row.deduplicated_records >= row.timing_eligible_excluded);
     }
-    assert.equal(policy.editions.reduce((sum, row) => sum + row.timing_eligible_excluded, 0), c.source_quality_excluded);
+    assert.equal(editions.reduce((sum, row) => sum + row.timing_eligible_excluded, 0), c.source_quality_excluded);
     assert.equal(c.timing_eligible, c.eligible + c.source_quality_excluded);
   }
   assert.ok(metadata.n <= c.eligible);

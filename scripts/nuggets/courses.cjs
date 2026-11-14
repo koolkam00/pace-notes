@@ -8,6 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
+const { policyEditions } = require('../lib/edition-policy.cjs');
 
 module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   const json = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
@@ -16,7 +17,8 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   const geometry = json('public/data/insights/course-geometry.json').courses;
   const goalFile = json('public/data/insights/tools/course-goal.json');
   const manifest = json('public/data/insights/manifest.json');
-  const policy = json('public/data/packs/ext_course_pacing_profiles/pack_meta.json').source_quality.editions;
+  // The listed editions: in the pack up to master-20261103b, the one published list from the combined release on.
+  const policy = policyEditions(json('public/data/packs/ext_course_pacing_profiles/pack_meta.json').source_quality, 'ext_course_pacing_profiles');
   const runners = json('public/data/runners/manifest.json');
   const context = json('public/data/runner-context/manifest.json');
   const copies = manifest.duplicate_edition_screen ?? [];
