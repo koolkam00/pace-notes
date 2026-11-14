@@ -3,14 +3,14 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import release from '@/analysis/release.json';
 import pin from '@/analysis/half-release.json';
-import type { HalfDataFile, HalfFiles, HalfLinkEditions, HalfManifest, HalfReleasePin, HalfStamps } from '@/lib/half-types';
+import type { HalfDataFile, HalfFiles, HalfManifest, HalfReleasePin, HalfTiers } from '@/lib/half-types';
 
 /**
  * The half-marathon aggregates (public/data/half/, analysis/build_half.py), verified once per process at build time.
- * Server only. `getHalfManifest()` throws unless the manifest binds the pinned half snapshot, link build and policy
- * (analysis/half-release.json), the adopted marathon release, the current runner manifest, the weather evidence and
- * the cited marathon files, and unless every family file's bytes and sha256 equal the manifest's. A half page or panel
- * therefore never renders from data built for another release or edited after its build.
+ * Server only. `getHalfManifest()` throws unless the manifest binds the pinned release, link build and policy
+ * (analysis/half-release.json), the adopted marathon release, the current marathon cohort (and through it the counted
+ * list) and the cited marathon files, and unless every family file's bytes and sha256 equal the manifest's. A half page
+ * or panel therefore never renders from data built for another release or edited after its build.
  */
 
 const ROOT = () => path.join(process.cwd(), 'public/data/half');
@@ -27,17 +27,19 @@ export function getHalfManifest(): HalfManifest {
   const key = `${stat.size}:${stat.mtimeMs}`;
   if (verified?.key === key) return verified.manifest;
   const manifest = JSON.parse(fs.readFileSync(file).toString()) as HalfManifest;
-  if (manifest.schema_version !== 2 || manifest.family !== 'half' || PIN.schema_version !== 3) throw new Error('Half data: unexpected manifest or pin schema.');
+  if (manifest.schema_version !== 3 || manifest.family !== 'half' || PIN.schema_version !== 4) throw new Error('Half data: unexpected manifest or pin schema.');
   const h = manifest.half, l = manifest.links;
-  if (h.tag !== PIN.half.tag || h.key !== PIN.half.key || h.private_tag !== PIN.half.private_tag || h.sqlite_sha256 !== PIN.half.sqlite_sha256) throw new Error('Half data must be rebuilt for the pinned half snapshot.');
+  if (h.tag !== PIN.half.tag || h.key !== PIN.half.key || h.private_tag !== PIN.half.private_tag || h.core_sha256sums_sha256 !== PIN.half.core.sha256sums_sha256
+    || Object.entries(PIN.half.core.members).some(([name, digest]) => h.members[name] !== digest)) throw new Error('Half data must be rebuilt for the pinned release files.');
   if (!PIN.links.extract_content_sha256 || l.tag !== PIN.links.tag || l.key !== PIN.links.key || l.private_tag !== PIN.links.private_tag || l.applies_to !== PIN.links.applies_to
-    || l.extract_content_sha256 !== PIN.links.extract_content_sha256 || l.coverage?.half_max_record_id !== PIN.links.coverage.half_max_record_id) throw new Error('Half data must be rebuilt for the pinned link build.');
-  const ref = PIN.stamps.reference;
-  if (manifest.stamps?.rule !== PIN.stamps.rule || manifest.stamps.reference.tag !== ref.tag || manifest.stamps.reference.asset !== ref.asset || manifest.stamps.reference.sha256 !== ref.sha256) throw new Error('Half data must be rebuilt for the pinned stamp reference.');
+    || l.extract_content_sha256 !== PIN.links.extract_content_sha256 || Object.entries(l.assets).some(([name, digest]) => PIN.links.assets[name] !== digest)) throw new Error('Half data must be rebuilt for the pinned link build.');
+  if (manifest.stamps?.rule !== PIN.stamps.rule) throw new Error('Half data must be rebuilt for the pinned rule of a verified edition.');
   if (PIN.marathon_release !== release.tag || manifest.marathon.release_tag !== release.tag) throw new Error('Half data must use the adopted marathon release.');
   if (manifest.policy.file !== PIN.policy || manifest.policy.sha256 !== sha256(fs.readFileSync(path.join(process.cwd(), PIN.policy)))) throw new Error('Half data must be rebuilt for the reviewed half policy.');
-  if (manifest.marathon.runner_manifest_sha256 !== sha256(fs.readFileSync(path.join(DATA(), 'runners/manifest.json')))) throw new Error('Half data must be rebuilt for the current runner records.');
-  if (manifest.marathon.weather_evidence_sha256 !== sha256(fs.readFileSync(path.join(DATA(), 'weather/evidence.json')))) throw new Error('Half data must be rebuilt for the current weather evidence.');
+  const cohort = fs.readFileSync(path.join(process.cwd(), 'analysis/marathon-cohort/manifest.json'));
+  if (manifest.marathon.cohort_manifest_sha256 !== sha256(cohort)) throw new Error('Half data must be rebuilt for the current marathon cohort.');
+  const cohortInputs = (JSON.parse(cohort.toString()) as { inputs?: { identity?: { sha256?: string } } }).inputs;
+  if (l.identity_sha256 !== cohortInputs?.identity?.sha256) throw new Error('Half data must be rebuilt for the identity file the marathon cohort was built on.');
   for (const [name, expected] of Object.entries(manifest.marathon.inputs)) {
     if (sha256(fs.readFileSync(path.join(DATA(), name))) !== expected) throw new Error(`Half data must be rebuilt: the cited marathon file ${name} changed.`);
   }
@@ -78,19 +80,15 @@ export function halfPin(): HalfReleasePin {
 }
 
 /** The frozen policy file, read only after the manifest binds its sha256. */
-function halfPolicy(): { stamps: HalfStamps; link_editions?: HalfLinkEditions } {
+function halfPolicy(): { tiers: HalfTiers } {
   const manifest = getHalfManifest();
   const bytes = fs.readFileSync(path.join(process.cwd(), manifest.policy.file));
   if (sha256(bytes) !== manifest.policy.sha256) throw new Error('Half policy changed after the half data were built.');
-  return JSON.parse(bytes.toString()) as { stamps: HalfStamps; link_editions?: HalfLinkEditions };
+  return JSON.parse(bytes.toString()) as { tiers: HalfTiers };
 }
 
-/** The reviewed stamp check from the frozen policy file. */
-export function halfStamps(): HalfStamps {
-  return halfPolicy().stamps;
-}
-
-/** The reviewed link-build editions from the frozen policy file (link-partial and re-timed editions), or null. */
-export function halfLinkEditions(): HalfLinkEditions | null {
-  return halfPolicy().link_editions ?? null;
+/** The reviewed tier check from the frozen policy file: the badge tiers, the never-stamp list, the weaker-source
+ * stamps, the gun-time editions and the course-suspected-short ones. */
+export function halfTiers(): HalfTiers {
+  return halfPolicy().tiers;
 }

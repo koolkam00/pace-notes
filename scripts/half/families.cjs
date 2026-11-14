@@ -158,7 +158,7 @@ function women({ fin, editions, marathons, labels, chart, chartSha }) {
   const labelCity = new Map();
   for (const [city, ls] of Object.entries(labels)) for (const l of ls) labelCity.set(l, city);
   const marathonCounts = new Map();
-  const gap = new Set(['London\u00002023', 'London\u00002025', 'London\u00002026', 'Berlin\u00002024', 'Berlin\u00002025', 'Chicago\u00002024']);
+  const gap = GENDER_GAP;
   {
     const E = marathons.editions.length, n = new Int32Array(E), f = new Int32Array(E), m = new Int32Array(E);
     for (let i = 0; i < marathons.n; i++) { const e = marathons.edition[i]; n[e]++; if (marathons.gender[i] === 2) f[e]++; else if (marathons.gender[i] === 1) m[e]++; }
@@ -210,6 +210,10 @@ function women({ fin, editions, marathons, labels, chart, chartSha }) {
 // ---------- linked.json and tools/half-to-full.json ----------
 
 const Q = Array.from({ length: 19 }, (_, i) => D.pyRound(0.05 * (i + 1), 2));
+
+/** The marathon editions the charts' sex rule leaves out (analysis/charts_common.GENDER_GAP_EDITIONS: recorded sex is
+ * missing for a large, non-random part of the field), keyed `city\u0000year`: they give no same-city pair. */
+const GENDER_GAP = new Set(['London\u00002023', 'London\u00002025', 'London\u00002026', 'Berlin\u00002024', 'Berlin\u00002025', 'Chicago\u00002024']);
 
 /** The `other_marathons` member's rule (recorded 2026-11-14 before any build): the two marathon cities that hold the most
  * pairs on the build, ties by name; the member and its check are set B without them. */
@@ -552,4 +556,4 @@ function cards(fieldDoc, womenDoc, linkedDoc) {
   };
 }
 
-module.exports = { field, women, linked, cards, Q, tailed, windowOf };
+module.exports = { field, women, linked, cards, Q, tailed, windowOf, GENDER_GAP, otherThan };

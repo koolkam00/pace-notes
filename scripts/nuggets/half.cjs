@@ -247,7 +247,11 @@ module.exports = function half({ json, eq, ok, core }) {
     eq(d.guess, `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?`, 'half deks: the guess');
     const sides = [w.h - 900, w.h + 900].map((h) => [win('F', h), win('M', h)]);
     const lower = sides.every(([pf, pm]) => pf && pm && pf.sus < pm.sus);
-    eq(d.guessMore, lower ? sides.map(([pf, pm], k) => (k === 0 ? `After a ${clock(pf.h)} half: ${pct(pf.sus)} of recorded women’s, against ${pct(pm.sus)} of men’s.` : `After a ${clock(pf.h)} half: ${pct(pf.sus)} against ${pct(pm.sus)}.`)).join(' ') : null, 'half deks: after the guess, women lower at both neighbouring halves');
+    // The dek follows its heading's guard as well as its own clause (recorded November 14, 2026, before any build of the
+    // combined release): while half.sexes falls back it is null.
+    const sexesHold = linked.sexes.strata >= 20 && linked.sexes.women_lower >= 0.9 * linked.sexes.strata && linked.sexes.diff_points >= 10
+      && linked.checks.verified.sexes.women_lower >= 0.9 * linked.checks.verified.sexes.strata;
+    eq(d.guessMore, lower && sexesHold ? sides.map(([pf, pm], k) => (k === 0 ? `After a ${clock(pf.h)} half: ${pct(pf.sus)} of recorded women’s, against ${pct(pm.sus)} of men’s.` : `After a ${clock(pf.h)} half: ${pct(pf.sus)} against ${pct(pm.sus)}.`)).join(' ') : null, 'half deks: after the guess, women lower at both neighbouring halves');
     const marks = Object.fromEntries(field.marks.map((x) => [x.minutes, x]));
     const crowdOk = marks[90].ratio_ci95[0] > 1.1 && [105, 135, 150].every((k) => marks[k].ratio < 1.1);
     const two = marks[120];
@@ -354,6 +358,22 @@ module.exports = function half({ json, eq, ok, core }) {
     const x3 = H.halfExtraFrom(g3);
     ok(!D.flagshipGuard(g3) && !H.flagshipGuard(g3) && D.figureGuard(g3) && H.figureGuard(g3), 'half fixtures: a leave-out 4 minutes off fails the H1 guard and not the figure check');
     eq([x3.guard, x3.values.figure_is_share, x3.values.figure_is_minutes, x3.figure.value, x3.key], [false, 0, 0, g3.set.pairs.toLocaleString('en-US'), 'pairs of a half and the marathon after it'], 'half fixtures: under a fallen H1 the figure is the count of pairs, whatever its own check says');
+    // guessMore is tied to half.sexes: with the heading's guard failing alone (l3) the dek is null, and with it holding
+    // on a copy whose neighbouring halves keep recorded women's share the lower, the dek is printed.
+    {
+      const holds = clone(linked);
+      holds.sexes.strata = Math.max(holds.sexes.strata, 20); holds.sexes.women_lower = holds.sexes.strata; holds.sexes.diff_points = Math.max(holds.sexes.diff_points, 10);
+      holds.checks.verified.sexes.women_lower = holds.checks.verified.sexes.strata;
+      const flagshipH = Math.round(holds.checks.battery.pooled_half_p50_s / 300) * 300;
+      const at = (l, g, h) => l.windows[g].find((x) => x.h === h);
+      const sides = [flagshipH - 900, flagshipH + 900];
+      if (sides.every((h) => at(holds, 'F', h) && at(holds, 'M', h)) && at(holds, 'F', flagshipH) && at(holds, 'M', flagshipH)) {
+        for (const h of sides) { at(holds, 'F', h).sus = 0.1; at(holds, 'M', h).sus = 0.3; }
+        ok(H.halfSexesFrom(holds).guard && typeof H.halfDeksFrom(field, women, holds).guessMore === 'string', 'half fixtures: while half.sexes holds and women’s share is the lower at both neighbouring halves, guessMore is printed');
+        const falls = clone(holds); falls.checks.verified.sexes.women_lower = 0;
+        ok(!H.halfSexesFrom(falls).guard && H.halfDeksFrom(field, women, falls).guessMore === null, 'half fixtures: with half.sexes failing alone, guessMore is null');
+      } else ok(false, 'half fixtures: the flagship half and its neighbours are published for both sexes (guessMore cannot be tested)');
+    }
     return [
       [H.halfFieldFrom(f1), 'Half marathon finishes by finish time.'],
       [H.halfUnderFrom(f2), 'Half finishes under 1:45.'],

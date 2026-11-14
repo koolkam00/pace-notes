@@ -397,8 +397,9 @@ export type HalfDeks = {
   guess: string | null;
   /**
    * After the guess's reveal: the same comparison 15 minutes either side ("After a 1:30 half: 7% of recorded women’s,
-   * against 17% of men’s. After a 2:00 half: 22% against 44%."), only while recorded women's share is the lower at both.
-   * Null otherwise.
+   * against 17% of men’s. After a 2:00 half: 22% against 44%."), only while recorded women's share is the lower at both
+   * and half.sexes holds: under a heading that states no direction, the dek sets no two shares side by side (recorded
+   * November 14, 2026, before any build of the combined release; it only tightens). Null otherwise.
    */
   guessMore: string | null;
 };
@@ -461,7 +462,7 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
         : `+${minutesOver(qb)} after a ${clock(qb.h)}`}.`
       : null,
     guess: f && m ? `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?` : null,
-    guessMore: f && m && lower ? pairs.map(([pf, pm], k) => (k === 0
+    guessMore: f && m && lower && halfSexesFrom(linked).guard ? pairs.map(([pf, pm], k) => (k === 0
       ? `After a ${clock(pf!.h)} half: ${pct(pf!.sus)} of recorded women’s, against ${pct(pm!.sus)} of men’s.`
       : `After a ${clock(pf!.h)} half: ${pct(pf!.sus)} against ${pct(pm!.sus)}.`)).join(' ') : null,
   };
