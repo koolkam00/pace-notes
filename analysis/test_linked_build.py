@@ -291,6 +291,22 @@ class Build(unittest.TestCase):
         self.assertGreaterEqual(back['with_slowdown']['finishes'], 100)
         self.assertEqual(back['years'], [2010, 2019])
 
+    def test_the_checks_keep_their_floors(self):
+        c = self.files['checks.json']
+        for band in c['temperature']['bands']:
+            self.assertEqual(band['mean_pct'] is None, band['editions'] < 3)
+        for point_group in (c['temperature']['points'],):
+            sizes = {}
+            for p in point_group:
+                sizes[(p['label'], p['basis'])] = sizes.get((p['label'], p['basis']), 0) + 1
+            self.assertTrue(all(n >= 3 for n in sizes.values()))
+        for y in c['year_levels']:
+            self.assertEqual(y['level_pct'] is None, y['editions'] < 3)
+        self.assertIsNone(c['slowdown'])          # no edition of the fixture holds 1,000 timing-eligible finishes
+        self.assertEqual(sorted(c['fits']), ['high', 'verified', 'wider'])
+        self.assertEqual(c['beyond']['editions'], self.files['editions.json']['summary']['editions'])
+        self.assertEqual(c['held_for_review'], [])
+
     def test_no_identifier_or_name_reaches_a_file(self):
         for name in build_linked.FILES:
             raw = (self.folder / 'out1' / name).read_text()

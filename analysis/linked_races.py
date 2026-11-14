@@ -9,9 +9,9 @@ Both read one fit of the pair model (analysis/linked_model.py) on the finish-tim
 - **A race reading** (races.json): the level of the race's chip- or net-timed fitted editions (at least three) once
   the level every race shares in a calendar year is taken out (a least-squares split of the edition readings into a
   race level and a year level, every edition counting once), so a race is read against the other races of the same
-  years. Its 95% interval comes from the spread of its editions around that level (Student's t); the same level has a
-  runner-bootstrap interval; and the order term gives the reading when the race was the earlier and the later of a
-  pair.
+  years. Its 95% interval comes from the spread of its editions around that level, allowing for the year levels being
+  estimated too (Student's t); the same level has a runner-bootstrap interval; and the order term gives the reading
+  when the race was the earlier and the later of a pair.
 - **The checks** (checks.json), recomputed on every build: the relation, inside a race, of the edition readings to the
   race-window temperature and to the whole field's sustained-slowdown share (neither enters the fit), and the same fit
   on verified tiers only, on high links only and on the wider set with unverified editions.
@@ -132,6 +132,21 @@ class TwoWay:
         self.solver = np.linalg.pinv(X)
         self.w = weight[self.pos]
         self.G = G
+        # How much of an edition's own reading its fitted value takes (the leverage), and each race level as a sum of
+        # edition readings: a year with few fitted editions gives its year level to the races that are in it.
+        self.leverage = np.einsum('ij,ji->i', X, self.solver)
+        shift = (self.w[:, None] * self.solver[G:][self.y]).sum(axis=0) / self.w.sum()
+        self.level_weights = self.solver[:G] + shift[None, :]
+
+    def level_se(self, resid: np.ndarray, group_index: int) -> float:
+        """The standard error of a race level that allows for the year levels being estimated too: the editions'
+        squared residuals, each divided by one minus its leverage, weighted by the square of the edition's weight in
+        the level (the heteroscedasticity-consistent form HC2). Never under the plain spread divided by root n."""
+        members = self.g == group_index
+        plain = float(resid[members].std(ddof=1)) / math.sqrt(int(members.sum()))
+        free = 1.0 - self.leverage
+        scaled = np.where(free > 1e-9, resid ** 2 / np.where(free > 1e-9, free, 1.0), 0.0)
+        return max(plain, math.sqrt(float((self.level_weights[group_index] ** 2 * scaled).sum())))
 
     def split(self, beta: np.ndarray):
         """(race levels, year levels, residuals) for readings `beta` (..., fitted units); the last axis is the unit."""
@@ -228,10 +243,8 @@ def race_levels(fit, t: pd.DataFrame, held_codes, min_editions: int = MIN_EDITIO
         if basis != lc.RACE_BASIS or len(members) < min_editions:
             continue
         positions = two.pos[members]
-        e = resid[members]
-        sd = float(e.std(ddof=1))
-        out[label] = {'index': gi, 'positions': positions, 'editions': int(len(members)), 'level': float(rho[gi]), 'sd': sd,
-                      'se': sd / math.sqrt(len(members)), 'kappa': kappa[int(t.race.to_numpy()[positions[0]])],
+        out[label] = {'index': gi, 'positions': positions, 'editions': int(len(members)), 'level': float(rho[gi]),
+                      'se': two.level_se(resid, gi), 'kappa': kappa[int(t.race.to_numpy()[positions[0]])],
                       'plain_mean': float(t.beta.to_numpy()[positions].mean()), 'year_sd': float(t.beta.to_numpy()[positions].std(ddof=1))}
     return out, two
 

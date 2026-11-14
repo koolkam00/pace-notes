@@ -67,7 +67,7 @@ const TIMING_CODES = Object.keys(TIMING_BASIS);
 const FILES = ['editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'checks.json'];
 const REQUIRED = ['editions.json', 'races.json', 'bests.json', 'age.json', 'checks.json'];   // return.json is left out when its floors fail
 const BUILDERS = /^(build_linked|linked_.*)\.py$/;
-const SHARED = ['analysis/build_pacing.py', 'analysis/build_public_explorer.py', 'analysis/source_quality.py'];
+const SHARED = ['analysis/build_pacing.py', 'analysis/build_public_explorer.py'];   // the cohort and the sustained-slowdown test the builders import
 
 // ---------- What a family file may hold ----------
 const IDENTITY_KEY = /^(ids?|rids?|record_?ids?|profile_?ids?|runners?|runner_?ids?|bibs?|bib_?(no|number)|names?|(full|first|last|given|family)_?names?|participants?|participant_?ids?|persons?|person_?ids?|edition_?ids?|match_?keys?|series_key|urls?|source_url)$/i;
@@ -509,10 +509,17 @@ function verify(dataDir, { pins = true } = {}) {
     if (policy) {
       eq(u.counted?.editions, policy.counted.length, 'manifest: the counted editions are the policy’s');
       eq(u.editions_with_rows, policy.expected.editions_with_rows, 'manifest: the editions with rows are the policy’s');
-      // The counted cohort is the site's own (build_pacing.prepare): the runner lookup of the same release states it too.
+      // The counted cohort is the site's own (build_pacing.prepare). The release's published edition-policy list states the
+      // same cohort and the same adapted input, and so does the runner lookup once it is rebuilt on the release.
+      const listed = fs.existsSync(rel('public/data/edition-policy.json')) ? JSON.parse(read('public/data/edition-policy.json')) : null;
+      if (ok(listed !== null && listed.release_tag === manifest.release_tag, 'public/data/edition-policy.json is the adopted release’s list')) {
+        eq([listed.input_manifest_sha256, listed.cohort?.eligible, listed.editions_counted, listed.editions_with_records],
+          [manifest.input?.manifest_sha256, u.counted?.eligible_finishes, u.counted?.editions, u.editions_with_rows], 'manifest: the adapted input, the counted finishes and the edition counts are the published edition-policy list’s');
+      }
       const runners = JSON.parse(read('public/data/runners/manifest.json'));
-      if (runners.release_tag === manifest.release_tag) eq(u.counted.eligible_finishes, runners.eligible_records, 'manifest: the counted finishes are the runner lookup’s eligible records');
-      else notes.push(`the counted finishes (${u.counted?.eligible_finishes}) are not compared with the runner lookup, which is still ${runners.release_tag}`);
+      const lookupEligible = runners.eligible_records ?? runners.cohort?.eligible_records;   // the second form is the lookup's next layout
+      if (runners.release_tag === manifest.release_tag && int(lookupEligible)) eq(u.counted.eligible_finishes, lookupEligible, 'manifest: the counted finishes are the runner lookup’s eligible records');
+      else notes.push(`the counted finishes (${u.counted?.eligible_finishes}) are not compared with the runner lookup (${runners.release_tag})`);
     }
   }
   return { problems, checks, notes };

@@ -42,8 +42,10 @@ from linked_common import ANALYSIS, OUTPUT, LinkedError, bytes_sha256, check_pub
 
 SCRIPTS = ('build_linked.py', 'linked_common.py', 'linked_universe.py', 'linked_model.py', 'linked_races.py', 'linked_histories.py',
            'linked_return.py')
-# The definitions this family imports from the site's builders: the cohort, the sustained-slowdown test, the policy.
-SHARED_SCRIPTS = ('build_pacing.py', 'build_public_explorer.py', 'source_quality.py')
+# The definitions this family imports from the site's builders: the timing-eligible cohort (build_pacing.prepare) and the
+# sustained-slowdown test (build_public_explorer.threshold_sql). The edition policy is bound by its own file's digest, and
+# scripts/verify-linked.cjs compares the counted cohort with the release's published edition-policy list.
+SHARED_SCRIPTS = ('build_pacing.py', 'build_public_explorer.py')
 FILES = ('editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'checks.json')
 TRAIL_FLAGS = ('mountain_or_trail_course', 'trail_or_mountain_word_in_title')   # analysis/race-registry.json: reviewed, and by rule
 

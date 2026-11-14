@@ -271,6 +271,19 @@ class Readings(unittest.TestCase):
         self.assertEqual({k: v.tolist() for k, v in groups.items()}, {('A', 'chip_or_net'): [0, 1, 2], ('A', 'gun'): [3, 4, 5]})
         self.assertEqual(lr.comparison_groups(t, min_editions=4), {})
 
+    def test_runners_that_tie_a_race_to_other_races_are_counted_each_way(self):
+        # editions 0 and 1 are race A (2015, 2016), 2 is race B (2016), 3 is race C (2017)
+        t = pd.DataFrame({'race': [0, 0, 1, 2], 'pos': np.arange(4)})
+        fit = lm.Fit(units=np.arange(4), groups=np.arange(3), years=np.array([2015, 2016, 2016, 2017]), beta=np.zeros(4), kappa=np.zeros(3),
+                     gamma=np.zeros(2), unit_weight=np.ones(4), runners=np.ones(4), pairs=6, people=5, same_year_pairs=1, dropped={},
+                     pair_person=np.array([0, 1, 1, 2, 3, 4]), pair_ua=np.array([0, 0, 1, 1, 2, 0]), pair_ub=np.array([1, 3, 3, 2, 3, 2]),
+                     pair_gap=np.array([1, 2, 1, 0, 1, 1]))
+        # runner 0: A then A (the same race: not counted); runner 1: A then C, twice (one runner); runner 2: A and B in one year (no order);
+        # runner 3: B then C (not A); runner 4: A then B
+        self.assertEqual(lr.people_by_way(fit, t, np.array([0, 1])), (2, 0))
+        self.assertEqual(lr.people_by_way(fit, t, np.array([2])), (1, 1))
+        self.assertEqual(lr.people_by_way(fit, t, np.array([3])), (0, 2))
+
     def test_the_relation_inside_races_removes_each_race_mean(self):
         frame = pd.DataFrame({'label': ['A'] * 3 + ['B'] * 3 + ['C'] * 2, 'basis': ['chip_or_net'] * 8,
                               'x': [1.0, 2.0, 3.0, 11.0, 12.0, 13.0, 50.0, 90.0], 'y': [10.0, 20.0, 30.0, 0.0, 10.0, 20.0, 5.0, 500.0]})
@@ -318,6 +331,31 @@ class RaceLevels(unittest.TestCase):
         tilted = t.beta.to_numpy() + 0.004 * (t.year.to_numpy() - 2014)
         rho2, _, _ = two.split(tilted)
         np.testing.assert_allclose(rho2 - rho2[1], rho - rho[1], atol=1e-12)
+
+    def test_the_standard_error_allows_for_thin_years(self):
+        rng = np.random.default_rng(4)
+        # Dense years: twelve races in every year. The leverage-corrected form is close to the plain spread over root n.
+        rows = [{'label': f'R{r:02d}', 'basis': 'chip_or_net', 'year': y, 'beta': rng.normal(0, 0.02)} for r in range(12) for y in range(2010, 2020)]
+        t = pd.DataFrame(rows)
+        t['code'] = t['pos'] = np.arange(len(t))
+        two = lr.TwoWay(t, np.ones(len(t)))
+        _, _, resid = two.split(t.beta.to_numpy())
+        for gi in range(12):
+            plain = resid[two.g == gi].std(ddof=1) / math.sqrt(10)
+            self.assertGreaterEqual(two.level_se(resid, gi), plain)
+            self.assertLess(two.level_se(resid, gi), 1.25 * plain)
+        # Thin years: a race whose three years it shares with one other race only. Its year levels take half of its own
+        # deviations, so the plain spread understates what is known about its level.
+        thin = [{'label': 'Thin', 'basis': 'chip_or_net', 'year': y, 'beta': b} for y, b in zip((2001, 2002, 2003), (0.03, -0.02, 0.01))]
+        mate = [{'label': 'R00', 'basis': 'chip_or_net', 'year': y, 'beta': 0.0} for y in (2001, 2002, 2003)]
+        t2 = pd.concat([t, pd.DataFrame(thin + mate)], ignore_index=True)
+        t2['code'] = t2['pos'] = np.arange(len(t2))
+        two2 = lr.TwoWay(t2, np.ones(len(t2)))
+        _, _, resid2 = two2.split(t2.beta.to_numpy())
+        gi = two2.groups.index(('Thin', 'chip_or_net'))
+        plain = resid2[two2.g == gi].std(ddof=1) / math.sqrt(3)
+        self.assertGreater(two2.level_se(resid2, gi), 1.3 * plain)
+        self.assertAlmostEqual(float(two2.leverage.sum()), len(two2.groups) + len(two2.years) - 1, places=8)   # the levels the split fits
 
     def test_only_the_largest_tied_set_of_races_and_years_is_split(self):
         t = self.table()
