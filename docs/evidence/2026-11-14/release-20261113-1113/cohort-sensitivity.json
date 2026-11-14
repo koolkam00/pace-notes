@@ -1,13 +1,13 @@
 {
  "document": "The headline cohort and its sustained-slowdown share under the edition policy and under two narrower readings of it (lead ruling R5, 2026-11-14): verified tiers only (the policy without partial editions) and without weaker-source editions (the policy without editions stamped against a weaker source). Counts are finishes that pass the timing checks, summed per edition from the same run of analysis/build_pacing.py prepare(); a sustained slowdown is analysis/build_public_explorer.py threshold_sql(.25, 5). Written by docs/evidence/2026-11-14/release-20261113-1113/cohort.py; no reading other than `policy` is a policy.",
  "release_tag": "pace-notes-marathon-half-20261113-1113",
- "input_manifest_sha256": "c0ddc847837382ae9b9ed7a52812a851588c7add8d04368e77226bf075d8310b",
- "policy_sha256": "be5f84977d1b72fa81b0a0f680a4b9d4c27f50600f70d4ecec9b8241885e758d",
- "frozen_policy_sha256": "ab43c75ef52ba9b18d63e5fd4ce9e604e2cbca152a25c4773d85b14c5b133541",
- "timing_eligible_finishes": 4687794,
+ "input_manifest_sha256": "e994ac1590d8b3204c02cc6327c83cb7315b5cc5fd2914a445f07fa809ba085c",
+ "policy_sha256": "6fd848dba85aa5b745a023d101cd80303607d506c03aea708774d0b5dd0c22cd",
+ "frozen_policy_sha256": "fe5707e1e436ef894726e7fd6bcb6f1482762f360539af001f9721a971f475a2",
+ "timing_eligible_finishes": 4687797,
  "readings": {
   "policy": {
-   "eligible_finishes": 4124023,
+   "eligible_finishes": 4124026,
    "eligible_editions": 201,
    "eligible_cities": 28,
    "sustained_slowdown": 1288216,
@@ -21,11 +21,11 @@
    "sustained_slowdown_pct": 31.1015
   },
   "without_weaker_source_editions": {
-   "eligible_finishes": 3961514,
+   "eligible_finishes": 3961517,
    "eligible_editions": 189,
    "eligible_cities": 25,
    "sustained_slowdown": 1213153,
-   "sustained_slowdown_pct": 30.6235
+   "sustained_slowdown_pct": 30.6234
   }
  },
  "policy_by_tier": {
@@ -44,11 +44,11 @@
    "sustained_slowdown_pct": 46.1901
   },
   "partial": {
-   "eligible_finishes": 721041,
+   "eligible_finishes": 721044,
    "eligible_editions": 27,
    "eligible_cities": 13,
    "sustained_slowdown": 229836,
-   "sustained_slowdown_pct": 31.8756
+   "sustained_slowdown_pct": 31.8754
   }
  }
 }
