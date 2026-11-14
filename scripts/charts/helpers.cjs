@@ -8,6 +8,17 @@
 const assert = require('node:assert/strict');
 const { quantile, quantileSorted, median, roundHalfEven, MIN_CELL } = require('./cohort.cjs');
 
+// The charts whose numbers follow linked records (the same runner in two or more races): the twin of
+// analysis/charts_common.py LINKED_CHARTS. Each stores its values on high-confidence links alone (`high_links`, lead
+// rulings R6 and D38), which its recount repeats on the cohort's high-links reading.
+const LINKED_CHARTS = [
+  'slowdowns-run-in-streaks', 'same-race-warmer-return', 'most-records-appear-once', 'new-york-2021-returners',
+  'place-in-the-field-sticks', 'quicker-every-time', 'quick-double-mostly-slower', 'just-over-3-then-next',
+  'quicker-second-20k-again', 'quicker-finishes-more-repeatable', 'in-step-once-in-step-again', 'a-year-apart',
+  'where-the-slow-day-happened', 'new-york-sped-up-at-25k', 'same-records-years-later', 'five-races-in-same-share',
+  'every-new-york-in-the-data',
+];
+
 module.exports = function helpers(C) {
   let counted = 0;
   const PRESENTATION = new Set(['form', 'fmt', 'height', 'notes', 'key', 'domain', 'overlap', 'r', 'compareFmt', 'bands', 'anchor', 'dx', 'dy', 'leader', 'labelAt', 'dash', 'width', 'area', 'dots', 'values', 'invert', 'grid', 'arrow', 'gap', 'legend', 'leftTitle', 'rightTitle', 'rowTitle', 'colTitle', 'title', 'rest', 'caption', 'mark', 'diverging', 'highlight']);
@@ -84,3 +95,4 @@ module.exports = function helpers(C) {
 
   return { compare, editionRanks, share, quantile, quantileSorted, median, roundHalfEven, MIN_CELL, counted: () => counted };
 };
+module.exports.LINKED_CHARTS = LINKED_CHARTS;

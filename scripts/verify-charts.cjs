@@ -123,7 +123,7 @@ function scan(value, where, key) {
   if (typeof value === 'number') ok(Number.isFinite(value), `${where}: finite number`);
   if (typeof value === 'string') {
     if (key !== 'release_tag') ok(!RELEASE_LABEL.test(value), `${where}: copy cites an internal export label`);
-    if (key !== 'method' && !['release_tag', 'runner_manifest_sha256', 'input_as_of', 'runner_manifest_as_of', 'theme', 'slug', 'family', 'weighting', 'form', 'fmt', 'tone', 'mark', 'anchor', 'axis'].includes(key)) {
+    if (key !== 'method' && key !== 'refused' && !['release_tag', 'runner_manifest_sha256', 'input_as_of', 'runner_manifest_as_of', 'theme', 'slug', 'family', 'weighting', 'form', 'fmt', 'tone', 'mark', 'anchor', 'axis'].includes(key)) {
       for (const [re, what] of BANNED) ok(!re.test(value), `${where}: ${what}: ${value}`);
     }
     const norm = normaliseName(value);
@@ -131,6 +131,27 @@ function scan(value, where, key) {
   }
 }
 for (const [slug, doc] of files) scan(doc, slug, null);
+
+// Linked charts (the same runner in two or more races) store their values on high-confidence links alone beside their
+// values (lead rulings R6 and D38): exactly the charts of the list, each with every value of the chart, or with the
+// builder's refusal when a group falls under a floor on high links alone (the floor is not lowered for it).
+const { LINKED_CHARTS } = require('./charts/helpers.cjs');
+for (const slug of LINKED_CHARTS) ok(catalog.some((c) => c.slug === slug), `${slug}: a linked chart the catalog does not hold`);
+const highRefused = [];
+for (const [slug, doc] of files) {
+  const linked = LINKED_CHARTS.includes(slug);
+  ok(('high_links' in doc) === linked, linked ? `${slug}: follows linked records, so it must store its values on high links alone (high_links)` : `${slug}: carries high_links but is not a linked chart`);
+  if (!linked) continue;
+  const high = doc.high_links;
+  if (high.values === null) {
+    ok(typeof high.refused === 'string' && high.refused.length > 0 && Object.keys(high).length === 2, `${slug}.high_links: no values, so the builder's refusal and nothing else`);
+    highRefused.push({ chart: catalog.find((c) => c.slug === slug).number, slug, refused: high.refused });
+  } else {
+    assert.deepEqual(Object.keys(high), ['values', 'cohort_n'], `${slug}.high_links: values and cohort_n`);
+    assert.deepEqual(Object.keys(high.values).sort(), Object.keys(doc.values).sort(), `${slug}.high_links: every value of the chart, and no other`);
+    ok(Number.isSafeInteger(high.cohort_n) && high.cohort_n >= MIN_CELL, `${slug}.high_links: cohort_n`);
+  }
+}
 
 // The words on the pages: titles and takeaways from lib/charts/text, rendered with each chart's values.
 const ts = require('typescript');
@@ -218,7 +239,20 @@ if (!opt.input) {
     else ok(!heading.test(captions), `${c.slug}: its card is withdrawn, but docs/CHARTS_INSTAGRAM.md still carries a caption for chart ${c.number} (node scripts/build-chart-cards.cjs --captions)`);
   }
 }
-console.log(JSON.stringify({ text: 'ok', charts: scope(catalog).length, fallback: fallen.map((c) => c.number), checks }));
+// Each linked chart's own guard, read on its values on high links alone. A guard that holds on every link and fails
+// on high links alone is reported here and changes nothing: the takeaway is published on the links the release keys
+// (high and medium) and its guard is not altered; the two readings sit side by side on /methodology.
+const highGuards = [];
+for (const c of scope(catalog)) {
+  const doc = files.get(c.slug);
+  if (!LINKED_CHARTS.includes(c.slug) || doc.high_links.values === null) continue;
+  const all = CHART_TEXT[c.slug].takeaway(doc.values), high = CHART_TEXT[c.slug].takeaway(doc.high_links.values);
+  ok(typeof high.guard === 'boolean' && typeof high.headline === 'string', `${c.slug}: its takeaway reads on the high-links values`);
+  highGuards.push({ chart: c.number, slug: c.slug, guard: all.guard, guard_high_links: high.guard });
+}
+const highOnlyFails = highGuards.filter((g) => g.guard && !g.guard_high_links).map((g) => g.chart);
+console.log(JSON.stringify({ text: 'ok', charts: scope(catalog).length, fallback: fallen.map((c) => c.number),
+  high_links: { charts: highGuards.length + highRefused.length, refused: highRefused.map((h) => h.chart), guard_fails_on_high_links_alone: highOnlyFails }, checks }));
 if (opt.textOnly) process.exit(0);
 
 // ---------- 4. Cohort and recounts ----------
@@ -255,8 +289,16 @@ for (const c of scope(catalog)) {
   const t = Date.now(), doc = files.get(c.slug);
   const mine = recounts[c.slug](C, doc, H);
   H.compare(doc, mine, c.slug);
+  if (LINKED_CHARTS.includes(c.slug) && doc.high_links.values !== null) {
+    // The same recount on the cohort whose linked records are keyed by high links only.
+    assert.ok(C.highLinks, 'The charts store values on high links alone, but the cohort states no link class');
+    const high = recounts[c.slug](C.highLinks, doc, H);
+    H.compare({ values: doc.high_links.values, cohort_n: doc.high_links.cohort_n, plot: {} }, high, `${c.slug} (high links alone)`);
+  }
   timings.push([c.slug, Date.now() - t]);
   checks++;
 }
 const slowest = timings.sort((a, b) => b[1] - a[1]).slice(0, 5);
-console.log(JSON.stringify({ charts: timings.length, fallback: fallen.map((c) => c.number), checks: checks + H.counted(), cohort: C.n, names: { source: C.names.source, where: C.names.where, read: C.names.names }, seconds: Math.round((Date.now() - started) / 100) / 10, slowest }));
+console.log(JSON.stringify({ charts: timings.length, fallback: fallen.map((c) => c.number),
+  high_links: { charts: highGuards.length + highRefused.length, refused: highRefused, guard_fails_on_high_links_alone: highOnlyFails },
+  checks: checks + H.counted(), cohort: C.n, names: { source: C.names.source, where: C.names.where, read: C.names.names }, seconds: Math.round((Date.now() - started) / 100) / 10, slowest }));

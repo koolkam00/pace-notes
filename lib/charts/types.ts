@@ -24,6 +24,12 @@ export type ChartFile = {
   /** The raw numbers the takeaway reads (seconds, shares 0–1, counts, labels). */
   values: Record<string, number | string>;
   plot: ChartSpec;
+  /**
+   * Only on a chart that follows linked records (the same runner in two or more races): the same values counted with
+   * high-confidence links alone keying a linked record, for the sensitivity table on /methodology. `values` is null,
+   * with the builder's refusal, when a group falls under one of the chart's floors on high links alone.
+   */
+  high_links?: { values: Record<string, number | string>; cohort_n: number } | { values: null; refused: string };
 };
 
 export type ChartsManifest = {

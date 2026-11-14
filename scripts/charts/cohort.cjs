@@ -85,6 +85,11 @@ function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = n
   const n = manifest.eligible_records;
   const times = new Float64Array(n * 9), edition = new Uint16Array(n), gender = new Uint8Array(n), age = new Uint8Array(n);
   const exact = new Float64Array(n), runner = new Float64Array(n);
+  // The same runner when only high-confidence links key a linked record (lead rulings R6 and D38): a keyed record
+  // whose link is of the medium class stands alone, numbered by its own id, negated so that it can never equal a
+  // runner id (a runner is named by the smallest record id of its key, which can be this very record).
+  const runnerHigh = new Float64Array(n);
+  let linkClasses = true;
   // Every written record of each edition (the manifest's raw count, checked against the file): recounts apply their
   // own retention screens to it.
   const rawN = new Int32Array(editions.length);
@@ -115,6 +120,11 @@ function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = n
       // The runner: the smallest written marathon record id of the record's key, or the record itself without a key.
       assert.ok(own === 0 || (integer(own, 1) && own <= id), 'A runner is named by a record id no larger than the record’s own');
       const who = own || id;
+      // The class of the record's link: 'h' (high_elite or high), 'm' (medium), none without a key.
+      const link = file.link ? file.link[k] : undefined;
+      if (link === undefined) linkClasses = false;
+      else assert.ok(own === 0 ? link === null : link === 'h' || link === 'm', 'A link class exactly where a record has a runner');
+      runnerHigh[eligible] = own !== 0 && link !== 'h' ? -id : who;
       assert.ok(!runners.has(who), `${entry.file}: a runner has at most one counted record in an edition`);
       runners.add(who);
       times.set(t, eligible * 9);
@@ -132,16 +142,22 @@ function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = n
   recordIds.sort();
   for (let i = 1; i < recordIds.length; i++) assert.notEqual(recordIds[i], recordIds[i - 1], 'Unique record IDs');
 
-  // Linked records: a dense index in order of the cohort runner id, as insights_data.read_finishes numbers `profile`.
-  const ids = Float64Array.from(runner).sort();
-  let profiles = 0;
-  for (let i = 0; i < n; i++) if (i === 0 || ids[i] !== ids[i - 1]) ids[profiles++] = ids[i];
-  const profile = new Int32Array(n);
-  for (let i = 0; i < n; i++) {
-    let lo = 0, hi = profiles - 1;
-    while (lo < hi) { const mid = (lo + hi) >> 1; if (ids[mid] < runner[i]) lo = mid + 1; else hi = mid; }
-    profile[i] = lo;
-  }
+  // Linked records: a dense index in order of the cohort runner id, as insights_data.read_finishes numbers `profile`;
+  // and the same on high-confidence links alone, as charts_common.high_link_profile numbers it.
+  const dense = (values) => {
+    const ids = Float64Array.from(values).sort();
+    let count = 0;
+    for (let i = 0; i < n; i++) if (i === 0 || ids[i] !== ids[i - 1]) ids[count++] = ids[i];
+    const index = new Int32Array(n);
+    for (let i = 0; i < n; i++) {
+      let lo = 0, hi = count - 1;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (ids[mid] < values[i]) lo = mid + 1; else hi = mid; }
+      index[i] = lo;
+    }
+    return { index, count };
+  };
+  const { index: profile, count: profiles } = dense(runner);
+  const high = linkClasses ? dense(runnerHigh) : null;
 
   // The name guard: every recorded runner name against the charts' strings.
   const nameHits = [];
@@ -228,12 +244,17 @@ function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = n
   const geometryPath = path.join(dataRoot, 'insights/course-geometry.json');
   const geometry = fs.existsSync(geometryPath) ? read(geometryPath) : { courses: [] };
 
-  return {
+  const C = {
     n, times, edition, gender, age, exactAge: exact, profile, profiles, finish, baseline, slow, onset, pace, shapeKeep, shapeFlagged,
     granular, exactAgeOk, editions, cities, city, year, edN, rawN, rowsOf, genderGapEdition, nameHits, names,
     ed: { city: editions.map((e) => e.city), year: editions.map((e) => e.year), race: editions.map((e) => e.race), temp: col('temp_c'), dew: col('dewpoint_c'), wind: col('wind_mps'), warming: col('warming_c') },
     weather, raceDates, geometry, manifest, manifestSha, pin,
   };
+  // The cohort a linked chart's recount reads for its values on high links alone: the same arrays, `profile` keyed by
+  // high-confidence links only. It is a copy made before any recount runs, so no cache a recount keeps on the cohort
+  // is shared between the two readings. Null when the cohort states no link class.
+  C.highLinks = high ? { ...C, profile: high.index, profiles: high.count } : null;
+  return C;
 }
 
 module.exports = { loadCohort, verifiedManifest, quantile, quantileSorted, median, normaliseName, roundHalfEven, hash, MIN_CELL, POINTS, LENGTHS, AGE_LABELS, GENDER_LABELS, COHORT_SCRIPTS };

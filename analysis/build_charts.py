@@ -24,7 +24,7 @@ import time
 import numpy as np
 
 from build_insights import encode, load_cohort, sha256_bytes, sha256_file, write
-from charts_common import MIN_CELL, ChartCohort, load_geometry, load_weather
+from charts_common import LINKED_CHARTS, MIN_CELL, ChartCohort, load_geometry, load_weather
 from insights_data import AGE_LABELS, GENDER_LABELS, screen_duplicates
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -86,8 +86,23 @@ def build_one(item, cohort):
         raise ValueError(f"{item['slug']}: weighting must be pooled, editions-equal or pairs")
     if not (isinstance(result['cohort_n'], int) and result['cohort_n'] >= MIN_CELL):
         raise ValueError(f"{item['slug']}: cohort_n must be an integer of at least {MIN_CELL}")
+    if item['slug'] in LINKED_CHARTS and getattr(cohort, 'profile_high', None) is not None:
+        result['high_links'] = high_links_variant(builder, cohort)
     check(result, item['slug'])
     return result
+
+
+def high_links_variant(builder, cohort):
+    """A linked chart's values on high-confidence links alone (lead rulings R6 and D38): the same builder on the cohort
+    whose linked records are keyed by high links only. `values` holds every number the takeaway prints and every input
+    of its guard, so the same takeaway and guard can be read on it; the chart itself is drawn from all links. When the
+    builder refuses on high links alone (a group falls under one of its floors), no value is stored and the refusal is:
+    the floor is not lowered for the sensitivity either."""
+    try:
+        high = builder(cohort.high_links())
+    except ValueError as error:
+        return dict(values=None, refused=str(error))
+    return dict(values=high['values'], cohort_n=high['cohort_n'])
 
 
 def run(output, only=None, cache=None, partial=False):
@@ -96,6 +111,8 @@ def run(output, only=None, cache=None, partial=False):
     story, screen = screen_duplicates(full)
     weather = load_weather()
     cohort = ChartCohort(story, manifest, manifest_sha, weather=weather, geometry=load_geometry())
+    if cohort.profile_high is None:
+        raise ValueError('The cohort states no link class, so the linked charts cannot store their reading on high links alone (lead ruling D38)')
     items = catalog()
     here = Path(__file__).parent
     scripts = {name: sha256_file(here / name) for name in sorted(

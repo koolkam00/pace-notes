@@ -46,6 +46,20 @@ export type ChartWords = {
 
 const plainOf = (text: string) => text.replace(/\*/g, '');
 
+/**
+ * A linked chart's takeaway read on its values on high-confidence links alone (ChartFile.high_links), beside the
+ * published one: the sentence is the takeaway only while the chart's own guard holds on both sets of values (the same
+ * guard, never another), else the neutral fallback; `guard` says whether it holds on high links alone. Null for a chart
+ * that follows no linked records, or when too few high links were left to count it.
+ */
+export function highLinksReading(item: CatalogItem, file: ChartFile): { guard: boolean; plain: string } | null {
+  const text = CHART_TEXT[item.slug];
+  if (!text) throw new Error(`No words registered for chart ${item.slug}.`);
+  if (!file.high_links || file.high_links.values === null) return null;
+  const published = text.takeaway(file.values), high = text.takeaway(file.high_links.values);
+  return { guard: high.guard, plain: plainOf(typo(published.guard && high.guard ? high.headline : high.fallback)) };
+}
+
 export function chartWords(item: CatalogItem, file: ChartFile): ChartWords {
   const text = CHART_TEXT[item.slug];
   if (!text) throw new Error(`No words registered for chart ${item.slug}.`);

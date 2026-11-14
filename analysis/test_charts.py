@@ -44,6 +44,13 @@ def synthetic(n_per_edition=600, years=(2006, 2013, 2016, 2019, 2021, 2023, 2025
     profile = rng.integers(1, n // 2, n).astype(np.uint64)
     f = Finishes(times, edition, gender, age, ages, profile, editions)
     f.raw_by_edition = np.bincount(edition, minlength=len(editions))
+    # What the cohort reader adds: record ids, the runner (the smallest record id of the linked record), a key on every
+    # finish and the class of its link (about seven in ten high), from a generator of its own so the rest is unchanged.
+    f.record_id = np.arange(1, n + 1, dtype=np.int64)
+    smallest = np.full(int(profile.max()) + 1, n + 1, dtype=np.int64)
+    np.minimum.at(smallest, profile.astype(np.int64), f.record_id)
+    f.runner, f.keyed = smallest[profile.astype(np.int64)], np.ones(n, bool)
+    f.link_high = np.random.default_rng(seed + 1).random(n) < 0.7
     weather = dict(editions=[dict(city=e['city'], year=e['year'], date=f"{e['year']}-10-{1 + k % 28:02d}", temp_c=float(rng.uniform(5, 22)), dewpoint_c=float(rng.uniform(0, 15)),
                                   wind_mps=float(rng.uniform(1, 6)), warming_c=float(rng.uniform(0, 6))) for k, e in enumerate(editions)])
     return ChartCohort(f, dict(editions=editions), 'test', weather=weather, geometry=None)
@@ -78,6 +85,90 @@ class Helpers(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_charts.check(dict(v=float('nan')), 'x')
         build_charts.check(dict(rows=[dict(n=100, v=0.5)]), 'x')
+
+
+class HighLinks(unittest.TestCase):
+    """The reading on high-confidence links alone (lead rulings R6 and D38, 2026-11-14)."""
+
+    def finishes(self, runner, record_id, keyed, link_high):
+        from types import SimpleNamespace
+        runner = np.array(runner, dtype=np.int64)
+        return SimpleNamespace(runner=runner, record_id=np.array(record_id, dtype=np.int64), keyed=np.array(keyed, bool),
+                               link_high=np.array(link_high, bool), profile=np.unique(runner, return_inverse=True)[1].astype(np.uint64))
+
+    def test_a_medium_link_stands_alone_even_when_its_record_names_the_runner(self):
+        # Runner 5 holds records 5 (medium), 6 and 9 (high); records 7 and 8 have no key.
+        f = self.finishes(runner=[5, 5, 5, 7, 8], record_id=[5, 6, 9, 7, 8], keyed=[True, True, True, False, False], link_high=[False, True, True, False, False])
+        self.assertEqual(f.profile.tolist(), [0, 0, 0, 1, 2])
+        high = charts_common.high_link_profile(f)
+        self.assertEqual(high[1], high[2])                       # the two high links are still one linked record
+        self.assertEqual(len(set(high.tolist())), 4)             # record 5 stands alone, as 7 and 8 do
+        self.assertNotEqual(high[0], high[1])
+        self.assertEqual(high.dtype, f.profile.dtype)
+
+    def test_with_every_link_high_the_index_is_unchanged(self):
+        f = self.finishes(runner=[5, 5, 7, 8, 8], record_id=[5, 6, 7, 8, 9], keyed=[True, True, False, True, True], link_high=[True, True, False, True, True])
+        self.assertEqual(charts_common.high_link_profile(f).tolist(), f.profile.tolist())
+
+    def test_a_high_link_without_a_key_is_refused_and_no_link_class_gives_none(self):
+        f = self.finishes(runner=[5, 6], record_id=[5, 6], keyed=[True, False], link_high=[True, True])
+        with self.assertRaisesRegex(ValueError, 'without a runner key'):
+            charts_common.high_link_profile(f)
+        del f.link_high
+        self.assertIsNone(charts_common.high_link_profile(f))
+
+    def test_the_view_shares_the_finishes_and_changes_only_the_linked_records(self):
+        cohort = synthetic()
+        view = cohort.high_links()
+        self.assertIs(view, cohort.high_links())
+        self.assertIs(view.times, cohort.times)
+        self.assertGreater(len(np.unique(view.profile)), len(np.unique(cohort.profile)))
+        self.assertEqual(view.n, cohort.n)
+
+    def test_a_linked_chart_stores_its_values_on_high_links_alone_and_no_other_chart_does(self):
+        cohort = synthetic()
+        seen = dict(linked=0, values=0, other=0)
+        for item in build_charts.catalog():
+            try:
+                result = build_charts.build_one(item, cohort)
+            except ValueError:
+                continue
+            if item['slug'] in charts_common.LINKED_CHARTS:
+                seen['linked'] += 1
+                high = result['high_links']
+                if high['values'] is None:
+                    self.assertIsInstance(high['refused'], str)
+                else:
+                    seen['values'] += 1
+                    self.assertEqual(sorted(high['values']), sorted(result['values']), item['slug'])
+                    self.assertIsInstance(high['cohort_n'], int)
+            else:
+                seen['other'] += 1
+                self.assertNotIn('high_links', result)
+        self.assertGreater(seen['values'], 0)
+        self.assertGreater(seen['other'], 0)
+
+    def test_the_list_is_the_builders_that_read_linked_records(self):
+        """A chart follows linked records when its builder, or a helper of its module that it calls, reads `c.profile`."""
+        import re
+        here, found = Path(build_charts.__file__).resolve().parent, set()
+        for path in sorted(here.glob('charts_*.py')):
+            if path.stem == 'charts_common':
+                continue
+            source = path.read_text()
+            functions = {}
+            for node in ast.parse(source).body:
+                if isinstance(node, ast.FunctionDef):
+                    slug = next((d.args[0].value for d in node.decorator_list if isinstance(d, ast.Call) and getattr(d.func, 'id', '') == 'chart'), None)
+                    functions[node.name] = (slug, ast.get_source_segment(source, node))
+
+            def reads(name, seen=()):
+                body = functions[name][1]
+                return 'c.profile' in body or any(other != name and other not in seen and re.search(rf'\b{other}\(', body) and reads(other, seen + (name,))
+                                                  for other in functions)
+            found |= {slug for name, (slug, _) in functions.items() if slug and reads(name)}
+        self.assertEqual(found, set(charts_common.LINKED_CHARTS))
+        self.assertEqual(len(charts_common.LINKED_CHARTS), len(set(charts_common.LINKED_CHARTS)))
 
 
 class RaceDates(unittest.TestCase):
@@ -135,6 +226,8 @@ class Binding(unittest.TestCase):
     not the runner lookup's shards)."""
 
     def test_the_manifest_binds_the_cohort_its_policy_and_the_scripts(self):
+        # The duplicate-edition screen (insights_data, empty for this release) is not under test here: the finishes
+        # go through unchanged.
         cohort = synthetic()
         f = cohort.f
         source = dict(release_tag='example', input_as_of='2026-01-01T00:00:00Z', as_of='2026-01-02T00:00:00Z', editions=f.editions,
@@ -153,7 +246,7 @@ class Binding(unittest.TestCase):
         self.assertEqual(len(items), 2)
         with tempfile.TemporaryDirectory() as out, mock.patch.multiple(
                 build_charts, load_cohort=lambda cache=None: ({'tag': 'example'}, f, source, 'e' * 64), load_weather=lambda: weather,
-                load_geometry=lambda: None, catalog=lambda: items):
+                load_geometry=lambda: None, catalog=lambda: items, screen_duplicates=lambda full: (full, [])):
             build_charts.run(out)
             manifest = json.loads((Path(out) / 'manifest.json').read_text())
             files = {p.name: p.read_bytes() for p in Path(out).glob('*.json') if p.name != 'manifest.json'}
@@ -192,7 +285,7 @@ class Binding(unittest.TestCase):
         weather = dict(input=dict(release_tag='example-weather'), editions=cohort.weather['editions'])
         with tempfile.TemporaryDirectory() as out, mock.patch.multiple(
                 build_charts, load_cohort=lambda cache=None: ({'tag': 'example'}, cohort.f, source, 'e' * 64), load_weather=lambda: weather,
-                load_geometry=lambda: None, catalog=lambda: [refusing]):
+                load_geometry=lambda: None, catalog=lambda: [refusing], screen_duplicates=lambda full: (full, [])):
             with self.assertRaisesRegex(ValueError, rf"Chart {refusing['number']} \({refusing['slug']}\) cannot be built on this cohort: "):
                 build_charts.run(out)
             self.assertEqual(list(Path(out).glob('*.json')), [])

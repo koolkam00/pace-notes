@@ -12,6 +12,7 @@ shares are observed shares; associations only; linked records are candidates, no
 granular-age editions; start-offset editions stay out of pacing-shape statistics; no halfway, goal or DNF claims;
 weather is edition-level context (humidity withheld, wind a precise null).
 """
+import copy
 import json
 import math
 from pathlib import Path
@@ -28,8 +29,21 @@ SECTIONS = ['0–5K', '5–10K', '10–15K', '15–20K', '20–25K', '25–30K',
 GENDER_GAP_EDITIONS = (('London', 2023), ('London', 2025), ('London', 2026), ('Berlin', 2024), ('Berlin', 2025), ('Chicago', 2024))
 AGE_FLOOR_CITIES_YEARS = (('Berlin', 2023), ('Berlin', 2024), ('Berlin', 2025), ('Frankfurt', 2022), ('Vienna', 2022))
 
+# The charts whose numbers follow linked records (the same runner in two or more races). Lead ruling D38 of the adoption
+# plan (November 14, 2026, under ruling R6): each of them stores, beside its values, the same values counted with only
+# high-confidence links keying a linked record (`high_links` in the chart's file; ChartCohort.high_links), recounted by
+# its Node twin, for one table on /methodology. analysis/test_charts.py holds this list to the builders that read
+# `c.profile`; scripts/verify-charts.cjs holds the published files to its twin of the list.
+LINKED_CHARTS = (
+    'slowdowns-run-in-streaks', 'same-race-warmer-return', 'most-records-appear-once', 'new-york-2021-returners',
+    'place-in-the-field-sticks', 'quicker-every-time', 'quick-double-mostly-slower', 'just-over-3-then-next',
+    'quicker-second-20k-again', 'quicker-finishes-more-repeatable', 'in-step-once-in-step-again', 'a-year-apart',
+    'where-the-slow-day-happened', 'new-york-sped-up-at-25k', 'same-records-years-later', 'five-races-in-same-share',
+    'every-new-york-in-the-data',
+)
+
 __all__ = ['ChartCohort', 'MIN_CELL', 'SHARE_DIGITS', 'quantile', 'r', 'share', 'sh', 'sec', 'POINTS', 'MATS', 'SECTIONS',
-           'require_cell', 'median', 'edition_ranks', 'count_phrase']
+           'require_cell', 'median', 'edition_ranks', 'count_phrase', 'LINKED_CHARTS']
 
 
 def require_cell(n, what):
@@ -105,6 +119,25 @@ def require_race_dates(c, undated_edition):
         raise ValueError('An edition with finishes has no race date')
 
 
+def high_link_profile(f):
+    """`profile` when only high-confidence links key a linked record: the linked-record index of every finish if a
+    link of the medium class did not join it to a runner (lead rulings R6 and D38). `f.link_high` says, per finish,
+    that it has a runner key and its link is of tier high_elite or high (analysis/cohort.py); a keyed finish without it
+    is linked at medium confidence and stands alone here, as a finish without a key does. Returns None when the
+    finishes carry no link class (arrays built by hand).
+
+    A finish that stands alone is numbered by its own record id, negated: a runner is named by the smallest record id
+    of its key, which can be the very record that now stands alone, and the two must not meet."""
+    high = getattr(f, 'link_high', None)
+    if high is None:
+        return None
+    high, keyed = np.asarray(high, bool), np.asarray(f.keyed, bool)
+    if (high & ~keyed).any():
+        raise ValueError('A finish without a runner key carries a high link')
+    runner = np.where(high | ~keyed, np.asarray(f.runner, np.int64), -np.asarray(f.record_id, np.int64))
+    return np.unique(runner, return_inverse=True)[1].astype(np.asarray(f.profile).dtype)
+
+
 def edition_ranks(values, edition):
     """Each finish's place within its edition as a fraction from 0 (lowest value) to 1 ((rank) / (n − 1)), ties by
     stable order. Used for "quarter of the field" charts; positions are clock ranks, not road positions."""
@@ -131,6 +164,10 @@ class ChartCohort:
             setattr(self, k, getattr(f, k))
         self.editions = f.editions
         self.cities = f.cities
+        # The same index with only high-confidence links keying a linked record (None without a link class); high_links()
+        # gives the cohort that reads it as `profile`.
+        self.profile_high = high_link_profile(f)
+        self._high = None
         self.slow, self.onset = insights_data.sustained_slowdown(f)
         self.shape_keep, self.shape_audit = insights_data.start_offset_screen(f)
         self.granular_age_editions = insights_data.granular_age_editions(f)
@@ -154,6 +191,18 @@ class ChartCohort:
             self.ed_temp_c, self.ed_dew_c, self.ed_wind, self.ed_warming = col('temp_c'), col('dewpoint_c'), col('wind_mps'), col('warming_c')
         self.course_gain = {c['city']: c.get('gain_m') for c in (geometry or {}).get('courses', [])}
         self.course_loss = {c['city']: c.get('loss_m') for c in (geometry or {}).get('courses', [])}
+
+    def high_links(self):
+        """This cohort with `profile` keyed by high-confidence links only: every array is shared, so a builder run on it
+        gives the chart's numbers on high links alone. The view is kept, so the caches the modules key by cohort stay
+        apart for the two readings."""
+        if self.profile_high is None:
+            raise ValueError('The finishes carry no link class, so there is no reading on high links alone')
+        if self._high is None:
+            view = copy.copy(self)
+            view.profile, view.profile_high, view._high = self.profile_high, None, None
+            self._high = view
+        return self._high
 
     # A few names the builders use often.
     def mask_city(self, city):

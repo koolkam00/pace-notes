@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import release from '@/analysis/release.json';
 import catalog from '@/lib/charts/catalog.json';
+import { chartWords, highLinksReading, type ChartWords } from '@/lib/charts/registry';
 import type { CatalogItem, ChartFile, ChartsManifest } from '@/lib/charts/types';
 
 const ROOT = () => path.join(process.cwd(), 'public/data/charts');
@@ -42,6 +43,16 @@ export function readChart(slug: string): ChartFile {
   const value = JSON.parse(fs.readFileSync(path.join(ROOT(), name)).toString()) as ChartFile;
   if (value.release_tag !== manifest.release_tag || value.slug !== slug) throw new Error(`Chart data mismatch: ${name}`);
   return value;
+}
+
+/**
+ * The charts that follow linked records, each with its published words and its takeaway on high-confidence links
+ * alone, for the one sensitivity table on /methodology (lead rulings R6 and D38): `high` is null when too few high
+ * links were left to count the chart.
+ */
+export function linkedReadings(): { item: CatalogItem; words: ChartWords; high: { guard: boolean; plain: string } | null }[] {
+  return CATALOG.map((item) => ({ item, file: readChart(item.slug) })).filter(({ file }) => file.high_links)
+    .map(({ item, file }) => ({ item, words: chartWords(item, file), high: highLinksReading(item, file) }));
 }
 
 export const chartByNumber = (n: number) => CATALOG.find((c) => c.number === n);
