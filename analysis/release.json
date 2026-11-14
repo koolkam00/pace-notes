@@ -1,33 +1,34 @@
 {
   "repository": "koolkam00/pace-notes",
-  "tag": "master-20261103b",
-  "layout": "master",
-  "published_at": "2026-11-03T23:10:56Z",
-  "sha256sums_sha256": "b2dc190ed25a59c1a2175a46661db0cb3d2abf5e3814e98eb8eb9ceddf2c2065",
-  "assets": {
-    "master_results_FULL.parquet": "41d575cde127c94a9acf4242cc4d385701bb1e7568ba2e8ee65e4341e15b69db",
-    "editions.csv": "3522002d59f6a9df660b6c541c33f8da5e702e7dd05b1d43d36d3cfc4b15279b",
-    "MANIFEST_editions.csv": "369edb123d7450c84d092fd27a3bd2afdd1fae2e3a0dcd064e30040deeb95b88",
-    "marathon_record_flags_detail.parquet": "ed2f7a033cd195c2baade469d01d80163cb1c0bdf293b7380369b70467d69378",
-    "NYC2026_rows_missing_splits.csv": "bf3dba365f99cd40a51a62e37e0ec74a9eb7f69c1550e795d08e83a7c559aeed",
-    "sources.csv": "6702e4467a2f22639914ee3436c39319409988ec3da076bbe412f0f5ad402770",
-    "QA-REPORT.json": "c52638fba148b8f5332d65d3700efe5be5459f467c6f9300d30210ebca0273d1",
-    "README.md": "37bd1205490ab657dcac3d62f8d3b367786697ccd36a57f50397dc2a0b2dd46b",
-    "DATA_DICTIONARY.md": "ed641d18cf43f1cf48df3a62eab3ab492a26590b3be91fee1d538c5b5e7143b7",
-    "CHANGELOG.md": "b65e348d07e96b9a85ca6761290062354f9440624f390d82be33afae69f94386"
+  "tag": "pace-notes-marathon-half-20261113-1113",
+  "layout": "combined",
+  "published_at": "2026-11-13T23:21:04Z",
+  "checksums": {
+    "asset": "RELEASE-SHA256SUMS-20261113-1113.txt",
+    "sha256": "857c5add4e8bb73b63c59faa2829af3c1b03e4fccbde45aa78960d077f33f988"
   },
-  "overlays": {
-    "tag": "dataset-20261103-0706",
-    "published_at": "2026-11-03T12:27:45Z",
-    "sha256sums_sha256": "d9f37a77dad7b04f59e7e75b27e7af9e8653c2b09464685690c5e5d06dd62d54",
-    "assets": {
-      "marathon-race_conditions.csv.zst": "4a781f7cecb1bd8dd6b1e883a0b5c25b63bf3937bfa6219ed08c710be50ad3b5",
-      "marathon-course_profiles.csv.zst": "ce69dee207c261912299bc4e943384cf4119fd0fb4aa686d3845b0d5d99ccfcf",
-      "marathon-course_segments.csv.zst": "37a3e8a935fea734002a31d668c03ab2984379f08d850bffce61848b3119c5bb",
-      "marathon-sources.csv.zst": "62d788120af0d8df5fdd8635b4de1363800f7ea566ebc6172358028d93f39857",
-      "marathon-edition_meta.csv.zst": "233a59f877d09d3d50a93d5e069206078a82c7b6f9b88649b727b0cc21b53c3f",
-      "marathon-record_flags.csv.zst": "862cb0ea493476b62b116e99669bdb0bd2a40ef35e793c5ae50468e862c5344a"
-    }
+  "core": {
+    "asset": "pace-notes-CORE-20261113-1113.tar.gz",
+    "folder": "pace-notes-marathon-half-20261113-1113",
+    "sha256sums_sha256": "1b19e0545b08d11c9a252d3df41c5b0f72b209317fb15c006db6c7770102f2ae",
+    "manifest_sha256": "58343051e8610128bf4af2efd4ccf747031e90c2eec7045f6e3651a4ce9a61c4"
+  },
+  "assets": {
+    "pace-notes-CORE-20261113-1113.tar.gz": "a76b1615d2e6769dab61cfc3cfa1cf54a6b3897b1bf54c4bbc682083d6f790e0",
+    "person-ids-v5.1-race_results_linked.parquet": "60d528ee5f47360a6222674ea684af0e3631fd9ed1a696d825c88babe9f3a593",
+    "person-ids-v5.1-persons.parquet": "f94e63aceb446f18cefda9f0b39f585ad80f9dac5fc99abc62d1d6904abdb89a",
+    "EDITION-TIERS.csv": "f3a8f5ed2f696f3c0945fcaf83d324a2592c7f14731ace73da19610016e949bd",
+    "RELEASE-EXCLUSIONS.csv": "8bb177581bb88c57bd56dc1d9d0212e16907383b89c97d83b8fddf050df249e6",
+    "README.md": "85649ef7a988d24ca714f14029dc707149dc9d8475f353de31252b21fb6da7a7",
+    "DATA-CARD.md": "611438b34f03faaa96fedd772d58006c9a4f0e0376a3531446f3f055eb238535",
+    "CHANGE-REPORT.md": "b4859efad4bfe57ddb6be81db950570e3a0ed84d1f29a835be54ddd4b209d125",
+    "person-ids-v5.1-README.md": "72378adde97f0a872a84588c831e272ac17c9d562e17b23b9b5e8da3742b7517",
+    "person-ids-v5.1-COLUMNS.md": "b94f48f92f424dda6d29e26b922e85e96baeea0ccff282f5a3358283f8fe8c76",
+    "person-ids-v5.1-MATCHING.md": "ffae60f80e55bf53a3f800ed110e66ffd20e39ebb9bca88761e5c9a3d799ab94",
+    "person-ids-v5.1-MATCHING-V5-BASE.md": "c3eeac35f863f90e98d3f640f6c9b4717adbb1b70fe24f49b3719cabc540d3f1",
+    "person-ids-v5.1-MATCHING-V4-BASE.md": "6a2f38e4d8f65d8cb774557ab638e3a2945340cd14b72cfc260931e0f2bc6110",
+    "person-ids-v5.1-checks.txt": "9e1c6121398a4db3ebd831e9e03655892c673dd57678f4ae599b85765de54572",
+    "person-ids-v5.1-eval-metrics.txt": "ee2661a117ae504b8360e8f62b81d022bfca04aa808f88cd64eeefb346cefd73"
   },
   "baseline": {
     "tag": "private-export-20261021-1050",
@@ -36,5 +37,11 @@
     "sha256": "b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8",
     "checksums_asset": "RELEASE-SHA256SUMS-20261021-1050.txt",
     "checksums_sha256": "a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f"
+  },
+  "previous": {
+    "tag": "master-20261103b",
+    "pin": "release-master-20261103b.json",
+    "pin_sha256": "c74cbcff81e265effc3ce9b27b82eb7cbe05f196680fd16d97db9ae53f5ddeaf",
+    "adapted_manifest_sha256": "55f5f5a054c29e52b1732d50af567274339d537876866df0050973cb62858fb8"
   }
 }

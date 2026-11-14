@@ -590,6 +590,29 @@ class AdaptCombined(unittest.TestCase):
                 download_release.main(['--output', str(self.root / 'dl')])
 
 
+    def test_repository_pin(self):
+        """The committed pin is complete and names a reviewed tag (no network); the weather pin follows it; the previous
+        release's pin is kept whole as the audit baseline."""
+        pin = adapt_combined.load_pin()
+        self.assertEqual(pin['tag'], 'pace-notes-marathon-half-20261113-1113')
+        self.assertEqual(pin['assets'][pin['core']['asset']], 'a76b1615d2e6769dab61cfc3cfa1cf54a6b3897b1bf54c4bbc682083d6f790e0')
+        self.assertEqual(pin['assets'][adapt_combined.LINKS], '60d528ee5f47360a6222674ea684af0e3631fd9ed1a696d825c88babe9f3a593')
+        self.assertEqual(pin['checksums']['sha256'], '857c5add4e8bb73b63c59faa2829af3c1b03e4fccbde45aa78960d077f33f988')
+        self.assertEqual(pin['baseline']['sha256'], 'b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8')
+        weather = json.loads(adapt_combined.PIN_PATH.with_name('weather-release.json').read_text())
+        self.assertEqual((weather['tag'], weather['layout']), (pin['tag'], 'combined'))
+        self.assertEqual(weather['race_conditions']['archive_sha256'], pin['assets'][pin['core']['asset']])
+        previous = adapt_combined.PIN_PATH.with_name(pin['previous']['pin'])
+        self.assertEqual(sha(previous), pin['previous']['pin_sha256'])
+        self.assertEqual(adapt_master.load_pin(previous)['tag'], pin['previous']['tag'])
+        rule, identity = adapt_combined.ROW_RULE[pin['tag']], adapt_combined.IDENTITY[pin['tag']]
+        self.assertEqual(sorted(rule['pending_review_flags']), ['philadelphia_2010_place_sequence_outlier', 'sportstats_nonfinish_status',
+                                                                'wheelchair_handcycle_published_category'])
+        self.assertEqual(sorted(rule['qa_row_flags']), ['finish_equals_earlier_split', 'finish_faster_than_world_record', 'finish_ge_24h', 'finish_zero'])
+        self.assertEqual(identity['keyed_confidences'], ['high_elite', 'high', 'medium'])
+        self.assertFalse(set(identity['keyed_confidences']) & set(identity['possible_confidences']))
+
+
     def test_audit_reads_the_adapted_folder(self):
         import audit_release
         fx = self.fixture()

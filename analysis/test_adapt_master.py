@@ -504,15 +504,20 @@ class AdaptMaster(unittest.TestCase):
             build_runner_context.verified_inputs(full, provenance)
 
     def test_repository_pin(self):
-        """The committed pin is complete and names a reviewed tag (no network)."""
-        pin = adapt_master.load_pin()
+        """The master pin is complete and names a reviewed tag (no network).
+
+        2026-11-14: analysis/release.json now pins the combined release pace-notes-marathon-half-20261113-1113
+        (analysis/adapt_combined.py; its pin and the weather pin are checked in test_adapt_combined.py). The master pin is
+        kept whole as analysis/release-master-20261103b.json, the bytes main held, because the audit of the new release
+        rebuilds the previous input from it (adapt_master.py --pin); the expectations below are unchanged."""
+        pin = adapt_master.load_pin(adapt_master.PIN_PATH.with_name('release-master-20261103b.json'))
         self.assertEqual(pin['tag'], 'master-20261103b')
         self.assertEqual(pin['assets']['master_results_FULL.parquet'], '41d575cde127c94a9acf4242cc4d385701bb1e7568ba2e8ee65e4341e15b69db')
         self.assertEqual(pin['baseline']['sha256'], 'b594fb6c79663962b31562ca27b53d83a7466ee9d2ea4403010502a2ebe60de8')
-        weather = json.loads(adapt_master.PIN_PATH.with_name('weather-release.json').read_text())
-        self.assertEqual(weather['tag'], pin['tag'])
-        self.assertEqual(weather['race_conditions']['sha256'], pin['overlays']['assets']['marathon-race_conditions.csv.zst'])
-
+        self.assertEqual(pin['overlays']['assets']['marathon-race_conditions.csv.zst'], '4a781f7cecb1bd8dd6b1e883a0b5c25b63bf3937bfa6219ed08c710be50ad3b5')
+        # The adopted pin is no longer a master pin, so the default loader refuses it; a master tag is rebuilt only with --pin.
+        with self.assertRaisesRegex(adapt_master.AdaptError, 'not a master-layout release'):
+            adapt_master.load_pin()
 
 if __name__ == '__main__':
     unittest.main()
