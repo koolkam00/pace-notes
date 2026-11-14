@@ -350,11 +350,11 @@ class Reader(unittest.TestCase):
             (root / name).write_bytes(name.encode())
             scripts[name] = digest(name.encode())
         steady, slower = times_for([300] * 9), times_for([330] * 9)
-        # (id, smallest record id of the runner or 0, sex, age, nine times); then the other records (id, reason, times)
+        # (id, smallest record id of the runner or 0, sex, age, nine times, link class); then the other records (id, reason, times)
         files = {
-            ('Example', 2020, 'counted'): ([(5, 5, 'F', 30, steady), (7, 0, 'M', None, slower), (8, 0, None, 17, steady), (9, 5, 'F', 31.5, slower)],
+            ('Example', 2020, 'counted'): ([(5, 5, 'F', 30, steady, 'h'), (7, 0, 'M', None, slower, None), (8, 0, None, 17, steady, None), (9, 5, 'F', 31.5, slower, 'm')],
                                            [(6, 'missing_checkpoints', None)]),
-            ('Other', 2021, 'own_record'): ([(11, 5, 'F', 32, steady)], []),
+            ('Other', 2021, 'own_record'): ([(11, 5, 'F', 32, steady, 'h')], []),
         }
         (root / 'editions').mkdir()
         editions = []
@@ -362,9 +362,10 @@ class Reader(unittest.TestCase):
             data = marathon_cohort.encode_edition(city, year, use, records, others)
             name = marathon_cohort.file_name(city.lower(), year)
             (root / name).write_bytes(data)
-            editions.append(dict(city=city, year=year, race=f'{city} Marathon', use=use, raw=len(records) + len(others), timing_eligible=len(records),
+            editions.append(dict(city=city, year=year, race=f'{city} Marathon', race_date='2020-10-04' if use == 'counted' else None,
+                                 race_date_source='weather' if use == 'counted' else None, use=use, raw=len(records) + len(others), timing_eligible=len(records),
                                  eligible=len(records) if use == 'counted' else 0, other=len(others), file=name, bytes=len(data), sha256=digest(data)))
-        manifest = dict(schema_version=1, release_tag='example', points_km=KM, linkage=dict(record_join_method='canonical_record_id'), scripts=scripts,
+        manifest = dict(schema_version=2, release_tag='example', points_km=KM, linkage=dict(record_join_method='canonical_record_id'), scripts=scripts,
                         raw_records=9, eligible_records=4, cohort=dict(raw=9, eligible=4), editions=editions,
                         other_editions=dict(columns=['city', 'year', 'raw', 'category'], rows=[['Held', 2019, 3, 'held_for_review']]))
         if edit:
@@ -383,11 +384,12 @@ class Reader(unittest.TestCase):
             self.assertEqual([None if np.isnan(a) else a for a in f.exact_age.tolist()], [30.0, None, None, None])
             self.assertEqual(f.profile.tolist(), [0, 1, 2, 0])                                         # records 5 and 9 are one runner
             self.assertEqual((f.runner.tolist(), f.keyed.tolist()), ([5, 7, 8, 5], [True, False, False, True]))
+            self.assertEqual(f.link_high.tolist(), [True, False, False, False])                         # record 9's link is medium
             self.assertEqual(f.raw_by_edition.tolist(), [5, 1])                                        # the own-record edition is listed and has no finish
             self.assertEqual(([e['city'] for e in f.editions], f.cities), (['Example', 'Other'], ['Example', 'Other']))
             self.assertEqual(f.times[1].tolist(), times_for([330] * 9))
             kept = f.subset(np.array([True, False, False, True]))
-            self.assertEqual((kept.n, kept.record_id.tolist(), kept.profile.tolist()), (2, [5, 9], [0, 0]))
+            self.assertEqual((kept.n, kept.record_id.tolist(), kept.profile.tolist(), kept.link_high.tolist()), (2, [5, 9], [0, 0], [True, False]))
 
     def test_reader_refuses_a_cohort_that_does_not_check(self):
         cases = [
@@ -397,7 +399,8 @@ class Reader(unittest.TestCase):
             (lambda m: m.update(release_tag='another'), 'does not match adopted pin'),
             (lambda m: m['scripts'].update({'cohort.py': '0' * 64}), 'Source script changed: cohort.py'),
             (lambda m: m['scripts'].pop('build_identity.py'), 'Unexpected source script contract'),
-            (lambda m: m.update(schema_version=2), 'Unreadable cohort manifest'),
+            (lambda m: m.update(schema_version=1), 'Unreadable cohort manifest'),
+            (lambda m: m['editions'][0].update(race_date=None), 'Counted editions without a race date'),
         ]
         for edit, message in cases:
             with tempfile.TemporaryDirectory() as temporary:

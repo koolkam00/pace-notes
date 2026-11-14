@@ -1,5 +1,5 @@
 {
- "document": "The reviewed marathon race registry of this release: every race key with written rows in the adapted input, grouped into races by the rule below and the reviewed joins, flags and labels. `label` is the pipeline’s `city`. analysis/adapt_combined.py rebuilds `races` from the rows it writes and `reviewed`, and stops on any difference; analysis/race_registry.py rebuilds it from an adapted folder.",
+ "document": "The reviewed marathon race registry of this release: every race key with written rows in the adapted input, grouped into races by the rule below and the reviewed joins, flags, labels and series notes. `label` is the pipeline’s `city`. analysis/adapt_combined.py rebuilds `races` from the rows it writes and `reviewed`, and stops on any difference; analysis/race_registry.py rebuilds it from an adapted folder.",
  "schema_version": 2,
  "tag": "pace-notes-marathon-half-20261113-1113",
  "distance": "marathon",
@@ -8,8 +8,9 @@
   "join": "keys join into one race only by the grouping form (HTML entities decoded, accents dropped, lower case, a trailing year or two-digit number dropped, an edition number at the start of the event title dropped with the words edition, edición or edizione, punctuation and runs of spaces made one space) or by a reviewed join; keys that would give a race two editions in one year never join",
   "plain_key": "a key with no \": \" is a city: its place is the key, its name the race name of its latest edition (the one with most rows when a year has two), its slug the site’s course rule (lower case, accents dropped, other characters to hyphens)",
   "composite_key": "place: the part before the first \": \", without parts that are empty, \"TBD\" or \"?\", without repeated parts, absent when it is a timing platform’s name (XACT); name: the part after it, HTML entities decoded, a trailing year removed, each word capitalised when the title is all capitals; a race of several keys takes the name and place of the key with its latest edition unless a reviewed join names it",
-  "label": "unique among the races: a race with a plain key takes that key; a race with a reviewed label takes it (a phrase one of its keys or race names states; the 60 races with most written rows have one, and so has every race with a counted or own-record edition, which the edition policy’s builder checks); every other race takes its name, adding its place in brackets and then its first year where the slugs of two labels would be the same; a plain key’s label and a reviewed label are never changed",
-  "slug": "a race’s slug is its label under the course rule, so no two races share one and a plain key’s slug is the course page’s",
+  "label": "unique among the races: a race with a plain key takes that key; a race with a reviewed label takes it (a phrase one of its keys or race names states, of at most 30 characters; the 60 races with most written rows have one, so has every race with a counted or own-record edition, which the edition policy’s builder checks, and so has every race with three or more written editions whose tier is stamped, weaker-source or partial, which the adapter checks); every other race takes its name, adding its place in brackets and then its first year where the slugs of two labels would be the same; a plain key’s label and a reviewed label are never changed",
+  "slug": "a race’s slug is its label under the course rule, so no two races share one and a plain key’s slug is the course page’s; no slug is a reserved route word (all)",
+  "series": "a reviewed series note names the races that one plain key holds, each with the years in which every edition of the key carries that race name; together they cover every edition of the key. It changes no label, slug or grouping",
   "flags": {
    "virtual_in_title": "the key contains \"virtual\" or \"virtuel\"",
    "cancelled_in_title": "the key contains \"cancel\" or \"annul\"",
@@ -25,39 +26,40 @@
  "expected": {
   "keys": 894,
   "plain_keys": 34,
-  "races": 811,
+  "races": 805,
   "races_by_join": {
-   "reviewed join": 16,
+   "reviewed join": 22,
    "rule": 28,
-   "single": 767
+   "single": 755
   },
-  "keys_in_races_of_several_keys": 127,
+  "keys_in_races_of_several_keys": 139,
   "races_by_label": {
-   "name": 651,
-   "name and first year": 2,
-   "name and place": 86,
+   "name": 584,
+   "name and first year": 1,
+   "name and place": 85,
    "name, place and first year": 2,
    "plain key": 34,
-   "reviewed label": 36
+   "reviewed label": 99
   },
   "races_by_flag": {
    "cancelled_in_title": 7,
    "mountain_or_trail_course": 3,
    "no_marathon_word_in_title": 157,
-   "other_event_in_title": 156,
+   "other_event_in_title": 155,
    "placeholder_place": 3,
    "platform_prefix": 26,
-   "platform_title_misleads": 7,
+   "platform_title_misleads": 9,
    "several_race_names": 1,
    "title_names_a_hand_cycle_race": 1,
    "trail_or_mountain_word_in_title": 20,
    "virtual_in_title": 1
   },
-  "rows": 7820439,
+  "races_with_series": 1,
+  "rows": 7820442,
   "editions": 2688
  },
  "keys_sha256": "5e132019d0afa9102f3f692f84292060df6da19dbc1bb4e129b8d55caa09c411",
- "races_sha256": "0dc92bc9b04a70b05f372ff1916e6bbd692fd58030143655efcbd622822c4302",
+ "races_sha256": "2f6b0912db4ea7d32146f10911051dfe8a53dd95a025f673d9657fe6aead0472",
  "reviewed": {
   "joins": [
    {
@@ -421,6 +423,125 @@
      },
      "keyed_runners_in_two_or_more_of_the_keys": 76
     }
+   },
+   {
+    "id": "glass-city",
+    "keys": [
+     "XACT: Glass City Marathon",
+     "Toledo, OH: MERCY HEALTH GLASS CITY MARATHON"
+    ],
+    "reason": "Disjoint years; the later title is the earlier one with the title sponsor \"Mercy Health\" before it (in capitals), and the earlier key has a timing platform’s name where the later has the place. Every edition’s note date is in late April. The name is the title both keys state. Reviewed 2026-11-14 with the labels of lead ruling 5 (M2-C).",
+    "evidence": {
+     "years_by_key": {
+      "XACT: Glass City Marathon": "2015 to 2016 (2 editions)",
+      "Toledo, OH: MERCY HEALTH GLASS CITY MARATHON": "2021 to 2026 (6 editions)"
+     },
+     "keyed_runners_by_key": {
+      "XACT: Glass City Marathon": 1603,
+      "Toledo, OH: MERCY HEALTH GLASS CITY MARATHON": 4926
+     },
+     "keyed_runners_in_two_or_more_of_the_keys": 183
+    },
+    "name": "Glass City Marathon",
+    "place": "Toledo, OH"
+   },
+   {
+    "id": "rimouski",
+    "keys": [
+     "Rimouski, QC: Marathon de Rimouski- Annulé",
+     "Rimouski, QC: Marathon Groupe Ouellet Bolduc de Rimouski"
+    ],
+    "reason": "The same place part and two successive, disjoint runs of years (2004 to 2016, 2017 to 2023); the titles differ only by the title sponsor \"Groupe Ouellet Bolduc\" and the platform’s \"- Annulé\". Every edition’s note date is between September 8 and October 7. The name is the first key’s title without \"- Annulé\". Reviewed 2026-11-14 with the labels of lead ruling 5 (M2-C).",
+    "evidence": {
+     "years_by_key": {
+      "Rimouski, QC: Marathon de Rimouski- Annulé": "2004 to 2016 (13 editions)",
+      "Rimouski, QC: Marathon Groupe Ouellet Bolduc de Rimouski": "2017 to 2023 (4 editions)"
+     },
+     "keyed_runners_by_key": {
+      "Rimouski, QC: Marathon de Rimouski- Annulé": 1389,
+      "Rimouski, QC: Marathon Groupe Ouellet Bolduc de Rimouski": 881
+     },
+     "keyed_runners_in_two_or_more_of_the_keys": 126
+    },
+    "name": "Marathon de Rimouski"
+   },
+   {
+    "id": "lake-placid",
+    "keys": [
+     "Lake Placid, NY: Lake Placid Marathon & Half-Marathon",
+     "Lake Placid, NY: Lake Placid Marathon"
+    ],
+    "reason": "The same place part and disjoint years; the titles differ only by \"& Half-Marathon\". The note dates are in June (2021: September). Reviewed 2026-11-14 with the labels of lead ruling 5 (M2-C).",
+    "evidence": {
+     "years_by_key": {
+      "Lake Placid, NY: Lake Placid Marathon & Half-Marathon": "2005 to 2018 (2 editions)",
+      "Lake Placid, NY: Lake Placid Marathon": "2021 to 2026 (6 editions)"
+     },
+     "keyed_runners_by_key": {
+      "Lake Placid, NY: Lake Placid Marathon & Half-Marathon": 319,
+      "Lake Placid, NY: Lake Placid Marathon": 1205
+     },
+     "keyed_runners_in_two_or_more_of_the_keys": 23
+    }
+   },
+   {
+    "id": "irving",
+    "keys": [
+     "Irving, TX: Irving Marathon",
+     "Irving, TX: Irving Marathon - Full & Half"
+    ],
+    "reason": "The same place part and two successive, disjoint runs of years (2021 to 2024, 2025 to 2026); the titles differ only by \"- Full & Half\". Every edition’s note date is between March 27 and April 2. \"Irving, TX: Irving Frost Marathon\" (December, 2023 to 2025) is another race and is not joined. Reviewed 2026-11-14 with the labels of lead ruling 5 (M2-C).",
+    "evidence": {
+     "years_by_key": {
+      "Irving, TX: Irving Marathon": "2021 to 2024 (4 editions)",
+      "Irving, TX: Irving Marathon - Full & Half": "2025 to 2026 (2 editions)"
+     },
+     "keyed_runners_by_key": {
+      "Irving, TX: Irving Marathon": 1060,
+      "Irving, TX: Irving Marathon - Full & Half": 739
+     },
+     "keyed_runners_in_two_or_more_of_the_keys": 50
+    },
+    "name": "Irving Marathon"
+   },
+   {
+    "id": "starved-rock-country",
+    "keys": [
+     "XACT: Starved Rock Country Marathon",
+     "Ottawa, IL: Starved Rock Country Marathon"
+    ],
+    "reason": "The same title and disjoint years; the 2014 key has a timing platform’s name where the later key has the place. Every edition’s note date is between May 9 and May 14. Reviewed 2026-11-14 with the labels of lead ruling 5 (M2-C).",
+    "evidence": {
+     "years_by_key": {
+      "XACT: Starved Rock Country Marathon": "2014",
+      "Ottawa, IL: Starved Rock Country Marathon": "2019 to 2026 (6 editions)"
+     },
+     "keyed_runners_by_key": {
+      "XACT: Starved Rock Country Marathon": 185,
+      "Ottawa, IL: Starved Rock Country Marathon": 512
+     },
+     "keyed_runners_in_two_or_more_of_the_keys": 8
+    }
+   },
+   {
+    "id": "museum-of-aviation",
+    "keys": [
+     "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K",
+     "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race"
+    ],
+    "reason": "The same place part and disjoint years; the titles differ only by the list of side events after \"Museum of Aviation Marathon\"; the name is that common start. Every edition’s note date is in January. Reviewed 2026-11-14 with the labels of lead ruling 5 (M2-C).",
+    "evidence": {
+     "years_by_key": {
+      "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K": "2016",
+      "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race": "2017 to 2026 (7 editions)"
+     },
+     "keyed_runners_by_key": {
+      "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K": 108,
+      "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race": 257
+     },
+     "keyed_runners_in_two_or_more_of_the_keys": 3
+    },
+    "name": "Museum of Aviation Marathon"
    }
   ],
   "flags": [
@@ -478,6 +599,16 @@
     "key": "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race",
     "flag": "title_names_a_hand_cycle_race",
     "reason": "The event title names a hand cycle race; it must never sit beside a runner’s name (site-map note of 2026-11-14)."
+   },
+   {
+    "key": "Celina, OH: Grand Lake Half Marathon 5k/Kid's Run",
+    "flag": "platform_title_misleads",
+    "reason": "Lead ruling of 2026-11-14 with the labels of the M2-C brief: the platform’s title names a half marathon, a 5k and a kids’ run over marathon rows (812 rows, median finish 4:28:09), so the race list shows the label and the place, never the title."
+   },
+   {
+    "key": "King George Island, TBD: Antarctica Marathon & Half Marathon - Voyage 2",
+    "flag": "platform_title_misleads",
+    "reason": "Lead ruling of 2026-11-14 with the labels of the M2-C brief: the display name keeps the platform’s \"& Half Marathon - Voyage 2\", so the race list shows the label and the place, never the title."
    }
   ],
   "labels": [
@@ -666,6 +797,381 @@
     "key": "Querétaro: Querétaro Maratón",
     "label": "Querétaro",
     "reason": "One of the 60 races with most written rows, or a race with a counted or own-record edition (lead decision D19, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Edmonton, AB: Edmonton Marathon",
+    "label": "Edmonton",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Québec City, QC: Marathon Beneva de Québec",
+    "label": "Québec",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Niagara Falls, ON: Niagara Falls International Marathon",
+    "label": "Niagara Falls",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "MB, MB: Manitoba Marathon",
+    "label": "Manitoba",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Napa, CA: Napa Valley Marathon",
+    "label": "Napa Valley",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Grand Rapids, MI: University of Michigan Health-West Grand Rapids Marathon",
+    "label": "Grand Rapids",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Regina, SK: GMS Queen City Marathon",
+    "label": "Queen City",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Kelowna, BC: SunRype Okanagan Marathon",
+    "label": "Okanagan",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Traverse City, MI: Bayshore Marathon, Half Marathon, 10K, & Kids Fun Run",
+    "label": "Bayshore",
+    "name": "Bayshore Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Toledo, OH: MERCY HEALTH GLASS CITY MARATHON",
+    "label": "Glass City",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "The Woodlands, TX: The Woodlands Marathon",
+    "label": "The Woodlands",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Cocoa, FL: Space Coast Marathon & Half Marathon",
+    "label": "Space Coast",
+    "name": "Space Coast Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "XACT: Colfax Marathon",
+    "label": "Colfax",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Ventura, CA: Ventura Marathon",
+    "label": "Ventura",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Halifax, NS: Scotiabank Blue Nose Marathon",
+    "label": "Blue Nose",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Kansas City, MO: Garmin Kansas City Marathon",
+    "label": "Kansas City",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Gulf Shores, AL: Big Beach Marathon, Half Marathon & Safari 5K",
+    "label": "Big Beach",
+    "name": "Big Beach Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Saskatoon, SK: Saskatchewan Marathon",
+    "label": "Saskatchewan",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Rimouski, QC: Marathon de Rimouski- Annulé",
+    "label": "Rimouski",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Roanoke, VA: Foot Levelers Blue Ridge Marathon",
+    "label": "Blue Ridge",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Little Rock, AR: Jacob Wells 3 Bridges Marathon",
+    "label": "3 Bridges",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Cleveland, OH: The Towpath Marathon",
+    "label": "Towpath",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Ormond Beach, FL: Tomoka Marathon, Half Marathon, and 5K",
+    "label": "Tomoka",
+    "name": "Tomoka Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Ottawa, ON: Ottawa Fall Colours Run",
+    "label": "Ottawa Fall Colours",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Redding, CA: The Redding Marathon Events",
+    "label": "Redding",
+    "name": "The Redding Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Lake Placid, NY: Lake Placid Marathon",
+    "label": "Lake Placid",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Lexington, KY: Horse Capital Marathon & Half Marathon",
+    "label": "Horse Capital",
+    "name": "Horse Capital Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Columbus, GA: Soldier Marathon",
+    "label": "Soldier",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Irving, TX: Irving Marathon",
+    "label": "Irving",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Aspen, CO: Aspen Valley Marathon",
+    "label": "Aspen Valley",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Bozeman, MT: Bozeman Half Marathon & 10K",
+    "label": "Bozeman",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Ucluelet, BC: Edge to Edge Marathon",
+    "label": "Edge to Edge",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "George Town, Ge: Walkers Cayman Islands Marathon",
+    "label": "Cayman Islands",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Stuart, FL: Game On! Marathon of the Treasure Coast",
+    "label": "Treasure Coast",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Walker, MI: Groundhog Day Marathon",
+    "label": "Groundhog Day",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Jackson, WY: Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon",
+    "label": "Jackson Hole",
+    "name": "Jackson Hole Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Todd, NC: New River Marathon, Half Marathon & 5K",
+    "label": "New River",
+    "name": "New River Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Tulsa, OK: Golden Driller Marathon",
+    "label": "Golden Driller",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Elizabeth City, NC: Coast Guard Marathon",
+    "label": "Coast Guard",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Emerald Isle, NC: Emerald Isle Marathon, Half Marathon and 5K",
+    "label": "Emerald Isle",
+    "name": "Emerald Isle Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Bismarck, ND: The Bismarck Marathon",
+    "label": "Bismarck",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Bemidji, MN: Bemidji Blue Ox Marathon",
+    "label": "Bemidji Blue Ox",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Omaha, NE: Heartland Marathon",
+    "label": "Heartland",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Billings, MT: Montana Marathon",
+    "label": "Montana",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Grand Rapids, MI: Millennium Meadows Marathon",
+    "label": "Millennium Meadows",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "MASSEY, On: Friendly Massey Marathon - Cancelled",
+    "label": "Friendly Massey",
+    "name": "Friendly Massey Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Whitefish, MT: Whitefish Marathon, Half Marathon & 5K Presented by Hammer Nutrition",
+    "label": "Whitefish",
+    "name": "Whitefish Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Celina, OH: Grand Lake Half Marathon 5k/Kid's Run",
+    "label": "Grand Lake",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Greensboro, NC: Long Life Meal Prep Cannonball Running Festival - Marathon, Half Marathon,",
+    "label": "Cannonball",
+    "name": "Cannonball Running Festival Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Ottawa, IL: Starved Rock Country Marathon",
+    "label": "Starved Rock Country",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Daufuskie Island, SC: The Palmetto Running Company's Daufuskie Island Marathon and Half",
+    "label": "Daufuskie Island",
+    "name": "Daufuskie Island Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Kingwood, TX: Texas Marathon and Half Marathon",
+    "label": "Texas",
+    "name": "Texas Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race",
+    "label": "Museum of Aviation",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "King George Island, TBD: Antarctica Marathon & Half Marathon - Voyage 2",
+    "label": "Antarctica",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Williamsport, MD: Lock 2 Lock Marathon/Half Marathon/10k",
+    "label": "Lock 2 Lock",
+    "name": "Lock 2 Lock Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Plainfield, IN: Back Your Badge Marathon",
+    "label": "Back Your Badge",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Shenandoah, IA: Wabash Trace Marathon",
+    "label": "Wabash Trace",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "London, OH: London OH Marathon",
+    "label": "London OH",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Windsor, CO: Windsor Marathon, Half Marathon, 10k, 5k & 1 Mile Run",
+    "label": "Windsor",
+    "name": "Windsor Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   },
+   {
+    "key": "Priest Lake, ID: Priest Lake Marathon",
+    "label": "Priest Lake",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Hayden Lake, ID: Hayden Lake Marathon",
+    "label": "Hayden Lake",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Havre, MT: Bear Paw Marathon",
+    "label": "Bear Paw",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states."
+   },
+   {
+    "key": "Friday Harbor, WA: Kings San Juan Island Marathon, Half Marathon and 10K",
+    "label": "San Juan Island",
+    "name": "Kings San Juan Island Marathon",
+    "reason": "A race with three or more written editions whose tier is stamped, weaker-source or partial (lead ruling 5 of the M2-C brief, 2026-11-14). The label is a phrase the key states. The name is the marathon the title names, without its other events or the platform’s suffix."
+   }
+  ],
+  "series": [
+   {
+    "key": "Warsaw",
+    "series": [
+     {
+      "name": "Orlen Warsaw Marathon",
+      "first_year": 2015,
+      "last_year": 2018
+     },
+     {
+      "name": "PZU Warsaw Marathon",
+      "first_year": 2019,
+      "last_year": 2026
+     }
+    ],
+    "reason": "The plain key Warsaw holds two races (lead ruling D29, 2026-11-14): its editions of 2015 to 2018 carry the race name Orlen Warsaw Marathon and those of 2019 to 2026 the race name PZU Warsaw Marathon. The key stays one label and one race for every existing builder; each edition keeps its own race name.",
+    "evidence": {
+     "weather_row_race_dates": {
+      "Orlen Warsaw Marathon": [
+       "2015-04-26",
+       "2016-04-24",
+       "2017-04-23",
+       "2018-04-22"
+      ],
+      "PZU Warsaw Marathon": [
+       "2019-09-29",
+       "2020-09-27",
+       "2021-09-26",
+       "2022-09-25",
+       "2023-09-24",
+       "2024-09-29",
+       "2025-09-28",
+       "2026-09-27"
+      ]
+     },
+     "race_months": {
+      "Orlen Warsaw Marathon": "April, every edition",
+      "PZU Warsaw Marathon": "September, every edition"
+     },
+     "other_plain_keys": "no other plain key of the release has editions under more than one race name (the registry’s flag several_race_names: Warsaw only)"
+    }
    }
   ]
  },
@@ -831,6 +1337,23 @@
    "last_year": 2026,
    "editions": 4,
    "rows": 173
+  },
+  {
+   "race_id": "3-bridges",
+   "slug": "3-bridges",
+   "label": "3 Bridges",
+   "name": "Jacob Wells 3 Bridges Marathon",
+   "place": "Little Rock, AR",
+   "keys": [
+    "Little Rock, AR: Jacob Wells 3 Bridges Marathon"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2014,
+   "last_year": 2025,
+   "editions": 10,
+   "rows": 2188
   },
   {
    "race_id": "34eme-marathon-international-de-marrakech",
@@ -1277,19 +1800,20 @@
    "rows": 108
   },
   {
-   "race_id": "antarctica-marathon-half-marathon-voyage-2",
-   "slug": "antarctica-marathon-half-marathon-voyage-2",
-   "label": "Antarctica Marathon & Half Marathon - Voyage 2",
+   "race_id": "antarctica",
+   "slug": "antarctica",
+   "label": "Antarctica",
    "name": "Antarctica Marathon & Half Marathon - Voyage 2",
    "place": "King George Island",
    "keys": [
     "King George Island, TBD: Antarctica Marathon & Half Marathon - Voyage 2"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title",
-    "placeholder_place"
+    "placeholder_place",
+    "platform_title_misleads"
    ],
    "first_year": 2018,
    "last_year": 2024,
@@ -1382,16 +1906,16 @@
    "rows": 410
   },
   {
-   "race_id": "aspen-valley-marathon",
-   "slug": "aspen-valley-marathon",
-   "label": "Aspen Valley Marathon",
+   "race_id": "aspen-valley",
+   "slug": "aspen-valley",
+   "label": "Aspen Valley",
    "name": "Aspen Valley Marathon",
    "place": "Aspen, CO",
    "keys": [
     "Aspen, CO: Aspen Valley Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2018,
    "last_year": 2026,
@@ -1507,16 +2031,16 @@
    "rows": 42
   },
   {
-   "race_id": "back-your-badge-marathon",
-   "slug": "back-your-badge-marathon",
-   "label": "Back Your Badge Marathon",
+   "race_id": "back-your-badge",
+   "slug": "back-your-badge",
+   "label": "Back Your Badge",
    "name": "Back Your Badge Marathon",
    "place": "Plainfield, IN",
    "keys": [
     "Plainfield, IN: Back Your Badge Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2023,
    "last_year": 2026,
@@ -1770,16 +2294,16 @@
    "rows": 41
   },
   {
-   "race_id": "bayshore-marathon-half-marathon-10k-kids-fun-run",
-   "slug": "bayshore-marathon-half-marathon-10k-kids-fun-run",
-   "label": "Bayshore Marathon, Half Marathon, 10K, & Kids Fun Run",
-   "name": "Bayshore Marathon, Half Marathon, 10K, & Kids Fun Run",
+   "race_id": "bayshore",
+   "slug": "bayshore",
+   "label": "Bayshore",
+   "name": "Bayshore Marathon",
    "place": "Traverse City, MI",
    "keys": [
     "Traverse City, MI: Bayshore Marathon, Half Marathon, 10K, & Kids Fun Run"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -1789,16 +2313,16 @@
    "rows": 8802
   },
   {
-   "race_id": "bear-paw-marathon",
-   "slug": "bear-paw-marathon",
-   "label": "Bear Paw Marathon",
+   "race_id": "bear-paw",
+   "slug": "bear-paw",
+   "label": "Bear Paw",
    "name": "Bear Paw Marathon",
    "place": "Havre, MT",
    "keys": [
     "Havre, MT: Bear Paw Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2021,
    "last_year": 2026,
@@ -1861,16 +2385,16 @@
    "rows": 28
   },
   {
-   "race_id": "bemidji-blue-ox-marathon",
-   "slug": "bemidji-blue-ox-marathon",
-   "label": "Bemidji Blue Ox Marathon",
+   "race_id": "bemidji-blue-ox",
+   "slug": "bemidji-blue-ox",
+   "label": "Bemidji Blue Ox",
    "name": "Bemidji Blue Ox Marathon",
    "place": "Bemidji, MN",
    "keys": [
     "Bemidji, MN: Bemidji Blue Ox Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2019,
    "last_year": 2025,
@@ -1948,16 +2472,16 @@
    "rows": 779224
   },
   {
-   "race_id": "big-beach-marathon-half-marathon-safari-5k",
-   "slug": "big-beach-marathon-half-marathon-safari-5k",
-   "label": "Big Beach Marathon, Half Marathon & Safari 5K",
-   "name": "Big Beach Marathon, Half Marathon & Safari 5K",
+   "race_id": "big-beach",
+   "slug": "big-beach",
+   "label": "Big Beach",
+   "name": "Big Beach Marathon",
    "place": "Gulf Shores, AL",
    "keys": [
     "Gulf Shores, AL: Big Beach Marathon, Half Marathon & Safari 5K"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -2033,6 +2557,59 @@
    "last_year": 2026,
    "editions": 5,
    "rows": 16859
+  },
+  {
+   "race_id": "bismarck",
+   "slug": "bismarck",
+   "label": "Bismarck",
+   "name": "The Bismarck Marathon",
+   "place": "Bismarck, ND",
+   "keys": [
+    "Bismarck, ND: The Bismarck Marathon"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2019,
+   "last_year": 2025,
+   "editions": 6,
+   "rows": 1029
+  },
+  {
+   "race_id": "blue-nose",
+   "slug": "blue-nose",
+   "label": "Blue Nose",
+   "name": "Scotiabank Blue Nose Marathon",
+   "place": "Halifax, NS",
+   "keys": [
+    "Halifax, NS: Scotiabank Blue Nose Marathon"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2004,
+   "last_year": 2019,
+   "editions": 16,
+   "rows": 4498
+  },
+  {
+   "race_id": "blue-ridge",
+   "slug": "blue-ridge",
+   "label": "Blue Ridge",
+   "name": "Foot Levelers Blue Ridge Marathon",
+   "place": "Roanoke, VA",
+   "keys": [
+    "Roanoke, VA: Foot Levelers Blue Ridge Marathon"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [
+    "mountain_or_trail_course"
+   ],
+   "first_year": 2021,
+   "last_year": 2026,
+   "editions": 5,
+   "rows": 2296
   },
   {
    "race_id": "bmw-dallas-marathon",
@@ -2310,16 +2887,16 @@
    "rows": 58
   },
   {
-   "race_id": "bozeman-half-marathon-10k",
-   "slug": "bozeman-half-marathon-10k",
-   "label": "Bozeman Half Marathon & 10K",
+   "race_id": "bozeman",
+   "slug": "bozeman",
+   "label": "Bozeman",
    "name": "Bozeman Half Marathon & 10K",
    "place": "Bozeman, MT",
    "keys": [
     "Bozeman, MT: Bozeman Half Marathon & 10K"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "no_marathon_word_in_title",
     "other_event_in_title",
@@ -2561,6 +3138,25 @@
    "rows": 54
   },
   {
+   "race_id": "cannonball",
+   "slug": "cannonball",
+   "label": "Cannonball",
+   "name": "Cannonball Running Festival Marathon",
+   "place": "Greensboro, NC",
+   "keys": [
+    "Greensboro, NC: Long Life Meal Prep Cannonball Running Festival - Marathon, Half Marathon,"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [
+    "other_event_in_title"
+   ],
+   "first_year": 2016,
+   "last_year": 2026,
+   "editions": 7,
+   "rows": 711
+  },
+  {
    "race_id": "canton-hall-of-fame-marathon",
    "slug": "canton-hall-of-fame-marathon",
    "label": "Canton Hall of Fame Marathon",
@@ -2627,6 +3223,23 @@
    "last_year": 2021,
    "editions": 1,
    "rows": 179
+  },
+  {
+   "race_id": "cayman-islands",
+   "slug": "cayman-islands",
+   "label": "Cayman Islands",
+   "name": "Walkers Cayman Islands Marathon",
+   "place": "George Town, Ge",
+   "keys": [
+    "George Town, Ge: Walkers Cayman Islands Marathon"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2010,
+   "last_year": 2025,
+   "editions": 16,
+   "rows": 1261
   },
   {
    "race_id": "cda-marathon",
@@ -3417,16 +4030,16 @@
    "rows": 508
   },
   {
-   "race_id": "coast-guard-marathon",
-   "slug": "coast-guard-marathon",
-   "label": "Coast Guard Marathon",
+   "race_id": "coast-guard",
+   "slug": "coast-guard",
+   "label": "Coast Guard",
    "name": "Coast Guard Marathon",
    "place": "Elizabeth City, NC",
    "keys": [
     "Elizabeth City, NC: Coast Guard Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2022,
    "last_year": 2024,
@@ -3489,16 +4102,16 @@
    "rows": 250
   },
   {
-   "race_id": "colfax-marathon",
-   "slug": "colfax-marathon",
-   "label": "Colfax Marathon",
+   "race_id": "colfax",
+   "slug": "colfax",
+   "label": "Colfax",
    "name": "Colfax Marathon",
    "place": null,
    "keys": [
     "XACT: Colfax Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "platform_prefix"
    ],
@@ -3865,6 +4478,25 @@
    "last_year": 2022,
    "editions": 1,
    "rows": 128
+  },
+  {
+   "race_id": "daufuskie-island",
+   "slug": "daufuskie-island",
+   "label": "Daufuskie Island",
+   "name": "Daufuskie Island Marathon",
+   "place": "Daufuskie Island, SC",
+   "keys": [
+    "Daufuskie Island, SC: The Palmetto Running Company's Daufuskie Island Marathon and Half"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [
+    "other_event_in_title"
+   ],
+   "first_year": 2023,
+   "last_year": 2026,
+   "editions": 4,
+   "rows": 625
   },
   {
    "race_id": "defi-des-couleurs-simard",
@@ -4291,16 +4923,16 @@
    "rows": 706
   },
   {
-   "race_id": "edge-to-edge-marathon",
-   "slug": "edge-to-edge-marathon",
-   "label": "Edge to Edge Marathon",
+   "race_id": "edge-to-edge",
+   "slug": "edge-to-edge",
+   "label": "Edge to Edge",
    "name": "Edge to Edge Marathon",
    "place": "Ucluelet, BC",
    "keys": [
     "Ucluelet, BC: Edge to Edge Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2000,
    "last_year": 2016,
@@ -4308,16 +4940,16 @@
    "rows": 1344
   },
   {
-   "race_id": "edmonton-marathon",
-   "slug": "edmonton-marathon",
-   "label": "Edmonton Marathon",
+   "race_id": "edmonton",
+   "slug": "edmonton",
+   "label": "Edmonton",
    "name": "Edmonton Marathon",
    "place": "Edmonton, AB",
    "keys": [
     "Edmonton, AB: Edmonton Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2000,
    "last_year": 2026,
@@ -4431,16 +5063,16 @@
    "rows": 548
   },
   {
-   "race_id": "emerald-isle-marathon-half-marathon-and-5k",
-   "slug": "emerald-isle-marathon-half-marathon-and-5k",
-   "label": "Emerald Isle Marathon, Half Marathon and 5K",
-   "name": "Emerald Isle Marathon, Half Marathon and 5K",
+   "race_id": "emerald-isle",
+   "slug": "emerald-isle",
+   "label": "Emerald Isle",
+   "name": "Emerald Isle Marathon",
    "place": "Emerald Isle, NC",
    "keys": [
     "Emerald Isle, NC: Emerald Isle Marathon, Half Marathon and 5K"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -4883,25 +5515,6 @@
    "rows": 47
   },
   {
-   "race_id": "foot-levelers-blue-ridge-marathon",
-   "slug": "foot-levelers-blue-ridge-marathon",
-   "label": "Foot Levelers Blue Ridge Marathon",
-   "name": "Foot Levelers Blue Ridge Marathon",
-   "place": "Roanoke, VA",
-   "keys": [
-    "Roanoke, VA: Foot Levelers Blue Ridge Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [
-    "mountain_or_trail_course"
-   ],
-   "first_year": 2021,
-   "last_year": 2026,
-   "editions": 5,
-   "rows": 2296
-  },
-  {
    "race_id": "footstock",
    "slug": "footstock",
    "label": "Footstock",
@@ -5029,16 +5642,16 @@
    "rows": 55835
   },
   {
-   "race_id": "friendly-massey-marathon-cancelled",
-   "slug": "friendly-massey-marathon-cancelled",
-   "label": "Friendly Massey Marathon - Cancelled",
-   "name": "Friendly Massey Marathon - Cancelled",
+   "race_id": "friendly-massey",
+   "slug": "friendly-massey",
+   "label": "Friendly Massey",
+   "name": "Friendly Massey Marathon",
    "place": "MASSEY, On",
    "keys": [
     "MASSEY, On: Friendly Massey Marathon - Cancelled"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "cancelled_in_title",
     "platform_title_misleads"
@@ -5068,23 +5681,6 @@
    "rows": 236
   },
   {
-   "race_id": "game-on-marathon-of-the-treasure-coast",
-   "slug": "game-on-marathon-of-the-treasure-coast",
-   "label": "Game On! Marathon of the Treasure Coast",
-   "name": "Game On! Marathon of the Treasure Coast",
-   "place": "Stuart, FL",
-   "keys": [
-    "Stuart, FL: Game On! Marathon of the Treasure Coast"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2021,
-   "last_year": 2026,
-   "editions": 6,
-   "rows": 1219
-  },
-  {
    "race_id": "gandy-dancer-marathon",
    "slug": "gandy-dancer-marathon",
    "label": "Gandy Dancer Marathon",
@@ -5100,23 +5696,6 @@
    "last_year": 2026,
    "editions": 3,
    "rows": 166
-  },
-  {
-   "race_id": "garmin-kansas-city-marathon",
-   "slug": "garmin-kansas-city-marathon",
-   "label": "Garmin Kansas City Marathon",
-   "name": "Garmin Kansas City Marathon",
-   "place": "Kansas City, MO",
-   "keys": [
-    "Kansas City, MO: Garmin Kansas City Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2022,
-   "last_year": 2024,
-   "editions": 3,
-   "rows": 3526
   },
   {
    "race_id": "generali-maraton-malaga",
@@ -5231,23 +5810,24 @@
    "rows": 38
   },
   {
-   "race_id": "glass-city-marathon",
-   "slug": "glass-city-marathon",
-   "label": "Glass City Marathon",
+   "race_id": "glass-city",
+   "slug": "glass-city",
+   "label": "Glass City",
    "name": "Glass City Marathon",
-   "place": null,
+   "place": "Toledo, OH",
    "keys": [
-    "XACT: Glass City Marathon"
+    "XACT: Glass City Marathon",
+    "Toledo, OH: MERCY HEALTH GLASS CITY MARATHON"
    ],
-   "joined_by": "single key",
-   "labelled_by": "name",
+   "joined_by": "reviewed join glass-city",
+   "labelled_by": "reviewed label",
    "flags": [
     "platform_prefix"
    ],
    "first_year": 2015,
-   "last_year": 2016,
-   "editions": 2,
-   "rows": 2109
+   "last_year": 2026,
+   "editions": 8,
+   "rows": 9139
   },
   {
    "race_id": "glenbeigh-glencar",
@@ -5305,23 +5885,6 @@
    "rows": 116
   },
   {
-   "race_id": "gms-queen-city-marathon",
-   "slug": "gms-queen-city-marathon",
-   "label": "GMS Queen City Marathon",
-   "name": "GMS Queen City Marathon",
-   "place": "Regina, SK",
-   "keys": [
-    "Regina, SK: GMS Queen City Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2002,
-   "last_year": 2026,
-   "editions": 24,
-   "rows": 8940
-  },
-  {
    "race_id": "go-st-louis-marathon-and-half-marathon",
    "slug": "go-st-louis-marathon-and-half-marathon",
    "label": "Go! St. Louis Marathon and Half Marathon",
@@ -5359,16 +5922,16 @@
    "rows": 46983
   },
   {
-   "race_id": "golden-driller-marathon",
-   "slug": "golden-driller-marathon",
-   "label": "Golden Driller Marathon",
+   "race_id": "golden-driller",
+   "slug": "golden-driller",
+   "label": "Golden Driller",
    "name": "Golden Driller Marathon",
    "place": "Tulsa, OK",
    "keys": [
     "Tulsa, OK: Golden Driller Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2018,
    "last_year": 2026,
@@ -5410,19 +5973,20 @@
    "rows": 729
   },
   {
-   "race_id": "grand-lake-half-marathon-5k-kid-s-run",
-   "slug": "grand-lake-half-marathon-5k-kid-s-run",
-   "label": "Grand Lake Half Marathon 5k/Kid's Run",
+   "race_id": "grand-lake",
+   "slug": "grand-lake",
+   "label": "Grand Lake",
    "name": "Grand Lake Half Marathon 5k/Kid's Run",
    "place": "Celina, OH",
    "keys": [
     "Celina, OH: Grand Lake Half Marathon 5k/Kid's Run"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "no_marathon_word_in_title",
-    "other_event_in_title"
+    "other_event_in_title",
+    "platform_title_misleads"
    ],
    "first_year": 2015,
    "last_year": 2021,
@@ -5479,6 +6043,23 @@
    "last_year": 2014,
    "editions": 1,
    "rows": 162
+  },
+  {
+   "race_id": "grand-rapids",
+   "slug": "grand-rapids",
+   "label": "Grand Rapids",
+   "name": "University of Michigan Health-West Grand Rapids Marathon",
+   "place": "Grand Rapids, MI",
+   "keys": [
+    "Grand Rapids, MI: University of Michigan Health-West Grand Rapids Marathon"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2017,
+   "last_year": 2026,
+   "editions": 9,
+   "rows": 8969
   },
   {
    "race_id": "grandma-s",
@@ -5551,16 +6132,16 @@
    "rows": 48
   },
   {
-   "race_id": "groundhog-day-marathon",
-   "slug": "groundhog-day-marathon",
-   "label": "Groundhog Day Marathon",
+   "race_id": "groundhog-day",
+   "slug": "groundhog-day",
+   "label": "Groundhog Day",
    "name": "Groundhog Day Marathon",
    "place": "Walker, MI",
    "keys": [
     "Walker, MI: Groundhog Day Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2014,
    "last_year": 2026,
@@ -5735,16 +6316,16 @@
    "rows": 291
   },
   {
-   "race_id": "hayden-lake-marathon",
-   "slug": "hayden-lake-marathon",
-   "label": "Hayden Lake Marathon",
+   "race_id": "hayden-lake",
+   "slug": "hayden-lake",
+   "label": "Hayden Lake",
    "name": "Hayden Lake Marathon",
    "place": "Hayden Lake, ID",
    "keys": [
     "Hayden Lake, ID: Hayden Lake Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2015,
    "last_year": 2018,
@@ -5769,16 +6350,16 @@
    "rows": 7520
   },
   {
-   "race_id": "heartland-marathon",
-   "slug": "heartland-marathon",
-   "label": "Heartland Marathon",
+   "race_id": "heartland",
+   "slug": "heartland",
+   "label": "Heartland",
    "name": "Heartland Marathon",
    "place": "Omaha, NE",
    "keys": [
     "Omaha, NE: Heartland Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2020,
    "last_year": 2024,
@@ -5894,16 +6475,16 @@
    "rows": 97258
   },
   {
-   "race_id": "horse-capital-marathon-half-marathon",
-   "slug": "horse-capital-marathon-half-marathon",
-   "label": "Horse Capital Marathon & Half Marathon",
-   "name": "Horse Capital Marathon & Half Marathon",
+   "race_id": "horse-capital",
+   "slug": "horse-capital",
+   "label": "Horse Capital",
+   "name": "Horse Capital Marathon",
    "place": "Lexington, KY",
    "keys": [
     "Lexington, KY: Horse Capital Marathon & Half Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -6145,6 +6726,26 @@
    "rows": 248
   },
   {
+   "race_id": "irving",
+   "slug": "irving",
+   "label": "Irving",
+   "name": "Irving Marathon",
+   "place": "Irving, TX",
+   "keys": [
+    "Irving, TX: Irving Marathon",
+    "Irving, TX: Irving Marathon - Full & Half"
+   ],
+   "joined_by": "reviewed join irving",
+   "labelled_by": "reviewed label",
+   "flags": [
+    "other_event_in_title"
+   ],
+   "first_year": 2021,
+   "last_year": 2026,
+   "editions": 6,
+   "rows": 2386
+  },
+  {
    "race_id": "irving-frost-marathon",
    "slug": "irving-frost-marathon",
    "label": "Irving Frost Marathon",
@@ -6162,52 +6763,16 @@
    "rows": 975
   },
   {
-   "race_id": "irving-marathon",
-   "slug": "irving-marathon",
-   "label": "Irving Marathon",
-   "name": "Irving Marathon",
-   "place": "Irving, TX",
-   "keys": [
-    "Irving, TX: Irving Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2021,
-   "last_year": 2024,
-   "editions": 4,
-   "rows": 1414
-  },
-  {
-   "race_id": "irving-marathon-full-half",
-   "slug": "irving-marathon-full-half",
-   "label": "Irving Marathon - Full & Half",
-   "name": "Irving Marathon - Full & Half",
-   "place": "Irving, TX",
-   "keys": [
-    "Irving, TX: Irving Marathon - Full & Half"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [
-    "other_event_in_title"
-   ],
-   "first_year": 2025,
-   "last_year": 2026,
-   "editions": 2,
-   "rows": 972
-  },
-  {
-   "race_id": "jackson-hole-marathon-hole-half-marathon-jackson-hole-quarter-marathon",
-   "slug": "jackson-hole-marathon-hole-half-marathon-jackson-hole-quarter-marathon",
-   "label": "Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon",
-   "name": "Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon",
+   "race_id": "jackson-hole",
+   "slug": "jackson-hole",
+   "label": "Jackson Hole",
+   "name": "Jackson Hole Marathon",
    "place": "Jackson, WY",
    "keys": [
     "Jackson, WY: Jackson Hole Marathon, Hole Half Marathon, Jackson Hole Quarter Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "mountain_or_trail_course",
     "other_event_in_title"
@@ -6216,23 +6781,6 @@
    "last_year": 2026,
    "editions": 5,
    "rows": 1160
-  },
-  {
-   "race_id": "jacob-wells-3-bridges-marathon",
-   "slug": "jacob-wells-3-bridges-marathon",
-   "label": "Jacob Wells 3 Bridges Marathon",
-   "name": "Jacob Wells 3 Bridges Marathon",
-   "place": "Little Rock, AR",
-   "keys": [
-    "Little Rock, AR: Jacob Wells 3 Bridges Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2014,
-   "last_year": 2025,
-   "editions": 10,
-   "rows": 2188
   },
   {
    "race_id": "jekyll-island-marathon-half-marathon-and-10k",
@@ -6325,6 +6873,23 @@
    "last_year": 2017,
    "editions": 1,
    "rows": 37
+  },
+  {
+   "race_id": "kansas-city",
+   "slug": "kansas-city",
+   "label": "Kansas City",
+   "name": "Garmin Kansas City Marathon",
+   "place": "Kansas City, MO",
+   "keys": [
+    "Kansas City, MO: Garmin Kansas City Marathon"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2022,
+   "last_year": 2024,
+   "editions": 3,
+   "rows": 3526
   },
   {
    "race_id": "keith-whyte-waterfront-marathon-directors-run",
@@ -6486,25 +7051,6 @@
    "last_year": 2018,
    "editions": 1,
    "rows": 314
-  },
-  {
-   "race_id": "kings-san-juan-island-marathon-half-marathon-and-10k",
-   "slug": "kings-san-juan-island-marathon-half-marathon-and-10k",
-   "label": "Kings San Juan Island Marathon, Half Marathon and 10K",
-   "name": "Kings San Juan Island Marathon, Half Marathon and 10K",
-   "place": "Friday Harbor, WA",
-   "keys": [
-    "Friday Harbor, WA: Kings San Juan Island Marathon, Half Marathon and 10K"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [
-    "other_event_in_title"
-   ],
-   "first_year": 2018,
-   "last_year": 2022,
-   "editions": 4,
-   "rows": 107
   },
   {
    "race_id": "kungsbackaloppet",
@@ -6700,40 +7246,24 @@
    "rows": 152
   },
   {
-   "race_id": "lake-placid-marathon",
-   "slug": "lake-placid-marathon",
-   "label": "Lake Placid Marathon",
+   "race_id": "lake-placid",
+   "slug": "lake-placid",
+   "label": "Lake Placid",
    "name": "Lake Placid Marathon",
    "place": "Lake Placid, NY",
    "keys": [
+    "Lake Placid, NY: Lake Placid Marathon & Half-Marathon",
     "Lake Placid, NY: Lake Placid Marathon"
    ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2021,
-   "last_year": 2026,
-   "editions": 6,
-   "rows": 1546
-  },
-  {
-   "race_id": "lake-placid-marathon-half-marathon",
-   "slug": "lake-placid-marathon-half-marathon",
-   "label": "Lake Placid Marathon & Half-Marathon",
-   "name": "Lake Placid Marathon & Half-Marathon",
-   "place": "Lake Placid, NY",
-   "keys": [
-    "Lake Placid, NY: Lake Placid Marathon & Half-Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
+   "joined_by": "reviewed join lake-placid",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
    "first_year": 2005,
-   "last_year": 2018,
-   "editions": 2,
-   "rows": 386
+   "last_year": 2026,
+   "editions": 8,
+   "rows": 1932
   },
   {
    "race_id": "lake-wilhelm-marathon",
@@ -6864,16 +7394,16 @@
    "rows": 63
   },
   {
-   "race_id": "lock-2-lock-marathon-half-marathon-10k",
-   "slug": "lock-2-lock-marathon-half-marathon-10k",
-   "label": "Lock 2 Lock Marathon/Half Marathon/10k",
-   "name": "Lock 2 Lock Marathon/Half Marathon/10k",
+   "race_id": "lock-2-lock",
+   "slug": "lock-2-lock",
+   "label": "Lock 2 Lock",
+   "name": "Lock 2 Lock Marathon",
    "place": "Williamsport, MD",
    "keys": [
     "Williamsport, MD: Lock 2 Lock Marathon/Half Marathon/10k"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -6914,19 +7444,19 @@
    "first_year": 2015,
    "last_year": 2026,
    "editions": 11,
-   "rows": 328801
+   "rows": 328804
   },
   {
-   "race_id": "london-oh-marathon",
-   "slug": "london-oh-marathon",
-   "label": "London OH Marathon",
+   "race_id": "london-oh",
+   "slug": "london-oh",
+   "label": "London OH",
    "name": "London OH Marathon",
    "place": "London, OH",
    "keys": [
     "London, OH: London OH Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2021,
    "last_year": 2026,
@@ -6949,25 +7479,6 @@
    "last_year": 2016,
    "editions": 3,
    "rows": 1955
-  },
-  {
-   "race_id": "long-life-meal-prep-cannonball-running-festival-marathon-half-marathon",
-   "slug": "long-life-meal-prep-cannonball-running-festival-marathon-half-marathon",
-   "label": "Long Life Meal Prep Cannonball Running Festival - Marathon, Half Marathon,",
-   "name": "Long Life Meal Prep Cannonball Running Festival - Marathon, Half Marathon,",
-   "place": "Greensboro, NC",
-   "keys": [
-    "Greensboro, NC: Long Life Meal Prep Cannonball Running Festival - Marathon, Half Marathon,"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [
-    "other_event_in_title"
-   ],
-   "first_year": 2016,
-   "last_year": 2026,
-   "editions": 7,
-   "rows": 711
   },
   {
    "race_id": "los-angeles",
@@ -7127,16 +7638,16 @@
    "rows": 96
   },
   {
-   "race_id": "manitoba-marathon",
-   "slug": "manitoba-marathon",
-   "label": "Manitoba Marathon",
+   "race_id": "manitoba",
+   "slug": "manitoba",
+   "label": "Manitoba",
    "name": "Manitoba Marathon",
    "place": "MB",
    "keys": [
     "MB, MB: Manitoba Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2001,
    "last_year": 2024,
@@ -7214,23 +7725,6 @@
    "rows": 167
   },
   {
-   "race_id": "marathon-beneva-de-quebec",
-   "slug": "marathon-beneva-de-quebec",
-   "label": "Marathon Beneva de Québec",
-   "name": "Marathon Beneva de Québec",
-   "place": "Québec City, QC",
-   "keys": [
-    "Québec City, QC: Marathon Beneva de Québec"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2017,
-   "last_year": 2026,
-   "editions": 8,
-   "rows": 12287
-  },
-  {
    "race_id": "marathon-de-longueuil-sun-life",
    "slug": "marathon-de-longueuil-sun-life",
    "label": "Marathon de Longueuil Sun Life",
@@ -7246,26 +7740,6 @@
    "last_year": 2026,
    "editions": 9,
    "rows": 3065
-  },
-  {
-   "race_id": "marathon-de-rimouski-annule",
-   "slug": "marathon-de-rimouski-annule",
-   "label": "Marathon de Rimouski- Annulé",
-   "name": "Marathon de Rimouski- Annulé",
-   "place": "Rimouski, QC",
-   "keys": [
-    "Rimouski, QC: Marathon de Rimouski- Annulé"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [
-    "cancelled_in_title",
-    "platform_title_misleads"
-   ],
-   "first_year": 2004,
-   "last_year": 2016,
-   "editions": 13,
-   "rows": 2553
   },
   {
    "race_id": "marathon-des-couleurs-promutuel-annule",
@@ -7319,23 +7793,6 @@
    "last_year": 2014,
    "editions": 1,
    "rows": 100
-  },
-  {
-   "race_id": "marathon-groupe-ouellet-bolduc-de-rimouski",
-   "slug": "marathon-groupe-ouellet-bolduc-de-rimouski",
-   "label": "Marathon Groupe Ouellet Bolduc de Rimouski",
-   "name": "Marathon Groupe Ouellet Bolduc de Rimouski",
-   "place": "Rimouski, QC",
-   "keys": [
-    "Rimouski, QC: Marathon Groupe Ouellet Bolduc de Rimouski"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2017,
-   "last_year": 2023,
-   "editions": 4,
-   "rows": 1172
   },
   {
    "race_id": "marathon-international-de-casa-blanca",
@@ -9450,23 +9907,6 @@
    "rows": 502
   },
   {
-   "race_id": "mercy-health-glass-city-marathon",
-   "slug": "mercy-health-glass-city-marathon",
-   "label": "Mercy Health Glass City Marathon",
-   "name": "Mercy Health Glass City Marathon",
-   "place": "Toledo, OH",
-   "keys": [
-    "Toledo, OH: MERCY HEALTH GLASS CITY MARATHON"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2021,
-   "last_year": 2026,
-   "editions": 6,
-   "rows": 7030
-  },
-  {
    "race_id": "mexico-city",
    "slug": "mexico-city",
    "label": "Mexico City",
@@ -9600,16 +10040,16 @@
    "rows": 58
   },
   {
-   "race_id": "millennium-meadows-marathon",
-   "slug": "millennium-meadows-marathon",
-   "label": "Millennium Meadows Marathon",
+   "race_id": "millennium-meadows",
+   "slug": "millennium-meadows",
+   "label": "Millennium Meadows",
    "name": "Millennium Meadows Marathon",
    "place": "Grand Rapids, MI",
    "keys": [
     "Grand Rapids, MI: Millennium Meadows Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2018,
    "last_year": 2026,
@@ -9690,16 +10130,16 @@
    "rows": 15084
   },
   {
-   "race_id": "montana-marathon",
-   "slug": "montana-marathon",
-   "label": "Montana Marathon",
+   "race_id": "montana",
+   "slug": "montana",
+   "label": "Montana",
    "name": "Montana Marathon",
    "place": "Billings, MT",
    "keys": [
     "Billings, MT: Montana Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2022,
    "last_year": 2026,
@@ -9903,43 +10343,25 @@
    "rows": 612
   },
   {
-   "race_id": "museum-of-aviation-marathon-half-marathon-5k",
-   "slug": "museum-of-aviation-marathon-half-marathon-5k",
-   "label": "Museum of Aviation Marathon, Half Marathon & 5K",
-   "name": "Museum of Aviation Marathon, Half Marathon & 5K",
+   "race_id": "museum-of-aviation",
+   "slug": "museum-of-aviation",
+   "label": "Museum of Aviation",
+   "name": "Museum of Aviation Marathon",
    "place": "Warner Robins, GA",
    "keys": [
-    "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [
-    "other_event_in_title"
-   ],
-   "first_year": 2016,
-   "last_year": 2016,
-   "editions": 1,
-   "rows": 128
-  },
-  {
-   "race_id": "museum-of-aviation-marathon-half-marathon-5k-and-hand-cycle-race",
-   "slug": "museum-of-aviation-marathon-half-marathon-5k-and-hand-cycle-race",
-   "label": "Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race",
-   "name": "Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race",
-   "place": "Warner Robins, GA",
-   "keys": [
+    "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K",
     "Warner Robins, GA: Museum of Aviation Marathon, Half Marathon & 5K and Hand Cycle Race"
    ],
-   "joined_by": "single key",
-   "labelled_by": "name",
+   "joined_by": "reviewed join museum-of-aviation",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title",
     "title_names_a_hand_cycle_race"
    ],
-   "first_year": 2017,
+   "first_year": 2016,
    "last_year": 2026,
-   "editions": 7,
-   "rows": 461
+   "editions": 8,
+   "rows": 589
   },
   {
    "race_id": "mytho-marathon",
@@ -9993,16 +10415,16 @@
    "rows": 235
   },
   {
-   "race_id": "napa-valley-marathon",
-   "slug": "napa-valley-marathon",
-   "label": "Napa Valley Marathon",
+   "race_id": "napa-valley",
+   "slug": "napa-valley",
+   "label": "Napa Valley",
    "name": "Napa Valley Marathon",
    "place": "Napa, CA",
    "keys": [
     "Napa, CA: Napa Valley Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2019,
    "last_year": 2026,
@@ -10117,16 +10539,16 @@
    "rows": 4372
   },
   {
-   "race_id": "new-river-marathon-half-marathon-5k",
-   "slug": "new-river-marathon-half-marathon-5k",
-   "label": "New River Marathon, Half Marathon & 5K",
-   "name": "New River Marathon, Half Marathon & 5K",
+   "race_id": "new-river",
+   "slug": "new-river",
+   "label": "New River",
+   "name": "New River Marathon",
    "place": "Todd, NC",
    "keys": [
     "Todd, NC: New River Marathon, Half Marathon & 5K"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -10153,16 +10575,16 @@
    "rows": 903295
   },
   {
-   "race_id": "niagara-falls-international-marathon",
-   "slug": "niagara-falls-international-marathon",
-   "label": "Niagara Falls International Marathon",
+   "race_id": "niagara-falls",
+   "slug": "niagara-falls",
+   "label": "Niagara Falls",
    "name": "Niagara Falls International Marathon",
    "place": "Niagara Falls, ON",
    "keys": [
     "Niagara Falls, ON: Niagara Falls International Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2007,
    "last_year": 2026,
@@ -10309,6 +10731,23 @@
    "last_year": 2017,
    "editions": 3,
    "rows": 197
+  },
+  {
+   "race_id": "okanagan",
+   "slug": "okanagan",
+   "label": "Okanagan",
+   "name": "SunRype Okanagan Marathon",
+   "place": "Kelowna, BC",
+   "keys": [
+    "Kelowna, BC: SunRype Okanagan Marathon"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2000,
+   "last_year": 2019,
+   "editions": 18,
+   "rows": 8809
   },
   {
    "race_id": "oklahoma-city",
@@ -10461,16 +10900,16 @@
    "rows": 57384
   },
   {
-   "race_id": "ottawa-fall-colours-run",
-   "slug": "ottawa-fall-colours-run",
-   "label": "Ottawa Fall Colours Run",
+   "race_id": "ottawa-fall-colours",
+   "slug": "ottawa-fall-colours",
+   "label": "Ottawa Fall Colours",
    "name": "Ottawa Fall Colours Run",
    "place": "Ottawa, ON",
    "keys": [
     "Ottawa, ON: Ottawa Fall Colours Run"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "no_marathon_word_in_title"
    ],
@@ -10964,16 +11403,16 @@
    "rows": 615
   },
   {
-   "race_id": "priest-lake-marathon",
-   "slug": "priest-lake-marathon",
-   "label": "Priest Lake Marathon",
+   "race_id": "priest-lake",
+   "slug": "priest-lake",
+   "label": "Priest Lake",
    "name": "Priest Lake Marathon",
    "place": "Priest Lake, ID",
    "keys": [
     "Priest Lake, ID: Priest Lake Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2019,
    "last_year": 2026,
@@ -11125,6 +11564,40 @@
    "rows": 668
   },
   {
+   "race_id": "quebec",
+   "slug": "quebec",
+   "label": "Québec",
+   "name": "Marathon Beneva de Québec",
+   "place": "Québec City, QC",
+   "keys": [
+    "Québec City, QC: Marathon Beneva de Québec"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2017,
+   "last_year": 2026,
+   "editions": 8,
+   "rows": 12287
+  },
+  {
+   "race_id": "queen-city",
+   "slug": "queen-city",
+   "label": "Queen City",
+   "name": "GMS Queen City Marathon",
+   "place": "Regina, SK",
+   "keys": [
+    "Regina, SK: GMS Queen City Marathon"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2002,
+   "last_year": 2026,
+   "editions": 24,
+   "rows": 8940
+  },
+  {
    "race_id": "queretaro",
    "slug": "queretaro",
    "label": "Querétaro",
@@ -11235,6 +11708,23 @@
    "rows": 132
   },
   {
+   "race_id": "redding",
+   "slug": "redding",
+   "label": "Redding",
+   "name": "The Redding Marathon",
+   "place": "Redding, CA",
+   "keys": [
+    "Redding, CA: The Redding Marathon Events"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2015,
+   "last_year": 2026,
+   "editions": 9,
+   "rows": 1550
+  },
+  {
    "race_id": "rehoboth-seashore-marathon-and-half-marathon",
    "slug": "rehoboth-seashore-marathon-and-half-marathon",
    "label": "Rehoboth Seashore Marathon and Half Marathon",
@@ -11339,6 +11829,27 @@
    "last_year": 2026,
    "editions": 5,
    "rows": 7580
+  },
+  {
+   "race_id": "rimouski",
+   "slug": "rimouski",
+   "label": "Rimouski",
+   "name": "Marathon de Rimouski",
+   "place": "Rimouski, QC",
+   "keys": [
+    "Rimouski, QC: Marathon de Rimouski- Annulé",
+    "Rimouski, QC: Marathon Groupe Ouellet Bolduc de Rimouski"
+   ],
+   "joined_by": "reviewed join rimouski",
+   "labelled_by": "reviewed label",
+   "flags": [
+    "cancelled_in_title",
+    "platform_title_misleads"
+   ],
+   "first_year": 2004,
+   "last_year": 2023,
+   "editions": 17,
+   "rows": 3725
   },
   {
    "race_id": "rivanna-greenbelt-marathon-half-marathon",
@@ -12035,6 +12546,25 @@
    "rows": 99
   },
   {
+   "race_id": "san-juan-island",
+   "slug": "san-juan-island",
+   "label": "San Juan Island",
+   "name": "Kings San Juan Island Marathon",
+   "place": "Friday Harbor, WA",
+   "keys": [
+    "Friday Harbor, WA: Kings San Juan Island Marathon, Half Marathon and 10K"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [
+    "other_event_in_title"
+   ],
+   "first_year": 2018,
+   "last_year": 2022,
+   "editions": 4,
+   "rows": 107
+  },
+  {
    "race_id": "san-juan-marathon",
    "slug": "san-juan-marathon",
    "label": "San Juan Marathon",
@@ -12158,16 +12688,16 @@
    "rows": 119
   },
   {
-   "race_id": "saskatchewan-marathon",
-   "slug": "saskatchewan-marathon",
-   "label": "Saskatchewan Marathon",
+   "race_id": "saskatchewan",
+   "slug": "saskatchewan",
+   "label": "Saskatchewan",
    "name": "Saskatchewan Marathon",
    "place": "Saskatoon, SK",
    "keys": [
     "Saskatoon, SK: Saskatchewan Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2008,
    "last_year": 2026,
@@ -12228,23 +12758,6 @@
    "last_year": 2021,
    "editions": 2,
    "rows": 463
-  },
-  {
-   "race_id": "scotiabank-blue-nose-marathon",
-   "slug": "scotiabank-blue-nose-marathon",
-   "label": "Scotiabank Blue Nose Marathon",
-   "name": "Scotiabank Blue Nose Marathon",
-   "place": "Halifax, NS",
-   "keys": [
-    "Halifax, NS: Scotiabank Blue Nose Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2004,
-   "last_year": 2019,
-   "editions": 16,
-   "rows": 4498
   },
   {
    "race_id": "sea-ice-marathon",
@@ -12478,9 +12991,9 @@
    "rows": 535
   },
   {
-   "race_id": "soldier-marathon",
-   "slug": "soldier-marathon",
-   "label": "Soldier Marathon",
+   "race_id": "soldier",
+   "slug": "soldier",
+   "label": "Soldier",
    "name": "Soldier Marathon",
    "place": "Columbus, GA",
    "keys": [
@@ -12488,7 +13001,7 @@
     "Columbus, GA: Soldier Marathon"
    ],
    "joined_by": "reviewed join soldier-marathon",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -12551,16 +13064,16 @@
    "rows": 52
   },
   {
-   "race_id": "space-coast-marathon-half-marathon",
-   "slug": "space-coast-marathon-half-marathon",
-   "label": "Space Coast Marathon & Half Marathon",
-   "name": "Space Coast Marathon & Half Marathon",
+   "race_id": "space-coast",
+   "slug": "space-coast",
+   "label": "Space Coast",
+   "name": "Space Coast Marathon",
    "place": "Cocoa, FL",
    "keys": [
     "Cocoa, FL: Space Coast Marathon & Half Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -12693,40 +13206,24 @@
    "rows": 8990
   },
   {
-   "race_id": "starved-rock-country-marathon-2014",
-   "slug": "starved-rock-country-marathon-2014",
-   "label": "Starved Rock Country Marathon (2014)",
+   "race_id": "starved-rock-country",
+   "slug": "starved-rock-country",
+   "label": "Starved Rock Country",
    "name": "Starved Rock Country Marathon",
-   "place": null,
+   "place": "Ottawa, IL",
    "keys": [
-    "XACT: Starved Rock Country Marathon"
+    "XACT: Starved Rock Country Marathon",
+    "Ottawa, IL: Starved Rock Country Marathon"
    ],
-   "joined_by": "single key",
-   "labelled_by": "name and first year",
+   "joined_by": "reviewed join starved-rock-country",
+   "labelled_by": "reviewed label",
    "flags": [
     "platform_prefix"
    ],
    "first_year": 2014,
-   "last_year": 2014,
-   "editions": 1,
-   "rows": 211
-  },
-  {
-   "race_id": "starved-rock-country-marathon-ottawa-il",
-   "slug": "starved-rock-country-marathon-ottawa-il",
-   "label": "Starved Rock Country Marathon (Ottawa, IL)",
-   "name": "Starved Rock Country Marathon",
-   "place": "Ottawa, IL",
-   "keys": [
-    "Ottawa, IL: Starved Rock Country Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name and place",
-   "flags": [],
-   "first_year": 2019,
    "last_year": 2026,
-   "editions": 6,
-   "rows": 682
+   "editions": 7,
+   "rows": 893
   },
   {
    "race_id": "staunton-rocks-marathon-and-half-marathon",
@@ -12820,23 +13317,6 @@
    "last_year": 2014,
    "editions": 1,
    "rows": 19
-  },
-  {
-   "race_id": "sunrype-okanagan-marathon",
-   "slug": "sunrype-okanagan-marathon",
-   "label": "SunRype Okanagan Marathon",
-   "name": "SunRype Okanagan Marathon",
-   "place": "Kelowna, BC",
-   "keys": [
-    "Kelowna, BC: SunRype Okanagan Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2000,
-   "last_year": 2019,
-   "editions": 18,
-   "rows": 8809
   },
   {
    "race_id": "super-marathon",
@@ -13064,16 +13544,16 @@
    "rows": 4224
   },
   {
-   "race_id": "texas-marathon-and-half-marathon",
-   "slug": "texas-marathon-and-half-marathon",
-   "label": "Texas Marathon and Half Marathon",
-   "name": "Texas Marathon and Half Marathon",
+   "race_id": "texas",
+   "slug": "texas",
+   "label": "Texas",
+   "name": "Texas Marathon",
    "place": "Kingwood, TX",
    "keys": [
     "Kingwood, TX: Texas Marathon and Half Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -13115,23 +13595,6 @@
    "last_year": 2020,
    "editions": 1,
    "rows": 47
-  },
-  {
-   "race_id": "the-bismarck-marathon",
-   "slug": "the-bismarck-marathon",
-   "label": "The Bismarck Marathon",
-   "name": "The Bismarck Marathon",
-   "place": "Bismarck, ND",
-   "keys": [
-    "Bismarck, ND: The Bismarck Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2019,
-   "last_year": 2025,
-   "editions": 6,
-   "rows": 1029
   },
   {
    "race_id": "the-county-marathon-cancelled",
@@ -13359,25 +13822,6 @@
    "rows": 39
   },
   {
-   "race_id": "the-palmetto-running-company-s-daufuskie-island-marathon-and-half",
-   "slug": "the-palmetto-running-company-s-daufuskie-island-marathon-and-half",
-   "label": "The Palmetto Running Company's Daufuskie Island Marathon and Half",
-   "name": "The Palmetto Running Company's Daufuskie Island Marathon and Half",
-   "place": "Daufuskie Island, SC",
-   "keys": [
-    "Daufuskie Island, SC: The Palmetto Running Company's Daufuskie Island Marathon and Half"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [
-    "other_event_in_title"
-   ],
-   "first_year": 2023,
-   "last_year": 2026,
-   "editions": 4,
-   "rows": 625
-  },
-  {
    "race_id": "the-race-that-was-papa-loco-marathon-and-half-marathon",
    "slug": "the-race-that-was-papa-loco-marathon-and-half-marathon",
    "label": "(the race that was) Papa Loco Marathon And Half Marathon",
@@ -13395,23 +13839,6 @@
    "last_year": 2026,
    "editions": 6,
    "rows": 245
-  },
-  {
-   "race_id": "the-redding-marathon-events",
-   "slug": "the-redding-marathon-events",
-   "label": "The Redding Marathon Events",
-   "name": "The Redding Marathon Events",
-   "place": "Redding, CA",
-   "keys": [
-    "Redding, CA: The Redding Marathon Events"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2015,
-   "last_year": 2026,
-   "editions": 9,
-   "rows": 1550
   },
   {
    "race_id": "the-rogue-marathon",
@@ -13484,23 +13911,6 @@
    "rows": 339
   },
   {
-   "race_id": "the-towpath-marathon",
-   "slug": "the-towpath-marathon",
-   "label": "The Towpath Marathon",
-   "name": "The Towpath Marathon",
-   "place": "Cleveland, OH",
-   "keys": [
-    "Cleveland, OH: The Towpath Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2015,
-   "last_year": 2026,
-   "editions": 11,
-   "rows": 2096
-  },
-  {
    "race_id": "the-walled-city-marathon",
    "slug": "the-walled-city-marathon",
    "label": "The Walled City Marathon",
@@ -13518,16 +13928,16 @@
    "rows": 1344
   },
   {
-   "race_id": "the-woodlands-marathon",
-   "slug": "the-woodlands-marathon",
-   "label": "The Woodlands Marathon",
+   "race_id": "the-woodlands",
+   "slug": "the-woodlands",
+   "label": "The Woodlands",
    "name": "The Woodlands Marathon",
    "place": "The Woodlands, TX",
    "keys": [
     "The Woodlands, TX: The Woodlands Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2020,
    "last_year": 2026,
@@ -13586,16 +13996,16 @@
    "rows": 3763
   },
   {
-   "race_id": "tomoka-marathon-half-marathon-and-5k",
-   "slug": "tomoka-marathon-half-marathon-and-5k",
-   "label": "Tomoka Marathon, Half Marathon, and 5K",
-   "name": "Tomoka Marathon, Half Marathon, and 5K",
+   "race_id": "tomoka",
+   "slug": "tomoka",
+   "label": "Tomoka",
+   "name": "Tomoka Marathon",
    "place": "Ormond Beach, FL",
    "keys": [
     "Ormond Beach, FL: Tomoka Marathon, Half Marathon, and 5K"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -13696,6 +14106,23 @@
    "last_year": 2026,
    "editions": 6,
    "rows": 2383
+  },
+  {
+   "race_id": "towpath",
+   "slug": "towpath",
+   "label": "Towpath",
+   "name": "The Towpath Marathon",
+   "place": "Cleveland, OH",
+   "keys": [
+    "Cleveland, OH: The Towpath Marathon"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2015,
+   "last_year": 2026,
+   "editions": 11,
+   "rows": 2096
   },
   {
    "race_id": "trail-du-grand-duc",
@@ -13803,6 +14230,23 @@
    "last_year": 2018,
    "editions": 2,
    "rows": 30
+  },
+  {
+   "race_id": "treasure-coast",
+   "slug": "treasure-coast",
+   "label": "Treasure Coast",
+   "name": "Game On! Marathon of the Treasure Coast",
+   "place": "Stuart, FL",
+   "keys": [
+    "Stuart, FL: Game On! Marathon of the Treasure Coast"
+   ],
+   "joined_by": "single key",
+   "labelled_by": "reviewed label",
+   "flags": [],
+   "first_year": 2021,
+   "last_year": 2026,
+   "editions": 6,
+   "rows": 1219
   },
   {
    "race_id": "treviso-marathon",
@@ -14189,23 +14633,6 @@
    "rows": 2224
   },
   {
-   "race_id": "university-of-michigan-health-west-grand-rapids-marathon",
-   "slug": "university-of-michigan-health-west-grand-rapids-marathon",
-   "label": "University of Michigan Health-West Grand Rapids Marathon",
-   "name": "University of Michigan Health-West Grand Rapids Marathon",
-   "place": "Grand Rapids, MI",
-   "keys": [
-    "Grand Rapids, MI: University of Michigan Health-West Grand Rapids Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2017,
-   "last_year": 2026,
-   "editions": 9,
-   "rows": 8969
-  },
-  {
    "race_id": "uppsala-marathon",
    "slug": "uppsala-marathon",
    "label": "Uppsala Marathon",
@@ -14329,16 +14756,16 @@
    "rows": 22221
   },
   {
-   "race_id": "ventura-marathon",
-   "slug": "ventura-marathon",
-   "label": "Ventura Marathon",
+   "race_id": "ventura",
+   "slug": "ventura",
+   "label": "Ventura",
    "name": "Ventura Marathon",
    "place": "Ventura, CA",
    "keys": [
     "Ventura, CA: Ventura Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2014,
    "last_year": 2023,
@@ -14750,38 +15177,21 @@
    "rows": 29
   },
   {
-   "race_id": "wabash-trace-marathon",
-   "slug": "wabash-trace-marathon",
-   "label": "Wabash Trace Marathon",
+   "race_id": "wabash-trace",
+   "slug": "wabash-trace",
+   "label": "Wabash Trace",
    "name": "Wabash Trace Marathon",
    "place": "Shenandoah, IA",
    "keys": [
     "Shenandoah, IA: Wabash Trace Marathon"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [],
    "first_year": 2020,
    "last_year": 2025,
    "editions": 5,
    "rows": 364
-  },
-  {
-   "race_id": "walkers-cayman-islands-marathon",
-   "slug": "walkers-cayman-islands-marathon",
-   "label": "Walkers Cayman Islands Marathon",
-   "name": "Walkers Cayman Islands Marathon",
-   "place": "George Town, Ge",
-   "keys": [
-    "George Town, Ge: Walkers Cayman Islands Marathon"
-   ],
-   "joined_by": "single key",
-   "labelled_by": "name",
-   "flags": [],
-   "first_year": 2010,
-   "last_year": 2025,
-   "editions": 16,
-   "rows": 1261
   },
   {
    "race_id": "walled-city-marathon",
@@ -14836,7 +15246,21 @@
    "first_year": 2015,
    "last_year": 2026,
    "editions": 12,
-   "rows": 68723
+   "rows": 68723,
+   "series": [
+    {
+     "name": "Orlen Warsaw Marathon",
+     "first_year": 2015,
+     "last_year": 2018,
+     "editions": 4
+    },
+    {
+     "name": "PZU Warsaw Marathon",
+     "first_year": 2019,
+     "last_year": 2026,
+     "editions": 8
+    }
+   ]
   },
   {
    "race_id": "washington",
@@ -15032,16 +15456,16 @@
    "rows": 407
   },
   {
-   "race_id": "whitefish-marathon-half-marathon-5k-presented-by-hammer-nutrition",
-   "slug": "whitefish-marathon-half-marathon-5k-presented-by-hammer-nutrition",
-   "label": "Whitefish Marathon, Half Marathon & 5K Presented by Hammer Nutrition",
-   "name": "Whitefish Marathon, Half Marathon & 5K Presented by Hammer Nutrition",
+   "race_id": "whitefish",
+   "slug": "whitefish",
+   "label": "Whitefish",
+   "name": "Whitefish Marathon",
    "place": "Whitefish, MT",
    "keys": [
     "Whitefish, MT: Whitefish Marathon, Half Marathon & 5K Presented by Hammer Nutrition"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],
@@ -15087,16 +15511,16 @@
    "rows": 954
   },
   {
-   "race_id": "windsor-marathon-half-marathon-10k-5k-1-mile-run",
-   "slug": "windsor-marathon-half-marathon-10k-5k-1-mile-run",
-   "label": "Windsor Marathon, Half Marathon, 10k, 5k & 1 Mile Run",
-   "name": "Windsor Marathon, Half Marathon, 10k, 5k & 1 Mile Run",
+   "race_id": "windsor",
+   "slug": "windsor",
+   "label": "Windsor",
+   "name": "Windsor Marathon",
    "place": "Windsor, CO",
    "keys": [
     "Windsor, CO: Windsor Marathon, Half Marathon, 10k, 5k & 1 Mile Run"
    ],
    "joined_by": "single key",
-   "labelled_by": "name",
+   "labelled_by": "reviewed label",
    "flags": [
     "other_event_in_title"
    ],

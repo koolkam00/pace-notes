@@ -22,10 +22,13 @@ RULE states the rule in words; the file's key-value metadata and `<output>.json`
 by screen for each distance, so a stranger can recount it from the release's link file and the adapted input.
 
 Inputs, all from the adapted folder: the verified link file (`release-assets/person-ids-v5.1-race_results_linked.parquet`,
-re-hashed here against the digest the adapter's provenance pins), and `race_records.parquet` for the marathon rows the
-adapter wrote. The frozen rule (which tiers key) is IDENTITY in analysis/adapt_combined.py; for every written marathon
-record the key here is that module's `features.runner_id` or null, which the builder checks row by row when the folder
-holds features.parquet.
+re-hashed here against the digest the adapter's provenance pins), `race_records.parquet` for the marathon rows the
+adapter wrote, and the release's own `pending_review_flags.parquet` and `qa_row_flags.parquet` (in
+`release-assets/core`, checked against the CORE checksum list the provenance pins) for the half rows that the frozen
+HALF_ROW_RULE of analysis/adapt_combined.py leaves out (lead ruling D28, 2026-11-14: with it this file is final for an
+adoption; the half's own record rule imports the same constant). The frozen rule (which tiers key) is IDENTITY in
+analysis/adapt_combined.py; for every written marathon record the key here is that module's `features.runner_id` or
+null, which the builder checks row by row when the folder holds features.parquet.
 """
 import argparse
 import hashlib
@@ -36,7 +39,7 @@ from pathlib import Path
 
 import duckdb
 
-from adapt_combined import IDENTITY, LINKS, SOURCE_DIR
+from adapt_combined import CORE_DIR, HALF_ROW_RULE, IDENTITY, LINKS, REVIEWED, SOURCE_DIR, half_rows_left_out, parse_sums
 
 SCHEMA_VERSION = 1
 BIRTH_YEAR_SPREAD = 2
@@ -44,8 +47,10 @@ REASONS = ['left_out_by_row_rule', 'unlinked', 'tier_below_medium', 'sex_conflic
 RULE = {
     'key': ('a release row (source_db, record_id) gets a runner key when conditions 1 to 3 all hold; the key is the producer’s person id of its link, so one '
             'runner has one key across marathons and half marathons'),
-    '1_written': ('the row is in the adapted input: a marathon row the adapter’s row rule leaves out gets no key and takes no part in any screen. Every '
-                  'half row of the release takes part, because no row rule for half results is frozen yet; this file must be rebuilt when one is'),
+    '1_written': ('the row takes part: a marathon row the adapter’s row rule (ROW_RULE) leaves out of the adapted input, and a half row that the frozen '
+                  'half row rule (HALF_ROW_RULE in analysis/adapt_combined.py: the pending flags wheelchair_handcycle_published_category and '
+                  'published_disqualified_status, every flag of the marathon’s row rule, and the row-quality flag finish_implausibly_fast; a flag that '
+                  'every row of an edition carries removes nothing from it) leaves out, gets no key and takes no part in any screen (status left_out)'),
     '2_tier': 'the confidence of its link in the producer’s build is one of the keyed tiers of IDENTITY in analysis/adapt_combined.py (high_elite, high, medium)',
     '3_screens': ('the person passes three screens, each evaluated once over all of the person’s rows that meet conditions 1 and 2, marathon and half '
                   'together: (a) sex: the rows carry at most one of the sexes M and F (the link file’s `sex`: the published sex, else the published '
@@ -77,9 +82,10 @@ def literal(value):
     return "'" + str(value).replace("'", "''") + "'"
 
 
-def build(db, links, written, identity):
-    """Create the table `identity` from the link rows and the written marathon ids. `links` and `written` are SQL
-    relations (views or read_parquet calls); `written` has a column `id`. Returns the counts."""
+def build(db, links, written, identity, half_left_out=None):
+    """Create the table `identity` from the link rows, the written marathon ids and the half rows left out. `links`,
+    `written` and `half_left_out` are SQL relations (views or read_parquet calls); `written` has a column `id`,
+    `half_left_out` the columns source_db and record_id (None: no half row is left out). Returns the counts."""
     keyed = ', '.join(literal(tier) for tier in identity['keyed_confidences'])
     known = set(identity['keyed_confidences']) | set(identity['possible_confidences'])
     tiers = {tier for (tier,) in db.execute(f'SELECT DISTINCT confidence FROM {links} WHERE confidence IS NOT NULL').fetchall()}
@@ -91,10 +97,11 @@ def build(db, links, written, identity):
     step('link rows')
     # `candidate` is the row's person id when the row takes part in the screens (written, and linked in a keyed tier). The
     # joins below are on plain equalities: a condition on one side only inside a join made DuckDB compare every pair.
+    half = half_left_out or '(SELECT NULL::VARCHAR AS source_db, NULL::BIGINT AS record_id WHERE false)'
     db.execute(f"""CREATE OR REPLACE TEMP TABLE identity_written AS SELECT l.source_db, l.record_id, l.distance, l.city, l.year, l.person_id, l.confidence,
         CASE WHEN l.sex IN ('M', 'F') THEN l.sex END AS sex, CAST(nullif(regexp_extract(l.age_key, '^yob:([0-9]{{4}})$', 1), '') AS INTEGER) AS yob,
-        (l.distance='marathon' AND l.record_id NOT IN (SELECT id FROM {written})) AS left_out
-      FROM {links} l""")
+        CASE WHEN l.distance='marathon' THEN l.record_id NOT IN (SELECT id FROM {written}) ELSE h.record_id IS NOT NULL END AS left_out
+      FROM {links} l LEFT JOIN {half} h ON h.source_db=l.source_db AND h.record_id=l.record_id""")
     db.execute(f"""CREATE OR REPLACE TEMP TABLE identity_rows AS SELECT *, CASE WHEN NOT left_out AND confidence IN ({keyed}) THEN person_id END AS candidate
       FROM identity_written""")
     db.execute('DROP TABLE identity_written')
@@ -177,7 +184,26 @@ def main(argv=None):
     db.execute(f'SET temp_directory={literal(args.output.parent / "identity-temp")}')
     db.execute(f'CREATE VIEW link_rows AS SELECT * FROM read_parquet({literal(link_file)})')
     db.execute(f"CREATE VIEW written_rows AS SELECT id FROM read_parquet({literal(source / 'race_records.parquet')})")
-    measured = build(db, 'link_rows', 'written_rows', IDENTITY[tag])
+    # The half rows the frozen half row rule leaves out, from the release's own flag files (verified against the CORE
+    # checksum list, whose digest the provenance pins); the counts must be the ones the adapter reviewed and wrote.
+    half_counts = None
+    if tag in HALF_ROW_RULE:
+        core = source / CORE_DIR
+        assert digest(core / 'SHA256SUMS.txt') == provenance['core']['sha256sums_sha256'], 'the CORE checksum list is not the pinned one'
+        listed = parse_sums((core / 'SHA256SUMS.txt').read_text(), 'CORE SHA256SUMS.txt')
+        for name in ('pending_review_flags.parquet', 'qa_row_flags.parquet'):
+            assert digest(core / name) == listed[name], f'{name} differs from the CORE checksum list'
+        db.execute(f"CREATE VIEW pending_flags AS SELECT * FROM read_parquet({literal(core / 'pending_review_flags.parquet')})")
+        db.execute(f"CREATE VIEW quality_flags AS SELECT * FROM read_parquet({literal(core / 'qa_row_flags.parquet')})")
+        step('half rows the half row rule leaves out')
+        half_counts = half_rows_left_out(db, tag, 'pending_flags', 'quality_flags', "(SELECT source_db, record_id, city, year FROM link_rows WHERE distance='half')")
+        adapted = json.loads((source / 'MANIFEST.json').read_text()).get('half_row_rule')
+        assert adapted is not None and half_counts['left_out'] == adapted['rows_left_out'] == REVIEWED[tag]['half_left_out'] \
+            and half_counts['left_out_by_flag'] == adapted['rows_left_out_by_flag'], 'the half rows left out are not the ones the adapter reviewed and wrote'
+    measured = build(db, 'link_rows', 'written_rows', IDENTITY[tag], 'half_left_out' if half_counts else None)
+    if half_counts:
+        measured['half_rows_left_out'] = half_counts
+        assert measured['by_status']['half'].get('left_out', 0) == half_counts['left_out'], 'a half row left out is not in the link file'
     one = lambda query: db.execute(query).fetchone()[0]  # noqa: E731
     # The adapter's features carry the rule's tier condition as runner_id: the key here is that id, or null where a screen failed.
     features = source / 'features.parquet'
@@ -198,7 +224,8 @@ def main(argv=None):
             'marathon_records_keyed_alone_and_not_over_both_distances': alone[1] - measured['by_status']['marathon'].get('keyed', 0)}
     info = {
         'schema_version': SCHEMA_VERSION, 'release_tag': tag, 'input_manifest_sha256': provenance['manifest_sha256'],
-        'link_file': {'asset': LINKS, 'sha256': provenance['assets'][LINKS]}, 'identity_rule': IDENTITY[tag], 'birth_year_spread_max': BIRTH_YEAR_SPREAD,
+        'link_file': {'asset': LINKS, 'sha256': provenance['assets'][LINKS]}, 'identity_rule': IDENTITY[tag], 'half_row_rule': HALF_ROW_RULE.get(tag),
+        'birth_year_spread_max': BIRTH_YEAR_SPREAD,
         'rule': RULE, 'scripts': {name: digest(Path(__file__).with_name(name)) for name in ('build_identity.py', 'adapt_combined.py')},
         'counts': measured,
     }
