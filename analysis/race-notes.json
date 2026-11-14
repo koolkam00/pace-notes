@@ -65,7 +65,7 @@
    "reviewed": "2026-11-14"
   }
  ],
- "document": "The reviewed notes of the marathon race directory for this release (docs/RACES.md): the evidence files the family binds, race flags the registry’s rule does not give (`flags`) or gives wrongly (`clears`), each with its evidence, the lead’s rulings that allow a flagged race a page (`page_rulings`), the search aliases (`aliases`: a word as the release writes it and its common English name) and the rulings on the pairs of the duplicate-edition audit (`duplicate_editions`). analysis/build_races.py reads it and scripts/verify-races.cjs checks it; the race registry is frozen and holds none of this.",
+ "document": "The reviewed notes of the marathon race directory for this release (docs/RACES.md): the evidence files the family binds, race flags the registry’s rule does not give (`flags`) or gives wrongly (`clears`), each with its evidence, the lead’s rulings that allow a flagged race a page (`page_rulings`), the search aliases (`aliases`: a word as the release writes it and its common English name), the rulings on the pairs of the duplicate-edition audit (`duplicate_editions`), the editions those rulings set aside in a form another builder reads (`set_aside_editions`: label, year, the edition kept, the reason; the runner-lookup builder skips their rows), the reviewed notes on editions of listed pairs (`edition_notes`) and the lead’s general rulings (`rulings`). analysis/build_races.py reads it and scripts/verify-races.cjs checks it; the race registry is frozen and holds none of this.",
  "duplicate_editions": [
   {
    "editions": [
@@ -79,12 +79,15 @@
     ]
    ],
    "kind": "one_race_two_keys",
-   "note": "Listed by the near rule: every name of the smaller list is in the other and nearly all finish within one two-minute window of each other. The producer’s notes give both the same race day. Suggested to the lead on 2026-11-14: set the Green Mtn edition aside.",
-   "ruled_by": null,
-   "ruled_on": null,
-   "ruling": "pending",
-   "set_aside": null,
-   "words": null
+   "note": "Listed by the near rule: every name of the smaller list is in the other and nearly all finish within one two-minute window of each other.",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "ruling": "set_aside",
+   "set_aside": [
+    "45th GMAA Green Mtn. Marathon & Half Marathon",
+    2015
+   ],
+   "words": "Green Mtn. 2015 and Champlain Islands 2015: set aside the Green Mtn 2015 edition; Champlain Islands 2015 stays in its series (one race of one day under two keys, same race day and winning time in the producer’s notes)."
   },
   {
    "editions": [
@@ -98,12 +101,12 @@
     ]
    ],
    "kind": "partial_overlap",
-   "note": "Listed by the time-only rule: the two lists share several times more finish seconds than chance gives, almost all between 5:00 and 6:30, under different names. Not one list twice. Suggested to the lead on 2026-11-14: keep both and tell the producer.",
-   "ruled_by": null,
-   "ruled_on": null,
-   "ruling": "pending",
+   "note": "Listed by the time-only rule: the two lists share several times more finish seconds than chance gives, almost all between 5:00 and 6:30, under different names. Not one list twice.",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "ruling": "keep_both",
    "set_aside": null,
-   "words": null
+   "words": "Maraton Saltillo La Moderna 2023 and 2024: keep both, with the note `repeated_finish_times` (their finish times past about 5:00 are shared between rows and years; not individual times). No mark on the page beyond their tier; they are unverified and give no number anyway."
   },
   {
    "editions": [
@@ -116,13 +119,39 @@
      2013
     ]
    ],
+   "kept_by_convention": true,
    "kind": "same_list_twice",
-   "note": "Listed by the near rule: the same names in both years, every finish shifted by the same amount. The data do not say which year is the real one. Suggested to the lead on 2026-11-14: set one aside after asking the producer.",
-   "ruled_by": null,
-   "ruled_on": null,
-   "ruling": "pending",
-   "set_aside": null,
-   "words": null
+   "note": "Listed by the near rule: the same names in both years, every finish shifted by the same amount. The data cannot say which year is the real one: 2012 is kept by convention (the earlier year), not because the data show it.",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "ruling": "set_aside",
+   "set_aside": [
+    "Maratona SDAM",
+    2013
+   ],
+   "words": "Maratona SDAM 2012 and 2013: set aside 2013. One list under two years of one race (631 names in both, every finish exactly 150 s apart). The data cannot say which year is real; the earlier one is kept by convention and the entry says so. Both editions carry the note `one_list_two_years` in the notes file."
+  }
+ ],
+ "edition_notes": [
+  {
+   "label": "Maraton Saltillo La Moderna",
+   "note": "repeated_finish_times",
+   "year": 2023
+  },
+  {
+   "label": "Maraton Saltillo La Moderna",
+   "note": "repeated_finish_times",
+   "year": 2024
+  },
+  {
+   "label": "Maratona SDAM",
+   "note": "one_list_two_years",
+   "year": 2012
+  },
+  {
+   "label": "Maratona SDAM",
+   "note": "one_list_two_years",
+   "year": 2013
   }
  ],
  "evidence": {
@@ -158,6 +187,40 @@
  ],
  "page_rulings": [],
  "reviewed": "2026-11-14",
+ "rulings": [
+  {
+   "about": "a race with no live edition",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "words": "A race with no live edition is left out of the directory by rule (it has no results to list)."
+  },
+  {
+   "about": "an edition set aside as a copy",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "words": "A set-aside edition: listed in the directory’s data with the mark `copy` and the edition it copies, no number, counted toward no total, floor or reading, as you built it; on a page it is not shown as an edition of the race. Put the set-aside list in the notes file in a form another builder can read (`set_aside_editions`: label, year, the edition kept, the reason): the runner-lookup builder will skip those editions’ rows, so one run is not shown as two results; say in your contract that it does."
+  }
+ ],
  "schema_version": 1,
+ "set_aside_editions": [
+  {
+   "kept": {
+    "label": "Champlain Islands Marathon & Half Marathon",
+    "year": 2015
+   },
+   "label": "45th GMAA Green Mtn. Marathon & Half Marathon",
+   "reason": "one_race_two_keys",
+   "year": 2015
+  },
+  {
+   "kept": {
+    "label": "Maratona SDAM",
+    "year": 2012
+   },
+   "label": "Maratona SDAM",
+   "reason": "one_list_two_years",
+   "year": 2013
+  }
+ ],
  "tag": "pace-notes-marathon-half-20261113-1113"
 }

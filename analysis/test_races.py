@@ -84,7 +84,7 @@ class Fixture:
         self.notes = {'schema_version': 1, 'tag': TAG, 'reviewed': '2099-01-01',
                       'evidence': {'duplicate_editions': 'evidence/duplicate-editions.json', 'cohort_sensitivity': 'evidence/cohort-sensitivity.json',
                                    'edition_facts': 'evidence/edition-policy-review.json'},
-                      'flags': [], 'clears': [], 'page_rulings': [], 'aliases': [], 'duplicate_editions': []}
+                      'flags': [], 'clears': [], 'page_rulings': [], 'aliases': [], 'duplicate_editions': [], 'set_aside_editions': [], 'edition_notes': []}
         self.audit_pairs = []
         self.series = {'Zeta': SERIES}
         self.hold_notes = {('Alpha', 2022): 'Re-pull on hold (source 403)'}
@@ -397,9 +397,15 @@ class Rulings(Base):
         self.fx.notes['duplicate_editions'] = [ruling]
         self.refused('needs ruled_by, ruled_on and the words')
         ruling.update(ruled_by='lead', ruled_on='2099-01-02', words='Set the 2020 list aside.')
+        self.refused('set_aside_editions is not what the rulings')                         # the list another builder reads must say the same
+        listed = {'label': 'Gamma City', 'year': 2020, 'kept': {'label': 'Gamma City', 'year': 2019}, 'reason': 'one_list_two_years'}
+        self.fx.notes['set_aside_editions'] = [listed]
         files, built, _ = self.fx.build()
         gamma = next(r for r in files['directory.json']['races'] if r['label'] == 'Gamma City')
         self.assertEqual((gamma['page'], gamma['results'], [row[8] for row in gamma['editions']]), ('row', 1500 + 1200 + 50 + 101, [0, 0, 2, 0, 0]))   # under 3,000 results without the copy
+        self.assertEqual((files['directory.json']['set_aside_editions'], files['directory.json']['left_out'], gamma['years']), ([listed], [], [2018, 2022]))
+        row = next(r for r in csv.DictReader(io.StringIO(files['editions.csv'].decode())) if (r['race'], r['year']) == ('Gamma City', '2020'))
+        self.assertEqual((row['review'], row['copy_of_race'], row['copy_of_year']), ('Set aside as a copy', 'Gamma City', '2019'))
         self.assertNotIn('race/gamma-city.json', files)
         self.assertEqual((files['summary.json']['duplicates']['editions_set_aside'], files['summary.json']['duplicates']['results_set_aside']), (1, 400))
         self.assertEqual(files['summary.json']['editions']['total']['n'], sum(len(e) for *_, e in RACES) - 1)
@@ -407,19 +413,49 @@ class Rulings(Base):
         ruling['set_aside'] = ['Gamma City', 2018]
         self.refused('must set aside one of its two editions')
         ruling.update(ruling='keep_both', set_aside=None)
+        self.refused('set_aside_editions is not what the rulings')
+        self.fx.notes['set_aside_editions'] = []
+        self.fx.notes['edition_notes'] = [{'label': 'Gamma City', 'year': 2019, 'note': 'repeated_finish_times'}, {'label': 'Gamma City', 'year': 2020, 'note': 'repeated_finish_times'}]
         files, _, _ = self.fx.build()
         self.assertEqual(next(r for r in files['directory.json']['races'] if r['label'] == 'Gamma City')['page'], 'results')
+        self.assertEqual(files['summary.json']['duplicates']['pairs_kept_as_two_editions'], 1)
+        noted = [r['reviewed_note'] for r in csv.DictReader(io.StringIO(files['editions.csv'].decode())) if r['race'] == 'Gamma City']
+        self.assertEqual(noted, ['', 'repeated_finish_times', 'repeated_finish_times', '', ''])
+        self.assertNotIn('repeated_finish_times', self.fx.build()[2]['race/gamma-city.json'].decode())    # no mark in a page file beyond the tier
+        self.fx.notes['edition_notes'].append({'label': 'Alpha', 'year': 2019, 'note': 'repeated_finish_times'})
+        self.refused('an edition of a pair the audit lists')
 
     def test_a_copy_inside_a_page_race_carries_no_number(self):
         self.fx.audit_pairs = [(('Zeta', 2015), ('Zeta', 2016))]
         self.fx.notes['duplicate_editions'] = [{'editions': [['Zeta', 2015], ['Zeta', 2016]], 'ruling': 'set_aside', 'set_aside': ['Zeta', 2016], 'ruled_by': 'lead',
                                                 'ruled_on': '2099-01-02', 'words': 'The 2016 list is the 2015 list.'}]
+        self.fx.notes['set_aside_editions'] = [{'label': 'Zeta', 'year': 2016, 'kept': {'label': 'Zeta', 'year': 2015}, 'reason': 'one_list_two_years'}]
         files, _, _ = self.fx.build()
+        head = next(p for p in files['pages.json']['pages'] if p['label'] == 'Zeta')
+        self.assertEqual((head['editions'], head['years'], head['results']), (5, [2015, 2020], 5 * 620))   # the copy is not an edition of the page
         zeta = files['race/zeta.json']
         copy_row = next(row for row in zeta['editions'] if row['year'] == 2016)
         self.assertEqual(copy_row, {'year': 2016, 'tier': 'stamped', 'split_tier': 'finish_time_only', 'results': 620, 'use': 'recorded_times_only', 'timing': 'not_stated',
                                     'in_universe': False, 'category': 'finish_time_only', 'review': 'copy', 'copy_of': {'label': 'Zeta', 'year': 2015}})
         self.assertIsNone(zeta['series'][0]['reading'])                                    # two verified editions left in the old series
+
+    def test_a_race_with_no_live_edition_is_left_out(self):
+        self.fx.races.append(('Eta Run', 'eta-run', 'Eta Run', 'Eta', [], 'name', [(2019, 'unverified', 'finish_time_only', 40, 0, 'finish_time_only', None, 0)]))
+        self.fx.audit_pairs = [(('Epsilon Marathon', 2019), ('Eta Run', 2019))]
+        self.fx.notes['duplicate_editions'] = [{'editions': [['Epsilon Marathon', 2019], ['Eta Run', 2019]], 'ruling': 'set_aside', 'set_aside': ['Eta Run', 2019],
+                                                'ruled_by': 'lead', 'ruled_on': '2099-01-02', 'words': 'One race of one day under two keys.'}]
+        self.fx.notes['set_aside_editions'] = [{'label': 'Eta Run', 'year': 2019, 'kept': {'label': 'Epsilon Marathon', 'year': 2019}, 'reason': 'one_race_two_keys'}]
+        files, built, _ = self.fx.build()
+        directory, summary = files['directory.json'], files['summary.json']
+        self.assertNotIn('Eta Run', [r['label'] for r in directory['races']])
+        self.assertEqual(directory['left_out'], [{'label': 'Eta Run', 'name': 'Eta Run', 'place': 'Eta', 'editions': [[2019, 4, 1, 40, 40, 2, 0, 3, 2]]}])
+        listed = [(r['label'], row[0]) for r in directory['races'] + directory['left_out'] for row in r['editions']]
+        self.assertEqual((len(listed), len(set(listed))), (sum(len(e) for *_, e in self.fx.races), sum(len(e) for *_, e in self.fx.races)))   # every edition once
+        self.assertEqual((summary['races']['total']['n'], summary['races']['left_out']['n'], summary['editions']['total']['n'], built['counts']['races_left_out']),
+                         (6, 1, sum(len(e) for *_, e in RACES), 1))
+        self.assertEqual(built['review']['races_left_out'], ['Eta Run'])
+        rows = [r for r in csv.DictReader(io.StringIO(files['editions.csv'].decode())) if r['race'] == 'Eta Run']
+        self.assertEqual([(r['review'], r['copy_of_race'], r['copy_of_year'], r['reviewed_note']) for r in rows], [('Set aside as a copy', 'Epsilon Marathon', '2019', '')])
 
     def test_a_noted_flag_withholds_a_page_and_a_ruling_allows_it(self):
         self.fx.notes['flags'] = [{'label': 'Gamma City', 'flag': 'virtual', 'evidence': 'Every edition of this made-up race was run remotely.'}]

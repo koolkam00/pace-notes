@@ -121,6 +121,8 @@ FLAGS = tuple(FLAG_FROM_REGISTRY)
 BLOCKING_FLAGS = ('virtual', 'cancelled', 'placeholder', 'not_a_marathon_title', 'hand_cycle_title')
 NOTE_FLAGS = ('virtual', 'cancelled', 'placeholder', 'not_a_marathon_title')
 RULINGS = ('pending', 'set_aside', 'keep_both')
+# Reviewed notes on an edition of a listed pair, and the reasons an edition is set aside (the lead's rulings of 2026-11-14).
+EDITION_NOTES = ('one_list_two_years', 'one_race_two_keys', 'repeated_finish_times')
 
 RULES = {
     'universe': 'every marathon edition with at least one written row in the adapted input (an edition of the release with no row never appears)',
@@ -151,9 +153,11 @@ RULES = {
     'reading': (f'median finish in a typical verified year = the median of the edition medians over the race’s badge-verified editions of the finish-time '
                 f'universe with at least {MIN_FINISHES} finishes; stated only with {MIN_EDITIONS} or more such editions, else null. Where the registry gives a '
                 'label a series note, the reading is per series and the label has none'),
-    'duplicates': ('an edition the notes file sets aside as a copy (the lead’s ruling on a pair of the duplicate-edition audit) is listed with review `copy`, '
-                   'carries no number and counts toward no total, floor or reading; a pair still pending is listed with review `possible_duplicate` and '
-                   'changes nothing else'),
+    'duplicates': ('an edition the notes file sets aside as a copy (the lead’s ruling on a pair of the duplicate-edition audit) is listed with review `copy` '
+                   'and, in `set_aside_editions`, the edition kept; it carries no number, counts toward no total, floor, page type or reading, and is not '
+                   'shown on a page as an edition of the race; a pair still pending is listed with review `possible_duplicate` and changes nothing else'),
+    'left_out': ('a race with no live edition (every edition set aside as a copy) is left out of `races`: it has no results to list. Its editions are '
+                 'kept under `left_out`, so that every edition with rows is in the file exactly once'),
     'order': 'races are in registry order (by race id); a race’s editions by year',
 }
 
@@ -334,6 +338,36 @@ def duplicate_states(notes: dict, audit: dict, known: set) -> dict:
     return states
 
 
+def set_aside_editions(notes: dict, states: dict) -> list[dict]:
+    """The notes' `set_aside_editions` (label, year, the edition kept, the reason): the list another builder reads to
+    skip a copy's rows. It must say exactly what the rulings say."""
+    ruled = {edition: other for edition, (state, other) in states.items() if state == 'copy'}
+    listed = {}
+    for entry in notes.get('set_aside_editions', []):
+        kept = entry.get('kept') or {}
+        if not entry.get('label') or entry.get('year') is None or not kept.get('label') or kept.get('year') is None or entry.get('reason') not in EDITION_NOTES:
+            fail(f'race-notes: a set-aside edition needs a label, a year, the edition kept and a reason of {EDITION_NOTES}: {entry}')
+        key = (entry['label'], int(entry['year']))
+        if key in listed:
+            fail(f'race-notes: {key} is set aside twice')
+        listed[key] = ((kept['label'], int(kept['year'])), entry['reason'])
+    if {key: kept for key, (kept, _) in listed.items()} != ruled:
+        fail(f'race-notes: set_aside_editions is not what the rulings on the duplicate pairs set aside ({sorted(ruled.items())})')
+    return [{'label': key[0], 'year': key[1], 'kept': {'label': kept[0], 'year': kept[1]}, 'reason': reason} for key, (kept, reason) in sorted(listed.items())]
+
+
+def edition_notes(notes: dict, audit: dict) -> dict:
+    """(label, year) -> the reviewed note of an edition. A note may sit only on an edition of a pair the audit lists."""
+    audited = {(side['city'], int(side['year'])) for pair in audit['pairs'] for side in (pair['a'], pair['b'])}
+    out = {}
+    for entry in notes.get('edition_notes', []):
+        key = (entry.get('label'), int(entry.get('year', 0)))
+        if key not in audited or entry.get('note') not in EDITION_NOTES or key in out:
+            fail(f'race-notes: an edition note names, once, an edition of a pair the audit lists and a note of {EDITION_NOTES}: {entry}')
+        out[key] = entry['note']
+    return out
+
+
 def edition_table(inputs: Inputs) -> list[dict]:
     """One dict per edition with rows, in (label, year) order: the release's facts, the policy's use, the finish-time
     universe, the timing class and the review state."""
@@ -352,6 +386,7 @@ def edition_table(inputs: Inputs) -> list[dict]:
     if known != counted | set(listed):
         fail('the edition policy and EDITIONS.json name different editions with rows')
     states = duplicate_states(inputs.notes, inputs.audit, known)
+    reviewed_notes = edition_notes(inputs.notes, inputs.audit)
     facts = None if inputs.facts is None else {(e['city'], int(e['year'])): e for e in inputs.facts['editions']}
     if facts is not None and set(facts) != known:
         fail('the edition facts evidence and EDITIONS.json name different editions')
@@ -401,7 +436,7 @@ def edition_table(inputs: Inputs) -> list[dict]:
             'timing_basis': e['timing_basis'], 'timing': TIMING_CLASS[e['timing_basis']],
             'race_date': e['race_date'], 'race_date_source': e['race_date_source'],
             'use': use, 'category': category, 'reason': None if entry is None else entry['reason'],
-            'universe': bool(universe), 'review': state, 'review_other': other,
+            'universe': bool(universe), 'review': state, 'review_other': other, 'reviewed_note': reviewed_notes.get(key),
         })
     return rows
 
@@ -441,7 +476,8 @@ def series_of(race: dict) -> list[dict] | None:
 
 
 def race_table(inputs: Inputs, editions: list[dict]) -> list[dict]:
-    """One dict per race with rows, in registry order, with its editions, flags, aliases and page type."""
+    """One dict per race with rows, in registry order, with its editions, flags, aliases and page type. A race whose
+    every edition is set aside as a copy is marked `left_out`: it is in no list of races."""
     notes = inputs.notes
     labels = {race['label'] for race in inputs.registry['races']}
     if len(labels) != len(inputs.registry['races']):
@@ -501,8 +537,9 @@ def race_table(inputs: Inputs, editions: list[dict]) -> list[dict]:
         races.append({
             'label': race['label'], 'name': race['name'], 'place': race.get('place'), 'slug': race['slug'], 'labelled_by': race.get('labelled_by'),
             'registry_flags': list(race.get('flags') or []), 'flags': flags, 'aliases': aliases.get(race['label'], []),
-            'page': 'row' if blocked else by_numbers, 'withheld': by_numbers if blocked and by_numbers != 'row' else None,
-            'page_before': before, 'series': series_of(race), 'editions': own,
+            'page': 'row' if blocked or not live else by_numbers, 'withheld': by_numbers if blocked and live and by_numbers != 'row' else None,
+            'page_before': before, 'series': series_of(race), 'editions': own, 'left_out': not live,
+            'years': [live[0]['year'], live[-1]['year']] if live else None,
             'counted_editions': counted, 'verified_editions_100': verified, 'results': results, 'finishes': sum(e['finishes'] for e in live),
         })
     slugs = [race['slug'] for race in races]
@@ -631,11 +668,13 @@ def edition_row(e: dict) -> list:
             None if e['category'] is None else CATEGORIES.index(e['category']), TIMINGS.index(e['timing']), REVIEWS.index(e['review'])]
 
 
-def directory_file(races: list[dict]) -> dict:
+def directory_file(races: list[dict], set_aside: list[dict]) -> dict:
     out = []
     for race in races:
+        if race['left_out']:
+            continue
         row = {'label': race['label'], 'name': race['name'], 'place': race['place'], 'page': race['page'],
-               'years': [race['editions'][0]['year'], race['editions'][-1]['year']], 'results': race['results'], 'finishes': race['finishes'],
+               'years': race['years'], 'results': race['results'], 'finishes': race['finishes'],
                'editions': [edition_row(e) for e in race['editions']]}
         if race['page'] != 'row':
             row['slug'] = race['slug']
@@ -649,7 +688,10 @@ def directory_file(races: list[dict]) -> dict:
     return {'schema_version': SCHEMA_VERSION, 'family': 'races', 'distance': 'marathon',
             'codes': {'tier': list(TIERS), 'split_tier': list(SPLIT_TIERS), 'use': list(USES), 'category': list(CATEGORIES), 'timing': list(TIMINGS),
                       'review': list(REVIEWS), 'page': list(PAGES), 'flags': list(FLAGS)},
-            'edition_columns': list(EDITION_COLUMNS), 'races': out}
+            'edition_columns': list(EDITION_COLUMNS), 'races': out,
+            'left_out': [{'label': race['label'], 'name': race['name'], 'place': race['place'], 'editions': [edition_row(e) for e in race['editions']]}
+                         for race in races if race['left_out']],
+            'set_aside_editions': set_aside}
 
 
 def pages_file(races: list[dict]) -> dict:
@@ -659,8 +701,7 @@ def pages_file(races: list[dict]) -> dict:
             continue
         live = [e for e in race['editions'] if e['review'] != 'copy']
         out.append({'label': race['label'], 'name': race['name'], 'place': race['place'], 'slug': race['slug'], 'page': race['page'],
-                    'years': [race['editions'][0]['year'], race['editions'][-1]['year']], 'editions': len(race['editions']),
-                    'results': race['results'], 'finishes': race['finishes'],
+                    'years': race['years'], 'editions': len(live), 'results': race['results'], 'finishes': race['finishes'],
                     'tiers': {tier: sum(1 for e in live if e['tier'] == tier) for tier in TIERS if any(e['tier'] == tier for e in live)},
                     'with_checkpoint_times': sum(1 for e in live if e['split_tier'] == 'splits'),
                     'counted_editions': race['counted_editions'], 'own_record_editions': sum(1 for e in live if e['use'] == 'own_record'),
@@ -671,7 +712,8 @@ def pages_file(races: list[dict]) -> dict:
 
 CSV_COLUMNS = ('race', 'race_name', 'place', 'year', 'tier', 'tier_in_words', 'split_tier', 'split_tier_in_words', 'recorded_results', 'finishes_with_a_time',
                'official_count', 'official_count_source', 'official_source_type', 'coverage_pct', 'use', 'use_in_words', 'not_counted_category',
-               'reason_not_counted', 'timing', 'timing_basis', 'race_date', 'race_date_source', 'hold_note', 'release_note', 'review', 'release_key')
+               'reason_not_counted', 'timing', 'timing_basis', 'race_date', 'race_date_source', 'hold_note', 'release_note', 'review', 'copy_of_race',
+               'copy_of_year', 'reviewed_note', 'release_key')
 
 
 def editions_csv(races: list[dict]) -> bytes:
@@ -686,11 +728,15 @@ def editions_csv(races: list[dict]) -> bytes:
                              blank(e['official_source']) if e['official'] is not None else NO_INDEPENDENT_COUNT,
                              blank(e['official_source_type']), blank(e['coverage_pct']), e['use'], USE_WORDS[e['use']], blank(e['category']),
                              blank(e['reason']), TIMING_WORDS[e['timing']], blank(e['timing_basis']), blank(e['race_date']), blank(e['race_date_source']),
-                             blank(e['hold_note']), blank(e['release_note']), REVIEW_WORDS[e['review']], e['release_key']])
+                             blank(e['hold_note']), blank(e['release_note']), REVIEW_WORDS[e['review']],
+                             e['review_other'][0] if e['review'] == 'copy' else '', e['review_other'][1] if e['review'] == 'copy' else '',
+                             blank(e['reviewed_note']), e['release_key']])
     return stream.getvalue().encode()
 
 
 def summary_file(inputs: Inputs, races: list[dict], editions: list[dict]) -> dict:
+    left_out = [race for race in races if race['left_out']]
+    races = [race for race in races if not race['left_out']]
     live = [e for e in editions if e['review'] != 'copy']
     tally = lambda own: {'races': len({e['label'] for e in own}), 'editions': len(own), 'results': sum(e['results'] for e in own),  # noqa: E731
                          'finishes': sum(e['finishes'] for e in own)}
@@ -721,6 +767,7 @@ def summary_file(inputs: Inputs, races: list[dict], editions: list[dict]) -> dic
             'flagged': {'n': sum(1 for r in races if any(f in BLOCKING_FLAGS for f in r['flags'])),
                         'what': 'races whose title or place is flagged virtual, cancelled, placeholder, not a marathon title or a hand-cycle title'},
             'page_withheld_by_a_flag': sum(1 for r in races if r['withheld']),
+            'left_out': {'n': len(left_out), 'what': 'races whose every edition is set aside as a copy; they are in no count above and in no list'},
         },
         'editions': {
             'total': {'n': len(live), 'results': sum(e['results'] for e in live), 'finishes': sum(e['finishes'] for e in live),
@@ -749,6 +796,7 @@ def summary_file(inputs: Inputs, races: list[dict], editions: list[dict]) -> dic
             'release': [{'label': e['label'], 'year': e['year'], 'tier': e['tier'], 'note': e['release_note']} for e in editions if e['release_note']],
         },
         'duplicates': {'pairs_listed_by_the_audit': len(inputs.audit['pairs']), 'pairs_pending': len(pending),
+                       'pairs_kept_as_two_editions': sum(1 for entry in inputs.notes.get('duplicate_editions', []) if entry.get('ruling') == 'keep_both'),
                        'editions_set_aside': len(copies), 'results_set_aside': sum(e['results'] for e in copies),
                        'what': 'pairs of editions that hold the same finishers; an edition set aside as a copy is in no count above'},
         'words': {'tier': TIER_WORDS, 'split_tier': SPLIT_WORDS, 'use': USE_WORDS, 'timing': TIMING_WORDS},
@@ -778,10 +826,12 @@ def build(inputs: Inputs) -> tuple[dict, dict]:
     """(file name -> bytes, counts) for the given inputs."""
     editions = edition_table(inputs)
     races = race_table(inputs, editions)
+    states = {(e['label'], e['year']): (e['review'], e['review_other']) for e in editions if e['review'] != 'none'}
+    set_aside = set_aside_editions(inputs.notes, states)
     wanted = [(e['label'], e['year']) for race in races if race['page'] != 'row' for e in race['editions']
               if e['universe'] and e['review'] != 'copy' and e['finishes'] >= MIN_FINISHES]
     stats = finish_stats(inputs.source, wanted)
-    files = {'directory.json': directory_file(races), 'pages.json': pages_file(races), 'summary.json': summary_file(inputs, races, editions)}
+    files = {'directory.json': directory_file(races, set_aside), 'pages.json': pages_file(races), 'summary.json': summary_file(inputs, races, editions)}
     race_files = {}
     for race in races:
         if race['page'] != 'row':
@@ -793,9 +843,10 @@ def build(inputs: Inputs) -> tuple[dict, dict]:
     out['editions.csv'] = editions_csv(races)
     readings = [f['reading'] for f in race_files.values()] + [s['reading'] for f in race_files.values() for s in f.get('series', [])]
     pages = [race for race in races if race['page'] != 'row']
+    listed = [race for race in races if not race['left_out']]
     counts = {
-        'races': len(races), 'editions': len(editions), 'results': sum(e['results'] for e in editions), 'finishes': sum(e['finishes'] for e in editions),
-        'pages': {page: sum(1 for r in races if r['page'] == page) for page in PAGES},
+        'races': len(listed), 'races_left_out': len(races) - len(listed), 'editions': len(editions), 'results': sum(e['results'] for e in editions), 'finishes': sum(e['finishes'] for e in editions),
+        'pages': {page: sum(1 for r in listed if r['page'] == page) for page in PAGES},
         'counted_editions': sum(1 for e in editions if e['use'] == 'counted'), 'own_record_editions': sum(1 for e in editions if e['use'] == 'own_record'),
         'universe_editions': sum(1 for e in editions if e['universe']),
         'editions_with_numbers': sum(1 for f in race_files.values() for row in f['editions'] if 'median_s' in row),
@@ -812,7 +863,8 @@ def build(inputs: Inputs) -> tuple[dict, dict]:
         'page_slugs_over_30_characters': sorted(r['slug'] for r in pages if len(r['slug']) > 30),
         'page_slugs_reserved': sorted(r['slug'] for r in pages if r['slug'] in RESERVED_SLUGS),
         'flagged_races': [{'label': r['label'], 'flags': [f for f in r['flags'] if f in BLOCKING_FLAGS], 'withheld': r['withheld'], 'editions': len(r['editions']),
-                           'results': r['results']} for r in races if any(f in BLOCKING_FLAGS for f in r['flags'])],
+                           'results': r['results']} for r in listed if any(f in BLOCKING_FLAGS for f in r['flags'])],
+        'races_left_out': [r['label'] for r in races if r['left_out']],
     }
     return out, {'counts': counts, 'review': review}
 

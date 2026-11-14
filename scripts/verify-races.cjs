@@ -67,7 +67,8 @@ const TIMING_CLASS = new Map([
 ]);
 const CSV_COLUMNS = ['race', 'race_name', 'place', 'year', 'tier', 'tier_in_words', 'split_tier', 'split_tier_in_words', 'recorded_results', 'finishes_with_a_time',
   'official_count', 'official_count_source', 'official_source_type', 'coverage_pct', 'use', 'use_in_words', 'not_counted_category', 'reason_not_counted', 'timing',
-  'timing_basis', 'race_date', 'race_date_source', 'hold_note', 'release_note', 'review', 'release_key'];
+  'timing_basis', 'race_date', 'race_date_source', 'hold_note', 'release_note', 'review', 'copy_of_race', 'copy_of_year', 'reviewed_note', 'release_key'];
+const EDITION_NOTES = ['one_list_two_years', 'one_race_two_keys', 'repeated_finish_times'];
 const SOURCE_WORDS = ['A statistics site', 'A Wikipedia results table', 'The organiser’s press release', 'The organiser’s statistics or results', 'Government statistics',
   'A peer-reviewed paper', 'A press report'];
 const NO_INDEPENDENT_COUNT = 'No independent count: the timing platform’s own result list';
@@ -227,12 +228,26 @@ function verify(dataDir) {
     review.set(copy, ['copy', copy === a ? b : a]);
   }
   const reviewOf = (k) => review.get(k)?.[0] ?? 'none';
+  // The list another builder reads (`set_aside_editions`: label, year, the edition kept, the reason) says what the rulings say.
+  const setAside = [...review].filter(([, [state]]) => state === 'copy').map(([copy, [, kept]]) => [copy, kept]).sort();
+  const listedAside = (notes.set_aside_editions || []).map((e) => [key(e.label, e.year), key(e.kept?.label, e.kept?.year)]).sort();
+  eq(listedAside, setAside, 'the notes’ set_aside_editions are exactly the editions the rulings set aside, each with the edition kept');
+  ok((notes.set_aside_editions || []).every((e) => EDITION_NOTES.includes(e.reason)), 'every set-aside edition states a known reason');
+  const auditedEditions = new Set((audit.pairs || []).flatMap((p) => [key(p.a.city, p.a.year), key(p.b.city, p.b.year)]));
+  const reviewedNote = new Map();
+  for (const n of notes.edition_notes || []) {
+    const k = key(n.label, n.year);
+    ok(auditedEditions.has(k) && EDITION_NOTES.includes(n.note) && !reviewedNote.has(k), `the edition note on ${n.label} ${n.year} names, once, an edition of a listed pair and a known note`);
+    reviewedNote.set(k, n.note);
+  }
 
   // ---------- 2 and 3. The directory ----------
   eq([directory.schema_version, directory.family, directory.distance], [1, 'races', 'marathon'], 'directory.json: schema');
   eq(directory.codes, { tier: TIERS, split_tier: SPLITS, use: USES, category: CATEGORIES, timing: TIMINGS, review: REVIEWS, page: PAGES, flags: FLAGS }, 'directory.json: the code lists');
   eq(directory.edition_columns, EDITION_COLUMNS, 'directory.json: the edition columns');
-  eq(Object.keys(directory).sort(), ['codes', 'distance', 'edition_columns', 'family', 'races', 'schema_version'], 'directory.json: its keys');
+  eq(Object.keys(directory).sort(), ['codes', 'distance', 'edition_columns', 'family', 'left_out', 'races', 'schema_version', 'set_aside_editions'], 'directory.json: its keys');
+  eq(directory.set_aside_editions, [...(notes.set_aside_editions || [])].map((e) => ({ label: e.label, year: e.year, kept: { label: e.kept?.label, year: e.kept?.year }, reason: e.reason }))
+    .sort((a, b) => (key(a.label, a.year) < key(b.label, b.year) ? -1 : 1)), 'directory.json: the set-aside editions are the notes’, with the edition each copies');
   const noted = new Map(), cleared = new Map(), aliasOf = new Map(), allowed = new Set((notes.page_rulings || []).filter((r) => r.page === 'allowed' && r.ruled_by && r.ruled_on && r.words).map((r) => r.label));
   eq((notes.page_rulings || []).length, allowed.size, 'every page ruling allows a page and names who ruled, when and in what words');
   for (const f of notes.flags || []) {
@@ -271,15 +286,22 @@ function verify(dataDir) {
     const found = ruleFlags(race), extra = new Set(noted.get(race.label) || []), removed = new Set(cleared.get(race.label) || []);
     return FLAGS.filter((name) => (found[name] && !removed.has(name)) || extra.has(name));
   };
-  eq(directory.races.map((r) => r.label), registry.races.map((r) => r.label), 'directory.json lists the registry’s races, in its order');
+  // A race with no live edition (every edition set aside as a copy) is left out of `races` and kept under `left_out`.
+  const yearsOf = new Map();
+  for (const k of [...counted, ...listed.keys()]) { const [label, year] = k.split('\u0000'); yearsOf.set(label, [...(yearsOf.get(label) || []), Number(year)]); }
+  const noLive = (label) => (yearsOf.get(label) || []).every((year) => reviewOf(key(label, year)) === 'copy');
+  eq(directory.races.map((r) => r.label), registry.races.filter((r) => !noLive(r.label)).map((r) => r.label), 'directory.json lists the registry’s races with a live edition, in its order');
+  eq((directory.left_out || []).map((r) => r.label), registry.races.filter((r) => noLive(r.label)).map((r) => r.label), 'directory.json keeps the races with no live edition under left_out');
   const seen = new Set();
   const derived = [];   // per race: what the rules give
+  const leftOut = [];   // races with no live edition: their editions, for the edition table and the accounting
   const editionsOf = new Map();
-  for (const race of directory.races) {
+  for (const race of [...directory.races, ...(directory.left_out || [])]) {
     const reg = registryByLabel.get(race.label);
     if (!reg) continue;
+    const out = noLive(race.label);
     const where = `directory.json ${race.label}`;
-    ok(Object.keys(race).every((k) => ['label', 'name', 'place', 'page', 'years', 'results', 'finishes', 'editions', 'slug', 'flags', 'aliases', 'withheld'].includes(k)), `${where}: only known keys`);
+    ok(Object.keys(race).every((k) => (out ? ['label', 'name', 'place', 'editions'] : ['label', 'name', 'place', 'page', 'years', 'results', 'finishes', 'editions', 'slug', 'flags', 'aliases', 'withheld']).includes(k)), `${where}: only known keys`);
     eq([race.name, race.place], [reg.name, reg.place ?? null], `${where}: the registry’s name and place`);
     const rows = [];
     let ordered = true;
@@ -313,7 +335,8 @@ function verify(dataDir) {
     editionsOf.set(race.label, rows);
     eq([rows.length, sum(rows, (e) => e.results), rows[0]?.year, rows[rows.length - 1]?.year], [reg.editions, reg.rows, reg.first_year, reg.last_year], `${where}: editions, rows and years equal the registry’s`);
     const live = rows.filter((e) => e.review !== 'copy');
-    eq([race.years, race.results, race.finishes], [[reg.first_year, reg.last_year], sum(live, (e) => e.results), sum(live, (e) => e.finishes)], `${where}: years, results and finishes recounted`);
+    if (out) { leftOut.push({ label: race.label, reg, rows }); continue; }
+    eq([race.years, race.results, race.finishes], [[live[0]?.year, live[live.length - 1]?.year], sum(live, (e) => e.results), sum(live, (e) => e.finishes)], `${where}: years, results and finishes recounted over the live editions`);
     const flags = flagsOf(reg), blocking = flags.filter((f) => BLOCKING.includes(f));
     const countedN = live.filter((e) => e.use === 'counted').length;
     const verified = live.filter((e) => BADGE.includes(e.tier) && e.results >= FLOORS.results_page_edition_results).length;
@@ -411,14 +434,14 @@ function verify(dataDir) {
   // ---------- 5. pages.json, summary.json, editions.csv ----------
   eq([pagesFile.schema_version, pagesFile.family, pagesFile.distance, Object.keys(pagesFile).sort()], [1, 'races', 'marathon', ['distance', 'family', 'pages', 'schema_version']], 'pages.json: schema');
   eq(pagesFile.pages, pageRaces.map((d) => ({
-    label: d.label, name: d.reg.name, place: d.reg.place ?? null, slug: d.reg.slug, page: d.page, years: [d.reg.first_year, d.reg.last_year], editions: d.rows.length,
+    label: d.label, name: d.reg.name, place: d.reg.place ?? null, slug: d.reg.slug, page: d.page, years: [d.live[0].year, d.live[d.live.length - 1].year], editions: d.live.length,
     results: sum(d.live, (e) => e.results), finishes: sum(d.live, (e) => e.finishes),
     tiers: Object.fromEntries(TIERS.filter((t) => d.live.some((e) => e.tier === t)).map((t) => [t, d.live.filter((e) => e.tier === t).length])),
     with_checkpoint_times: d.live.filter((e) => e.split_tier === 'splits').length, counted_editions: d.countedN, own_record_editions: d.live.filter((e) => e.use === 'own_record').length,
     universe_editions: d.live.filter((e) => inUniverse(e.k)).length, page_before: d.before, flags: d.flags, aliases: aliasOf.get(d.label) || [],
   })), 'pages.json: the races with a page, recounted');
 
-  const all = derived.flatMap((d) => d.rows.map((e) => ({ ...e, label: d.label })));
+  const all = [...derived, ...leftOut].flatMap((d) => d.rows.map((e) => ({ ...e, label: d.label })));
   const live = all.filter((e) => e.review !== 'copy');
   const what = (o) => typeof o?.what === 'string' && o.what.length > 10 && !/\d/.test(o.what);
   const tally = (own) => ({ races: new Set(own.map((e) => e.label)).size, editions: own.length, results: sum(own, (e) => e.results), finishes: sum(own, (e) => e.finishes) });
@@ -430,10 +453,10 @@ function verify(dataDir) {
   const strip = ({ what: _, ...rest }) => rest;
   eq([summary.schema_version, summary.family, summary.distance], [1, 'races', 'marathon'], 'summary.json: schema');
   eq(Object.keys(summary).sort(), ['counted', 'distance', 'duplicates', 'editions', 'family', 'finish_time_universe', 'notes', 'races', 'schema_version', 'sensitivity', 'words'], 'summary.json: its keys');
-  eq({ ...summary.races, total: strip(summary.races.total), course_pages_kept: strip(summary.races.course_pages_kept), flagged: strip(summary.races.flagged) }, {
+  eq({ ...summary.races, total: strip(summary.races.total), course_pages_kept: strip(summary.races.course_pages_kept), flagged: strip(summary.races.flagged), left_out: strip(summary.races.left_out) }, {
     total: { n: derived.length }, by_page: Object.fromEntries(PAGES.map((p) => [p, derived.filter((d) => d.page === p).length])),
     course_pages_kept: { n: derived.filter((d) => d.before).length }, flagged: { n: derived.filter((d) => d.blocking.length).length },
-    page_withheld_by_a_flag: derived.filter((d) => d.withheld).length,
+    page_withheld_by_a_flag: derived.filter((d) => d.withheld).length, left_out: { n: leftOut.length },
   }, 'summary.json: races recounted from the directory');
   eq({ ...summary.editions, total: strip(summary.editions.total), badge_verified: strip(summary.editions.badge_verified) }, {
     total: { n: live.length, results: sum(live, (e) => e.results), finishes: sum(live, (e) => e.finishes) }, by_tier_and_split_tier: cells,
@@ -460,7 +483,8 @@ function verify(dataDir) {
     editions_with_100_finishes: universe.filter((e) => e.finishes >= FLOORS.finishes_behind_a_number).length }, 'summary.json: the finish-time universe recounted');
   const pending = [...reviewed.values()].filter((r) => r.ruling === 'pending').length;
   const copies = all.filter((e) => e.review === 'copy');
-  eq(strip(summary.duplicates), { pairs_listed_by_the_audit: audited.size, pairs_pending: pending, editions_set_aside: copies.length, results_set_aside: sum(copies, (e) => e.results) }, 'summary.json: the duplicate review recounted');
+  eq(strip(summary.duplicates), { pairs_listed_by_the_audit: audited.size, pairs_pending: pending, pairs_kept_as_two_editions: [...reviewed.values()].filter((r) => r.ruling === 'keep_both').length,
+    editions_set_aside: copies.length, results_set_aside: sum(copies, (e) => e.results) }, 'summary.json: the duplicate review recounted');
   eq(summary.words, { tier: TIER_WORDS, split_tier: SPLIT_WORDS, use: USE_WORDS, timing: TIMING_WORDS }, 'summary.json: the words of the tiers (plan decision D16)');
 
   const csvRows = parseCsv(data('editions.csv').toString('utf8'));
@@ -480,6 +504,8 @@ function verify(dataDir) {
       [reg.name, reg.place ?? '', e.tier, TIER_WORDS[e.tier], e.split_tier, SPLIT_WORDS[e.split_tier], String(e.results), String(e.finishes), e.use, USE_WORDS[e.use], e.category ?? '',
         TIMING_WORDS[e.timing], REVIEW_WORDS[e.review]], `${where}: the edition as the directory has it, in words`);
     eq(r.reason_not_counted, listed.get(k)?.reason ?? '', `${where}: the policy’s reason`);
+    const kept = e.review === 'copy' ? review.get(k)[1].split('\u0000') : ['', ''];
+    eq([r.copy_of_race, r.copy_of_year, r.reviewed_note], [kept[0], kept[1], reviewedNote.get(k) ?? ''], `${where}: the edition a copy copies, and the reviewed note`);
     eq(TIMING_CLASS.get(r.timing_basis), e.timing, `${where}: the producer’s timing basis gives the timing class`);
     ok(reg.keys.includes(r.release_key), `${where}: the release key is one of the race’s keys in the registry`);
     if (f.official_finishers == null) eq([r.official_count, r.official_count_source, r.coverage_pct], ['', NO_INDEPENDENT_COUNT, ''], `${where}: no official count`);
@@ -512,7 +538,8 @@ function verify(dataDir) {
     ok(!RELEASE_LABEL.test(value) && !/\bp(51|4)_[0-9a-z]/i.test(value), `${file}: a release label or a person id in "${value.slice(0, 60)}"`);
     const known = under === 'what' || vocabulary.has(value)
       || ((under === 'label' || under === 'name') && (names.has(value) || seriesNames.has(value))) || (under === 'place' && places.has(value))
-      || (under === 'slug' && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value)) || (under === 'aliases' && aliases.has(value)) || (under === 'note' && noteTexts.has(value));
+      || (under === 'slug' && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value)) || (under === 'aliases' && aliases.has(value)) || (under === 'note' && noteTexts.has(value))
+      || (under === 'reason' && EDITION_NOTES.includes(value));
     ok(known, `${file}: the text "${value.slice(0, 60)}" under ${under} is from no known vocabulary`);
   };
   scan(directory, 'directory.json', '');
@@ -523,7 +550,7 @@ function verify(dataDir) {
 
   // ---------- The manifest's own counts and review lists ----------
   eq(manifest.counts, {
-    races: derived.length, editions: all.length, results: sum(all, (e) => e.results), finishes: sum(all, (e) => e.finishes),
+    races: derived.length, races_left_out: leftOut.length, editions: all.length, results: sum(all, (e) => e.results), finishes: sum(all, (e) => e.finishes),
     pages: Object.fromEntries(PAGES.map((p) => [p, derived.filter((d) => d.page === p).length])),
     counted_editions: all.filter((e) => e.use === 'counted').length, own_record_editions: all.filter((e) => e.use === 'own_record').length,
     universe_editions: all.filter((e) => inUniverse(e.k)).length, editions_with_numbers: counts.numbers, editions_with_a_share_of_women: counts.women, readings: counts.readings,
@@ -536,6 +563,7 @@ function verify(dataDir) {
     page_slugs_over_30_characters: pageRaces.filter((d) => d.reg.slug.length > 30).map((d) => d.reg.slug).sort(),
     page_slugs_reserved: pageRaces.filter((d) => ['all'].includes(d.reg.slug)).map((d) => d.reg.slug).sort(),
     flagged_races: derived.filter((d) => d.blocking.length).map((d) => ({ label: d.label, flags: d.blocking, withheld: d.withheld, editions: d.rows.length, results: sum(d.live, (e) => e.results) })),
+    races_left_out: leftOut.map((d) => d.label),
   }, 'the manifest’s review lists recounted');
   return done();
 }
