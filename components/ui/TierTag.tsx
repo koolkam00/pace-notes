@@ -76,7 +76,8 @@ export function LinkMark({ confidence, keyed, link = true, className }: { confid
  */
 export function LinkTier({ confidence, keyed, reason, className }: { confidence: string | null; keyed?: boolean; reason?: string | null; className?: string }) {
   const words = linkQuietWords(confidence, { keyed, reason });
-  return words && confidence ? <span className={className ? `tier-quiet ${className}` : 'tier-quiet'} data-link-tier={confidence}>{words}</span> : null;
+  // "High" alone does not say what is high: a screen reader hears what the words describe.
+  return words && confidence ? <span className={className ? `tier-quiet ${className}` : 'tier-quiet'} data-link-tier={confidence}><span className="sr-only">Link confidence: </span>{words}</span> : null;
 }
 
 /**

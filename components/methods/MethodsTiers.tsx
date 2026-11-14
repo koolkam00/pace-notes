@@ -1,5 +1,5 @@
-import { LinkMark, LinkTier, SplitTierTag, TierTag, TimingClassTag } from '@/components/ui/TierTag';
-import { GUN_TIMING, LINK_CONFIDENCES, POSSIBLE_MATCH, SHOWN_TIERS, inline, type LinkConfidence, type ShownTier } from '@/lib/tiers';
+import { LinkLabel, LinkMark, SplitTierTag, TierTag, TimingClassTag } from '@/components/ui/TierTag';
+import { GUN_TIMING, POSSIBLE_MATCH, SHOWN_TIERS, inline, type LinkConfidence, type ShownTier } from '@/lib/tiers';
 import { Definition } from './shared';
 
 /**
@@ -23,10 +23,13 @@ const TIER_MEANS: Record<ShownTier, string> = {
   held_for_review: 'The producer is holding the edition until an open question about its results is settled. It carries no verified badge.',
 };
 
-/** What each confidence says about a link, restated from the producer's rules. */
+/**
+ * What each confidence says about a link, restated from the producer's rules, from the strongest down. The record's
+ * keys are every confidence (a new one fails the type check until it has a meaning).
+ */
 const LINK_MEANS: Record<LinkConfidence, string> = {
-  high_elite: 'The runner has a finish time at elite level. Elite results are matched under rules of their own.',
   high: 'An uncommon name that the data holds for one person, with a birth year or a nationality on record.',
+  high_elite: 'The runner has a finish time at elite level. Elite results are matched under rules of their own.',
   medium: 'An uncommon name that the data holds for a few people, or a name with both a birth year and a nationality on record.',
   medium_variant: 'Two forms of one name joined as one person: a nickname, an added or dropped name, or another spelling of the same sounds.',
   low: 'A common name, or a name of a single word, without enough on record to tell its people apart.',
@@ -48,7 +51,7 @@ export default function MethodsTiers() {
         <div><dt><TimingClassTag timing={GUN_TIMING} link={false} /></dt><dd>The recorded times run from the starting gun, not from the moment each runner crossed the start line, so they include the wait to reach it.</dd></div>
       </dl>}>
       <p><strong>Counted editions.</strong> A pooled figure (a share, a median, a comparison between courses or between runners) uses an edition only when it is counted. A counted edition has checkpoint times; its results are verified, or lie close to an official count; its timing passes the screens; and no review has set it aside. Every other edition is listed with its label and supplies no pooled figure and no comparison between runners. The checks behind this are under <a href="#data-quality">which records are analyzed</a>.</p>
-      <p>A runner’s own record keeps its own pacing in an edition that is not counted only because its results are unverified or are not close to the official count, where its checkpoint times pass the screens. It is shown with the edition’s label and compared with no one.</p>
+      <p>Where an edition is not counted only because its results are unverified, or are not close to the official count, a runner’s own record can still show its own pacing if its checkpoint times pass the screens. It is shown with the edition’s label and compared with no one.</p>
       <p>The release also names editions for which it holds no results. They are not listed anywhere.</p>
     </Definition>
 
@@ -56,7 +59,8 @@ export default function MethodsTiers() {
       rule={<p>Results from different races are joined into one runner by the producer’s person links, which compare the recorded name, sex and age. Each link carries a confidence: how much stands behind it. Every linked result shows its confidence.</p>}
       instrument={<dl className="methods-badges">
         <div><dt><LinkMark confidence="low" link={false} /></dt><dd>A link too weak to stand as the same runner: one of low confidence, one that joins two forms of a name, or one whose results disagree with each other. These results are listed apart from a runner’s other races and enter no figure. On Find a runner you can tick one into your own selection, as you can any race you recognize.</dd></div>
-        {LINK_CONFIDENCES.map((confidence) => <div key={confidence}><dt><LinkTier confidence={confidence} /></dt><dd>{LINK_MEANS[confidence]}</dd></div>)}
+        {/* Each confidence as a page shows it: its quiet words, and the pill before them where the link joins no runner. */}
+        {(Object.keys(LINK_MEANS) as LinkConfidence[]).map((confidence) => <div key={confidence}><dt><LinkLabel confidence={confidence} link={false} /></dt><dd>{LINK_MEANS[confidence]}</dd></div>)}
       </dl>}>
       <p><strong>What joins a runner.</strong> A link of high or medium confidence joins its result to a runner, and the runner’s results are read together. The exception is a runner whose joined results disagree: recorded sexes that differ, recorded ages too far apart, or two results in the same edition. Every result of such a runner is shown as a {possible}, with the reason after its confidence.</p>
       <p>A confidence describes the evidence for a link. It is not a certainty: these are records linked by name, not verified people. How the links are checked is under <a href="#linking">how runners are linked</a>.</p>

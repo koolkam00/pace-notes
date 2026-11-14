@@ -35,6 +35,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const Module = require('node:module');
 const { spawnSync } = require('node:child_process');
 const ts = require('typescript');
@@ -89,6 +90,13 @@ const NEVER_SHOWN = ['excluded', 'no_rows'];
  */
 const TIMING_CLASSES = ['chip', 'chip_fallback', 'gun', 'mixed', 'not_stated'];
 const GUN_TEXTS = ['gun', 'gross (gun / Brutto; the source net column was not loaded)', 'gun (official, matches organiser winners) else chip'];
+/**
+ * The whole classed list, pinned: the SHA-256 of JSON.stringify([[class, its texts sorted], …]) in the order of the
+ * classes. Reviewed November 14, 2026 against the release's edition table (--source: 39 texts, none unclassed, none the
+ * release lacks) and the linked-records module (--linked: its 16 marathon texts and the missing value class the same).
+ * A text moved, added or dropped changes it: review the change the same two ways, then set the new digest and date.
+ */
+const TIMING_SHA256 = '07120cda5540696640ebd6afba039be9a3a3a91eca02ae52ec0743fefee667e5';
 /** The editions whose text says gross (decision D6): the Berlin half marathon of these years. */
 const GROSS = { distance: 'half', city: 'Berlin', years: [2018, 2019, 2021, 2022, 2023] };
 /** The linked-records contract's own classing, where the tree has it (the module must agree with every text it lists). */
@@ -523,6 +531,7 @@ function main() {
   eq(sorted(Object.keys(t.TIMING_BASES)), sorted(TIMING_CLASSES), 'every class lists its texts');
   const texts = TIMING_CLASSES.flatMap((cls) => t.TIMING_BASES[cls].map((text) => [text, cls]));
   eq(new Set(texts.map(([text]) => text)).size, texts.length, 'no timing text is classed twice');
+  eq(crypto.createHash('sha256').update(JSON.stringify(TIMING_CLASSES.map((cls) => [cls, [...t.TIMING_BASES[cls]].sort()]))).digest('hex'), TIMING_SHA256, 'the classed timing texts are the reviewed list (a moved, added or dropped text needs the review in the comment on TIMING_SHA256)');
   for (const [text, cls] of texts) {
     eq([t.timingClass(text), t.timingWords(text)], [cls, cls === 'gun' ? 'Gun times' : null], `the timing text "${text}"`);
     ok(text === text.trim() && text.length > 0 && (!TIMING_CLASSES.includes(text) || text === cls), `"${text}" is a text as the release writes it, and a class code names its own class`);
@@ -686,17 +695,20 @@ function main() {
   for (const [component, props] of [[C.TimingClassTag, { timing: GUN_TEXTS[1] }], [C.TimingClassTag, {}], [C.TimingTag, { timingBasis: 'gross' }], [C.LinkTier, { confidence: 'certain' }], [C.LinkLabel, { confidence: 'high', keyed: false }], [C.LinkLabel, { confidence: 'low', reason: 'sex_conflict' }]]) {
     throws(() => html(component, props), /lib\/tiers\.ts/, `rendering ${JSON.stringify(props)} stops`);
   }
-  // Every link shows its tier: quiet words for a keyed link, the pill and the quiet words for one that is not.
+  // Every link shows its tier: quiet words for a keyed link, the pill and the quiet words for one that is not. The
+  // quiet words carry a prefix for screen readers only, since "High" alone does not say what is high.
+  const quietHtml = (code, words, cls = 'tier-quiet') => `<span class="${cls}" data-link-tier="${code}"><span class="sr-only">Link confidence: </span>${words}</span>`;
   for (const [code, words] of Object.entries(QUIET_WORDS)) {
-    eq(html(C.LinkTier, { confidence: code }), `<span class="tier-quiet" data-link-tier="${code}">${words}</span>`, `the quiet words of ${code}`);
+    eq(html(C.LinkTier, { confidence: code }), quietHtml(code, words), `the quiet words of ${code}`);
     const keyed = NO_PILL.link.includes(code);
-    eq(html(C.LinkLabel, { confidence: code, link: false }), keyed ? `<span class="tier-quiet" data-link-tier="${code}">${words}</span>`
-      : `<span class="tier-tags"><span class="tier-chip" data-link="${code}">Possible match</span><span class="tier-quiet" data-link-tier="${code}">${words}</span></span>`, `${code} as a page shows it`);
+    eq(html(C.LinkLabel, { confidence: code, link: false }), keyed ? quietHtml(code, words)
+      : `<span class="tier-tags"><span class="tier-chip" data-link="${code}">Possible match</span>${quietHtml(code, words)}</span>`, `${code} as a page shows it`);
   }
-  eq(html(C.LinkLabel, { confidence: 'high', reason: 'birth_year_spread', link: false }), `<span class="tier-tags"><span class="tier-chip" data-link="high">Possible match</span><span class="tier-quiet" data-link-tier="high">High${dot}recorded ages differ</span></span>`, 'a possible match of tier high says why');
-  ok(/^<span class="tier-tags tier-tags-links"><a [^>]*class="tier-chip"[^>]*>Possible match<\/a><span class="tier-quiet" data-link-tier="low_noage">Low, no age<\/span><\/span>$/.test(html(C.LinkLabel, { confidence: 'low_noage', keyed: false })), 'the pill is the link; the quiet words are never one');
+  eq(html(C.LinkLabel, { confidence: 'high', reason: 'birth_year_spread', link: false }), `<span class="tier-tags"><span class="tier-chip" data-link="high">Possible match</span>${quietHtml('high', `High${dot}recorded ages differ`)}</span>`, 'a possible match of tier high says why');
+  const asLink = html(C.LinkLabel, { confidence: 'low_noage', keyed: false });
+  ok(/^<span class="tier-tags tier-tags-links"><a [^>]*class="tier-chip"[^>]*>Possible match<\/a>/.test(asLink) && asLink.endsWith(`${quietHtml('low_noage', 'Low, no age')}</span>`), 'the pill is the link; the quiet words are never one');
   eq([html(C.LinkTier, { confidence: null }), html(C.LinkLabel, { confidence: null }), html(C.LinkLabel, { confidence: null, reason: 'unlinked' })], ['', '', ''], 'a result with no link draws nothing');
-  eq(html(C.LinkLabel, { confidence: 'medium', keyed: true, className: 'x' }), '<span class="tier-quiet x" data-link-tier="medium">Medium</span>', 'a keyed link: its quiet words and no pill');
+  eq(html(C.LinkLabel, { confidence: 'medium', keyed: true, className: 'x' }), quietHtml('medium', 'Medium', 'tier-quiet x'), 'a keyed link: its quiet words and no pill');
   eq([html(C.TagGroup, { children: 'x' }), html(C.TagGroup, { link: false, className: 'y', children: 'x' })], ['<span class="tier-tags tier-tags-links">x</span>', '<span class="tier-tags y">x</span>'], 'the group, for a page that composes its own labels');
   ok(t.TIER_LABEL_CLASS.test(html(C.LinkTier, { confidence: 'low' })), 'TIER_LABEL_CLASS finds the quiet words');
   ok(/^<span class="tier-tags tier-tags-links"><a [^>]*>Verified, weaker source<\/a><\/span>$/.test(html(C.EditionTags, { tier: 'stamped_weaker_source', weakerSource: true, splitTier: 'splits', timingBasis: 'chip' })), 'a group of links leaves room between rows');
@@ -718,7 +730,7 @@ function main() {
   const [tiersHtml, linksHtml] = methods.split(/(?=<section id="link-confidence")/);
   for (const row of TABLE.filter((row) => row.kind !== 'link')) ok(tiersHtml.includes(`<span class="${CLASS[row.form]}" data-${row.kind === 'tier' ? 'tier' : row.kind === 'split' ? 'split-tier' : 'timing'}="${row.code}">${row.words}</span>`), `#edition-tiers defines "${row.words}" beside its label`);
   ok(/<span class="tier-chip" data-link="[a-z_]+">Possible match<\/span>/.test(linksHtml), '#link-confidence defines "Possible match" beside its pill');
-  for (const [code, words] of Object.entries(QUIET_WORDS)) ok(linksHtml.includes(`<span class="tier-quiet" data-link-tier="${code}">${words}</span>`), `#link-confidence defines "${words}"`);
+  for (const [code, words] of Object.entries(QUIET_WORDS)) ok(linksHtml.includes(quietHtml(code, words)), `#link-confidence defines "${words}"`);
   eq((methods.match(/<dd>/g) || []).length, TABLE.filter((row) => row.kind !== 'link').length + 1 + Object.keys(QUIET_WORDS).length, 'one meaning for each label, and no other');
   ok(!/<a [^>]*class="tier-/.test(methods), 'on the page that defines them the labels are bare');
   const methodsText = methods.replace(/<[^>]+>/g, ' ');
