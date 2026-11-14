@@ -17,12 +17,18 @@ queries written apart from the builder's:
 3. Profiles: two results share a profile exactly when they share a person id.
 
 It stops at the first kind of difference and prints examples by record id only, never a name.
+
+Disk: the two tables of 15.7 million rows it compares live in a temporary folder (beside the build unless --temp says
+otherwise). The folder is measured while the audit runs (the last line gives its peak), an audit whose folder passes
+--temp-limit-gb stops, and the folder is removed when the audit ends, fails or is stopped by a signal.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import shutil
+import signal
 import sys
 import time
 from pathlib import Path
@@ -33,10 +39,12 @@ if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import lookup_format as fmt  # noqa: E402
+from build_runner_lookup import Stopped, TempWatch  # noqa: E402  (the temporary-folder watch only: every query here is this file's own)
 from lookup_names import normalize_name, search_key  # noqa: E402
 from lookup_races import half_races, read_registry  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
+TEMP_LIMIT_GB = 6.0      # the audit stops when its temporary folder passes this; the measured peak is in docs/RUNNERS_AND_REPORT.md
 TIERS = {'high_elite': '1', 'high': '2', 'medium': '3', 'medium_variant': '4', 'low': '5', 'low_noage': '6', 'low_noage_series': '7',
          'low_nosex': '8', 'low_city_pace': '9', 'low_carryover': 'a'}
 SPLITS = ['split_5km', 'split_10km', 'split_15km', 'split_20km', 'split_25km', 'split_30km', 'split_35km', 'split_40km']
@@ -100,6 +108,8 @@ def source_tables(db, core, links, status, identity, half_rule, placeholders):
     rows, total = db.execute(f'SELECT (SELECT count(*) FROM want), (SELECT count(*) FROM {records})').fetchone()
     if rows != total:
         raise AuditError(f'{total} release rows became {rows} in the audit table')
+    for table in ('audit_names', 'half_out'):       # read into `want`; their space is given back
+        db.execute(f'DROP TABLE {table}')
 
 
 def never_shown(db):
@@ -231,15 +241,28 @@ def main(argv=None):
     parser.add_argument('--placeholders', type=Path, default=HERE / 'lookup-placeholders.json')
     parser.add_argument('--temp', type=Path)
     parser.add_argument('--memory', default='3GB')
+    parser.add_argument('--temp-limit-gb', type=float, default=TEMP_LIMIT_GB,
+                        help=f'stop when the temporary folder passes this size (default {TEMP_LIMIT_GB}; 0 for no limit)')
     args = parser.parse_args(argv)
     started = time.monotonic()
     temp = args.temp or (args.build or args.never_shown.parent) / 'lookup-audit-temp'
-    temp.mkdir(parents=True, exist_ok=True)
-    db = duckdb.connect(str(temp / 'audit.duckdb'))
+    limit = int(args.temp_limit_gb * (1 << 30)) if args.temp_limit_gb else 0
+    db = watch = None
+    handlers = {}
     try:
+        if __name__ == '__main__':       # as a command: a signal stops the audit through the `finally` below
+            def stop(number, frame):
+                raise Stopped(signal.Signals(number).name)
+            handlers = {name: signal.signal(getattr(signal, name), stop) for name in ('SIGTERM', 'SIGINT', 'SIGHUP')}
+        temp.mkdir(parents=True, exist_ok=True)
+        db = duckdb.connect(str(temp / 'audit.duckdb'))
         db.execute(f"SET memory_limit='{args.memory}'")
         db.execute('SET threads=2')
         db.execute(f"SET temp_directory={quote(temp / 'spill')}")
+        if limit:
+            db.execute(f"SET max_temp_directory_size='{max(1, limit >> 20)}MiB'")
+        watch = TempWatch(temp, limit, db)
+        watch.start()
         source_tables(db, args.core, args.links, args.status, args.identity, json.loads(args.half_records.read_text()), json.loads(args.placeholders.read_text()))
         digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: E731
         if args.never_shown:
@@ -252,15 +275,31 @@ def main(argv=None):
             facts.update(manifest_sha256=digest(args.build / 'runners/manifest.json'), seconds=round(time.monotonic() - started))
             if args.receipt:
                 args.receipt.write_text(json.dumps(facts, indent=1) + '\n')
+            watch.size()
             print(f"Audited {facts['results']:,} results against the release and the pipeline's files: every listed row once with its own values, "
-                  f"no row that must not appear, every count as the manifest states. {facts['seconds']} s.")
+                  f"no row that must not appear, every count as the manifest states. {facts['seconds']} s; temporary folder peak {watch.peak >> 20:,} MB.")
     except AuditError as error:
         print(f'lookup_audit: {error}', file=sys.stderr)
         return 1
+    except (duckdb.InterruptException, duckdb.OutOfMemoryException, duckdb.IOException) as error:
+        # the watch ends a running query when the folder passes its limit; DuckDB refuses to spill past the same size
+        print(f'lookup_audit: the temporary folder passed {args.temp_limit_gb} GB, or DuckDB ran out of memory, and the audit is stopped '
+              f'(peak {(watch.peak if watch else 0) >> 20:,} MB): {str(error).splitlines()[0]}', file=sys.stderr)
+        return 1
+    except (Stopped, RuntimeError) as error:       # a signal inside a query comes back from DuckDB as "Query interrupted", caused by Stopped
+        stopped = error if isinstance(error, Stopped) else error.__cause__
+        if not isinstance(stopped, Stopped):
+            raise
+        print(f'lookup_audit: stopped by {stopped}; the temporary folder is removed', file=sys.stderr)
+        return 1
     finally:
-        db.close()
-        import shutil
+        if watch is not None:
+            watch.stop()
+        if db is not None:
+            db.close()
         shutil.rmtree(temp, ignore_errors=True)
+        for name, handler in handlers.items():
+            signal.signal(getattr(signal, name), handler)
     return 0
 
 
