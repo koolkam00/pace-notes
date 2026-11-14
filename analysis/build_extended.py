@@ -16,7 +16,7 @@ from build_pacing import COMMON_METHOD, MIN_CELL, POINTS, PATTERNS, Publisher, c
 from source_quality import source_quality_report
 
 HISTORY_METHOD = [
-    'For explicitly audited canonical-ID releases, validate unique matching CORE/FULL ID sets and matching recorded edition/name labels, then join by record ID with matching finish and all nine section durations. Legacy exports retain the one-to-one edition, trimmed lowercase name and full-timing join because their IDs are incompatible. Durations are compared to milliseconds. Keep only supplied non-ambiguous runner identities without conflicting recorded gender, inferred birth years spanning more than two years, or duplicate editions. These are candidate cross-race identities, not independently verified people; unlinked runners are absent. The linkage audit records which join was used.',
+    'For explicitly audited canonical-ID releases, validate unique matching CORE/FULL ID sets and matching recorded edition/name labels, then join by record ID with matching finish and all nine section durations. Legacy exports retain the one-to-one edition, trimmed lowercase name and full-timing join because their IDs are incompatible. Durations are compared to milliseconds. Keep only supplied non-ambiguous runner identities without conflicting recorded gender, inferred birth years spanning more than two years, or duplicate editions. For a release with an identity file, those three checks are made once over a runner’s marathon and half-marathon results together, and this analysis reads their outcome. These are candidate cross-race identities, not independently verified people; unlinked runners are absent. The linkage audit records which join was used.',
     'Recompute the benchmark as the fastest eligible finish in the two strictly earlier calendar years. The current race and every other race in its calendar year are excluded. This avoids guessing within-year chronology and prevents current-outcome leakage. It is a recent recorded best, not a fitness measurement, an expected finish, or a lifetime personal best.',
     'Performance change is 100 × (current finish / recent recorded best − 1). Negative is faster. Opening change compares 0–10 km pace with that earlier best’s full-marathon pace. Faster opening: more than 2% faster; similar: within 2%; slower: more than 2% slower. The ±2% and ±5% cutoffs are predefined descriptions, not physiological thresholds.',
 ]
@@ -53,17 +53,50 @@ def size(db, table, where='true'):
     return db.execute(f'SELECT count(*) FROM {table} WHERE {where}').fetchone()[0]
 
 
-def prepare_history(db, source):
+def file_digest(path):
+    with Path(path).open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def screened_identities(db, source, identity):
+    """The table `safe_ids`: the runner ids whose records may be linked across races.
+
+    A combined release has one identity rule, evaluated once over both distances and delivered as a file
+    (analysis/build_identity.py; adoption ruling D24.2 of 2026-11-14): its runner keys on marathon records are the
+    ids, and nothing is derived here. The file must be the one built from this input, and every keyed marathon
+    record's key must be the `runner_id` the input's features give it. An earlier release has no such file and keeps
+    the rule it was published under: the same three checks (one recorded sex, birth years within two, one record per
+    edition) on its marathon records alone."""
+    provenance_path = source / 'provenance.json'
+    provenance = json.loads(provenance_path.read_text()) if provenance_path.exists() else {}
+    if identity is None:
+        assert provenance.get('layout') != 'combined', 'A combined release reads its identity file (analysis/build_identity.py): pass --identity'
+        db.execute('''CREATE TEMP TABLE safe_ids AS SELECT runner_id FROM features
+          WHERE runner_id IS NOT NULL AND NOT is_ambiguous GROUP BY runner_id
+          HAVING count(DISTINCT CASE WHEN lower(trim(sex)) IN ('m','male','men','man') THEN 'm'
+            WHEN lower(trim(sex)) IN ('f','female','women','woman') THEN 'f' END)<=1
+          AND coalesce(max(yob)-min(yob),0)<=2
+          AND count(*)=count(DISTINCT (city,year,race))''')
+        return None
+    info = json.loads(Path(str(identity) + '.json').read_text())
+    assert info['release_tag'] == provenance['release_tag'] and info['input_manifest_sha256'] == provenance['manifest_sha256'], 'The identity file is for another input'
+    assert info['file']['sha256'] == file_digest(identity), 'The identity file differs from its own record'
+    location = str(identity).replace("'", "''")
+    db.execute(f"CREATE TEMP TABLE identity_keys AS SELECT record_id, runner_key FROM read_parquet('{location}') WHERE distance='marathon' AND runner_key IS NOT NULL")
+    assert db.execute('''SELECT count(*) FROM identity_keys i LEFT JOIN features f ON f.record_id=i.record_id
+      WHERE f.record_id IS NULL OR f.runner_id IS DISTINCT FROM i.runner_key OR f.is_ambiguous''').fetchone()[0] == 0, \
+        'A keyed marathon record of the identity file is not a record of this input with that runner id'
+    db.execute('CREATE TEMP TABLE safe_ids AS SELECT runner_key AS runner_id FROM identity_keys GROUP BY runner_key')
+    return {'file_sha256': info['file']['sha256'], 'rule': 'analysis/build_identity.py: links of a keyed tier whose person passes the three screens over both distances',
+            'marathon_records_with_a_runner_key': size(db, 'identity_keys')}
+
+
+def prepare_history(db, source, identity=None):
     location = str(source/'features.parquet').replace("'", "''")
     db.execute(f"CREATE TEMP VIEW features AS SELECT * FROM read_parquet('{location}')")
     assert db.execute('SELECT count(*)=count(DISTINCT record_id) FROM features').fetchone()[0], 'Feature record IDs are not unique'
     canonical = canonical_id_contract(db, source)
-    db.execute('''CREATE TEMP TABLE safe_ids AS SELECT runner_id FROM features
-      WHERE runner_id IS NOT NULL AND NOT is_ambiguous GROUP BY runner_id
-      HAVING count(DISTINCT CASE WHEN lower(trim(sex)) IN ('m','male','men','man') THEN 'm'
-        WHEN lower(trim(sex)) IN ('f','female','women','woman') THEN 'f' END)<=1
-      AND coalesce(max(yob)-min(yob),0)<=2
-      AND count(*)=count(DISTINCT (city,year,race))''')
+    identity_file = screened_identities(db, source, identity)
     location = str(source/'race_conditions.parquet').replace("'", "''")
     db.execute(f"CREATE TEMP VIEW weather_raw AS SELECT * FROM read_parquet('{location}')")
     db.execute('''CREATE TEMP TABLE weather AS SELECT city,year,
@@ -130,6 +163,7 @@ def prepare_history(db, source):
       WHERE a.year_n=1 AND a.next_year_n=1 AND a.next_year>a.year AND a.next_year<=a.year+3''')
     assert db.execute('SELECT count(*) FROM prior p JOIN linked a USING(rid) JOIN linked b ON b.rid=p.earlier_best_rid WHERE b.year>=a.year').fetchone()[0]==0
     return {'feature_rows':size(db,'features'),'safe_identity_groups':size(db,'safe_ids'),
+            **({'identity_file':identity_file} if identity_file else {}),
             'record_join_method':'canonical_record_id' if canonical else 'natural_key',
             'canonical_id_contract_verified':canonical,
             'candidate_link_rows':size(db,'candidate_links'),
@@ -619,7 +653,7 @@ def qualifying_analysis(db,pub):
       {'thresholds.csv':rules},sum(r['n_value'] for r in rules),scope='partial comparison')
 
 
-def run(source,output,live_as_of,personalized_output=None):
+def run(source,output,live_as_of,personalized_output=None,identity=None):
     db=duckdb.connect()
     # 6 GB (4 GB until the 1652 refresh): the larger release spilled past the free temporary disk at 4 GB.
     # 6 GB suits a CI runner; a larger machine may raise it (PACE_NOTES_EXTENDED_MEMORY=10GB) to spill less to disk.
@@ -633,7 +667,7 @@ def run(source,output,live_as_of,personalized_output=None):
     provenance=json.loads((source/'provenance.json').read_text())
     assert counts['raw']==manifest['n_records']
     provenance['_source']=str(source)
-    diagnostics=prepare_history(db,source)
+    diagnostics=prepare_history(db,source,identity)
     assert diagnostics['recent_benchmark_finishes']>=100, 'Insufficient verified linked histories'
     print(json.dumps(diagnostics),flush=True)
     pub=ExtendedPublisher(output,provenance,manifest,counts,live_as_of,source_quality=source_quality_report(db,source))
@@ -658,5 +692,6 @@ if __name__=='__main__':
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--live-as-of',required=True)
     parser.add_argument('--personalized-output',type=Path)
+    parser.add_argument('--identity',type=Path,help='the identity file of a combined release (analysis/build_identity.py); required for one')
     args=parser.parse_args()
-    run(args.input,args.output,args.live_as_of,args.personalized_output)
+    run(args.input,args.output,args.live_as_of,args.personalized_output,args.identity)
