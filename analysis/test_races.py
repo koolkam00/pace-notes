@@ -483,7 +483,7 @@ class Rulings(Base):
         copy_row = next(row for row in zeta['editions'] if row['year'] == 2016)
         self.assertEqual(copy_row, {'year': 2016, 'tier': 'stamped', 'split_tier': 'finish_time_only', 'results': 620, 'use': 'recorded_times_only', 'timing': 'not_stated',
                                     'in_universe': False, 'category': 'finish_time_only', 'review': 'copy', 'copy_of': {'label': 'Zeta', 'year': 2015}})
-        self.assertIsNone(zeta['series'][0]['reading'])                                    # two verified editions left in the old series
+        self.assertEqual((zeta['series'][0]['years'], zeta['series'][0]['reading']), ([2015, 2017], None))   # the copy is no edition of the series; two verified editions left
 
     def test_a_race_with_no_live_edition_is_left_out(self):
         self.fx.races.append(('Eta Run', 'eta-run', 'Eta Run', 'Eta', [], 'name', [(2019, 'unverified', 'finish_time_only', 40, 0, 'finish_time_only', None, 0)]))

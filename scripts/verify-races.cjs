@@ -426,7 +426,7 @@ function verify(dataDir, root = ROOT) {
       eq((file.series || []).map((s) => [s.name, s.first_year, s.last_year]), series.map((s) => [s.name, s.first_year, s.last_year]), `${name}: the registry’s series`);
       ok(rows.every((r) => series.filter((s) => s.first_year <= r.year && r.year <= s.last_year).length === 1), `${name}: every edition is in one series`);
       for (const s of file.series || []) {
-        const own = rows.filter((r) => s.first_year <= r.year && r.year <= s.last_year);
+        const own = rows.filter((r) => s.first_year <= r.year && r.year <= s.last_year && r.review !== 'copy');
         eq([s.years, s.reading], [own.map((r) => r.year), readingOf(own)], `${name}: the series ${s.name} and its reading recomputed`);
         if (s.reading) counts.readings++;
       }

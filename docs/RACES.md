@@ -187,8 +187,8 @@ directory.
   "series"?: [ { "name", "first_year", "last_year", "years": [...], "reading": {...} | null } ] }
 ```
 
-- Every edition of the race is listed. An edition with `"review": "copy"` carries `copy_of` and no number, and a
-  page does not show it. `finishes` is present exactly when `in_universe` is true; the quartiles and `women` exactly
+- Every edition of the race is listed. An edition with `"review": "copy"` carries `copy_of` and no number, a page
+  does not show it, and it is in no series' `years`. `finishes` is present exactly when `in_universe` is true; the quartiles and `women` exactly
   when the edition also has 100 finishes; `women` is `null` when the sex floor fails.
 - Times are seconds. `share` is `n / of` to four decimals; `of` is the finishes recorded as women or men.
 - A statement across editions has a `null` fallback and a page states no reading in any slot when it is `null`.

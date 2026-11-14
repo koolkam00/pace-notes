@@ -656,7 +656,7 @@ def race_file(race: dict, stats: dict) -> dict:
     if race['series']:
         out['series'] = []
         for s in race['series']:
-            own = [row for row in joined if s['first_year'] <= row['year'] <= s['last_year']]
+            own = [row for row in joined if s['first_year'] <= row['year'] <= s['last_year'] and row.get('review') != 'copy']   # a copy is not an edition of the series
             out['series'].append({**s, 'years': [row['year'] for row in own], 'reading': reading_of(own)})
         outside = [row['year'] for row in joined if not any(s['first_year'] <= row['year'] <= s['last_year'] for s in race['series'])]
         if outside:
