@@ -1,8 +1,11 @@
 """Runner lookup v2 (analysis/build_runner_lookup.py, lookup_format.py, lookup_names.py, lookup_races.py): the name
 rules, the leaf cutter, and a whole build of a small made-up release read back from its files. Every name here is
 invented. The same fixture is verified by scripts/verify-lookup.cjs (test_runner_lookup_verifier.py)."""
+import contextlib
 import hashlib
+import io
 import json
+import signal
 import sys
 import tempfile
 import unittest
@@ -620,6 +623,68 @@ class Build(unittest.TestCase):
         path = self.root / 'registry.json'
         path.write_text(json.dumps(registry))
         refused('has no race', registry_path=path)
+
+    def test_a_build_that_does_not_finish_leaves_nothing_behind(self):
+        target = self.root / 'nothing' / 'runners'
+        left = lambda: sorted(path.name for path in target.parent.iterdir())
+        # A refusal after the output and the temporary folder exist.
+        rule = json.loads(self.release.half_path.read_text())
+        rule['no_comparison']['gun_times']['editions'] = []
+        path = self.root / 'half-rule-nothing.json'
+        path.write_text(json.dumps(rule))
+        with self.assertRaises(builder.BuildError):
+            self.release.build(target, half_records_path=path)
+        self.assertEqual(left(), [])
+        # A stop from outside, part of the way through (the command line turns SIGTERM, SIGINT and SIGHUP into Stopped).
+        original = builder._build
+
+        def stopped(db, pin, core, links, status, identity, output, *rest):
+            (output / 'half-written.json.gz').write_bytes(b'x')
+            db.execute('CREATE TABLE half_made AS SELECT 1')
+            raise builder.Stopped('SIGTERM')
+        builder._build = stopped
+        try:
+            with self.assertRaises(builder.Stopped):
+                self.release.build(target)
+        finally:
+            builder._build = original
+        self.assertEqual(left(), [])
+        # A temporary folder over its limit stops the build, which says so.
+        with self.assertRaises(builder.BuildError) as caught:
+            self.release.build(target, temp_limit_gb=1e-6)
+        self.assertIn('the temporary folder passed', str(caught.exception))
+        self.assertEqual(left(), [])
+        # The same place then takes a whole build, and only the build is left.
+        self.assertEqual(self.release.build(target)['counts'], self.manifest['counts'])
+        self.assertEqual(left(), ['runners'])
+
+    def test_the_command_line_reports_a_stop_and_keeps_other_errors(self):
+        arguments = ['--core', str(self.release.core), '--links', str(self.release.links_path), '--status', str(self.release.status_path),
+                     '--identity', str(self.release.identity_path), '--output', str(self.root / 'cli' / 'runners')]
+        original, handlers = builder.build, {name: signal.getsignal(getattr(signal, name)) for name in ('SIGTERM', 'SIGINT', 'SIGHUP')}
+
+        def raising(error, cause=None):
+            def build(*args, **options):
+                raise error from cause
+            return build
+        try:
+            # A signal that arrives inside a query comes back from DuckDB as a RuntimeError caused by the stop.
+            for error, cause, said in ((builder.Stopped('SIGTERM'), None, 'stopped by SIGTERM'),
+                                       (RuntimeError('Query interrupted'), builder.Stopped('SIGHUP'), 'stopped by SIGHUP'),
+                                       (builder.BuildError('refused'), None, 'build_runner_lookup: refused')):
+                builder.build = raising(error, cause)
+                with contextlib.redirect_stderr(io.StringIO()) as printed:
+                    self.assertEqual(builder.main(arguments), 1)
+                self.assertIn(said, printed.getvalue())
+                self.assertNotIn('Traceback', printed.getvalue())
+            builder.build = raising(RuntimeError('another failure'))
+            with self.assertRaises(RuntimeError):
+                builder.main(arguments)
+            self.assertIsNot(signal.getsignal(signal.SIGTERM), handlers['SIGTERM'])      # the command line installed its own
+        finally:
+            builder.build, builder.LOG = original, False
+            for name, handler in handlers.items():
+                signal.signal(getattr(signal, name), handler)
 
 
 if __name__ == '__main__':

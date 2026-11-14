@@ -3,7 +3,7 @@
     python3 -I analysis/build_runner_lookup.py --core <unpacked CORE folder> --links <person-ids linked parquet> \\
         --status <record-status.parquet> --identity <identity.parquet> [--cohort analysis/marathon-cohort/manifest.json] \\
         [--policy public/data/edition-policy.json] [--registry analysis/race-registry.json] [--half-registry FILE] \\
-        --output <dir>/runners [--as-of 2026-11-14T00:00:00Z]
+        --output <dir>/runners [--as-of 2026-11-14T00:00:00Z] [--temp-limit-gb 4]
     node scripts/verify-lookup.cjs --data-root <dir>
     python3 -I analysis/import_runner_lookup.py --input <dir>        # verifies again, then replaces public/data/runners
 
@@ -26,10 +26,16 @@ number of units, a kept row whose finish does not read, a status or link value i
 shards, a reviewed count that differs. It never infers a sex or a person from a name and never labels a row by a
 category: rows the release flags as never to be shown are absent, and nothing else about them is written.
 
-Streaming: DuckDB holds the rows (memory limit 3 GB, 2 threads, a temporary database beside the output), two ordered
-queries are read 100,000 rows at a time, and one shard or leaf is in memory at once. Every order is total, so two runs
+Streaming: DuckDB holds the rows (memory limit 3 GB, 2 threads, a temporary database beside the output). A table is
+dropped as soon as the next one is made from it, and the two ordered streams are read one range of shards or of words
+at a time, so nothing is sorted on disk and one shard or leaf is in memory at once. Every order is total, so two runs
 give the same bytes with the same Python and zlib; across zlib builds the manifest's `content` digests of the
 uncompressed bodies compare instead.
+
+Disk: the temporary folder (the database and whatever DuckDB spills) is measured every two seconds; each progress line
+gives its size and the last line its peak. A build whose folder passes --temp-limit-gb is stopped. The folder is
+removed when the build ends, fails or is stopped by SIGTERM, SIGINT or SIGHUP, and a build that does not finish removes
+what it wrote of the output, so a failed or stopped build leaves nothing behind.
 """
 from __future__ import annotations
 
@@ -39,7 +45,9 @@ import json
 import re
 import resource
 import shutil
+import signal
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -85,6 +93,9 @@ STATUS_VALUES = {
     ('limited', 'held_for_review'): '6', ('limited', 'invalid_split_grid'): '6', ('limited', 'reviewed_exception'): '6',
 }
 TIME = '[0-9]+:[0-5][0-9]:[0-5][0-9]'
+TEMP_LIMIT_GB = 4.0      # a build stops when its temporary folder passes this; the measured peak is in docs/RUNNERS_AND_REPORT.md
+SHARD_RANGE = 256        # profile shards per ordered read (about a million results: sorted in memory)
+POSTING_RANGES = 24      # word ranges the postings are read in (under a million and a half rows each)
 MARATHON_SPLITS = ['split_5km', 'split_10km', 'split_15km', 'split_20km', 'split_25km', 'split_30km', 'split_35km', 'split_40km']
 RULES = {
     'normalization': NORMALIZATION,
@@ -124,15 +135,60 @@ class BuildError(Exception):
     pass
 
 
+class Stopped(BaseException):
+    """A signal asked the build to stop (main() turns SIGTERM, SIGINT and SIGHUP into this, so the folders are cleaned)."""
+
+
 def fail(message):
     raise BuildError(message)
 
 
+class TempWatch(threading.Thread):
+    """The size of the temporary folder, read every two seconds while a build runs: the peak for the log, and a stop
+    when the folder passes the limit (the machine this runs on keeps a floor of free disk for other work)."""
+
+    def __init__(self, folder, limit, db):
+        super().__init__(daemon=True)
+        self.folder, self.limit, self.db = folder, limit, db
+        self.peak, self.over = 0, False
+        self._done = threading.Event()
+
+    def size(self):
+        total = 0
+        for path in self.folder.rglob('*'):
+            try:
+                total += path.stat().st_blocks * 512 if path.is_file() else 0
+            except OSError:      # a spill file removed between the listing and the reading
+                pass
+        self.peak = max(self.peak, total)
+        if self.limit and total > self.limit:
+            self.over = True
+        return total
+
+    def run(self):
+        while not self._done.wait(2):
+            self.size()
+            if self.over:
+                self.db.interrupt()      # ends a running query; between queries check() stops the build
+
+    def check(self):
+        if self.over:
+            fail(f'the temporary folder passed {self.limit / (1 << 30):.1f} GB: the build is stopped (raise --temp-limit-gb only with the disk to spare)')
+
+    def stop(self):
+        self._done.set()
+        self.join()
+
+
 _STARTED = time.monotonic()
 LOG = False      # main() turns the progress lines on
+_WATCH = None    # the running build's TempWatch
 
 
 def step(label, **facts):
+    if _WATCH is not None:
+        facts['temp_mb'] = _WATCH.size() >> 20
+        _WATCH.check()
     if LOG:
         print(json.dumps({'t': round(time.monotonic() - _STARTED, 1), 'step': label, **facts}, ensure_ascii=False), flush=True)
 
@@ -212,8 +268,8 @@ def columns_of(db, relation):
 
 
 def load_status(db, path):
-    """TEMP TABLE status(record_id, st, city, year): one row per written marathon record with the digit of its status
-    and the edition as the pipeline names it. Returns (rows, the sidecar document or None)."""
+    """VIEW status(record_id, st, city, year) over the file: one row per written marathon record with the digit of its
+    status and the edition as the pipeline names it. Returns (rows, the sidecar document or None)."""
     relation = f'read_parquet({quote(path)})'
     columns = columns_of(db, relation)
     missing = [name for name in ('record_id', 'status', 'reason', 'city', 'year') if name not in columns]
@@ -225,7 +281,7 @@ def load_status(db, path):
         fail(f'{path.name}: status values this builder does not know: {unknown}')
     cases = ' '.join(f"WHEN status={quote(status)} AND reason IS NOT DISTINCT FROM {quote(why) if why else 'NULL'} THEN '{digit}'"
                      for (status, why), digit in STATUS_VALUES.items())
-    db.execute(f'CREATE TEMP TABLE status AS SELECT record_id::BIGINT AS record_id, CASE {cases} END AS st, city, year::INTEGER AS year FROM {relation}')
+    db.execute(f'CREATE TEMP VIEW status AS SELECT record_id::BIGINT AS record_id, CASE {cases} END AS st, city, year::INTEGER AS year FROM {relation}')
     rows, ids = db.execute('SELECT count(*), count(DISTINCT record_id) FROM status').fetchone()
     if rows != ids:
         fail(f'{path.name}: {rows} rows for {ids} record ids')
@@ -241,13 +297,13 @@ def load_status(db, path):
 
 
 def load_identity(db, path):
-    """TEMP TABLE ident(dbh, record_id, runner_key, link_tier): one row per release row of both distances."""
+    """VIEW ident(dbh, record_id, runner_key, link_tier) over the file: one row per release row of both distances."""
     relation = f'read_parquet({quote(path)})'
     columns = columns_of(db, relation)
     missing = [name for name in ('source_db', 'record_id', 'runner_key', 'link_tier') if name not in columns]
     if missing:
         fail(f'{path.name}: expected columns source_db, record_id, runner_key, link_tier; missing {missing}')
-    db.execute(f"""CREATE TEMP TABLE ident AS SELECT source_db='half' AS dbh, record_id::BIGINT AS record_id,
+    db.execute(f"""CREATE TEMP VIEW ident AS SELECT source_db='half' AS dbh, record_id::BIGINT AS record_id,
         runner_key::VARCHAR AS runner_key, link_tier::VARCHAR AS link_tier FROM {relation}""")
     rows, keys, sources = db.execute("SELECT count(*), count(DISTINCT (dbh, record_id)), (SELECT count(*) FROM (SELECT DISTINCT source_db FROM "
                                      f"{relation} WHERE source_db NOT IN ('full', 'half'))) FROM ident").fetchone()
@@ -312,8 +368,9 @@ def load_cohort(path):
 
 def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_path=REGISTRY_PATH, half_registry_path=None,
           policy_path=None, cohort_path=None, half_records_path=HALF_RECORDS_PATH, placeholders_path=PLACEHOLDERS_PATH,
-          as_of=None, temp=None, memory='3GB', threads=2, index_rules=None, provisional=()):
-    """Write the lookup into `output` (which must not hold a build). Returns the manifest."""
+          as_of=None, temp=None, memory='3GB', threads=2, index_rules=None, provisional=(), temp_limit_gb=TEMP_LIMIT_GB):
+    """Write the lookup into `output` (which must not hold a build). Returns the manifest. A build that does not finish
+    removes what it wrote; the temporary folder is removed either way."""
     index_rules = dict(index_rules or INDEX_RULES)
     output = Path(output)
     if output.exists() and any(output.iterdir()):
@@ -332,25 +389,44 @@ def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_
     digests['lookup-placeholders.json'] = file_sha256(placeholders_path)
     notes = set(provisional)
 
+    global _WATCH
     temp = Path(temp) if temp else output.parent / (output.name + '-build-temp')
-    if temp.exists():
-        shutil.rmtree(temp)
-    temp.mkdir(parents=True)
-    output.mkdir(parents=True, exist_ok=True)
-    db = duckdb.connect(str(temp / 'lookup.duckdb'))
+    limit = int(temp_limit_gb * (1 << 30)) if temp_limit_gb else 0
+    db = watch = None
+    finished = False
     try:
+        if temp.exists():
+            shutil.rmtree(temp)
+        temp.mkdir(parents=True)
+        output.mkdir(parents=True, exist_ok=True)
+        db = duckdb.connect(str(temp / 'lookup.duckdb'))
         db.execute(f"SET memory_limit='{memory}'")
         db.execute(f'SET threads={int(threads)}')
         db.execute(f"SET temp_directory={quote(temp / 'spill')}")
+        if limit:
+            db.execute(f"SET max_temp_directory_size='{max(1, limit >> 20)}MiB'")
         db.execute('SET preserve_insertion_order=false')
-        manifest = _build(db, pin, Path(core), Path(links), Path(status), Path(identity), output, temp, input_as_of, digests, notes,
-                          half_rule, placeholders, Path(registry_path), half_registry_path, policy_path, cohort_path, as_of, index_rules, scripts)
+        watch = _WATCH = TempWatch(temp, limit, db)
+        watch.start()
+        try:
+            manifest = _build(db, pin, Path(core), Path(links), Path(status), Path(identity), output, temp, input_as_of, digests, notes,
+                              half_rule, placeholders, Path(registry_path), half_registry_path, policy_path, cohort_path, as_of, index_rules, scripts)
+        except duckdb.InterruptException:
+            watch.check()
+            raise
         if scripts != {name: file_sha256(HERE / name) for name in SCRIPTS}:
-            (output / 'manifest.json').unlink()
-            fail('a builder script changed while the build ran: the manifest is withdrawn; build again')
+            fail('a builder script changed while the build ran: the build is withdrawn; build again')
+        finished = True
     finally:
-        db.close()
+        _WATCH = None
+        if watch is not None:
+            watch.stop()
+        if db is not None:
+            db.close()
         shutil.rmtree(temp, ignore_errors=True)
+        if not finished:
+            shutil.rmtree(output, ignore_errors=True)      # everything in it is this run's: the folder was empty at the start
+    step('temporary folder removed', peak_temp_mb=watch.peak >> 20, peak_rss_mb=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024)
     return manifest
 
 
@@ -397,9 +473,11 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
           OR CASE WHEN r.distance='half' THEN r.split_42_2km IS NOT NULL OR r.split_25km IS NOT NULL OR r.split_30km IS NOT NULL
                     OR r.split_35km IS NOT NULL OR r.split_40km IS NOT NULL ELSE r.split_21_1km IS NOT NULL END) AS odd_layout,
         l.person_id, l.confidence, coalesce(l.unlinked_reason='placeholder_name', false) AS flagged,
-        coalesce(l.course_shortened_suspect, false) AS short
+        coalesce(l.course_shortened_suspect, false) AS short,
+        s.st, s.city AS status_city, s.year AS status_year, s.record_id IS NOT NULL AS in_status
       FROM {records} r JOIN {link} l ON l.source_db=r.source_db AND l.record_id=r.id
-      LEFT JOIN {qa} q ON q.source_db=r.source_db AND q.record_id=r.id""")
+      LEFT JOIN {qa} q ON q.source_db=r.source_db AND q.record_id=r.id
+      LEFT JOIN status s ON s.record_id=CASE WHEN r.distance='half' THEN NULL ELSE r.id END""")
     checks = db.execute(f"""SELECT count(*) FILTER (WHERE x='?'), count(*) FILTER (WHERE fraction), count(*) FILTER (WHERE odd_layout),
         count(*) FILTER (WHERE age<>-1 AND (age<>floor(age) OR age<0 OR age>150)), count(*) FILTER (WHERE year NOT BETWEEN 1900 AND 2100),
         count(*) FILTER (WHERE person_id IS NOT NULL AND NOT regexp_full_match(person_id, {quote(PERSON_ID[1:-1])})),
@@ -434,10 +512,11 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     # compare every pair of rows, which on 15.7 million rows never ends (found on the first full build, November 14, 2026).
     db.execute('CREATE TEMP TABLE flagged_marathon AS SELECT DISTINCT dbh, id FROM flags WHERE NOT h')
     db.execute('CREATE TEMP TABLE flagged_half AS SELECT DISTINCT dbh, id FROM flags WHERE h')
-    db.execute("""CREATE TABLE kept AS SELECT b.*, s.st, s.city AS status_city, s.year AS status_year FROM base b
-        LEFT JOIN status s ON s.record_id=CASE WHEN b.h THEN NULL ELSE b.id END
+    # The kept rows: a marathon row the status file holds, a half row without a flag of the half rule. A view: the
+    # parsed rows are not copied.
+    db.execute("""CREATE TEMP VIEW kept AS SELECT b.* FROM base b
         LEFT JOIN flagged_half f ON f.dbh=b.dbh AND f.id=CASE WHEN b.h THEN b.id END
-        WHERE CASE WHEN b.h THEN f.id IS NULL ELSE s.record_id IS NOT NULL END""")
+        WHERE CASE WHEN b.h THEN f.id IS NULL ELSE b.in_status END""")
     strays = db.execute('SELECT count(*) FROM status s ANTI JOIN (SELECT id FROM base WHERE NOT h) b ON b.id=s.record_id').fetchone()[0]
     if strays:
         fail(f'the status file names {strays} records that are not marathon rows of the release')
@@ -447,18 +526,20 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         fail(f'{unflagged} marathon rows are absent from the status file and carry no flag of the row rule: the status file is not of this release')
     db.execute("""CREATE TEMP TABLE flagged_kept AS SELECT k.h, k.dbh, k.id FROM kept k
         SEMI JOIN (SELECT DISTINCT h, dbh, id FROM flags) f ON f.h=k.h AND f.dbh=k.dbh AND f.id=k.id""")
+    base_rows = dict(db.execute('SELECT h, count(*) FROM base GROUP BY h').fetchall())
+    kept_by = {h: (rows, unreadable) for h, rows, unreadable in db.execute(
+        'SELECT h, count(*), count(*) FILTER (WHERE has_finish AND fin IS NULL) FROM kept GROUP BY h').fetchall()}
     left_out = {}
     for half, name in ((False, 'marathon'), (True, 'half')):
         by_flag = dict(db.execute("""SELECT f.flag, count(*) FROM flags f ANTI JOIN flagged_kept k ON k.h=f.h AND k.dbh=f.dbh AND k.id=f.id
             WHERE f.h=? GROUP BY f.flag ORDER BY f.flag""", [half]).fetchall())
-        rows = db.execute('SELECT (SELECT count(*) FROM base WHERE h=?) - (SELECT count(*) FROM kept WHERE h=?)', [half, half]).fetchone()[0]
-        left_out[name] = {'rows': rows, 'by_flag': by_flag}
+        left_out[name] = {'rows': base_rows.get(half, 0) - kept_by.get(half, (0, 0))[0], 'by_flag': by_flag}
     expected = half_rule.get('expected', {})
-    half_rows = db.execute('SELECT count(*) FROM base WHERE h').fetchone()[0]
+    half_rows = base_rows.get(True, 0)
     if (expected.get('release_rows'), expected.get('left_out_rows'), expected.get('by_flag')) != (half_rows, left_out['half']['rows'], left_out['half']['by_flag']):
         fail('the half rows left out differ from the reviewed counts of analysis/lookup-half-records.json; measured: '
              + json.dumps({'release_rows': half_rows, 'left_out_rows': left_out['half']['rows'], 'by_flag': left_out['half']['by_flag']}))
-    bad_finish = db.execute('SELECT count(*) FROM kept WHERE has_finish AND fin IS NULL').fetchone()[0]
+    bad_finish = sum(unreadable for _, unreadable in kept_by.values())
     if bad_finish:
         fail(f'{bad_finish} kept rows have a finish that does not read as a time: decide whether they are shown before building')
     step('rows left out', **{name: value['rows'] for name, value in left_out.items()})
@@ -507,7 +588,7 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         k.person_id, i.runner_key, i.link_tier, k.confidence, i.record_id IS NOT NULL AS in_identity
       FROM kept k JOIN names n ON n.name=k.name LEFT JOIN listed_names l ON l.skey=n.skey
       LEFT JOIN ident i ON i.dbh=k.dbh AND i.record_id=k.id""")
-    kept_rows, sorted_rows = db.execute('SELECT (SELECT count(*) FROM kept), (SELECT count(*) FROM sorted)').fetchone()
+    kept_rows, sorted_rows = sum(rows for rows, _ in kept_by.values()), db.execute('SELECT count(*) FROM sorted').fetchone()[0]
     if kept_rows != sorted_rows:
         fail(f'{kept_rows} kept rows became {sorted_rows} after the name join')
     absent, tier_differs, key_on_possible = db.execute(f"""SELECT count(*) FILTER (WHERE NOT in_identity),
@@ -525,6 +606,14 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         HAVING count(*) FILTER (WHERE c IN ('1', '2', '3'))>0 AND count(*) FILTER (WHERE c IN ('b', 'c', 'd'))>0)""").fetchone()[0]
     if mixed:
         fail(f'{mixed} persons have both keyed and unkeyed links of a confirmed tier: a screen applies to a whole person')
+    # The parsed rows, the names and the columns only the checks above read are done with: their space is used again.
+    db.execute('DROP VIEW kept')
+    for table in ('base', 'names'):
+        db.execute(f'DROP TABLE {table}')
+    for column in ('person_id', 'runner_key', 'link_tier', 'confidence', 'in_identity'):
+        db.execute(f'ALTER TABLE sorted DROP COLUMN {column}')
+    db.execute('CHECKPOINT')
+    step('rows joined to their names and links', rows=sorted_rows)
 
     # ---- editions
     db.execute("""CREATE TEMP TABLE ed AS SELECT h, dbh, city, year, count(*) FILTER (WHERE kind='result') AS n,
@@ -689,120 +778,13 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     profiles = db.execute('SELECT count(*) FROM prof').fetchone()[0]
     loose = db.execute("SELECT count(*) FROM prof WHERE NOT linked AND n<>1").fetchone()[0]
     assert loose == 0, 'a result with no link is its own profile'
-    step('profiles formed', results=results, profiles=profiles)
 
-    # ---- profile shards
-    bases = [entry['q'] * 256 for entry in editions]
-    profiles_hash, names_hash = hashlib.sha256(), hashlib.sha256()
-    shard_entries, shard_bytes = [], 0
-
-    def write_shard(number, shard):
-        nonlocal shard_bytes
-        body = shard.body()
-        profiles_hash.update(body)
-        size, digest = write_gz(output / shard_path(number), body)
-        shard_bytes += size
-        shard_entries.append([shard.profiles(), shard.results(), size, digest])
-
-    cursor = db.execute("""SELECT p.shard, p.pos, r.e, r.id, r.name, r.fin, r.x, r.a, r.c, r.st, r.h, r.s0, r.s1, r.s2, r.s3, r.s4, r.s5, r.s6, r.s7
-        FROM res r JOIN prof p USING (pk) ORDER BY p.shard, p.pos, r.h, r.year, r.id, r.dbh""")
-    current, shard, position, written = -1, None, None, 0
-    half_points = CHECKPOINTS['half']
-    while batch := cursor.fetchmany(100000):
-        for row in batch:
-            if row[0] != current:
-                if shard is not None:
-                    write_shard(current, shard)
-                for empty in range(current + 1, row[0]):
-                    write_shard(empty, ShardBody())
-                current, shard, position = row[0], ShardBody(), None
-            if row[1] != position:
-                if row[1] != shard.profiles():
-                    fail(f'profile positions of shard {current:03x} are not consecutive')
-                shard.start_profile()
-                position = row[1]
-            offset = row[3] - bases[row[2]]
-            if offset < 0:
-                fail('a record id lies under its edition’s base')
-            if shard.add(row[2], offset, row[5], row[6], row[7], row[8], row[4], row[9], row[11:11 + half_points] if row[10] else row[11:19]):
-                names_hash.update(normalize_name(row[4]).encode('utf-8') + b'\n')
-            written += 1
-    if shard is not None:
-        write_shard(current, shard)
-    for empty in range(current + 1, PROFILE_SHARDS):
-        write_shard(empty, ShardBody())
-    if written != results or sum(entry[0] for entry in shard_entries) != profiles or len(shard_entries) != PROFILE_SHARDS:
-        fail(f'{written} of {results} results and {sum(entry[0] for entry in shard_entries)} of {profiles} profiles were written')
-    profile_pages = []
-    for first in range(0, PROFILE_SHARDS, PAGE_SIZE):
-        size, digest = write_gz(output / profile_page_path(first // PAGE_SIZE), profile_page_body(first, shard_entries[first:first + PAGE_SIZE]))
-        profile_pages.append([size, digest])
-    step('profile shards written', bytes=shard_bytes, largest=max(entry[2] for entry in shard_entries))
-
-    # ---- search names and postings
-    db.execute("""CREATE TABLE sn AS SELECT pk, skey,
-          arg_min(name, ((9999 - year)::BIGINT*2 + h::INTEGER)*100000000000 + id*2 + dbh::INTEGER) AS shown,
-          count(*)::INTEGER AS ns, (count(*) FILTER (WHERE c IN ('1', '2', '3')))::INTEGER AS ncs,
-          min(year) AS y0s, max(year) AS y1s, min(e) AS e1s FROM res GROUP BY pk, skey""")
-    db.execute("""CREATE TABLE snr AS SELECT s.skey, s.shown, p.shard, p.pos,
-          CASE WHEN p.cm + p.ch>0 AND s.ncs=0 THEN 1 ELSE 0 END AS pf,
-          CASE WHEN p.cm + p.ch>0 AND s.ncs=0 THEN s.ns=1 ELSE p.n=1 END AS one,
-          s.ns, s.y0s, s.y1s, s.e1s, p.n, p.cm, p.ch, p.y0, p.y1, p.cy0, p.cy1, p.e1 FROM sn s JOIN prof p USING (pk)""")
-    db.execute("""CREATE TABLE srows AS SELECT skey, shown, shard, pos,
-          CASE WHEN NOT one THEN -1 WHEN pf=1 THEN e1s ELSE e1 END AS e,
-          CASE WHEN one THEN 0 WHEN pf=1 THEN y0s WHEN cm + ch>0 THEN cy0 ELSE y0 END AS y,
-          CASE WHEN one THEN 0 WHEN pf=1 THEN y1s - y0s WHEN cm + ch>0 THEN cy1 - cy0 ELSE y1 - y0 END AS s,
-          CASE WHEN one OR pf=1 THEN 0 ELSE cm END AS m, CASE WHEN one OR pf=1 THEN 0 ELSE ch END AS hh,
-          CASE WHEN one THEN 0 WHEN pf=1 THEN ns ELSE n - cm - ch END AS q, pf FROM snr""")
-    search_names = db.execute('SELECT count(*) FROM srows').fetchone()[0]
-    db.execute("CREATE TABLE words AS SELECT w, count(*) AS n FROM (SELECT unnest(string_split(skey, ' ')) AS w FROM srows) GROUP BY w")
-    heavy = db.execute('SELECT w, n FROM words WHERE n>? ORDER BY w', [index_rules['heavy_over']]).fetchall()
-    db.execute('CREATE TEMP TABLE heavy AS SELECT w FROM words WHERE n>?', [index_rules['heavy_over']])
-    step('search names formed', search_names=search_names, words=db.execute('SELECT count(*) FROM words').fetchone()[0], heavy=len(heavy))
-
-    index_hash = hashlib.sha256()
-    leaf_entries, leaf_stats = [], {'bytes': 0, 'largest': 0, 'fewest_rows': None, 'most_rows': 0, 'fewest_profiles': None}
-
-    def write_leaf(leaf):
-        rows = leaf['rows']
-        body = leaf_body(rows)
-        index_hash.update(body)
-        size, digest = write_gz(output / leaf_path(len(leaf_entries)), body)
-        people = len({(row[3], row[4]) for row in rows})
-        leaf_entries.append([leaf['key'][0], leaf['key'][1], leaf['key'][2], len(rows), size, digest])
-        leaf_stats['bytes'] += size
-        leaf_stats['largest'] = max(leaf_stats['largest'], size)
-        leaf_stats['most_rows'] = max(leaf_stats['most_rows'], len(rows))
-        leaf_stats['fewest_rows'] = len(rows) if leaf_stats['fewest_rows'] is None else min(leaf_stats['fewest_rows'], len(rows))
-        leaf_stats['fewest_profiles'] = people if leaf_stats['fewest_profiles'] is None else min(leaf_stats['fewest_profiles'], people)
-
-    cutter = LeafCutter({word for word, _ in heavy}, write_leaf, index_rules)
-    cursor = db.execute("""WITH u AS (SELECT r.*, string_split(skey, ' ') AS ws FROM srows r), v AS (SELECT u.*, unnest(ws) AS w FROM u),
-        light AS (SELECT w, '' AS o, shown, shard, pos, e, y, s, m, hh, q, pf FROM v ANTI JOIN heavy USING (w)),
-        hv AS (SELECT w, unnest(CASE WHEN len(ws)=1 THEN [''] ELSE list_filter(ws, lambda other: other<>w) END) AS o,
-                      shown, shard, pos, e, y, s, m, hh, q, pf FROM v SEMI JOIN heavy USING (w))
-        SELECT * FROM (SELECT * FROM light UNION ALL SELECT * FROM hv) ORDER BY w, o, shown, shard, pos""")
-    while batch := cursor.fetchmany(100000):
-        for row in batch:
-            cutter.add(row)
-    cutter.finish()
-    index_rows = sum(entry[3] for entry in leaf_entries)
-    if index_rows != cutter.rows:
-        fail('postings were lost between the cutter and the leaves')
-    index_pages = []
-    for first in range(0, len(leaf_entries), PAGE_SIZE):
-        size, digest = write_gz(output / index_page_path(first // PAGE_SIZE), index_page_body(first, leaf_entries[first:first + PAGE_SIZE]))
-        index_pages.append([leaf_entries[first][0], leaf_entries[first][1], leaf_entries[first][2], size, digest])
-    if len(index_pages) > 100:
-        fail('more than 100 index pages: the page file names need a third digit')
-    step('index written', leaves=len(leaf_entries), rows=index_rows, **leaf_stats)
-
-    # ---- counts, each recounted by scripts/verify-lookup.cjs from the files
+    # ---- counts of the rows, each recounted by scripts/verify-lookup.cjs from the files
     counts = {}
     for half, name in ((False, 'marathon'), (True, 'half')):
         kinds = dict(db.execute('SELECT kind, count(*) FROM sorted WHERE h=? GROUP BY kind', [half]).fetchall())
         block = {
-            'release_rows': db.execute('SELECT count(*) FROM base WHERE h=?', [half]).fetchone()[0],
+            'release_rows': base_rows.get(half, 0),
             'left_out': left_out[name], 'unnamed': kinds.get('unnamed', 0),
             'placeholder': {'flagged': kinds.get('flagged', 0), 'listed': kinds.get('listed', 0)},
             'results': kinds.get('result', 0),
@@ -824,10 +806,8 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         counts[name] = block
     kinds = dict(db.execute("""SELECT CASE WHEN n=1 THEN 'one_result' WHEN cm + ch=n THEN 'confirmed_only' WHEN cm + ch=0 THEN 'possible_only'
         ELSE 'confirmed_and_possible' END, count(*) FROM prof GROUP BY ALL""").fetchall())
-    counts.update({'results': results, 'profiles': profiles,
-                   'profiles_by_kind': {kind: kinds.get(kind, 0) for kind in ('one_result', 'confirmed_only', 'confirmed_and_possible', 'possible_only')},
-                   'names': db.execute('SELECT count(*) FROM (SELECT DISTINCT pk, name FROM res)').fetchone()[0],
-                   'search_names': search_names, 'index_rows': index_rows, 'heavy_words': len(heavy)})
+    profiles_by_kind = {kind: kinds.get(kind, 0) for kind in ('one_result', 'confirmed_only', 'confirmed_and_possible', 'possible_only')}
+    names_count = db.execute('SELECT count(*) FROM (SELECT DISTINCT pk, name FROM res)').fetchone()[0]
     if status_sidecar is not None:
         totals = {'counted': 0, 'own_record': 0, 'limited': 0}
         for source in (counts['marathon']['status'], counts['marathon']['unlisted_status']):
@@ -845,6 +825,141 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
             kept = counts['marathon']['status'].get(digit, 0) + counts['marathon']['unlisted_status'].get(digit, 0)
             if cohort[field] is not None and cohort[field] != kept:
                 fail(f'{kept} kept marathon rows are {what}; the cohort holds {cohort[field]}')
+    db.execute('DROP TABLE sorted')
+    db.execute('CHECKPOINT')
+    step('profiles formed', results=results, profiles=profiles)
+
+    # ---- profile shards
+    bases = [entry['q'] * 256 for entry in editions]
+    profiles_hash, names_hash = hashlib.sha256(), hashlib.sha256()
+    shard_entries, shard_bytes = [], 0
+
+    def write_shard(number, shard):
+        nonlocal shard_bytes
+        body = shard.body()
+        profiles_hash.update(body)
+        size, digest = write_gz(output / shard_path(number), body)
+        shard_bytes += size
+        shard_entries.append([shard.profiles(), shard.results(), size, digest])
+
+    # One range of shards at a time, in shard order: each read sorts in memory, and the rows arrive in one total order.
+    ordered = """SELECT p.shard, p.pos, r.e, r.id, r.name, r.fin, r.x, r.a, r.c, r.st, r.h, r.s0, r.s1, r.s2, r.s3, r.s4, r.s5, r.s6, r.s7
+        FROM res r JOIN prof p USING (pk) WHERE r.shard BETWEEN ? AND ? AND p.shard BETWEEN ? AND ?
+        ORDER BY p.shard, p.pos, r.h, r.year, r.id, r.dbh"""
+    current, shard, position, written = -1, None, None, 0
+    half_points = CHECKPOINTS['half']
+    for first in range(0, PROFILE_SHARDS, SHARD_RANGE):
+        if _WATCH is not None:
+            _WATCH.check()
+        cursor = db.execute(ordered, [first, first + SHARD_RANGE - 1] * 2)
+        while batch := cursor.fetchmany(100000):
+            for row in batch:
+                if row[0] != current:
+                    if shard is not None:
+                        write_shard(current, shard)
+                    for empty in range(current + 1, row[0]):
+                        write_shard(empty, ShardBody())
+                    current, shard, position = row[0], ShardBody(), None
+                if row[1] != position:
+                    if row[1] != shard.profiles():
+                        fail(f'profile positions of shard {current:03x} are not consecutive')
+                    shard.start_profile()
+                    position = row[1]
+                offset = row[3] - bases[row[2]]
+                if offset < 0:
+                    fail('a record id lies under its edition’s base')
+                if shard.add(row[2], offset, row[5], row[6], row[7], row[8], row[4], row[9], row[11:11 + half_points] if row[10] else row[11:19]):
+                    names_hash.update(normalize_name(row[4]).encode('utf-8') + b'\n')
+                written += 1
+    if shard is not None:
+        write_shard(current, shard)
+    for empty in range(current + 1, PROFILE_SHARDS):
+        write_shard(empty, ShardBody())
+    if written != results or sum(entry[0] for entry in shard_entries) != profiles or len(shard_entries) != PROFILE_SHARDS:
+        fail(f'{written} of {results} results and {sum(entry[0] for entry in shard_entries)} of {profiles} profiles were written')
+    profile_pages = []
+    for first in range(0, PROFILE_SHARDS, PAGE_SIZE):
+        size, digest = write_gz(output / profile_page_path(first // PAGE_SIZE), profile_page_body(first, shard_entries[first:first + PAGE_SIZE]))
+        profile_pages.append([size, digest])
+    step('profile shards written', bytes=shard_bytes, largest=max(entry[2] for entry in shard_entries))
+
+    # ---- search names and postings
+    db.execute("""CREATE TABLE srows AS WITH sn AS (SELECT pk, skey,
+          arg_min(name, ((9999 - year)::BIGINT*2 + h::INTEGER)*100000000000 + id*2 + dbh::INTEGER) AS shown,
+          count(*)::INTEGER AS ns, (count(*) FILTER (WHERE c IN ('1', '2', '3')))::INTEGER AS ncs,
+          min(year) AS y0s, max(year) AS y1s, min(e) AS e1s FROM res GROUP BY pk, skey),
+        snr AS (SELECT s.skey, s.shown, p.shard, p.pos,
+          CASE WHEN p.cm + p.ch>0 AND s.ncs=0 THEN 1 ELSE 0 END AS pf,
+          CASE WHEN p.cm + p.ch>0 AND s.ncs=0 THEN s.ns=1 ELSE p.n=1 END AS one,
+          s.ns, s.y0s, s.y1s, s.e1s, p.n, p.cm, p.ch, p.y0, p.y1, p.cy0, p.cy1, p.e1 FROM sn s JOIN prof p USING (pk))
+        SELECT skey, shown, shard, pos,
+          CASE WHEN NOT one THEN -1 WHEN pf=1 THEN e1s ELSE e1 END AS e,
+          CASE WHEN one THEN 0 WHEN pf=1 THEN y0s WHEN cm + ch>0 THEN cy0 ELSE y0 END AS y,
+          CASE WHEN one THEN 0 WHEN pf=1 THEN y1s - y0s WHEN cm + ch>0 THEN cy1 - cy0 ELSE y1 - y0 END AS s,
+          CASE WHEN one OR pf=1 THEN 0 ELSE cm END AS m, CASE WHEN one OR pf=1 THEN 0 ELSE ch END AS hh,
+          CASE WHEN one THEN 0 WHEN pf=1 THEN ns ELSE n - cm - ch END AS q, pf FROM snr""")
+    for table in ('res', 'prof'):
+        db.execute(f'DROP TABLE {table}')
+    db.execute('CHECKPOINT')
+    search_names = db.execute('SELECT count(*) FROM srows').fetchone()[0]
+    db.execute("CREATE TABLE words AS SELECT w, count(*) AS n FROM (SELECT unnest(string_split(skey, ' ')) AS w FROM srows) GROUP BY w")
+    heavy = db.execute('SELECT w, n FROM words WHERE n>? ORDER BY w', [index_rules['heavy_over']]).fetchall()
+    db.execute('CREATE TEMP TABLE heavy AS SELECT w FROM words WHERE n>?', [index_rules['heavy_over']])
+    word_count = db.execute('SELECT count(*) FROM words').fetchone()[0]
+    # Every posting, written once and then read one range of words at a time: each read sorts in memory.
+    db.execute("""CREATE TABLE post AS WITH u AS (SELECT r.*, string_split(skey, ' ') AS ws FROM srows r), v AS (SELECT u.*, unnest(ws) AS w FROM u),
+        light AS (SELECT w, '' AS o, shown, shard, pos, e, y, s, m, hh, q, pf FROM v ANTI JOIN heavy USING (w)),
+        hv AS (SELECT w, unnest(CASE WHEN len(ws)=1 THEN [''] ELSE list_filter(ws, lambda other: other<>w) END) AS o,
+                      shown, shard, pos, e, y, s, m, hh, q, pf FROM v SEMI JOIN heavy USING (w))
+        SELECT * FROM light UNION ALL SELECT * FROM hv""")
+    for table in ('srows', 'words'):
+        db.execute(f'DROP TABLE {table}')
+    db.execute('CHECKPOINT')
+    starts = [row[0] for row in db.execute(f"""WITH per AS (SELECT w, count(*) AS n FROM post GROUP BY w),
+        run AS (SELECT w, sum(n) OVER (ORDER BY w) AS upto, sum(n) OVER () AS total FROM per)
+        SELECT min(w) FROM run GROUP BY ((upto - 1) * {int(POSTING_RANGES)} // total) ORDER BY 1""").fetchall()]
+    step('search names formed', search_names=search_names, words=word_count, heavy=len(heavy))
+
+    index_hash = hashlib.sha256()
+    leaf_entries, leaf_stats = [], {'bytes': 0, 'largest': 0, 'fewest_rows': None, 'most_rows': 0, 'fewest_profiles': None}
+
+    def write_leaf(leaf):
+        rows = leaf['rows']
+        body = leaf_body(rows)
+        index_hash.update(body)
+        size, digest = write_gz(output / leaf_path(len(leaf_entries)), body)
+        people = len({(row[3], row[4]) for row in rows})
+        leaf_entries.append([leaf['key'][0], leaf['key'][1], leaf['key'][2], len(rows), size, digest])
+        leaf_stats['bytes'] += size
+        leaf_stats['largest'] = max(leaf_stats['largest'], size)
+        leaf_stats['most_rows'] = max(leaf_stats['most_rows'], len(rows))
+        leaf_stats['fewest_rows'] = len(rows) if leaf_stats['fewest_rows'] is None else min(leaf_stats['fewest_rows'], len(rows))
+        leaf_stats['fewest_profiles'] = people if leaf_stats['fewest_profiles'] is None else min(leaf_stats['fewest_profiles'], people)
+
+    cutter = LeafCutter({word for word, _ in heavy}, write_leaf, index_rules)
+    for at, low in enumerate(starts):
+        if _WATCH is not None:
+            _WATCH.check()
+        last = at + 1 == len(starts)
+        cursor = db.execute(f"""SELECT w, o, shown, shard, pos, e, y, s, m, hh, q, pf FROM post WHERE w>=? {'' if last else 'AND w<?'}
+            ORDER BY w, o, shown, shard, pos""", [low] if last else [low, starts[at + 1]])
+        while batch := cursor.fetchmany(100000):
+            for row in batch:
+                cutter.add(row)
+    cutter.finish()
+    index_rows = sum(entry[3] for entry in leaf_entries)
+    if index_rows != cutter.rows:
+        fail('postings were lost between the cutter and the leaves')
+    index_pages = []
+    for first in range(0, len(leaf_entries), PAGE_SIZE):
+        size, digest = write_gz(output / index_page_path(first // PAGE_SIZE), index_page_body(first, leaf_entries[first:first + PAGE_SIZE]))
+        index_pages.append([leaf_entries[first][0], leaf_entries[first][1], leaf_entries[first][2], size, digest])
+    if len(index_pages) > 100:
+        fail('more than 100 index pages: the page file names need a third digit')
+    step('index written', leaves=len(leaf_entries), rows=index_rows, **leaf_stats)
+
+    counts.update({'results': results, 'profiles': profiles, 'profiles_by_kind': profiles_by_kind, 'names': names_count,
+                   'search_names': search_names, 'index_rows': index_rows, 'heavy_words': len(heavy)})
 
     manifest = {
         'schema_version': SCHEMA_VERSION, 'release_tag': tag, 'input_as_of': input_as_of,
@@ -864,8 +979,7 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     }
     (output / 'manifest.json').write_bytes(encode(manifest))
     step('manifest written', provisional=manifest['provisional'], files=2 + len(leaf_entries) + len(index_pages) + PROFILE_SHARDS + len(profile_pages),
-         bytes=shard_bytes + leaf_stats['bytes'] + editions_bytes + sum(p[3] for p in index_pages) + sum(p[0] for p in profile_pages),
-         peak_rss_mb=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024)
+         bytes=shard_bytes + leaf_stats['bytes'] + editions_bytes + sum(p[3] for p in index_pages) + sum(p[0] for p in profile_pages))
     return manifest
 
 
@@ -893,18 +1007,35 @@ def main(argv=None):
     parser.add_argument('--as-of', help='the build time to record (UTC, YYYY-MM-DDTHH:MM:SSZ); default now')
     parser.add_argument('--temp', type=Path)
     parser.add_argument('--memory', default='3GB')
+    parser.add_argument('--temp-limit-gb', type=float, default=TEMP_LIMIT_GB,
+                        help=f'stop the build when its temporary folder passes this size (default {TEMP_LIMIT_GB}; 0 for no limit)')
     parser.add_argument('--threads', type=int, default=2)
     args = parser.parse_args(argv)
     if args.as_of and not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z', args.as_of):
         parser.error('--as-of must read YYYY-MM-DDTHH:MM:SSZ')
     global LOG
     LOG = True
+
+    def stop(number, frame):
+        raise Stopped(signal.Signals(number).name)
+    for name in ('SIGTERM', 'SIGINT', 'SIGHUP'):
+        signal.signal(getattr(signal, name), stop)
     try:
         build(args.core, args.links, args.status, args.identity, args.output, pin_path=args.pin, registry_path=args.registry,
               half_registry_path=args.half_registry, policy_path=args.policy, cohort_path=args.cohort, as_of=args.as_of,
-              temp=args.temp, memory=args.memory, threads=args.threads)
+              temp=args.temp, memory=args.memory, threads=args.threads, temp_limit_gb=args.temp_limit_gb)
     except BuildError as error:
         print(f'build_runner_lookup: {error}', file=sys.stderr)
+        return 1
+    except (duckdb.OutOfMemoryException, duckdb.IOException) as error:
+        print(f'build_runner_lookup: DuckDB ran out of memory or of its temporary space, and the build is stopped: {error}', file=sys.stderr)
+        return 1
+    except (Stopped, RuntimeError) as error:
+        # A signal that arrives inside a query comes back from DuckDB as "Query interrupted", caused by Stopped.
+        stopped = error if isinstance(error, Stopped) else error.__cause__
+        if not isinstance(stopped, Stopped):
+            raise
+        print(f'build_runner_lookup: stopped by {stopped}; the temporary folder and the unfinished output are removed', file=sys.stderr)
         return 1
     return 0
 
