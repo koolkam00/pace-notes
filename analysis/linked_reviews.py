@@ -116,17 +116,17 @@ REVIEWED_NOTES = (
     {'label': 'Warsaw', 'years': (2020,), 'field': 'completeness_reason', 'kind': 'another_course', 'ruling': 'excluded',
      'says': 'COVID edition: four separate waves (max # each) on a # km city loop, #-#-#/#',
      'quoted': 'COVID edition: four separate waves (max 250 each) on a 5 km city loop, 2020-09-26/27', 'reviewer': 'lead', 'reviewed_on': '2026-11-14'},
-    # Kept: read, and not a statement that the edition was a virtual run or was run on another course. The three below were
-    # entered by the builder on 2026-11-14 for the lead to confirm (the lead ruled on the search, not yet on these sentences).
+    # Kept (the lead, 2026-11-14): none of the three says that a particular edition was run on another course or virtually,
+    # so no edition is excluded.
     {'label': 'Houston', 'years': None, 'field': 'completeness_reason', 'kind': 'virtual_run', 'ruling': 'kept',
      'says': 'not loaded: # outside main place chain (wheelchair/handcycle/assisted/unplaced), # virtual',     # a count of rows that were not loaded
-     'reviewer': 'builder, for the lead to confirm', 'reviewed_on': '2026-11-14'},
+     'reviewer': 'lead', 'reviewed_on': '2026-11-14'},
     {'label': 'Madrid', 'years': None, 'field': 'course_notes', 'kind': 'another_course', 'ruling': 'kept',
      'says': "Madrid's course changed over #-#",                    # the course profile's note: the race's course changed over the years, no edition named
-     'reviewer': 'builder, for the lead to confirm', 'reviewed_on': '2026-11-14'},
+     'reviewer': 'lead', 'reviewed_on': '2026-11-14'},
     {'label': 'Washington', 'years': None, 'field': 'course_notes', 'kind': 'another_course', 'ruling': 'kept',
      'says': 'MCM course changed several times #-#',                # the same kind of note, on the Marine Corps Marathon
-     'reviewer': 'builder, for the lead to confirm', 'reviewed_on': '2026-11-14'},
+     'reviewer': 'lead', 'reviewed_on': '2026-11-14'},
 )
 RULINGS = ('excluded', 'kept')
 
