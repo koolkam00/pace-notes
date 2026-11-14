@@ -8,6 +8,7 @@
 //   3. the module's functions refuse what they should: an unknown code, a never-shown tier, `undefined`, a weaker-source
 //      flag that disagrees with its tier; and a tier line reads as its two reference examples;
 //   4. the components render each label in both modes (a link to its anchor, a bare label) and have no client script;
+//      the design system's section names the same words, codes and anchors;
 //   5. the styles in app/styles/components/badge.css are built from the evidence badge's and the scope chip's
 //      declarations and tokens (so no hue, no fill and no theme rule of their own), wrap at spaces and have a 44 px hit
 //      area as links; no other sheet changes a label's look;
@@ -556,6 +557,13 @@ function main() {
   ok(!/['"]use client['"]|\buse[A-Z]\w*\(|\bon[A-Z]\w*=|\bwindow\b|\bdocument\b/.test(code), `${COMPONENTS} has no client script: no state, effect, handler or browser object`);
   for (const cls of t.TIER_CLASSES) ok(code.includes(cls), `${COMPONENTS} draws with ${cls}`);
   ok(!/^\s*import\s|\brequire\(/m.test(read(MODULE)), `${MODULE} imports nothing`);
+
+  // The design system's section says the same words and anchors.
+  const doc = read('docs/DESIGN_SYSTEM.md');
+  const section = (/\n## Tier and link labels\n([\s\S]*?)\n## /.exec(doc) || [])[1] || '';
+  ok(section.length > 0, 'docs/DESIGN_SYSTEM.md has the section "Tier and link labels"');
+  for (const row of TABLE) ok(section.includes(`| ${row.words} |`) && (row.kind === 'timing' || section.includes(`\`${row.code}\``) || /^low/.test(row.code)), `the section’s table has ${row.code}: ${row.words}`);
+  for (const word of [...NEVER_SHOWN, ...QUIET.split, ...QUIET.link, ANCHOR.tier, ANCHOR.link, ...t.TIER_CLASSES]) ok(section.includes(word), `the section names ${word}`);
 
   // ---- 5. The styles.
   const sheets = walk(path.join(ROOT, 'app'), /\.css$/).map((file) => [rel(file), fs.readFileSync(file, 'utf8')]);
