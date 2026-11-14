@@ -12,6 +12,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
+import linked_again as la
 import linked_common as lc
 import linked_histories as lh
 import linked_model as lm
@@ -613,6 +614,79 @@ class Return(unittest.TestCase):
         self.assertLessEqual(out['difference_points'], out['difference_hi_points'])
         two = results_frame([row for row in rows if row[1] in (0, 1, 9)])
         self.assertIsNone(lret.build(two, editions, {k: np.ones(len(two), dtype=bool) for k in ('F', 'verified', 'high')}, reps=10))   # two editions
+
+
+class RecordedAgain(unittest.TestCase):
+    """Who is recorded again (docs/LINKED_RECORDS.md): each group against the other finishes of its own editions."""
+
+    def test_the_bands_are_the_frozen_ones(self):
+        self.assertEqual((la.YEARS, la.WITHIN_YEARS, la.BAND_SECONDS), (lret.YEARS, lret.WITHIN_YEARS, lret.BAND_SECONDS))   # the matched comparison's own
+        self.assertEqual(lret.BAND_SECONDS, lc.FINISH_BAND_SECONDS)
+        self.assertEqual((len(la.FINISH_BANDS), la.FINISH_BANDS[0], la.FINISH_BANDS[1], la.FINISH_BANDS[-2], la.FINISH_BANDS[-1]),
+                         (26, (None, 9000), (9000, 9600), (22800, 23400), (23400, None)))
+        self.assertEqual(la.band_of(np.array([7200.0, 8999.9, 9000.0, 9599.9, 23399.0, 23400.0, 43200.0]), la.FINISH_BANDS).tolist(), [0, 0, 1, 1, 24, 25, 25])
+        self.assertEqual(la.band_of(np.array([12599.0, 12600.0, 17999.0, 18000.0]), la.FINISH_GROUPS).tolist(), [0, 1, 3, 4])
+        self.assertEqual(la.age_band_of(np.array([-1, 17, 18, 24, 25, 69, 70, 85, 86])).tolist(), [-1, -1, 0, 0, 1, 9, 10, 10, -1])
+
+    def test_a_group_is_read_against_the_other_finishes_of_its_own_editions(self):
+        # edition 0: group 0 has 50 finishes (30 recorded again), group 1 has 150 (45); edition 1: 100 (20) and 80 (40);
+        # edition 2: 10 (5) and 190 (95); and 7 finishes in no group, which take no part.
+        spec = {0: [(50, 30), (150, 45)], 1: [(100, 20), (80, 40)], 2: [(10, 5), (190, 95)]}
+        edition, group, back = [], [], []
+        for e, pairs in spec.items():
+            for g, (n, x) in enumerate(pairs):
+                edition += [e] * n
+                group += [g] * n
+                back += [True] * x + [False] * (n - x)
+        edition += [0] * 7
+        group += [-1] * 7
+        back += [True] * 7
+        parts = la.inside_editions(np.array(edition), np.array(group), np.array(back), 2)
+        # group 0: edition 1 does not count (its other finishes number 80); expected = (50 x 45/150 + 10 x 95/190) / 60
+        self.assertEqual((parts[0]['editions'].tolist(), parts[0]['n'].tolist(), parts[0]['x'].tolist()), ([0, 2], [50.0, 10.0], [30.0, 5.0]))
+        share, expected, diff = la.difference(parts[0])
+        self.assertAlmostEqual(share, 35 / 60)
+        self.assertAlmostEqual(expected, (50 * 0.3 + 10 * 0.5) / 60)
+        self.assertAlmostEqual(diff, 100 * (35 / 60 - 20 / 60))
+        # group 1: only edition 1 holds 100 other finishes
+        self.assertEqual(parts[1]['editions'].tolist(), [1])
+        self.assertAlmostEqual(la.difference(parts[1])[2], 100 * (0.5 - 0.2))
+        self.assertFalse(la.published(parts[1]))                                        # one edition, 80 finishes: under both floors
+        # the interval resamples the group's own editions; the same seed gives the same draws; equal editions give no spread
+        lo, hi = la.interval(parts[0], 200, [1, 2, 3])
+        self.assertEqual((lo, hi), la.interval(parts[0], 200, [1, 2, 3]))
+        self.assertLessEqual(lo, hi)
+        flat = {'n': np.array([100.0, 100.0, 100.0]), 'x': np.array([40.0, 40.0, 40.0]), 'q': np.array([0.3, 0.3, 0.3])}
+        self.assertEqual([round(v, 9) for v in la.interval(flat, 50, 1)], [10.0, 10.0])
+
+    def test_a_row_is_said_only_under_every_guard(self):
+        variant = {'finishes': 500, 'editions': 9, 'difference_points': 1.2}
+        row = {'difference_points': 2.0, 'lo_points': 0.4, 'hi_points': 3.1, **{name: dict(variant) for name in la.VARIANTS}}
+        self.assertEqual(la.row_verdict(row), 'more_often')
+        self.assertIsNone(la.row_verdict({**row, 'difference_points': 0.9}))                 # under one point
+        self.assertIsNone(la.row_verdict({**row, 'lo_points': -0.1}))                        # the interval holds zero
+        for name in la.VARIANTS:
+            self.assertIsNone(la.row_verdict({**row, name: None}), name)                    # a variant under its floors
+            self.assertIsNone(la.row_verdict({**row, name: {**variant, 'difference_points': -0.2}}), name)   # ... or on the other side
+        less = {'difference_points': -1.0, 'lo_points': -2.2, 'hi_points': -0.1, **{name: {**variant, 'difference_points': -0.3} for name in la.VARIANTS}}
+        self.assertEqual(la.row_verdict(less), 'less_often')
+        self.assertIsNone(la.row_verdict({**less, 'hi_points': 0.0}))
+        self.assertEqual(la.VARIANTS, ('verified', 'high', 'same_race', 'men', 'women'))
+
+    def test_the_finishes_and_what_counts_as_recorded_again(self):
+        # editions 0 and 1 are one race (2015, 2016), 2 another (2018), 3 another (2017), 4 an edition of 2009
+        race = np.array([0, 0, 1, 2, 3])
+        rows = [(0, 0, 2015, 14000.0, 1, True, 1975, True), (0, 1, 2016, 14100.0, 1, True, -1, True),     # again at the same race the next year
+                (1, 0, 2015, 15000.0, 2, True, 1990, True), (1, 2, 2018, 15100.0, 2, True, 1990, True),   # three years on: outside the window
+                (2, 0, 2015, 16000.0, 1, True, 1920, True), (2, 3, 2017, 16100.0, 1, True, 1920, True),   # two years on, at another race; aged 95
+                (3, 4, 2009, 13000.0, 1, True, 1970, True), (3, 0, 2015, 13100.0, 0, True, 1970, True),   # before the window; no recorded sex
+                (4, 0, 2015, 17000.0, 2, True, 1985, False)]                                               # not a timing-eligible finish
+        f = la.finishes(results_frame(rows), race)
+        got = sorted(zip(f.fin.tolist(), f.edition.tolist(), f.age.tolist(), f.back.tolist(), f.back_same.tolist()))
+        self.assertEqual(got, [(14000.0, 0, 40, True, True), (14100.0, 1, -1, False, False),       # the age of a finish is its own record's: never borrowed
+                               (15000.0, 0, 25, False, False), (15100.0, 2, 28, False, False),
+                               (16000.0, 0, -1, True, False), (16100.0, 3, -1, False, False)])
+        self.assertEqual(len(la.finishes(results_frame(rows).iloc[:0], race)), 0)
 
 
 class Published(unittest.TestCase):

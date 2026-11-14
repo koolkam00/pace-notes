@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 
 import build_linked
+import linked_again as la
 import linked_common as lc
 import linked_universe as lu
 
@@ -332,6 +333,36 @@ class Build(unittest.TestCase):
         self.assertGreaterEqual(back['with_slowdown']['finishes'], 100)
         self.assertEqual(back['years'], [2010, 2019])
 
+    def test_who_is_recorded_again_is_read_inside_editions(self):
+        again, back = self.files['recorded_again.json'], self.files['return.json']
+        raw = back['unmatched']
+        self.assertEqual((again['cohort']['finishes'], again['cohort']['recorded_again']),          # the matched comparison's finishes, before matching
+                         (raw['with_slowdown']['finishes'] + raw['without']['finishes'], raw['with_slowdown']['seen_again'] + raw['without']['seen_again']))
+        self.assertEqual((again['years'], again['within_years'], again['margin_points'], again['min_others']), ([2010, 2019], 2, 1.0, 100))
+        # one runner in five carries age-group floors only: those finishes have no age of their own
+        self.assertLess(again['age_cohort']['finishes'], 0.85 * again['cohort']['finishes'])
+        self.assertGreater(again['age_cohort']['finishes'], 0.70 * again['cohort']['finishes'])
+        self.assertNotIn('by_sex', again)
+        bounds = {'by_finish_band': [list(b) for b in la.FINISH_BANDS], 'by_finish': [list(b) for b in la.FINISH_GROUPS], 'by_age_band': [list(b) for b in la.AGE_BANDS]}
+        self.assertTrue(again['by_finish'] and again['by_finish_band'] and again['by_age_band'])
+        for name, rows in ((n, again[n]) for n in la.TABLES):
+            keys = ('age_from', 'age_to') if name == 'by_age_band' else ('finish_from_s', 'finish_to_s')
+            places = [bounds[name].index([row[keys[0]], row[keys[1]]]) for row in rows]
+            self.assertEqual(places, sorted(set(places)))
+            for row in rows:
+                self.assertGreaterEqual(row['finishes'], 100)
+                self.assertGreaterEqual(row['editions'], 3)
+                self.assertGreater(row['all_finishes'], row['finishes'])                  # a quarter of the fixture's runners carry a link that keys no runner
+                self.assertAlmostEqual(row['share'], row['recorded_again'] / row['finishes'], places=9)
+                self.assertAlmostEqual(row['difference_points'], 100 * (row['share'] - row['expected_share']), delta=1e-3)
+                self.assertLessEqual(row['lo_points'], row['difference_points'])
+                self.assertLessEqual(row['difference_points'], row['hi_points'])
+                self.assertEqual(row['verdict'], la.row_verdict(row))
+                if row['same_race'] is not None:
+                    self.assertEqual((row['same_race']['finishes'], row['same_race']['editions']), (row['finishes'], row['editions']))
+        self.assertEqual(self.files['manifest.json']['cohort']['recorded_again']['finishes'], again['cohort']['finishes'])
+        self.assertIn('analysis/linked_again.py', self.files['manifest.json']['scripts'])
+
     def test_the_checks_keep_their_floors(self):
         c = self.files['checks.json']
         for band in c['temperature']['bands']:
@@ -462,7 +493,20 @@ class BuildWithSeries(unittest.TestCase):
         def drop_note(reg):
             for race in reg['races']:
                 race.pop('series', None)
-        for what, result in (('an edition in the other series', broken('editions.json', swap_series)),
+
+        def flip_verdict(d):
+            row = d['by_finish'][0]
+            row['verdict'] = 'less_often' if row['verdict'] == 'more_often' else 'more_often'
+
+        def by_sex(d):
+            d['by_sex'] = d['by_finish']
+
+        def other_finishes(d):
+            d['cohort']['finishes'] += 1
+        for what, result in (('a recorded-again verdict the numbers do not carry', broken('recorded_again.json', flip_verdict)),
+                             ('the sexes compared', broken('recorded_again.json', by_sex)),
+                             ('finishes that are not the matched comparison’s', broken('recorded_again.json', other_finishes)),
+                             ('an edition in the other series', broken('editions.json', swap_series)),
                              ('an edition without its series', broken('editions.json', drop_series)),
                              ('a reading for a label that holds two races', broken('races.json', label_reading)),
                              ('a series the registry does not name', broken('races.json', unknown_series)),
