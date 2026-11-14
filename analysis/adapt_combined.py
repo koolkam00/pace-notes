@@ -33,8 +33,9 @@ marathon folder in the layout of the October 21 export (1050), so this adapter w
    course members (the baseline's own bytes, since their values
    are equal, so pinned hashes such as the course-terrain registry's stay valid), `sources`, `edition_meta` (1050's
    columns, then the tier columns and notes of `EDITION-TIERS.csv`, the tier table that reproduces the README, a race
-   date only where the weather table or a reviewed entry gives one, and beside it the unreviewed date the producer's
-   own note states; written editions only), `qa_row_flags`,
+   date only where the weather table or a reviewed entry gives one (a reviewed entry rests on the producer's own note
+   or, where that note states no date, on a cited external source; `race_date_source` says which), and beside it the
+   unreviewed date the producer's own note states; written editions only), `qa_row_flags`,
    `record_flags` (the release's long format), an identity subset `features.parquet` (FULL) whose cross-race key
    follows the frozen `IDENTITY` rule and which keeps every link's `person_id`, confidence tier and method, and
    documents that say on their first line that they are adapter outputs, not producer claims.
@@ -71,11 +72,17 @@ import race_registry  # noqa: E402
 from adapt_master import (AdaptError, FIELDS, OVERLAY_SCHEMAS, RACE_RECORDS, SECONDS, copy_parquet, encode_json, fail,  # noqa: E402
                           file_sha256, is_digest, literal, parse_sums, place, rows, scalar)
 
-ADAPTER_VERSION = 2   # 2 (2026-11-14): registry labels in `city`, release_keys.parquet, the edition-wide exception of the row rule
+# 2 (2026-11-14): registry labels in `city`, release_keys.parquet, the edition-wide exception of the row rule.
+# 3 (2026-11-14): HALF_ROW_RULE and its counts, race dates from a cited external source, the label check by tier, the
+# reviewed row exceptions (lead ruling D33).
+ADAPTER_VERSION = 3
 COMBINED_TAG = re.compile(r'pace-notes-marathon-half-[0-9]{8}-[0-9]{4}')
 LAYOUT = 'combined'
 PIN_PATH = Path(__file__).with_name('release.json')
 RACE_DATES_PATH = Path(__file__).with_name('reviewed-race-dates.json')
+ROW_EXCEPTIONS_PATH = Path(__file__).with_name('reviewed-row-exceptions.json')
+# The frozen counted-editions policy of a release (built after a first adaptation): a reviewed row exception needs it.
+EDITION_POLICY_PATHS = {'pace-notes-marathon-half-20261113-1113': Path(__file__).with_name('edition-policy-20261113-1113.json')}
 SOURCE_DIR, CORE_DIR, BASELINE_DIR = 'release-assets', 'release-assets/core', 'baseline'
 LABEL = 'Adapter output (analysis/adapt_combined.py), not a producer document.'
 
@@ -158,12 +165,40 @@ EXPECTED_COMBINED_FULL = EXPECTED_COMBINED | {'features.parquet'}
 # every row): one of these flags removes nothing from an edition whose every release row carries it, because it then
 # describes how the source laid the edition out (the finish repeated in a split column; a status column that holds
 # place numbers), not the row. A row of such an edition is still left out when it carries another flag of the rule.
+# `reviewed_exceptions` (lead ruling D33, 2026-11-14: a deliberate, documented departure from the row rule for the rows
+# that analysis/reviewed-row-exceptions.json lists): a listed row is written and treated like any other row although
+# it carries one of `qa_row_flags` here, when ALL of this holds: it carries no other flag of the rule and no pending
+# flag; the frozen edition policy counts its edition (so the tier is stamped, weaker-source, or partial inside the
+# coverage band, and no screen fails); its finish in the release equals the reviewed finish to the second; the entry
+# states the edition's tier and its rows against the official count as the release has them, and the producer's own
+# record note; the release README still defines the flag in the words the entry quotes; and the entry cites its
+# external evidence (source, URL, the quoted words, who read it and when). Anything else stops the adapter.
 ROW_RULE = {
     'pace-notes-marathon-half-20261113-1113': {
         'pending_review_flags': ['wheelchair_handcycle_published_category', 'sportstats_nonfinish_status',
                                  'philadelphia_2010_place_sequence_outlier'],
         'qa_row_flags': ['finish_faster_than_world_record', 'finish_ge_24h', 'finish_zero', 'finish_equals_earlier_split'],
         'kept_unlabelled': ['adaptive_division_published_category'],
+        'kept_when_edition_wide': ['finish_equals_earlier_split', 'sportstats_nonfinish_status'],
+        'reviewed_exceptions': {'qa_row_flags': ['finish_faster_than_world_record'], 'edition': 'counted by the frozen edition policy'},
+    },
+}
+# The half rows that take no part in the identity rule (lead ruling D28 of the adoption plan, 2026-11-14; frozen before
+# the final identity file was built). The adapter writes no half row: analysis/build_identity.py evaluates one identity
+# rule over both distances, and a half row (any `source_db`) that this rule leaves out gets no runner key and takes no
+# part in a screen. A half row is left out when it carries one of these pending-review flags (present in CORE) or one of
+# these QA flags: the two pending flags that half rows carry, every flag of the marathon's ROW_RULE (those that occur
+# on no half row of this release are listed all the same), and `finish_implausibly_fast`. `kept_when_edition_wide` is
+# ruling R2's exception with the same two flags: a flag that every release row of a half edition (source_db, city,
+# year) carries removes nothing from it. Any other pending flag on a half row stops the evaluation. The half's own
+# record rule imports this constant and asserts its rows; the half's computed rules (name patterns, bounds, duplicates,
+# the Oslo bib block) do not touch identity.
+HALF_ROW_RULE = {
+    'pace-notes-marathon-half-20261113-1113': {
+        'pending_review_flags': ['wheelchair_handcycle_published_category', 'published_disqualified_status',
+                                 'sportstats_nonfinish_status', 'philadelphia_2010_place_sequence_outlier'],
+        'qa_row_flags': ['finish_faster_than_world_record', 'finish_ge_24h', 'finish_zero', 'finish_equals_earlier_split',
+                         'finish_implausibly_fast'],
         'kept_when_edition_wide': ['finish_equals_earlier_split', 'sportstats_nonfinish_status'],
     },
 }
@@ -221,7 +256,15 @@ REVIEWED = {
         'baseline_equal': ['race_conditions', 'course_profiles', 'course_segments'],
         # Read on 2026-11-14 after ruling R2: 2,431 rows carry a flag of the rule; 448 of them are every row of four small
         # editions and stay (none carries another flag of the rule), so 1,983 are left out and 7,820,439 written.
-        'left_out': 1983, 'written_rows': 7820439,
+        # 2026-11-14, lead ruling D33: three rows of London 2026 (its podium) are written by reviewed exception, so 1,980
+        # rows are left out and 7,820,442 written (1,983 and 7,820,439 before).
+        'left_out': 1980, 'written_rows': 7820442,
+        'row_exceptions': [[782236, 'London 2026', 'finish_faster_than_world_record', '1:59:30'],
+                           [782238, 'London 2026', 'finish_faster_than_world_record', '1:59:41'],
+                           [782242, 'London 2026', 'finish_faster_than_world_record', '2:00:28']],
+        # Read on 2026-11-14 after ruling D28: the half rows HALF_ROW_RULE leaves out of the identity rule (distinct rows;
+        # a row can carry two of the flags), and the half editions whose every row carries an edition-wide flag (none).
+        'half_left_out': 951, 'half_edition_wide_kept': {},
         'edition_wide_kept': {
             'pending_review_flags.sportstats_nonfinish_status': {
                 'King George Island, TBD: Antarctica Marathon & Half Marathon - Voyage 2 2019': 116},
@@ -676,7 +719,10 @@ def reconcile(db, pin, core, assets, baseline):
     db.execute("""CREATE OR REPLACE TABLE left_out_kept AS SELECT x.record_id, x.reason, w.city IS NOT NULL AS edition_wide
       FROM left_out_flags x JOIN rr r ON r.distance='marathon' AND r.source_db='full' AND r.id=x.record_id
       LEFT JOIN edition_wide w ON w.city=r.city AND w.year=r.year AND w.reason=x.reason""")
-    db.execute('CREATE OR REPLACE TABLE left_out AS SELECT record_id, count(*) AS flags FROM left_out_kept WHERE NOT edition_wide GROUP BY 1')
+    # The reviewed exceptions (lead ruling D33): listed rows that are written although they carry one flag of the rule.
+    excepted = row_exceptions(db, pin, rule, assets['README.md'].read_text())
+    db.execute("""CREATE OR REPLACE TABLE left_out AS SELECT record_id, count(*) AS flags FROM left_out_kept
+      WHERE NOT edition_wide AND record_id NOT IN (SELECT record_id FROM row_exceptions) GROUP BY 1""")
     stated = manifest['by_distance']['marathon']
     expected = {f'pending_review_flags.{f}': stated['pending_flags'].get(f, 0) for f in rule['pending_review_flags']}
     expected.update({f'qa_row_flags.{f}': stated['qa_row_flags'].get(f, 0) for f in rule['qa_row_flags']})
@@ -688,17 +734,39 @@ def reconcile(db, pin, core, assets, baseline):
         kept.setdefault(reason, {})[f'{city} {year}'] = n
     checks.add('rows_left_out', 'rows kept although flagged, because every row of their edition carries the flag (by flag and edition)',
                'analysis/adapt_combined.py REVIEWED edition_wide_kept (lead ruling R2, 2026-11-14)', REVIEWED[tag]['edition_wide_kept'], kept)
+    checks.add('rows_left_out', 'rows written although flagged, by reviewed exception (record, edition, flag and reviewed finish)',
+               'analysis/reviewed-row-exceptions.json and analysis/adapt_combined.py REVIEWED row_exceptions (lead ruling D33, 2026-11-14; a condition that fails stops the adapter)',
+               REVIEWED[tag].get('row_exceptions', []), [[e['record_id'], f"{e['city']} {e['year']}", e['flag'], e['finish']] for e in excepted])
     checks.add('rows_left_out', 'rows left out, by flag (a row can carry two)', 'measured', None,
-               pairs(db, 'SELECT reason, count(*) FROM left_out_kept WHERE NOT edition_wide GROUP BY 1'))
+               pairs(db, 'SELECT reason, count(*) FROM left_out_kept WHERE NOT edition_wide AND record_id NOT IN (SELECT record_id FROM row_exceptions) GROUP BY 1'))
     checks.add('rows_left_out', 'distinct rows left out', 'analysis/adapt_combined.py REVIEWED', REVIEWED[tag]['left_out'], scalar(db, 'SELECT count(*) FROM left_out'))
     checks.add('rows_left_out', 'rows carrying two of the flags that leave them out', 'measured', None, scalar(db, 'SELECT count(*) FROM left_out WHERE flags > 1'))
     checks.add('rows_left_out', 'rows with an edition-wide flag that another flag still leaves out', 'measured', None,
                scalar(db, 'SELECT count(DISTINCT record_id) FROM left_out_kept WHERE edition_wide AND record_id IN (SELECT record_id FROM left_out)'))
+    # What a flag that allows a reviewed exception leaves out of each edition, so a reader sees what an exception restores.
+    for flag in (rule.get('reviewed_exceptions') or {}).get('qa_row_flags', []):
+        checks.add('rows_left_out', f'rows that {flag} leaves out, by edition (rows, fastest and slowest finish)', 'measured', None, {
+            f"{r['city']} {r['year']}": [r['n'], r['fastest'], r['slowest']] for r in rows(db, f"""SELECT r.city, r.year, count(*) AS n, min(r.finish_time) AS fastest, max(r.finish_time) AS slowest
+              FROM (SELECT record_id FROM left_out_kept WHERE reason={literal('qa_row_flags.' + flag)} AND NOT edition_wide AND record_id NOT IN (SELECT record_id FROM row_exceptions)) x
+              JOIN (SELECT id, city, year, finish_time FROM rr WHERE distance='marathon' AND source_db='full') r ON r.id=x.record_id GROUP BY ALL ORDER BY 1, 2""")})
     checks.add('rows_left_out', 'marathon rows written', 'analysis/adapt_combined.py REVIEWED', REVIEWED[tag]['written_rows'],
                scalar(db, "SELECT count(*) FROM rr WHERE distance='marathon'") - scalar(db, 'SELECT count(*) FROM left_out'))
     checks.add('rows_left_out', 'kept, never labelled: rows with a pending flag the rule keeps', 'MANIFEST.json by_distance.marathon pending_flags',
                {f: stated['pending_flags'].get(f, 0) for f in rule['kept_unlabelled']},
                {f: scalar(db, f"SELECT count(*) FROM pend WHERE distance='marathon' AND present_in_core AND flag='{f}'") for f in rule['kept_unlabelled']})
+    step('half rows the identity rule leaves out')
+    half = half_rows_left_out(db, tag, 'pend', 'qa', "(SELECT source_db, id AS record_id, city, year FROM rr WHERE distance='half')")
+    half_rule, half_stated = HALF_ROW_RULE[tag], manifest['by_distance']['half']
+    expected = {f'pending_review_flags.{f}': half_stated['pending_flags'].get(f, 0) for f in half_rule['pending_review_flags']}
+    expected.update({f'qa_row_flags.{f}': half_stated['qa_row_flags'].get(f, 0) for f in half_rule['qa_row_flags']})
+    checks.add('half_rows_left_out', 'half rows by flag of the half row rule', 'MANIFEST.json by_distance.half (pending_flags, qa_row_flags)',
+               dict(sorted(expected.items())), half['rows_by_flag'])
+    checks.add('half_rows_left_out', 'half rows kept although flagged, because every row of their edition carries the flag (by flag and edition)',
+               'analysis/adapt_combined.py REVIEWED half_edition_wide_kept (lead ruling D28, 2026-11-14)', REVIEWED[tag]['half_edition_wide_kept'], half['kept_edition_wide'])
+    checks.add('half_rows_left_out', 'half rows left out of the identity rule, by flag (a row can carry two)', 'measured', None, half['left_out_by_flag'])
+    checks.add('half_rows_left_out', 'distinct half rows left out of the identity rule', 'analysis/adapt_combined.py REVIEWED', REVIEWED[tag]['half_left_out'], half['left_out'])
+    checks.add('half_rows_left_out', 'half rows left out, by source_db', 'measured', None, half['left_out_by_source_db'])
+    checks.add('half_rows_left_out', 'half rows carrying two or more of the flags that leave them out', 'measured', None, half['left_out_with_two_or_more_flags'])
     sex = rows(db, """SELECT count(*) FILTER(WHERE rr.sex IS NULL AND qa.sex_from_category IS NOT NULL) AS filled_from_category,
       count(*) FILTER(WHERE rr.sex IS NOT NULL AND qa.sex_from_category IS NOT NULL) AS category_on_a_published_sex,
       count(*) FILTER(WHERE qa.sex_from_category IS NOT NULL AND qa.sex_from_category NOT IN ('M', 'F')) AS category_values
@@ -755,6 +823,128 @@ def reconcile(db, pin, core, assets, baseline):
     return checks
 
 
+def clock_seconds(text):
+    """A clock string of the release (H:MM:SS, with or without a fraction) in whole seconds, the fraction dropped."""
+    match = re.fullmatch(r'([0-9]{1,2}):([0-9]{2}):([0-9]{2})(\.[0-9]+)?', (text or '').strip())
+    if not match:
+        fail(f'not a clock time: {text!r}')
+    return int(match.group(1)) * 3600 + int(match.group(2)) * 60 + int(match.group(3))
+
+
+def row_exceptions(db, pin, rule, readme):
+    """The reviewed row exceptions of analysis/reviewed-row-exceptions.json for this release, each checked against the
+    release and the frozen edition policy (lead ruling D33, 2026-11-14); creates the table `row_exceptions` (record_id,
+    release_city, year, label) and returns the entries as the manifest records them. Reads `left_out_flags`,
+    `edition_wide`, `rr`, `ed`, `pend`, `rf` and `em`. A listed row is written although it carries one flag of the rule;
+    every condition of the rule's `reviewed_exceptions` must hold or the adapter stops."""
+    tag = pin['tag']
+    entries = json.loads(ROW_EXCEPTIONS_PATH.read_text())['releases'].get(tag, []) if ROW_EXCEPTIONS_PATH.exists() else []
+    allowed = rule.get('reviewed_exceptions')
+    if entries and not allowed:
+        fail('analysis/reviewed-row-exceptions.json lists rows for a release whose row rule allows no reviewed exception')
+    db.execute('CREATE OR REPLACE TABLE row_exceptions (record_id BIGINT, release_city VARCHAR, year BIGINT, label VARCHAR)')
+    counted = None
+    if entries:
+        policy = EDITION_POLICY_PATHS.get(tag)
+        if policy is None or not policy.exists():
+            fail('a reviewed row exception needs the frozen edition policy of the release (the policy must count the row’s edition)')
+        counted = {(city, year) for city, year in json.loads(policy.read_text())['counted']}
+    out, seen = [], set()
+    for e in entries:
+        name = f"reviewed row exception {e.get('record_id')} ({e.get('city')} {e.get('year')})"
+        missing = [k for k in ('source_db', 'record_id', 'city', 'release_city', 'year', 'finish', 'flag', 'flag_definition', 'edition', 'producer_record_note', 'external')
+                   if k not in e]
+        if missing:
+            fail(f'{name}: the entry lacks {missing}')
+        external = e['external'] or {}
+        sources = external.get('sources') or []
+        if (not external.get('read_by') or not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}', str(external.get('read_on', ''))) or not sources
+                or any(not s.get('name') or not str(s.get('url', '')).startswith('https://') or not s.get('quotes') for s in sources)):
+            fail(f'{name}: the external evidence needs who read it and when, and each source’s name, URL and quoted words')
+        rid, year = int(e['record_id']), int(e['year'])
+        if e['source_db'] != 'full' or rid in seen:
+            fail(f'{name}: a marathon row has source_db full, and a row is listed once')
+        seen.add(rid)
+        if e['flag'] not in allowed['qa_row_flags']:
+            fail(f"{name}: the row rule allows no reviewed exception for the flag {e['flag']}")
+        if e['flag_definition'] not in readme:
+            fail(f"{name}: the release README no longer defines the flag as {e['flag_definition']!r}")
+        found = rows(db, f"SELECT city, year, finish_time FROM rr WHERE distance='marathon' AND source_db='full' AND id={rid}")
+        if len(found) != 1 or (found[0]['city'], found[0]['year']) != (e['release_city'], year):
+            fail(f'{name}: no such marathon row in the release, or it is not in the edition the entry names')
+        if clock_seconds(found[0]['finish_time']) != clock_seconds(e['finish']):
+            fail(f"{name}: the release’s finish {found[0]['finish_time']} is not the reviewed finish {e['finish']}")
+        reasons = [r['reason'] for r in rows(db, f'SELECT reason FROM left_out_flags WHERE record_id={rid}')]
+        if reasons != [f"qa_row_flags.{e['flag']}"]:
+            fail(f"{name}: the row must carry the flag {e['flag']} and no other flag of the row rule; it carries {sorted(reasons)}")
+        if scalar(db, f"SELECT count(*) FROM pend WHERE distance='marathon' AND source_db='full' AND record_id={rid}"):
+            fail(f'{name}: the row carries a pending-review flag')
+        if scalar(db, f"SELECT count(*) FROM edition_wide WHERE city={literal(e['release_city'])} AND year={year} AND reason={literal('qa_row_flags.' + e['flag'])}"):
+            fail(f'{name}: every row of its edition carries the flag, so the row is kept already')
+        if (e['city'], year) not in counted:
+            fail(f"{name}: the frozen edition policy does not count {e['city']} {year}")
+        # The facts the entry states about its edition and its row are the release's own.
+        meta = rows(db, f"SELECT verification_tier AS tier, official_finishers AS official FROM em WHERE distance='marathon' AND city={literal(e['release_city'])} AND year={year}")
+        n = scalar(db, f"SELECT n FROM ed WHERE distance='marathon' AND source_db='full' AND city={literal(e['release_city'])} AND year={year}")
+        stated = e['edition'] or {}
+        if len(meta) != 1 or not meta[0]['official'] or (stated.get('tier'), stated.get('rows_in_release'), stated.get('official_finishers'), stated.get('coverage_pct')) != (
+                meta[0]['tier'], n, int(meta[0]['official']), round(100 * (n / meta[0]['official'] - 1), 2)):
+            fail(f'{name}: the entry’s tier, rows, official count or coverage of its edition are not the release’s ({meta}, {n} rows)')
+        notes = [r['detail'] for r in rows(db, f"SELECT detail FROM rf WHERE distance='marathon' AND source_db='full' AND record_id={rid} AND flag='note'")]
+        if notes not in ([e['producer_record_note']], [] if e['producer_record_note'] is None else None):
+            fail(f"{name}: the producer’s record note is {notes}, not {e['producer_record_note']!r}")
+        db.execute('INSERT INTO row_exceptions VALUES (?,?,?,?)', [rid, e['release_city'], year, e['city']])
+        out.append({'record_id': rid, 'source_db': e['source_db'], 'city': e['city'], 'year': year, 'flag': e['flag'], 'finish': e['finish']})
+    return out
+
+
+def half_rows_left_out(db, tag, pend, qa, half_rows):
+    """Evaluate HALF_ROW_RULE. `pend` and `qa` are relations with the columns of the release's pending_review_flags and
+    qa_row_flags; `half_rows` is a relation with one row per half release row (source_db, record_id, city, year).
+    Creates the tables `half_left_out_flags` (source_db, record_id, city, year, reason, edition_wide: one row per
+    flagged row and flag) and `half_left_out` (source_db, record_id, flags: the rows left out), and returns the counts.
+    analysis/build_identity.py calls it on the same release files; the joins are on plain equalities."""
+    rule = HALF_ROW_RULE[tag]
+    known = set(rule['pending_review_flags'])
+    unknown = [f for (f,) in db.execute(f"SELECT DISTINCT flag FROM {pend} WHERE distance='half'").fetchall() if f not in known]
+    if unknown:
+        fail(f'pending-review flags on half rows that the half row rule has not reviewed: {sorted(unknown)}')
+    columns = [c for c, *_ in db.execute(f'DESCRIBE SELECT * FROM {qa}').fetchall()]
+    missing = [f for f in rule['qa_row_flags'] if f not in columns]
+    if missing:
+        fail(f'the half row rule names QA flags the release does not have: {missing}')
+    if not set(rule['kept_when_edition_wide']) <= set(rule['pending_review_flags']) | set(rule['qa_row_flags']):
+        fail('the half row rule keeps an edition-wide flag that it does not leave out')
+    parts = [f"SELECT source_db, record_id, 'pending_review_flags.{f}' AS reason FROM {pend} WHERE distance='half' AND present_in_core AND flag='{f}'"
+             for f in rule['pending_review_flags']]
+    parts += [f"SELECT source_db, record_id, 'qa_row_flags.{f}' AS reason FROM {qa} WHERE distance='half' AND {f}" for f in rule['qa_row_flags']]
+    db.execute('CREATE OR REPLACE TEMP TABLE half_flagged AS ' + ' UNION ALL '.join(parts))
+    db.execute(f"""CREATE OR REPLACE TEMP TABLE half_flag_rows AS SELECT x.source_db, x.record_id, r.city, r.year, x.reason
+      FROM half_flagged x JOIN {half_rows} r ON r.source_db=x.source_db AND r.record_id=x.record_id""")
+    if scalar(db, 'SELECT count(*) FROM half_flag_rows') != scalar(db, 'SELECT count(*) FROM half_flagged'):
+        fail('a flag of the half row rule is on a row that is not a half row of the release, or on a row listed twice')
+    db.execute(f'CREATE OR REPLACE TEMP TABLE half_edition_n AS SELECT source_db, city, year, count(*) AS n FROM {half_rows} GROUP BY ALL')
+    wide = [('pending_review_flags.' if f in rule['pending_review_flags'] else 'qa_row_flags.') + f for f in rule['kept_when_edition_wide']]
+    db.execute(f"""CREATE OR REPLACE TEMP TABLE half_edition_wide AS SELECT x.source_db, x.city, x.year, x.reason, count(*) AS n
+      FROM half_flag_rows x JOIN half_edition_n e ON e.source_db=x.source_db AND e.city=x.city AND e.year=x.year
+      WHERE x.reason IN ({', '.join(literal(w) for w in wide) or 'NULL'}) GROUP BY x.source_db, x.city, x.year, x.reason, e.n HAVING count(*) = e.n""")
+    db.execute("""CREATE OR REPLACE TEMP TABLE half_left_out_flags AS SELECT x.source_db, x.record_id, x.city, x.year, x.reason, w.n IS NOT NULL AS edition_wide
+      FROM half_flag_rows x LEFT JOIN half_edition_wide w ON w.source_db=x.source_db AND w.city=x.city AND w.year=x.year AND w.reason=x.reason""")
+    db.execute('CREATE OR REPLACE TEMP TABLE half_left_out AS SELECT source_db, record_id, count(*) AS flags FROM half_left_out_flags WHERE NOT edition_wide GROUP BY ALL')
+    kept = {}
+    for source_db, city, year, reason, n in db.execute('SELECT source_db, city, year, reason, n FROM half_edition_wide ORDER BY 4, 1, 2, 3').fetchall():
+        kept.setdefault(reason, {})[f'{source_db}: {city} {year}'] = n
+    every = {('pending_review_flags.' if f in rule['pending_review_flags'] else 'qa_row_flags.') + f: 0 for f in rule['pending_review_flags'] + rule['qa_row_flags']}
+    return {
+        'rows_by_flag': dict(sorted({**every, **pairs(db, 'SELECT reason, count(*) FROM half_flagged GROUP BY 1')}.items())),
+        'kept_edition_wide': kept,
+        'left_out_by_flag': dict(sorted({**every, **pairs(db, 'SELECT reason, count(*) FROM half_left_out_flags WHERE NOT edition_wide GROUP BY 1')}.items())),
+        'left_out': scalar(db, 'SELECT count(*) FROM half_left_out'),
+        'left_out_by_source_db': pairs(db, 'SELECT source_db, count(*) FROM half_left_out GROUP BY 1'),
+        'left_out_with_two_or_more_flags': scalar(db, 'SELECT count(*) FROM half_left_out WHERE flags > 1'),
+    }
+
+
 def written_editions(db):
     """(release key, year, release race name, rows) of the rows the adapter writes: what the race registry is built from."""
     return [tuple(r) for r in db.execute("""SELECT city, year, race, count(*) FROM rr WHERE distance='marathon'
@@ -786,7 +976,21 @@ def registry_tables(db, pin, checks):
         fail('an edition carries more than one race name; release_keys.parquet keeps one per edition')
     if scalar(db, 'SELECT count(*) - count(DISTINCT (city, year)) FROM wed'):
         fail('race registry: two release editions would be written under one label and year')
+    wrong = rows(db, 'SELECT x.record_id FROM row_exceptions x LEFT JOIN reg g ON g.release_city=x.release_city WHERE g.city IS DISTINCT FROM x.label')
+    if wrong:
+        fail(f'reviewed row exceptions whose label is not the registry’s label of their release key: {[r["record_id"] for r in wrong]}')
     races = {race['race_id']: race for race in by_key.values()}
+    # Every race with three or more written editions of a verified tier carries a plain or a reviewed label (rule 4 of
+    # the registry; lead ruling of 2026-11-14 on the M2-C labels). The tiers are the release's, by its own key.
+    tiers = ', '.join(literal(t) for t in race_registry.VERIFIED_TIERS)
+    verified = pairs(db, f"""SELECT w.city, count(*) FROM wed w JOIN (SELECT city, year, verification_tier FROM em WHERE distance='marathon') m
+      ON m.city=w.release_city AND m.year=w.year WHERE m.verification_tier IN ({tiers}) GROUP BY 1 HAVING count(*) >= {race_registry.VERIFIED_EDITIONS}""")
+    labelled = {race['label'] for race in races.values() if race['labelled_by'] in ('plain key', 'reviewed label')}
+    unlabelled = sorted(set(verified) - labelled)
+    if unlabelled:
+        fail(f'race registry: races with {race_registry.VERIFIED_EDITIONS} or more editions of a verified tier need a reviewed label; these have none: {unlabelled}')
+    checks.add('race_registry', 'races with three or more written editions whose tier is stamped, weaker-source or partial; each has a plain or reviewed label',
+               'analysis/race_registry.py rule 4 (a race without one stops the adapter)', len(verified), len(set(verified) & labelled))
     checks.add('race_registry', 'the frozen registry equals a rebuild from the written rows (keys, races, written editions and rows)',
                'analysis/race-registry.json (rebuilt by analysis/race_registry.py from the rows about to be written; a difference stops the adapter)',
                {'keys': len(by_key), 'races': len(races), 'editions': sum(r['editions'] for r in races.values()), 'rows': sum(r['rows'] for r in races.values())},
@@ -870,6 +1074,10 @@ def verdict(pin, checks):
 def edition_dates(db, pin):
     """A race date per marathon edition and where it comes from: the weather row, else the reviewed and cited date in
     analysis/reviewed-race-dates.json. Nothing else dates an edition, so the other editions are ordered by year only.
+    A reviewed entry rests on the producer's own note (`evidence_text` must still be in it; `race_date_source`
+    reviewed) or, with `evidence: external`, on a cited source outside the release (lead ruling D27, 2026-11-14): that
+    kind is accepted only for an edition whose producer note states no date, needs the weekday, who read the source and
+    when, and each source's name, URL and quoted words, and is written with `race_date_source` external.
     `producer_note_date` is kept beside it: the one date the producer's own completeness note states as
     `date=YYYY-MM-DD`, when it lies in the edition's year. It is unreviewed and never used as the race date; a reviewed or
     weather date that disagrees with it stops the adapter. The table is keyed by the release's own key (`city`) and year."""
@@ -882,23 +1090,35 @@ def edition_dates(db, pin):
             fail(f"reviewed race date {d['city']} {d['year']}: no written edition has this label and year, or its release key is not the one the entry names")
         key = found[0]['k']
         note = rows(db, f"SELECT completeness_reason AS r FROM em WHERE distance='marathon' AND city={literal(key)} AND year={int(d['year'])}")
-        if len(note) != 1 or d['evidence_text'] not in (note[0]['r'] or ''):
-            fail(f"reviewed race date {d['city']} {d['year']}: the edition metadata no longer says {d['evidence_text']!r}")
+        kind = d.get('evidence', 'producer_note')
+        if len(note) != 1 or kind not in ('producer_note', 'external'):
+            fail(f"reviewed race date {d['city']} {d['year']}: no edition metadata row, or an evidence kind the adapter does not know ({kind})")
+        if kind == 'producer_note':
+            if d['evidence_text'] not in (note[0]['r'] or ''):
+                fail(f"reviewed race date {d['city']} {d['year']}: the edition metadata no longer says {d['evidence_text']!r}")
+        else:
+            if re.search(NOTE_DATE, note[0]['r'] or ''):
+                fail(f"reviewed race date {d['city']} {d['year']}: the producer note states a date, so an external source cannot date this edition")
+            external = d.get('external') or {}
+            sources = external.get('sources') or []
+            if ('weekday' not in d or not external.get('read_by') or not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}', str(external.get('read_on', '')))
+                    or not sources or any(not s.get('name') or not str(s.get('url', '')).startswith('https://') or not s.get('quotes') for s in sources)):
+                fail(f"reviewed race date {d['city']} {d['year']}: external evidence needs a weekday, who read it and when, and each source’s name, URL and quoted words")
         if scalar(db, f"SELECT count(*) FROM wx WHERE distance='marathon' AND city={literal(key)} AND year={int(d['year'])}"):
             fail(f"reviewed race date {d['city']} {d['year']}: the weather table now has a row; review the date again")
         day = datetime.date.fromisoformat(d['date'])
         if day.year != int(d['year']) or ('weekday' in d and day.strftime('%A') != d['weekday']):
             fail(f"reviewed race date {d['city']} {d['year']}: {d['date']} is not in the edition’s year, or not on the weekday the entry states")
-        resolved.append((key, int(d['year']), d['date']))
-    reviewed = ' UNION ALL '.join(f"SELECT {literal(k)} AS city, {y} AS year, {literal(v)} AS race_date" for k, y, v in resolved) \
-        or 'SELECT NULL::VARCHAR AS city, NULL::BIGINT AS year, NULL::VARCHAR AS race_date WHERE false'
+        resolved.append((key, int(d['year']), d['date'], 'external' if kind == 'external' else 'reviewed'))
+    reviewed = ' UNION ALL '.join(f"SELECT {literal(k)} AS city, {y} AS year, {literal(v)} AS race_date, {literal(source)} AS source" for k, y, v, source in resolved) \
+        or 'SELECT NULL::VARCHAR AS city, NULL::BIGINT AS year, NULL::VARCHAR AS race_date, NULL::VARCHAR AS source WHERE false'
     db.execute(f"""CREATE OR REPLACE TABLE edition_dates AS WITH note AS (
         SELECT city, year, list_distinct(regexp_extract_all(completeness_reason, '{NOTE_DATE}', 1)) AS found FROM em WHERE distance='marathon'),
       noted AS (SELECT city, year, found[1] AS race_date FROM note WHERE len(found) = 1 AND try_cast(found[1] AS DATE) IS NOT NULL
         AND year(try_cast(found[1] AS DATE)) = year),
       weather AS (SELECT city, year, min(race_date) AS race_date FROM wx WHERE distance='marathon' GROUP BY ALL)
       SELECT e.city, e.year, coalesce(w.race_date, r.race_date) AS race_date,
-        CASE WHEN w.race_date IS NOT NULL THEN 'weather' WHEN r.race_date IS NOT NULL THEN 'reviewed' END AS race_date_source,
+        CASE WHEN w.race_date IS NOT NULL THEN 'weather' WHEN r.race_date IS NOT NULL THEN r.source END AS race_date_source,
         n.race_date AS producer_note_date,
         (w.race_date IS NOT NULL AND n.race_date IS NOT NULL AND w.race_date <> n.race_date)
           OR (r.race_date IS NOT NULL AND n.race_date IS NOT NULL AND r.race_date <> n.race_date) AS conflict
@@ -989,7 +1209,8 @@ def write_members(db, pin, core, baseline, root, checks):
     if yob['years_that_disagree']:
         fail(f'the link age keys disagree with the v1 keys on a birth year: {yob}')
     dates = rows(db, """SELECT count(*) AS editions_with_rows, count(*) FILTER(WHERE d.race_date_source='weather') AS weather,
-      count(*) FILTER(WHERE d.race_date_source='reviewed') AS reviewed, count(*) FILTER(WHERE d.race_date IS NULL) AS without_a_race_date,
+      count(*) FILTER(WHERE d.race_date_source='reviewed') AS reviewed, count(*) FILTER(WHERE d.race_date_source='external') AS external,
+      count(*) FILTER(WHERE d.race_date IS NULL) AS without_a_race_date,
       count(*) FILTER(WHERE d.race_date IS NULL AND d.producer_note_date IS NOT NULL) AS of_those_with_a_producer_note_date
       FROM wed e JOIN edition_dates d ON d.city=e.release_city AND d.year=e.year""")[0]
     return {'members_written': written, 'features': features, 'features_by_link_confidence': by_confidence,
@@ -1056,6 +1277,7 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
     head = f'> {LABEL} Built from `{tag}` (pinned in analysis/release.json); adapter version {ADAPTER_VERSION}.\n\n'
     f, rule, identity = details['features'], ROW_RULE[tag], IDENTITY[tag]
     left = {c['check']: c['measured'] for c in checks.items if c['family'] == 'rows_left_out'}
+    half_left = {c['check']: c['measured'] for c in checks.items if c['family'] == 'half_rows_left_out'}
     delta = next(c['measured'] for c in checks.items if c['family'] == 'baseline_delta' and c['check'].startswith('ids removed'))
     docs = {
         'EDITIONS.json': encode_json({'document': LABEL, 'tag': tag, 'editions': editions_json, 'not_written': not_written}),
@@ -1103,8 +1325,9 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
             '`finish_time` and the cumulative minutes `cum_05 … cum_40`, parsed from the raw clock strings with the pacing '
             'parser (null when a string does not parse), then `match_key, is_ambiguous, runner_id, link_preliminary, person_id, '
             'link_confidence, link_method, sex_source`. Recorded sex `X` is null here, as in 1050’s features; nothing is inferred. '
-            '`race_date` is the weather row’s date, else the reviewed date in analysis/reviewed-race-dates.json '
-            '(`edition_meta.race_date_source` says which); every other edition has none and is ordered by year only. The '
+            '`race_date` is the weather row’s date, else the reviewed date in analysis/reviewed-race-dates.json, which rests on the '
+            'producer’s own note or, where that note states no date, on a cited external source (`edition_meta.race_date_source` '
+            'says which: weather, reviewed or external); every other edition has none and is ordered by year only. The '
             'unreviewed date a producer note states is kept apart, in `edition_meta.producer_note_date`. It has none of a producer engine’s columns (`valid_splits`, `wall_*`, '
             'paces, ranks, personal bests): no site builder reads them.\n').encode(),
         'README.md': (
@@ -1113,7 +1336,9 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
             'not in this folder; never pool the two distances. '
             f'{left["distinct rows left out"]:,} rows are left out by the frozen row rule (pending-review flags '
             f'{", ".join(rule["pending_review_flags"])}; QA flags {", ".join(rule["qa_row_flags"])}; a flag among '
-            f'{", ".join(rule["kept_when_edition_wide"])} removes nothing from an edition whose every row carries it) and no '
+            f'{", ".join(rule["kept_when_edition_wide"])} removes nothing from an edition whose every row carries it; '
+            f'{len(left["rows written although flagged, by reviewed exception (record, edition, flag and reviewed finish)"])} rows listed in '
+            'analysis/reviewed-row-exceptions.json are written by reviewed exception although they carry one flag of the rule) and no '
             'pending-review flag is written, so no kept row is labelled. `city` is the label of the edition’s race in the frozen '
             'race registry and `race` its display name (an edition under a plain key keeps the race name the release gives it); '
             '`release_keys.parquet` keeps the release’s own key and race name of every written edition, and `sources.parquet` is '
@@ -1142,6 +1367,11 @@ def write_documents(db, pin, core, assets, root, checks, details, sums):
         'n_release_keys': scalar(db, 'SELECT count(DISTINCT release_city) FROM wed'), 'race_registry': details['race_registry'],
         'rows_left_out': left['distinct rows left out'], 'rows_left_out_by_flag': left['rows left out, by flag (a row can carry two)'],
         'rows_kept_edition_wide': left['rows kept although flagged, because every row of their edition carries the flag (by flag and edition)'],
+        'rows_written_by_reviewed_exception': left['rows written although flagged, by reviewed exception (record, edition, flag and reviewed finish)'],
+        'half_row_rule': {'note': 'half rows that take no part in the identity rule (HALF_ROW_RULE; no half row is written to this folder)',
+                          'rows_left_out': half_left['distinct half rows left out of the identity rule'],
+                          'rows_left_out_by_flag': half_left['half rows left out of the identity rule, by flag (a row can carry two)'],
+                          'rows_kept_edition_wide': half_left['half rows kept although flagged, because every row of their edition carries the flag (by flag and edition)']},
         'editions_without_rows': len(not_written),
         'canonical_record_id': 'race_records.id (= the release id for source_db full, distance marathon)',
         'edition_checksum_method': CHECKSUM_METHOD,

@@ -1,0 +1,429 @@
+{
+ "document": "Reviewed row exceptions of this release (lead ruling D33 of the adoption plan, 2026-11-14): a deliberate, documented departure from the database lead’s rule 7 for three rows. Three rows of London 2026, the race’s podium, are written to the adapted marathon input although they carry the row-quality flag finish_faster_than_world_record, whose bound is the record that stood before this race. The list, its conditions and its external evidence are in analysis/reviewed-row-exceptions.json; analysis/adapt_combined.py checks every condition and stops when one fails. Every other row with the flag stays out. Measured, nothing typed.",
+ "tag": "pace-notes-marathon-half-20261113-1113",
+ "adapted_manifest_sha256": "e994ac1590d8b3204c02cc6327c83cb7315b5cc5fd2914a445f07fa809ba085c",
+ "exceptions": [
+  {
+   "record_id": 782236,
+   "edition": "London 2026",
+   "finish": "1:59:30",
+   "flag": "finish_faster_than_world_record",
+   "edition_facts": {
+    "tier": "partial",
+    "rows_in_release": 59519,
+    "official_finishers": 59830,
+    "coverage_pct": -0.52
+   },
+   "producer_record_note": "DQ step1 2026-10-10: segment pace <2:40/km; finish <2:00",
+   "record_status": "counted",
+   "record_status_reason": null
+  },
+  {
+   "record_id": 782238,
+   "edition": "London 2026",
+   "finish": "1:59:41",
+   "flag": "finish_faster_than_world_record",
+   "edition_facts": {
+    "tier": "partial",
+    "rows_in_release": 59519,
+    "official_finishers": 59830,
+    "coverage_pct": -0.52
+   },
+   "producer_record_note": "DQ step1 2026-10-10: finish <2:00",
+   "record_status": "counted",
+   "record_status_reason": null
+  },
+  {
+   "record_id": 782242,
+   "edition": "London 2026",
+   "finish": "2:00:28",
+   "flag": "finish_faster_than_world_record",
+   "edition_facts": {
+    "tier": "partial",
+    "rows_in_release": 59519,
+    "official_finishers": 59830,
+    "coverage_pct": -0.52
+   },
+   "producer_record_note": null,
+   "record_status": "counted",
+   "record_status_reason": null
+  }
+ ],
+ "london_2026": {
+  "counted_finishes": 56762,
+  "written_rows": 59519
+ },
+ "flag_leaves_out": {
+  "rows": 156,
+  "editions": 51,
+  "in_counted_editions": {
+   "rows": 54,
+   "editions": 5
+  },
+  "in_other_editions": {
+   "rows": 102,
+   "editions": 46
+  },
+  "by_counted_edition": [
+   {
+    "city": "Amsterdam",
+    "year": 2012,
+    "rows": 1,
+    "fastest": "01:49:53",
+    "slowest": "01:49:53"
+   },
+   {
+    "city": "Amsterdam",
+    "year": 2013,
+    "rows": 1,
+    "fastest": "01:58:12",
+    "slowest": "01:58:12"
+   },
+   {
+    "city": "Amsterdam",
+    "year": 2014,
+    "rows": 3,
+    "fastest": "01:47:17",
+    "slowest": "01:56:00"
+   },
+   {
+    "city": "Amsterdam",
+    "year": 2015,
+    "rows": 8,
+    "fastest": "01:32:01",
+    "slowest": "01:54:15"
+   },
+   {
+    "city": "Chicago",
+    "year": 2024,
+    "rows": 41,
+    "fastest": "01:23:10",
+    "slowest": "02:00:31"
+   }
+  ],
+  "by_other_edition": [
+   {
+    "city": "14 éme marathon international de casablanca",
+    "year": 2018,
+    "rows": 2,
+    "fastest": "01:48:01",
+    "slowest": "01:50:37"
+   },
+   {
+    "city": "15ème Édition du Marathon internation de Casablanca",
+    "year": 2024,
+    "rows": 3,
+    "fastest": "01:37:31",
+    "slowest": "01:43:00"
+   },
+   {
+    "city": "34éme MARATHON INTERNATIONAL DE MARRAKECH",
+    "year": 2024,
+    "rows": 9,
+    "fastest": "01:17:14",
+    "slowest": "01:48:09"
+   },
+   {
+    "city": "Air Force Marathon",
+    "year": 2012,
+    "rows": 6,
+    "fastest": "01:22:43",
+    "slowest": "01:52:54"
+   },
+   {
+    "city": "Albany Marathon",
+    "year": 2018,
+    "rows": 1,
+    "fastest": "01:57:35",
+    "slowest": "01:57:35"
+   },
+   {
+    "city": "Bmw Maraton Internacional Tangamanga",
+    "year": 2025,
+    "rows": 1,
+    "fastest": "01:53:50",
+    "slowest": "01:53:50"
+   },
+   {
+    "city": "Champlain Islands Marathon & Half Marathon",
+    "year": 2018,
+    "rows": 1,
+    "fastest": "01:52:40",
+    "slowest": "01:52:40"
+   },
+   {
+    "city": "Clonakilty Waterfront Marathon X",
+    "year": 2019,
+    "rows": 1,
+    "fastest": "01:55:47",
+    "slowest": "01:55:47"
+   },
+   {
+    "city": "Cologne",
+    "year": 2024,
+    "rows": 1,
+    "fastest": "01:53:48",
+    "slowest": "01:53:48"
+   },
+   {
+    "city": "Course MEC Grand Montreal Route #2 - Marathon de Chambly",
+    "year": 2019,
+    "rows": 1,
+    "fastest": "01:18:44",
+    "slowest": "01:18:44"
+   },
+   {
+    "city": "Edmonton",
+    "year": 2016,
+    "rows": 1,
+    "fastest": "01:23:09",
+    "slowest": "01:23:09"
+   },
+   {
+    "city": "Fleet Feet Rochester Half Marathon | 5K | Kids 1/2 Mile",
+    "year": 2016,
+    "rows": 3,
+    "fastest": "01:42:10",
+    "slowest": "01:47:57"
+   },
+   {
+    "city": "Friendly Massey",
+    "year": 2012,
+    "rows": 1,
+    "fastest": "01:58:30",
+    "slowest": "01:58:30"
+   },
+   {
+    "city": "Glass City",
+    "year": 2021,
+    "rows": 7,
+    "fastest": "01:40:55",
+    "slowest": "01:58:21"
+   },
+   {
+    "city": "Gran Canaria - Maspalomas Marathon (San Bartolomé de Tirajana)",
+    "year": 2023,
+    "rows": 2,
+    "fastest": "01:40:43",
+    "slowest": "01:48:55"
+   },
+   {
+    "city": "Hoi An Discovery Marathon - Postponed",
+    "year": 2017,
+    "rows": 1,
+    "fastest": "01:54:23",
+    "slowest": "01:54:23"
+   },
+   {
+    "city": "Houston",
+    "year": 2020,
+    "rows": 10,
+    "fastest": "01:24:50",
+    "slowest": "02:00:25"
+   },
+   {
+    "city": "Kilcock Kilomarathon, 6k & Marathon",
+    "year": 2013,
+    "rows": 1,
+    "fastest": "01:29:33",
+    "slowest": "01:29:33"
+   },
+   {
+    "city": "Long Island Marathon Festival",
+    "year": 2016,
+    "rows": 3,
+    "fastest": "01:30:21",
+    "slowest": "01:47:03"
+   },
+   {
+    "city": "Marathon International de Marakech",
+    "year": 2020,
+    "rows": 1,
+    "fastest": "01:52:12",
+    "slowest": "01:52:12"
+   },
+   {
+    "city": "Marathon Marrakech",
+    "year": 2017,
+    "rows": 3,
+    "fastest": "01:52:36",
+    "slowest": "01:59:39"
+   },
+   {
+    "city": "Maratón Monumental Primer Santiago de America",
+    "year": 2023,
+    "rows": 1,
+    "fastest": "01:08:48",
+    "slowest": "01:08:48"
+   },
+   {
+    "city": "Marrakech Marathon",
+    "year": 2019,
+    "rows": 1,
+    "fastest": "01:54:43",
+    "slowest": "01:54:43"
+   },
+   {
+    "city": "Nong Khai ASEAN Marathon",
+    "year": 2015,
+    "rows": 1,
+    "fastest": "01:24:50",
+    "slowest": "01:24:50"
+   },
+   {
+    "city": "Novant Health Charlotte Marathon",
+    "year": 2024,
+    "rows": 2,
+    "fastest": "01:51:37",
+    "slowest": "01:59:11"
+   },
+   {
+    "city": "Padova",
+    "year": 2010,
+    "rows": 3,
+    "fastest": "01:45:43",
+    "slowest": "02:00:22"
+   },
+   {
+    "city": "Padova",
+    "year": 2011,
+    "rows": 2,
+    "fastest": "01:40:08",
+    "slowest": "01:49:44"
+   },
+   {
+    "city": "Padova",
+    "year": 2013,
+    "rows": 4,
+    "fastest": "01:45:46",
+    "slowest": "01:52:01"
+   },
+   {
+    "city": "Padova",
+    "year": 2017,
+    "rows": 1,
+    "fastest": "01:49:08",
+    "slowest": "01:49:08"
+   },
+   {
+    "city": "Padova",
+    "year": 2024,
+    "rows": 3,
+    "fastest": "01:30:00",
+    "slowest": "01:44:16"
+   },
+   {
+    "city": "Palm Beaches Marathon & RunFest",
+    "year": 2013,
+    "rows": 1,
+    "fastest": "01:34:35",
+    "slowest": "01:34:35"
+   },
+   {
+    "city": "Rimouski",
+    "year": 2013,
+    "rows": 2,
+    "fastest": "01:32:44",
+    "slowest": "01:54:14"
+   },
+   {
+    "city": "Rimouski",
+    "year": 2014,
+    "rows": 5,
+    "fastest": "01:16:20",
+    "slowest": "01:54:39"
+   },
+   {
+    "city": "Rock 'n' Roll Nashville",
+    "year": 2019,
+    "rows": 1,
+    "fastest": "01:37:54",
+    "slowest": "01:37:54"
+   },
+   {
+    "city": "Rock 'n' Roll Nashville",
+    "year": 2023,
+    "rows": 1,
+    "fastest": "01:52:54",
+    "slowest": "01:52:54"
+   },
+   {
+    "city": "Rock 'n' Roll Nashville",
+    "year": 2024,
+    "rows": 2,
+    "fastest": "01:53:30",
+    "slowest": "01:55:00"
+   },
+   {
+    "city": "Rock 'n' Roll San Antonio",
+    "year": 2018,
+    "rows": 1,
+    "fastest": "01:53:53",
+    "slowest": "01:53:53"
+   },
+   {
+    "city": "Rock 'n' Roll San Antonio",
+    "year": 2022,
+    "rows": 1,
+    "fastest": "01:51:08",
+    "slowest": "01:51:08"
+   },
+   {
+    "city": "Rock 'n' Roll San Diego",
+    "year": 2018,
+    "rows": 1,
+    "fastest": "02:00:26",
+    "slowest": "02:00:26"
+   },
+   {
+    "city": "Rock 'n' Roll San Diego",
+    "year": 2019,
+    "rows": 3,
+    "fastest": "01:50:39",
+    "slowest": "01:54:30"
+   },
+   {
+    "city": "Rock 'n' Roll Savannah",
+    "year": 2019,
+    "rows": 1,
+    "fastest": "01:51:28",
+    "slowest": "01:51:28"
+   },
+   {
+    "city": "Saskatchewan",
+    "year": 2022,
+    "rows": 2,
+    "fastest": "01:37:30",
+    "slowest": "01:58:58"
+   },
+   {
+    "city": "Space Coast",
+    "year": 2025,
+    "rows": 1,
+    "fastest": "01:54:44",
+    "slowest": "01:54:44"
+   },
+   {
+    "city": "The Miami Marathon & Half Marathon",
+    "year": 2014,
+    "rows": 1,
+    "fastest": "01:32:45",
+    "slowest": "01:32:45"
+   },
+   {
+    "city": "Torino",
+    "year": 2025,
+    "rows": 1,
+    "fastest": "01:37:06",
+    "slowest": "01:37:06"
+   },
+   {
+    "city": "Tri Cities Marathon",
+    "year": 2018,
+    "rows": 1,
+    "fastest": "01:32:00",
+    "slowest": "01:32:00"
+   }
+  ]
+ }
+}
