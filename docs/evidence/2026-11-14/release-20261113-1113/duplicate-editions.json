@@ -1,0 +1,2007 @@
+{
+ "closest_unlisted": {
+  "exact_by_share_of_the_smaller": [
+   {
+    "a": {
+     "city": "Maratona del Lamone",
+     "keys": 494,
+     "rows": 494,
+     "rows_with_a_finish": 494,
+     "single_names": 494,
+     "year": 2022
+    },
+    "b": {
+     "city": "Rimini Marathon",
+     "keys": 1248,
+     "rows": 1248,
+     "rows_with_a_finish": 1248,
+     "single_names": 1244,
+     "year": 2022
+    },
+    "exact": {
+     "shared": 2
+    },
+    "near": {
+     "aligned": 17,
+     "names_in_common": 143,
+     "window_seconds": [
+      0,
+      120
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": -16.0,
+     "matched": 42,
+     "matched_shifted_minus": 59,
+     "matched_shifted_plus": 57
+    }
+   },
+   {
+    "a": {
+     "city": "Maratona del Lamone",
+     "keys": 682,
+     "rows": 682,
+     "rows_with_a_finish": 682,
+     "single_names": 682,
+     "year": 2019
+    },
+    "b": {
+     "city": "Rimini Marathon",
+     "keys": 1509,
+     "rows": 1509,
+     "rows_with_a_finish": 1509,
+     "single_names": 1505,
+     "year": 2018
+    },
+    "exact": {
+     "shared": 2
+    },
+    "near": {
+     "aligned": 8,
+     "names_in_common": 113,
+     "window_seconds": [
+      -1320,
+      -1200
+     ]
+    },
+    "rules": [],
+    "time_only": null
+   },
+   {
+    "a": {
+     "city": "34éme MARATHON INTERNATIONAL DE MARRAKECH",
+     "keys": 834,
+     "rows": 837,
+     "rows_with_a_finish": 837,
+     "single_names": 768,
+     "year": 2023
+    },
+    "b": {
+     "city": "34éme MARATHON INTERNATIONAL DE MARRAKECH",
+     "keys": 1166,
+     "rows": 1168,
+     "rows_with_a_finish": 1168,
+     "single_names": 1009,
+     "year": 2024
+    },
+    "exact": {
+     "shared": 2
+    },
+    "near": {
+     "aligned": 10,
+     "names_in_common": 87,
+     "window_seconds": [
+      -120,
+      0
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 14.5,
+     "matched": 99,
+     "matched_shifted_minus": 87,
+     "matched_shifted_plus": 82
+    }
+   },
+   {
+    "a": {
+     "city": "Cetilar Maratona di Pisa",
+     "keys": 977,
+     "rows": 977,
+     "rows_with_a_finish": 977,
+     "single_names": 977,
+     "year": 2022
+    },
+    "b": {
+     "city": "Rome",
+     "keys": 11235,
+     "rows": 11235,
+     "rows_with_a_finish": 11235,
+     "single_names": 11205,
+     "year": 2023
+    },
+    "exact": {
+     "shared": 2
+    },
+    "near": {
+     "aligned": 15,
+     "names_in_common": 120,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": null
+   },
+   {
+    "a": {
+     "city": "Cetilar Maratona di Pisa",
+     "keys": 977,
+     "rows": 977,
+     "rows_with_a_finish": 977,
+     "single_names": 977,
+     "year": 2022
+    },
+    "b": {
+     "city": "Torino",
+     "keys": 3327,
+     "rows": 3327,
+     "rows_with_a_finish": 3327,
+     "single_names": 3317,
+     "year": 2012
+    },
+    "exact": {
+     "shared": 2
+    },
+    "near": {
+     "aligned": 2,
+     "names_in_common": 19,
+     "window_seconds": [
+      0,
+      120
+     ]
+    },
+    "rules": [],
+    "time_only": null
+   },
+   {
+    "a": {
+     "city": "Colorado Marathon",
+     "keys": 1152,
+     "rows": 1152,
+     "rows_with_a_finish": 1152,
+     "single_names": 1146,
+     "year": 2013
+    },
+    "b": {
+     "city": "Houston",
+     "keys": 6522,
+     "rows": 6522,
+     "rows_with_a_finish": 6522,
+     "single_names": 6452,
+     "year": 2013
+    },
+    "exact": {
+     "shared": 2
+    },
+    "near": {
+     "aligned": 3,
+     "names_in_common": 20,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 9.5,
+     "matched": 508,
+     "matched_shifted_minus": 503,
+     "matched_shifted_plus": 494
+    }
+   },
+   {
+    "a": {
+     "city": "Boston",
+     "keys": 1200,
+     "rows": 1200,
+     "rows_with_a_finish": 1200,
+     "single_names": 1200,
+     "year": 2016
+    },
+    "b": {
+     "city": "Boston",
+     "keys": 25652,
+     "rows": 25652,
+     "rows_with_a_finish": 25652,
+     "single_names": 25232,
+     "year": 2018
+    },
+    "exact": {
+     "shared": 2
+    },
+    "near": {
+     "aligned": 28,
+     "names_in_common": 292,
+     "window_seconds": [
+      -420,
+      -300
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 34.5,
+     "matched": 813,
+     "matched_shifted_minus": 769,
+     "matched_shifted_plus": 788
+    }
+   },
+   {
+    "a": {
+     "city": "Halong Bay Heritage Marathon",
+     "keys": 3135,
+     "rows": 3135,
+     "rows_with_a_finish": 3135,
+     "single_names": 2589,
+     "year": 2024
+    },
+    "b": {
+     "city": "VPBank International Marathon",
+     "keys": 1457,
+     "rows": 1457,
+     "rows_with_a_finish": 1457,
+     "single_names": 1239,
+     "year": 2025
+    },
+    "exact": {
+     "shared": 2
+    },
+    "near": {
+     "aligned": 19,
+     "names_in_common": 303,
+     "window_seconds": [
+      240,
+      360
+     ]
+    },
+    "rules": [],
+    "time_only": null
+   },
+   {
+    "a": {
+     "city": "VPBank International Marathon",
+     "keys": 1457,
+     "rows": 1457,
+     "rows_with_a_finish": 1457,
+     "single_names": 1239,
+     "year": 2025
+    },
+    "b": {
+     "city": "VnExpress Marathon Hai Phong",
+     "keys": 1935,
+     "rows": 1935,
+     "rows_with_a_finish": 1935,
+     "single_names": 1629,
+     "year": 2023
+    },
+    "exact": {
+     "shared": 2
+    },
+    "near": {
+     "aligned": 11,
+     "names_in_common": 201,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": null
+   },
+   {
+    "a": {
+     "city": "Akron Marathon",
+     "keys": 1576,
+     "rows": 1576,
+     "rows_with_a_finish": 1576,
+     "single_names": 1566,
+     "year": 2014
+    },
+    "b": {
+     "city": "Akron Marathon",
+     "keys": 1473,
+     "rows": 1473,
+     "rows_with_a_finish": 1473,
+     "single_names": 1469,
+     "year": 2015
+    },
+    "exact": {
+     "shared": 2
+    },
+    "near": {
+     "aligned": 32,
+     "names_in_common": 441,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 29.5,
+     "matched": 208,
+     "matched_shifted_minus": 171,
+     "matched_shifted_plus": 186
+    }
+   }
+  ],
+  "exact_by_shared_keys": [
+   {
+    "a": {
+     "city": "Boston",
+     "keys": 31804,
+     "rows": 31804,
+     "rows_with_a_finish": 31804,
+     "single_names": 31009,
+     "year": 2014
+    },
+    "b": {
+     "city": "Boston",
+     "keys": 26610,
+     "rows": 26610,
+     "rows_with_a_finish": 26610,
+     "single_names": 26109,
+     "year": 2015
+    },
+    "exact": {
+     "shared": 8
+    },
+    "near": {
+     "aligned": 582,
+     "names_in_common": 7510,
+     "window_seconds": [
+      120,
+      240
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 72.0,
+     "matched": 18447,
+     "matched_shifted_minus": 18501,
+     "matched_shifted_plus": 18249
+    }
+   },
+   {
+    "a": {
+     "city": "Chicago",
+     "keys": 38877,
+     "rows": 38877,
+     "rows_with_a_finish": 38877,
+     "single_names": 37747,
+     "year": 2013
+    },
+    "b": {
+     "city": "Chicago",
+     "keys": 40601,
+     "rows": 40601,
+     "rows_with_a_finish": 40601,
+     "single_names": 39621,
+     "year": 2014
+    },
+    "exact": {
+     "shared": 8
+    },
+    "near": {
+     "aligned": 402,
+     "names_in_common": 7846,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": -13.5,
+     "matched": 26389,
+     "matched_shifted_minus": 26410,
+     "matched_shifted_plus": 26395
+    }
+   },
+   {
+    "a": {
+     "city": "Chicago",
+     "keys": 44549,
+     "rows": 44550,
+     "rows_with_a_finish": 44549,
+     "single_names": 43596,
+     "year": 2018
+    },
+    "b": {
+     "city": "Chicago",
+     "keys": 45864,
+     "rows": 45864,
+     "rows_with_a_finish": 45864,
+     "single_names": 45045,
+     "year": 2019
+    },
+    "exact": {
+     "shared": 8
+    },
+    "near": {
+     "aligned": 302,
+     "names_in_common": 6205,
+     "window_seconds": [
+      180,
+      300
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": -146.5,
+     "matched": 30237,
+     "matched_shifted_minus": 30386,
+     "matched_shifted_plus": 30381
+    }
+   },
+   {
+    "a": {
+     "city": "New York",
+     "keys": 51225,
+     "rows": 51225,
+     "rows_with_a_finish": 51225,
+     "single_names": 50117,
+     "year": 2023
+    },
+    "b": {
+     "city": "New York",
+     "keys": 55493,
+     "rows": 55493,
+     "rows_with_a_finish": 55493,
+     "single_names": 54310,
+     "year": 2024
+    },
+    "exact": {
+     "shared": 8
+    },
+    "near": {
+     "aligned": 422,
+     "names_in_common": 8865,
+     "window_seconds": [
+      300,
+      420
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 95.5,
+     "matched": 36679,
+     "matched_shifted_minus": 36619,
+     "matched_shifted_plus": 36548
+    }
+   },
+   {
+    "a": {
+     "city": "Boston",
+     "keys": 25652,
+     "rows": 25652,
+     "rows_with_a_finish": 25652,
+     "single_names": 25232,
+     "year": 2018
+    },
+    "b": {
+     "city": "Boston",
+     "keys": 26555,
+     "rows": 26555,
+     "rows_with_a_finish": 26555,
+     "single_names": 26154,
+     "year": 2019
+    },
+    "exact": {
+     "shared": 7
+    },
+    "near": {
+     "aligned": 379,
+     "names_in_common": 6751,
+     "window_seconds": [
+      120,
+      240
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 98.0,
+     "matched": 16518,
+     "matched_shifted_minus": 16507,
+     "matched_shifted_plus": 16333
+    }
+   },
+   {
+    "a": {
+     "city": "Boston",
+     "keys": 15384,
+     "rows": 15384,
+     "rows_with_a_finish": 15384,
+     "single_names": 15170,
+     "year": 2021
+    },
+    "b": {
+     "city": "Boston",
+     "keys": 24827,
+     "rows": 24827,
+     "rows_with_a_finish": 24827,
+     "single_names": 24503,
+     "year": 2022
+    },
+    "exact": {
+     "shared": 7
+    },
+    "near": {
+     "aligned": 439,
+     "names_in_common": 5247,
+     "window_seconds": [
+      60,
+      180
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 36.0,
+     "matched": 10916,
+     "matched_shifted_minus": 10853,
+     "matched_shifted_plus": 10907
+    }
+   },
+   {
+    "a": {
+     "city": "Boston",
+     "keys": 26580,
+     "rows": 26580,
+     "rows_with_a_finish": 26580,
+     "single_names": 26039,
+     "year": 2023
+    },
+    "b": {
+     "city": "Boston",
+     "keys": 28788,
+     "rows": 28788,
+     "rows_with_a_finish": 28788,
+     "single_names": 28286,
+     "year": 2026
+    },
+    "exact": {
+     "shared": 7
+    },
+    "near": {
+     "aligned": 292,
+     "names_in_common": 4622,
+     "window_seconds": [
+      -180,
+      -60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 36.0,
+     "matched": 17782,
+     "matched_shifted_minus": 17744,
+     "matched_shifted_plus": 17748
+    }
+   },
+   {
+    "a": {
+     "city": "Chicago",
+     "keys": 52100,
+     "rows": 52100,
+     "rows_with_a_finish": 52100,
+     "single_names": 51246,
+     "year": 2024
+    },
+    "b": {
+     "city": "Chicago",
+     "keys": 53739,
+     "rows": 53739,
+     "rows_with_a_finish": 53739,
+     "single_names": 52901,
+     "year": 2025
+    },
+    "exact": {
+     "shared": 7
+    },
+    "near": {
+     "aligned": 359,
+     "names_in_common": 6586,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": -40.0,
+     "matched": 36507,
+     "matched_shifted_minus": 36513,
+     "matched_shifted_plus": 36581
+    }
+   },
+   {
+    "a": {
+     "city": "London",
+     "keys": 46567,
+     "rows": 46567,
+     "rows_with_a_finish": 46567,
+     "single_names": 44261,
+     "year": 2024
+    },
+    "b": {
+     "city": "London",
+     "keys": 55047,
+     "rows": 55047,
+     "rows_with_a_finish": 55047,
+     "single_names": 52005,
+     "year": 2025
+    },
+    "exact": {
+     "shared": 7
+    },
+    "near": {
+     "aligned": 278,
+     "names_in_common": 5027,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 114.5,
+     "matched": 33619,
+     "matched_shifted_minus": 33502,
+     "matched_shifted_plus": 33507
+    }
+   },
+   {
+    "a": {
+     "city": "New York",
+     "keys": 59103,
+     "rows": 59103,
+     "rows_with_a_finish": 59103,
+     "single_names": 57796,
+     "year": 2025
+    },
+    "b": {
+     "city": "New York",
+     "keys": 61062,
+     "rows": 61062,
+     "rows_with_a_finish": 61062,
+     "single_names": 59395,
+     "year": 2026
+    },
+    "exact": {
+     "shared": 7
+    },
+    "near": {
+     "aligned": 537,
+     "names_in_common": 10827,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 81.0,
+     "matched": 42364,
+     "matched_shifted_minus": 42224,
+     "matched_shifted_plus": 42342
+    }
+   }
+  ],
+  "near_by_share_of_the_names_in_common": [
+   {
+    "a": {
+     "city": "London",
+     "keys": 1200,
+     "rows": 1200,
+     "rows_with_a_finish": 1200,
+     "single_names": 1194,
+     "year": 2015
+    },
+    "b": {
+     "city": "London",
+     "keys": 909,
+     "rows": 909,
+     "rows_with_a_finish": 909,
+     "single_names": 909,
+     "year": 2016
+    },
+    "exact": {
+     "shared": 1
+    },
+    "near": {
+     "aligned": 55,
+     "names_in_common": 284,
+     "window_seconds": [
+      120,
+      240
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": -17.0,
+     "matched": 209,
+     "matched_shifted_minus": 231,
+     "matched_shifted_plus": 221
+    }
+   },
+   {
+    "a": {
+     "city": "Boston",
+     "keys": 26610,
+     "rows": 26610,
+     "rows_with_a_finish": 26610,
+     "single_names": 26109,
+     "year": 2015
+    },
+    "b": {
+     "city": "Boston",
+     "keys": 1200,
+     "rows": 1200,
+     "rows_with_a_finish": 1200,
+     "single_names": 1200,
+     "year": 2016
+    },
+    "exact": {
+     "shared": 1
+    },
+    "near": {
+     "aligned": 60,
+     "names_in_common": 455,
+     "window_seconds": [
+      -240,
+      -120
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": -3.5,
+     "matched": 877,
+     "matched_shifted_minus": 901,
+     "matched_shifted_plus": 860
+    }
+   },
+   {
+    "a": {
+     "city": "London",
+     "keys": 1520,
+     "rows": 1520,
+     "rows_with_a_finish": 1520,
+     "single_names": 1514,
+     "year": 2017
+    },
+    "b": {
+     "city": "London",
+     "keys": 42612,
+     "rows": 42612,
+     "rows_with_a_finish": 42612,
+     "single_names": 39614,
+     "year": 2019
+    },
+    "exact": {
+     "shared": 1
+    },
+    "near": {
+     "aligned": 62,
+     "names_in_common": 531,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 10.5,
+     "matched": 1008,
+     "matched_shifted_minus": 966,
+     "matched_shifted_plus": 1029
+    }
+   },
+   {
+    "a": {
+     "city": "Amsterdam",
+     "keys": 6608,
+     "rows": 6608,
+     "rows_with_a_finish": 6608,
+     "single_names": 6586,
+     "year": 2021
+    },
+    "b": {
+     "city": "Rotterdam",
+     "keys": 11722,
+     "rows": 11722,
+     "rows_with_a_finish": 11722,
+     "single_names": 11600,
+     "year": 2022
+    },
+    "exact": {
+     "shared": 1
+    },
+    "near": {
+     "aligned": 53,
+     "names_in_common": 471,
+     "window_seconds": [
+      0,
+      120
+     ]
+    },
+    "rules": [],
+    "time_only": null
+   },
+   {
+    "a": {
+     "city": "Torino",
+     "keys": 2676,
+     "rows": 2676,
+     "rows_with_a_finish": 2676,
+     "single_names": 2674,
+     "year": 2011
+    },
+    "b": {
+     "city": "Torino",
+     "keys": 3466,
+     "rows": 3466,
+     "rows_with_a_finish": 3466,
+     "single_names": 3452,
+     "year": 2013
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 57,
+     "names_in_common": 542,
+     "window_seconds": [
+      -120,
+      0
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 12.5,
+     "matched": 849,
+     "matched_shifted_minus": 842,
+     "matched_shifted_plus": 831
+    }
+   },
+   {
+    "a": {
+     "city": "Torino",
+     "keys": 3466,
+     "rows": 3466,
+     "rows_with_a_finish": 3466,
+     "single_names": 3452,
+     "year": 2013
+    },
+    "b": {
+     "city": "Torino",
+     "keys": 3545,
+     "rows": 3545,
+     "rows_with_a_finish": 3545,
+     "single_names": 3526,
+     "year": 2014
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 73,
+     "names_in_common": 696,
+     "window_seconds": [
+      120,
+      240
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 25.5,
+     "matched": 1067,
+     "matched_shifted_minus": 1038,
+     "matched_shifted_plus": 1045
+    }
+   },
+   {
+    "a": {
+     "city": "Amsterdam",
+     "keys": 12348,
+     "rows": 12350,
+     "rows_with_a_finish": 12348,
+     "single_names": 12287,
+     "year": 2015
+    },
+    "b": {
+     "city": "Rotterdam",
+     "keys": 12813,
+     "rows": 12813,
+     "rows_with_a_finish": 12813,
+     "single_names": 12689,
+     "year": 2016
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 65,
+     "names_in_common": 623,
+     "window_seconds": [
+      60,
+      180
+     ]
+    },
+    "rules": [],
+    "time_only": null
+   },
+   {
+    "a": {
+     "city": "Sevilla",
+     "keys": 7554,
+     "rows": 7554,
+     "rows_with_a_finish": 7554,
+     "single_names": 7518,
+     "year": 2022
+    },
+    "b": {
+     "city": "Valencia",
+     "keys": 21628,
+     "rows": 21628,
+     "rows_with_a_finish": 21628,
+     "single_names": 21522,
+     "year": 2022
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 64,
+     "names_in_common": 625,
+     "window_seconds": [
+      60,
+      180
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": -28.0,
+     "matched": 5809,
+     "matched_shifted_minus": 5815,
+     "matched_shifted_plus": 5859
+    }
+   },
+   {
+    "a": {
+     "city": "Torino",
+     "keys": 3327,
+     "rows": 3327,
+     "rows_with_a_finish": 3327,
+     "single_names": 3317,
+     "year": 2012
+    },
+    "b": {
+     "city": "Torino",
+     "keys": 3466,
+     "rows": 3466,
+     "rows_with_a_finish": 3466,
+     "single_names": 3452,
+     "year": 2013
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 74,
+     "names_in_common": 783,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 4.5,
+     "matched": 1005,
+     "matched_shifted_minus": 1005,
+     "matched_shifted_plus": 996
+    }
+   },
+   {
+    "a": {
+     "city": "Amsterdam",
+     "keys": 12348,
+     "rows": 12350,
+     "rows_with_a_finish": 12348,
+     "single_names": 12287,
+     "year": 2015
+    },
+    "b": {
+     "city": "Rotterdam",
+     "keys": 11882,
+     "rows": 11882,
+     "rows_with_a_finish": 11882,
+     "single_names": 11792,
+     "year": 2015
+    },
+    "exact": {
+     "shared": 1
+    },
+    "near": {
+     "aligned": 55,
+     "names_in_common": 588,
+     "window_seconds": [
+      -180,
+      -60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 58.0,
+     "matched": 6347,
+     "matched_shifted_minus": 6292,
+     "matched_shifted_plus": 6286
+    }
+   }
+  ],
+  "near_by_share_of_the_smaller": [
+   {
+    "a": {
+     "city": "Lévis-Québec",
+     "keys": 738,
+     "rows": 738,
+     "rows_with_a_finish": 738,
+     "single_names": 734,
+     "year": 2006
+    },
+    "b": {
+     "city": "Rimouski",
+     "keys": 116,
+     "rows": 116,
+     "rows_with_a_finish": 116,
+     "single_names": 116,
+     "year": 2007
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 10,
+     "names_in_common": 57,
+     "window_seconds": [
+      60,
+      180
+     ]
+    },
+    "rules": [],
+    "time_only": null
+   },
+   {
+    "a": {
+     "city": "Rimouski",
+     "keys": 116,
+     "rows": 116,
+     "rows_with_a_finish": 116,
+     "single_names": 116,
+     "year": 2007
+    },
+    "b": {
+     "city": "Rimouski",
+     "keys": 145,
+     "rows": 145,
+     "rows_with_a_finish": 145,
+     "single_names": 145,
+     "year": 2009
+    },
+    "exact": {
+     "shared": 1
+    },
+    "near": {
+     "aligned": 10,
+     "names_in_common": 48,
+     "window_seconds": [
+      0,
+      120
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 2.0,
+     "matched": 6,
+     "matched_shifted_minus": 6,
+     "matched_shifted_plus": 2
+    }
+   },
+   {
+    "a": {
+     "city": "Clonakilty Back2Back Marathons Day 1",
+     "keys": 178,
+     "rows": 178,
+     "rows_with_a_finish": 178,
+     "single_names": 178,
+     "year": 2014
+    },
+    "b": {
+     "city": "Clonakilty Back2Back Marathons Day 2",
+     "keys": 160,
+     "rows": 160,
+     "rows_with_a_finish": 160,
+     "single_names": 160,
+     "year": 2014
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 10,
+     "names_in_common": 128,
+     "window_seconds": [
+      -240,
+      -120
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 3.5,
+     "matched": 7,
+     "matched_shifted_minus": 3,
+     "matched_shifted_plus": 4
+    }
+   },
+   {
+    "a": {
+     "city": "London",
+     "keys": 1200,
+     "rows": 1200,
+     "rows_with_a_finish": 1200,
+     "single_names": 1194,
+     "year": 2015
+    },
+    "b": {
+     "city": "London",
+     "keys": 909,
+     "rows": 909,
+     "rows_with_a_finish": 909,
+     "single_names": 909,
+     "year": 2016
+    },
+    "exact": {
+     "shared": 1
+    },
+    "near": {
+     "aligned": 55,
+     "names_in_common": 284,
+     "window_seconds": [
+      120,
+      240
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": -17.0,
+     "matched": 209,
+     "matched_shifted_minus": 231,
+     "matched_shifted_plus": 221
+    }
+   },
+   {
+    "a": {
+     "city": "Maratona di Latina",
+     "keys": 227,
+     "rows": 228,
+     "rows_with_a_finish": 228,
+     "single_names": 227,
+     "year": 2024
+    },
+    "b": {
+     "city": "Maratona di Latina",
+     "keys": 232,
+     "rows": 232,
+     "rows_with_a_finish": 232,
+     "single_names": 232,
+     "year": 2025
+    },
+    "exact": {
+     "shared": 1
+    },
+    "near": {
+     "aligned": 13,
+     "names_in_common": 90,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 3.5,
+     "matched": 8,
+     "matched_shifted_minus": 5,
+     "matched_shifted_plus": 4
+    }
+   },
+   {
+    "a": {
+     "city": "White Marble Marathon (Marina di Carrara)",
+     "keys": 258,
+     "rows": 258,
+     "rows_with_a_finish": 258,
+     "single_names": 256,
+     "year": 2023
+    },
+    "b": {
+     "city": "White Marble Marathon (Marina di Carrara)",
+     "keys": 247,
+     "rows": 247,
+     "rows_with_a_finish": 247,
+     "single_names": 247,
+     "year": 2024
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 14,
+     "names_in_common": 55,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 0.5,
+     "matched": 5,
+     "matched_shifted_minus": 7,
+     "matched_shifted_plus": 2
+    }
+   },
+   {
+    "a": {
+     "city": "Kuopio Marathon (Finland)",
+     "keys": 236,
+     "rows": 236,
+     "rows_with_a_finish": 236,
+     "single_names": 236,
+     "year": 2011
+    },
+    "b": {
+     "city": "Kuopio Maraton (Finland)",
+     "keys": 226,
+     "rows": 226,
+     "rows_with_a_finish": 226,
+     "single_names": 226,
+     "year": 2010
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 12,
+     "names_in_common": 72,
+     "window_seconds": [
+      0,
+      120
+     ]
+    },
+    "rules": [],
+    "time_only": null
+   },
+   {
+    "a": {
+     "city": "EPIC Marathon and Running Festival",
+     "keys": 393,
+     "rows": 393,
+     "rows_with_a_finish": 393,
+     "single_names": 393,
+     "year": 2025
+    },
+    "b": {
+     "city": "EPIC Marathon and Running Festival",
+     "keys": 379,
+     "rows": 379,
+     "rows_with_a_finish": 379,
+     "single_names": 377,
+     "year": 2026
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 20,
+     "names_in_common": 81,
+     "window_seconds": [
+      -60,
+      60
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 5.0,
+     "matched": 18,
+     "matched_shifted_minus": 11,
+     "matched_shifted_plus": 15
+    }
+   },
+   {
+    "a": {
+     "city": "London",
+     "keys": 909,
+     "rows": 909,
+     "rows_with_a_finish": 909,
+     "single_names": 909,
+     "year": 2016
+    },
+    "b": {
+     "city": "London",
+     "keys": 1520,
+     "rows": 1520,
+     "rows_with_a_finish": 1520,
+     "single_names": 1514,
+     "year": 2017
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 47,
+     "names_in_common": 301,
+     "window_seconds": [
+      60,
+      180
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": -6.0,
+     "matched": 239,
+     "matched_shifted_minus": 217,
+     "matched_shifted_plus": 273
+    }
+   },
+   {
+    "a": {
+     "city": "Boston",
+     "keys": 26610,
+     "rows": 26610,
+     "rows_with_a_finish": 26610,
+     "single_names": 26109,
+     "year": 2015
+    },
+    "b": {
+     "city": "Boston",
+     "keys": 1200,
+     "rows": 1200,
+     "rows_with_a_finish": 1200,
+     "single_names": 1200,
+     "year": 2016
+    },
+    "exact": {
+     "shared": 1
+    },
+    "near": {
+     "aligned": 60,
+     "names_in_common": 455,
+     "window_seconds": [
+      -240,
+      -120
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": -3.5,
+     "matched": 877,
+     "matched_shifted_minus": 901,
+     "matched_shifted_plus": 860
+    }
+   }
+  ],
+  "time_only_by_excess": [
+   {
+    "a": {
+     "city": "Mezza Maratona dei Sei Comuni (Villaverla)",
+     "keys": 27,
+     "rows": 27,
+     "rows_with_a_finish": 27,
+     "single_names": 27,
+     "year": 2023
+    },
+    "b": {
+     "city": "REVEL Big Bear Marathon",
+     "keys": 1822,
+     "rows": 1823,
+     "rows_with_a_finish": 1823,
+     "single_names": 1820,
+     "year": 2023
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 0,
+     "names_in_common": 0,
+     "window_seconds": null
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 9.5,
+     "matched": 12,
+     "matched_shifted_minus": 1,
+     "matched_shifted_plus": 4
+    }
+   },
+   {
+    "a": {
+     "city": "Kungsbackaloppet",
+     "keys": 60,
+     "rows": 60,
+     "rows_with_a_finish": 60,
+     "single_names": 60,
+     "year": 2012
+    },
+    "b": {
+     "city": "Toronto Waterfront",
+     "keys": 3252,
+     "rows": 3252,
+     "rows_with_a_finish": 3252,
+     "single_names": 3240,
+     "year": 2012
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 1,
+     "names_in_common": 1,
+     "window_seconds": [
+      -540,
+      -420
+     ]
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 19.0,
+     "matched": 32,
+     "matched_shifted_minus": 14,
+     "matched_shifted_plus": 12
+    }
+   },
+   {
+    "a": {
+     "city": "MCI Kiloscully",
+     "keys": 24,
+     "rows": 24,
+     "rows_with_a_finish": 24,
+     "single_names": 24,
+     "year": 2019
+    },
+    "b": {
+     "city": "Torreón",
+     "keys": 4065,
+     "rows": 4065,
+     "rows_with_a_finish": 4065,
+     "single_names": 4043,
+     "year": 2019
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 0,
+     "names_in_common": 0,
+     "window_seconds": null
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 7.5,
+     "matched": 12,
+     "matched_shifted_minus": 5,
+     "matched_shifted_plus": 4
+    }
+   },
+   {
+    "a": {
+     "city": "Hamburg",
+     "keys": 5500,
+     "rows": 5500,
+     "rows_with_a_finish": 5500,
+     "single_names": 5470,
+     "year": 2022
+    },
+    "b": {
+     "city": "MCI Carlow",
+     "keys": 21,
+     "rows": 21,
+     "rows_with_a_finish": 21,
+     "single_names": 21,
+     "year": 2022
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 0,
+     "names_in_common": 0,
+     "window_seconds": null
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 6.5,
+     "matched": 10,
+     "matched_shifted_minus": 4,
+     "matched_shifted_plus": 3
+    }
+   },
+   {
+    "a": {
+     "city": "Bear Paw",
+     "keys": 20,
+     "rows": 20,
+     "rows_with_a_finish": 20,
+     "single_names": 20,
+     "year": 2021
+    },
+    "b": {
+     "city": "Philadelphia",
+     "keys": 7173,
+     "rows": 7173,
+     "rows_with_a_finish": 7173,
+     "single_names": 7125,
+     "year": 2021
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 0,
+     "names_in_common": 0,
+     "window_seconds": null
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 6.0,
+     "matched": 15,
+     "matched_shifted_minus": 8,
+     "matched_shifted_plus": 10
+    }
+   },
+   {
+    "a": {
+     "city": "Houston",
+     "keys": 6274,
+     "rows": 6274,
+     "rows_with_a_finish": 6274,
+     "single_names": 6189,
+     "year": 2022
+    },
+    "b": {
+     "city": "Maratón BAJA SUR",
+     "keys": 20,
+     "rows": 20,
+     "rows_with_a_finish": 20,
+     "single_names": 20,
+     "year": 2022
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 0,
+     "names_in_common": 0,
+     "window_seconds": null
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 6.0,
+     "matched": 12,
+     "matched_shifted_minus": 4,
+     "matched_shifted_plus": 8
+    }
+   },
+   {
+    "a": {
+     "city": "Course MEC Longueuil #5",
+     "keys": 36,
+     "rows": 36,
+     "rows_with_a_finish": 36,
+     "single_names": 36,
+     "year": 2015
+    },
+    "b": {
+     "city": "Walt Disney World",
+     "keys": 19955,
+     "rows": 19955,
+     "rows_with_a_finish": 19955,
+     "single_names": 19548,
+     "year": 2015
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 0,
+     "names_in_common": 0,
+     "window_seconds": null
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 10.5,
+     "matched": 25,
+     "matched_shifted_minus": 12,
+     "matched_shifted_plus": 17
+    }
+   },
+   {
+    "a": {
+     "city": "Firenze",
+     "keys": 8880,
+     "rows": 8880,
+     "rows_with_a_finish": 8880,
+     "single_names": 8826,
+     "year": 2024
+    },
+    "b": {
+     "city": "Mid-South Races for Hope (Mid-South Marathon, Half-Marathon and 5K)",
+     "keys": 24,
+     "rows": 24,
+     "rows_with_a_finish": 24,
+     "single_names": 24,
+     "year": 2024
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 0,
+     "names_in_common": 0,
+     "window_seconds": null
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 7.0,
+     "matched": 12,
+     "matched_shifted_minus": 4,
+     "matched_shifted_plus": 6
+    }
+   },
+   {
+    "a": {
+     "city": "BMW Dallas Marathon",
+     "keys": 2473,
+     "rows": 2473,
+     "rows_with_a_finish": 2473,
+     "single_names": 2462,
+     "year": 2022
+    },
+    "b": {
+     "city": "Northeast Kingdom Marathon",
+     "keys": 40,
+     "rows": 40,
+     "rows_with_a_finish": 40,
+     "single_names": 40,
+     "year": 2022
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 0,
+     "names_in_common": 0,
+     "window_seconds": null
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 11.5,
+     "matched": 21,
+     "matched_shifted_minus": 11,
+     "matched_shifted_plus": 8
+    }
+   },
+   {
+    "a": {
+     "city": "St. George",
+     "keys": 5461,
+     "rows": 5461,
+     "rows_with_a_finish": 5461,
+     "single_names": 5457,
+     "year": 2015
+    },
+    "b": {
+     "city": "The EKY Marathon",
+     "keys": 23,
+     "rows": 23,
+     "rows_with_a_finish": 23,
+     "single_names": 23,
+     "year": 2015
+    },
+    "exact": {
+     "shared": 0
+    },
+    "near": {
+     "aligned": 0,
+     "names_in_common": 0,
+     "window_seconds": null
+    },
+    "rules": [],
+    "time_only": {
+     "excess": 6.5,
+     "matched": 10,
+     "matched_shifted_minus": 4,
+     "matched_shifted_plus": 3
+    }
+   }
+  ]
+ },
+ "document": "The duplicate-edition audit of this release’s marathon editions (analysis/races_duplicates.py; rule in docs/RACES.md): pairs of editions that hold the same finishers, by three rules, with counts only. It excludes nothing: the lead rules on each pair in analysis/race-notes.json, and scripts/verify-races.cjs requires that reviewed list to hold exactly `pairs`.",
+ "exact": {
+  "keys_in_two_or_more_editions": 3529,
+  "largest_shared": 18,
+  "listed": 0,
+  "pairs_sharing_a_key": 2904
+ },
+ "input_as_of": "2026-11-13T19:30:55Z",
+ "input_manifest_sha256": "e994ac1590d8b3204c02cc6327c83cb7315b5cc5fd2914a445f07fa809ba085c",
+ "near": {
+  "listed": 2,
+  "pairs_with_10_or_more_aligned_names": 9110,
+  "pairs_with_a_single_name_in_common": 810871
+ },
+ "pairs": [
+  {
+   "a": {
+    "city": "45th GMAA Green Mtn. Marathon & Half Marathon",
+    "keys": 216,
+    "policy_category": "finish_time_only",
+    "release_key": "South Hero, VT: 45th GMAA Green Mtn. Marathon & Half Marathon",
+    "rows": 216,
+    "rows_with_a_finish": 216,
+    "single_names": 216,
+    "split_tier": "finish_time_only",
+    "tier": "unverified",
+    "use": "recorded_times_only",
+    "year": 2015
+   },
+   "b": {
+    "city": "Champlain Islands Marathon & Half Marathon",
+    "keys": 212,
+    "policy_category": "finish_time_only",
+    "release_key": "South Hero, VT: Champlain Islands Marathon & Half Marathon",
+    "rows": 212,
+    "rows_with_a_finish": 212,
+    "single_names": 212,
+    "split_tier": "finish_time_only",
+    "tier": "unverified",
+    "use": "recorded_times_only",
+    "year": 2015
+   },
+   "exact": {
+    "shared": 10
+   },
+   "kind": "one_race_two_keys",
+   "kind_in_words": "one race of one year under two race keys",
+   "matched": 207,
+   "near": {
+    "aligned": 207,
+    "finish_differences": {
+     "identical": 10,
+     "median_seconds": -17.5,
+     "names": 212,
+     "ninetieth_percentile_seconds": -4.0,
+     "tenth_percentile_seconds": -36.0
+    },
+    "names_in_common": 212,
+    "window_seconds": [
+     -60,
+     60
+    ]
+   },
+   "relation": "two races, one year",
+   "rules": [
+    "near"
+   ],
+   "share_of_a": 0.9583,
+   "share_of_b": 0.9764,
+   "time_only": {
+    "excess": 11.5,
+    "matched": 14,
+    "matched_shifted_minus": 2,
+    "matched_shifted_plus": 3
+   }
+  },
+  {
+   "a": {
+    "city": "Maraton Saltillo La Moderna",
+    "keys": 874,
+    "policy_category": "finish_time_only",
+    "release_key": "Saltillo: Maratón Saltillo  LA MODERNA",
+    "rows": 874,
+    "rows_with_a_finish": 874,
+    "single_names": 870,
+    "split_tier": "finish_time_only",
+    "tier": "unverified",
+    "use": "recorded_times_only",
+    "year": 2023
+   },
+   "b": {
+    "city": "Maraton Saltillo La Moderna",
+    "keys": 934,
+    "policy_category": "finish_time_only",
+    "release_key": "Saltillo: Maraton Saltillo La Moderna",
+    "rows": 934,
+    "rows_with_a_finish": 934,
+    "single_names": 846,
+    "split_tier": "finish_time_only",
+    "tier": "unverified",
+    "use": "recorded_times_only",
+    "year": 2024
+   },
+   "exact": {
+    "shared": 18
+   },
+   "kind": "partial_overlap",
+   "kind_in_words": "part of one list repeated in the other",
+   "matched": 260.0,
+   "near": {
+    "aligned": 31,
+    "finish_differences": {
+     "identical": 18,
+     "median_seconds": 31.0,
+     "names": 242,
+     "ninetieth_percentile_seconds": 1562.9,
+     "tenth_percentile_seconds": -1866.6
+    },
+    "names_in_common": 242,
+    "window_seconds": [
+     -60,
+     60
+    ]
+   },
+   "relation": "one race, two years",
+   "rules": [
+    "time_only"
+   ],
+   "share_of_a": 0.2975,
+   "share_of_b": 0.2784,
+   "time_only": {
+    "excess": 260.0,
+    "matched": 300,
+    "matched_shifted_minus": 40,
+    "matched_shifted_plus": 40
+   }
+  },
+  {
+   "a": {
+    "city": "Maratona SDAM",
+    "keys": 631,
+    "policy_category": "finish_time_only",
+    "release_key": "Lemignano Di Collecchio: Maratona SDAM",
+    "rows": 631,
+    "rows_with_a_finish": 631,
+    "single_names": 631,
+    "split_tier": "finish_time_only",
+    "tier": "unverified",
+    "use": "recorded_times_only",
+    "year": 2012
+   },
+   "b": {
+    "city": "Maratona SDAM",
+    "keys": 631,
+    "policy_category": "finish_time_only",
+    "release_key": "Lemignano Di Collecchio: Maratona SDAM",
+    "rows": 631,
+    "rows_with_a_finish": 631,
+    "single_names": 631,
+    "split_tier": "finish_time_only",
+    "tier": "unverified",
+    "use": "recorded_times_only",
+    "year": 2013
+   },
+   "exact": {
+    "shared": 0
+   },
+   "kind": "same_list_twice",
+   "kind_in_words": "the same list loaded under two years of one race",
+   "matched": 631,
+   "near": {
+    "aligned": 631,
+    "finish_differences": {
+     "identical": 0,
+     "median_seconds": -150.0,
+     "names": 631,
+     "ninetieth_percentile_seconds": -150.0,
+     "tenth_percentile_seconds": -150.0
+    },
+    "names_in_common": 631,
+    "window_seconds": [
+     -180,
+     -60
+    ]
+   },
+   "relation": "one race, two years",
+   "rules": [
+    "near"
+   ],
+   "share_of_a": 1.0,
+   "share_of_b": 1.0,
+   "time_only": {
+    "excess": -13.0,
+    "matched": 28,
+    "matched_shifted_minus": 39,
+    "matched_shifted_plus": 43
+   }
+  }
+ ],
+ "policy": {
+  "file": "analysis/edition-policy-20261113-1113.json",
+  "sha256": "fe5707e1e436ef894726e7fd6bcb6f1482762f360539af001f9721a971f475a2"
+ },
+ "release_tag": "pace-notes-marathon-half-20261113-1113",
+ "rule": {
+  "exact": "shared = the keys two editions both hold. Listed when shared >= 50, or shared is at least one fifth of the smaller edition’s keys (5 x shared >= the smaller count)",
+  "finish": "the finish time in whole seconds: the clock string parsed as the pacing pipeline parses it (H:MM:SS or M:SS, decimals allowed), rounded down. A row whose finish does not parse has none",
+  "key": "a row with a name and a finish has the key (name, finish); an edition’s keys are its distinct keys",
+  "kind": "matched = the largest of shared, aligned and the time-only excess among the rules that list the pair, as a share of each edition (of its keys, its single names or its rows with a finish, by that rule); a list is whole when the share is at least four fifths. One race, two years: same_list_twice when the smaller list is whole. Two races, one year: one_race_two_keys when both lists are whole, combined_list when only the smaller is. Two races, two years: same_list_under_another_race when the smaller list is whole. Anything else: partial_overlap",
+  "name": "the recorded name with accents dropped (canonical decomposition, every mark removed), lower case, ł ø đ ð ß æ œ þ ı written as l o d d ss ae oe th i (and the final sigma as σ); every run of characters that are not letters or digits separates words; the words in sorted order, joined by one space, so \"Surname, Given\" and \"Given Surname\" are one name. A row with no word has no name. Names are compared through the 128-bit MD5 number of this text",
+  "near": "single names = the names that occur on exactly one keyed row of an edition. For the single names two editions have in common, d = the finish in the first edition minus the finish in the second (first = the earlier in label, then year, order), bin = floor(d / 60). aligned = the most names in two adjacent bins (a window of two minutes; the lowest such window on a tie). Listed when aligned >= 10 and aligned is at least one fifth of the smaller edition’s single names, or when aligned >= 50 and aligned is at least half of the names in common",
+  "order": "pairs are sorted by the first edition’s label and year, then the second’s (Unicode code point order)",
+  "publishes": "edition labels, years and counts only; no runner name, bib, record id or person id",
+  "time_only": "for two editions of one race, or of one year: matched(s) = the sum over finish seconds t of the smaller of the first edition’s rows at t and the second edition’s rows at t + s. excess = matched(0) minus the mean of matched(+60) and matched(-60). Listed when the smaller edition has at least 20 rows with a finish and excess is at least half of that count, or at least 50 and one fifth of that count (two small unrelated lists share a few seconds by chance, so a fifth alone is not enough)",
+  "universe": "every row of race_records.parquet of the adapted marathon input; an edition is a race label and a year"
+ },
+ "schema_version": 1,
+ "scripts": {
+  "analysis/races_common.py": "77b063fbab0cb6d88196c0ff69952c6f014579b823ad6646118cc11f913d7492",
+  "analysis/races_duplicates.py": "88dbf8aa9f3f012e9b55f858fa20709a70d8f9b39fb1b513164ea45d68fb9ce5"
+ },
+ "thresholds": {
+  "bin_seconds": 60,
+  "exact_rows": 50,
+  "near_names": 10,
+  "near_part_names": 50,
+  "near_part_of_the_names_in_common": [
+   1,
+   2
+  ],
+  "share_of_the_smaller": [
+   1,
+   5
+  ],
+  "shift_seconds": 60,
+  "time_part_rows": 50,
+  "time_rows": 20,
+  "time_whole_list": [
+   1,
+   2
+  ],
+  "whole_list": [
+   4,
+   5
+  ]
+ },
+ "time_only": {
+  "listed": 1,
+  "pairs_compared": 226320,
+  "pairs_with_a_finish_second_in_common": 192589,
+  "scope": "pairs of one race, and pairs of one year"
+ },
+ "universe": {
+  "editions": 2688,
+  "editions_with_fewer_than_10_single_names": 3,
+  "editions_with_fewer_than_20_finish_times": 55,
+  "keys": 7804969,
+  "keys_repeated_inside_an_edition": 64,
+  "rows": 7820442,
+  "rows_on_a_key_repeated_inside_an_edition": 131,
+  "rows_with_a_key": 7805036,
+  "rows_without_a_finish": 12892,
+  "rows_without_a_name": 2515,
+  "single_names": 7662223
+ }
+}

@@ -16,12 +16,13 @@ Keep these apart:
   two series; flags and aliases outside the frozen registry), the lead's addendum of 2026-11-14 that asked for the
   duplicate-edition audit, and the lead's rulings of 2026-11-14 on its three pairs (quoted in
   `analysis/race-notes.json`). None of these is an owner decision; the open owner questions are in the plan.
-- **Measured.** A trial build on November 14, 2026 from the adapted input of
-  `pace-notes-marathon-half-20261113-1113` whose `MANIFEST.json` is `c0ddc847…8310b` (the input the edition policy
-  pinned that day; not the final input of the adoption). Its numbers are under [Measured](#measured) and are replaced
-  by the kept build's.
-- **Repository.** Branch `claude/release-20261113-races`, cut from `claude/release-20261113`. Not merged. Nothing
-  under `public/data/races/` is committed until the lead confirms the final inputs.
+- **Measured.** The kept build of November 14, 2026 from the adapted input of
+  `pace-notes-marathon-half-20261113-1113` that the frozen edition policy pins: the final input of the adoption,
+  which the lead confirmed that day with commit `99d760bed` of the release branch. Its numbers and the digests of
+  its inputs are under [Measured](#measured).
+- **Repository.** Branch `claude/release-20261113-races`, cut from `claude/release-20261113`. Not merged.
+  `public/data/races/`, the audit's evidence and the recount's receipt are committed on the branch, and
+  `npm run verify:data` runs `verify-races` with its self-test.
 - **Deployed.** Nothing. The release branch is not deployed and no page reads the family yet.
 
 ## Inputs, and what the manifest binds
@@ -319,13 +320,15 @@ The runner-lookup builder skips the rows of those editions, so one run is not sh
 
 ```
 python3 -I analysis/races_duplicates.py --input <adapted FULL dir> --out docs/evidence/<date>/<release>/duplicate-editions.json --work <a folder outside the repository>
+python3 -I analysis/races_duplicates.py --input <adapted FULL dir> --check-names     # the name rule in SQL against the one in Python; prints two counts
 python3 -I analysis/build_races.py --input <adapted FULL dir>
 python3 -I analysis/races_recount.py --input <adapted FULL dir> --out docs/evidence/<date>/<release>/races-recount.json
 node scripts/verify-races.cjs --self-test
 ```
 
 Measured on November 14, 2026 on a 4-CPU, 15 GB machine: the audit 31 s and 1.2 GB with
-`PACE_RACES_DUCKDB_MEMORY=1000MB`; the builder 3 s and 0.3 GB; the verifier under a second. Rebuild when the adapted
+`PACE_RACES_DUCKDB_MEMORY=1000MB`; the name-rule check 30 s and 0.7 GB; the builder 3 s and 0.3 GB; the recount
+4 s and 0.4 GB; the verifier under a second and its self-test 7 s. Rebuild when the adapted
 input, the edition policy, the registry, the notes or a builder script changes; run the audit again when the adapted
 input or an audit script changes, and review the notes when its list moves; run the recount after every rebuild.
 
@@ -355,20 +358,31 @@ input or an audit script changes, and review the notes when its list moves; run 
 
 ## Measured
 
-Trial build of November 14, 2026 from `pace-notes-marathon-half-20261113-1113` (adapted input manifest
-`c0ddc847…8310b`, edition policy `ab43c75e…3541`, registry `163ec25d…c6a2`), made before the lead's rulings on the
-duplicate pairs and before the timing classes became those of `lib/tiers.ts`: it lists every race, sets no edition
-aside and its verifier had 22 self-test cases. These numbers are replaced by the kept build's.
+Kept build of November 14, 2026 from `pace-notes-marathon-half-20261113-1113` (adapted input manifest `e994ac15…085c`,
+edition policy `fe5707e1…75a2`, registry `446e9c1d…d72b`, notes `c0d8536e…4282`). A script wrote every number below
+from the committed files; `verify-races` and the source recount count them again.
 
-- 811 races, 2,688 editions, 7,820,439 recorded results, 7,807,547 finishes.
-- Page types: 28 course (the 27 earlier pages and Los Angeles), 34 results, 749 rows. No page is withheld by a flag;
-  44 races carry a blocking flag (42 by the rule on the registry's flags, 4 added and 2 cleared by the notes).
-- Finish-time universe: 845 editions in 203 races; 715 of them with at least 100 finishes. In the 62 race files:
-  476 editions with numbers, 476 with a share of women, 53 readings.
-- Files: `directory.json` 223,526 bytes (46 KB gzipped), `pages.json` 23,328 (3.5 KB), `summary.json` 9,906,
-  `editions.csv` 1,376,153 (77 KB gzipped), 62 race files 192,072 in all (the largest 9 KB).
+- 804 races listed and 1 left out (its only edition is set aside as a copy); 2,686 editions with 7,819,595 recorded
+  results and 7,806,703 finishes, and 2 editions set aside as copies (847 results); 213 editions the release names
+  have no recorded result.
+- Page types: 28 course (the 27 earlier pages and Los Angeles), 35 results, 741 rows. 44 races carry a blocking flag
+  (4 put on and 2 taken off by the notes); 0 pages are withheld by one, and 1 page ruling lets a flagged race keep its
+  page (Rimouski). 9 races carry `title_misleads` and are shown by label and place: Antarctica, Bozeman, Friendly
+  Massey, Grand Lake, Mississauga, Physical Distancing 5K, Rimouski, Run Barbados Festival, The County Marathon-
+  Cancelled.
+- By tier: 195 stamped, 616 stamped against a weaker source, 73 partial, 1,222 unverified, 580 held for review; 758
+  with checkpoint times and 1,928 with finish times only. By timing: 1,347 chip, 931 chip with a gun fallback, 15 gun,
+  4 mixed, 389 not stated.
+- Use: 201 counted editions in 28 races (4,124,026 finishes that pass the timing checks), 32 shown on their own
+  record, 2,453 with recorded times only.
+- Finish-time universe: 845 editions in 199 races; 715 of them with at least 100 finishes. In the 63 race files: 487
+  editions with numbers, 487 with a share of women, 55 readings (53 races and 2 of 2 series).
+- Files: `directory.json` 247,351 bytes (48 KB gzipped), `pages.json` 22,970 (3 KB), `summary.json` 11,024,
+  `editions.csv` 1,288,062 (74 KB gzipped), 63 race files 199,439 in all (the largest 9 KB).
 - Duplicate-edition audit: 0 pairs by the exact rule (2,904 pairs share a key; the most is 18), 2 by the near rule
-  (Maratona SDAM 2012 and 2013; the Green Mtn. and Champlain Islands marathons of 2015), 1 by the time-only rule
-  (Maraton Saltillo La Moderna 2023 and 2024). The name rule in SQL and in Python gives the same key for all
-  4,977,511 distinct recorded names.
-- `verify-races`: 106,635 checks pass; the self-test refuses 22 of 22 broken copies.
+  (45th GMAA Green Mtn. Marathon & Half Marathon 2015 and Champlain Islands Marathon & Half Marathon 2015; Maratona
+  SDAM 2012 and 2013), 1 by the time-only rule (Maraton Saltillo La Moderna 2023 and 2024). 2 editions are set aside,
+  1 pair is kept as two editions and 0 are pending. The name rule in SQL and in Python gives the same key for all
+  4,977,512 distinct recorded names.
+- `verify-races`: 116,091 checks pass; the self-test refuses 25 of 25 broken copies. The source recount compared 2,688
+  editions, 487 sets of quartiles, 487 shares of women and 213 editions without results: 0 differences.

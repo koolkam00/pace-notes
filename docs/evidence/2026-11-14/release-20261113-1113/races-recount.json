@@ -1,0 +1,21 @@
+{
+ "compared": {
+  "editions": 2688,
+  "editions_with_a_share_of_women": 487,
+  "editions_with_finishes": 487,
+  "editions_with_quartiles": 487,
+  "editions_without_results": 213,
+  "race_files": 63
+ },
+ "document": "The source recount of the race directory (analysis/races_recount.py): recorded results and finishes of every edition, the finishes, quartiles and women of every edition in a race file and the count of editions without results, counted again from the adapted input with other code than the builder’s. scripts/verify-races.cjs requires it to be clean and bound to the published manifest.",
+ "input_manifest_sha256": "e994ac1590d8b3204c02cc6327c83cb7315b5cc5fd2914a445f07fa809ba085c",
+ "mismatch_count": 0,
+ "mismatches": [],
+ "races_manifest_sha256": "9df1f78e88ee10e9c759b33227f43f331f3ccdabef23422f088b375e85ea2da5",
+ "release_tag": "pace-notes-marathon-half-20261113-1113",
+ "schema_version": 1,
+ "script": {
+  "analysis/races_recount.py": "d25ac77557c25410c855f37dca04240463675d69429791a847d4de9ecd0e088d"
+ },
+ "status": "pass"
+}
