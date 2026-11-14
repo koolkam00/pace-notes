@@ -12,6 +12,7 @@ import { EVIDENCE_LABEL, EVIDENCE_TEXT, TOOLS, type ToolEvidence } from '@/lib/t
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { Definition, Part, and, dataHref, n, pctText } from './shared';
 import { HalfEvidenceLines, HalfMultipleDefinition } from './MethodsHalf';
+import MethodsTiers from './MethodsTiers';
 
 type Archetypes = { cohort_n: number; classifier: { names: string[] }; archetypes: { slug: string; name: string; profile: number[] }[] };
 
@@ -31,8 +32,8 @@ const RULE = (() => {
 
 /**
  * Part 2: the terms every page uses, each a definition card: the rule in a line or two, a small instrument where one
- * draws it (how many finishes each slowdown threshold catches; the six pacing shapes; the three evidence badges), and
- * the rest under "More". The sustained-slowdown definition and its published-method citation are stated here once;
+ * draws it (how many finishes each slowdown threshold catches; the six pacing shapes; the three evidence badges; the
+ * tier and link labels, MethodsTiers), and the rest under "More". The sustained-slowdown definition and its published-method citation are stated here once;
  * every other page links the term to #sustained-slowdown.
  */
 export default function MethodsDefinitions() {
@@ -120,6 +121,8 @@ export default function MethodsDefinitions() {
       <HalfEvidenceLines />
       <p>The race report and the course pages use the same badges. On the race report, Published research marks the published sustained-slowdown definition. A plan is worked out from your own goal. Where a course has <a href="#tools-terrain">terrain splits</a>, the band spreads that goal over the corrected route with one published grade curve, so it carries the Published research badge; the finishes near your goal, as they ran, carry the Pace Notes data badge in their own panel. The two are never one figure.</p>
     </Definition>
+
+    <MethodsTiers />
 
     <HalfMultipleDefinition />
 
