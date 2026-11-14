@@ -16,6 +16,7 @@ this input and this link file by the identity builder in the repository. Writes 
     bests.json      recorded bests by recorded attempt, and the steps between recorded marathons
     age.json        the change per year of age in the same linked runner, with the cross-section beside it
     return.json     seen again after a sustained slowdown: one matched comparison
+    recorded_again.json   who is recorded again: each finish band and age band against the other finishes of its editions
     checks.json     the evidence behind the first two files, recomputed on every build
     manifest.json   binds every file to the release, the input, the policy, the registry and every builder script
 
@@ -44,12 +45,12 @@ import linked_common as lc  # noqa: E402
 from linked_common import ANALYSIS, OUTPUT, LinkedError, bytes_sha256, check_published, encode, fail, file_sha256  # noqa: E402
 
 SCRIPTS = ('build_linked.py', 'linked_common.py', 'linked_universe.py', 'linked_model.py', 'linked_races.py', 'linked_histories.py',
-           'linked_return.py')
+           'linked_return.py', 'linked_again.py')
 # The definitions this family imports from the site's builders: the timing-eligible cohort (build_pacing.prepare) and the
 # sustained-slowdown test (build_public_explorer.threshold_sql). The edition policy is bound by its own file's digest, and
 # scripts/verify-linked.cjs compares the counted cohort with the release's published edition-policy list.
 SHARED_SCRIPTS = ('build_pacing.py', 'build_public_explorer.py')
-FILES = ('editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'checks.json')
+FILES = ('editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'recorded_again.json', 'checks.json')
 TRAIL_FLAGS = ('mountain_or_trail_course', 'trail_or_mountain_word_in_title')   # analysis/race-registry.json: reviewed, and by rule
 
 
@@ -154,6 +155,7 @@ def assemble(u, binding: dict, registry: dict, out: Path, *, boot: int = lc.BOOT
     """Everything after the inputs are read: the analyses, the scan of what may be published, the manifest, the files."""
     import resource
 
+    import linked_again
     import linked_histories
     import linked_races
     import linked_return
@@ -181,15 +183,27 @@ def assemble(u, binding: dict, registry: dict, out: Path, *, boot: int = lc.BOOT
     bests = linked_histories.build_bests(u.results, editions, history_masks)
     age = linked_histories.build_age(u.results, editions, history_masks)
     back = linked_return.build(u.results, editions, history_masks, reps=boot)
+    again = linked_again.build(u.results, editions, history_masks, u.field_bands, u.field_ages, reps=boot)
+    if again is not None and (u.field_bands is None or u.field_ages is None):
+        fail('the universe carries no count of every finish by band (analysis/linked_universe.py load writes it)')
+    if again is not None and back is not None:   # the table's finishes are the matched comparison's before matching
+        raw = back['unmatched']
+        if (again['cohort']['finishes'], again['cohort']['recorded_again']) != (
+                raw['with_slowdown']['finishes'] + raw['without']['finishes'], raw['with_slowdown']['seen_again'] + raw['without']['seen_again']):
+            fail('the recorded-again table and the matched comparison count different finishes')
     counts['bests'] = {k: bests['cohort'][k] for k in ('results_with_an_earlier_recorded_marathon', 'people_with_two_or_more', 'recorded_bests')}
     counts['age'] = {k: age['cohort'][k] for k in ('people_with_an_exact_birth_year', 'pairs', 'pairs_from_the_third_recorded_marathon')}
     counts['return'] = None if back is None else {'cells': back['cells'], 'editions': back['editions'], 'finishes_with_slowdown': back['with_slowdown']['finishes']}
+    counts['recorded_again'] = None if again is None else {'finishes': again['cohort']['finishes'], 'recorded_again': again['cohort']['recorded_again'],
+                                                           'editions': again['cohort']['editions'], 'rows': {name: len(again[name]) for name in linked_again.TABLES}}
     log(f'linked: histories done ({time.time() - started:.0f} s)')
 
     families = {'editions.json': races['editions.json'], 'races.json': races['races.json'], 'checks.json': races['checks.json'],
                 'bests.json': bests, 'age.json': age}
     if back is not None:
         families['return.json'] = back
+    if again is not None:
+        families['recorded_again.json'] = again
     out_bytes = {}
     for name, body in families.items():
         value = {'family': 'linked', 'file': name, 'schema_version': lc.SCHEMA_VERSION, **body}

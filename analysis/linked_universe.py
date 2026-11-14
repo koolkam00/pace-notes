@@ -253,6 +253,9 @@ class Universe:
     results: pd.DataFrame           # kept results of linked runners in W, sorted by (person, year, edition)
     field_share: pd.DataFrame       # counted editions: edition code, eligible finishes, sustained slowdowns
     counts: dict = field(default_factory=dict)
+    # counted editions, every timing-eligible finish with a recorded sex, linked or not (the recorded-again table's `all_finishes`):
+    field_bands: pd.DataFrame | None = None     # edition code, 10-minute finish band (floor of the finish / 600 s), n
+    field_ages: pd.DataFrame | None = None      # edition code, age from the record's own exact birth year, n
 
 
 def load(source: Path, links: Path, identity: Path, policy: dict, registry: dict, *, log=print) -> Universe:
@@ -330,6 +333,15 @@ def load(source: Path, links: Path, identity: Path, policy: dict, registry: dict
         fail(f'{mismatch} records: the link file and the adapted features disagree on a birth-year key or a person id')
 
     db.execute('CREATE TEMP TABLE ed AS SELECT label, year, code, in_w FROM editions')
+    # Every timing-eligible finish of a counted edition with a recorded sex, linked or not, by 10-minute finish band and by
+    # the age its own record gives: what a recorded-again row is a part of (analysis/linked_again.py).
+    db.execute(f"""CREATE TEMP TABLE field AS SELECT e.code AS edition, round(f.finish_time * 60, 3) AS fin,
+          CASE WHEN f.yob IS NOT NULL AND g.record_id IS NULL THEN f.year - f.yob END AS age
+        FROM slowdown s JOIN features f ON f.record_id = s.rid JOIN ed e ON e.label = f.city AND e.year = f.year
+        LEFT JOIN floors g ON g.record_id = f.record_id
+        WHERE f.sex IN ('M', 'F') AND round(f.finish_time * 60, 3) BETWEEN {lc.FINISH_RANGE[0]} AND {lc.FINISH_RANGE[1]}""")
+    field_bands = db.execute(f'SELECT edition, floor(fin / {lc.FINISH_BAND_SECONDS})::INTEGER AS band, count(*)::INTEGER AS n FROM field GROUP BY ALL ORDER BY ALL').df()
+    field_ages = db.execute('SELECT edition, age::INTEGER AS age, count(*)::INTEGER AS n FROM field WHERE age IS NOT NULL GROUP BY ALL ORDER BY ALL').df()
     db.execute(f"""CREATE TEMP TABLE kept AS SELECT k.runner_key AS pid, e.code AS edition, f.year::SMALLINT AS year, round(f.finish_time * 60, 3) AS fin,
           CASE f.sex WHEN 'M' THEN 1 WHEN 'F' THEN 2 ELSE 0 END::TINYINT AS sex,
           (f.link_confidence IN {lc.HIGH_TIERS}) AS high,
@@ -360,4 +372,5 @@ def load(source: Path, links: Path, identity: Path, policy: dict, registry: dict
     counts = {'keys_before_the_screens': int(keys[0]), 'keyed_records_before_the_screens': int(keys[1]), 'linked_runners': int(safe[0]),
               'keyed_records': int(safe[1]), 'kept_results_wider': int(len(results)),
               'kept_runners_wider': int(results.person.max()) + 1 if len(results) else 0}
-    return Universe(editions=editions, results=results, field_share=share[['code', 'eligible', 'slow']].reset_index(drop=True), counts=counts)
+    return Universe(editions=editions, results=results, field_share=share[['code', 'eligible', 'slow']].reset_index(drop=True), counts=counts,
+                    field_bands=field_bands, field_ages=field_ages)

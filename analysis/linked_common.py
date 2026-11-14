@@ -61,6 +61,7 @@ AGE_AGREE_PCT = 0.3       # the same-race and verified-only variants must sit th
 AGE_RANGE = (18, 85)      # age at a race, from an exact birth year
 PAIR_YEARS = (1, 3)       # consecutive recorded marathons this many calendar years apart (the age pairs)
 STEP_MAX_GAP = 2          # consecutive recorded marathons at most this many calendar years apart (the steps)
+FINISH_BAND_SECONDS = 600 # the 10-minute finish bands of the matched comparison and of the recorded-again table
 
 # The release's `timing_basis` strings, each classed once. A string that is not listed stops the build.
 # chip: the finish is a chip or net time (some sources say they fall back to gun or clock time for a row without one).
@@ -207,7 +208,7 @@ CODE_KEYS = {
     'basis': {'chip_or_net', 'gun', 'not_stated'},
     'verdict': {'fast', 'slow', 'usual', 'faster', 'slower', 'about_the_same', 'more_often', 'less_often', 'as_often', 'stated', 'holds'},
     'family': {'linked'},
-    'file': {'editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'checks.json'},
+    'file': {'editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'recorded_again.json', 'checks.json'},
     'sex': {'F', 'M'},
     'scope': {'F', 'verified', 'high', 'wider', 'complete'},
 }

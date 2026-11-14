@@ -182,7 +182,7 @@ Timing-eligible finishes of linked runners in counted editions of 2010 to 2019, 
 
 ### Who is recorded again (`recorded_again.json`)
 
-Defined on November 14, 2026 (about 14:40 UTC), before any build of it on real data; asked for by the lead as a descriptive table beside the matched comparison. **Not built yet.**
+Defined on November 14, 2026 (14:00 UTC, commit `732a61662`), before any build of it on real data; asked for by the lead as a descriptive table beside the matched comparison. **Not built yet.**
 
 **The finishes** are those of the matched comparison above before any matching: timing-eligible finishes of linked runners in counted editions of 2010 to 2019, with a recorded sex. **Recorded again within two years** is that comparison's "seen again": a kept result of the same linked runner in F in one of the next two calendar years, at any race. The file's `cohort` is therefore the sum of the two unmatched counts of `return.json`, and the verifier checks it.
 

@@ -29,6 +29,9 @@
 //      with the other years of that series only, and the label's readings are per series (`series` in races.json, never
 //      `races`). The note is read here from the registry, not from the family, and the cohort manifest's rows must say
 //      the same.
+//   7. Who is recorded again (recorded_again.json): its finishes are the unmatched finishes of return.json; every row is
+//      one of the frozen bands with its floors, its share from its counts, its difference from its two shares inside its
+//      interval, its five variants, and its verdict recomputed. A table by sex is refused (the contract says why).
 //
 //   node scripts/verify-linked.cjs [--data <folder>] [--self-test] [--registry <file> --family-only]
 //
@@ -63,6 +66,13 @@ const OUTLIER_PCT = 6.0;
 const FIELD_R_MIN = 0.7;
 const BESTS_MARGIN = 0.01;
 const AGE_AGREE_PCT = 0.3;
+// The recorded-again table (docs/LINKED_RECORDS.md, "Who is recorded again"; analysis/linked_again.py holds the same).
+const AGAIN_MARGIN_POINTS = 1.0;
+const AGAIN_MIN_OTHERS = 100;
+const AGAIN_VARIANTS = ['verified', 'high', 'same_race', 'men', 'women'];
+const AGAIN_FINISH_BANDS = [[null, 9000], ...Array.from({ length: 24 }, (_, i) => [9000 + 600 * i, 9600 + 600 * i]), [23400, null]];   // under 2:30, ten-minute bands, 6:30 and over
+const AGAIN_FINISH_GROUPS = [[null, 12600], [12600, 14400], [14400, 16200], [16200, 18000], [18000, null]];                            // the five groups of return.json
+const AGAIN_AGE_BANDS = [[18, 24], [25, 29], [30, 34], [35, 39], [40, 44], [45, 49], [50, 54], [55, 59], [60, 64], [65, 69], [70, 85]];   // the bands of age.json
 const T975 = [12.7062, 4.3027, 3.1824, 2.7764, 2.5706, 2.4469, 2.3646, 2.3060, 2.2622, 2.2281, 2.2010, 2.1788, 2.1604, 2.1448,
   2.1314, 2.1199, 2.1098, 2.1009, 2.0930, 2.0860, 2.0796, 2.0739, 2.0687, 2.0639, 2.0595, 2.0555, 2.0518, 2.0484,
   2.0452, 2.0423, 2.0395, 2.0369, 2.0345, 2.0322, 2.0301, 2.0281, 2.0262, 2.0244, 2.0227, 2.0211, 2.0195, 2.0181,
@@ -80,8 +90,8 @@ const F_TIERS = ['stamped', 'stamped_weaker_source', 'partial'];
 const VERIFIED_TIERS = ['stamped', 'stamped_weaker_source'];
 const TIMING_BASIS = { chip: 'chip_or_net', chip_fallback: 'chip_or_net', gun: 'gun', mixed: null, not_stated: 'not_stated' };
 const TIMING_CODES = Object.keys(TIMING_BASIS);
-const FILES = ['editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'checks.json'];
-const REQUIRED = ['editions.json', 'races.json', 'bests.json', 'age.json', 'checks.json'];   // return.json is left out when its floors fail
+const FILES = ['editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'recorded_again.json', 'checks.json'];
+const REQUIRED = ['editions.json', 'races.json', 'bests.json', 'age.json', 'checks.json'];   // return.json and recorded_again.json are left out when their floors fail
 const BUILDERS = /^(build_linked|linked_.*)\.py$/;
 const SHARED = ['analysis/build_pacing.py', 'analysis/build_public_explorer.py'];   // the cohort and the sustained-slowdown test the builders import
 
@@ -132,6 +142,15 @@ function raceVerdict(r) {
       && (sign < 0 ? r.hi_pct < 0 && r.boot_hi_pct < 0 : r.lo_pct > 0 && r.boot_lo_pct > 0)) return word;
   }
   if ([r.lo_pct, r.hi_pct, r.boot_lo_pct, r.boot_hi_pct, r.earlier_pct, r.later_pct].every((x) => x > -RACE_BAND_PCT && x < RACE_BAND_PCT)) return 'about_the_same';
+  return null;
+}
+/** A recorded-again row: more or less often than the other finishes of the same editions only from one point, with the
+ *  interval clear of zero and all five variants there and on the same side. */
+function againVerdict(row) {
+  const variants = AGAIN_VARIANTS.map((name) => row[name]);
+  if (variants.some((v) => v === null || v === undefined)) return null;
+  if (row.difference_points >= AGAIN_MARGIN_POINTS && row.lo_points > 0 && variants.every((v) => v.difference_points > 0)) return 'more_often';
+  if (row.difference_points <= -AGAIN_MARGIN_POINTS && row.hi_points < 0 && variants.every((v) => v.difference_points < 0)) return 'less_often';
   return null;
 }
 function shareVerdict(k, n, expected, variantShares) {
@@ -618,6 +637,54 @@ function verify(dataDir, { pins = true, registryPath = null } = {}) {
     ok(back.unmatched.with_slowdown.finishes >= back.with_slowdown.finishes && back.unmatched.without.finishes >= back.matched_without.finishes, 'return.json: the matched cells within the unmatched counts');
   }
 
+  // ---------- 9b. recorded_again.json: who is recorded again ----------
+  const again = files['recorded_again.json'] || null;
+  if (again) {
+    eq(Object.keys(again).sort(), ['age_cohort', 'band_seconds', 'bootstrap_draws', 'by_age_band', 'by_finish', 'by_finish_band', 'cohort', 'family', 'file', 'margin_points', 'min_editions',
+      'min_finishes', 'min_others', 'schema_version', 'within_years', 'years'], 'recorded_again.json: its fields (and no table by sex: the sexes are not compared, the contract says why)');
+    eq([again.years, again.within_years, again.band_seconds, again.margin_points, again.min_finishes, again.min_editions, again.min_others],
+      [[2010, 2019], 2, 600, AGAIN_MARGIN_POINTS, MIN_CELL, MIN_EDITIONS, AGAIN_MIN_OTHERS], 'recorded_again.json: its years, window, margin and floors');
+    const whole = (x, where) => ok(x && int(x.finishes, MIN_CELL) && int(x.recorded_again) && x.recorded_again <= x.finishes && int(x.editions, MIN_EDITIONS)
+      && Math.abs(x.share - x.recorded_again / x.finishes) <= 1e-9, `${where}: its counts and its share`);
+    whole(again.cohort, 'recorded_again.json cohort');
+    // the finishes are the matched comparison's before matching: the two files must count the same finishes
+    if (ok(back !== null, 'recorded_again.json stands beside return.json')) {
+      eq([again.cohort.finishes, again.cohort.recorded_again], [back.unmatched.with_slowdown.finishes + back.unmatched.without.finishes,
+        back.unmatched.with_slowdown.seen_again + back.unmatched.without.seen_again], 'recorded_again.json cohort: the unmatched finishes of return.json, and those seen again');
+    }
+    ok(again.age_cohort && int(again.age_cohort.finishes) && again.age_cohort.finishes <= again.cohort.finishes && int(again.age_cohort.recorded_again)
+      && again.age_cohort.recorded_again <= Math.min(again.age_cohort.finishes, again.cohort.recorded_again), 'recorded_again.json: the finishes with an age of their own, within the cohort');
+    const tables = [['by_finish_band', AGAIN_FINISH_BANDS, ['finish_from_s', 'finish_to_s'], again.cohort], ['by_finish', AGAIN_FINISH_GROUPS, ['finish_from_s', 'finish_to_s'], again.cohort],
+      ['by_age_band', AGAIN_AGE_BANDS, ['age_from', 'age_to'], again.age_cohort]];
+    const rowFields = ['all_finishes', 'difference_points', 'editions', 'expected_share', 'finishes', 'hi_points', 'lo_points', 'recorded_again', 'share', 'verdict', ...AGAIN_VARIANTS];
+    for (const [name, bands, [from, to], cohort] of tables) {
+      const rows = again[name];
+      if (!ok(Array.isArray(rows), `recorded_again.json ${name}: a list of rows`)) continue;
+      const places = rows.map((r) => bands.findIndex(([a, b]) => a === r[from] && b === r[to]));
+      ok(places.every((i, k) => i >= 0 && (k === 0 || i > places[k - 1])), `recorded_again.json ${name}: its rows are the frozen bands, in order, none twice`);
+      ok(rows.reduce((a, r) => a + r.finishes, 0) <= cohort.finishes && rows.reduce((a, r) => a + r.recorded_again, 0) <= cohort.recorded_again, `recorded_again.json ${name}: the rows within the finishes they are cut from`);
+      for (const r of rows) {
+        const where = `recorded_again.json ${name} ${r[from] ?? 'under'}–${r[to] ?? 'over'}`;
+        if (!eq(Object.keys(r).sort(), [...rowFields, from, to].sort(), `${where}: its fields`)) continue;
+        ok(int(r.finishes, MIN_CELL) && int(r.editions, MIN_EDITIONS), `${where}: ${r.finishes} finishes in ${r.editions} editions, under a floor`);
+        ok(int(r.recorded_again) && r.recorded_again <= r.finishes && Math.abs(r.share - r.recorded_again / r.finishes) <= 1e-9, `${where}: the share from its counts`);
+        ok(int(r.all_finishes) && r.all_finishes >= r.finishes, `${where}: the linked finishes within every finish of the band in the same editions`);
+        ok(finite(r.expected_share) && r.expected_share >= 0 && r.expected_share <= 1, `${where}: the share of the other finishes of the same editions`);
+        close(r.difference_points, 100 * (r.share - r.expected_share), 1e-3, `${where}: the difference from the two shares`);
+        ok([r.lo_points, r.hi_points].every(finite) && r.lo_points <= r.difference_points && r.difference_points <= r.hi_points, `${where}: the difference inside its interval`);
+        for (const variant of AGAIN_VARIANTS) {
+          const v = r[variant];
+          ok(v === null || (eq(Object.keys(v).sort(), ['difference_points', 'editions', 'finishes'], `${where} ${variant}: its fields`) && int(v.finishes, MIN_CELL) && v.finishes <= r.finishes
+            && int(v.editions, MIN_EDITIONS) && finite(v.difference_points)), `${where}: the ${variant} variant rests on 100 finishes and 3 editions, within the row`);
+        }
+        ok(r.same_race === null || (r.same_race.finishes === r.finishes && r.same_race.editions === r.editions), `${where}: the same-race variant is on the row’s own finishes`);
+        ok(r.men === null || r.women === null || r.men.finishes + r.women.finishes <= r.finishes, `${where}: men and women within the row`);
+        eq(r.verdict, againVerdict(r), `${where}: the verdict recomputed`);
+      }
+    }
+    ok(tables.some(([name]) => (again[name] || []).length > 0), 'recorded_again.json holds a row');
+  }
+
   // ---------- 10. The manifest's counts against the files ----------
   {
     const c = manifest.cohort || {};
@@ -626,6 +693,8 @@ function verify(dataDir, { pins = true, registryPath = null } = {}) {
     eq(c.bests, { results_with_an_earlier_recorded_marathon: B.cohort.results_with_an_earlier_recorded_marathon, people_with_two_or_more: B.cohort.people_with_two_or_more, recorded_bests: B.cohort.recorded_bests }, 'manifest: the recorded-bests counts are the file’s');
     eq(c.age, { people_with_an_exact_birth_year: A.cohort.people_with_an_exact_birth_year, pairs: A.cohort.pairs, pairs_from_the_third_recorded_marathon: A.cohort.pairs_from_the_third_recorded_marathon }, 'manifest: the age counts are the file’s');
     eq(c.return, back ? { cells: back.cells, editions: back.editions, finishes_with_slowdown: back.with_slowdown.finishes } : null, 'manifest: the return counts are the file’s');
+    eq(c.recorded_again ?? null, again ? { finishes: again.cohort.finishes, recorded_again: again.cohort.recorded_again, editions: again.cohort.editions,
+      rows: { by_finish_band: again.by_finish_band.length, by_finish: again.by_finish.length, by_age_band: again.by_age_band.length } } : null, 'manifest: the recorded-again counts are the file’s');
     const u = c.universe || {};
     ok(u.F && u.verified && u.wider && u.verified.editions <= u.F.editions && u.F.editions <= u.wider.editions && u.F.editions <= u.editions_with_rows, 'manifest: verified within F within the wider set');
     ok(int(u.linked_runners, 1) && u.linked_runners <= u.keys_before_the_screens && u.keyed_records <= u.keyed_records_before_the_screens && u.F && u.F.people <= u.linked_runners
@@ -687,6 +756,15 @@ function selfTest() {
     ['an identity file that is not the cohort’s', 'manifest.json', (d) => { d.identity.sha256 = d.identity.sha256.replace(/^./, (c) => (c === '0' ? '1' : '0')); }],
     ['a counted total that is not the cohort’s', 'manifest.json', (d) => { d.cohort.universe.counted.sustained_slowdowns += 1; }],
   ];
+  if (fs.existsSync(path.join(opt.data, 'recorded_again.json'))) {
+    const firstRow = (d) => ['by_finish', 'by_finish_band', 'by_age_band'].map((name) => d[name]).find((rows) => rows.length)[0];
+    mutations.push(
+      ['a recorded-again verdict the numbers do not carry', 'recorded_again.json', (d) => { const r = firstRow(d); r.verdict = r.verdict === 'more_often' ? 'less_often' : 'more_often'; }],
+      ['a recorded-again row under the floor', 'recorded_again.json', (d) => { const r = firstRow(d); r.finishes = 99; r.recorded_again = Math.min(r.recorded_again, 99); r.share = r.recorded_again / 99; }],
+      ['a recorded-again difference that is not its two shares', 'recorded_again.json', (d) => { firstRow(d).expected_share += 0.02; }],
+      ['a recorded-again table by sex', 'recorded_again.json', (d) => { d.by_sex = d.by_finish; }],
+    );
+  }
   let failed = 0;
   for (const [what, file, mutate] of mutations) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-linked-'));
@@ -724,4 +802,4 @@ if (require.main === module) {
     console.log(`verify-linked: ${checks} checks passed in ${((Date.now() - started) / 1000).toFixed(1)} s`);
   }
 }
-module.exports = { verify, countedFromCohort, yearVerdict, raceVerdict, shareVerdict, tMultiplier };
+module.exports = { verify, countedFromCohort, yearVerdict, raceVerdict, shareVerdict, againVerdict, tMultiplier };
