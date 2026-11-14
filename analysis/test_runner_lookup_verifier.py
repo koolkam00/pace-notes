@@ -104,10 +104,11 @@ class Verifier(unittest.TestCase):
     def verify(self, *arguments, root=None):
         return subprocess.run([NODE, str(VERIFY), '--data-root', str(root or self.build), *arguments], capture_output=True, text=True, cwd=REPO)
 
-    def audit(self, *arguments, build=None):
-        return lookup_audit.main(['--core', str(self.release.core), '--links', str(self.release.links_path), '--status', str(self.release.status_path),
-                                  '--identity', str(self.release.identity_path), '--registry', str(self.release.registry_path),
-                                  '--half-records', str(self.release.half_path), '--placeholders', str(self.release.placeholders_path),
+    def audit(self, *arguments, build=None, release=None):
+        release = release or self.release
+        return lookup_audit.main(['--core', str(release.core), '--links', str(release.links_path), '--status', str(release.status_path),
+                                  '--identity', str(release.identity_path), '--registry', str(release.registry_path),
+                                  '--placeholders', str(release.placeholders_path),
                                   '--temp', str(self.root / 'audit-temp'), *arguments] + (['--build', str(build)] if build else []))
 
     def test_the_build_verifies(self):
@@ -120,7 +121,7 @@ class Verifier(unittest.TestCase):
     def test_a_provisional_build_and_a_fixture_are_refused_as_published_builds(self):
         done = self.verify('--fixture')
         self.assertEqual(done.returncode, 1)
-        self.assertIn('the build is provisional (cohort, half_registry, race_registry)', done.stderr)
+        self.assertIn('the build is provisional (cohort, half_registry, race_notes, race_registry)', done.stderr)
         done = self.verify('--allow-provisional')                # without --fixture: the pin, the published index rules, the checked-in files
         self.assertEqual(done.returncode, 1)
         self.assertIn('rules.index', done.stderr)
@@ -169,22 +170,94 @@ class Verifier(unittest.TestCase):
         self.assertEqual(done.returncode, 1)
         self.assertIn('1 rows that must not appear are in a shard', done.stderr)
 
+    def test_an_edition_set_aside_is_checked_from_both_sides(self):
+        release = small_release(self.root / 'aside-release', set_aside=True)
+        build = self.root / 'aside'
+        release.build(build / 'runners', race_notes_path=release.race_notes_path)
+        keys, receipt = self.root / 'never-shown-aside.json', self.root / 'audit-aside.json'
+        notes = ['--race-notes', str(release.race_notes_path)]
+        self.assertEqual(self.audit(*notes, '--never-shown', str(keys), '--receipt', str(receipt), build=build, release=release), 0)
+        self.assertEqual(json.loads(keys.read_text())['kinds']['marathon']['set_aside'], {'f': [91, 92]})
+        self.assertEqual(json.loads(receipt.read_text())['finish_text_not_a_time'], {'marathon': 0, 'half': 1})
+        done = self.verify('--fixture', '--allow-provisional', '--never-shown', str(keys), root=build)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn('None of the 11 rows that must not appear is in a shard', done.stdout)
+        # An audit that is not told of the notes expects the two rows to be listed; a build that listed them fails the audit that is.
+        self.assertEqual(self.audit(build=build, release=release), 1)
+        listed = self.root / 'aside-listed'
+        release.build(listed / 'runners')
+        self.assertEqual(self.audit(*notes, build=listed, release=release), 1)
+        self.assertEqual(self.audit(build=listed, release=release), 0)
+        # The manifest's own statement of the edition is checked against the files.
+        manifest = json.loads((build / 'runners/manifest.json').read_text())
+        for at, (change, message) in enumerate([(lambda m: m['counts']['marathon']['set_aside'].update(rows=1), 'set_aside is not {rows, editions'),
+                                (lambda m: m['counts']['marathon']['set_aside'].update(rows=0, editions=[]), 'release rows are not the rows left out'),
+                                (lambda m: m['counts']['marathon']['set_aside']['editions'][0].__setitem__(1, 2016), 'rows of the edition set aside (2016)'),
+                                (lambda m: m['inputs'].pop('race-notes.json'), 'names no race notes')]):
+            changed = self.root / f'aside-changed-{at}'
+            shutil.copytree(build, changed)
+            document = json.loads(json.dumps(manifest))
+            change(document)
+            (changed / 'runners/manifest.json').write_bytes(fmt.encode(document))
+            done = self.verify('--fixture', '--allow-provisional', root=changed)
+            self.assertEqual(done.returncode, 1, message)
+            self.assertIn(message, done.stderr)
+
     def test_the_audit_passes_and_sees_a_changed_value(self):
         self.assertEqual(self.audit(build=self.build), 0)
-        changed = self.root / 'changed'
-        shutil.copytree(self.build, changed)
-        path = changed / 'runners' / fmt.shard_path(0)
-        data = fmt.read_gz(path)
-        data['f'][0] += 1                                                      # one finish, one second
-        path.write_bytes(fmt.compress(fmt.encode(data)))
-        self.assertEqual(self.audit(build=changed), 1)
-        other = self.root / 'other'
-        shutil.copytree(self.build, other)
-        path = other / 'runners' / fmt.shard_path(0)
-        data = fmt.read_gz(path)
-        data['c'] = '3' + data['c'][1:]                                        # a high link shown as medium
-        path.write_bytes(fmt.compress(fmt.encode(data)))
-        self.assertEqual(self.audit(build=other), 1)
+        # Shard 0 opens with person 1: the marathon 11 (Berlin 2019, high, counted), the marathon 13 and the half 12.
+        def swap(text, at, letter):
+            return text[:at] + letter + text[at + 1:]
+        changes = {
+            'the column f differs': lambda d: d['f'].__setitem__(0, d['f'][0] + 1),                 # one finish, one second
+            'the column c differs': lambda d: d.__setitem__('c', swap(d['c'], 0, '3')),             # a high link shown as medium
+            'the column name differs': lambda d: d['n'].__setitem__(0, 'Lee, Jose (ESP)'),          # an accent lost
+            'the column x differs': lambda d: d.__setitem__('x', swap(d['x'], 0, 'F')),
+            'the column a differs': lambda d: d['a'].__setitem__(0, 35),
+            'the column st differs': lambda d: d.__setitem__('s', swap(d['s'], 0, '1')),            # counted shown as own record
+            'the column t0 differs': lambda d: (d['d'].__setitem__(0, d['d'][0] + 1), d['d'].__setitem__(1, d['d'][1] - 1)),   # the 5 km time alone
+            'results sit in an edition of another race': lambda d: d['e'].__setitem__(0, d['e'][0] + 1),   # Berlin 2019 filed as Berlin 2021
+        }
+        for at, (message, change) in enumerate(changes.items()):
+            changed = self.root / f'changed-{at}'
+            shutil.copytree(self.build, changed)
+            path = changed / 'runners' / fmt.shard_path(0)
+            data = fmt.read_gz(path)
+            change(data)
+            path.write_bytes(fmt.compress(fmt.encode(data)))
+            with contextlib.redirect_stderr(io.StringIO()) as said:
+                self.assertEqual(self.audit(build=changed), 1, message)
+            self.assertIn(message, said.getvalue())
+        # The same values in other profiles: person 1 cut in two, persons 1 and 2 made one; and a result taken out.
+        def split(d):
+            d['k'][0:1], d['u'][0:1] = [2, 1], [2, 1]            # the half result (its third, under its third name) becomes a profile of its own
+            d['j'][2] = 0
+
+        def join(d):
+            for at in range(d['k'][0], d['k'][0] + d['k'][1]):
+                d['j'][at] += d['u'][0]
+            d['k'][0:2], d['u'][0:2] = [d['k'][0] + d['k'][1]], [d['u'][0] + d['u'][1]]
+
+        def drop(d):
+            points = bin(d['m'][0]).count('1')                  # its first result, with its recorded checkpoints
+            d['k'][0] -= 1
+            for column in ('e', 'i', 'f', 'a', 'j', 'm'):
+                del d[column][0]
+            for column in ('x', 'c', 's'):
+                d[column] = d[column][1:]
+            del d['d'][:points]
+            d['j'][0], d['j'][1] = 1, 2                           # the two that stay keep their names
+        for at, (message, change) in enumerate({'a person is spread over two profiles': split, 'a profile joins two persons': join,
+                                                'listed rows of the release are in no shard': drop}.items()):
+            changed = self.root / f'moved-{at}'
+            shutil.copytree(self.build, changed)
+            path = changed / 'runners' / fmt.shard_path(0)
+            data = fmt.read_gz(path)
+            change(data)
+            path.write_bytes(fmt.compress(fmt.encode(data)))
+            with contextlib.redirect_stderr(io.StringIO()) as said:
+                self.assertEqual(self.audit(build=changed), 1, message)
+            self.assertIn(message, said.getvalue())
 
     def test_the_importer_publishes_only_what_the_verifier_passes(self):
         source = self.root / 'to-import'

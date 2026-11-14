@@ -3,6 +3,7 @@
     python3 -I analysis/build_runner_lookup.py --core <unpacked CORE folder> --links <person-ids linked parquet> \\
         --status <record-status.parquet> --identity <identity.parquet> [--cohort analysis/marathon-cohort/manifest.json] \\
         [--policy public/data/edition-policy.json] [--registry analysis/race-registry.json] [--half-registry FILE] \\
+        [--race-notes analysis/race-notes.json] \\
         --output <dir>/runners [--as-of 2026-11-14T00:00:00Z] [--temp-limit-gb 4]
     node scripts/verify-lookup.cjs --data-root <dir>
     python3 -I analysis/import_runner_lookup.py --input <dir>        # verifies again, then replaces public/data/runners
@@ -15,16 +16,19 @@ analysis/lookup_format.py and the contract docs/RUNNERS_AND_REPORT.md; the desig
 What it reads, and refuses when a digest differs from the pin (analysis/release.json):
 - the release: race_records, qa_row_flags, pending_review_flags, edition_meta and EDITION-TIERS.csv of the unpacked
   CORE archive (through the archive's own SHA256SUMS.txt, whose digest the pin holds) and the person-links file;
-- from the pipeline: the marathon record status (its record ids are the lookup's marathon universe: this builder
-  applies no left-out rule of its own to marathon rows), the one identity file of both distances, the race registry,
-  the edition policy's reason sentences and the cohort manifest;
-- its own reviewed data files: analysis/lookup-half-records.json (which half rows never appear, and the two kinds of
-  half edition that are never compared) and analysis/lookup-placeholders.json (names that are not a person's).
+- from the pipeline: the marathon record status and the one identity file of both distances, which between them say
+  which rows never appear (a marathon row the status file does not hold, a half row the identity file marks left
+  out: this builder applies no row rule of its own), the race registry, the edition policy's reason sentences and
+  the cohort manifest;
+- from the race directory: analysis/race-notes.json, whose `set_aside_editions` are kept and never listed;
+- its own reviewed data files: analysis/lookup-half-records.json (the two kinds of half edition that are never
+  compared) and analysis/lookup-placeholders.json (names that are not a person's).
 
 It stops on anything it cannot place: an edition without a tier, a key without a race, a time that is not a whole
-number of units, a kept row whose finish does not read, a status or link value it does not know, a person in two
-shards, a reviewed count that differs. It never infers a sex or a person from a name and never labels a row by a
-category: rows the release flags as never to be shown are absent, and nothing else about them is written.
+number of units, a kept marathon row whose finish text does not read, a status or link value it does not know, a
+person in two shards, a reviewed count that differs, a row the pipeline leaves out without a flag of its row rule.
+It never infers a sex or a person from a name and never labels a row by a category: rows the release flags as never
+to be shown are absent, and nothing else about them is written.
 
 Streaming: DuckDB holds the rows (memory limit 3 GB, 2 threads, a temporary database beside the output). A table is
 dropped as soon as the next one is made from it, and the two ordered streams are read one range of shards or of words
@@ -68,6 +72,7 @@ from lookup_races import HALF_RULE, RaceError, half_races, read_registry  # noqa
 HERE = Path(__file__).resolve().parent
 PIN_PATH = HERE / 'release.json'
 HALF_RECORDS_PATH = HERE / 'lookup-half-records.json'
+RACE_NOTES_PATH = HERE / 'race-notes.json'
 PLACEHOLDERS_PATH = HERE / 'lookup-placeholders.json'
 REGISTRY_PATH = HERE / 'race-registry.json'
 POLICY_PATH = HERE.parent / 'public/data/edition-policy.json'
@@ -77,13 +82,21 @@ CORE_FILES = ['race_records.parquet', 'qa_row_flags.parquet', 'pending_review_fl
               'EDITION-TIERS.csv', 'MANIFEST.json']
 LINKS_SUFFIX = 'race_results_linked.parquet'
 PERSON_ID = r'^p51_[0-9a-f]{16}$'      # person-ids v5.1 (the adapter's IDENTITY prefix); the id itself is never published
-# The marathon rows the pipeline leaves out (decision D2 with ruling R2). The status file decides which rows those
-# are; these lists only name the reason of each absent row for the published counts, and a marathon row that is
-# absent from the status file without one of them stops the build.
+# The rows the pipeline leaves out: marathon rows by the adapter's row rule (decision D2 with ruling R2), half rows by
+# the half row rule the lead froze (decision D28). The pipeline's files decide which rows those are: a marathon row
+# is absent from the status file, a half row is marked left out in the identity file. These lists only name the reason
+# of each absent row for the published counts; a row that is absent without one of its distance's flags stops the build,
+# and so does an identity file whose own description names other flags for the half rule.
 MARATHON_LEFT_OUT = {
     'pending_review_flags': ['wheelchair_handcycle_published_category', 'sportstats_nonfinish_status', 'philadelphia_2010_place_sequence_outlier'],
     'qa_row_flags': ['finish_faster_than_world_record', 'finish_ge_24h', 'finish_zero', 'finish_equals_earlier_split'],
 }
+HALF_LEFT_OUT = {
+    'pending_review_flags': ['wheelchair_handcycle_published_category', 'published_disqualified_status', 'sportstats_nonfinish_status',
+                             'philadelphia_2010_place_sequence_outlier'],
+    'qa_row_flags': ['finish_faster_than_world_record', 'finish_ge_24h', 'finish_zero', 'finish_equals_earlier_split', 'finish_implausibly_fast'],
+}
+IDENTITY_STATUS = ('keyed', 'left_out', 'possible_match', 'unlinked')      # the identity file's `status` of a release row
 # The vocabulary of analysis/build_record_status.py (status, reason), mapped to the digit of `s`
 # (analysis/lookup_format.py STATUS_WORDS). An edition that gives recorded times only names one of four reasons for
 # every record of it; the lookup keeps one code for them, and the edition's own sentence says which.
@@ -103,12 +116,14 @@ RULES = {
     'search_words': SEARCH_WORDS,
     'search_names': ('one per profile and set of search words; its shown spelling is the recorded name of the profile’s latest result with that set '
                      '(latest year, marathon before half, lowest record id, marathon database before half database)'),
-    'results': ('a result is one row of the release, keyed by its source database and record id; listed when it is not left out, its name has a '
-                'search word and its name is not a placeholder'),
+    'results': ('a result is one row of the release, keyed by its source database and record id; listed when it is not left out, its edition is '
+                'not set aside, its name has a search word and its name is not a placeholder'),
     'left_out': {
         'marathon': 'the rows absent from the pipeline’s record-status file: the row rule of the adapted marathon input (counts by flag in `counts`)',
-        'half': 'analysis/lookup-half-records.json: a listed pending-review or row-quality flag, or a finish that does not read as a positive time',
+        'half': 'the rows the pipeline’s identity file marks left_out: the half row rule (counts by flag in `counts`)',
     },
+    'set_aside': ('not listed: the kept rows of a marathon edition that analysis/race-notes.json sets aside (one race recorded under two keys or '
+                  'two years); the edition stays in the release and in the cohort’s counts'),
     'placeholders': ('not listed: a result whose name the producer flags as a placeholder, or whose set of search words equals that of a name on '
                      'the reviewed list analysis/lookup-placeholders.json'),
     'identity': ('a profile is one person of the producer’s person links, or one result with no link; link code 0 = no link; 1 high_elite, '
@@ -123,8 +138,9 @@ RULES = {
     'no_comparison': NO_COMPARISON,
     'sex': 'the published sex (M, F, X), or the published category’s when that is blank; - when neither; never from a name',
     'age': 'the recorded age as a whole number; -1 when none was recorded or the release flags it as implausible',
-    'times': ('whole units of time_unit_ms; a checkpoint whose text is not a time is not recorded; a gap is the time from the previous '
-              'recorded checkpoint, or from the start'),
+    'times': ('whole units of time_unit_ms; a checkpoint whose text is not a time is not recorded, and neither is a finish whose text is not '
+              'a time greater than zero (the result is listed with no finish time); a gap is the time from the previous recorded '
+              'checkpoint, or from the start'),
     'index': dict(INDEX_RULES),
     'search': {'auto_bytes': SEARCH_AUTO, 'hard_cap_bytes': SEARCH_HARD_CAP},
     'half_races': HALF_RULE,
@@ -297,19 +313,36 @@ def load_status(db, path):
 
 
 def load_identity(db, path):
-    """VIEW ident(dbh, record_id, runner_key, link_tier) over the file: one row per release row of both distances."""
+    """VIEW ident(dbh, record_id, runner_key, link_tier, status) over the file: one row per release row of both
+    distances. Returns (rows, the file's own description or None)."""
     relation = f'read_parquet({quote(path)})'
     columns = columns_of(db, relation)
-    missing = [name for name in ('source_db', 'record_id', 'runner_key', 'link_tier') if name not in columns]
+    missing = [name for name in ('source_db', 'record_id', 'runner_key', 'link_tier', 'status') if name not in columns]
     if missing:
-        fail(f'{path.name}: expected columns source_db, record_id, runner_key, link_tier; missing {missing}')
+        fail(f'{path.name}: expected columns source_db, record_id, runner_key, link_tier, status; missing {missing}')
     db.execute(f"""CREATE TEMP VIEW ident AS SELECT source_db='half' AS dbh, record_id::BIGINT AS record_id,
-        runner_key::VARCHAR AS runner_key, link_tier::VARCHAR AS link_tier FROM {relation}""")
+        runner_key::VARCHAR AS runner_key, link_tier::VARCHAR AS link_tier, status::VARCHAR AS status FROM {relation}""")
     rows, keys, sources = db.execute("SELECT count(*), count(DISTINCT (dbh, record_id)), (SELECT count(*) FROM (SELECT DISTINCT source_db FROM "
                                      f"{relation} WHERE source_db NOT IN ('full', 'half'))) FROM ident").fetchone()
     if rows != keys or sources:
         fail(f'{path.name}: {rows} rows for {keys} records, {sources} unknown source databases')
-    return rows
+    values = db.execute('SELECT status, count(*), count(*) FILTER (WHERE (status IS NOT DISTINCT FROM \'keyed\') <> (runner_key IS NOT NULL)) '
+                        'FROM ident GROUP BY status ORDER BY status').fetchall()
+    unknown = [value for value, _, _ in values if value not in IDENTITY_STATUS]
+    if unknown:
+        fail(f'{path.name}: status values this builder does not know: {unknown}')
+    wrong = sum(n for _, _, n in values)
+    if wrong:
+        fail(f'{path.name}: {wrong} rows are keyed without a runner key, or carry a runner key without being keyed')
+    sidecar_path = path.with_name(path.name + '.json')
+    sidecar = json.loads(sidecar_path.read_text()) if sidecar_path.is_file() else None
+    if sidecar is not None:
+        if sidecar.get('file', {}).get('sha256') != file_sha256(path):
+            fail(f'{sidecar_path.name} does not describe {path.name} (digest)')
+        stated = sidecar.get('half_row_rule')
+        if stated is not None and any(sorted(stated.get(kind, [])) != sorted(HALF_LEFT_OUT[kind]) for kind in HALF_LEFT_OUT):
+            fail(f'{sidecar_path.name} names other flags for the half row rule than this builder knows (HALF_LEFT_OUT): {stated}')
+    return rows, sidecar
 
 
 def load_policy(path):
@@ -367,7 +400,7 @@ def load_cohort(path):
 # ---------------------------------------------------------------------------------------------------------------
 
 def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_path=REGISTRY_PATH, half_registry_path=None,
-          policy_path=None, cohort_path=None, half_records_path=HALF_RECORDS_PATH, placeholders_path=PLACEHOLDERS_PATH,
+          policy_path=None, cohort_path=None, race_notes_path=None, half_records_path=HALF_RECORDS_PATH, placeholders_path=PLACEHOLDERS_PATH,
           as_of=None, temp=None, memory='3GB', threads=2, index_rules=None, provisional=(), temp_limit_gb=TEMP_LIMIT_GB):
     """Write the lookup into `output` (which must not hold a build). Returns the manifest. A build that does not finish
     removes what it wrote; the temporary folder is removed either way."""
@@ -410,7 +443,8 @@ def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_
         watch.start()
         try:
             manifest = _build(db, pin, Path(core), Path(links), Path(status), Path(identity), output, temp, input_as_of, digests, notes,
-                              half_rule, placeholders, Path(registry_path), half_registry_path, policy_path, cohort_path, as_of, index_rules, scripts)
+                              half_rule, placeholders, Path(registry_path), half_registry_path, policy_path, cohort_path, race_notes_path,
+                              as_of, index_rules, scripts)
         except duckdb.InterruptException:
             watch.check()
             raise
@@ -431,7 +465,7 @@ def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_
 
 
 def _build(db, pin, core, links, status_path, identity_path, output, temp, input_as_of, digests, notes, half_rule, placeholders,
-           registry_path, half_registry_path, policy_path, cohort_path, as_of, index_rules, scripts):
+           registry_path, half_registry_path, policy_path, cohort_path, race_notes_path, as_of, index_rules, scripts):
     tag = pin['tag']
     records = f"read_parquet({quote(core / 'race_records.parquet')})"
     qa = f"read_parquet({quote(core / 'qa_row_flags.parquet')})"
@@ -448,7 +482,9 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     status_rows, status_sidecar = load_status(db, status_path)
     if status_sidecar is not None and status_sidecar.get('release_tag') != tag:
         fail(f"the status file is of {status_sidecar.get('release_tag')!r}, not {tag!r}")
-    identity_rows = load_identity(db, identity_path)
+    identity_rows, identity_sidecar = load_identity(db, identity_path)
+    if identity_sidecar is not None and identity_sidecar.get('release_tag') != tag:
+        fail(f"the identity file is of {identity_sidecar.get('release_tag')!r}, not {tag!r}")
     step('pipeline files read', status_rows=status_rows, identity_rows=identity_rows)
 
     # ---- every release row, parsed
@@ -467,7 +503,7 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
              WHEN q.sex_from_category IN ('M', 'F') THEN q.sex_from_category WHEN q.sex_from_category IS NOT NULL THEN '?' ELSE '-' END AS x,
         CASE WHEN r.age IS NULL OR coalesce(q.age_implausible, false) THEN -1 ELSE r.age END AS age,
         (r.age IS NOT NULL AND coalesce(q.age_implausible, false)) AS age_hidden,
-        {splits}, {seconds('r.finish_time')} AS fin, r.finish_time IS NOT NULL AS has_finish, {unread} AS unread,
+        {splits}, nullif({seconds('r.finish_time')}, 0) AS fin, r.finish_time IS NOT NULL AS has_finish, {unread} AS unread,
         ({fraction}) AS fraction,
         (r.finish_time IS DISTINCT FROM CASE WHEN r.distance='half' THEN r.split_21_1km ELSE r.split_42_2km END
           OR CASE WHEN r.distance='half' THEN r.split_42_2km IS NOT NULL OR r.split_25km IS NOT NULL OR r.split_30km IS NOT NULL
@@ -503,29 +539,37 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         parts += [f"SELECT source_db='half', record_id, {quote(flag)} FROM {qa} WHERE distance={quote(distance)} AND {flag}"
                   for flag in rule['qa_row_flags']]
         return ' UNION ALL '.join(parts)
-    half_out = half_rule['left_out']
     db.execute(f"""CREATE TEMP TABLE flags AS SELECT false AS h, * FROM ({flag_rows(MARATHON_LEFT_OUT, 'marathon')})
-        UNION ALL SELECT true, * FROM ({flag_rows(half_out, 'half')})""")
-    if half_out.get('finish_not_a_positive_time'):
-        db.execute("INSERT INTO flags SELECT true, dbh, id, 'finish_not_a_positive_time' FROM base WHERE h AND (fin IS NULL OR fin<=0)")
+        UNION ALL SELECT true, * FROM ({flag_rows(HALF_LEFT_OUT, 'half')})""")
     # Every join below is on equalities alone: a condition on one side only inside ON (`NOT b.h AND …`) makes DuckDB
     # compare every pair of rows, which on 15.7 million rows never ends (found on the first full build, November 14, 2026).
-    db.execute('CREATE TEMP TABLE flagged_marathon AS SELECT DISTINCT dbh, id FROM flags WHERE NOT h')
-    db.execute('CREATE TEMP TABLE flagged_half AS SELECT DISTINCT dbh, id FROM flags WHERE h')
-    # The kept rows: a marathon row the status file holds, a half row without a flag of the half rule. A view: the
+    db.execute('CREATE TEMP TABLE flagged AS SELECT DISTINCT h, dbh, id FROM flags')
+    db.execute("CREATE TEMP TABLE left_rows AS SELECT dbh, record_id AS id FROM ident WHERE status='left_out'")
+    # The kept rows: a marathon row the status file holds, a half row the identity file does not mark left out (lead
+    # ruling, November 14, 2026: the half rows left out are the identity file's, never a second list). A view: the
     # parsed rows are not copied.
     db.execute("""CREATE TEMP VIEW kept AS SELECT b.* FROM base b
-        LEFT JOIN flagged_half f ON f.dbh=b.dbh AND f.id=CASE WHEN b.h THEN b.id END
+        LEFT JOIN left_rows f ON f.dbh=b.dbh AND f.id=CASE WHEN b.h THEN b.id END
         WHERE CASE WHEN b.h THEN f.id IS NULL ELSE b.in_status END""")
     strays = db.execute('SELECT count(*) FROM status s ANTI JOIN (SELECT id FROM base WHERE NOT h) b ON b.id=s.record_id').fetchone()[0]
     if strays:
         fail(f'the status file names {strays} records that are not marathon rows of the release')
-    unflagged = db.execute("""SELECT count(*) FROM (SELECT dbh, id FROM base WHERE NOT h) b ANTI JOIN status s ON s.record_id=b.id
-        ANTI JOIN flagged_marathon f ON f.dbh=b.dbh AND f.id=b.id""").fetchone()[0]
+    strays = db.execute('SELECT count(*) FROM left_rows f ANTI JOIN base b ON b.dbh=f.dbh AND b.id=f.id').fetchone()[0]
+    if strays:
+        fail(f'the identity file marks {strays} records left out that are not rows of the release')
+    apart = db.execute("""SELECT count(*) FROM (SELECT dbh, id, in_status FROM base WHERE NOT h) b
+        LEFT JOIN left_rows f ON f.dbh=b.dbh AND f.id=b.id WHERE b.in_status=(f.id IS NOT NULL)""").fetchone()[0]
+    if apart:
+        fail(f'the status file and the identity file disagree on {apart} marathon rows: one leaves a row out that the other keeps')
+    unflagged = dict(db.execute("""SELECT b.h, count(*) FROM base b
+        LEFT JOIN left_rows f ON f.dbh=b.dbh AND f.id=CASE WHEN b.h THEN b.id END
+        ANTI JOIN flagged g ON g.h=b.h AND g.dbh=b.dbh AND g.id=b.id
+        WHERE CASE WHEN b.h THEN f.id IS NOT NULL ELSE NOT b.in_status END GROUP BY b.h""").fetchall())
     if unflagged:
-        fail(f'{unflagged} marathon rows are absent from the status file and carry no flag of the row rule: the status file is not of this release')
+        fail(f'{unflagged.get(False, 0)} marathon rows and {unflagged.get(True, 0)} half rows are left out by the pipeline’s files and carry no flag '
+             'of their row rule: the status file or the identity file is not of this release')
     db.execute("""CREATE TEMP TABLE flagged_kept AS SELECT k.h, k.dbh, k.id FROM kept k
-        SEMI JOIN (SELECT DISTINCT h, dbh, id FROM flags) f ON f.h=k.h AND f.dbh=k.dbh AND f.id=k.id""")
+        SEMI JOIN flagged f ON f.h=k.h AND f.dbh=k.dbh AND f.id=k.id""")
     base_rows = dict(db.execute('SELECT h, count(*) FROM base GROUP BY h').fetchall())
     kept_by = {h: (rows, unreadable) for h, rows, unreadable in db.execute(
         'SELECT h, count(*), count(*) FILTER (WHERE has_finish AND fin IS NULL) FROM kept GROUP BY h').fetchall()}
@@ -534,14 +578,16 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         by_flag = dict(db.execute("""SELECT f.flag, count(*) FROM flags f ANTI JOIN flagged_kept k ON k.h=f.h AND k.dbh=f.dbh AND k.id=f.id
             WHERE f.h=? GROUP BY f.flag ORDER BY f.flag""", [half]).fetchall())
         left_out[name] = {'rows': base_rows.get(half, 0) - kept_by.get(half, (0, 0))[0], 'by_flag': by_flag}
-    expected = half_rule.get('expected', {})
-    half_rows = base_rows.get(True, 0)
-    if (expected.get('release_rows'), expected.get('left_out_rows'), expected.get('by_flag')) != (half_rows, left_out['half']['rows'], left_out['half']['by_flag']):
-        fail('the half rows left out differ from the reviewed counts of analysis/lookup-half-records.json; measured: '
-             + json.dumps({'release_rows': half_rows, 'left_out_rows': left_out['half']['rows'], 'by_flag': left_out['half']['by_flag']}))
-    bad_finish = sum(unreadable for _, unreadable in kept_by.values())
-    if bad_finish:
-        fail(f'{bad_finish} kept rows have a finish that does not read as a time: decide whether they are shown before building')
+    if identity_sidecar is not None:
+        stated = {name: (identity_sidecar.get('counts', {}).get('by_status', {}).get(name) or {}).get('left_out') for name in left_out}
+        if stated != {name: value['rows'] for name, value in left_out.items()}:
+            fail(f"the rows left out are {json.dumps({name: value['rows'] for name, value in left_out.items()})}; "
+                 f'the identity file’s own description counts {json.dumps(stated)}')
+    # A finish text that is not a time greater than zero: a kept half row is listed without a finish (lead ruling,
+    # November 14, 2026: no time shown, never the text); for a kept marathon row nobody has ruled, so the build stops.
+    finish_unread = {name: kept_by.get(half, (0, 0))[1] for half, name in ((False, 'marathon'), (True, 'half'))}
+    if finish_unread['marathon']:
+        fail(f"{finish_unread['marathon']} kept marathon rows have a finish text that does not read as a time: decide whether they are shown before building")
     step('rows left out', **{name: value['rows'] for name, value in left_out.items()})
 
     # ---- names: normalised once per distinct recorded name, by the function the browser mirrors
@@ -577,6 +623,24 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         fail(f'analysis/lookup-placeholders.json: the release rows of these names differ from the reviewed counts (measured): {differing}')
     step('names normalised', distinct=distinct)
 
+    # ---- editions the race directory sets aside (lead decision D40): their rows are kept and never listed
+    set_aside = {}
+    if race_notes_path:
+        race_notes = json.loads(Path(race_notes_path).read_text())
+        digests['race-notes.json'] = file_sha256(race_notes_path)
+        if race_notes.get('tag') != tag:
+            fail(f"analysis/race-notes.json was reviewed for {race_notes.get('tag')!r}, not for {tag!r}: review it for this release")
+        for entry in race_notes.get('set_aside_editions', []):
+            key = (entry.get('label'), entry.get('year'))
+            if not isinstance(key[0], str) or not isinstance(key[1], int) or key in set_aside:
+                fail(f'analysis/race-notes.json: a set-aside edition has no label and year, or is listed twice: {entry!r}')
+            set_aside[key] = 0
+    else:
+        notes.add('race_notes')
+    db.execute('CREATE TEMP TABLE set_aside (label VARCHAR, year INTEGER)')
+    if set_aside:
+        db.executemany('INSERT INTO set_aside VALUES (?, ?)', list(set_aside))
+
     # ---- listed results
     # A join of the wide rows runs as it is written, wide rows first: what they are joined to (the names, the editions)
     # is hashed in memory and the 15.7 million rows stream past it. Left to its estimates DuckDB hashed the wide rows
@@ -587,14 +651,21 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
             db.execute(statement)
         finally:
             db.execute("SET disabled_optimizers=''")
-    as_written("""CREATE TABLE sorted AS SELECT k.h, k.dbh, k.id, k.city, k.year, k.name, k.x, k.age::INTEGER AS a, k.age_hidden, k.fin,
+    as_written("""CREATE TABLE sorted AS SELECT k.h, k.dbh, k.id, k.city, k.year, k.name, k.x, k.age::INTEGER AS a, k.age_hidden, k.fin, k.has_finish,
         k.s0, k.s1, k.s2, k.s3, k.s4, k.s5, k.s6, k.s7, k.unread, k.st, k.status_city, k.status_year, k.short, n.skey,
-        CASE WHEN n.blank THEN 'unnamed' WHEN k.flagged THEN 'flagged' WHEN l.skey IS NOT NULL THEN 'listed' ELSE 'result' END AS kind,
+        CASE WHEN a.label IS NOT NULL THEN 'set_aside' WHEN n.blank THEN 'unnamed' WHEN k.flagged THEN 'flagged'
+             WHEN l.skey IS NOT NULL THEN 'listed' ELSE 'result' END AS kind,
         coalesce(k.person_id, CASE WHEN k.dbh THEN 'h:' ELSE 'f:' END || k.id::VARCHAR) AS pk, k.person_id IS NOT NULL AS linked, k.confidence
-      FROM kept k JOIN (SELECT name, skey, norm='' AS blank FROM names) n ON n.name=k.name LEFT JOIN listed_names l ON l.skey=n.skey""")
+      FROM kept k JOIN (SELECT name, skey, norm='' AS blank FROM names) n ON n.name=k.name LEFT JOIN listed_names l ON l.skey=n.skey
+      LEFT JOIN set_aside a ON a.label=k.status_city AND a.year=k.status_year""")
     kept_rows, sorted_rows = sum(rows for rows, _ in kept_by.values()), db.execute('SELECT count(*) FROM sorted').fetchone()[0]
     if kept_rows != sorted_rows:
         fail(f'{kept_rows} kept rows became {sorted_rows} after the name join')
+    for label, year, rows in db.execute("SELECT status_city, status_year, count(*) FROM sorted WHERE kind='set_aside' GROUP BY ALL").fetchall():
+        set_aside[(label, year)] = rows
+    empty = sorted(key for key, rows in set_aside.items() if not rows)
+    if empty:
+        fail(f'analysis/race-notes.json sets aside {empty}: no kept marathon row of this release is in an edition of that label and year')
     db.execute('DROP VIEW kept')
     for table in ('base', 'names'):       # read into `sorted`; their space is used again
         db.execute(f'DROP TABLE {table}')
@@ -797,10 +868,14 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         kinds = dict(db.execute('SELECT kind, count(*) FROM sorted WHERE h=? GROUP BY kind', [half]).fetchall())
         block = {
             'release_rows': base_rows.get(half, 0),
-            'left_out': left_out[name], 'unnamed': kinds.get('unnamed', 0),
+            'left_out': left_out[name],
+            'set_aside': {'rows': kinds.get('set_aside', 0) if not half else 0,
+                          'editions': [[label, year, rows] for (label, year), rows in sorted(set_aside.items())] if not half else []},
+            'unnamed': kinds.get('unnamed', 0),
             'placeholder': {'flagged': kinds.get('flagged', 0), 'listed': kinds.get('listed', 0)},
             'results': kinds.get('result', 0),
             'no_finish': db.execute('SELECT count(*) FROM res WHERE h=? AND fin IS NULL', [half]).fetchone()[0],
+            'finish_unread': db.execute('SELECT count(*) FROM sorted WHERE h=? AND kind=\'result\' AND has_finish AND fin IS NULL', [half]).fetchone()[0],
             'editions': sum(1 for entry in editions if entry['h'] == half),
             'unlisted_editions': [row for row in unlisted_editions if row[0] == ('h' if half else 'm')],
             'tier': {str(code): n for code, n in db.execute('SELECT t.tier, count(*) FROM res r JOIN edt t USING (e) WHERE r.h=? GROUP BY ALL ORDER BY 1', [half]).fetchall()},
@@ -813,7 +888,8 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
             block['unlisted_status'] = dict(db.execute("SELECT st, count(*) FROM sorted WHERE NOT h AND kind<>'result' GROUP BY st ORDER BY st").fetchall())
         else:
             block['no_comparison'] = {str(code): n for code, n in db.execute('SELECT t.g, count(*) FROM res r JOIN edt t USING (e) WHERE r.h AND t.g>0 GROUP BY ALL ORDER BY 1').fetchall()}
-        if block['release_rows'] != block['left_out']['rows'] + block['unnamed'] + block['placeholder']['flagged'] + block['placeholder']['listed'] + block['results']:
+        if block['release_rows'] != (block['left_out']['rows'] + block['set_aside']['rows'] + block['unnamed'] + block['placeholder']['flagged']
+                                     + block['placeholder']['listed'] + block['results']) or (half and kinds.get('set_aside')):
             fail(f'the {name} rows do not add up: {json.dumps(block)}')
         counts[name] = block
     kinds = dict(db.execute("""SELECT CASE WHEN n=1 THEN 'one_result' WHEN cm + ch=n THEN 'confirmed_only' WHEN cm + ch=0 THEN 'possible_only'
@@ -829,9 +905,10 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
             fail(f"the kept marathon rows by status are {totals}; the status file's own counts are {status_sidecar['counts']['by_status']}")
         pipeline['record_status'] = {'records': status_sidecar['counts']['records'], 'by_status': status_sidecar['counts']['by_status']}
     if cohort:
-        raw = counts['marathon']['results'] + counts['marathon']['unnamed'] + sum(counts['marathon']['placeholder'].values())
+        raw = (counts['marathon']['results'] + counts['marathon']['unnamed'] + sum(counts['marathon']['placeholder'].values())
+               + counts['marathon']['set_aside']['rows'])
         if cohort['raw_records'] != raw:
-            fail(f"the marathon results with the unnamed and placeholder rows are {raw}; the cohort’s raw records are {cohort['raw_records']}")
+            fail(f"the marathon results with the unnamed, placeholder and set-aside rows are {raw}; the cohort’s raw records are {cohort['raw_records']}")
         # Counted and own-record rows: the listed results and the kept rows that are not listed (no usable name, a placeholder name).
         for digit, field, what in (('0', 'eligible_records', 'counted'), ('1', 'own_record_records', 'own-record')):
             kept = counts['marathon']['status'].get(digit, 0) + counts['marathon']['unlisted_status'].get(digit, 0)
@@ -1014,6 +1091,9 @@ def main(argv=None):
                         help='the edition policy with its reason sentences (default public/data/edition-policy.json; without one the build is provisional)')
     parser.add_argument('--registry', type=Path, default=REGISTRY_PATH)
     parser.add_argument('--half-registry', type=Path)
+    parser.add_argument('--race-notes', type=Path, default=RACE_NOTES_PATH if RACE_NOTES_PATH.is_file() else None,
+                        help='the race directory’s notes, whose set_aside_editions are kept and never listed (default analysis/race-notes.json; '
+                             'without one the build is provisional)')
     parser.add_argument('--pin', type=Path, default=PIN_PATH)
     parser.add_argument('--output', type=Path, required=True, help='the runners folder to write; it must not hold a build')
     parser.add_argument('--as-of', help='the build time to record (UTC, YYYY-MM-DDTHH:MM:SSZ); default now')
@@ -1034,7 +1114,7 @@ def main(argv=None):
         signal.signal(getattr(signal, name), stop)
     try:
         build(args.core, args.links, args.status, args.identity, args.output, pin_path=args.pin, registry_path=args.registry,
-              half_registry_path=args.half_registry, policy_path=args.policy, cohort_path=args.cohort, as_of=args.as_of,
+              half_registry_path=args.half_registry, policy_path=args.policy, cohort_path=args.cohort, race_notes_path=args.race_notes, as_of=args.as_of,
               temp=args.temp, memory=args.memory, threads=args.threads, temp_limit_gb=args.temp_limit_gb)
     except BuildError as error:
         print(f'build_runner_lookup: {error}', file=sys.stderr)

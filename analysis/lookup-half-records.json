@@ -1,39 +1,8 @@
 {
- "document": "Which half-marathon rows of the release never appear in the runner lookup, and which half editions are listed but never compared. analysis/build_runner_lookup.py reads this file and stops when a count differs. It states the half plan's record rule R8 (with R2 for a finish that is not a time); the half rebuild's policy file takes the rule over unchanged, and the lookup then reads it from there.",
- "schema_version": 1,
+ "document": "The half-marathon editions of the release that the runner lookup lists and never compares. analysis/build_runner_lookup.py reads this file and stops when the release gives another set. Which half rows never appear is not stated here: it is the identity file’s `left_out` status, the half row rule the lead froze (decision D28, HALF_ROW_RULE in analysis/adapt_combined.py), and the builder reads it from that file alone.",
+ "schema_version": 2,
  "tag": "pace-notes-marathon-half-20261113-1113",
  "reviewed_on": "2026-11-14",
- "scope": "every row of race_records with distance = half, from either source database",
- "left_out": {
-  "words": "A half row never appears when it carries one of these pending-review flags (present in CORE) or one of these row-quality flags, or when its finish does not read as a time greater than zero. Nothing else about such a row is written anywhere: no label, no count by person.",
-  "pending_review_flags": [
-   "wheelchair_handcycle_published_category",
-   "published_disqualified_status"
-  ],
-  "qa_row_flags": [
-   "finish_faster_than_world_record",
-   "finish_ge_24h",
-   "finish_zero",
-   "finish_implausibly_fast",
-   "finish_equals_earlier_split"
-  ],
-  "finish_not_a_positive_time": true
- },
- "expected": {
-  "release_rows": 7893466,
-  "left_out_rows": 957,
-  "by_flag": {
-   "finish_equals_earlier_split": 28,
-   "finish_faster_than_world_record": 221,
-   "finish_ge_24h": 361,
-   "finish_implausibly_fast": 62,
-   "finish_not_a_positive_time": 36,
-   "finish_zero": 30,
-   "published_disqualified_status": 15,
-   "wheelchair_handcycle_published_category": 257
-  },
-  "note": "counts of pace-notes-marathon-half-20261113-1113, measured 2026-11-14; a row can carry two flags, so the flags add up to more than the rows"
- },
  "no_comparison": {
   "words": "These editions are listed with their results and marked; a marked edition's results are never compared with other years or races and never enter a best, a ranking or an average. Editions are [source database, release key, year].",
   "gun_times": {
