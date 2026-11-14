@@ -176,6 +176,27 @@ class Binding(unittest.TestCase):
             self.assertEqual(json.loads(data)['runner_manifest_sha256'], 'e' * 64)
         self.assertEqual(manifest['weather']['release_tag'], 'example-weather')
 
+    def test_a_refusing_builder_stops_the_build_and_names_its_chart(self):
+        """A chart under a builder floor is never written on a lowered floor: the build stops and says which chart."""
+        cohort = synthetic()
+        refusing = None
+        for item in build_charts.catalog():
+            try:
+                build_charts.build_one(item, cohort)
+            except ValueError:
+                refusing = item
+                break
+        self.assertIsNotNone(refusing)
+        source = dict(release_tag='example', input_as_of='2026-01-01T00:00:00Z', as_of='2026-01-02T00:00:00Z', editions=cohort.f.editions, scripts={},
+                      source_quality=dict(version=2))
+        weather = dict(input=dict(release_tag='example-weather'), editions=cohort.weather['editions'])
+        with tempfile.TemporaryDirectory() as out, mock.patch.multiple(
+                build_charts, load_cohort=lambda cache=None: ({'tag': 'example'}, cohort.f, source, 'e' * 64), load_weather=lambda: weather,
+                load_geometry=lambda: None, catalog=lambda: [refusing]):
+            with self.assertRaisesRegex(ValueError, rf"Chart {refusing['number']} \({refusing['slug']}\) cannot be built on this cohort: "):
+                build_charts.run(out)
+            self.assertEqual(list(Path(out).glob('*.json')), [])
+
     def test_every_analysis_module_the_build_imports_is_bound(self):
         """The import closure of the builder and the chart modules, inside analysis/: each module is one of the scripts
         the charts manifest hashes or one the cohort manifest must name (the reader checks those against the checkout)."""

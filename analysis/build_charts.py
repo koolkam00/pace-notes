@@ -116,7 +116,13 @@ def run(output, only=None, cache=None, partial=False):
                 files[filename] = meta
             continue
         t = time.time()
-        result = build_one(item, cohort)
+        try:
+            result = build_one(item, cohort)
+        except ValueError as error:
+            # A builder refuses when its data fall under one of its floors (a group under 100 finishes, too few editions
+            # or races). The floor is never lowered to keep the chart (AGENTS rule 13): the build stops and names it, and
+            # the chart is then left out by a reviewed change (docs/TOP_100_CHARTS.md, "When a builder refuses").
+            raise ValueError(f"Chart {item['number']} ({item['slug']}) cannot be built on this cohort: {error}") from error
         data = encode(dict(family='chart', number=item['number'], slug=item['slug'], theme=item['theme'], **common, **result))
         write(output / filename, data)
         files[filename] = dict(bytes=len(data), sha256=sha256_bytes(data))

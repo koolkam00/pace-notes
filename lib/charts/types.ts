@@ -29,11 +29,16 @@ export type ChartFile = {
 export type ChartsManifest = {
   schema_version: 1;
   release_tag: string;
+  /** The SHA-256 of analysis/marathon-cohort/manifest.json (the name is from the time it held the runner lookup's). */
   runner_manifest_sha256: string;
   as_of: string;
   catalog_sha256: string;
   files: Record<string, { bytes: number; sha256: string }>;
   cohort: { eligible: number; after_duplicate_screen: number; editions: number; cities: number; shape: number; exact_age: number };
+  /** The edition policy the cohort states: its digests and counts (the listed editions are public/data/edition-policy.json). */
+  source_quality: { policy_sha256: string; editions_sha256: string; editions_file: string };
+  /** The scripts that wrote the cohort, by SHA-256. */
+  source_scripts: Record<string, string>;
 };
 
 type V = Record<string, number | string>;
