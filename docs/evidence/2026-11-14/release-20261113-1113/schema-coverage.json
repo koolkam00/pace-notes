@@ -1,0 +1,1053 @@
+{
+  "course_profiles.parquet": {
+    "rows": 33,
+    "columns": [
+      {
+        "name": "id",
+        "type": "BIGINT",
+        "non_null": 33
+      },
+      {
+        "name": "city",
+        "type": "VARCHAR",
+        "non_null": 33
+      },
+      {
+        "name": "race",
+        "type": "VARCHAR",
+        "non_null": 33
+      },
+      {
+        "name": "course_key",
+        "type": "VARCHAR",
+        "non_null": 33
+      },
+      {
+        "name": "valid_from_year",
+        "type": "DOUBLE",
+        "non_null": 1
+      },
+      {
+        "name": "valid_to_year",
+        "type": "INTEGER",
+        "non_null": 0
+      },
+      {
+        "name": "distance_km",
+        "type": "DOUBLE",
+        "non_null": 33
+      },
+      {
+        "name": "elev_gain_m",
+        "type": "DOUBLE",
+        "non_null": 33
+      },
+      {
+        "name": "elev_loss_m",
+        "type": "DOUBLE",
+        "non_null": 33
+      },
+      {
+        "name": "elev_min_m",
+        "type": "DOUBLE",
+        "non_null": 33
+      },
+      {
+        "name": "elev_max_m",
+        "type": "DOUBLE",
+        "non_null": 33
+      },
+      {
+        "name": "start_lat",
+        "type": "DOUBLE",
+        "non_null": 33
+      },
+      {
+        "name": "start_lon",
+        "type": "DOUBLE",
+        "non_null": 33
+      },
+      {
+        "name": "finish_lat",
+        "type": "DOUBLE",
+        "non_null": 33
+      },
+      {
+        "name": "finish_lon",
+        "type": "DOUBLE",
+        "non_null": 33
+      },
+      {
+        "name": "points_json",
+        "type": "VARCHAR",
+        "non_null": 33
+      },
+      {
+        "name": "source",
+        "type": "VARCHAR",
+        "non_null": 33
+      },
+      {
+        "name": "source_url",
+        "type": "VARCHAR",
+        "non_null": 33
+      },
+      {
+        "name": "notes",
+        "type": "VARCHAR",
+        "non_null": 33
+      },
+      {
+        "name": "updated_at",
+        "type": "VARCHAR",
+        "non_null": 33
+      },
+      {
+        "name": "segments_json",
+        "type": "VARCHAR",
+        "non_null": 33
+      }
+    ]
+  },
+  "course_segments.parquet": {
+    "rows": 297,
+    "columns": [
+      {
+        "name": "id",
+        "type": "BIGINT",
+        "non_null": 297
+      },
+      {
+        "name": "city",
+        "type": "VARCHAR",
+        "non_null": 297
+      },
+      {
+        "name": "course_key",
+        "type": "VARCHAR",
+        "non_null": 297
+      },
+      {
+        "name": "race",
+        "type": "VARCHAR",
+        "non_null": 297
+      },
+      {
+        "name": "seg_from_km",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "seg_to_km",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "elev_gain_m",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "elev_loss_m",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "elev_net_m",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "elev_min_m",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "elev_max_m",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "elev_mean_m",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "gain_m",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "loss_m",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "net_m",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "avg_grade",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "max_grade",
+        "type": "DOUBLE",
+        "non_null": 297
+      },
+      {
+        "name": "n_points",
+        "type": "BIGINT",
+        "non_null": 297
+      },
+      {
+        "name": "source",
+        "type": "VARCHAR",
+        "non_null": 297
+      },
+      {
+        "name": "updated_at",
+        "type": "VARCHAR",
+        "non_null": 297
+      }
+    ]
+  },
+  "edition_meta.parquet": {
+    "rows": 2901,
+    "columns": [
+      {
+        "name": "id",
+        "type": "BIGINT",
+        "non_null": 2901
+      },
+      {
+        "name": "city",
+        "type": "VARCHAR",
+        "non_null": 2901
+      },
+      {
+        "name": "year",
+        "type": "BIGINT",
+        "non_null": 2901
+      },
+      {
+        "name": "official_finishers",
+        "type": "DOUBLE",
+        "non_null": 1295
+      },
+      {
+        "name": "official_source_url",
+        "type": "VARCHAR",
+        "non_null": 2870
+      },
+      {
+        "name": "official_source_type",
+        "type": "VARCHAR",
+        "non_null": 2870
+      },
+      {
+        "name": "official_checked_at",
+        "type": "VARCHAR",
+        "non_null": 1324
+      },
+      {
+        "name": "db_count_at_check",
+        "type": "BIGINT",
+        "non_null": 2901
+      },
+      {
+        "name": "checked_at",
+        "type": "VARCHAR",
+        "non_null": 2901
+      },
+      {
+        "name": "completeness_status",
+        "type": "VARCHAR",
+        "non_null": 2901
+      },
+      {
+        "name": "completeness_reason",
+        "type": "VARCHAR",
+        "non_null": 2901
+      },
+      {
+        "name": "tolerance_pct",
+        "type": "DOUBLE",
+        "non_null": 2901
+      },
+      {
+        "name": "wave_starts_json",
+        "type": "VARCHAR",
+        "non_null": 12
+      },
+      {
+        "name": "timing_basis",
+        "type": "VARCHAR",
+        "non_null": 2874
+      },
+      {
+        "name": "timing_basis_evidence",
+        "type": "VARCHAR",
+        "non_null": 273
+      },
+      {
+        "name": "age_basis",
+        "type": "VARCHAR",
+        "non_null": 273
+      },
+      {
+        "name": "course_notes",
+        "type": "VARCHAR",
+        "non_null": 2664
+      },
+      {
+        "name": "updated_at",
+        "type": "VARCHAR",
+        "non_null": 2901
+      },
+      {
+        "name": "verification_tier",
+        "type": "VARCHAR",
+        "non_null": 2901
+      },
+      {
+        "name": "verified_badge",
+        "type": "BOOLEAN",
+        "non_null": 2901
+      },
+      {
+        "name": "weaker_source",
+        "type": "BOOLEAN",
+        "non_null": 2688
+      },
+      {
+        "name": "badge_label",
+        "type": "VARCHAR",
+        "non_null": 811
+      },
+      {
+        "name": "split_tier",
+        "type": "VARCHAR",
+        "non_null": 2688
+      },
+      {
+        "name": "release_exclusion",
+        "type": "VARCHAR",
+        "non_null": 226
+      },
+      {
+        "name": "release_note",
+        "type": "VARCHAR",
+        "non_null": 22
+      },
+      {
+        "name": "hold_note",
+        "type": "VARCHAR",
+        "non_null": 20
+      },
+      {
+        "name": "race_date",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "race_date_source",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "producer_note_date",
+        "type": "VARCHAR",
+        "non_null": 2426
+      }
+    ]
+  },
+  "features.parquet": {
+    "rows": 7819991,
+    "columns": [
+      {
+        "name": "record_id",
+        "type": "BIGINT",
+        "non_null": 7819991
+      },
+      {
+        "name": "city",
+        "type": "VARCHAR",
+        "non_null": 7819991
+      },
+      {
+        "name": "year",
+        "type": "BIGINT",
+        "non_null": 7819991
+      },
+      {
+        "name": "race_date",
+        "type": "VARCHAR",
+        "non_null": 5386347
+      },
+      {
+        "name": "race",
+        "type": "VARCHAR",
+        "non_null": 7819991
+      },
+      {
+        "name": "runner_name",
+        "type": "VARCHAR",
+        "non_null": 7817636
+      },
+      {
+        "name": "sex",
+        "type": "VARCHAR",
+        "non_null": 7753493
+      },
+      {
+        "name": "age",
+        "type": "DOUBLE",
+        "non_null": 2899214
+      },
+      {
+        "name": "yob",
+        "type": "BIGINT",
+        "non_null": 2898396
+      },
+      {
+        "name": "age_group",
+        "type": "VARCHAR",
+        "non_null": 5788558
+      },
+      {
+        "name": "seg_05",
+        "type": "DOUBLE",
+        "non_null": 5855107
+      },
+      {
+        "name": "seg_10",
+        "type": "DOUBLE",
+        "non_null": 5799922
+      },
+      {
+        "name": "seg_15",
+        "type": "DOUBLE",
+        "non_null": 5644247
+      },
+      {
+        "name": "seg_20",
+        "type": "DOUBLE",
+        "non_null": 5116418
+      },
+      {
+        "name": "seg_25",
+        "type": "DOUBLE",
+        "non_null": 4898050
+      },
+      {
+        "name": "seg_30",
+        "type": "DOUBLE",
+        "non_null": 5392693
+      },
+      {
+        "name": "seg_35",
+        "type": "DOUBLE",
+        "non_null": 5660282
+      },
+      {
+        "name": "seg_40",
+        "type": "DOUBLE",
+        "non_null": 5611496
+      },
+      {
+        "name": "seg_42",
+        "type": "DOUBLE",
+        "non_null": 5747227
+      },
+      {
+        "name": "finish_time",
+        "type": "DOUBLE",
+        "non_null": 7807099
+      },
+      {
+        "name": "cum_05",
+        "type": "DOUBLE",
+        "non_null": 5855107
+      },
+      {
+        "name": "cum_10",
+        "type": "DOUBLE",
+        "non_null": 6327113
+      },
+      {
+        "name": "cum_15",
+        "type": "DOUBLE",
+        "non_null": 5689979
+      },
+      {
+        "name": "cum_20",
+        "type": "DOUBLE",
+        "non_null": 5170413
+      },
+      {
+        "name": "cum_25",
+        "type": "DOUBLE",
+        "non_null": 5439200
+      },
+      {
+        "name": "cum_30",
+        "type": "DOUBLE",
+        "non_null": 6168573
+      },
+      {
+        "name": "cum_35",
+        "type": "DOUBLE",
+        "non_null": 5729656
+      },
+      {
+        "name": "cum_40",
+        "type": "DOUBLE",
+        "non_null": 5747324
+      },
+      {
+        "name": "match_key",
+        "type": "VARCHAR",
+        "non_null": 6179989
+      },
+      {
+        "name": "is_ambiguous",
+        "type": "BOOLEAN",
+        "non_null": 6179989
+      },
+      {
+        "name": "runner_id",
+        "type": "VARCHAR",
+        "non_null": 6179989
+      },
+      {
+        "name": "link_preliminary",
+        "type": "BOOLEAN",
+        "non_null": 6179989
+      },
+      {
+        "name": "person_id",
+        "type": "VARCHAR",
+        "non_null": 7677541
+      },
+      {
+        "name": "link_confidence",
+        "type": "VARCHAR",
+        "non_null": 7677541
+      },
+      {
+        "name": "link_method",
+        "type": "VARCHAR",
+        "non_null": 7764596
+      },
+      {
+        "name": "sex_source",
+        "type": "VARCHAR",
+        "non_null": 7753493
+      }
+    ],
+    "identifier_coverage": {
+      "runner_id": {
+        "distinct_non_null": 3349468,
+        "values_with_multiple_rows": 1153646
+      },
+      "person_id": {
+        "distinct_non_null": 4157162,
+        "values_with_multiple_rows": 1417766
+      }
+    },
+    "coverage": {
+      "distinct_city": 894,
+      "distinct_race": 1279,
+      "distinct_year": 53,
+      "year_min": 1972,
+      "year_max": 2026
+    },
+    "date_join_coverage": {
+      "feature_rows": 7819991,
+      "rows_with_unambiguous_overlay_date": 5325285
+    }
+  },
+  "qa_row_flags.parquet": {
+    "rows": 110555,
+    "columns": [
+      {
+        "name": "record_id",
+        "type": "BIGINT",
+        "non_null": 110555
+      },
+      {
+        "name": "city",
+        "type": "VARCHAR",
+        "non_null": 110555
+      },
+      {
+        "name": "year",
+        "type": "BIGINT",
+        "non_null": 110555
+      },
+      {
+        "name": "split_nonmonotonic",
+        "type": "BOOLEAN",
+        "non_null": 110555
+      },
+      {
+        "name": "split_after_finish",
+        "type": "BOOLEAN",
+        "non_null": 110555
+      },
+      {
+        "name": "finish_equals_earlier_split",
+        "type": "BOOLEAN",
+        "non_null": 110555
+      },
+      {
+        "name": "finish_ge_24h",
+        "type": "BOOLEAN",
+        "non_null": 110555
+      },
+      {
+        "name": "finish_zero",
+        "type": "BOOLEAN",
+        "non_null": 110555
+      },
+      {
+        "name": "finish_implausibly_fast",
+        "type": "BOOLEAN",
+        "non_null": 110555
+      },
+      {
+        "name": "finish_faster_than_world_record",
+        "type": "BOOLEAN",
+        "non_null": 110555
+      },
+      {
+        "name": "no_finish_time",
+        "type": "BOOLEAN",
+        "non_null": 110555
+      },
+      {
+        "name": "age_implausible",
+        "type": "BOOLEAN",
+        "non_null": 110555
+      },
+      {
+        "name": "finish_6h_to_24h",
+        "type": "BOOLEAN",
+        "non_null": 110555
+      },
+      {
+        "name": "sex_from_category",
+        "type": "VARCHAR",
+        "non_null": 68277
+      }
+    ]
+  },
+  "race_conditions.parquet": {
+    "rows": 299,
+    "columns": [
+      {
+        "name": "id",
+        "type": "BIGINT",
+        "non_null": 299
+      },
+      {
+        "name": "city",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "year",
+        "type": "BIGINT",
+        "non_null": 299
+      },
+      {
+        "name": "race",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "race_date",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "start_local",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "timezone",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "lat",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "lon",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "temp_c",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "feels_like_c",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "dewpoint_c",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "humidity_pct",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "wind_mps",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "wind_dir_deg",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "precip_mm",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "weather_code",
+        "type": "BIGINT",
+        "non_null": 299
+      },
+      {
+        "name": "pressure_hpa",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "cloud_pct",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "source",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "source_url",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "observed_at",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "hourly_json",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "notes",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "updated_at",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "source_kind",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "station_id",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "station_name",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "station_distance_km",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "exposure_window_start_local",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "exposure_window_end_local",
+        "type": "VARCHAR",
+        "non_null": 299
+      },
+      {
+        "name": "temp_c_win_mean",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "temp_c_win_max",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "dewpoint_c_win_mean",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "humidity_win_mean",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "wind_kmh_win_mean",
+        "type": "DOUBLE",
+        "non_null": 299
+      },
+      {
+        "name": "precip_mm_win_sum",
+        "type": "DOUBLE",
+        "non_null": 299
+      }
+    ]
+  },
+  "race_records.parquet": {
+    "rows": 7819991,
+    "columns": [
+      {
+        "name": "id",
+        "type": "BIGINT",
+        "non_null": 7819991
+      },
+      {
+        "name": "race",
+        "type": "VARCHAR",
+        "non_null": 7819991
+      },
+      {
+        "name": "year",
+        "type": "BIGINT",
+        "non_null": 7819991
+      },
+      {
+        "name": "city",
+        "type": "VARCHAR",
+        "non_null": 7819991
+      },
+      {
+        "name": "runner",
+        "type": "VARCHAR",
+        "non_null": 7817636
+      },
+      {
+        "name": "sex",
+        "type": "VARCHAR",
+        "non_null": 7754351
+      },
+      {
+        "name": "age",
+        "type": "DOUBLE",
+        "non_null": 2899214
+      },
+      {
+        "name": "age_group",
+        "type": "VARCHAR",
+        "non_null": 5788558
+      },
+      {
+        "name": "split_5km",
+        "type": "VARCHAR",
+        "non_null": 5855107
+      },
+      {
+        "name": "split_10km",
+        "type": "VARCHAR",
+        "non_null": 6327113
+      },
+      {
+        "name": "split_15km",
+        "type": "VARCHAR",
+        "non_null": 5689979
+      },
+      {
+        "name": "split_20km",
+        "type": "VARCHAR",
+        "non_null": 5170413
+      },
+      {
+        "name": "split_25km",
+        "type": "VARCHAR",
+        "non_null": 5439200
+      },
+      {
+        "name": "split_30km",
+        "type": "VARCHAR",
+        "non_null": 6168573
+      },
+      {
+        "name": "split_35km",
+        "type": "VARCHAR",
+        "non_null": 5729656
+      },
+      {
+        "name": "split_40km",
+        "type": "VARCHAR",
+        "non_null": 5747324
+      },
+      {
+        "name": "split_42_2km",
+        "type": "VARCHAR",
+        "non_null": 7807099
+      },
+      {
+        "name": "source_url",
+        "type": "VARCHAR",
+        "non_null": 7819991
+      },
+      {
+        "name": "ingested_at",
+        "type": "VARCHAR",
+        "non_null": 7819991
+      },
+      {
+        "name": "age_or_group",
+        "type": "VARCHAR",
+        "non_null": 5294475
+      }
+    ]
+  },
+  "record_flags.parquet": {
+    "rows": 5390171,
+    "columns": [
+      {
+        "name": "record_id",
+        "type": "BIGINT",
+        "non_null": 5390171
+      },
+      {
+        "name": "city",
+        "type": "VARCHAR",
+        "non_null": 5390171
+      },
+      {
+        "name": "year",
+        "type": "BIGINT",
+        "non_null": 5390171
+      },
+      {
+        "name": "flag",
+        "type": "VARCHAR",
+        "non_null": 5390171
+      },
+      {
+        "name": "detail",
+        "type": "VARCHAR",
+        "non_null": 818090
+      }
+    ]
+  },
+  "sources.parquet": {
+    "rows": 3031,
+    "columns": [
+      {
+        "name": "id",
+        "type": "BIGINT",
+        "non_null": 3031
+      },
+      {
+        "name": "race",
+        "type": "VARCHAR",
+        "non_null": 3031
+      },
+      {
+        "name": "city",
+        "type": "VARCHAR",
+        "non_null": 3030
+      },
+      {
+        "name": "paper_city",
+        "type": "VARCHAR",
+        "non_null": 3024
+      },
+      {
+        "name": "year",
+        "type": "BIGINT",
+        "non_null": 3031
+      },
+      {
+        "name": "url",
+        "type": "VARCHAR",
+        "non_null": 3031
+      },
+      {
+        "name": "url_scope",
+        "type": "VARCHAR",
+        "non_null": 3023
+      },
+      {
+        "name": "url_as_published",
+        "type": "VARCHAR",
+        "non_null": 361
+      },
+      {
+        "name": "timing_vendor",
+        "type": "VARCHAR",
+        "non_null": 2795
+      },
+      {
+        "name": "format",
+        "type": "VARCHAR",
+        "non_null": 3027
+      },
+      {
+        "name": "last_ingested",
+        "type": "VARCHAR",
+        "non_null": 2894
+      },
+      {
+        "name": "has_5km_splits",
+        "type": "VARCHAR",
+        "non_null": 3030
+      },
+      {
+        "name": "corpus",
+        "type": "VARCHAR",
+        "non_null": 3014
+      },
+      {
+        "name": "notes",
+        "type": "VARCHAR",
+        "non_null": 2760
+      },
+      {
+        "name": "release_status",
+        "type": "VARCHAR",
+        "non_null": 226
+      }
+    ]
+  }
+}

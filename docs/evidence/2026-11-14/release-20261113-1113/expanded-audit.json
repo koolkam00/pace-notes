@@ -1,0 +1,2801 @@
+{
+  "feature_values": {
+    "n": 7819991,
+    "unique_record_ids": 7819991,
+    "valid_flag": null,
+    "median_finish": 255.76666666666668,
+    "median_seg05": 28.433333333333334,
+    "median_pace05": null,
+    "median_cum05": 28.433333333333334,
+    "segment_sum_error": 0.0,
+    "max_segment_sum_error": 3.979039320256561e-13
+  },
+  "raw_ids": {
+    "n": 7819991,
+    "unique_ids": 7819991
+  },
+  "id_join": {
+    "matches": 7819991,
+    "same_race": 7819991,
+    "same_name": 7817636
+  },
+  "identity_conflicts": {
+    "linked_ids": 3349468,
+    "conflicting_gender": 0,
+    "conflicting_birth_year": 26800,
+    "repeated_edition": 0
+  },
+  "weather_notes": [
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 107
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=10:00; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 40
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=07:30; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 15
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=08:30; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 14
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=07:55; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 12
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:15; race_date from Wikipedia World Marathon Majors table",
+      "editions": 11
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date from Wikipedia World Marathon Majors table",
+      "editions": 9
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=07:00; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 9
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:30; race_date from Wikipedia World Marathon Majors table",
+      "editions": 8
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=08:45; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 8
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:15; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 7
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=06:20; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 7
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=05:00; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 6
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:10; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 4
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour at start_local=08:00; start time UNVERIFIED (assumed 8:00 AM, needs DQ check); rebuilt backfill Oct 20 2026",
+      "editions": 4
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=12:00; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 3
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=06:30; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 3
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=15:00; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 3
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:30; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 2
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:30; race_date from Wikipedia World Marathon Majors table; COVID-shifted autumn edition",
+      "editions": 2
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=10:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; COVID-shifted autumn edition (24 Oct 2021)",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:40; race_date from Wikipedia/World Athletics/AIMS/official calendars; start 09:40 per official traffic bulletin https://helsinkicityrun.fi/wp-content/uploads/2024/04/HCRD2024_liikennetiedote.pdf (15:00 was the Helsinki City Run half marathon; corrected 2026-10-10 DQ)",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=10:30; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; COVID-shifted autumn edition (Mon 11 Oct 2021); rolling mass start from 09:00",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=06:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; return edition at Expo City Dubai (12 Feb 2023; start ~06:00)",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; COVID-shifted autumn edition (26 Sep 2021)",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=09:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; waves 10:00-11:15 (09:00 kept for Boston consistency)",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=07:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; official convocatoria XLIII: Domingo 30 agosto 2026 (INDEPORTE)",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=08:00; race_date from Wikipedia/World Athletics/AIMS/official calendars",
+      "editions": 1
+    },
+    {
+      "source": "open-meteo",
+      "notes": "Open-Meteo archive hour nearest start_local=06:00; race_date from Wikipedia/World Athletics/AIMS/official calendars; Umm Suqeim Rd; elite ~06:00 / masses 07:00 (7 Jan 2024)",
+      "editions": 1
+    }
+  ],
+  "weather_coverage": {
+    "n": 299,
+    "date_year_agrees": 299,
+    "min_temperature": 0.0,
+    "max_temperature": 25.6,
+    "min_humidity": 38.0,
+    "max_humidity": 100.0,
+    "min_wind": 0.41,
+    "max_wind": 9.93
+  },
+  "dates": [
+    {
+      "city": "Amsterdam",
+      "year": 2012,
+      "race_date": "2012-10-21",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2013,
+      "race_date": "2013-10-20",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2014,
+      "race_date": "2014-10-19",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2015,
+      "race_date": "2015-10-18",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2016,
+      "race_date": "2016-10-16",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2017,
+      "race_date": "2017-10-15",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2018,
+      "race_date": "2018-10-21",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2019,
+      "race_date": "2019-10-20",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2021,
+      "race_date": "2021-10-17",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2022,
+      "race_date": "2022-10-16",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2023,
+      "race_date": "2023-10-15",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2024,
+      "race_date": "2024-10-20",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Amsterdam",
+      "year": 2025,
+      "race_date": "2025-10-19",
+      "start_local": "09:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Athens",
+      "year": 2013,
+      "race_date": "2013-11-10",
+      "start_local": "09:00",
+      "timezone": "Europe/Athens",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Athens",
+      "year": 2014,
+      "race_date": "2014-11-09",
+      "start_local": "09:00",
+      "timezone": "Europe/Athens",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Athens",
+      "year": 2015,
+      "race_date": "2015-11-08",
+      "start_local": "09:00",
+      "timezone": "Europe/Athens",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Athens",
+      "year": 2016,
+      "race_date": "2016-11-13",
+      "start_local": "09:00",
+      "timezone": "Europe/Athens",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Athens",
+      "year": 2017,
+      "race_date": "2017-11-12",
+      "start_local": "09:00",
+      "timezone": "Europe/Athens",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Athens",
+      "year": 2018,
+      "race_date": "2018-11-11",
+      "start_local": "09:00",
+      "timezone": "Europe/Athens",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Athens",
+      "year": 2019,
+      "race_date": "2019-11-10",
+      "start_local": "09:00",
+      "timezone": "Europe/Athens",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Athens",
+      "year": 2021,
+      "race_date": "2021-11-14",
+      "start_local": "09:00",
+      "timezone": "Europe/Athens",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Athens",
+      "year": 2022,
+      "race_date": "2022-11-13",
+      "start_local": "09:00",
+      "timezone": "Europe/Athens",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Auckland",
+      "year": 2016,
+      "race_date": "2016-10-30",
+      "start_local": "09:00",
+      "timezone": "Pacific/Auckland",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Auckland",
+      "year": 2017,
+      "race_date": "2017-10-29",
+      "start_local": "09:00",
+      "timezone": "Pacific/Auckland",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Auckland",
+      "year": 2018,
+      "race_date": "2018-10-28",
+      "start_local": "09:00",
+      "timezone": "Pacific/Auckland",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Auckland",
+      "year": 2019,
+      "race_date": "2019-10-20",
+      "start_local": "09:00",
+      "timezone": "Pacific/Auckland",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Austin",
+      "year": 2017,
+      "race_date": "2017-02-19",
+      "start_local": "07:00",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Austin",
+      "year": 2018,
+      "race_date": "2018-02-18",
+      "start_local": "07:00",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Austin",
+      "year": 2019,
+      "race_date": "2019-02-17",
+      "start_local": "07:00",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Barcelona",
+      "year": 2019,
+      "race_date": "2019-03-10",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Barcelona",
+      "year": 2025,
+      "race_date": "2025-03-16",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Barcelona",
+      "year": 2026,
+      "race_date": "2026-03-15",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2005,
+      "race_date": "2005-09-25",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2006,
+      "race_date": "2006-09-24",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2007,
+      "race_date": "2007-09-30",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2008,
+      "race_date": "2008-09-28",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2009,
+      "race_date": "2009-09-20",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2010,
+      "race_date": "2010-09-26",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2011,
+      "race_date": "2011-09-25",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2012,
+      "race_date": "2012-09-30",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2013,
+      "race_date": "2013-09-29",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2014,
+      "race_date": "2014-09-28",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2015,
+      "race_date": "2015-09-27",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2016,
+      "race_date": "2016-09-25",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2017,
+      "race_date": "2017-09-24",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2018,
+      "race_date": "2018-09-16",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2019,
+      "race_date": "2019-09-29",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2021,
+      "race_date": "2021-09-26",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2022,
+      "race_date": "2022-09-25",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2023,
+      "race_date": "2023-09-24",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2024,
+      "race_date": "2024-09-29",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2025,
+      "race_date": "2025-09-21",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Berlin",
+      "year": 2026,
+      "race_date": "2026-09-27",
+      "start_local": "09:15",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2012,
+      "race_date": "2012-04-16",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2013,
+      "race_date": "2013-04-15",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2014,
+      "race_date": "2014-04-21",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2015,
+      "race_date": "2015-04-20",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2016,
+      "race_date": "2016-04-18",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2017,
+      "race_date": "2017-04-17",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2018,
+      "race_date": "2018-04-16",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2019,
+      "race_date": "2019-04-15",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2021,
+      "race_date": "2021-10-11",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2022,
+      "race_date": "2022-04-18",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2023,
+      "race_date": "2023-04-17",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2024,
+      "race_date": "2024-04-15",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2025,
+      "race_date": "2025-04-21",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Boston",
+      "year": 2026,
+      "race_date": "2026-04-20",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2005,
+      "race_date": "2005-10-09",
+      "start_local": "08:00",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2006,
+      "race_date": "2006-10-22",
+      "start_local": "08:00",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2007,
+      "race_date": "2007-10-07",
+      "start_local": "08:00",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2008,
+      "race_date": "2008-10-12",
+      "start_local": "08:00",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2009,
+      "race_date": "2009-10-11",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2010,
+      "race_date": "2010-10-10",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2011,
+      "race_date": "2011-10-09",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2012,
+      "race_date": "2012-10-07",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2013,
+      "race_date": "2013-10-13",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2014,
+      "race_date": "2014-10-12",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2015,
+      "race_date": "2015-10-11",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2016,
+      "race_date": "2016-10-09",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2017,
+      "race_date": "2017-10-08",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2018,
+      "race_date": "2018-10-07",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2019,
+      "race_date": "2019-10-13",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2021,
+      "race_date": "2021-10-10",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2022,
+      "race_date": "2022-10-09",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2023,
+      "race_date": "2023-10-08",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2024,
+      "race_date": "2024-10-13",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2025,
+      "race_date": "2025-10-12",
+      "start_local": "07:35",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Chicago",
+      "year": 2026,
+      "race_date": "2026-10-11",
+      "start_local": "07:30",
+      "timezone": "America/Chicago",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Cologne",
+      "year": 2016,
+      "race_date": "2016-10-02",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Cologne",
+      "year": 2017,
+      "race_date": "2017-10-01",
+      "start_local": "10:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Cologne",
+      "year": 2018,
+      "race_date": "2018-10-07",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Cologne",
+      "year": 2019,
+      "race_date": "2019-10-13",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Cologne",
+      "year": 2022,
+      "race_date": "2022-10-02",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Cologne",
+      "year": 2023,
+      "race_date": "2023-10-01",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Cologne",
+      "year": 2024,
+      "race_date": "2024-10-06",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Cologne",
+      "year": 2025,
+      "race_date": "2025-10-05",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Cologne",
+      "year": 2026,
+      "race_date": "2026-10-04",
+      "start_local": "10:30",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2014,
+      "race_date": "2014-05-18",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2015,
+      "race_date": "2015-05-24",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2016,
+      "race_date": "2016-05-22",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2017,
+      "race_date": "2017-05-21",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2018,
+      "race_date": "2018-05-13",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2019,
+      "race_date": "2019-05-19",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2022,
+      "race_date": "2022-05-15",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2023,
+      "race_date": "2023-05-14",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2024,
+      "race_date": "2024-05-05",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2025,
+      "race_date": "2025-05-11",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Copenhagen",
+      "year": 2026,
+      "race_date": "2026-05-28",
+      "start_local": "09:00",
+      "timezone": "Europe/Copenhagen",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Dubai",
+      "year": 2016,
+      "race_date": "2016-01-22",
+      "start_local": "06:30",
+      "timezone": "Asia/Dubai",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Dubai",
+      "year": 2019,
+      "race_date": "2019-01-25",
+      "start_local": "06:30",
+      "timezone": "Asia/Dubai",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Dubai",
+      "year": 2020,
+      "race_date": "2020-01-24",
+      "start_local": "06:30",
+      "timezone": "Asia/Dubai",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Dubai",
+      "year": 2023,
+      "race_date": "2023-02-12",
+      "start_local": "06:00",
+      "timezone": "Asia/Dubai",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Dubai",
+      "year": 2024,
+      "race_date": "2024-01-07",
+      "start_local": "06:00",
+      "timezone": "Asia/Dubai",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Dubai",
+      "year": 2025,
+      "race_date": "2025-01-12",
+      "start_local": "06:00",
+      "timezone": "Asia/Dubai",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2009,
+      "race_date": "2009-10-11",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2010,
+      "race_date": "2010-10-10",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2011,
+      "race_date": "2011-10-09",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2012,
+      "race_date": "2012-10-14",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2013,
+      "race_date": "2013-10-13",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2014,
+      "race_date": "2014-10-12",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2015,
+      "race_date": "2015-10-11",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2016,
+      "race_date": "2016-10-09",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2018,
+      "race_date": "2018-10-14",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2019,
+      "race_date": "2019-10-13",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2021,
+      "race_date": "2021-10-10",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2022,
+      "race_date": "2022-10-09",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2023,
+      "race_date": "2023-10-08",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2024,
+      "race_date": "2024-10-13",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2025,
+      "race_date": "2025-10-12",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Eindhoven",
+      "year": 2026,
+      "race_date": "2026-10-11",
+      "start_local": "09:30",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2018,
+      "race_date": "2018-10-28",
+      "start_local": "10:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2019,
+      "race_date": "2019-10-27",
+      "start_local": "10:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2022,
+      "race_date": "2022-10-30",
+      "start_local": "10:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2023,
+      "race_date": "2023-10-29",
+      "start_local": "10:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2024,
+      "race_date": "2024-10-27",
+      "start_local": "10:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Frankfurt",
+      "year": 2025,
+      "race_date": "2025-10-26",
+      "start_local": "10:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Gold Coast",
+      "year": 2016,
+      "race_date": "2016-07-03",
+      "start_local": "06:20",
+      "timezone": "Australia/Brisbane",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Gold Coast",
+      "year": 2017,
+      "race_date": "2017-07-02",
+      "start_local": "06:20",
+      "timezone": "Australia/Brisbane",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Gold Coast",
+      "year": 2018,
+      "race_date": "2018-07-01",
+      "start_local": "06:20",
+      "timezone": "Australia/Brisbane",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Gold Coast",
+      "year": 2019,
+      "race_date": "2019-07-07",
+      "start_local": "06:20",
+      "timezone": "Australia/Brisbane",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Gold Coast",
+      "year": 2022,
+      "race_date": "2022-07-03",
+      "start_local": "06:20",
+      "timezone": "Australia/Brisbane",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Gold Coast",
+      "year": 2023,
+      "race_date": "2023-07-02",
+      "start_local": "06:20",
+      "timezone": "Australia/Brisbane",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Gold Coast",
+      "year": 2024,
+      "race_date": "2024-07-07",
+      "start_local": "06:20",
+      "timezone": "Australia/Brisbane",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2013,
+      "race_date": "2013-04-21",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2014,
+      "race_date": "2014-05-04",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2015,
+      "race_date": "2015-04-26",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2016,
+      "race_date": "2016-04-17",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2017,
+      "race_date": "2017-04-23",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2018,
+      "race_date": "2018-04-29",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2019,
+      "race_date": "2019-04-28",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2022,
+      "race_date": "2022-04-24",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2023,
+      "race_date": "2023-04-23",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2024,
+      "race_date": "2024-04-28",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Hamburg",
+      "year": 2025,
+      "race_date": "2025-04-27",
+      "start_local": "09:00",
+      "timezone": "Europe/Berlin",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Helsinki",
+      "year": 2015,
+      "race_date": "2015-08-15",
+      "start_local": "15:00",
+      "timezone": "Europe/Helsinki",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Helsinki",
+      "year": 2016,
+      "race_date": "2016-08-13",
+      "start_local": "15:00",
+      "timezone": "Europe/Helsinki",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Helsinki",
+      "year": 2017,
+      "race_date": "2017-08-12",
+      "start_local": "15:00",
+      "timezone": "Europe/Helsinki",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Helsinki",
+      "year": 2024,
+      "race_date": "2024-05-11",
+      "start_local": "09:40",
+      "timezone": "Europe/Helsinki",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Helsinki",
+      "year": 2025,
+      "race_date": "2025-05-17",
+      "start_local": "09:40",
+      "timezone": "Europe/Helsinki",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Helsinki",
+      "year": 2026,
+      "race_date": "2026-08-22",
+      "start_local": "08:45",
+      "timezone": "Europe/Helsinki",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Honolulu",
+      "year": 2016,
+      "race_date": "2016-12-11",
+      "start_local": "05:00",
+      "timezone": "Pacific/Honolulu",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Honolulu",
+      "year": 2021,
+      "race_date": "2021-12-12",
+      "start_local": "05:00",
+      "timezone": "Pacific/Honolulu",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Honolulu",
+      "year": 2022,
+      "race_date": "2022-12-11",
+      "start_local": "05:00",
+      "timezone": "Pacific/Honolulu",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Honolulu",
+      "year": 2023,
+      "race_date": "2023-12-10",
+      "start_local": "05:00",
+      "timezone": "Pacific/Honolulu",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Honolulu",
+      "year": 2024,
+      "race_date": "2024-12-08",
+      "start_local": "05:00",
+      "timezone": "Pacific/Honolulu",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Honolulu",
+      "year": 2025,
+      "race_date": "2025-12-14",
+      "start_local": "05:00",
+      "timezone": "Pacific/Honolulu",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2015,
+      "race_date": "2015-04-26",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2016,
+      "race_date": "2016-04-24",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2017,
+      "race_date": "2017-04-23",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2018,
+      "race_date": "2018-04-22",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2019,
+      "race_date": "2019-04-28",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2021,
+      "race_date": "2021-10-03",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2022,
+      "race_date": "2022-10-02",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2023,
+      "race_date": "2023-04-23",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2024,
+      "race_date": "2024-04-21",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2025,
+      "race_date": "2025-04-27",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "London",
+      "year": 2026,
+      "race_date": "2026-04-26",
+      "start_local": "09:30",
+      "timezone": "Europe/London",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2013,
+      "race_date": "2013-04-28",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2014,
+      "race_date": "2014-04-27",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2015,
+      "race_date": "2015-04-26",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2016,
+      "race_date": "2016-04-24",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2017,
+      "race_date": "2017-04-23",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2018,
+      "race_date": "2018-04-22",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2019,
+      "race_date": "2019-04-27",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2021,
+      "race_date": "2021-09-26",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2022,
+      "race_date": "2022-04-24",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2023,
+      "race_date": "2023-04-23",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2024,
+      "race_date": "2024-04-28",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2025,
+      "race_date": "2025-04-27",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Madrid",
+      "year": 2026,
+      "race_date": "2026-04-26",
+      "start_local": "09:00",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Melbourne",
+      "year": 2015,
+      "race_date": "2015-10-18",
+      "start_local": "07:00",
+      "timezone": "Australia/Melbourne",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Mexico City",
+      "year": 2024,
+      "race_date": "2024-08-25",
+      "start_local": "07:00",
+      "timezone": "America/Mexico_City",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Mexico City",
+      "year": 2025,
+      "race_date": "2025-08-31",
+      "start_local": "07:00",
+      "timezone": "America/Mexico_City",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Mexico City",
+      "year": 2026,
+      "race_date": "2026-08-30",
+      "start_local": "07:00",
+      "timezone": "America/Mexico_City",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2006,
+      "race_date": "2006-11-05",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2007,
+      "race_date": "2007-11-04",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2008,
+      "race_date": "2008-11-02",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2009,
+      "race_date": "2009-11-01",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2010,
+      "race_date": "2010-11-07",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2011,
+      "race_date": "2011-11-06",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2013,
+      "race_date": "2013-11-03",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2014,
+      "race_date": "2014-11-02",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2015,
+      "race_date": "2015-11-01",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2016,
+      "race_date": "2016-11-06",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2017,
+      "race_date": "2017-11-05",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2018,
+      "race_date": "2018-11-04",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2019,
+      "race_date": "2019-11-03",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2021,
+      "race_date": "2021-11-07",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2022,
+      "race_date": "2022-11-06",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2023,
+      "race_date": "2023-11-05",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2024,
+      "race_date": "2024-11-03",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "New York",
+      "year": 2025,
+      "race_date": "2025-11-02",
+      "start_local": "09:00",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Oslo",
+      "year": 2016,
+      "race_date": "2016-09-17",
+      "start_local": "10:00",
+      "timezone": "Europe/Oslo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Oslo",
+      "year": 2017,
+      "race_date": "2017-09-16",
+      "start_local": "10:00",
+      "timezone": "Europe/Oslo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Oslo",
+      "year": 2018,
+      "race_date": "2018-09-15",
+      "start_local": "10:00",
+      "timezone": "Europe/Oslo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Oslo",
+      "year": 2022,
+      "race_date": "2022-09-17",
+      "start_local": "10:00",
+      "timezone": "Europe/Oslo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Oslo",
+      "year": 2023,
+      "race_date": "2023-09-16",
+      "start_local": "10:00",
+      "timezone": "Europe/Oslo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Oslo",
+      "year": 2024,
+      "race_date": "2024-09-21",
+      "start_local": "10:00",
+      "timezone": "Europe/Oslo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Oslo",
+      "year": 2025,
+      "race_date": "2025-09-20",
+      "start_local": "10:00",
+      "timezone": "Europe/Oslo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Oslo",
+      "year": 2026,
+      "race_date": "2026-09-12",
+      "start_local": "09:00",
+      "timezone": "Europe/Oslo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Paris",
+      "year": 2014,
+      "race_date": "2014-04-06",
+      "start_local": "08:45",
+      "timezone": "Europe/Paris",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Paris",
+      "year": 2015,
+      "race_date": "2015-04-12",
+      "start_local": "08:45",
+      "timezone": "Europe/Paris",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Paris",
+      "year": 2016,
+      "race_date": "2016-04-03",
+      "start_local": "08:45",
+      "timezone": "Europe/Paris",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Paris",
+      "year": 2017,
+      "race_date": "2017-04-09",
+      "start_local": "08:45",
+      "timezone": "Europe/Paris",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Paris",
+      "year": 2018,
+      "race_date": "2018-04-08",
+      "start_local": "08:45",
+      "timezone": "Europe/Paris",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Paris",
+      "year": 2019,
+      "race_date": "2019-04-14",
+      "start_local": "08:45",
+      "timezone": "Europe/Paris",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Paris",
+      "year": 2024,
+      "race_date": "2024-04-07",
+      "start_local": "08:45",
+      "timezone": "Europe/Paris",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Prague",
+      "year": 2016,
+      "race_date": "2016-05-08",
+      "start_local": "09:00",
+      "timezone": "Europe/Prague",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Prague",
+      "year": 2017,
+      "race_date": "2017-05-07",
+      "start_local": "09:00",
+      "timezone": "Europe/Prague",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Prague",
+      "year": 2018,
+      "race_date": "2018-05-06",
+      "start_local": "09:00",
+      "timezone": "Europe/Prague",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Prague",
+      "year": 2019,
+      "race_date": "2019-05-05",
+      "start_local": "09:00",
+      "timezone": "Europe/Prague",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Prague",
+      "year": 2022,
+      "race_date": "2022-05-08",
+      "start_local": "09:00",
+      "timezone": "Europe/Prague",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Prague",
+      "year": 2023,
+      "race_date": "2023-05-07",
+      "start_local": "09:00",
+      "timezone": "Europe/Prague",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Prague",
+      "year": 2024,
+      "race_date": "2024-05-05",
+      "start_local": "09:00",
+      "timezone": "Europe/Prague",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Prague",
+      "year": 2025,
+      "race_date": "2025-05-04",
+      "start_local": "09:00",
+      "timezone": "Europe/Prague",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Prague",
+      "year": 2026,
+      "race_date": "2026-05-03",
+      "start_local": "08:00",
+      "timezone": "Europe/Prague",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2012,
+      "race_date": "2012-04-15",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2013,
+      "race_date": "2013-04-14",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2014,
+      "race_date": "2014-04-13",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2015,
+      "race_date": "2015-04-12",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2016,
+      "race_date": "2016-04-10",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2017,
+      "race_date": "2017-04-09",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2018,
+      "race_date": "2018-04-08",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2019,
+      "race_date": "2019-04-07",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2021,
+      "race_date": "2021-10-24",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2022,
+      "race_date": "2022-04-10",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2023,
+      "race_date": "2023-04-16",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Rotterdam",
+      "year": 2024,
+      "race_date": "2024-04-14",
+      "start_local": "10:00",
+      "timezone": "Europe/Amsterdam",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Singapore",
+      "year": 2025,
+      "race_date": "2025-12-07",
+      "start_local": "04:30",
+      "timezone": "Asia/Singapore",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Stockholm",
+      "year": 2011,
+      "race_date": "2011-06-04",
+      "start_local": "12:00",
+      "timezone": "Europe/Stockholm",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Stockholm",
+      "year": 2021,
+      "race_date": "2021-10-09",
+      "start_local": "12:00",
+      "timezone": "Europe/Stockholm",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Stockholm",
+      "year": 2024,
+      "race_date": "2024-06-01",
+      "start_local": "12:00",
+      "timezone": "Europe/Stockholm",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Stockholm",
+      "year": 2025,
+      "race_date": "2025-05-31",
+      "start_local": "12:00",
+      "timezone": "Europe/Stockholm",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Sydney",
+      "year": 2017,
+      "race_date": "2017-09-17",
+      "start_local": "07:00",
+      "timezone": "Australia/Sydney",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Sydney",
+      "year": 2018,
+      "race_date": "2018-09-16",
+      "start_local": "07:00",
+      "timezone": "Australia/Sydney",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Sydney",
+      "year": 2019,
+      "race_date": "2019-09-15",
+      "start_local": "07:00",
+      "timezone": "Australia/Sydney",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Tokyo",
+      "year": 2016,
+      "race_date": "2016-02-28",
+      "start_local": "09:10",
+      "timezone": "Asia/Tokyo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Tokyo",
+      "year": 2017,
+      "race_date": "2017-02-26",
+      "start_local": "09:10",
+      "timezone": "Asia/Tokyo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Tokyo",
+      "year": 2018,
+      "race_date": "2018-02-25",
+      "start_local": "09:10",
+      "timezone": "Asia/Tokyo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Tokyo",
+      "year": 2025,
+      "race_date": "2025-03-02",
+      "start_local": "09:10",
+      "timezone": "Asia/Tokyo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Tokyo",
+      "year": 2026,
+      "race_date": "2026-03-01",
+      "start_local": "09:10",
+      "timezone": "Asia/Tokyo",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2014,
+      "race_date": "2014-11-16",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2015,
+      "race_date": "2015-11-15",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2016,
+      "race_date": "2016-11-20",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2017,
+      "race_date": "2017-11-19",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2018,
+      "race_date": "2018-12-02",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2019,
+      "race_date": "2019-12-01",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2021,
+      "race_date": "2021-12-05",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2022,
+      "race_date": "2022-12-04",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2023,
+      "race_date": "2023-12-03",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2024,
+      "race_date": "2024-12-01",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Valencia",
+      "year": 2025,
+      "race_date": "2025-12-07",
+      "start_local": "08:30",
+      "timezone": "Europe/Madrid",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Vienna",
+      "year": 2022,
+      "race_date": "2022-04-24",
+      "start_local": "09:00",
+      "timezone": "Europe/Vienna",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Vienna",
+      "year": 2023,
+      "race_date": "2023-04-23",
+      "start_local": "09:00",
+      "timezone": "Europe/Vienna",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Vienna",
+      "year": 2024,
+      "race_date": "2024-04-21",
+      "start_local": "09:00",
+      "timezone": "Europe/Vienna",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2015,
+      "race_date": "2015-04-26",
+      "start_local": "09:30",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2016,
+      "race_date": "2016-04-24",
+      "start_local": "08:45",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2017,
+      "race_date": "2017-04-23",
+      "start_local": "09:00",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2018,
+      "race_date": "2018-04-22",
+      "start_local": "09:00",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2019,
+      "race_date": "2019-09-29",
+      "start_local": "09:00",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2020,
+      "race_date": "2020-09-27",
+      "start_local": "09:00",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2021,
+      "race_date": "2021-09-26",
+      "start_local": "09:00",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2022,
+      "race_date": "2022-09-25",
+      "start_local": "09:00",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2023,
+      "race_date": "2023-09-24",
+      "start_local": "09:00",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2024,
+      "race_date": "2024-09-29",
+      "start_local": "09:00",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2025,
+      "race_date": "2025-09-28",
+      "start_local": "09:00",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Warsaw",
+      "year": 2026,
+      "race_date": "2026-09-27",
+      "start_local": "09:00",
+      "timezone": "Europe/Warsaw",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2008,
+      "race_date": "2008-10-26",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2009,
+      "race_date": "2009-10-25",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2010,
+      "race_date": "2010-10-31",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2011,
+      "race_date": "2011-10-30",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2012,
+      "race_date": "2012-10-28",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2013,
+      "race_date": "2013-10-27",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2014,
+      "race_date": "2014-10-26",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2015,
+      "race_date": "2015-10-25",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2016,
+      "race_date": "2016-10-30",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2017,
+      "race_date": "2017-10-22",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2018,
+      "race_date": "2018-10-28",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    },
+    {
+      "city": "Washington",
+      "year": 2023,
+      "race_date": "2023-10-29",
+      "start_local": "07:55",
+      "timezone": "America/New_York",
+      "source": "open-meteo"
+    }
+  ],
+  "course_notes": [
+    {
+      "source": "gpx:singapore-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Singapore. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=695; samples=259; points_json=193 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2024/12/01/gpx_20241201_id10067_race1_20241111170942.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:amsterdam-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Amsterdam. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=1144; samples=308; points_json=209 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2024/10/20/gpx_20241020_id9938_race1_20240719154116.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:barcelona-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Barcelona. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=848; samples=321; points_json=219 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/03/15/gpx_20260315_id10746_race1_20260215184303.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:copenhagen-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Copenhagen. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=1350; samples=342; points_json=220 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2024/05/05/gpx_20240505_id9645_race1_20240325215115.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:frankfurt-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Frankfurt. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=709; samples=271; points_json=197 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2024/10/27/gpx_20241027_id10041_race1_20241014174819.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:hamburg-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Hamburg. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=940; samples=286; points_json=201 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/04/26/gpx_20260426_id10947_race1_20260415123932.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:honolulu-goandrace.gpx+opentopodata:ned10m",
+      "notes": "GoAndRace GPX for Honolulu. Elev: OpenTopoData ned10m DEM @~100m (no smooth). Gain thresh 1.0m. Raw track pts=972; samples=307; points_json=210 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/12/14/gpx_20251214_id10639_race1_20251128120508.gpx. No brochure elev copied. elev_source=opentopodata:ned10m.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:madrid-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Madrid. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=154; samples=119; points_json=107 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/04/27/gpx_20250427_id10277_race1_20250423125929.gpx. No brochure elev copied. elev_source=opentopodata:mapzen. DQ 2026-10-10: d_km rescaled linearly x1.000806 from 42.161 to 42.195 km (max shift 34 m); elevations unchanged.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:prague-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Prague. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=908; samples=271; points_json=209 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/05/04/gpx_20250504_id10286_race1_20250427161946.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:boston-goandrace-2026.gpx+opentopodata:ned10m",
+      "notes": "GoAndRace 2026 Boston GPX track. Elev: OpenTopoData NED10m DEM @~100m (no smooth; high-res DEM). Gain thresh 1.0m. Raw track pts=1381; DEM/profile samples=331; points_json=232 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/04/20/gpx_20260420_id10941_race1_20260409222740.gpx. No brochure elev copied.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:stockholm-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Stockholm. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=1606; samples=334; points_json=218 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/05/30/gpx_20260530_id10994_race1_20260512131034.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:sydney-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Sydney. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=650; samples=234; points_json=182 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/08/30/gpx_20260830_id11024_race1_20260810174311.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:valencia-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Valencia. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=748; samples=282; points_json=228 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/12/07/gpx_20251207_id10637_race1_20251126173357.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:cologne-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Cologne. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=1130; samples=314; points_json=216 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/10/05/gpx_20251005_id10580_race1_20250925104441.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:dubai-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Dubai. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=154; samples=126; points_json=117 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/01/12/gpx_20250112_id10084_race1_20241205213604.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:chicago-goandrace-2025.gpx+opentopodata:ned10m",
+      "notes": "GoAndRace 2025 Chicago GPX track. Elev: OpenTopoData NED10m DEM @~100m (no smooth). Gain thresh 1.0m. Raw track pts=163; DEM/profile samples=114; points_json=102 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/10/12/gpx_20251012_id10457_race1_20250826213208.gpx. No brochure elev copied.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:auckland-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Auckland. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=1101; samples=293; points_json=206 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/11/02/gpx_20251102_id10606_race1_20251027173310.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:helsinki-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Helsinki. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=994; samples=291; points_json=198 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2024/08/24/gpx_20240824_id9952_race1_20240728235324.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:eindhoven-official-2025.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "Official ASML Marathon Eindhoven 2025 full-marathon GPX (ele zeros discarded). Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=517; samples=237; points_json=182 (~150m + extrema). GPX: https://asmlmarathoneindhoven.nl/wp-content/uploads/sites/38/2025/09/ME2025-Hele-Marathon-DEF.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:warsaw-official-2026.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "Official 48th Warsaw Marathon 2026 GPX (no embedded elev). Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=1924; samples=169; points_json=136 (~150m + extrema). GPX: https://maratonwarszawski.com/wp-content/uploads/2026/08/48_Maraton_Warszawski.gpx. No brochure elev copied. elev_source=opentopodata:mapzen. | DQ 2026-10-10: restricted to PZU (autumn) years via valid_from_year=2019 so it no longer applies to the 2015-18 spring Orlen Warsaw Marathon rows; 2019-25 PZU routes not checked against this 2026 GPX.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:vienna-vcm2026.gpx",
+      "notes": "Official Vienna City Marathon 2026 GPX (organizer download https://www.vienna-marathon.com/var/upload/public/2026/ViennaCityMarathon-PoweradeRelayMarathon.gpx; Vienna City Marathon & Powerade Relay Marathon = marathon course; file created via Strava route builder, OSM-based) with embedded <ele>. THIS IS THE 2026 COURSE; DB editions are 2022-24 (layout believed same, unverified). Raw haversine length 42.657 km rescaled linearly x0.989172 to 42.195 km (DQ 2026-10-10). Gain thresh 1.0m on ~100m samples. Raw track pts=731; samples=291; points_json=221 (~150m + extrema). No brochure elev copied. elev_source=gpx-embedded.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:rotterdam-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Rotterdam. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=650; samples=219; points_json=163 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/04/13/gpx_20250413_id10257_race1_20250407180901.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:washington-mcm-rwgps.gpx+opentopodata:ned10m",
+      "notes": "RideWithGPS public Marine Corps Marathon route (VA/DC MCM 26.2; start Rt110/Pentagon area, finish Iwo Jima). Elev: OpenTopoData ned10m DEM @~100m (no smooth). Gain thresh 1.0m. Bridge decks may differ from ground DEM. Raw track pts=3325; samples=397; points_json=255 (~150m + extrema). GPX: https://ridewithgps.com/routes/17446251.json. No brochure elev copied. elev_source=opentopodata:ned10m.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:mexico-city-quevita.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "Quevita/soymaratonista Maraton CDMX full GPX (GPSies track; start Estadio Olimpico/CU, finish Zocalo; GPSies elev discarded). Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=674; samples=241; points_json=197 (~150m + extrema). GPX: https://calendario.soymaratonista.com/maraton-de-la-ciudad-de-mexico/ (Quevita Race-DB Maraton CDMX.gpx; CU start to Zocalo finish). No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:oslo-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Oslo. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=1308; samples=333; points_json=206 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2024/09/21/gpx_20240921_id9988_race2_20240823121459.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:austin-goandrace.gpx+opentopodata:ned10m",
+      "notes": "GoAndRace GPX for Austin. Elev: OpenTopoData ned10m DEM @~100m (no smooth). Gain thresh 1.0m. Raw track pts=1153; samples=309; points_json=221 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/02/15/gpx_20260215_id10707_race1_20260114125519.gpx. No brochure elev copied. elev_source=opentopodata:ned10m.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:athens-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Athens. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=704; samples=292; points_json=211 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/11/09/gpx_20251109_id10295_race1_20250929172209.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:paris-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Paris. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=602; samples=200; points_json=146 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/04/12/gpx_20260412_id10915_race1_20260322120025.gpx. No brochure elev copied. elev_source=opentopodata:mapzen. DQ 2026-10-10: d_km rescaled linearly x1.000356 from 42.18 to 42.195 km (max shift 15 m); elevations unchanged.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:gold-coast-goandrace.gpx+opentopodata:mapzen+smooth800m",
+      "notes": "GoAndRace GPX for Gold Coast. Elev: OpenTopoData mapzen DEM @~100m + 800m smooth. Gain thresh 2.0m. Raw track pts=451; samples=226; points_json=182 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2026/07/04/gpx_20260704_id11049_race1_20260619154945.gpx. No brochure elev copied. elev_source=opentopodata:mapzen.",
+      "profiles": 1
+    },
+    {
+      "source": "gpx:nyc-goandrace-2025.gpx+opentopodata:ned10m",
+      "notes": "GoAndRace 2025 NYC GPX track. Elev: OpenTopoData NED10m DEM @~100m (no smooth). Bridge decks may differ from ground DEM. Gain thresh 1.0m. Raw track pts=455; DEM/profile samples=225; points_json=181 (~150m + extrema). GPX: https://www.goandrace.com/gpx/2025/11/02/gpx_20251102_id10470_race1_20250929105512.gpx. No brochure elev copied.",
+      "profiles": 1
+    }
+  ],
+  "segment_grid": [
+    {
+      "seg_from_km": 0.0,
+      "seg_to_km": 5.0,
+      "n": 33,
+      "min_grade": -0.015,
+      "max_grade": 0.0143
+    },
+    {
+      "seg_from_km": 5.0,
+      "seg_to_km": 10.0,
+      "n": 33,
+      "min_grade": -0.0134,
+      "max_grade": 0.0041
+    },
+    {
+      "seg_from_km": 10.0,
+      "seg_to_km": 15.0,
+      "n": 33,
+      "min_grade": -0.0044,
+      "max_grade": 0.009
+    },
+    {
+      "seg_from_km": 15.0,
+      "seg_to_km": 20.0,
+      "n": 33,
+      "min_grade": -0.0067,
+      "max_grade": 0.0046
+    },
+    {
+      "seg_from_km": 20.0,
+      "seg_to_km": 25.0,
+      "n": 33,
+      "min_grade": -0.0139,
+      "max_grade": 0.0186
+    },
+    {
+      "seg_from_km": 25.0,
+      "seg_to_km": 30.0,
+      "n": 33,
+      "min_grade": -0.005,
+      "max_grade": 0.0106
+    },
+    {
+      "seg_from_km": 30.0,
+      "seg_to_km": 35.0,
+      "n": 33,
+      "min_grade": -0.0087,
+      "max_grade": 0.0026
+    },
+    {
+      "seg_from_km": 35.0,
+      "seg_to_km": 40.0,
+      "n": 33,
+      "min_grade": -0.0137,
+      "max_grade": 0.0082
+    },
+    {
+      "seg_from_km": 40.0,
+      "seg_to_km": 42.195,
+      "n": 33,
+      "min_grade": -0.0146,
+      "max_grade": 0.0115
+    }
+  ]
+}

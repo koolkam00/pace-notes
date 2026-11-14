@@ -1,0 +1,3429 @@
+{
+ "release_tag": "pace-notes-marathon-half-20261113-1113",
+ "input_manifest_sha256": "72360d6577756fa75b83bd93f8b8b95d71e9fc8294f5d5e65fd4b39851912a97",
+ "policy": {
+  "version": 1,
+  "reviewed_edition_policy": true,
+  "policy_sha256": "10019ab70be006cd8e6972fc688e05bb2d25b7e34fde2dde7e34ee469b639f4a",
+  "script_sha256": "593599170ec8e372c2aea080ff07e31f0803beff253b6a8ead49940b99c44241"
+ },
+ "policy_editions": 2483,
+ "cohort": {
+  "deduplicated": 7819945,
+  "complete": 4736952,
+  "increasing": 4705518,
+  "timing_eligible": 4687794,
+  "eligible": 4124023,
+  "source_quality_excluded": 563771,
+  "raw": 7819991,
+  "duplicates_removed": 46,
+  "missing_or_unparsed": 3082993,
+  "non_increasing": 31434,
+  "outside_quality_bounds": 17724
+ },
+ "editions_with_records": 2684,
+ "cities_with_records": 894,
+ "timing_eligible_editions": 270,
+ "timing_eligible_cities": 39,
+ "policy_excluded_by_category": {
+  "finish_time_only": {
+   "editions": 1926,
+   "timing_eligible_excluded": 0
+  },
+  "invalid_split_grid": {
+   "editions": 156,
+   "timing_eligible_excluded": 68221
+  },
+  "partial_coverage": {
+   "editions": 12,
+   "timing_eligible_excluded": 112056
+  },
+  "unverified": {
+   "editions": 200,
+   "timing_eligible_excluded": 106379
+  },
+  "held_for_review": {
+   "editions": 163,
+   "timing_eligible_excluded": 68249
+  },
+  "selected_field": {
+   "editions": 6,
+   "timing_eligible_excluded": 44932
+  },
+  "mixed_distance_list": {
+   "editions": 5,
+   "timing_eligible_excluded": 0
+  },
+  "unreconciled_hold": {
+   "editions": 12,
+   "timing_eligible_excluded": 163518
+  },
+  "incomplete_ingestion": {
+   "editions": 3,
+   "timing_eligible_excluded": 416
+  }
+ },
+ "readings": {
+  "a_policy": {
+   "eligible_finishes": 4124023,
+   "eligible_editions": 201,
+   "eligible_cities": 29,
+   "sustained_slowdown": 1288216,
+   "sustained_slowdown_pct": 31.2369,
+   "policy_excluded_finishes": 563771,
+   "by_tier": {
+    "stamped": {
+     "eligible_finishes": 3240473,
+     "eligible_editions": 162,
+     "eligible_cities": 24,
+     "sustained_slowdown": 983317,
+     "sustained_slowdown_pct": 30.3449
+    },
+    "stamped_weaker_source": {
+     "eligible_finishes": 162509,
+     "eligible_editions": 12,
+     "eligible_cities": 5,
+     "sustained_slowdown": 75063,
+     "sustained_slowdown_pct": 46.1901
+    },
+    "partial": {
+     "eligible_finishes": 721041,
+     "eligible_editions": 27,
+     "eligible_cities": 13,
+     "sustained_slowdown": 229836,
+     "sustained_slowdown_pct": 31.8756
+    }
+   }
+  },
+  "b_verified_tiers_only": {
+   "eligible_finishes": 3402982,
+   "eligible_editions": 174,
+   "eligible_cities": 28,
+   "sustained_slowdown": 1058380,
+   "sustained_slowdown_pct": 31.1015,
+   "policy_excluded_finishes": 1284812
+  },
+  "c_policy_plus_screened_unverified": {
+   "eligible_finishes": 4230402,
+   "eligible_editions": 224,
+   "eligible_cities": 34,
+   "sustained_slowdown": 1324653,
+   "sustained_slowdown_pct": 31.3127,
+   "policy_excluded_finishes": 457392,
+   "unverified_editions_added": [
+    "Auckland 2016",
+    "Auckland 2019",
+    "Austin 2019",
+    "Copenhagen 2026",
+    "Donostia-San Sebastián: 44 Zurich Maratón San Sebastián 2022",
+    "Donostia-San Sebastián: Zurich Maratón San Sebastián 2023",
+    "Eindhoven 2013",
+    "Gold Coast 2016",
+    "Gold Coast 2017",
+    "Gold Coast 2018",
+    "Gold Coast 2019",
+    "Gold Coast 2022",
+    "Madrid 2026",
+    "Oslo 2016",
+    "Oslo 2017",
+    "Oslo 2018",
+    "Oslo 2022",
+    "Oslo 2023",
+    "Querétaro: Querétaro Maratón 2021",
+    "Sevilla: Zurich Maratón de Sevilla 2022",
+    "Sydney 2017",
+    "Sydney 2019",
+    "Warsaw 2026"
+   ]
+  }
+ },
+ "against_previous": {
+  "previous_release": "master-20261103b",
+  "eligible_then": 218,
+  "eligible_now": 201,
+  "stay": 190,
+  "leave": 28,
+  "join": 11,
+  "finishes_then_in_staying_editions": 4015827,
+  "finishes_now_in_staying_editions": 4015789,
+  "leaving": [
+   {
+    "edition": "Auckland 2016",
+    "finishes_then": 1541,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Auckland 2019",
+    "finishes_then": 1560,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Austin 2019",
+    "finishes_then": 2614,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Copenhagen 2026",
+    "finishes_then": 21511,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Eindhoven 2013",
+    "finishes_then": 1277,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Frankfurt 2022",
+    "finishes_then": 6729,
+    "category": "partial_coverage",
+    "tier": "partial",
+    "coverage_pct": 85.08
+   },
+   {
+    "edition": "Frankfurt 2023",
+    "finishes_then": 8286,
+    "category": "partial_coverage",
+    "tier": "partial",
+    "coverage_pct": 86.2
+   },
+   {
+    "edition": "Frankfurt 2024",
+    "finishes_then": 8789,
+    "category": "partial_coverage",
+    "tier": "partial",
+    "coverage_pct": 86.47
+   },
+   {
+    "edition": "Frankfurt 2025",
+    "finishes_then": 10604,
+    "category": "partial_coverage",
+    "tier": "partial",
+    "coverage_pct": 86.86
+   },
+   {
+    "edition": "Gold Coast 2016",
+    "finishes_then": 5331,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Gold Coast 2017",
+    "finishes_then": 5111,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Gold Coast 2018",
+    "finishes_then": 5712,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Gold Coast 2019",
+    "finishes_then": 5620,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Gold Coast 2022",
+    "finishes_then": 3959,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Hamburg 2022",
+    "finishes_then": 5460,
+    "category": "partial_coverage",
+    "tier": "partial",
+    "coverage_pct": 83.09
+   },
+   {
+    "edition": "Hamburg 2025",
+    "finishes_then": 10595,
+    "category": "partial_coverage",
+    "tier": "partial",
+    "coverage_pct": 93.33
+   },
+   {
+    "edition": "Madrid 2026",
+    "finishes_then": 10813,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "New York 2014",
+    "finishes_then": 42792,
+    "category": "partial_coverage",
+    "tier": "partial",
+    "coverage_pct": 94.11
+   },
+   {
+    "edition": "Oslo 2016",
+    "finishes_then": 2384,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Oslo 2017",
+    "finishes_then": 1975,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Oslo 2018",
+    "finishes_then": 2204,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Oslo 2022",
+    "finishes_then": 1788,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Oslo 2023",
+    "finishes_then": 2490,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Singapore 2025",
+    "finishes_then": 8877,
+    "category": "partial_coverage",
+    "tier": "partial",
+    "coverage_pct": 109.85
+   },
+   {
+    "edition": "Stockholm 2011",
+    "finishes_then": 9924,
+    "category": "partial_coverage",
+    "tier": "partial",
+    "coverage_pct": 64.21
+   },
+   {
+    "edition": "Sydney 2017",
+    "finishes_then": 3461,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Sydney 2019",
+    "finishes_then": 4332,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   },
+   {
+    "edition": "Warsaw 2026",
+    "finishes_then": 10680,
+    "category": "unverified",
+    "tier": "unverified",
+    "coverage_pct": null
+   }
+  ],
+  "joining": [
+   {
+    "edition": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K 2022",
+    "finishes": 2539,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 33.64,
+    "median_finish_s": 16058.0,
+    "in_previous_release": false
+   },
+   {
+    "edition": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K 2023",
+    "finishes": 3154,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 40.01,
+    "median_finish_s": 16075.0,
+    "in_previous_release": false
+   },
+   {
+    "edition": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K 2024",
+    "finishes": 3898,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 26.35,
+    "median_finish_s": 15545.5,
+    "in_previous_release": false
+   },
+   {
+    "edition": "Los Angeles, CA: Los Angeles Marathon 2015",
+    "finishes": 20712,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 63.39,
+    "median_finish_s": 19449.0,
+    "in_previous_release": false
+   },
+   {
+    "edition": "Los Angeles, CA: Los Angeles Marathon 2019",
+    "finishes": 17118,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 48.33,
+    "median_finish_s": 18962.0,
+    "in_previous_release": false
+   },
+   {
+    "edition": "Los Angeles, CA: Los Angeles Marathon 2023",
+    "finishes": 13794,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 45.12,
+    "median_finish_s": 18416.0,
+    "in_previous_release": false
+   },
+   {
+    "edition": "Los Angeles, CA: Los Angeles Marathon 2024",
+    "finishes": 18180,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 50.68,
+    "median_finish_s": 18607.5,
+    "in_previous_release": false
+   },
+   {
+    "edition": "Los Angeles, CA: Los Angeles Marathon 2026",
+    "finishes": 19333,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 59.53,
+    "median_finish_s": 18870.0,
+    "in_previous_release": false
+   },
+   {
+    "edition": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K 2025",
+    "finishes": 2386,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 43.76,
+    "median_finish_s": 16815.5,
+    "in_previous_release": false
+   },
+   {
+    "edition": "Toronto, ON: Toronto Waterfront Marathon 2019",
+    "finishes": 3781,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 38.46,
+    "median_finish_s": 14915.0,
+    "in_previous_release": false
+   },
+   {
+    "edition": "Toronto, ON: Toronto Waterfront Marathon 2022",
+    "finishes": 3339,
+    "tier": "stamped_weaker_source",
+    "sustained_slowdown_pct": 39.29,
+    "median_finish_s": 14423.0,
+    "in_previous_release": false
+   }
+  ],
+  "leaving_finishes": 206419,
+  "leaving_by_category": {
+   "unverified": {
+    "editions": 19,
+    "finishes_then": 94363
+   },
+   "partial_coverage": {
+    "editions": 9,
+    "finishes_then": 112056
+   }
+  },
+  "cities_then": [
+   "Amsterdam",
+   "Auckland",
+   "Austin",
+   "Barcelona",
+   "Berlin",
+   "Boston",
+   "Chicago",
+   "Copenhagen",
+   "Dubai",
+   "Eindhoven",
+   "Frankfurt",
+   "Gold Coast",
+   "Hamburg",
+   "Helsinki",
+   "London",
+   "Madrid",
+   "New York",
+   "Oslo",
+   "Paris",
+   "Prague",
+   "Rotterdam",
+   "Singapore",
+   "Stockholm",
+   "Sydney",
+   "Valencia",
+   "Warsaw",
+   "Washington"
+  ],
+  "cities_now": [
+   "Amsterdam",
+   "Austin",
+   "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "Barcelona",
+   "Berlin",
+   "Boston",
+   "Chicago",
+   "Copenhagen",
+   "Dubai",
+   "Eindhoven",
+   "Frankfurt",
+   "Gold Coast",
+   "Hamburg",
+   "Helsinki",
+   "London",
+   "Los Angeles, CA: Los Angeles Marathon",
+   "Madrid",
+   "New York",
+   "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+   "Oslo",
+   "Paris",
+   "Prague",
+   "Rotterdam",
+   "Stockholm",
+   "Sydney",
+   "Toronto, ON: Toronto Waterfront Marathon",
+   "Valencia",
+   "Warsaw",
+   "Washington"
+  ]
+ },
+ "todays_course_cities": {
+  "Amsterdam": {
+   "then": {
+    "editions": 13,
+    "finishes": 168093
+   },
+   "a": {
+    "editions": 13,
+    "finishes": 168093
+   },
+   "b": {
+    "editions": 13,
+    "finishes": 168093
+   },
+   "c": {
+    "editions": 13,
+    "finishes": 168093
+   }
+  },
+  "Auckland": {
+   "then": {
+    "editions": 2,
+    "finishes": 3101
+   },
+   "a": {
+    "editions": 0,
+    "finishes": 0
+   },
+   "b": {
+    "editions": 0,
+    "finishes": 0
+   },
+   "c": {
+    "editions": 2,
+    "finishes": 3101
+   }
+  },
+  "Austin": {
+   "then": {
+    "editions": 3,
+    "finishes": 7621
+   },
+   "a": {
+    "editions": 2,
+    "finishes": 5007
+   },
+   "b": {
+    "editions": 0,
+    "finishes": 0
+   },
+   "c": {
+    "editions": 3,
+    "finishes": 7620
+   }
+  },
+  "Barcelona": {
+   "then": {
+    "editions": 2,
+    "finishes": 44671
+   },
+   "a": {
+    "editions": 2,
+    "finishes": 44671
+   },
+   "b": {
+    "editions": 2,
+    "finishes": 44671
+   },
+   "c": {
+    "editions": 2,
+    "finishes": 44671
+   }
+  },
+  "Berlin": {
+   "then": {
+    "editions": 21,
+    "finishes": 769273
+   },
+   "a": {
+    "editions": 21,
+    "finishes": 769273
+   },
+   "b": {
+    "editions": 18,
+    "finishes": 634189
+   },
+   "c": {
+    "editions": 21,
+    "finishes": 769273
+   }
+  },
+  "Boston": {
+   "then": {
+    "editions": 10,
+    "finishes": 257269
+   },
+   "a": {
+    "editions": 10,
+    "finishes": 257269
+   },
+   "b": {
+    "editions": 8,
+    "finishes": 203446
+   },
+   "c": {
+    "editions": 10,
+    "finishes": 257269
+   }
+  },
+  "Chicago": {
+   "then": {
+    "editions": 19,
+    "finishes": 763250
+   },
+   "a": {
+    "editions": 19,
+    "finishes": 763215
+   },
+   "b": {
+    "editions": 14,
+    "finishes": 561522
+   },
+   "c": {
+    "editions": 19,
+    "finishes": 763215
+   }
+  },
+  "Copenhagen": {
+   "then": {
+    "editions": 11,
+    "finishes": 125695
+   },
+   "a": {
+    "editions": 10,
+    "finishes": 104184
+   },
+   "b": {
+    "editions": 8,
+    "finishes": 85306
+   },
+   "c": {
+    "editions": 11,
+    "finishes": 125695
+   }
+  },
+  "Dubai": {
+   "then": {
+    "editions": 5,
+    "finishes": 10351
+   },
+   "a": {
+    "editions": 5,
+    "finishes": 10351
+   },
+   "b": {
+    "editions": 5,
+    "finishes": 10351
+   },
+   "c": {
+    "editions": 5,
+    "finishes": 10351
+   }
+  },
+  "Eindhoven": {
+   "then": {
+    "editions": 13,
+    "finishes": 29058
+   },
+   "a": {
+    "editions": 12,
+    "finishes": 27781
+   },
+   "b": {
+    "editions": 11,
+    "finishes": 26517
+   },
+   "c": {
+    "editions": 13,
+    "finishes": 29058
+   }
+  },
+  "Frankfurt": {
+   "then": {
+    "editions": 6,
+    "finishes": 55461
+   },
+   "a": {
+    "editions": 2,
+    "finishes": 21053
+   },
+   "b": {
+    "editions": 2,
+    "finishes": 21053
+   },
+   "c": {
+    "editions": 2,
+    "finishes": 21053
+   }
+  },
+  "Gold Coast": {
+   "then": {
+    "editions": 6,
+    "finishes": 31544
+   },
+   "a": {
+    "editions": 1,
+    "finishes": 5811
+   },
+   "b": {
+    "editions": 1,
+    "finishes": 5811
+   },
+   "c": {
+    "editions": 6,
+    "finishes": 31544
+   }
+  },
+  "Hamburg": {
+   "then": {
+    "editions": 11,
+    "finishes": 117569
+   },
+   "a": {
+    "editions": 9,
+    "finishes": 101514
+   },
+   "b": {
+    "editions": 9,
+    "finishes": 101514
+   },
+   "c": {
+    "editions": 9,
+    "finishes": 101514
+   }
+  },
+  "Helsinki": {
+   "then": {
+    "editions": 3,
+    "finishes": 7853
+   },
+   "a": {
+    "editions": 3,
+    "finishes": 7853
+   },
+   "b": {
+    "editions": 3,
+    "finishes": 7853
+   },
+   "c": {
+    "editions": 3,
+    "finishes": 7853
+   }
+  },
+  "London": {
+   "then": {
+    "editions": 3,
+    "finishes": 152323
+   },
+   "a": {
+    "editions": 3,
+    "finishes": 152320
+   },
+   "b": {
+    "editions": 1,
+    "finishes": 41765
+   },
+   "c": {
+    "editions": 3,
+    "finishes": 152320
+   }
+  },
+  "Madrid": {
+   "then": {
+    "editions": 12,
+    "finishes": 96835
+   },
+   "a": {
+    "editions": 11,
+    "finishes": 86022
+   },
+   "b": {
+    "editions": 7,
+    "finishes": 58539
+   },
+   "c": {
+    "editions": 12,
+    "finishes": 96835
+   }
+  },
+  "New York": {
+   "then": {
+    "editions": 18,
+    "finishes": 843852
+   },
+   "a": {
+    "editions": 17,
+    "finishes": 801060
+   },
+   "b": {
+    "editions": 16,
+    "finishes": 752375
+   },
+   "c": {
+    "editions": 17,
+    "finishes": 801060
+   }
+  },
+  "Oslo": {
+   "then": {
+    "editions": 8,
+    "finishes": 22334
+   },
+   "a": {
+    "editions": 3,
+    "finishes": 11493
+   },
+   "b": {
+    "editions": 2,
+    "finishes": 8070
+   },
+   "c": {
+    "editions": 8,
+    "finishes": 22334
+   }
+  },
+  "Paris": {
+   "then": {
+    "editions": 2,
+    "finishes": 99970
+   },
+   "a": {
+    "editions": 2,
+    "finishes": 99970
+   },
+   "b": {
+    "editions": 1,
+    "finishes": 46903
+   },
+   "c": {
+    "editions": 2,
+    "finishes": 99970
+   }
+  },
+  "Prague": {
+   "then": {
+    "editions": 4,
+    "finishes": 26332
+   },
+   "a": {
+    "editions": 4,
+    "finishes": 26332
+   },
+   "b": {
+    "editions": 4,
+    "finishes": 26332
+   },
+   "c": {
+    "editions": 4,
+    "finishes": 26332
+   }
+  },
+  "Rotterdam": {
+   "then": {
+    "editions": 11,
+    "finishes": 139923
+   },
+   "a": {
+    "editions": 11,
+    "finishes": 139923
+   },
+   "b": {
+    "editions": 11,
+    "finishes": 139923
+   },
+   "c": {
+    "editions": 11,
+    "finishes": 139923
+   }
+  },
+  "Singapore": {
+   "then": {
+    "editions": 1,
+    "finishes": 8877
+   },
+   "a": {
+    "editions": 0,
+    "finishes": 0
+   },
+   "b": {
+    "editions": 0,
+    "finishes": 0
+   },
+   "c": {
+    "editions": 0,
+    "finishes": 0
+   }
+  },
+  "Stockholm": {
+   "then": {
+    "editions": 3,
+    "finishes": 33825
+   },
+   "a": {
+    "editions": 2,
+    "finishes": 23901
+   },
+   "b": {
+    "editions": 2,
+    "finishes": 23901
+   },
+   "c": {
+    "editions": 2,
+    "finishes": 23901
+   }
+  },
+  "Sydney": {
+   "then": {
+    "editions": 3,
+    "finishes": 11345
+   },
+   "a": {
+    "editions": 1,
+    "finishes": 3552
+   },
+   "b": {
+    "editions": 1,
+    "finishes": 3552
+   },
+   "c": {
+    "editions": 3,
+    "finishes": 11345
+   }
+  },
+  "Valencia": {
+   "then": {
+    "editions": 5,
+    "finishes": 115773
+   },
+   "a": {
+    "editions": 5,
+    "finishes": 115773
+   },
+   "b": {
+    "editions": 3,
+    "finishes": 69889
+   },
+   "c": {
+    "editions": 5,
+    "finishes": 115773
+   }
+  },
+  "Warsaw": {
+   "then": {
+    "editions": 12,
+    "finishes": 66208
+   },
+   "a": {
+    "editions": 11,
+    "finishes": 55528
+   },
+   "b": {
+    "editions": 11,
+    "finishes": 55528
+   },
+   "c": {
+    "editions": 12,
+    "finishes": 66208
+   }
+  },
+  "Washington": {
+   "then": {
+    "editions": 11,
+    "finishes": 213840
+   },
+   "a": {
+    "editions": 11,
+    "finishes": 213840
+   },
+   "b": {
+    "editions": 10,
+    "finishes": 197645
+   },
+   "c": {
+    "editions": 11,
+    "finishes": 213840
+   }
+  }
+ },
+ "by_edition": {
+  "Amsterdam|2012": {
+   "timing_eligible": 9986,
+   "sustained_slowdown": 2120,
+   "median_finish_s": 14014.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2013": {
+   "timing_eligible": 10871,
+   "sustained_slowdown": 3399,
+   "median_finish_s": 14296.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2014": {
+   "timing_eligible": 11959,
+   "sustained_slowdown": 3905,
+   "median_finish_s": 14546.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2015": {
+   "timing_eligible": 12201,
+   "sustained_slowdown": 2480,
+   "median_finish_s": 14212.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2016": {
+   "timing_eligible": 12113,
+   "sustained_slowdown": 3454,
+   "median_finish_s": 14374.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2017": {
+   "timing_eligible": 10942,
+   "sustained_slowdown": 4008,
+   "median_finish_s": 14692.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2018": {
+   "timing_eligible": 11985,
+   "sustained_slowdown": 2992,
+   "median_finish_s": 14262.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2019": {
+   "timing_eligible": 13253,
+   "sustained_slowdown": 3011,
+   "median_finish_s": 14255.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2021": {
+   "timing_eligible": 6491,
+   "sustained_slowdown": 1386,
+   "median_finish_s": 13941.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2022": {
+   "timing_eligible": 12458,
+   "sustained_slowdown": 3402,
+   "median_finish_s": 14184.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2023": {
+   "timing_eligible": 15879,
+   "sustained_slowdown": 2453,
+   "median_finish_s": 14054.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2024": {
+   "timing_eligible": 16735,
+   "sustained_slowdown": 3602,
+   "median_finish_s": 14307.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Amsterdam|2025": {
+   "timing_eligible": 23220,
+   "sustained_slowdown": 3394,
+   "median_finish_s": 14109.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Auckland|2016": {
+   "timing_eligible": 1541,
+   "sustained_slowdown": 578,
+   "median_finish_s": 15442.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Auckland|2017": {
+   "timing_eligible": 1520,
+   "sustained_slowdown": 697,
+   "median_finish_s": 15440.5,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Auckland|2018": {
+   "timing_eligible": 915,
+   "sustained_slowdown": 214,
+   "median_finish_s": 13867.0,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Auckland|2019": {
+   "timing_eligible": 1560,
+   "sustained_slowdown": 594,
+   "median_finish_s": 15399.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Austin|2017": {
+   "timing_eligible": 2568,
+   "sustained_slowdown": 1097,
+   "median_finish_s": 17305.5,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Austin|2018": {
+   "timing_eligible": 2439,
+   "sustained_slowdown": 792,
+   "median_finish_s": 16231.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Austin|2019": {
+   "timing_eligible": 2613,
+   "sustained_slowdown": 997,
+   "median_finish_s": 16276.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K|2022": {
+   "timing_eligible": 2539,
+   "sustained_slowdown": 854,
+   "median_finish_s": 16058.0,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K|2023": {
+   "timing_eligible": 3154,
+   "sustained_slowdown": 1262,
+   "median_finish_s": 16075.0,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K|2024": {
+   "timing_eligible": 3898,
+   "sustained_slowdown": 1027,
+   "median_finish_s": 15545.5,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Barcelona|2019": {
+   "timing_eligible": 5535,
+   "sustained_slowdown": 2197,
+   "median_finish_s": 13014.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Barcelona|2025": {
+   "timing_eligible": 20716,
+   "sustained_slowdown": 4428,
+   "median_finish_s": 13924.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Barcelona|2026": {
+   "timing_eligible": 23955,
+   "sustained_slowdown": 5416,
+   "median_finish_s": 13897.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2005": {
+   "timing_eligible": 30211,
+   "sustained_slowdown": 9947,
+   "median_finish_s": 14883.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2006": {
+   "timing_eligible": 30026,
+   "sustained_slowdown": 11677,
+   "median_finish_s": 15208.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2007": {
+   "timing_eligible": 32344,
+   "sustained_slowdown": 8249,
+   "median_finish_s": 14528.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2008": {
+   "timing_eligible": 35500,
+   "sustained_slowdown": 7449,
+   "median_finish_s": 14537.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2009": {
+   "timing_eligible": 34704,
+   "sustained_slowdown": 12222,
+   "median_finish_s": 14999.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2010": {
+   "timing_eligible": 33816,
+   "sustained_slowdown": 4765,
+   "median_finish_s": 14456.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Berlin|2011": {
+   "timing_eligible": 27208,
+   "sustained_slowdown": 6812,
+   "median_finish_s": 14899.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2012": {
+   "timing_eligible": 34074,
+   "sustained_slowdown": 6417,
+   "median_finish_s": 14462.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2013": {
+   "timing_eligible": 36283,
+   "sustained_slowdown": 5857,
+   "median_finish_s": 14376.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2014": {
+   "timing_eligible": 28819,
+   "sustained_slowdown": 6945,
+   "median_finish_s": 14512.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2015": {
+   "timing_eligible": 36545,
+   "sustained_slowdown": 7716,
+   "median_finish_s": 14474.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2016": {
+   "timing_eligible": 35821,
+   "sustained_slowdown": 9292,
+   "median_finish_s": 14831.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2017": {
+   "timing_eligible": 38815,
+   "sustained_slowdown": 7559,
+   "median_finish_s": 14827.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2018": {
+   "timing_eligible": 40362,
+   "sustained_slowdown": 12681,
+   "median_finish_s": 15204.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2019": {
+   "timing_eligible": 43691,
+   "sustained_slowdown": 8577,
+   "median_finish_s": 14679.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2021": {
+   "timing_eligible": 22985,
+   "sustained_slowdown": 8638,
+   "median_finish_s": 15206.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2022": {
+   "timing_eligible": 34666,
+   "sustained_slowdown": 8489,
+   "median_finish_s": 14738.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2023": {
+   "timing_eligible": 42182,
+   "sustained_slowdown": 9849,
+   "median_finish_s": 14702.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Berlin|2024": {
+   "timing_eligible": 53417,
+   "sustained_slowdown": 9292,
+   "median_finish_s": 14457.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Berlin|2025": {
+   "timing_eligible": 47851,
+   "sustained_slowdown": 13419,
+   "median_finish_s": 15623.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Berlin|2026": {
+   "timing_eligible": 49953,
+   "sustained_slowdown": 13205,
+   "median_finish_s": 15078.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Boston|2013": {
+   "timing_eligible": 17510,
+   "sustained_slowdown": 2847,
+   "median_finish_s": 12680.0,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Boston|2014": {
+   "timing_eligible": 31735,
+   "sustained_slowdown": 11876,
+   "median_finish_s": 13930.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Boston|2015": {
+   "timing_eligible": 26432,
+   "sustained_slowdown": 3824,
+   "median_finish_s": 13169.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Boston|2018": {
+   "timing_eligible": 25121,
+   "sustained_slowdown": 6156,
+   "median_finish_s": 13684.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Boston|2019": {
+   "timing_eligible": 24999,
+   "sustained_slowdown": 8482,
+   "median_finish_s": 13475.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Boston|2021": {
+   "timing_eligible": 15288,
+   "sustained_slowdown": 4504,
+   "median_finish_s": 13516.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Boston|2022": {
+   "timing_eligible": 24763,
+   "sustained_slowdown": 4897,
+   "median_finish_s": 13056.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Boston|2023": {
+   "timing_eligible": 26429,
+   "sustained_slowdown": 3003,
+   "median_finish_s": 12834.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Boston|2024": {
+   "timing_eligible": 25460,
+   "sustained_slowdown": 8552,
+   "median_finish_s": 13402.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Boston|2025": {
+   "timing_eligible": 28340,
+   "sustained_slowdown": 4863,
+   "median_finish_s": 12817.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Boston|2026": {
+   "timing_eligible": 28702,
+   "sustained_slowdown": 3540,
+   "median_finish_s": 12510.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Chicago|2005": {
+   "timing_eligible": 13007,
+   "sustained_slowdown": 3872,
+   "median_finish_s": 16541.0,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Chicago|2006": {
+   "timing_eligible": 32798,
+   "sustained_slowdown": 7698,
+   "median_finish_s": 15609.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2007": {
+   "timing_eligible": 23667,
+   "sustained_slowdown": 18454,
+   "median_finish_s": 17440.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Chicago|2008": {
+   "timing_eligible": 31115,
+   "sustained_slowdown": 16616,
+   "median_finish_s": 17009.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2009": {
+   "timing_eligible": 29201,
+   "sustained_slowdown": 7267,
+   "median_finish_s": 15463.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Chicago|2010": {
+   "timing_eligible": 35272,
+   "sustained_slowdown": 19014,
+   "median_finish_s": 16798.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2011": {
+   "timing_eligible": 34952,
+   "sustained_slowdown": 14954,
+   "median_finish_s": 16659.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2012": {
+   "timing_eligible": 37242,
+   "sustained_slowdown": 10813,
+   "median_finish_s": 16037.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2013": {
+   "timing_eligible": 37497,
+   "sustained_slowdown": 13047,
+   "median_finish_s": 16053.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Chicago|2014": {
+   "timing_eligible": 40430,
+   "sustained_slowdown": 12917,
+   "median_finish_s": 16032.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2015": {
+   "timing_eligible": 37367,
+   "sustained_slowdown": 15782,
+   "median_finish_s": 16242.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Chicago|2016": {
+   "timing_eligible": 40416,
+   "sustained_slowdown": 14224,
+   "median_finish_s": 16094.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2017": {
+   "timing_eligible": 44009,
+   "sustained_slowdown": 22348,
+   "median_finish_s": 16959.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Chicago|2018": {
+   "timing_eligible": 44224,
+   "sustained_slowdown": 13377,
+   "median_finish_s": 16033.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2019": {
+   "timing_eligible": 45722,
+   "sustained_slowdown": 13115,
+   "median_finish_s": 15725.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2021": {
+   "timing_eligible": 25969,
+   "sustained_slowdown": 11923,
+   "median_finish_s": 16719.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2022": {
+   "timing_eligible": 39051,
+   "sustained_slowdown": 12378,
+   "median_finish_s": 15706.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2023": {
+   "timing_eligible": 48228,
+   "sustained_slowdown": 11496,
+   "median_finish_s": 15100.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2024": {
+   "timing_eligible": 51828,
+   "sustained_slowdown": 14907,
+   "median_finish_s": 15027.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Chicago|2025": {
+   "timing_eligible": 53619,
+   "sustained_slowdown": 15840,
+   "median_finish_s": 15179.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Chicago|2026": {
+   "timing_eligible": 54275,
+   "sustained_slowdown": 19761,
+   "median_finish_s": 15759.0,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Copenhagen|2014": {
+   "timing_eligible": 9528,
+   "sustained_slowdown": 2389,
+   "median_finish_s": 14313.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Copenhagen|2015": {
+   "timing_eligible": 9097,
+   "sustained_slowdown": 2824,
+   "median_finish_s": 14338.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Copenhagen|2016": {
+   "timing_eligible": 8171,
+   "sustained_slowdown": 4379,
+   "median_finish_s": 15174.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Copenhagen|2017": {
+   "timing_eligible": 7960,
+   "sustained_slowdown": 2465,
+   "median_finish_s": 14554.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Copenhagen|2018": {
+   "timing_eligible": 7338,
+   "sustained_slowdown": 2902,
+   "median_finish_s": 14913.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Copenhagen|2019": {
+   "timing_eligible": 10707,
+   "sustained_slowdown": 4149,
+   "median_finish_s": 14998.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Copenhagen|2022": {
+   "timing_eligible": 8461,
+   "sustained_slowdown": 2307,
+   "median_finish_s": 14256.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Copenhagen|2023": {
+   "timing_eligible": 10109,
+   "sustained_slowdown": 3384,
+   "median_finish_s": 14352.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Copenhagen|2024": {
+   "timing_eligible": 14404,
+   "sustained_slowdown": 2716,
+   "median_finish_s": 14100.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Copenhagen|2025": {
+   "timing_eligible": 18409,
+   "sustained_slowdown": 3571,
+   "median_finish_s": 13961.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Copenhagen|2026": {
+   "timing_eligible": 21511,
+   "sustained_slowdown": 3458,
+   "median_finish_s": 13848.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Donostia-San Sebastián: 44 Zurich Maratón San Sebastián|2022": {
+   "timing_eligible": 1970,
+   "sustained_slowdown": 451,
+   "median_finish_s": 12950.5,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Donostia-San Sebastián: Zurich Maratón San Sebastián|2023": {
+   "timing_eligible": 2475,
+   "sustained_slowdown": 401,
+   "median_finish_s": 12615.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Dubai|2016": {
+   "timing_eligible": 1852,
+   "sustained_slowdown": 918,
+   "median_finish_s": 15594.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Dubai|2019": {
+   "timing_eligible": 1688,
+   "sustained_slowdown": 861,
+   "median_finish_s": 15575.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Dubai|2020": {
+   "timing_eligible": 1824,
+   "sustained_slowdown": 845,
+   "median_finish_s": 15726.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Dubai|2023": {
+   "timing_eligible": 3742,
+   "sustained_slowdown": 1426,
+   "median_finish_s": 15277.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Dubai|2024": {
+   "timing_eligible": 1245,
+   "sustained_slowdown": 499,
+   "median_finish_s": 15001.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Dubai|2025": {
+   "timing_eligible": 1534,
+   "sustained_slowdown": 538,
+   "median_finish_s": 14435.5,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Eindhoven|2011": {
+   "timing_eligible": 1268,
+   "sustained_slowdown": 193,
+   "median_finish_s": 13238.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2012": {
+   "timing_eligible": 1264,
+   "sustained_slowdown": 189,
+   "median_finish_s": 13022.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Eindhoven|2013": {
+   "timing_eligible": 1277,
+   "sustained_slowdown": 214,
+   "median_finish_s": 13160.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Eindhoven|2014": {
+   "timing_eligible": 1154,
+   "sustained_slowdown": 276,
+   "median_finish_s": 13136.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2015": {
+   "timing_eligible": 1839,
+   "sustained_slowdown": 330,
+   "median_finish_s": 13451.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2016": {
+   "timing_eligible": 2123,
+   "sustained_slowdown": 406,
+   "median_finish_s": 13610.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2018": {
+   "timing_eligible": 2012,
+   "sustained_slowdown": 928,
+   "median_finish_s": 14261.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2019": {
+   "timing_eligible": 2386,
+   "sustained_slowdown": 1003,
+   "median_finish_s": 14287.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2021": {
+   "timing_eligible": 1377,
+   "sustained_slowdown": 295,
+   "median_finish_s": 13688.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2022": {
+   "timing_eligible": 2459,
+   "sustained_slowdown": 519,
+   "median_finish_s": 13416.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2023": {
+   "timing_eligible": 2866,
+   "sustained_slowdown": 838,
+   "median_finish_s": 13925.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2024": {
+   "timing_eligible": 4728,
+   "sustained_slowdown": 832,
+   "median_finish_s": 13831.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2025": {
+   "timing_eligible": 4305,
+   "sustained_slowdown": 1768,
+   "median_finish_s": 13961.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Eindhoven|2026": {
+   "timing_eligible": 1521,
+   "sustained_slowdown": 238,
+   "median_finish_s": 12036.0,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Frankfurt|2018": {
+   "timing_eligible": 10569,
+   "sustained_slowdown": 1811,
+   "median_finish_s": 13799.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Frankfurt|2019": {
+   "timing_eligible": 10484,
+   "sustained_slowdown": 1898,
+   "median_finish_s": 13958.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Frankfurt|2022": {
+   "timing_eligible": 6729,
+   "sustained_slowdown": 2839,
+   "median_finish_s": 14251.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Frankfurt|2023": {
+   "timing_eligible": 8286,
+   "sustained_slowdown": 1579,
+   "median_finish_s": 13824.5,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Frankfurt|2024": {
+   "timing_eligible": 8789,
+   "sustained_slowdown": 2062,
+   "median_finish_s": 13793.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Frankfurt|2025": {
+   "timing_eligible": 10604,
+   "sustained_slowdown": 1845,
+   "median_finish_s": 13692.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Gold Coast|2016": {
+   "timing_eligible": 5331,
+   "sustained_slowdown": 2612,
+   "median_finish_s": 15481.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Gold Coast|2017": {
+   "timing_eligible": 5111,
+   "sustained_slowdown": 2455,
+   "median_finish_s": 15473.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Gold Coast|2018": {
+   "timing_eligible": 5712,
+   "sustained_slowdown": 2988,
+   "median_finish_s": 15801.5,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Gold Coast|2019": {
+   "timing_eligible": 5620,
+   "sustained_slowdown": 2497,
+   "median_finish_s": 15481.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Gold Coast|2022": {
+   "timing_eligible": 3959,
+   "sustained_slowdown": 1393,
+   "median_finish_s": 14138.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Gold Coast|2023": {
+   "timing_eligible": 5811,
+   "sustained_slowdown": 2131,
+   "median_finish_s": 14257.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Gold Coast|2024": {
+   "timing_eligible": 5692,
+   "sustained_slowdown": 1706,
+   "median_finish_s": 13398.5,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Hamburg|2013": {
+   "timing_eligible": 11355,
+   "sustained_slowdown": 2072,
+   "median_finish_s": 14342.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Hamburg|2014": {
+   "timing_eligible": 12806,
+   "sustained_slowdown": 1937,
+   "median_finish_s": 14213.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Hamburg|2015": {
+   "timing_eligible": 14663,
+   "sustained_slowdown": 2188,
+   "median_finish_s": 14373.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Hamburg|2016": {
+   "timing_eligible": 12019,
+   "sustained_slowdown": 1829,
+   "median_finish_s": 14284.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Hamburg|2017": {
+   "timing_eligible": 11884,
+   "sustained_slowdown": 1794,
+   "median_finish_s": 14253.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Hamburg|2018": {
+   "timing_eligible": 9953,
+   "sustained_slowdown": 2943,
+   "median_finish_s": 14906.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Hamburg|2019": {
+   "timing_eligible": 10010,
+   "sustained_slowdown": 1572,
+   "median_finish_s": 14258.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Hamburg|2022": {
+   "timing_eligible": 5460,
+   "sustained_slowdown": 1127,
+   "median_finish_s": 14192.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Hamburg|2023": {
+   "timing_eligible": 8343,
+   "sustained_slowdown": 2294,
+   "median_finish_s": 14430.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Hamburg|2024": {
+   "timing_eligible": 10481,
+   "sustained_slowdown": 3031,
+   "median_finish_s": 14742.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Hamburg|2025": {
+   "timing_eligible": 10595,
+   "sustained_slowdown": 2280,
+   "median_finish_s": 14366.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Helsinki|2015": {
+   "timing_eligible": 3356,
+   "sustained_slowdown": 916,
+   "median_finish_s": 15400.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Helsinki|2016": {
+   "timing_eligible": 2716,
+   "sustained_slowdown": 736,
+   "median_finish_s": 15270.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Helsinki|2017": {
+   "timing_eligible": 1781,
+   "sustained_slowdown": 665,
+   "median_finish_s": 16682.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "London|2019": {
+   "timing_eligible": 41765,
+   "sustained_slowdown": 13180,
+   "median_finish_s": 15869.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "London|2021": {
+   "timing_eligible": 21929,
+   "sustained_slowdown": 7371,
+   "median_finish_s": 15280.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "London|2022": {
+   "timing_eligible": 30878,
+   "sustained_slowdown": 10558,
+   "median_finish_s": 15955.5,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "London|2023": {
+   "timing_eligible": 33381,
+   "sustained_slowdown": 8259,
+   "median_finish_s": 15164.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "London|2024": {
+   "timing_eligible": 46160,
+   "sustained_slowdown": 11258,
+   "median_finish_s": 15324.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "London|2025": {
+   "timing_eligible": 53796,
+   "sustained_slowdown": 19130,
+   "median_finish_s": 16333.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "London|2026": {
+   "timing_eligible": 56759,
+   "sustained_slowdown": 17298,
+   "median_finish_s": 16069.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Los Angeles, CA: Los Angeles Marathon|2010": {
+   "timing_eligible": 15527,
+   "sustained_slowdown": 7897,
+   "median_finish_s": 18350.0,
+   "eligible": false,
+   "tier": "stamped_weaker_source",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Los Angeles, CA: Los Angeles Marathon|2015": {
+   "timing_eligible": 20712,
+   "sustained_slowdown": 13130,
+   "median_finish_s": 19449.0,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Los Angeles, CA: Los Angeles Marathon|2019": {
+   "timing_eligible": 17118,
+   "sustained_slowdown": 8273,
+   "median_finish_s": 18962.0,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Los Angeles, CA: Los Angeles Marathon|2020": {
+   "timing_eligible": 19663,
+   "sustained_slowdown": 8282,
+   "median_finish_s": 18683.0,
+   "eligible": false,
+   "tier": "held_for_review",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Los Angeles, CA: Los Angeles Marathon|2021": {
+   "timing_eligible": 8019,
+   "sustained_slowdown": 4071,
+   "median_finish_s": 18124.0,
+   "eligible": false,
+   "tier": "held_for_review",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Los Angeles, CA: Los Angeles Marathon|2022": {
+   "timing_eligible": 9804,
+   "sustained_slowdown": 4978,
+   "median_finish_s": 18904.0,
+   "eligible": false,
+   "tier": "held_for_review",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Los Angeles, CA: Los Angeles Marathon|2023": {
+   "timing_eligible": 13794,
+   "sustained_slowdown": 6224,
+   "median_finish_s": 18416.0,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Los Angeles, CA: Los Angeles Marathon|2024": {
+   "timing_eligible": 18180,
+   "sustained_slowdown": 9213,
+   "median_finish_s": 18607.5,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Los Angeles, CA: Los Angeles Marathon|2025": {
+   "timing_eligible": 17651,
+   "sustained_slowdown": 8355,
+   "median_finish_s": 18439.0,
+   "eligible": false,
+   "tier": "held_for_review",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Los Angeles, CA: Los Angeles Marathon|2026": {
+   "timing_eligible": 19333,
+   "sustained_slowdown": 11509,
+   "median_finish_s": 18870.0,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Madrid|2013": {
+   "timing_eligible": 7572,
+   "sustained_slowdown": 2206,
+   "median_finish_s": 14044.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Madrid|2014": {
+   "timing_eligible": 5873,
+   "sustained_slowdown": 2496,
+   "median_finish_s": 14169.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Madrid|2015": {
+   "timing_eligible": 11517,
+   "sustained_slowdown": 3379,
+   "median_finish_s": 14545.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Madrid|2016": {
+   "timing_eligible": 9757,
+   "sustained_slowdown": 4433,
+   "median_finish_s": 14709.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Madrid|2017": {
+   "timing_eligible": 9781,
+   "sustained_slowdown": 5112,
+   "median_finish_s": 14991.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Madrid|2018": {
+   "timing_eligible": 8310,
+   "sustained_slowdown": 3641,
+   "median_finish_s": 14976.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Madrid|2019": {
+   "timing_eligible": 7677,
+   "sustained_slowdown": 2989,
+   "median_finish_s": 14320.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Madrid|2021": {
+   "timing_eligible": 2978,
+   "sustained_slowdown": 1231,
+   "median_finish_s": 14228.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Madrid|2022": {
+   "timing_eligible": 4152,
+   "sustained_slowdown": 1455,
+   "median_finish_s": 13686.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Madrid|2023": {
+   "timing_eligible": 6914,
+   "sustained_slowdown": 2937,
+   "median_finish_s": 14307.0,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Madrid|2024": {
+   "timing_eligible": 8495,
+   "sustained_slowdown": 2246,
+   "median_finish_s": 14089.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Madrid|2025": {
+   "timing_eligible": 9910,
+   "sustained_slowdown": 3432,
+   "median_finish_s": 14306.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Madrid|2026": {
+   "timing_eligible": 10813,
+   "sustained_slowdown": 4680,
+   "median_finish_s": 14623.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Melbourne|2015": {
+   "timing_eligible": 416,
+   "sustained_slowdown": 146,
+   "median_finish_s": 14771.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "New York|2006": {
+   "timing_eligible": 34056,
+   "sustained_slowdown": 10376,
+   "median_finish_s": 15592.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2007": {
+   "timing_eligible": 15398,
+   "sustained_slowdown": 5840,
+   "median_finish_s": 15529.5,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "New York|2008": {
+   "timing_eligible": 37387,
+   "sustained_slowdown": 11651,
+   "median_finish_s": 15542.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2009": {
+   "timing_eligible": 42364,
+   "sustained_slowdown": 13423,
+   "median_finish_s": 15506.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2010": {
+   "timing_eligible": 43854,
+   "sustained_slowdown": 14983,
+   "median_finish_s": 15646.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2011": {
+   "timing_eligible": 45929,
+   "sustained_slowdown": 17032,
+   "median_finish_s": 15742.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2013": {
+   "timing_eligible": 48583,
+   "sustained_slowdown": 15133,
+   "median_finish_s": 15747.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2014": {
+   "timing_eligible": 42792,
+   "sustained_slowdown": 14808,
+   "median_finish_s": 16049.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "New York|2015": {
+   "timing_eligible": 48685,
+   "sustained_slowdown": 20795,
+   "median_finish_s": 16367.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "New York|2016": {
+   "timing_eligible": 50546,
+   "sustained_slowdown": 17910,
+   "median_finish_s": 16242.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2017": {
+   "timing_eligible": 49354,
+   "sustained_slowdown": 16645,
+   "median_finish_s": 16191.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2018": {
+   "timing_eligible": 51928,
+   "sustained_slowdown": 20219,
+   "median_finish_s": 16288.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2019": {
+   "timing_eligible": 52752,
+   "sustained_slowdown": 18102,
+   "median_finish_s": 16129.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2021": {
+   "timing_eligible": 24617,
+   "sustained_slowdown": 8577,
+   "median_finish_s": 16166.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2022": {
+   "timing_eligible": 46935,
+   "sustained_slowdown": 21215,
+   "median_finish_s": 17044.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2023": {
+   "timing_eligible": 50436,
+   "sustained_slowdown": 18688,
+   "median_finish_s": 16354.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2024": {
+   "timing_eligible": 55064,
+   "sustained_slowdown": 14901,
+   "median_finish_s": 15794.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2025": {
+   "timing_eligible": 58339,
+   "sustained_slowdown": 17569,
+   "median_finish_s": 15815.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "New York|2026": {
+   "timing_eligible": 60231,
+   "sustained_slowdown": 17640,
+   "median_finish_s": 16079.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K|2025": {
+   "timing_eligible": 2386,
+   "sustained_slowdown": 1044,
+   "median_finish_s": 16815.5,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K|2026": {
+   "timing_eligible": 2322,
+   "sustained_slowdown": 1220,
+   "median_finish_s": 17094.0,
+   "eligible": false,
+   "tier": "held_for_review",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Relay & 5K|2024": {
+   "timing_eligible": 1879,
+   "sustained_slowdown": 648,
+   "median_finish_s": 16547.0,
+   "eligible": false,
+   "tier": "held_for_review",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Oslo|2016": {
+   "timing_eligible": 2384,
+   "sustained_slowdown": 703,
+   "median_finish_s": 14187.5,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Oslo|2017": {
+   "timing_eligible": 1975,
+   "sustained_slowdown": 753,
+   "median_finish_s": 14046.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Oslo|2018": {
+   "timing_eligible": 2204,
+   "sustained_slowdown": 747,
+   "median_finish_s": 14194.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Oslo|2022": {
+   "timing_eligible": 1788,
+   "sustained_slowdown": 516,
+   "median_finish_s": 14147.5,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Oslo|2023": {
+   "timing_eligible": 2490,
+   "sustained_slowdown": 740,
+   "median_finish_s": 14236.5,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Oslo|2024": {
+   "timing_eligible": 3958,
+   "sustained_slowdown": 906,
+   "median_finish_s": 14089.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Oslo|2025": {
+   "timing_eligible": 4112,
+   "sustained_slowdown": 1091,
+   "median_finish_s": 14267.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Oslo|2026": {
+   "timing_eligible": 3423,
+   "sustained_slowdown": 673,
+   "median_finish_s": 14206.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Paris|2014": {
+   "timing_eligible": 40,
+   "sustained_slowdown": 9,
+   "median_finish_s": 13206.5,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Paris|2015": {
+   "timing_eligible": 70,
+   "sustained_slowdown": 28,
+   "median_finish_s": 14826.5,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Paris|2016": {
+   "timing_eligible": 526,
+   "sustained_slowdown": 257,
+   "median_finish_s": 15280.5,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Paris|2017": {
+   "timing_eligible": 11,
+   "sustained_slowdown": 7,
+   "median_finish_s": 17907.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Paris|2018": {
+   "timing_eligible": 11,
+   "sustained_slowdown": 5,
+   "median_finish_s": 15451.0,
+   "eligible": false,
+   "tier": "stamped",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Paris|2019": {
+   "timing_eligible": 46903,
+   "sustained_slowdown": 12727,
+   "median_finish_s": 14817.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Paris|2024": {
+   "timing_eligible": 53067,
+   "sustained_slowdown": 21186,
+   "median_finish_s": 14790.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Prague|2016": {
+   "timing_eligible": 5732,
+   "sustained_slowdown": 2713,
+   "median_finish_s": 15486.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Prague|2017": {
+   "timing_eligible": 6452,
+   "sustained_slowdown": 2503,
+   "median_finish_s": 15402.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Prague|2018": {
+   "timing_eligible": 6921,
+   "sustained_slowdown": 2805,
+   "median_finish_s": 15509.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Prague|2019": {
+   "timing_eligible": 7227,
+   "sustained_slowdown": 1989,
+   "median_finish_s": 14980.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Querétaro: Querétaro Maratón|2021": {
+   "timing_eligible": 113,
+   "sustained_slowdown": 67,
+   "median_finish_s": 16366.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Rotterdam|2013": {
+   "timing_eligible": 8281,
+   "sustained_slowdown": 3738,
+   "median_finish_s": 14813.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Rotterdam|2014": {
+   "timing_eligible": 10601,
+   "sustained_slowdown": 2702,
+   "median_finish_s": 14370.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Rotterdam|2015": {
+   "timing_eligible": 11756,
+   "sustained_slowdown": 3198,
+   "median_finish_s": 14327.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Rotterdam|2016": {
+   "timing_eligible": 12740,
+   "sustained_slowdown": 3886,
+   "median_finish_s": 14480.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Rotterdam|2017": {
+   "timing_eligible": 12693,
+   "sustained_slowdown": 5012,
+   "median_finish_s": 14901.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Rotterdam|2018": {
+   "timing_eligible": 13790,
+   "sustained_slowdown": 6202,
+   "median_finish_s": 15163.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Rotterdam|2019": {
+   "timing_eligible": 14269,
+   "sustained_slowdown": 6055,
+   "median_finish_s": 15123.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Rotterdam|2021": {
+   "timing_eligible": 10632,
+   "sustained_slowdown": 2553,
+   "median_finish_s": 14329.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Rotterdam|2022": {
+   "timing_eligible": 11613,
+   "sustained_slowdown": 3303,
+   "median_finish_s": 14298.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Rotterdam|2023": {
+   "timing_eligible": 16543,
+   "sustained_slowdown": 2765,
+   "median_finish_s": 14066.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Rotterdam|2024": {
+   "timing_eligible": 17005,
+   "sustained_slowdown": 4708,
+   "median_finish_s": 14359.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Sevilla: Zurich Maratón de Sevilla|2019": {
+   "timing_eligible": 8911,
+   "sustained_slowdown": 1941,
+   "median_finish_s": 13553.0,
+   "eligible": false,
+   "tier": "held_for_review",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Sevilla: Zurich Maratón de Sevilla|2022": {
+   "timing_eligible": 7459,
+   "sustained_slowdown": 2047,
+   "median_finish_s": 13097.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Singapore|2025": {
+   "timing_eligible": 8877,
+   "sustained_slowdown": 4196,
+   "median_finish_s": 18996.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Stockholm|2011": {
+   "timing_eligible": 9924,
+   "sustained_slowdown": 1401,
+   "median_finish_s": 14316.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Stockholm|2021": {
+   "timing_eligible": 6952,
+   "sustained_slowdown": 1522,
+   "median_finish_s": 14544.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Stockholm|2024": {
+   "timing_eligible": 16949,
+   "sustained_slowdown": 5907,
+   "median_finish_s": 16586.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Stockholm|2025": {
+   "timing_eligible": 16977,
+   "sustained_slowdown": 4745,
+   "median_finish_s": 15163.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Sydney|2017": {
+   "timing_eligible": 3461,
+   "sustained_slowdown": 1477,
+   "median_finish_s": 15029.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Sydney|2018": {
+   "timing_eligible": 3552,
+   "sustained_slowdown": 1349,
+   "median_finish_s": 15084.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Sydney|2019": {
+   "timing_eligible": 4332,
+   "sustained_slowdown": 2068,
+   "median_finish_s": 15354.0,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Tokyo|2016": {
+   "timing_eligible": 999,
+   "sustained_slowdown": 83,
+   "median_finish_s": 9999.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Tokyo|2017": {
+   "timing_eligible": 999,
+   "sustained_slowdown": 54,
+   "median_finish_s": 9802.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Tokyo|2018": {
+   "timing_eligible": 987,
+   "sustained_slowdown": 55,
+   "median_finish_s": 9724.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Tokyo|2026": {
+   "timing_eligible": 770,
+   "sustained_slowdown": 34,
+   "median_finish_s": 9467.5,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Toronto, ON: Toronto Waterfront Marathon|2019": {
+   "timing_eligible": 3781,
+   "sustained_slowdown": 1454,
+   "median_finish_s": 14915.0,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Toronto, ON: Toronto Waterfront Marathon|2022": {
+   "timing_eligible": 3339,
+   "sustained_slowdown": 1312,
+   "median_finish_s": 14423.0,
+   "eligible": true,
+   "tier": "stamped_weaker_source",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Valencia|2021": {
+   "timing_eligible": 12410,
+   "sustained_slowdown": 2532,
+   "median_finish_s": 13177.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Valencia|2022": {
+   "timing_eligible": 21306,
+   "sustained_slowdown": 3771,
+   "median_finish_s": 13029.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Valencia|2023": {
+   "timing_eligible": 24578,
+   "sustained_slowdown": 3704,
+   "median_finish_s": 12805.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Valencia|2024": {
+   "timing_eligible": 27515,
+   "sustained_slowdown": 6213,
+   "median_finish_s": 12978.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Valencia|2025": {
+   "timing_eligible": 29964,
+   "sustained_slowdown": 7109,
+   "median_finish_s": 13061.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Vienna|2022": {
+   "timing_eligible": 2546,
+   "sustained_slowdown": 544,
+   "median_finish_s": 14153.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Vienna|2023": {
+   "timing_eligible": 5643,
+   "sustained_slowdown": 1512,
+   "median_finish_s": 14496.0,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Vienna|2024": {
+   "timing_eligible": 6004,
+   "sustained_slowdown": 858,
+   "median_finish_s": 14012.5,
+   "eligible": false,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": false
+  },
+  "Warsaw|2015": {
+   "timing_eligible": 6883,
+   "sustained_slowdown": 1627,
+   "median_finish_s": 14232.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2016": {
+   "timing_eligible": 6512,
+   "sustained_slowdown": 1442,
+   "median_finish_s": 13959.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2017": {
+   "timing_eligible": 5467,
+   "sustained_slowdown": 1729,
+   "median_finish_s": 14182.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2018": {
+   "timing_eligible": 4290,
+   "sustained_slowdown": 1396,
+   "median_finish_s": 14293.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2019": {
+   "timing_eligible": 4461,
+   "sustained_slowdown": 1540,
+   "median_finish_s": 14884.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2020": {
+   "timing_eligible": 850,
+   "sustained_slowdown": 228,
+   "median_finish_s": 14486.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2021": {
+   "timing_eligible": 2640,
+   "sustained_slowdown": 942,
+   "median_finish_s": 14375.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2022": {
+   "timing_eligible": 3699,
+   "sustained_slowdown": 1340,
+   "median_finish_s": 14903.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2023": {
+   "timing_eligible": 5454,
+   "sustained_slowdown": 2023,
+   "median_finish_s": 14913.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2024": {
+   "timing_eligible": 6961,
+   "sustained_slowdown": 1905,
+   "median_finish_s": 14660.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2025": {
+   "timing_eligible": 8311,
+   "sustained_slowdown": 2176,
+   "median_finish_s": 14194.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Warsaw|2026": {
+   "timing_eligible": 10680,
+   "sustained_slowdown": 4001,
+   "median_finish_s": 15188.5,
+   "eligible": false,
+   "tier": "unverified",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Washington|2008": {
+   "timing_eligible": 17385,
+   "sustained_slowdown": 7207,
+   "median_finish_s": 16532.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Washington|2009": {
+   "timing_eligible": 19593,
+   "sustained_slowdown": 8054,
+   "median_finish_s": 16583.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Washington|2010": {
+   "timing_eligible": 20820,
+   "sustained_slowdown": 9897,
+   "median_finish_s": 16768.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Washington|2011": {
+   "timing_eligible": 19708,
+   "sustained_slowdown": 7945,
+   "median_finish_s": 16637.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Washington|2012": {
+   "timing_eligible": 21771,
+   "sustained_slowdown": 9153,
+   "median_finish_s": 16880.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Washington|2013": {
+   "timing_eligible": 19737,
+   "sustained_slowdown": 7881,
+   "median_finish_s": 16777.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Washington|2014": {
+   "timing_eligible": 18995,
+   "sustained_slowdown": 9578,
+   "median_finish_s": 17296.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Washington|2015": {
+   "timing_eligible": 21776,
+   "sustained_slowdown": 9909,
+   "median_finish_s": 17396.0,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Washington|2016": {
+   "timing_eligible": 18866,
+   "sustained_slowdown": 10911,
+   "median_finish_s": 17861.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  },
+  "Washington|2017": {
+   "timing_eligible": 16195,
+   "sustained_slowdown": 9165,
+   "median_finish_s": 17587.0,
+   "eligible": true,
+   "tier": "partial",
+   "reading_b": false,
+   "reading_c": true
+  },
+  "Washington|2018": {
+   "timing_eligible": 18994,
+   "sustained_slowdown": 8358,
+   "median_finish_s": 17494.5,
+   "eligible": true,
+   "tier": "stamped",
+   "reading_b": true,
+   "reading_c": true
+  }
+ }
+}

@@ -9,9 +9,13 @@ from pathlib import Path
 import duckdb
 
 from build_pacing import FIELDS, Publisher, prepare
+import source_quality
 from source_quality import (RELEASE, RULES, LATEST_RELEASE, LATEST_RULES, RELEASE_1652, RULES_1652, RELEASE_1050, RULES_1050, RELEASE_MASTER_20261103B,
-                            RULES_MASTER_20261103B, REVIEWED_POLICIES,
+                            RULES_MASTER_20261103B, RELEASE_20261113_1113, RULES_20261113_1113, REVIEWED_POLICIES,
                             policy_metadata, source_quality_report, validate_source_quality)
+
+ROOT = Path(__file__).resolve().parents[1]
+RANK = re.compile(r'\b(?:rank|ranks|ranked|ranking|rankings|fastest|toughest|hardest|easiest|harder|easier|tougher|similar|best|worst|top \d+)\b', re.I)
 
 
 def fixture(source, tag, rules=RULES):
@@ -48,7 +52,8 @@ class SourceQualityTests(unittest.TestCase):
         self.assertIn('200 records', next(row['reason'] for row in historical['editions'] if row['city'] == 'New York'))
 
     def test_htw_db_release_has_its_own_reviewed_policy(self):
-        self.assertEqual(set(REVIEWED_POLICIES), {RELEASE, LATEST_RELEASE, RELEASE_1652, RELEASE_1050, RELEASE_MASTER_20261103B})
+        # 2026-11-14: the combined release pace-notes-marathon-half-20261113-1113 has its own reviewed policy (below).
+        self.assertEqual(set(REVIEWED_POLICIES), {RELEASE, LATEST_RELEASE, RELEASE_1652, RELEASE_1050, RELEASE_MASTER_20261103B, RELEASE_20261113_1113})
         keys = [(city, year) for city, year, _, _ in RULES_1652]
         self.assertEqual(len(keys), len(set(keys)))
         self.assertEqual(len(RULES_1652), 30)
@@ -162,6 +167,80 @@ class SourceQualityTests(unittest.TestCase):
             self.assertEqual(source_quality_report(db, source)['release_tag'], RELEASE_MASTER_20261103B)
         # The 1050 policy is unchanged.
         self.assertEqual(len(policy_metadata(RELEASE_1050)['editions']), 41)
+
+    def test_release_20261113_1113_policy(self):
+        """Reviewed November 14, 2026: a rule (lead decision D3), frozen as data, with the earlier decisions as its exceptions."""
+        frozen = json.loads(source_quality.POLICY_FILE_20261113_1113.read_text())
+        rule = {(city, year): (category, reason) for city, year, category, reason in RULES_20261113_1113}
+        self.assertEqual(len(rule), len(RULES_20261113_1113))
+        counted = {tuple(key) for key in frozen['counted']}
+        self.assertFalse(counted & set(rule))
+        self.assertEqual((len(counted), len(rule), len(counted) + len(rule)), (201, 2483, 2684))
+        self.assertEqual(frozen['expected']['not_counted_by_category'], {
+            'finish_time_only': 1926, 'held_for_review': 163, 'incomplete_ingestion': 3, 'invalid_split_grid': 156, 'mixed_distance_list': 5,
+            'partial_coverage': 12, 'selected_field': 6, 'unreconciled_hold': 12, 'unverified': 200})
+        self.assertEqual([[c, y, *rule[(c, y)]] for c, y in sorted(rule)], [[e['city'], e['year'], e['category'], e['reason']] for e in frozen['editions']])
+        # The 39 decisions of the previous policy are its reviewed exceptions: every category unchanged, every reason word
+        # for word except the two whose numbers follow the adapted records.
+        before = {(city, year): (category, reason) for city, year, category, reason in RULES_MASTER_20261103B}
+        self.assertTrue(set(before) <= set(rule))
+        reworded = {key for key in before if rule[key][1] != before[key][1]}
+        self.assertEqual(reworded, {('Eindhoven', 2026), ('Tokyo', 2018)})
+        self.assertTrue(all(rule[key][0] == before[key][0] for key in before))
+        self.assertIn('1,877 of 4,463 complete grids', rule[('Eindhoven', 2026)][1])
+        self.assertEqual({(e['city'], e['year']) for e in frozen['reviewed_exceptions']}, set(before) | {('Honolulu', y) for y in range(2021, 2026)})
+        for year in range(2021, 2026):
+            self.assertEqual(rule[('Honolulu', year)][0], 'mixed_distance_list')
+        # Counted by rule, with no exception: London 2025 and 2026 (partial within 5%: the owner's October 21, 2026
+        # "Keep London 2025-26" now holds by rule), New York 2026, and the first weaker-source editions.
+        for key in [('London', 2025), ('London', 2026), ('New York', 2026), ('Chicago', 2026), ('Los Angeles, CA: Los Angeles Marathon', 2024),
+                    ('Toronto, ON: Toronto Waterfront Marathon', 2019)]:
+            self.assertIn(key, counted, key)
+        # Not counted by rule: an unverified edition that was eligible before, a partial one 6% short, a finish-time-only
+        # one, a held one, a stamped one with no complete grid, and Los Angeles 2010 (screen b: 89.4% against 39.7%).
+        for key, category in [(('Sydney', 2019), 'unverified'), (('New York', 2014), 'partial_coverage'), (('Boston', 2012), 'finish_time_only'),
+                              (('Los Angeles, CA: Los Angeles Marathon', 2020), 'held_for_review'), (('Athens', 2019), 'invalid_split_grid'),
+                              (('Los Angeles, CA: Los Angeles Marathon', 2010), 'invalid_split_grid')]:
+            self.assertEqual(rule[key][0], category, key)
+        self.assertIn('89.4%', rule[('Los Angeles, CA: Los Angeles Marathon', 2010)][1])
+        self.assertIn('47,588 recorded finishes against 50,564 official finishers', rule[('New York', 2014)][1])
+        # Visitor-visible reasons: no release label, no hold jargon, no rank word, none of the words the site never uses.
+        banned = re.compile(r'master-|pace-notes-marathon|private-export|htw-db|2026111[34]|arithmetic|the wall|your chance', re.I)
+        self.assertEqual([key for key, (_, reason) in rule.items() if banned.search(reason) or RANK.search(reason) or 'HOLD' in reason], [])
+        self.assertEqual(len({reason for category, reason in rule.values() if category in ('finish_time_only', 'held_for_review', 'unverified')}), 3)
+        # An independent recount from the stored facts of every edition (docs/evidence): the rule in a few lines, written
+        # here and not imported, gives the frozen counted list.
+        review = json.loads((ROOT / 'docs/evidence/2026-11-14/release-20261113-1113/edition-policy-review.json').read_text())
+        self.assertEqual(review['frozen_policy_sha256'], source_quality.POLICY_FILE_SHA256_20261113_1113)
+        exceptions = {(e['city'], e['year']) for e in frozen['reviewed_exceptions']}
+        recount = set()
+        for e in review['editions']:
+            stamped = e['tier'] in ('stamped', 'stamped_weaker_source')
+            within = e['tier'] == 'partial' and e['official_finishers'] and 0.95 <= e['finishes_in_release'] / e['official_finishers'] <= 1.05
+            usable = e['usable_pct'] is not None and e['usable_pct'] >= 5
+            selective = e['quickest_quarter_pct'] is not None and e['quickest_quarter_pct'] >= 75 and e['slowest_quarter_pct'] < 50
+            mixed = e['mixed_basis_pct'] is not None and e['mixed_basis_pct'] >= 25
+            if e['split_tier'] == 'splits' and (stamped or within) and usable and not selective and not mixed and (e['city'], e['year']) not in exceptions:
+                recount.add((e['city'], e['year']))
+        self.assertEqual(recount, counted)
+        self.assertEqual({(e['city'], e['year']) for e in review['editions']}, counted | set(rule))
+        # The policy is applied only to its own tag, and prepare() excludes exactly the listed editions.
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder); db = fixture(source, RELEASE_20261113_1113, RULES_20261113_1113)
+            counts = prepare(db, source, keep_record_id=True)
+            self.assertEqual(counts['source_quality_excluded'], 2483)
+            self.assertEqual(counts['eligible'], 1)
+            self.assertEqual(source_quality_report(db, source)['release_tag'], RELEASE_20261113_1113)
+        self.assertEqual(len(policy_metadata(RELEASE_MASTER_20261103B)['editions']), 39)
+
+    def test_a_frozen_policy_file_that_changed_is_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            other = Path(folder) / 'edition-policy.json'
+            other.write_bytes(source_quality.POLICY_FILE_20261113_1113.read_bytes() + b'\n')
+            with self.assertRaisesRegex(RuntimeError, 'not the reviewed edition policy'):
+                source_quality.frozen_rules(other, source_quality.POLICY_FILE_SHA256_20261113_1113, RELEASE_20261113_1113)
+        with self.assertRaisesRegex(RuntimeError, 'another release'):
+            source_quality.frozen_rules(source_quality.POLICY_FILE_20261113_1113, source_quality.POLICY_FILE_SHA256_20261113_1113, RELEASE_1050)
 
     def test_known_grid_holds_and_selected_fields_are_excluded_without_double_counting(self):
         with tempfile.TemporaryDirectory() as folder:

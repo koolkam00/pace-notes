@@ -1,0 +1,1983 @@
+{
+  "document": "Adapter output (analysis/adapt_combined.py), not a producer document.",
+  "tag": "pace-notes-marathon-half-20261113-1113",
+  "adapter_version": 1,
+  "summary": {
+    "checks": 129,
+    "mismatched": 3,
+    "by_family": {
+      "manifest_files": {
+        "checks": 31,
+        "matched": 31,
+        "mismatched": 0,
+        "measured_only": 0
+      },
+      "counts_half": {
+        "checks": 14,
+        "matched": 14,
+        "mismatched": 0,
+        "measured_only": 0
+      },
+      "counts_marathon": {
+        "checks": 14,
+        "matched": 14,
+        "mismatched": 0,
+        "measured_only": 0
+      },
+      "documents": {
+        "checks": 7,
+        "matched": 7,
+        "mismatched": 0,
+        "measured_only": 0
+      },
+      "id_contract": {
+        "checks": 9,
+        "matched": 9,
+        "mismatched": 0,
+        "measured_only": 0
+      },
+      "editions_marathon": {
+        "checks": 10,
+        "matched": 5,
+        "mismatched": 1,
+        "measured_only": 4
+      },
+      "editions_half": {
+        "checks": 5,
+        "matched": 2,
+        "mismatched": 2,
+        "measured_only": 1
+      },
+      "editions_both": {
+        "checks": 3,
+        "matched": 3,
+        "mismatched": 0,
+        "measured_only": 0
+      },
+      "person_links": {
+        "checks": 19,
+        "matched": 18,
+        "mismatched": 0,
+        "measured_only": 1
+      },
+      "rows_left_out": {
+        "checks": 5,
+        "matched": 4,
+        "mismatched": 0,
+        "measured_only": 1
+      },
+      "sex": {
+        "checks": 2,
+        "matched": 1,
+        "mismatched": 0,
+        "measured_only": 1
+      },
+      "baseline_delta": {
+        "checks": 5,
+        "matched": 3,
+        "mismatched": 0,
+        "measured_only": 2
+      },
+      "overlays": {
+        "checks": 5,
+        "matched": 4,
+        "mismatched": 0,
+        "measured_only": 1
+      }
+    }
+  },
+  "known_mismatches": [
+    [
+      "editions_marathon",
+      "EDITION-TIERS.csv against edition_meta.parquet: official count and completeness status"
+    ],
+    [
+      "editions_half",
+      "EDITION-TIERS.csv against edition_meta.parquet: the same editions, tier, badge, weaker-source label, split tier and release note"
+    ],
+    [
+      "editions_half",
+      "EDITION-TIERS.csv against edition_meta.parquet: official count and completeness status"
+    ]
+  ],
+  "members_written": {
+    "race_conditions": "private-export-20261021-1050 bytes (marathon values equal to the release member)",
+    "course_profiles": "private-export-20261021-1050 bytes (marathon values equal to the release member)",
+    "course_segments": "private-export-20261021-1050 bytes (marathon values equal to the release member)",
+    "sources": "the release’s marathon rows",
+    "edition_meta": "the release’s marathon rows",
+    "record_flags": "the release’s marathon rows of the written records",
+    "qa_row_flags": "the release’s marathon rows of the written records"
+  },
+  "features": {
+    "rows": 7819991,
+    "with_key": 6179989,
+    "keys": 3349468,
+    "with_person_id": 7677541,
+    "possible_match_rows": 1497552,
+    "unlinked": 142450,
+    "with_yob": 2898396,
+    "without_race_date": 2433644,
+    "sex_from_category": 68277
+  },
+  "features_by_link_confidence": {
+    "high": 3459368,
+    "high_elite": 12016,
+    "low": 731192,
+    "low_carryover": 3041,
+    "low_city_pace": 15416,
+    "low_noage": 536915,
+    "low_noage_series": 11658,
+    "low_nosex": 14389,
+    "medium": 2708605,
+    "medium_variant": 184941,
+    "unlinked": 142450
+  },
+  "identity_rule": {
+    "build": "person-ids v5.1",
+    "prefix": "p51_",
+    "keyed_confidences": [
+      "high_elite",
+      "high",
+      "medium"
+    ],
+    "possible_confidences": [
+      "medium_variant",
+      "low",
+      "low_noage",
+      "low_noage_series",
+      "low_nosex",
+      "low_city_pace",
+      "low_carryover"
+    ]
+  },
+  "row_rule": {
+    "pending_review_flags": [
+      "wheelchair_handcycle_published_category",
+      "sportstats_nonfinish_status",
+      "philadelphia_2010_place_sequence_outlier"
+    ],
+    "qa_row_flags": [
+      "finish_faster_than_world_record",
+      "finish_ge_24h",
+      "finish_zero",
+      "finish_equals_earlier_split"
+    ],
+    "kept_unlabelled": [
+      "adaptive_division_published_category"
+    ]
+  },
+  "birth_year_keys": {
+    "link_age_key_years": 2898468,
+    "v1_key_years": 1644749,
+    "years_that_disagree": 0,
+    "v1_year_with_another_age_key": 471,
+    "v1_year_without_age_key": 258
+  },
+  "race_dates": {
+    "editions_with_rows": 2684,
+    "weather": 298,
+    "reviewed": 1,
+    "without_a_race_date": 2385,
+    "of_those_with_a_producer_note_date": 2227
+  },
+  "checks": [
+    {
+      "family": "manifest_files",
+      "check": "CHANGE-REPORT.md: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 6396,
+      "measured": 6396,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "DATA-CARD.md: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 4611,
+      "measured": 4611,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "EDITION-CHECKSUMS.csv: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 1665116,
+      "measured": 1665116,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "EDITION-TIERS.csv: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 2710065,
+      "measured": 2710065,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "EDITIONS.json: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 15096933,
+      "measured": 15096933,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "ID-CONTRACT.md: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 1047,
+      "measured": 1047,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "README.md: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 10594,
+      "measured": 10594,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "RELEASE-EXCLUSIONS.csv: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 110561,
+      "measured": 110561,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "RELEASE-ROW-EXCLUSIONS.parquet: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 511756,
+      "measured": 511756,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "RELEASE-ROW-EXCLUSIONS.parquet: rows",
+      "source": "MANIFEST.json files",
+      "expected": 207747,
+      "measured": 207747,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "course_profiles.parquet: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 124827,
+      "measured": 124827,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "course_profiles.parquet: rows",
+      "source": "MANIFEST.json files",
+      "expected": 33,
+      "measured": 33,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "course_segments.parquet: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 27134,
+      "measured": 27134,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "course_segments.parquet: rows",
+      "source": "MANIFEST.json files",
+      "expected": 297,
+      "measured": 297,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "edition_meta.csv: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 10018444,
+      "measured": 10018444,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "edition_meta.parquet: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 1215165,
+      "measured": 1215165,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "edition_meta.parquet: rows",
+      "source": "MANIFEST.json files",
+      "expected": 12962,
+      "measured": 12962,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "pending_review_flags.csv: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 457034,
+      "measured": 457034,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "pending_review_flags.parquet: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 15976,
+      "measured": 15976,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "pending_review_flags.parquet: rows",
+      "source": "MANIFEST.json files",
+      "expected": 1831,
+      "measured": 1831,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "qa_row_flags.parquet: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 608876,
+      "measured": 608876,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "qa_row_flags.parquet: rows",
+      "source": "MANIFEST.json files",
+      "expected": 261761,
+      "measured": 261761,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "race_conditions.parquet: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 4084804,
+      "measured": 4084804,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "race_conditions.parquet: rows",
+      "source": "MANIFEST.json files",
+      "expected": 8516,
+      "measured": 8516,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "race_records.parquet: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 460845391,
+      "measured": 460845391,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "race_records.parquet: rows",
+      "source": "MANIFEST.json files",
+      "expected": 15715888,
+      "measured": 15715888,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "races_summary.json: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 2041568,
+      "measured": 2041568,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "record_flags.parquet: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 2044613,
+      "measured": 2044613,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "record_flags.parquet: rows",
+      "source": "MANIFEST.json files",
+      "expected": 5393144,
+      "measured": 5393144,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "sources.parquet: bytes",
+      "source": "MANIFEST.json files",
+      "expected": 163687,
+      "measured": 163687,
+      "ok": true
+    },
+    {
+      "family": "manifest_files",
+      "check": "sources.parquet: rows",
+      "source": "MANIFEST.json files",
+      "expected": 3065,
+      "measured": 3065,
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "result rows",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 7893466,
+      "measured": 7893466,
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "rows by source database",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "full": 20081,
+        "half": 7873385
+      },
+      "measured": {
+        "full": 20081,
+        "half": 7873385
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "editions with rows",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 9600,
+      "measured": 9600,
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "city keys",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 4560,
+      "measured": 4560,
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "race names",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 5578,
+      "measured": 5578,
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "first and last year",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": [
+        1991,
+        2026
+      ],
+      "measured": [
+        1991,
+        2026
+      ],
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "rows with a 5 km split",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 705450,
+      "measured": 705450,
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "verification tiers: editions and rows (EDITION-TIERS.csv tiers, rows recounted)",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "excluded": {
+          "editions": 201,
+          "rows": 0
+        },
+        "held_for_review": {
+          "editions": 1199,
+          "rows": 862649
+        },
+        "partial": {
+          "editions": 2,
+          "rows": 19440
+        },
+        "stamped": {
+          "editions": 222,
+          "rows": 697654
+        },
+        "stamped_weaker_source": {
+          "editions": 17,
+          "rows": 60990
+        },
+        "unverified": {
+          "editions": 8160,
+          "rows": 6252733
+        }
+      },
+      "measured": {
+        "excluded": {
+          "editions": 201,
+          "rows": 0
+        },
+        "held_for_review": {
+          "editions": 1199,
+          "rows": 862649
+        },
+        "partial": {
+          "editions": 2,
+          "rows": 19440
+        },
+        "stamped": {
+          "editions": 222,
+          "rows": 697654
+        },
+        "stamped_weaker_source": {
+          "editions": 17,
+          "rows": 60990
+        },
+        "unverified": {
+          "editions": 8160,
+          "rows": 6252733
+        }
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "split tiers: editions and rows (EDITION-TIERS.csv tiers, rows recounted)",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "finish_time_only": {
+          "editions": 9398,
+          "rows": 6946415
+        },
+        "splits": {
+          "editions": 202,
+          "rows": 947051
+        }
+      },
+      "measured": {
+        "finish_time_only": {
+          "editions": 9398,
+          "rows": 6946415
+        },
+        "splits": {
+          "editions": 202,
+          "rows": 947051
+        }
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "row flags (rows kept)",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "age_implausible": 1645,
+        "finish_6h_to_24h": 385,
+        "finish_equals_earlier_split": 28,
+        "finish_faster_than_world_record": 221,
+        "finish_ge_24h": 361,
+        "finish_implausibly_fast": 62,
+        "finish_zero": 30,
+        "no_finish_time": 0,
+        "sex_from_category": 139516,
+        "split_after_finish": 8143,
+        "split_nonmonotonic": 8083
+      },
+      "measured": {
+        "age_implausible": 1645,
+        "finish_6h_to_24h": 385,
+        "finish_equals_earlier_split": 28,
+        "finish_faster_than_world_record": 221,
+        "finish_ge_24h": 361,
+        "finish_implausibly_fast": 62,
+        "finish_zero": 30,
+        "no_finish_time": 0,
+        "sex_from_category": 139516,
+        "split_after_finish": 8143,
+        "split_nonmonotonic": 8083
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "pending-review flags (rows in CORE)",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "published_disqualified_status": 15,
+        "wheelchair_handcycle_published_category": 257
+      },
+      "measured": {
+        "published_disqualified_status": 15,
+        "wheelchair_handcycle_published_category": 257
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "release exclusions by category",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "duplicate_edition": {
+          "editions_whole": 41,
+          "editions_partial": 0,
+          "rows": 36419
+        },
+        "duplicate_rows": {
+          "editions_whole": 0,
+          "editions_partial": 23,
+          "rows": 65807
+        },
+        "misfiled_edition": {
+          "editions_whole": 0,
+          "editions_partial": 1,
+          "rows": 11652
+        },
+        "mixed_distances": {
+          "editions_whole": 8,
+          "editions_partial": 0,
+          "rows": 5184
+        },
+        "non_running": {
+          "editions_whole": 5,
+          "editions_partial": 24,
+          "rows": 2026
+        },
+        "not_half_distance": {
+          "editions_whole": 40,
+          "editions_partial": 21,
+          "rows": 9747
+        },
+        "relay_or_team": {
+          "editions_whole": 1,
+          "editions_partial": 12,
+          "rows": 312
+        },
+        "trail_or_mountain_course": {
+          "editions_whole": 36,
+          "editions_partial": 8,
+          "rows": 7152
+        },
+        "unusable_result_set": {
+          "editions_whole": 3,
+          "editions_partial": 2,
+          "rows": 9915
+        },
+        "virtual_race": {
+          "editions_whole": 6,
+          "editions_partial": 1,
+          "rows": 4896
+        }
+      },
+      "measured": {
+        "duplicate_edition": {
+          "editions_whole": 41,
+          "editions_partial": 0,
+          "rows": 36419
+        },
+        "duplicate_rows": {
+          "editions_whole": 0,
+          "editions_partial": 23,
+          "rows": 65807
+        },
+        "misfiled_edition": {
+          "editions_whole": 0,
+          "editions_partial": 1,
+          "rows": 11652
+        },
+        "mixed_distances": {
+          "editions_whole": 8,
+          "editions_partial": 0,
+          "rows": 5184
+        },
+        "non_running": {
+          "editions_whole": 5,
+          "editions_partial": 24,
+          "rows": 2026
+        },
+        "not_half_distance": {
+          "editions_whole": 40,
+          "editions_partial": 21,
+          "rows": 9747
+        },
+        "relay_or_team": {
+          "editions_whole": 1,
+          "editions_partial": 12,
+          "rows": 312
+        },
+        "trail_or_mountain_course": {
+          "editions_whole": 36,
+          "editions_partial": 8,
+          "rows": 7152
+        },
+        "unusable_result_set": {
+          "editions_whole": 3,
+          "editions_partial": 2,
+          "rows": 9915
+        },
+        "virtual_race": {
+          "editions_whole": 6,
+          "editions_partial": 1,
+          "rows": 4896
+        }
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "rows excluded from the release",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 153110,
+      "measured": 153110,
+      "ok": true
+    },
+    {
+      "family": "counts_half",
+      "check": "excluded row ids by category equal RELEASE-EXCLUSIONS.csv",
+      "source": "RELEASE-ROW-EXCLUSIONS.parquet against RELEASE-EXCLUSIONS.csv",
+      "expected": {
+        "duplicate_edition": 36419,
+        "duplicate_rows": 65807,
+        "misfiled_edition": 11652,
+        "mixed_distances": 5184,
+        "non_running": 2026,
+        "not_half_distance": 9747,
+        "relay_or_team": 312,
+        "trail_or_mountain_course": 7152,
+        "unusable_result_set": 9915,
+        "virtual_race": 4896
+      },
+      "measured": {
+        "duplicate_edition": 36419,
+        "duplicate_rows": 65807,
+        "misfiled_edition": 11652,
+        "mixed_distances": 5184,
+        "non_running": 2026,
+        "not_half_distance": 9747,
+        "relay_or_team": 312,
+        "trail_or_mountain_course": 7152,
+        "unusable_result_set": 9915,
+        "virtual_race": 4896
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "result rows",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 7822422,
+      "measured": 7822422,
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "rows by source database",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "full": 7822422
+      },
+      "measured": {
+        "full": 7822422
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "editions with rows",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 2688,
+      "measured": 2688,
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "city keys",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 894,
+      "measured": 894,
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "race names",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 1279,
+      "measured": 1279,
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "first and last year",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": [
+        1972,
+        2026
+      ],
+      "measured": [
+        1972,
+        2026
+      ],
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "rows with a 5 km split",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 5855562,
+      "measured": 5855562,
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "verification tiers: editions and rows (EDITION-TIERS.csv tiers, rows recounted)",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "excluded": {
+          "editions": 213,
+          "rows": 0
+        },
+        "held_for_review": {
+          "editions": 580,
+          "rows": 755118
+        },
+        "partial": {
+          "editions": 73,
+          "rows": 1346968
+        },
+        "stamped": {
+          "editions": 195,
+          "rows": 3781452
+        },
+        "stamped_weaker_source": {
+          "editions": 616,
+          "rows": 961086
+        },
+        "unverified": {
+          "editions": 1224,
+          "rows": 977798
+        }
+      },
+      "measured": {
+        "excluded": {
+          "editions": 213,
+          "rows": 0
+        },
+        "held_for_review": {
+          "editions": 580,
+          "rows": 755118
+        },
+        "partial": {
+          "editions": 73,
+          "rows": 1346968
+        },
+        "stamped": {
+          "editions": 195,
+          "rows": 3781452
+        },
+        "stamped_weaker_source": {
+          "editions": 616,
+          "rows": 961086
+        },
+        "unverified": {
+          "editions": 1224,
+          "rows": 977798
+        }
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "split tiers: editions and rows (EDITION-TIERS.csv tiers, rows recounted)",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "finish_time_only": {
+          "editions": 1930,
+          "rows": 1296268
+        },
+        "splits": {
+          "editions": 758,
+          "rows": 6526154
+        }
+      },
+      "measured": {
+        "finish_time_only": {
+          "editions": 1930,
+          "rows": 1296268
+        },
+        "splits": {
+          "editions": 758,
+          "rows": 6526154
+        }
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "row flags (rows kept)",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "age_implausible": 975,
+        "finish_6h_to_24h": 0,
+        "finish_equals_earlier_split": 452,
+        "finish_faster_than_world_record": 159,
+        "finish_ge_24h": 281,
+        "finish_implausibly_fast": 0,
+        "finish_zero": 12,
+        "no_finish_time": 12892,
+        "sex_from_category": 68415,
+        "split_after_finish": 24632,
+        "split_nonmonotonic": 41754
+      },
+      "measured": {
+        "age_implausible": 975,
+        "finish_6h_to_24h": 0,
+        "finish_equals_earlier_split": 452,
+        "finish_faster_than_world_record": 159,
+        "finish_ge_24h": 281,
+        "finish_implausibly_fast": 0,
+        "finish_zero": 12,
+        "no_finish_time": 12892,
+        "sex_from_category": 68415,
+        "split_after_finish": 24632,
+        "split_nonmonotonic": 41754
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "pending-review flags (rows in CORE)",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "adaptive_division_published_category": 4,
+        "philadelphia_2010_place_sequence_outlier": 7,
+        "sportstats_nonfinish_status": 1501,
+        "wheelchair_handcycle_published_category": 32
+      },
+      "measured": {
+        "adaptive_division_published_category": 4,
+        "philadelphia_2010_place_sequence_outlier": 7,
+        "sportstats_nonfinish_status": 1501,
+        "wheelchair_handcycle_published_category": 32
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "release exclusions by category",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": {
+        "duplicate_edition": {
+          "editions_whole": 6,
+          "editions_partial": 0,
+          "rows": 2323
+        },
+        "non_running": {
+          "editions_whole": 122,
+          "editions_partial": 9,
+          "rows": 20236
+        },
+        "not_a_marathon_finish": {
+          "editions_whole": 0,
+          "editions_partial": 5,
+          "rows": 2158
+        },
+        "not_marathon_distance": {
+          "editions_whole": 73,
+          "editions_partial": 2,
+          "rows": 28112
+        },
+        "relay_or_team": {
+          "editions_whole": 6,
+          "editions_partial": 2,
+          "rows": 1014
+        },
+        "virtual_race": {
+          "editions_whole": 1,
+          "editions_partial": 0,
+          "rows": 794
+        }
+      },
+      "measured": {
+        "duplicate_edition": {
+          "editions_whole": 6,
+          "editions_partial": 0,
+          "rows": 2323
+        },
+        "non_running": {
+          "editions_whole": 122,
+          "editions_partial": 9,
+          "rows": 20236
+        },
+        "not_a_marathon_finish": {
+          "editions_whole": 0,
+          "editions_partial": 5,
+          "rows": 2158
+        },
+        "not_marathon_distance": {
+          "editions_whole": 73,
+          "editions_partial": 2,
+          "rows": 28112
+        },
+        "relay_or_team": {
+          "editions_whole": 6,
+          "editions_partial": 2,
+          "rows": 1014
+        },
+        "virtual_race": {
+          "editions_whole": 1,
+          "editions_partial": 0,
+          "rows": 794
+        }
+      },
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "rows excluded from the release",
+      "source": "MANIFEST.json by_distance (README.md and DATA-CARD.md repeat it)",
+      "expected": 54637,
+      "measured": 54637,
+      "ok": true
+    },
+    {
+      "family": "counts_marathon",
+      "check": "excluded row ids by category equal RELEASE-EXCLUSIONS.csv",
+      "source": "RELEASE-ROW-EXCLUSIONS.parquet against RELEASE-EXCLUSIONS.csv",
+      "expected": {
+        "duplicate_edition": 2323,
+        "non_running": 20236,
+        "not_a_marathon_finish": 2158,
+        "not_marathon_distance": 28112,
+        "relay_or_team": 1014,
+        "virtual_race": 794
+      },
+      "measured": {
+        "duplicate_edition": 2323,
+        "non_running": 20236,
+        "not_a_marathon_finish": 2158,
+        "not_marathon_distance": 28112,
+        "relay_or_team": 1014,
+        "virtual_race": 794
+      },
+      "ok": true
+    },
+    {
+      "family": "documents",
+      "check": "editions whose split tier is not \"finish_time_only exactly when under half the rows have an intermediate split\"",
+      "source": "README.md, Verification tiers",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "documents",
+      "check": "mixed-distance marathon lists (release_note says recovered by published category)",
+      "source": "README.md notes",
+      "expected": 17,
+      "measured": 17,
+      "ok": true
+    },
+    {
+      "family": "documents",
+      "check": "mixed-distance lists that supply half rows (source_db = full, distance = half)",
+      "source": "README.md",
+      "expected": 8,
+      "measured": 8,
+      "ok": true
+    },
+    {
+      "family": "documents",
+      "check": "stamped editions whose finishes with a time differ from the official count by more than 0.5%",
+      "source": "DATA-CARD.md, Verification",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "documents",
+      "check": "verified badge exactly on the two stamped tiers; weaker-source label exactly on stamped_weaker_source",
+      "source": "README.md, Verification tiers",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "documents",
+      "check": "Lemignano SDAM 2012 marathon rows",
+      "source": "DATA-CARD.md, Known issues",
+      "expected": 631,
+      "measured": 631,
+      "ok": true
+    },
+    {
+      "family": "documents",
+      "check": "Kilkenny 2025 marathon rows flagged finish_ge_24h",
+      "source": "DATA-CARD.md, Known issues",
+      "expected": 114,
+      "measured": 114,
+      "ok": true
+    },
+    {
+      "family": "id_contract",
+      "check": "rows whose (source_db, id) is null or repeated",
+      "source": "ID-CONTRACT.md",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "id_contract",
+      "check": "ids used in both id spaces (the claim is that the spaces overlap)",
+      "source": "ID-CONTRACT.md",
+      "expected": true,
+      "measured": true,
+      "ok": true
+    },
+    {
+      "family": "id_contract",
+      "check": "marathon rows outside source_db full",
+      "source": "ID-CONTRACT.md",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "id_contract",
+      "check": "qa_row_flags keys that are repeated",
+      "source": "ID-CONTRACT.md",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "id_contract",
+      "check": "qa keys with no race_records row",
+      "source": "ID-CONTRACT.md",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "id_contract",
+      "check": "rf keys with no race_records row",
+      "source": "ID-CONTRACT.md",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "id_contract",
+      "check": "pend keys with no race_records row",
+      "source": "ID-CONTRACT.md",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "id_contract",
+      "check": "excluded row ids still in race_records",
+      "source": "README.md, Excluded from this release",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "id_contract",
+      "check": "marathon rows that break the record contract the adapter relies on",
+      "source": "analysis/adapt_combined.py",
+      "expected": {
+        "distance_km": 0,
+        "finish_column": 0,
+        "half_columns": 0,
+        "sex_values": 0,
+        "null_labels": 0
+      },
+      "measured": {
+        "distance_km": 0,
+        "finish_column": 0,
+        "half_columns": 0,
+        "sex_values": 0,
+        "null_labels": 0
+      },
+      "ok": true
+    },
+    {
+      "family": "editions_marathon",
+      "check": "EDITION-TIERS.csv counts against the rows, edition by edition",
+      "source": "EDITION-TIERS.csv, EDITIONS.json, races_summary.json, edition_meta.parquet",
+      "expected": {
+        "without_rows": 0,
+        "not_listed": 0,
+        "n_records": 0,
+        "n_with_finish": 0,
+        "n_with_5km": 0,
+        "n_with_any_intermediate_split": 0
+      },
+      "measured": {
+        "without_rows": 0,
+        "not_listed": 0,
+        "n_records": 0,
+        "n_with_finish": 0,
+        "n_with_5km": 0,
+        "n_with_any_intermediate_split": 0
+      },
+      "ok": true
+    },
+    {
+      "family": "editions_marathon",
+      "check": "EDITION-TIERS.csv rows (editions with rows and excluded editions)",
+      "source": "MANIFEST.json by_distance tiers",
+      "expected": 2901,
+      "measured": 2901,
+      "ok": true
+    },
+    {
+      "family": "editions_marathon",
+      "check": "EDITION-TIERS.csv against edition_meta.parquet: the same editions, tier, badge, weaker-source label, split tier and release note",
+      "source": "EDITION-TIERS.csv, EDITIONS.json, races_summary.json, edition_meta.parquet",
+      "expected": {
+        "only_in_edition_tiers": 0,
+        "only_in_edition_meta": 0,
+        "verification_tier": 0,
+        "verified_badge": 0,
+        "weaker_source": 0,
+        "split_tier": 0,
+        "release_note": 0
+      },
+      "measured": {
+        "only_in_edition_tiers": 0,
+        "only_in_edition_meta": 0,
+        "verification_tier": 0,
+        "verified_badge": 0,
+        "weaker_source": 0,
+        "split_tier": 0,
+        "release_note": 0
+      },
+      "ok": true
+    },
+    {
+      "family": "editions_marathon",
+      "check": "EDITION-TIERS.csv against edition_meta.parquet: official count and completeness status",
+      "source": "EDITION-TIERS.csv, EDITIONS.json, races_summary.json, edition_meta.parquet",
+      "expected": {
+        "official_finishers": 0,
+        "completeness_status": 0
+      },
+      "measured": {
+        "official_finishers": 4,
+        "completeness_status": 17
+      },
+      "ok": false
+    },
+    {
+      "family": "editions_marathon",
+      "check": "editions in only one of EDITION-TIERS.csv and edition_meta.parquet, by table and tier",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "only_in_edition_meta": {},
+        "only_in_edition_tiers": {}
+      },
+      "ok": null
+    },
+    {
+      "family": "editions_half",
+      "check": "EDITION-TIERS.csv counts against the rows, edition by edition",
+      "source": "EDITION-TIERS.csv, EDITIONS.json, races_summary.json, edition_meta.parquet",
+      "expected": {
+        "without_rows": 0,
+        "not_listed": 0,
+        "n_records": 0,
+        "n_with_finish": 0,
+        "n_with_5km": 0,
+        "n_with_any_intermediate_split": 0
+      },
+      "measured": {
+        "without_rows": 0,
+        "not_listed": 0,
+        "n_records": 0,
+        "n_with_finish": 0,
+        "n_with_5km": 0,
+        "n_with_any_intermediate_split": 0
+      },
+      "ok": true
+    },
+    {
+      "family": "editions_half",
+      "check": "EDITION-TIERS.csv rows (editions with rows and excluded editions)",
+      "source": "MANIFEST.json by_distance tiers",
+      "expected": 9801,
+      "measured": 9801,
+      "ok": true
+    },
+    {
+      "family": "editions_half",
+      "check": "EDITION-TIERS.csv against edition_meta.parquet: the same editions, tier, badge, weaker-source label, split tier and release note",
+      "source": "EDITION-TIERS.csv, EDITIONS.json, races_summary.json, edition_meta.parquet",
+      "expected": {
+        "only_in_edition_tiers": 0,
+        "only_in_edition_meta": 0,
+        "verification_tier": 0,
+        "verified_badge": 0,
+        "weaker_source": 0,
+        "split_tier": 0,
+        "release_note": 0
+      },
+      "measured": {
+        "only_in_edition_tiers": 13,
+        "only_in_edition_meta": 273,
+        "verification_tier": 0,
+        "verified_badge": 0,
+        "weaker_source": 0,
+        "split_tier": 0,
+        "release_note": 0
+      },
+      "ok": false
+    },
+    {
+      "family": "editions_half",
+      "check": "EDITION-TIERS.csv against edition_meta.parquet: official count and completeness status",
+      "source": "EDITION-TIERS.csv, EDITIONS.json, races_summary.json, edition_meta.parquet",
+      "expected": {
+        "official_finishers": 0,
+        "completeness_status": 0
+      },
+      "measured": {
+        "official_finishers": 174,
+        "completeness_status": 0
+      },
+      "ok": false
+    },
+    {
+      "family": "editions_half",
+      "check": "editions in only one of EDITION-TIERS.csv and edition_meta.parquet, by table and tier",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "only_in_edition_meta": {
+          "no_rows": 273
+        },
+        "only_in_edition_tiers": {
+          "full unverified": 8,
+          "half excluded": 1,
+          "half partial": 2,
+          "half unverified": 2
+        }
+      },
+      "ok": null
+    },
+    {
+      "family": "editions_both",
+      "check": "EDITIONS.json against EDITION-TIERS.csv, edition by edition",
+      "source": "EDITIONS.json",
+      "expected": {
+        "unmatched": 0,
+        "n_records": 0,
+        "verification_tier": 0,
+        "hold_note": 0,
+        "badge_label": 0
+      },
+      "measured": {
+        "unmatched": 0,
+        "n_records": 0,
+        "verification_tier": 0,
+        "hold_note": 0,
+        "badge_label": 0
+      },
+      "ok": true
+    },
+    {
+      "family": "editions_both",
+      "check": "EDITION-CHECKSUMS.csv against EDITIONS.json, edition by edition",
+      "source": "EDITION-CHECKSUMS.csv",
+      "expected": {
+        "unmatched": 0,
+        "n_records": 0,
+        "sha256_records": 0
+      },
+      "measured": {
+        "unmatched": 0,
+        "n_records": 0,
+        "sha256_records": 0
+      },
+      "ok": true
+    },
+    {
+      "family": "editions_both",
+      "check": "races_summary.json editions that differ from the rows",
+      "source": "races_summary.json",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "editions_marathon",
+      "check": "editions held for review that carry a hold note",
+      "source": "EDITION-TIERS.csv hold_note (measured; the owner’s intake note expects one per held edition)",
+      "expected": null,
+      "measured": {
+        "held_for_review": 580,
+        "with_hold_note": 0,
+        "hold_notes_on_other_tiers": 20
+      },
+      "ok": null
+    },
+    {
+      "family": "editions_marathon",
+      "check": "tier source the adapter writes: EDITION-TIERS.csv (editions by tier)",
+      "source": "EDITION-TIERS.csv, the tier table that reproduces the README; edition_meta.parquet must agree on every marathon edition (checked above)",
+      "expected": null,
+      "measured": {
+        "excluded": 213,
+        "held_for_review": 580,
+        "partial": 73,
+        "stamped": 195,
+        "stamped_weaker_source": 616,
+        "unverified": 1224
+      },
+      "ok": null
+    },
+    {
+      "family": "editions_marathon",
+      "check": "half-only edition_meta columns that carry a value on a marathon row",
+      "source": "edition_meta.parquet",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "editions_marathon",
+      "check": "record_flags (long format): no column holds a flag’s 0/1 value, only `detail` text",
+      "source": "record_flags.parquet (measured)",
+      "expected": null,
+      "measured": {
+        "record_ids": 539305,
+        "without_any_detail": 0,
+        "flags_with_a_value_column": 0,
+        "rows_by_flag_with_detail": {
+          "age_is_group_floor": 0,
+          "division": 539305,
+          "dnf_split_as_finish": 0,
+          "last_split_after_finish": 0,
+          "note": 269700,
+          "pace_implausible": 0,
+          "sex_fixed_from_category": 0,
+          "shifted_mat": 9241,
+          "split_nonmonotonic": 0,
+          "splits_corrected": 0
+        }
+      },
+      "ok": null
+    },
+    {
+      "family": "person_links",
+      "check": "link rows",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 15715888,
+      "measured": 15715888,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "link rows by distance equal the CORE rows by distance",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": {
+        "half": 7893466,
+        "marathon": 7822422
+      },
+      "measured": {
+        "half": 7893466,
+        "marathon": 7822422
+      },
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "link keys that are null or repeated",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "CORE keys missing from the links",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "link keys not in CORE",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "link rows whose labels differ from the result row",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": {
+        "distance": 0,
+        "edition": 0,
+        "race": 0,
+        "finish": 0,
+        "age": 0
+      },
+      "measured": {
+        "distance": 0,
+        "edition": 0,
+        "race": 0,
+        "finish": 0,
+        "age": 0
+      },
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "linked rows",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 15031404,
+      "measured": 15031404,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "persons (distinct person_id)",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 7448629,
+      "measured": 7448629,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "persons.parquet rows",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 7448629,
+      "measured": 7448629,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "persons.parquet ids, result counts and marathon counts that differ from the links",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "rows by confidence",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": {
+        "high": 5528395,
+        "high_elite": 17720,
+        "low": 1334714,
+        "low_carryover": 16040,
+        "low_city_pace": 31219,
+        "low_noage": 2010777,
+        "low_noage_series": 78124,
+        "low_nosex": 71006,
+        "medium": 5647726,
+        "medium_variant": 295683,
+        "unlinked": 684484
+      },
+      "measured": {
+        "high": 5528395,
+        "high_elite": 17720,
+        "low": 1334714,
+        "low_carryover": 16040,
+        "low_city_pace": 31219,
+        "low_noage": 2010777,
+        "low_noage_series": 78124,
+        "low_nosex": 71006,
+        "medium": 5647726,
+        "medium_variant": 295683,
+        "unlinked": 684484
+      },
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "unlinked rows by reason",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": {
+        "common_name_wide_interval": 2295,
+        "excluded_by_record_flag": 436,
+        "inconsistent_age_text": 1,
+        "no_name": 4409,
+        "no_published_sex": 326467,
+        "noage_ambiguous": 25462,
+        "noage_no_compatible": 296770,
+        "noage_same_race_collision": 18,
+        "nosex_same_race_collision": 318,
+        "placeholder_name": 19054,
+        "post51_same_race_collision": 1240,
+        "post_comb_same_event_collision": 36,
+        "same_race_collision": 6,
+        "single_token_wide_interval": 7972
+      },
+      "measured": {
+        "common_name_wide_interval": 2295,
+        "excluded_by_record_flag": 436,
+        "inconsistent_age_text": 1,
+        "no_name": 4409,
+        "no_published_sex": 326467,
+        "noage_ambiguous": 25462,
+        "noage_no_compatible": 296770,
+        "noage_same_race_collision": 18,
+        "nosex_same_race_collision": 318,
+        "placeholder_name": 19054,
+        "post51_same_race_collision": 1240,
+        "post_comb_same_event_collision": 36,
+        "same_race_collision": 6,
+        "single_token_wide_interval": 7972
+      },
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "rows by sex source",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": {
+        "category": 207931,
+        "none": 403232,
+        "published": 15104725
+      },
+      "measured": {
+        "none": 403232,
+        "category": 207931,
+        "published": 15104725
+      },
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "persons with more than one sex",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "persons with two rows in one edition (distance, city, year)",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "persons in two or more race series",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 1942958,
+      "measured": 1942958,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "persons with a half and a marathon",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 952539,
+      "measured": 952539,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "link rows whose sex is not the published sex or, where it is blank, the published category’s",
+      "source": "person-ids-v5.1-README.md, person-ids-v5.1-checks.txt",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "person_links",
+      "check": "marathon rows by confidence",
+      "source": "measured (no document states the marathon side alone)",
+      "expected": null,
+      "measured": {
+        "high": 3459539,
+        "high_elite": 12051,
+        "low": 731493,
+        "low_carryover": 3041,
+        "low_city_pace": 15431,
+        "low_noage": 537013,
+        "low_noage_series": 11662,
+        "low_nosex": 14396,
+        "medium": 2710022,
+        "medium_variant": 184970,
+        "unlinked": 142804
+      },
+      "ok": null
+    },
+    {
+      "family": "rows_left_out",
+      "check": "rows by flag",
+      "source": "MANIFEST.json by_distance.marathon (pending_flags, qa_row_flags)",
+      "expected": {
+        "pending_review_flags.philadelphia_2010_place_sequence_outlier": 7,
+        "pending_review_flags.sportstats_nonfinish_status": 1501,
+        "pending_review_flags.wheelchair_handcycle_published_category": 32,
+        "qa_row_flags.finish_equals_earlier_split": 452,
+        "qa_row_flags.finish_faster_than_world_record": 159,
+        "qa_row_flags.finish_ge_24h": 281,
+        "qa_row_flags.finish_zero": 12
+      },
+      "measured": {
+        "pending_review_flags.philadelphia_2010_place_sequence_outlier": 7,
+        "pending_review_flags.sportstats_nonfinish_status": 1501,
+        "pending_review_flags.wheelchair_handcycle_published_category": 32,
+        "qa_row_flags.finish_equals_earlier_split": 452,
+        "qa_row_flags.finish_faster_than_world_record": 159,
+        "qa_row_flags.finish_ge_24h": 281,
+        "qa_row_flags.finish_zero": 12
+      },
+      "ok": true
+    },
+    {
+      "family": "rows_left_out",
+      "check": "distinct rows left out",
+      "source": "analysis/adapt_combined.py REVIEWED",
+      "expected": 2431,
+      "measured": 2431,
+      "ok": true
+    },
+    {
+      "family": "rows_left_out",
+      "check": "rows carrying two of the flags",
+      "source": "measured",
+      "expected": null,
+      "measured": 13,
+      "ok": null
+    },
+    {
+      "family": "rows_left_out",
+      "check": "marathon rows written",
+      "source": "analysis/adapt_combined.py REVIEWED",
+      "expected": 7819991,
+      "measured": 7819991,
+      "ok": true
+    },
+    {
+      "family": "rows_left_out",
+      "check": "kept, never labelled: rows with a pending flag the rule keeps",
+      "source": "MANIFEST.json by_distance.marathon pending_flags",
+      "expected": {
+        "adaptive_division_published_category": 4
+      },
+      "measured": {
+        "adaptive_division_published_category": 4
+      },
+      "ok": true
+    },
+    {
+      "family": "sex",
+      "check": "marathon rows whose blank sex takes the published category",
+      "source": "MANIFEST.json by_distance.marathon qa_row_flags.sex_from_category",
+      "expected": {
+        "filled_from_category": 68415,
+        "category_on_a_published_sex": 0,
+        "category_values": 0
+      },
+      "measured": {
+        "filled_from_category": 68415,
+        "category_on_a_published_sex": 0,
+        "category_values": 0
+      },
+      "ok": true
+    },
+    {
+      "family": "sex",
+      "check": "marathon rows by published sex",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "F": 2553448,
+        "M": 5133851,
+        "none": 134265,
+        "X": 858
+      },
+      "ok": null
+    },
+    {
+      "family": "baseline_delta",
+      "check": "ids removed, added, changed in place and unchanged",
+      "source": "CHANGE-REPORT.md section B (marathon versus private-export-20261021-1050)",
+      "expected": {
+        "removed": 2158,
+        "added": 2497076,
+        "changed": 16013,
+        "unchanged": 5309333
+      },
+      "measured": {
+        "removed": 2158,
+        "added": 2497076,
+        "changed": 16013,
+        "unchanged": 5309333
+      },
+      "ok": true
+    },
+    {
+      "family": "baseline_delta",
+      "check": "removed ids by edition",
+      "source": "CHANGE-REPORT.md section B (marathon versus private-export-20261021-1050)",
+      "expected": {
+        "Honolulu 2021": 111,
+        "Honolulu 2022": 433,
+        "Honolulu 2023": 434,
+        "Honolulu 2024": 437,
+        "Honolulu 2025": 743
+      },
+      "measured": {
+        "Honolulu 2021": 111,
+        "Honolulu 2022": 433,
+        "Honolulu 2023": 434,
+        "Honolulu 2024": 437,
+        "Honolulu 2025": 743
+      },
+      "ok": true
+    },
+    {
+      "family": "baseline_delta",
+      "check": "changed ids by edition",
+      "source": "CHANGE-REPORT.md section B (marathon versus private-export-20261021-1050)",
+      "expected": {
+        "Amsterdam 2023": 16013
+      },
+      "measured": {
+        "Amsterdam 2023": 16013
+      },
+      "ok": true
+    },
+    {
+      "family": "baseline_delta",
+      "check": "columns that differ on a shared id",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "split_42_2km": 16013
+      },
+      "ok": null
+    },
+    {
+      "family": "baseline_delta",
+      "check": "baseline editions that keep every row unchanged",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "baseline_editions": 298,
+        "unchanged_editions": 292,
+        "editions_with_added_rows": 1,
+        "new_editions": 2390
+      },
+      "ok": null
+    },
+    {
+      "family": "overlays",
+      "check": "race_conditions: marathon rows against the private-export-20261021-1050 member (rows only in the release, only in the baseline, changed columns)",
+      "source": "analysis/adapt_combined.py REVIEWED baseline_equal",
+      "expected": {
+        "only_left": 0,
+        "only_right": 0,
+        "changed_columns": {}
+      },
+      "measured": {
+        "only_left": 0,
+        "only_right": 0,
+        "changed_columns": {}
+      },
+      "ok": true
+    },
+    {
+      "family": "overlays",
+      "check": "course_profiles: marathon rows against the private-export-20261021-1050 member (rows only in the release, only in the baseline, changed columns)",
+      "source": "analysis/adapt_combined.py REVIEWED baseline_equal",
+      "expected": {
+        "only_left": 0,
+        "only_right": 0,
+        "changed_columns": {}
+      },
+      "measured": {
+        "only_left": 0,
+        "only_right": 0,
+        "changed_columns": {}
+      },
+      "ok": true
+    },
+    {
+      "family": "overlays",
+      "check": "course_segments: marathon rows against the private-export-20261021-1050 member (rows only in the release, only in the baseline, changed columns)",
+      "source": "analysis/adapt_combined.py REVIEWED baseline_equal",
+      "expected": {
+        "only_left": 0,
+        "only_right": 0,
+        "changed_columns": {}
+      },
+      "measured": {
+        "only_left": 0,
+        "only_right": 0,
+        "changed_columns": {}
+      },
+      "ok": true
+    },
+    {
+      "family": "overlays",
+      "check": "marathon weather rows that repeat an edition",
+      "source": "race_conditions.parquet",
+      "expected": 0,
+      "measured": 0,
+      "ok": true
+    },
+    {
+      "family": "overlays",
+      "check": "weather and course rows of the release by distance",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "race_conditions": {
+          "half": 8217,
+          "marathon": 299
+        },
+        "course_profiles": {
+          "marathon": 33
+        },
+        "course_segments": {
+          "marathon": 297
+        }
+      },
+      "ok": null
+    },
+    {
+      "family": "editions_marathon",
+      "check": "marathon editions whose recomputed checksum differs from EDITION-CHECKSUMS.csv",
+      "source": "EDITION-CHECKSUMS.csv (sha256 over the edition rows ordered by id, each row a compact JSON array of all 27 race_records columns of the release + newline (the release MANIFEST.json; ages stay decimals))",
+      "expected": {
+        "editions": 2688,
+        "differ": []
+      },
+      "measured": {
+        "editions": 2688,
+        "differ": []
+      },
+      "ok": true
+    }
+  ]
+}

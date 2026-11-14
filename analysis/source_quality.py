@@ -220,12 +220,52 @@ RULES_MASTER_20261103B = [
     (city, year, category, _REWORDED_MASTER_20261103B.get((city, year), reason.replace('Producer marks this edition HOLD', _PARTIAL)))
     for city, year, category, reason in RULES_1050 if (city, year) not in _RELEASED_MASTER_20261103B
 ]
+# Reviewed November 14, 2026 for pace-notes-marathon-half-20261113-1113, adapted by analysis/adapt_combined.py (evidence
+# in docs/evidence/2026-11-14/release-20261113-1113/). The release widens the marathon side from 299 editions to 2,688
+# with rows (2,684 once the adapter's row rule is applied) and gives every edition a verification tier, so this policy
+# is a rule, not a hand list (lead decision D3 of the adoption plan, 2026-11-14). An edition is counted only when
+# (1) its split tier is `splits`; (2) its tier is stamped, weaker-source stamped or partial; (3) it is stamped, or it
+# is partial and its finishes with a time are within 5% of its official finisher count; (4) it passes the three
+# screens of the October 16 review, with the thresholds fixed then (under 5% usable; at least 75% against under 50%;
+# at least 25% mixed); and (5) it is not a reviewed exception. Every other edition with rows is listed, with one
+# category and a reason a visitor can read. The list is frozen as data in analysis/edition-policy-20261113-1113.json
+# (the rule in words, the thresholds, the reviewed exceptions, the counted editions and the list, each with a digest);
+# docs/evidence/2026-11-14/release-20261113-1113/policy.py rebuilds it from the adapted input and the screens and
+# fails on any difference, and this module refuses the file when its digest is not the one pinned here.
+# - Reviewed exceptions: the 39 decisions of RULES_MASTER_20261103B, categories unchanged and reasons word for word
+#   except two whose numbers follow the adapted records (Eindhoven 2026: 1,877 of 4,463 complete grids; Tokyo 2018:
+#   seven of its 1,000 rows are left out by the row rule), and Honolulu 2021-2025 (`mixed_distance_list`: the producer
+#   says non-marathon rows may remain after the 2,158 it removed).
+# - London 2025 and 2026 need no exception: the producer lists them as partial with 97.2% and 99.5% of the official
+#   count, so the rule counts them and the owner's October 21, 2026 decision ("Keep London 2025-26") holds by rule;
+#   lib/kept-holds.json has no entry for this release.
+# - New categories, all from the rule: finish_time_only, held_for_review, unverified, partial_coverage.
+RELEASE_20261113_1113 = 'pace-notes-marathon-half-20261113-1113'
+POLICY_FILE_20261113_1113 = Path(__file__).with_name('edition-policy-20261113-1113.json')
+POLICY_FILE_SHA256_20261113_1113 = 'b751e89f935e0e34e831c2d8051dea7581b7859a03716aa4fa54b82d38cd280b'
+
+
+def frozen_rules(path, sha256, tag):
+    """The (city, year, category, reason) rules of a frozen policy file, refused when the file is not the reviewed one."""
+    data = Path(path).read_bytes()
+    if hashlib.sha256(data).hexdigest() != sha256:
+        raise RuntimeError(f'{Path(path).name} is not the reviewed edition policy (its digest differs from the one analysis/source_quality.py pins); '
+                           'rebuild it with its policy.py and review the difference before any calculation')
+    document = json.loads(data)
+    if document['tag'] != tag:
+        raise RuntimeError(f'{Path(path).name} is the policy of another release')
+    return [(row['city'], row['year'], row['category'], row['reason']) for row in document['editions']]
+
+
+RULES_20261113_1113 = frozen_rules(POLICY_FILE_20261113_1113, POLICY_FILE_SHA256_20261113_1113, RELEASE_20261113_1113)
 REVIEWED_POLICIES = {RELEASE: RULES, LATEST_RELEASE: LATEST_RULES, RELEASE_1652: RULES_1652, RELEASE_1050: RULES_1050,
-                     RELEASE_MASTER_20261103B: RULES_MASTER_20261103B}
+                     RELEASE_MASTER_20261103B: RULES_MASTER_20261103B, RELEASE_20261113_1113: RULES_20261113_1113}
 METHOD = ('Apply the reviewed source-quality edition exclusions for this exact export after the timing checks. '
-          'Known invalid split grids (including grids that mix timing bases, a checkpoint that stopped recording partway '
-          'through the field and a virtual edition), incomplete ingestion, editions not reconciled with the official '
-          'finisher count (held, or listed by the producer as partial or unverified) and selected fields '
+          'Known invalid split grids (including grids with no complete set of checkpoints, grids that mix timing bases, a '
+          'checkpoint that stopped recording partway through the field and a virtual edition), incomplete ingestion, '
+          'finish-time-only editions, editions not reconciled with the official finisher count (held for review, never '
+          'checked against an independent count, or listed by the producer as partial and outside the margin the '
+          'edition policy allows), lists that mix in other distances and selected fields '
           '(a top-finisher list, or finishers cut off when a race was stopped) do not contribute to the analyses or prior '
           'benchmarks. Report source exclusions separately; an already invalid timing row is not counted twice. Missing age '
           'or recorded gender alone does not exclude an otherwise eligible finish from the overall cohort. Other sparse '

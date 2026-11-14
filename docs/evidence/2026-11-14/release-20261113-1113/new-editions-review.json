@@ -1,0 +1,573 @@
+{
+ "tag": "pace-notes-marathon-half-20261113-1113",
+ "frozen_policy_sha256": "b751e89f935e0e34e831c2d8051dea7581b7859a03716aa4fa54b82d38cd280b",
+ "pooled": [
+  {
+   "editions": "counted editions of the earlier releases",
+   "n_editions": 190,
+   "finishes": 4015789,
+   "sustained_slowdown_pct": 30.7,
+   "median_finish_min": 252.0
+  },
+  {
+   "editions": "counted editions under a composite key",
+   "n_editions": 11,
+   "finishes": 108234,
+   "sustained_slowdown_pct": 51.09,
+   "median_finish_min": 302.7
+  }
+ ],
+ "new_editions": [
+  {
+   "city": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "year": 2022,
+   "finishes": 2539,
+   "sustained_slowdown_pct": 33.64,
+   "median_finish_min": 267.6
+  },
+  {
+   "city": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "year": 2023,
+   "finishes": 3154,
+   "sustained_slowdown_pct": 40.01,
+   "median_finish_min": 267.9
+  },
+  {
+   "city": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "year": 2024,
+   "finishes": 3898,
+   "sustained_slowdown_pct": 26.35,
+   "median_finish_min": 259.1
+  },
+  {
+   "city": "Los Angeles, CA: Los Angeles Marathon",
+   "year": 2015,
+   "finishes": 20712,
+   "sustained_slowdown_pct": 63.39,
+   "median_finish_min": 324.2
+  },
+  {
+   "city": "Los Angeles, CA: Los Angeles Marathon",
+   "year": 2019,
+   "finishes": 17118,
+   "sustained_slowdown_pct": 48.33,
+   "median_finish_min": 316.0
+  },
+  {
+   "city": "Los Angeles, CA: Los Angeles Marathon",
+   "year": 2023,
+   "finishes": 13794,
+   "sustained_slowdown_pct": 45.12,
+   "median_finish_min": 306.9
+  },
+  {
+   "city": "Los Angeles, CA: Los Angeles Marathon",
+   "year": 2024,
+   "finishes": 18180,
+   "sustained_slowdown_pct": 50.68,
+   "median_finish_min": 310.1
+  },
+  {
+   "city": "Los Angeles, CA: Los Angeles Marathon",
+   "year": 2026,
+   "finishes": 19333,
+   "sustained_slowdown_pct": 59.53,
+   "median_finish_min": 314.5
+  },
+  {
+   "city": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+   "year": 2025,
+   "finishes": 2386,
+   "sustained_slowdown_pct": 43.76,
+   "median_finish_min": 280.3
+  },
+  {
+   "city": "Toronto, ON: Toronto Waterfront Marathon",
+   "year": 2019,
+   "finishes": 3781,
+   "sustained_slowdown_pct": 38.46,
+   "median_finish_min": 248.6
+  },
+  {
+   "city": "Toronto, ON: Toronto Waterfront Marathon",
+   "year": 2022,
+   "finishes": 3339,
+   "sustained_slowdown_pct": 39.29,
+   "median_finish_min": 240.4
+  }
+ ],
+ "by_finish_band": [
+  {
+   "race": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "finish_band": "under 3:00",
+   "finishes": 196,
+   "sustained_slowdown_pct": 1.0
+  },
+  {
+   "race": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "finish_band": "3:00 to 3:30",
+   "finishes": 905,
+   "sustained_slowdown_pct": 11.5
+  },
+  {
+   "race": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "finish_band": "3:30 to 4:00",
+   "finishes": 2134,
+   "sustained_slowdown_pct": 16.5
+  },
+  {
+   "race": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "finish_band": "4:00 to 4:30",
+   "finishes": 1956,
+   "sustained_slowdown_pct": 33.6
+  },
+  {
+   "race": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "finish_band": "4:30 to 5:00",
+   "finishes": 1962,
+   "sustained_slowdown_pct": 39.6
+  },
+  {
+   "race": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "finish_band": "5:00 to 6:00",
+   "finishes": 1892,
+   "sustained_slowdown_pct": 51.3
+  },
+  {
+   "race": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+   "finish_band": "6:00 and over",
+   "finishes": 546,
+   "sustained_slowdown_pct": 51.3
+  },
+  {
+   "race": "Los Angeles, CA: Los Angeles Marathon",
+   "finish_band": "under 3:00",
+   "finishes": 679,
+   "sustained_slowdown_pct": 4.9
+  },
+  {
+   "race": "Los Angeles, CA: Los Angeles Marathon",
+   "finish_band": "3:00 to 3:30",
+   "finishes": 3130,
+   "sustained_slowdown_pct": 17.0
+  },
+  {
+   "race": "Los Angeles, CA: Los Angeles Marathon",
+   "finish_band": "3:30 to 4:00",
+   "finishes": 8471,
+   "sustained_slowdown_pct": 27.4
+  },
+  {
+   "race": "Los Angeles, CA: Los Angeles Marathon",
+   "finish_band": "4:00 to 4:30",
+   "finishes": 11594,
+   "sustained_slowdown_pct": 44.0
+  },
+  {
+   "race": "Los Angeles, CA: Los Angeles Marathon",
+   "finish_band": "4:30 to 5:00",
+   "finishes": 14018,
+   "sustained_slowdown_pct": 54.7
+  },
+  {
+   "race": "Los Angeles, CA: Los Angeles Marathon",
+   "finish_band": "5:00 to 6:00",
+   "finishes": 26027,
+   "sustained_slowdown_pct": 63.4
+  },
+  {
+   "race": "Los Angeles, CA: Los Angeles Marathon",
+   "finish_band": "6:00 and over",
+   "finishes": 25218,
+   "sustained_slowdown_pct": 64.2
+  },
+  {
+   "race": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+   "finish_band": "under 3:00",
+   "finishes": 40,
+   "sustained_slowdown_pct": 10.0
+  },
+  {
+   "race": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+   "finish_band": "3:00 to 3:30",
+   "finishes": 169,
+   "sustained_slowdown_pct": 17.2
+  },
+  {
+   "race": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+   "finish_band": "3:30 to 4:00",
+   "finishes": 372,
+   "sustained_slowdown_pct": 25.3
+  },
+  {
+   "race": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+   "finish_band": "4:00 to 4:30",
+   "finishes": 433,
+   "sustained_slowdown_pct": 44.6
+  },
+  {
+   "race": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+   "finish_band": "4:30 to 5:00",
+   "finishes": 503,
+   "sustained_slowdown_pct": 45.5
+  },
+  {
+   "race": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+   "finish_band": "5:00 to 6:00",
+   "finishes": 653,
+   "sustained_slowdown_pct": 56.2
+  },
+  {
+   "race": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+   "finish_band": "6:00 and over",
+   "finishes": 216,
+   "sustained_slowdown_pct": 59.3
+  },
+  {
+   "race": "Toronto, ON: Toronto Waterfront Marathon",
+   "finish_band": "under 3:00",
+   "finishes": 472,
+   "sustained_slowdown_pct": 5.7
+  },
+  {
+   "race": "Toronto, ON: Toronto Waterfront Marathon",
+   "finish_band": "3:00 to 3:30",
+   "finishes": 1085,
+   "sustained_slowdown_pct": 16.4
+  },
+  {
+   "race": "Toronto, ON: Toronto Waterfront Marathon",
+   "finish_band": "3:30 to 4:00",
+   "finishes": 1749,
+   "sustained_slowdown_pct": 26.1
+  },
+  {
+   "race": "Toronto, ON: Toronto Waterfront Marathon",
+   "finish_band": "4:00 to 4:30",
+   "finishes": 1542,
+   "sustained_slowdown_pct": 44.3
+  },
+  {
+   "race": "Toronto, ON: Toronto Waterfront Marathon",
+   "finish_band": "4:30 to 5:00",
+   "finishes": 1206,
+   "sustained_slowdown_pct": 57.3
+  },
+  {
+   "race": "Toronto, ON: Toronto Waterfront Marathon",
+   "finish_band": "5:00 to 6:00",
+   "finishes": 965,
+   "sustained_slowdown_pct": 68.1
+  },
+  {
+   "race": "Toronto, ON: Toronto Waterfront Marathon",
+   "finish_band": "6:00 and over",
+   "finishes": 101,
+   "sustained_slowdown_pct": 73.3
+  },
+  {
+   "race": "counted editions of the earlier releases",
+   "finish_band": "under 3:00",
+   "finishes": 199372,
+   "sustained_slowdown_pct": 4.2
+  },
+  {
+   "race": "counted editions of the earlier releases",
+   "finish_band": "3:00 to 3:30",
+   "finishes": 530477,
+   "sustained_slowdown_pct": 12.3
+  },
+  {
+   "race": "counted editions of the earlier releases",
+   "finish_band": "3:30 to 4:00",
+   "finishes": 934341,
+   "sustained_slowdown_pct": 18.6
+  },
+  {
+   "race": "counted editions of the earlier releases",
+   "finish_band": "4:00 to 4:30",
+   "finishes": 860518,
+   "sustained_slowdown_pct": 32.2
+  },
+  {
+   "race": "counted editions of the earlier releases",
+   "finish_band": "4:30 to 5:00",
+   "finishes": 680377,
+   "sustained_slowdown_pct": 42.3
+  },
+  {
+   "race": "counted editions of the earlier releases",
+   "finish_band": "5:00 to 6:00",
+   "finishes": 627929,
+   "sustained_slowdown_pct": 52.5
+  },
+  {
+   "race": "counted editions of the earlier releases",
+   "finish_band": "6:00 and over",
+   "finishes": 182775,
+   "sustained_slowdown_pct": 49.7
+  }
+ ],
+ "quickest_tenth_section_pace_over_own_mean_pace": {
+  "new_editions": [
+   {
+    "city": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+    "year": 2022,
+    "finishes": 254,
+    "0-5": 1.0,
+    "5-10": 0.959,
+    "10-15": 0.995,
+    "15-20": 0.985,
+    "20-25": 1.001,
+    "25-30": 1.003,
+    "30-35": 0.994,
+    "35-40": 1.031,
+    "40-42.195": 1.056
+   },
+   {
+    "city": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+    "year": 2023,
+    "finishes": 316,
+    "0-5": 1.001,
+    "5-10": 0.963,
+    "10-15": 0.988,
+    "15-20": 0.98,
+    "20-25": 0.995,
+    "25-30": 0.998,
+    "30-35": 0.997,
+    "35-40": 1.042,
+    "40-42.195": 1.061
+   },
+   {
+    "city": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+    "year": 2024,
+    "finishes": 390,
+    "0-5": 1.006,
+    "5-10": 0.97,
+    "10-15": 0.998,
+    "15-20": 0.981,
+    "20-25": 1.002,
+    "25-30": 0.992,
+    "30-35": 0.985,
+    "35-40": 1.027,
+    "40-42.195": 1.05
+   },
+   {
+    "city": "Los Angeles, CA: Los Angeles Marathon",
+    "year": 2015,
+    "finishes": 2072,
+    "0-5": 0.949,
+    "5-10": 0.966,
+    "10-15": 0.949,
+    "15-20": 0.95,
+    "20-25": 0.973,
+    "25-30": 1.014,
+    "30-35": 1.089,
+    "35-40": 1.089,
+    "40-42.195": 0.989
+   },
+   {
+    "city": "Los Angeles, CA: Los Angeles Marathon",
+    "year": 2019,
+    "finishes": 1712,
+    "0-5": 0.964,
+    "5-10": 0.983,
+    "10-15": 0.961,
+    "15-20": 0.96,
+    "20-25": 0.974,
+    "25-30": 1.011,
+    "30-35": 1.06,
+    "35-40": 1.065,
+    "40-42.195": 0.999
+   },
+   {
+    "city": "Los Angeles, CA: Los Angeles Marathon",
+    "year": 2023,
+    "finishes": 1380,
+    "0-5": 0.965,
+    "5-10": 0.954,
+    "10-15": 0.962,
+    "15-20": 0.957,
+    "20-25": 0.969,
+    "25-30": 0.998,
+    "30-35": 1.045,
+    "35-40": 1.06,
+    "40-42.195": 1.149
+   },
+   {
+    "city": "Los Angeles, CA: Los Angeles Marathon",
+    "year": 2024,
+    "finishes": 1818,
+    "0-5": 0.975,
+    "5-10": 0.965,
+    "10-15": 0.967,
+    "15-20": 0.957,
+    "20-25": 0.967,
+    "25-30": 0.996,
+    "30-35": 1.029,
+    "35-40": 1.053,
+    "40-42.195": 1.158
+   },
+   {
+    "city": "Los Angeles, CA: Los Angeles Marathon",
+    "year": 2026,
+    "finishes": 1934,
+    "0-5": 0.975,
+    "5-10": 0.982,
+    "10-15": 0.953,
+    "15-20": 0.95,
+    "20-25": 0.97,
+    "25-30": 0.996,
+    "30-35": 1.046,
+    "35-40": 1.077,
+    "40-42.195": 1.061
+   },
+   {
+    "city": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+    "year": 2025,
+    "finishes": 239,
+    "0-5": 0.969,
+    "5-10": 0.958,
+    "10-15": 1.003,
+    "15-20": 0.952,
+    "20-25": 0.983,
+    "25-30": 1.002,
+    "30-35": 1.02,
+    "35-40": 1.088,
+    "40-42.195": 1.022
+   },
+   {
+    "city": "Toronto, ON: Toronto Waterfront Marathon",
+    "year": 2019,
+    "finishes": 379,
+    "0-5": 0.98,
+    "5-10": 0.972,
+    "10-15": 0.982,
+    "15-20": 0.98,
+    "20-25": 0.996,
+    "25-30": 1.003,
+    "30-35": 1.018,
+    "35-40": 1.039,
+    "40-42.195": 1.048
+   },
+   {
+    "city": "Toronto, ON: Toronto Waterfront Marathon",
+    "year": 2022,
+    "finishes": 334,
+    "0-5": 0.982,
+    "5-10": 0.981,
+    "10-15": 0.984,
+    "15-20": 0.986,
+    "20-25": 0.983,
+    "25-30": 0.995,
+    "30-35": 1.009,
+    "35-40": 1.051,
+    "40-42.195": 1.057
+   }
+  ],
+  "earlier_editions_across_editions": {
+   "editions": 190,
+   "p05": {
+    "0-5": 0.962,
+    "5-10": 0.945,
+    "10-15": 0.951,
+    "15-20": 0.96,
+    "20-25": 0.967,
+    "25-30": 0.983,
+    "30-35": 1.003,
+    "35-40": 1.02,
+    "40-42.195": 1.006
+   },
+   "median": {
+    "0-5": 0.985,
+    "5-10": 0.973,
+    "10-15": 0.976,
+    "15-20": 0.982,
+    "20-25": 0.988,
+    "25-30": 0.998,
+    "30-35": 1.019,
+    "35-40": 1.051,
+    "40-42.195": 1.044
+   },
+   "p95": {
+    "0-5": 1.003,
+    "5-10": 0.991,
+    "10-15": 0.993,
+    "15-20": 0.994,
+    "20-25": 1.007,
+    "25-30": 1.014,
+    "30-35": 1.043,
+    "35-40": 1.088,
+    "40-42.195": 1.091
+   }
+  }
+ },
+ "earlier_editions_sustained_slowdown_pct": {
+  "distribution": {
+   "lowest": 11.4,
+   "p25": 23.0,
+   "median": 29.8,
+   "p75": 37.9,
+   "highest": 57.8,
+   "editions": 190
+  },
+  "highest": [
+   {
+    "city": "Washington",
+    "year": 2016,
+    "sustained_slowdown_pct": 57.8,
+    "finishes": 18866,
+    "median_finish_min": 297.7
+   },
+   {
+    "city": "Washington",
+    "year": 2017,
+    "sustained_slowdown_pct": 56.6,
+    "finishes": 16195,
+    "median_finish_min": 293.1
+   },
+   {
+    "city": "Chicago",
+    "year": 2010,
+    "sustained_slowdown_pct": 53.9,
+    "finishes": 35272,
+    "median_finish_min": 280.0
+   },
+   {
+    "city": "Copenhagen",
+    "year": 2016,
+    "sustained_slowdown_pct": 53.6,
+    "finishes": 8171,
+    "median_finish_min": 252.9
+   },
+   {
+    "city": "Chicago",
+    "year": 2008,
+    "sustained_slowdown_pct": 53.4,
+    "finishes": 31115,
+    "median_finish_min": 283.5
+   },
+   {
+    "city": "Madrid",
+    "year": 2017,
+    "sustained_slowdown_pct": 52.3,
+    "finishes": 9781,
+    "median_finish_min": 249.9
+   },
+   {
+    "city": "Dubai",
+    "year": 2019,
+    "sustained_slowdown_pct": 51.0,
+    "finishes": 1688,
+    "median_finish_min": 259.6
+   },
+   {
+    "city": "Chicago",
+    "year": 2017,
+    "sustained_slowdown_pct": 50.8,
+    "finishes": 44009,
+    "median_finish_min": 282.7
+   }
+  ]
+ }
+}
