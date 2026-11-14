@@ -1,24 +1,25 @@
 """Verified eligible-finish arrays for the Pace Notes story analyses.
 
-Reads the checked-in public runner shards (the same audited source as the
-fast-start and all-finisher builders), verifies every shard, and returns
-column arrays. No raw names leave this module and nothing is imputed.
+Reads the checked-in marathon cohort (analysis/marathon-cohort, through its one
+Python reader analysis/cohort.py: the names-free records every marathon analysis
+reads since the adoption of November 14, 2026), verifies its manifest and every
+edition file, and returns column arrays. The cohort holds no name and nothing is
+imputed.
 
 An additional analysis-specific screen can remove editions whose records
 duplicate another edition (see DUPLICATE_EDITIONS). It never changes the
 reviewed source-quality policy used by the existing analyses.
 """
-from array import array
-import gzip
-import json
 import math
 from pathlib import Path
-import re
 
 import numpy as np
 
-from build_fast_start import (LENGTHS, PACE_BOUND_EPSILON, POINTS, age_code, digest,
-                              gender_code, require, verified_manifest)
+from build_fast_start import LENGTHS, PACE_BOUND_EPSILON, POINTS, digest, require
+import cohort as marathon_cohort
+
+# The scripts a cohort manifest must name; a reader refuses a cohort whose scripts differ from the checkout's.
+COHORT_SCRIPTS = frozenset({'build_cohort.py', 'cohort.py', 'build_pacing.py', 'source_quality.py', 'build_record_status.py', 'build_identity.py'})
 
 # Empty since htw-db-2026-10-16-1652. Under private-export-20260912-0934 the 2018 and 2019 Chicago
 # labels largely repeated the 2024 field and were listed here (see Git history and docs/KNOWN_ISSUES.md).
@@ -32,7 +33,7 @@ AGE_LABELS = ('Unknown', '18–24', '25–29', '30–34', '35–39', '40–44', 
 
 
 class Finishes:
-    """Column arrays for every eligible finish, in verified shard order."""
+    """Column arrays for every eligible finish, in cohort order: by edition as the manifest lists them, then record id."""
 
     def __init__(self, times, edition, gender, age, exact_age, profile, editions):
         self.times = times            # (n, 9) cumulative seconds at POINTS
@@ -61,6 +62,9 @@ class Finishes:
             setattr(out, name, getattr(self, name)[mask])
         out.editions, out.cities = self.editions, self.cities
         out.raw_by_edition = getattr(self, 'raw_by_edition', None)
+        for name in ('record_id', 'runner', 'keyed'):   # set by read_finishes; absent on arrays built by hand
+            if hasattr(self, name):
+                setattr(out, name, getattr(self, name)[mask])
         out.edition_city, out.edition_year = self.edition_city, self.edition_year
         out.n = int(mask.sum()) if mask.dtype == bool else len(mask)
         return out
@@ -74,57 +78,66 @@ def exact_age_value(age):
     return float(age)
 
 
-def read_finishes(runner_root, pin, script_root):
-    """Verify the runner manifest and every shard; return (Finishes, manifest, sha, audit)."""
-    manifest, manifest_sha = verified_manifest(runner_root, pin, script_root)
+def verified_cohort_manifest(cohort_root, pin, script_root):
+    """The cohort manifest, after the checks a builder makes before it trusts the cohort: it is the adopted release's,
+    its checkpoints are the nine the analyses use, the scripts that wrote it are the checkout's, and its counts
+    agree with each other. Returns (manifest, SHA-256 of the manifest's exact bytes)."""
+    try:
+        manifest, manifest_sha = marathon_cohort.read_manifest(cohort_root)
+    except AssertionError as error:
+        raise ValueError(f'Unreadable cohort manifest: {error}') from error
+    require(manifest['release_tag'] == pin['tag'], 'Cohort release does not match adopted pin')
+    require(manifest['points_km'] == POINTS, 'Unexpected checkpoint mapping')
+    require(manifest['linkage']['record_join_method'] == 'canonical_record_id', 'This calculation requires the audited canonical identity contract')
+    require(COHORT_SCRIPTS <= set(manifest['scripts']), 'Unexpected source script contract')
+    for name, expected in manifest['scripts'].items():
+        require(digest((Path(script_root) / name).read_bytes()) == expected, f'Source script changed: {name}')
+    require(manifest['raw_records'] == manifest['cohort']['raw'] and manifest['eligible_records'] == manifest['cohort']['eligible'],
+            'Inconsistent source cohort metadata')
+    return manifest, manifest_sha
+
+
+def read_finishes(cohort_root, pin, script_root):
+    """Verify the cohort manifest and every edition file; return (Finishes, manifest, sha).
+
+    The finishes are the cohort's counted records, the eligible cohort. `edition` indexes the manifest's `editions`
+    (`Finishes.editions` is that list, with each edition's city, year, race, race date, tier and use), which also
+    names the editions that keep only an own-record view: those have no finish here, as a held edition had none in
+    the runner manifest this replaced. `profile` numbers the runners of the screened identity rule from 0 in order
+    of their cohort runner id (equal values are one runner; a record without a runner key is a runner of its own);
+    `runner` is that cohort id (the smallest written marathon record id of the key, or the record's own id),
+    `keyed` says whether the record has a key, and `record_id` is the record's id, the order within an edition.
+    `raw_by_edition` is every written record of each edition.
+    """
+    manifest, manifest_sha = verified_cohort_manifest(cohort_root, pin, script_root)
     editions = manifest['editions']
-    times, edition, gender, age, exact, profile = array('d'), array('H'), array('B'), array('B'), array('d'), array('Q')
-    raw_by_edition = np.zeros(len(editions), dtype=np.int64)
-    record_ids = array('Q')
-    raw = eligible = 0
-    for relative, expected in sorted(manifest['shards'].items()):
-        require(re.fullmatch(r'(profiles|index)/[0-9a-f]{3}\.json\.gz', relative) is not None, 'Unexpected shard path')
-        compressed = (runner_root / relative).read_bytes()
-        require(len(compressed) == expected['bytes'] and digest(compressed) == expected['sha256'],
-                f'Runner shard checksum/size mismatch: {relative}')
-        if not relative.startswith('profiles/'):
-            continue
-        shard = json.loads(gzip.decompress(compressed))
-        require(shard['release_tag'] == manifest['release_tag'], f'Shard release mismatch: {relative}')
-        for p in shard['profiles']:
-            for race in p['races']:
-                raw += 1
-                raw_by_edition[race['edition']] += 1
-                record_ids.append(race['id'])
-                if not race['eligible']:
-                    continue
-                eligible += 1
-                t = race['times']
-                require(len(t) == 9 and all(isinstance(v, (int, float)) and math.isfinite(v) for v in t),
-                        'Eligible race must have nine finite times')
-                require(0 < t[0] and all(a < b for a, b in zip(t, t[1:])) and 5400 <= t[-1] <= 43200,
-                        'Eligible race violates the timing contract')
-                durations = [t[0], *[b - a for a, b in zip(t, t[1:])]]
-                require(all(120 - PACE_BOUND_EPSILON <= d / L <= 1200 + PACE_BOUND_EPSILON for d, L in zip(durations, LENGTHS)),
-                        'Eligible race violates section pace bounds')
-                times.extend(t)
-                edition.append(race['edition'])
-                gender.append(gender_code(race['sex']))
-                age.append(age_code(race['age']))
-                exact.append(exact_age_value(race['age']))
-                profile.append(p['id'])
-    require(raw == manifest['raw_records'], 'Raw record count does not reconcile')
-    require(eligible == manifest['eligible_records'], 'Eligible record count does not reconcile')
-    ids = np.sort(np.frombuffer(record_ids, dtype=np.uint64))
-    require(len(ids) and bool(np.all(np.diff(ids) > 0)), 'Duplicate record ids')
-    finishes = Finishes(np.frombuffer(times, dtype=np.float64).reshape(-1, 9).copy(),
-                        np.frombuffer(edition, dtype=np.uint16).astype(np.int32),
-                        np.frombuffer(gender, dtype=np.uint8).copy(),
-                        np.frombuffer(age, dtype=np.uint8).copy(),
-                        np.frombuffer(exact, dtype=np.float64).copy(),
-                        np.frombuffer(profile, dtype=np.uint64).copy(),
-                        editions)
-    finishes.raw_by_edition = raw_by_edition
+    try:
+        arrays, _, loaded_sha = marathon_cohort.load(cohort_root)
+    except AssertionError as error:
+        raise ValueError(f'Cohort file check failed: {error}') from error
+    require(loaded_sha == manifest_sha, 'The cohort manifest changed while it was read')
+    times = arrays['times']
+    n = len(times)
+    require(sum(e['raw'] for e in editions) + sum(row[2] for row in manifest['other_editions']['rows']) == manifest['raw_records'],
+            'Raw record count does not reconcile')
+    require(n == manifest['eligible_records'] == sum(e['eligible'] for e in editions), 'Eligible record count does not reconcile')
+    require(bool(np.isfinite(times).all()), 'Eligible race must have nine finite times')
+    durations = np.diff(np.concatenate([np.zeros((n, 1)), times], axis=1), axis=1)
+    require(bool((durations > 0).all()) and bool(((times[:, 8] >= 5400) & (times[:, 8] <= 43200)).all()),
+            'Eligible race violates the timing contract')
+    pace = durations / np.asarray(LENGTHS)
+    require(bool(((pace >= 120 - PACE_BOUND_EPSILON) & (pace <= 1200 + PACE_BOUND_EPSILON)).all()), 'Eligible race violates section pace bounds')
+    ids = np.sort(arrays['record_id'])
+    require(n > 0 and bool(np.all(np.diff(ids) > 0)), 'Duplicate record ids')
+    sex, age = arrays['sex'], arrays['age']
+    gender = np.where(sex == b'M', 1, np.where(sex == b'F', 2, 0)).astype(np.uint8)
+    whole = np.isfinite(age) & (age >= 18) & (age < 90) & (age == np.floor(age))   # exact_age_value, for every record
+    banded = np.where(whole, age, 18.0)
+    age_band = np.where(whole, np.where(banded < 25, 1, banded // 5 - 3), 0).astype(np.uint8)   # build_fast_start.age_code
+    profile = np.unique(arrays['runner'], return_inverse=True)[1].astype(np.uint64)
+    finishes = Finishes(times, arrays['edition'].astype(np.int32), gender, age_band, np.where(whole, age, np.nan), profile, editions)
+    finishes.raw_by_edition = np.array([e['raw'] for e in editions], dtype=np.int64)
+    finishes.record_id, finishes.runner, finishes.keyed = arrays['record_id'], arrays['runner'], arrays['keyed']
     return finishes, manifest, manifest_sha
 
 
