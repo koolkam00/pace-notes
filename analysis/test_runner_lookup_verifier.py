@@ -131,6 +131,18 @@ class Verifier(unittest.TestCase):
         self.assertEqual(done.returncode, 1)
         self.assertIn('the cohort manifest is not the one this build names', done.stderr)
 
+    def test_a_node_script_can_ask_the_lookup(self):
+        script = ("const { openLookup } = require(process.argv[1]); const lookup = openLookup(process.argv[2]);"
+                  "const smith = lookup.search('smith', 1), begins = lookup.search('smi', 2), first = lookup.profile(0, 0);"
+                  "console.log(JSON.stringify({ exists: ['Ada Smith', 'SMITH, ada (USA)', 'Lee, José', 'Jay Lee Jose', 'Ada', 'Smith', 'Berlin', '***'].map(text => lookup.nameExists(text)),"
+                  " alone: [smith.plan.alone, smith.plan.names, smith.rows.length], begins: begins.rows.length, names: first.names.length, results: first.results.map(r => r.key),"
+                  " refused: lookup.search('smi', 2, 10).refused }));")
+        done = subprocess.run([NODE, '-e', script, str(REPO / 'scripts/lib/lookup-files.cjs'), str(self.build / 'runners')], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), {
+            'exists': [True, True, True, True, False, False, False, False],       # a name is a set of search words; a part of one is not a name
+            'alone': ['smith', 6, 0], 'begins': 6, 'names': 3, 'results': ['f11', 'f13', 'h12'], 'refused': True})
+
     def test_every_mutation_fails(self):
         done = self.verify('--fixture', '--allow-provisional', '--self-test')
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
