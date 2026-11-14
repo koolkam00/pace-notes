@@ -289,6 +289,13 @@ function verify(dataDir, { pins = true, registryPath = null } = {}) {
     eq([manifest.identity?.file, manifest.identity?.builder], ['identity.parquet', 'analysis/build_identity.py'], 'the manifest names the identity file and its builder');
     ok(/^[0-9a-f]{64}$/.test(manifest.identity?.sha256 || ''), 'the manifest states the identity file’s digest');
     ok(manifest.identity?.builder_sha256 === sha(read('analysis/build_identity.py')), 'stale linked data: analysis/build_identity.py changed after the identity file was built (rebuild the identity file, then the family)');
+    // The repository describes the adoption's one identity file (analysis/identity.json): the family is built on that file.
+    if (ok(fs.existsSync(rel('analysis/identity.json')), 'analysis/identity.json describes the identity file')) {
+      const described = JSON.parse(read('analysis/identity.json'));
+      eq([described.release_tag, described.input_manifest_sha256, described.file?.name, described.file?.sha256, described.scripts?.['build_identity.py'], described.link_file?.sha256],
+        [manifest.release_tag, manifest.input?.manifest_sha256, manifest.identity?.file, manifest.identity?.sha256, manifest.identity?.builder_sha256, manifest.links?.sha256],
+        'stale linked data: the family is not built on the identity file analysis/identity.json describes (release, input, file, builder, link file)');
+    }
     ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(manifest.input_as_of || ''), 'input_as_of is the adapted input’s time');
     // The marathon cohort is in the repository and names the identity file it was built on, so it is what shows an identity
     // file rebuilt with an unchanged builder: the family and the cohort must be built on one input and one identity file.

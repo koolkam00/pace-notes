@@ -33,6 +33,7 @@ TIER_CODE = {tier: i for i, tier in enumerate(('stamped', 'stamped_weaker_source
 TIERS = tuple(TIER_CODE)
 INPUT_MEMBERS = ('features.parquet', 'edition_meta.parquet', 'race_conditions.parquet', 'race_records.parquet', 'EDITIONS.json')
 IDENTITY_BUILDER = 'build_identity.py'
+IDENTITY_DESCRIPTION = 'identity.json'     # in analysis/: what the adoption's one identity file was built from, and its digest
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -91,14 +92,20 @@ def check_inputs(source: Path, links: Path, identity: Path, *, release_path: Pat
     }
 
 
-def check_identity(identity: Path, tag: str, manifest_sha: str, link_sha: str, *, builder: Path | None = None) -> dict:
+def check_identity(identity: Path, tag: str, manifest_sha: str, link_sha: str, *, builder: Path | None = None, description: Path | None = None) -> dict:
     """The identity file states beside itself (`<file>.json`) what it was built from; each must be what this build reads:
-    the file itself, the release, the adapted input, the link file, and the identity builder in the repository."""
+    the file itself, the release, the adapted input, the link file, and the identity builder in the repository. And the
+    repository describes the one identity file of the adoption (analysis/identity.json, since the final inputs of
+    2026-11-14): the description beside the file must be that one, byte for byte."""
     identity = Path(identity)
+    pinned = builder is None        # a build against the repository's own builder and description
     builder = lc.ANALYSIS / IDENTITY_BUILDER if builder is None else Path(builder)
+    description = lc.ANALYSIS / IDENTITY_DESCRIPTION if description is None and pinned else description
     side = Path(f'{identity}.json')
     if not identity.is_file() or not side.is_file():
         fail(f'{identity}: the identity file or the .json beside it is missing (analysis/{IDENTITY_BUILDER} writes both)')
+    if description is not None and (not Path(description).is_file() or Path(description).read_bytes() != side.read_bytes()):
+        fail(f'{identity} is not the identity file the repository describes (analysis/{IDENTITY_DESCRIPTION}): the description beside it differs')
     sidecar = json.loads(side.read_text())
     identity_sha, builder_sha = lc.file_sha256(identity), lc.file_sha256(builder)
     if sidecar.get('file', {}).get('sha256') != identity_sha:
