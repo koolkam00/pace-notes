@@ -66,7 +66,11 @@ A stranger can recount every file from these and the inputs above.
    file adds a flag the rule does not give and clears one it gives wrongly, each with its evidence. The first five
    are blocking: a race that carries one has no page unless the notes file records the lead's ruling that allows it
    (`page_rulings`, with the words and the date). `hand_cycle_title` also means the title is never printed beside a
-   runner.
+   runner. One ruling on this release (the lead, 2026-11-14): Rimouski gets its results page. "- Annulé" is the
+   timing platform's current title for the whole key, not a statement about the years that hold results; nine of its
+   editions are verified against an independent count and the registry's reviewed name drops the words. The race
+   keeps the flag in the data, because the flag says what the title says; the rule stays for a race whose flagged
+   title has no verified edition.
 7. **Search aliases.** The notes file holds a reviewed table of place words as the release writes them and their
    common English names (Milano: Milan). A race takes the alias when its label, name or place holds the word and none
    of them holds the alias. An alias is for the list's search only and is never shown as a name. A difference of
@@ -332,7 +336,9 @@ input or an audit script changes, and review the notes when its list moves; run 
   `not_stated` beside `chip` years are not like for like.
 - On a course page, the median finish by year in the story data counts finishes with nine checkpoint times; the race
   file counts every finish with a time. They differ for the same edition: show one, or name the measure.
-- A race flagged `hand_cycle_title` never has its title printed beside a runner. Flagged races have no page.
+- A race flagged `hand_cycle_title` never has its title printed beside a runner. Flagged races have no page, except
+  by a recorded ruling (Rimouski): a flag says what the platform's title or place says and is never printed as a
+  fact about the race.
 - An edition whose review is `copy` is not an edition of the race on a page: show the rows whose review is `none`
   or `possible_duplicate`. A race under `left_out` is not listed.
 - An alias is matched by the search and never displayed. The search must fold accents itself.

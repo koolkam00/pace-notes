@@ -185,7 +185,17 @@
    "reviewed": "2026-11-14"
   }
  ],
- "page_rulings": [],
+ "page_rulings": [
+  {
+   "flag": "cancelled",
+   "label": "Rimouski",
+   "note": "The label is the one the re-issued registry gives the race (two keys joined by a reviewed join, 2004 to 2023). The race keeps the flag `cancelled` in the data: it says what the platform’s title says, and the ruling is why it does not withhold the page.",
+   "page": "allowed",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "words": "Ruling on Rimouski: it gets its results page. \"- Annulé\" is the timing platform’s current title for the whole key, not a statement about the years that hold results: nine of its editions are verified against an independent count, and the registry’s reviewed name (\"Marathon de Rimouski\") already drops the words. The rule stays for a race whose flagged title has no verified edition."
+  }
+ ],
  "reviewed": "2026-11-14",
  "rulings": [
   {
