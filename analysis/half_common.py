@@ -254,7 +254,7 @@ BATTERY_IDS = {'pooled', 'verified_halves', 'verified_federation', 'verified_roa
 # snapshot's integer edition id (no label), under linked.json checks.battery.leave_outs.<member>.worst.<clause>.
 HALF_EDITION_KEY = 'half_edition'
 HALF_EDITION_AT = re.compile(r'\.checks\.battery\.leave_outs\.(verified_halves|verified_federation)\.worst\.[a-z_]+$')
-RELEASE_LABEL = re.compile(r'private-export|half-snapshot-|half-dataset-|runner-links-|person-ids-|htw-db-|20260912|20261016|20261021|20261029|20261030|master-[0-9]{8}|20261103')
+RELEASE_LABEL = re.compile(r'private-export|half-snapshot-|half-dataset-|runner-links-|person-ids-|htw-db-|20260912|20261016|20261021|20261029|20261030|master-[0-9]{8}|20261103|pace-notes-marathon-half|20261113')
 
 
 def check_published(value, where: str, *, in_rule: bool = False, extra_string_keys: frozenset = frozenset()) -> None:

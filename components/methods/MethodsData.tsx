@@ -39,6 +39,8 @@ export default function MethodsData() {
   const oneTotal = !!personalized && getAllFinisherContextStart().analysis_n === personalized.n;
   const theAnalyses = oneTotal ? `The ${countWord(analyses)} analyses, listed by chapter,` : 'The personalized analyses';
   const sourceHref = sourceReleaseHref(release.tag);
+  // A master-layout pin names a companion release for the weather and the routes; a combined release holds them itself.
+  const overlays = (release as { overlays?: { tag: string } }).overlays;
   // The tool total, said beside the totals above only when its two edition screens account for the whole difference.
   const band = readInsight<{ cohort_n: number; screens: { start_offset: { finishes: number }[]; grid: { finishes: number }[] } }>('tools/pace-band.json');
   const tools = { n: band.cohort_n, whole: manifest.analysis_n - [...band.screens.start_offset, ...band.screens.grid].reduce((sum, e) => sum + e.finishes, 0) === band.cohort_n };
@@ -68,7 +70,7 @@ export default function MethodsData() {
     </Topic>
 
     <Topic id="release" title="The current release">
-      {extension && <p>The export behind the current analyses holds {n(extension.corpus.n_records)} race records across {extension.corpus.n_cities} cities and {extension.corpus.n_race_years} race editions. Every page uses this one adopted release: the <a href={sourceHref}>current source data release</a>, with input as of {day(manifest.input_as_of)}.{'overlays' in release ? <> The hourly weather and the course routes come from the producer’s <a href={sourceReleaseHref(release.overlays.tag)}>companion release</a> of the same day, pinned with it by checksum and checked against it.</> : ' The weather data is checked against the same release.'}</p>}
+      {extension && <p>The export behind the current analyses holds {n(extension.corpus.n_records)} race records across {extension.corpus.n_cities} cities and {extension.corpus.n_race_years} race editions. Every page uses this one adopted release: the <a href={sourceHref}>current source data release</a>, with input as of {day(manifest.input_as_of)}.{overlays ? <> The hourly weather and the course routes come from the producer’s <a href={sourceReleaseHref(overlays.tag)}>companion release</a> of the same day, pinned with it by checksum and checked against it.</> : ' The weather data is checked against the same release.'}</p>}
       <p>Every calculation records its input export, checksums, method version, eligible count and exclusions. A new release reruns the same calculations. Results are checked and reviewed before the website changes, and each downloadable file keeps the exact source identifiers, so anyone can reproduce it (see <a href="#downloads">Downloads</a>).</p>
       <p>A newer export can be downloadable before it has passed the checks the website needs. Until it is adopted, no page uses it.</p>
       {half ? <p>The half-marathon figures use their own pinned snapshot and link build, taken {day(half.as_of)} and bound to the current marathon release, its runner records and its weather evidence: a change to any of them stops the half pages from building until they are rebuilt.</p> : null}
