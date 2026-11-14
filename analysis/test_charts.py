@@ -1,12 +1,17 @@
 """Tests for the Top 100 charts (charts_*.py, build_charts.py). NumPy and the standard library only."""
+import ast
+import hashlib
 import json
 from pathlib import Path
+import tempfile
 import unittest
+from unittest import mock
 
 import numpy as np
 
 import build_charts
 import charts_common
+import insights_data
 from charts_common import ChartCohort, edition_ranks, require_cell, sh, share
 from insights_data import Finishes
 
@@ -123,6 +128,82 @@ class Builders(unittest.TestCase):
                     continue
                 json.dumps(result, allow_nan=False)
                 self.assertIn(result['plot']['form'], build_charts.FORMS)
+
+
+class Binding(unittest.TestCase):
+    """What the family's manifest binds (changed 2026-11-14: the charts read the marathon cohort, analysis/cohort.py,
+    not the runner lookup's shards)."""
+
+    def test_the_manifest_binds_the_cohort_its_policy_and_the_scripts(self):
+        cohort = synthetic()
+        f = cohort.f
+        source = dict(release_tag='example', input_as_of='2026-01-01T00:00:00Z', as_of='2026-01-02T00:00:00Z', editions=f.editions,
+                      scripts={'cohort.py': 'a' * 64, 'source_quality.py': 'b' * 64},
+                      source_quality=dict(version=2, release_tag='example', policy_sha256='c' * 64, editions_sha256='d' * 64, counts=dict(editions=3)))
+        weather = dict(input=dict(release_tag='example-weather'), editions=cohort.weather['editions'])
+        items = []
+        for item in build_charts.catalog():          # two charts that build on the small synthetic cohort
+            try:
+                build_charts.build_one(item, cohort)
+            except ValueError:
+                continue
+            items.append(item)
+            if len(items) == 2:
+                break
+        self.assertEqual(len(items), 2)
+        with tempfile.TemporaryDirectory() as out, mock.patch.multiple(
+                build_charts, load_cohort=lambda cache=None: ({'tag': 'example'}, f, source, 'e' * 64), load_weather=lambda: weather,
+                load_geometry=lambda: None, catalog=lambda: items):
+            build_charts.run(out)
+            manifest = json.loads((Path(out) / 'manifest.json').read_text())
+            files = {p.name: p.read_bytes() for p in Path(out).glob('*.json') if p.name != 'manifest.json'}
+        # The cohort: the SHA-256 of its manifest and its timestamps, under the names the fields had for the lookup.
+        self.assertEqual((manifest['runner_manifest_sha256'], manifest['runner_manifest_as_of'], manifest['input_as_of'], manifest['release_tag']),
+                         ('e' * 64, source['as_of'], source['input_as_of'], 'example'))
+        # The edition policy and the scripts the cohort states, unchanged.
+        self.assertEqual(manifest['source_quality'], source['source_quality'])
+        self.assertEqual(manifest['source_scripts'], source['scripts'])
+        # Every calculation script of the family, by the digest of the file in the checkout.
+        here = Path(build_charts.__file__).resolve().parent
+        expected = {p.name for p in here.glob('charts_*.py')} | {'build_charts.py', 'build_insights.py', 'insights_data.py', 'insights_stats.py', 'build_fast_start.py'}
+        self.assertEqual(set(manifest['scripts']), expected)
+        for name, digest in manifest['scripts'].items():
+            self.assertEqual(digest, hashlib.sha256((here / name).read_bytes()).hexdigest(), name)
+        # The chart files: each names the same cohort, and the manifest lists exactly them with their bytes.
+        self.assertEqual(sorted(manifest['files']), sorted(f"{c['slug']}.json" for c in items))
+        for name, data in files.items():
+            self.assertEqual(manifest['files'][name], dict(bytes=len(data), sha256=hashlib.sha256(data).hexdigest()))
+            self.assertEqual(json.loads(data)['runner_manifest_sha256'], 'e' * 64)
+        self.assertEqual(manifest['weather']['release_tag'], 'example-weather')
+
+    def test_every_analysis_module_the_build_imports_is_bound(self):
+        """The import closure of the builder and the chart modules, inside analysis/: each module is one of the scripts
+        the charts manifest hashes or one the cohort manifest must name (the reader checks those against the checkout)."""
+        here = Path(build_charts.__file__).resolve().parent
+        family = {p.stem for p in here.glob('charts_*.py')} | {'build_charts'}
+
+        def imports(node, inside_functions):
+            """Imports a module makes when it is loaded; in the family's own files also those its functions make when the
+            build calls them (a shared module's function-level imports belong to its own family's build, not to this one)."""
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, ast.Import):
+                    yield from (alias.name.split('.')[0] for alias in child.names)
+                elif isinstance(child, ast.ImportFrom) and child.module and not child.level:
+                    yield child.module.split('.')[0]
+                elif inside_functions or not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    yield from imports(child, inside_functions)
+
+        seen, todo = set(), sorted(family)
+        while todo:
+            name = todo.pop()
+            if name in seen or not (here / f'{name}.py').exists():
+                continue
+            seen.add(name)
+            todo += list(imports(ast.parse((here / f'{name}.py').read_text()), name in family))
+        own = family | {'build_insights', 'insights_data', 'insights_stats', 'build_fast_start'}
+        cohort_side = {Path(name).stem for name in insights_data.COHORT_SCRIPTS}
+        self.assertEqual(seen - own - cohort_side, set(), 'an analysis module the chart build imports is in neither manifest')
+        self.assertIn('cohort', seen & cohort_side, 'the builders read the cohort through analysis/cohort.py')
 
 
 if __name__ == '__main__':

@@ -208,6 +208,16 @@ assert.equal(C.manifestSha, cohortSha, 'The cohort did not change while it was r
 assert.ok(C.names.names > 0, 'The name guard read no recorded names');
 assert.deepEqual(C.nameHits, [], 'A chart string equals a recorded runner name');
 assert.equal(C.n, manifest.analysis_n, 'The story cohort (no duplicate-edition screen in this release)');
+// The cohort counts the manifest states (/methodology#top-charts prints them), recounted from the cohort.
+{
+  const withFinishes = C.editions.map((_, e) => e).filter((e) => C.edN[e] > 0);
+  const sum = (flags) => { let total = 0; for (let i = 0; i < C.n; i++) total += flags[i]; return total; };
+  assert.deepEqual(manifest.cohort, {
+    eligible: C.n, after_duplicate_screen: C.n, editions: withFinishes.length, cities: new Set(withFinishes.map((e) => C.ed.city[e])).size,
+    shape: sum(C.shapeKeep), shape_editions_left_out: C.shapeFlagged.length, exact_age: sum(C.exactAgeOk), exact_age_editions: C.granular.size,
+  }, 'The cohort counts in the charts manifest');
+  checks++;
+}
 const H = require('./charts/helpers.cjs')(C);
 const recounts = {};
 // Every recount module in scripts/charts/ (one per builder module), the cohort and helpers aside.
