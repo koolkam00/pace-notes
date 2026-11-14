@@ -7,8 +7,9 @@
  * all read it.
  *
  * The codes are the adopted release's own, read from its files on November 14, 2026: tiers and split tiers from the
- * edition table (edition_meta.parquet and EDITION-TIERS.csv, marathon and half), link confidences from the producer's
- * link file and from the identity file's description. `node scripts/verify-tiers.cjs --source=<folders>` recounts them.
+ * edition table (edition_meta.parquet and EDITION-TIERS.csv, marathon and half), its timing-basis texts from the same
+ * table, link confidences from the producer's link file and the identity file's description, and the reasons a link
+ * has no runner key from analysis/build_identity.py. `node scripts/verify-tiers.cjs --source=<folders>` recounts them.
  *
  * A code this module does not know is an error where it is asked for, never a silent default, and so is `undefined`
  * (a misspelt field). Check a data file's codes in its builder's verifier with these functions, so no page meets one.
@@ -97,26 +98,51 @@ export function splitTierWords(splitTier: string): string | null {
 
 export const GUN_TIMES = 'Gun times';
 
-/** The short code a data file may store for an edition timed gross, in place of the release's own text. */
-export const GROSS_TIMING = 'gross';
+/** The classes of a timing basis, as the linked-records contract names them (docs/LINKED_RECORDS.md, "Timing basis"). */
+export const TIMING_CLASSES = ['chip', 'chip_fallback', 'gun', 'mixed', 'not_stated'] as const;
+export type TimingClass = (typeof TIMING_CLASSES)[number];
+/** The one class with words: an edition whose basis the release states as gun or gross time, at either distance. */
+export const GUN_TIMING: TimingClass = 'gun';
 
 /**
- * The editions the release times gross: the Berlin half marathon of these years (the release's key: distance `half`,
- * city `Berlin`). They enter no comparison, ranking or record. A builder checks that the editions it marks are these.
+ * Every timing basis the release states for an edition (the free text of `timing_basis`, marathon and half), by class.
+ * `chip`: chip or net time. `chip_fallback`: chip or net time where the source has one, else gun or clock time; also a
+ * basis the release states only "if published" or "where published". `gun`: gun or gross time, also where the text puts
+ * gun time first and chip time second. `mixed`: gun splits with a net or chip finish. `not_stated`: "as published",
+ * "official time" or no value, so the release does not say chip or gun. A text that is not listed here is an error:
+ * class it before a page shows the edition. Only client pages that pass the release's text carry this list.
  */
-export const GUN_TIME_EDITIONS = { distance: 'half', city: 'Berlin', years: [2018, 2019, 2021, 2022, 2023] } as const;
+export const TIMING_BASES: Readonly<Record<TimingClass, readonly string[]>> = {
+  chip: ['chip', 'chip (Tiempo real)', 'chip (netto) time', 'chip (ot) as published', 'chip time', 'chiptime', 'net (chip) time', 'net (last time column)',
+    'net time (PDF says wg czasu netto)', 'net(chip)', 'netto (chip) time', 'netto as published', 'real (chip) time', 'real time as published'],
+  chip_fallback: ['chip (clock if no chip)', 'chip (delta_net), clock if no chip', 'chip (gun if no chip)', 'chip (tiempoChip) else gun', 'chip elapsed (gun if no chip)',
+    'chip time else gun', 'chip where published, else gun', "net 'time' (gun if none)", 'net (Tempo Liquido) else gun', 'netto if published else bruto',
+    'realTime (net) as published, else officialTime', 'chip (realTime) where published', 'net if published'],
+  gun: ['gun', 'gross (gun / Brutto; the source net column was not loaded)', 'gun (official, matches organiser winners) else chip'],
+  mixed: ['mixed'],
+  not_stated: ['as published', 'as published (Czas)', 'as published (Tiempo)', 'as published (Time)', 'final time as published', 'official time', 'time', 'unknown'],
+};
 
 /**
- * Whether a timing basis is gross time. The release writes the basis as free text ("chip", "net if published", …);
- * the text of an edition timed gross starts with the word "gross". null is an edition with no stated basis.
+ * The class of an edition's timing basis. `timingBasis` is the release's `timing_basis` text, or one of TIMING_CLASSES
+ * (a data file may store the class in place of the text), or null where the release states none.
  */
-export function isGrossTiming(timingBasis: string | null): boolean {
+export function timingClass(timingBasis: string | null): TimingClass {
+  if (timingBasis === null) return 'not_stated';
+  if (has(TIMING_CLASSES, timingBasis)) return timingBasis as TimingClass;
+  for (const cls of TIMING_CLASSES) if (has(TIMING_BASES[cls], timingBasis)) return cls;
   if (timingBasis === undefined) throw new Error('lib/tiers.ts: no timing basis was given (undefined). Pass the edition’s timing_basis text, or null where the release states none.');
-  return typeof timingBasis === 'string' && /^\s*gross\b/i.test(timingBasis);
+  throw new Error(`lib/tiers.ts: unknown timing basis ${shown(timingBasis)}. Class the release’s text in TIMING_BASES before a page shows the edition.`);
 }
 
-/** "Gun times" for an edition timed gross; null for every other. */
-export const timingWords = (timingBasis: string | null): string | null => (isGrossTiming(timingBasis) ? GUN_TIMES : null);
+/** Whether a timing class is gun time. It reads no release text, so a page that holds the class stays light. */
+export function isGunTiming(cls: string): boolean {
+  if (!has(TIMING_CLASSES, cls)) unknownCode('timing class', cls, TIMING_CLASSES);
+  return cls === GUN_TIMING;
+}
+
+/** "Gun times" for an edition whose basis the release states as gun or gross time; null for every other. */
+export const timingWords = (timingBasis: string | null): string | null => (timingClass(timingBasis) === GUN_TIMING ? GUN_TIMES : null);
 
 // ---- Links between a runner's results
 
@@ -155,6 +181,77 @@ export function linkWords(confidence: string | null, { keyed }: { keyed?: boolea
   return keyed === false ? POSSIBLE_MATCH : null;
 }
 
+/**
+ * The quiet words of each confidence. Every link shows its tier (owner, November 13, 2026: "Show the tier, and don't
+ * present low-confidence links as certain"): plain text beside the result, never a pill.
+ */
+export const LINK_TIER_WORDS: Readonly<Record<LinkConfidence, string>> = {
+  high_elite: 'High, elite',
+  high: 'High',
+  medium: 'Medium',
+  medium_variant: 'Medium, name variant',
+  low: 'Low',
+  low_noage: 'Low, no age',
+  low_noage_series: 'Low, no age, same series',
+  low_nosex: 'Low, no recorded sex',
+  low_city_pace: 'Low, city and pace',
+  low_carryover: 'Low, carried over',
+};
+
+/** The quiet words of a link's confidence; null for a result with no link. */
+export function linkTierWords(confidence: string | null): string | null {
+  if (confidence === null) return null;
+  isKeyedConfidence(confidence);
+  return LINK_TIER_WORDS[confidence as LinkConfidence];
+}
+
+/** Why a result has no runner key: the identity file's `not_keyed_reason` codes, in the order it applies them. */
+export const NOT_KEYED_REASONS = ['left_out_by_row_rule', 'unlinked', 'tier_below_medium', 'sex_conflict', 'birth_year_spread', 'two_results_in_one_edition'] as const;
+
+/** The three screens that leave a link of a keyed confidence without a runner key, in words. */
+export const SCREEN_WORDS = {
+  sex_conflict: 'recorded sexes differ',
+  birth_year_spread: 'recorded ages differ',
+  two_results_in_one_edition: 'two results in one edition',
+} as const;
+
+/**
+ * The words of the reason a link has no runner key: one of the three screens. null for `tier_below_medium` (the
+ * confidence says it already) and for `unlinked` (no link). A result left out by the row rule is never shown, so asking
+ * for its words is an error.
+ */
+export function notKeyedWords(reason: string): string | null {
+  if (!has(NOT_KEYED_REASONS, reason)) unknownCode('not-keyed reason', reason, NOT_KEYED_REASONS);
+  if (reason === 'left_out_by_row_rule') throw new Error('lib/tiers.ts: a result left out by the row rule is never shown, so its reason has no words.');
+  return reason in SCREEN_WORDS ? SCREEN_WORDS[reason as keyof typeof SCREEN_WORDS] : null;
+}
+
+/**
+ * The quiet text of a link: its confidence and, for a link of a keyed confidence that has no runner key, the screen
+ * that left it without one ("High · recorded ages differ"). `keyed` and `reason` are the identity file's status and
+ * `not_keyed_reason`; a reason alone says the link is not keyed. null for a result with no link.
+ */
+export function linkQuietWords(confidence: string | null, { keyed, reason }: { keyed?: boolean; reason?: string | null } = {}): string | null {
+  linkWords(confidence, { keyed });
+  const why = reason == null ? null : notKeyedWords(reason);
+  if (confidence === null) {
+    if (reason != null && reason !== 'unlinked') throw new Error(`lib/tiers.ts: a result with no link cannot have the reason "${reason}".`);
+    return null;
+  }
+  const words = LINK_TIER_WORDS[confidence as LinkConfidence];
+  if (keyed && reason != null) throw new Error(`lib/tiers.ts: a keyed link has no not-keyed reason (got "${reason}").`);
+  if (!isKeyedConfidence(confidence)) {
+    if (reason != null && reason !== 'tier_below_medium') throw new Error(`lib/tiers.ts: a link of confidence "${confidence}" is not keyed because of its tier, not "${reason}".`);
+    return words;
+  }
+  if (why === null) {
+    if (reason != null) throw new Error(`lib/tiers.ts: the reason "${reason}" does not fit a link of confidence "${confidence}".`);
+    if (keyed === false) throw new Error(`lib/tiers.ts: a link of confidence "${confidence}" without a runner key needs its not_keyed_reason, so the page says why.`);
+    return words;
+  }
+  return `${words}${TIER_LINE_SEPARATOR}${why}`;
+}
+
 // ---- Plain text for list rows and sentences
 
 /** Words as they read after a count or inside a line: the first letter lowered ("16 verified", "· possible match"). */
@@ -164,7 +261,13 @@ export const inline = (words: string) => words.charAt(0).toLowerCase() + words.s
 export const possibleMatchCount = (count: number, format: (n: number) => string = String) => `${format(count)} ${inline(count === 1 ? POSSIBLE_MATCH : POSSIBLE_MATCHES)}`;
 
 /** Between the parts of a tier line: a no-break space, a middle dot and a space, as the list rows join their facts. */
-export const TIER_LINE_SEPARATOR = ' · ';
+export const TIER_LINE_SEPARATOR = '\u00a0· ';
+
+/**
+ * A tier's words in a tier line: the first letter lowered, and partial editions read "with partial results", so a count
+ * before them is a count of editions ("3 with partial results"). The pill stays "Partial results".
+ */
+export const tierLineWords = (tier: ShownTier): string => (tier === 'partial' ? `with ${inline(TIER_WORDS.partial)}` : inline(TIER_WORDS[tier]));
 
 /** How many editions of each shown tier a list of editions holds. An unknown or never-shown tier is an error. */
 export function countTiers(tiers: Iterable<string>): Partial<Record<ShownTier, number>> {
@@ -183,14 +286,15 @@ export function tierLineParts(counts: Readonly<Record<string, number | undefined
     if (!Number.isInteger(count) || count < 0) throw new Error(`lib/tiers.ts: the count of "${tier}" editions is ${count}, not a whole number of editions.`);
     if (!isShownTier(tier) && count > 0) neverShown(tier);
   }
-  const parts = SHOWN_TIERS.filter((tier) => (counts[tier] ?? 0) > 0).map((tier) => ({ tier, count: counts[tier] as number, words: inline(TIER_WORDS[tier]) }));
+  const parts = SHOWN_TIERS.filter((tier) => (counts[tier] ?? 0) > 0).map((tier) => ({ tier, count: counts[tier] as number, words: tierLineWords(tier) }));
   if (!parts.length) throw new Error('lib/tiers.ts: a tier line needs at least one edition. A race without results is not listed.');
   return parts;
 }
 
 /**
  * A race's tier line as plain text for a list row, from its editions' counts by tier:
- * "6 verified, weaker source · 10 held for review"; one tier for all reads "16 verified".
+ * "6 verified, weaker source · 10 held for review"; one tier for all reads "16 verified"; partial editions read
+ * "3 with partial results".
  */
 export function tierLine(counts: Readonly<Record<string, number | undefined>>, format: (n: number) => string = String): string {
   return tierLineParts(counts).map((part) => `${format(part.count)} ${part.words}`).join(TIER_LINE_SEPARATOR);
@@ -201,11 +305,20 @@ export function tierLine(counts: Readonly<Record<string, number | undefined>>, f
 /** Every phrase of the vocabulary. No other file under app/, components/ or lib/ writes one. */
 export const TIER_PHRASES: readonly string[] = [...SHOWN_TIERS.map((tier) => TIER_WORDS[tier]), FINISH_TIMES_ONLY, GUN_TIMES, POSSIBLE_MATCH];
 
-/** The classes components/ui/TierTag.tsx draws with (app/styles/components/badge.css): the badge, the pill, a row's plain tier line and the group. */
-export const TIER_CLASSES = ['tier-badge', 'tier-chip', 'tier-line', 'tier-tags'] as const;
+/**
+ * The link words no other file writes either: the quiet words of two or more parts ("High, elite", "Low, no age", …)
+ * and the screens' words. "High", "Medium" and "Low" alone are ordinary words and are not held.
+ */
+export const LINK_PHRASES: readonly string[] = [...LINK_CONFIDENCES.map((confidence) => LINK_TIER_WORDS[confidence]).filter((words) => words.includes(',')), ...Object.values(SCREEN_WORDS)];
+
+/**
+ * The classes components/ui/TierTag.tsx draws with (app/styles/components/badge.css): the badge, the pill, a row's plain
+ * tier line, the quiet text of a link's confidence and the group.
+ */
+export const TIER_CLASSES = ['tier-badge', 'tier-chip', 'tier-line', 'tier-quiet', 'tier-tags'] as const;
 
 /**
  * Matches the class attribute of a tier or link label in rendered HTML, for a verifier that takes the labels out of a
  * page's text before it applies a word rule (as verify-half takes out the scope chip).
  */
-export const TIER_LABEL_CLASS = /class="[^"]*\btier-(?:badge|chip|line)\b[^"]*"/;
+export const TIER_LABEL_CLASS = /class="[^"]*\btier-(?:badge|chip|line|quiet)\b[^"]*"/;
