@@ -2,12 +2,13 @@
 
     python3 -I directory.py <adapted FULL dir> <edition-screen.csv> <edition-directory.json> <race-registry-review.json>
 
-The directory is a proposal for a published data file, not yet one: every marathon edition with rows in the release,
-with its race (analysis/race-registry.json), tier, badge, weaker-source label, split tier, official count and its source
-type, coverage, hold and release notes, timing basis, dates, row counts, and whether the edition policy counts it and,
-if not, the category and the reason. Editions are rows of `editions` in the order of `columns`; `reason` is an index
-into `reasons`. Nothing here is typed: every value is read from the adapted input, the frozen policy
-(analysis/edition-policy-20261113-1113.json), the registry and the screens.
+The directory is a proposal for a published data file, not yet one: every marathon edition with written rows in the
+adapted input, named as the pipeline names it (`city` is its race's registry label), with its race
+(analysis/race-registry.json), tier, badge, weaker-source label, split tier, official count and its source type,
+coverage, hold and release notes, timing basis, dates, row counts, and whether the edition policy counts it and, if
+not, the category, the reason and whether a record of it keeps an own-record view. Editions are rows of `editions` in
+the order of `columns`; `reason` is an index into `reasons`. Nothing here is typed: every value is read from the adapted
+input, the frozen policy (analysis/edition-policy-20261113-1113.json), the registry and the screens.
 """
 import csv
 import hashlib
@@ -21,12 +22,12 @@ import duckdb  # noqa: E402
 import race_registry  # noqa: E402
 
 POLICY = ROOT / 'analysis' / 'edition-policy-20261113-1113.json'
-NO_ROWS = ('Every recorded row of this edition carries a flag the adapter’s row rule leaves out (a finish equal to an earlier checkpoint, or a '
-           'non-finish status), so no result of it is shown.')
 SCHEMA = {
-    'key': 'the release’s race key (`city`), the join key with year; never shown as a name',
+    'city': 'the label of the edition’s race in the race registry: the pipeline’s `city`, the join key with year in every pack and data file',
     'year': 'the edition’s year',
-    'race_id': 'the race in `races` (analysis/race-registry.json): its id, slug, display name, place and flags',
+    'race_id': 'the race in `races` (analysis/race-registry.json): its id (the label’s slug), display name, place and flags',
+    'race': 'the race name written for the edition: the registry’s display name, or under a plain key the race name the release gives it',
+    'release_city': 'the release’s own race key of the edition; never shown as a name',
     'tier': 'verification tier: stamped, stamped_weaker_source, partial, held_for_review or unverified',
     'verified_badge': 'true only on the two stamped tiers',
     'weaker_source': 'true when the stamp rests on a count likely built from the same timer file; the label must stay visible',
@@ -46,7 +47,8 @@ SCHEMA = {
     'finishes': 'written rows with a finish time',
     'timing_eligible': 'written rows that pass the timing checks: all nine checkpoints, increasing, finish 1:30 to 12:00, every section 2:00 to 20:00 per km',
     'counted': 'true when the edition supplies pooled pacing statistics under the frozen edition policy',
-    'not_counted_category': 'the policy’s category when it is not counted (no_written_rows when the row rule leaves nothing)',
+    'own_record': 'true when the edition is not counted but a record of it keeps an own-record view (unverified, or partial outside the coverage band, with a grid that passes the screens)',
+    'not_counted_category': 'the policy’s category when it is not counted',
     'reason': 'index into `reasons`: the reason a visitor can read',
 }
 
@@ -62,40 +64,37 @@ def main(argv):
     registry = json.loads(race_registry.FROZEN.read_text())
     assert document['tag'] == policy['tag'] == registry['tag']
     assert policy['inputs']['adapted_manifest_sha256'] == sha(source / 'MANIFEST.json'), 'the policy was frozen on another adapted input'
-    race_of = {key: race['race_id'] for race in registry['races'] for key in race['keys']}
+    race_of = {race['label']: race['race_id'] for race in registry['races']}
     excluded = {(e['city'], e['year']): e for e in policy['editions']}
     counted = {tuple(k) for k in policy['counted']}
     with open(screen_path, newline='') as stream:
         eligible = {(r['city'], int(r['year'])): int(r['timing_eligible']) for r in csv.DictReader(stream)}
     reasons, index, rows = [], {}, []
     columns = list(SCHEMA)
-    for e in sorted((e for e in document['editions'] if e['rows_in_release']), key=lambda e: (e['city'], e['year'])):
+    assert not any(e['rows_in_release'] for e in document['not_written']), 'an edition with release rows has no written row; the directory lists written editions'
+    for e in sorted(document['editions'], key=lambda e: (e['city'], e['year'])):
         key = (e['city'], e['year'])
-        if key in counted:
-            category = reason = None
-        elif key in excluded:
-            category, reason = excluded[key]['category'], excluded[key]['reason']
-        else:
-            assert e['n_records'] == 0, key
-            category, reason = 'no_written_rows', NO_ROWS
+        assert (key in counted) != (key in excluded) and race_of[e['city']] == e['race_id'], key
+        category, reason = (None, None) if key in counted else (excluded[key]['category'], excluded[key]['reason'])
         if reason is not None and reason not in index:
             index[reason] = len(reasons)
             reasons.append(reason)
         official = e['official_finishers']
         value = {
-            'key': e['city'], 'year': e['year'], 'race_id': race_of.get(e['city']), 'tier': e['verification_tier'], 'verified_badge': e['verified_badge'],
+            'city': e['city'], 'year': e['year'], 'race_id': e['race_id'], 'race': e['race'], 'release_city': e['release_city'],
+            'tier': e['verification_tier'], 'verified_badge': e['verified_badge'],
             'weaker_source': e['weaker_source'], 'split_tier': e['split_tier'], 'official_finishers': None if official is None else int(official),
             'official_source_type': e['official_source_type'],
             'coverage_pct': None if not official else round(100 * e['finishes_in_release'] / official, 2), 'hold_note': e['hold_note'],
             'release_note': e['release_note'], 'timing_basis': e['timing_basis'], 'race_date': e['race_date'], 'race_date_source': e['race_date_source'],
             'producer_note_date': e['producer_note_date'], 'rows': e['n_records'], 'rows_in_release': e['rows_in_release'], 'rows_left_out': e['rows_left_out'],
-            'finishes': e['n_finishes'], 'timing_eligible': eligible.get(key, 0), 'counted': key in counted, 'not_counted_category': category,
+            'finishes': e['n_finishes'], 'timing_eligible': eligible.get(key, 0), 'counted': key in counted,
+            'own_record': key in excluded and excluded[key]['own_record'], 'not_counted_category': category,
             'reason': None if reason is None else index[reason],
         }
         rows.append([value[c] for c in columns])
     at = {c: i for i, c in enumerate(columns)}
-    # A race key whose every edition lost its rows has no registry entry; none does in this release.
-    assert all(r[at['race_id']] for r in rows), [r[0] for r in rows if not r[at['race_id']]][:5]
+    assert all(r[at['race_id']] for r in rows)
     tiers = {}
     for r in rows:
         t = tiers.setdefault(r[at['tier']], {'editions': 0, 'rows': 0, 'counted': 0})
@@ -111,14 +110,16 @@ def main(argv):
         'schema_version': 0, 'tag': document['tag'], 'distance': 'marathon',
         'inputs': {'adapted_manifest_sha256': sha(source / 'MANIFEST.json'), 'edition_policy_sha256': sha(POLICY), 'race_registry_sha256': sha(race_registry.FROZEN),
                    'edition_screen_csv_sha256': sha(screen_path)},
-        'totals': {'editions': len(rows), 'race_keys': len({r[0] for r in rows}), 'races': len({r[at['race_id']] for r in rows}), 'rows': sum(r[at['rows']] for r in rows),
+        'totals': {'editions': len(rows), 'race_keys': len({r[at['release_city']] for r in rows}), 'races': len({r[at['race_id']] for r in rows}), 'rows': sum(r[at['rows']] for r in rows),
                    'rows_in_release': sum(r[at['rows_in_release']] for r in rows), 'counted_editions': sum(r[at['counted']] for r in rows),
+                   'own_record_editions': sum(r[at['own_record']] for r in rows),
+                   'editions_of_the_release_with_no_written_row': len(document['not_written']),
                    'timing_eligible_in_counted_editions': sum(r[at['timing_eligible']] for r in rows if r[at['counted']]),
                    'by_tier': dict(sorted(tiers.items())), 'not_counted_by_category': dict(sorted(by_category.items())),
                    'with_a_race_date': sum(1 for r in rows if r[at['race_date']]), 'with_only_a_producer_note_date': sum(1 for r in rows if not r[at['race_date']] and r[at['producer_note_date']]),
                    'counted_without_a_race_date': sorted(f'{r[0]} {r[1]}' for r in rows if r[at['counted']] and not r[at['race_date']])},
         'schema': SCHEMA, 'columns': columns, 'reasons': reasons,
-        'races': [{k: race[k] for k in ('race_id', 'slug', 'name', 'place', 'keys', 'joined_by', 'flags')} for race in registry['races']],
+        'races': [{k: race[k] for k in ('race_id', 'slug', 'label', 'name', 'place', 'keys', 'joined_by', 'labelled_by', 'flags')} for race in registry['races']],
     }
     lines = [json.dumps(r, ensure_ascii=False, separators=(',', ':')) for r in rows]
     out.write_text(json.dumps(head, indent=1, ensure_ascii=False)[:-2] + ',\n "editions": [\n' + ',\n'.join(lines) + '\n]}\n')
@@ -133,8 +134,10 @@ def main(argv):
         verified[rid] = verified.get(rid, 0) + bool(r[at['verified_badge']])
         counted_n[rid] = counted_n.get(rid, 0) + r[at['counted']]
     races = {race['race_id']: race for race in registry['races']}
-    line = lambda rid: {'race_id': rid, 'name': races[rid]['name'], 'place': races[rid]['place'], 'keys': races[rid]['keys'], 'joined_by': races[rid]['joined_by'],  # noqa: E731
+    line = lambda rid: {'race_id': rid, 'label': races[rid]['label'], 'labelled_by': races[rid]['labelled_by'], 'name': races[rid]['name'],  # noqa: E731
+                        'place': races[rid]['place'], 'keys': races[rid]['keys'], 'joined_by': races[rid]['joined_by'],
                         'flags': races[rid]['flags'], 'editions': editions[rid], 'verified_editions': verified[rid], 'counted_editions': counted_n[rid], 'rows': size[rid]}
+    assert all(size[rid] == races[rid]['rows'] and editions[rid] == races[rid]['editions'] for rid in races), 'the registry’s rows or editions differ from the adapted input'
     ordered = sorted(races, key=lambda rid: (-size[rid], rid))
     slug_of_name = {rid: race_registry.slug(races[rid]['name']) for rid in races}
     shared_names = {}
@@ -145,8 +148,9 @@ def main(argv):
     db.execute("SET memory_limit='2500MB'")
     db.execute('SET threads=2')
     db.execute('CREATE TABLE g (city VARCHAR, race VARCHAR, place VARCHAR)')
-    db.executemany('INSERT INTO g VALUES (?,?,?)', [(k, rid, race_registry.grouping_form((race_registry.split_key(k)[0] or '') + ': x').split(':')[0])
-                                                  for rid, race in races.items() for k in race['keys']])
+    # One row per race: features.city is the race's label; the place form compared is the registry place's.
+    db.executemany('INSERT INTO g VALUES (?,?,?)', [(race['label'], rid, race_registry.grouping_form((race['place'] or '') + ': x').split(':')[0])
+                                                  for rid, race in races.items()])
     features = str(source / 'features.parquet').replace("'", "''")
     db.execute(f"CREATE TABLE pk AS SELECT DISTINCT f.runner_id, g.race FROM read_parquet('{features}') f JOIN g USING(city) WHERE f.runner_id IS NOT NULL")
     db.execute(f"""CREATE TABLE gy AS SELECT g.race, any_value(g.place) AS place, list(DISTINCT f.year ORDER BY f.year) AS years, count(DISTINCT f.runner_id) AS runners
@@ -162,7 +166,13 @@ def main(argv):
         'document': 'Review of the race registry’s naming rule on this release (measured; nothing typed).',
         'registry_sha256': sha(race_registry.FROZEN), 'expected': registry['expected'],
         'course_slugs_unchanged': 'analysis/test_race_registry.py holds the 27 slugs of lib/analytics-policy.ts COURSE_SLUGS and requires each as a race_id',
-        'largest_races': [line(rid) for rid in ordered[:40]],
+        'largest_races': [line(rid) for rid in ordered[:race_registry.LARGEST]],
+        'reviewed_labels': [{'label': races[rid]['label'], 'race_id': rid, 'name': races[rid]['name'], 'place': races[rid]['place'], 'keys': races[rid]['keys'],
+                             'rank_by_rows': ordered.index(rid) + 1, 'rows': size[rid], 'editions': editions[rid], 'counted_editions': counted_n[rid],
+                             'own_record_editions': sum(1 for r in rows if r[at['race_id']] == rid and r[at['own_record']])}
+                            for rid in ordered if races[rid]['labelled_by'] == 'reviewed label'],
+        'labels_by_kind': registry['expected']['races_by_label'],
+        'longest_labels': [{'label': races[rid]['label'], 'length': len(races[rid]['label']), 'rows': size[rid]} for rid in sorted(races, key=lambda r: (-len(races[r]['label']), r))[:20]],
         'handled_badly': {
             'no_place_platform_prefix': [line(rid) for rid in ordered if 'platform_prefix' in races[rid]['flags'] and not races[rid]['place']],
             'placeholder_place': [line(rid) for rid in ordered if 'placeholder_place' in races[rid]['flags']],

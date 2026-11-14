@@ -215,67 +215,67 @@
     ]
   },
   "edition_meta.parquet": {
-    "rows": 2901,
+    "rows": 2688,
     "columns": [
       {
         "name": "id",
         "type": "BIGINT",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "city",
         "type": "VARCHAR",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "year",
         "type": "BIGINT",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "official_finishers",
         "type": "DOUBLE",
-        "non_null": 1295
+        "non_null": 1291
       },
       {
         "name": "official_source_url",
         "type": "VARCHAR",
-        "non_null": 2870
+        "non_null": 2658
       },
       {
         "name": "official_source_type",
         "type": "VARCHAR",
-        "non_null": 2870
+        "non_null": 2658
       },
       {
         "name": "official_checked_at",
         "type": "VARCHAR",
-        "non_null": 1324
+        "non_null": 1319
       },
       {
         "name": "db_count_at_check",
         "type": "BIGINT",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "checked_at",
         "type": "VARCHAR",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "completeness_status",
         "type": "VARCHAR",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "completeness_reason",
         "type": "VARCHAR",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "tolerance_pct",
         "type": "DOUBLE",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "wave_starts_json",
@@ -285,37 +285,37 @@
       {
         "name": "timing_basis",
         "type": "VARCHAR",
-        "non_null": 2874
+        "non_null": 2661
       },
       {
         "name": "timing_basis_evidence",
         "type": "VARCHAR",
-        "non_null": 273
+        "non_null": 272
       },
       {
         "name": "age_basis",
         "type": "VARCHAR",
-        "non_null": 273
+        "non_null": 272
       },
       {
         "name": "course_notes",
         "type": "VARCHAR",
-        "non_null": 2664
+        "non_null": 2451
       },
       {
         "name": "updated_at",
         "type": "VARCHAR",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "verification_tier",
         "type": "VARCHAR",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "verified_badge",
         "type": "BOOLEAN",
-        "non_null": 2901
+        "non_null": 2688
       },
       {
         "name": "weaker_source",
@@ -335,7 +335,7 @@
       {
         "name": "release_exclusion",
         "type": "VARCHAR",
-        "non_null": 226
+        "non_null": 18
       },
       {
         "name": "release_note",
@@ -350,57 +350,57 @@
       {
         "name": "race_date",
         "type": "VARCHAR",
-        "non_null": 299
+        "non_null": 309
       },
       {
         "name": "race_date_source",
         "type": "VARCHAR",
-        "non_null": 299
+        "non_null": 309
       },
       {
         "name": "producer_note_date",
         "type": "VARCHAR",
-        "non_null": 2426
+        "non_null": 2231
       }
     ]
   },
   "features.parquet": {
-    "rows": 7819991,
+    "rows": 7820439,
     "columns": [
       {
         "name": "record_id",
         "type": "BIGINT",
-        "non_null": 7819991
+        "non_null": 7820439
       },
       {
         "name": "city",
         "type": "VARCHAR",
-        "non_null": 7819991
+        "non_null": 7820439
       },
       {
         "name": "year",
         "type": "BIGINT",
-        "non_null": 7819991
+        "non_null": 7820439
       },
       {
         "name": "race_date",
         "type": "VARCHAR",
-        "non_null": 5386347
+        "non_null": 5485689
       },
       {
         "name": "race",
         "type": "VARCHAR",
-        "non_null": 7819991
+        "non_null": 7820439
       },
       {
         "name": "runner_name",
         "type": "VARCHAR",
-        "non_null": 7817636
+        "non_null": 7818084
       },
       {
         "name": "sex",
         "type": "VARCHAR",
-        "non_null": 7753493
+        "non_null": 7753940
       },
       {
         "name": "age",
@@ -415,12 +415,12 @@
       {
         "name": "age_group",
         "type": "VARCHAR",
-        "non_null": 5788558
+        "non_null": 5789006
       },
       {
         "name": "seg_05",
         "type": "DOUBLE",
-        "non_null": 5855107
+        "non_null": 5855239
       },
       {
         "name": "seg_10",
@@ -465,17 +465,17 @@
       {
         "name": "finish_time",
         "type": "DOUBLE",
-        "non_null": 7807099
+        "non_null": 7807547
       },
       {
         "name": "cum_05",
         "type": "DOUBLE",
-        "non_null": 5855107
+        "non_null": 5855239
       },
       {
         "name": "cum_10",
         "type": "DOUBLE",
-        "non_null": 6327113
+        "non_null": 6327313
       },
       {
         "name": "cum_15",
@@ -500,7 +500,7 @@
       {
         "name": "cum_35",
         "type": "DOUBLE",
-        "non_null": 5729656
+        "non_null": 5729772
       },
       {
         "name": "cum_40",
@@ -510,133 +510,133 @@
       {
         "name": "match_key",
         "type": "VARCHAR",
-        "non_null": 6179989
+        "non_null": 6180357
       },
       {
         "name": "is_ambiguous",
         "type": "BOOLEAN",
-        "non_null": 6179989
+        "non_null": 6180357
       },
       {
         "name": "runner_id",
         "type": "VARCHAR",
-        "non_null": 6179989
+        "non_null": 6180357
       },
       {
         "name": "link_preliminary",
         "type": "BOOLEAN",
-        "non_null": 6179989
+        "non_null": 6180357
       },
       {
         "name": "person_id",
         "type": "VARCHAR",
-        "non_null": 7677541
+        "non_null": 7677987
       },
       {
         "name": "link_confidence",
         "type": "VARCHAR",
-        "non_null": 7677541
+        "non_null": 7677987
       },
       {
         "name": "link_method",
         "type": "VARCHAR",
-        "non_null": 7764596
+        "non_null": 7765044
       },
       {
         "name": "sex_source",
         "type": "VARCHAR",
-        "non_null": 7753493
+        "non_null": 7753940
       }
     ],
     "identifier_coverage": {
       "runner_id": {
-        "distinct_non_null": 3349468,
-        "values_with_multiple_rows": 1153646
+        "distinct_non_null": 3349682,
+        "values_with_multiple_rows": 1153695
       },
       "person_id": {
-        "distinct_non_null": 4157162,
-        "values_with_multiple_rows": 1417766
+        "distinct_non_null": 4157415,
+        "values_with_multiple_rows": 1417824
       }
     },
     "coverage": {
-      "distinct_city": 894,
-      "distinct_race": 1279,
+      "distinct_city": 811,
+      "distinct_race": 763,
       "distinct_year": 53,
       "year_min": 1972,
       "year_max": 2026
     },
     "date_join_coverage": {
-      "feature_rows": 7819991,
+      "feature_rows": 7820439,
       "rows_with_unambiguous_overlay_date": 5325285
     }
   },
   "qa_row_flags.parquet": {
-    "rows": 110555,
+    "rows": 110887,
     "columns": [
       {
         "name": "record_id",
         "type": "BIGINT",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "city",
         "type": "VARCHAR",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "year",
         "type": "BIGINT",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "split_nonmonotonic",
         "type": "BOOLEAN",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "split_after_finish",
         "type": "BOOLEAN",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "finish_equals_earlier_split",
         "type": "BOOLEAN",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "finish_ge_24h",
         "type": "BOOLEAN",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "finish_zero",
         "type": "BOOLEAN",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "finish_implausibly_fast",
         "type": "BOOLEAN",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "finish_faster_than_world_record",
         "type": "BOOLEAN",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "no_finish_time",
         "type": "BOOLEAN",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "age_implausible",
         "type": "BOOLEAN",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "finish_6h_to_24h",
         "type": "BOOLEAN",
-        "non_null": 110555
+        "non_null": 110887
       },
       {
         "name": "sex_from_category",
@@ -836,37 +836,37 @@
     ]
   },
   "race_records.parquet": {
-    "rows": 7819991,
+    "rows": 7820439,
     "columns": [
       {
         "name": "id",
         "type": "BIGINT",
-        "non_null": 7819991
+        "non_null": 7820439
       },
       {
         "name": "race",
         "type": "VARCHAR",
-        "non_null": 7819991
+        "non_null": 7820439
       },
       {
         "name": "year",
         "type": "BIGINT",
-        "non_null": 7819991
+        "non_null": 7820439
       },
       {
         "name": "city",
         "type": "VARCHAR",
-        "non_null": 7819991
+        "non_null": 7820439
       },
       {
         "name": "runner",
         "type": "VARCHAR",
-        "non_null": 7817636
+        "non_null": 7818084
       },
       {
         "name": "sex",
         "type": "VARCHAR",
-        "non_null": 7754351
+        "non_null": 7754798
       },
       {
         "name": "age",
@@ -876,17 +876,17 @@
       {
         "name": "age_group",
         "type": "VARCHAR",
-        "non_null": 5788558
+        "non_null": 5789006
       },
       {
         "name": "split_5km",
         "type": "VARCHAR",
-        "non_null": 5855107
+        "non_null": 5855239
       },
       {
         "name": "split_10km",
         "type": "VARCHAR",
-        "non_null": 6327113
+        "non_null": 6327313
       },
       {
         "name": "split_15km",
@@ -911,7 +911,7 @@
       {
         "name": "split_35km",
         "type": "VARCHAR",
-        "non_null": 5729656
+        "non_null": 5729772
       },
       {
         "name": "split_40km",
@@ -921,17 +921,17 @@
       {
         "name": "split_42_2km",
         "type": "VARCHAR",
-        "non_null": 7807099
+        "non_null": 7807547
       },
       {
         "name": "source_url",
         "type": "VARCHAR",
-        "non_null": 7819991
+        "non_null": 7820439
       },
       {
         "name": "ingested_at",
         "type": "VARCHAR",
-        "non_null": 7819991
+        "non_null": 7820439
       },
       {
         "name": "age_or_group",
@@ -967,6 +967,46 @@
         "name": "detail",
         "type": "VARCHAR",
         "non_null": 818090
+      }
+    ]
+  },
+  "release_keys.parquet": {
+    "rows": 2688,
+    "columns": [
+      {
+        "name": "city",
+        "type": "VARCHAR",
+        "non_null": 2688
+      },
+      {
+        "name": "year",
+        "type": "BIGINT",
+        "non_null": 2688
+      },
+      {
+        "name": "race",
+        "type": "VARCHAR",
+        "non_null": 2688
+      },
+      {
+        "name": "race_id",
+        "type": "VARCHAR",
+        "non_null": 2688
+      },
+      {
+        "name": "release_city",
+        "type": "VARCHAR",
+        "non_null": 2688
+      },
+      {
+        "name": "release_race",
+        "type": "VARCHAR",
+        "non_null": 2688
+      },
+      {
+        "name": "n_records",
+        "type": "BIGINT",
+        "non_null": 2688
       }
     ]
   },
@@ -1047,6 +1087,11 @@
         "name": "release_status",
         "type": "VARCHAR",
         "non_null": 226
+      },
+      {
+        "name": "edition_city",
+        "type": "VARCHAR",
+        "non_null": 2704
       }
     ]
   }

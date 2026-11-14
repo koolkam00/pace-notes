@@ -1,16 +1,21 @@
 """Cohort counts on an adapted input with the pipeline's own prepare() and the reviewed edition policy, and the same
-counts under two other readings of the policy. No pack, story or runner file is written.
+counts under other readings of the policy. No pack, story or runner file is written.
 
     python3 -s cohort.py <adapted FULL dir> <edition-policy-review.json> <out.json> [--previous <previous cohort-by-edition.json>]
+                         [--sensitivity <cohort-sensitivity.json>]
     python3 -s cohort.py <previous adapted dir> - <out.json>      the previously adopted input under its own policy (the reference)
 
-For each reading: records, timing-eligible, policy-excluded and eligible finishes, editions and cities, and the
-sustained-slowdown count with the definition of analysis/build_public_explorer.py (its own `threshold_sql`: at least 25%
-slower than the 5-20 km pace over at least 5 km of whole recorded sections after 20 km). The three readings:
-  (a) the frozen policy (lead decision D3);
+For each reading: records, timing-eligible, policy-excluded and eligible finishes, editions and cities (a city is a
+race label of the registry), and the sustained-slowdown count with the definition of analysis/build_public_explorer.py
+(its own `threshold_sql`: at least 25% slower than the 5-20 km pace over at least 5 km of whole recorded sections after
+20 km). The readings:
+  (a) the frozen policy (lead decision D3): the counted editions;
   (b) verified tiers only: (a) without the partial editions;
-  (c) (a) plus the unverified split-bearing editions that pass the three screens and are not reviewed exceptions.
-(b) and (c) are sensitivity readings, never a policy: they are summed from the same per-edition counts.
+  (c) without weaker-source editions: (a) without the editions stamped against a weaker source;
+  (d) (a) plus the editions that keep an own-record view (lead ruling R4: unverified, or partial outside the coverage
+      band, with a grid that passes the screens).
+(b), (c) and (d) are sensitivity readings, never a policy: they are summed from the same per-edition counts.
+`--sensitivity` writes (a), (b) and (c) as a small file a page can read (lead ruling R5).
 """
 import argparse
 import json
@@ -21,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[4] / 'analysis'))
 import duckdb  # noqa: E402
 from build_pacing import prepare  # noqa: E402
 from build_public_explorer import RATIO_EPSILON, threshold_sql  # noqa: E402
-from source_quality import source_quality_report  # noqa: E402
+from source_quality import edition_report  # noqa: E402
 
 VERIFIED = ('stamped', 'stamped_weaker_source')
 
@@ -49,13 +54,14 @@ def main():
     parser.add_argument('review')
     parser.add_argument('out', type=Path)
     parser.add_argument('--previous', type=Path, help='the reference run of the previously adopted input (this script, review "-")')
+    parser.add_argument('--sensitivity', type=Path, help='also write readings (a), (b) and (c) to this file')
     args = parser.parse_args()
     db = duckdb.connect()
     db.execute("SET memory_limit='6GB'")
     db.execute('SET threads=3')
     db.execute('SET temp_directory=?', [str(args.out.parent / 'cohort-temp')])
     cohort = prepare(db, args.source)
-    policy = source_quality_report(db, args.source)
+    policy = edition_report(db, args.source)   # the policy with every listed edition and its counts
     editions = per_edition(db)
     excluded = {(e['city'], e['year']) for e in policy['editions']}
     eligible = db.execute('SELECT count(*), count(DISTINCT (city, year)), count(DISTINCT city) FROM eligible').fetchone()
@@ -79,17 +85,24 @@ def main():
         review = {(e['city'], e['year']): e for e in json.loads(Path(args.review).read_text())['editions']}
         counted = {k for k, e in review.items() if e['counted']}
         assert counted == set(review) - excluded, 'the review file and the installed policy disagree'
+        own = {k for k, e in review.items() if e.get('own_record')}
+        assert own == {(e['city'], e['year']) for e in policy['editions'] if e.get('own_record')}, 'the review file and the installed policy disagree on own-record editions'
         b = [k for k in counted if review[k]['tier'] in VERIFIED]
-        screened = [k for k, e in review.items() if e['tier'] == 'unverified' and e['split_tier'] == 'splits' and e.get('rule') != 'reviewed_exception'
-                    and not (e['screen_a'] or e['screen_b'] or e['screen_c'])]
-        report['readings']['b_verified_tiers_only'] = {**total(editions, b), 'policy_excluded_finishes': cohort['timing_eligible'] - total(editions, b)['eligible_finishes']}
-        c = total(editions, list(counted) + screened)
-        report['readings']['c_policy_plus_screened_unverified'] = {**c, 'policy_excluded_finishes': cohort['timing_eligible'] - c['eligible_finishes'],
-                                                                   'unverified_editions_added': sorted(f'{k[0]} {k[1]}' for k in screened if k in editions)}
+        c = [k for k in counted if review[k]['tier'] != 'stamped_weaker_source']
+        d = sorted(counted | own)
+        for name, keys in (('b_verified_tiers_only', b), ('c_without_weaker_source_editions', c), ('d_policy_plus_own_record_editions', d)):
+            reading = total(editions, keys)
+            report['readings'][name] = {**reading, 'policy_excluded_finishes': cohort['timing_eligible'] - reading['eligible_finishes']}
+        report['readings']['d_policy_plus_own_record_editions']['own_record_editions_added'] = sorted(f'{k[0]} {k[1]}' for k in own if k in editions)
         report['readings']['a_policy']['by_tier'] = {t: total(editions, [k for k in counted if review[k]['tier'] == t]) for t in VERIFIED + ('partial',)}
+        # The own-record level: timing-eligible finishes that keep their own pacing view and enter no pooled figure.
+        report['own_record'] = {'editions_listed': len(own), **total(editions, sorted(own)),
+                                'by_category': {category: total(editions, [k for k in own if review[k]['category'] == category])
+                                                for category in sorted({review[k]['category'] for k in own})}}
         for key, value in by_edition.items():
             city, year = key.rsplit('|', 1)
-            value.update(tier=review[(city, int(year))]['tier'], reading_b=(city, int(year)) in set(b), reading_c=(city, int(year)) in counted | set(screened))
+            k = (city, int(year))
+            value.update(tier=review[k]['tier'], own_record=k in own, reading_b=k in set(b), reading_c=k in set(c), reading_d=k in set(d))
         if args.previous:
             before = json.loads(args.previous.read_text())['by_edition']
             today = {k for k, v in before.items() if v['eligible']}
@@ -120,12 +133,29 @@ def main():
             for city in report['against_previous']['cities_then']:
                 mine = {k: v for k, v in by_edition.items() if k.rsplit('|', 1)[0] == city}
                 row = {'then': {'editions': sum(1 for k in today if k.rsplit('|', 1)[0] == city), 'finishes': sum(before[k]['timing_eligible'] for k in today if k.rsplit('|', 1)[0] == city)}}
-                for name, flag in (('a', 'eligible'), ('b', 'reading_b'), ('c', 'reading_c')):
+                for name, flag in (('a', 'eligible'), ('b', 'reading_b'), ('c', 'reading_c'), ('d', 'reading_d'), ('own_record', 'own_record')):
                     row[name] = {'editions': sum(1 for v in mine.values() if v[flag]), 'finishes': sum(v['timing_eligible'] for v in mine.values() if v[flag])}
                 cities[city] = row
             report['todays_course_cities'] = cities
     report['by_edition'] = by_edition
     args.out.write_text(json.dumps(report, indent=1, ensure_ascii=False) + '\n')
+    if args.sensitivity:
+        assert args.review != '-', 'the sensitivity file needs the review facts'
+        names = {'a_policy': 'policy', 'b_verified_tiers_only': 'verified_tiers_only', 'c_without_weaker_source_editions': 'without_weaker_source_editions'}
+        keep = ('eligible_finishes', 'eligible_editions', 'eligible_cities', 'sustained_slowdown', 'sustained_slowdown_pct')
+        frozen = json.loads(Path(args.review).read_text())
+        args.sensitivity.write_text(json.dumps({
+            'document': ('The headline cohort and its sustained-slowdown share under the edition policy and under two narrower readings of it (lead ruling '
+                         'R5, 2026-11-14): verified tiers only (the policy without partial editions) and without weaker-source editions (the policy without '
+                         'editions stamped against a weaker source). Counts are finishes that pass the timing checks, summed per edition from the same '
+                         'run of analysis/build_pacing.py prepare(); a sustained slowdown is analysis/build_public_explorer.py threshold_sql(.25, 5). '
+                         'Written by docs/evidence/2026-11-14/release-20261113-1113/cohort.py; no reading other than `policy` is a policy.'),
+            'release_tag': report['release_tag'], 'input_manifest_sha256': report['input_manifest_sha256'],
+            'policy_sha256': report['policy']['policy_sha256'], 'frozen_policy_sha256': frozen['frozen_policy_sha256'],
+            'timing_eligible_finishes': cohort['timing_eligible'],
+            'readings': {names[k]: {f: report['readings'][k][f] for f in keep} for k in names},
+            'policy_by_tier': {t: {f: v[f] for f in keep} for t, v in report['readings']['a_policy']['by_tier'].items()},
+        }, indent=1, ensure_ascii=False) + '\n')
     print(json.dumps({k: report[k] for k in ('release_tag', 'cohort', 'editions_with_records', 'readings') if k in report}, indent=1)[:3000])
 
 

@@ -240,13 +240,25 @@ RULES_MASTER_20261103B = [
 #   count, so the rule counts them and the owner's October 21, 2026 decision ("Keep London 2025-26") holds by rule;
 #   lib/kept-holds.json has no entry for this release.
 # - New categories, all from the rule: finish_time_only, held_for_review, unverified, partial_coverage.
+# Changed the same day by the lead's rulings on the first reconciliation (adoption plan, "M1 result and the lead's
+# rulings"):
+# - R2 and D19: the adapter keeps four small editions whose every row carried a layout flag, and writes each race's
+#   registry label as `city`, so the policy names an edition by that label and lists 2,487 of 2,688 editions.
+# - R4, two levels of use: an edition left out only because it is unverified, or partial and outside the coverage band,
+#   whose split grid passes the three screens, keeps an own-record view (`own_record` in the frozen file and in
+#   OWN_RECORD below): a runner's own sections may be shown with the edition's tier, and nothing of it enters a pooled
+#   statistic or a peer comparison. Every other edition that is not counted gives recorded times only.
+# - R8: an output of this release carries the policy's digest and counts, not the list; the list, with each edition's
+#   counts, is one published file (public/data/edition-policy.json, analysis/build_edition_policy.py), and every
+#   reader checks that file against the digest its output states.
 RELEASE_20261113_1113 = 'pace-notes-marathon-half-20261113-1113'
 POLICY_FILE_20261113_1113 = Path(__file__).with_name('edition-policy-20261113-1113.json')
-POLICY_FILE_SHA256_20261113_1113 = 'b751e89f935e0e34e831c2d8051dea7581b7859a03716aa4fa54b82d38cd280b'
+POLICY_FILE_SHA256_20261113_1113 = 'ab43c75ef52ba9b18d63e5fd4ce9e604e2cbca152a25c4773d85b14c5b133541'
 
 
-def frozen_rules(path, sha256, tag):
-    """The (city, year, category, reason) rules of a frozen policy file, refused when the file is not the reviewed one."""
+def frozen_policy(path, sha256, tag):
+    """The (city, year, category, reason) rules of a frozen policy file and the editions among them that keep an
+    own-record view, refused when the file is not the reviewed one."""
     data = Path(path).read_bytes()
     if hashlib.sha256(data).hexdigest() != sha256:
         raise RuntimeError(f'{Path(path).name} is not the reviewed edition policy (its digest differs from the one analysis/source_quality.py pins); '
@@ -254,12 +266,19 @@ def frozen_rules(path, sha256, tag):
     document = json.loads(data)
     if document['tag'] != tag:
         raise RuntimeError(f'{Path(path).name} is the policy of another release')
-    return [(row['city'], row['year'], row['category'], row['reason']) for row in document['editions']]
+    rules = [(row['city'], row['year'], row['category'], row['reason']) for row in document['editions']]
+    return rules, frozenset((row['city'], row['year']) for row in document['editions'] if row['own_record'])
 
 
-RULES_20261113_1113 = frozen_rules(POLICY_FILE_20261113_1113, POLICY_FILE_SHA256_20261113_1113, RELEASE_20261113_1113)
+RULES_20261113_1113, OWN_RECORD_20261113_1113 = frozen_policy(POLICY_FILE_20261113_1113, POLICY_FILE_SHA256_20261113_1113, RELEASE_20261113_1113)
 REVIEWED_POLICIES = {RELEASE: RULES, LATEST_RELEASE: LATEST_RULES, RELEASE_1652: RULES_1652, RELEASE_1050: RULES_1050,
                      RELEASE_MASTER_20261103B: RULES_MASTER_20261103B, RELEASE_20261113_1113: RULES_20261113_1113}
+# Releases whose policy says, for each edition it leaves out, whether a record of it keeps an own-record view (R4).
+OWN_RECORD = {RELEASE_20261113_1113: OWN_RECORD_20261113_1113}
+# Releases whose outputs carry the policy's digest and counts while the list is one published file (R8).
+LISTED_IN_ONE_FILE = {RELEASE_20261113_1113}
+EDITIONS_FILE = 'edition-policy.json'   # under public/data
+EDITION_COLUMNS = ['city', 'year', 'category', 'reason', 'own_record', 'raw_records', 'deduplicated_records', 'timing_eligible_excluded']
 METHOD = ('Apply the reviewed source-quality edition exclusions for this exact export after the timing checks. '
           'Known invalid split grids (including grids with no complete set of checkpoints, grids that mix timing bases, a '
           'checkpoint that stopped recording partway through the field and a virtual edition), incomplete ingestion, '
@@ -277,27 +296,35 @@ def release_tag(source):
     return json.loads(provenance.read_text()).get('release_tag') if provenance.exists() else None
 
 
+def canonical_sha256(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
+
+
 def policy_metadata(tag):
+    """The policy of a release as data: its rules and their digest. Version 2 (a release in OWN_RECORD) adds to each
+    rule whether the edition keeps an own-record view; version 1 is unchanged, so the digests of earlier releases are."""
     active = tag in REVIEWED_POLICIES
-    rules = [{'city': city, 'year': year, 'category': category, 'reason': reason}
+    own = OWN_RECORD.get(tag)
+    rules = [{'city': city, 'year': year, 'category': category, 'reason': reason, **({} if own is None else {'own_record': (city, year) in own})}
              for city, year, category, reason in REVIEWED_POLICIES[tag]] if active else []
-    payload = {'version': 1, 'release_tag': tag, 'reviewed_edition_policy': active, 'editions': rules}
-    payload['policy_sha256'] = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
+    payload = {'version': 1 if own is None else 2, 'release_tag': tag, 'reviewed_edition_policy': active, 'editions': rules}
+    payload['policy_sha256'] = canonical_sha256(payload)
     payload['script_sha256'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     return payload
 
 
 def install_policy(db, source):
     policy = policy_metadata(release_tag(source))
-    db.execute('CREATE TEMP TABLE source_quality_editions (city VARCHAR, year INTEGER, category VARCHAR, reason VARCHAR)')
+    db.execute('CREATE TEMP TABLE source_quality_editions (city VARCHAR, year INTEGER, category VARCHAR, reason VARCHAR, own_record BOOLEAN)')
     if policy['editions']:
-        db.executemany('INSERT INTO source_quality_editions VALUES (?,?,?,?)',
-                       [[row[key] for key in ('city', 'year', 'category', 'reason')] for row in policy['editions']])
+        db.executemany('INSERT INTO source_quality_editions VALUES (?,?,?,?,?)',
+                       [[row['city'], row['year'], row['category'], row['reason'], row.get('own_record', False)] for row in policy['editions']])
     return policy
 
 
-def source_quality_report(db, source):
-    """Read the prepared cohort's edition audit without exporting runner records."""
+def edition_report(db, source):
+    """The policy with each listed edition's counts in the prepared cohort (raw, deduplicated and timing-eligible
+    records it leaves out), without exporting runner records."""
     policy = policy_metadata(release_tag(source))
     raw = dict(((city, year), n) for city, year, n in db.execute(
         'SELECT city,year,count(*) FROM read_parquet(?) GROUP BY city,year',
@@ -313,8 +340,63 @@ def source_quality_report(db, source):
     return policy
 
 
-def validate_source_quality(meta):
-    """Validate policy provenance and disjoint exclusion counts during import."""
+def edition_counts(editions):
+    """What an output states about the listed editions when it does not carry the list."""
+    by_category = {}
+    for row in editions:
+        c = by_category.setdefault(row['category'], {'editions': 0, 'own_record_editions': 0, 'timing_eligible_excluded': 0})
+        c['editions'] += 1
+        c['own_record_editions'] += bool(row.get('own_record'))
+        c['timing_eligible_excluded'] += row['timing_eligible_excluded']
+    return {'editions': len(editions), 'own_record_editions': sum(bool(row.get('own_record')) for row in editions),
+            'raw_records': sum(row['raw_records'] for row in editions), 'deduplicated_records': sum(row['deduplicated_records'] for row in editions),
+            'timing_eligible_excluded': sum(row['timing_eligible_excluded'] for row in editions),
+            'timing_eligible_own_record': sum(row['timing_eligible_excluded'] for row in editions if row.get('own_record')),
+            'by_category': dict(sorted(by_category.items()))}
+
+
+def source_quality_report(db, source):
+    """What an output records about the edition policy applied to its cohort. For a release in LISTED_IN_ONE_FILE: the
+    policy's digests and counts, and the digest of the list with each edition's counts, which is published once
+    (editions_document); for every earlier release: the list itself, as before."""
+    policy = edition_report(db, source)
+    if policy['release_tag'] not in LISTED_IN_ONE_FILE:
+        return policy
+    editions = policy.pop('editions')
+    return {**policy, 'editions_file': EDITIONS_FILE, 'editions_sha256': canonical_sha256(editions), 'counts': edition_counts(editions)}
+
+
+def editions_document(db, source):
+    """The one published file of a release in LISTED_IN_ONE_FILE: every edition the policy leaves out, with its
+    category, reason, own-record flag and counts in the prepared cohort. Rows are arrays in the order of `columns`,
+    with the reason as an index into `reasons`; `editions_sha256` is the digest of the same rows as objects, which is
+    what every output of the release states."""
+    policy = edition_report(db, source)
+    assert policy['release_tag'] in LISTED_IN_ONE_FILE, 'this release carries its edition list in each output'
+    editions = policy.pop('editions')
+    reasons = sorted({row['reason'] for row in editions})
+    at = {reason: i for i, reason in enumerate(reasons)}
+    return {**policy, 'editions_sha256': canonical_sha256(editions), 'counts': edition_counts(editions), 'columns': EDITION_COLUMNS, 'reasons': reasons,
+            'editions': [[at[row[c]] if c == 'reason' else row[c] for c in EDITION_COLUMNS] for row in editions]}
+
+
+def published_editions(report, path=None):
+    """The listed editions of an output that states only digests, read from the published file and refused unless that
+    file is the one the output was built with: same release, policy, script and list digest, and the same counts."""
+    path = Path(path) if path else Path(__file__).resolve().parents[1] / 'public' / 'data' / report['editions_file']
+    document = json.loads(path.read_text())
+    for key in ('version', 'release_tag', 'reviewed_edition_policy', 'policy_sha256', 'script_sha256', 'editions_sha256', 'counts'):
+        assert document[key] == report[key], f'{path.name} is not the edition list this output was built with ({key})'
+    assert document['columns'] == EDITION_COLUMNS, f'{path.name} has other columns'
+    editions = [{c: (document['reasons'][v] if c == 'reason' else v) for c, v in zip(EDITION_COLUMNS, row)} for row in document['editions']]
+    assert canonical_sha256(editions) == report['editions_sha256'], f'{path.name} does not hash to the digest this output states'
+    assert edition_counts(editions) == report['counts'], f'{path.name} does not give the counts this output states'
+    return editions
+
+
+def validate_source_quality(meta, editions_file=None):
+    """Validate policy provenance and disjoint exclusion counts during import. An output that states only the policy's
+    digests is checked against the published list (`editions_file`, default public/data/edition-policy.json)."""
     tag = meta['input_export_id'].replace('private-', 'private-export-', 1)
     count = meta['cohort'].get('source_quality_excluded', 0)
     report = meta.get('source_quality')
@@ -325,11 +407,13 @@ def validate_source_quality(meta):
     for key in ('version', 'release_tag', 'reviewed_edition_policy', 'policy_sha256', 'script_sha256'):
         assert report[key] == expected[key], f'Source-quality {key} mismatch'
     assert meta['source_quality_script_sha256'] == expected['script_sha256'], 'Source-quality script mismatch'
-    assert len(report['editions']) == len(expected['editions']), 'Source-quality edition count mismatch'
-    for row, rule in zip(report['editions'], expected['editions']):
+    assert ('editions' in report) == (tag not in LISTED_IN_ONE_FILE), 'The edition list is in the wrong place for this release'
+    editions = report['editions'] if 'editions' in report else published_editions(report, editions_file)
+    assert len(editions) == len(expected['editions']), 'Source-quality edition count mismatch'
+    for row, rule in zip(editions, expected['editions']):
         assert all(row[key] == value for key, value in rule.items()), 'Source-quality edition rule mismatch'
         sizes = [row[key] for key in ('raw_records', 'deduplicated_records', 'timing_eligible_excluded')]
         assert all(isinstance(n, int) and not isinstance(n, bool) and n >= 0 for n in sizes), 'Invalid source-quality counts'
         assert sizes[0] >= sizes[1] >= sizes[2], 'Source-quality counts do not nest'
-    assert sum(row['timing_eligible_excluded'] for row in report['editions']) == count, 'Source-quality exclusions do not reconcile'
+    assert sum(row['timing_eligible_excluded'] for row in editions) == count, 'Source-quality exclusions do not reconcile'
     assert meta['cohort']['timing_eligible'] == meta['cohort']['eligible'] + count, 'Timing and source eligibility do not reconcile'

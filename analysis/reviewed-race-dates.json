@@ -1,23 +1,123 @@
 {
-  "document": "Race dates for editions the weather evidence has no row for, reviewed by hand and cited (2026-11-05). Every builder that orders a runner's linked finishes by race date reads this file after the weather evidence; a date here never changes a weather figure, because the edition still has no weather row.",
-  "releases": {
-    "master-20261103b": [
-      {
-        "city": "New York",
-        "year": 2026,
-        "date": "2026-11-01",
-        "source": "The producer's completeness note for this edition in master-20261103b editions.csv (and the adapted edition_meta.parquet): \"Year verified (race 2026-11-01).\" editions.csv race_date is empty and the weather overlay has no row for it.",
-        "evidence_text": "Year verified (race 2026-11-01)"
-      }
-    ],
-    "pace-notes-marathon-half-20261113-1113": [
-      {
-        "city": "New York",
-        "year": 2026,
-        "date": "2026-11-01",
-        "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet (and the adapted edition_meta.parquet): \"Year verified (race 2026-11-01).\" The release has no weather row for it and its race_date column is empty. Carried from the master-20261103b review (2026-11-05); the note is unchanged.",
-        "evidence_text": "Year verified (race 2026-11-01)"
-      }
-    ]
-  }
+ "document": "Race dates for editions the weather evidence has no row for, reviewed by hand and cited (2026-11-05; 2026-11-14 for the combined release). Every builder that orders a runner’s linked finishes by race date reads this file after the weather evidence; a date here never changes a weather figure, because the edition still has no weather row. `city` is the edition’s label as the pipeline writes it; `release_city`, where given, is the release’s own key. An entry with `weekday` was accepted only because its date falls on that weekday, which analysis/adapt_combined.py checks again; an edition with no recorded evidence of its date has no entry and stays undated.",
+ "releases": {
+  "master-20261103b": [
+   {
+    "city": "New York",
+    "year": 2026,
+    "date": "2026-11-01",
+    "source": "The producer's completeness note for this edition in master-20261103b editions.csv (and the adapted edition_meta.parquet): \"Year verified (race 2026-11-01).\" editions.csv race_date is empty and the weather overlay has no row for it.",
+    "evidence_text": "Year verified (race 2026-11-01)"
+   }
+  ],
+  "pace-notes-marathon-half-20261113-1113": [
+   {
+    "city": "New York",
+    "year": 2026,
+    "date": "2026-11-01",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet (and the adapted edition_meta.parquet): \"Year verified (race 2026-11-01).\" The release has no weather row for it and its race_date column is empty. Carried from the master-20261103b review (2026-11-05); the note is unchanged.",
+    "evidence_text": "Year verified (race 2026-11-01)"
+   },
+   {
+    "city": "Austin",
+    "release_city": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+    "year": 2022,
+    "date": "2022-02-20",
+    "weekday": "Sunday",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2022-02-20\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
+    "evidence_text": "date=2022-02-20",
+    "weekday_check": "2022-02-20 is a Sunday. Of the 5 editions of this race whose producer note states one date in the edition’s year (2016 to 2024), 5 state a Sunday."
+   },
+   {
+    "city": "Austin",
+    "release_city": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+    "year": 2023,
+    "date": "2023-02-19",
+    "weekday": "Sunday",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2023-02-19\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
+    "evidence_text": "date=2023-02-19",
+    "weekday_check": "2023-02-19 is a Sunday. Of the 5 editions of this race whose producer note states one date in the edition’s year (2016 to 2024), 5 state a Sunday."
+   },
+   {
+    "city": "Austin",
+    "release_city": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K",
+    "year": 2024,
+    "date": "2024-02-18",
+    "weekday": "Sunday",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2024-02-18\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
+    "evidence_text": "date=2024-02-18",
+    "weekday_check": "2024-02-18 is a Sunday. Of the 5 editions of this race whose producer note states one date in the edition’s year (2016 to 2024), 5 state a Sunday."
+   },
+   {
+    "city": "Los Angeles",
+    "release_city": "Los Angeles, CA: Los Angeles Marathon",
+    "year": 2015,
+    "date": "2015-03-15",
+    "weekday": "Sunday",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2015-03-15\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
+    "evidence_text": "date=2015-03-15",
+    "weekday_check": "2015-03-15 is a Sunday. Of the 15 editions of this race whose producer note states one date in the edition’s year (2005 to 2025), 15 state a Sunday."
+   },
+   {
+    "city": "Los Angeles",
+    "release_city": "Los Angeles, CA: Los Angeles Marathon",
+    "year": 2019,
+    "date": "2019-03-24",
+    "weekday": "Sunday",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2019-03-24\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
+    "evidence_text": "date=2019-03-24",
+    "weekday_check": "2019-03-24 is a Sunday. Of the 15 editions of this race whose producer note states one date in the edition’s year (2005 to 2025), 15 state a Sunday."
+   },
+   {
+    "city": "Los Angeles",
+    "release_city": "Los Angeles, CA: Los Angeles Marathon",
+    "year": 2023,
+    "date": "2023-03-19",
+    "weekday": "Sunday",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2023-03-19\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
+    "evidence_text": "date=2023-03-19",
+    "weekday_check": "2023-03-19 is a Sunday. Of the 15 editions of this race whose producer note states one date in the edition’s year (2005 to 2025), 15 state a Sunday."
+   },
+   {
+    "city": "Los Angeles",
+    "release_city": "Los Angeles, CA: Los Angeles Marathon",
+    "year": 2024,
+    "date": "2024-03-17",
+    "weekday": "Sunday",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2024-03-17\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
+    "evidence_text": "date=2024-03-17",
+    "weekday_check": "2024-03-17 is a Sunday. Of the 15 editions of this race whose producer note states one date in the edition’s year (2005 to 2025), 15 state a Sunday."
+   },
+   {
+    "city": "Oklahoma City",
+    "release_city": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K",
+    "year": 2025,
+    "date": "2025-04-27",
+    "weekday": "Sunday",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2025-04-27\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
+    "evidence_text": "date=2025-04-27",
+    "weekday_check": "2025-04-27 is a Sunday. Of the 6 editions of this race whose producer note states one date in the edition’s year (2021 to 2026), 6 state a Sunday."
+   },
+   {
+    "city": "Toronto Waterfront",
+    "release_city": "Toronto, ON: Toronto Waterfront Marathon",
+    "year": 2019,
+    "date": "2019-10-20",
+    "weekday": "Sunday",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2019-10-20\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
+    "evidence_text": "date=2019-10-20",
+    "weekday_check": "2019-10-20 is a Sunday. Of the 23 editions of this race whose producer note states one date in the edition’s year (2000 to 2026), 19 state a Sunday; the notes of 2015 (a Thursday), 2024 (a Saturday), 2025 (a Saturday), 2026 (a Saturday) do not, and date nothing."
+   },
+   {
+    "city": "Toronto Waterfront",
+    "release_city": "Toronto, ON: Toronto Waterfront Marathon",
+    "year": 2022,
+    "date": "2022-10-16",
+    "weekday": "Sunday",
+    "source": "The producer’s completeness note for this edition in the release’s edition_meta.parquet states \"date=2022-10-16\" (the timing platform’s event date). The release has no weather row for the edition and its race_date column is empty. Reviewed 2026-11-14 (lead ruling R7): the note date is the evidence, accepted only on the weekday the race is run.",
+    "evidence_text": "date=2022-10-16",
+    "weekday_check": "2022-10-16 is a Sunday. Of the 23 editions of this race whose producer note states one date in the edition’s year (2000 to 2026), 19 state a Sunday; the notes of 2015 (a Thursday), 2024 (a Saturday), 2025 (a Saturday), 2026 (a Saturday) do not, and date nothing."
+   }
+  ]
+ }
 }

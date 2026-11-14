@@ -1,9 +1,9 @@
 {
   "document": "Adapter output (analysis/adapt_combined.py), not a producer document.",
   "tag": "pace-notes-marathon-half-20261113-1113",
-  "adapter_version": 1,
+  "adapter_version": 2,
   "summary": {
-    "checks": 129,
+    "checks": 134,
     "mismatched": 3,
     "by_family": {
       "manifest_files": {
@@ -61,10 +61,10 @@
         "measured_only": 1
       },
       "rows_left_out": {
-        "checks": 5,
-        "matched": 4,
+        "checks": 8,
+        "matched": 5,
         "mismatched": 0,
-        "measured_only": 1
+        "measured_only": 3
       },
       "sex": {
         "checks": 2,
@@ -81,6 +81,12 @@
       "overlays": {
         "checks": 5,
         "matched": 4,
+        "mismatched": 0,
+        "measured_only": 1
+      },
+      "race_registry": {
+        "checks": 2,
+        "matched": 1,
         "mismatched": 0,
         "measured_only": 1
       }
@@ -104,34 +110,35 @@
     "race_conditions": "private-export-20261021-1050 bytes (marathon values equal to the release member)",
     "course_profiles": "private-export-20261021-1050 bytes (marathon values equal to the release member)",
     "course_segments": "private-export-20261021-1050 bytes (marathon values equal to the release member)",
-    "sources": "the release’s marathon rows",
-    "edition_meta": "the release’s marathon rows",
-    "record_flags": "the release’s marathon rows of the written records",
-    "qa_row_flags": "the release’s marathon rows of the written records"
+    "sources": "the release’s marathon source list, with its own keys; edition_city is the written edition’s label",
+    "release_keys": "one row per written edition: the label and race name written, the release’s own key and race name",
+    "edition_meta": "the release’s marathon rows of the written editions, under their labels",
+    "record_flags": "the release’s marathon rows of the written records, under their labels",
+    "qa_row_flags": "the release’s marathon rows of the written records, under their labels"
   },
   "features": {
-    "rows": 7819991,
-    "with_key": 6179989,
-    "keys": 3349468,
-    "with_person_id": 7677541,
-    "possible_match_rows": 1497552,
-    "unlinked": 142450,
+    "rows": 7820439,
+    "with_key": 6180357,
+    "keys": 3349682,
+    "with_person_id": 7677987,
+    "possible_match_rows": 1497630,
+    "unlinked": 142452,
     "with_yob": 2898396,
-    "without_race_date": 2433644,
+    "without_race_date": 2334750,
     "sex_from_category": 68277
   },
   "features_by_link_confidence": {
-    "high": 3459368,
+    "high": 3459427,
     "high_elite": 12016,
-    "low": 731192,
+    "low": 731260,
     "low_carryover": 3041,
-    "low_city_pace": 15416,
-    "low_noage": 536915,
+    "low_city_pace": 15417,
+    "low_noage": 536918,
     "low_noage_series": 11658,
-    "low_nosex": 14389,
-    "medium": 2708605,
-    "medium_variant": 184941,
-    "unlinked": 142450
+    "low_nosex": 14390,
+    "medium": 2708914,
+    "medium_variant": 184946,
+    "unlinked": 142452
   },
   "identity_rule": {
     "build": "person-ids v5.1",
@@ -165,6 +172,10 @@
     ],
     "kept_unlabelled": [
       "adaptive_division_published_category"
+    ],
+    "kept_when_edition_wide": [
+      "finish_equals_earlier_split",
+      "sportstats_nonfinish_status"
     ]
   },
   "birth_year_keys": {
@@ -175,11 +186,17 @@
     "v1_year_without_age_key": 258
   },
   "race_dates": {
-    "editions_with_rows": 2684,
+    "editions_with_rows": 2688,
     "weather": 298,
-    "reviewed": 1,
-    "without_a_race_date": 2385,
-    "of_those_with_a_producer_note_date": 2227
+    "reviewed": 11,
+    "without_a_race_date": 2379,
+    "of_those_with_a_producer_note_date": 2221
+  },
+  "race_registry": {
+    "file": "analysis/race-registry.json",
+    "sha256": "163ec25db62491bbc0d49262334a72dd3a50ea9e77da718c2aa03692bef6c6a2",
+    "races": 811,
+    "keys": 894
   },
   "checks": [
     {
@@ -1754,15 +1771,57 @@
     },
     {
       "family": "rows_left_out",
-      "check": "distinct rows left out",
-      "source": "analysis/adapt_combined.py REVIEWED",
-      "expected": 2431,
-      "measured": 2431,
+      "check": "rows kept although flagged, because every row of their edition carries the flag (by flag and edition)",
+      "source": "analysis/adapt_combined.py REVIEWED edition_wide_kept (lead ruling R2, 2026-11-14)",
+      "expected": {
+        "pending_review_flags.sportstats_nonfinish_status": {
+          "King George Island, TBD: Antarctica Marathon & Half Marathon - Voyage 2 2019": 116
+        },
+        "qa_row_flags.finish_equals_earlier_split": {
+          "Ottawa, ON: Ottawa Fall Colours Run 2010": 105,
+          "TBD, TBD: Run Barbados Festival 2002": 95,
+          "TBD, TBD: Run Barbados Festival 2003": 132
+        }
+      },
+      "measured": {
+        "pending_review_flags.sportstats_nonfinish_status": {
+          "King George Island, TBD: Antarctica Marathon & Half Marathon - Voyage 2 2019": 116
+        },
+        "qa_row_flags.finish_equals_earlier_split": {
+          "Ottawa, ON: Ottawa Fall Colours Run 2010": 105,
+          "TBD, TBD: Run Barbados Festival 2002": 95,
+          "TBD, TBD: Run Barbados Festival 2003": 132
+        }
+      },
       "ok": true
     },
     {
       "family": "rows_left_out",
-      "check": "rows carrying two of the flags",
+      "check": "rows left out, by flag (a row can carry two)",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "pending_review_flags.philadelphia_2010_place_sequence_outlier": 7,
+        "pending_review_flags.sportstats_nonfinish_status": 1385,
+        "pending_review_flags.wheelchair_handcycle_published_category": 32,
+        "qa_row_flags.finish_equals_earlier_split": 120,
+        "qa_row_flags.finish_faster_than_world_record": 159,
+        "qa_row_flags.finish_ge_24h": 281,
+        "qa_row_flags.finish_zero": 12
+      },
+      "ok": null
+    },
+    {
+      "family": "rows_left_out",
+      "check": "distinct rows left out",
+      "source": "analysis/adapt_combined.py REVIEWED",
+      "expected": 1983,
+      "measured": 1983,
+      "ok": true
+    },
+    {
+      "family": "rows_left_out",
+      "check": "rows carrying two of the flags that leave them out",
       "source": "measured",
       "expected": null,
       "measured": 13,
@@ -1770,10 +1829,18 @@
     },
     {
       "family": "rows_left_out",
+      "check": "rows with an edition-wide flag that another flag still leaves out",
+      "source": "measured",
+      "expected": null,
+      "measured": 0,
+      "ok": null
+    },
+    {
+      "family": "rows_left_out",
       "check": "marathon rows written",
       "source": "analysis/adapt_combined.py REVIEWED",
-      "expected": 7819991,
-      "measured": 7819991,
+      "expected": 7820439,
+      "measured": 7820439,
       "ok": true
     },
     {
@@ -1962,6 +2029,38 @@
         "course_segments": {
           "marathon": 297
         }
+      },
+      "ok": null
+    },
+    {
+      "family": "race_registry",
+      "check": "the frozen registry equals a rebuild from the written rows (keys, races, written editions and rows)",
+      "source": "analysis/race-registry.json (rebuilt by analysis/race_registry.py from the rows about to be written; a difference stops the adapter)",
+      "expected": {
+        "keys": 894,
+        "races": 811,
+        "editions": 2688,
+        "rows": 7820439
+      },
+      "measured": {
+        "keys": 894,
+        "races": 811,
+        "editions": 2688,
+        "rows": 7820439
+      },
+      "ok": true
+    },
+    {
+      "family": "race_registry",
+      "check": "written editions whose label or race name differs from the release’s own key or race name",
+      "source": "measured",
+      "expected": null,
+      "measured": {
+        "editions_relabelled": 2389,
+        "rows_relabelled": 2434092,
+        "editions_renamed": 2389,
+        "rows_renamed": 2434092,
+        "plain_key_editions_renamed": 0
       },
       "ok": null
     },

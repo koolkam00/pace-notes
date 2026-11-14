@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import adapt_combined  # noqa: E402
 import adapt_master  # noqa: E402
 import download_release  # noqa: E402
+import race_registry  # noqa: E402
 
 TAG = 'pace-notes-marathon-half-20990101-0000'
 BASE_TAG = 'private-export-20981231-0000'
@@ -33,8 +34,11 @@ EDITIONS = [('Testville', 2020, 'stamped', 'splits', 4.0, 'DB 4 vs official 4'),
 IDENTITY = {'build': 'person-ids v5.1', 'prefix': 'p51_', 'keyed_confidences': ['high_elite', 'high', 'medium'],
             'possible_confidences': ['medium_variant', 'low', 'low_noage']}
 ROW_RULE = {'pending_review_flags': ['wheelchair_handcycle_published_category'], 'qa_row_flags': ['finish_faster_than_world_record', 'finish_zero'],
-            'kept_unlabelled': ['adaptive_division_published_category']}
+            'kept_unlabelled': ['adaptive_division_published_category'], 'kept_when_edition_wide': ['finish_zero']}
 RACE_DATES = {'releases': {TAG: []}}
+# The reviewed part of the synthetic race registry: the composite key gets a reviewed label, as a large race would.
+REGISTRY_REVIEWED = {'joins': [], 'flags': [], 'labels': [{'key': NEWTOWN, 'label': 'Newtown'}]}
+NEWTOWN_RACE = f'{NEWTOWN} Race'   # the release's own race name of the Newtown edition (result_rows)
 
 
 def clock(seconds):
@@ -96,7 +100,7 @@ class Fixture:
         self.pin = self.make_pin()
         self.claims = self.make_claims()
         self.review = {'baseline_equal': ['race_conditions', 'course_profiles', 'course_segments'], 'left_out': 2, 'written_rows': 9,
-                       'known_mismatches': []}
+                       'edition_wide_kept': {}, 'known_mismatches': []}
 
     def tables(self):
         db = self.db
@@ -334,10 +338,25 @@ class AdaptCombined(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def fixture(self, name='f', **kwargs):
+    def fixture(self, name='f', review=None, **kwargs):
         fx = Fixture(self.root / name, **kwargs)
-        self.reviewed(fx)
+        self.reviewed(fx, **(review or {}))
+        self.freeze_registry(fx)
         return fx
+
+    def freeze_registry(self, fx, reviewed=REGISTRY_REVIEWED):
+        """Freeze the synthetic release's race registry as a reviewer does: from the editions the adapter is about to write."""
+        listed = fx.root / 'written-editions.json'
+        try:
+            adapt_combined.adapt(fx.pin, fx.root / 'scratch', from_dirs=[fx.release], baseline_dir=fx.baseline, memory='1GB', registry_editions=listed)
+            editions = [tuple(e) for e in json.loads(listed.read_text())['editions']]
+        except adapt_master.AdaptError:   # a fixture built to stop before the registry is read
+            editions = [tuple(r) for r in fx.db.execute("SELECT city, year, race, count(*) FROM rr WHERE distance='marathon' GROUP BY ALL ORDER BY 1, 2, 3").fetchall()]
+        frozen = fx.root / 'race-registry.json'
+        frozen.write_text(json.dumps(race_registry.document(editions, reviewed, TAG), ensure_ascii=False))
+        patcher = mock.patch.object(race_registry, 'FROZEN', frozen)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def reviewed(self, fx, **changes):
         """Install the synthetic release's claims and reviewed expectations (as CLAIMS and REVIEWED hold a real one's)."""
@@ -364,6 +383,16 @@ class AdaptCombined(unittest.TestCase):
         self.assertEqual(db.execute(f'SELECT list(id ORDER BY id) FROM read_parquet({rr})').fetchone()[0], [101, 103, 104, 105, 107, 108, 109, 110, 111])
         # Blank published sex takes the published category (104); X and an unfilled blank stay as recorded.
         self.assertEqual(db.execute(f'SELECT id, sex FROM read_parquet({rr}) WHERE id IN (103, 104, 108) ORDER BY id').fetchall(), [(103, 'X'), (104, 'F'), (108, None)])
+        # `city` is the registry label and `race` the registry's display name; an edition under a plain key keeps the race
+        # name the release gives it. The release's own key and race name are kept in release_keys.parquet.
+        self.assertEqual(db.execute(f'SELECT DISTINCT city, year, race FROM read_parquet({rr}) ORDER BY 1, 2').fetchall(),
+                         [('Newtown', 2022, 'Newtown Marathon'), ('Testville', 2020, 'Testville Race'), ('Testville', 2021, 'Testville Race')])
+        keys = literal(out / 'release_keys.parquet')
+        self.assertEqual([(c, t) for c, t, *_ in db.execute(f'DESCRIBE SELECT * FROM read_parquet({keys})').fetchall()], adapt_combined.RELEASE_KEYS)
+        self.assertEqual(db.execute(f'SELECT * FROM read_parquet({keys}) ORDER BY city, year').fetchall(),
+                         [('Newtown', 2022, 'Newtown Marathon', 'newtown', NEWTOWN, NEWTOWN_RACE, 3), ('Testville', 2020, 'Testville Race', 'testville', 'Testville', 'Testville Race', 3),
+                          ('Testville', 2021, 'Testville Race', 'testville', 'Testville', 'Testville Race', 3)])
+        self.assertEqual(race_registry.read_editions(out), [(NEWTOWN, 2022, NEWTOWN_RACE, 3), ('Testville', 2020, 'Testville Race', 3), ('Testville', 2021, 'Testville Race', 3)])
         f = literal(out / 'features.parquet')
         self.assertEqual([c for c, *_ in db.execute(f'DESCRIBE SELECT * FROM read_parquet({f})').fetchall()][-8:],
                          ['match_key', 'is_ambiguous', 'runner_id', 'link_preliminary', 'person_id', 'link_confidence', 'link_method', 'sex_source'])
@@ -380,23 +409,25 @@ class AdaptCombined(unittest.TestCase):
         # A missing split stays missing: 15 km is absent for record 104, so seg_15, seg_20 and cum_15 are null.
         self.assertEqual(db.execute(f'SELECT seg_15, seg_20, cum_15, seg_05 FROM read_parquet({f}) WHERE record_id=104').fetchone(), (None, None, None, 27.5))
         # Race dates: only the weather row (or a reviewed date) dates an edition; the date in a producer note does not.
-        self.assertEqual(db.execute(f'SELECT DISTINCT city, year, race_date FROM read_parquet({f}) ORDER BY 1, 2').fetchall(),
-                         [(NEWTOWN, 2022, None), ('Testville', 2020, '2020-10-04'), ('Testville', 2021, None)])
+        self.assertEqual(db.execute(f'SELECT DISTINCT city, year, race, race_date FROM read_parquet({f}) ORDER BY 1, 2').fetchall(),
+                         [('Newtown', 2022, 'Newtown Marathon', None), ('Testville', 2020, 'Testville Race', '2020-10-04'), ('Testville', 2021, 'Testville Race', None)])
         meta = literal(out / 'edition_meta.parquet')
         self.assertEqual([(c, t) for c, t, *_ in db.execute(f'DESCRIBE SELECT * FROM read_parquet({meta})').fetchall()], adapt_combined.EDITION_META)
         self.assertEqual(db.execute(f'SELECT city, year, verification_tier, verified_badge, badge_label, split_tier, hold_note, race_date, race_date_source, '
                                     f'producer_note_date FROM read_parquet({meta}) ORDER BY id').fetchall(),
                          [('Testville', 2020, 'stamped', True, 'verified', 'splits', None, '2020-10-04', 'weather', None),
                           ('Testville', 2021, 'partial', False, None, 'splits', 'on hold (source 403)', None, None, None),
-                          (NEWTOWN, 2022, 'unverified', False, None, 'finish_time_only', None, None, None, '2022-10-02'),
-                          ('Oldtown', 2019, 'excluded', False, None, None, None, None, None, None)])
+                          ('Newtown', 2022, 'unverified', False, None, 'finish_time_only', None, None, None, '2022-10-02')])   # written editions only
         # The weather and course members are the baseline's bytes; flags keep the release's form for the written records.
         for name in ('race_conditions', 'course_profiles', 'course_segments'):
             self.assertEqual(sha(out / f'{name}.parquet'), sha(fx.baseline / f'{name}.parquet'))
         self.assertEqual(db.execute(f"SELECT record_id, flag, detail FROM read_parquet({literal(out / 'record_flags.parquet')}) ORDER BY 1, 2").fetchall(),
                          [(105, 'pace_implausible', None), (105, 'shifted_mat', '25k mat early')])
         self.assertEqual(db.execute(f"SELECT list(record_id ORDER BY record_id) FROM read_parquet({literal(out / 'qa_row_flags.parquet')})").fetchone()[0], [103, 104])
-        self.assertEqual(db.execute(f"SELECT count(*) FROM read_parquet({literal(out / 'sources.parquet')})").fetchone()[0], 1)
+        self.assertEqual(db.execute(f"SELECT record_id, city FROM read_parquet({literal(out / 'record_flags.parquet')}) UNION SELECT record_id, city FROM "
+                                    f"read_parquet({literal(out / 'qa_row_flags.parquet')}) ORDER BY 1").fetchall(), [(103, 'Testville'), (104, 'Testville'), (105, 'Testville')])
+        # The source list keeps the release's own strings; edition_city is the label of the written edition it belongs to.
+        self.assertEqual(db.execute(f"SELECT city, race, edition_city FROM read_parquet({literal(out / 'sources.parquet')})").fetchall(), [('Testville', 'Testville Race', 'Testville')])
         # Documents: adapter outputs, labelled on their first line.
         for name in adapt_combined.DOC_MEMBERS:
             if name.endswith('.md'):
@@ -406,14 +437,22 @@ class AdaptCombined(unittest.TestCase):
         manifest = json.loads((out / 'MANIFEST.json').read_text())
         self.assertEqual(manifest['document'], adapt_combined.LABEL)
         self.assertEqual((manifest['n_records'], manifest['n_cities'], manifest['n_editions'], manifest['rows_left_out']), (9, 2, 3, 2))
+        self.assertEqual((manifest['n_release_keys'], manifest['editions_without_rows'], manifest['rows_kept_edition_wide']), (2, 1, {}))
+        self.assertEqual(manifest['race_registry'], {'file': 'analysis/race-registry.json', 'sha256': sha(race_registry.FROZEN), 'races': 2, 'keys': 2})
+        self.assertEqual(provenance['race_registry_sha256'], sha(race_registry.FROZEN))
         self.assertEqual(manifest['created_at'], '2099-01-01T12:00:00Z')
         self.assertEqual(sorted(manifest['dependencies']), ['duckdb'])
-        editions = {(e['city'], e['year']): e for e in json.loads((out / 'EDITIONS.json').read_text())['editions']}
+        listed = json.loads((out / 'EDITIONS.json').read_text())
+        editions = {(e['city'], e['year']): e for e in listed['editions']}
         self.assertEqual([(k, e['n_records'], e['rows_left_out'], e['excluded']) for k, e in sorted(editions.items())],
-                         [((NEWTOWN, 2022), 3, 0, False), (('Oldtown', 2019), 0, 0, True), (('Testville', 2020), 3, 1, False), (('Testville', 2021), 3, 1, False)])
+                         [(('Newtown', 2022), 3, 0, False), (('Testville', 2020), 3, 1, False), (('Testville', 2021), 3, 1, False)])
+        self.assertEqual((editions[('Newtown', 2022)]['release_city'], editions[('Newtown', 2022)]['release_race'], editions[('Newtown', 2022)]['race_id']),
+                         (NEWTOWN, NEWTOWN_RACE, 'newtown'))
+        # An edition with no written row (here an excluded one) is listed apart under its release key and is in no data member.
+        self.assertEqual([(e['release_city'], e['year'], e['excluded'], e['rows_in_release']) for e in listed['not_written']], [('Oldtown', 2019, True, 0)])
         with (out / 'EDITION-CHECKSUMS.csv').open(newline='') as stream:
             listed = {(r['city'], int(r['year'])): (int(r['n_records']), r['sha256_records']) for r in csv.DictReader(stream)}
-        self.assertEqual({k: v[0] for k, v in listed.items()}, {(NEWTOWN, 2022): 3, ('Testville', 2020): 3, ('Testville', 2021): 3})
+        self.assertEqual({k: v[0] for k, v in listed.items()}, {('Newtown', 2022): 3, ('Testville', 2020): 3, ('Testville', 2021): 3})
         db.execute(f'CREATE VIEW out_rr AS SELECT * FROM read_parquet({rr})')
         self.assertEqual({k: v for k, v in adapt_master.edition_checksums(db, 'out_rr').items()}, listed)
         report = json.loads((out / 'RECONCILIATION.json').read_text())
@@ -565,9 +604,67 @@ class AdaptCombined(unittest.TestCase):
         fx.adapt(out)
         self.assertEqual(duckdb.connect().execute(f"SELECT race_date, race_date_source FROM read_parquet({literal(out / 'edition_meta.parquet')}) "
                                                   "WHERE city='Testville' AND year=2021").fetchone(), ('2021-10-03', 'reviewed'))
-        dates['releases'][TAG] = [{'city': NEWTOWN, 'year': 2022, 'date': '2022-10-09', 'source': 'synthetic', 'evidence_text': 'date=2022-10-02'}]
-        adapt_combined.RACE_DATES_PATH.write_text(json.dumps(dates))
-        self.assertFails('two race dates that disagree', fx)
+        # An entry names the edition by its label; the release key it may add must be the registry's; the weekday it states must hold.
+        entry = {'city': 'Newtown', 'release_city': NEWTOWN, 'year': 2022, 'date': '2022-10-02', 'weekday': 'Sunday', 'source': 'synthetic', 'evidence_text': 'date=2022-10-02'}
+        for change, message in (({}, None), ({'date': '2022-10-09'}, 'two race dates that disagree'), ({'weekday': 'Saturday'}, 'not on the weekday the entry states'),
+                                ({'city': NEWTOWN}, 'no written edition has this label'), ({'release_city': 'Testville'}, 'not the one the entry names'),
+                                ({'date': '2023-10-01'}, 'not in the edition’s year')):
+            with self.subTest(change=change):
+                dates['releases'][TAG] = [{**entry, **change}]
+                adapt_combined.RACE_DATES_PATH.write_text(json.dumps(dates))
+                if message:
+                    self.assertFails(message, fx)
+                else:
+                    fx.adapt(out)
+                    self.assertEqual(duckdb.connect().execute(f"SELECT DISTINCT race_date FROM read_parquet({literal(out / 'features.parquet')}) WHERE city='Newtown'").fetchall(),
+                                     [('2022-10-02',)])
+
+    def test_an_edition_wide_flag_removes_nothing(self):
+        """Ruling R2: a flag of `kept_when_edition_wide` on every row of an edition describes the source, not the row."""
+        def flag(*ids, pending=()):
+            def mutate(f):
+                for rid in ids:
+                    f.db.execute(f"INSERT INTO qa (distance, source_db, record_id, city, year, {', '.join(adapt_combined.QA_FLAGS)}) VALUES ('marathon', 'full', ?, ?, 2022, "
+                                 + ', '.join('true' if q == 'finish_zero' else 'false' for q in adapt_combined.QA_FLAGS) + ')', [rid, NEWTOWN])
+                for rid in pending:
+                    f.db.execute("INSERT INTO pend VALUES ('marathon', 'full', ?, ?, 2022, 'wheelchair_handcycle_published_category', 'x', true, 'pending')", [rid, NEWTOWN])
+            return mutate
+        kept = {'qa_row_flags.finish_zero': {f'{NEWTOWN} 2022': 3}}
+        cases = [('every row of the edition carries the flag: all three stay', flag(109, 110, 111), dict(edition_wide_kept=kept), [109, 110, 111]),
+                 ('two of three rows carry it: they are left out as before', flag(109, 110), dict(left_out=4, written_rows=7), [111]),
+                 ('a row of such an edition with another flag of the rule is still left out', flag(109, 110, 111, pending=[110]),
+                  dict(left_out=3, written_rows=8, edition_wide_kept=kept), [109, 111])]
+        for i, (label, mutate, review, expected) in enumerate(cases):
+            with self.subTest(label):
+                fx = self.fixture(f'wide{i}', mutate=mutate, review=review)
+                out = self.root / f'wide-out{i}'
+                fx.adapt(out)
+                self.assertEqual(duckdb.connect().execute(f"SELECT list(id ORDER BY id) FROM read_parquet({literal(out / 'race_records.parquet')}) WHERE city='Newtown'").fetchone()[0],
+                                 expected)
+                manifest = json.loads((out / 'MANIFEST.json').read_text())
+                self.assertEqual((manifest['rows_left_out'], manifest['rows_kept_edition_wide']), (review.get('left_out', 2), review.get('edition_wide_kept', {})))
+        # The reviewed list binds: an edition kept this way that the review has not read stops the run.
+        self.assertFails('rows kept although flagged', self.fixture('wide-unreviewed', mutate=flag(109, 110, 111)))
+
+    def test_labels_come_from_the_frozen_registry(self):
+        fx = self.fixture()
+        # A registry frozen for other rows, another reviewed part or another tag is refused before anything is written.
+        frozen = json.loads(race_registry.FROZEN.read_text())
+        for change, message in (({'reviewed': {'joins': [], 'flags': [], 'labels': [{'key': NEWTOWN, 'label': 'Newtown Marathon'}]}}, 'race registry.*differs in'),
+                                ({'tag': 'pace-notes-marathon-half-20990102-0000'}, 'race registry.*differs in tag'),
+                                ({'races': [dict(r, rows=r['rows'] + 1) for r in frozen['races']]}, 'race registry.*differs in races')):
+            with self.subTest(change=list(change)):
+                race_registry.FROZEN.write_text(json.dumps({**frozen, **change}, ensure_ascii=False))
+                self.assertFails(message, fx)
+        # Two keys of one race (here by the rule: a trailing year) are one city; the side member keeps each edition's own key.
+        other = NEWTOWN + ' 2021'
+        joined = self.fixture('joined', mutate=lambda f: [f.db.execute(f"UPDATE {t} SET city=? WHERE city='Testville' AND year=2021", [other]) for t in ('rr', 'em', 'lk')])
+        with mock.patch.dict(adapt_combined.CLAIMS[TAG], {'change_report_vs_baseline': {'removed': 1, 'added': 7, 'changed': 0, 'unchanged': 4,
+                                                                                      'removed_by_edition': {'Testville 2021': 1}, 'changed_by_edition': {}}}):
+            out = self.root / 'joined-out'
+            joined.adapt(out)
+        self.assertEqual(duckdb.connect().execute(f"SELECT city, year, race, release_city FROM read_parquet({literal(out / 'release_keys.parquet')}) ORDER BY 1, 2").fetchall(),
+                         [('Newtown', 2021, 'Newtown Marathon', other), ('Newtown', 2022, 'Newtown Marathon', NEWTOWN), ('Testville', 2020, 'Testville Race', 'Testville')])
 
     def test_downloader_hands_the_combined_pin_to_the_adapter(self):
         fx = self.fixture()

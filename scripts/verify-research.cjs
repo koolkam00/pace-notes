@@ -3,11 +3,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const ts = require('typescript');
 const crypto = require('node:crypto');
-const canonicalJson = value => JSON.stringify((function sort(item) {
-  if (Array.isArray(item)) return item.map(sort);
-  if (item && typeof item === 'object') return Object.fromEntries(Object.keys(item).sort().map(key => [key, sort(item[key])]));
-  return item;
-})(value));
+const { policyEditions, policySha256 } = require('./lib/edition-policy.cjs');
 
 process.chdir(path.resolve(__dirname, '..'));
 require.extensions['.ts'] = (module, filename) => module._compile(
@@ -79,17 +75,18 @@ for (const extension of extensions) {
     assert.equal(metadata.source_quality_script_sha256, hash);
     assert.equal(policy.script_sha256, hash);
     assert.match(policy.policy_sha256, /^[a-f0-9]{64}$/);
-    const policyDefinition = { version: policy.version, release_tag: policy.release_tag, reviewed_edition_policy: policy.reviewed_edition_policy,
-      editions: policy.editions.map(({ city, year, category, reason }) => ({ city, year, category, reason })) };
-    assert.equal(policy.policy_sha256, crypto.createHash('sha256').update(canonicalJson(policyDefinition)).digest('hex'), 'Edition reasons must match the recorded policy hash');
+    // The listed editions: in the pack up to master-20261103b; from the combined release on, the one published list,
+    // checked against the digests and counts this pack states (scripts/lib/edition-policy.cjs).
+    const editions = policyEditions(policy, extension.id);
+    assert.equal(policy.policy_sha256, policySha256(policy, editions), 'Edition reasons must match the recorded policy hash');
     assert.equal(policy.release_tag.replace('private-export-', 'private-'), metadata.input_export_id);
-    assert.equal(new Set(policy.editions.map(row => row.city + '/' + row.year)).size, policy.editions.length);
-    for (const row of policy.editions) {
+    assert.equal(new Set(editions.map(row => row.city + '/' + row.year)).size, editions.length);
+    for (const row of editions) {
       assert.ok(row.city && Number.isInteger(row.year) && row.category && row.reason);
       assert.ok([row.raw_records, row.deduplicated_records, row.timing_eligible_excluded].every(n => Number.isInteger(n) && n >= 0));
       assert.ok(row.raw_records >= row.deduplicated_records && row.deduplicated_records >= row.timing_eligible_excluded);
     }
-    assert.equal(policy.editions.reduce((sum, row) => sum + row.timing_eligible_excluded, 0), c.source_quality_excluded);
+    assert.equal(editions.reduce((sum, row) => sum + row.timing_eligible_excluded, 0), c.source_quality_excluded);
     assert.equal(c.timing_eligible, c.eligible + c.source_quality_excluded);
   }
   assert.ok(metadata.n <= c.eligible);

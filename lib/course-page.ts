@@ -293,13 +293,24 @@ export function sharedRelief(routes: { min_m: number; max_m: number }[]): number
 
 /**
  * The editions a page never names as a range end: those the reviewed source policy for the adopted release holds or
- * excludes (the course-profile pack's copy of analysis/source_quality.py's list), and the duplicate-edition screen's
- * copies. Keys are "city|year".
+ * excludes (analysis/source_quality.py's list, as the course-profile pack records it), and the duplicate-edition
+ * screen's copies. Keys are "city|year". Up to master-20261103b the pack carries the list; from the combined release
+ * on it states the policy's digests, and the list is the one published file those digests name
+ * (public/data/edition-policy.json, whose rows start with city and year).
  */
 export function heldEditions(): Set<string> {
   const meta = JSON.parse(fs.readFileSync(path.join(DATA(), 'packs/ext_course_pacing_profiles/pack_meta.json'), 'utf8'));
-  if (meta.source_quality?.release_tag !== release.tag || !Array.isArray(meta.source_quality.editions)) throw new Error('The course-profile source policy must be for the adopted release.');
-  const held = (meta.source_quality.editions as { city: string; year: number }[]).map((e) => editionKey(e.city, e.year));
+  const policy = meta.source_quality;
+  if (policy?.release_tag !== release.tag) throw new Error('The course-profile source policy must be for the adopted release.');
+  let listed: { city: string; year: number }[];
+  if (Array.isArray(policy.editions)) listed = policy.editions;
+  else {
+    const file = JSON.parse(fs.readFileSync(path.join(DATA(), String(policy.editions_file)), 'utf8'));
+    if (file.release_tag !== policy.release_tag || file.policy_sha256 !== policy.policy_sha256 || file.editions_sha256 !== policy.editions_sha256
+      || file.columns?.[0] !== 'city' || file.columns?.[1] !== 'year') throw new Error('The published edition list is not the one the course-profile pack was built with.');
+    listed = (file.editions as [string, number][]).map(([city, year]) => ({ city, year }));
+  }
+  const held = listed.map((e) => editionKey(e.city, e.year));
   return new Set([...held, ...copyEditions().map((c) => editionKey(c.city, c.year))]);
 }
 

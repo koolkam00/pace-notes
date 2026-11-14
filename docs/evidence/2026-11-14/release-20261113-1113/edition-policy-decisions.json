@@ -1,21 +1,26 @@
 {
  "tag": "pace-notes-marathon-half-20261113-1113",
  "reviewed": "2026-11-14",
- "frozen_policy_sha256": "b751e89f935e0e34e831c2d8051dea7581b7859a03716aa4fa54b82d38cd280b",
+ "frozen_policy_sha256": "ab43c75ef52ba9b18d63e5fd4ce9e604e2cbca152a25c4773d85b14c5b133541",
  "expected": {
-  "editions_with_rows": 2684,
+  "editions_with_rows": 2688,
   "counted": 201,
-  "not_counted": 2483,
+  "not_counted": 2487,
   "not_counted_by_category": {
    "finish_time_only": 1926,
    "held_for_review": 163,
    "incomplete_ingestion": 3,
-   "invalid_split_grid": 156,
+   "invalid_split_grid": 158,
    "mixed_distance_list": 5,
    "partial_coverage": 12,
    "selected_field": 6,
    "unreconciled_hold": 12,
-   "unverified": 200
+   "unverified": 202
+  },
+  "own_record": 32,
+  "own_record_by_category": {
+   "partial_coverage": 9,
+   "unverified": 23
   },
   "reviewed_exceptions": 44
  },
@@ -81,12 +86,12 @@
      91.4,
      65.4
     ],
-    "Madrid 2022": [
-     94.7,
-     66.0
-    ],
     "Oslo 2017": [
      99.1,
+     66.0
+    ],
+    "Madrid 2022": [
+     94.7,
      66.0
     ],
     "Dubai 2016": [
@@ -157,7 +162,7 @@
   ],
   "b_slowest_quarter_50_to_60_with_quickest_at_least_75": [
    {
-    "edition": "Los Angeles, CA: Los Angeles Marathon 2023",
+    "edition": "Los Angeles 2023",
     "tier": "stamped_weaker_source",
     "counted": true,
     "timing_eligible": 13794,
@@ -179,7 +184,7 @@
   ],
   "b_fails": [
    {
-    "edition": "Los Angeles, CA: Los Angeles Marathon 2010",
+    "edition": "Los Angeles 2010",
     "tier": "stamped_weaker_source",
     "counted": false,
     "timing_eligible": 15527,
@@ -1196,7 +1201,7 @@
   "note": "none was reviewed by hand before. new-editions-review.json holds the reading of 2026-11-14 (new-editions-review.py): their sustained-slowdown shares by finish-time band beside the earlier counted editions, and the section profile of each edition’s quickest tenth, where a misplaced mat or a mixed timing basis would show. No screen fails and they are counted, as the rule says; they are listed here so a pooled figure is never read without them (by_tier_in_the_counted_cohort)",
   "editions": [
    {
-    "edition": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K 2022",
+    "edition": "Austin 2022",
     "finishes": 2769,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 33.64,
@@ -1209,7 +1214,7 @@
     "official_finishers": 2766
    },
    {
-    "edition": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K 2023",
+    "edition": "Austin 2023",
     "finishes": 3192,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 40.01,
@@ -1222,7 +1227,7 @@
     "official_finishers": 3192
    },
    {
-    "edition": "Austin, TX: Ascension Seton Austin Marathon, Half Marathon & 5K 2024",
+    "edition": "Austin 2024",
     "finishes": 4047,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 26.35,
@@ -1235,7 +1240,7 @@
     "official_finishers": 4047
    },
    {
-    "edition": "Los Angeles, CA: Los Angeles Marathon 2015",
+    "edition": "Los Angeles 2015",
     "finishes": 21902,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 63.39,
@@ -1248,7 +1253,7 @@
     "official_finishers": 21904
    },
    {
-    "edition": "Los Angeles, CA: Los Angeles Marathon 2019",
+    "edition": "Los Angeles 2019",
     "finishes": 20074,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 48.33,
@@ -1261,7 +1266,7 @@
     "official_finishers": 20040
    },
    {
-    "edition": "Los Angeles, CA: Los Angeles Marathon 2023",
+    "edition": "Los Angeles 2023",
     "finishes": 17034,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 45.12,
@@ -1274,7 +1279,7 @@
     "official_finishers": 16973
    },
    {
-    "edition": "Los Angeles, CA: Los Angeles Marathon 2024",
+    "edition": "Los Angeles 2024",
     "finishes": 20513,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 50.68,
@@ -1287,7 +1292,7 @@
     "official_finishers": 20450
    },
    {
-    "edition": "Los Angeles, CA: Los Angeles Marathon 2026",
+    "edition": "Los Angeles 2026",
     "finishes": 21979,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 59.53,
@@ -1300,7 +1305,7 @@
     "official_finishers": 21902
    },
    {
-    "edition": "Oklahoma City, OK: Oklahoma City Memorial Marathon, Half, Quarter & 5K 2025",
+    "edition": "Oklahoma City 2025",
     "finishes": 2500,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 43.76,
@@ -1313,7 +1318,7 @@
     "official_finishers": 2499
    },
    {
-    "edition": "Toronto, ON: Toronto Waterfront Marathon 2019",
+    "edition": "Toronto Waterfront 2019",
     "finishes": 3838,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 38.46,
@@ -1326,7 +1331,7 @@
     "official_finishers": 3833
    },
    {
-    "edition": "Toronto, ON: Toronto Waterfront Marathon 2022",
+    "edition": "Toronto Waterfront 2022",
     "finishes": 3473,
     "tier": "stamped_weaker_source",
     "sustained_slowdown_pct": 39.29,
@@ -1364,15 +1369,10 @@
   }
  },
  "row_rule_edge_cases": {
-  "editions_with_no_written_row": [
-   "King George Island, TBD: Antarctica Marathon & Half Marathon - Voyage 2 2019",
-   "Ottawa, ON: Ottawa Fall Colours Run 2010",
-   "TBD, TBD: Run Barbados Festival 2002",
-   "TBD, TBD: Run Barbados Festival 2003"
-  ],
+  "editions_with_no_written_row": [],
   "verified_editions_whose_written_finishes_fall_under_95_pct_of_the_count": [
-   "MASSEY, On: Friendly Massey Marathon - Cancelled 2010: 46 of 52 (6 rows left out)",
-   "Rimouski, QC: Marathon de Rimouski- Annulé 2008: 128 of 138 (10 rows left out)"
+   "Friendly Massey Marathon - Cancelled 2010: 46 of 52 (6 rows left out)",
+   "Marathon de Rimouski- Annulé 2008: 128 of 138 (10 rows left out)"
   ],
   "note": "the policy reads coverage on the release’s rows, so the row rule never moves an edition across the band"
  },
@@ -1414,7 +1414,7 @@
    "counted": 0
   },
   "stamped_weaker_source / splits": {
-   "editions": 128,
+   "editions": 130,
    "with_timing_eligible": 13,
    "timing_eligible": 178036,
    "counted": 12
@@ -1426,7 +1426,7 @@
    "counted": 0
   },
   "unverified / splits": {
-   "editions": 202,
+   "editions": 204,
    "with_timing_eligible": 24,
    "timing_eligible": 106795,
    "counted": 0
