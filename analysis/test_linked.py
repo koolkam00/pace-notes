@@ -18,6 +18,7 @@ import linked_histories as lh
 import linked_model as lm
 import linked_races as lr
 import linked_return as lret
+import linked_reviews as lrev
 
 
 def results_frame(rows):
@@ -687,6 +688,111 @@ class RecordedAgain(unittest.TestCase):
                                (15000.0, 0, 25, False, False), (15100.0, 2, 28, False, False),
                                (16000.0, 0, -1, True, False), (16100.0, 3, -1, False, False)])
         self.assertEqual(len(la.finishes(results_frame(rows).iloc[:0], race)), 0)
+
+
+class Reviews(unittest.TestCase):
+    """The reviews of analysis/linked_reviews.py: a held edition released only under every condition, and the producer's
+    notes searched for a virtual run or another course."""
+    WARSAW = 'DB 853 finishes vs official 853 (+0.00%), within 0.5%; COVID edition: four separate waves (max 250 each) on a 5 km city loop, 2020-09-26/27'
+
+    def test_the_search_reads_sentences_and_digits_as_marks(self):
+        self.assertEqual(lrev.sentences(self.WARSAW), ['DB 853 finishes vs official 853 (+0.00%), within 0.5%',
+                                                       'COVID edition: four separate waves (max 250 each) on a 5 km city loop, 2020-09-26/27'])
+        self.assertEqual(lrev.normal('max 250   each on a 5 km loop'), 'max # each on a # km loop')
+        notes = {('Warsaw', 2020): {'completeness_reason': self.WARSAW},
+                 ('Houston', 2019): {'completeness_reason': 'api total=6681; not loaded: 40 outside main place chain (wheelchair/handcycle/assisted/unplaced), 0 virtual'},
+                 ('Madrid', 2019): {'course_notes': "Profile is the current course; Madrid's course changed over 2013-2026."},
+                 ('Berlin', 2021): {'weather_notes': 'COVID-shifted autumn edition (26 Sep 2021); a new course record', 'hold_note': None},   # a moved date is not another course
+                 ('Paris', 2019): {'release_note': 'the race was replaced by a self-timed run', 'unknown_field': 'a virtual loop'}}
+        found = {(x['label'], x['year'], x['field'], x['kind'], x['says']) for x in lrev.found_in(notes)}
+        self.assertEqual(found, {
+            ('Warsaw', 2020, 'completeness_reason', 'another_course', 'COVID edition: four separate waves (max # each) on a # km city loop, #-#-#/#'),
+            ('Houston', 2019, 'completeness_reason', 'virtual_run', 'not loaded: # outside main place chain (wheelchair/handcycle/assisted/unplaced), # virtual'),
+            ('Madrid', 2019, 'course_notes', 'another_course', "Madrid's course changed over #-#"),
+            ('Paris', 2019, 'release_note', 'virtual_run', 'the race was replaced by a self-timed run')})
+        self.assertEqual([k for k, _ in lrev.NOTE_PATTERNS], ['virtual_run', 'another_course'])
+
+    def test_every_sentence_found_needs_a_ruling(self):
+        notes = {('Warsaw', 2020): {'completeness_reason': self.WARSAW}, ('Houston', 2019): {'completeness_reason': 'not loaded: 40 outside the chain, 0 virtual'},
+                 ('Houston', 2023): {'completeness_reason': 'not loaded: 3 outside the chain, 0 virtual'}, ('Oslo', 2018): {'course_notes': 'nothing of the kind'}}
+        warsaw = {'label': 'Warsaw', 'years': (2020,), 'field': 'completeness_reason', 'kind': 'another_course', 'ruling': 'excluded',
+                  'says': 'COVID edition: four separate waves (max # each) on a # km city loop, #-#-#/#',
+                  'quoted': 'COVID edition: four separate waves (max 250 each) on a 5 km city loop, 2020-09-26/27', 'reviewer': 'lead', 'reviewed_on': '2026-11-14'}
+        houston = {'label': 'Houston', 'years': None, 'field': 'completeness_reason', 'kind': 'virtual_run', 'ruling': 'kept', 'says': 'not loaded: # outside the chain, # virtual',
+                   'reviewer': 'lead', 'reviewed_on': '2026-11-14'}
+        excluded, found = lrev.rulings(notes, (warsaw, houston))
+        self.assertEqual(excluded, {('Warsaw', 2020)})
+        self.assertEqual(sorted((x['label'], x['year'], x['ruling']) for x in found), [('Houston', 2019, 'kept'), ('Houston', 2023, 'kept'), ('Warsaw', 2020, 'excluded')])
+        for broken in ((warsaw,),                                                         # a sentence that is on no list stops the build
+                       (warsaw, houston, {**houston, 'label': 'Oslo'}),                   # ... and so does a listed sentence the notes no longer hold
+                       ({**warsaw, 'years': (2020, 2021)}, houston),                      # ... or hold for fewer editions than the list names
+                       ({**warsaw, 'quoted': 'four waves on a loop'}, houston),           # the quotation must be the note's own sentence
+                       ({**warsaw, 'ruling': 'ignored'}, houston)):
+            with self.assertRaises(lc.LinkedError, msg=repr(broken)[:80]):
+                lrev.rulings(notes, broken)
+        # the frozen entries: one exclusion by the lead, and every entry written as the list requires
+        self.assertEqual([(e['label'], e['years'], e['ruling']) for e in lrev.REVIEWED_NOTES if e['ruling'] == 'excluded'], [('Warsaw', (2020,), 'excluded')])
+        self.assertEqual([(e['label'], e['year']) for e in lrev.REVIEWED_RELEASES], [('New York', 2022)])
+        for e in lrev.REVIEWED_NOTES:
+            self.assertEqual(e['says'], lrev.normal(e['says']))
+            self.assertTrue(any(pattern.search(e['says']) for kind, pattern in lrev.NOTE_PATTERNS if kind == e['kind']), e['says'])
+
+    def held_edition(self, **change):
+        """A race of five fitted chip years; 2014 is the held one."""
+        years = [2011, 2012, 2013, 2014, 2015]
+        t = keyed(pd.DataFrame({'label': ['R'] * 5, 'basis': ['chip_or_net'] * 5, 'timing': ['chip'] * 5, 'tier': ['stamped'] * 5, 'year': years, 'code': np.arange(5), 'pos': np.arange(5)}))
+        editions = t[['label', 'year', 'code', 'rkey']].copy()
+        editions['counted'] = True
+        editions['in_f'] = True
+        editions['official_ratio'] = [1.0, 1.0, 1.0, 0.9973, 1.0]
+        editions['temp_start'] = [8.0, 11.0, 9.5, 19.9, 12.2]
+        share = pd.DataFrame({'code': np.arange(5), 'eligible': [1000] * 5, 'slow': [300, 330, 310, 452, 427]})
+        for key, value in change.items():
+            if key in ('tier', 'timing'):
+                t.loc[t.year == value[0], key] = value[1]
+            elif key == 'slow':
+                share.loc[share.code == value[0], 'slow'] = value[1]
+            else:
+                editions.loc[editions.year == value[0], key] = value[1]
+        return t, editions.set_index('code', drop=False), share
+
+    def review(self, distance=6.5, **change):
+        t, editions, share = self.held_edition(**change)
+        return lrev.review_of(t.iloc[3], t, editions, share, distance)
+
+    def test_a_release_needs_every_condition_measured_on_the_build(self):
+        good = self.review()
+        self.assertTrue(all(good[k] for k in lrev.CONDITIONS) and good['meets_every_condition'])
+        self.assertEqual((good['official_difference_pct'], good['field_share_pct'], good['counted_years'], good['counted_years_as_high'],
+                          good['start_temperature_c'], good['weather_years'], good['weather_years_as_warm']), (-0.27, 45.2, 5, 0, 19.9, 5, 0))
+        for failing, change in (('stamped', {'tier': (2014, 'stamped_weaker_source')}),            # a weaker-source stamp has no release path
+                                ('timing_as_its_group', {'timing': (2012, 'chip_fallback')}),      # another year of its group is timed otherwise
+                                ('official_within_half_pct', {'official_ratio': (2014, 0.99)}),    # 1% off the official count
+                                ('official_within_half_pct', {'official_ratio': (2014, float('nan'))}),
+                                ('field_share_highest', {'slow': (4, 452)}),                       # a tie is not the highest
+                                ('field_share_highest', {'counted': (2014, False)}),               # not a counted edition: no measurement, no release
+                                ('start_warmest', {'temp_start': (2012, 21.0)}),
+                                ('start_warmest', {'temp_start': (2014, float('nan'))})):          # no weather row: no measurement, no release
+            review = self.review(**change)
+            self.assertFalse(review[failing], (failing, change))
+            self.assertFalse(review['meets_every_condition'])
+        self.assertFalse(self.review(distance=-6.5)['slow_side'])                                  # held on the fast side: no release path
+        self.assertFalse(self.review(distance=5.9)['slow_side'])
+        self.assertEqual(lrev.CONDITIONS, ('stamped', 'timing_as_its_group', 'official_within_half_pct', 'slow_side', 'field_share_highest', 'start_warmest'))
+
+    def test_a_reviewed_release_applies_only_while_it_holds(self):
+        t, editions, share = self.held_edition()
+        held = np.array([False, False, False, True, False])
+        entry = ({'label': 'R', 'year': 2014, 'reviewer': 'lead', 'reviewed_on': '2026-11-14'},)
+        good = {3: lrev.review_of(t.iloc[3], t, editions, share, 6.5)}
+        self.assertEqual(list(lrev.releases(t, held, good, editions, entry)), [3])
+        self.assertEqual(lrev.releases(t, np.zeros(5, dtype=bool), {}, editions, entry), {})        # the screen does not hold it: the entry is not needed
+        bad = {3: self.review(temp_start=(2012, 21.0))}
+        with self.assertRaises(lc.LinkedError):                                                    # held, reviewed, and a condition fails: the build stops
+            lrev.releases(t, held, bad, editions, entry)
+        with self.assertRaises(lc.LinkedError):                                                    # an entry that names an edition the universe does not hold
+            lrev.releases(t, held, good, editions, ({**entry[0], 'year': 1999},))
+        self.assertEqual(lrev.releases(t, held, good, editions, ()), {})                           # no entry, no release: the edition stays held
 
 
 class Published(unittest.TestCase):

@@ -32,6 +32,11 @@
 //   7. Who is recorded again (recorded_again.json): its finishes are the unmatched finishes of return.json; every row is
 //      one of the frozen bands with its floors, its share from its counts, its difference from its two shares inside its
 //      interval, its five variants, and its verdict recomputed. A table by sex is refused (the contract says why).
+//   8. Reviews (rulings of the lead of 2026-11-14; analysis/linked_reviews.py). The reviewed entries are this file's own
+//      copy: New York 2022 released, Warsaw 2020 excluded. A released edition carries `reviewed_release`, has a reading,
+//      and its six conditions are checked again from the published measurements, the whole-field share against the
+//      cohort's records; an excluded edition has no reading and is in no check; every held edition carries the same
+//      measurements. No other row may carry the flag.
 //
 //   node scripts/verify-linked.cjs [--data <folder>] [--self-test] [--registry <file> --family-only]
 //
@@ -67,6 +72,13 @@ const FIELD_R_MIN = 0.7;
 const BESTS_MARGIN = 0.01;
 const AGE_AGREE_PCT = 0.3;
 // The recorded-again table (docs/LINKED_RECORDS.md, "Who is recorded again"; analysis/linked_again.py holds the same).
+// The reviews (docs/LINKED_RECORDS.md, "Reviews"): this verifier's own copy of the entries the builders hold.
+const REVIEWED_RELEASES = [['New York', 2022]];
+const REVIEWED_EXCLUSIONS = [['Warsaw', 2020, 'another_course']];
+const OFFICIAL_TOLERANCE_PCT = 0.5;
+const REVIEW_CONDITIONS = ['stamped', 'timing_as_its_group', 'official_within_half_pct', 'slow_side', 'field_share_highest', 'start_warmest'];
+const REVIEW_FIELDS = [...REVIEW_CONDITIONS, 'official_difference_pct', 'field_share_pct', 'counted_years', 'counted_years_as_high', 'start_temperature_c', 'weather_years',
+  'weather_years_as_warm', 'meets_every_condition'];
 const AGAIN_MARGIN_POINTS = 1.0;
 const AGAIN_MIN_OTHERS = 100;
 const AGAIN_VARIANTS = ['verified', 'high', 'same_race', 'men', 'women'];
@@ -102,7 +114,7 @@ const PERSON_ID = /\bp\d+_[0-9a-f]{8,}\b/;
 const CODES = {
   tier: new Set(F_TIERS), timing: new Set(TIMING_CODES), basis: new Set(['chip_or_net', 'gun', 'not_stated']),
   verdict: new Set(['fast', 'slow', 'usual', 'faster', 'slower', 'about_the_same', 'more_often', 'less_often', 'as_often', 'stated', 'holds']),
-  family: new Set(['linked']), file: new Set(FILES),
+  family: new Set(['linked']), file: new Set(FILES), reason: new Set(['another_course', 'virtual_run']),
 };
 // The scout's "must not print" lists, beside the site's word rules (scripts/lib/words.cjs BANNED).
 const LINKED_BANNED = [
@@ -332,6 +344,8 @@ function verify(dataDir, { pins = true, registryPath = null } = {}) {
           ok(!W.RELEASE_LABEL.test(v), `${where}.${k}: a release label in a family file`);
           if (k === 'label') ok(labels.has(v), `${where}.${k}: "${v}" is not a registry label`);
           else if (k === 'series') ok(seriesNames.has(v), `${where}.${k}: "${v}" is not a series name of the registry`);
+          else if (k === 'reviewed_on') ok(/^20\d{2}-[01]\d-[0-3]\d$/.test(v), `${where}.${k}: "${v}" is not a day`);
+          else if (k === 'quoted_note') ok(where.startsWith('checks.json.reviewed.exclusions'), `${where}.${k}: a quoted note outside the reviewed exclusions`);
           else if (CODES[k]) ok(CODES[k].has(v), `${where}.${k}: "${v}" is not one of the codes this key may hold`);
           else ok(false, `${where}.${k}: a string under a key that may not hold one (${JSON.stringify(v)})`);
           strings.push([`${where}.${k}`, v, k]);
@@ -346,7 +360,7 @@ function verify(dataDir, { pins = true, registryPath = null } = {}) {
   for (const [name, doc] of Object.entries(files)) scan(doc, name, false);
   // The "must not print" words: on every string that is not a registry label or a closed code, and on every key.
   for (const [where, v, k] of strings) {
-    if (k === 'label' || k === 'series' || CODES[k]) continue;
+    if (k === 'label' || k === 'series' || k === 'reviewed_on' || CODES[k]) continue;
     const found = wordsOf(v);
     ok(!found.length, `${where}: ${found.join(', ')}: ${v}`);
   }
@@ -357,6 +371,8 @@ function verify(dataDir, { pins = true, registryPath = null } = {}) {
 
   // ---------- 4. editions.json: fast years and slow years ----------
   eq([E.margin_pct, E.min_editions, E.min_finishes], [YEAR_MARGIN_PCT, MIN_EDITIONS, MIN_CELL], 'editions.json: its margin and floors');
+  const reviewed = C.reviewed && typeof C.reviewed === 'object' ? C.reviewed : {};
+  const releasedKeys = new Set((Array.isArray(reviewed.releases) ? reviewed.releases : []).filter((r) => r && r.applies === true).map((r) => `${r.label}|${r.year}`));
   const editionRows = [];
   for (const [label, years] of Object.entries(E.races || {})) {
     const groups = {};
@@ -364,7 +380,10 @@ function verify(dataDir, { pins = true, registryPath = null } = {}) {
       const where = `editions.json ${label} ${year}`;
       ok(/^(19|20)\d{2}$/.test(year), `${where}: a year key`);
       const fields = ['basis', 'finishes', 'hi_pct', 'high_pct', 'lo_pct', 'others', 'reading_pct', 'tier', 'timing', 'verdict', 'year_sd_pct'];
-      eq(Object.keys(row).sort(), seriesNotes.has(label) ? [...fields, 'series'].sort() : fields, `${where}: its fields (a series only where the registry notes one)`);
+      const released = releasedKeys.has(`${label}|${Number(year)}`);
+      eq(Object.keys(row).sort(), [...fields, ...(seriesNotes.has(label) ? ['series'] : []), ...(released ? ['reviewed_release'] : [])].sort(),
+        `${where}: its fields (a series only where the registry notes one; reviewed_release only on an edition a review released)`);
+      if (released) ok(row.reviewed_release === true, `${where}: the flag of a reviewed release`);
       const series = seriesOf(label, Number(year));
       ok(series !== undefined && (row.series ?? null) === series, `${where}: its series is the registry’s (${row.series ?? null} vs ${series})`);
       ok(F_TIERS.includes(row.tier), `${where}: a tier of the finish-time universe (${row.tier})`);
@@ -532,6 +551,59 @@ function verify(dataDir, { pins = true, registryPath = null } = {}) {
     ok(Array.isArray(C.held_for_review) && C.held_for_review.every((h) => labels.has(h.label) && inItsSeries(h) && !hasEdition(h.label, h.year) && F_TIERS.includes(h.tier) && int(h.finishes, MIN_CELL)
       && finite(h.from_median_pct) && Math.abs(h.from_median_pct) > OUTLIER_PCT), 'checks.json: an edition held for review is more than 6% from its race’s median and has no reading');
     eq(raceRows.reduce((a, r) => a + (r.held_for_review || 0), 0) <= (C.held_for_review || []).length, true, 'checks.json: the held editions cover those the races count');
+
+    // The reviews. A review is measured, never asserted: every condition of a release is checked again here.
+    const reviewOk = (v, where) => ok(v && eq(Object.keys(v).sort(), [...REVIEW_FIELDS].sort(), `${where}: the fields of its review`)
+      && REVIEW_CONDITIONS.every((k) => typeof v[k] === 'boolean') && v.meets_every_condition === REVIEW_CONDITIONS.every((k) => v[k])
+      && (v.official_difference_pct === null || finite(v.official_difference_pct)) && v.official_within_half_pct === (v.official_difference_pct !== null && Math.abs(v.official_difference_pct) <= OFFICIAL_TOLERANCE_PCT)
+      && int(v.counted_years) && (v.field_share_pct === null ? v.counted_years_as_high === null : finite(v.field_share_pct) && int(v.counted_years_as_high))
+      && v.field_share_highest === (v.field_share_pct !== null && v.counted_years >= MIN_EDITIONS && v.counted_years_as_high === 0)
+      && int(v.weather_years) && (v.start_temperature_c === null ? v.weather_years_as_warm === null : finite(v.start_temperature_c) && int(v.weather_years_as_warm))
+      && v.start_warmest === (v.start_temperature_c !== null && v.weather_years >= MIN_EDITIONS && v.weather_years_as_warm === 0), `${where}: its review, each condition from its own measurement`);
+    for (const h of C.held_for_review || []) reviewOk(h.review, `checks.json held ${h.label} ${h.year}`);
+    if (ok(Array.isArray(reviewed.releases) && Array.isArray(reviewed.exclusions) && reviewed.official_tolerance_pct === OFFICIAL_TOLERANCE_PCT, 'checks.json: the reviews are published (releases, exclusions, the tolerance)')) {
+      if (pins) {
+        eq(reviewed.releases.map((r) => [r.label, r.year]), REVIEWED_RELEASES, 'checks.json: the reviewed releases are this verifier’s');
+        eq(reviewed.exclusions.map((x) => [x.label, x.year, x.reason]), REVIEWED_EXCLUSIONS, 'checks.json: the reviewed exclusions are this verifier’s');
+      }
+      for (const r of reviewed.releases) {
+        const where = `checks.json reviewed release ${r.label} ${r.year}`;
+        const row = E.races?.[r.label]?.[String(r.year)];
+        ok(labels.has(r.label) && inItsSeries(r) && typeof r.applies === 'boolean', `${where}: a label, a year, its series`);
+        if (r.applies) {
+          eq(Object.keys(r).sort(), ['applies', 'from_median_pct', 'label', 'review', 'reviewed_on', 'year', ...(r.series === undefined ? [] : ['series'])].sort(), `${where}: its fields`);
+          ok(row !== undefined && row.reviewed_release === true && row.tier === 'stamped', `${where}: the edition has a reading, carries the flag and is stamped`);
+          ok(finite(r.from_median_pct) && r.from_median_pct > OUTLIER_PCT, `${where}: the screen held it, on the slow side`);
+          if (reviewOk(r.review, where)) ok(r.review.meets_every_condition === true, `${where}: every condition of its release holds`);
+          // the whole field again, from the cohort's records: its share, and no counted year of the race as high
+          if (fromCohort && r.review) {
+            const mine = fromCohort.editions.get(`${r.label}|${r.year}`);
+            const race = [...fromCohort.editions.entries()].filter(([key]) => { const [city, year] = [key.slice(0, key.lastIndexOf('|')), Number(key.slice(key.lastIndexOf('|') + 1))]; return city === r.label && (seriesOf(city, year) ?? null) === (r.series ?? null); });
+            if (ok(mine !== undefined, `${where}: a counted edition of the cohort`)) {
+              close(r.review.field_share_pct, 100 * mine.slow / mine.eligible, 0.005, `${where}: its whole-field share against the cohort’s records`);
+              eq([race.length, race.filter(([key, v]) => key !== `${r.label}|${r.year}` && v.slow / v.eligible >= mine.slow / mine.eligible).length], [r.review.counted_years, 0],
+                `${where}: the counted years of its race, and none with a share as high, against the cohort’s records`);
+            }
+          }
+          // the start temperature against the published points of the same race
+          const points = (C.temperature?.points || []).filter((p) => raceOf(p) === raceOf(r));
+          const own = points.find((p) => p.year === r.year);
+          ok(own !== undefined && r.review && own.temp_start !== null && Math.abs(own.temp_start - r.review.start_temperature_c) <= 0.005
+            && points.every((p) => p.year === r.year || p.temp_start === null || p.temp_start < own.temp_start), `${where}: its start temperature is the published point’s, and no point of its race is as warm`);
+        } else {
+          eq(Object.keys(r).sort(), ['applies', 'label', 'reviewed_on', 'year', ...(r.series === undefined ? [] : ['series'])].sort(), `${where}: its fields when the screen does not hold it`);
+          ok(row === undefined || row.reviewed_release === undefined, `${where}: no flag on an edition the screen does not hold`);
+        }
+      }
+      for (const x of reviewed.exclusions) {
+        const where = `checks.json reviewed exclusion ${x.label} ${x.year}`;
+        eq(Object.keys(x).sort(), ['label', 'quoted_note', 'reason', 'reviewed_on', 'year', ...(x.series === undefined ? [] : ['series'])].sort(), `${where}: its fields`);
+        ok(labels.has(x.label) && inItsSeries(x) && typeof x.quoted_note === 'string' && x.quoted_note.length > 0, `${where}: a label, a year, its series and the producer’s sentence`);
+        ok(!hasEdition(x.label, x.year) && ![...(C.temperature?.points || []), ...(C.slowdown?.points || []), ...(C.held_for_review || [])].some((p) => p.label === x.label && p.year === x.year),
+          `${where}: an excluded edition has no reading and is in no check`);
+      }
+      eq([...releasedKeys].sort(), editionRows.filter((e) => e.reviewed_release !== undefined).map((e) => `${e.label}|${e.year}`).sort(), 'checks.json: the released editions are exactly the rows that carry the flag');
+    }
   }
 
   // ---------- 7. bests.json: recorded bests and steps ----------
@@ -702,6 +774,7 @@ function verify(dataDir, { pins = true, registryPath = null } = {}) {
     ok(u.F && Object.keys(u.F.editions_by_tier).every((t) => F_TIERS.includes(t)) && Object.values(u.F.editions_by_tier).reduce((a, b) => a + b, 0) === u.F.editions, 'manifest: F holds stamped, weaker-source and partial editions only');
     ok(u.F && c.fit && c.fit.editions_fitted <= u.F.editions && E.summary.editions + c.fit.held_for_review <= c.fit.editions_fitted, 'manifest: the readings within the fitted editions within F');
     eq(c.fit?.held_for_review, (C.held_for_review || []).length, 'manifest: the held editions are those checks.json lists');
+    eq([c.fit?.released_by_review, c.fit?.excluded_by_review], [releasedKeys.size, (reviewed.exclusions || []).length], 'manifest: the editions released and excluded by review are those checks.json lists');
     eq(c.fit?.bootstrap_draws, manifest.definitions?.bootstrap_draws, 'manifest: the bootstrap draws of the fit');
     if (policy) {
       eq(u.counted?.editions, policy.counted.length, 'manifest: the counted editions are the policy’s');
@@ -735,6 +808,7 @@ function verify(dataDir, { pins = true, registryPath = null } = {}) {
 function selfTest() {
   const base = verify(opt.data);
   if (base.problems.length) throw new Error(`self-test needs a family that passes first (${base.problems.length} problems)`);
+  const E0 = JSON.parse(fs.readFileSync(path.join(opt.data, 'editions.json'), 'utf8'));
   const mutations = [
     ['an edition under the floor of finishes', 'editions.json', (d) => { const row = Object.values(Object.values(d.races)[0])[0]; row.finishes = 99; }],
     ['a verdict the numbers do not carry', 'editions.json', (d) => { const row = Object.values(d.races).flatMap((y) => Object.values(y)).find((r) => r.verdict === null || r.verdict === 'usual'); row.verdict = 'slow'; }],
@@ -751,6 +825,9 @@ function selfTest() {
     ['an age verdict without agreement', 'age.json', (d) => { const b = d.bands[0]; b.verdict = 'stated'; b.same_race = null; }],
     ['a whole-field correlation that is not its points', 'checks.json', (d) => { d.slowdown.relation.r = 0.99; }],
     ['a banned word in a string', 'checks.json', (d) => { d.temperature.note = 'the heat cost five percent'; }],
+    ['the flag of a reviewed release on an edition no review released', 'editions.json', (d) => { const row = Object.values(d.races).flatMap((y) => Object.values(y)).find((r) => r.reviewed_release === undefined); row.reviewed_release = true; }],
+    ['a reviewed release whose condition fails', 'checks.json', (d) => { const r = d.reviewed.releases.find((x) => x.applies); if (r) { r.review.start_warmest = false; r.review.weather_years_as_warm = 1; r.review.meets_every_condition = false; } else d.reviewed.releases.push({ label: 'Berlin', year: 2025, applies: true, reviewed_on: '2026-11-14' }); }],
+    ['a reading for an edition a review excluded', 'checks.json', (d) => { const label = Object.keys(E0.races)[0]; d.reviewed.exclusions.push({ label, year: Number(Object.keys(E0.races[label])[0]), reason: 'another_course', quoted_note: 'run on a loop', reviewed_on: '2026-11-14' }); }],
     ['a series on a label the registry gives none', 'editions.json', (d) => { Object.values(Object.values(d.races)[0])[0].series = 'Spring Marathon'; }],
     ['a sustained-slowdown count that is not the cohort’s', 'checks.json', (d) => { const p = d.slowdown.points[0]; p.slow += p.slow < p.eligible ? 1 : -1; }],
     ['an identity file that is not the cohort’s', 'manifest.json', (d) => { d.identity.sha256 = d.identity.sha256.replace(/^./, (c) => (c === '0' ? '1' : '0')); }],

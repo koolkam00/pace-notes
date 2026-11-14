@@ -534,6 +534,112 @@ class BuildWithSeries(unittest.TestCase):
             self.assertIn('checks failed', result.stderr, what)
 
 
+class BuildWithReviews(unittest.TestCase):
+    """The synthetic input with one year every runner finishes 8% slower (Alpha 2014: the 6% screen holds it) and one
+    edition whose note states another course (Beta 2015), built with a review of each and without. The fixture is the
+    larger one, so that the Node verifier can check the whole family."""
+    RELEASE = {'label': 'Alpha', 'year': 2014, 'reviewer': 'a test', 'reviewed_on': '2026-11-14'}
+    NOTE = {'label': 'Beta', 'years': (2015,), 'field': 'completeness_reason', 'kind': 'another_course', 'ruling': 'excluded',
+            'says': 'run as eight laps of a # km loop', 'quoted': 'run as eight laps of a 5 km loop', 'reviewer': 'a test', 'reviewed_on': '2026-11-14'}
+
+    @classmethod
+    def setUpClass(cls):
+        build_synthetic(cls, runners=8000, outs=('out1',), outlier=('Alpha', 2014), releases=(cls.RELEASE,), reviewed_notes=(cls.NOTE,),
+                        notes={('Beta', 2015): {'completeness_reason': 'DB 480 finishes vs official 480 (+0.00%), within 0.5%; run as eight laps of a 5 km loop'}})
+        run_synthetic(cls, 'held', (), (cls.NOTE,))               # the same input without the review of Alpha 2014
+        cls.held = read_family(cls.folder / 'held')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_a_held_edition_is_released_only_by_its_review(self):
+        row = self.files['editions.json']['races']['Alpha']['2014']
+        self.assertIs(row['reviewed_release'], True)
+        self.assertGreater(row['reading_pct'], 6.0)
+        self.assertEqual(row['verdict'], 'slow')
+        self.assertEqual([y for y, r in self.files['editions.json']['races']['Alpha'].items() if 'reviewed_release' in r], ['2014'])
+        release, = self.files['checks.json']['reviewed']['releases']
+        self.assertEqual((release['label'], release['year'], release['applies'], release['reviewed_on']), ('Alpha', 2014, True, '2026-11-14'))
+        self.assertGreater(release['from_median_pct'], 6.0)
+        review = release['review']
+        self.assertTrue(review['meets_every_condition'] and all(review[k] for k in ('stamped', 'timing_as_its_group', 'official_within_half_pct', 'slow_side',
+                                                                                  'field_share_highest', 'start_warmest')))
+        self.assertEqual((review['start_temperature_c'], review['weather_years_as_warm'], review['counted_years_as_high'], review['official_difference_pct']), (30.0, 0, 0, 0.0))
+        self.assertGreater(review['field_share_pct'], 60.0)
+        self.assertEqual(self.files['checks.json']['held_for_review'], [])
+        fit = self.files['manifest.json']['cohort']['fit']
+        self.assertEqual((fit['held_for_review'], fit['released_by_review'], fit['excluded_by_review']), (0, 1, 1))
+        # without the review the screen holds it: no reading, and the same measurements stand beside it for a reviewer
+        self.assertNotIn('2014', self.held['editions.json']['races']['Alpha'])
+        held, = self.held['checks.json']['held_for_review']
+        self.assertEqual((held['label'], held['year'], held['review']['meets_every_condition']), ('Alpha', 2014, True))
+        self.assertEqual(self.held['checks.json']['reviewed']['releases'], [])
+        self.assertEqual((self.held['manifest.json']['cohort']['fit']['held_for_review'], self.held['manifest.json']['cohort']['fit']['released_by_review']), (1, 0))
+        self.assertTrue(all(r['others'] == 6 for r in self.held['editions.json']['races']['Alpha'].values()))      # the held year is in no comparison
+        self.assertTrue(all(r['others'] == 7 for r in self.files['editions.json']['races']['Alpha'].values()))     # the released year is in every one
+
+    def test_an_edition_excluded_by_review_is_in_no_reading(self):
+        for family in (self.files, self.held):
+            beta = family['editions.json']['races']['Beta']
+            self.assertNotIn('2015', beta)
+            self.assertEqual(len(beta), 7)
+            self.assertTrue(all(r['others'] == 6 for r in beta.values()))
+            self.assertEqual(family['checks.json']['reviewed']['exclusions'],
+                             [{'label': 'Beta', 'year': 2015, 'reason': 'another_course', 'quoted_note': 'run as eight laps of a 5 km loop', 'reviewed_on': '2026-11-14'}])
+            self.assertEqual(family['manifest.json']['cohort']['universe']['reviewed_notes'], {'sentences_found': 1, 'kept': 0, 'excluded': 1})
+            self.assertEqual(family['manifest.json']['cohort']['universe']['F']['editions'], 21)                   # it stays in the universe: the other files keep its results
+        self.assertEqual(self.files['races.json']['races']['Beta']['editions'], 7)
+
+    def test_a_note_without_a_ruling_stops_the_build(self):
+        with self.assertRaises(lc.LinkedError):
+            run_synthetic(self, 'unlisted', (self.RELEASE,), ())
+        self.assertFalse((self.folder / 'unlisted' / 'manifest.json').exists())
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not installed')
+    def test_the_node_verifier_checks_the_reviews(self):
+        registry = self.folder / 'registry.json'
+        for name in ('out1', 'held'):
+            done = verify_family(self.folder / name, registry)
+            self.assertEqual(done.returncode, 0, name + done.stdout[-3000:] + done.stderr[-3000:])
+
+        def broken(name, change):
+            folder = self.folder / 'broken'
+            shutil.rmtree(folder, ignore_errors=True)
+            shutil.copytree(self.folder / 'out1', folder)
+            doc = json.loads((folder / name).read_text())
+            change(doc)
+            data = (json.dumps(doc, ensure_ascii=False, sort_keys=True, separators=(',', ':')) + '\n').encode()
+            (folder / name).write_bytes(data)
+            manifest = json.loads((folder / 'manifest.json').read_text())
+            manifest['files'][name] = {'bytes': len(data), 'sha256': lc.bytes_sha256(data)}
+            (folder / 'manifest.json').write_text(json.dumps(manifest) + '\n')
+            return verify_family(folder, registry)
+
+        def no_flag(d):
+            del d['races']['Alpha']['2014']['reviewed_release']
+
+        def another_flag(d):
+            d['races']['Alpha']['2013']['reviewed_release'] = True
+
+        def failed_condition(d):
+            review = d['reviewed']['releases'][0]['review']
+            review['start_warmest'], review['weather_years_as_warm'], review['meets_every_condition'] = False, 1, False
+
+        def asserted_condition(d):
+            d['reviewed']['releases'][0]['review']['weather_years_as_warm'] = 1      # the condition still says true: it is recomputed from its measurement
+
+        def excluded_with_a_reading(d):
+            d['reviewed']['exclusions'][0]['year'] = 2014
+        for what, result in (('a released edition without its flag', broken('editions.json', no_flag)),
+                             ('the flag on an edition no review released', broken('editions.json', another_flag)),
+                             ('a release whose condition fails', broken('checks.json', failed_condition)),
+                             ('a condition asserted against its measurement', broken('checks.json', asserted_condition)),
+                             ('an excluded edition with a reading', broken('checks.json', excluded_with_a_reading))):
+            self.assertNotEqual(result.returncode, 0, what)
+            self.assertIn('checks failed', result.stderr, what)
+
+
 class Inputs(unittest.TestCase):
     def test_a_source_inside_the_repository_is_refused(self):
         with self.assertRaises(lc.LinkedError):
