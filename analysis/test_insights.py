@@ -455,5 +455,104 @@ class CourseGeometryTest(unittest.TestCase):
                 build_course_geometry.run(profiles, output, manifest)
 
 
+class Context(unittest.TestCase):
+    """insights_courses.edition_context on a small cohort and runner context (added 2026-11-14: the context is bound to
+    the marathon cohort's manifest and lists a file only for a counted edition with peers, weather or terrain)."""
+
+    SECTIONS = [dict(start_km=5.0 * k, end_km=5.0 * k + 5, distance_km=5.0, gain_m=1.0, loss_m=2.0, net_m=-1.0) for k in range(9)]
+
+    def folders(self, root, edit_manifest=None, edit_shard=None, listed=(0,)):
+        """A cohort of two counted editions and one own-record edition, and a context that lists `listed`."""
+        scripts = {}
+        for name in sorted(insights_data.COHORT_SCRIPTS):
+            (root / name).write_bytes(name.encode())
+            scripts[name] = digest(name.encode())
+        (root / 'cohort/editions').mkdir(parents=True)
+        steady = times_for([300] * 9)
+        editions = []
+        for city, year, use in (('Example', 2020, 'counted'), ('Example', 2021, 'counted'), ('Other', 2021, 'own_record')):
+            data = marathon_cohort.encode_edition(city, year, use, [(10 * year, 0, 'F', 30, steady)], [])
+            name = marathon_cohort.file_name(city.lower(), year)
+            (root / 'cohort' / name).write_bytes(data)
+            editions.append(dict(city=city, year=year, race=f'{city} Marathon', use=use, raw=1, timing_eligible=1, eligible=1 if use == 'counted' else 0,
+                                 other=0, file=name, bytes=len(data), sha256=digest(data)))
+        cohort = dict(schema_version=1, release_tag='example', input_as_of='2026-01-01T00:00:00Z', as_of='2026-01-02T00:00:00Z', input_asset_sha256='a' * 64,
+                      input_manifest_sha256='b' * 64, points_km=KM, linkage=dict(record_join_method='canonical_record_id'), scripts=scripts,
+                      raw_records=3, eligible_records=2, cohort=dict(raw=3, eligible=2), source_quality=dict(version=2, policy_sha256='c' * 64), editions=editions,
+                      other_editions=dict(columns=['city', 'year', 'raw', 'category'], rows=[]))
+        cohort_bytes = json.dumps(cohort).encode()
+        (root / 'cohort/manifest.json').write_bytes(cohort_bytes)
+        (root / 'context/editions').mkdir(parents=True)
+        listing = {}
+        for index in listed:
+            e = editions[index]
+            shard = dict(schema_version=1, release_tag='example', edition=dict(index=index, city=e['city'], year=e['year'], race=e['race']), eligible_n=e['eligible'],
+                         weather=dict(city=e['city'], year=e['year'], weather_race=e['race'], temp_c=11.5, personal_exposure=False, date=f"{e['year']}-10-01"),
+                         terrain=dict(course_key='example-current', gain_m=9.0, loss_m=18.0, net_m=-9.0, sections=self.SECTIONS))
+            if edit_shard:
+                edit_shard(shard)
+            data = gzip.compress(json.dumps(shard).encode(), mtime=0)
+            (root / f'context/editions/{index:03}.json.gz').write_bytes(data)
+            listing[str(index)] = dict(file=f'editions/{index:03}.json.gz', bytes=len(data), sha256=digest(data))
+        manifest = dict(schema_version=1, release_tag='example', input_as_of=cohort['input_as_of'], runner_manifest_as_of=cohort['as_of'],
+                        runner_manifest_sha256=digest(cohort_bytes), input_asset_sha256=cohort['input_asset_sha256'], input_manifest_sha256=cohort['input_manifest_sha256'],
+                        cohort=cohort['cohort'], source_quality=cohort['source_quality'], scripts={}, editions=listing)
+        if edit_manifest:
+            edit_manifest(manifest)
+        (root / 'context/manifest.json').write_text(json.dumps(manifest))
+        (root / 'analysis').mkdir()
+        (root / 'analysis/release.json').write_text(json.dumps(dict(tag='example')))
+        for name in scripts:
+            (root / 'analysis' / name).write_bytes(name.encode())
+        return editions
+
+    def read(self, root, editions):
+        saved = (insights_courses.ROOT, insights_courses.COHORT_ROOT, insights_courses.CONTEXT_ROOT)
+        insights_courses.ROOT, insights_courses.COHORT_ROOT, insights_courses.CONTEXT_ROOT = root, root / 'cohort', root / 'context'
+        try:
+            return insights_courses.edition_context(editions)
+        finally:
+            insights_courses.ROOT, insights_courses.COHORT_ROOT, insights_courses.CONTEXT_ROOT = saved
+
+    def test_an_edition_the_context_does_not_list_has_no_weather_and_no_terrain(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            editions = self.folders(root)
+            out = self.read(root, editions)
+            self.assertEqual(len(out), 3)                                    # one entry per cohort edition, in its order
+            self.assertEqual((out[0]['weather']['temp_c'], len(out[0]['terrain']['sections'])), (11.5, 9))
+            self.assertEqual(out[1], dict(weather=None, terrain=None))       # a counted edition with no file
+            self.assertEqual(out[2], dict(weather=None, terrain=None))       # an own-record edition never has one
+
+    def test_the_context_must_be_this_cohorts(self):
+        cases = [
+            (dict(edit_manifest=lambda m: m.update(runner_manifest_sha256='0' * 64)), 'Context cohort binding mismatch'),
+            (dict(edit_manifest=lambda m: m.update(runner_manifest_as_of='2025-01-01T00:00:00Z')), 'Context cohort time mismatch'),
+            (dict(edit_manifest=lambda m: m.update(release_tag='another')), 'Context release_tag mismatch'),
+            (dict(edit_manifest=lambda m: m.update(source_quality=dict(version=2, policy_sha256='d' * 64))), 'Context source_quality mismatch'),
+            (dict(edit_manifest=lambda m: m['scripts'].update({'cohort.py': '0' * 64})), 'Context script mismatch: cohort.py'),
+            (dict(edit_manifest=lambda m: m['editions'].update({'2': m['editions']['0']})), 'Context lists an edition the cohort does not count'),
+            (dict(edit_manifest=lambda m: m['editions']['0'].update(bytes=1)), 'Context shard changed: 0'),
+            (dict(edit_manifest=lambda m: m['editions']['0'].update(file='../editions/000.json.gz')), 'Unexpected context shard path'),
+            (dict(edit_shard=lambda d: d['edition'].update(year=1999)), 'Context edition identity mismatch'),
+            (dict(edit_shard=lambda d: d['weather'].update(year=1999)), 'Weather edition mismatch'),
+            (dict(edit_shard=lambda d: d['weather'].update(temp_c=None)), 'Invalid weather temperature'),
+            (dict(edit_shard=lambda d: d['weather'].update(personal_exposure=True)), 'Unexpected personal weather exposure claim'),
+            (dict(edit_shard=lambda d: d['terrain'].update(sections=d['terrain']['sections'][:8])), 'Invalid terrain sections'),
+            (dict(edit_shard=lambda d: d.update(release_tag='another')), 'Context shard release mismatch'),
+        ]
+        for options, message in cases:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                editions = self.folders(root, **options)
+                with self.assertRaisesRegex(ValueError, message):
+                    self.read(root, editions)
+        with tempfile.TemporaryDirectory() as temporary:                    # the caller's edition list is the cohort's
+            root = Path(temporary)
+            editions = self.folders(root)
+            with self.assertRaisesRegex(ValueError, 'Edition list differs from the cohort manifest'):
+                self.read(root, editions[:2])
+
+
 if __name__ == '__main__':
     unittest.main()
