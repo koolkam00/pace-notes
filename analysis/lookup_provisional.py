@@ -9,10 +9,11 @@ plan as this module reads them; the pipeline's own files are the authority and r
 - Marathon rows left out (decision D2 with ruling R2): a row with one of the pending-review flags or row-quality flags
   below, except that `finish_equals_earlier_split` or `sportstats_nonfinish_status` does not count when every row of
   the row's edition carries it.
-- Record status (ruling R4), for every other marathon row: `limited/edition` when its edition gives recorded times
-  only (the frozen edition policy lists it, and not as unverified or partial coverage with every screen passed);
+- Record status (ruling R4), for every other marathon row: `limited` with the edition's reason when its edition gives
+  recorded times only (the frozen edition policy lists it, and not as unverified or partial coverage with every screen
+  passed), in the vocabulary of analysis/build_record_status.py; `city` is the release key here, not a registry label;
   otherwise `limited/duplicate` (not the lowest id among rows equal in name, sex, age fields and nine times),
-  `limited/missing` (one of the nine times absent or unreadable), `limited/not_increasing`, `limited/outside_bounds`
+  `limited/missing_checkpoints` (one of the nine times absent or unreadable), `limited/times_out_of_order`, `limited/outside_bounds`
   (finish outside 1:30:00 to 12:00:00 or a section outside 2:00 to 20:00 per km); otherwise `counted` in a counted
   edition and `own_record` in an unverified or partial-coverage edition.
 - Identity (decision D24.2): a link of tier high_elite, high or medium keys a runner when its person, over the kept
@@ -23,10 +24,15 @@ plan as this module reads them; the pipeline's own files are the authority and r
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import sys
 from pathlib import Path
 
 import duckdb
+
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 MARATHON_LEFT_OUT = {
     'pending_review_flags': ['wheelchair_handcycle_published_category', 'sportstats_nonfinish_status', 'philadelphia_2010_place_sequence_outlier'],
@@ -68,7 +74,7 @@ def left_out_sql(core, rule=MARATHON_LEFT_OUT, distance='marathon'):
         ON w.source_db=l.source_db AND w.city=l.city AND w.year=l.year AND w.flag=l.flag"""
 
 
-def build(core, links, policy_path, review_path, output, memory='3GB', threads=2):
+def build(core, links, policy_path, review_path, output, memory='3GB', threads=2, identity_only=False):
     output.mkdir(parents=True, exist_ok=True)
     db = duckdb.connect()
     db.execute(f"SET memory_limit='{memory}'")
@@ -84,9 +90,11 @@ def build(core, links, policy_path, review_path, output, memory='3GB', threads=2
         facts = review.get((edition['city'], edition['year']), {})
         own = edition['category'] in ('unverified', 'partial_coverage') and not (
             facts.get('screen_a', True) or facts.get('screen_b', True) or facts.get('screen_c', True))
-        rows.append((edition['city'], edition['year'], 'own' if own else 'times'))
-    db.execute('CREATE TEMP TABLE policy (city VARCHAR, year BIGINT, kind VARCHAR)')
-    db.executemany('INSERT INTO policy VALUES (?, ?, ?)', rows)
+        reason = {'finish_time_only': 'finish_time_only', 'held_for_review': 'held_for_review', 'invalid_split_grid': 'invalid_split_grid',
+                  'unverified': 'invalid_split_grid', 'partial_coverage': 'invalid_split_grid'}.get(edition['category'], 'reviewed_exception')
+        rows.append((edition['city'], edition['year'], 'own' if own else 'times', reason))
+    db.execute('CREATE TEMP TABLE policy (city VARCHAR, year BIGINT, kind VARCHAR, reason VARCHAR)')
+    db.executemany('INSERT INTO policy VALUES (?, ?, ?, ?)', rows)
     times = ', '.join(f"{SECONDS.format(c=field)} AS t{i}" for i, field in enumerate(FIELDS))
     db.execute(f"""CREATE TEMP TABLE m AS SELECT r.id, r.city, r.year, r.race, r.runner, coalesce(r.sex, q.sex_from_category) AS sex,
         r.age, r.age_group, r.age_or_group, {', '.join(FIELDS)}, {times}
@@ -96,19 +104,21 @@ def build(core, links, policy_path, review_path, output, memory='3GB', threads=2
     increasing = 't0>0 AND ' + ' AND '.join(f't{i}>t{i - 1}' for i in range(1, 9))
     paces = ' AND '.join(f"(t{i}-{'t%d' % (i - 1) if i else '0'})/{LENGTHS[i]} BETWEEN 120 AND 1200" for i in range(9))
     same = ', '.join(['race', 'year', 'city', 'runner', 'sex', 'age', 'age_group', 'age_or_group'] + FIELDS)
-    status = f"""SELECT m.id AS record_id,
+    status = f"""SELECT m.id AS record_id, m.city, m.year,
         CASE WHEN p.kind='times' THEN 'limited' WHEN m.id<>min(m.id) OVER (PARTITION BY {same}) THEN 'limited'
              WHEN NOT ({complete}) THEN 'limited' WHEN NOT ({increasing}) THEN 'limited'
              WHEN NOT (t8 BETWEEN 5400 AND 43200 AND {paces}) THEN 'limited'
              WHEN p.kind='own' THEN 'own_record' ELSE 'counted' END AS status,
-        CASE WHEN p.kind='times' THEN 'edition' WHEN m.id<>min(m.id) OVER (PARTITION BY {same}) THEN 'duplicate'
-             WHEN NOT ({complete}) THEN 'missing' WHEN NOT ({increasing}) THEN 'not_increasing'
+        CASE WHEN p.kind='times' THEN p.reason WHEN m.id<>min(m.id) OVER (PARTITION BY {same}) THEN 'duplicate'
+             WHEN NOT ({complete}) THEN 'missing_checkpoints' WHEN NOT ({increasing}) THEN 'times_out_of_order'
              WHEN NOT (t8 BETWEEN 5400 AND 43200 AND {paces}) THEN 'outside_bounds' END AS reason
       FROM m LEFT JOIN policy p ON p.city=m.city AND p.year=m.year ORDER BY 1"""
     note = {'provisional': 'true', 'generator': 'analysis/lookup_provisional.py', 'tag': policy['tag'],
-            'policy_sha256': __import__('hashlib').sha256(policy_path.read_bytes()).hexdigest()}
-    write(db, status, output / 'record-status.parquet', note)
-    counts = db.execute(f"SELECT status, reason, count(*) FROM read_parquet({quote(output / 'record-status.parquet')}) GROUP BY ALL ORDER BY 1, 2").fetchall()
+            'policy_sha256': hashlib.sha256(policy_path.read_bytes()).hexdigest()}
+    counts = []
+    if not identity_only:
+        write(db, status, output / 'record-status.parquet', note)
+        counts = db.execute(f"SELECT status, reason, count(*) FROM read_parquet({quote(output / 'record-status.parquet')}) GROUP BY ALL ORDER BY 1, 2").fetchall()
 
     link = f"read_parquet({quote(links)})"
     half_out = half_left_out_sql(core)
@@ -151,8 +161,9 @@ def main(argv=None):
     parser.add_argument('--policy', type=Path, default=here / 'edition-policy-20261113-1113.json')
     parser.add_argument('--policy-review', type=Path, default=here.parent / 'docs/evidence/2026-11-14/release-20261113-1113/edition-policy-review.json')
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--identity-only', action='store_true', help='write identity.parquet alone (the status file already exists)')
     args = parser.parse_args(argv)
-    print(json.dumps(build(args.core, args.links, args.policy, args.policy_review, args.output), ensure_ascii=False))
+    print(json.dumps(build(args.core, args.links, args.policy, args.policy_review, args.output, identity_only=args.identity_only), ensure_ascii=False))
 
 
 if __name__ == '__main__':

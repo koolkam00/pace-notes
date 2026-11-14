@@ -47,6 +47,7 @@ class Release:
         self.root = Path(root)
         self.records, self.links, self.qa, self.pending, self.status, self.identity = [], [], [], [], [], []
         self.tiers, self.meta = {}, {}
+        self.labels = {'Smallville, XX: Smallville Marathon 2020': 'Smallville Marathon'}      # release key to registry label
 
     def edition(self, distance, source_db, city, year, tier='stamped', split='splits', timing='chip'):
         self.tiers[(distance, source_db, city, year)] = (tier, split)
@@ -62,7 +63,7 @@ class Release:
                            'source_db': source_db, 'record_id': record_id, 'course_shortened_suspect': short})
         left_out = bool(pending) or any(flag in builder.MARATHON_LEFT_OUT['qa_row_flags'] for flag in (qa or ()))
         if distance == 'marathon' and not left_out:
-            self.status.append({'record_id': record_id, 'status': status[0], 'reason': status[1]})
+            self.status.append({'record_id': record_id, 'status': status[0], 'reason': status[1], 'city': self.labels.get(city, city), 'year': year})
         self.identity.append({'source_db': source_db, 'record_id': record_id,
                               'runner_key': person_id if key and tier in ('high_elite', 'high', 'medium') and not left_out else None, 'link_tier': tier if person is not None else None})
         if qa or sex_from_category:
@@ -105,8 +106,8 @@ class Release:
         db.executemany('INSERT INTO l VALUES (?, ?, ?, ?, ?, ?)', [[row[c] for c in ['person_id', 'confidence', 'unlinked_reason', 'source_db', 'record_id', 'course_shortened_suspect']] for row in self.links])
         self.links_path = self.root / 'person-ids-v9-race_results_linked.parquet'
         db.execute(f"COPY l TO '{self.links_path}' (FORMAT PARQUET)")
-        db.execute('CREATE TABLE s (record_id BIGINT, status VARCHAR, reason VARCHAR)')
-        db.executemany('INSERT INTO s VALUES (?, ?, ?)', [[row['record_id'], row['status'], row['reason']] for row in self.status])
+        db.execute('CREATE TABLE s (record_id BIGINT, city VARCHAR, year BIGINT, status VARCHAR, reason VARCHAR)')
+        db.executemany('INSERT INTO s VALUES (?, ?, ?, ?, ?)', [[row['record_id'], row['city'], row['year'], row['status'], row['reason']] for row in self.status])
         self.status_path = self.root / 'record-status.parquet'
         db.execute(f"COPY s TO '{self.status_path}' (FORMAT PARQUET)")
         db.execute('CREATE TABLE i (source_db VARCHAR, record_id BIGINT, runner_key VARCHAR, link_tier VARCHAR)')
@@ -122,7 +123,10 @@ class Release:
         self.registry_path = self.root / 'race-registry.json'
         self.registry_path.write_text(json.dumps({'tag': TAG, 'distance': 'marathon', 'races': registry}))
         self.policy_path = self.root / 'edition-policy.json'
-        self.policy_path.write_text(json.dumps({'tag': TAG, 'editions': policy}))
+        self.policy_path.write_text(json.dumps({'release_tag': TAG, 'columns': ['city', 'year', 'category', 'reason', 'own_record'],
+                                                'reasons': sorted({row['reason'] for row in policy}),
+                                                'editions': [[row['city'], row['year'], row['category'], sorted({r['reason'] for r in policy}).index(row['reason']),
+                                                              row.get('own_record', False)] for row in policy]}))
         self.half_path = self.root / 'lookup-half-records.json'
         rule = json.loads(builder.HALF_RECORDS_PATH.read_text())
         rule.update(tag=TAG, expected=half_expected)
@@ -154,13 +158,13 @@ def small_release(root):
     release.add('marathon', 'full', 11, 'Berlin', 2019, 'Lee, José (ESP)', marathon_times(300), sex='M', age=34, person=1, tier='high')
     release.add('half', 'half', 12, 'Berlin', 2019, 'José Lee', half_times(5400), sex='M', age=34, person=1, tier='medium')
     release.add('marathon', 'full', 13, 'Smallville, XX: Smallville Marathon 2020', 2020, 'J. Lee', finish_only, sex=None, person=1, tier='low',
-                status=('limited', 'edition'), sex_from_category='M')
+                status=('limited', 'finish_time_only'), sex_from_category='M')
     # Person 2: confirmed tiers without a key (a screen failed): shown as possible matches.
     release.add('marathon', 'full', 21, 'Berlin', 2019, 'Anna Żółć', marathon_times(310), sex='F', age=30, person=2, tier='medium', key=False)
     release.add('marathon', 'full', 22, 'Berlin', 2021, 'Anna Żółć', marathon_times(320), sex='F', age=45, person=2, tier='high', key=False)
     # Person 3: possible links only.
     release.add('marathon', 'full', 31, 'Berlin', 2019, 'Bo Åkesson', marathon_times(305, missing=(15, 25)), sex='X', person=3, tier='low_noage',
-                status=('limited', 'missing'))
+                status=('limited', 'missing_checkpoints'))
     release.add('half', 'half', 32, 'Drammen Half', 2017, 'Bo Åkesson', half_times(6000, {5: 1400, 10: 2900, 15: 4100, 20: 5700}), sex='M', person=3,
                 tier='low', short=True)
     # No link: the same record id in both databases and at both distances.
@@ -169,10 +173,10 @@ def small_release(root):
     release.add('half', 'full', 78, 'Lake City, ZZ: LAKE CITY HALF MARATHON 2022', 2022, 'Æsa Þórsdóttir', half_times(7100), sex='F')
     # A marathon with no finish time, and one whose times are not in order (a negative gap).
     release.add('marathon', 'full', 41, 'Berlin', 2021, 'Nofinish Runner', {**marathon_times(300), 'split_42_2km': None, 'finish_time': None}, sex='F',
-                status=('limited', 'missing'))
+                status=('limited', 'missing_checkpoints'))
     unordered = marathon_times(300)
     unordered['split_15km'] = clock(2900)
-    release.add('marathon', 'full', 42, 'Berlin', 2021, 'Out Oforder', unordered, sex='M', age=1923, qa=['age_implausible'], status=('limited', 'not_increasing'))
+    release.add('marathon', 'full', 42, 'Berlin', 2021, 'Out Oforder', unordered, sex='M', age=1923, qa=['age_implausible'], status=('limited', 'times_out_of_order'))
     # Rows that never appear, and rows that are kept but not listed.
     release.add('marathon', 'full', 51, 'Berlin', 2019, 'Never Shown', marathon_times(200), pending=['wheelchair_handcycle_published_category'])
     release.add('marathon', 'full', 52, 'Berlin', 2019, 'Never Shownalso', marathon_times(100), qa=['finish_faster_than_world_record'])

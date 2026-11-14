@@ -37,6 +37,7 @@ import argparse
 import hashlib
 import json
 import re
+import resource
 import shutil
 import sys
 import time
@@ -45,18 +46,23 @@ from pathlib import Path
 
 import duckdb
 
-from lookup_format import (CHECKPOINTS, CONFIRMED, INDEX_RULES, LINK_CODES, LINK_SCREENED, LINK_TIERS, NO_COMPARISON, PAGE_SIZE,
-                           POINTS_KM, PROFILE_SHARDS, SCHEMA_VERSION, SEARCH_AUTO, SEARCH_HARD_CAP, STATUS_CODES, STATUS_WORDS,
-                           TIERS, TIME_UNIT_MS, LeafCutter, ShardBody, editions_body, encode, index_page_path, index_page_body,
-                           leaf_body, leaf_path, profile_page_body, profile_page_path, shard_path, write_gz)
-from lookup_names import FOLD, NORMALIZATION, SEARCH_WORDS, normalize_name, search_key
-from lookup_races import HALF_RULE, RaceError, half_races, read_registry
+# Data-reading scripts run with `python3 -I`, which leaves the script's folder off sys.path.
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from lookup_format import (  # noqa: E402
+    CHECKPOINTS, CONFIRMED, INDEX_RULES, LINK_SCREENED, LINK_TIERS, NO_COMPARISON, PAGE_SIZE, POINTS_KM, PROFILE_SHARDS, SCHEMA_VERSION,
+    SEARCH_AUTO, SEARCH_HARD_CAP, STATUS_WORDS, TIERS, TIME_UNIT_MS, LeafCutter, ShardBody, editions_body, encode, index_page_body,
+    index_page_path, leaf_body, leaf_path, profile_page_body, profile_page_path, shard_path, write_gz)
+from lookup_names import FOLD, NORMALIZATION, SEARCH_WORDS, normalize_name, search_key  # noqa: E402
+from lookup_races import HALF_RULE, RaceError, half_races, read_registry  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 PIN_PATH = HERE / 'release.json'
 HALF_RECORDS_PATH = HERE / 'lookup-half-records.json'
 PLACEHOLDERS_PATH = HERE / 'lookup-placeholders.json'
 REGISTRY_PATH = HERE / 'race-registry.json'
+POLICY_PATH = HERE.parent / 'public/data/edition-policy.json'
 SCRIPTS = ['build_runner_lookup.py', 'lookup_format.py', 'lookup_names.py', 'lookup_races.py', 'race_registry.py']
 CORE_FILES = ['race_records.parquet', 'qa_row_flags.parquet', 'pending_review_flags.parquet', 'edition_meta.parquet',
               'EDITION-TIERS.csv', 'MANIFEST.json']
@@ -69,10 +75,13 @@ MARATHON_LEFT_OUT = {
     'pending_review_flags': ['wheelchair_handcycle_published_category', 'sportstats_nonfinish_status', 'philadelphia_2010_place_sequence_outlier'],
     'qa_row_flags': ['finish_faster_than_world_record', 'finish_ge_24h', 'finish_zero', 'finish_equals_earlier_split'],
 }
-# The status file's vocabulary, mapped to the digit of `s` (analysis/lookup_format.py STATUS_WORDS).
+# The vocabulary of analysis/build_record_status.py (status, reason), mapped to the digit of `s`
+# (analysis/lookup_format.py STATUS_WORDS). An edition that gives recorded times only names one of four reasons for
+# every record of it; the lookup keeps one code for them, and the edition's own sentence says which.
 STATUS_VALUES = {
-    ('counted', None): '0', ('own_record', None): '1', ('limited', 'duplicate'): '2', ('limited', 'missing'): '3',
-    ('limited', 'not_increasing'): '4', ('limited', 'outside_bounds'): '5', ('limited', 'edition'): '6',
+    ('counted', None): '0', ('own_record', None): '1', ('limited', 'duplicate'): '2', ('limited', 'missing_checkpoints'): '3',
+    ('limited', 'times_out_of_order'): '4', ('limited', 'outside_bounds'): '5', ('limited', 'finish_time_only'): '6',
+    ('limited', 'held_for_review'): '6', ('limited', 'invalid_split_grid'): '6', ('limited', 'reviewed_exception'): '6',
 }
 TIME = '[0-9]+:[0-5][0-9]:[0-5][0-9]'
 MARATHON_SPLITS = ['split_5km', 'split_10km', 'split_15km', 'split_20km', 'split_25km', 'split_30km', 'split_35km', 'split_40km']
@@ -202,27 +211,32 @@ def columns_of(db, relation):
 
 
 def load_status(db, path):
-    """TEMP TABLE status(record_id, st): one row per written marathon record with the digit of its status."""
+    """TEMP TABLE status(record_id, st, city, year): one row per written marathon record with the digit of its status
+    and the edition as the pipeline names it. Returns (rows, the sidecar document or None)."""
     relation = f'read_parquet({quote(path)})'
     columns = columns_of(db, relation)
-    if 'record_id' not in columns or 'status' not in columns:
-        fail(f'{path.name}: expected columns record_id and status, found {sorted(columns)}')
-    if any(kind in columns['status'] for kind in ('INT', 'TINY', 'SMALL')):
-        db.execute(f'CREATE TEMP TABLE status AS SELECT record_id::BIGINT AS record_id, status::VARCHAR AS st FROM {relation}')
-    else:
-        reason = 'reason' if 'reason' in columns else 'NULL'
-        values = db.execute(f'SELECT status, {reason}, count(*) FROM {relation} GROUP BY ALL ORDER BY ALL').fetchall()
-        unknown = [(status, why, n) for status, why, n in values if (status, why) not in STATUS_VALUES]
-        if unknown:
-            fail(f'{path.name}: status values this builder does not know: {unknown}')
-        cases = ' '.join(f"WHEN status={quote(status)} AND {reason} IS NOT DISTINCT FROM {quote(why) if why else 'NULL'} THEN '{digit}'"
-                         for (status, why), digit in STATUS_VALUES.items())
-        db.execute(f'CREATE TEMP TABLE status AS SELECT record_id::BIGINT AS record_id, CASE {cases} END AS st FROM {relation}')
-    bad = db.execute(f"SELECT count(*) FILTER (WHERE st IS NULL OR st NOT IN ({', '.join(quote(c) for c in STATUS_CODES)})), "
-                     'count(*), count(DISTINCT record_id) FROM status').fetchone()
-    if bad[0] or bad[1] != bad[2]:
-        fail(f'{path.name}: {bad[0]} rows with an unknown status, {bad[1]} rows for {bad[2]} record ids')
-    return bad[1]
+    missing = [name for name in ('record_id', 'status', 'reason', 'city', 'year') if name not in columns]
+    if missing:
+        fail(f'{path.name}: expected columns record_id, city, year, status, reason; missing {missing}')
+    values = db.execute(f'SELECT status, reason, count(*) FROM {relation} GROUP BY ALL ORDER BY ALL').fetchall()
+    unknown = [(status, why, n) for status, why, n in values if (status, why) not in STATUS_VALUES]
+    if unknown:
+        fail(f'{path.name}: status values this builder does not know: {unknown}')
+    cases = ' '.join(f"WHEN status={quote(status)} AND reason IS NOT DISTINCT FROM {quote(why) if why else 'NULL'} THEN '{digit}'"
+                     for (status, why), digit in STATUS_VALUES.items())
+    db.execute(f'CREATE TEMP TABLE status AS SELECT record_id::BIGINT AS record_id, CASE {cases} END AS st, city, year::INTEGER AS year FROM {relation}')
+    rows, ids = db.execute('SELECT count(*), count(DISTINCT record_id) FROM status').fetchone()
+    if rows != ids:
+        fail(f'{path.name}: {rows} rows for {ids} record ids')
+    sidecar_path = path.with_name(path.name + '.json')
+    sidecar = json.loads(sidecar_path.read_text()) if sidecar_path.is_file() else None
+    if sidecar is not None:
+        by_status = {}
+        for status, why, n in values:
+            by_status[status] = by_status.get(status, 0) + n
+        if sidecar.get('file', {}).get('sha256') != file_sha256(path) or sidecar.get('counts', {}).get('by_status') != by_status:
+            fail(f'{sidecar_path.name} does not describe {path.name} (digest or counts by status)')
+    return rows, sidecar
 
 
 def load_identity(db, path):
@@ -242,17 +256,23 @@ def load_identity(db, path):
 
 
 def load_policy(path):
-    """{(city, year): reason sentence} of the not-counted marathon editions, and the file's sha256."""
+    """The not-counted marathon editions: {(city, year): (reason sentence, own_record)}, the document and its sha256.
+    Reads public/data/edition-policy.json (rows in the order of `columns`, `reason` an index into `reasons`), or a
+    frozen policy file whose `editions` are objects."""
     data = path.read_bytes()
     policy = json.loads(data)
-    rows = policy['editions'] if isinstance(policy, dict) else policy
     out = {}
-    for row in rows:
-        key = (row['city'], int(row['year']))
-        if key in out or not row.get('reason'):
+    if 'columns' in policy:
+        at = {name: policy['columns'].index(name) for name in ('city', 'year', 'reason', 'own_record')}
+        rows = [(row[at['city']], row[at['year']], policy['reasons'][row[at['reason']]], bool(row[at['own_record']])) for row in policy['editions']]
+    else:
+        rows = [(row['city'], row['year'], row['reason'], None) for row in policy['editions']]
+    for city, year, reason, own in rows:
+        key = (city, int(year))
+        if key in out or not reason:
             fail(f'{path.name}: the edition {key} is listed twice or has no reason')
-        out[key] = row['reason']
-    return out, hashlib.sha256(data).hexdigest()
+        out[key] = (reason, own)
+    return out, policy, hashlib.sha256(data).hexdigest()
 
 
 def load_cohort(path):
@@ -288,6 +308,7 @@ def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_
         fail(f'{output} is not empty: a build never overwrites another')
     pin = json.loads(Path(pin_path).read_text())
     tag = pin['tag']
+    scripts = {name: file_sha256(HERE / name) for name in SCRIPTS}       # as they are when the build starts
     input_as_of, digests = verify_release(pin, Path(core), Path(links))
     step('release files equal the pin', tag=tag)
     half_rule = json.loads(Path(half_records_path).read_text())
@@ -311,7 +332,10 @@ def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_
         db.execute(f"SET temp_directory={quote(temp / 'spill')}")
         db.execute('SET preserve_insertion_order=false')
         manifest = _build(db, pin, Path(core), Path(links), Path(status), Path(identity), output, temp, input_as_of, digests, notes,
-                          half_rule, placeholders, Path(registry_path), half_registry_path, policy_path, cohort_path, as_of, index_rules)
+                          half_rule, placeholders, Path(registry_path), half_registry_path, policy_path, cohort_path, as_of, index_rules, scripts)
+        if scripts != {name: file_sha256(HERE / name) for name in SCRIPTS}:
+            (output / 'manifest.json').unlink()
+            fail('a builder script changed while the build ran: the manifest is withdrawn; build again')
     finally:
         db.close()
         shutil.rmtree(temp, ignore_errors=True)
@@ -319,7 +343,7 @@ def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_
 
 
 def _build(db, pin, core, links, status_path, identity_path, output, temp, input_as_of, digests, notes, half_rule, placeholders,
-           registry_path, half_registry_path, policy_path, cohort_path, as_of, index_rules):
+           registry_path, half_registry_path, policy_path, cohort_path, as_of, index_rules, scripts):
     tag = pin['tag']
     records = f"read_parquet({quote(core / 'race_records.parquet')})"
     qa = f"read_parquet({quote(core / 'qa_row_flags.parquet')})"
@@ -333,7 +357,9 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         digests[name] = file_sha256(path)
         if parquet_notes(db, path).get('provisional') == 'true':
             notes.add(name.split('.')[0])
-    status_rows = load_status(db, status_path)
+    status_rows, status_sidecar = load_status(db, status_path)
+    if status_sidecar is not None and status_sidecar.get('release_tag') != tag:
+        fail(f"the status file is of {status_sidecar.get('release_tag')!r}, not {tag!r}")
     identity_rows = load_identity(db, identity_path)
     step('pipeline files read', status_rows=status_rows, identity_rows=identity_rows)
 
@@ -392,20 +418,26 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         UNION ALL SELECT true, * FROM ({flag_rows(half_out, 'half')})""")
     if half_out.get('finish_not_a_positive_time'):
         db.execute("INSERT INTO flags SELECT true, dbh, id, 'finish_not_a_positive_time' FROM base WHERE h AND (fin IS NULL OR fin<=0)")
-    db.execute('CREATE TEMP TABLE flagged_rows AS SELECT DISTINCT h, dbh, id FROM flags')
-    db.execute("""CREATE TABLE kept AS SELECT b.*, s.st FROM base b LEFT JOIN status s ON NOT b.h AND s.record_id=b.id
-        LEFT JOIN flagged_rows f ON b.h AND f.h AND f.dbh=b.dbh AND f.id=b.id
+    # Every join below is on equalities alone: a condition on one side only inside ON (`NOT b.h AND …`) makes DuckDB
+    # compare every pair of rows, which on 15.7 million rows never ends (found on the first full build, November 14, 2026).
+    db.execute('CREATE TEMP TABLE flagged_marathon AS SELECT DISTINCT dbh, id FROM flags WHERE NOT h')
+    db.execute('CREATE TEMP TABLE flagged_half AS SELECT DISTINCT dbh, id FROM flags WHERE h')
+    db.execute("""CREATE TABLE kept AS SELECT b.*, s.st, s.city AS status_city, s.year AS status_year FROM base b
+        LEFT JOIN status s ON s.record_id=CASE WHEN b.h THEN NULL ELSE b.id END
+        LEFT JOIN flagged_half f ON f.dbh=b.dbh AND f.id=CASE WHEN b.h THEN b.id END
         WHERE CASE WHEN b.h THEN f.id IS NULL ELSE s.record_id IS NOT NULL END""")
-    strays = db.execute('SELECT count(*) FROM status s ANTI JOIN base b ON NOT b.h AND b.id=s.record_id').fetchone()[0]
+    strays = db.execute('SELECT count(*) FROM status s ANTI JOIN (SELECT id FROM base WHERE NOT h) b ON b.id=s.record_id').fetchone()[0]
     if strays:
         fail(f'the status file names {strays} records that are not marathon rows of the release')
-    unflagged = db.execute("""SELECT count(*) FROM base b ANTI JOIN status s ON s.record_id=b.id
-        ANTI JOIN flagged_rows f ON NOT f.h AND f.dbh=b.dbh AND f.id=b.id WHERE NOT b.h""").fetchone()[0]
+    unflagged = db.execute("""SELECT count(*) FROM (SELECT dbh, id FROM base WHERE NOT h) b ANTI JOIN status s ON s.record_id=b.id
+        ANTI JOIN flagged_marathon f ON f.dbh=b.dbh AND f.id=b.id""").fetchone()[0]
     if unflagged:
         fail(f'{unflagged} marathon rows are absent from the status file and carry no flag of the row rule: the status file is not of this release')
+    db.execute("""CREATE TEMP TABLE flagged_kept AS SELECT k.h, k.dbh, k.id FROM kept k
+        SEMI JOIN (SELECT DISTINCT h, dbh, id FROM flags) f ON f.h=k.h AND f.dbh=k.dbh AND f.id=k.id""")
     left_out = {}
     for half, name in ((False, 'marathon'), (True, 'half')):
-        by_flag = dict(db.execute("""SELECT f.flag, count(*) FROM flags f ANTI JOIN kept k ON k.h=f.h AND k.dbh=f.dbh AND k.id=f.id
+        by_flag = dict(db.execute("""SELECT f.flag, count(*) FROM flags f ANTI JOIN flagged_kept k ON k.h=f.h AND k.dbh=f.dbh AND k.id=f.id
             WHERE f.h=? GROUP BY f.flag ORDER BY f.flag""", [half]).fetchall())
         rows = db.execute('SELECT (SELECT count(*) FROM base WHERE h=?) - (SELECT count(*) FROM kept WHERE h=?)', [half, half]).fetchone()[0]
         left_out[name] = {'rows': rows, 'by_flag': by_flag}
@@ -442,7 +474,8 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
             fail(f"analysis/lookup-placeholders.json: {entry['name']!r} has no search word or repeats another entry")
         listed_names[key] = entry
     db.execute('CREATE TEMP TABLE listed_names (skey VARCHAR)')
-    db.executemany('INSERT INTO listed_names VALUES (?)', [(key,) for key in listed_names])
+    if listed_names:
+        db.executemany('INSERT INTO listed_names VALUES (?)', [(key,) for key in listed_names])
     # A reviewed count is of every release row with that name, whatever else is left out, so it moves with the release alone.
     measured = dict(db.execute("""SELECT n.skey, count(*) FROM base b JOIN names n ON n.name=b.name SEMI JOIN listed_names l ON l.skey=n.skey
         GROUP BY n.skey""").fetchall())
@@ -455,7 +488,7 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     link_code = ' '.join(f"WHEN k.confidence={quote(tier)} THEN CASE WHEN i.runner_key IS NOT NULL THEN '{code}' ELSE '{LINK_SCREENED.get(code, code)}' END"
                          for tier, code in LINK_TIERS.items())
     db.execute(f"""CREATE TABLE sorted AS SELECT k.h, k.dbh, k.id, k.city, k.year, k.name, k.x, k.age::INTEGER AS a, k.age_hidden, k.fin,
-        k.s0, k.s1, k.s2, k.s3, k.s4, k.s5, k.s6, k.s7, k.unread, k.st, k.short, n.skey,
+        k.s0, k.s1, k.s2, k.s3, k.s4, k.s5, k.s6, k.s7, k.unread, k.st, k.status_city, k.status_year, k.short, n.skey,
         CASE WHEN n.norm='' THEN 'unnamed' WHEN k.flagged THEN 'flagged' WHEN l.skey IS NOT NULL THEN 'listed' ELSE 'result' END AS kind,
         CASE WHEN k.person_id IS NULL THEN '0' {link_code} END AS c,
         coalesce(k.person_id, CASE WHEN k.dbh THEN 'h:' ELSE 'f:' END || k.id::VARCHAR) AS pk, k.person_id IS NOT NULL AS linked,
@@ -526,10 +559,25 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     if registry_path.resolve() != REGISTRY_PATH.resolve() and file_sha256(REGISTRY_PATH) != digests['race-registry.json']:
         notes.add('race_registry')
     policy, cohort, cohort_index = {}, None, {}
+    pipeline = {}
+    if status_sidecar is not None:
+        pipeline = {'input_manifest_sha256': status_sidecar.get('input_manifest_sha256'), 'policy_sha256': status_sidecar.get('policy_sha256')}
     if policy_path:
-        policy, digests['edition-policy.json'] = load_policy(Path(policy_path))
+        policy, policy_document, digests['edition-policy.json'] = load_policy(Path(policy_path))
+        if policy_document.get('release_tag', policy_document.get('tag')) != tag:
+            fail(f'the edition policy file is not of {tag!r}')
+        if pipeline.get('policy_sha256') and policy_document.get('policy_sha256') and policy_document['policy_sha256'] != pipeline['policy_sha256']:
+            fail('the edition policy file and the status file were made under different policies (policy_sha256)')
     else:
         notes.add('edition_policy')
+    # The status file names each record's edition as the pipeline does: the registry label and the year.
+    labels = db.execute("""SELECT city, status_city, year, status_year, count(*) FROM sorted WHERE NOT h GROUP BY ALL""").fetchall()
+    absent = sorted({city for city, *_ in labels if city not in marathon_keys})
+    if absent:
+        fail(f'the marathon key {absent[0]!r} (and {len(absent) - 1} more) has no race: the registry is not of these rows')
+    wrong = [(city, year, named, named_year) for city, named, year, named_year, n in labels if marathon_keys[city][0] != named or year != named_year]
+    if wrong:
+        fail(f'{len(wrong)} marathon editions are named differently by the status file and the race registry, for example {wrong[:3]}')
     if cohort_path:
         cohort, cohort_index, _ = load_cohort(Path(cohort_path))
         if cohort.get('release_tag') not in (None, tag):
@@ -555,7 +603,9 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
             unlisted_editions.append(['h' if h else 'm', label, year, entry['db'], unlisted])
             continue
         entry['q'] = id0 // 256
-        sentence = None if h else policy.get((label, year), policy.get((city, year)))
+        listed = None if h else policy.get((label, year), policy.get((city, year)))
+        sentence = listed[0] if listed else None
+        entry['own_record'] = listed[1] if listed else None
         entry['cohort'] = -1 if h else cohort_index.get((label, year), -1)
         if sentence is None:
             entry['reason'] = -1
@@ -605,10 +655,11 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     doubled = db.execute('SELECT count(*) FROM (SELECT pk FROM res GROUP BY pk HAVING count(DISTINCT shard)>1)').fetchone()[0]
     if doubled:
         fail(f'{doubled} profiles fall in two shards')
-    policy_clash = [] if not policy else db.execute("""SELECT r.e, r.st, count(*) FROM res r WHERE NOT r.h AND r.st IN ('0', '1', '6') GROUP BY ALL""").fetchall()
-    for e, st, n in policy_clash:
-        listed = editions[e]['reason'] >= 0
-        if (st == '0' and listed) or (st in '16' and not listed):
+    # A counted edition holds statuses 0 and 2 to 5; an own-record edition 1 and 2 to 5; an edition of recorded times only 6.
+    for e, st, n in ([] if not policy else db.execute('SELECT e, st, count(*) FROM res WHERE NOT h GROUP BY ALL ORDER BY ALL').fetchall()):
+        listed, own = editions[e]['reason'] >= 0, editions[e]['own_record']
+        allowed = '02345' if not listed else '6' if own is False else '12345' if own else '123456'
+        if st not in allowed:
             fail(f"{n} results of {editions[e]['label']} {editions[e]['year']} have status {st}, which does not fit the edition policy file")
     db.execute(f"""CREATE TABLE prof AS WITH g AS (SELECT pk, min(shard) AS shard, bool_or(linked) AS linked, count(*)::INTEGER AS n,
           (count(*) FILTER (WHERE c IN ('1', '2', '3') AND NOT h))::INTEGER AS cm, (count(*) FILTER (WHERE c IN ('1', '2', '3') AND h))::INTEGER AS ch,
@@ -745,6 +796,7 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         }
         if not half:
             block['status'] = dict(db.execute("SELECT st, count(*) FROM res WHERE NOT h GROUP BY st ORDER BY st").fetchall())
+            block['unlisted_status'] = dict(db.execute("SELECT st, count(*) FROM sorted WHERE NOT h AND kind<>'result' GROUP BY st ORDER BY st").fetchall())
         else:
             block['no_comparison'] = {str(code): n for code, n in db.execute('SELECT t.g, count(*) FROM res r JOIN edt t USING (e) WHERE r.h AND t.g>0 GROUP BY ALL ORDER BY 1').fetchall()}
         if block['release_rows'] != block['left_out']['rows'] + block['unnamed'] + block['placeholder']['flagged'] + block['placeholder']['listed'] + block['results']:
@@ -756,6 +808,14 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
                    'profiles_by_kind': {kind: kinds.get(kind, 0) for kind in ('one_result', 'confirmed_only', 'confirmed_and_possible', 'possible_only')},
                    'names': db.execute('SELECT count(*) FROM (SELECT DISTINCT pk, name FROM res)').fetchone()[0],
                    'search_names': search_names, 'index_rows': index_rows, 'heavy_words': len(heavy)})
+    if status_sidecar is not None:
+        totals = {'counted': 0, 'own_record': 0, 'limited': 0}
+        for source in (counts['marathon']['status'], counts['marathon']['unlisted_status']):
+            for digit, n in source.items():
+                totals['counted' if digit == '0' else 'own_record' if digit == '1' else 'limited'] += n
+        if totals != {key: status_sidecar['counts']['by_status'].get(key, 0) for key in totals}:
+            fail(f"the kept marathon rows by status are {totals}; the status file's own counts are {status_sidecar['counts']['by_status']}")
+        pipeline['record_status'] = {'records': status_sidecar['counts']['records'], 'by_status': status_sidecar['counts']['by_status']}
     if cohort:
         raw = counts['marathon']['results'] + counts['marathon']['unnamed'] + sum(counts['marathon']['placeholder'].values())
         if cohort['raw_records'] is not None and cohort['raw_records'] != raw:
@@ -768,8 +828,8 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         'as_of': as_of or datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
         'provisional': sorted(notes),
         'inputs': dict(sorted(digests.items())),
-        'scripts': {name: file_sha256(HERE / name) for name in SCRIPTS},
-        'cohort': cohort,
+        'scripts': scripts,
+        'cohort': cohort, 'pipeline': pipeline,
         'time_unit_ms': TIME_UNIT_MS, 'points_km': POINTS_KM,
         'counts': counts,
         'rules': {**RULES, 'index': index_rules},
@@ -781,7 +841,8 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     }
     (output / 'manifest.json').write_bytes(encode(manifest))
     step('manifest written', provisional=manifest['provisional'], files=2 + len(leaf_entries) + len(index_pages) + PROFILE_SHARDS + len(profile_pages),
-         bytes=shard_bytes + leaf_stats['bytes'] + editions_bytes + sum(p[3] for p in index_pages) + sum(p[0] for p in profile_pages))
+         bytes=shard_bytes + leaf_stats['bytes'] + editions_bytes + sum(p[3] for p in index_pages) + sum(p[0] for p in profile_pages),
+         peak_rss_mb=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024)
     return manifest
 
 
@@ -799,7 +860,8 @@ def main(argv=None):
     parser.add_argument('--status', type=Path, required=True, help='the pipeline’s record-status.parquet')
     parser.add_argument('--identity', type=Path, required=True, help='the pipeline’s identity.parquet')
     parser.add_argument('--cohort', type=Path, help='the cohort manifest (without it the build is provisional)')
-    parser.add_argument('--policy', type=Path, help='the edition policy with its reason sentences (without it the build is provisional)')
+    parser.add_argument('--policy', type=Path, default=POLICY_PATH if POLICY_PATH.is_file() else None,
+                        help='the edition policy with its reason sentences (default public/data/edition-policy.json; without one the build is provisional)')
     parser.add_argument('--registry', type=Path, default=REGISTRY_PATH)
     parser.add_argument('--half-registry', type=Path)
     parser.add_argument('--pin', type=Path, default=PIN_PATH)
