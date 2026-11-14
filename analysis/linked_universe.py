@@ -242,8 +242,26 @@ def classify_editions(meta: list[dict], editions_json: list[dict], policy: dict)
         timing = lc.TIMING_CLASS[basis]
         rows.append(dict(label=key[0], year=int(key[1]), tier=tier, split_tier=m['split_tier'], timing=timing, basis=lc.TIMING_BASIS[timing],
                          in_f=in_f, in_v=in_f and tier in lc.VERIFIED_TIERS, in_w=in_w, counted=key in counted, category=category,
-                         finishes=int(e['n_finishes'])))
+                         finishes=int(e['n_finishes']), official_ratio=float('nan') if coverage is None else float(coverage)))
     return pd.DataFrame(rows)
+
+
+def edition_notes(db, source: Path, editions_json: list, keys: set) -> dict:
+    """(label, year) -> the producer's notes of the edition by field (analysis/linked_reviews.py NOTE_FIELDS), for the
+    editions in `keys`: the completeness reason, the release note and the hold note of EDITIONS.json, the course notes of
+    edition_meta and the notes of the weather row."""
+    q = lambda p: str(p).replace("'", "''")  # noqa: E731
+    out = {key: {} for key in keys}
+    for e in editions_json:
+        key = (e['city'], int(e['year']))
+        if key in out:
+            for name in ('completeness_reason', 'release_note', 'hold_note'):
+                out[key][name] = e.get(name)
+    for name, member, column in (('course_notes', 'edition_meta', 'course_notes'), ('weather_notes', 'race_conditions', 'notes')):
+        for city, year, text in db.execute(f"SELECT city, year, {column} FROM read_parquet('{q(Path(source) / (member + '.parquet'))}')").fetchall():
+            if (city, int(year)) in out:
+                out[(city, int(year))][name] = text
+    return out
 
 
 @dataclass
@@ -256,6 +274,7 @@ class Universe:
     # counted editions, every timing-eligible finish with a recorded sex, linked or not (the recorded-again table's `all_finishes`):
     field_bands: pd.DataFrame | None = None     # edition code, 10-minute finish band (floor of the finish / 600 s), n
     field_ages: pd.DataFrame | None = None      # edition code, age from the record's own exact birth year, n
+    reviewed_notes: list | None = None          # the sentences of the producer's notes the search found, each with its ruling
 
 
 def load(source: Path, links: Path, identity: Path, policy: dict, registry: dict, *, log=print) -> Universe:
@@ -284,6 +303,12 @@ def load(source: Path, links: Path, identity: Path, policy: dict, registry: dict
     editions = editions.merge(weather.drop(columns='n').rename(columns={'city': 'label'}), on=['label', 'year'], how='left')
     editions['code'] = np.arange(len(editions), dtype=np.int32)
     editions = with_series(editions, registry)
+    # The producer's notes of every edition of the finish-time universe are searched for a virtual run or another course;
+    # every sentence found must be on the reviewed list, and an edition it excludes enters no reading.
+    import linked_reviews
+    notes = edition_notes(db, source, editions_json, {(row.label, int(row.year)) for row in editions.itertuples() if row.in_f})
+    excluded, reviewed_notes = linked_reviews.rulings(notes)
+    editions['excluded'] = [(label, int(year)) in excluded for label, year in zip(editions.label, editions.year)]
 
     # The site's own cohort: timing-eligible finishes of counted editions and their sustained slowdowns.
     prepare(db, source, keep_record_id=True)
@@ -332,7 +357,11 @@ def load(source: Path, links: Path, identity: Path, policy: dict, registry: dict
     if mismatch:
         fail(f'{mismatch} records: the link file and the adapted features disagree on a birth-year key or a person id')
 
-    db.execute('CREATE TEMP TABLE ed AS SELECT label, year, code, in_w FROM editions')
+    db.execute('CREATE TEMP TABLE ed AS SELECT label, year, code, in_w, in_f FROM editions')
+    # Linked results of the finish-time universe that the frozen bound of a kept result leaves out, so nobody is surprised
+    # (the first two finishers of London 2026 ran under two hours: plan decision D33 restores their rows, the bound stays).
+    outside = db.execute(f"""SELECT count(*) FILTER(WHERE round(f.finish_time * 60, 3) < {lc.FINISH_RANGE[0]}), count(*) FILTER(WHERE round(f.finish_time * 60, 3) > {lc.FINISH_RANGE[1]})
+        FROM features f JOIN keyed k USING (record_id) JOIN ed e ON e.label = f.city AND e.year = f.year WHERE e.in_f AND f.finish_time IS NOT NULL""").fetchone()
     # Every timing-eligible finish of a counted edition with a recorded sex, linked or not, by 10-minute finish band and by
     # the age its own record gives: what a recorded-again row is a part of (analysis/linked_again.py).
     db.execute(f"""CREATE TEMP TABLE field AS SELECT e.code AS edition, round(f.finish_time * 60, 3) AS fin,
@@ -371,6 +400,7 @@ def load(source: Path, links: Path, identity: Path, policy: dict, registry: dict
     })
     counts = {'keys_before_the_screens': int(keys[0]), 'keyed_records_before_the_screens': int(keys[1]), 'linked_runners': int(safe[0]),
               'keyed_records': int(safe[1]), 'kept_results_wider': int(len(results)),
+              'linked_results_outside_the_finish_range': {'under_two_hours': int(outside[0]), 'over_twelve_hours': int(outside[1])},
               'kept_runners_wider': int(results.person.max()) + 1 if len(results) else 0}
     return Universe(editions=editions, results=results, field_share=share[['code', 'eligible', 'slow']].reset_index(drop=True), counts=counts,
-                    field_bands=field_bands, field_ages=field_ages)
+                    field_bands=field_bands, field_ages=field_ages, reviewed_notes=reviewed_notes)

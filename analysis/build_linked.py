@@ -45,7 +45,7 @@ import linked_common as lc  # noqa: E402
 from linked_common import ANALYSIS, OUTPUT, LinkedError, bytes_sha256, check_published, encode, fail, file_sha256  # noqa: E402
 
 SCRIPTS = ('build_linked.py', 'linked_common.py', 'linked_universe.py', 'linked_model.py', 'linked_races.py', 'linked_histories.py',
-           'linked_return.py', 'linked_again.py')
+           'linked_return.py', 'linked_again.py', 'linked_reviews.py')
 # The definitions this family imports from the site's builders: the timing-eligible cohort (build_pacing.prepare) and the
 # sustained-slowdown test (build_public_explorer.threshold_sql). The edition policy is bound by its own file's digest, and
 # scripts/verify-linked.cjs compares the counted cohort with the release's published edition-policy list.
@@ -74,7 +74,10 @@ def definitions() -> dict:
 
 def universe_counts(u, masks: dict) -> dict:
     e, r = u.editions, u.results
-    out = {'editions_with_rows': int(len(e)), **{k: u.counts[k] for k in ('linked_runners', 'keyed_records', 'keys_before_the_screens', 'keyed_records_before_the_screens')}}
+    out = {'editions_with_rows': int(len(e)), **{k: u.counts[k] for k in ('linked_runners', 'keyed_records', 'keys_before_the_screens', 'keyed_records_before_the_screens',
+                                                                         'linked_results_outside_the_finish_range')}}
+    found = u.reviewed_notes or []
+    out['reviewed_notes'] = {'sentences_found': len(found), 'kept': sum(1 for x in found if x['ruling'] == 'kept'), 'excluded': sum(1 for x in found if x['ruling'] == 'excluded')}
     for name, column in (('F', 'in_f'), ('verified', 'in_v'), ('wider', 'in_w')):
         part = e[e[column]]
         kept = r[masks[name]]

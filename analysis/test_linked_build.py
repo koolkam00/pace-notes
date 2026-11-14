@@ -59,8 +59,11 @@ def edition_table():
     return table
 
 
-def write_input(folder: Path, seed=1, runners=3000):
-    """A small adapted input (the members the linked builders read) and its link file; returns (policy, registry)."""
+def write_input(folder: Path, seed=1, runners=3000, notes=None, outlier=None):
+    """A small adapted input (the members the linked builders read) and its link file; returns (policy, registry).
+    `notes`: (label, year) -> the producer's notes of the edition by field. `outlier`: one (label, year) that every runner
+    finishes 8% slower, with three quarters of its finishes in a sustained slowdown and the warmest start of its race."""
+    notes = notes or {}
     import duckdb
     rng = np.random.default_rng(seed)
     editions = edition_table()
@@ -80,9 +83,9 @@ def write_input(folder: Path, seed=1, runners=3000):
         for k, year in enumerate(years):
             label = labels[int(rng.integers(0, 3))]
             e = editions[(label, year)]
-            fin = math.exp(ability + race_effect[label] + year_effect[year] + 0.004 * k + rng.normal(0, 0.03))
+            fin = math.exp(ability + race_effect[label] + year_effect[year] + (0.08 if (label, year) == outlier else 0.0) + 0.004 * k + rng.normal(0, 0.03))
             fin = min(max(fin, 2.2 * 3600), 6.5 * 3600)
-            slow = rng.random() < 0.4
+            slow = rng.random() < (0.75 if (label, year) == outlier else 0.4)
             pace = fin / 42.195
             sections = [5 * pace] * 8 + [2.195 * pace]
             if slow:
@@ -109,17 +112,19 @@ def write_input(folder: Path, seed=1, runners=3000):
     feat = pd.DataFrame(features, columns=['record_id', 'city', 'year', 'race', 'runner_name', 'sex', 'age', 'yob', 'finish_time', 'match_key', 'is_ambiguous',
                                            'runner_id', 'person_id', 'link_confidence'])
     link = pd.DataFrame(links, columns=['record_id', 'distance', 'source_db', 'age_key', 'record_flags', 'person_id'])
-    meta = pd.DataFrame([{'city': k[0], 'year': k[1], 'verification_tier': v['tier'], 'split_tier': v['split_tier'], 'timing_basis': v['timing_basis']}
-                         for k, v in editions.items()])
+    meta = pd.DataFrame([{'city': k[0], 'year': k[1], 'verification_tier': v['tier'], 'split_tier': v['split_tier'], 'timing_basis': v['timing_basis'],
+                          'course_notes': notes.get(k, {}).get('course_notes')} for k, v in editions.items()])
     # as the release's weather rows are: the start temperature to a tenth of a degree, the window mean to a hundredth (the
     # family publishes both to a hundredth, so the verifier's recount from the published points is exact)
-    weather = pd.DataFrame([{'city': k[0], 'year': k[1], 'temp_c': round(8.0 + 60 * year_effect[k[1]] + i % 3, 1),
-                             'temp_c_win_mean': round(10.0 + 400 * year_effect[k[1]] + i % 2, 2)}
+    weather = pd.DataFrame([{'city': k[0], 'year': k[1], 'temp_c': 30.0 if k == outlier else round(8.0 + 60 * year_effect[k[1]] + i % 3, 1),
+                             'temp_c_win_mean': round(10.0 + 400 * year_effect[k[1]] + i % 2, 2), 'notes': notes.get(k, {}).get('weather_notes')}
                             for i, k in enumerate(editions) if k[0] != 'Beta'])
     con = duckdb.connect()
+    text = {'edition_meta': 'course_notes', 'race_conditions': 'notes'}     # note columns are text even when every note is missing
     for frame, name in ((rec, 'race_records'), (feat, 'features'), (meta, 'edition_meta'), (weather, 'race_conditions')):
         con.register('frame', frame)
-        con.execute(f"COPY (SELECT * FROM frame) TO '{folder / (name + '.parquet')}' (FORMAT parquet)")
+        columns = f'* REPLACE (CAST({text[name]} AS VARCHAR) AS {text[name]})' if name in text else '*'
+        con.execute(f"COPY (SELECT {columns} FROM frame) TO '{folder / (name + '.parquet')}' (FORMAT parquet)")
         con.unregister('frame')
     (folder / 'links').mkdir()
     con.register('frame', link)
@@ -132,7 +137,8 @@ def write_input(folder: Path, seed=1, runners=3000):
     con.close()
     counts = rec.groupby(['city', 'year']).size().to_dict()
     editions_json = [{'city': k[0], 'year': k[1], 'n_records': int(counts.get(k, 0)), 'n_finishes': int(counts.get(k, 0)),
-                      'finishes_in_release': int(counts.get(k, 0)), 'official_finishers': float(round(counts.get(k, 0) / v['coverage']))}
+                      'finishes_in_release': int(counts.get(k, 0)), 'official_finishers': float(round(counts.get(k, 0) / v['coverage'])),
+                      **{name: notes.get(k, {}).get(name) for name in ('completeness_reason', 'release_note', 'hold_note')}}
                      for k, v in editions.items()]
     (folder / 'EDITIONS.json').write_text(json.dumps({'tag': TAG, 'editions': editions_json}))
     (folder / 'provenance.json').write_text(json.dumps({'release_tag': TAG}))
@@ -204,13 +210,15 @@ class Editions(unittest.TestCase):
             self.classify([self.row('stamped')], [self.fact()], counted=[])
 
 
-def build_synthetic(cls, *, runners=3000, series=None, outs=('out1', 'out2')):
-    """Write the synthetic input into a temp folder of the test class and build the family once per name in `outs`."""
+def build_synthetic(cls, *, runners=3000, series=None, outs=('out1', 'out2'), notes=None, outlier=None, releases=(), reviewed_notes=()):
+    """Write the synthetic input into a temp folder of the test class and build the family once per name in `outs`. The
+    reviewed entries of analysis/linked_reviews.py name editions of the real release: the build reads `releases` and
+    `reviewed_notes` in their place."""
     cls.tmp = tempfile.TemporaryDirectory()
     cls.folder = Path(cls.tmp.name)
     cls.source = cls.folder / 'input'
     cls.source.mkdir()
-    cls.policy, cls.registry = write_input(cls.source, runners=runners)
+    cls.policy, cls.registry = write_input(cls.source, runners=runners, notes=notes, outlier=outlier)
     if series is not None:
         for race in cls.registry['races']:
             if race['label'] in series:
@@ -224,16 +232,27 @@ def build_synthetic(cls, *, runners=3000, series=None, outs=('out1', 'out2')):
                    'registry_sha256': 'd' * 64, 'link_file': lc.LINK_ASSET, 'link_file_sha256': 'e' * 64,
                    'identity_file': 'identity.parquet', 'identity_sha256': 'f' * 64, 'identity_builder_sha256': '0' * 64}
     # The site's cohort code applies the reviewed policy of the input's release tag: give the test tag the same list.
+    cls.metas = [run_synthetic(cls, name, releases, reviewed_notes) for name in outs]
+    cls.files = read_family(cls.folder / outs[0])
+
+
+def run_synthetic(cls, name: str, releases=(), reviewed_notes=()):
+    """One build of the class's synthetic input into its folder `name`, with these reviewed entries."""
+    import linked_reviews
     import source_quality
-    original = lu.check_inputs
+    saved = (lu.check_inputs, linked_reviews.REVIEWED_RELEASES, linked_reviews.REVIEWED_NOTES)
     lu.check_inputs = lambda *a, **k: dict(cls.binding)
+    linked_reviews.REVIEWED_RELEASES, linked_reviews.REVIEWED_NOTES = tuple(releases), tuple(reviewed_notes)
     source_quality.REVIEWED_POLICIES[TAG] = [(e['city'], e['year'], e['category'], 'a test edition') for e in cls.policy['editions']]
     try:
-        cls.metas = [build_linked.run(cls.source, cls.links, cls.identity, cls.folder / name, boot=25, registry_path=cls.folder / 'registry.json') for name in outs]
+        return build_linked.run(cls.source, cls.links, cls.identity, cls.folder / name, boot=25, registry_path=cls.folder / 'registry.json')
     finally:
-        lu.check_inputs = original
+        lu.check_inputs, linked_reviews.REVIEWED_RELEASES, linked_reviews.REVIEWED_NOTES = saved
         del source_quality.REVIEWED_POLICIES[TAG]
-    cls.files = {name: json.loads((cls.folder / outs[0] / name).read_text()) for name in (*build_linked.FILES, 'manifest.json')}
+
+
+def read_family(folder: Path) -> dict:
+    return {name: json.loads((folder / name).read_text()) for name in (*build_linked.FILES, 'manifest.json') if (folder / name).exists()}
 
 
 def verify_family(folder: Path, registry: Path):

@@ -211,9 +211,12 @@ CODE_KEYS = {
     'file': {'editions.json', 'races.json', 'bests.json', 'age.json', 'return.json', 'recorded_again.json', 'checks.json'},
     'sex': {'F', 'M'},
     'scope': {'F', 'verified', 'high', 'wider', 'complete'},
+    'reason': {'another_course', 'virtual_run'},      # why a review excluded an edition (analysis/linked_reviews.py)
 }
 LABEL_KEYS = {'label'}
 SERIES_KEYS = {'series'}     # a string here is a series name of the registry's reviewed note (plan decision D29)
+DATE_KEYS = {'reviewed_on'}  # the day of a review, YYYY-MM-DD
+QUOTE_KEYS = {'quoted_note'} # the producer's own sentence behind a reviewed exclusion; held to the word rules like any prose
 DIGEST_KEYS = {'sha256'}
 # Words no string of a published family file may hold (the scout's "must not print" lists and AGENTS rule 17).
 BANNED_WORDS = [
@@ -277,10 +280,13 @@ def check_published(value, where: str, labels: frozenset, *, series: frozenset =
                 elif key in SERIES_KEYS and not in_rule:
                     if item not in series:
                         fail(f'{where}.{key}: {item!r} is not a series name of the race registry')
+                elif key in DATE_KEYS and not in_rule:
+                    if not re.fullmatch(r'20\d{2}-[01]\d-[0-3]\d', item):
+                        fail(f'{where}.{key}: {item!r} is not a day')
                 elif key in CODE_KEYS and not in_rule:
                     if item not in CODE_KEYS[key]:
                         fail(f'{where}.{key}: {item!r} is not one of the codes this key may hold')
-                elif in_rule or key == 'rule':
+                elif in_rule or key == 'rule' or key in QUOTE_KEYS:
                     problems = word_problems(item)
                     if problems:
                         fail(f'{where}.{key}: {", ".join(problems)}: {item!r}')

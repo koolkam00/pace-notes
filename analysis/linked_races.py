@@ -22,6 +22,11 @@ A race is a registry label, or, where the registry's reviewed `series` note says
 (plan decision D29: Warsaw), one series of the label. Everything here groups by that race key (`rkey`, which
 analysis/linked_universe.py with_series writes): the order term of the model, the editions an edition is compared
 with, the race reading and every check. Without a note the key is the label.
+
+Two reviews act here (analysis/linked_reviews.py; rulings of the lead of 2026-11-14). An edition excluded by review
+(the producer's notes state a virtual run or another course) enters no fit, so it has no reading and is in no group.
+A held edition released by review is taken out of the held set once the screen has run, after the build has checked
+every condition of its release on its own data; it is then an edition like any other and carries `reviewed_release`.
 """
 from __future__ import annotations
 
@@ -32,6 +37,7 @@ import pandas as pd
 
 import linked_common as lc
 import linked_model
+import linked_reviews
 from linked_common import MIN_CELL, MIN_EDITIONS, fail, log_pct, num, pct
 
 TEMP_BANDS = ((None, 8.0), (8.0, 12.0), (12.0, 16.0), (16.0, 20.0), (20.0, None))   # race-window mean temperature, °C
@@ -270,18 +276,27 @@ def race_levels(fit, t: pd.DataFrame, held_codes, min_editions: int = MIN_EDITIO
 # ---------------------------------------------------------------------------------------------------------------
 # The build
 # ---------------------------------------------------------------------------------------------------------------
-def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFrame, *, boot: int = lc.BOOT_REPS, log=print) -> dict:
-    """editions.json, races.json and checks.json (the three as dicts), with the counts the manifest keeps."""
+def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFrame, *, boot: int = lc.BOOT_REPS, log=print,
+          review_entries=None, note_entries=None) -> dict:
+    """editions.json, races.json and checks.json (the three as dicts), with the counts the manifest keeps. The reviewed
+    entries default to those of analysis/linked_reviews.py."""
     editions = editions.set_index('code', drop=False).sort_index()
     editions['race'] = race_codes(editions)
+    if 'excluded' not in editions.columns or 'official_ratio' not in editions.columns:
+        fail('the edition table carries no reviews (analysis/linked_universe.py load writes them)')
     code = results.edition.to_numpy()
-    in_f, in_v, in_w = (editions[c].to_numpy()[code] for c in ('in_f', 'in_v', 'in_w'))
+    usable = ~editions.excluded.to_numpy()[code]     # an edition excluded by review enters no fit
+    in_f, in_v, in_w = (editions[c].to_numpy()[code] & usable for c in ('in_f', 'in_v', 'in_w'))
     high = results.high.to_numpy()
 
     main = fit_universe(results, editions, in_f, boot=boot, keep_pairs=True)
     log(f'linked: main fit {main.pairs:,} pairs, {main.people:,} linked runners, {len(main.units)} editions')
     t = unit_table(main, editions)
-    held = held_outliers(t)
+    screened = held_outliers(t)       # the 6% screen, as frozen
+    distance = from_median(t)
+    reviews = {int(row.code): linked_reviews.review_of(row, t, editions, field_share, float(distance[row.pos])) for row in t[screened].itertuples()}
+    released = linked_reviews.releases(t, screened, reviews, editions, review_entries)     # stops if a reviewed release fails a condition
+    held = screened & ~t.code.isin(list(released)).to_numpy()
     held_codes = frozenset(t.code[held].tolist())
     groups = comparison_groups(t, held_codes)
     variants = {}
@@ -329,6 +344,8 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
         entry['verdict'] = year_verdict(entry['lo_pct'], entry['hi_pct'], hv)
         if series_of(row) is not None:
             entry['series'] = series_of(row)      # the label holds several races: this edition is compared inside its own
+        if int(row.code) in released:
+            entry['reviewed_release'] = True      # the 6% screen held it; a review released it (docs/LINKED_RECORDS.md, Reviews)
         if entry['finishes'] < MIN_CELL or entry['others'] < MIN_EDITIONS - 1:
             fail(f'{row.label} {row.year}: an edition reading under a floor')
         edition_rows.setdefault(row.label, {})[str(int(row.year))] = entry
@@ -390,6 +407,23 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
             series_rows.setdefault(label, {})[series] = entry
 
     checks = build_checks(main, t, held, reading, variants, variant_reading, levels, variant_levels, readings, published, editions, field_share, two)
+    # the reviews, as a page and the verifier read them
+    for row in checks['held_for_review']:
+        row['review'] = reviews[int(t.code[(t.label == row['label']) & (t.year == row['year'])].iloc[0])]
+    entries = linked_reviews.REVIEWED_RELEASES if review_entries is None else review_entries
+    release_rows = []
+    for entry in entries:
+        unit = t[(t.label == entry['label']) & (t.year == entry['year'])]
+        applies = len(unit) == 1 and int(unit.code.iloc[0]) in released
+        release_rows.append(linked_reviews.published_release(entry, entry['year'], series_of(unit.iloc[0]) if len(unit) == 1 else None,
+                                                            reviews[int(unit.code.iloc[0])] if applies else None,
+                                                            float(distance[int(unit.pos.iloc[0])]) if applies else 0.0, applies))
+    notes = linked_reviews.REVIEWED_NOTES if note_entries is None else note_entries
+    exclusion_rows = []
+    for row in editions[editions.excluded].sort_values(['label', 'year']).itertuples():
+        entry = next(e for e in notes if e['ruling'] == 'excluded' and e['label'] == row.label and (e['years'] is None or int(row.year) in e['years']))
+        exclusion_rows.append(linked_reviews.published_exclusion(entry, int(row.year), series_of(row)))
+    checks['reviewed'] = {'releases': release_rows, 'exclusions': exclusion_rows, 'official_tolerance_pct': 100.0 * linked_reviews.OFFICIAL_TOLERANCE}
     summary_e = {'editions': len(published), 'races': len({p[4] for p in published}),
                  'by_tier': {tier: sum(1 for p in published if p[2] == tier) for tier in lc.F_TIERS},
                  'by_verdict': {v: sum(1 for p in published if p[3]['verdict'] == v) for v in ('fast', 'slow', 'usual')},
@@ -401,6 +435,7 @@ def build(results: pd.DataFrame, editions: pd.DataFrame, field_share: pd.DataFra
                   'races_fitted': int(t.rkey.nunique()), 'fitted_by_tier': {tier: int((t.tier == tier).sum()) for tier in lc.F_TIERS},
                   'fitted_by_timing': {c: int((t.timing == c).sum()) for c in lc.TIMING_CODES},
                   'not_fitted': {k: int(v) for k, v in main.dropped.items()}, 'held_for_review': int(held.sum()),
+                  'released_by_review': len(released), 'excluded_by_review': int((editions.excluded & editions.in_f).sum()),
                   'drift_pct': [pct(log_pct(g)) for g in main.gamma.tolist()], 'bootstrap_draws': int(boot)}
     races_json = {'band_pct': lc.RACE_BAND_PCT, 'min_editions': MIN_EDITIONS, 'min_people_each_way': MIN_CELL, 'summary': summary_r, 'races': race_rows}
     if series_rows:
