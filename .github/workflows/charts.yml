@@ -30,6 +30,7 @@ on:
       - 'scripts/lib/cohort.cjs'
       - 'scripts/lib/edition-policy.cjs'
       - 'scripts/lib/lookup.cjs'
+      - 'scripts/lib/lookup-files.cjs'
       - 'scripts/build-chart-cards.cjs'
       - '.github/workflows/charts.yml'
   workflow_dispatch:
