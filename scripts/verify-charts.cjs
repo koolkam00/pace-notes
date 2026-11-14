@@ -9,8 +9,9 @@
 // description lengths, and that no chart string equals a recorded runner name. A chart whose takeaway's guard does not
 // hold is not an error: it must be in the fallback state in every slot (a neutral title, the fallback sentence, a
 // drawing with no mark of the reading, no share card, no caption). The cohort holds no names: they are read
-// through scripts/charts/names.cjs (the committed runner lookup of the adopted release, or the names file that
-// PACE_NOTES_NAMES_FILE points at), and without either the verifier fails; it never passes without checking them.
+// through scripts/charts/names.cjs (the runner lookup of the adopted release through its own reader: the committed
+// one, or until it is committed a build that PACE_NOTES_LOOKUP_DIR names; else the names file that
+// PACE_NOTES_NAMES_FILE points at), and without a source the verifier fails; it never passes without asking.
 //
 //   node scripts/verify-charts.cjs [--input public/data/charts] [--data-root public/data] [--text-only] [--only slug,...]
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
@@ -109,6 +110,7 @@ const groupKey = (key) => key === 'n' || /^(women|men|young|older)_n$/.test(key)
 // The words every title and takeaway may not use, and the release labels copy may not cite: scripts/lib/words.cjs,
 // shared with scripts/verify-half.cjs.
 const { BANNED, RELEASE_LABEL } = require('./lib/words.cjs');
+// Every chart string the name guard asks about: its normalised form, where it appears and the text as written.
 const strings = new Map();
 function scan(value, where, key) {
   if (Array.isArray(value)) return value.forEach((v, i) => scan(v, `${where}[${i}]`, key));
@@ -127,7 +129,7 @@ function scan(value, where, key) {
       for (const [re, what] of BANNED) ok(!re.test(value), `${where}: ${what}: ${value}`);
     }
     const norm = normaliseName(value);
-    if (norm && norm.includes(' ')) strings.set(norm, where);
+    if (norm && norm.includes(' ')) strings.set(norm, { where, text: value });
   }
 }
 for (const [slug, doc] of files) scan(doc, slug, null);
@@ -222,7 +224,7 @@ for (const c of scope(catalog)) {
     ok(!RELEASE_LABEL.test(value), `${c.slug} ${field}: an internal export label`);
     ok(!/\bsustained slowdown is\b|25% slower|5–20 km pace|doi:/i.test(value), `${c.slug} ${field}: the slowdown definition belongs on /methodology`);
     const norm = normaliseName(value);
-    if (norm) strings.set(norm, `${c.slug} ${field}`);
+    if (norm) strings.set(norm, { where: `${c.slug} ${field}`, text: value });
   }
 }
 // The share cards and the captions of the published charts (not of a folder built elsewhere): a chart has its card and
@@ -258,7 +260,7 @@ if (opt.textOnly) process.exit(0);
 // ---------- 4. Cohort and recounts ----------
 const C = loadCohort({ root, dataRoot, strings });
 assert.equal(C.manifestSha, cohortSha, 'The cohort did not change while it was read');
-assert.ok(C.names.names > 0, 'The name guard read no recorded names');
+assert.ok(C.names.names > 0 && C.names.asked === strings.size, 'The name guard asked every chart string against the recorded names');
 assert.deepEqual(C.nameHits, [], 'A chart string equals a recorded runner name');
 assert.equal(C.n, manifest.analysis_n, 'The story cohort (no duplicate-edition screen in this release)');
 // The cohort counts the manifest states (/methodology#top-charts prints them), recounted from the cohort.
@@ -302,4 +304,4 @@ for (const c of scope(catalog)) {
 const slowest = timings.sort((a, b) => b[1] - a[1]).slice(0, 5);
 console.log(JSON.stringify({ charts: timings.length, fallback: fallen.map((c) => c.number),
   high_links: { charts: highGuards.length + highRefused.length, refused: highRefused, guard_fails_on_high_links_alone: highOnlyFails },
-  checks: checks + H.counted(), cohort: C.n, names: { source: C.names.source, where: C.names.where, read: C.names.names }, seconds: Math.round((Date.now() - started) / 100) / 10, slowest }));
+  checks: checks + H.counted(), cohort: C.n, names: { source: C.names.source, where: C.names.where, names: C.names.names, asked: C.names.asked }, seconds: Math.round((Date.now() - started) / 100) / 10, slowest }));

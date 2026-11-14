@@ -5,13 +5,13 @@
 // onset, the start-offset (shape) screen, the granular-age editions — computed from their published definitions.
 // The finishes are the cohort's counted records in cohort order: by edition as the manifest lists them, then record
 // id (the order analysis/insights_data.py read_finishes gives the builders, so a tie broken by position breaks the
-// same way on both sides). The cohort holds no names: every recorded runner name is read through
-// scripts/charts/names.cjs and checked against the charts' strings.
+// same way on both sides). The cohort holds no names: the charts' strings are checked against the recorded runner
+// names through scripts/charts/names.cjs (the runner lookup's own reader first, a names file second).
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const cohortFiles = require('../lib/cohort.cjs');
 const { policyEditions, policySha256 } = require('../lib/edition-policy.cjs');
-const { recordedNames } = require('./names.cjs');
+const { recordedNameHits, normaliseName } = require('./names.cjs');
 
 const MIN_CELL = 100;
 const POINTS = [5, 10, 15, 20, 25, 30, 35, 40, 42.195];
@@ -26,7 +26,6 @@ const COHORT_SCRIPTS = ['build_cohort.py', 'cohort.py', 'build_pacing.py', 'sour
 const hash = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const finite = (x) => typeof x === 'number' && Number.isFinite(x);
 const integer = (x, minimum = 0) => Number.isSafeInteger(x) && x >= minimum;
-const normaliseName = (text) => text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
 // The cohort writes recorded sex as one letter (M, F, X) or none; the builder's coding (insights_data.read_finishes).
 const genderCode = (sex) => (sex === 'M' ? 1 : sex === 'F' ? 2 : 0);
@@ -73,8 +72,8 @@ function verifiedManifest(root, cohortRoot) {
 }
 
 /**
- * Reads every edition file of the cohort and returns the finishes. `strings` maps normalised chart text to where it
- * appears; a recorded runner name equal to one is reported in `nameHits` (`names` says where the names were read).
+ * Reads every edition file of the cohort and returns the finishes. `strings` maps normalised chart text to
+ * { where, text }; a text that is a recorded runner name is reported in `nameHits` (`names` says which source was asked).
  */
 function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = new Map(), env = process.env }) {
   const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -159,11 +158,11 @@ function loadCohort({ root, dataRoot, cohortRoot = cohortFiles.ROOT, strings = n
   const { index: profile, count: profiles } = dense(runner);
   const high = linkClasses ? dense(runnerHigh) : null;
 
-  // The name guard: every recorded runner name against the charts' strings.
-  const nameHits = [];
+  // The name guard: the charts' strings against the recorded runner names.
   const names = strings.size
-    ? recordedNames({ root, dataRoot, cohort: { manifest, sha256: manifestSha }, env }, (name) => { const where = strings.get(normaliseName(name)); if (where !== undefined) nameHits.push(where); })
-    : { source: 'none', where: 'no chart strings to check', names: 0 };
+    ? recordedNameHits({ dataRoot, cohort: { manifest, sha256: manifestSha }, env }, strings)
+    : { source: 'none', where: 'no chart strings to check', names: 0, asked: 0, hits: [] };
+  const nameHits = names.hits;
 
   // Derived per-finish arrays.
   const finish = new Float64Array(n), baseline = new Float64Array(n), slow = new Uint8Array(n), onset = new Int8Array(n).fill(-1);
