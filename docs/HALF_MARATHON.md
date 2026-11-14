@@ -2,6 +2,126 @@
 
 The half-marathon pages of Pace Notes (`/half`, the story `/stories/half-to-full`, the predictor's half panel, the goal pages' "The half marathon before", the half pace chart's panel and the "From the half" share cards) read the aggregates in `public/data/half/`. Those are built from the owner's **public** half-marathon release `half-dataset-20261030-1904` (CC BY 4.0, downloadable without an account): its snapshot of the half results and the producer's **person IDs v4**, which link half and marathon records. Verified status is the stamp in the snapshot's own edition metadata, cross-checked against the producer's earlier corrected edition metadata, and the marathon side is the adopted marathon release, read through its public runner shards. This document is the contract: what is pinned, which rules decide what counts, what is published and how it is checked. The operating steps are in [operations](OPERATIONS.md#half-refresh); the module list and commands in [analysis/README.md](../analysis/README.md#half-marathons-public-source-pages-show-aggregates); the page and tool contracts in [the website architecture](WEBSITE_ARCHITECTURE.md), [tools](TOOLS.md) and [stories](STORIES.md). The contract as it stood for the first pin (the 1133 snapshot, runner links v1 and the 2157 overlay, October 29–31, 2026) is in [history](history/half-marathon-2026-10-29-to-31.md).
 
+## The combined release: rules recorded before any build (November 14, 2026)
+
+Recorded on November 14, 2026 (UTC) as the first commit of the branch `claude/release-20261113-half`, before any builder of this branch read `pace-notes-marathon-half-20261113-1113` (published 2026-11-13T23:21:04Z; half rows frozen 2026-11-13 11:13 ET). **From this commit on, no rule, list rule, floor, window, clause or guard below changes because of what a build shows.** If one proves wrong or cannot be built as written, the work stops and the lead rules, in a dated commit that says so.
+
+What was already known when this was written, so that nobody has to guess: the half architect's read-only plan had measured the release under several variants (the like-for-like translation, a literal carry-over of the old lists, with and without the virtual-event rule, with the category sex, on two marathon lists), and the lead's decision D23 quotes its rough outcomes (the verified pool, set B's size and the state of three readings). The choices below are the like-for-like translation of the rules of `half-dataset-20261030-1904`, the written guards exactly as `main` holds them, and the lead's decisions of November 14, 2026 (D4, D6, D13, D16, D22, D23, D24 items 1, 2, 9 and 10, D28 and rulings R2 and R5 of the adoption plan). They were not chosen for those outcomes, and where a rough measurement and the real build differ, the real build stands and is reported with its margin.
+
+Until the rebuild lands, every other section of this document still describes the build on `half-dataset-20261030-1904`; they are rewritten with the rebuild and the superseded text moves to history word for word (AGENTS.md rule 19).
+
+### R0. Sources
+
+- **One release.** The half results, the edition tiers and the person links are assets of `pace-notes-marathon-half-20261113-1113`, the release `analysis/release.json` adopts for the marathon. The half pin names that tag as its snapshot and as its marathon release, and pins by sha256 the CORE archive, the two person-link parquet files, `EDITION-TIERS.csv` and the documents it cites (each digest equal to the one in `analysis/release.json`, tested), and the CORE members the half reads (`race_records.parquet`, `edition_meta.parquet`, `record_flags.parquet`, `qa_row_flags.parquet`, `pending_review_flags.parquet`, `RELEASE-ROW-EXCLUSIONS.parquet`, by the digests of the archive's own `SHA256SUMS.txt`).
+- **Keys.** A record is (`source_db`, `id`); an edition is (`source_db`, `city`, `year`). The two source databases' ids overlap, so no join uses an id alone.
+- **Tiers** come from `EDITION-TIERS.csv` (`verification_tier`), joined on (`source_db`, `city`, `year`): it is the complete tier table. The registry row of an edition (its edition id, race date, official count and source type, timing basis) comes from `edition_meta.parquet`.
+- **The marathon side** is the names-free marathon cohort (`analysis/marathon-cohort/`, read through `analysis/cohort.py` and `scripts/lib/cohort.cjs`): its counted records are the eligible marathon finishes, and its manifest gives each counted edition's race date. The half manifest binds the cohort manifest by sha256, and through it the counted list's digest.
+- **Identity** is the pipeline's one identity file over both distances (`identity.parquet`; lead decisions D24.2 and D28). The half builders read it and never rebuild it.
+- **The Node recount cannot read parquet.** A deterministic extract (one SQLite file, cut by a half module from the pinned files and the identity file) holds what the recount reads; its canonical content digest (the same rule in Python and Node) is pinned. The Python builders read the release's parquet files directly, so the two recounts do not share the cut.
+
+### R1. Record rules
+
+Scope: the half rows of the half database, `distance = half` and `source_db = half`. The 20,081 half rows the release recovered from mixed-distance lists of the marathon database (`source_db = full`, 8 editions, no registry row, counts the producer calls not verified) supply nothing to any figure in this adoption (D23, choice C7).
+
+**Sex, stated once (D23, choice C8; the marathon's rule D2):** a record's sex is its published `sex`; when that is blank, `qa_row_flags.sex_from_category`. The recorded sex is that value when it is M or F. Sex is never inferred from a name. Every rule and figure that reads sex reads this value: R6's key, E4, `use_sex` and every recorded-sex count.
+
+Rules, first match wins. R1 to R7 keep their text, thresholds and patterns from the 1904 policy:
+
+| Rule | Removes |
+| --- | --- |
+| R1 | a producer exclusion flag in `record_flags` (the same 13 names; `time_hour_reconstructed` alone never excludes) |
+| R8 | **new, applied second.** A row the frozen `HALF_ROW_RULE` of `analysis/adapt_combined.py` leaves out (lead decision D28: the pending-review flags `wheelchair_handcycle_published_category` and `published_disqualified_status`; the row-quality flags `finish_faster_than_world_record`, `finish_ge_24h`, `finish_zero`, `finish_implausibly_fast`, `finish_equals_earlier_split` and any other flag of the marathon's row rule that occurs on half rows; with ruling R2's exception for a flag that every row of an edition carries). The half modules import that constant and hold no second list. Such a row is never counted apart, labelled or named anywhere |
+| R2 | a finish (`split_21_1km`) that is unparsed or not positive |
+| R3 | a sub-race on the reviewed non-running name pattern (the 1904 pattern, unchanged) |
+| R4 | a sub-race with at least 5% and at least 2 finishes under 56:42 |
+| R5 | a finish under 56:42 or over 6:00:00 |
+| R6 | a within-edition duplicate: the same token-sorted name, finish and sex (blank as its own value); the copy from the largest sub-race list is kept, then the lowest id; a name with no a-z or 0-9 character left has no key |
+| R7 | after the others: the Oslo Half bib block 73000 to 75999, 2016 to 2025 (a range, never a list of people) |
+
+Sub-race counts for R3 and R4 are over rows that pass R1, R8 and R2. The builder asserts that **every half row the identity file marks `left_out` is removed by these record rules**, and reports whether the rows R8's rule names and the identity file's `left_out` rows of the half database are the same set. The half's computed rules (R2 to R7) never touch identity. The rule is written once in the policy file (`half_records.left_out`, generated from the imported constant, with `finish_not_a_positive_time`), in the shape the runner lookup's builder reads.
+
+### R2. Edition rules
+
+An edition supplies nothing if any rule applies. Status groups come from the tier: verified = `stamped` or `stamped_weaker_source`; unverified = `unverified`; held = `held_for_review`; partial = `partial`; removed = `excluded` (asserted to hold no rows); a registry row with tier `no_rows` is asserted to hold none. A tier in no group fails the build, and so does an edition with rows and no row in `EDITION-TIERS.csv`.
+
+- **E0, no registry row or a partial tier.** An edition with rows and no `edition_meta.parquet` row, or tier `partial` (the tier replaces the 1904 list of partial loads taken from the README).
+- **E1, held.** Tier `held_for_review`.
+- **Gun times (D6).** An edition whose `timing_basis` starts with "gross" must be held, else the build fails; the set must equal the reviewed list (Berlin 2018, 2019, 2021, 2022, 2023). Such an edition never enters a comparison, ranking or record, and **is never a reference edition of E8**.
+- **Course suspected short (D24, item 10: "listed, marked, never compared").** An edition whose every row carries `course_shortened_suspect` in the person-links file supplies nothing to any figure (category `course_suspected_short`, rule E2) and is never a reference edition of E8; a partly flagged edition fails the build. The set must equal the reviewed list (Drammen Half 2017 and 2019). This replaces the 1904 default, under which the flag was not a rule. The race list shows such an edition with its tier, its count and its mark, and no time.
+- **E2, reviewed duplicates, overlaps, non-half distances, virtual events.** Reviewed decisions translate **by rule, never by edition id alone**: a duplicate or overlap decision applies only while the twin its reason names (by edition id) still has rows in this release; where the release kept only the listed copy, that copy is the only one and is usable. The builder prints each carried decision it drops and why. The not-half-distance decision (Brunico 3/4 Mezza Maratona 2013) applies while the edition has rows. The virtual-event rule is the 1904 rule unchanged (the label contains "virtual" or "virtuel", or its place starts with "Anywhere"). **Reviewed not-virtual exceptions: none.** D23 (choice C6) admits the six Columbus "Anywhere USA" editions of 2014 to 2019 only if the release's change report states that they were run in person. It says: "three series match only because of their current source titles and stay: … Columbus "Anywhere USA" 2014–2019 (RunSignup placeholder location, pre-2020)". That keeps them in the release on a placeholder place and a date; it does not state that they were run in person, so they stay out, as today.
+- **E3 to E8, the computed screens, every threshold unchanged.** One count basis changes its words, not its meaning: in E3 and E6, "every row loaded" (`n_db`) is the edition's rows in CORE plus its rows in `RELEASE-ROW-EXCLUSIONS.parquet`, because the release removes rows the 1904 snapshot still held. E4, E5, E7 and E8 read the record-usable rows before R7, as before. E8's reference set is as before (the label's other editions with at least 100 record-usable finishes and a verified, unverified or held status, earlier-removed editions included) **without gun-time and course-suspected-short editions**.
+- Every computed list (R3, R4, E0, E2 to E8) is recomputed on each build and must equal the list frozen in the policy file after each entry was read against its rule.
+
+**Usable** = every other edition with a record-usable finish. **Verified** = usable and tier `stamped` or `stamped_weaker_source` (D23, choice C1: weaker-source stamps are in the verified pool). The verified set must equal the policy's reviewed list of edition ids, and no edition of the **frozen never-stamp list** (the 78 rows of the 1904 snapshot's `never_stamp` table, carried verbatim; compared by edition id and year, a changed label reported, not failed) may carry a badge tier. **Weaker-source stamps** are the editions the release tiers `stamped_weaker_source`; the policy freezes them with the release's source text, `/methodology` names each by city, and they define the battery member `verified_federation`. **`use_sex`** is unchanged (at least 95% of the edition's usable finishes with a sex, each sex at least 3%). **Dates** are `try_cast(race_date AS DATE)` of the registry row; an undated edition never enters a date window. The three date suspects are carried by edition id and year, and each must still carry the date its reason names (Gdańsk 2026: 2026-09-27; Ribera 2019 and Gela 2019: 2019-12-01), else the build fails for review. The off-road labels, the same-city labels and the label countries are label lists: each off-road label must be the label of a verified usable edition and every verified usable label must have a country, else the build fails. In the same-city map a marathon city is the marathon race's registry label.
+
+Every record-usable finish after R7 is used or removed by exactly one edition rule, else the build fails, as today.
+
+### R3. Set B on person links v5.1
+
+The 1904 rule (runner links v1's, translated to v4 on October 31, 2026) translated like for like to v5.1 and to the one identity file. No clause is added for an outcome.
+
+1. **The runner** is a runner key of the identity file: the producer's v5.1 person id (`^p51_[0-9a-f]{16}$`, asserted) of a link that passes the identity rule (its confidence is `high_elite`, `high` or `medium`, and the person passes the three screens over both distances: one recorded sex, birth years within two, one result per edition). The runner's sex in `persons.parquet` is M or F, and **`ns_keys` is at most 3** (D23, choice C4).
+2. **`ns_keys`** is the frozen SQL of the v4 extract, unchanged: the number of distinct `age_key` values per (`name_norm`, sex M or F) over every row of the link file of either distance that has an age key; a person takes the largest over its rows whose own confidence is `high_elite`, `high` or `medium`, whatever the record's status. A block with no age key counts 0.
+3. **Both rows of a pair are keyed rows of that runner** in the identity file (so each row's own confidence is `high_elite`, `high` or `medium` (D4), neither is left out by a row rule, and the person passes the screens). `medium_variant` and every `low_*` row never pairs. **A row whose `method` contains `variant_union` never pairs** (D23, choice C3).
+4. **The half** is a usable finish (R1, R2), dated, outside the R7 block and outside the date-suspect editions. There is no coverage boundary and there are no link editions any more: the link file holds one row for every row of the release.
+5. **Conflicts** are counted over every linked row of the person in the link file, whatever its confidence or status: no second usable half on the same date, and none on the date of one of the person's eligible marathons.
+6. **The marathon** is a counted record of the marathon cohort (a split-eligible finish of a counted edition; D23, choice C5), joined on (`source_db = full`, record id); its date is the cohort manifest's race date.
+7. **Pairing is unchanged:** for each eligible marathon, the nearest earlier half 21 to 112 days before it, ties to the lower half record id; one pair per person and marathon.
+8. The two signals of review R6 (halves in two or more pairs; another eligible marathon of the person within 13 days) are counted and exclude nothing.
+9. **`k` is dropped** (D23, choice C9), with the checks that read it. `checks.no_union_people` keeps its v4 meaning: set B without the people who have a row joined by the producer's middle-name or nationality union (`method` contains `middle_name_union` or `natdiff_union`); the variant union is a different kind, handled by clause 3.
+
+Reviewed counts (`EXPECTED`) are keyed by the link build and set from the real run after each difference from the plan's measurements is read, never with `--accept-counts` alone.
+
+### R4. Every reading and the guard that judges it
+
+The guards are the ones on `main`, unchanged: same clauses, same thresholds, same floors (100 finishes or pairs behind every shown group, 3 editions behind any claim across editions, 10 pairs in each one-minute edge slice of a linked window, 20 editions for the women's band medians). A reading whose guard fails shows its fallback in every slot (heading, dek, hero figure and key, caption, table reading row, card, chapter rows, next and night cards, the `/methodology` sentence).
+
+| Reading | Guard, as it will be judged |
+| --- | --- |
+| `half.field` (`/half` H1, figure key, `half-under-2`, the pace chart's panel) | the share of **every usable** finish under 2:00 lies strictly between 50% and 60%, the cohort holds at least 100 finishes from 3 editions; the headline says "Just over half" while the verified share lies strictly between 50% and 60% too |
+| `half.under` | the verified share under 1:45 within 3 points of the equal-edition median share (verified editions of at least 1,000 finishes) |
+| `half.crowd` | the minute before 2:00 at least 1.15× the smooth curve, the interval's lower end above 1, at least 100 finishes in that minute; the dek's other clauses as on `main` |
+| `half.women` | band medians exist (at least 20 qualifying verified editions: at least 2,000 finishes, at most 2% without a sex, 100 with a sex in every band) and cross one half once |
+| `half.cities` | the half higher in every verified same-city pair, at least 10 pairs in 5 cities, and higher in every usable pair |
+| `half.extra` (story H1) | **G.1:** at least 100 pairs from 3 marathon editions; pooled minutes over double between 10 and 60; every battery member's median multiple within [2.15, 2.25] and, re-expressed at the pooled median half, within 180 s of the pooled minutes; the verified-halves and one-pair-per-person minutes within 180 s of the pooled; every member under 15% under double. **G.2:** every one-verified-half-edition-out rerun of `verified_halves` and `verified_federation` passes the clauses its member must pass, none under 100 pairs. The H1 states its reading only if both pass |
+| `half.extra` figure and `half-double` | only while the H1's guard holds, and: every member and every rerun under 15% under double, no rerun under 100 pairs, the verified halves within 3 points of the pooled share. Else the minutes (H1 holds, figure check fails), else the count of pairs |
+| `half.range` | at the 1:45 window and the 4:00 mark: at least 100 pairs from 3 editions, the pooled share strictly between 50% and 90% and within 5 points of the verified-halves share and of the equal-edition share |
+| `half.sexes` (and `half-same-half`) | at least 20 strata; recorded women's lower in at least 90% of them; at least 10 points; **and lower in at least 90% of the verified-halves strata** |
+| `half.sexesGuess` | at least 100 pairs for each sex at the flagship half |
+| goal rows | no guard: the builder requires clean crossings; the heading states no reading |
+
+Three things change their content without changing a clause, each decided here and not after the build:
+
+- **`other_marathons`** (D23, choice C2) is "without the two marathon cities that hold the most pairs on the build, ties by name", which is what its code comment has always said; the two names are read from the data, never typed.
+- **`verified_federation`** leaves out the weaker-source stamps as the release tiers them (R2), not the seven the 1904 policy read from a README.
+- **`deks.guessMore`** (the comparison 15 minutes either side of the flagship half, printed after the guess) is shown only while `half.sexes` holds as well as its own clause. It only tightens: under a heading that states no direction, the dek states none.
+
+### R5. New: how halves are paced (D13 item 5; D23, choice C10)
+
+The first half-only figure on results that are mostly unverified. It sits on a surface of its own at the foot of `/half`, carries the chip "Includes unverified half results" exactly once, and never says "sustained slowdown", "halfway", "second half" or "split" for a half.
+
+- **Measure, per result:** pace over the last 11.0975 km against pace over the first 10 km, `((finish − t10) / 11.0975) / (t10 / 10) − 1`. The page says "the last 11.1 km" and "the first 10 km".
+- **A result qualifies** when it is a usable finish (R1, R2, after R7), its `split_10km` parses with the marathon pipeline's parser (`H:MM:SS` or `M:SS`, minutes and seconds 00 to 59, an optional fraction; anything else is unparsed), 0 < t10 < finish, both parts lie between 2:00 and 20:00 per km inclusive, and the release sets neither `split_nonmonotonic` nor `split_after_finish` on it.
+- **An edition qualifies** when it is usable, has at least 500 qualifying results, they are at least half of its usable finishes, and its own median change lies between −6% and +12% inclusive (the screen that says where the 10 km mat is). No second clause on the last 1.1 km and no 5 km check.
+- **A race label** is the edition's `city` key in the release.
+- **Values:** the pooled median change and the pooled share that ran the last 11.1 km faster (change below zero) and more than 10% slower; the same three with editions weighted equally (the median over editions of each edition's own value) and with labels weighted equally (the median over labels of each label's own value, a label's results pooled); for each label, the pooled median and the pooled share faster with that label left out; the same values by finish band (20-minute bands from 1:00 to 3:19); a histogram of the change in 1-point bins, overall and by band, with open tails, so the published medians and shares can be recounted from the file.
+- **Builder floors** (never lowered; a floor that fails leaves the group, or the whole family with its beat, out): every shown group at least 100 results from at least 3 editions; a finish band also needs at least 3 labels; the family is published only from at least 20 qualifying editions of at least 10 labels with no label over half of the results; every open histogram tail at least 100.
+- **Page guards** (fallbacks state no direction; the chart keeps its values):
+  - `half.pace` (the heading's "about N% slower"): the pooled median lies strictly between +1% and +10%; the equal-edition median, the equal-label median and **every** leave-one-label-out pooled median lie within 1.0 point of it; at least 80% of the qualifying editions have a median above zero.
+  - `half.paceFaster` (the share that ran the last 11.1 km faster): the equal-edition share and every leave-one-label-out share lie within 5 points of the pooled share.
+  - `half.paceBands` (a dek that names the medians of two finish bands): at least 4 bands from the 1:20 band on are published, their medians do not fall from one band to the next, and each named band holds at least 3 labels.
+- **No verified-only check exists** (one verified edition has a 10 km time for its field, under the 3-edition floor), so no verified value is shown and the chip is not optional. Sex is not stated. The marathon is not quoted in this beat. No card.
+- `/methodology#half-pacing` states the measure, the row and edition rules, the editions the screen removes, the counts and the labels that hold most results, from the data.
+
+### R6. New: the half race list (`/half/races`; D11, D15, D16)
+
+- **What is listed:** every half edition of the release with rows, of either source database, under its race. An `excluded` edition (no rows) never appears. No race or edition gets an address of its own.
+- **The half race registry** follows the marathon registry's rules (D14): a release key joins a race only by a reviewed entry; a key with no entry is its own race, named by a frozen, tested default rule from the key alone; the half and the marathon are separate name spaces. Race-level flags and search aliases live in a half file of their own, never in the marathon registry.
+- **An edition line:** year; the tier in the words of D16 ("Verified", "Verified, weaker source", "Partial results", "Unverified", "Held for review"); "Finish times only" unless the release tiers it `splits`; its results, counted after the record rules R1 to R8 (so a removed row is never counted, labelled or shown); the mark "Gun times" on the gun-time editions and the course-suspected-short mark on Drammen Half 2017 and 2019.
+- **A time** (the median finish) is shown only for a verified edition of at least 100 usable finishes, never for an unverified, partial or held edition, never for a marked edition. No rank, no sort by time or size, no year-to-year or race-to-race comparison, no race-level figure that includes a marked edition, no pooled half and marathon number.
+- **Never shown:** names, bibs, winners, source URLs, the producer's status and reason texts, official counts (they stay on `/methodology` and in the release).
+- The file is a family of its own with its own checks (tier values from a fixed set; names are data and pass no copy word rule); tier words on the page are plain labels that link to `/methodology#edition-tiers`.
+
 ## Status (October 31, 2026)
 
 Keep these apart:
