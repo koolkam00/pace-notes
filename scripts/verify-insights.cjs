@@ -1,23 +1,28 @@
 // Independent reconciliation of the Pace Notes story analyses (public/data/insights).
 // It does not import the Python builders or trust their cohorts: the eligible
-// finishes are rebuilt from the checksum-verified runner shards and held once in
-// bounded typed arrays (one Float64Array of nine cumulative times per finish).
+// finishes are rebuilt from the checksum-verified marathon cohort (analysis/marathon-cohort,
+// read through scripts/lib/cohort.cjs; from the runner lookup's profile shards until
+// November 14, 2026) and held once in bounded typed arrays (one Float64Array of nine
+// cumulative times per finish).
 // Families without a recount here (for example a later kick.json)
 // still receive the provenance, inventory, threshold, identity and copy checks and
 // are named in the summary, so they are never mistaken for recounted results.
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 const zlib = require('node:zlib'), assert = require('node:assert/strict');
+const cohortReader = require('./lib/cohort.cjs');
+const { policyEditions, policySha256 } = require('./lib/edition-policy.cjs');
 
 const started = Date.now();
 const root = path.resolve(__dirname, '..'), args = process.argv.slice(2), options = {};
-const usage = 'Usage: node scripts/verify-insights.cjs [--input insights-directory] [--data-root public-data-directory]';
-assert.ok(args.length % 2 === 0 && args.length <= 4, usage);
+const usage = 'Usage: node scripts/verify-insights.cjs [--input insights-directory] [--data-root public-data-directory] [--cohort cohort-directory]';
+assert.ok(args.length % 2 === 0 && args.length <= 6, usage);
 for (let i = 0; i < args.length; i += 2) {
-  assert.ok(['--input', '--data-root'].includes(args[i]) && !(args[i] in options) && args[i + 1], usage);
+  assert.ok(['--input', '--data-root', '--cohort'].includes(args[i]) && !(args[i] in options) && args[i + 1], usage);
   options[args[i]] = path.resolve(args[i + 1]);
 }
 const dataRoot = options['--data-root'] || path.join(root, 'public/data');
 const input = options['--input'] || path.join(dataRoot, 'insights');
+const cohortRoot = options['--cohort'] || cohortReader.ROOT;
 const analysisDir = path.join(root, 'analysis');
 
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -188,23 +193,28 @@ near(position(even, 0, 300 * 21.0975), 21.0975, 'Even runner at half the finish 
 near(position(even, 0, 300 * 41), 41, 'Position inside the final 2.195 km section', 1e-9);
 assert.equal(position(even, 0, even[8]), 42.195, 'Finished runners stand at 42.195 km');
 
-// 1. Provenance: adopted release, exact runner and context manifests, every script hash.
+// 1. Provenance: adopted release, exact cohort and context manifests, the edition policy, every script hash.
+// The marathon cohort (analysis/marathon-cohort) is what the stories read since November 14, 2026. The insights
+// manifest and every family file keep the field names they had while the stories read the runner lookup:
+// `runner_manifest_sha256` is the SHA-256 of the cohort manifest's exact bytes and `runner_manifest_as_of` its `as_of`.
 const pin = read(path.join(analysisDir, 'release.json'));
-const runnersPath = path.join(dataRoot, 'runners/manifest.json'), contextPath = path.join(dataRoot, 'runner-context/manifest.json');
-const runnerBytes = fs.readFileSync(runnersPath), contextBytes = fs.readFileSync(contextPath);
-const runners = JSON.parse(runnerBytes), context = JSON.parse(contextBytes);
-const runnerSha = hash(runnerBytes), contextSha = hash(contextBytes);
+const { manifest: cohort, sha256: cohortSha } = cohortReader.readManifest(cohortRoot);
+const contextPath = path.join(dataRoot, 'runner-context/manifest.json');
+const contextBytes = fs.readFileSync(contextPath);
+const context = JSON.parse(contextBytes);
+const contextSha = hash(contextBytes);
 const manifest = read(path.join(input, 'manifest.json'));
 assert.equal(manifest.schema_version, 1, 'Insights manifest schema');
-assert.equal(runners.release_tag, pin.tag, 'Adopted runner source'); assert.equal(context.release_tag, pin.tag, 'Adopted runner context');
+assert.equal(cohort.release_tag, pin.tag, 'Adopted marathon cohort'); assert.equal(context.release_tag, pin.tag, 'Adopted runner context');
 assert.equal(manifest.release_tag, pin.tag, 'Insights use the adopted release');
-assert.equal(manifest.runner_manifest_sha256, runnerSha, 'Exact runner manifest binding');
+assert.equal(manifest.runner_manifest_sha256, cohortSha, 'Exact cohort manifest binding');
 assert.equal(manifest.context_manifest_sha256, contextSha, 'Exact runner-context manifest binding');
-assert.equal(context.runner_manifest_sha256, runnerSha, 'Context manifest describes the same runner manifest');
-assert.equal(manifest.runner_manifest_as_of, runners.as_of); assert.equal(manifest.input_as_of, runners.input_as_of);
+assert.equal(context.runner_manifest_sha256, cohortSha, 'Context manifest describes the same cohort manifest');
+assert.equal(manifest.runner_manifest_as_of, cohort.as_of); assert.equal(manifest.input_as_of, cohort.input_as_of);
 assert.ok(Number.isFinite(Date.parse(manifest.as_of)), 'Calculation timestamp');
-assert.deepEqual(runners.points_km, points);
-// The builder binds every insights_*.py present when it ran plus its two shared builders.
+assert.deepEqual(cohort.points_km, points);
+assert.equal(cohort.linkage.record_join_method, 'canonical_record_id', 'The cohort joins records by their canonical id');
+// The builder binds every insights_*.py present when it ran plus its shared builders.
 // A module added since (a family still in progress) is reported, never silently trusted.
 const boundScripts = Object.keys(manifest.scripts);
 for (const name of ['build_insights.py', 'build_fast_start.py', 'insights_data.py', 'insights_stats.py']) assert.ok(boundScripts.includes(name), `Shared script bound: ${name}`);
@@ -212,12 +222,22 @@ for (const name of ['build_insights.py', 'build_fast_start.py', 'insights_data.p
 const TERRAIN_FILE = 'tools/course-terrain.json', TERRAIN_SCRIPTS = ['build_course_terrain.py', 'terrain_model.py'];
 assert.ok(boundScripts.every(name => /^insights_[a-z_]+\.py$/.test(name) || ['build_insights.py', 'build_fast_start.py', ...TERRAIN_SCRIPTS].includes(name)), 'Only story scripts are bound');
 const unboundModules = fs.readdirSync(analysisDir).filter(name => /^insights_.*\.py$/.test(name) && !boundScripts.includes(name)).sort();
-assert.deepEqual(manifest.source_scripts, runners.scripts, 'Runner source scripts');
-for (const [name, digest] of Object.entries({ ...runners.scripts, ...manifest.scripts })) {
+// The scripts that wrote the cohort (its builder, its reader, the timing rule, the edition policy, the status and
+// identity files): the story manifest repeats them, and each must be the checkout's.
+const COHORT_SCRIPTS = ['build_cohort.py', 'cohort.py', 'build_pacing.py', 'source_quality.py', 'build_record_status.py', 'build_identity.py'];
+for (const name of COHORT_SCRIPTS) assert.ok(name in cohort.scripts, `Cohort script bound: ${name}`);
+assert.deepEqual(manifest.source_scripts, cohort.scripts, 'Cohort source scripts');
+for (const [name, digest] of Object.entries({ ...cohort.scripts, ...manifest.scripts })) {
   assert.match(name, /^[a-z_]+\.py$/);
   assert.equal(digest, hash(fs.readFileSync(path.join(analysisDir, name))), `Stale calculation script: ${name}`);
 }
-assert.equal(manifest.eligible_records, runners.eligible_records, 'Eligible source records');
+assert.equal(manifest.eligible_records, cohort.eligible_records, 'Eligible source records');
+// The edition policy the cohort was cut by: the story manifest states its digests and counts (lead ruling R8), the
+// list is the one published file those digests name, and the list hashes to the policy digest.
+assert.deepEqual(manifest.source_quality, cohort.source_quality, 'The story manifest states the cohort\'s edition policy');
+assert.equal(cohort.source_quality.release_tag, pin.tag, 'The edition policy is the adopted release\'s');
+const policyRows = policyEditions(cohort.source_quality, 'marathon cohort');
+assert.equal(policySha256(cohort.source_quality, policyRows), cohort.source_quality.policy_sha256, 'The published edition list hashes to the policy digest');
 assert.deepEqual(manifest.genders, ['Other / not recorded', 'Men', 'Women']); assert.deepEqual(manifest.ages, ageLabels);
 assert.ok(Array.isArray(manifest.methodology) && manifest.methodology.every(line => typeof line === 'string' && line.length));
 
@@ -267,7 +287,7 @@ for (const [file, doc] of docs) {
   const { family, index, shard } = familyOf(file);
   assert.equal(doc.family, family, `${file}: family label`);
   assert.equal(doc.release_tag, pin.tag, `${file}: release`);
-  assert.equal(doc.runner_manifest_sha256, runnerSha, `${file}: exact runner manifest`);
+  assert.equal(doc.runner_manifest_sha256, cohortSha, `${file}: exact cohort manifest`);
   if (shard) {
     assert.ok(index in manifest.files, `${file}: belongs to a listed family`);
     if (family.startsWith('tool-')) assert.equal(docs.get(index).shards?.[file], manifest.files[file].sha256, `${file}: listed with its SHA-256 in ${index}`);
@@ -353,8 +373,10 @@ function scan(value, where, key) {
 }
 for (const [file, doc] of [['manifest.json', manifest], ...docs]) scan(doc, file, null);
 
-// 2. Cohort: stream every verified shard and rebuild the eligible finishes.
-const editions = runners.editions, editionKey = (city, year) => `${city}\u0000${year}`;
+// 2. Cohort: read every checksum-verified edition file of the marathon cohort and rebuild the eligible finishes.
+// The cohort manifest's `editions` (the editions with a file: counted, or kept for an own-record view) is the edition
+// index of every family file, as the runner manifest's list was; an own-record edition is listed and has no finish here.
+const editions = cohort.editions, editionKey = (city, year) => `${city}\u0000${year}`;
 const editionIndex = new Map(editions.map((edition, i) => [editionKey(edition.city, edition.year), i]));
 assert.equal(editionIndex.size, editions.length, 'Editions are unique by city and year');
 const screen = manifest.duplicate_edition_screen;
@@ -365,61 +387,93 @@ for (const rule of screen) {
   assert.ok(editionIndex.has(editionKey(rule.city, rule.year)) && editionIndex.has(editionKey(rule.city, rule.duplicate_of)), 'Screen matches exactly one edition and its source');
   duplicate[editionIndex.get(editionKey(rule.city, rule.year))] = 1;
 }
-const excluded = new Set(runners.source_quality.editions.map(row => editionKey(row.city, row.year)));
+// The edition policy against the cohort's own lists: a counted edition is not on the policy's list; an own-record
+// edition is on it with the own-record flag; every other written edition is on it without the flag, in the category
+// the cohort manifest gives it; and the list names no edition the cohort does not know.
+const policyByKey = new Map(policyRows.map(row => [editionKey(row.city, row.year), row]));
+assert.equal(policyByKey.size, policyRows.length, 'The edition policy lists an edition once');
+const excluded = new Set(policyByKey.keys());
+assert.deepEqual(cohort.other_editions.columns, ['city', 'year', 'raw', 'category'], 'Columns of the editions without a cohort file');
+const otherEditions = cohort.other_editions.rows;
+for (const edition of editions) {
+  const listed = policyByKey.get(editionKey(edition.city, edition.year));
+  assert.ok(['counted', 'own_record'].includes(edition.use), `${edition.city} ${edition.year}: use`);
+  if (edition.use === 'counted') assert.equal(listed, undefined, `${edition.city} ${edition.year}: a counted edition is on the edition policy's list`);
+  else assert.ok(listed && listed.own_record === true, `${edition.city} ${edition.year}: an own-record edition must be listed by the policy with its own-record flag`);
+}
+for (const [city, year, , category] of otherEditions) {
+  const listed = policyByKey.get(editionKey(city, year));
+  assert.ok(listed && listed.own_record === false && listed.category === category && !editionIndex.has(editionKey(city, year)),
+    `${city} ${year}: an edition without a cohort file must be listed by the policy, in the same category, without an own-record view`);
+}
+assert.equal(policyRows.length, otherEditions.length + editions.filter(edition => edition.use === 'own_record').length, 'The policy lists exactly the editions that are not counted');
 // The unreconciled (producer-held or partial) editions /methodology names as kept (lib/kept-holds.json, read as JSON so this verifier needs
 // no TypeScript or packages): in this release and outside its policy.
 for (const { city, year } of read(path.join(root, 'lib', 'kept-holds.json'))[pin.tag] ?? []) {
   assert.ok(editionIndex.has(editionKey(city, year)) && !excluded.has(editionKey(city, year)), `${city} ${year}: a kept hold must be in the release and outside the edition policy`);
 }
-const capacity = runners.eligible_records;
+const capacity = cohort.eligible_records;
 const times = new Float64Array(capacity * 9), editionOf = new Uint16Array(capacity), genderOf = new Uint8Array(capacity);
-const recordIds = new Float64Array(runners.raw_records), profileIds = new Float64Array(runners.profiles);
-const sourceFiles = Object.keys(runners.shards).sort(), nameHits = [];
-let raw = 0, profileCount = 0, eligible = 0, storyExactAge = 0;
-assert.ok(sourceFiles.some(file => file.startsWith('profiles/')));
-for (const file of sourceFiles) {
-  assert.match(file, /^(profiles|index)\/[a-f0-9]{3}\.json\.gz$/);
-  const bytes = fs.readFileSync(path.join(dataRoot, 'runners', file));
-  assert.equal(bytes.length, runners.shards[file].bytes, `${file}: compressed bytes`);
-  assert.equal(hash(bytes), runners.shards[file].sha256, `${file}: source checksum`);
-  if (!file.startsWith('profiles/')) continue;
-  const shard = JSON.parse(zlib.gunzipSync(bytes));
-  assert.equal(shard.release_tag, pin.tag, `${file}: shard release`);
-  for (const profile of shard.profiles) {
-    assert.ok(profileCount < profileIds.length && integer(profile.id, 1), 'Valid profile ID and declared count');
-    profileIds[profileCount++] = profile.id;
-    for (const race of profile.races) {
-      assert.ok(raw < recordIds.length && integer(race.id, 1), 'Valid record ID and declared count');
-      recordIds[raw++] = race.id;
-      if (typeof race.name === 'string' && copyStrings.has(normaliseName(race.name))) nameHits.push(copyStrings.get(normaliseName(race.name)));
-      assert.ok(integer(race.edition) && race.edition < editions.length, 'Valid edition mapping');
-      assert.equal(typeof race.eligible, 'boolean', 'Explicit source eligibility');
-      if (!race.eligible) continue;
-      const edition = editions[race.edition], t = race.times;
-      assert.ok(!excluded.has(editionKey(edition.city, edition.year)), 'Reviewed source exclusions cannot contribute');
-      assert.ok(eligible < capacity && Array.isArray(t) && t.length === 9 && t.every(finite) && t[8] >= 5400 && t[8] <= 43200, 'Eligible timing contract');
-      for (let k = 0; k < 9; k++) {
-        const pace = (t[k] - (k ? t[k - 1] : 0)) / lengths[k];
-        assert.ok(pace >= 120 - 1e-8 && pace <= 1200 + 1e-8, 'Eligible section pace bounds');
-      }
-      times.set(t, eligible * 9);
-      editionOf[eligible] = race.edition;
-      genderOf[eligible] = genderCode(race.sex);
-      if (!duplicate[race.edition] && exactAge(race.age)) storyExactAge++;
-      eligible++;
+const heldRecords = cohort.timing_eligible_records_held + cohort.other_records_held;
+const recordIds = new Float64Array(heldRecords), runnerOf = new Float64Array(capacity);
+let held = 0, raw = 0, eligible = 0, storyExactAge = 0, keyedRecords = 0;
+assert.ok(editions.length < 65536 && editions.some(edition => edition.use === 'counted'));
+cohortReader.forEachEdition((edition, entry, index) => {
+  // readEdition has checked the file's size and SHA-256, its edition and its two record counts against the manifest.
+  const counted = entry.use === 'counted', label = `${entry.city} ${entry.year}`;
+  assert.equal(entry.raw, edition.ids.length + edition.otherIds.length, `${label}: every written record is in the file`);
+  assert.deepEqual([entry.eligible, entry.own_record], counted ? [edition.ids.length, 0] : [0, edition.ids.length], `${label}: counted and own-record records`);
+  raw += entry.raw;
+  for (const id of edition.otherIds) { assert.ok(held < heldRecords && integer(id, 1), 'Valid record ID and declared count'); recordIds[held++] = id; }
+  edition.ids.forEach((id, k) => {
+    assert.ok(held < heldRecords && integer(id, 1), 'Valid record ID and declared count');
+    recordIds[held++] = id;
+    const runner = edition.runner[k];
+    assert.ok(runner === 0 || integer(runner, 1) && runner <= id, `${label}: a runner is named by the smallest record id of its key`);
+    if (!counted) return;
+    const t = edition.times[k];
+    assert.ok(!excluded.has(editionKey(entry.city, entry.year)), 'Reviewed source exclusions cannot contribute');
+    assert.ok(eligible < capacity && Array.isArray(t) && t.length === 9 && t.every(finite) && t[8] >= 5400 && t[8] <= 43200, 'Eligible timing contract');
+    for (let j = 0; j < 9; j++) {
+      const pace = (t[j] - (j ? t[j - 1] : 0)) / lengths[j];
+      assert.ok(pace >= 120 - 1e-8 && pace <= 1200 + 1e-8, 'Eligible section pace bounds');
     }
+    times.set(t, eligible * 9);
+    editionOf[eligible] = index;
+    genderOf[eligible] = genderCode(edition.sex[k]);
+    // A record without a runner key is a runner of its own: its own id, which no keyed runner can share.
+    runnerOf[eligible] = runner || id;
+    if (runner) keyedRecords++;
+    if (!duplicate[index] && exactAge(edition.age[k])) storyExactAge++;
+    eligible++;
+  });
+}, cohortRoot);
+assert.equal(held, heldRecords, 'Every record the cohort holds');
+assert.equal(raw + sum(otherEditions.map(row => row[2])), cohort.raw_records, 'Complete source traversal: the cohort\'s editions and the editions without a file hold every written record');
+assert.equal(cohort.raw_records, cohort.cohort.raw, 'Written records agree with the timing cohort');
+assert.equal(eligible, cohort.eligible_records, 'Eligible finishes reconcile with the cohort manifest');
+assert.equal(cohort.eligible_records, cohort.cohort.eligible, 'Counted records are the eligible cohort');
+recordIds.sort();
+for (let i = 1; i < recordIds.length; i++) assert.notEqual(recordIds[i], recordIds[i - 1], 'Unique record IDs');
+// Every screened runner (the cohort's identity; candidates, not verified people): the counted records with a key, the
+// runners with a counted record, those with two or more and their records, against the cohort manifest's linkage.
+{
+  const sorted = runnerOf.slice().sort();
+  let runners = 0, repeat = 0, repeatRecords = 0;
+  for (let i = 0; i < sorted.length;) {
+    let j = i + 1;
+    while (j < sorted.length && sorted[j] === sorted[i]) j++;
+    runners++;
+    if (j - i >= 2) { repeat++; repeatRecords += j - i; }
+    i = j;
   }
+  const keyedRunners = runners - (eligible - keyedRecords);
+  assert.deepEqual([keyedRecords, keyedRunners, repeat, repeatRecords],
+    [cohort.linkage.counted_records_with_a_runner, cohort.linkage.runners_with_a_counted_record, cohort.linkage.runners_with_two_or_more_counted_records,
+      cohort.linkage.counted_records_of_those_runners], 'Every screened runner of the cohort: keyed records, runners, runners with two or more and their records');
 }
-assert.equal(raw, runners.raw_records, 'Complete source traversal');
-assert.equal(profileCount, runners.profiles, 'Every candidate profile');
-assert.equal(eligible, runners.eligible_records, 'Eligible finishes reconcile with the runner manifest');
-for (const [label, ids] of [['record', recordIds], ['profile', profileIds]]) {
-  ids.sort();
-  for (let i = 1; i < ids.length; i++) assert.notEqual(ids[i], ids[i - 1], `Unique ${label} IDs`);
-}
-assert.deepEqual(nameHits, [], 'Insights text matches a recorded runner name');
 
-// Rows grouped by edition, keeping verified shard order (the builder's stable order).
+// Rows grouped by edition, keeping cohort order: the manifest's editions, then record id (the builder's stable order).
 const editionCount = new Uint32Array(editions.length), editionStart = new Uint32Array(editions.length + 1);
 for (let i = 0; i < eligible; i++) editionCount[editionOf[i]]++;
 for (let e = 0; e < editions.length; e++) editionStart[e + 1] = editionStart[e] + editionCount[e];
@@ -1464,9 +1518,41 @@ for (const [family, doc] of families) {
 }
 recounted['tool-course-terrain'] = checkCourseTerrain(docs.get(TERRAIN_FILE));
 assert.ok('finish-times' in recounted && 'replay' in recounted, 'Core story families are present');
+
+// 10. No published string equals a recorded runner name. The cohort holds no names (it is names-free by design), so
+// the guard reads them from where the release's names are: the names file PACE_NOTES_NAMES_FILE names (gzip text, one
+// recorded marathon name per line; scripts/charts/extract-names.py writes it from the adapted input, with a sidecar
+// <file>.json that states the input it came from). It is the last check, so everything above is recounted first, and
+// without a names source this verifier fails: it never passes without having compared the names.
+// Every string value of every file was normalised into `copyStrings` above; each recorded name is normalised the same
+// way and looked up there, as the lookup's names were while the stories read its shards.
+function recordedNameGuard() {
+  const file = process.env.PACE_NOTES_NAMES_FILE;
+  assert.ok(file, 'The name guard has no source of recorded names: the marathon cohort holds none. Set PACE_NOTES_NAMES_FILE to the names file '
+    + 'of the adapted input (scripts/charts/extract-names.py writes it) and run again; this check is never skipped.');
+  const bytes = fs.readFileSync(file), sidecar = read(`${file}.json`);
+  assert.deepEqual([sidecar.bytes, sidecar.sha256], [bytes.length, hash(bytes)], `${file}: the names file is not the one its sidecar describes`);
+  assert.equal(sidecar.input_manifest_sha256, cohort.input_manifest_sha256, `${file}: the names are from another adapted input than the cohort's`);
+  const text = zlib.gunzipSync(bytes), hits = [];
+  let names = 0, start = 0;
+  while (start < text.length) {
+    let end = text.indexOf(10, start);
+    if (end < 0) end = text.length;
+    if (end > start) {
+      names++;
+      const where = copyStrings.get(normaliseName(text.toString('utf8', start, end)));
+      if (where !== undefined) hits.push(where);
+    }
+    start = end + 1;
+  }
+  assert.ok(names > 0 && names === sidecar.names, `${file}: ${names} names read, its sidecar states ${sidecar.names}`);
+  assert.deepEqual(hits, [], 'Insights text matches a recorded runner name');
+  return { source: 'names file of the adapted input', names };
+}
+const nameGuard = recordedNameGuard();
 console.log(JSON.stringify({
   verified: 'insights', release_tag: pin.tag, input: input.startsWith(root + path.sep) ? path.relative(root, input) : input, files: listed.length, scanned_values: scannedValues,
-  source_shards: sourceFiles.length, raw_records: raw, eligible_records: eligible, story_n: storyN, shape_n: shapeN,
+  cohort_editions: editions.length, cohort_records: held, raw_records: cohort.raw_records, eligible_records: eligible, recorded_names: nameGuard, story_n: storyN, shape_n: shapeN,
   start_offset_editions: flagged.length, recounted, generic_only: genericOnly, unbound_modules: unboundModules, course_geometry: Boolean(geometry),
   seconds: Math.round((Date.now() - started) / 100) / 10,
 }));
