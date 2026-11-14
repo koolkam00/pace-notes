@@ -244,8 +244,11 @@ def build(full):
         if 'women' in row and 'men' in row:
             gender_kick.append(row)
 
-    # 8. It follows you: consecutive races of one screened candidate profile, 1–3 years apart.
-    recurrence = follow(s, detected, key, loo, ok)
+    # 8. It follows you: consecutive races of one screened candidate profile, 1–3 years apart; and the same reading when
+    # only links of the tiers high_elite and high join records (lead ruling R6 of the adoption, November 14, 2026: a
+    # published reading that follows linked runners stores its high-links-only variant beside it).
+    recurrence = dict(**follow(s, detected, key, loo, ok, s.profile), note=RECURRENCE_NOTE)
+    recurrence['high_links_only'] = dict(**follow(s, detected, key, loo, ok, high_link_profile(s)), note=HIGH_LINKS_NOTE)
 
     return dict(
         cohort_n=int(n), editions=int(len(np.unique(s.edition))), start_offset_editions=offset_audit, grid_screen=grid_audit,
@@ -260,9 +263,25 @@ def build(full):
     )
 
 
-def follow(s, detected, key, loo, ok):
-    order = np.lexsort((s.year, s.profile))
-    prof, year = s.profile[order], s.year[order]
+RECURRENCE_NOTE = 'Pairs are consecutive eligible races of one screened candidate profile, 1–3 years apart; profiles are not verified people.'
+HIGH_LINKS_NOTE = ('The same pairs when only links of the tiers high_elite and high join records: a record linked at the tier medium '
+                   'stands alone, as a record without a link does.')
+
+
+def high_link_profile(s):
+    """A runner key that joins records by links of the tiers high_elite and high alone.
+
+    `s.link_high` (the marathon cohort's reader) marks the records whose link to their runner is of one of those tiers.
+    They keep the runner's id; every other record (linked at the tier medium, or not linked) is a runner of its own,
+    named by the negative of its record id, which no runner id can equal (a runner is named by a record id).
+    """
+    return np.where(s.link_high, s.runner, -s.record_id)
+
+
+def follow(s, detected, key, loo, ok, profile):
+    """Recurrence over consecutive races of one `profile` value (the runner key in use)."""
+    order = np.lexsort((s.year, profile))
+    prof, year = profile[order], s.year[order]
     # Consecutive races of one profile, where neither year holds more than one eligible finish.
     dup = (prof[1:] == prof[:-1]) & (year[1:] == year[:-1])
     single = ~(np.r_[False, dup] | np.r_[dup, False])
@@ -278,5 +297,4 @@ def follow(s, detected, key, loo, ok):
     def cell(m):
         return dict(pairs=int(m.sum()), observed=r(detected[b][m].mean(), SHARE_DIGITS), expected=r(expected[m].mean(), SHARE_DIGITS)) if m.sum() >= MIN_CELL else None
     return dict(pairs=int(len(a)), after_slowdown=cell(after), after_none=cell(~after),
-                after_slowdown_same_course=cell(after & same_course), after_slowdown_other_course=cell(after & ~same_course),
-                note='Pairs are consecutive eligible races of one screened candidate profile, 1–3 years apart; profiles are not verified people.')
+                after_slowdown_same_course=cell(after & same_course), after_slowdown_other_course=cell(after & ~same_course))

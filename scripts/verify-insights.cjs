@@ -416,7 +416,11 @@ const capacity = cohort.eligible_records;
 const times = new Float64Array(capacity * 9), editionOf = new Uint16Array(capacity), genderOf = new Uint8Array(capacity);
 const heldRecords = cohort.timing_eligible_records_held + cohort.other_records_held;
 const recordIds = new Float64Array(heldRecords), runnerOf = new Float64Array(capacity);
-let held = 0, raw = 0, eligible = 0, storyExactAge = 0, keyedRecords = 0;
+// The runner key when only links of the tiers high_elite and high join records (insights_kick.high_link_profile): the
+// runner's id for a record whose link is of one of those tiers (the cohort's link class `h`), else the negative of the
+// record's own id, which no runner id can equal.
+const runnerHighOf = new Float64Array(capacity);
+let held = 0, raw = 0, eligible = 0, storyExactAge = 0, keyedRecords = 0, highRecords = 0;
 assert.ok(editions.length < 65536 && editions.some(edition => edition.use === 'counted'));
 cohortReader.forEachEdition((edition, entry, index) => {
   // readEdition has checked the file's size and SHA-256, its edition and its two record counts against the manifest.
@@ -443,7 +447,11 @@ cohortReader.forEachEdition((edition, entry, index) => {
     genderOf[eligible] = genderCode(edition.sex[k]);
     // A record without a runner key is a runner of its own: its own id, which no keyed runner can share.
     runnerOf[eligible] = runner || id;
+    const link = edition.link[k];
+    assert.ok(runner ? link === 'h' || link === 'm' : link === null, `${label}: a record has a link class exactly when it has a runner`);
+    runnerHighOf[eligible] = link === 'h' ? runner : -id;
     if (runner) keyedRecords++;
+    if (link === 'h') highRecords++;
     if (!duplicate[index] && exactAge(edition.age[k])) storyExactAge++;
     eligible++;
   });
@@ -1188,6 +1196,59 @@ function checkKick(doc) {
     near(row.women, w[1] / w[0], `${row.label}: women kick share`, 1e-4); near(row.men, m[1] / m[0], `${row.label}: men kick share`, 1e-4);
     printedOnce(row.women, w[1] / w[0], `${row.label}: women kick share`); printedOnce(row.men, m[1] / m[0], `${row.label}: men kick share`);
   });
+  // Recurrence (insights_kick.follow): consecutive races of one runner key, 1 to 3 years apart, neither year holding
+  // another finish of that runner; the later race must sit in a stratum (its edition and 5 s/km band of 5–20 km pace)
+  // of at least 100 finishes, whose leave-one-out share of sustained slowdowns is what the later race is expected to
+  // show. Recounted for the runner key in use and for the key on high links alone (lead ruling R6, November 14, 2026).
+  {
+    const count = n, idx = new Uint32Array(count), slowed = new Uint8Array(count), stratum = new Float64Array(count);
+    const strata = new Map();
+    let j = 0;
+    eachRow(kickEditions, (i, e) => {
+      const o = i * 9, d = [4, 5, 6, 7].some(k => rel(o, k) + 1e-12 >= .25) ? 1 : 0;
+      const key = e * 1000 + Math.floor((times[o + 3] - times[o]) / 15 / 5);
+      idx[j] = i; slowed[j] = d; stratum[j] = key;
+      const cell = strata.get(key) || [0, 0];
+      cell[0]++; cell[1] += d; strata.set(key, cell);
+      j++;
+    });
+    const yearOf = j => editions[editionOf[idx[j]]].year, cityOf = j => editions[editionOf[idx[j]]].city;
+    const recount = keys => {
+      // Ordered by runner key, then year (two finishes of one key in one year are both left out, so their order is immaterial).
+      const years = Int16Array.from({ length: count }, (_, j) => yearOf(j));
+      const order = Uint32Array.from({ length: count }, (_, j) => j).sort((a, b) => keys[idx[a]] - keys[idx[b]] || years[a] - years[b]);
+      const same = (a, b) => keys[idx[a]] === keys[idx[b]];
+      const single = p => !(p > 0 && same(order[p], order[p - 1]) && years[order[p]] === years[order[p - 1]])
+        && !(p + 1 < count && same(order[p], order[p + 1]) && years[order[p]] === years[order[p + 1]]);
+      const cells = { after_slowdown: [0, 0, 0], after_none: [0, 0, 0], after_slowdown_same_course: [0, 0, 0], after_slowdown_other_course: [0, 0, 0] };
+      let pairs = 0;
+      for (let p = 0; p + 1 < count; p++) {
+        const a = order[p], b = order[p + 1], gap = years[b] - years[a];
+        if (!same(a, b) || gap < 1 || gap > 3 || !single(p) || !single(p + 1)) continue;
+        const [size, hits] = strata.get(stratum[b]);
+        if (size < MIN_CELL) continue;
+        pairs++;
+        const expected = (hits - slowed[b]) / Math.max(size - 1, 1);
+        const into = slowed[a] ? ['after_slowdown', cityOf(a) === cityOf(b) ? 'after_slowdown_same_course' : 'after_slowdown_other_course'] : ['after_none'];
+        for (const name of into) { cells[name][0]++; cells[name][1] += slowed[b]; cells[name][2] += expected; }
+      }
+      return { pairs, cells };
+    };
+    const compare = (published, recounted, label) => {
+      assert.equal(published.pairs, recounted.pairs, `${label}: pairs`);
+      for (const [name, [pairs, observed, expected]] of Object.entries(recounted.cells)) {
+        const cell = published[name];
+        assert.equal(cell === null, pairs < MIN_CELL, `${label} ${name}: published exactly from ${MIN_CELL} pairs`);
+        if (cell === null) continue;
+        assert.equal(cell.pairs, pairs, `${label} ${name}: pairs`);
+        near(cell.observed, observed / pairs, `${label} ${name}: observed share`, 1e-9); near(cell.expected, expected / pairs, `${label} ${name}: expected share`, 1e-9);
+      }
+    };
+    const high = doc.recurrence.high_links_only;
+    assert.ok(high && typeof high.note === 'string' && typeof doc.recurrence.note === 'string', 'Recurrence carries its high-links-only variant and both notes');
+    compare(doc.recurrence, recount(runnerOf), 'Recurrence');
+    compare(high, recount(runnerHighOf), 'Recurrence on high links alone');
+  }
   // Cost bands use the story cohort: same 5–20 km pace (15-minute marathon equivalent), with and without a sustained slowdown.
   const cost = new Map();
   eachRow(storyEditions, i => {
