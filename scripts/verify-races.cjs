@@ -22,10 +22,11 @@
 //   7. No identifier: only known keys, every string from a known vocabulary (the registry's labels, names and places,
 //      the notes' aliases, the code lists), no release label, no person id.
 //
-//   node scripts/verify-races.cjs [--data <races folder>] [--self-test]
+//   node scripts/verify-races.cjs [--data <races folder>] [--root <repository>] [--self-test]
 //
-// `--data` reads another copy of the races folder; `--self-test` breaks copies of the published folder one way at a time
-// and requires this verifier to refuse each for the reason it names.
+// `--data` reads another copy of the races folder and `--root` another repository (analysis/test_races.py runs this
+// verifier on a made-up one); `--self-test` breaks copies of the published folder one way at a time and requires this
+// verifier to refuse each for the reason it names.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -99,12 +100,12 @@ function parseCsv(text) {
   return rows;
 }
 
-function verify(dataDir) {
+function verify(dataDir, root = ROOT) {
   const problems = [];
   let checks = 0;
   const ok = (cond, message) => { checks++; if (!cond) problems.push(message); return !!cond; };
   const eq = (a, b, message) => ok(same(a, b), `${message}: ${JSON.stringify(canon(a))?.slice(0, 300)} vs ${JSON.stringify(canon(b))?.slice(0, 300)}`);
-  const rel = (p) => path.join(ROOT, p);
+  const rel = (p) => path.join(root, p);
   const readJson = (p) => JSON.parse(fs.readFileSync(rel(p), 'utf8'));
   const data = (name) => fs.readFileSync(path.join(dataDir, name));
   const done = () => ({ problems, checks });
@@ -569,7 +570,7 @@ function verify(dataDir) {
 }
 
 // ---------- Self-test: broken copies of the published folder, each refused for its own reason ----------
-function selfTest(source) {
+function selfTest(source, root = ROOT) {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-races-'));
   const copy = (name) => { const dir = path.join(base, name); fs.cpSync(source, dir, { recursive: true }); return dir; };
   const rewrite = (dir, file, change) => {
@@ -616,7 +617,7 @@ function selfTest(source) {
   for (const [name, breakIt, expected] of cases) {
     const dir = copy(String(refused + failures.length));
     breakIt(dir);
-    const { problems } = verify(dir);
+    const { problems } = verify(dir, root);
     if (problems.some((p) => expected.test(p))) refused++;
     else failures.push(`${name}: expected a problem matching ${expected}, got ${JSON.stringify(problems.slice(0, 3))}`);
   }
@@ -626,14 +627,16 @@ function selfTest(source) {
 
 function main() {
   const args = process.argv.slice(2);
-  const opt = { data: path.join(ROOT, 'public/data/races'), selfTest: false };
+  const opt = { data: null, root: ROOT, selfTest: false };
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--data' && args[i + 1]) opt.data = path.resolve(args[++i]);
+    else if (args[i] === '--root' && args[i + 1]) opt.root = path.resolve(args[++i]);
     else if (args[i] === '--self-test') opt.selfTest = true;
-    else throw new Error('Usage: node scripts/verify-races.cjs [--data <races folder>] [--self-test]');
+    else throw new Error('Usage: node scripts/verify-races.cjs [--data <races folder>] [--root <repository>] [--self-test]');
   }
+  opt.data ??= path.join(opt.root, 'public/data/races');
   const started = Date.now();
-  const { problems, checks } = verify(opt.data);
+  const { problems, checks } = verify(opt.data, opt.root);
   if (problems.length) {
     console.error(`verify-races: ${problems.length} problem(s) in ${checks} checks`);
     for (const p of problems.slice(0, 60)) console.error(`  - ${p}`);
@@ -642,7 +645,7 @@ function main() {
   }
   console.log(`verify-races: ${checks.toLocaleString('en-US')} checks pass (${((Date.now() - started) / 1000).toFixed(1)} s)`);
   if (opt.selfTest) {
-    const result = selfTest(opt.data);
+    const result = selfTest(opt.data, opt.root);
     if (result.failures.length) {
       console.error(`verify-races self-test: ${result.failures.length} of ${result.cases} broken copies were not refused for the reason named`);
       for (const f of result.failures) console.error(`  - ${f}`);

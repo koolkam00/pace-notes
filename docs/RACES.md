@@ -13,8 +13,9 @@ Keep these apart:
 - **Decisions.** The adoption plan's decisions D5 (every edition with rows listed, with its tier), D11 and D15 (one
   place per race; page types by rule), D14 and D19 (the race registry; its label is the pipeline's `city`), D16 (the
   words of each tier), D17 (hold notes on `/methodology` only), D22 (the finish-time universe) and D29 and D30 (Warsaw's
-  two series; flags and aliases outside the frozen registry), and the lead's addendum of 2026-11-14 that asked for the
-  duplicate-edition audit. None of these is an owner decision; the open owner questions are in the plan.
+  two series; flags and aliases outside the frozen registry), the lead's addendum of 2026-11-14 that asked for the
+  duplicate-edition audit, and the lead's rulings of 2026-11-14 on its three pairs (quoted in
+  `analysis/race-notes.json`). None of these is an owner decision; the open owner questions are in the plan.
 - **Measured.** A trial build on November 14, 2026 from the adapted input of
   `pace-notes-marathon-half-20261113-1113` whose `MANIFEST.json` is `c0ddc847…8310b` (the input the edition policy
   pinned that day; not the final input of the adoption). Its numbers are under [Measured](#measured) and are replaced
@@ -44,7 +45,8 @@ The manifest has no clock time: two builds give the same bytes.
 A stranger can recount every file from these and the inputs above.
 
 1. **Universe.** Every marathon edition with at least one written row in the adapted input. An edition of the release
-   with no row (an excluded edition) never appears.
+   with no row (an excluded edition) never appears. A race with no live edition (every edition set aside as a copy,
+   rule 12) is left out of every list and count of races: it has no results to list (lead ruling, 2026-11-14).
 2. **Race.** A race is an entry of the race registry. Its `label` is the pipeline's `city`, the join key with the
    year in every other family; `name` and `place` are the registry's. A race's slug is the registry's and is
    published only when the race has a page.
@@ -92,9 +94,11 @@ A stranger can recount every file from these and the inputs above.
     registry gives a label a series note (Warsaw holds two races), each series has its own reading and the label has
     none.
 12. **Duplicate editions.** An edition the notes file sets aside as a copy (the lead's ruling on a pair of the
-    [audit](#duplicate-editions)) is still listed, with the review mark `copy` and the edition it copies; it carries
-    no number and counts toward no total, floor, page type or reading. A pair still pending is listed with the mark
-    `possible_duplicate` and changes nothing else.
+    [audit](#duplicate-editions)) stays in the data, with the review mark `copy` and, in `set_aside_editions`, the
+    edition it copies; it carries no number, counts toward no total, floor, page type or reading, and a page does
+    not show it as an edition of the race. A race's years and a page's edition count are those of its live editions.
+    A pair still pending is listed with the mark `possible_duplicate` and changes nothing else. A pair the lead keeps
+    as two editions carries no mark in any page file.
 13. **Floors** (AGENTS rule 13; never lowered): 100 finishes behind any number of an edition; three editions behind
     any statement across editions; a recorded sex on nine tenths of the finishes behind a share of women. The last
     was set on November 14, 2026 after reading the distribution: the lowest edition of the finish-time universe
@@ -130,13 +134,20 @@ release. A count never appears in a sentence: `what` says what a number counts.
 { "schema_version": 1, "family": "races", "distance": "marathon",
   "codes": { "tier": [...], "split_tier": [...], "use": [...], "category": [...], "timing": [...], "review": [...], "page": [...], "flags": [...] },
   "edition_columns": ["year", "tier", "split_tier", "results", "finishes", "use", "category", "timing", "review"],
+  "left_out": [...], "set_aside_editions": [...],
   "races": [ { "label": <registry label>, "name": <registry name>, "place": <registry place or null>, "page": "course", "slug": <registry slug>,
                "years": [<first year>, <last year>], "results": <recorded results>, "finishes": <finishes>,
                "editions": [[<year>, 0, 0, <recorded results>, <finishes>, 0, null, 0, 0], ...] }, ... ] }
 ```
 
-- `races` are in registry order (by race id). `slug` is present only when `page` is `course` or `results`; `flags`,
-  `aliases` and `withheld` (the page type a blocking flag withholds) only when not empty. `place` may be `null`.
+- `races` are the races with a live edition, in registry order (by race id). `slug` is present only when `page` is
+  `course` or `results`; `flags`, `aliases` and `withheld` (the page type a blocking flag withholds) only when not
+  empty. `place` may be `null`. `years` are the first and last year of the live editions.
+- `left_out`: the races with no live edition (`label`, `name`, `place` and their edition rows, every one a copy). No
+  page reads it; it is there so that every edition with rows is in the file exactly once.
+- `set_aside_editions`: one object per copy, `{ "label", "year", "kept": { "label", "year" }, "reason" }`, the
+  edition it copies and why (`one_list_two_years`, `one_race_two_keys`). A list shows a race's editions whose
+  review is not `copy`.
 - An edition row holds, in the order of `edition_columns`: the year; positions in `codes.tier`, `codes.split_tier`;
   recorded results; finishes; positions in `codes.use`, `codes.category` (or `null` when counted), `codes.timing` and
   `codes.review` (`none`, `possible_duplicate`, `copy`). Rows are in year order.
@@ -145,7 +156,7 @@ release. A count never appears in a sentence: `what` says what a number counts.
 ### `pages.json`: the short head
 
 `pages`: one object per race with a page, in registry order: `label`, `name`, `place`, `slug`, `page`, `years`,
-`editions` (count), `results`, `finishes`, `tiers` (editions by tier code), `with_checkpoint_times`,
+`editions` (the count of live editions), `results`, `finishes`, `tiers` (editions by tier code), `with_checkpoint_times`,
 `counted_editions`, `own_record_editions`, `universe_editions`, `page_before` (one of the 27 earlier course pages),
 `flags`, `aliases`. It is what a list of pages, the sitemap and the analytics allow-list need without loading the
 directory.
@@ -163,14 +174,15 @@ directory.
   "series"?: [ { "name", "first_year", "last_year", "years": [...], "reading": {...} | null } ] }
 ```
 
-- Every edition of the race is listed. `finishes` is present exactly when `in_universe` is true; the quartiles and
-  `women` exactly when the edition also has 100 finishes; `women` is `null` when the sex floor fails.
+- Every edition of the race is listed. An edition with `"review": "copy"` carries `copy_of` and no number, and a
+  page does not show it. `finishes` is present exactly when `in_universe` is true; the quartiles and `women` exactly
+  when the edition also has 100 finishes; `women` is `null` when the sex floor fails.
 - Times are seconds. `share` is `n / of` to four decimals; `of` is the finishes recorded as women or men.
 - A statement across editions has a `null` fallback and a page states no reading in any slot when it is `null`.
 
 ### `summary.json`: the counts a page prints
 
-`races` (`total`, `by_page`, `course_pages_kept`, `flagged`, `page_withheld_by_a_flag`), `editions` (`total` with
+`races` (`total`, `by_page`, `course_pages_kept`, `flagged`, `page_withheld_by_a_flag`, `left_out`), `editions` (`total` with
 results and finishes; `by_tier_and_split_tier`, `by_tier`, `by_split_tier` and `badge_verified`, each with races,
 editions, results and finishes; `by_use`; `not_counted_by_category`), `counted` (editions, races, finishes that pass the timing checks, sustained slowdowns and
 their share, as the pipeline's evidence states them), `sensitivity` (the same without partial editions, without
@@ -184,8 +196,11 @@ One row per edition, sorted by race label and year, with these columns: `race`, 
 `official_count_source` (the source in words, or that there is no independent count), `official_source_type` (the
 producer's own words), `coverage_pct` (the release's finishes over the official count), `use`, `use_in_words`,
 `not_counted_category`, `reason_not_counted` (the policy's sentence), `timing`, `timing_basis` (the producer's
-words), `race_date`, `race_date_source`, `hold_note`, `release_note`, `review`, `release_key` (the release's own
-race key, the join to the release's tables; never shown as a name).
+words), `race_date`, `race_date_source`, `hold_note`, `release_note`, `review`, `copy_of_race` and `copy_of_year`
+(the edition a copy copies), `reviewed_note` (the reviewed note of an edition of a listed pair: `one_list_two_years`,
+`one_race_two_keys` or `repeated_finish_times`), `release_key` (the release's own race key, the join to the release's
+tables; never shown as a name). The table holds every edition with rows, copies and the editions of left-out races
+included.
 
 ### `manifest.json`
 
@@ -223,19 +238,43 @@ them, with every threshold):
 
 The lead rules on each listed pair. A ruling is an entry of `duplicate_editions` in the notes file: `pending`,
 `set_aside` (naming the edition) or `keep_both`, with who ruled, when and in what words. The builder refuses to run,
-and the verifier fails, unless the reviewed list holds exactly the pairs of the evidence file. Other families read
-their own inputs: a ruling reaches the runner lookup and the linked analyses through the lead.
+and the verifier fails, unless the reviewed list holds exactly the pairs of the evidence file.
 
-What the audit cannot see: a list loaded twice with names written so differently that their sorted words differ and
-with different times; editions of different races in different years by time alone; editions with fewer than 10
-single names (near) or 20 finish times (time only).
+**The set-aside list other builders read.** `set_aside_editions` in
+[`analysis/race-notes.json`](../analysis/race-notes.json) lists each copy as label (the pipeline's `city`), year,
+the edition kept and the reason. It must say exactly what the rulings say (the builder and the verifier check it).
+The runner-lookup builder skips the rows of those editions, so one run is not shown as two results (lead ruling,
+2026-11-14). Any other family that counts results or follows runners across editions reads the same list.
+
+**Rulings on this release** (the lead, 2026-11-14; the words are in the notes file):
+
+| Pair | Ruling |
+| --- | --- |
+| Maratona SDAM 2012 and 2013 | 2013 is set aside: one list under two years of one race. The data cannot say which year is real; the earlier one is kept by convention. Both editions carry the note `one_list_two_years`. |
+| The Green Mtn. marathon of 2015 and Champlain Islands 2015 | The Green Mtn edition is set aside: one race of one day under two keys. Its race then has no live edition and is left out of the directory. |
+| Maraton Saltillo La Moderna 2023 and 2024 | Both are kept, with the note `repeated_finish_times`: their finish times past about 5:00 are shared between rows and years and are not individual times. No mark on a page beyond the tier. |
+
+### What the audit cannot see
+
+- A list loaded twice with names written so differently that the sorted words differ (initials, a missing middle
+  name) **and** times that differ: neither names nor seconds match.
+- Editions of different races in different years are compared by name only (exact and near), not by time alone.
+- 3 editions have fewer than 10 single names and 55 fewer than 20 finish times: too small for the near and
+  time-only rules (the exact rule still applies to them).
+- Inside one edition: 131 rows sit on 64 (name, second) keys that repeat in their own edition. Not pairs of
+  editions; listed here so that it is not lost.
+
+(Counts of `pace-notes-marathon-half-20261113-1113`, measured 2026-11-14 on the adapted input with manifest
+`c0ddc847…8310b`.)
 
 ## How it is verified
 
-- `python3 -m unittest analysis/test_races.py analysis/test_races_duplicates.py`: 40 tests on made-up releases (page
-  types, the floors at their edge, readings and series, flags, aliases, rulings, refusals of inputs that do not
-  belong together, each audit rule and kind, no runner detail in any output).
-- `node scripts/verify-races.cjs` (in `npm run verify:data` once the family is built): from the repository alone it
+- `python3 -m unittest analysis/test_races.py analysis/test_races_duplicates.py`: 43 tests on made-up releases (page
+  types, the floors at their edge, readings and series, flags, aliases, rulings, a race left out, refusals of inputs
+  that do not belong together, each audit rule and kind, no runner detail in any output). Two of them build a
+  made-up repository and run `scripts/verify-races.cjs --root` on it, self-test included, so the builder and the
+  verifier, written apart, must agree on every rule.
+- `node scripts/verify-races.cjs [--root <repository>]` (in `npm run verify:data` once the family is built): from the repository alone it
   checks the manifest against the pins, recounts every edition against the policy, the pipeline's facts and the
   cohort manifest, recomputes flags, aliases, page types, the finish-time universe, the floors, every reading, the
   summary, the head and the edition table, requires the reviewed duplicate list to be the audit's, and refuses any
@@ -270,6 +309,8 @@ input or an audit script changes, and review the notes when its list moves.
 - On a course page, the median finish by year in the story data counts finishes with nine checkpoint times; the race
   file counts every finish with a time. They differ for the same edition: show one, or name the measure.
 - A race flagged `hand_cycle_title` never has its title printed beside a runner. Flagged races have no page.
+- An edition whose review is `copy` is not an edition of the race on a page: show the rows whose review is `none`
+  or `possible_duplicate`. A race under `left_out` is not listed.
 - An alias is matched by the search and never displayed. The search must fold accents itself.
 - A typed filter is typed text (AGENTS rule 18): it stays out of the address, out of analytics and out of recordings.
 - New page slugs join the analytics allow-list as literals (plan decision D25); `pages.json` is the list.

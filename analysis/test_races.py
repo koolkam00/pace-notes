@@ -5,6 +5,8 @@ import copy
 import csv
 import io
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -18,6 +20,7 @@ import build_races as br  # noqa: E402
 import races_common as rc  # noqa: E402
 
 TAG = 'pace-notes-marathon-half-20990101-0000'
+EVIDENCE = 'docs/evidence/2099-01-01/release-20990101-0000'
 REASONS = {'finish_time_only': 'Finish times only.', 'held_for_review': 'Held for review.', 'unverified': 'No independent count.',
            'partial_coverage': 'Partial, outside the band.', 'selected_field': 'A selected field.'}
 # label, slug, name, place, registry flags, labelled_by, then editions:
@@ -73,17 +76,24 @@ def clock(seconds):
 
 
 class Fixture:
-    """A small adapted folder, registry, policy, notes and evidence that agree with each other; change a part, write()
-    again, and the digests follow."""
+    """A small made-up repository: an adapted folder, registry, policy, notes and evidence that agree with each other, laid
+    out as the real one is (so scripts/verify-races.cjs can read it with --root). Change a part, write() again, and the
+    digests follow."""
 
     def __init__(self, tmp):
         self.root = Path(tmp)
         self.source = self.root / 'input' / 'full'
         self.source.mkdir(parents=True)
+        self.p = {'release': self.root / 'analysis' / 'release.json', 'registry': self.root / 'analysis' / 'race-registry.json',
+                  'notes': self.root / 'analysis' / 'race-notes.json', 'policy': self.root / 'analysis' / 'edition-policy-20990101-0000.json',
+                  'published': self.root / 'public' / 'data' / 'edition-policy.json', 'audit': self.root / EVIDENCE / 'duplicate-editions.json',
+                  'sensitivity': self.root / EVIDENCE / 'cohort-sensitivity.json', 'facts': self.root / EVIDENCE / 'edition-policy-review.json',
+                  'cohort': self.root / 'analysis' / 'marathon-cohort' / 'manifest.json'}
+        self.out = self.root / 'public' / 'data' / 'races'
         self.races = copy.deepcopy(RACES)
         self.notes = {'schema_version': 1, 'tag': TAG, 'reviewed': '2099-01-01',
-                      'evidence': {'duplicate_editions': 'evidence/duplicate-editions.json', 'cohort_sensitivity': 'evidence/cohort-sensitivity.json',
-                                   'edition_facts': 'evidence/edition-policy-review.json'},
+                      'evidence': {'duplicate_editions': f'{EVIDENCE}/duplicate-editions.json', 'cohort_sensitivity': f'{EVIDENCE}/cohort-sensitivity.json',
+                                   'edition_facts': f'{EVIDENCE}/edition-policy-review.json'},
                       'flags': [], 'clears': [], 'page_rulings': [], 'aliases': [], 'duplicate_editions': [], 'set_aside_editions': [], 'edition_notes': []}
         self.audit_pairs = []
         self.series = {'Zeta': SERIES}
@@ -143,44 +153,61 @@ class Fixture:
         dump(self.source / 'MANIFEST.json', manifest)
         manifest_sha = rc.file_sha256(self.source / 'MANIFEST.json')
         dump(self.source / 'provenance.json', {'release_tag': TAG, 'manifest_sha256': manifest_sha})
-        dump(self.root / 'release.json', {'tag': TAG})
+        dump(self.p['release'], {'tag': TAG})
         registry = {'tag': TAG, 'distance': 'marathon', 'races': []}
         for label, slug, name, place, flags, labelled_by, own in sorted(self.races, key=lambda r: r[1]):
-            race = {'race_id': slug, 'slug': slug, 'label': label, 'name': name, 'place': place, 'flags': flags, 'labelled_by': labelled_by,
-                    'first_year': min(e[0] for e in own), 'last_year': max(e[0] for e in own), 'editions': len(own), 'rows': sum(e[3] for e in own)}
+            race = {'race_id': slug, 'slug': slug, 'label': label, 'name': name, 'place': place, 'keys': [f'Somewhere: {name}'], 'flags': flags,
+                    'labelled_by': labelled_by, 'first_year': min(e[0] for e in own), 'last_year': max(e[0] for e in own), 'editions': len(own),
+                    'rows': sum(e[3] for e in own)}
             if label in self.series:
                 race['series'] = self.series[label]
             registry['races'].append(race)
-        dump(self.root / 'race-registry.json', registry)
-        policy = {'tag': TAG, 'inputs': {'adapted_manifest_sha256': manifest_sha, 'race_registry_sha256': rc.file_sha256(self.root / 'race-registry.json')},
-                  'counted': counted, 'editions': listed}
-        dump(self.root / 'edition-policy.json', policy)
-        policy_sha = rc.file_sha256(self.root / 'edition-policy.json')
+        dump(self.p['registry'], registry)
+        policy = {'tag': TAG, 'inputs': {'adapted_manifest_sha256': manifest_sha, 'race_registry_sha256': rc.file_sha256(self.p['registry'])},
+                  'expected': {'editions_with_rows': len(editions)}, 'counted': counted, 'editions': listed}
+        dump(self.p['policy'], policy)
+        policy_sha = rc.file_sha256(self.p['policy'])
+        # What the verifier reads beside the family's own inputs: the pinned policy digest, the scripts, the cohort manifest.
+        (self.root / 'analysis' / 'source_quality.py').write_text(f"POLICY_FILE_SHA256_20990101_0000 = '{policy_sha}'\n")
+        for name in ('build_races.py', 'races_common.py', 'races_duplicates.py'):
+            shutil.copyfile(rc.ANALYSIS / name, self.root / 'analysis' / name)
         eligible = sum(n - unfinished for *_, n, unfinished, use, _, _ in self.rows() if use == 'counted')
-        dump(self.root / 'published-policy.json', {
+        held = [e for e in editions if [e['city'], e['year']] in counted or any(x['city'] == e['city'] and x['year'] == e['year'] and x['own_record'] for x in listed)]
+        dump(self.p['cohort'], {
+            'release_tag': TAG, 'input_manifest_sha256': manifest_sha, 'eligible_records': eligible,
+            'editions': [{'city': e['city'], 'year': e['year'], 'raw': e['n_records'], 'use': 'counted' if [e['city'], e['year']] in counted else 'own_record',
+                          'tier': e['verification_tier'], 'timing_basis': e['timing_basis']} for e in held],
+            'other_editions': {'columns': ['city', 'year', 'raw', 'category'],
+                               'rows': [[x['city'], x['year'], next(e['n_records'] for e in editions if (e['city'], e['year']) == (x['city'], x['year'])), x['category']]
+                                        for x in listed if not x['own_record']]}})
+        dump(self.p['published'], {
             'release_tag': TAG, 'input_manifest_sha256': manifest_sha, 'cohort': {'eligible': eligible},
             'columns': ['city', 'year', 'category', 'reason', 'own_record', 'raw_records', 'deduplicated_records', 'timing_eligible_excluded'],
             'editions': [[e['city'], e['year'], e['category'], 0, e['own_record'], 1, 1, 0] for e in listed]})
         reading = {'eligible_finishes': eligible, 'eligible_editions': len(counted), 'eligible_cities': len({c for c, _ in counted}), 'sustained_slowdown': 100,
                    'sustained_slowdown_pct': 25.0}
-        dump(self.root / 'evidence' / 'cohort-sensitivity.json', {
+        dump(self.p['sensitivity'], {
             'release_tag': TAG, 'input_manifest_sha256': manifest_sha, 'frozen_policy_sha256': policy_sha,
             'readings': {'policy': reading, 'verified_tiers_only': {**reading, 'eligible_editions': 2}, 'without_weaker_source_editions': reading},
             'policy_by_tier': {'stamped': {**reading, 'eligible_editions': 2}}})
-        dump(self.root / 'evidence' / 'duplicate-editions.json', {
-            'release_tag': TAG, 'input_manifest_sha256': manifest_sha, 'scripts': {},
+        dump(self.p['audit'], {
+            'release_tag': TAG, 'input_manifest_sha256': manifest_sha,
+            'scripts': {f'analysis/{name}': rc.file_sha256(rc.ANALYSIS / name) for name in ('races_common.py', 'races_duplicates.py')},
             'pairs': [{'a': {'city': a[0], 'year': a[1]}, 'b': {'city': b[0], 'year': b[1]}} for a, b in self.audit_pairs]})
-        dump(self.root / 'evidence' / 'edition-policy-review.json', {'tag': TAG, 'frozen_policy_sha256': policy_sha, 'editions': [
-            {'city': label, 'year': year, 'tier': tier, 'split_tier': split, 'rows': n, 'finishes': n - unfinished, 'counted': use == 'counted',
+        dump(self.p['facts'], {'tag': TAG, 'frozen_policy_sha256': policy_sha, 'editions': [
+            {'city': label, 'year': year, 'tier': tier, 'split_tier': split, 'rows': n, 'finishes': n - unfinished, 'finishes_in_release': n - unfinished,
+             'official_finishers': None if official is None else float(official), 'counted': use == 'counted',
              'category': None if use == 'counted' else 'unverified' if use == 'own_record' else use, 'own_record': use == 'own_record'}
-            for label, _, _, year, tier, split, n, unfinished, use, _, _ in self.rows()]})
-        dump(self.root / 'race-notes.json', self.notes)
+            for label, _, _, year, tier, split, n, unfinished, use, official, _ in self.rows()]})
+        dump(self.p['notes'], self.notes)
         return self
 
+    def kwargs(self):
+        return dict(release_path=self.p['release'], registry_path=self.p['registry'], notes_path=self.p['notes'], policy_path=self.p['policy'],
+                    published_policy_path=self.p['published'], root=self.root)
+
     def load(self):
-        return br.load_inputs(self.source, release_path=self.root / 'release.json', registry_path=self.root / 'race-registry.json',
-                              notes_path=self.root / 'race-notes.json', policy_path=self.root / 'edition-policy.json',
-                              published_policy_path=self.root / 'published-policy.json', root=self.root)
+        return br.load_inputs(self.source, **self.kwargs())
 
     def build(self):
         files, built = br.build(self.write().load())
@@ -345,7 +372,10 @@ class Build(Base):
         self.assertEqual(meta['files']['directory.json'], {'bytes': len(files['directory.json']), 'sha256': rc.bytes_sha256(files['directory.json'])})
         self.assertEqual(meta['input']['manifest_sha256'], rc.file_sha256(fx.source / 'MANIFEST.json'))
         self.assertEqual((meta['policy']['sha256'], meta['registry']['sha256'], meta['notes']['sha256']),
-                         tuple(rc.file_sha256(fx.root / name) for name in ('edition-policy.json', 'race-registry.json', 'race-notes.json')))
+                         tuple(rc.file_sha256(fx.p[name]) for name in ('policy', 'registry', 'notes')))
+        self.assertEqual((meta['policy']['file'], meta['policy']['published_list']['file'], meta['registry']['file'], meta['notes']['file'], meta['evidence']['duplicate_editions']['file']),
+                         ('analysis/edition-policy-20990101-0000.json', 'public/data/edition-policy.json', 'analysis/race-registry.json', 'analysis/race-notes.json',
+                          f'{EVIDENCE}/duplicate-editions.json'))
         self.assertEqual(sorted(meta['evidence']), ['cohort_sensitivity', 'duplicate_editions', 'edition_facts'])
         self.assertEqual(sorted(meta['scripts']), ['analysis/build_races.py', 'analysis/races_common.py'])
         self.assertEqual(meta['review']['pages_without_a_reviewed_label'], [])
@@ -358,8 +388,7 @@ class Build(Base):
     def test_write_and_the_count_gate(self):
         fx = self.fx.write()
         out = fx.root / 'out'
-        kwargs = dict(release_path=fx.root / 'release.json', registry_path=fx.root / 'race-registry.json', notes_path=fx.root / 'race-notes.json',
-                      policy_path=fx.root / 'edition-policy.json', published_policy_path=fx.root / 'published-policy.json', root=fx.root)
+        kwargs = fx.kwargs()
         with mock.patch.object(br, 'log', lambda *_: None):
             meta = br.run(fx.source, out, **kwargs)
             (out / 'race' / 'stale.json').write_text('{}')
@@ -499,8 +528,7 @@ class Rulings(Base):
 class Refusals(Base):
     def test_inputs_that_do_not_belong_together(self):
         fx = self.fx.write()
-        kwargs = dict(release_path=fx.root / 'release.json', registry_path=fx.root / 'race-registry.json', notes_path=fx.root / 'race-notes.json',
-                      policy_path=fx.root / 'edition-policy.json', published_policy_path=fx.root / 'published-policy.json', root=fx.root)
+        kwargs = fx.kwargs()
 
         def refused(path, change, words):
             original = path.read_text()
@@ -511,16 +539,16 @@ class Refusals(Base):
                 br.build(br.load_inputs(fx.source, **kwargs))
             self.assertIn(words, str(caught.exception))
             path.write_text(original)
-        refused(fx.root / 'release.json', lambda v: v.update(tag='another'), 'the adopted release is')
-        refused(fx.root / 'edition-policy.json', lambda v: v['inputs'].update(adapted_manifest_sha256='0' * 64), 'frozen on another adapted input')
-        refused(fx.root / 'edition-policy.json', lambda v: v['inputs'].update(race_registry_sha256='0' * 64), 'another race registry')
-        refused(fx.root / 'published-policy.json', lambda v: v.update(input_manifest_sha256='0' * 64), 'edition-policy.json was built for another')
-        refused(fx.root / 'published-policy.json', lambda v: v['editions'].pop(), 'does not list the editions of the frozen edition policy')
-        refused(fx.root / 'evidence' / 'duplicate-editions.json', lambda v: v.update(input_manifest_sha256='0' * 64), 'run analysis/races_duplicates.py again')
-        refused(fx.root / 'evidence' / 'cohort-sensitivity.json', lambda v: v.update(frozen_policy_sha256='0' * 64), 'cohort sensitivity evidence is for another')
-        refused(fx.root / 'evidence' / 'cohort-sensitivity.json', lambda v: v['readings']['policy'].update(eligible_editions=9), 'counts other editions or races')
-        refused(fx.root / 'evidence' / 'edition-policy-review.json', lambda v: v['editions'][0].update(rows=1), 'disagree')
-        refused(fx.root / 'race-notes.json', lambda v: v.update(tag='another'), 'for another release or schema')
+        refused(fx.p['release'], lambda v: v.update(tag='another'), 'the adopted release is')
+        refused(fx.p['policy'], lambda v: v['inputs'].update(adapted_manifest_sha256='0' * 64), 'frozen on another adapted input')
+        refused(fx.p['policy'], lambda v: v['inputs'].update(race_registry_sha256='0' * 64), 'another race registry')
+        refused(fx.p['published'], lambda v: v.update(input_manifest_sha256='0' * 64), 'edition-policy.json was built for another')
+        refused(fx.p['published'], lambda v: v['editions'].pop(), 'does not list the editions of the frozen edition policy')
+        refused(fx.p['audit'], lambda v: v.update(input_manifest_sha256='0' * 64), 'run analysis/races_duplicates.py again')
+        refused(fx.p['sensitivity'], lambda v: v.update(frozen_policy_sha256='0' * 64), 'cohort sensitivity evidence is for another')
+        refused(fx.p['sensitivity'], lambda v: v['readings']['policy'].update(eligible_editions=9), 'counts other editions or races')
+        refused(fx.p['facts'], lambda v: v['editions'][0].update(rows=1), 'disagree')
+        refused(fx.p['notes'], lambda v: v.update(tag='another'), 'for another release or schema')
         refused(fx.source / 'provenance.json', lambda v: v.update(manifest_sha256='0' * 64), 'names another MANIFEST.json')
         (fx.source / 'EDITIONS.json').write_text((fx.source / 'EDITIONS.json').read_text() + ' ')
         with self.assertRaises(rc.RacesError):
@@ -528,12 +556,8 @@ class Refusals(Base):
 
     def test_a_stale_audit_script_stops_the_build(self):
         fx = self.fx.write()
-        path = fx.root / 'evidence' / 'duplicate-editions.json'
-        value = json.loads(path.read_text())
-        (fx.root / 'analysis').mkdir()
+        fx.load()                                                                        # the audit names the scripts as they are
         (fx.root / 'analysis' / 'races_duplicates.py').write_text('changed')
-        value['scripts'] = {'analysis/races_duplicates.py': '0' * 64}
-        path.write_text(json.dumps(value))
         with self.assertRaises(rc.RacesError) as caught:
             fx.load()
         self.assertIn('changed after the duplicate-edition audit', str(caught.exception))
@@ -563,6 +587,62 @@ class Refusals(Base):
         self.refused('do not overlap')
         self.fx.series['Zeta'] = [SERIES[0], {**SERIES[1], 'last_year': 2019}]
         self.refused('in none of the label’s series')
+
+
+@unittest.skipUnless(shutil.which('node'), 'node is not installed')
+class Verifier(unittest.TestCase):
+    """scripts/verify-races.cjs on what the builder writes for a made-up repository: the two are written apart and must
+    agree on every rule."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.fx = Fixture(self.tmp.name)
+        # The 27 course pages the site had: the made-up release has Berlin; give each of the others one small edition.
+        for slug in br.COURSE_SLUGS_BEFORE:
+            if slug != 'berlin':
+                label = slug.replace('-', ' ').title()
+                self.fx.races.append((label, slug, f'{label} Marathon', label, [], 'plain key', [(2024, 'unverified', 'finish_time_only', 12, 0, 'finish_time_only', None, 0)]))
+
+    def verify(self, *options):
+        with mock.patch.object(br, 'log', lambda *_: None):
+            br.run(self.fx.write().source, self.fx.out, accept_counts=True, **self.fx.kwargs())
+        return subprocess.run(['node', str(rc.ROOT / 'scripts' / 'verify-races.cjs'), '--root', str(self.fx.root), *options], capture_output=True, text=True)
+
+    def test_the_verifier_recounts_the_build_and_its_self_test_bites(self):
+        result = self.verify('--self-test')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('checks pass', result.stdout)
+        self.assertRegex(result.stdout, r'self-test: (\d+) of \1 broken copies refused')
+
+    def test_the_verifier_follows_rulings_flags_and_aliases(self):
+        fx = self.fx
+        fx.races.append(('Eta Run', 'eta-run', 'Eta Run', 'Eta', [], 'name', [(2019, 'unverified', 'finish_time_only', 40, 0, 'finish_time_only', None, 0)]))
+        fx.audit_pairs = [(('Epsilon Marathon', 2019), ('Eta Run', 2019)), (('Zeta', 2015), ('Zeta', 2016)), (('Gamma City', 2019), ('Gamma City', 2020)),
+                          (('Delta Half & 10K', 2018), ('Delta Half & 10K', 2019))]
+        ruled = dict(ruled_by='lead', ruled_on='2099-01-02', words='As the made-up lead ruled.')
+        fx.notes['duplicate_editions'] = [
+            {'editions': [['Epsilon Marathon', 2019], ['Eta Run', 2019]], 'ruling': 'set_aside', 'set_aside': ['Eta Run', 2019], **ruled},      # leaves a race with no live edition
+            {'editions': [['Zeta', 2015], ['Zeta', 2016]], 'ruling': 'set_aside', 'set_aside': ['Zeta', 2016], **ruled},                         # a copy inside a page race
+            {'editions': [['Gamma City', 2019], ['Gamma City', 2020]], 'ruling': 'keep_both', 'set_aside': None, **ruled},
+            {'editions': [['Delta Half & 10K', 2018], ['Delta Half & 10K', 2019]], 'ruling': 'pending', 'set_aside': None}]
+        fx.notes['set_aside_editions'] = [{'label': 'Eta Run', 'year': 2019, 'kept': {'label': 'Epsilon Marathon', 'year': 2019}, 'reason': 'one_race_two_keys'},
+                                          {'label': 'Zeta', 'year': 2016, 'kept': {'label': 'Zeta', 'year': 2015}, 'reason': 'one_list_two_years'}]
+        fx.notes['edition_notes'] = [{'label': 'Gamma City', 'year': 2019, 'note': 'repeated_finish_times'}, {'label': 'Zeta', 'year': 2015, 'note': 'one_list_two_years'}]
+        fx.notes['flags'] = [{'label': 'Epsilon Marathon', 'flag': 'cancelled', 'evidence': 'The made-up title says so elsewhere.'}]
+        fx.notes['clears'] = [{'label': 'Delta Half & 10K', 'flag': 'not_a_marathon_title', 'evidence': 'The made-up title names a marathon in its small print.'}]
+        fx.notes['aliases'] = [{'word': 'Gamma City', 'alias': 'Gammatown', 'evidence': 'The made-up English name of Gamma City.'}]
+        result = self.verify()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        directory = json.loads((fx.out / 'directory.json').read_text())
+        self.assertEqual(([r['label'] for r in directory['left_out']], len(directory['set_aside_editions'])), (['Eta Run'], 2))
+        # A notes file that says something else than the build was made with is refused, and so is a ruling the build did not follow.
+        notes = json.loads(fx.p['notes'].read_text())
+        notes['duplicate_editions'][2].update(ruling='pending', ruled_by=None, ruled_on=None, words=None)
+        fx.p['notes'].write_text(json.dumps(notes))
+        result = subprocess.run(['node', str(rc.ROOT / 'scripts' / 'verify-races.cjs'), '--root', str(fx.root)], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('the manifest binds the reviewed notes', result.stderr)
 
 
 class Constants(unittest.TestCase):

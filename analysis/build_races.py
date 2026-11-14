@@ -190,6 +190,7 @@ class Inputs:
     sensitivity_path: Path
     facts: dict | None         # the pipeline's per-edition facts (edition-policy-review.json), when the notes name it
     facts_path: Path | None
+    root: Path = rc.ROOT       # the repository the inputs were read under: file names in the manifest are relative to it
     digests: dict = field(default_factory=dict)
 
 
@@ -198,9 +199,9 @@ def _read(path: Path):
     return json.loads(data), rc.bytes_sha256(data)
 
 
-def _relative(path: Path) -> str:
+def _relative(path: Path, root: Path = rc.ROOT) -> str:
     path = Path(path).resolve()
-    return path.relative_to(rc.ROOT).as_posix() if rc.inside(path, rc.ROOT) else path.name
+    return path.relative_to(Path(root).resolve()).as_posix() if rc.inside(path, root) else path.name
 
 
 def default_policy_path(tag: str) -> Path:
@@ -275,7 +276,7 @@ def load_inputs(source: Path, *, release_path: Path = rc.RELEASE_PATH, registry_
     return Inputs(source=source, tag=tag, meta=meta, editions=document['editions'], policy=policy, policy_path=policy_path, published_policy=published,
                   published_policy_path=published_policy_path, registry=registry, registry_path=Path(registry_path), notes=notes, notes_path=Path(notes_path),
                   audit=audit, audit_path=paths['duplicate_editions'], sensitivity=sensitivity, sensitivity_path=paths['cohort_sensitivity'],
-                  facts=facts, facts_path=facts_path, digests=digests)
+                  facts=facts, facts_path=facts_path, root=Path(root), digests=digests)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -870,7 +871,7 @@ def build(inputs: Inputs) -> tuple[dict, dict]:
 
 
 def manifest(inputs: Inputs, out: dict, built: dict) -> dict:
-    root_file = lambda path: _relative(path)  # noqa: E731
+    root_file = lambda path: _relative(path, inputs.root)  # noqa: E731
     return {
         'schema_version': SCHEMA_VERSION, 'family': 'races', 'distance': 'marathon',
         'release_tag': inputs.tag, 'input_as_of': inputs.meta['input_as_of'],
