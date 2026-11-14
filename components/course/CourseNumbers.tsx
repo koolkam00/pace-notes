@@ -59,7 +59,7 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
                   <th scope="row">{e.year}</th>
                   {/* The edition's tier in the shared words (lead decisions D3 and D16): every row is a counted edition, whose
                       split tier is `splits`. A row's cells are 44 px tall, so each linked label keeps its own hit area. */}
-                  <td><EditionTags tier={e.tier as string} weakerSource={e.weakerSource} splitTier="splits" timingBasis={e.timingBasis} /></td>
+                  <td><EditionTags tier={e.tier} weakerSource={e.weakerSource} splitTier="splits" timingBasis={e.timingBasis} /></td>
                   <td>{e.date ? <Fact k={`date@${e.year}`} v={e.date}>{shortDate(e.date)}</Fact> : '—'}</td>
                   <td><Fact k={`n@${e.year}`} v={e.n}>{count(e.n)}</Fact></td>
                   <td><Fact k={`median@${e.year}`} v={e.median_s}>{clock(e.median_s)}</Fact></td>

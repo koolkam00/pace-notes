@@ -120,8 +120,8 @@ export type EditionContext = {
   startVerified: boolean | null;
   /** The weather record's source and its documentation page (Open-Meteo's historical weather archive today). */
   source: { name: string; url: string } | null;
-  /** The release's verification tier code of the edition, its weaker-source flag and its timing basis text (null where the cohort manifest states none). */
-  tier: string | null; weakerSource: boolean | null; timingBasis: string | null;
+  /** The release's verification tier code of the edition, its weaker-source mark and its timing basis text (null where the cohort manifest states none). */
+  tier: string; weakerSource: boolean; timingBasis: string | null;
   /** Counted, kept for an own-record view, or giving recorded times only. */
   use: ListedEdition['use'];
 };
@@ -221,14 +221,14 @@ export function editionContexts(): Map<string, EditionContext> {
 // ---------- The page model ----------
 
 /** One counted edition with a row (100 finishes or more); `tier` is the release's verification tier code of the edition. */
-export type EditionRow = { year: number; n: number; median_s: number; slowdown: number; temp: number | null; date: string | null; tier: string | null; weakerSource: boolean | null; timingBasis: string | null };
+export type EditionRow = { year: number; n: number; median_s: number; slowdown: number; temp: number | null; date: string | null; tier: string; weakerSource: boolean; timingBasis: string | null };
 /**
  * One edition of a course as the release holds it, counted or not: the year, how the site uses it and the release's
  * codes of its tier, split tier and timing basis. A page that names an edition draws its labels from these (lead
- * decisions D3, D5 and D16) with the shared `EditionTags`; `tier` and `splitTier` are null only where a cohort manifest
- * does not state them, which scripts/verify-courses.cjs refuses.
+ * decisions D3, D5 and D16) with the shared `EditionTags`. The timing basis is null where the release states none and
+ * for an edition without a cohort file.
  */
-export type ListedRow = { year: number; use: ListedEdition['use']; tier: string | null; weakerSource: boolean | null; splitTier: string | null; timingBasis: string | null };
+export type ListedRow = { year: number; use: ListedEdition['use']; tier: string; weakerSource: boolean; splitTier: string; timingBasis: string | null };
 export type WeatherRow = WeatherEdition & { start: string | null };
 /** A goal's row on this course, and the share that made it across the other courses with rows (`every`, pooled by finishes; this course left out). */
 export type GoalLine = { goal: number; row: CourseGoalRow | null; reason: string | null; every: GoalPooled | null };

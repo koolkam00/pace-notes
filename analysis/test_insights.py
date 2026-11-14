@@ -522,15 +522,16 @@ class Context(unittest.TestCase):
         steady = times_for([300] * 9)
         editions = []
         for city, year, use in (('Example', 2020, 'counted'), ('Example', 2021, 'counted'), ('Other', 2021, 'own_record')):
-            data = marathon_cohort.encode_edition(city, year, use, [(10 * year, 0, 'F', 30, steady)], [])
+            data = marathon_cohort.encode_edition(city, year, use, [(10 * year, 0, 'F', 30, steady, None)], [])
             name = marathon_cohort.file_name(city.lower(), year)
             (root / 'cohort' / name).write_bytes(data)
-            editions.append(dict(city=city, year=year, race=f'{city} Marathon', use=use, raw=1, timing_eligible=1, eligible=1 if use == 'counted' else 0,
+            editions.append(dict(city=city, year=year, race=f'{city} Marathon', race_date=f'{year}-10-01' if use == 'counted' else None,
+                                 race_date_source='weather' if use == 'counted' else None, use=use, raw=1, timing_eligible=1, eligible=1 if use == 'counted' else 0,
                                  other=0, file=name, bytes=len(data), sha256=digest(data)))
-        cohort = dict(schema_version=1, release_tag='example', input_as_of='2026-01-01T00:00:00Z', as_of='2026-01-02T00:00:00Z', input_asset_sha256='a' * 64,
+        cohort = dict(schema_version=2, release_tag='example', input_as_of='2026-01-01T00:00:00Z', as_of='2026-01-02T00:00:00Z', input_asset_sha256='a' * 64,
                       input_manifest_sha256='b' * 64, points_km=KM, linkage=dict(record_join_method='canonical_record_id'), scripts=scripts,
                       raw_records=3, eligible_records=2, cohort=dict(raw=3, eligible=2), source_quality=dict(version=2, policy_sha256='c' * 64), editions=editions,
-                      other_editions=dict(columns=['city', 'year', 'raw', 'category'], rows=[]))
+                      other_editions=dict(columns=marathon_cohort.OTHER_COLUMNS, rows=[]))
         cohort_bytes = json.dumps(cohort).encode()
         (root / 'cohort/manifest.json').write_bytes(cohort_bytes)
         (root / 'context/editions').mkdir(parents=True)

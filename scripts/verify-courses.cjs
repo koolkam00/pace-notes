@@ -269,18 +269,16 @@ cohort.editions.forEach((edition, index) => {
 const countedFinishes = (city, year) => { const e = cohortEditions.get(key(city, year)); return e && e.use === 'counted' ? e.eligible : 0; };
 
 // Every edition with written records in the release, for the lists of a course's editions: the cohort's editions with a
-// file (tier and use from the manifest) and the others it lists with their category and, by name, the release's tier.
-const otherColumns = cohort.other_editions.columns;
-for (const column of ['city', 'year', 'raw', 'category', 'tier', 'weaker_source', 'split_tier']) {
-  check(otherColumns.includes(column), 'data', `the cohort manifest's other_editions has no column "${column}": a page that lists an edition must be able to name its tier`);
-}
-const col = (name) => otherColumns.indexOf(name);
+// file and the others it lists (the reader's otherEditions refuses any other set of columns), each with the release's
+// tier, weaker-source mark and split tier. The manifest carries a timing basis for an edition with a file only.
 const LISTED = [
-  ...cohort.editions.map((e) => ({ city: e.city, year: e.year, use: e.use, tier: e.tier, weaker: e.weaker_source === true, split: 'splits', timing: e.timing_basis ?? null })),
-  ...cohort.other_editions.rows.map((row) => ({ city: row[col('city')], year: row[col('year')], use: 'other', tier: col('tier') < 0 ? null : row[col('tier')], weaker: col('weaker_source') >= 0 && row[col('weaker_source')] === true, split: col('split_tier') < 0 ? null : row[col('split_tier')], timing: null })),
+  ...cohort.editions.map((e) => ({ city: e.city, year: e.year, use: e.use, tier: e.tier, weaker: e.weaker_source, split: e.split_tier, timing: e.timing_basis })),
+  ...cohortReader.otherEditions(cohort).map((e) => ({ city: e.city, year: e.year, use: 'other', tier: e.tier, weaker: e.weaker_source, split: e.split_tier, timing: null })),
 ];
-// An edition with a cohort file has 5K splits by the edition policy's first condition; the manifest says so where it states the split tier.
-check(cohort.editions.every((e) => e.split_tier === undefined || e.split_tier === 'splits'), 'data', 'an edition with a cohort file is not of the split tier "splits"');
+check(LISTED.every((e) => typeof e.tier === 'string' && typeof e.weaker === 'boolean' && typeof e.split === 'string' && (e.timing === null || typeof e.timing === 'string')), 'data',
+  'an edition of the cohort manifest has no tier, weaker-source mark or split tier: a page that lists an edition must be able to name its tier');
+// An edition with a cohort file has 5K splits by the edition policy's first condition.
+check(cohort.editions.every((e) => e.split_tier === 'splits'), 'data', 'an edition with a cohort file is not of the split tier "splits"');
 // The words a page prints for an edition (lead decision D16) come from the shared vocabulary and from nowhere else:
 // lib/tiers.ts holds them, components/ui/TierTag.tsx draws them, and scripts/verify-tiers.cjs fails any other file that
 // writes one. Here the same functions check the codes of every edition a course page names, so no page meets a code the

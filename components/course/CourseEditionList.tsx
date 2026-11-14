@@ -38,7 +38,7 @@ export default function CourseEditionList({ course }: { course: CourseList }) {
               <tr key={e.year}>
                 <th scope="row">{e.year}</th>
                 {/* A code the cohort manifest does not state stops the build here: no label is ever a default. */}
-                <td className="is-text"><EditionTags tier={e.tier as string} weakerSource={e.weakerSource} splitTier={e.splitTier as string} timingBasis={e.timingBasis} /></td>
+                <td className="is-text"><EditionTags tier={e.tier} weakerSource={e.weakerSource} splitTier={e.splitTier} timingBasis={e.timingBasis} /></td>
               </tr>
             ))}
           </tbody>

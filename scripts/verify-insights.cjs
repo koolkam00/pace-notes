@@ -198,7 +198,9 @@ assert.equal(position(even, 0, even[8]), 42.195, 'Finished runners stand at 42.1
 // manifest and every family file keep the field names they had while the stories read the runner lookup:
 // `runner_manifest_sha256` is the SHA-256 of the cohort manifest's exact bytes and `runner_manifest_as_of` its `as_of`.
 const pin = read(path.join(analysisDir, 'release.json'));
-const { manifest: cohort, sha256: cohortSha } = cohortReader.readManifest(cohortRoot);
+// verifiedManifest makes the reader's checks: the adopted release, the nine checkpoints, the canonical record join,
+// every script the cohort names against the checkout, counts that agree and a race date for every counted edition.
+const { manifest: cohort, sha256: cohortSha } = cohortReader.verifiedManifest(pin, cohortRoot, analysisDir);
 const contextPath = path.join(dataRoot, 'runner-context/manifest.json');
 const contextBytes = fs.readFileSync(contextPath);
 const context = JSON.parse(contextBytes);
@@ -224,7 +226,8 @@ assert.ok(boundScripts.every(name => /^insights_[a-z_]+\.py$/.test(name) || ['bu
 const unboundModules = fs.readdirSync(analysisDir).filter(name => /^insights_.*\.py$/.test(name) && !boundScripts.includes(name)).sort();
 // The scripts that wrote the cohort (its builder, its reader, the timing rule, the edition policy, the status and
 // identity files): the story manifest repeats them, and each must be the checkout's.
-const COHORT_SCRIPTS = ['build_cohort.py', 'cohort.py', 'build_pacing.py', 'source_quality.py', 'build_record_status.py', 'build_identity.py'];
+const COHORT_SCRIPTS = cohortReader.SCRIPTS;
+assert.ok(COHORT_SCRIPTS.length >= 6);
 for (const name of COHORT_SCRIPTS) assert.ok(name in cohort.scripts, `Cohort script bound: ${name}`);
 assert.deepEqual(manifest.source_scripts, cohort.scripts, 'Cohort source scripts');
 for (const [name, digest] of Object.entries({ ...cohort.scripts, ...manifest.scripts })) {
@@ -396,7 +399,8 @@ for (const rule of screen) {
 const policyByKey = new Map(policyRows.map(row => [editionKey(row.city, row.year), row]));
 assert.equal(policyByKey.size, policyRows.length, 'The edition policy lists an edition once');
 const excluded = new Set(policyByKey.keys());
-assert.deepEqual(cohort.other_editions.columns, ['city', 'year', 'raw', 'category'], 'Columns of the editions without a cohort file');
+assert.deepEqual(cohort.other_editions.columns, cohortReader.OTHER_COLUMNS, 'Columns of the editions without a cohort file');
+assert.deepEqual(cohortReader.OTHER_COLUMNS.slice(0, 4), ['city', 'year', 'raw', 'category'], 'The first four columns are the edition, its written records and its policy category');
 const otherEditions = cohort.other_editions.rows;
 for (const edition of editions) {
   const listed = policyByKey.get(editionKey(edition.city, edition.year));
@@ -467,21 +471,25 @@ assert.equal(cohort.eligible_records, cohort.cohort.eligible, 'Counted records a
 recordIds.sort();
 for (let i = 1; i < recordIds.length; i++) assert.notEqual(recordIds[i], recordIds[i - 1], 'Unique record IDs');
 // Every screened runner (the cohort's identity; candidates, not verified people): the counted records with a key, the
-// runners with a counted record, those with two or more and their records, against the cohort manifest's linkage.
+// runners with a counted record, those with two or more and their records, against the cohort manifest's linkage; then
+// the same four on high links alone (`linkage.high_links`, added November 14, 2026 with the cohort's link class). A
+// record that is not joined stands alone under its own key, so it is one runner with one record and never a repeat.
 {
-  const sorted = runnerOf.slice().sort();
-  let runners = 0, repeat = 0, repeatRecords = 0;
-  for (let i = 0; i < sorted.length;) {
-    let j = i + 1;
-    while (j < sorted.length && sorted[j] === sorted[i]) j++;
-    runners++;
-    if (j - i >= 2) { repeat++; repeatRecords += j - i; }
-    i = j;
-  }
-  const keyedRunners = runners - (eligible - keyedRecords);
-  assert.deepEqual([keyedRecords, keyedRunners, repeat, repeatRecords],
-    [cohort.linkage.counted_records_with_a_runner, cohort.linkage.runners_with_a_counted_record, cohort.linkage.runners_with_two_or_more_counted_records,
-      cohort.linkage.counted_records_of_those_runners], 'Every screened runner of the cohort: keyed records, runners, runners with two or more and their records');
+  const linkageCounts = (keys, joined) => {
+    const sorted = keys.slice(0, eligible).sort();
+    let runners = 0, repeat = 0, repeatRecords = 0;
+    for (let i = 0; i < sorted.length;) {
+      let j = i + 1;
+      while (j < sorted.length && sorted[j] === sorted[i]) j++;
+      runners++;
+      if (j - i >= 2) { repeat++; repeatRecords += j - i; }
+      i = j;
+    }
+    return [joined, runners - (eligible - joined), repeat, repeatRecords];
+  };
+  const stated = (block) => [block.counted_records_with_a_runner, block.runners_with_a_counted_record, block.runners_with_two_or_more_counted_records, block.counted_records_of_those_runners];
+  assert.deepEqual(linkageCounts(runnerOf, keyedRecords), stated(cohort.linkage), 'Every screened runner of the cohort: keyed records, runners, runners with two or more and their records');
+  assert.deepEqual(linkageCounts(runnerHighOf, highRecords), stated(cohort.linkage.high_links), 'The same on high links alone: records with a high link, their runners, runners with two or more and their records');
 }
 
 // The year of each finish's edition, for the readings that follow a runner from one year's race to the next.
