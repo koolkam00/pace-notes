@@ -3,6 +3,9 @@
   "tag": "pace-notes-marathon-half-20261113-1113",
   "layout": "combined",
   "published_at": "2026-11-13T23:21:04Z",
+  "license": "CC BY 4.0",
+  "doi": "10.6084/m9.figshare.34858428.v3",
+  "doi_note": "claims: the Figshare record the owner’s intake note names for this release, and its licence, as the adoption lead stated them on 2026-11-14 for the pages’ citation; neither was resolved or read from this machine",
   "checksums": {
     "asset": "RELEASE-SHA256SUMS-20261113-1113.txt",
     "sha256": "857c5add4e8bb73b63c59faa2829af3c1b03e4fccbde45aa78960d077f33f988"

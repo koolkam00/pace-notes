@@ -11,15 +11,14 @@ duplicate another edition (see DUPLICATE_EDITIONS). It never changes the
 reviewed source-quality policy used by the existing analyses.
 """
 import math
-from pathlib import Path
 
 import numpy as np
 
-from build_fast_start import LENGTHS, PACE_BOUND_EPSILON, POINTS, digest, require
+from build_fast_start import LENGTHS, PACE_BOUND_EPSILON, require
 import cohort as marathon_cohort
 
 # The scripts a cohort manifest must name; a reader refuses a cohort whose scripts differ from the checkout's.
-COHORT_SCRIPTS = frozenset({'build_cohort.py', 'cohort.py', 'build_pacing.py', 'source_quality.py', 'build_record_status.py', 'build_identity.py'})
+COHORT_SCRIPTS = frozenset(marathon_cohort.SCRIPTS)
 
 # Empty since htw-db-2026-10-16-1652. Under private-export-20260912-0934 the 2018 and 2019 Chicago
 # labels largely repeated the 2024 field and were listed here (see Git history and docs/KNOWN_ISSUES.md).
@@ -62,7 +61,7 @@ class Finishes:
             setattr(out, name, getattr(self, name)[mask])
         out.editions, out.cities = self.editions, self.cities
         out.raw_by_edition = getattr(self, 'raw_by_edition', None)
-        for name in ('record_id', 'runner', 'keyed'):   # set by read_finishes; absent on arrays built by hand
+        for name in ('record_id', 'runner', 'keyed', 'link_high'):   # set by read_finishes; absent on arrays built by hand
             if hasattr(self, name):
                 setattr(out, name, getattr(self, name)[mask])
         out.edition_city, out.edition_year = self.edition_city, self.edition_year
@@ -79,22 +78,10 @@ def exact_age_value(age):
 
 
 def verified_cohort_manifest(cohort_root, pin, script_root):
-    """The cohort manifest, after the checks a builder makes before it trusts the cohort: it is the adopted release's,
-    its checkpoints are the nine the analyses use, the scripts that wrote it are the checkout's, and its counts
-    agree with each other. Returns (manifest, SHA-256 of the manifest's exact bytes)."""
-    try:
-        manifest, manifest_sha = marathon_cohort.read_manifest(cohort_root)
-    except AssertionError as error:
-        raise ValueError(f'Unreadable cohort manifest: {error}') from error
-    require(manifest['release_tag'] == pin['tag'], 'Cohort release does not match adopted pin')
-    require(manifest['points_km'] == POINTS, 'Unexpected checkpoint mapping')
-    require(manifest['linkage']['record_join_method'] == 'canonical_record_id', 'This calculation requires the audited canonical identity contract')
-    require(COHORT_SCRIPTS <= set(manifest['scripts']), 'Unexpected source script contract')
-    for name, expected in manifest['scripts'].items():
-        require(digest((Path(script_root) / name).read_bytes()) == expected, f'Source script changed: {name}')
-    require(manifest['raw_records'] == manifest['cohort']['raw'] and manifest['eligible_records'] == manifest['cohort']['eligible'],
-            'Inconsistent source cohort metadata')
-    return manifest, manifest_sha
+    """The cohort manifest after the checks of analysis/cohort.py verified_manifest (the adopted release, the nine
+    checkpoints, the scripts of the checkout, counts that agree, a race date for every counted edition).
+    Returns (manifest, SHA-256 of the manifest's exact bytes)."""
+    return marathon_cohort.verified_manifest(cohort_root, pin, script_root)
 
 
 def read_finishes(cohort_root, pin, script_root):
@@ -106,7 +93,9 @@ def read_finishes(cohort_root, pin, script_root):
     the runner manifest this replaced. `profile` numbers the runners of the screened identity rule from 0 in order
     of their cohort runner id (equal values are one runner; a record without a runner key is a runner of its own);
     `runner` is that cohort id (the smallest written marathon record id of the key, or the record's own id),
-    `keyed` says whether the record has a key, and `record_id` is the record's id, the order within an edition.
+    `keyed` says whether the record has a key, `link_high` whether its link is of tier high_elite or high (a reading on
+    high links alone follows runners over these records only; adoption ruling D38), and `record_id` is the record's id,
+    the order within an edition.
     `raw_by_edition` is every written record of each edition.
     """
     manifest, manifest_sha = verified_cohort_manifest(cohort_root, pin, script_root)
@@ -137,7 +126,7 @@ def read_finishes(cohort_root, pin, script_root):
     profile = np.unique(arrays['runner'], return_inverse=True)[1].astype(np.uint64)
     finishes = Finishes(times, arrays['edition'].astype(np.int32), gender, age_band, np.where(whole, age, np.nan), profile, editions)
     finishes.raw_by_edition = np.array([e['raw'] for e in editions], dtype=np.int64)
-    finishes.record_id, finishes.runner, finishes.keyed = arrays['record_id'], arrays['runner'], arrays['keyed']
+    finishes.record_id, finishes.runner, finishes.keyed, finishes.link_high = arrays['record_id'], arrays['runner'], arrays['keyed'], arrays['link_high']
     return finishes, manifest, manifest_sha
 
 
