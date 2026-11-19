@@ -20,7 +20,7 @@ const METHOD_COPY = /Source:|source note|supplied|modell?ed weather|personal exp
 // Lookup version 2 races: a record key, a distance and the lookup's status (0 counted).
 const race = { id: 1, key: 'f1', db: 'f', distance: 'marathon', edition: 0, name: 'Fixture Runner', sex: 'F', age: 35, link: '0', confirmed: false, possible: false, status: 0, eligible: true, counted: true, reason: null, times: RUNNER_POINTS.map(km => km * 300) };
 const reference = { ...race, id: 2, key: 'f2', edition: 1, times: RUNNER_POINTS.map(km => km * 320) };
-const v2 = { distance: 'marathon', tier: 0, splits: true, db: 'f', noComparison: 0, q: 0, reason: null, unlisted: 0, timing: null };
+const v2 = { distance: 'marathon', tier: 0, splits: true, db: 'f', noComparison: 0, q: 0, reason: null, unlisted: 0, timing: 'chip' };
 const manifest = { editions: [{ ...v2, index: 0, context: 0, city: 'London', year: 2020, race: 'London Marathon' }, { ...v2, index: 1, context: 1, city: 'London', year: 2020, race: 'London Marathon' }] };
 const metrics = runnerMetrics(race);
 const weather = {

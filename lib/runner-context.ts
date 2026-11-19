@@ -21,14 +21,17 @@ export type EditionContext = {
 };
 /**
  * The runner-context manifest. Since lookup version 2 (November 14, 2026) it is bound to the marathon cohort, not to
- * the lookup: `runner_manifest_sha256` and `runner_manifest_as_of` keep their names and hold the cohort manifest's
- * SHA-256 and time, which the lookup's manifest repeats (`cohort`). `editions` maps a cohort edition index to its
- * file, and lists only the counted editions that have peers, weather or terrain: an index it does not list means no
- * comparison for that edition (lead ruling D24.8), never an error.
+ * the lookup: `cohort_manifest_sha256` is the cohort manifest's SHA-256, which the lookup's manifest repeats
+ * (`cohort.manifest_sha256`); `runner_manifest_sha256` is kept as a compatibility name with the same value, and
+ * `runner_manifest_as_of` holds the cohort manifest's time. `cohort` repeats the cohort's counts and `totals.eligible` its eligible count.
+ * `editions` maps a cohort edition index (the lookup's `editions[e].context`, as a string) to its file, and lists only
+ * the counted editions that have peers, weather or terrain: an index it does not list means no comparison for that
+ * edition (lead ruling D24.8), never an error.
  */
 export type ContextManifest = {
   schema_version: 1; release_tag: string; input_as_of: string; as_of: string; runner_manifest_as_of: string;
-  runner_manifest_sha256: string; cohort: { raw: number; eligible: number };
+  cohort_manifest_sha256: string; runner_manifest_sha256: string; cohort: { raw: number; eligible: number }; totals: { eligible: number; groups: number };
+  counted_editions: number;
   editions: Record<string, { file: string; bytes: number; sha256: string }>;
 };
 export type RaceInsights = Omit<EditionContext, 'groups'> & { comparisons: Record<ComparisonKey, PeerComparison | null> };
@@ -108,8 +111,9 @@ function bound(runners: RunnerManifest | CohortManifestHead, expectedSha?: strin
  */
 export function validateContextManifest(value: unknown, runners: RunnerManifest | CohortManifestHead, expectedSha?: string): ContextManifest {
   const d = value as ContextManifest, b = bound(runners, expectedSha);
-  if (!d || d.runner_manifest_sha256 !== b.sha || d.schema_version !== 1 || d.release_tag !== RUNNER_RELEASE || d.release_tag !== b.release_tag || d.input_as_of !== b.input_as_of || d.runner_manifest_as_of !== b.as_of ||
-    !Number.isFinite(Date.parse(d.as_of)) || d.cohort?.raw !== b.raw || !integer(d.cohort.eligible, 1) || d.cohort.eligible !== b.eligible || !d.editions || typeof d.editions !== 'object' || Array.isArray(d.editions)) throw error();
+  if (!d || d.cohort_manifest_sha256 !== b.sha || d.runner_manifest_sha256 !== d.cohort_manifest_sha256 || d.schema_version !== 1 || d.release_tag !== RUNNER_RELEASE || d.release_tag !== b.release_tag ||
+    d.input_as_of !== b.input_as_of || d.runner_manifest_as_of !== b.as_of || !Number.isFinite(Date.parse(d.as_of)) || d.cohort?.raw !== b.raw || !integer(d.cohort.eligible, 1) || d.cohort.eligible !== b.eligible || d.totals?.eligible !== b.eligible ||
+    !integer(d.counted_editions, 1) || d.counted_editions > b.editions || !d.editions || typeof d.editions !== 'object' || Array.isArray(d.editions) || Object.keys(d.editions).length > d.counted_editions) throw error();
   // An edition has a file only when it has a peer group, a weather row or a route profile (PIPE, November 14, 2026),
   // named by its cohort edition index.
   for (const [index, meta] of Object.entries(d.editions)) {

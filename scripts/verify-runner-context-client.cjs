@@ -14,15 +14,13 @@ Module._resolveFilename = function (request, ...args) {
 };
 
 // Runner context in the browser on lookup version 2: peer placement, groups and race comparisons on fixtures, and the
-// loader against a real lookup manifest (PACE_NOTES_LOOKUP_DIR, a development build, or the committed lookup; never
-// skipped). The context binds to the marathon cohort the lookup names (lead ruling D24.8): its digest, the release, the
+// loader against the committed lookup manifest and the committed context manifest (never skipped). The context binds to the marathon cohort the lookup names (lead ruling D24.8): its digest, the release, the
 // input time, the cohort's own time and counts; an edition the context manifest does not list has no comparison, and a
 // race that is not counted is compared with no one and asks for nothing.
-const LOOKUP_DIR = process.env.PACE_NOTES_LOOKUP_DIR ? path.resolve(process.env.PACE_NOTES_LOOKUP_DIR) : path.join(__dirname, '../public/data/runners');
-if (process.env.PACE_NOTES_LOOKUP_DIR) process.env.NEXT_PUBLIC_RUNNER_DATA = '/data/runners-dev';
-const SERVED = process.env.PACE_NOTES_LOOKUP_DIR ? '/data/runners-dev/' : '/data/runners/';
+const LOOKUP_DIR = path.join(__dirname, '../public/data/runners');
+const SERVED = '/data/runners/';
 const lookupHead = JSON.parse(fs.readFileSync(path.join(LOOKUP_DIR, 'manifest.json'), 'utf8'));
-assert.equal(lookupHead.schema_version, 2, `${LOOKUP_DIR} is not a schema 2 runner lookup (set PACE_NOTES_LOOKUP_DIR to a development build until the final lookup is committed)`);
+assert.equal(lookupHead.schema_version, 2, `${LOOKUP_DIR} is not a schema 2 runner lookup`);
 const contextFile = require.resolve('../lib/runner-context.ts');
 const freshClient = () => { delete require.cache[contextFile]; return require(contextFile); };
 const client = freshClient();
@@ -156,7 +154,8 @@ function fixture(options = {}) {
   const servedRunnerBytes = options.runners ? Buffer.from(JSON.stringify(changed, null, 2) + '\n') : lookupBytes;
   const cohort = lookupHead.cohort;
   const manifest = { schema_version: 1, release_tag: RUNNER_RELEASE, input_as_of: cohort.input_as_of, as_of: '2026-11-14T16:00:00Z', runner_manifest_as_of: cohort.as_of,
-    runner_manifest_sha256: cohort.manifest_sha256, cohort: { raw: cohort.raw_records, eligible: cohort.eligible_records },
+    cohort_manifest_sha256: cohort.manifest_sha256, runner_manifest_sha256: cohort.manifest_sha256, cohort: { raw: cohort.raw_records, eligible: cohort.eligible_records },
+    totals: { eligible: cohort.eligible_records, groups: 1 }, counted_editions: 1,
     editions: { [String(COHORT_INDEX)]: { file: `editions/${String(COHORT_INDEX).padStart(3, '0')}.json.gz`, bytes: bytes.byteLength, sha256 } } };
   options.manifest?.(manifest);
   return { data, bytes, manifest, servedRunnerBytes };
@@ -211,6 +210,15 @@ test('a race that is not counted asks for nothing; an unlisted edition has no co
     assert.ok(requests[1].url.includes(payload.manifest.editions[String(COHORT_INDEX)].sha256), 'Only the listed edition\'s file');
   });
 });
+test('the committed context manifest validates against the committed lookup, keyed by the lookup\'s cohort indexes', async () => {
+  const committed = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runner-context/manifest.json'), 'utf8'));
+  await withFetch({}, async (loaded, payload) => {
+    const checked = loaded.validateContextManifest(committed, payload.runners);
+    const contexts = new Set(lookupEditions.filter(e => e.distance === 'marathon' && e.context !== null).map(e => String(e.context)));
+    assert.ok(Object.keys(checked.editions).length > 0 && Object.keys(checked.editions).every(index => contexts.has(index)), 'Every context file sits under an edition index the lookup names');
+    assert.equal(checked.cohort_manifest_sha256, payload.runners.cohort.manifest_sha256);
+  });
+});
 test('the context manifest lists files only under cohort edition indexes', async () => {
   await withFetch({ manifest: value => { value.editions[String(lookupHead.cohort.editions)] = value.editions[String(COHORT_INDEX)]; } }, async (loaded, payload) => {
     await assert.rejects(loaded.loadRaceInsights([race()], payload.runners, new AbortController().signal), /could not be verified/);
@@ -230,7 +238,11 @@ for (const [label, change] of [
   ['runner manifest timestamp', value => { value.runner_manifest_as_of = '2026-09-11T01:00:00Z'; }],
   ['raw population', value => { value.cohort.raw++; }],
   ['eligible population', value => { value.cohort.eligible++; }],
-  ['cohort digest', value => { value.runner_manifest_sha256 = 'b'.repeat(64); }],
+  ['cohort digest', value => { value.cohort_manifest_sha256 = 'b'.repeat(64); value.runner_manifest_sha256 = 'b'.repeat(64); }],
+  ['compatibility digest', value => { value.runner_manifest_sha256 = 'b'.repeat(64); }],
+  ['cohort digest without its compatibility name', value => { value.cohort_manifest_sha256 = 'b'.repeat(64); }],
+  ['eligible total', value => { value.totals.eligible++; }],
+  ['counted editions', value => { value.counted_editions = 0; }],
 ]) test(`loader rejects stale ${label} before requesting edition data`, async () => {
   await withFetch({ manifest: change }, async (loaded, payload, requests) => {
     await assert.rejects(loaded.loadRaceInsights([race()], payload.runners, new AbortController().signal), /could not be verified/);

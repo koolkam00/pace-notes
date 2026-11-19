@@ -5,8 +5,8 @@
 //   2. parity with the reference reader (scripts/lib/lookup-files.cjs) on a real build: thousands of queries at both
 //      stages and both limits, the page's own search flow, and profiles, compared field by field;
 //   3. refusals: a build whose bytes differ from their digests, or whose manifest names another release, loads nothing.
-// The build is PACE_NOTES_LOOKUP_DIR (a development build) or else public/data/runners. A folder that is not a schema 2
-// lookup fails this check: it is never skipped.
+// The build is the committed lookup in public/data/runners (November 19, 2026: the final schema 2 lookup is committed and
+// no development build remains). A folder that is not a schema 2 lookup fails this check: it is never skipped.
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
@@ -15,11 +15,8 @@ const Module = require('node:module');
 const ts = require('typescript');
 
 const ROOT = path.join(__dirname, '..');
-const LOOKUP_DIR = process.env.PACE_NOTES_LOOKUP_DIR ? path.resolve(process.env.PACE_NOTES_LOOKUP_DIR) : path.join(ROOT, 'public/data/runners');
-const DEVELOPMENT = !!process.env.PACE_NOTES_LOOKUP_DIR;
-// A development build is served from a development folder (lib/runner-search.ts RUNNER_DATA); the published one from /data/runners.
-if (DEVELOPMENT) process.env.NEXT_PUBLIC_RUNNER_DATA = '/data/runners-dev';
-const SERVED = DEVELOPMENT ? '/data/runners-dev/' : '/data/runners/';
+const LOOKUP_DIR = path.join(ROOT, 'public/data/runners');
+const SERVED = '/data/runners/';
 const QUERY_COUNT = Number(process.env.RUNNER_SEARCH_QUERIES || 2000);
 
 for (const extension of ['.ts', '.tsx']) require.extensions[extension] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
@@ -37,7 +34,7 @@ const { SelectedAnalysis, RunnerRecordDetails, RecordedDetails, NoMatchNext } = 
 const ProfileView = require('../components/runner/ProfileView.tsx').default;
 const { matchLine, sizeLabel, SearchMore } = require('../components/runner/SearchResults.tsx');
 const { listSummary } = require('../components/runner/ProfileView.tsx');
-const { statusTag } = require('../components/runner/records.tsx');
+const { statusTag, showsLinkWords } = require('../components/runner/records.tsx');
 const tiers = require('../lib/tiers.ts');
 const h = React.createElement;
 const html = element => renderToStaticMarkup(element);
@@ -50,7 +47,7 @@ const ok = (value, message) => { assert.ok(value, message); checks++; };
 // ---------------------------------------------------------------------------------------------------------------
 // Fixtures in the client's own shapes (RunnerEdition, RunnerRace)
 // ---------------------------------------------------------------------------------------------------------------
-const edition = (index, city, year, extra = {}) => ({ index, distance: 'marathon', city, race: `${city} Marathon`, year, tier: 0, splits: true, db: 'f', noComparison: 0, q: 0, context: index, reason: null, unlisted: 0, timing: null, ...extra });
+const edition = (index, city, year, extra = {}) => ({ index, distance: 'marathon', city, race: `${city} Marathon`, year, tier: 0, splits: true, db: 'f', noComparison: 0, q: 0, context: index, reason: null, unlisted: 0, timing: 'chip', ...extra });
 const OWN = 'This edition is not verified, so it is compared with no other finishes.';
 const HELD = 'This edition is held for review.';
 const editions = [
@@ -58,7 +55,7 @@ const editions = [
   edition(3, 'Lakeside', 2018, { tier: 4, reason: OWN, context: null }),
   edition(4, 'Riverside', 2019, { tier: 3, splits: false, reason: HELD, context: null }),
   edition(5, 'Berlin', 2022, { distance: 'half', race: 'Berlin Half Marathon', db: 'h', context: null }),
-  edition(6, 'Prague', 2023, { distance: 'half', race: 'Prague Half Marathon', db: 'h', context: null, tier: 4, noComparison: 1 }),
+  edition(6, 'Prague', 2023, { distance: 'half', race: 'Prague Half Marathon', db: 'h', context: null, tier: 4, noComparison: 1, timing: 'gun' }),
   edition(7, 'Madrid', 2019, { tier: 4, reason: OWN, context: null }),
 ];
 const manifest = { schema_version: 2, release_tag: C.RUNNER_RELEASE, editions };
@@ -67,10 +64,10 @@ const race = (id, ed, pace = 300, extra = {}) => {
   const e = editions[ed], marathon = e.distance === 'marathon', db = marathon ? 'f' : 'h';
   const times = C.POINTS_KM[e.distance].map(km => Math.round(km * pace));
   const status = marathon ? (e.reason === null ? 0 : e.splits ? 1 : 6) : null;
-  return { key: db + id, db, id, edition: ed, distance: e.distance, name: 'José Smith', sex: null, age: null, times, link: '0', confirmed: false, possible: false,
+  return { key: db + id, db, id, edition: ed, distance: e.distance, name: 'José Smith', sex: null, age: null, times, link: '0', confirmed: false, screen: null, possible: false,
     status, eligible: marathon && (status === 0 || status === 1), counted: status === 0, reason: status === 1 || status === 6 ? e.reason : null, ...extra };
 };
-const linked = (r, link = '2') => ({ ...r, link, confirmed: C.CONFIRMED_LINKS.includes(link), possible: !C.CONFIRMED_LINKS.includes(link) });
+const linked = (r, link = '2', screen = 'bcd'.includes(link) ? 'birth_year_spread' : null) => ({ ...r, link, confirmed: C.CONFIRMED_LINKS.includes(link), screen, possible: !C.CONFIRMED_LINKS.includes(link) });
 
 async function units() {
   // Names as shown: a token of digits alone never leads (round 6); a name of digits alone is shown as recorded.
@@ -113,7 +110,7 @@ async function units() {
 
   // A decoded profile as the page takes it: codes it does not know, a result that contradicts its edition, a lone
   // unlinked result inside a group, or confirmed and screened links in one person are refused.
-  const decoded = r => ({ edition: r.edition, db: r.db, id: r.id, key: r.key, distance: r.distance, finish: r.times.at(-1), sex: r.sex, age: r.age, link: r.link, confirmed: r.confirmed, status: r.status === null ? null : String(r.status), name: r.name, times: r.times });
+  const decoded = r => ({ edition: r.edition, db: r.db, id: r.id, key: r.key, distance: r.distance, finish: r.times.at(-1), sex: r.sex, age: r.age, link: r.link, confirmed: r.confirmed, screen: r.screen, status: r.status === null ? null : String(r.status), name: r.name, times: r.times });
   const profileOf = (...rs) => C.runnerProfile({ names: ['José Smith'], results: rs.map(decoded) }, 1, 0, manifest);
   const lone = profileOf(race(10, 0));
   ok(lone.races.length === 1 && !lone.races[0].possible, 'A profile of one result is its own result, never a possible match');
@@ -127,6 +124,12 @@ async function units() {
   assert.throws(() => profileOf(linked(race(11, 0)), race(12, 1)), /verified/, 'An unlinked result is its own result');
   assert.throws(() => profileOf(linked(race(11, 0)), linked(race(12, 1), 'c')), /verified/, 'A person\'s confirmed tiers are all keyed or none');
   assert.throws(() => profileOf({ ...race(11, 0), link: 'z' }), /verified/, 'An unknown link code is refused');
+  // The screen (the lookup's w): exactly on codes b, c and d, and only one the page knows.
+  assert.equal(screened.races[0].screen, 'birth_year_spread', 'A screened link carries its own screen');
+  assert.throws(() => profileOf(linked(race(15, 0), 'c', null), linked(race(16, 5), 'd')), /verified/, 'A screened link without its screen is refused');
+  assert.throws(() => profileOf(linked(race(11, 0), '2', 'sex_conflict'), linked(race(12, 5))), /verified/, 'A keyed link carries no screen');
+  assert.throws(() => profileOf(linked(race(15, 0), 'c', 'shoe_size'), linked(race(16, 5), 'd')), /verified/, 'An unknown screen is refused');
+  assert.throws(() => profileOf({ ...linked(race(11, 0)), screen: undefined }, linked(race(12, 5))), /verified/, 'A result without the screen field is refused');
   assert.throws(() => profileOf({ ...race(11, 0), key: 'h11' }), /verified/, 'A key names its database');
   assert.throws(() => profileOf({ ...race(11, 3), status: 0 }), /verified/, 'Counted only in a counted edition');
   assert.throws(() => profileOf({ ...race(11, 0), status: 9 }), /verified/);
@@ -153,27 +156,29 @@ async function units() {
   assert.match(opened(race(28, 5)), /Record h28\./);
 
   // A row: race and year, finish, the edition's tier (every row, the Verified badge too), Finish times only, and Gun
-  // times only from the lookup's timing class: a build without the column draws none.
+  // times only from the lookup's timing class (the required editions column tb).
   const row = (r, extra = {}) => html(h(RunnerRecordDetails, { race: r, manifest, ...extra }));
   assert.match(row(base), /<strong>London 2020<\/strong>/); assert.match(row(base), /3:30:59/);
   assert.match(row(base), /class="tier-badge" data-tier="stamped">Verified</, 'A verified edition shows its badge on the row');
   assert.match(row(race(29, 4)), /data-tier="held_for_review">Held for review<[\s\S]*data-split-tier="finish_time_only">Finish times only</);
-  assert.doesNotMatch(row(race(30, 6)), /Gun times/, 'No timing column: no timing label, even on a gross-time half');
-  const gunEditions = editions.map(e => ({ ...e, timing: e.index === 6 ? 'gun' : 'chip' }));
-  assert.match(html(h(RunnerRecordDetails, { race: race(30, 6), manifest: { ...manifest, editions: gunEditions } })), /data-timing="gun">Gun times</);
-  assert.doesNotMatch(html(h(RunnerRecordDetails, { race: base, manifest: { ...manifest, editions: gunEditions } })), /Gun times/);
+  assert.match(row(race(30, 6)), /data-timing="gun">Gun times</, 'A gun-timed edition says so');
+  assert.doesNotMatch(row(base), /Gun times/, 'A chip-timed edition says nothing about timing');
+  for (const timing of ['chip_fallback', 'mixed', 'not_stated']) assert.doesNotMatch(html(h(RunnerRecordDetails, { race: base, manifest: { ...manifest, editions: editions.map(e => ({ ...e, timing })) } })), /Gun times/, timing);
   assert.doesNotMatch(row(base), /José Smith|Age not recorded|Recorded gender/, 'The row carries no name, age or gender: they are in the disclosure');
   assert.doesNotMatch(row(base) + row(race(31, 4)), /href=/, 'A row is a checkbox label: its labels are bare');
 
   // Link confidence: quiet words on a linked row (the screen-reader prefix says what they are); a possible match
-  // carries the pill and its words; a screened keyed tier states the reason only when exactly one screen occurs.
-  const linkHtml = (r, screens) => row(r, { linked: true, screens });
+  // carries the pill and its words; a screened keyed tier states its own screen (the lookup's w, per result).
+  const linkHtml = r => row(r, { linked: true });
   assert.match(linkHtml(linked(base, '2')), /<span class="sr-only">Link confidence: <\/span>High</);
   assert.doesNotMatch(linkHtml(linked(base, '2')), /Possible match/, 'A keyed link is no possible match');
   assert.match(linkHtml(linked(base, '6')), /Possible match[\s\S]*Low, no age/);
-  assert.match(linkHtml(linked(base, 'c'), ['birth_year_spread']), /Possible match[\s\S]*High[\s\S]*recorded ages differ/);
-  const twoScreens = linkHtml(linked(base, 'c'), ['birth_year_spread', 'sex_conflict']);
-  assert.match(twoScreens, /Possible match/); assert.doesNotMatch(twoScreens, /ages differ|sexes differ/, 'With two screens possible, no reason is guessed');
+  assert.match(linkHtml(linked(base, 'c')), /Possible match[\s\S]*High[\s\S]*recorded ages differ/);
+  assert.match(linkHtml(linked(base, 'b', 'sex_conflict')), /Possible match[\s\S]*High, elite[\s\S]*recorded sexes differ/);
+  assert.match(linkHtml(linked(base, 'd', 'two_results_in_one_edition')), /Possible match[\s\S]*Medium[\s\S]*two results in one edition/);
+  // Every tier is reachable on a row: a row of the runner's own results leaves out only "High", which the key line says.
+  ok(!showsLinkWords(linked(base, '2')) && showsLinkWords(linked(base, '1')) && showsLinkWords(linked(base, '3')), 'Own rows show every tier but High');
+  ok([...'456789abcd'].every(code => showsLinkWords({ ...linked(base, code), possible: true })), 'A possible match always shows its words');
   assert.doesNotMatch(row(linked(base, '2')), /Link confidence/, 'A row outside a group of several shows no link');
 
   // The profile: two lists, each with its own count, span and best; possible matches apart under their own heading,
@@ -187,13 +192,19 @@ async function units() {
   assert.equal(lists[1].summary.count, 1, 'A half list counts its own results only');
   assert.equal(listSummary(lists[0], manifest), '2 results · 2020–2021 · fastest recorded finish 3:16:55, Berlin 2021');
   assert.equal(listSummary(lists[1], manifest), null, 'One result needs no summary line');
-  const view = html(h(ProfileView, { profile, manifest, opened: 'José Smith', screens: ['birth_year_spread'], selected: new Set(), onToggle: () => {} }));
+  const view = html(h(ProfileView, { profile, manifest, opened: 'José Smith', selected: new Set(), onToggle: () => {} }));
   assert.match(view, /<h2[^>]*>José Smith \/ Jose Smith<\/h2>/, 'The name forms on record');
   assert.deepEqual([...view.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map(m => m[1]), ['Marathons', 'Half marathons']);
   assert.equal(occurrences(view, '>Possible matches</h4>'), 2, 'Possible matches apart in each list');
   assert.equal(occurrences(view, 'type="checkbox"'), 5); assert.doesNotMatch(view, /checked=""/, 'Nothing is ticked by the page');
   assert.equal(occurrences(view, 'data-tier='), 5, 'Every row shows its edition\'s tier');
-  assert.match(view, /<span>Race<\/span><span>Finish<\/span><span><a [^>]*href="\/methodology#edition-tiers"[^>]*>Results<\/a><\/span><span><a [^>]*href="\/methodology#link-confidence"[^>]*>Link confidence<\/a><\/span>/, 'A column line says what the quiet words describe');
+  assert.match(view, /<p class="runner-list-key">Each row: race, finish and its <a [^>]*href="\/methodology#edition-tiers"[^>]*>results<\/a> label\. <a [^>]*href="\/methodology#link-confidence"[^>]*>Link confidence<\/a>: High for every race\.<\/p>/, 'One key line says what each row holds and the link confidence the rows leave unsaid');
+  assert.doesNotMatch(view.slice(0, view.indexOf('runner-possible-block')), /data-link-tier="high"/, 'An own row with High shows no link words');
+  const mixed = { ...profile, races: [linked(race(40, 0, 300)), linked(race(41, 2, 280), '3')] };
+  const mixedView = html(h(ProfileView, { profile: mixed, manifest, opened: 'José Smith', selected: new Set(), onToggle: () => {} }));
+  assert.match(mixedView, /Link confidence<\/a>: High unless the row says otherwise\./); assert.match(mixedView, /data-link-tier="medium"/);
+  const allMedium = html(h(ProfileView, { profile: { ...profile, races: [linked(race(40, 0), '3'), linked(race(41, 2), '3')] }, manifest, opened: 'José Smith', selected: new Set(), onToggle: () => {} }));
+  assert.match(allMedium, /Link confidence<\/a> is shown on each row\./);
   assert.match(view, /Recorded as/, 'A possible match recorded under another spelling says so');
   const marathonList = view.slice(view.indexOf('data-distance="marathon"'), view.indexOf('data-distance="half"'));
   ok(!marathonList.includes('h42') && !marathonList.includes('Prague 2023'), 'A list holds one distance');
@@ -291,12 +302,9 @@ async function units() {
   assert.deepEqual([...html(h(NoMatchNext)).matchAll(/href="([^"]*)"/g)].map(m => m[1]), ['/analyses/finish-time-context', '/tools/split-check', '/request-analysis', '/courses', '/half']);
   // Method, source and coverage copy is /methodology's (rule 15).
   assert.doesNotMatch(source + fs.readFileSync(path.join(ROOT, 'components/runner/ProfileView.tsx'), 'utf8'), /How search and analysis work|Download the complete data|records in the database|\/about#data-coverage|person_id|identity file/, 'No method copy on /runners');
-  // The page passes the screens that occur in the adopted identity file.
-  const identity = JSON.parse(fs.readFileSync(path.join(ROOT, 'analysis/identity.json'), 'utf8'));
-  const occurring = Object.entries(identity.counts.screens).filter(([s, r]) => s !== 'any' && r.results > 0).map(([s]) => s).sort();
-  ok(occurring.every(s => s in tiers.SCREEN_WORDS), 'Every screen that occurs has its words');
-  assert.match(fs.readFileSync(path.join(ROOT, 'app/runners/page.tsx'), 'utf8'), /screens=\{screensThatOccur\(\)\}/);
-  console.log(`  units: screens that occur in the identity file: ${occurring.join(', ') || 'none'}`);
+  // Every screen the lookup can carry has its words, and the page no longer guesses one from the identity file.
+  ok(C.SCREENS.filter(Boolean).every(s => s in tiers.SCREEN_WORDS) && Object.keys(tiers.SCREEN_WORDS).every(s => C.SCREENS.includes(s)), 'The lookup\'s screens are the tier module\'s');
+  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'app/runners/page.tsx'), 'utf8'), /identity\.json|screens=/, 'The reason comes from each result, never from a release-wide count');
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -304,7 +312,7 @@ async function units() {
 // ---------------------------------------------------------------------------------------------------------------
 async function parity() {
   const head = JSON.parse(fs.readFileSync(path.join(LOOKUP_DIR, 'manifest.json'), 'utf8'));
-  assert.equal(head.schema_version, 2, `${LOOKUP_DIR} is not a schema 2 runner lookup (set PACE_NOTES_LOOKUP_DIR to a development build until the final lookup is committed)`);
+  assert.equal(head.schema_version, 2, `${LOOKUP_DIR} is not a schema 2 runner lookup`);
   const { openLookup } = require('./lib/lookup-files.cjs');
   const lookup = openLookup(LOOKUP_DIR);
   const original = global.fetch;
@@ -322,10 +330,9 @@ async function parity() {
   };
   try {
     const manifest = await C.loadRunnerManifest();
-    const noTiming = rows => rows.map(({ timing, ...row }) => row);
-    assert.deepEqual(noTiming(manifest.editions), noTiming(lookup.editions));
-    assert.deepEqual(manifest.editions.map(e => e.timing), lookup.editions.map(e => e.timing ?? null), 'The timing class is the reference\'s, or absent on every edition');
-    const timingColumn = manifest.editions[0].timing !== null;
+    assert.deepEqual(manifest.editions, lookup.editions, 'Every edition as the reference decodes it, its timing class (tb) included');
+    const gun = manifest.editions.filter(e => e.timing === 'gun').length;
+    ok(gun > 0 && manifest.editions.every(e => tiers.TIMING_CLASSES.includes(e.timing)), 'Every edition has a timing class, and some are gun-timed');
 
     // Names to search: a deterministic spread of leaves, a few names from each, then queries a visitor would type.
     const leaves = manifest.index.leaves, step = Math.max(1, Math.floor(leaves / 250));
@@ -362,8 +369,8 @@ async function parity() {
         const mine = await C.loadRunnerProfile(row.shard, row.position, manifest);
         const ref = lookup.profile(row.shard, row.position);
         assert.deepEqual(mine.names, ref.names);
-        assert.deepEqual(mine.races.map(x => [x.key, x.id, x.db, x.edition, x.distance, x.name, x.sex, x.age, x.link, x.confirmed, x.status === null ? null : String(x.status), x.times]),
-          ref.results.map(x => [x.key, x.id, x.db, x.edition, x.distance, x.name, x.sex, x.age, x.link, x.confirmed, x.status, x.times]), `${q} profile ${row.shard}:${row.position}`);
+        assert.deepEqual(mine.races.map(x => [x.key, x.id, x.db, x.edition, x.distance, x.name, x.sex, x.age, x.link, x.confirmed, x.screen, x.status === null ? null : String(x.status), x.times]),
+          ref.results.map(x => [x.key, x.id, x.db, x.edition, x.distance, x.name, x.sex, x.age, x.link, x.confirmed, x.screen, x.status, x.times]), `${q} profile ${row.shard}:${row.position}`);
         for (const list of C.runnerLists(mine, manifest)) {
           ok([...list.own, ...list.possible].every(x => x.distance === list.distance), 'One distance per list');
           ok(!list.summary || list.summary.count === list.own.length, 'A list counts its own results only');
@@ -372,6 +379,26 @@ async function parity() {
         profiles++;
       }
     }
+
+    // Screened links (codes b, c, d with their w): a sweep of 16 shards, every profile that holds one compared field
+    // by field, so the reason a row states is the lookup's own for that result.
+    const L = require('./lib/lookup.cjs');
+    const screens = {};
+    let screenedProfiles = 0;
+    for (let shard = 7; shard < C.PROFILE_SHARDS && screenedProfiles < 200; shard += 256) {
+      const page = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(LOOKUP_DIR, C.profilePagePath(Math.floor(shard / C.PAGE_SIZE))))));
+      const all = L.decodeShard(JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(LOOKUP_DIR, C.shardPath(shard))))), lookup.editions);
+      ok(all.length === page.shards[shard % C.PAGE_SIZE][0], 'A shard holds the profiles its page says');
+      for (let position = 0; position < all.length && screenedProfiles < 200; position++) {
+        const ref = all[position];
+        if (!ref.results.some(x => x.screen !== null)) continue;
+        const mine = await C.loadRunnerProfile(shard, position, manifest);
+        assert.deepEqual(mine.races.map(x => [x.key, x.link, x.screen, x.possible]), ref.results.map(x => [x.key, x.link, x.screen, ref.results.length > 1 && !x.confirmed]), `screened profile ${shard}:${position}`);
+        for (const x of mine.races) if (x.screen) { screens[x.screen] = (screens[x.screen] || 0) + 1; ok('bcd'.includes(x.link) && x.possible, 'A screened result is a possible match of a confirmed tier'); }
+        screenedProfiles++;
+      }
+    }
+    ok(screenedProfiles > 0, 'The sweep found screened links');
 
     // Refusals: a changed byte anywhere in the chain, another release or a stand-in build on the published path.
     const flip = data => { const copy = Buffer.from(data); copy[copy.length >> 1] ^= 1; return copy; };
@@ -397,9 +424,9 @@ async function parity() {
     C.clearRunnerCaches();
     await assert.rejects(() => C.loadRunnerProfile(someRow.shard, someRow.position, reloaded), /verified/, 'A changed profile shard is refused');
     tamper = null;
-    if (!DEVELOPMENT) ok(!(head.provisional ?? []).length, 'The published lookup names no stand-in inputs');
-    console.log(`  parity on ${DEVELOPMENT ? 'development build' : 'published lookup'} ${LOOKUP_DIR}: ${queries.size} queries, ${compared} stage searches (${refused} refused, ${alone} one common word), ` +
-      `flows ${JSON.stringify(flows)}, ${profiles} profiles; timing column ${timingColumn ? 'present' : 'absent (no timing label drawn)'}; ${requests} requests, ${(bytes / 1e6).toFixed(1)} MB`);
+    ok(!(head.provisional ?? []).length, 'The published lookup names no stand-in inputs');
+    console.log(`  parity on the committed lookup ${LOOKUP_DIR}: ${queries.size} queries, ${compared} stage searches (${refused} refused, ${alone} one common word), ` +
+      `flows ${JSON.stringify(flows)}, ${profiles} profiles, ${screenedProfiles} screened profiles ${JSON.stringify(screens)}, ${gun} gun editions; ${requests} requests, ${(bytes / 1e6).toFixed(1)} MB`);
   } finally { global.fetch = original; }
 }
 

@@ -13,16 +13,6 @@ import { approxWords } from '@/lib/nuggets/format';
 import { capitalize } from '@/lib/nuggets/build';
 import { coursePages } from '@/lib/course-page';
 import { profileUnderWater } from '@/lib/nuggets/courses';
-import identity from '@/analysis/identity.json';
-
-/**
- * The screens that left a link of a keyed tier without a runner key in the adopted release (analysis/identity.json,
- * the screens that remove any result). The lookup's codes b, c and d say a screen failed, not which: a row states the
- * reason only when exactly one screen occurs (components/runner/records.tsx RaceLink).
- */
-function screensThatOccur(file: { counts: { screens: Record<string, { results: number }> } } = identity): string[] {
-  return Object.entries(file.counts.screens).filter(([screen, row]) => screen !== 'any' && row.results > 0).map(([screen]) => screen).sort();
-}
 
 // A name lookup, not a page for search results: noindex (lib/seo-routes NOINDEX), and searches never enter the address.
 export const metadata = pageMetadata({
@@ -53,7 +43,7 @@ export default function RunnersPage() {
       <p className="runner-dek">{Number.isFinite(rate) ? <>{capitalize(approxWords(rate, 'finishes'))} had a <Link className="term-link" href="/methodology#sustained-slowdown">sustained slowdown</Link>. Find a recorded race by name to see whether it did, or start from your splits or a finish time.</> : 'Find a recorded race by name, or start from your splits or a finish time.'}</p>
     </header>
     <div className="runner-work">
-      <RunnerSearch copyEditions={copyEditions()} report={reportData()} wet={wet} screens={screensThatOccur()} starts={<nav className="runner-starts" aria-label="Start without a name">
+      <RunnerSearch copyEditions={copyEditions()} report={reportData()} wet={wet} starts={<nav className="runner-starts" aria-label="Start without a name">
         <ul className="runner-rows">
           <li><Link className="runner-start" href="/tools/split-check"><b>Have your splits? Paste them</b><span>Each section’s pace, the sustained-slowdown reading and a race report.</span><Arrow /></Link></li>
           <li><FinishTimeStart /></li>
