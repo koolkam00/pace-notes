@@ -282,7 +282,7 @@ for (const [key, entries] of expected) {
   for (let i = 0; i < 2; i++) near(group.slowdown_spread_pct[i], percentile(rates, i ? .9 : .1), `${key}: edition rate spread`);
 }
 assert.equal(groupsChecked, published.size, 'No invented or duplicate published groups');
-console.log(`Counts: ${records} raw records; ${eligible} eligible finishes; ${groupsChecked} supported groups; ${sparse} omitted sparse groups; every edition rate and onset recounted.`);
+console.log(`Counts: ${records} counted records read; ${eligible} eligible finishes; ${groupsChecked} supported groups; ${sparse} omitted sparse groups; every edition rate and onset recounted.`);
 
 // Check every unfiltered course and temperature group's full numeric metrics.
 // They share edition summaries, so storage stays around one complete cohort.
