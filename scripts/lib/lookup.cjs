@@ -19,6 +19,11 @@ const CHECKPOINTS = { marathon: 8, half: 4 };
 const TIERS = ['stamped', 'stamped_weaker_source', 'partial', 'held_for_review', 'unverified'];
 const LINK_CODES = '0123456789abcd';  // 0 no link; 1-3 confirmed; 4-a possible by tier; b-d a confirmed tier without a key
 const CONFIRMED_LINKS = '123';
+// The screen a person of a confirmed tier failed (`w` of a result, a digit; 0 on every result whose link is not b, c or d):
+// the identity file's not_keyed_reason.
+const SCREENS = [null, 'birth_year_spread', 'sex_conflict', 'two_results_in_one_edition'];
+// The timing class of an edition (`tb`, a digit): lib/tiers.ts TIMING_CLASSES, in its order.
+const TIMING_CLASSES = ['chip', 'chip_fallback', 'gun', 'mixed', 'not_stated'];
 // Lead decision D24.5: the Latin letters NFKD leaves whole. The manifest repeats the table (rules.fold).
 const FOLD = { 'ł': 'l', 'ø': 'o', 'đ': 'd', 'ð': 'd', 'ß': 'ss', 'æ': 'ae', 'œ': 'oe', 'þ': 'th', 'ı': 'i' };
 
@@ -236,13 +241,13 @@ function sameLength(data, columns, length, what) {
 function decodeEditions(data) {
   if (!data || data.v !== SCHEMA_VERSION) throw new Error('editions: unknown version');
   const count = data.sr.length;
-  sameLength(data, ['y', 't', 'sp', 'db', 'g', 'q', 'cx', 'rs', 'nl'], count, 'editions');
+  sameLength(data, ['y', 't', 'sp', 'db', 'g', 'tb', 'q', 'cx', 'rs', 'nl'], count, 'editions');
   const out = new Array(count);
   for (let at = 0; at < count; at++) {
     const race = data.races[data.sr[at]];
     out[at] = {
       index: at, distance: race[0] === 'm' ? 'marathon' : 'half', city: race[1], race: race[2], year: data.y[at],
-      tier: Number(data.t[at]), splits: data.sp[at] === '1', db: data.db[at], noComparison: Number(data.g[at]),
+      tier: Number(data.t[at]), splits: data.sp[at] === '1', db: data.db[at], noComparison: Number(data.g[at]), timing: TIMING_CLASSES[Number(data.tb[at])],
       q: data.q[at], context: data.cx[at] < 0 ? null : data.cx[at], reason: data.rs[at] < 0 ? null : data.reasons[data.rs[at]],
       unlisted: data.nl[at],
     };
@@ -284,13 +289,14 @@ function resultTimes(mask, gaps, finish, distance) {
 
 /**
  * The profiles of a shard, or the one at `position` when it is given. A result:
- * { edition, db, id, key, distance, finish, sex, age, link, confirmed, status, name, mask, times }.
+ * { edition, db, id, key, distance, finish, sex, age, link, confirmed, screen, status, name, mask, times }. `screen` is null
+ * unless the link is b, c or d: then the screen the person failed (SCREENS).
  * `id` is the record id (i + 256·q of its edition) and `key` is db + id, unique across both distances.
  */
 function decodeShard(data, editions, position) {
   if (!data || data.v !== SCHEMA_VERSION) throw new Error('profile shard: unknown version');
   const results = data.e.length;
-  sameLength(data, ['i', 'f', 'x', 'a', 'c', 'j', 's', 'm'], results, 'profile shard');
+  sameLength(data, ['i', 'f', 'x', 'a', 'c', 'w', 'j', 's', 'm'], results, 'profile shard');
   if (data.k.length !== data.u.length) throw new Error('profile shard: k and u differ in length');
   const out = [];
   let row = 0, name = 0, gap = 0;
@@ -306,7 +312,7 @@ function decodeShard(data, editions, position) {
         profile.results.push({
           edition: data.e[row], db: edition.db, id, key: edition.db + id, distance: edition.distance,
           finish: data.f[row] < 0 ? null : data.f[row], sex: data.x[row] === '-' ? null : data.x[row], age: data.a[row] < 0 ? null : data.a[row],
-          link: data.c[row], confirmed: CONFIRMED_LINKS.includes(data.c[row]), status: data.s[row] === '-' ? null : data.s[row],
+          link: data.c[row], confirmed: CONFIRMED_LINKS.includes(data.c[row]), screen: SCREENS[Number(data.w[row])], status: data.s[row] === '-' ? null : data.s[row],
           name: profile.names[data.j[row]], mask: data.m[row],
           times: resultTimes(data.m[row], data.d.slice(gap, gap + count), data.f[row], edition.distance),
         });
@@ -325,7 +331,7 @@ function decodeShard(data, editions, position) {
 }
 
 module.exports = {
-  SCHEMA_VERSION, PAGE_SIZE, PROFILE_SHARDS, SEARCH_AUTO, SEARCH_HARD_CAP, POINTS_KM, CHECKPOINTS, TIERS, LINK_CODES, CONFIRMED_LINKS, FOLD,
+  SCHEMA_VERSION, PAGE_SIZE, PROFILE_SHARDS, SEARCH_AUTO, SEARCH_HARD_CAP, POINTS_KM, CHECKPOINTS, TIERS, LINK_CODES, CONFIRMED_LINKS, SCREENS, TIMING_CLASSES, FOLD,
   compareCodePoints, normalizeName, searchWords, queryTokens, tokenIsExact, tokenMatches, rowMatches,
   heavyOf, leafNeeded, pageRange, indexPagesFor, planSearch,
   leafPath, indexPagePath, shardPath, profilePagePath, unlinkedKey, decodeEditions, decodeLeaf, resultTimes, decodeShard,

@@ -1,0 +1,64 @@
+{
+ "document": "The timing class of every timing-basis text of the release (edition_meta.timing_basis, both distances), as analysis/build_runner_lookup.py writes it into editions.json.gz (column tb, the digit being the position in classes). A copy of lib/tiers.ts TIMING_BASES: scripts/verify-lookup.cjs holds every entry and every build to that module, and the build stops on a text that is not listed here. An edition with no timing-basis text is not_stated. The table is not of one release: a text a new release brings stops the build until lib/tiers.ts and this copy class it.",
+ "schema_version": 1,
+ "reviewed_on": "2026-11-19",
+ "classes": [
+  "chip",
+  "chip_fallback",
+  "gun",
+  "mixed",
+  "not_stated"
+ ],
+ "no_text": "not_stated",
+ "bases": {
+  "chip": [
+   "chip",
+   "chip (Tiempo real)",
+   "chip (netto) time",
+   "chip (ot) as published",
+   "chip time",
+   "chiptime",
+   "net (chip) time",
+   "net (last time column)",
+   "net time (PDF says wg czasu netto)",
+   "net(chip)",
+   "netto (chip) time",
+   "netto as published",
+   "real (chip) time",
+   "real time as published"
+  ],
+  "chip_fallback": [
+   "chip (clock if no chip)",
+   "chip (delta_net), clock if no chip",
+   "chip (gun if no chip)",
+   "chip (tiempoChip) else gun",
+   "chip elapsed (gun if no chip)",
+   "chip time else gun",
+   "chip where published, else gun",
+   "net 'time' (gun if none)",
+   "net (Tempo Liquido) else gun",
+   "netto if published else bruto",
+   "realTime (net) as published, else officialTime",
+   "chip (realTime) where published",
+   "net if published"
+  ],
+  "gun": [
+   "gun",
+   "gross (gun / Brutto; the source net column was not loaded)",
+   "gun (official, matches organiser winners) else chip"
+  ],
+  "mixed": [
+   "mixed"
+  ],
+  "not_stated": [
+   "as published",
+   "as published (Czas)",
+   "as published (Tiempo)",
+   "as published (Time)",
+   "final time as published",
+   "official time",
+   "time",
+   "unknown"
+  ]
+ }
+}

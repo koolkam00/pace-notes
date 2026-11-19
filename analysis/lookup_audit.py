@@ -2,7 +2,7 @@
 
     python3 -I analysis/lookup_audit.py --core <unpacked CORE> --links <person-ids linked parquet> \\
         --status <record-status.parquet> --identity <identity.parquet> --build <dir that holds runners/> \\
-        [--race-notes analysis/race-notes.json] [--never-shown FILE] [--receipt FILE]
+        [--race-notes analysis/race-notes.json] [--half-policy FILE] [--never-shown FILE] [--receipt FILE]
 
 scripts/verify-lookup.cjs proves a build from its own files; it cannot know what the release says. This does, with
 queries written apart from the builder's:
@@ -14,7 +14,10 @@ queries written apart from the builder's:
    scripts/verify-lookup.cjs --never-shown.
 2. Every other row of the release must be in a shard exactly once, with the release's own name, sex (published, else
    the category's), age, finish and checkpoint times, the pipeline's status and link tier, in the edition whose race
-   label, year, tier and split tier are the registry's and EDITION-TIERS.csv's. A finish text that is not a time
+   label, year, tier and split tier are the registry's and EDITION-TIERS.csv's, whose timing class is
+   analysis/lookup-timing.json's class of edition_meta's timing basis and whose never-compared mark is the half
+   policy's never_compared list; a result of link code b, c or d with the identity file's not_keyed_reason as its
+   screen (`w`), every other result with none. A finish text that is not a time
    greater than zero must be shown as no finish; those results are counted under their own reason
    (`finish_text_not_a_time` in the receipt) and the count must equal the manifest's `finish_unread`.
 3. Profiles: two results share a profile exactly when they share a person id.
@@ -31,6 +34,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import resource
 import shutil
 import signal
 import sys
@@ -110,6 +114,8 @@ def source_tables(db, core, links, status, identity, placeholders, set_aside=())
     status_case = ' '.join(f"WHEN {quote(word)} THEN '{digit}'" for word, digit in STATUS.items())
     tier_case = ' '.join(f"WHEN {quote(tier)} THEN CASE WHEN w.keyed THEN '{code}' ELSE '{fmt.LINK_SCREENED.get(code, code)}' END" for tier, code in TIERS.items())
     finish = clock('r.finish_time')
+    screen_case = 'CASE ' + ' '.join(f"WHEN ({KEY.format(id='w.id', db='w.dbh')}) IN (SELECT {KEY.format(id='record_id', db="source_db='half'")} FROM {ident} "
+                                     f"WHERE not_keyed_reason={quote(reason)}) THEN '{digit}'" for reason, digit in fmt.SCREENS.items()) + ' END'
     as_written(db, f"""CREATE TABLE source AS SELECT r.distance, r.source_db='half' AS dbh, r.id, r.city, r.year::INTEGER AS year,
         coalesce(r.runner, '') AS name, coalesce(r.sex, q.sex_from_category, '-') AS x,
         CASE WHEN r.age IS NULL OR coalesce(q.age_implausible, false) THEN -1 ELSE r.age::INTEGER END AS a,
@@ -126,6 +132,7 @@ def source_tables(db, core, links, status, identity, placeholders, set_aside=())
         w.city, w.year, w.name, w.x, w.a, w.f, w.finish_unread, w.t0, w.t1, w.t2, w.t3, w.t4, w.t5, w.t6, w.t7,
         CASE WHEN w.distance='half' THEN '-' ELSE CASE w.word {status_case} END END AS st,
         CASE WHEN w.person_id IS NULL THEN '0' ELSE CASE w.confidence {tier_case} END END AS c, w.person_id,
+        CASE WHEN w.person_id IS NOT NULL AND NOT w.keyed AND w.confidence IN ('high_elite', 'high', 'medium') THEN {screen_case} ELSE '0' END AS w,
         CASE WHEN w.distance='marathon' AND NOT w.in_status THEN 'left_out'
              WHEN w.distance='half' AND w.left_out THEN 'left_out'
              WHEN a.label IS NOT NULL THEN 'set_aside'
@@ -161,12 +168,13 @@ def load_build(db, build):
     root = build / 'runners'
     manifest = json.loads((root / 'manifest.json').read_text())
     editions = fmt.decode_editions(fmt.read_gz(root / 'editions.json.gz'))
-    db.execute('CREATE TABLE got_editions (e INTEGER, distance VARCHAR, db VARCHAR, label VARCHAR, race VARCHAR, year INTEGER, tier INTEGER, splits BOOLEAN, g INTEGER)')
-    db.executemany('INSERT INTO got_editions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                   [(e['index'], e['distance'], e['db'], e['city'], e['race'], e['year'], e['tier'], e['splits'], e['no_comparison']) for e in editions])
-    columns = ['shard', 'position', 'e', 'db', 'id', 'name', 'f', 'x', 'a', 'c', 'st'] + [f't{i}' for i in range(8)]
+    db.execute('CREATE TABLE got_editions (e INTEGER, distance VARCHAR, db VARCHAR, label VARCHAR, race VARCHAR, year INTEGER, tier INTEGER, splits BOOLEAN, g INTEGER, '
+               'tb VARCHAR)')
+    db.executemany('INSERT INTO got_editions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                   [(e['index'], e['distance'], e['db'], e['city'], e['race'], e['year'], e['tier'], e['splits'], e['no_comparison'], e['timing']) for e in editions])
+    columns = ['shard', 'position', 'e', 'db', 'id', 'name', 'f', 'x', 'a', 'c', 'w', 'st'] + [f't{i}' for i in range(8)]
     db.execute('CREATE TABLE got (k BIGINT, p BIGINT, shard INTEGER, position INTEGER, e INTEGER, db VARCHAR, id BIGINT, name VARCHAR, f INTEGER, x VARCHAR, a INTEGER, '
-               'c VARCHAR, st VARCHAR, ' + ', '.join(f't{i} INTEGER' for i in range(8)) + ')')
+               'c VARCHAR, w VARCHAR, st VARCHAR, ' + ', '.join(f't{i} INTEGER' for i in range(8)) + ')')
     pending = {column: [] for column in columns}
 
     def flush():
@@ -188,6 +196,7 @@ def load_build(db, build):
                 pending['x'].append(row['x'])
                 pending['a'].append(row['a'])
                 pending['c'].append(row['c'])
+                pending['w'].append(row['w'])
                 pending['st'].append(row['s'])
                 for i in range(8):
                     pending[f't{i}'].append(times[i] if i < len(times) - 1 else None)
@@ -197,7 +206,7 @@ def load_build(db, build):
     return manifest, editions
 
 
-def audit(db, core, manifest, registry_path, half_registry_path=None):
+def audit(db, core, manifest, registry_path, half_registry_path=None, half_policy_path=None, timing_path=HERE / 'lookup-timing.json'):
     """Compare `got` with `want`. Returns the facts checked; raises AuditError on the first kind of difference.
     Every join is on the one-number key and hashes a few columns of one table (as written: the right side)."""
     facts = {}
@@ -236,7 +245,7 @@ def audit(db, core, manifest, registry_path, half_registry_path=None):
          'listed rows of the release are in no shard')
     none('extra', 'SELECT g.db, g.id FROM (SELECT k, db, id FROM got) g ANTI JOIN (SELECT k FROM want) w ON w.k=g.k LIMIT 20', 'results that are not rows of the release')
     none('twice', 'SELECT k FROM got GROUP BY k HAVING count(*)>1 LIMIT 20', 'results that appear twice')
-    for columns in (['name'], ['x', 'a', 'st', 'c'], ['f'] + [f't{i}' for i in range(8)]):
+    for columns in (['name'], ['x', 'a', 'st', 'c', 'w'], ['f'] + [f't{i}' for i in range(8)]):
         differs = ' OR '.join(f'w.{column} IS DISTINCT FROM g.{column}' for column in columns)
         which = 'CASE ' + ' '.join(f"WHEN w.{column} IS DISTINCT FROM g.{column} THEN '{column}'" for column in columns) + ' END'
         rows = as_written(db, f"""SELECT w.db, w.id, {which} FROM (SELECT k, db, id, {', '.join(columns)} FROM want WHERE kind='result') w
@@ -248,22 +257,41 @@ def audit(db, core, manifest, registry_path, half_registry_path=None):
     # the edition of each result: the registry's label, the year, EDITION-TIERS.csv's tier and split tier
     marathon, _, _ = read_registry(registry_path, 'marathon')
     half_registry = read_registry(half_registry_path, 'half')[0] if half_registry_path else None
-    first = dict(db.execute("SELECT city, min(year) FROM want WHERE distance='half' AND kind<>'left_out' GROUP BY city").fetchall())
+    first = {(dbh, city): year for dbh, city, year in db.execute(
+        "SELECT db='h', city, min(year) FROM want WHERE distance='half' AND kind<>'left_out' GROUP BY ALL").fetchall()}
     halves = half_races(first, half_registry)
-    db.execute('CREATE TABLE want_races (distance VARCHAR, city VARCHAR, label VARCHAR, race VARCHAR)')
-    db.executemany('INSERT INTO want_races VALUES (?, ?, ?, ?)', [('marathon', key, label, name) for key, (label, name) in marathon.items()]
-                   + [('half', key, label, name) for key, (label, name) in halves.items()])
+    db.execute('CREATE TABLE want_races (distance VARCHAR, db VARCHAR, city VARCHAR, label VARCHAR, race VARCHAR)')
+    db.executemany('INSERT INTO want_races VALUES (?, ?, ?, ?, ?)', [('marathon', 'f', key, label, name) for key, (label, name) in marathon.items()]
+                   + [('half', 'h' if dbh else 'f', key, label, name) for (dbh, key), (label, name) in halves.items()])
     tier_case = ' '.join(f"WHEN {quote(tier)} THEN {at}" for at, tier in enumerate(fmt.TIERS))
     db.execute(f"""CREATE TABLE want_tiers AS SELECT distance, CASE source_db WHEN 'half' THEN 'h' ELSE 'f' END AS db, city, year::INTEGER AS year,
         CASE verification_tier {tier_case} END AS tier, split_tier='splits' AS splits
       FROM read_csv({quote(core / 'EDITION-TIERS.csv')}, header=true, all_varchar=true)""")
-    none('edition', """SELECT w.db, w.id FROM (SELECT k, db, id, distance, city, year FROM want WHERE kind='result') w
+    # the timing class of each edition, from edition_meta's text and the builder's table (scripts/verify-lookup.cjs holds
+    # that table to lib/tiers.ts); the never-compared mark, from the half policy's list (0 where it names none)
+    timing = json.loads(Path(timing_path).read_text())
+    db.execute('CREATE TABLE want_timing_text (text VARCHAR, cls VARCHAR)')
+    db.executemany('INSERT INTO want_timing_text VALUES (?, ?)', [(text, cls) for cls, texts in timing['bases'].items() for text in texts])
+    db.execute(f"""CREATE TABLE want_timing AS SELECT m.distance, CASE m.source_db WHEN 'half' THEN 'h' ELSE 'f' END AS db, m.city, m.year::INTEGER AS year,
+        CASE WHEN m.timing_basis IS NULL THEN {quote(timing['no_text'])} ELSE t.cls END AS tb, true AS present
+      FROM read_parquet({quote(core / 'edition_meta.parquet')}) m LEFT JOIN want_timing_text t ON t.text=m.timing_basis""")
+    marks = {'gun_times': 1, 'course_suspected_short': 2}
+    db.execute('CREATE TABLE want_never (db VARCHAR, city VARCHAR, year INTEGER, g INTEGER)')
+    if half_policy_path:
+        db.executemany('INSERT INTO want_never VALUES (?, ?, ?, ?)', [('h' if entry['source_db'] == 'half' else 'f', entry['key'], entry['year'], marks[entry['reason']])
+                       for entry in json.loads(Path(half_policy_path).read_text())['never_compared']['editions']])
+    none('edition', f"""SELECT w.db, w.id FROM (SELECT k, db, id, distance, city, year FROM want WHERE kind='result') w
         JOIN (SELECT k, e FROM got) g ON g.k=w.k JOIN got_editions e ON e.e=g.e
-        LEFT JOIN want_races r ON r.distance=w.distance AND r.city=w.city
+        LEFT JOIN want_races r ON r.distance=w.distance AND r.db=w.db AND r.city=w.city
         LEFT JOIN want_tiers t ON t.distance=w.distance AND t.db=w.db AND t.city=w.city AND t.year=w.year
+        LEFT JOIN want_timing m ON m.distance=w.distance AND m.db=w.db AND m.city=w.city AND m.year=w.year
+        LEFT JOIN want_never n ON w.distance='half' AND n.db=w.db AND n.city=w.city AND n.year=w.year
         WHERE e.distance IS DISTINCT FROM w.distance OR e.db IS DISTINCT FROM w.db OR e.year IS DISTINCT FROM w.year
-          OR e.label IS DISTINCT FROM r.label OR e.race IS DISTINCT FROM r.race OR e.tier IS DISTINCT FROM t.tier OR e.splits IS DISTINCT FROM t.splits LIMIT 20""",
-         'results sit in an edition of another race, year, distance, database, tier or split tier')
+          OR e.label IS DISTINCT FROM r.label OR e.race IS DISTINCT FROM r.race OR e.tier IS DISTINCT FROM t.tier OR e.splits IS DISTINCT FROM t.splits
+          OR e.tb IS DISTINCT FROM CASE WHEN m.present IS NULL THEN {quote(timing['no_text'])} ELSE m.tb END OR e.g IS DISTINCT FROM coalesce(n.g, 0) LIMIT 20""",
+         'results sit in an edition of another race, year, distance, database, tier, split tier, timing class or never-compared mark')
+    facts['editions_by_timing_class'] = dict(db.execute('SELECT tb, count(*) FROM got_editions GROUP BY tb ORDER BY tb').fetchall())
+    facts['screens'] = dict(db.execute("SELECT w, count(*) FROM want WHERE kind='result' AND w<>'0' GROUP BY w ORDER BY w").fetchall())
     # 3. profiles are persons (`p` names a profile: its shard and its position there)
     none('split_person', """SELECT min(w.id) FROM (SELECT k, id, person_id FROM want WHERE kind='result' AND person_id IS NOT NULL) w
         JOIN (SELECT k, p FROM got) g ON g.k=w.k GROUP BY w.person_id HAVING min(g.p)<>max(g.p) LIMIT 20""", 'a person is spread over two profiles')
@@ -285,7 +313,10 @@ def main(argv=None):
     parser.add_argument('--never-shown', type=Path, help='write the keys that must not appear, for scripts/verify-lookup.cjs --never-shown')
     parser.add_argument('--receipt', type=Path, help='write what was checked as JSON')
     parser.add_argument('--registry', type=Path, default=HERE / 'race-registry.json')
-    parser.add_argument('--half-registry', type=Path)
+    parser.add_argument('--half-registry', type=Path, default=HERE / 'half-race-registry.json' if (HERE / 'half-race-registry.json').is_file() else None)
+    half_pin = json.loads((HERE / 'half-release.json').read_text()).get('policy') if (HERE / 'half-release.json').is_file() else None
+    parser.add_argument('--half-policy', type=Path, default=HERE.parent / half_pin if half_pin and (HERE.parent / half_pin).is_file() else None,
+                        help='the half policy whose never_compared list the build must follow (default the one analysis/half-release.json names)')
     parser.add_argument('--race-notes', type=Path, default=HERE / 'race-notes.json' if (HERE / 'race-notes.json').is_file() else None,
                         help='the race directory’s notes; the build must have skipped the rows of its set_aside_editions')
     parser.add_argument('--placeholders', type=Path, default=HERE / 'lookup-placeholders.json')
@@ -322,13 +353,15 @@ def main(argv=None):
             print(json.dumps({distance: {kind: sum(len(ids) for ids in by_db.values()) for kind, by_db in kinds.items()} for distance, kinds in keys.items()}))
         if args.build:
             manifest, _ = load_build(db, args.build)
-            facts = audit(db, args.core, manifest, args.registry, args.half_registry)
-            facts.update(manifest_sha256=digest(args.build / 'runners/manifest.json'), seconds=round(time.monotonic() - started))
+            facts = audit(db, args.core, manifest, args.registry, args.half_registry, args.half_policy)
+            facts.update(manifest_sha256=digest(args.build / 'runners/manifest.json'), seconds=round(time.monotonic() - started),
+                         peak_temp_mb=watch.peak >> 20, peak_rss_mb=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024)
             if args.receipt:
                 args.receipt.write_text(json.dumps(facts, indent=1) + '\n')
             watch.size()
             print(f"Audited {facts['results']:,} results against the release and the pipeline's files: every listed row once with its own values, "
-                  f"no row that must not appear, every count as the manifest states. {facts['seconds']} s; temporary folder peak {watch.peak >> 20:,} MB.")
+                  f"no row that must not appear, every count as the manifest states. {facts['seconds']} s; temporary folder peak {watch.peak >> 20:,} MB; "
+                  f"peak memory {facts['peak_rss_mb']:,} MB.")
     except AuditError as error:
         print(f'lookup_audit: {error}', file=sys.stderr)
         return 1
