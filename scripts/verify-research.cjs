@@ -11,6 +11,13 @@ require.extensions['.ts'] = (module, filename) => module._compile(
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText, filename,
 );
+// lib/course-data.ts reads lib/insights-server.ts, which imports `@/analysis/release.json`: resolve `@/` from the
+// repository root as scripts/verify-courses.cjs does (integration, November 19, 2026).
+const Module = require('node:module');
+const resolveFilename = Module._resolveFilename;
+Module._resolveFilename = function (request, ...rest) {
+  return resolveFilename.call(this, request.startsWith('@/') ? path.join(process.cwd(), request.slice(2)) : request, ...rest);
+};
 
 const { parseCsv, finite, formatNumber } = require('../lib/csv.ts');
 const { getQuestions, getStudyAnswer, getExtraAnswer, getWallTimingAnswer, getCoursePacingChart, getStudyEvidence, table } = require('../lib/research-data.ts');
