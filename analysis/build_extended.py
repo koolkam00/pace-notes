@@ -700,6 +700,12 @@ def run(source,output,live_as_of,personalized_output=None,identity=None):
     print('Completed 25 extended packs. Only aggregate tables were written.',flush=True)
     if personalized_output is not None:
         from build_personalized import generate
+        # The guide reads `eligible`, `prior` and `weather` alone: drop every other table and view the packs made so
+        # that its roll-ups fit (November 19, 2026; at 8 GB and a 4 GB cap they spilled past the cap otherwise).
+        for name, kind in db.execute("SELECT view_name, 'VIEW' FROM duckdb_views() WHERE temporary AND NOT internal UNION ALL "
+                                     "SELECT table_name, 'TABLE' FROM duckdb_tables() WHERE temporary").fetchall():
+            if name not in ('eligible', 'prior', 'weather'):
+                db.execute(f'DROP {kind} IF EXISTS "{name}" CASCADE')
         generate(db,source,personalized_output,provenance,manifest,counts,diagnostics,live_as_of,quality)
 
 
