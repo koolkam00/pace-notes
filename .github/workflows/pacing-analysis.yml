@@ -35,8 +35,15 @@ jobs:
           # interpreter version in the adapted MANIFEST.json, whose digest every output binds, so another Python
           # gives another digest and the rebuilt outputs cannot match the committed ones.
           python-version: '3.13.16'
+      # The Python suite runs the Node verifiers of the races and the runner lookup (test_races.py,
+      # test_runner_lookup_verifier.py), which load `typescript` from node_modules (added November 19, 2026).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
       - name: Install analysis dependency
         run: python -m pip install -r analysis/requirements.txt
+      - run: npm ci
       - name: Check timing and cohort calculations
         run: python -m unittest discover -s analysis -p 'test_*.py'
       - name: Download verified FULL export
@@ -45,6 +52,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PACING_RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name || '' }}
         run: python analysis/download_release.py --bundle FULL --output "$RUNNER_TEMP/pacing-input" --tag "$PACING_RELEASE_TAG"
+      # A combined release (layout `combined`) carries its runner keys in one identity file, built from the adapted
+      # input (analysis/build_identity.py); build_extended.py reads it. Its digest must be the one the marathon
+      # cohort manifest names (inputs.identity.sha256), so this rebuild is the file every committed output binds.
+      - name: Build the identity file of a combined release
+        id: identity
+        run: |
+          layout=$(python -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/pacing-input/provenance.json")).get("layout",""))')
+          if [ "$layout" = combined ]; then
+            mkdir -p "$RUNNER_TEMP/pacing-identity"
+            python analysis/build_identity.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-identity/identity.parquet"
+            built=$(sha256sum "$RUNNER_TEMP/pacing-identity/identity.parquet" | cut -d' ' -f1)
+            bound=$(python -c 'import json; print(json.load(open("analysis/marathon-cohort/manifest.json"))["inputs"]["identity"]["sha256"])')
+            echo "identity.parquet $built; the cohort binds $bound"
+            tag=$(python -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/pacing-input/provenance.json"))["release_tag"])')
+            pinned=$(python -c 'import json; print(json.load(open("analysis/release.json"))["tag"])')
+            if [ "$tag" = "$pinned" ] && [ "$built" != "$bound" ]; then echo "::error::the rebuilt identity file differs from the one the cohort binds"; exit 1; fi
+            echo "args=--identity $RUNNER_TEMP/pacing-identity/identity.parquet" >> "$GITHUB_OUTPUT"
+          fi
       - name: Inspect available fields and coverage
         run: python analysis/inspect_export.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-inspection"
       # A release without a reviewed edition policy in analysis/source_quality.py would be calculated with no
@@ -77,7 +102,14 @@ jobs:
         run: python analysis/build_pacing.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-aggregates" --live-as-of "$PACING_LIVE_AS_OF"
       - name: Calculate full-race, forecast and linked-history analyses
         if: steps.audit.outputs.reviewed == 'true'
-        run: python analysis/build_extended.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-aggregates" --personalized-output "$RUNNER_TEMP/pacing-personalized" --live-as-of "$PACING_LIVE_AS_OF"
+        env:
+          # The combined release's linked histories do not fit the default 6 GB with its 4 GB spill cap (run
+          # 44621455222, November 19, 2026: out of memory in history_analyses). The local build of November 14-19, 2026
+          # ran at 10 GB: 5.5 min, 10.2 GB peak, 3 GB of spill under the 4 GB cap; the hosted runner has 16 GB.
+          # Results do not depend on the cap (docs/OPERATIONS.md, "Calculate all owned outputs").
+          PACE_NOTES_EXTENDED_MEMORY: 10GB
+          PACE_NOTES_EXTENDED_TEMP: 4GB
+        run: python analysis/build_extended.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-aggregates" --personalized-output "$RUNNER_TEMP/pacing-personalized" --live-as-of "$PACING_LIVE_AS_OF" ${{ steps.identity.outputs.args }}
       - name: Write numerical findings from verified aggregates
         if: steps.audit.outputs.reviewed == 'true'
         run: python analysis/write_findings.py --output "$RUNNER_TEMP/pacing-aggregates"

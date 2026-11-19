@@ -104,7 +104,10 @@ jobs:
   preview:
     needs: gate
     if: needs.gate.outputs.eligible == 'true'
-    runs-on: ubuntu-latest
+    # Pinned on 2026-11-19: Playwright 1.56.1 cannot install Chromium's system packages on the ubuntu-26.04
+    # image that ubuntu-latest now resolves to ("Playwright does not support chromium on ubuntu26.04-x64").
+    # Return to ubuntu-latest when the Playwright version here supports it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     # This job opens the pull request's preview in Chromium, so the pull request's own JavaScript runs here. It gets a
     # read-only token and leaves no credentials on disk; its results reach the merge job as exit codes and an artifact.
@@ -262,7 +265,10 @@ jobs:
   live:
     needs: merge
     if: always() && needs.merge.outputs.merge_sha != '' && needs.merge.outputs.deploy == 'success'
-    runs-on: ubuntu-latest
+    # Pinned on 2026-11-19: Playwright 1.56.1 cannot install Chromium's system packages on the ubuntu-26.04
+    # image that ubuntu-latest now resolves to ("Playwright does not support chromium on ubuntu26.04-x64").
+    # Return to ubuntu-latest when the Playwright version here supports it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
