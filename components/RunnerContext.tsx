@@ -23,6 +23,7 @@ import { readSplits } from '@/lib/tools/split-reading';
 import { loadRaceInsights, runnerAgeBand, runnerGender, type ComparisonKey, type PeerComparison, type RaceInsights, type RunnerTerrain, type RunnerWeather } from '@/lib/runner-context';
 import type { RaceReportProps } from './report/RaceReport';
 import { loadErrorText } from '@/lib/error-text';
+import { EditionLabels } from './runner/records';
 
 const count = (value: number) => value.toLocaleString('en-US');
 const decimal = (value: number, digits = 1) => value.toLocaleString('en-US', { maximumFractionDigits: digits });
@@ -308,7 +309,7 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   ];
   const others = valid.filter(row => row.race.key !== focus.race.key);
   const reference = others.find(row => row.race.key === referenceId) || others.find(row => manifest.editions[row.race.edition].city === manifest.editions[focus.race.edition].city) || others[0];
-  const unavailable = <>{loading && <p className="rc-copy" role="status">Loading this edition’s comparisons and conditions…</p>}{failure && <div className="runner-error" role="alert"><p>{failure}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}</>;
+  const unavailable = <>{loading && <p className="rc-copy" role="status">Loading this edition’s comparisons and conditions…</p>}{failure && <div className="runner-error" role="alert"><p>{failure}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}{!loading && !failure && !context && <p className="rc-copy rc-none">No comparison is available for this edition.</p>}</>;
   const edition = manifest.editions[focus.race.edition];
   const wetFocus = wet.includes(edition.city);
   const reportTimes = report ? wholeSeconds(focus.metrics) : null;
@@ -320,15 +321,18 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   const optionText = (row: MeasuredRace, rows: MeasuredRace[]) => rows.filter(other => raceName(other) === raceName(row)).length > 1 ? `${raceName(row)} · record ${row.race.key}` : raceName(row);
   return <section ref={sectionRef} tabIndex={-1} className="runner-context ph-no-capture" aria-labelledby={`${id}-title`}>
     {/* One heading: the race in view (with two or more, the focus race the select picks). */}
-    <header className="rc-heading"><h2 id={`${id}-title`} className={valid.length < 2 ? undefined : 'sr-only'}>{`${titleFor(focus.race, manifest)}, ${runnerDuration(focus.metrics.finish)}`}</h2><label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.key} onChange={event => { setReportPressed(false); setFocusId(event.target.value); }}>{valid.map(row => <option key={row.race.key} value={row.race.key}>{optionText(row, valid)}</option>)}</select></label></header>
+    <header className="rc-heading"><h2 id={`${id}-title`} className={valid.length < 2 ? undefined : 'sr-only'}>{`${titleFor(focus.race, manifest)}, ${runnerDuration(focus.metrics.finish)}`}</h2><label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.key} onChange={event => { setReportPressed(false); setFocusId(event.target.value); }}>{valid.map(row => <option key={row.race.key} value={row.race.key}>{optionText(row, valid)}</option>)}</select></label>
+      {/* Every race in view shows its edition's tier (D16); a race of an edition that is not counted keeps its own pacing and is compared with no one (R4). */}
+      <p className="rc-labels"><EditionLabels edition={edition} link /></p>
+      {focus.race.counted ? null : <p className="rc-copy rc-own">Its own pacing only: this race is compared with no other finishes.</p>}</header>
     {/* With the race report open it takes the view's place (round 5: appended under the view, it repeated the Pacing
         tab's lap list a screen higher): the tabs and the comparison step aside behind one way back. */}
     {showReport ? null : <>
-    <Segmented className="rc-tabs" label="Race detail view" options={TABS} value={tab} onChange={setTab} block />
+    {focus.race.counted ? <Segmented className="rc-tabs" label="Race detail view" options={TABS} value={tab} onChange={setTab} block /> : null}
     <div className="rc-panel" id={`${id}-panel`}>
-      {tab === 'pacing' && <PacingReadings {...focus} manifest={manifest} units={units} />}
-      {tab === 'peers' && <><label className="rc-group-control" htmlFor={`${id}-group`}>Compare with runners in this edition<select id={`${id}-group`} className="select" value={selectedGroup} onChange={event => setGroupState({ race: focus.race.key, key: event.target.value as ComparisonKey })}>{groupOptions.map(option => <option key={option.key} value={option.key} disabled={!option.available}>{option.label}</option>)}</select></label>{unavailable}{context && (comparison ? <RunnerPeerComparison comparison={comparison} metrics={focus.metrics} units={units} edition={titleFor(focus.race, manifest)} /> : <div className="rc-empty"><h3 className="rc-h">This group is too small for a reliable comparison.</h3><p className="rc-copy">The recorded pacing is under “Pacing.”</p>{selectedGroup !== 'all' && <button type="button" className="btn btn-secondary is-compact" onClick={() => setGroupState({ race: focus.race.key, key: 'all' })}>Compare with all eligible runners</button>}</div>)}</>}
-      {tab === 'conditions' && <>{unavailable}{context && <RunnerConditions context={context} metrics={focus.metrics} units={units} wet={wetFocus} />}</>}
+      {(tab === 'pacing' || !focus.race.counted) && <PacingReadings {...focus} manifest={manifest} units={units} />}
+      {tab === 'peers' && focus.race.counted && <><label className="rc-group-control" htmlFor={`${id}-group`}>Compare with runners in this edition<select id={`${id}-group`} className="select" value={selectedGroup} onChange={event => setGroupState({ race: focus.race.key, key: event.target.value as ComparisonKey })}>{groupOptions.map(option => <option key={option.key} value={option.key} disabled={!option.available}>{option.label}</option>)}</select></label>{unavailable}{context && (comparison ? <RunnerPeerComparison comparison={comparison} metrics={focus.metrics} units={units} edition={titleFor(focus.race, manifest)} /> : <div className="rc-empty"><h3 className="rc-h">This group is too small for a reliable comparison.</h3><p className="rc-copy">The recorded pacing is under “Pacing.”</p>{selectedGroup !== 'all' && <button type="button" className="btn btn-secondary is-compact" onClick={() => setGroupState({ race: focus.race.key, key: 'all' })}>Compare with all eligible runners</button>}</div>)}</>}
+      {tab === 'conditions' && focus.race.counted && <>{unavailable}{context && <RunnerConditions context={context} metrics={focus.metrics} units={units} wet={wetFocus} />}</>}
     </div>
     {reference && <section className="rc-multi" aria-labelledby={`${id}-comparison-title`}>
       <SectionComparison focus={focus} reference={reference} manifest={manifest} id={`${id}-comparison-title`} />
@@ -342,7 +346,7 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
       </Values>
     </section>}
     </>}
-    {report && reportTimes && <section className="rc-report" aria-labelledby={`${id}-report-title`}>
+    {report && reportTimes && focus.race.counted && <section className="rc-report" aria-labelledby={`${id}-report-title`}>
       <h3 id={`${id}-report-title`} className={reportOpen ? 'sr-only' : 'rc-h'}>{titleFor(focus.race, manifest)} on one page, to print or share.</h3>
       {/* Marked for section_viewed: the section tracker watches sections that join the page after it first looked. */}
       {reportOpen

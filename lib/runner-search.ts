@@ -502,6 +502,8 @@ const pageCache = new Map<string, unknown>();
 const fileCache = new Map<string, unknown>();
 const FILES_KEPT = 8;
 const aborted = () => new DOMException('Aborted', 'AbortError');
+/** Forgets every kept file, so the next read fetches and checks it again (scripts/verify-runner-search.cjs, its refusals). */
+export function clearRunnerCaches(): void { pageCache.clear(); fileCache.clear(); }
 
 /**
  * One gzip JSON file of the lookup, opened only when its size and SHA-256 are the ones its parent lists. `path` comes
