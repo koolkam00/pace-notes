@@ -303,7 +303,7 @@ The main workflow produces `pacing-aggregate-packs`, `pacing-personalized-aggreg
 
 Until October 15, 2026, the main pacing workflow (`pacing-analysis.yml`) and the full-export inspection (`inspect-full-export.yml`) ran only when the repository was named `koolkam00/htw-live-study`. After the rename to `koolkam00/pace-notes` both were silently skipped on every pull request, and would have been on a new `private-export-*` release. The last successful pacing run was [35252504876](https://github.com/koolkam00/pace-notes/actions/runs/35252504876) on September 17 and the last successful inspection [34560014278](https://github.com/koolkam00/pace-notes/actions/runs/34560014278) on September 11. Both now check `koolkam00/pace-notes`, the same condition the Autopilot merge workflow uses. A skipped job is not a passing calculation: confirm the job actually ran before relying on its artifacts. Since October 16, 2026 a published `htw-db-*` release triggers it as well as a `private-export-*` one (the weather workflow accepts both tag forms too). Because a new release now triggers the pacing workflow again, a tag without a reviewed edition policy in `analysis/source_quality.py` (`REVIEWED_POLICIES`) is downloaded and inspected only: the workflow uploads `pacing-export-inspection`, calculates nothing, and fails with a message saying the policy and audit must be added first. Otherwise an unreviewed export would be calculated with no exclusions.
 
-Runner context has an additional dependency on the exact imported runner manifest; follow the [dedicated sequence below](#runner-context-refresh) after importing the supporting study and lookup.
+Runner context depends on the exact marathon cohort manifest (since November 14, 2026); follow the [dedicated sequence below](#runner-context-refresh) after rebuilding the cohort.
 
 ## Validate, import and publish
 
@@ -331,12 +331,12 @@ Forecast and validated course-adjustment outputs remain explicitly unavailable w
 
 ## Runner context refresh
 
-The context builder uses `analysis/release.json` and requires the verified FULL directory containing `full.tar.gz`, `MANIFEST.json`, `provenance.json` and extracted inputs. It checks the source against the existing runner lookup. It explicitly supports the audited 1107, 0934, 1652 and 1050 policies; adopting a future tag requires reviewing the source/edition policy, rebuilding the lookup and updating the release-gated contracts together.
+The context builder uses `analysis/release.json` and requires the verified adapted FULL directory (`MANIFEST.json`, `provenance.json` and its Parquet members) and the marathon cohort (`analysis/marathon-cohort`), whose manifest it checks against the pin and the checkout's scripts; the input must reproduce the cohort. Adopting a future tag requires reviewing the source/edition policy, rebuilding the cohort and updating the release-gated contracts together (November 14, 2026; it checked the source against the runner lookup before).
 
 Install Python requirements and Node dependencies first. Refresh and import the runner lookup before this sequence when its source or calculation changes. Use a fresh output directory:
 
 ```bash
-python analysis/build_runner_context.py --input "$IN" --output "$WORK/runner-context" --runners public/data/runners
+python analysis/build_runner_context.py --input "$IN" --output "$WORK/runner-context" --cohort analysis/marathon-cohort
 python analysis/import_runner_context.py --input "$WORK/runner-context" --check-only
 python analysis/import_runner_context.py --input "$WORK/runner-context"
 npm run verify:data
@@ -345,9 +345,9 @@ npm run build
 
 A change to `build_weather.py` or `runner_environment.py` (the start-hour check) requires rebuilding, in order: the weather screen; runner context (build, `--check-only`, import); the all-finisher context; then the stories and tool data with course geometry, the terrain splits (`build_course_terrain.py`, which binds the runner-context manifest) and their manifest, each with its verifier. The packs, the supporting study, the runner lookup and fast start read neither ([October 22, 2026 example](evidence/2026-10-22/chicago-2025-weather/pipeline.sh)).
 
-`--runners` defaults to the repository's `public/data/runners`. The importer invokes the full Node verifier before any replacement. It stages only `manifest.json` and the listed edition shards, then replaces only `public/data/runner-context`, restoring the prior directory if the swap fails. Its optional `--output` is the **parent** public-data directory, not the runner-context folder; validation still binds to this repository's runner manifest. No other data folder or release pin is modified.
+`--cohort` defaults to the repository's `analysis/marathon-cohort`. The importer invokes the full Node verifier before any replacement. It stages only `manifest.json` and the listed edition files, then replaces only `public/data/runner-context`, restoring the prior directory if the swap fails. Its optional `--output` is the **parent** public-data directory, not the runner-context folder; validation still binds to this repository's cohort manifest. No other data folder or release pin is modified.
 
-For a standalone calculation audit, run `node scripts/verify-runner-context.cjs --data-root "$WORK/runner-context"`. It verifies every context shard, all group/CDF counts against the published eligible runner records, and 16 independently recomputed pacing-quartile samples. `npm run verify:data` also includes the context client and UI checks. A same-tag lookup rebuild changes its manifest hash/timestamp and invalidates older context; rebuild rather than relabeling the context manifest.
+For a standalone calculation audit, run `node scripts/verify-runner-context.cjs --data-root "$WORK/runner-context"`. It verifies every context file, all group/CDF counts against the cohort's counted records, and 16 independently recomputed pacing-quartile samples. `npm run verify:data` also includes the context client and UI checks. A cohort rebuild changes its manifest hash and invalidates older context; rebuild rather than relabeling the context manifest.
 
 The [Runner context and peers workflow](../.github/workflows/runner-context.yml) runs on relevant pull-request paths or manual dispatch. It downloads the pinned FULL, calculates against the checked-in runner manifest, runs the independent verifier and uploads **`runner-context`** for 30 days. It does not import, change the pin, merge or deploy. Download/extract the artifact into an input directory for the importer, inspect the exact source/code revision, and preserve durable verification evidence before CI artifacts expire. Check pending/local/publication status in [RUNNER_CONTEXT_AND_PEERS.md](RUNNER_CONTEXT_AND_PEERS.md).
 
@@ -483,3 +483,21 @@ Then capture and read every half surface (`/half`, `/stories/half-to-full`, the 
 The live producer database, scheduled ingestion, retries and recovery scripts are external to this checkout. A consistent SQLite snapshot is made through SQLite's backup mechanism or an equivalent supported snapshot; do not blindly copy a changing database or replace ingestion with a downloaded backup. Publish checksummed full-record snapshots with anonymous opening instructions. Public snapshot access does not require exposing the live service or its credentials.
 
 The open producer requests are listed once, in the project handoff's [remaining producer work](PROJECT_HANDOFF.md#remaining-producer-work), with each release's own list in its refresh record. See also [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and [the September 10 producer request](history/INGESTION_HANDOFF_20260910.md). Never infer missing values to make a cohort larger.
+
+## History
+
+### Superseded on November 14, 2026 (runner context bound to the marathon cohort)
+
+Moved word for word from "Validate, import and publish" and "Runner context refresh" as the branch held them at `99d760bed`.
+
+The context builder uses `analysis/release.json` and requires the verified FULL directory containing `full.tar.gz`, `MANIFEST.json`, `provenance.json` and extracted inputs. It checks the source against the existing runner lookup. It explicitly supports the audited 1107, 0934, 1652 and 1050 policies; adopting a future tag requires reviewing the source/edition policy, rebuilding the lookup and updating the release-gated contracts together.
+
+```bash
+python analysis/build_runner_context.py --input "$IN" --output "$WORK/runner-context" --runners public/data/runners
+```
+
+`--runners` defaults to the repository's `public/data/runners`. The importer invokes the full Node verifier before any replacement. It stages only `manifest.json` and the listed edition shards, then replaces only `public/data/runner-context`, restoring the prior directory if the swap fails. Its optional `--output` is the **parent** public-data directory, not the runner-context folder; validation still binds to this repository's runner manifest. No other data folder or release pin is modified.
+
+For a standalone calculation audit, run `node scripts/verify-runner-context.cjs --data-root "$WORK/runner-context"`. It verifies every context shard, all group/CDF counts against the published eligible runner records, and 16 independently recomputed pacing-quartile samples. `npm run verify:data` also includes the context client and UI checks. A same-tag lookup rebuild changes its manifest hash/timestamp and invalidates older context; rebuild rather than relabeling the context manifest.
+
+Runner context has an additional dependency on the exact imported runner manifest; follow the [dedicated sequence below](#runner-context-refresh) after importing the supporting study and lookup.

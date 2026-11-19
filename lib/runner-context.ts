@@ -80,26 +80,50 @@ export function compareRunnerRaces(focus: RunnerRace, reference: RunnerRace, run
   const sections = a.sections.map((s, i) => ({ start: s.start, end: s.end, seconds: s.elapsed - b.sections[i].elapsed }));
   return { finish: a.finish - b.finish, early: Number(focus.times[5]) - Number(reference.times[5]), late: (a.finish - Number(focus.times[5])) - (b.finish - Number(reference.times[5])), sections, sameCourse: runners.editions[focus.edition].city === runners.editions[reference.edition].city };
 }
+/** The marathon cohort manifest (analysis/marathon-cohort/manifest.json) as the server-side checks read it. */
+export type CohortManifestHead = { release_tag: string; as_of: string; input_as_of: string; raw_records: number; eligible_records: number; editions: { city: string; year: number; race: string }[] };
+type Bound = { sha: string; release_tag: string; as_of: string; input_as_of: string; raw: number; eligible: number; editions: number; edition: (index: number) => { city: string; year: number; race: string } | undefined };
 /**
- * The context manifest, checked against the verified lookup manifest: built on the cohort the lookup names (its
- * SHA-256, the release, the input time and the cohort's own time and raw count), with a file entry only under a
- * cohort edition index. `expectedSha`, where a server page passes one (lib/course-page.ts), must also be the digest
- * the context names: a page that binds its own data to one cohort keeps that binding.
+ * What the context binds: the cohort. The browser passes the verified lookup manifest, which names the cohort (its
+ * SHA-256, times and counts); a server check (scripts/verify-runner-context.cjs, lib/course-page.ts) passes the cohort
+ * manifest itself with its digest. Either way the cohort edition index names the edition.
  */
-export function validateContextManifest(value: unknown, runners: RunnerManifest, expectedSha?: string): ContextManifest {
-  const d = value as ContextManifest, cohort = runners.cohort;
-  if (!/^[a-f0-9]{64}$/.test(cohort?.manifest_sha256 ?? '') || d?.runner_manifest_sha256 !== cohort.manifest_sha256) throw error();
-  if (expectedSha !== undefined && d.runner_manifest_sha256 !== expectedSha) throw error();
-  if (!d || d.schema_version !== 1 || d.release_tag !== RUNNER_RELEASE || d.release_tag !== runners.release_tag || d.input_as_of !== cohort.input_as_of || d.runner_manifest_as_of !== cohort.as_of || !Number.isFinite(Date.parse(d.as_of)) || d.cohort?.raw !== cohort.raw_records || !integer(d.cohort.eligible, 1) || d.cohort.eligible !== cohort.eligible_records || !d.editions || typeof d.editions !== 'object' || Array.isArray(d.editions)) throw error();
+/** The lookup manifest names its editions file; the cohort manifest (which has its own `cohort` counts) does not. */
+const isLookup = (runners: RunnerManifest | CohortManifestHead): runners is RunnerManifest => 'editions_file' in runners && !!(runners as RunnerManifest).cohort;
+function bound(runners: RunnerManifest | CohortManifestHead, expectedSha?: string): Bound {
+  if (isLookup(runners)) {
+    const c = runners.cohort, lookup = runners as RunnerManifest;
+    if (!/^[a-f0-9]{64}$/.test(c.manifest_sha256 ?? '') || (expectedSha !== undefined && expectedSha !== c.manifest_sha256)) throw error();
+    return { sha: c.manifest_sha256, release_tag: lookup.release_tag, as_of: c.as_of, input_as_of: c.input_as_of, raw: c.raw_records, eligible: c.eligible_records, editions: c.editions,
+      edition: index => lookup.editions.find(row => row.context === index && row.distance === 'marathon') };
+  }
+  const c = runners as CohortManifestHead;
+  if (!/^[a-f0-9]{64}$/.test(expectedSha ?? '') || !Array.isArray(c.editions)) throw error();
+  return { sha: expectedSha!, release_tag: c.release_tag, as_of: c.as_of, input_as_of: c.input_as_of, raw: c.raw_records, eligible: c.eligible_records, editions: c.editions.length, edition: index => c.editions[index] };
+}
+/**
+ * The context manifest, checked against the cohort it was built on (the lookup's or the cohort manifest's own
+ * fields: its SHA-256, the release, the input time, the cohort's time and counts), with a file entry only under a
+ * cohort edition index, named by it. `expectedSha` is the cohort manifest's digest where the caller holds it.
+ */
+export function validateContextManifest(value: unknown, runners: RunnerManifest | CohortManifestHead, expectedSha?: string): ContextManifest {
+  const d = value as ContextManifest, b = bound(runners, expectedSha);
+  if (!d || d.runner_manifest_sha256 !== b.sha || d.schema_version !== 1 || d.release_tag !== RUNNER_RELEASE || d.release_tag !== b.release_tag || d.input_as_of !== b.input_as_of || d.runner_manifest_as_of !== b.as_of ||
+    !Number.isFinite(Date.parse(d.as_of)) || d.cohort?.raw !== b.raw || !integer(d.cohort.eligible, 1) || d.cohort.eligible !== b.eligible || !d.editions || typeof d.editions !== 'object' || Array.isArray(d.editions)) throw error();
+  // An edition has a file only when it has a peer group, a weather row or a route profile (PIPE, November 14, 2026),
+  // named by its cohort edition index.
   for (const [index, meta] of Object.entries(d.editions)) {
-    if (!/^(0|[1-9]\d{0,5})$/.test(index) || Number(index) >= cohort.editions || !meta || typeof meta.file !== 'string' || !/^editions\/[a-z0-9]+(-[a-z0-9]+)*\.json\.gz$/.test(meta.file) || !integer(meta.bytes, 1) || !/^[a-f0-9]{64}$/.test(meta.sha256)) throw error();
+    if (!/^(0|[1-9]\d{0,5})$/.test(index) || Number(index) >= b.editions || !meta || meta.file !== `editions/${index.padStart(3, '0')}.json.gz` || !integer(meta.bytes, 1) || !/^[a-f0-9]{64}$/.test(meta.sha256)) throw error();
   }
   return d;
 }
-/** One edition's context, checked against the lookup's edition that names its cohort index (`context`). */
-export function validateEditionContext(value: unknown, index: number, runners: Pick<RunnerManifest, 'release_tag' | 'editions'>): EditionContext {
-  const d = value as EditionContext, edition = runners.editions.find(row => row.context === index);
-  if (!d || d.schema_version !== 1 || d.release_tag !== runners.release_tag || d.edition?.index !== index || !edition || edition.distance !== 'marathon' || d.edition.city !== edition.city || d.edition.year !== edition.year || d.edition.race !== edition.race || !integer(d.eligible_n) || !integer(d.age_n) || !integer(d.gender_n) || d.age_n > d.eligible_n || d.gender_n > d.eligible_n || !d.groups || typeof d.groups !== 'object') throw error();
+/** One edition's context, checked against the edition its cohort index names (the lookup's `context`, or the cohort's own list). */
+export function validateEditionContext(value: unknown, index: number, runners: RunnerManifest | CohortManifestHead): EditionContext {
+  const d = value as EditionContext;
+  let edition: { city: string; year: number; race: string } | undefined;
+  if (isLookup(runners)) edition = (runners as RunnerManifest).editions.find(row => row.context === index && row.distance === 'marathon');
+  else edition = Array.isArray((runners as CohortManifestHead).editions) ? (runners as CohortManifestHead).editions[index] : undefined;
+  if (!d || d.schema_version !== 1 || d.release_tag !== runners.release_tag || d.edition?.index !== index || !edition || d.edition.city !== edition.city || d.edition.year !== edition.year || d.edition.race !== edition.race || !integer(d.eligible_n) || !integer(d.age_n) || !integer(d.gender_n) || d.age_n > d.eligible_n || d.gender_n > d.eligible_n || !d.groups || typeof d.groups !== 'object') throw error();
   for (const [key, group] of Object.entries(d.groups)) {
     if (!/^(all|gender:(Men|Women)|age:[0-9]{2}-[0-9]{2}|age_gender:[0-9]{2}-[0-9]{2}:(Men|Women))$/.test(key) || !integer(group.n, 101) || group.n > d.eligible_n || !Array.isArray(group.finish) || !group.finish.length || !group.pace) throw error();
     let previous = 0, n = 0;

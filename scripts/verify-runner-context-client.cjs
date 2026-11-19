@@ -157,7 +157,7 @@ function fixture(options = {}) {
   const cohort = lookupHead.cohort;
   const manifest = { schema_version: 1, release_tag: RUNNER_RELEASE, input_as_of: cohort.input_as_of, as_of: '2026-11-14T16:00:00Z', runner_manifest_as_of: cohort.as_of,
     runner_manifest_sha256: cohort.manifest_sha256, cohort: { raw: cohort.raw_records, eligible: cohort.eligible_records },
-    editions: { [String(COHORT_INDEX)]: { file: 'editions/000.json.gz', bytes: bytes.byteLength, sha256 } } };
+    editions: { [String(COHORT_INDEX)]: { file: `editions/${String(COHORT_INDEX).padStart(3, '0')}.json.gz`, bytes: bytes.byteLength, sha256 } } };
   options.manifest?.(manifest);
   return { data, bytes, manifest, servedRunnerBytes };
 }
@@ -169,7 +169,7 @@ async function withFetch(options, run) {
     if (String(url).startsWith(SERVED)) return new Response(fs.readFileSync(path.join(LOOKUP_DIR, String(url).slice(SERVED.length).replace(/\?v=.*$/, ''))));
     requests.push({ url: String(url), signal: init.signal });
     if (String(url).includes('/data/runner-context/manifest.json?')) return new Response(JSON.stringify(payload.manifest), { status: options.manifestStatus || 200 });
-    assert.match(String(url), /\/data\/runner-context\/editions\/000\.json\.gz\?v=[a-f0-9]{64}$/);
+    assert.match(String(url), new RegExp(`/data/runner-context/editions/${String(COHORT_INDEX).padStart(3, '0')}\\.json\\.gz\\?v=[a-f0-9]{64}$`));
     if (options.editionResponse) return options.editionResponse(payload, init);
     return new Response(options.corrupt ? options.corrupt(Buffer.from(payload.bytes)) : payload.bytes, { status: options.editionStatus || 200 });
   };
