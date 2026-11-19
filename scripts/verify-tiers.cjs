@@ -31,7 +31,7 @@
 //   node scripts/verify-tiers.cjs --linked=<path to linked_common.py>
 //       checks the timing classes against the linked-records module where the tree does not hold it yet.
 //
-// Not part of `npm run verify:data` yet (November 14, 2026): it joins when the pages that use the module land.
+// Part of `npm run verify:data` since the integration of November 19, 2026.
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
@@ -113,10 +113,7 @@ const PIN = 'analysis/release.json';
 // The fourth, "a possible match" for any name the search returns (components/methods/MethodsPages.tsx), was reworded
 // to "a name match" on the lead's ruling of November 14, 2026, so the words have one meaning on the site.
 const BASELINE = [
-  { file: 'components/methods/MethodsHalf.tsx', phrase: 'Held for review', count: 1,
-    why: '/methodology on the half’s editions: "are held for review by the producer". Prose on the one page that defines the words; the half rebuild rewrites the paragraph.' },
-  { file: 'components/methods/MethodsHalf.tsx', phrase: 'Gun times', count: 1,
-    why: '/methodology, the same paragraph: "The Berlin half’s 2018, 2019, 2022 and 2023 lists are among them: their times fit gun times." Decision D6 adds 2021; the half rebuild rewrites it.' },
+  // November 19, 2026: the two MethodsHalf.tsx entries are gone (the half agent wrote the module's words there).
   { file: 'lib/analysis-plans.ts', phrase: 'Gun times', count: 1,
     why: 'an analysis request’s list of the data it would need ("Individual chip and gun times, …"): two kinds of time, not the label of an edition.' },
 ];
@@ -435,6 +432,26 @@ function checkSource(list, t) {
 
 // ---------------------------------------------------------------------------------------------------------------
 
+/**
+ * The uses check 6 finds, against the baseline: a hand-written label class or a phrase outside the baseline fails, a
+ * baseline entry with another count fails, and so does a baseline entry that matches nothing (it must be removed).
+ */
+function useFailures(found, baseline) {
+  const key = (f) => `${f.file}\u0000${f.what}`;
+  const expected = new Map(baseline.map((b) => [key({ file: b.file, what: b.phrase }), b]));
+  const counts = new Map();
+  for (const f of found.filter((f) => f.kind === 'phrase')) counts.set(key(f), [...(counts.get(key(f)) || []), f]);
+  const failures = [];
+  for (const f of found.filter((f) => f.kind === 'class')) failures.push(`${f.file}:${f.line}: writes the label class ${f.what} by hand ("${f.text}"); draw the label with ${COMPONENTS}`);
+  for (const [k, uses] of counts) {
+    const base = expected.get(k);
+    if (!base) for (const f of uses) failures.push(`${f.file}:${f.line}: writes "${f.what}" ("${f.text}"); take the words from ${MODULE} (TierTag, tierWords, inline, …)`);
+    else if (uses.length !== base.count) failures.push(`${base.file}: the baseline counts ${base.count} use of "${base.phrase}", found ${uses.length} (lines ${uses.map((f) => f.line).join(', ')})`);
+  }
+  for (const [k, base] of expected) if (!counts.has(k)) failures.push(`${base.file}: the baseline lists "${base.phrase}", which the file no longer writes: remove the entry`);
+  return failures;
+}
+
 function selfTest(t) {
   const rules = scanRules(t);
   const planted = [
@@ -467,6 +484,18 @@ function selfTest(t) {
   for (const [file, text, expected] of planted) {
     const got = scanFile(file, text, rules).map((f) => `${f.kind} ${f.what}`);
     if (JSON.stringify(got) !== JSON.stringify(expected)) { failed++; console.error(`self-test: ${file}: ${text}\n  expected ${JSON.stringify(expected)}, got ${JSON.stringify(got)}`); }
+  }
+  // The baseline: an entry that matches nothing fails, and so does one whose count moved (November 19, 2026).
+  const base = [{ file: 'components/x.tsx', phrase: 'Gun times', count: 1 }];
+  const use = (file, line) => ({ file, line, kind: 'phrase', what: 'Gun times', text: 'gun times' });
+  for (const [label, found, expect] of [
+    ['a matching entry', [use('components/x.tsx', 1)], null],
+    ['an entry that matches nothing', [], /no longer writes/],
+    ['an entry whose count moved', [use('components/x.tsx', 1), use('components/x.tsx', 2)], /baseline counts 1/],
+    ['a use in another file', [use('components/x.tsx', 1), use('components/y.tsx', 3)], /components\/y\.tsx:3/],
+  ]) {
+    const got = useFailures(found, base);
+    if (expect ? !(got.length === 1 && expect.test(got[0])) : got.length) { failed++; console.error(`self-test: baseline, ${label}: got ${JSON.stringify(got)}`); }
   }
   const sheet = fs.readFileSync(path.join(ROOT, SHEET), 'utf8');
   const styles = (extra, other = []) => styleProblems([[SHEET, sheet + extra], ...other], t);
@@ -764,18 +793,7 @@ function main() {
     console.log(`verify-tiers --list: ${found.length} uses in ${files.length} files`);
     return;
   }
-  const key = (f) => `${f.file}\u0000${f.what}`;
-  const expected = new Map(BASELINE.map((b) => [key({ file: b.file, what: b.phrase }), b]));
-  const counts = new Map();
-  for (const f of found.filter((f) => f.kind === 'phrase')) counts.set(key(f), [...(counts.get(key(f)) || []), f]);
-  const failures = [];
-  for (const f of found.filter((f) => f.kind === 'class')) failures.push(`${f.file}:${f.line}: writes the label class ${f.what} by hand ("${f.text}"); draw the label with ${COMPONENTS}`);
-  for (const [k, uses] of counts) {
-    const base = expected.get(k);
-    if (!base) for (const f of uses) failures.push(`${f.file}:${f.line}: writes "${f.what}" ("${f.text}"); take the words from ${MODULE} (TierTag, tierWords, inline, …)`);
-    else if (uses.length !== base.count) failures.push(`${base.file}: the baseline counts ${base.count} use of "${base.phrase}", found ${uses.length} (lines ${uses.map((f) => f.line).join(', ')})`);
-  }
-  for (const [k, base] of expected) if (!counts.has(k)) failures.push(`${base.file}: the baseline lists "${base.phrase}", which the file no longer writes: remove the entry`);
+  const failures = useFailures(found, BASELINE);
   assert.deepEqual(failures, [], `tier phrases and label classes outside the module:\n  ${failures.join('\n  ')}`);
   checks += files.length;
 
