@@ -306,7 +306,8 @@ for (const [id, recount] of Object.entries(RECOUNT)) {
 
 // Area recounts: each package's own module in scripts/nuggets/, recounting its nuggets for every context they are built
 // for (the course pages: every city).
-const areas = [require('./nuggets/courses.cjs')({ ROOT, N, core, ok, eq, problems }), require('./nuggets/runners.cjs')({ ROOT, N, core, ok, eq, problems })];
+const areas = [require('./nuggets/courses.cjs')({ ROOT, N, core, ok, eq, problems }), require('./nuggets/runners.cjs')({ ROOT, N, core, ok, eq, problems }),
+  require('./nuggets/linked.cjs')({ ROOT, N, core, ok, eq, problems })];
 const areaChecks = areas.reduce((sum, a) => sum + a.checks, 0);
 
 // ---------- Fixtures: every reference fallback renders, and a flipped guard is caught ----------
