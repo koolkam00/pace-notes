@@ -580,10 +580,10 @@ Two cards outside the hundred, from the half-marathon pages (a card whose takeaw
 
 The half marathon on Pace Notes: splithappens.run/half
 
-### Same half, fewer sustained slowdowns for women
+### Double the half, plus 22 min
 
-`half-same-half.png`
+`half-double.png`
 
-Of records linked by name with a half near 1:45, 14% of recorded women’s marathons had a sustained slowdown, against 32% of men’s.
+Of records linked by name, only 8 in 100 marathons came in under double the half 3 to 16 weeks before them.
 
 Half-to-marathon comparison. Includes unverified half results. From the half to the marathon, on Pace Notes: splithappens.run/stories/half-to-full

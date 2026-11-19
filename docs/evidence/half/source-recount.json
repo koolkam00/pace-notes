@@ -5,7 +5,7 @@
  "status": "pass",
  "mismatches": 0,
  "values_checked": 19245,
- "manifest_sha256": "3ebef3478f14941e7c0a5eee7b1b27cb6fa696a64cbed0729ef310cad30e8965",
+ "manifest_sha256": "a503d169211ce8e634d30012ce1abc6913e8c1dbce3aa512f858450b4ed7389c",
  "verify_half_source_sha256": "f4091065f8117b92bfd7b8047cd665bc998f0c94c7d42048e1d650945e1befe4",
  "recount_scripts": {
   "scripts/half/derive.cjs": "ce0f547128d6c8fc98a5136d81b91bf318b6b116e40b4d76fbe67da1a2775b0b",
