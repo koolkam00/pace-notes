@@ -15,9 +15,9 @@ no number and is not shown. An `excluded` edition has no rows and never appears.
 marathon database are outside the half policy (its scope is the half database): they are listed, supply no figure, and
 their results are the rows with a readable finish that the frozen half row rule keeps.
 
-The half race registry (analysis/half-race-registry.json) follows the marathon registry's rules: a release key joins a
-race only by a reviewed entry; a key with no entry is its own race, named from the key alone by the marathon registry's
-frozen naming rule (analysis/race_registry.py split_key and display_name). Half and marathon are separate name spaces.
+The races are the frozen half race registry's (analysis/half-race-registry.json, built and checked by
+analysis/half_race_registry.py): a release key joins a race only by a reviewed join; a key with no entry is its own
+race, named from the key alone; its label is what a visitor reads. Half and marathon are separate name spaces.
 Race-level flags and search aliases live in the half registry, never in the marathon's.
 
 Never in these files: a runner's name, a bib, a winner, a source URL, the producer's status or reason texts, an official
@@ -37,10 +37,10 @@ from pathlib import Path
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import race_registry  # noqa: E402  (the marathon registry's naming functions; no marathon data is read)
+import half_race_registry  # noqa: E402
+import race_registry  # noqa: E402  (the marathon registry's folding function; no marathon data is read)
 from half_common import ANALYSIS, ROOT, bytes_sha256, encode, fail, file_sha256, sec, secs_sql  # noqa: E402
 
-REGISTRY_PATH = ANALYSIS / 'half-race-registry.json'
 TIER_MODULE = ROOT / 'lib' / 'tiers.ts'
 MEDIAN_MIN_RESULTS = 100
 FULL_LIST_MIN_VERIFIED = 3
@@ -51,18 +51,11 @@ MARKS = ('course_suspected_short',)
 MARATHON_DATABASE = 'marathon_database'
 COPY_CATEGORY = 'cross_edition_duplicate'
 EDITION_COLUMNS = ['year', 'tier', 'split_tier', 'results', 'use', 'category', 'timing', 'mark', 'median_s', 'review']
-FLAGS = {
-    'virtual_in_title': 'the key contains "virtual" or "virtuel"',
-    'cancelled_in_title': 'the key contains "cancel" or "annul"',
-    'placeholder_place': 'the place part holds "TBD" or "?"',
-    'platform_prefix': 'the part before ": " is a timing platform’s name, so the key states no place',
-    'no_half_word_in_title': 'a composite key whose event title has no half-marathon word (half, halb, halv, semi, demi, medio, media, mezza, meia, mitja, mitad, 21)',
-}
 RULES = {
     'listed': 'every half-marathon edition of the release with rows, of either source database; an excluded edition has no rows and never appears',
-    'race': ('a release key joins a race only by a reviewed entry of analysis/half-race-registry.json; a key with no entry is its own race, named from the '
-             'key alone: a plain key is its own name and place; a composite key gives the place before the first ": " and the event title after it '
-             '(HTML entities decoded, a trailing year removed, each word capitalised when the title is all capitals); half and marathon are separate name spaces'),
+    'race': ('the races, their labels, names and places are the frozen half race registry’s (analysis/half-race-registry.json, rebuilt from the tier table '
+             'and compared before every build): a release key joins a race only by a reviewed join; a key with no entry is its own race, named from the key alone; '
+             'half and marathon are separate name spaces'),
     'results': 'an edition’s results are its rows after the record rules R1 to R8 of the half policy; for the half editions of the marathon database, the rows with a readable finish that the frozen half row rule keeps',
     'use': 'verified: a verified usable edition (it supplies the verified figures); usable: an unverified usable edition (it supplies only figures that carry the scope chip); none: it supplies no figure',
     'median': 'the median finish of a verified usable edition of at least 100 results that carries no mark; no other edition has a time',
@@ -130,56 +123,6 @@ def timing_class(text, lists: dict) -> str:
     fail(f'lib/tiers.ts classes no timing basis {text!r}: class the release’s text there before the race list shows the edition')
 
 
-def key_flags(key: str) -> list[str]:
-    """Flags read from a release key alone: titles that need a reader's care. They change nothing else."""
-    text = html.unescape(key)
-    left, separator, event = text.partition(': ')
-    flags = []
-    if re.search(r'virtual|virtuel', text, re.I):
-        flags.append('virtual_in_title')
-    if re.search(r'cancel|annul', text, re.I):
-        flags.append('cancelled_in_title')
-    if separator:
-        if any(p.strip() in ('TBD', '?') for p in left.split(',')):
-            flags.append('placeholder_place')
-        if left.strip() in race_registry.PLATFORMS:
-            flags.append('platform_prefix')
-        if not re.search(r'half|halb|halv|semi|demi|medio|media|mezza|meia|mitja|mitad|21', race_registry.fold(event).lower()):
-            flags.append('no_half_word_in_title')
-    return flags
-
-
-def default_race(source_db: str, key: str) -> dict:
-    """A key with no reviewed entry is its own race, named from the key alone."""
-    place, event = race_registry.split_key(key)
-    name = race_registry.display_name(event) if event is not None else place
-    label = re.sub(r'\s+', ' ', html.unescape(key)).strip()
-    return {'label': label if source_db == 'half' else f'{label} [marathon database]', 'name': name, 'place': place if event is not None or place else None,
-            'keys': [[source_db, key]], 'flags': key_flags(key), 'aliases': []}
-
-
-def load_registry(path: Path | None = None) -> dict:
-    doc = json.loads((path or REGISTRY_PATH).read_text())
-    if doc.get('schema_version') != 1 or doc.get('distance') != 'half' or not isinstance(doc.get('reviewed'), list):
-        fail('analysis/half-race-registry.json: schema 1, distance half and a reviewed list are required')
-    seen, labels = set(), set()
-    for entry in doc['reviewed']:
-        if not (isinstance(entry.get('label'), str) and entry['label'] and isinstance(entry.get('name'), str) and entry['name'] and entry.get('keys')
-                and isinstance(entry.get('reviewed'), str) and isinstance(entry.get('why'), str)):
-            fail('analysis/half-race-registry.json: a reviewed entry needs a label, a name, its keys, the review date and why')
-        if entry['label'] in labels:
-            fail(f"analysis/half-race-registry.json: two entries are labelled {entry['label']}")
-        labels.add(entry['label'])
-        for pair in entry['keys']:
-            if not (isinstance(pair, list) and len(pair) == 2 and pair[0] in ('half', 'full') and isinstance(pair[1], str)) or tuple(pair) in seen:
-                fail(f"analysis/half-race-registry.json: {entry['label']}: a key is [source_db, key] and belongs to one race")
-            seen.add(tuple(pair))
-        unknown = [f for f in entry.get('flags', []) if f not in FLAGS and f not in doc.get('flags', {})]
-        if unknown:
-            fail(f"analysis/half-race-registry.json: {entry['label']}: unknown flags {unknown}")
-    return doc
-
-
 def edition_rows(db, policy, source, lists: dict, twins: dict) -> list[dict]:
     """One row per half edition with rows: the half database's from the applied policy, the marathon database's from
     the release files."""
@@ -242,42 +185,26 @@ def edition_rows(db, policy, source, lists: dict, twins: dict) -> list[dict]:
 def build(db, policy, source, pin: dict, policy_sha: str, module_sha: str) -> dict[str, bytes]:
     """The family's files as bytes, by name."""
     lists = module_lists()
-    registry = load_registry()
+    # The frozen registry, rebuilt from the tier table first: any difference stops the build.
+    try:
+        registry = half_race_registry.check(source.member('EDITION-TIERS.csv'), pin['half']['tag'])
+    except half_race_registry.RegistryError as error:
+        fail(str(error))
     reviewed_policy = json.loads((ROOT / pin['policy']).read_text())
     twins = reviewed_policy['edition_rules']['E2'].get('twins', {})
     rows = edition_rows(db, policy, source, lists, twins)
     keys = sorted({(r['source_db'], r['key']) for r in rows})
 
-    # Races: the reviewed entries, then every other key as its own race.
+    # Races: the frozen registry's, each with the keys it holds. Every edition with rows belongs to exactly one.
     race_of, races = {}, []
-    for entry in registry['reviewed']:
-        present = [tuple(k) for k in entry['keys'] if tuple(k) in set(keys)]
-        if len(present) != len(entry['keys']):
-            fail(f"analysis/half-race-registry.json: {entry['label']} names a key the release does not have")
-        race = {'label': entry['label'], 'name': entry['name'], 'place': entry.get('place'), 'keys': [list(k) for k in present],
-                'flags': sorted(set(entry.get('flags', [])) | {f for k in present for f in key_flags(k[1])}), 'aliases': list(entry.get('aliases', []))}
+    for entry in registry['races']:
+        race = {'label': entry['label'], 'name': entry['name'], 'place': entry['place'], 'keys': [[k['source_db'], k['key']] for k in entry['keys']],
+                'flags': list(entry['flags']), 'aliases': list(entry.get('aliases', []))}
         races.append(race)
-        for k in present:
-            race_of[k] = race
-    for k in keys:
-        if k not in race_of:
-            race = default_race(*k)
-            races.append(race)
-            race_of[k] = race
-    # Two keys that differ only by an HTML entity or by spaces read as one label: each then keeps its raw key as its label
-    # (the keys differ), until a reviewed entry joins them.
-    seen = {}
-    for race in races:
-        seen.setdefault(race['label'], []).append(race)
-    for same in seen.values():
-        if len(same) > 1:
-            for race in same:
-                if len(race['keys']) != 1:
-                    fail(f"analysis/half-race-registry.json: the label {race['label']} is also a release key's default label")
-                race['label'] = race['keys'][0][1] if race['keys'][0][0] == 'half' else f"{race['keys'][0][1]} [marathon database]"
-    labels = [r['label'] for r in races]
-    if len(set(labels)) != len(labels):
-        fail('two half races share a label')
+        for k in race['keys']:
+            race_of[tuple(k)] = race
+    if set(race_of) != set(keys):
+        fail(f'the half race registry and the editions with rows name different keys ({len(set(race_of) ^ set(keys))} differ)')
     for race in races:
         race['editions'] = sorted((r for r in rows if race_of[(r['source_db'], r['key'])] is race), key=lambda r: (r['year'], r['source_db']))
         live = [e for e in race['editions'] if e['review'] != 'copy']
@@ -291,7 +218,7 @@ def build(db, policy, source, pin: dict, policy_sha: str, module_sha: str) -> di
 
     categories = sorted({r['category'] for r in rows if r['category'] is not None})
     codes = {'tier': lists['tier'], 'split_tier': lists['split_tier'], 'use': list(USES), 'category': categories, 'timing': lists['timing'],
-             'mark': list(MARKS), 'review': list(REVIEWS), 'flags': sorted(FLAGS)}
+             'mark': list(MARKS), 'review': list(REVIEWS), 'flags': sorted(half_race_registry.FLAGS)}
     index = {name: {v: i for i, v in enumerate(values)} for name, values in codes.items()}
 
     def compact(e):
@@ -368,10 +295,11 @@ def build(db, policy, source, pin: dict, policy_sha: str, module_sha: str) -> di
     manifest = {
         'schema_version': 1, 'family': 'races', 'distance': 'half', 'release_tag': pin['half']['tag'],
         'policy': {'file': pin['policy'], 'sha256': policy_sha, 'module_sha256': module_sha},
-        'registry': {'file': 'analysis/half-race-registry.json', 'sha256': file_sha256(REGISTRY_PATH), 'reviewed': len(registry['reviewed'])},
+        'registry': {'file': 'analysis/half-race-registry.json', 'sha256': file_sha256(half_race_registry.FROZEN), 'races': len(registry['races']),
+                     'reviewed_joins': len(registry['reviewed']['joins']), 'races_sha256': registry['races_sha256']},
         'tier_table_sha256': pin['half']['core']['members']['EDITION-TIERS.csv'],
-        'scripts': {f'analysis/{name}': file_sha256(ANALYSIS / name) for name in ('half_races.py', 'race_registry.py')},
-        'rules': RULES, 'flags': FLAGS, 'floors': {'median_min_results': MEDIAN_MIN_RESULTS, 'full_list_min_verified_editions': FULL_LIST_MIN_VERIFIED},
+        'scripts': {f'analysis/{name}': file_sha256(ANALYSIS / name) for name in ('half_races.py', 'half_race_registry.py', 'race_registry.py')},
+        'rules': RULES, 'flags': half_race_registry.FLAGS, 'floors': {'median_min_results': MEDIAN_MIN_RESULTS, 'full_list_min_verified_editions': FULL_LIST_MIN_VERIFIED},
         'counts': {'races': len(listed), 'editions': len(live), 'results': sum(e['results'] for e in live), 'keys': len(keys)},
         'files': {name: {'bytes': len(data), 'sha256': bytes_sha256(data)} for name, data in sorted(files.items())},
     }

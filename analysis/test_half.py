@@ -1786,40 +1786,69 @@ class Races(unittest.TestCase):
             half_races.timing_class('a basis nobody classed', lists)
 
     def test_a_key_with_no_entry_is_its_own_race_named_from_the_key_alone(self):
-        import half_races
-        plain = half_races.default_race('half', 'Berlin')
-        self.assertEqual([plain['label'], plain['name'], plain['place'], plain['flags']], ['Berlin', 'Berlin', 'Berlin', []])
-        composite = half_races.default_race('half', 'Madrid: XXII Movistar Madrid Medio Maratón 2023')
-        self.assertEqual([composite['name'], composite['place']], ['XXII Movistar Madrid Medio Maratón', 'Madrid'], 'a trailing year is not part of the name')
-        capitals = half_races.default_race('half', 'México: MEDIO MARATON ESPN')
-        self.assertEqual(capitals['name'], 'Medio Maraton Espn', 'a title all in capitals is capitalised word by word')
-        entity = half_races.default_race('half', 'TBD, ?: Run &amp; Fun Half')
-        self.assertEqual([entity['label'], entity['name'], entity['place'], entity['flags']], ['TBD, ?: Run & Fun Half', 'Run & Fun Half', None, ['placeholder_place']])
-        other = half_races.default_race('full', 'Finland: Finlandia Marathon')
-        self.assertEqual([other['label'], other['flags']], ['Finland: Finlandia Marathon [marathon database]', ['no_half_word_in_title']], 'the two databases are two name spaces until an entry joins them')
-        self.assertEqual(half_races.key_flags('Anywhere USA: Virtual Half Marathon'), ['virtual_in_title'])
-        self.assertEqual(half_races.key_flags('XACT: Cancelled 21K'), ['cancelled_in_title', 'platform_prefix'])
+        import half_race_registry as reg
+        editions = [('half', 'Berlin', 2015, 100), ('half', 'Berlin', 2016, 120), ('half', 'Madrid: XXII Movistar Madrid Medio Maratón 2023', 2023, 50),
+                    ('half', 'México: MEDIO MARATON ESPN', 2023, 10), ('half', 'TBD, ?: Run &amp; Fun Half', 2021, 5), ('full', 'Finland: Finlandia Marathon', 2012, 7)]
+        races = {r['label']: r for r in reg.build(editions, {'joins': [], 'labels': [], 'flags': []})}
+        self.assertEqual(sorted(races), ['Berlin', 'Finlandia Marathon', 'Medio Maraton Espn', 'Run & Fun Half', 'XXII Movistar Madrid Medio Maratón'])
+        berlin = races['Berlin']
+        self.assertEqual([berlin['name'], berlin['place'], berlin['labelled_by'], berlin['joined_by'], berlin['first_year'], berlin['last_year'], berlin['editions'], berlin['rows']],
+                         ['Berlin', None, 'plain key', 'single key', 2015, 2016, 2, 220], 'a plain key is its own name and states no separate place')
+        self.assertEqual([races['XXII Movistar Madrid Medio Maratón']['place'], races['Medio Maraton Espn']['place']], ['Madrid', 'México'], 'a trailing year and capitals are not part of a name')
+        self.assertEqual([races['Run & Fun Half']['place'], races['Run & Fun Half']['flags']], [None, ['placeholder_place']])
+        self.assertEqual([races['Finlandia Marathon']['keys'], races['Finlandia Marathon']['flags']], [[{'source_db': 'full', 'key': 'Finland: Finlandia Marathon'}], ['no_half_word_in_title']])
+        self.assertEqual(len({r['race_id'] for r in races.values()}), len(races))
 
-    def test_the_registry_file_is_read_strictly(self):
-        import half_races
-        self.assertEqual(half_races.load_registry()['distance'], 'half')
-        good = {'label': 'Kraków', 'name': 'Kraków', 'keys': [['half', 'Kraków'], ['half', 'Kraków: Cracovia Półmaraton Królewski']], 'reviewed': '2026-11-14', 'why': 'one race under two keys'}
-        cases = [({'schema_version': 2, 'distance': 'half', 'reviewed': []}, 'schema 1'),
-                 ({'schema_version': 1, 'distance': 'half', 'reviewed': [{**good, 'why': None}]}, 'the review date and why'),
-                 ({'schema_version': 1, 'distance': 'half', 'reviewed': [good, {**good, 'keys': [['half', 'Other']]}]}, 'two entries are labelled'),
-                 ({'schema_version': 1, 'distance': 'half', 'reviewed': [good, {**good, 'label': 'Kraków 2'}]}, 'belongs to one race'),
-                 ({'schema_version': 1, 'distance': 'half', 'reviewed': [{**good, 'keys': [['marathon', 'Kraków']]}]}, 'belongs to one race'),
-                 ({'schema_version': 1, 'distance': 'half', 'reviewed': [{**good, 'flags': ['made_up']}]}, 'unknown flags')]
+    def test_labels_that_would_read_the_same_take_a_place_a_year_a_database_then_a_number(self):
+        import half_race_registry as reg
+        editions = [('half', 'Mayo: River Run', 2019, 10), ('half', 'Sligo: River Run', 2019, 10),                 # the place tells them apart
+                    ('half', 'Kerry: Half on the Head', 2019, 10), ('half', 'Kerry: Half on the Head 2022', 2022, 10),  # then the first year
+                    ('half', 'Casa: 15ème Marathon', 2024, 10), ('full', 'Casa: 15ème Marathon', 2024, 10),            # then the database
+                    ('half', 'DeBary, FL: Holiday 5K, 10K & Half', 2023, 10), ('half', 'DeBary, FL: Holiday 5K, 10K, & Half', 2023, 10),  # then a number
+                    ('half', 'Busko Zdrój', 2024, 10), ('half', 'Busko Zdrój.', 2023, 10)]                               # plain keys keep their keys
+        races = reg.build(editions, {'joins': [], 'labels': [], 'flags': []})
+        self.assertEqual(sorted(r['label'] for r in races), sorted([
+            'River Run (Mayo)', 'River Run (Sligo)', 'Half on the Head (Kerry, 2019)', 'Half on the Head (Kerry, 2022)',
+            '15ème Marathon (Casa, 2024)', '15ème Marathon (Casa, 2024, marathon database)',
+            'Holiday 5K, 10K & Half (DeBary, FL, 2023)', 'Holiday 5K, 10K, & Half (DeBary, FL, 2023) (2)', 'Busko Zdrój', 'Busko Zdrój.']))
+        self.assertEqual(len({r['race_id'] for r in races}), 10, 'ids stay unique where two plain keys read the same')
+
+    def test_a_key_joins_a_race_only_by_a_reviewed_join(self):
+        import half_race_registry as reg
+        editions = [('half', 'Almada: MEIA MARATONA DE ALMADA', 2025, 30), ('half', 'Almada: Meia Maratona de Almada', 2026, 40), ('half', 'Other', 2026, 5)]
+        self.assertEqual(len(reg.build(editions, {'joins': [], 'labels': [], 'flags': []})), 3, 'keys that differ only by case are two races until a reviewed join')
+        join = {'id': 'almada', 'name': 'Meia Maratona de Almada', 'reason': 'the same place and title, disjoint years',
+                'keys': [['half', 'Almada: MEIA MARATONA DE ALMADA'], ['half', 'Almada: Meia Maratona de Almada']]}
+        races = {r['label']: r for r in reg.build(editions, {'joins': [join], 'labels': [], 'flags': []})}
+        almada = races['Meia Maratona de Almada']
+        self.assertEqual([almada['joined_by'], almada['editions'], almada['rows'], almada['first_year'], almada['last_year'], len(almada['keys'])], ['reviewed join', 2, 70, 2025, 2026, 2])
+        for broken, message in (({**join, 'keys': join['keys'] + [['half', 'Nowhere']]}, 'keys of the release'), ({**join, 'name': 'Lisbon Half'}, 'not a phrase one of its keys states'),
+                                ({**join, 'reason': ''}, 'an id, a name and a reason')):
+            with self.assertRaisesRegex(reg.RegistryError, message):
+                reg.build(editions, {'joins': [broken], 'labels': [], 'flags': []})
+        with self.assertRaisesRegex(reg.RegistryError, 'two editions of 2026'):
+            reg.build(editions + [('half', 'Almada: MEIA MARATONA DE ALMADA', 2026, 1)], {'joins': [join], 'labels': [], 'flags': []})
+
+    def test_the_frozen_registry_is_the_one_the_tier_table_gives(self):
+        import half_race_registry as reg
+        doc = reg.frozen()
+        self.assertEqual([doc['schema_version'], doc['distance'], doc['tag']], [2, 'half', hq.TAG])
+        self.assertEqual(doc['expected']['races'], len(doc['races']))
+        self.assertEqual(doc['races_sha256'], reg.digest(doc['races']))
+        self.assertEqual(len({r['label'] for r in doc['races']}), len(doc['races']), 'a label is unique among half races')
+        self.assertEqual(sum(len(r['keys']) for r in doc['races']), doc['expected']['keys'], 'every key is in exactly one race')
         with tempfile.TemporaryDirectory() as folder:
-            path = Path(folder) / 'registry.json'
-            for doc, message in cases:
-                path.write_text(json.dumps(doc))
-                with self.assertRaisesRegex(hc.HalfError, message):
-                    half_races.load_registry(path)
-            path.write_text(json.dumps({'schema_version': 1, 'distance': 'half', 'reviewed': [good]}))
-            self.assertEqual(len(half_races.load_registry(path)['reviewed']), 1)
+            tiers = Path(folder) / 'tiers.csv'
+            tiers.write_text('distance,source_db,city,year,n_records\nhalf,half,Alpha,2020,10\nhalf,half,Alpha,2021,0\nmarathon,full,Alpha,2020,10\n')
+            self.assertEqual(reg.read_editions(tiers), [('half', 'Alpha', 2020, 10)], 'an edition with no rows and a marathon edition are not half races')
+            frozen = Path(folder) / 'registry.json'
+            frozen.write_text(reg.encode(reg.document(reg.read_editions(tiers), {'reviewed_on': '2026-11-14', 'joins': [], 'labels': [], 'flags': []}, hq.TAG)))
+            self.assertEqual(len(reg.check(tiers, hq.TAG, frozen)['races']), 1)
+            tiers.write_text('distance,source_db,city,year,n_records\nhalf,half,Alpha,2020,10\nhalf,half,Beta,2020,3\n')
+            with self.assertRaisesRegex(reg.RegistryError, 'differs from the registry rebuilt'):
+                reg.check(tiers, hq.TAG, frozen)
 
-    def build(self, folder, registry=None):
+    def build(self, folder, joins=()):
         """The family built from a hand-made release of six half-database editions and one of the marathon database."""
         import types
         import duckdb
@@ -1852,25 +1881,32 @@ class Races(unittest.TestCase):
             TO '{folder / 'edition_meta.parquet'}' (FORMAT parquet)""")
         db.execute(f"""COPY (SELECT * FROM (VALUES (3, 'half', 'full', 'left_out'), (1, 'half', 'full', 'keyed')) t(record_id, distance, source_db, status))
             TO '{folder / 'identity.parquet'}' (FORMAT parquet)""")
-        (folder / 'EDITION-TIERS.csv').write_text('distance,source_db,city,year,verification_tier,split_tier\nhalf,full,Gamma: Gamma Marathon,2018,unverified,finish_time_only\n')
+        with (folder / 'EDITION-TIERS.csv').open('w', newline='') as handle:
+            import csv
+            writer = csv.writer(handle)
+            writer.writerow(['distance', 'source_db', 'city', 'year', 'n_records', 'verification_tier', 'split_tier'])
+            for r in ed.itertuples(index=False):
+                writer.writerow(['half', 'half', r.city, r.year, r.n_core, r.tier, r.split_tier])
+            writer.writerow(['half', 'full', 'Gamma: Gamma Marathon', 2018, 3, 'unverified', 'finish_time_only'])
+            writer.writerow(['half', 'half', 'Excluded: No Rows Half', 2018, 0, 'excluded', ''])
         source = types.SimpleNamespace(member=lambda name: folder / name, identity=folder / 'identity.parquet')
         policy = types.SimpleNamespace(editions=ed, counts={'use_finish': {'editions': 3, 'finishes': 270}, 'verified': {'editions': 2, 'finishes': 230}})
         pin = {'policy': hq.REVIEWED_HALF_POLICIES[hq.TAG]['file'], 'half': {'tag': hq.TAG, 'core': {'members': {'EDITION-TIERS.csv': 'a' * 64}}}}
-        saved = half_races.REGISTRY_PATH
+        import half_race_registry as reg
+        saved = reg.FROZEN
         try:
-            if registry is not None:
-                half_races.REGISTRY_PATH = folder / 'registry.json'
-                half_races.REGISTRY_PATH.write_text(json.dumps(registry))
+            reg.FROZEN = folder / 'registry.json'
+            reg.FROZEN.write_text(reg.encode(reg.document(reg.read_editions(folder / 'EDITION-TIERS.csv'), {'reviewed_on': '2026-11-14', 'joins': list(joins), 'labels': [], 'flags': []}, hq.TAG)))
             files = half_races.build(db, policy, source, pin, 'b' * 64, 'c' * 64)
         finally:
-            half_races.REGISTRY_PATH = saved
+            reg.FROZEN = saved
         return {name: (json.loads(data) if name.endswith('.json') else data.decode()) for name, data in files.items()}
 
     def test_every_edition_with_rows_is_listed_once_with_what_it_may_show(self):
         with tempfile.TemporaryDirectory() as folder:
             files = self.build(folder)
         d, codes = files['directory.json'], files['directory.json']['codes']
-        self.assertEqual([r['label'] for r in d['races']], ['Alpha', 'Town: BETA HALF 2019', 'Gamma: Gamma Marathon [marathon database]'], 'by name: Alpha, Beta Half, Gamma Marathon')
+        self.assertEqual([r['label'] for r in d['races']], ['Alpha', 'Beta Half', 'Gamma Marathon'], 'by name, with the registry’s labels')
         self.assertEqual([r['name'] for r in d['races']], ['Alpha', 'Beta Half', 'Gamma Marathon'])
         alpha = {e[0]: dict(zip(d['edition_columns'], e)) for e in d['races'][0]['editions']}
         # 2020: verified, 150 results after the record rules (two removed rows are not counted), a median.
@@ -1884,7 +1920,7 @@ class Races(unittest.TestCase):
         self.assertEqual(d['races'][0]['tiers'], {'stamped': 2, 'stamped_weaker_source': 1, 'held_for_review': 1})
         self.assertEqual(d['full_list'], {'min_verified_editions': 3, 'races': ['Alpha']})
         # The copy: its race has no live edition and is left out; the edition carries no number and names what it copies.
-        self.assertEqual([r['label'] for r in d['left_out']], ['Town: Copy of Beta'])
+        self.assertEqual([r['label'] for r in d['left_out']], ['Copy of Beta'])
         self.assertEqual(d['left_out'][0]['editions'][0][3], None)
         self.assertEqual(len(d['set_aside_editions']), 1)
         # The marathon database's half edition: listed, used by nothing, the rows with a readable finish the row rule keeps.
@@ -1895,26 +1931,41 @@ class Races(unittest.TestCase):
                          [3, 1, {'editions': 6, 'results': 691}, 1, 1])
         table = files['editions.csv'].splitlines()
         self.assertEqual(len(table), 1 + 7, 'the table holds every edition, the copy included')
-        self.assertIn('Alpha,Alpha,Alpha,2023,held_for_review,Held for review,finish_time_only,Finish times only,300,none,held_by_producer,gun,Gun times,', table[4])
+        self.assertIn('Alpha,Alpha,,2023,held_for_review,Held for review,finish_time_only,Finish times only,300,none,held_by_producer,gun,Gun times,', table[4])
         for banned in ('runner', 'bib', 'winner', 'url', 'official'):
             self.assertNotIn(banned, table[0])
         m = files['manifest.json']
         self.assertEqual(sorted(m['files']), ['directory.json', 'editions.csv', 'summary.json'])
         self.assertEqual(m['counts'], {'races': 3, 'editions': 6, 'results': 691, 'keys': 4})
 
-    def test_a_reviewed_entry_joins_keys_and_nothing_else_does(self):
-        registry = {'schema_version': 1, 'distance': 'half', 'reviewed': [
-            {'label': 'Beta', 'name': 'Beta Half', 'place': 'Town', 'keys': [['half', 'Town: BETA HALF 2019'], ['half', 'Town: Copy of Beta']],
-             'aliases': ['Beta 21K'], 'reviewed': '2026-11-14', 'why': 'a test'}]}
+    def test_a_reviewed_join_lists_the_copy_under_its_race(self):
+        join = {'id': 'beta', 'name': 'Beta Half', 'place': 'Town', 'reason': 'a test',
+                'keys': [['half', 'Town: BETA HALF 2019'], ['full', 'Gamma: Gamma Marathon']]}
         with tempfile.TemporaryDirectory() as folder:
-            d = self.build(folder, registry)['directory.json']
-            beta = next(r for r in d['races'] if r['label'] == 'Beta')
-            self.assertEqual([len(beta['editions']), beta['years'], beta['results'], beta['aliases']], [2, [2019, 2019], 40, ['Beta 21K']], 'the copy is listed under its race and counted in nothing')
-            self.assertEqual(d['left_out'], [])
+            with self.assertRaisesRegex(Exception, 'not a phrase one of its keys states'):
+                self.build(folder, [{**join, 'name': 'Something Else'}])
         with tempfile.TemporaryDirectory() as folder:
-            registry['reviewed'][0]['keys'].append(['half', 'Nowhere'])
-            with self.assertRaisesRegex(hc.HalfError, 'names a key the release does not have'):
-                self.build(folder, registry)
+            d = self.build(folder, [join])['directory.json']
+            beta = next(r for r in d['races'] if r['label'] == 'Beta Half')
+            self.assertEqual([len(beta['editions']), beta['years'], beta['results']], [2, [2018, 2019], 41], 'two keys, one race, each edition once')
+
+    def test_the_build_stops_when_the_registry_is_not_the_tier_tables(self):
+        import half_race_registry as reg
+        with tempfile.TemporaryDirectory() as folder:
+            self.build(folder)
+            # The frozen file no longer matches a release with one more key.
+            with (Path(folder) / 'EDITION-TIERS.csv').open('a', newline='') as handle:
+                handle.write('half,half,New Key,2024,9,unverified,finish_time_only\n')
+            with self.assertRaisesRegex(hc.HalfError, 'differs from the registry rebuilt'):
+                import half_races
+                saved = reg.FROZEN
+                try:
+                    reg.FROZEN = Path(folder) / 'registry.json'
+                    half_races.half_race_registry.check(Path(folder) / 'EDITION-TIERS.csv', hq.TAG)
+                except reg.RegistryError as error:
+                    raise hc.HalfError(str(error))
+                finally:
+                    reg.FROZEN = saved
 
 
 if __name__ == '__main__':
