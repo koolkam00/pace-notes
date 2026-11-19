@@ -11,6 +11,10 @@ import CoursesBody from '@/components/story/bodies/CoursesBody';
 import KickBody from '@/components/story/bodies/KickBody';
 import RaceMorningBody from '@/components/story/bodies/RaceMorningBody';
 import HalfToFullBody from '@/components/story/bodies/HalfToFullBody';
+import FastSlowYearsBody from '@/components/story/bodies/FastSlowYearsBody';
+import RaceToRaceBody from '@/components/story/bodies/RaceToRaceBody';
+import RecordedBestsBody from '@/components/story/bodies/RecordedBestsBody';
+import GettingOlderBody from '@/components/story/bodies/GettingOlderBody';
 
 // Each story's body is a server component: it reads its data at build and hands its client islands only what they draw.
 // The islands of every story share this route's one page chunk (about 5 KB gzipped; every story loads 161.7 KB in all
@@ -19,6 +23,7 @@ const BODIES: Record<string, () => JSX.Element> = {
   'pacing-types': PacingTypesBody, 'round-numbers': RoundNumbersBody, 'race-replay': ReplayBody, places: PlacesBody,
   'who-holds-pace': DemographicsBody, courses: CoursesBody, 'final-kick': KickBody, 'race-morning': RaceMorningBody,
   'half-to-full': HalfToFullBody,
+  'fast-and-slow-years': FastSlowYearsBody, 'race-to-race': RaceToRaceBody, 'recorded-bests': RecordedBestsBody, 'getting-older': GettingOlderBody,
 };
 
 /** The stories built here: those with a body whose data file is in their verified manifest (a half story's is the half one). */

@@ -1,6 +1,7 @@
 import type { Kick } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { STORIES } from '@/lib/stories';
+import { linkedFiles } from '@/lib/nuggets/linked';
 import { getNugget } from '@/lib/nuggets';
 import { sectionName } from '@/lib/nuggets/stories';
 import { hm, pct } from '@/lib/nuggets/format';
@@ -24,6 +25,7 @@ const minutes = (s: number) => `${Math.round(s / 60)} min`;
 export default function KickBody() {
   const data = readInsight<Kick>('kick.json');
   const story = STORIES.find((s) => s.slug === 'final-kick')!;
+  const seen = getNugget('again.slowdown'), back = linkedFiles.back();
   const twins = getNugget('kick.twins'), bands = getNugget('kick.bands'), warning = getNugget('kick.warning'), stay = getNugget('kick.stay'), magnet = getNugget('kick.magnet');
 
   // Same pace through 20K: how many minutes later each pace band's finishes with a sustained slowdown came in, as one
@@ -114,6 +116,18 @@ export default function KickBody() {
           marks={[{ value: final.slowdown, kind: 'reading', label: `${sectionName(final.section)} ${pct(final.slowdown)}` }]}
           label={`Of finishes with a sustained slowdown, ${pct(final.slowdown)} ran ${sectionName(final.section)} faster than the section before, against ${pct(Math.min(...before.map((m) => m.slowdown)))} to ${pct(Math.max(...before.map((m) => m.slowdown)))} in each 5K from ${sectionName(before[0].section)} on.`} />
       </Beat>
+
+      {/* Seen again (the linked-records family, November 19, 2026): finishes with a sustained slowdown against matched
+          finishes without one (same edition, recorded sex and 10-minute finish band), and how often the same linked
+          runner was seen in another recorded marathon within two years. Only the difference is read. */}
+      <Beat id="seen-again" track="chapter-4" label="Seen again" title={seen}
+          dek={`Linked runners at the same race, recorded sex and finish time: another recorded marathon within ${back.within_years} years.`}>
+          <Columns max={Math.ceil(Math.max(back.with_slowdown.share, back.matched_without.share) * 10) / 10 + 0.05}
+            items={[{ id: 'with', label: 'With a sustained slowdown', value: back.with_slowdown.share, display: pct(back.with_slowdown.share), tone: seen.guard ? 'signal' : 'ink' },
+              { id: 'without', label: 'Without one', value: back.matched_without.share, display: pct(back.matched_without.share), tone: 'ink' }]}
+            label={`Seen in another recorded marathon within ${back.within_years} years: ${pct(back.with_slowdown.share)} of finishes with a sustained slowdown, against ${pct(back.matched_without.share)} of matched finishes without one.`}
+            caption="Seen in another recorded marathon within two years" />
+        </Beat>
 
       <Moved id="bank" href="/analyses/starting-pace">Fast starts and what followed are now on Starting pace.</Moved>
       <Moved id="follows" href="/analyses/finding-improvement">The next race after a sustained slowdown is now on Where runners improve.</Moved>

@@ -7,6 +7,7 @@ import MethodsDefinitions from '@/components/methods/MethodsDefinitions';
 import MethodsDownloads, { STORY_FILE_TOPICS } from '@/components/methods/MethodsDownloads';
 import MethodsHash from '@/components/methods/MethodsHash.client';
 import { HalfLimitsLine } from '@/components/methods/MethodsHalf';
+import MethodsLinked from '@/components/methods/MethodsLinked';
 import MethodsPages from '@/components/methods/MethodsPages';
 import MethodsStories from '@/components/methods/MethodsStories';
 import MethodsTools from '@/components/methods/MethodsTools';
@@ -40,7 +41,7 @@ const PARTS: { id: string; label: string }[] = [
 function storyDataset() {
   const manifest = getInsightsManifest();
   const span = courseSpan();
-  const files = [...new Set(STORIES.filter((s) => s.source !== 'half' && storyPublished(s) && STORY_FILE_TOPICS[s.file]).map((s) => s.file))];
+  const files = [...new Set(STORIES.filter((s) => (s.source ?? 'insights') === 'insights' && storyPublished(s) && STORY_FILE_TOPICS[s.file]).map((s) => s.file))];
   if (!span || !files.length) return null;
   const topics = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' }).format(files.map((f) => STORY_FILE_TOPICS[f]));
   return {
@@ -119,6 +120,7 @@ export default function MethodologyPage() {
       <MethodsDefinitions />
       <Part id="calculations" n={3} short="Calculations" title="Calculations" lead="How each part of the site works out its numbers.">
         <MethodsStories />
+        <MethodsLinked />
         <MethodsAnalyses />
         <MethodsTools />
         <MethodsPages />

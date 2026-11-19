@@ -20,7 +20,8 @@ const searchPages = ['/tools/marathon-pace-chart', '/tools/half-marathon-pace-ch
 // fall to its section unnoticed; a URL under either section that is not on the list (a typed name) still does.
 // Melbourne left the list with the 1652 release (its only edition is excluded, so /courses/melbourne is no longer built),
 // and Vienna with the October 21, 2026 release (its three editions are producer holds).
-export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses', 'race-morning', 'half-to-full'];
+export const STORY_SLUGS: readonly string[] = ['pacing-types', 'round-numbers', 'race-replay', 'places', 'final-kick', 'who-holds-pace', 'courses', 'race-morning', 'half-to-full',
+  'fast-and-slow-years', 'race-to-race', 'recorded-bests', 'getting-older'];
 export const COURSE_SLUGS: readonly string[] = ['amsterdam', 'auckland', 'austin', 'barcelona', 'berlin', 'boston', 'chicago', 'copenhagen', 'dubai', 'eindhoven', 'frankfurt', 'gold-coast',
   'hamburg', 'helsinki', 'london', 'los-angeles', 'madrid', 'new-york', 'oslo', 'paris', 'prague', 'rotterdam', 'singapore', 'stockholm', 'sydney', 'valencia', 'warsaw', 'washington'];
 // The Top 100 charts are numbered pages, /charts/1 … /charts/CHART_COUNT: a count rather than a list keeps this module

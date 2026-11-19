@@ -105,20 +105,24 @@ export const PAGE_NUGGET: Readonly<Record<string, NuggetId>> = {
   '/tools/weather-match': 'weathermatch.mornings',
   '/runners': 'runner.yours',
   '/tools/split-check': 'splitcheck.share',
+  '/stories/fast-and-slow-years': 'years.beyond',
+  '/stories/race-to-race': 'races.faster',
+  '/stories/recorded-bests': 'bests.second',
+  '/stories/getting-older': 'age.fifty',
   '/stories/half-to-full': 'half.extra',
   '/analyses/finding-improvement': 'gains.final',
   '/tools/plan': 'plan.goal',
 };
 
 /**
- * Each chapter's contents-row reading, chapters 01 to 11 in order (spec section 2.2: the lead and its key). A chapter's
+ * Each chapter's contents-row reading, chapters 01 to 12 in order (spec section 2.2: the lead and its key). A chapter's
  * lead is its first page's own reading, so the number a reader taps on the home guide, the contents or a next card is
  * the number that page opens on (verify-chapters checks both). Chapter 11 opens on the half story (half.extra) since
  * October 29, 2026 (docs/HALF_MARATHON.md).
  */
 export const CHAPTER_LEAD: readonly NuggetId[] = [
   'field.median', 'kick.bank', 'types.top', 'checkpoint.under', 'slowdown.onset', 'round.top',
-  'holds.gender', 'courses.named', 'weather.pairs', 'splitcheck.share', 'half.extra',
+  'holds.gender', 'courses.named', 'weather.pairs', 'years.beyond', 'splitcheck.share', 'half.extra',
 ];
 
 /** Ids still served by WP0-C's bootstrap placeholders (scripts/verify-nuggets.cjs lists them; WP9 fails while any remain). */

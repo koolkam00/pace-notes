@@ -159,12 +159,14 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/stories/round-numbers': '2026-10-31',
   '/stories/race-replay': '2026-10-19',
   '/stories/places': '2026-10-19',
-  '/stories/final-kick': '2026-10-19',
+  '/stories/final-kick': '2026-11-19', // the seen-again beat (Over the years, November 19, 2026); 2026-10-19 before
   '/stories/courses': '2026-10-19',
   '/stories/who-holds-pace': '2026-11-05',
   '/stories/race-morning': '2026-10-19',
   '/half': '2026-11-05',
   '/stories/half-to-full': '2026-11-05',
+  // November 19, 2026: the chapter Over the years (the linked-records family). Move to the merge day when it merges.
+  '/stories/fast-and-slow-years': '2026-11-19', '/stories/race-to-race': '2026-11-19', '/stories/recorded-bests': '2026-11-19', '/stories/getting-older': '2026-11-19',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };
@@ -329,7 +331,7 @@ export function sitemapEntries(): SitemapEntry[] {
   add('/research', 'content', 'insights', 'study', 'weather', ...half);
 
   add('/stories', 'content', 'insights');
-  for (const story of STORIES.filter(storyPublished)) add(`/stories/${story.slug}`, 'content', story.source === 'half' ? 'half' : 'insights');
+  for (const story of STORIES.filter(storyPublished)) add(`/stories/${story.slug}`, 'content', ...(story.source === 'linked' ? [] : [story.source === 'half' ? 'half' as const : 'insights' as const]));
 
   add('/tools', 'content', 'insights');
   for (const tool of TOOLS.filter(t => !t.file || manifest.files[t.file])) {
