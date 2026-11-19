@@ -130,7 +130,7 @@ export default function MethodsStories() {
   const manifest = getInsightsManifest();
   const copies = manifest.duplicate_edition_screen;
   // The marathon stories read their method from their insights file; a half story's method is its own (below).
-  const stories = STORIES.filter((story) => story.source !== 'half' && storyPublished(story));
+  const stories = STORIES.filter((story) => (story.source ?? 'insights') === 'insights' && storyPublished(story));
   const half = halfManifest();
   const halfStories = half ? STORIES.filter((story) => story.source === 'half' && storyPublished(story)) : [];
   return <Topic id="stories" title="Data stories">

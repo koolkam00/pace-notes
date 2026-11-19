@@ -6,7 +6,7 @@ import { countWord } from '@/lib/nuggets/format';
 import { STORIES, capital, storyHref, storyPublished } from '@/lib/stories';
 import { finishesM, pageMetadata } from '@/lib/seo';
 
-const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
+const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen', 'Twenty'];
 
 /** The kinds of page this list holds: the stories, and chapter 05's opener on the story template (/slowdown, the page
  *  that says what a sustained slowdown is; round 6: it was on neither /stories nor /analyses). */
@@ -47,7 +47,7 @@ export default function StoriesPage() {
     <div className="contents-page">
       <header className="contents-hero">
         <h1 className="t-title">Stories</h1>
-        <p className="contents-dek">{capital(countWord(count))} stories{found ? ', one finding each' : ''}.</p>
+        <p className="contents-dek">{WORDS[count] ?? capital(countWord(count))} stories{found ? ', one finding each' : ''}.</p>
       </header>
       <section className="contents-body" aria-label="Every story">
         <PageList kind={KINDS} readingOf={readingOf} Figure={ReadingFigure} label="Stories" />

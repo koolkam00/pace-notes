@@ -850,7 +850,7 @@ function analysesCountProblems({ rows, title, descriptions, card }) {
 }
 
 (function checkHubCounts() {
-  const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+  const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']; // to twenty since November 19, 2026 (fifteen stories)
   let counted = 0;
   const analyses = byPath.get('/analyses');
   if (analyses) {
