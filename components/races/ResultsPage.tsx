@@ -91,7 +91,7 @@ export default function ResultsPage({ page }: { page: RacePage }) {
         {how ? <HowLink href={how} /> : null}
       </CourseSection>
       <section id="find" tabIndex={-1} className="course-beat results-ways" aria-labelledby="find-title" data-beat="Find" data-track-section="cta">
-        <h2 id="find-title" className="course-h2">Ran it?</h2>
+        <h2 id="find-title" className="course-h2">Look up a result</h2>
         <div className="course-beat-body results-ways-body">
           <Button href="/runners" variant="secondary" arrow="right">Find a runner’s results</Button>
           <Button href="/tools/plan" variant="tertiary">Plan a marathon</Button>
