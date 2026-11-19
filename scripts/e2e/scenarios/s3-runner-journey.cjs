@@ -19,7 +19,30 @@ const { SITE, wiggle, waitFor } = require('../browser.cjs');
 // REPORT_IMAGE_NAME in lib/report.ts (scripts/verify-report.cjs checks it there): no course, year or time in it.
 const REPORT_IMAGE_NAME = 'pace-notes-race-report.png';
 
-const SURNAME = 'Johnson';
+/**
+ * The name the journey types (lookup version 2, November 19, 2026): on the schema 2 lookup most recorded editions are
+ * recorded times only, and the first page of a common surname held no race with a report. So the query is chosen from
+ * the published lookup when the check runs: the first profile, in a fixed sweep of the shards, whose own results include
+ * a counted marathon, whose name is two or more words of letters, and whose whole-word search lists at most 25 rows,
+ * this profile among them. No runner's name is written in the repository; the checks and notes never print it.
+ */
+function reportQuery(out) {
+  const dir = path.join(out, 'data', 'runners');
+  const L = require('../../lib/lookup.cjs');
+  const lookup = require('../../lib/lookup-files.cjs').openLookup(dir);
+  for (let shard = 11; shard < L.PROFILE_SHARDS; shard += 101) {
+    const profiles = L.decodeShard(JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(dir, L.shardPath(shard))))), lookup.editions);
+    for (let position = 0; position < profiles.length; position++) {
+      const own = profiles[position].results.filter(result => result.confirmed || profiles[position].results.length === 1);
+      if (!own.length || own.length > 3 || !own.some(result => result.distance === 'marathon' && result.status === '0')) continue;
+      const words = L.searchWords(own[0].name);
+      if (words.length < 2 || !words.every(word => /^[a-z]{3,}$/.test(word))) continue;
+      const found = lookup.search(words.join(' '), 1, L.SEARCH_AUTO);
+      if (!found.refused && found.rows.length <= 25 && found.rows.some(row => row.shard === shard && row.position === position)) return words.join(' ');
+    }
+  }
+  throw new Error('S3: no profile with a counted marathon and a short whole-word search in the sweep');
+}
 
 // Name search as lib/runner-search.ts does it (normalizeRunnerName, runnerNameMatches, runnerShardKey).
 const normalize = value => value.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
@@ -226,15 +249,16 @@ async function journey(h, blocklist) {
   // list folds to one row once a match is opened).
   // Lookup version 2 (November 19, 2026): a row with no exception tag can be a half or an own-record marathon, which
   // have no race report; the row says what it offers.
+  const QUERY = reportQuery(h.out);
   const analysed = '#runner-profile .runner-race[data-offer="report"]:not(.is-possible)';
   const openProfile = async () => {
     for (let match = 0; ; match++) {
       await page.waitForSelector('#runner-name:not([disabled])', { timeout: 30000 });
       await page.locator('#runner-name').fill('');
-      await page.locator('#runner-name').pressSequentially(SURNAME, { delay: 20 });
+      await page.locator('#runner-name').pressSequentially(QUERY, { delay: 20 });
       await page.click('button[type="submit"]');
       await page.waitForSelector('.runner-matches li', { timeout: 30000 });
-      if (match >= await page.locator('.runner-match').count()) throw new Error(`no match on the first page of "${SURNAME}" has a race with its pacing analysis`);
+      if (match >= await page.locator('.runner-match').count()) throw new Error('no match of the chosen name has a race with its race report');
       await page.locator('.runner-match').nth(match).click();
       await page.waitForSelector('.runner-profile', { timeout: 30000 });
       if (await page.locator(analysed).count()) break;
@@ -278,7 +302,7 @@ async function journey(h, blocklist) {
   // own; a race, course, age group or gender is page content anywhere, so only its query form (`&course=boston`).
   const linked = found.links.flatMap(href => [...new URL(href, SITE).searchParams].filter(([key]) => key !== 'via' && key !== 'units')
     .flatMap(([key, value]) => /\d:\d\d/.test(value) ? value.split(',') : [new RegExp(`[?&]${key}=${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(&|$)`, 'i')]));
-  run.options.needles = [...found.names, ...found.names.flatMap(name => name.split(/\s+/).filter(word => word.length > 3)),
+  run.options.needles = [QUERY, ...QUERY.split(' ').filter(word => word.length > 3), ...found.names, ...found.names.flatMap(name => name.split(/\s+/).filter(word => word.length > 3)),
     // Each record key in its own form and, for an id of six digits or more, the bare id (the form a v1 address held).
     ...found.ids.flatMap(key => [new RegExp(`(^|[^0-9a-z-])${key}($|[^0-9a-z-])`, 'i'), ...(key.length > 6 ? [new RegExp(`(^|[^0-9a-f-])${key.slice(1)}($|[^0-9a-f-])`)] : [])]), ...found.times, ...linked];
   await wiggle(page, 6);
