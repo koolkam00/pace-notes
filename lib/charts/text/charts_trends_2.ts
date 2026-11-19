@@ -31,7 +31,11 @@ export const CHARTS_TRENDS_2_TEXT: Record<string, ChartText> = {
     // guard are unchanged and return when the data meet them).
     neutral: 'New York editions under one name',
     takeaway: (v) => ({
-      guard: n(v.n_eds) === 18 && n(v.top) === 17 && n(v.all16) >= 100 && n(v.ten) > n(v.all16),
+      // November 19, 2026 (pace-notes-marathon-half-20261113-1113): New York 2014 is not counted under the release's
+      // edition policy, so there are 17 editions and the builder's top is 16 (records that finished all 17: under the
+      // 100-record floor). The pins move to 17 and 16 (lead's ruling on the eleven fallbacks: typed counts); the title,
+      // "Seventeen New Yorks", is true of the 17.
+      guard: n(v.n_eds) === 17 && n(v.top) === 16 && n(v.all16) >= 100 && n(v.ten) > n(v.all16),
       headline: `*${count(n(v.all16))}* records linked by name finished ${count(n(v.top))}+ of ${count(n(v.n_eds))} New York editions, and ${count(n(v.ten))} at least 10.`,
       fallback: 'Records linked by name by how many New York editions they finished.',
     }),

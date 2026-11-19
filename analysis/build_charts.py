@@ -110,7 +110,8 @@ def run(output, only=None, cache=None, partial=False):
     pin, full, manifest, manifest_sha = load_cohort(cache)
     story, screen = screen_duplicates(full)
     weather = load_weather()
-    cohort = ChartCohort(story, manifest, manifest_sha, weather=weather, geometry=load_geometry())
+    geometry = load_geometry()
+    cohort = ChartCohort(story, manifest, manifest_sha, weather=weather, geometry=geometry)
     if cohort.profile_high is None:
         raise ValueError('The cohort states no link class, so the linked charts cannot store their reading on high links alone (lead ruling D38)')
     items = catalog()
@@ -151,6 +152,11 @@ def run(output, only=None, cache=None, partial=False):
         **common, as_of=datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
         catalog_sha256=sha256_file(CATALOG),
         weather=dict(release_tag=weather['input']['release_tag'], evidence_sha256=sha256_file(ROOT / 'public/data/weather/evidence.json')),
+        # The supplied-route geometry charts 17 and 85 read (the insights family's file), bound like the weather evidence
+        # (November 19, 2026: it was read unbound until then). None only when no geometry file is there (the tests).
+        geometry=None if geometry is None else dict(
+            release_tag=geometry['release_tag'], context_manifest_sha256=geometry['context_manifest_sha256'],
+            geometry_sha256=sha256_file(ROOT / 'public/data/insights/course-geometry.json')),
         # What the cohort states about itself: the scripts that wrote it and the edition policy it was built under (the
         # policy's digests and counts; the listed editions are one published file, public/data/edition-policy.json).
         scripts=scripts, source_scripts=manifest['scripts'], source_quality=manifest['source_quality'],

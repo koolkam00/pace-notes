@@ -26,20 +26,35 @@ export const CHARTS_PEOPLE_1_TEXT: Record<string, ChartText> = {
     // guard are unchanged and return when the data meet them).
     neutral: 'Median finish time, age by age',
     takeaway: (v) => ({
-      guard: n(v.d1) > 0 && n(v.d2) > 3 * n(v.d1) && n(v.w1) > 0 && n(v.w2) > 3 * n(v.w1) && n(v.races_n) === 5,
-      headline: `In ${v.races}, men's median finish was *${minutes(n(v.d1))}* slower at 45 than 25, then ${Math.round(n(v.d2) / 60)} more by 65.`,
+      // November 19, 2026 (pace-notes-marathon-half-20261113-1113): the exact-age races are six, not five: Los Angeles and
+      // Oklahoma City record exact ages and Auckland has no counted edition. The pin moves to the count the data give
+      // (lead's ruling on the eleven fallbacks: a typed count, not a judgment of the claim); the headline names the races
+      // from the data.
+      guard: n(v.d1) > 0 && n(v.d2) > 3 * n(v.d1) && n(v.w1) > 0 && n(v.w2) > 3 * n(v.w1) && n(v.races_n) === 6,
+      // November 19, 2026: the six race names took the card past three lines; the sentence after them is shorter
+      // (same numbers, same guard).
+      headline: `In ${v.races}, men's median was *${minutes(n(v.d1))}* slower at 45 than 25, ${Math.round(n(v.d2) / 60)} more by 65.`,
       fallback: 'Median finish times by exact recorded age.',
     }),
   },
   'women-outnumber-men-mid-20s': {
-    title: "Only at ages 23–28 were most finishes women's",
+    // November 19, 2026 (pace-notes-marathon-half-20261113-1113): women's finishes are a majority from 23 to 27 (28
+    // before: 28 is now 49.94% women, the first age under half, by 0.06 points); the title states the range the data give and the pin
+    // `a1` moves with it (lead's ruling on the eleven fallbacks: a typed age, not a judgment of the claim).
+    title: "Only at ages 23–27 were most finishes women's",
     // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
     // guard are unchanged and return when the data meet them).
     neutral: "Women's share of finishes, age by age",
     takeaway: (v) => ({
-      guard: n(v.a0) === 23 && n(v.a1) === 28 && n(v.peak) > 0.5 && n(v.contiguous) === 1 && n(v.n_min) >= 100
-        && n(v.races_n) === 5 && n(v.under_after) === 1 && n(v.first_under) === n(v.a1) + 1,
-      headline: `In ${v.races}, women's finishes peaked at *${pct(n(v.peak))}* at age ${n(v.peak_age)} and were under half from ${n(v.first_under)} to ${n(v.last_age)}.`,
+      // November 19, 2026 (pace-notes-marathon-half-20261113-1113): the exact-age races are six, not five: Los Angeles and
+      // Oklahoma City record exact ages and Auckland has no counted edition. The pin moves to the count the data give
+      // (lead's ruling on the eleven fallbacks: a typed count, not a judgment of the claim); the headline names the races
+      // from the data.
+      guard: n(v.a0) === 23 && n(v.a1) === 27 && n(v.peak) > 0.5 && n(v.contiguous) === 1 && n(v.n_min) >= 100
+        && n(v.races_n) === 6 && n(v.under_after) === 1 && n(v.first_under) === n(v.a1) + 1,
+      // November 19, 2026: six race names took the card past three lines, so "women's finishes ... and were" became
+      // "women's share ... ," (same numbers, same guard).
+      headline: `In ${v.races}, women's share peaked at *${pct(n(v.peak))}* at ${n(v.peak_age)}, under half from ${n(v.first_under)} to ${n(v.last_age)}.`,
       fallback: "Women's share of finishes at each exact recorded age.",
     }),
   },
@@ -65,8 +80,14 @@ export const CHARTS_PEOPLE_1_TEXT: Record<string, ChartText> = {
     // guard are unchanged and return when the data meet them).
     neutral: "The ages of men's finishes under 3:00",
     takeaway: (v) => ({
-      guard: n(v.m40) > 0.25 && n(v.m50) < n(v.m40) && n(v.med) < 40 && n(v.n) >= 100 && n(v.races_n) === 5,
-      headline: `In ${v.races}, *${pct(n(v.m40))}* of men's finishes under 3:00 came at a recorded age of 40 or older.`,
+      // November 19, 2026 (pace-notes-marathon-half-20261113-1113): the exact-age races are six, not five: Los Angeles and
+      // Oklahoma City record exact ages and Auckland has no counted edition. The pin moves to the count the data give
+      // (lead's ruling on the eleven fallbacks: a typed count, not a judgment of the claim); the headline names the races
+      // from the data.
+      guard: n(v.m40) > 0.25 && n(v.m50) < n(v.m40) && n(v.med) < 40 && n(v.n) >= 100 && n(v.races_n) === 6,
+      // November 19, 2026: the six race names took the card past three lines; the sentence after them is shorter
+      // (same numbers, same guard).
+      headline: `In ${v.races}, *${pct(n(v.m40))}* of men's finishes under 3:00 came at a recorded age of 40+.`,
       fallback: "Men's finishes under 3:00 by recorded age.",
     }),
   },

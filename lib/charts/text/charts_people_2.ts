@@ -37,8 +37,14 @@ export const CHARTS_PEOPLE_2_TEXT: Record<string, ChartText> = {
     neutral: "Men's finishes against the 25–34 median",
     takeaway: (v) => ({
       // The title says "over a fifth": the guard holds the share between a fifth and a quarter.
-      guard: n(v.m6064) > 0.2 && n(v.m6064) < 0.25 && n(v.races_n) === 5,
-      headline: `In ${v.races}, *${pct(n(v.m6064))}* of men's finishes at 60–64 came in under the median men's finish at 25–34.`,
+      // November 19, 2026 (pace-notes-marathon-half-20261113-1113): the exact-age races are six, not five: Los Angeles and
+      // Oklahoma City record exact ages and Auckland has no counted edition. The pin moves to the count the data give
+      // (lead's ruling on the eleven fallbacks: a typed count, not a judgment of the claim); the headline names the races
+      // from the data.
+      guard: n(v.m6064) > 0.2 && n(v.m6064) < 0.25 && n(v.races_n) === 6,
+      // November 19, 2026: the six race names took the card past three lines; the sentence after them is shorter
+      // (same numbers, same guard).
+      headline: `In ${v.races}, *${pct(n(v.m6064))}* of men's 60–64 finishes came in under the men's 25–34 median.`,
       fallback: "Men's finishes by age, against the median 25–34 finish.",
     }),
   },

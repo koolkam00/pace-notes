@@ -69,6 +69,12 @@ if (only && manifest.catalog_sha256 !== catalogSha) console.warn('Note: the cata
 else assert.equal(manifest.catalog_sha256, catalogSha, 'The charts were built from the current catalog');
 assert.equal(manifest.weather.release_tag, read(path.join(root, 'analysis/weather-release.json')).tag, 'Weather evidence pin');
 assert.equal(manifest.weather.evidence_sha256, hash(fs.readFileSync(path.join(dataRoot, 'weather/evidence.json'))), 'Exact weather evidence binding');
+// The course geometry charts 17 and 85 read (public/data/insights/course-geometry.json), bound like the weather evidence.
+const geometryFile = path.join(dataRoot, 'insights/course-geometry.json');
+ok(manifest.geometry && fs.existsSync(geometryFile), 'The charts bind the course geometry, and the file is there');
+assert.equal(manifest.geometry.release_tag, manifest.release_tag, 'Course geometry of the adopted release');
+assert.equal(manifest.geometry.context_manifest_sha256, read(geometryFile).context_manifest_sha256, 'Course geometry: its runner-context binding');
+assert.equal(manifest.geometry.geometry_sha256, hash(fs.readFileSync(geometryFile)), 'Exact course geometry binding');
 assert.equal(manifest.eligible_records, cohort.eligible_records, 'Eligible source records');
 assert.deepEqual(manifest.genders, GENDER_LABELS); assert.deepEqual(manifest.ages, AGE_LABELS);
 assert.deepEqual(manifest.duplicate_edition_screen, [], 'No duplicate-edition screen in this release');

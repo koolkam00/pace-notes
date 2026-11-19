@@ -59,12 +59,18 @@ jobs:
         run: python -m unittest discover -s analysis -p 'test_charts.py'
       - name: Independently recount the published charts
         run: node scripts/verify-charts.cjs
+        env:
+          # The recount holds both link readings of the cohort: about 4.4 GB at its peak (docs/TOP_100_CHARTS.md, Checks).
+          NODE_OPTIONS: --max-old-space-size=4096
       - name: The committed cards match the published charts
         run: node scripts/build-chart-cards.cjs --check
       - name: Rebuild every chart from the verified runner shards
         run: python analysis/build_charts.py --output "$RUNNER_TEMP/charts"
       - name: Recount the rebuilt charts
         run: node scripts/verify-charts.cjs --input "$RUNNER_TEMP/charts"
+        env:
+          # The recount holds both link readings of the cohort: about 4.4 GB at its peak (docs/TOP_100_CHARTS.md, Checks).
+          NODE_OPTIONS: --max-old-space-size=4096
       - name: Rebuilt chart files must match the published bytes
         run: |
           cd public/data/charts
