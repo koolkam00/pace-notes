@@ -599,6 +599,12 @@ assert.ok(blockedSelectors.includes('.projector-cards'), 'The saved runner cards
 const compat = require('./verify-browser-compat.cjs');
 const compatProblems = compat.sourceProblems().problems;
 assert.equal(compatProblems.length, 0, compat.describe(compatProblems));
+// The half race list's finder (November 19, 2026): its filter is typed text (AGENTS.md rule 18), so every root of the
+// island carries ph-no-capture (the box and the rows it leaves), and the query reaches no address, event or request.
+const halfRaces = read('components/half/HalfRacesAll.client.tsx');
+const halfRoots = [...halfRaces.matchAll(/className="([^"]*\bhalf-races-all\b[^"]*)"/g)].map((m) => m[1]);
+assert.ok(halfRoots.length >= 1 && halfRoots.every((c) => /(?<![\w-])ph-no-capture(?![\w-])/.test(c)), `HalfRacesAll: every root carries ph-no-capture (${halfRoots.join(' | ')})`);
+assert.doesNotMatch(halfRaces, /from '@\/lib\/analytics|\btrack\w*\(|posthog|history\.|useRouter|useSearchParams|location\./, 'HalfRacesAll: no analytics call, address or router write');
 // The course chooser's list of every course follows the visitor's goal: inside its results, outside its workspace.
 const courseChooser = read('components/tools/CourseChooser.tsx');
 assert.ok(hasClasses(courseChooser, 'course-chooser-list', 'ph-no-capture'), 'CourseChooser: the course list carries ph-no-capture');
