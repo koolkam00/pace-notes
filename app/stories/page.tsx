@@ -47,7 +47,7 @@ export default function StoriesPage() {
     <div className="contents-page">
       <header className="contents-hero">
         <h1 className="t-title">Stories</h1>
-        <p className="contents-dek">{capital(countWord(count))} stories{found ? ', one finding each' : ''}.</p>
+        <p className="contents-dek">{WORDS[count] ?? capital(countWord(count))} stories{found ? ', one finding each' : ''}.</p>
       </header>
       <section className="contents-body" aria-label="Every story">
         <PageList kind={KINDS} readingOf={readingOf} Figure={ReadingFigure} label="Stories" />
