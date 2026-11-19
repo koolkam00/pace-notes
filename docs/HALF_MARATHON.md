@@ -111,7 +111,7 @@ The first half-only figure on results that are mostly unverified. It sits on a s
   - `half.paceFaster` (the share that ran the last 11.1 km faster): the equal-edition share and every leave-one-label-out share lie within 5 points of the pooled share.
   - `half.paceBands` (a dek that names the medians of two finish bands): at least 4 bands from the 1:20 band on are published, their medians do not fall from one band to the next, and each named band holds at least 3 labels.
 - **No verified-only check exists** (one verified edition has a 10 km time for its field, under the 3-edition floor), so no verified value is shown and the chip is not optional. Sex is not stated. The marathon is not quoted in this beat. No card.
-- `/methodology#half-pacing` states the measure, the row and edition rules, the editions the screen removes, the counts and the labels that hold most results, from the data.
+- `/methodology#half-pacing` states the measure, the row and edition rules, the editions the screen removes, the counts and the labels that hold most results, from the data. The surface's table carries no methods link of its own: `/half` has one way to its methods, the foot of its All numbers (`#half-field`), whose links row opens `#half-pacing` (November 19, 2026; `verify-chapters` rule 11, never two anchors on a page).
 
 ### R6. New: the half race list (`/half/races`; D11, D15, D16)
 
