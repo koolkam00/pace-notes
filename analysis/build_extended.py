@@ -662,6 +662,11 @@ def run(source,output,live_as_of,personalized_output=None,identity=None):
     db.execute(f"SET memory_limit='{memory}'")
     db.execute('SET threads=2')
     db.execute('SET temp_directory=?',[str(source/'extended-temp')])
+    # A hard cap on the temporary files (November 19, 2026): on November 14, 2026 an uncapped run on the combined release
+    # spilled 12 GB and filled the disk. A plan that needs more fails at once (PACE_NOTES_EXTENDED_TEMP, e.g. 4GB).
+    temp_cap = os.environ.get('PACE_NOTES_EXTENDED_TEMP', '4GB')
+    assert re.fullmatch(r'[0-9]{1,2}GB', temp_cap), 'PACE_NOTES_EXTENDED_TEMP must look like 4GB'
+    db.execute(f"SET max_temp_directory_size='{temp_cap}'")
     counts=prepare(db,source,keep_record_id=True)
     manifest=json.loads((source/'MANIFEST.json').read_text())
     provenance=json.loads((source/'provenance.json').read_text())
@@ -670,7 +675,12 @@ def run(source,output,live_as_of,personalized_output=None,identity=None):
     diagnostics=prepare_history(db,source,identity)
     assert diagnostics['recent_benchmark_finishes']>=100, 'Insufficient verified linked histories'
     print(json.dumps(diagnostics),flush=True)
-    pub=ExtendedPublisher(output,provenance,manifest,counts,live_as_of,source_quality=source_quality_report(db,source))
+    quality=source_quality_report(db,source)
+    pub=ExtendedPublisher(output,provenance,manifest,counts,live_as_of,source_quality=quality)
+    # The record tables before `eligible` and the candidate links are not read again: the diagnostics and the edition
+    # report above are their last readers. Dropping them frees their memory before the packs (November 19, 2026).
+    for table in ['candidate_links', 'timing_eligible', 'paced', 'parsed', 'unique_records']:
+        db.execute(f'DROP TABLE {table}')
     for function in [strategy_analyses,checkpoint_analyses,course_analyses,history_analyses,qualifying_analysis]:
         function(db,pub)
         print(f'{function.__name__}: {len(pub.packs)} aggregate packs calculated',flush=True)
@@ -683,7 +693,7 @@ def run(source,output,live_as_of,personalized_output=None,identity=None):
     print('Completed 25 extended packs. Only aggregate tables were written.',flush=True)
     if personalized_output is not None:
         from build_personalized import generate
-        generate(db,source,personalized_output,provenance,manifest,counts,diagnostics,live_as_of)
+        generate(db,source,personalized_output,provenance,manifest,counts,diagnostics,live_as_of,quality)
 
 
 if __name__=='__main__':
