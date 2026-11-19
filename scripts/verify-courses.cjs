@@ -336,7 +336,7 @@ const LIST_CITIES = PAGES.filter((city) => !CITIES.includes(city));
       try { words = tierTexts(e, e.timing); } catch (error) { fail(`data ${city}`, `${e.year}: ${error.message}`); }
       if (words) check(words.length > 0, `data ${city}`, `${e.year}: an edition without a tier label`);
     }
-    check(model && model.listed.every((e, i) => e.splitTier === editions[i].split && e.weakerSource === (editions[i].use === 'other' && col('weaker_source') < 0 ? null : editions[i].weaker) && e.timingBasis === editions[i].timing), `data ${city}`, 'the list-only page carries another split tier, weaker-source flag or timing basis than the cohort manifest states');
+    check(model && model.listed.every((e, i) => e.splitTier === editions[i].split && e.weakerSource === editions[i].weaker && e.timingBasis === editions[i].timing), `data ${city}`, 'the list-only page carries another split tier, weaker-source flag or timing basis than the cohort manifest states');
   }
   // Every full page lists the race's editions with their tiers too, and its rows are counted editions with their tier.
   for (const city of PAGE_CITIES) {
