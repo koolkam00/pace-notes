@@ -122,7 +122,45 @@ The first half-only figure on results that are mostly unverified. It sits on a s
 - **Never shown:** names, bibs, winners, source URLs, the producer's status and reason texts, official counts (they stay on `/methodology` and in the release).
 - The file is a family of its own with its own checks (tier values from a fixed set; names are data and pass no copy word rule); tier words on the page are plain labels that link to `/methodology#edition-tiers`.
 
+## Status (November 19, 2026): the combined release, built on a branch
+
+Keep these apart:
+
+- **Repository state.** Built on the branch `claude/release-20261113-half` (not merged, no pull request; the release adoption integrates it). The pin `analysis/half-release.json` names `pace-notes-marathon-half-20261113-1113` (key and tag), the identity file of person links v5.1 and the marathon cohort of the same release; the policy is `analysis/half-policy-20261113-1113.json`. The rules, floors and guards below were written in the section above before any build (commit `4d61be1c6`) and none changed after it.
+- **Measured results** (`pace-notes-marathon-half-20261113-1113`, built 2026-11-14 16:01 UTC on the final inputs at `99d760bed`, kept build and recount 2026-11-19):
+  - Verified editions: 756,946 finishes in 237 editions. The release's badge marks 239 editions verified (757,967 rows); Drammen Half 2017 and 2019 carry it but every row is flagged course-shortened-suspect, so they supply no figure (rule R2), which leaves 237.
+  - Usable results (every figure that carries the "Includes unverified half results" chip): 6,956,880 finishes in 8,329 editions. Six half rows with a negative finish (Rafaela 2020 and 2021, Santander 2023) carry no flag; rule R2 keeps them out.
+  - Marathon side (the names-free cohort of the same release): 4,124,026 eligible finishes, 1,288,216 with a sustained slowdown, 201 counted editions, every one dated.
+  - Set B (rule R3): 57,554 pairs of 49,975 people, 173 marathon editions in 26 cities, 2,762 half editions, 18,382 recorded women's and 39,172 recorded men's pairs, 4,086 with a verified half. Of the pairs, 34,423 (59.8%) have both rows linked at tier high or high, elite (the high-links-only variant, decision D38). 19 pairs have their half in 6 of the 24 México editions whose timing text is "gun (official, matches organiser winners) else chip". Those 24 editions are unverified, so they enter only the pooled linked readings, never a verified or pacing figure; the policy is unchanged.
+  - How halves are paced (rule R5): 677,927 results in 90 editions of 51 races.
+  - The half race list (rule R6): 9,599 editions with rows, 7,888,922 results, 34 races on the short list (three or more verified editions), 29 editions with gun times (the 5 Berlin years and the 24 México editions).
+  - The never-compared editions (`never_compared` in the policy file): Berlin 2018, 2019, 2021, 2022 and 2023 (gun times) and Drammen Half 2017 and 2019 (course suspected short).
+  - The half race registry `analysis/half-race-registry.json` (reviewed and frozen 2026-11-19): 4,561 release keys (4,555 of the half database, 6 of the marathon database) in 4,433 races, with 95 reviewed joins over 223 keys and 7 reviewed labels for the short-list races. Candidates were keys with the same place and title once case, accents, punctuation, spacing, a trailing year and an edition number are set aside: 99 groups. 92 joined by the written rule (no year under two keys, a stated place, race dates in the same part of the year, linked runners shared where both keys have them) and 3 more by the short-list check (Jalles, Gien, Saclas); the Coop Kungsholmen Runt key joined its race's group. 7 groups stayed separate, and 2 keys were dropped from a join because their race dates fall in another part of the year (evidence: `docs/evidence/half/registry-review-2026-11-19.json`).
+  - The duplicate-edition audit (`analysis/half_duplicates.py`, the marathon race list's near rule): 9,600 editions, 121,561 pairs with at least 10 names in common, 3 listed. Green Mtn / Champlain Islands 2015 is the reviewed E2 twin already. Gela (Maratonina del Golfo) and Pergusa (Mezza Maratona Città di Enna) 2018 and 2019 align 99 and 101 names, 22% of the smaller edition, within two minutes, and wait for a ruling. The frozen lists are unchanged.
+- **Readings on this build** (each judged by its written guard; margin to the bar):
+
+| Reading | State | Value and bar |
+| --- | --- | --- |
+| half.field | holds | all usable under 2:00 50.32% (band 50 to 60%: 0.32 points above the floor); verified 55.25% |
+| half.under | holds | verified under 1:45 25.79%, equal-edition 25.71% (gap 0.08 of 3 points) |
+| half.crowd | holds | 2:00 ratio 1.212, interval 1.178 to 1.246 (needs 1.15 or more and a lower end above 1) |
+| half.women | falls back | 15 qualifying editions (needs 20) |
+| half.cities | falls back | 5 verified pairs in 2 cities (needs 10 pairs in 5 cities) |
+| half.extra (flagship) | holds | 22 minutes over double; under double 7.81%; tightest member gap ns_keys_1 167 s (limit 180 s); 271 leave-outs, none fails |
+| figure (under double) | holds | 7.81% against verified halves 9.03% (gap 1.22 of 3 points) |
+| half.range | falls back | 1:45 window at 4:00: 65.70% against verified 72.78% (gap 7.07, limit 5 points) |
+| half.sexes | falls back | verified strata 5 of 6 women lower (needs 90%); pooled 141 of 143, 19.9 points |
+| half.sexesGuess | holds | recorded women 1,564, men 4,585 at the 1:45 window (each at least the floor) |
+| half.pace | holds | median +3.42% (band 1 to 10%); equal-edition 3.51%, equal-race 3.16%, leave-one-race-out 2.77 to 3.74% (each within 1 point); 81 of 90 editions above zero (needs 80%) |
+| half.paceFaster | holds | 27.7% faster over the last 11.1 km; equal-edition 24.1% (gap 3.6 of 5 points), leave-one-race-out 25.3 to 31.2% |
+
+  The high-links-only variants (D38, `linked.json` `checks.high_links`): 1,390 s over double, under double 7.80%, 1:45 window at 4:00 63.2% (n 3,525), sexes 95 of 95 strata at 21.7 points, the 1:45 window's recorded women 15.2% (n 1,104) and men 35.0% (n 2,421). None fails its reading's own guard.
+- **Checks on the branch.** `npm run verify:half-source` passes (19,245 values, 0 mismatches; receipt `docs/evidence/half/source-recount.json`). `analysis/test_half.py`: 93 tests pass, 3 skipped. `tsc` is clean. `scripts/verify-half.cjs` passes except for the half captions in `docs/CHARTS_INSTAGRAM.md`, which `node scripts/build-chart-cards.cjs --captions` writes only once the branch holds the adopted chart data (at integration). Cards: `half-under-2` and `half-double` hold and are rendered; `half-same-half` is withdrawn (half.sexes falls back); `half-more-women` is withdrawn (half.cities falls back).
+- **Deployed state.** Production is unchanged: it serves the build of the October 31 status below until the owner says otherwise.
+
 ## Status (October 31, 2026)
+
+The sections from here to the History describe the build production serves (`half-dataset-20261030-1904`); the combined release's rules are the section above and its counts the status above.
 
 Keep these apart:
 
