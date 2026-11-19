@@ -34,9 +34,12 @@ export function generateMetadata({ params }: { params: { city: string } }) {
     const [first, last] = results.years;
     const where = results.place ? ` in ${results.place}` : '';
     const describe = (place: string) => `${name}${place}: the median finish of each year and every edition from ${first} to ${last}, with the status of its results.`;
+    const plain = `${name}: Finish Times by Year`;
+    // The longest wording that fits: the brand, then without it, then the race's name alone; the description likewise.
+    const description = [describe(where), describe(''), `${name}: the median finish of each year, ${first} to ${last}.`].find((d) => d.length <= MAX_DESCRIPTION) ?? `${name}: finish times by year.`;
     return pageMetadata({
-      title: branded.length <= MAX_TITLE ? branded : `${name}: Finish Times by Year`,
-      description: describe(where).length <= MAX_DESCRIPTION ? describe(where) : describe(''),
+      title: branded.length <= MAX_TITLE ? branded : plain.length <= MAX_TITLE ? plain : name,
+      description,
       path: `/courses/${results.slug}`,
     });
   }

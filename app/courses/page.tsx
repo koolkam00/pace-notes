@@ -135,6 +135,8 @@ export default function CoursesPage() {
         <span className="course-index-name">{name}</span>
         <span className="course-index-meta"><span className="m-default">{r.place ? <>{r.place}{'\u00a0· '}</> : null}{count(r.editions)} {r.editions === 1 ? 'edition' : 'editions'}</span></span>
         <span className="course-index-share">
+          {/* No route, so no climb: the dash keeps the cell every row of the list has (verify-seo reads it). */}
+          <span className="f-climb">—</span>
           <span className="f-reading">{reading.guard && reading.figure ? <><Fact k={`reading@${r.slug}`} v={Number(reading.values.median_s)}>{reading.figure.value}</Fact><span className="sr-only"> median finish</span></> : '—'}</span>
         </span>
       </Link>

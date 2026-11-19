@@ -340,3 +340,9 @@
    row clear of the next row's. */
 .course-table td.is-text { text-align: left; }
 .course-table td.is-text .tier-tags { flex-wrap: nowrap; white-space: nowrap; }
+/* At the narrowest phone the sticky year column would sit over the first label of a row as the table scrolls, taking its
+   44 px reach: the column scrolls with the table there. */
+@media (max-width: 299.98px) {
+  .course-numbers .course-table th:first-child, .course-numbers .course-table td:first-child,
+  .results-page .course-table th:first-child, .results-page .course-table td:first-child { position: static; }
+}
