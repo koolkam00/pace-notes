@@ -10,6 +10,9 @@ on:
   pull_request:
     paths:
       - 'analysis/build_weather.py'
+      - 'analysis/marathon-cohort/**'
+      - 'analysis/cohort.py'
+      - 'scripts/lib/cohort.cjs'
       - 'analysis/build_pacing.py'
       - 'analysis/source_quality.py'
       - 'analysis/test_weather.py'

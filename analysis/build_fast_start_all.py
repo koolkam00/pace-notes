@@ -93,51 +93,29 @@ def profile_observations(races, edition_cities):
             yield observation(race, edition_cities[race['edition']])
 
 
-def read_observations(runner_root, manifest):
-    """Verify all source shards and IDs before aggregating all eligible rows."""
+def read_observations(cohort_root, manifest):
+    """Every counted record of the marathon cohort (analysis/cohort.py, which checks each file against the cohort
+    manifest; the runner shards until November 19, 2026), with record-ID uniqueness, before aggregating."""
+    import cohort as marathon_cohort
+    arrays, read, _ = marathon_cohort.load(cohort_root)
+    require(read['as_of'] == manifest['as_of'], 'The cohort changed while it was read')
     editions = manifest['editions']
-    cities = ['All courses', *sorted({edition['city'] for edition in editions})]
+    cities = ['All courses', *sorted({edition['city'] for edition in editions if edition['use'] == 'counted'})]
     city_codes = {city: i for i, city in enumerate(cities)}
-    edition_cities = [city_codes[edition['city']] for edition in editions]
+    edition_cities = [city_codes.get(edition['city'], -1) for edition in editions]
+    n = len(arrays['record_id'])
+    require(n == manifest['eligible_records'], 'Eligible record count does not reconcile')
+    ordered = np.sort(arrays['record_id'])
+    require(n > 0 and ordered[0] > 0 and bool(np.all(np.diff(ordered) > 0)), 'Duplicate or invalid record IDs')
+    sexes = {b'M': 'M', b'F': 'F', b'X': 'X', b'-': None}
     data = array('d')
-    record_ids, profile_ids = array('Q'), array('Q')
-    raw = eligible = profiles = 0
-    for number, (relative, expected) in enumerate(sorted(manifest['shards'].items()), 1):
-        require(re.fullmatch(r'(profiles|index)/[0-9a-f]{3}\.json\.gz', relative) is not None,
-                'Unexpected shard path')
-        compressed = (runner_root/relative).read_bytes()
-        require(len(compressed) == expected['bytes'] and digest(compressed) == expected['sha256'],
-                f'Runner shard checksum/size mismatch: {relative}')
-        if not relative.startswith('profiles/'):
-            continue
-        shard = json.loads(gzip.decompress(compressed))
-        require(shard['release_tag'] == manifest['release_tag'], f'Shard release mismatch: {relative}')
-        for profile in shard['profiles']:
-            profile_ids.append(profile['id'])
-            profiles += 1
-            races = profile['races']
-            for race in races:
-                record_ids.append(race['id'])
-                require(isinstance(race['edition'], int) and 0 <= race['edition'] < len(editions),
-                        'Invalid edition reference')
-                require(isinstance(race['eligible'], bool), 'Invalid source eligibility flag')
-                raw += 1
-                eligible += race['eligible']
-            for row in profile_observations(races, edition_cities):
-                data.extend(row)
-        if number % 512 == 0:
-            print(json.dumps(dict(verified_shards=number, raw=raw, analysis_n=len(data)//WIDTH)), flush=True)
-    require(raw == manifest['raw_records'], 'Raw record count does not reconcile')
-    require(eligible == manifest['eligible_records'], 'Eligible record count does not reconcile')
-    require(profiles == manifest['profiles'], 'Profile count does not reconcile')
-    for values, label in [(record_ids, 'record'), (profile_ids, 'profile')]:
-        ids = np.frombuffer(values, dtype=np.uint64)
-        ordered = np.sort(ids)
-        require(len(ordered) > 0 and ordered[0] > 0 and bool(np.all(np.diff(ordered) > 0)),
-                f'Duplicate or invalid {label} IDs')
-    require(len(data)//WIDTH == eligible, 'All-eligible observation count does not reconcile')
-    print(json.dumps(dict(verified_raw=raw, verified_eligible=eligible,
-                         profiles=profiles, analysis_n=len(data)//WIDTH)), flush=True)
+    for k in range(n):
+        age = float(arrays['age'][k])
+        race = dict(eligible=True, edition=int(arrays['edition'][k]), times=[float(x) for x in arrays['times'][k]],
+                    age=None if math.isnan(age) else age, sex=sexes[bytes(arrays['sex'][k])])
+        data.extend(observation(race, edition_cities[race['edition']]))
+    require(len(data)//WIDTH == n, 'All-eligible observation count does not reconcile')
+    print(json.dumps(dict(verified_eligible=n, analysis_n=len(data)//WIDTH)), flush=True)
     return np.frombuffer(data, dtype=np.float64).reshape((-1, WIDTH)), cities
 
 
@@ -177,10 +155,10 @@ def aggregate(observations, cities, min_cell=MIN_CELL):
     return rows
 
 
-def run(runner_root, output, pin_path):
+def run(cohort_root, output, pin_path):
     script_root = Path(__file__).resolve().parent
-    manifest, manifest_hash = verified_manifest(runner_root, json.loads(pin_path.read_bytes()), script_root)
-    observations, cities = read_observations(runner_root, manifest)
+    manifest, manifest_hash = verified_manifest(cohort_root, json.loads(pin_path.read_bytes()), script_root)
+    observations, cities = read_observations(cohort_root, manifest)
     rows = aggregate(observations, cities)
     analysis_n = len(observations)
     history_n = manifest['linkage']['recent_benchmark_finishes']
@@ -189,7 +167,7 @@ def run(runner_root, output, pin_path):
         input_as_of=manifest['input_as_of'],
         as_of=datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
         input_asset_sha256=manifest['input_asset_sha256'], input_manifest_sha256=manifest['input_manifest_sha256'],
-        runner_manifest_sha256=manifest_hash, runner_manifest_as_of=manifest['as_of'],
+        runner_manifest_sha256=manifest_hash, runner_manifest_as_of=manifest['as_of'], cohort_manifest_sha256=manifest_hash,
         scripts={name: digest((script_root/name).read_bytes())
                  for name in ('build_fast_start_all.py', 'build_fast_start.py')},
         source_scripts=manifest['scripts'], engine=f'NumPy {np.__version__}',
@@ -201,8 +179,8 @@ def run(runner_root, output, pin_path):
         onset_starts_km=[20, 25, 30, 35], bands=BANDS, cities=cities,
         ages=AGE_BANDS, genders=GENDERS, prior_bands=['all'],
         methodology_prose=[
-            'Verify every published runner shard checksum and size, all source calculation hashes, record and '
-            'profile uniqueness, and raw, eligible and profile counts against the adopted runner manifest. '
+            'Verify every edition file\'s checksum and size against the marathon cohort\'s manifest, the cohort\'s calculation '
+            'hashes, record uniqueness and the eligible count. '
             'Include every eligible finish independently of earlier history or cross-race identity. '
             'History counts are source provenance only and do not select this analysis cohort.',
             'Use actual recorded timings only. Held, incomplete and invalid timings cannot supply outcomes. '
@@ -258,8 +236,8 @@ def run(runner_root, output, pin_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--runners', type=Path, default=Path('public/data/runners'))
+    parser.add_argument('--cohort', type=Path, default=Path(__file__).resolve().parent/'marathon-cohort')
     parser.add_argument('--output', type=Path, default=Path('public/data/fast-start/all-finishers.json'))
-    parser.add_argument('--pin', type=Path, default=Path('analysis/release.json'))
+    parser.add_argument('--pin', type=Path, default=Path(__file__).resolve().parent/'release.json')
     args = parser.parse_args()
-    run(args.runners, args.output, args.pin)
+    run(args.cohort, args.output, args.pin)
