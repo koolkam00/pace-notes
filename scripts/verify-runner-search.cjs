@@ -193,15 +193,19 @@ async function units() {
   assert.equal(listSummary(lists[0], manifest), '2 results · 2020–2021 · fastest recorded finish 3:16:55, Berlin 2021');
   assert.equal(listSummary(lists[1], manifest), null, 'One result needs no summary line');
   const view = html(h(ProfileView, { profile, manifest, opened: 'José Smith', selected: new Set(), onToggle: () => {} }));
-  assert.match(view, /<h2[^>]*>José Smith \/ Jose Smith<\/h2>/, 'The name forms on record');
+  // November 19, 2026: forms that differ only in accents, case, word order or a trailing code are one heading form (the
+  // real page showed one name three ways); each record keeps its own spelling in its details.
+  assert.match(view, /<h2[^>]*>José Smith<\/h2>/, 'The name forms on record, one per set of search words');
+  const forms = html(h(ProfileView, { profile: { ...profile, names: ['Smith, José', 'José Smith (GBR)', 'Anna Smith'], races: [linked(race(40, 0), '2', null), { ...linked(race(41, 2)), name: 'José Smith (GBR)' }, { ...linked(race(45, 1)), name: 'Anna Smith' }].map((r, i) => i === 0 ? { ...r, name: 'Smith, José' } : r) }, manifest, opened: 'x', selected: new Set(), onToggle: () => {} }));
+  assert.match(forms, /<h2[^>]*>José Smith \/ Anna Smith<\/h2>/, 'Distinct names stay; word order and a code do not make a second form');
   assert.deepEqual([...view.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map(m => m[1]), ['Marathons', 'Half marathons']);
   assert.equal(occurrences(view, '>Possible matches</h4>'), 2, 'Possible matches apart in each list');
   assert.equal(occurrences(view, 'type="checkbox"'), 5); assert.doesNotMatch(view, /checked=""/, 'Nothing is ticked by the page');
   assert.equal(occurrences(view, 'data-tier='), 5, 'Every row shows its edition\'s tier');
   assert.match(view, /<p class="runner-list-key">Each row: race, finish and its <a [^>]*href="\/methodology#edition-tiers"[^>]*>results<\/a> label\. <a [^>]*href="\/methodology#link-confidence"[^>]*>Link confidence<\/a>: High for every race\.<\/p>/, 'One key line says what each row holds and the link confidence the rows leave unsaid');
   assert.doesNotMatch(view.slice(0, view.indexOf('runner-possible-block')), /data-link-tier="high"/, 'An own row with High shows no link words');
-  const mixed = { ...profile, races: [linked(race(40, 0, 300)), linked(race(41, 2, 280), '3')] };
-  const mixedView = html(h(ProfileView, { profile: mixed, manifest, opened: 'José Smith', selected: new Set(), onToggle: () => {} }));
+  const mixedLinks = { ...profile, races: [linked(race(40, 0, 300)), linked(race(41, 2, 280), '3')] };
+  const mixedView = html(h(ProfileView, { profile: mixedLinks, manifest, opened: 'José Smith', selected: new Set(), onToggle: () => {} }));
   assert.match(mixedView, /Link confidence<\/a>: High unless the row says otherwise\./); assert.match(mixedView, /data-link-tier="medium"/);
   const allMedium = html(h(ProfileView, { profile: { ...profile, races: [linked(race(40, 0), '3'), linked(race(41, 2), '3')] }, manifest, opened: 'José Smith', selected: new Set(), onToggle: () => {} }));
   assert.match(allMedium, /Link confidence<\/a> is shown on each row\./);

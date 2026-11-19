@@ -2,7 +2,7 @@ import type { Ref } from 'react';
 import type { CopyEdition } from '@/lib/duplicate-editions-shared';
 import { LinkTerm, TierTerm } from '@/components/ui/TierTag';
 import { POSSIBLE_MATCHES } from '@/lib/tiers';
-import { displayName, raceFinish, runnerDuration, runnerLists, type RunnerList, type RunnerManifest, type RunnerProfile, type RunnerRace } from '@/lib/runner-search';
+import { displayName, raceFinish, searchWords, runnerDuration, runnerLists, type RunnerList, type RunnerManifest, type RunnerProfile, type RunnerRace } from '@/lib/runner-search';
 import { NO_COPIES, RecordedDetails, RunnerRecordDetails, analysed, raceLabel, showsLinkWords } from './records';
 
 // A runner's profile as /runners lists it (lookup version 2): the name forms on record, then marathons and half
@@ -64,7 +64,14 @@ export default function ProfileView({ profile, manifest, opened, copyEditions = 
   const several = profile.races.length > 1;
   const own = new Set(lists.flatMap(list => list.own).map(race => race.name));
   // The name forms on record, in the order they were first used: of the runner's own results, or the spelling searched.
-  const names = [...new Set((own.size ? profile.names.filter(name => own.has(name)) : [opened]).map(displayName))];
+  // Forms that differ only in word order, case, accents or a trailing code ("Smith, Anne", "Anne Smith · GBR") are
+  // one form here: the first is kept, and each record's own spelling stays in its "Recorded details".
+  const seen = new Set<string>();
+  const names = (own.size ? profile.names.filter(name => own.has(name)) : [opened]).map(displayName).filter(name => {
+    const key = searchWords(name.replace(/ · [^·]*$/, '')).slice().sort().join(' ') || name;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
   const row = { manifest, copyEditions, selected, onToggle };
   return <section className="runner-profile" aria-labelledby="runner-profile-title">
     <h2 id="runner-profile-title" className="runner-h" tabIndex={-1} ref={headingRef}>{names.join(' / ')}</h2>

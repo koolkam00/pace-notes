@@ -129,7 +129,9 @@ label.runner-race-row { cursor: pointer; }
    The chosen races as chips (each removable; the row scrolls sideways with an edge fade), then the one primary button
    and Clear. The heading is for screen readers: the button says how many. */
 .runner-selection { position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 5; display: grid; gap: var(--s-2); margin-top: var(--s-5); padding: 10px; border: 1px solid var(--rule); border-radius: var(--r-md); background: var(--paper-raised); box-shadow: var(--shadow-raise); }
-.runner-selection-actions { display: flex; align-items: center; gap: var(--s-2); }
+.runner-selection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+/* One track that may shrink: at 195 px the chips and the two buttons ran 8 px past the screen (November 19, 2026). */
+.runner-selection { grid-template-columns: minmax(0, 1fr); }
 .runner-selection-actions .btn-primary { flex: 1 1 auto; min-width: 0; }
 /* The pinned legacy class (scripts/e2e S3 presses .button-primary) keeps the primary button's own look. */
 .runner-selection .btn-primary.button-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); transform: none; box-shadow: none; }
@@ -296,3 +298,10 @@ label.runner-race-row { cursor: pointer; }
 /* The press that loads more says its size ("Show names that start with these words (412 KB)"): it wraps at phone width. */
 .runner-more { margin-top: var(--s-4); }
 .runner-more-go { max-width: 100%; height: auto; min-height: 44px; white-space: normal; text-align: left; }
+
+/* Under 300 px a race's name and its finish cannot share a line: "Rotterdam 2014" ran under "3:36:52" at 195 px
+   (November 19, 2026). The finish takes its own line, under the name. */
+@media (max-width: 299px) {
+  .runner-race-body { grid-template-columns: minmax(0, 1fr); }
+  .runner-race-body > .runner-recorded-finish { grid-column: 1; grid-row: auto; text-align: left; }
+}
