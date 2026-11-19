@@ -41,7 +41,10 @@ jobs:
   # production separately with the real one. The autopilot's merge gate requires a check run with this exact name.
   privacy-e2e:
     name: privacy-e2e
-    runs-on: ubuntu-latest
+    # Pinned on 2026-11-19: Playwright 1.56.1 cannot install Chromium's system packages on the ubuntu-26.04
+    # image that ubuntu-latest now resolves to ("Playwright does not support chromium on ubuntu26.04-x64").
+    # Return to ubuntu-latest when the Playwright version here supports it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
