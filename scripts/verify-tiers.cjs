@@ -525,6 +525,68 @@ function selfTest(t) {
   return failed ? 1 : 0;
 }
 
+const json = (file) => JSON.parse(read(file));
+
+/**
+ * The numbers /methodology#edition-tiers and #link-confidence print, recounted from the files and formatted as the page
+ * formats them: the race list's edition file (public/data/races/editions.csv, copies set aside), the cohort manifest,
+ * the study evidence, the race summary only where nothing else holds the count (the sensitivity rows' slowdown shares,
+ * the editions without results), analysis/identity.json and the lookup manifest.
+ */
+function expectedNumbers() {
+  const t = require(path.join(ROOT, MODULE));
+  const f = (value) => new Intl.NumberFormat('en-US').format(value);
+  const pct = (part, whole) => `${(part / whole * 100).toFixed(1)}%`;
+  const [head, ...lines] = read('public/data/races/editions.csv').trim().split('\n');
+  const parse = (line) => { const out = []; let cell = '', q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (q) { if (c === '"' && line[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; } else if (c === '"') q = true; else if (c === ',') { out.push(cell); cell = ''; } else cell += c; } out.push(cell); return out; };
+  const cols = parse(head);
+  const rows = lines.map(parse).map((cells) => Object.fromEntries(cols.map((c, i) => [c, cells[i]]))).filter((r) => r.review !== 'copy');
+  const group = (list) => [list.length, new Set(list.map((r) => r.race)).size, list.reduce((sum, r) => sum + Number(r.recorded_results), 0)].map(f);
+  const out = [];
+  const tiers = t.SHOWN_TIERS.filter((tier) => rows.some((r) => r.tier === tier));
+  for (const tier of tiers) out.push(...group(rows.filter((r) => r.tier === tier)));
+  out.push(...group(rows.filter((r) => r.split_tier === 'finish_time_only')), ...group(rows.filter((r) => r.timing === t.GUN_TIMING)));
+  out.push(String(tiers.length));
+  const cohort = json('analysis/marathon-cohort/manifest.json');
+  const counted = cohort.editions.filter((e) => e.use === 'counted');
+  const finishes = (list) => list.reduce((sum, e) => sum + e.eligible, 0);
+  eq(rows.filter((r) => r.use === 'counted').length, counted.length, 'the edition file and the cohort count the same editions');
+  out.push(f(counted.length), f(new Set(counted.map((e) => e.city)).size), f(finishes(counted)));
+  const others = rows.filter((r) => r.use !== 'counted');
+  out.push(f(others.length));
+  const categories = new Map();
+  for (const r of others) categories.set(r.not_counted_category, (categories.get(r.not_counted_category) || 0) + 1);
+  out.push(...[...categories.values()].sort((a, b) => b - a).map(f));
+  out.push(f(rows.filter((r) => r.use === 'own_record').length));
+  const study = json('public/data/study/evidence.json');
+  eq(study.n, finishes(counted), 'the study counts the counted finishes');
+  const summary = json('public/data/races/summary.json');
+  const verified = counted.filter((e) => e.tier !== 'partial'), strong = counted.filter((e) => !e.weaker_source);
+  const share = (row, list) => { eq([row.editions, row.finishes], [list.length, finishes(list)], 'a sensitivity row counts its cohort editions'); eq(row.sustained_slowdown_pct.toFixed(1), (row.sustained_slowdown / row.finishes * 100).toFixed(1), 'a sensitivity share is its count over its finishes'); return pct(row.sustained_slowdown, row.finishes); };
+  out.push(pct(study.detected, study.n));
+  out.push(f(counted.length - verified.length), share(summary.sensitivity.verified_tiers_only, verified), f(finishes(verified)), f(verified.length));
+  out.push(f(counted.length - strong.length), share(summary.sensitivity.without_weaker_source_editions, strong), f(finishes(strong)), f(strong.length));
+  out.push(f(summary.editions.without_results.n));
+  // #link-confidence
+  const id = json('analysis/identity.json').counts;
+  for (const d of ['marathon', 'half']) {
+    const total = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+    eq(total(id.by_status[d]), id.rows[d].rows, `identity: the ${d} statuses add up to its rows`);
+    eq(total(id.by_link_tier[d]), id.rows[d].rows, `identity: the ${d} link tiers add up to its rows`);
+  }
+  for (const c of t.LINK_CONFIDENCES) out.push(f(id.by_link_tier.marathon[c]), f(id.by_link_tier.half[c]));
+  out.push(f(id.by_link_tier.marathon.unlinked), f(id.by_link_tier.half.unlinked));
+  for (const k of ['keyed', 'possible_match', 'unlinked', 'left_out']) out.push(f(id.by_status.marathon[k]), f(id.by_status.half[k]));
+  for (const screen of Object.keys(t.SCREEN_WORDS)) if (id.screens[screen].results > 0) out.push(f(id.screens[screen].persons), f(id.screens[screen].results));
+  const link = cohort.linkage;
+  out.push(...[link.runners_with_a_counted_record, link.runners_with_two_or_more_counted_records, link.high_links.runners_with_a_counted_record, link.high_links.runners_with_two_or_more_counted_records].map(f));
+  const lookup = json('public/data/runners/manifest.json').counts;
+  const kinds = lookup.profiles_by_kind;
+  eq(kinds.one_result + kinds.confirmed_only + kinds.confirmed_and_possible + kinds.possible_only, lookup.profiles, 'the lookup\u2019s profiles by kind add up');
+  out.push(...[lookup.profiles, kinds.one_result, kinds.confirmed_only, kinds.confirmed_and_possible, kinds.possible_only].map(f));
+  return out;
+}
+
 function main() {
   const t = require(path.join(ROOT, MODULE));
   if (process.argv.includes('--self-test')) process.exit(selfTest(t));
@@ -762,8 +824,19 @@ function main() {
   for (const [code, words] of Object.entries(QUIET_WORDS)) ok(linksHtml.includes(quietHtml(code, words)), `#link-confidence defines "${words}"`);
   eq((methods.match(/<dd>/g) || []).length, TABLE.filter((row) => row.kind !== 'link').length + 1 + Object.keys(QUIET_WORDS).length, 'one meaning for each label, and no other');
   ok(!/<a [^>]*class="tier-/.test(methods), 'on the page that defines them the labels are bare');
-  const methodsText = methods.replace(/<[^>]+>/g, ' ');
-  ok(!/\d/.test(methodsText), `${METHODS} types no number: counts and thresholds come from data files`);
+  // Every number the two definitions print, recounted from the files in the order the page prints them (November 19,
+  // 2026: the counts joined the words). The producer's notes are checked apart, as quotations.
+  const notesFold = /<details class="fold is-sub">[\s\S]*?<\/details>/;
+  const fold = (methods.match(notesFold) || [''])[0];
+  const methodsText = methods.replace(notesFold, ' ').replace(/<[^>]+>/g, ' ').replace(/&#x27;|&quot;|&amp;/g, ' ');
+  const printed = methodsText.match(/\d[\d,]*(?:\.\d+)?%?/g) || [];
+  eq(printed, expectedNumbers(), `${METHODS} prints exactly the recounted numbers, in order`);
+  const summary = json('public/data/races/summary.json');
+  const quoted = [...summary.notes.hold, ...summary.notes.release];
+  const unescape = (text) => text.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+  const foldText = unescape(fold);
+  for (const note of quoted) ok(foldText.includes(`<span>${note.label} ${note.year}</span>`) && foldText.includes(`<q>${note.note}</q>`), `#edition-tiers quotes the producer's note on ${note.label} ${note.year}`);
+  eq((fold.match(/<li>/g) || []).length, quoted.length, '#edition-tiers quotes every note of the race summary, and no other');
   ok(/counted/i.test(tiersHtml) && /tick/.test(linksHtml), 'the definitions say what counted means and that a visitor may tick a possible match');
   const hrefs = [...methods.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
   ok(hrefs.length > 0 && hrefs.every((id) => walk(path.join(ROOT, 'components', 'methods'), /\.tsx$/).some((file) => fs.readFileSync(file, 'utf8').includes(`id="${id}"`))), `every in-page link of ${METHODS} names an id the methodology components have (${hrefs.join(', ')})`);

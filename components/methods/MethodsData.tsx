@@ -10,6 +10,7 @@ import { getExtensions } from '@/lib/extension-data';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { countWord } from '@/lib/nuggets/format';
+import { POSSIBLE_MATCH, SCREEN_WORDS, inline } from '@/lib/tiers';
 import { Part, Topic, day, editionList, n } from './shared';
 import { HalfDataTopics, HalfTotalsLine } from './MethodsHalf';
 import { halfManifest } from '@/lib/stories';
@@ -101,8 +102,8 @@ export default function MethodsData() {
     </Topic>
 
     <Topic id="linking" title="How runners are linked">
-      <p>Runners are linked across races and years, over marathons and half marathons alike, by the producer’s person links: clusters of records with a matching recorded name, sex and age or birth year, each with a <a href="#link-confidence">confidence</a>. A link of high or medium confidence joins its result to a runner; a weaker one is a possible match and joins no runner. These are records linked by name, not verified people. Each result keeps the release’s record ID, and the links are joined to the results on it. A record ID identifies one result. It does not show that results from different races belong to the same person.</p>
-      <p>A runner whose results have conflicting recorded gender, birth years more than {countWord(identity.birth_year_spread_max)} years apart, or two results in one edition is not joined: each of those results becomes a possible match. These checks reduce errors; they do not confirm that every link is right. Recorded names and runner IDs are in the full downloadable data.</p>
+      <p>Runners are linked across races and years, over marathons and half marathons alike, by the producer’s person links: clusters of records with a matching recorded name, sex and age or birth year, each with a <a href="#link-confidence">confidence</a>. A link of high or medium confidence joins its result to a runner; a weaker one is a {inline(POSSIBLE_MATCH)} and joins no runner. These are records linked by name, not verified people. Each result keeps the release’s record ID, and the links are joined to the results on it. A record ID identifies one result. It does not show that results from different races belong to the same person.</p>
+      <p>A runner is not joined when the results disagree: where {SCREEN_WORDS.sex_conflict}, where recorded ages put birth years more than {countWord(identity.birth_year_spread_max)} years apart, or where there are {SCREEN_WORDS.two_results_in_one_edition}. Each of those results becomes a {inline(POSSIBLE_MATCH)}. These checks reduce errors; they do not confirm that every link is right. Recorded names and runner IDs are in the full downloadable data.</p>
       <p>Only strictly earlier years can supply an earlier benchmark, so current and same-year results never enter it. Personal-best gains compare with the fastest finish in earlier recorded years; they cannot show a lifetime best. Race-pair analyses use adjacent observations with one race in each end year. The interval analysis uses exact supplied dates, only for identity groups with complete, unique dates.</p>
       <p>Exact-age analyses leave out age-group-only records. Recorded gender is used as supplied and never inferred from names. Unknown categories stay in overall counts where the analysis allows.</p>
       {/* The preliminary-link paragraph (#preliminary-links) left with the schema-1 lookup on November 19, 2026: the adopted person links have no preliminary build. */}
