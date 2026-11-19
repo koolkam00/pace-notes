@@ -842,7 +842,7 @@ async function reloadedPage(h) {
 
 // The half pages (October 30, 2026): /half marks its reading, its beats and its close, and the half-to-full story its
 // reading, two beats and its close, each once and in page order as the reader scrolls (the generic hero, chapter-1 …
-// chapter-4 and related ids). The story's one guess, locked in, reveals its answer and keeps its state in the
+// chapter-5 and related ids). The story's one guess, locked in, reveals its answer and keeps its state in the
 // component: it writes no storage key and sends no event of its own (I2 and I6 check every event and key as well).
 async function halfSections(h) {
   const run = await h.run('half sections', { ...PHONE });
@@ -874,7 +874,12 @@ async function halfSections(h) {
   // Beat 3 (chapter-3, the women's columns) is drawn only while women.json publishes the band medians (20 editions; 15
   // qualify since the stamp correction, October 30, 2026); the other beats keep their ids.
   const women = JSON.parse(require('node:fs').readFileSync(path.join(ROOT, 'public/data/half/women.json'), 'utf8'));
-  const halfIds = ['hero', 'chapter-1', 'chapter-2', ...(women.band_editions.length >= women.min_band_editions ? ['chapter-3'] : []), 'chapter-4', 'related'];
+  // November 19, 2026 (the combined release): /half's foot surface, how halves are paced (components/half/HalfPacing.tsx,
+  // its Beat track="chapter-5", an id already in TRACKED_SECTIONS), is drawn after the All numbers fold and before the
+  // close only while the half manifest publishes pacing.json; it sends its id alone, like every other beat.
+  const halfManifest = JSON.parse(require('node:fs').readFileSync(path.join(ROOT, 'public/data/half/manifest.json'), 'utf8'));
+  const halfIds = ['hero', 'chapter-1', 'chapter-2', ...(women.band_editions.length >= women.min_band_editions ? ['chapter-3'] : []), 'chapter-4',
+    ...(halfManifest.files['pacing.json'] ? ['chapter-5'] : []), 'related'];
   h.check(`/half marks ${halfIds.join(', ')}, each once, in page order`, JSON.stringify(halfOrder) === JSON.stringify(halfIds) && JSON.stringify(sections('/half')) === JSON.stringify(halfOrder), { page: halfOrder, sent: sections('/half') });
   h.check('/stories/half-to-full marks hero, chapter-1, chapter-2 and related, each once, in page order', JSON.stringify(storyOrder) === JSON.stringify(['hero', 'chapter-1', 'chapter-2', 'related']) && JSON.stringify(sections('/stories/half-to-full')) === JSON.stringify(storyOrder), { page: storyOrder, sent: sections('/stories/half-to-full') });
   // The answer is the recorded women's share at the flagship half (the window the guess asks about), in either of the
