@@ -1,0 +1,820 @@
+{
+ "document": "Name normalisation and search words (analysis/lookup_names.py), written by analysis/test_runner_lookup_verifier.py --write-parity. Python and scripts/lib/lookup.cjs must each reproduce every entry; every name is made up.",
+ "cases": [
+  {
+   "name": "Smith, Jos\u00e9 (GBR)",
+   "normalized": "smith jose gbr",
+   "words": [
+    "jose",
+    "smith"
+   ]
+  },
+  {
+   "name": "smith,jose",
+   "normalized": "smith jose",
+   "words": [
+    "jose",
+    "smith"
+   ]
+  },
+  {
+   "name": "O'Neil-Smith",
+   "normalized": "o neil smith",
+   "words": [
+    "neil",
+    "o",
+    "smith"
+   ]
+  },
+  {
+   "name": "D\u2019Angelo  \u00dcnsal",
+   "normalized": "d angelo unsal",
+   "words": [
+    "angelo",
+    "d",
+    "unsal"
+   ]
+  },
+  {
+   "name": "Jose \"Jay\", Lee\n",
+   "normalized": "jose jay lee",
+   "words": [
+    "jay",
+    "jose",
+    "lee"
+   ]
+  },
+  {
+   "name": "a\tb\nc",
+   "normalized": "a b c",
+   "words": [
+    "a",
+    "b",
+    "c"
+   ]
+  },
+  {
+   "name": "  spaced   out  ",
+   "normalized": "spaced out",
+   "words": [
+    "out",
+    "spaced"
+   ]
+  },
+  {
+   "name": "",
+   "normalized": "",
+   "words": []
+  },
+  {
+   "name": "***",
+   "normalized": "",
+   "words": []
+  },
+  {
+   "name": "(USA)",
+   "normalized": "usa",
+   "words": [
+    "usa"
+   ]
+  },
+  {
+   "name": "(usa)",
+   "normalized": "usa",
+   "words": [
+    "usa"
+   ]
+  },
+  {
+   "name": "Lee (ESP)\n",
+   "normalized": "lee esp",
+   "words": [
+    "esp",
+    "lee"
+   ]
+  },
+  {
+   "name": "Lee (ES)",
+   "normalized": "lee es",
+   "words": [
+    "lee"
+   ]
+  },
+  {
+   "name": "Lee (ESPA)",
+   "normalized": "lee espa",
+   "words": [
+    "espa",
+    "lee"
+   ]
+  },
+  {
+   "name": "Lee(GBR)",
+   "normalized": "lee gbr",
+   "words": [
+    "lee"
+   ]
+  },
+  {
+   "name": "Lee (GBR) ",
+   "normalized": "lee gbr",
+   "words": [
+    "gbr",
+    "lee"
+   ]
+  },
+  {
+   "name": "Lee Lee LEE",
+   "normalized": "lee lee lee",
+   "words": [
+    "lee"
+   ]
+  },
+  {
+   "name": "Lee  (GBR)",
+   "normalized": "lee gbr",
+   "words": [
+    "lee"
+   ]
+  },
+  {
+   "name": "Lee\u00a0(GBR)",
+   "normalized": "lee gbr",
+   "words": [
+    "lee"
+   ]
+  },
+  {
+   "name": "(Smith), Clara (GBR)",
+   "normalized": "smith clara gbr",
+   "words": [
+    "clara",
+    "smith"
+   ]
+  },
+  {
+   "name": "St. John",
+   "normalized": "st john",
+   "words": [
+    "john",
+    "st"
+   ]
+  },
+  {
+   "name": "J.R.R. Tolkien",
+   "normalized": "j r r tolkien",
+   "words": [
+    "j",
+    "r",
+    "tolkien"
+   ]
+  },
+  {
+   "name": "1728207887 Martin",
+   "normalized": "1728207887 martin",
+   "words": [
+    "1728207887",
+    "martin"
+   ]
+  },
+  {
+   "name": "007",
+   "normalized": "007",
+   "words": [
+    "007"
+   ]
+  },
+  {
+   "name": "A1 B2",
+   "normalized": "a1 b2",
+   "words": [
+    "a1",
+    "b2"
+   ]
+  },
+  {
+   "name": "Mc-Donald",
+   "normalized": "mc donald",
+   "words": [
+    "donald",
+    "mc"
+   ]
+  },
+  {
+   "name": "O`Brien",
+   "normalized": "o brien",
+   "words": [
+    "brien",
+    "o"
+   ]
+  },
+  {
+   "name": "Anne-Marie O\u2019Connor",
+   "normalized": "anne marie o connor",
+   "words": [
+    "anne",
+    "connor",
+    "marie",
+    "o"
+   ]
+  },
+  {
+   "name": "no\u00a0break",
+   "normalized": "no break",
+   "words": [
+    "break",
+    "no"
+   ]
+  },
+  {
+   "name": "zero\u200bwidth",
+   "normalized": "zero width",
+   "words": [
+    "width",
+    "zero"
+   ]
+  },
+  {
+   "name": "soft\u00adhyphen",
+   "normalized": "soft hyphen",
+   "words": [
+    "hyphen",
+    "soft"
+   ]
+  },
+  {
+   "name": "thin\u2009space",
+   "normalized": "thin space",
+   "words": [
+    "space",
+    "thin"
+   ]
+  },
+  {
+   "name": "ideographic\u3000space",
+   "normalized": "ideographic space",
+   "words": [
+    "ideographic",
+    "space"
+   ]
+  },
+  {
+   "name": "line\u2028separator",
+   "normalized": "line separator",
+   "words": [
+    "line",
+    "separator"
+   ]
+  },
+  {
+   "name": "bom\ufeffmark",
+   "normalized": "bom mark",
+   "words": [
+    "bom",
+    "mark"
+   ]
+  },
+  {
+   "name": "unit\u001fseparator",
+   "normalized": "unit separator",
+   "words": [
+    "separator",
+    "unit"
+   ]
+  },
+  {
+   "name": "\u0141UKASZ \u017b\u00f3\u0142\u0107",
+   "normalized": "lukasz zolc",
+   "words": [
+    "lukasz",
+    "zolc"
+   ]
+  },
+  {
+   "name": "\u0141ukasz Zolc",
+   "normalized": "lukasz zolc",
+   "words": [
+    "lukasz",
+    "zolc"
+   ]
+  },
+  {
+   "name": "S\u00f8ren \u00d8deg\u00e5rd",
+   "normalized": "soren odegard",
+   "words": [
+    "odegard",
+    "soren"
+   ]
+  },
+  {
+   "name": "S\u00d8REN",
+   "normalized": "soren",
+   "words": [
+    "soren"
+   ]
+  },
+  {
+   "name": "\u00c6sa \u00de\u00f3rsd\u00f3ttir",
+   "normalized": "aesa thorsdottir",
+   "words": [
+    "aesa",
+    "thorsdottir"
+   ]
+  },
+  {
+   "name": "\u00c6SA \u00de\u00d3RSD\u00d3TTIR",
+   "normalized": "aesa thorsdottir",
+   "words": [
+    "aesa",
+    "thorsdottir"
+   ]
+  },
+  {
+   "name": "Gu\u00f0r\u00fan",
+   "normalized": "gudrun",
+   "words": [
+    "gudrun"
+   ]
+  },
+  {
+   "name": "GU\u00d0R\u00daN",
+   "normalized": "gudrun",
+   "words": [
+    "gudrun"
+   ]
+  },
+  {
+   "name": "\u0110or\u0111e \u0110okovi\u0107",
+   "normalized": "dorde dokovic",
+   "words": [
+    "dokovic",
+    "dorde"
+   ]
+  },
+  {
+   "name": "\u0110OR\u0110E",
+   "normalized": "dorde",
+   "words": [
+    "dorde"
+   ]
+  },
+  {
+   "name": "\u0152uvre C\u0153ur",
+   "normalized": "oeuvre coeur",
+   "words": [
+    "coeur",
+    "oeuvre"
+   ]
+  },
+  {
+   "name": "\u0152UVRE",
+   "normalized": "oeuvre",
+   "words": [
+    "oeuvre"
+   ]
+  },
+  {
+   "name": "Gro\u00df",
+   "normalized": "gross",
+   "words": [
+    "gross"
+   ]
+  },
+  {
+   "name": "GRO\u1e9e",
+   "normalized": "gross",
+   "words": [
+    "gross"
+   ]
+  },
+  {
+   "name": "Stra\u00dfe",
+   "normalized": "strasse",
+   "words": [
+    "strasse"
+   ]
+  },
+  {
+   "name": "I\u015f\u0131k I\u015eIK \u0130pek \u0131i",
+   "normalized": "isik isik ipek ii",
+   "words": [
+    "ii",
+    "ipek",
+    "isik"
+   ]
+  },
+  {
+   "name": "\u0126al G\u0127arg\u0127ur",
+   "normalized": "\u0127al g\u0127arg\u0127ur",
+   "words": [
+    "g\u0127arg\u0127ur",
+    "\u0127al"
+   ]
+  },
+  {
+   "name": "\u0166 \u0167 \u014a \u014b \u0138",
+   "normalized": "\u0167 \u0167 \u014b \u014b \u0138",
+   "words": [
+    "\u0138",
+    "\u014b",
+    "\u0167"
+   ]
+  },
+  {
+   "name": "\u01ff \u01fe \u01fd \u01fc",
+   "normalized": "o o ae ae",
+   "words": [
+    "ae",
+    "o"
+   ]
+  },
+  {
+   "name": "\u0256 \u0180 \u0268",
+   "normalized": "\u0256 \u0180 \u0268",
+   "words": [
+    "\u0180",
+    "\u0256",
+    "\u0268"
+   ]
+  },
+  {
+   "name": "\u0132sbrand \u0133",
+   "normalized": "ijsbrand ij",
+   "words": [
+    "ij",
+    "ijsbrand"
+   ]
+  },
+  {
+   "name": "\u0149",
+   "normalized": "\u02bcn",
+   "words": [
+    "\u02bcn"
+   ]
+  },
+  {
+   "name": "\u01c5emal \u01c4 \u01c6",
+   "normalized": "dzemal dz dz",
+   "words": [
+    "dz",
+    "dzemal"
+   ]
+  },
+  {
+   "name": "\ufb01nn \ufb02ynn \ufb00",
+   "normalized": "finn flynn ff",
+   "words": [
+    "ff",
+    "finn",
+    "flynn"
+   ]
+  },
+  {
+   "name": "\u2167 \u2177",
+   "normalized": "viii viii",
+   "words": [
+    "viii"
+   ]
+  },
+  {
+   "name": "\u00bd \u00be",
+   "normalized": "1 2 3 4",
+   "words": [
+    "1",
+    "2",
+    "3",
+    "4"
+   ]
+  },
+  {
+   "name": "\u2460 \u2461 \u2469",
+   "normalized": "1 2 10",
+   "words": [
+    "1",
+    "10",
+    "2"
+   ]
+  },
+  {
+   "name": "x\u00b2",
+   "normalized": "x2",
+   "words": [
+    "x2"
+   ]
+  },
+  {
+   "name": "\uff2c\uff29 \u674e \uff11\uff12",
+   "normalized": "li \u674e 12",
+   "words": [
+    "12",
+    "li",
+    "\u674e"
+   ]
+  },
+  {
+   "name": "e\u0301",
+   "normalized": "e",
+   "words": [
+    "e"
+   ]
+  },
+  {
+   "name": "a\u0308o\u030a",
+   "normalized": "ao",
+   "words": [
+    "ao"
+   ]
+  },
+  {
+   "name": "\ud835\udc00\ud835\udc1b",
+   "normalized": "ab",
+   "words": [
+    "ab"
+   ]
+  },
+  {
+   "name": "Jos\u00e9 Mar\u00eda de la Cruz-N\u00fa\u00f1ez",
+   "normalized": "jose maria de la cruz nunez",
+   "words": [
+    "cruz",
+    "de",
+    "jose",
+    "la",
+    "maria",
+    "nunez"
+   ]
+  },
+  {
+   "name": "M\u00fcller, J\u00fcrgen",
+   "normalized": "muller jurgen",
+   "words": [
+    "jurgen",
+    "muller"
+   ]
+  },
+  {
+   "name": "Dvo\u0159\u00e1k Anton\u00edn",
+   "normalized": "dvorak antonin",
+   "words": [
+    "antonin",
+    "dvorak"
+   ]
+  },
+  {
+   "name": "Nguy\u1ec5n Th\u1ecb H\u01b0\u01a1ng",
+   "normalized": "nguyen thi huong",
+   "words": [
+    "huong",
+    "nguyen",
+    "thi"
+   ]
+  },
+  {
+   "name": "\u00c7a\u011fr\u0131 \u00d6zt\u00fcrk",
+   "normalized": "cagri ozturk",
+   "words": [
+    "cagri",
+    "ozturk"
+   ]
+  },
+  {
+   "name": "\u00c5ngstr\u00f6m",
+   "normalized": "angstrom",
+   "words": [
+    "angstrom"
+   ]
+  },
+  {
+   "name": "\u00de\u00f3r",
+   "normalized": "thor",
+   "words": [
+    "thor"
+   ]
+  },
+  {
+   "name": "Zo\u00eb Bront\u00eb",
+   "normalized": "zoe bronte",
+   "words": [
+    "bronte",
+    "zoe"
+   ]
+  },
+  {
+   "name": "\u00d1and\u00fa",
+   "normalized": "nandu",
+   "words": [
+    "nandu"
+   ]
+  },
+  {
+   "name": "\u0399\u03c9\u03ac\u03bd\u03bd\u03b7\u03c2 \u03a0\u0391\u03a0\u0391\u0394\u038c\u03a0\u039f\u03a5\u039b\u039f\u03a3",
+   "normalized": "\u03b9\u03c9\u03b1\u03bd\u03bd\u03b7\u03c2 \u03c0\u03b1\u03c0\u03b1\u03b4\u03bf\u03c0\u03bf\u03c5\u03bb\u03bf\u03c2",
+   "words": [
+    "\u03b9\u03c9\u03b1\u03bd\u03bd\u03b7\u03c2",
+    "\u03c0\u03b1\u03c0\u03b1\u03b4\u03bf\u03c0\u03bf\u03c5\u03bb\u03bf\u03c2"
+   ]
+  },
+  {
+   "name": "\u039f\u0394\u03a5\u03a3\u03a3\u0395\u038e\u03a3 \u03a3",
+   "normalized": "\u03bf\u03b4\u03c5\u03c3\u03c3\u03b5\u03c5\u03c2 \u03c3",
+   "words": [
+    "\u03bf\u03b4\u03c5\u03c3\u03c3\u03b5\u03c5\u03c2",
+    "\u03c3"
+   ]
+  },
+  {
+   "name": "\u0391\u03a3 \u03a3\u0391 \u0391\u03a3\u0391",
+   "normalized": "\u03b1\u03c2 \u03c3\u03b1 \u03b1\u03c3\u03b1",
+   "words": [
+    "\u03b1\u03c2",
+    "\u03b1\u03c3\u03b1",
+    "\u03c3\u03b1"
+   ]
+  },
+  {
+   "name": "\u0418\u0432\u0430\u043d \u0401\u043b\u043a\u0438\u043d",
+   "normalized": "\u0438\u0432\u0430\u043d \u0435\u043b\u043a\u0438\u043d",
+   "words": [
+    "\u0435\u043b\u043a\u0438\u043d",
+    "\u0438\u0432\u0430\u043d"
+   ]
+  },
+  {
+   "name": "\u0419\u041e\u0421\u0418\u0424 \u0429\u0443\u043a\u0438\u043d",
+   "normalized": "\u0438\u043e\u0441\u0438\u0444 \u0449\u0443\u043a\u0438\u043d",
+   "words": [
+    "\u0438\u043e\u0441\u0438\u0444",
+    "\u0449\u0443\u043a\u0438\u043d"
+   ]
+  },
+  {
+   "name": "\u0e2a\u0e21\u0e0a\u0e32\u0e22 \u0e43\u0e08\u0e14\u0e35",
+   "normalized": "\u0e2a\u0e21\u0e0a\u0e32\u0e22 \u0e43\u0e08\u0e14",
+   "words": [
+    "\u0e2a\u0e21\u0e0a\u0e32\u0e22",
+    "\u0e43\u0e08\u0e14"
+   ]
+  },
+  {
+   "name": "\u0e01\u0e34\u0e15\u0e15\u0e34\u0e4c",
+   "normalized": "\u0e01\u0e15\u0e15",
+   "words": [
+    "\u0e01\u0e15\u0e15"
+   ]
+  },
+  {
+   "name": "\u674e \u4f1f",
+   "normalized": "\u674e \u4f1f",
+   "words": [
+    "\u4f1f",
+    "\u674e"
+   ]
+  },
+  {
+   "name": "\u738b\u5c0f\u660e",
+   "normalized": "\u738b\u5c0f\u660e",
+   "words": [
+    "\u738b\u5c0f\u660e"
+   ]
+  },
+  {
+   "name": "\u3055\u3068\u3046 \u306f\u306a\u3053",
+   "normalized": "\u3055\u3068\u3046 \u306f\u306a\u3053",
+   "words": [
+    "\u3055\u3068\u3046",
+    "\u306f\u306a\u3053"
+   ]
+  },
+  {
+   "name": "\u30ac\u30ac \uff76\uff9e",
+   "normalized": "\u30ab\u30ab \u30ab",
+   "words": [
+    "\u30ab",
+    "\u30ab\u30ab"
+   ]
+  },
+  {
+   "name": "\u30d1\u30af",
+   "normalized": "\u30cf\u30af",
+   "words": [
+    "\u30cf\u30af"
+   ]
+  },
+  {
+   "name": "\uae40\ucca0\uc218",
+   "normalized": "\u1100\u1175\u11b7\u110e\u1165\u11af\u1109\u116e",
+   "words": [
+    "\u1100\u1175\u11b7\u110e\u1165\u11af\u1109\u116e"
+   ]
+  },
+  {
+   "name": "\ubc15 \uc9c0\uc131",
+   "normalized": "\u1107\u1161\u11a8 \u110c\u1175\u1109\u1165\u11bc",
+   "words": [
+    "\u1107\u1161\u11a8",
+    "\u110c\u1175\u1109\u1165\u11bc"
+   ]
+  },
+  {
+   "name": "\u05d3\u05d5\u05d3 \u05db\u05d4\u05df",
+   "normalized": "\u05d3\u05d5\u05d3 \u05db\u05d4\u05df",
+   "words": [
+    "\u05d3\u05d5\u05d3",
+    "\u05db\u05d4\u05df"
+   ]
+  },
+  {
+   "name": "\u05d3\u05b8\u05bc\u05d5\u05b4\u05d3",
+   "normalized": "\u05d3\u05d5\u05d3",
+   "words": [
+    "\u05d3\u05d5\u05d3"
+   ]
+  },
+  {
+   "name": "\u0645\u062d\u0645\u062f \u0639\u0644\u064a",
+   "normalized": "\u0645\u062d\u0645\u062f \u0639\u0644\u064a",
+   "words": [
+    "\u0639\u0644\u064a",
+    "\u0645\u062d\u0645\u062f"
+   ]
+  },
+  {
+   "name": "\u0645\u064f\u062d\u064e\u0645\u064e\u0651\u062f",
+   "normalized": "\u0645\u062d\u0645\u062f",
+   "words": [
+    "\u0645\u062d\u0645\u062f"
+   ]
+  },
+  {
+   "name": "\u0930\u093e\u092e \u0915\u0941\u092e\u093e\u0930",
+   "normalized": "\u0930\u092e \u0915\u092e\u0930",
+   "words": [
+    "\u0915\u092e\u0930",
+    "\u0930\u092e"
+   ]
+  },
+  {
+   "name": "\u0663 \u0664 \u096b",
+   "normalized": "\u0663 \u0664 \u096b",
+   "words": [
+    "\u0663",
+    "\u0664",
+    "\u096b"
+   ]
+  },
+  {
+   "name": "\ud842\udfb7\u91ce\u5bb6",
+   "normalized": "\ud842\udfb7\u91ce\u5bb6",
+   "words": [
+    "\ud842\udfb7\u91ce\u5bb6"
+   ]
+  },
+  {
+   "name": "\ufa0ex",
+   "normalized": "\ufa0ex",
+   "words": [
+    "\ufa0ex"
+   ]
+  },
+  {
+   "name": "\ud801\udc00\ud801\udc28",
+   "normalized": "\ud801\udc28\ud801\udc28",
+   "words": [
+    "\ud801\udc28\ud801\udc28"
+   ]
+  },
+  {
+   "name": "Runner \ud83c\udfc3",
+   "normalized": "runner",
+   "words": [
+    "runner"
+   ]
+  },
+  {
+   "name": "Kim \u2764\ufe0f",
+   "normalized": "kim",
+   "words": [
+    "kim"
+   ]
+  },
+  {
+   "name": "\ud842\udfb7 \ufa0e z a",
+   "normalized": "\ud842\udfb7 \ufa0e z a",
+   "words": [
+    "a",
+    "z",
+    "\ufa0e",
+    "\ud842\udfb7"
+   ]
+  },
+  {
+   "name": "b \ud801\udc28 \ufa0e",
+   "normalized": "b \ud801\udc28 \ufa0e",
+   "words": [
+    "b",
+    "\ufa0e",
+    "\ud801\udc28"
+   ]
+  }
+ ]
+}

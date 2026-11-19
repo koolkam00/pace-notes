@@ -1,358 +1,411 @@
+// The runner search on lookup version 2 (schema 2): the browser client (lib/runner-search.ts), the search screens
+// (components/RunnerSearch.tsx and components/runner/) and the /runners page. Three parts:
+//   1. unit checks on fixtures: names, tokens, metrics, profile checks, what each result offers, the two lists, possible
+//      matches, tier and link labels, the selection summary, copy editions, privacy and the page;
+//   2. parity with the reference reader (scripts/lib/lookup-files.cjs) on a real build: thousands of queries at both
+//      stages and both limits, the page's own search flow, and profiles, compared field by field;
+//   3. refusals: a build whose bytes differ from their digests, or whose manifest names another release, loads nothing.
+// The build is PACE_NOTES_LOOKUP_DIR (a development build) or else public/data/runners. A folder that is not a schema 2
+// lookup fails this check: it is never skipped.
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const crypto = require('node:crypto');
 const zlib = require('node:zlib');
 const Module = require('node:module');
 const ts = require('typescript');
+
+const ROOT = path.join(__dirname, '..');
+const LOOKUP_DIR = process.env.PACE_NOTES_LOOKUP_DIR ? path.resolve(process.env.PACE_NOTES_LOOKUP_DIR) : path.join(ROOT, 'public/data/runners');
+const DEVELOPMENT = !!process.env.PACE_NOTES_LOOKUP_DIR;
+// A development build is served from a development folder (lib/runner-search.ts RUNNER_DATA); the published one from /data/runners.
+if (DEVELOPMENT) process.env.NEXT_PUBLIC_RUNNER_DATA = '/data/runners-dev';
+const SERVED = DEVELOPMENT ? '/data/runners-dev/' : '/data/runners/';
+const QUERY_COUNT = Number(process.env.RUNNER_SEARCH_QUERIES || 2000);
+
 for (const extension of ['.ts', '.tsx']) require.extensions[extension] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX, resolveJsonModule: true },
 }).outputText, filename);
 const resolveFilename = Module._resolveFilename;
 Module._resolveFilename = function (request, ...args) {
-  return resolveFilename.call(this, request.startsWith('@/') ? path.join(__dirname, '..', request.slice(2)) : request, ...args);
+  return resolveFilename.call(this, request.startsWith('@/') ? path.join(ROOT, request.slice(2)) : request, ...args);
 };
-const {
-  RUNNER_RELEASE, RUNNER_POINTS, RUNNER_PAGE_SIZE, normalizeRunnerName, runnerNameMatches,
-  runnerShardKey, validateRunnerManifest, loadRunnerManifest, searchRunnerNames, loadRunnerProfile,
-  validateRunnerProfile, runnerMetrics, runnerDuration, runnerProgression, runnerSearchPage, displayName,
-} = require('../lib/runner-search.ts');
-const { SelectedAnalysis } = require('../components/RunnerSearch.tsx');
+
+const C = require('../lib/runner-search.ts');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
+const { SelectedAnalysis, RunnerRecordDetails, RecordedDetails, NoMatchNext } = require('../components/RunnerSearch.tsx');
+const ProfileView = require('../components/runner/ProfileView.tsx').default;
+const { matchLine, sizeLabel, SearchMore } = require('../components/runner/SearchResults.tsx');
+const { listSummary } = require('../components/runner/ProfileView.tsx');
+const { statusTag } = require('../components/runner/records.tsx');
+const tiers = require('../lib/tiers.ts');
+const h = React.createElement;
+const html = element => renderToStaticMarkup(element);
+const occurrences = (text, part) => text.split(part).length - 1;
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} != ${expected}`);
-const manifest = {
-  schema_version: 1, release_tag: RUNNER_RELEASE, input_as_of: '2026-09-11T15:10:45Z', as_of: '2026-09-11T16:00:00Z',
-  raw_records: 100, named_records: 99, profiles: 80, points_km: RUNNER_POINTS,
-  editions: [{ city: 'London', year: 2020, race: 'London Marathon' }, { city: 'Boston', year: 2020, race: 'Boston Marathon' }, { city: 'Berlin', year: 2021, race: 'Berlin Marathon' }],
-  shards: {},
+let checks = 0;
+const waiting = [];
+const ok = (value, message) => { assert.ok(value, message); checks++; };
+
+// ---------------------------------------------------------------------------------------------------------------
+// Fixtures in the client's own shapes (RunnerEdition, RunnerRace)
+// ---------------------------------------------------------------------------------------------------------------
+const edition = (index, city, year, extra = {}) => ({ index, distance: 'marathon', city, race: `${city} Marathon`, year, tier: 0, splits: true, db: 'f', noComparison: 0, q: 0, context: index, reason: null, unlisted: 0, timing: null, ...extra });
+const OWN = 'This edition is not verified, so it is compared with no other finishes.';
+const HELD = 'This edition is held for review.';
+const editions = [
+  edition(0, 'London', 2020), edition(1, 'Boston', 2020), edition(2, 'Berlin', 2021),
+  edition(3, 'Lakeside', 2018, { tier: 4, reason: OWN, context: null }),
+  edition(4, 'Riverside', 2019, { tier: 3, splits: false, reason: HELD, context: null }),
+  edition(5, 'Berlin', 2022, { distance: 'half', race: 'Berlin Half Marathon', db: 'h', context: null }),
+  edition(6, 'Prague', 2023, { distance: 'half', race: 'Prague Half Marathon', db: 'h', context: null, tier: 4, noComparison: 1 }),
+  edition(7, 'Madrid', 2019, { tier: 4, reason: OWN, context: null }),
+];
+const manifest = { schema_version: 2, release_tag: C.RUNNER_RELEASE, editions };
+const POINTS = C.POINTS_KM.marathon;
+const race = (id, ed, pace = 300, extra = {}) => {
+  const e = editions[ed], marathon = e.distance === 'marathon', db = marathon ? 'f' : 'h';
+  const times = C.POINTS_KM[e.distance].map(km => Math.round(km * pace));
+  const status = marathon ? (e.reason === null ? 0 : e.splits ? 1 : 6) : null;
+  return { key: db + id, db, id, edition: ed, distance: e.distance, name: 'José Smith', sex: null, age: null, times, link: '0', confirmed: false, possible: false,
+    status, eligible: marathon && (status === 0 || status === 1), counted: status === 0, reason: status === 1 || status === 6 ? e.reason : null, ...extra };
 };
-const race = (id, edition, pace = 300, extra = {}) => ({
-  id, edition, name: 'José Smith', sex: null, age: null, times: RUNNER_POINTS.map(km => km * pace),
-  eligible: true, reason: null, ...extra,
-});
+const linked = (r, link = '2') => ({ ...r, link, confirmed: C.CONFIRMED_LINKS.includes(link), possible: !C.CONFIRMED_LINKS.includes(link) });
 
-async function main() {
-  // A shown name never opens on a token of digits alone (a bib or ID typed into a name field), so a common surname's
-  // results never lead with "1728207887 Martin" (round 6); a name of digits alone is shown as recorded.
-  assert.equal(displayName('MARTIN, 1728207887'), 'Martin');
-  assert.equal(displayName('Martin, Anne'), 'Anne Martin');
-  assert.equal(displayName('SMITH, JOSÉ (GBR)'), 'José Smith · GBR');
-  assert.equal(displayName('12345'), '12345');
-  assert.equal(normalizeRunnerName('  JOSÉ,   O’Neíl—陳  '), 'jose o neil 陳');
-  assert.equal(normalizeRunnerName('ＡＮＡ  İpek'), 'ana ipek');
-  assert.equal(normalizeRunnerName('𠮷野家'), '𠮷野家');
-  assert.equal(runnerNameMatches('Smith, José', 'jos smi'), true, 'Name order and accent differences should not hide a match');
-  assert.equal(runnerNameMatches('Smith, José', 'jos bro'), false, 'Every query token must match');
-  assert.equal(runnerNameMatches('William Smith', 'li smi'), false, 'Short tokens match whole words, not interior text or prefixes');
-  assert.equal(runnerNameMatches('Liam Smith', 'li'), false);
-  assert.equal(runnerNameMatches('Li Smith', 'li smi'), true);
-  assert.equal(runnerNameMatches('José Smith', '***'), false);
-  assert.equal(await runnerShardKey('𠮷野家'), crypto.createHash('sha256').update('𠮷野家').digest('hex').slice(0, 3));
-  assert.equal(validateRunnerManifest(manifest).release_tag, RUNNER_RELEASE);
-  assert.throws(() => validateRunnerManifest({ ...manifest, release_tag: 'private-export-20260911-0336' }), /verified/);
-  assert.throws(() => validateRunnerManifest({ ...manifest, points_km: [...RUNNER_POINTS.slice(0, 8), 42.2] }), /verified/, 'Never silently change marathon length');
-  assert.throws(() => validateRunnerManifest({ ...manifest, shards: { '../other.json.gz': { bytes: 1, sha256: '0'.repeat(64) } } }), /verified/, 'Manifest paths must stay inside the published runner assets');
+async function units() {
+  // Names as shown: a token of digits alone never leads (round 6); a name of digits alone is shown as recorded.
+  assert.equal(C.displayName('MARTIN, 1728207887'), 'Martin');
+  assert.equal(C.displayName('Martin, Anne'), 'Anne Martin');
+  assert.equal(C.displayName('SMITH, JOSÉ (GBR)'), 'José Smith · GBR');
+  // Normalisation and tokens (the reference's rules, D24.4 and D24.5): accents and the fold table, whole words first,
+  // beginnings in stage 2 only from three characters.
+  assert.equal(C.normalizeName('𠮷野家'), '𠮷野家');
+  assert.equal(C.normalizeName('Łukasz Øster-Straße'), 'lukasz oster strasse');
+  const matches = (name, query, stage) => C.rowMatches(C.searchWords(name), C.queryTokens(query, stage), stage);
+  ok(matches('Smith, José', 'jose smith', 1), 'Name order and accents never hide a match');
+  ok(!matches('Smith, José', 'jos smi', 1) && matches('Smith, José', 'jos smi', 2), 'Stage 1 is whole words; stage 2 beginnings');
+  ok(!matches('Smith, José', 'jos bro', 2), 'Every token must match');
+  ok(!matches('William Smith', 'li smi', 2) && !matches('Liam Smith', 'li', 2) && matches('Li Smith', 'li smi', 2), 'A token under three characters matches a whole word only');
+  ok(!matches('José Smith', '***', 2) && C.queryTokens('***', 1).length === 0, 'Punctuation alone is no query');
+  assert.deepEqual(C.queryTokens('mar mart', 2), ['mart'], 'In stage 2 a token that begins another adds nothing');
+  // Record keys (D18): a bare id is the marathon database's; f and h are themselves; nothing else is a key.
+  assert.equal(C.recordKey('123'), 'f123'); assert.equal(C.recordKey('h77'), 'h77'); assert.equal(C.recordKey('f0'), 'f0');
+  for (const bad of ['x1', 'f', '01', '1e3', 'f12 3', '-4', 'h1.5']) assert.equal(C.recordKey(bad), null, bad);
+  assert.equal(sizeLabel(74321), '74 KB'); assert.equal(sizeLabel(412000), '412 KB'); assert.equal(sizeLabel(1234567), '1.2 MB');
 
+  // Metrics: whole seconds; a boundary pace survives; out-of-order or missing times have none; halves have none.
   const base = race(1, 0), changed = race(2, 1, 280), later = race(3, 2, 270);
-  const metrics = runnerMetrics(base);
-  close(metrics.finish, 12658.5); close(metrics.pace, 300); close(metrics.baseline, 300); close(metrics.latePace, 300); close(metrics.lateChange, 0); close(metrics.openingChange, 0);
-  close(metrics.sections[8].elapsed, 658.5); close(metrics.sections[8].end - metrics.sections[8].start, 2.195);
-  assert.ok(runnerMetrics({ ...base, times: [...base.times.slice(0, 8), base.times[7] + 2.195 * 120] }), 'A permitted boundary pace must survive floating-point distance subtraction');
-  const slowing = race(4, 1, 300, { times: RUNNER_POINTS.map(km => km * 300 + Math.max(0, km - 30) * 60) });
-  close(runnerMetrics(slowing).lateChange, 20);
-  const missing = race(5, 0, 200, {
-    name: 'Casey Partial', eligible: false, reason: 'Missing source checkpoint', times: [null, ...base.times.slice(1)],
-    raw_times: [null, '00:50:00', 'unparsed source reading', '01:40:00', '02:05:00', '02:30:00', '02:55:00', '03:20:00', '03:30:58.500'],
-  });
-  const held = race(6, 1, 200, {
-    name: 'Casey Partial', eligible: false, reason: 'Incomplete edition held for review',
-    raw_times: ['00:16:40.000', '00:33:20', '00:50:00', '01:06:40', '01:23:20', '01:40:00', '01:56:40', '02:13:20', '02:20:39'],
-  });
-  assert.equal(runnerMetrics(missing), null); assert.equal(runnerMetrics(held), null, 'Plausible fast times in an excluded edition must not become a best');
-  assert.equal(runnerMetrics({ ...base, times: base.times.map((time, i) => i === 1 ? base.times[0] : time) }), null);
-  assert.equal(runnerProgression([held, missing], manifest), null);
-  assert.equal(runnerProgression([base, changed], manifest).yearChange, null, 'Two same-year races do not establish before/after chronology');
-  const progression = runnerProgression([later, held, changed, base], manifest);
-  assert.equal(progression.valid.length, 3); assert.equal(progression.best.race.id, later.id);
-  close(progression.yearChange, changed.times[8] - later.times[8]);
-  assert.equal(progression.earliestYear, 2020); assert.equal(progression.latestYear, 2021);
-  assert.equal(runnerDuration(59.9996), '0:01:00');
-  assert.equal(runnerDuration(12658.5), '3:30:58.5');
-  assert.equal(runnerDuration(12658.501), '3:30:58.501');
-  assert.equal(runnerDuration(null), 'Not recorded');
-  const profile = { id: 7, names: ['José Smith'], races: [base, missing, held] };
-  assert.equal(validateRunnerProfile(profile, manifest).races.length, 3);
-  assert.equal(validateRunnerProfile({ ...profile, races: [{ ...base, age: 1923 }] }, manifest).races[0].age, 1923, 'Retain a suspect recorded age without inventing a correction');
-  assert.throws(() => validateRunnerProfile({ ...profile, races: [base, base] }, manifest), /verified/);
-  assert.throws(() => validateRunnerProfile({ ...profile, races: [{ ...base, times: [null, ...base.times.slice(1)] }] }, manifest), /verified/);
-  // A preliminary link (November 5, 2026): the profile mark must match its races, and only "preliminary" is a link mark.
-  const prelimRace = { ...missing, link: 'preliminary' };
-  assert.equal(validateRunnerProfile({ ...profile, races: [base, prelimRace], preliminary: true }, manifest).preliminary, true);
-  assert.throws(() => validateRunnerProfile({ ...profile, races: [base, prelimRace] }, manifest), /verified/, 'A preliminary race needs the profile mark');
-  assert.throws(() => validateRunnerProfile({ ...profile, races: [base], preliminary: true }, manifest), /verified/, 'A lone record is never a preliminary link');
-  assert.throws(() => validateRunnerProfile({ ...profile, races: [base, { ...missing, link: 'v4' }] }, manifest), /verified/);
+  const metrics = C.runnerMetrics(base);
+  close(metrics.finish, 12659); close(metrics.pace, 12659 / 42.195); close(metrics.sections[8].end - metrics.sections[8].start, 2.195);
+  ok(C.runnerMetrics({ ...base, times: [...base.times.slice(0, 8), base.times[7] + Math.ceil(2.195 * 120)] }), 'A permitted boundary pace survives');
+  const slowing = race(4, 1, 300, { times: POINTS.map(km => Math.round(km * 300 + Math.max(0, km - 30) * 60)) });
+  ok(C.runnerMetrics(slowing).lateChange > 19 && C.runnerMetrics(slowing).lateChange < 21, 'Late change read from the times');
+  assert.equal(C.runnerMetrics({ ...base, times: [null, ...base.times.slice(1)] }), null);
+  assert.equal(C.runnerMetrics({ ...base, times: base.times.map((t, i) => i === 1 ? base.times[0] : t) }), null);
+  assert.equal(C.runnerMetrics(race(5, 5)), null, 'A half marathon has no pacing metrics in this adoption');
+  const held = race(6, 4, 200, { name: 'Casey Partial' }), missing = race(7, 0, 200, { name: 'Casey Partial', status: 3, eligible: false, counted: false, reason: 'One or more checkpoint times are missing or could not be parsed.', times: [null, ...base.times.slice(1)] });
+  assert.equal(C.runnerMetrics(held), null, 'Fast times in a held edition never become a best');
+  assert.equal(C.runnerProgression([held, missing], manifest), null);
+  assert.equal(C.runnerProgression([base, changed], manifest).yearChange, null, 'Two same-year races establish no chronology');
+  const progression = C.runnerProgression([later, held, changed, base], manifest);
+  assert.equal(progression.valid.length, 3); assert.equal(progression.best.race.key, later.key);
+  assert.equal(C.runnerDuration(59.9996), '0:01:00'); assert.equal(C.runnerDuration(12659), '3:30:59'); assert.equal(C.runnerDuration(null), 'Not recorded');
 
-  const render = (races, units) => renderToStaticMarkup(React.createElement(SelectedAnalysis, { races, manifest, units }));
-  const sameYearHtml = render([base, changed], 'mi');
-  assert.doesNotMatch(sameYearHtml, /Your fastest selected finish in/);
-  const smallGain = { ...base, id: 9, edition: 2, times: [...base.times.slice(0, 8), base.times[8] - 0.2] };
-  // Two eligible races lead with the focus race and one comparison beat (round 4, October 19, 2026): no progression card,
-  // no sentence repeating the difference and no race table outside the comparison's All numbers.
-  const twoHtml = render([base, smallGain], 'mi');
-  assert.match(twoHtml, /class="rc-multi"/); assert.doesNotMatch(twoHtml, /runner-numbers|Fastest selected eligible finish|recorded progression|All eligible races you selected|Your fastest selected finish in/);
-  const mileHtml = render([base, held], 'mi');
-  assert.match(mileHtml, /8:03\/mi/); assert.match(mileHtml, /3:30:58\.5/); assert.match(mileHtml, /No <a [^>]*>sustained slowdown<\/a>: every stretch after 20K held the 5–\u2060?20K pace or better\./, 'An even race: the report\'s verdict, in its words');
-  // The pacing view leads with the race report's verdict (lib/report-verdict timesVerdict), in the report's words.
-  const slowingHtml = render([slowing], 'mi');
-  assert.match(slowingHtml, /class="rc-h">No <a [^>]*>sustained slowdown<\/a>: the slowest stretch after 20K, 30–\u2060?35K, ran 20% off the 5–\u2060?20K pace\.<\/h3>/, 'Under 25%: no sustained slowdown, and the slowest stretch after 20K named');
-  const fading = race(5, 1, 300, { times: RUNNER_POINTS.map(km => km * 300 + Math.max(0, km - 30) * 90) });
-  const fadingHtml = render([fading], 'mi');
-  assert.match(fadingHtml, /class="rc-h">A <a [^>]*>sustained slowdown<\/a> from 30K, 30% off the 5–\u2060?20K pace\.<\/h3>/, 'A qualifying race: the verdict names where it began and how far off');
-  assert.match(fadingHtml, /Highlighted: the sustained slowdown\./, 'and the lap list lights its rows, as the report does');
-  assert.match(mileHtml, /limited analysis/i); assert.doesNotMatch(mileHtml, /the same pace than/);
-  assert.match(mileHtml, /Casey Partial/); assert.match(mileHtml, /Incomplete edition held for review/);
-  assert.match(mileHtml, /02:20:39/, 'Keep the faster held result visible as its recorded finish');
-  const listedHtml = renderToStaticMarkup(React.createElement(SelectedAnalysis, { races: [base, held], manifest, units: 'mi', listed: new Set([base.id, held.id]) }));
-  assert.doesNotMatch(listedHtml, /limited analysis|Casey Partial/i, 'A limited record the open profile already lists, tag and checkpoints, is not listed again under the analysis');
-  assert.match(mileHtml, /00:16:40\.000/, 'Keep original checkpoint formatting rather than recomputing it');
-  assert.match(mileHtml, /<h2 id="[^"]*-title">[^<]*, 3:30:58\.5<\/h2>/, 'A faster held result cannot replace the eligible finish (one eligible race: its heading names it)');
-  assert.doesNotMatch(mileHtml, /runner-numbers|One race\. A closer look/, 'One race has no summary card and no second heading');
-  assert.match(twoHtml, /<h2 id="[^"]*-title" class="sr-only">/, 'Two races: the select names the focus race, so its heading is for screen readers only');
-  assert.doesNotMatch(mileHtml, /\d\.\d\d\s*mi\b/, 'Miles never to two decimals (mats are named, prose distances take one decimal)'); assert.doesNotMatch(mileHtml, /5:00\/km/);
-  const kmHtml = render([base], 'km'); assert.match(kmHtml, /5:00\/km/); assert.doesNotMatch(kmHtml, /\d\/mi\b/, 'Paces follow the units shown');
-  const assertLimitedRecordsVisible = html => {
-    assert.match(html, /Your race records are here/);
-    assert.match(html, /Casey Partial/);
-    assert.match(html, /London 2020/); assert.match(html, /Boston 2020/);
-    assert.match(html, /Missing source checkpoint/); assert.match(html, /Incomplete edition held for review/);
-    assert.match(html, /03:30:58\.500/); assert.match(html, /02:20:39/);
-    assert.match(html, /unparsed source reading/); assert.match(html, /00:16:40\.000/);
-    assert.match(html, /Not recorded/, 'Missing checkpoints remain missing');
-    assert.doesNotMatch(html, /Fastest selected eligible finish|Average pace|Late vs early pace|[0-9]:[0-5][0-9]\/(?:mi|km)/,
-      'Showing source records must not invent a best, pace or pacing comparison');
-    assert.doesNotMatch(html, /runner-numbers|runner-peer|finish-percentile/, 'Wholly ineligible records have no calculated performance or peer metrics');
-  };
-  assertLimitedRecordsVisible(render([held, missing], 'mi'));
-  assertLimitedRecordsVisible(render([held, missing], 'km'));
+  // A decoded profile as the page takes it: codes it does not know, a result that contradicts its edition, a lone
+  // unlinked result inside a group, or confirmed and screened links in one person are refused.
+  const decoded = r => ({ edition: r.edition, db: r.db, id: r.id, key: r.key, distance: r.distance, finish: r.times.at(-1), sex: r.sex, age: r.age, link: r.link, confirmed: r.confirmed, status: r.status === null ? null : String(r.status), name: r.name, times: r.times });
+  const profileOf = (...rs) => C.runnerProfile({ names: ['José Smith'], results: rs.map(decoded) }, 1, 0, manifest);
+  const lone = profileOf(race(10, 0));
+  ok(lone.races.length === 1 && !lone.races[0].possible, 'A profile of one result is its own result, never a possible match');
+  assert.equal(profileOf({ ...race(10, 0), age: 1923 }).races[0].age, 1923, 'A suspect recorded age is kept as recorded, never corrected');
+  const group = profileOf(linked(race(11, 0)), linked(race(12, 5)), linked(race(13, 3), '5'), linked(race(14, 6), 'a'));
+  const screened = profileOf(linked(race(15, 0), 'c'), linked(race(16, 5), 'd'));
+  ok(screened.races.every(r => r.possible && !r.confirmed), 'A person whose keyed tiers failed a screen: every result a possible match');
+  assert.deepEqual(group.races.map(r => [r.key, r.confirmed, r.possible]), [['f11', true, false], ['h12', true, false], ['f13', false, true], ['h14', false, true]]);
+  assert.equal(group.races[2].reason, OWN, 'An own-record race carries its edition\'s sentence');
+  assert.throws(() => profileOf(race(10, 0), race(10, 0)), /verified/, 'One record twice');
+  assert.throws(() => profileOf(linked(race(11, 0)), race(12, 1)), /verified/, 'An unlinked result is its own result');
+  assert.throws(() => profileOf(linked(race(11, 0)), linked(race(12, 1), 'c')), /verified/, 'A person\'s confirmed tiers are all keyed or none');
+  assert.throws(() => profileOf({ ...race(11, 0), link: 'z' }), /verified/, 'An unknown link code is refused');
+  assert.throws(() => profileOf({ ...race(11, 0), key: 'h11' }), /verified/, 'A key names its database');
+  assert.throws(() => profileOf({ ...race(11, 3), status: 0 }), /verified/, 'Counted only in a counted edition');
+  assert.throws(() => profileOf({ ...race(11, 0), status: 9 }), /verified/);
+  assert.throws(() => profileOf({ ...race(11, 5), status: 0 }), /verified/, 'A half carries no marathon status');
+  assert.throws(() => profileOf({ ...race(11, 0), times: race(11, 0).times.slice(1) }), /verified/, 'A marathon has nine times');
 
-  // Copy editions (lib/duplicate-editions.ts): synthetic editions whose records repeat a later field, as Chicago 2018
-  // and 2019 repeat Chicago 2024 in the adopted release. They stay visible as recorded times and reach no summary,
-  // comparison, focus option or split-check link. Since October 16, 2026 the copy-edition sentence is on /methodology
-  // only: the runner view says "Recorded times only" and never explains the screen.
-  const { copyEditions, copyEditionSentence, isCopyEdition, RunnerRecordDetails } = { ...require('../lib/duplicate-editions.ts'), ...require('../components/RunnerSearch.tsx') };
-  const lakeside = { ...manifest, editions: [...manifest.editions, { city: 'Lakeside', year: 2018, race: 'Lakeside Marathon' }, { city: 'Lakeside', year: 2019, race: 'Lakeside Marathon' }, { city: 'Lakeside', year: 2024, race: 'Lakeside Marathon' }] };
-  const copies = [
-    { city: 'Lakeside', year: 2018, duplicate_of: 2024, eligible_removed: 51690, identical_nine_time_twins: 51372 },
-    { city: 'Lakeside', year: 2019, duplicate_of: 2024, eligible_removed: 51530, identical_nine_time_twins: 51212 },
-  ];
-  assert.equal(copyEditionSentence(copies[1]), "Lakeside 2019's records largely repeat the Lakeside 2024 field (51,212 of its 51,530 finishes share all nine checkpoint times with a 2024 finish), so they are shown as recorded times only, without pacing, peer or weather comparisons.");
-  assert.equal(isCopyEdition({ city: 'Lakeside', year: 2019 }, copies), true);
-  assert.equal(isCopyEdition({ city: 'Lakeside', year: 2024 }, copies), false, 'The source edition is not a copy');
-  assert.equal(isCopyEdition({ city: 'Bayview', year: 2019 }, copies), false, 'A copy is one city and year');
-  // The same nine times in three editions, as in the copies, and a held copy record that keeps its own reason.
-  const repeat = (id, edition) => race(id, edition, 290, { name: 'Fixture Runner' });
-  const [copy2018, copy2019, real2024] = [repeat(21, 3), repeat(22, 4), repeat(23, 5)];
-  const heldCopy = race(24, 4, 300, { eligible: false, reason: 'Missing source checkpoint', times: [null, ...base.times.slice(1)] });
-  const renderCopies = (races, screen) => renderToStaticMarkup(React.createElement(SelectedAnalysis, { races, manifest: lakeside, units: 'mi', copyEditions: screen }));
-  const copyHtml = renderCopies([copy2018, copy2019, real2024, heldCopy], copies);
-  const occurrences = (html, text) => html.split(text).length - 1;
-  assert.match(copyHtml, /<h2 id="[^"]*-title">Lakeside 2024, [^<]+<\/h2>/, 'One eligible race once the copies are left out: the heading is the race and its finish');
-  assert.doesNotMatch(copyHtml, /runner-numbers/, 'One race left once the copies are out: no summary card');
-  assert.doesNotMatch(copyHtml, /Eligible selected finish/, 'One race carries no count of one');
-  assert.doesNotMatch(copyHtml, /Your fastest selected finish in/, 'No year-over-year change from a copy');
-  assert.doesNotMatch(copyHtml, /All eligible races you selected/, 'One race has no one-row table of the races');
-  assert.match(copyHtml, /3 selected records have limited analysis/);
-  for (const copy of copies) assert.equal(occurrences(copyHtml, copyEditionSentence(copy).replace(/'/g, '&#x27;')), 0, `${copy.city} ${copy.year}: no copy-edition sentence`);
-  assert.doesNotMatch(copyHtml, /largely repeat/, 'The analysis view never explains the copy screen');
-  assert.equal(occurrences(copyHtml, 'Recorded times only'), 2, 'Each eligible copy record says so');
-  assert.doesNotMatch(copyHtml, /This edition’s records/, 'The analysis view gives each edition its sentence, not a line per record');
-  assert.match(copyHtml, /Missing source checkpoint/, 'A held record in a copy edition keeps its own reason');
-  assert.equal(occurrences(copyHtml, '<option '), 1, 'One focus option, the 2024 race');
-  assert.doesNotMatch(copyHtml, /Lakeside 2018 ·|Lakeside 2019 ·|Across your selected races|rc-multi/, 'No copy in the focus options or the side-by-side comparison');
-  assert.equal(occurrences(copyHtml, 'Read this race in the split check'), 0, 'The view\'s one way on is the race report (its share sheet has the split check)');
-  // Only copies selected: the records view, with each sentence once and no calculated figure.
-  const onlyCopies = renderCopies([copy2018, copy2019], copies);
-  assert.match(onlyCopies, /Your race records are here/);
-  assert.doesNotMatch(onlyCopies, /Fastest selected eligible finish|runner-context|[0-9]:[0-5][0-9]\/(?:mi|km)/, 'No figure is calculated from a copy');
-  for (const copy of copies) assert.equal(occurrences(onlyCopies, copyEditionSentence(copy).replace(/'/g, '&#x27;')), 0);
-  assert.match(onlyCopies, /These records are shown as recorded times only, without pacing or peer comparisons\./);
-  assert.doesNotMatch(onlyCopies, /largely repeat/);
-  assert.doesNotMatch(onlyCopies, /need more complete or verified data/, 'Copies have complete timings: the header gives their own reason');
-  const mixedLimited = renderCopies([copy2018, heldCopy], copies);
-  assert.match(mixedLimited, /None of these records can support pacing or peer comparisons\. Each race shows its status\./);
-  assert.doesNotMatch(mixedLimited, /largely repeat/);
-  assert.equal(renderCopies([held, missing], copies), render([held, missing], 'mi'), 'No copy selected: the records view is as it was');
-  // An empty screen, or one naming other editions, leaves the page as it was.
-  assert.equal(renderCopies([copy2018, copy2019, real2024], []), renderToStaticMarkup(React.createElement(SelectedAnalysis, { races: [copy2018, copy2019, real2024], manifest: lakeside, units: 'mi' })));
-  assert.equal(renderCopies([base, changed, later], copies), render([base, changed, later], 'mi'));
-  assert.match(renderCopies([copy2018, copy2019, real2024], []), /class="rc-multi"/, 'Without the screen the three races are compared');
-  const details = (row, screen) => renderToStaticMarkup(React.createElement(RunnerRecordDetails, { race: row, manifest: lakeside, copyEditions: screen }));
-  // A row is the race, its finish and one short tag; what the record lacks, and why, is in its disclosure.
-  const { RecordedCheckpoints } = require('../components/RunnerSearch.tsx');
-  const opened = (row, screen, explainCopy = true) => renderToStaticMarkup(React.createElement(RecordedCheckpoints, { race: row, manifest: lakeside, copyEditions: screen, explainCopy }));
-  assert.match(details(copy2019, copies), /Recorded times only/); assert.doesNotMatch(details(copy2019, copies), /Pacing analysis/);
-  assert.match(opened(copy2019, copies), /<p class="runner-note">Pacing and peer comparisons are unavailable for this record\.<\/p>/, 'A copy record in the profile says what it lacks, in its disclosure');
-  assert.doesNotMatch(details(copy2019, copies) + opened(copy2019, copies), /largely repeat|This edition’s records/, 'A copy record never explains the screen');
-  assert.doesNotMatch(opened(copy2019, copies, false), /Pacing and peer comparisons are unavailable/);
-  assert.doesNotMatch(details(real2024, copies), /This edition’s records|Recorded times only/, 'The field a copy repeats is not a copy');
-  assert.doesNotMatch(details(copy2019, []), /Pacing analysis|Recorded times only|Limited|runner-eligible|runner-ineligible/, 'A record with its pacing analysis carries no tag: only the exception is marked');
-  assert.doesNotMatch(details(copy2019, []), /Fixture Runner|Age not recorded|Recorded gender/, 'The row carries no name, age or gender: they are in the disclosure');
-  assert.match(details({ ...copy2019, link: 'preliminary' }, []), /data-prelim-link="race">Preliminary link</, 'A race joined through a preliminary link says so on its row');
-  assert.doesNotMatch(details(copy2019, []), /Preliminary link/, 'Only a preliminary link is marked');
-  assert.match(opened(copy2019, []), /Fixture Runner · Lakeside Marathon · Age not recorded · Gender not recorded/);
-  assert.match(details(heldCopy, copies), /Limited: missing checkpoints|Limited analysis/);
-  assert.match(details(race(25, 4, 300, { eligible: false, reason: 'Checkpoint times are not strictly increasing.' }), copies), /Limited: times out of order/);
-  assert.match(details(race(26, 4, 300, { eligible: false, reason: 'One or more checkpoint times are missing or could not be parsed.' }), copies), /Limited: missing checkpoints/);
-  assert.match(details(race(27, 4, 300, { eligible: false, reason: 'Source audit marks HOLD.' }), copies), /Limited analysis/, 'An edition-level hold is "Limited analysis"');
-  assert.match(opened(heldCopy, copies), /Missing source checkpoint Pacing and peer comparisons are unavailable for this record\./, 'The full reason is in the disclosure');
-  // The published screen: read from the verified story manifest, never typed in, and every sentence from its counts only.
-  const story = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/insights/manifest.json'), 'utf8'));
-  const screen = copyEditions();
-  assert.deepEqual(screen, (story.duplicate_edition_screen ?? []).map(({ reason: _reason, ...entry }) => entry).sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year));
-  for (const entry of screen) {
-    const sentence = copyEditionSentence(entry);
-    assert.ok(sentence.includes(`(${entry.identical_nine_time_twins.toLocaleString('en-US')} of its ${entry.eligible_removed.toLocaleString('en-US')} finishes`), `${entry.city} ${entry.year}: counts from the manifest`);
-    assert.doesNotMatch(sentence, /the same names|participant|\ball (?!nine checkpoint times)/i, `${entry.city} ${entry.year}: never "the same names" or "all" records`);
+  // What each result offers (R4, D20): its tag and the sentence in its disclosure, from the lookup's codes.
+  const tag = r => statusTag({ race: r, manifest }, []);
+  assert.equal(tag(base), null, 'A counted race says nothing more');
+  assert.equal(tag(race(20, 3)), null, 'An own-record race: its edition\'s label already says why it has no peers');
+  assert.equal(tag(race(21, 4)), null, 'A finish-times-only edition is marked by its own label');
+  assert.equal(tag(race(22, 0, 300, { status: 4, eligible: false, counted: false, reason: 'Checkpoint times are not strictly increasing.' })), 'Limited: times out of order');
+  assert.equal(tag(missing), 'Limited: missing checkpoints');
+  assert.equal(tag(race(23, 0, 300, { status: 2, eligible: false, counted: false, reason: 'Duplicate of another recorded race; excluded from analysis.' })), 'Limited analysis');
+  assert.equal(tag(race(24, 5)), null); assert.equal(tag(race(25, 6)), null, 'A gun-time half says so by its label, not a tag');
+  const opened = r => html(h(RecordedDetails, { race: r, manifest }));
+  assert.match(opened(race(26, 3)), new RegExp(`${OWN} This record keeps its own pacing view and is compared with no other finishes\\.`));
+  assert.match(opened(missing), /One or more checkpoint times are missing or could not be parsed\. Pacing and peer comparisons are unavailable for this record\./);
+  assert.match(opened(missing), /Not recorded/, 'Missing checkpoints stay missing');
+  assert.match(opened(missing), /Record f7\./, 'The record key is the disclosure\'s, in its new form');
+  const halfOpened = opened(race(27, 6));
+  assert.match(halfOpened, /This edition’s times are not compared with other races\./);
+  assert.doesNotMatch(halfOpened + opened(race(28, 5)), /report|pacing view|coming|later|soon/i, 'A half promises nothing more');
+  assert.match(opened(race(28, 5)), /Record h28\./);
+
+  // A row: race and year, finish, the edition's tier (every row, the Verified badge too), Finish times only, and Gun
+  // times only from the lookup's timing class: a build without the column draws none.
+  const row = (r, extra = {}) => html(h(RunnerRecordDetails, { race: r, manifest, ...extra }));
+  assert.match(row(base), /<strong>London 2020<\/strong>/); assert.match(row(base), /3:30:59/);
+  assert.match(row(base), /class="tier-badge" data-tier="stamped">Verified</, 'A verified edition shows its badge on the row');
+  assert.match(row(race(29, 4)), /data-tier="held_for_review">Held for review<[\s\S]*data-split-tier="finish_time_only">Finish times only</);
+  assert.doesNotMatch(row(race(30, 6)), /Gun times/, 'No timing column: no timing label, even on a gross-time half');
+  const gunEditions = editions.map(e => ({ ...e, timing: e.index === 6 ? 'gun' : 'chip' }));
+  assert.match(html(h(RunnerRecordDetails, { race: race(30, 6), manifest: { ...manifest, editions: gunEditions } })), /data-timing="gun">Gun times</);
+  assert.doesNotMatch(html(h(RunnerRecordDetails, { race: base, manifest: { ...manifest, editions: gunEditions } })), /Gun times/);
+  assert.doesNotMatch(row(base), /José Smith|Age not recorded|Recorded gender/, 'The row carries no name, age or gender: they are in the disclosure');
+  assert.doesNotMatch(row(base) + row(race(31, 4)), /href=/, 'A row is a checkbox label: its labels are bare');
+
+  // Link confidence: quiet words on a linked row (the screen-reader prefix says what they are); a possible match
+  // carries the pill and its words; a screened keyed tier states the reason only when exactly one screen occurs.
+  const linkHtml = (r, screens) => row(r, { linked: true, screens });
+  assert.match(linkHtml(linked(base, '2')), /<span class="sr-only">Link confidence: <\/span>High</);
+  assert.doesNotMatch(linkHtml(linked(base, '2')), /Possible match/, 'A keyed link is no possible match');
+  assert.match(linkHtml(linked(base, '6')), /Possible match[\s\S]*Low, no age/);
+  assert.match(linkHtml(linked(base, 'c'), ['birth_year_spread']), /Possible match[\s\S]*High[\s\S]*recorded ages differ/);
+  const twoScreens = linkHtml(linked(base, 'c'), ['birth_year_spread', 'sex_conflict']);
+  assert.match(twoScreens, /Possible match/); assert.doesNotMatch(twoScreens, /ages differ|sexes differ/, 'With two screens possible, no reason is guessed');
+  assert.doesNotMatch(row(linked(base, '2')), /Link confidence/, 'A row outside a group of several shows no link');
+
+  // The profile: two lists, each with its own count, span and best; possible matches apart under their own heading,
+  // unticked; nothing counted across distances or from a possible match.
+  const profile = { shard: 1, position: 0, names: ['José Smith', 'Jose Smith'], races: [
+    linked(race(40, 0, 300)), linked(race(41, 2, 280, { name: 'Jose Smith' })), linked(race(42, 5, 290)), linked(race(43, 1, 250, { name: 'J Smith' }), '5'), linked(race(44, 6, 200), '9'),
+  ] };
+  const lists = C.runnerLists(profile, manifest);
+  assert.deepEqual(lists.map(l => [l.distance, l.own.map(r => r.key), l.possible.map(r => r.key)]), [['marathon', ['f41', 'f40'], ['f43']], ['half', ['h42'], ['h44']]]);
+  assert.equal(lists[0].summary.best.key, 'f41', 'The best is the list\'s own fastest, never a faster possible match (f43)');
+  assert.equal(lists[1].summary.count, 1, 'A half list counts its own results only');
+  assert.equal(listSummary(lists[0], manifest), '2 results · 2020–2021 · fastest recorded finish 3:16:55, Berlin 2021');
+  assert.equal(listSummary(lists[1], manifest), null, 'One result needs no summary line');
+  const view = html(h(ProfileView, { profile, manifest, opened: 'José Smith', screens: ['birth_year_spread'], selected: new Set(), onToggle: () => {} }));
+  assert.match(view, /<h2[^>]*>José Smith \/ Jose Smith<\/h2>/, 'The name forms on record');
+  assert.deepEqual([...view.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map(m => m[1]), ['Marathons', 'Half marathons']);
+  assert.equal(occurrences(view, '>Possible matches</h4>'), 2, 'Possible matches apart in each list');
+  assert.equal(occurrences(view, 'type="checkbox"'), 5); assert.doesNotMatch(view, /checked=""/, 'Nothing is ticked by the page');
+  assert.equal(occurrences(view, 'data-tier='), 5, 'Every row shows its edition\'s tier');
+  assert.match(view, /<span>Race<\/span><span>Finish<\/span><span><a [^>]*href="\/methodology#edition-tiers"[^>]*>Results<\/a><\/span><span><a [^>]*href="\/methodology#link-confidence"[^>]*>Link confidence<\/a><\/span>/, 'A column line says what the quiet words describe');
+  assert.match(view, /Recorded as/, 'A possible match recorded under another spelling says so');
+  const marathonList = view.slice(view.indexOf('data-distance="marathon"'), view.indexOf('data-distance="half"'));
+  ok(!marathonList.includes('h42') && !marathonList.includes('Prague 2023'), 'A list holds one distance');
+  // A group with no result of its own has no confirmed name.
+  const loose = { shard: 1, position: 1, names: ['A Runner', 'B Runner'], races: [linked(race(50, 0), '5'), linked(race(51, 1), '7')] };
+  const looseView = html(h(ProfileView, { profile: loose, manifest, opened: 'A Runner', selected: new Set(), onToggle: () => {} }));
+  assert.match(looseView, /<h2[^>]*>A Runner<\/h2>/); assert.match(looseView, /2 results that may belong together/);
+  // Search rows say what each row is, distances apart, possible matches counted apart.
+  const m = { name: 'Smith, José', shard: 1, position: 0, edition: null, marathons: 3, halves: 2, possible: 1, onlyPossible: false, firstYear: 2011, lastYear: 2025 };
+  assert.equal(matchLine(m, manifest), '3 marathons · 2 half marathons · 2011–2025 · 1 possible match');
+  assert.equal(matchLine({ ...m, edition: 5 }, manifest), 'Berlin 2022 · half marathon');
+  assert.equal(matchLine({ ...m, marathons: 0, halves: 0, possible: 4 }, manifest), '4 results that may belong together · 2011–2025');
+  assert.equal(matchLine({ ...m, onlyPossible: true, possible: 2 }, manifest), '2 possible matches · 2011–2025');
+  // The press states: a size on the button, a refusal past the cap, a second word for a common word.
+  const more = r => html(h(SearchMore, { result: { matches: [], stage: 1, bytes: 0, alone: null, more: null, capped: null, ...r }, searched: 'smith', busy: false, onMore: () => {} }));
+  assert.match(more({ more: { step: 'whole', bytes: 412000 } }), /List them \(412 KB\)/);
+  assert.match(more({ more: { step: 'beginnings', bytes: 0 } }), /Show names that start with these words</);
+  assert.match(more({ capped: 'whole' }), /Too many recorded names match to list\. Add another name\./);
+  assert.match(more({ alone: { word: 'smith', names: 81234 } }), /81,234 recorded names include “smith”\.[\s\S]*Add a first name or a surname\./);
+
+  // The selection: a ticked possible match is named wherever the selection is summed up; halves are listed apart,
+  // never in a pacing figure.
+  const render = (races, unit = 'mi', extra = {}) => html(h(SelectedAnalysis, { races, manifest, units: unit, ...extra }));
+  const withPossible = render([linked(race(60, 0)), linked(race(61, 1, 280), '5')]);
+  assert.match(withPossible, /Includes <a [^>]*href="\/methodology#link-confidence"[^>]*>1 possible match<\/a> you selected\./);
+  assert.doesNotMatch(render([linked(race(60, 0)), linked(race(61, 1, 280))]), /possible match/i);
+  const halvesOnly = render([race(62, 5), race(63, 6)]);
+  assert.match(halvesOnly, /Half marathons are listed with their recorded finish and labels\./);
+  assert.doesNotMatch(halvesOnly, /[0-9]:[0-5][0-9]\/(?:mi|km)|rc-multi|runner-context/, 'No figure is computed from a half');
+  const mixed = render([base, race(64, 5)]);
+  assert.match(mixed, /1 selected half marathon/); assert.doesNotMatch(mixed, /Berlin 2022 ·[^<]*\/mi/);
+  const ownRecord = render([race(65, 3)]);
+  assert.match(ownRecord, /Lakeside 2018/); assert.match(ownRecord, /data-tier="unverified"/, 'An own-record view carries its edition\'s label');
+
+  // The pacing views as before (round 4 and the report's verdict): kept from the schema 1 checks.
+  const twoHtml = render([base, later]);
+  assert.match(twoHtml, /class="rc-multi"/); assert.match(twoHtml, /<h2 id="[^"]*-title" class="sr-only">/);
+  assert.doesNotMatch(twoHtml, /runner-numbers|Fastest selected eligible finish|recorded progression/);
+  const fading = race(66, 1, 300, { times: POINTS.map(km => Math.round(km * 300 + Math.max(0, km - 30) * 90)) });
+  assert.match(render([fading]), /class="rc-h">A <a [^>]*>sustained slowdown<\/a> from 30K, 30% off the 5–⁠?20K pace\.<\/h3>/);
+  assert.match(render([fading]), /Highlighted: the sustained slowdown\./);
+  const mileHtml = render([base, held]);
+  assert.match(mileHtml, /<h2 id="[^"]*-title">London 2020, 3:30:59<\/h2>/, 'A faster held result never replaces the eligible finish');
+  assert.match(mileHtml, /limited analysis/i); assert.match(mileHtml, /Casey Partial/); assert.match(mileHtml, new RegExp(HELD));
+  assert.doesNotMatch(render([base, held], 'mi', { listed: new Set([base.key, held.key]) }), /limited analysis|Casey Partial/i, 'A record the open profile lists is not listed again');
+  assert.doesNotMatch(mileHtml, /\d\.\d\d\s*mi\b/); assert.match(render([base], 'km'), /\/km/); assert.doesNotMatch(render([base], 'km'), /\d\/mi\b/);
+  const limited = render([held, missing]);
+  assert.match(limited, /Your race records are here/); assert.match(limited, /Not recorded/);
+  assert.doesNotMatch(limited, /Fastest selected eligible finish|Average pace|[0-9]:[0-5][0-9]\/(?:mi|km)|runner-peer|finish-percentile/, 'Records without a pacing view invent no figure');
+
+  // Copy editions (lib/duplicate-editions.ts) stay recorded times only and reach no figure (kept from schema 1).
+  const { copyEditions, copyEditionSentence, isCopyEdition } = require('../lib/duplicate-editions.ts');
+  const lake = { ...manifest, editions: [...editions, edition(8, 'Lakeside', 2024), edition(9, 'Lakeside', 2019, { reason: null })] };
+  const copies = [{ city: 'Lakeside', year: 2019, duplicate_of: 2024, eligible_removed: 51530, identical_nine_time_twins: 51212 }];
+  ok(isCopyEdition({ city: 'Lakeside', year: 2019 }, copies) && !isCopyEdition({ city: 'Lakeside', year: 2024 }, copies), 'A copy is one city and year');
+  const copy = { ...race(70, 0, 290), edition: 9 }, real = { ...race(71, 0, 290), edition: 8 };
+  const copyHtml = html(h(SelectedAnalysis, { races: [copy, real], manifest: lake, units: 'mi', copyEditions: copies }));
+  assert.match(copyHtml, /<h2 id="[^"]*-title">Lakeside 2024, [^<]+<\/h2>/); assert.match(copyHtml, /Recorded times only/);
+  assert.doesNotMatch(copyHtml, /largely repeat|rc-multi|Lakeside 2019 ·/, 'No copy in a figure, a focus option or an explanation');
+  assert.equal(html(h(SelectedAnalysis, { races: [held, missing], manifest: lake, units: 'mi', copyEditions: copies })), html(h(SelectedAnalysis, { races: [held, missing], manifest: lake, units: 'mi' })));
+  const story = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data/insights/manifest.json'), 'utf8'));
+  // The published screen comes from the story manifest of the adopted release. Until that family is rebuilt this part
+  // cannot run: the verifier still runs the rest and then fails, naming what waits (never a pass).
+  if (story.release_tag !== require('../analysis/release.json').tag) waiting.push('copy-edition screen: public/data/insights/manifest.json is not of the adopted release');
+  else assert.deepEqual(copyEditions(), (story.duplicate_edition_screen ?? []).map(({ reason: _r, ...entry }) => entry).sort((a, b) => a.city.localeCompare(b.city) || a.year - b.year));
+  if (!waiting.length) for (const entry of copyEditions()) assert.ok(copyEditionSentence(entry).includes(`(${entry.identical_nine_time_twins.toLocaleString('en-US')} of its`));
+
+  // The tier and link words are the module's: no phrase of the vocabulary is typed in these files.
+  for (const file of ['components/RunnerSearch.tsx', 'components/runner/records.tsx', 'components/runner/ProfileView.tsx', 'components/runner/SearchResults.tsx', 'lib/runner-search.ts']) {
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/^\s*(\/\/|\*).*$/gm, '');
+    for (const phrase of [...tiers.TIER_PHRASES, ...tiers.LINK_PHRASES, 'Possible matches']) ok(!source.includes(`'${phrase}'`) && !source.includes(`>${phrase}<`), `${file} types "${phrase}"`);
   }
 
-  const originalFetch = global.fetch;
-  const requests = [];
-  let served;
-  global.fetch = async url => { requests.push(String(url)); return new Response(served, { status: 200 }); };
-  const descriptor = value => {
-    const bytes = zlib.gzipSync(Buffer.from(JSON.stringify(value)));
-    return { bytes, meta: { bytes: bytes.length, sha256: crypto.createHash('sha256').update(bytes).digest('hex') } };
-  };
-  const sourceFor = (path, data) => ({ ...manifest, shards: { [path]: data.meta } });
-  const signal = new AbortController().signal;
-  try {
-    served = JSON.stringify(manifest);
-    assert.equal((await loadRunnerManifest()).release_tag, RUNNER_RELEASE);
-    assert.ok(requests.at(-1).endsWith('/manifest.json?v=' + RUNNER_RELEASE), 'Request the pin explicitly rather than using an unversioned old manifest');
-    served = JSON.stringify({ ...manifest, release_tag: 'old' });
-    await assert.rejects(() => loadRunnerManifest(), /verified/);
-
-    const rows = Array.from({ length: 79 }, (_, i) => [`José Smith ${i}`, i + 1, 1, 2020, 2020, 'London', 0]);
-    rows.push(['JOSE SMITH 0', 1, 1, 2020, 2020, 'London', 0]);
-    rows.push(['José Brown', 1000, 1, 2020, 2020, 'London', 0]);
-    const index = descriptor({ release_tag: RUNNER_RELEASE, rows });
-    const indexPath = `index/${await runnerShardKey('jos')}.json.gz`;
-    served = index.bytes;
-    const matches = await searchRunnerNames('jos smi', sourceFor(indexPath, index), signal);
-    assert.equal(matches.length, 79, 'Deduplicate aliases by candidate group, while retaining every matching group');
-    assert.equal(new Set(matches.map(row => row[1])).size, 79);
-    assert.ok(requests.at(-1).endsWith(indexPath + '?v=' + index.meta.sha256), 'Shard URL must use its exact content digest');
-    const pages = Array.from({ length: Math.ceil(matches.length / RUNNER_PAGE_SIZE) }, (_, page) => runnerSearchPage(matches, page));
-    assert.deepEqual(pages.map(page => page.length), [25, 25, 25, 4]);
-    assert.deepEqual(pages.flat(), matches, 'The last match must remain reachable through pagination');
-    assert.deepEqual(runnerSearchPage(matches, -1), []);
-    // November 11, 2026: every match is in every typed token's shard, so a query of two listed tokens loads the smaller
-    // shard ("mar" alone is 3.4 MB), whichever token is longer; the results are the same.
-    const smallJos = descriptor({ release_tag: RUNNER_RELEASE, rows: rows.slice(0, 10) });
-    const bigSmi = descriptor({ release_tag: RUNNER_RELEASE, rows: [...rows, ...Array.from({ length: 400 }, (_, i) => [`Pad Smithson ${i}`, 5000 + i, 1, 2020, 2020, 'Boston', 0])] });
-    const smiPath = `index/${await runnerShardKey('smi')}.json.gz`;
-    assert.ok(bigSmi.meta.bytes > smallJos.meta.bytes && smiPath !== indexPath);
-    let before = requests.length;
-    served = smallJos.bytes;
-    const smaller = await searchRunnerNames('jos smithers', { ...manifest, shards: { [indexPath]: smallJos.meta, [smiPath]: bigSmi.meta } }, signal);
-    assert.equal(requests.length, before + 1);
-    assert.ok(requests.at(-1).endsWith(indexPath + '?v=' + smallJos.meta.sha256), 'A two-token query must load the smaller listed shard, not the longest token\'s');
-    assert.deepEqual(smaller, [], 'The smaller shard gives the same answer: no name has a word starting "smithers"');
-    before = requests.length;
-    served = bigSmi.bytes;
-    const larger = await searchRunnerNames('jos smi', { ...manifest, shards: { [indexPath]: { ...smallJos.meta, bytes: bigSmi.meta.bytes + 1 }, [smiPath]: bigSmi.meta } }, signal);
-    assert.equal(requests.length, before + 1);
-    assert.ok(requests.at(-1).endsWith(smiPath + '?v=' + bigSmi.meta.sha256), 'The choice follows the manifest bytes, not the token order');
-    assert.deepEqual(larger, matches, 'Either token\'s shard gives the same ordered matches');
-    const beforeEmpty = requests.length;
-    assert.deepEqual(await searchRunnerNames('zzzzzz', manifest, signal), []);
-    assert.equal(requests.length, beforeEmpty, 'An absent manifest bucket is a verified empty prefix');
-
-    const wrongTag = descriptor({ release_tag: 'old', rows }); served = wrongTag.bytes;
-    await assert.rejects(() => searchRunnerNames('jos', sourceFor(indexPath, wrongTag), signal), /verified/);
-    const badHash = { ...index, meta: { ...index.meta, sha256: '0'.repeat(64) } }; served = index.bytes;
-    await assert.rejects(() => searchRunnerNames('jos', sourceFor(indexPath, badHash), signal), /verified/);
-    served = Buffer.concat([index.bytes, Buffer.from('x')]);
-    await assert.rejects(() => searchRunnerNames('jos', sourceFor(indexPath, { meta: { ...index.meta, sha256: '1'.repeat(64) } }), signal), /verified/);
-    // November 5, 2026: a row carries its preliminary-link flag (0 or 1); a six-field row is refused.
-    const sixFields = descriptor({ release_tag: RUNNER_RELEASE, rows: [['José Smith', 1, 1, 2020, 2020, 'London']] }); served = sixFields.bytes;
-    await assert.rejects(() => searchRunnerNames('jos smi', sourceFor(indexPath, sixFields), signal), /verified/);
-    const corrupted = descriptor({ release_tag: RUNNER_RELEASE, rows: [['Name', 'wrong id']] }); served = corrupted.bytes;
-    await assert.rejects(() => searchRunnerNames('jos', sourceFor(indexPath, corrupted), signal), /verified/);
-
-    const profilePath = `profiles/${await runnerShardKey(String(profile.id))}.json.gz`;
-    const storedProfile = descriptor({ release_tag: RUNNER_RELEASE, profiles: [profile] }); served = storedProfile.bytes;
-    assert.deepEqual(await loadRunnerProfile(profile.id, sourceFor(profilePath, storedProfile), signal), profile);
-    const staleProfile = descriptor({ release_tag: 'old', profiles: [profile] }); served = staleProfile.bytes;
-    await assert.rejects(() => loadRunnerProfile(profile.id, sourceFor(profilePath, staleProfile), signal), /verified/);
-    const duplicateProfile = descriptor({ release_tag: RUNNER_RELEASE, profiles: [profile, profile] }); served = duplicateProfile.bytes;
-    await assert.rejects(() => loadRunnerProfile(profile.id, sourceFor(profilePath, duplicateProfile), signal), /verified/);
-
-    // Exercise the actual search -> verified gzip profile -> selected-record view
-    // for a named candidate with no eligible race, not just its metric helper.
-    const limitedProfile = { id: 5, names: ['Casey Partial'], races: [missing, held] };
-    const limitedIndexPath = `index/${await runnerShardKey('par')}.json.gz`;
-    const limitedIndex = descriptor({ release_tag: RUNNER_RELEASE, rows: [['Casey Partial', 5, 2, 2020, 2020, 'London', 0]] });
-    const limitedProfilePath = `profiles/${await runnerShardKey('5')}.json.gz`;
-    const limitedShard = descriptor({ release_tag: RUNNER_RELEASE, profiles: [limitedProfile] });
-    const limitedSource = { ...manifest, shards: { [limitedIndexPath]: limitedIndex.meta, [limitedProfilePath]: limitedShard.meta } };
-    served = limitedIndex.bytes;
-    const limitedMatches = await searchRunnerNames('Casey Partial', limitedSource, signal);
-    assert.deepEqual(limitedMatches, [['Casey Partial', 5, 2, 2020, 2020, 'London', 0]], 'A candidate with only held/missing-split records must be discoverable');
-    served = limitedShard.bytes;
-    const loadedLimited = await loadRunnerProfile(limitedMatches[0][1], limitedSource, signal);
-    assert.deepEqual(loadedLimited, limitedProfile, 'Loading retains all races and original readings even with no eligible race');
-    assert.equal(runnerProgression(loadedLimited.races, limitedSource), null);
-    assertLimitedRecordsVisible(render(loadedLimited.races, 'mi'));
-  } finally { global.fetch = originalFetch; }
-
-  // Privacy: a searched name never enters the page address, and the lookup page is not indexable.
+  // Privacy (rule 18): the name never enters the address; old ?q= links are cleaned; the containers are never recorded;
+  // analytics events carry no name, key or count beyond the allowed bands.
   const RunnerSearch = require('../components/RunnerSearch.tsx').default;
-  const pageHtml = renderToStaticMarkup(React.createElement(RunnerSearch));
+  const pageHtml = html(h(RunnerSearch));
   const input = pageHtml.match(/<input id="runner-name"[^>]*>/)?.[0];
-  assert.ok(input, 'The search field renders');
-  assert.doesNotMatch(input, /\sname=/, 'The search field has no name, so a form submitted without JavaScript cannot put ?q= in the address');
+  ok(input && !/\sname=/.test(input), 'The search field has no name, so no form can put ?q= in the address');
   assert.doesNotMatch(pageHtml.match(/<form[^>]*>/)[0], /\saction=|\smethod=/i);
-  const source = fs.readFileSync(path.join(__dirname, '../components/RunnerSearch.tsx'), 'utf8');
-  assert.doesNotMatch(source, /searchParams\.(?:set|append)\(\s*['"]q['"]/, 'Never write the search text into the address');
-  assert.doesNotMatch(source, /[?&]q=\$\{|['"]q=['"]?\s*\+/, 'Never build a ?q= link');
+  assert.match(pageHtml.match(/<form[^>]*>/)[0], /ph-no-capture/);
+  const source = fs.readFileSync(path.join(ROOT, 'components/RunnerSearch.tsx'), 'utf8');
+  const client = fs.readFileSync(path.join(ROOT, 'lib/runner-search.ts'), 'utf8');
+  assert.doesNotMatch(source, /searchParams\.(?:set|append)\(\s*['"]q['"]|[?&]q=\$\{|['"]q=['"]?\s*\+/, 'Never write the search text into the address');
   const historyCalls = source.match(/history\.(?:push|replace)State\([^)]*\)/g) || [];
-  assert.ok(historyCalls.some(call => call.startsWith('history.pushState')), 'A search adds a history entry, so Back returns to the previous results');
-  for (const call of historyCalls) {
-    assert.match(call, /^history\.(?:push|replace)State\(\{ runnerQuery: value \}, '', (?:href|url\.pathname \+ url\.search \+ url\.hash)\)$/, `History entries keep the name in state only: ${call}`);
-  }
-  assert.match(source, /url\.searchParams\.delete\('q'\)/, 'Old ?q= links are cleaned');
-  // No match: the marathons searched, from the search data already loaded, and fixed links on that carry no search text.
-  const { NoMatchNext } = require('../components/RunnerSearch.tsx');
-  const published = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runners/manifest.json'), 'utf8'));
-  const noMatchHtml = renderToStaticMarkup(React.createElement(NoMatchNext, { manifest: published }));
-  const marathons = new Set(published.editions.map(edition => edition.race));
-  assert.equal((noMatchHtml.match(/<li><span>/g) || []).length, marathons.size, 'Every marathon searched is listed once');
-  assert.ok(noMatchHtml.includes(`The ${marathons.size} marathons searched`));
-  const london = published.editions.filter(edition => edition.race === 'London Marathon').map(edition => edition.year);
-  assert.ok(noMatchHtml.includes(`<li><span>London</span><small>${Math.min(...london)}–${Math.max(...london)} · ${new Set(london).size} years</small></li>`), 'Each marathon shows its first and last recorded year and how many years');
-  assert.match(renderToStaticMarkup(React.createElement(NoMatchNext, { manifest })), /<li><span>Berlin<\/span><small>2021 · 1 year<\/small><\/li>/);
-  assert.deepEqual([...noMatchHtml.matchAll(/href="([^"]*)"/g)].map(m => m[1]), ['/analyses/finish-time-context', '/tools/split-check', '/request-analysis']);
-  // Coverage, source and method copy is on /methodology (October 16, 2026): no record counts, release, download or
-  // "How search and analysis work" on the search page, and no method lines in the selected-races view.
-  assert.doesNotMatch(source, /How search and analysis work|runner-source|Download the complete data|named race records|records in the database|sourceReleaseHref|sourceLabel|\/about#data-coverage/, 'No source, coverage or method copy in the runner search');
-  for (const html of [mileHtml, render([base, changed, later], 'mi'), copyHtml]) {
-    assert.doesNotMatch(html, /timing and edition checks|do not verify who ran|Courses, weather and other conditions|do not contribute to the fastest|original source readings|not filled in or used/i, 'No method or caveat line in the selected-races view');
-  }
-  assert.match(source, /\{!matches\.length && <NoMatchNext manifest=\{manifest\} \/>\}/, 'The no-match block is given the search data only, never the search text');
-  const { metadata, default: RunnersPage } = require('../app/runners/page.tsx');
-  // The page: one heading, "Analyze a past race", and two ways in without a name: the split check, and a finish time
-  // that opens the pacing-pattern analysis (its field has no name, so a form sent without JavaScript carries nothing).
-  const runnersHtml = renderToStaticMarkup(React.createElement(RunnersPage));
-  assert.deepEqual([...runnersHtml.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/g)].map(m => m[1]), ['Analyze a past race']);
-  assert.match(runnersHtml, /<a class="runner-start" href="\/tools\/split-check"><b>Have your splits\? Paste them<\/b>/);
-  const finishForm = runnersHtml.match(/<form class="runner-start runner-start-time"[^>]*>[\s\S]*?<\/form>/)?.[0] ?? '';
-  assert.match(finishForm, /action="\/analyses\/pacing-pattern" method="get"/); assert.match(finishForm, /Only know your finish time\?/); assert.match(finishForm, /see how finishes near it were paced/i); assert.match(finishForm, /<button[^>]*type="submit">See finishes<\/button>/, 'The finish-time button says what it does (round 5: it was an arrow alone)');
-  assert.doesNotMatch(finishForm, /<input[^>]*\sname=/, 'The finish-time field has no name');
-  assert.deepEqual(metadata.robots, { index: false, follow: true }, '/runners is noindex, follow');
-  assert.equal(metadata.alternates, undefined, 'A noindex page has no canonical');
-  assert.doesNotMatch(JSON.stringify(metadata), /[?&]q=/);
-  console.log('Runner search checks passed: Unicode/token matching, complete pagination, all-ineligible search/profile views, retained source readings, explicit eligibility, year-only progression, mi/km readings, verified versioned gzip loading, the no-match ways on without the search text, copy editions kept out of every summary and never explained (/methodology does), no source, coverage or method copy, the page heading and its two ways in without a name, and names kept out of the address with /runners noindex.');
+  ok(historyCalls.some(call => call.startsWith('history.pushState')), 'A search adds a history entry');
+  for (const call of historyCalls) assert.match(call, /^history\.(?:push|replace)State\(\{ runnerQuery: value \}, '', (?:href|url\.pathname \+ url\.search \+ url\.hash)\)$/);
+  assert.match(source, /url\.searchParams\.delete\('q'\)/);
+  for (const call of source.match(/trackAnalytics\([^;]*?\)(?=[;\s}])/g) || []) assert.match(call, /^trackAnalytics\('(runner_search_submitted|runner_search_completed|runner_profile_opened|race_comparison_opened)', \{/, call);
+  assert.doesNotMatch(source.match(/trackAnalytics\([\s\S]*?\}\)/g).join('\n'), /query|searched|name|key|\.id\b|race\.|shard|position/, 'No name, key or record in an event');
+  assert.doesNotMatch(client, /localStorage|sessionStorage|indexedDB|document\.cookie/, 'The client stores nothing in the browser');
+  assert.doesNotMatch(source + client, /fetch\([^)]*(?:query|searched|normalize)/, 'A request never carries the search text');
+  for (const id of ['runner-results', 'runner-profile', 'runner-selection', 'runner-reading']) assert.match(source, new RegExp(`${id}[^"]*ph-no-capture|ph-no-capture[^"]*${id}|id="${id}" className="ph-no-capture"|className="${id}[^"]*ph-no-capture`), `${id} is never recorded`);
+  // No match: fixed addresses, never the search text.
+  assert.deepEqual([...html(h(NoMatchNext)).matchAll(/href="([^"]*)"/g)].map(m => m[1]), ['/analyses/finish-time-context', '/tools/split-check', '/request-analysis', '/courses', '/half']);
+  // Method, source and coverage copy is /methodology's (rule 15).
+  assert.doesNotMatch(source + fs.readFileSync(path.join(ROOT, 'components/runner/ProfileView.tsx'), 'utf8'), /How search and analysis work|Download the complete data|records in the database|\/about#data-coverage|person_id|identity file/, 'No method copy on /runners');
+  // The page passes the screens that occur in the adopted identity file.
+  const identity = JSON.parse(fs.readFileSync(path.join(ROOT, 'analysis/identity.json'), 'utf8'));
+  const occurring = Object.entries(identity.counts.screens).filter(([s, r]) => s !== 'any' && r.results > 0).map(([s]) => s).sort();
+  ok(occurring.every(s => s in tiers.SCREEN_WORDS), 'Every screen that occurs has its words');
+  assert.match(fs.readFileSync(path.join(ROOT, 'app/runners/page.tsx'), 'utf8'), /screens=\{screensThatOccur\(\)\}/);
+  console.log(`  units: screens that occur in the identity file: ${occurring.join(', ') || 'none'}`);
 }
-main().catch(error => { console.error(error); process.exitCode = 1; });
+
+// ---------------------------------------------------------------------------------------------------------------
+// 2 and 3. Parity with the reference reader on a real build, and refusals
+// ---------------------------------------------------------------------------------------------------------------
+async function parity() {
+  const head = JSON.parse(fs.readFileSync(path.join(LOOKUP_DIR, 'manifest.json'), 'utf8'));
+  assert.equal(head.schema_version, 2, `${LOOKUP_DIR} is not a schema 2 runner lookup (set PACE_NOTES_LOOKUP_DIR to a development build until the final lookup is committed)`);
+  const { openLookup } = require('./lib/lookup-files.cjs');
+  const lookup = openLookup(LOOKUP_DIR);
+  const original = global.fetch;
+  let tamper = null, requests = 0, bytes = 0;
+  global.fetch = async url => {
+    const u = String(url);
+    assert.ok(u.startsWith(SERVED), u);
+    const rel = u.slice(SERVED.length).replace(/\?v=[^&]*$/, '');
+    assert.match(rel, /^(manifest\.json|editions\.json\.gz|index\/(p\/\d{2}|\d{5})\.json\.gz|profiles\/(p\/\d{2}|[0-9a-f]{3})\.json\.gz)$/, 'Only the lookup\'s own files');
+    if (rel !== 'manifest.json') assert.match(u, /\?v=[a-f0-9]{64}$/, 'Every file but the manifest is asked for by its digest');
+    let data = fs.readFileSync(path.join(LOOKUP_DIR, rel));
+    if (tamper && tamper.rel(rel)) data = tamper.change(data);
+    requests++; bytes += data.length;
+    return new Response(data, { status: 200 });
+  };
+  try {
+    const manifest = await C.loadRunnerManifest();
+    const noTiming = rows => rows.map(({ timing, ...row }) => row);
+    assert.deepEqual(noTiming(manifest.editions), noTiming(lookup.editions));
+    assert.deepEqual(manifest.editions.map(e => e.timing), lookup.editions.map(e => e.timing ?? null), 'The timing class is the reference\'s, or absent on every edition');
+    const timingColumn = manifest.editions[0].timing !== null;
+
+    // Names to search: a deterministic spread of leaves, a few names from each, then queries a visitor would type.
+    const leaves = manifest.index.leaves, step = Math.max(1, Math.floor(leaves / 250));
+    const names = [];
+    for (let n = 0; n < leaves && names.length < QUERY_COUNT; n += step) {
+      const rows = C.decodeLeaf(JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(LOOKUP_DIR, C.leafPath(n))))));
+      for (let i = 0; i < rows.length && names.length < QUERY_COUNT; i += Math.max(1, Math.floor(rows.length / 8))) names.push(rows[i].name);
+    }
+    const queries = new Set(['john smith', 'smith', 'de la', 'zzyzx qq', 'mar', 'michael', 'li wei', 'van der', 'jose luis', 'a', 'o brien', 'müller', 'Ørjan', '𠮷野家', 'kowal']);
+    names.forEach((name, i) => {
+      const words = C.searchWords(name);
+      if (!words.length) return;
+      if (i % 4 === 0) queries.add(name); else if (i % 4 === 1) queries.add(words.map(w => w.slice(0, 3)).join(' '));
+      else if (i % 4 === 2) queries.add(words[words.length - 1]); else queries.add(words.slice(0, 2).reverse().join(' ').toUpperCase());
+    });
+    const strip = rows => rows.map(({ words, ...row }) => row);
+    let compared = 0, refused = 0, alone = 0;
+    for (const q of queries) for (const stage of [1, 2]) for (const limit of [C.SEARCH_AUTO, C.SEARCH_HARD_CAP]) {
+      const mine = await C.searchStage(q, stage, manifest, undefined, limit);
+      const ref = lookup.search(q, stage, limit);
+      assert.deepEqual(mine.plan, ref.plan, `${q} ${stage} plan`); assert.equal(mine.refused, ref.refused, `${q} ${stage} refused`);
+      assert.deepEqual(mine.rows, strip(ref.rows), `${q} ${stage} rows`);
+      compared++; if (mine.refused) refused++; if (mine.plan.alone) alone++;
+    }
+    // The page's flow: never past the cap; a press only for what it says; every listed row matches its stage.
+    let profiles = 0;
+    const flows = { auto: 0, more: 0, capped: 0 };
+    for (const q of [...queries].slice(0, 600)) {
+      const r = await C.searchRunnerNames(q, manifest);
+      ok(r.bytes <= C.SEARCH_AUTO || r.matches.length === 0, `${q}: loaded past ${C.SEARCH_AUTO} bytes unasked`);
+      if (r.more) { flows.more++; ok(r.more.bytes >= 0 && r.bytes + r.more.bytes <= C.SEARCH_HARD_CAP, `${q}: a press past the cap`); }
+      if (r.capped) flows.capped++; else if (!r.more) flows.auto++;
+      for (const row of r.matches.slice(0, 3)) {
+        const mine = await C.loadRunnerProfile(row.shard, row.position, manifest);
+        const ref = lookup.profile(row.shard, row.position);
+        assert.deepEqual(mine.names, ref.names);
+        assert.deepEqual(mine.races.map(x => [x.key, x.id, x.db, x.edition, x.distance, x.name, x.sex, x.age, x.link, x.confirmed, x.status === null ? null : String(x.status), x.times]),
+          ref.results.map(x => [x.key, x.id, x.db, x.edition, x.distance, x.name, x.sex, x.age, x.link, x.confirmed, x.status, x.times]), `${q} profile ${row.shard}:${row.position}`);
+        for (const list of C.runnerLists(mine, manifest)) {
+          ok([...list.own, ...list.possible].every(x => x.distance === list.distance), 'One distance per list');
+          ok(!list.summary || list.summary.count === list.own.length, 'A list counts its own results only');
+          ok(!list.summary?.best || list.own.includes(list.summary.best), 'A best is never a possible match');
+        }
+        profiles++;
+      }
+    }
+
+    // Refusals: a changed byte anywhere in the chain, another release or a stand-in build on the published path.
+    const flip = data => { const copy = Buffer.from(data); copy[copy.length >> 1] ^= 1; return copy; };
+    const fresh = async () => { C.clearRunnerCaches(); return C.loadRunnerManifest(); };
+    tamper = { rel: rel => rel === 'manifest.json', change: data => Buffer.from(JSON.stringify({ ...JSON.parse(data), release_tag: 'pace-notes-other' })) };
+    await assert.rejects(fresh, /verified/, 'Another release is refused');
+    tamper = { rel: rel => rel === 'editions.json.gz', change: flip };
+    await assert.rejects(fresh, /verified/, 'A changed editions file is refused');
+    tamper = null;
+    const verified = await C.loadRunnerManifest();
+    const leafQuery = [...queries].find(q => q.length > 6 && !/\s/.test(q)) || 'michael';
+    const plan = (await C.searchStage(leafQuery, 1, verified)).plan;
+    const target = C.leafPath(plan.leaves[0]);
+    tamper = { rel: rel => rel === target, change: flip };
+    C.clearRunnerCaches();
+    const reloaded = await C.loadRunnerManifest();
+    await assert.rejects(() => C.searchStage(leafQuery, 1, reloaded), /verified/, 'A changed leaf is refused');
+    tamper = { rel: rel => /^index\/p\/\d{2}\.json\.gz$/.test(rel), change: flip };
+    C.clearRunnerCaches();
+    await assert.rejects(() => C.searchStage(leafQuery, 1, reloaded), /verified/, 'A changed directory page is refused');
+    tamper = { rel: rel => /^profiles\/[0-9a-f]{3}\.json\.gz$/.test(rel), change: flip };
+    const someRow = lookup.search('john smith', 1, C.SEARCH_HARD_CAP).rows[0] || lookup.search(names[0], 1, C.SEARCH_HARD_CAP).rows[0];
+    C.clearRunnerCaches();
+    await assert.rejects(() => C.loadRunnerProfile(someRow.shard, someRow.position, reloaded), /verified/, 'A changed profile shard is refused');
+    tamper = null;
+    if (!DEVELOPMENT) ok(!(head.provisional ?? []).length, 'The published lookup names no stand-in inputs');
+    console.log(`  parity on ${DEVELOPMENT ? 'development build' : 'published lookup'} ${LOOKUP_DIR}: ${queries.size} queries, ${compared} stage searches (${refused} refused, ${alone} one common word), ` +
+      `flows ${JSON.stringify(flows)}, ${profiles} profiles; timing column ${timingColumn ? 'present' : 'absent (no timing label drawn)'}; ${requests} requests, ${(bytes / 1e6).toFixed(1)} MB`);
+  } finally { global.fetch = original; }
+}
+
+(async () => {
+  await units();
+  await parity();
+  if (waiting.length) { console.error(`Runner search checks NOT complete: waiting for ${waiting.join('; ')}.`); process.exitCode = 1; return; }
+  console.log(`Runner search checks passed (schema 2): ${checks} named checks plus the fixture assertions.`);
+})().catch(error => { console.error(error); process.exitCode = 1; });

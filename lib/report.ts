@@ -19,6 +19,7 @@ import { SECTION_KM, classify, readSplits, validateSplits, type SplitReading } f
 import { formatDuration } from './tools/time';
 import { KM_PER_MILE, matLabel, sectionLabel, type UnitSystem } from './units';
 import { approxWords, pct } from './nuggets/format';
+import { tierWords } from './tiers';
 
 export * from './report-shared';
 
@@ -106,6 +107,8 @@ export interface ReportModel {
   comparison: ReportComparison;
   /** Only on /runners, from that record's edition: never in the image or a link. */
   record: ReportRecord | null;
+  /** A runner record's edition tier (lib/tiers.ts EDITION_TIERS), shown on the page and in the image; null for a typed race. */
+  tier: string | null;
 }
 
 export interface ReportInput {
@@ -118,7 +121,7 @@ export interface ReportInput {
     /** The shard loaded for reportShardPath(), with its path, or null while it loads. */
     shard: { path: string; data: PaceBandShard | null; error: string | null } | null;
   };
-  record?: { edition: { city: string; year: number }; context: RaceInsights | null; error: string | null; lateChange: number };
+  record?: { edition: { city: string; year: number; tier?: string }; context: RaceInsights | null; error: string | null; lateChange: number };
 }
 
 const count = (value: number) => value.toLocaleString('en-US');
@@ -218,6 +221,7 @@ export function buildReport(input: ReportInput): ReportModel {
     type: typeOf(reading, input.types),
     comparison: comparisonOf(input.comparison, times[8]),
     record: input.record ? recordOf(input.record) : null,
+    tier: input.record?.edition.tier ?? null,
   };
 }
 
@@ -269,12 +273,14 @@ export const shareText = (v: number) => pct(v);
 /**
  * What the saved image shows, line by line, and what its alternative text says: the race, finish and average pace, the
  * nine sections, the sustained-slowdown reading, the pacing type and one comparison line with its finishes. Never a
- * name, rank or percentile, and nothing from a runner record's edition (the year names the race only).
+ * name, rank or percentile, and nothing from a runner record's edition but its tier's words (the year names the race only).
  */
 export function reportLines(model: ReportModel, units: UnitSystem) {
   const { comparison: c, type: t } = model;
   return {
     race: model.race,
+    // The edition's tier in the module's words (D16): what the image and its text say about the record's edition.
+    tier: model.tier ? tierWords(model.tier) : null,
     finish: formatDuration(model.finish, true),
     pace: `average ${paceText(model.average, units)}`,
     baseline: `5–20K pace ${paceText(model.baseline, units)}`,
@@ -296,7 +302,7 @@ export const REPORT_DATA_LABEL = 'Pace Notes data';
 /** The image's alternative text: its numbers in one paragraph, the data lines under the same label as in the image. */
 export function reportImageAlt(model: ReportModel, units: UnitSystem): string {
   const l = reportLines(model, units);
-  return [`Pace Notes race report${l.race ? `, ${l.race}` : ''}. Finish ${l.finish}, ${l.pace}. ${l.baseline}.`,
+  return [`Pace Notes race report${l.race ? `, ${l.race}` : ''}${l.tier ? ` (${l.tier})` : ''}. Finish ${l.finish}, ${l.pace}. ${l.baseline}.`,
     `Sections: ${l.sections.map((s) => `${s.label} ${s.pace} (${s.change})`).join(', ')}.`,
     `${l.slowdown}.`, l.type || l.comparison ? `${REPORT_DATA_LABEL}.` : '', l.type ? `${l.type}.` : '', l.comparison ?? ''].filter(Boolean).join(' ');
 }

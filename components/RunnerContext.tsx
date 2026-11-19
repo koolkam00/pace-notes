@@ -3,7 +3,7 @@
 import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState, type ComponentType } from 'react';
 import { matLabel, paceLabel, paceValue, sectionLabel, type UnitSystem } from '@/lib/units';
 import { paceTicks } from '@/lib/pace-ticks';
-import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
+import { TIERS, runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
 import Segmented from './ui/Segmented.client';
 import Arrow from './ui/Arrow';
@@ -23,6 +23,7 @@ import { readSplits } from '@/lib/tools/split-reading';
 import { loadRaceInsights, runnerAgeBand, runnerGender, type ComparisonKey, type PeerComparison, type RaceInsights, type RunnerTerrain, type RunnerWeather } from '@/lib/runner-context';
 import type { RaceReportProps } from './report/RaceReport';
 import { loadErrorText } from '@/lib/error-text';
+import { EditionLabels } from './runner/records';
 
 const count = (value: number) => value.toLocaleString('en-US');
 const decimal = (value: number, digits = 1) => value.toLocaleString('en-US', { maximumFractionDigits: digits });
@@ -266,17 +267,17 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
   // A copy edition repeats another year's field: it is no focus race, comparison, context row or split-check link.
   const races = useMemo(() => selected.filter(race => !isCopyEdition(manifest.editions[race.edition], copyEditions)), [selected, manifest, copyEditions]);
   const valid = useMemo(() => races.flatMap(race => { const metrics = runnerMetrics(race); return metrics ? [{ race, metrics }] : []; }).sort((a, b) => manifest.editions[a.race.edition].year - manifest.editions[b.race.edition].year || a.race.id - b.race.id), [races, manifest]);
-  const [focusId, setFocusId] = useState<number | null>(null);
-  const [referenceId, setReferenceId] = useState<number | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [referenceId, setReferenceId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('pacing');
-  const [groupState, setGroupState] = useState<{ race: number; key: ComparisonKey } | null>(null);
-  const [contexts, setContexts] = useState<Record<number, RaceInsights>>({});
+  const [groupState, setGroupState] = useState<{ race: string; key: ComparisonKey } | null>(null);
+  const [contexts, setContexts] = useState<Record<string, RaceInsights>>({});
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState('');
   const [retry, setRetry] = useState(0);
   // The race whose report is open; another focus race closes it. Only a press moves focus into the report: coming back
   // to that focus race shows it again where it was.
-  const [reportFor, setReportFor] = useState<number | null>(null);
+  const [reportFor, setReportFor] = useState<string | null>(null);
   const [reportPressed, setReportPressed] = useState(false);
   // Opening the report brings its way back and its top under the header; closing it returns to the analysis's top,
   // which takes focus (the button pressed has gone).
@@ -292,12 +293,12 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
     loadRaceInsights(races, manifest, controller.signal).then(data => { if (!controller.signal.aborted) { setContexts(data); setLoading(false); } }).catch(error => { if (!controller.signal.aborted) { setFailure(loadErrorText(error, 'Race context could not load. Try again.')); setLoading(false); } });
     return () => controller.abort();
   }, [races, manifest, retry]);
-  const focus = valid.find(row => row.race.id === focusId) || valid[valid.length - 1];
+  const focus = valid.find(row => row.race.key === focusId) || valid[valid.length - 1];
   if (!focus) return null;
-  const context = contexts[focus.race.id];
+  const context = contexts[focus.race.key];
   // The peers open on every eligible finish in the edition, the group the race report places this race in, so the two
   // say one placement; the select narrows it.
-  const selectedGroup = groupState?.race === focus.race.id ? groupState.key : 'all';
+  const selectedGroup = groupState?.race === focus.race.key ? groupState.key : 'all';
   const comparison = context?.comparisons[selectedGroup];
   const age = runnerAgeBand(focus.race.age), gender = runnerGender(focus.race.sex);
   const groupOptions: { key: ComparisonKey; label: string; available: boolean }[] = [
@@ -306,49 +307,52 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
     { key: 'age', label: age ? `Ages ${age.replace('-', '–')}` : 'Usable exact age unavailable', available: !!age },
     { key: 'age_gender', label: age && gender ? `${gender}, ages ${age.replace('-', '–')}` : 'Age and gender comparison unavailable', available: !!age && !!gender },
   ];
-  const others = valid.filter(row => row.race.id !== focus.race.id);
-  const reference = others.find(row => row.race.id === referenceId) || others.find(row => manifest.editions[row.race.edition].city === manifest.editions[focus.race.edition].city) || others[0];
-  const unavailable = <>{loading && <p className="rc-copy" role="status">Loading this edition’s comparisons and conditions…</p>}{failure && <div className="runner-error" role="alert"><p>{failure}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}</>;
+  const others = valid.filter(row => row.race.key !== focus.race.key);
+  const reference = others.find(row => row.race.key === referenceId) || others.find(row => manifest.editions[row.race.edition].city === manifest.editions[focus.race.edition].city) || others[0];
+  const unavailable = <>{loading && <p className="rc-copy" role="status">Loading this edition’s comparisons and conditions…</p>}{failure && <div className="runner-error" role="alert"><p>{failure}</p><button type="button" className="btn btn-secondary is-compact" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}{!loading && !failure && !context && <p className="rc-copy rc-none">No comparison is available for this edition.</p>}</>;
   const edition = manifest.editions[focus.race.edition];
   const wetFocus = wet.includes(edition.city);
   const reportTimes = report ? wholeSeconds(focus.metrics) : null;
   // The split check with these times is in the report's share sheet, the view's one way on.
   const splitHref = splitCheckHref(focus.metrics.sections.map(section => section.cumulative), edition.city);
-  const reportOpen = reportFor === focus.race.id, showReport = reportOpen && report && reportTimes;
+  const reportOpen = reportFor === focus.race.key, showReport = reportOpen && report && reportTimes;
   // A race is named by its edition and finish; the record number is added only where two races would read the same.
   const raceName = ({ race, metrics }: MeasuredRace) => `${titleFor(race, manifest)} · ${runnerDuration(metrics.finish)}`;
-  const optionText = (row: MeasuredRace, rows: MeasuredRace[]) => rows.filter(other => raceName(other) === raceName(row)).length > 1 ? `${raceName(row)} · record ${row.race.id}` : raceName(row);
+  const optionText = (row: MeasuredRace, rows: MeasuredRace[]) => rows.filter(other => raceName(other) === raceName(row)).length > 1 ? `${raceName(row)} · record ${row.race.key}` : raceName(row);
   return <section ref={sectionRef} tabIndex={-1} className="runner-context ph-no-capture" aria-labelledby={`${id}-title`}>
     {/* One heading: the race in view (with two or more, the focus race the select picks). */}
-    <header className="rc-heading"><h2 id={`${id}-title`} className={valid.length < 2 ? undefined : 'sr-only'}>{`${titleFor(focus.race, manifest)}, ${runnerDuration(focus.metrics.finish)}`}</h2><label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.id} onChange={event => { setReportPressed(false); setFocusId(Number(event.target.value)); }}>{valid.map(row => <option key={row.race.id} value={row.race.id}>{optionText(row, valid)}</option>)}</select></label></header>
+    <header className="rc-heading"><h2 id={`${id}-title`} className={valid.length < 2 ? undefined : 'sr-only'}>{`${titleFor(focus.race, manifest)}, ${runnerDuration(focus.metrics.finish)}`}</h2><label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.key} onChange={event => { setReportPressed(false); setFocusId(event.target.value); }}>{valid.map(row => <option key={row.race.key} value={row.race.key}>{optionText(row, valid)}</option>)}</select></label>
+      {/* Every race in view shows its edition's tier (D16); a race of an edition that is not counted keeps its own pacing and is compared with no one (R4). */}
+      <p className="rc-labels"><EditionLabels edition={edition} link /></p>
+      {focus.race.counted ? null : <p className="rc-copy rc-own">Its own pacing only: this race is compared with no other finishes.</p>}</header>
     {/* With the race report open it takes the view's place (round 5: appended under the view, it repeated the Pacing
         tab's lap list a screen higher): the tabs and the comparison step aside behind one way back. */}
     {showReport ? null : <>
-    <Segmented className="rc-tabs" label="Race detail view" options={TABS} value={tab} onChange={setTab} block />
+    {focus.race.counted ? <Segmented className="rc-tabs" label="Race detail view" options={TABS} value={tab} onChange={setTab} block /> : null}
     <div className="rc-panel" id={`${id}-panel`}>
-      {tab === 'pacing' && <PacingReadings {...focus} manifest={manifest} units={units} />}
-      {tab === 'peers' && <><label className="rc-group-control" htmlFor={`${id}-group`}>Compare with runners in this edition<select id={`${id}-group`} className="select" value={selectedGroup} onChange={event => setGroupState({ race: focus.race.id, key: event.target.value as ComparisonKey })}>{groupOptions.map(option => <option key={option.key} value={option.key} disabled={!option.available}>{option.label}</option>)}</select></label>{unavailable}{context && (comparison ? <RunnerPeerComparison comparison={comparison} metrics={focus.metrics} units={units} edition={titleFor(focus.race, manifest)} /> : <div className="rc-empty"><h3 className="rc-h">This group is too small for a reliable comparison.</h3><p className="rc-copy">The recorded pacing is under “Pacing.”</p>{selectedGroup !== 'all' && <button type="button" className="btn btn-secondary is-compact" onClick={() => setGroupState({ race: focus.race.id, key: 'all' })}>Compare with all eligible runners</button>}</div>)}</>}
-      {tab === 'conditions' && <>{unavailable}{context && <RunnerConditions context={context} metrics={focus.metrics} units={units} wet={wetFocus} />}</>}
+      {(tab === 'pacing' || !focus.race.counted) && <PacingReadings {...focus} manifest={manifest} units={units} />}
+      {tab === 'peers' && focus.race.counted && <><label className="rc-group-control" htmlFor={`${id}-group`}>Compare with runners in this edition<select id={`${id}-group`} className="select" value={selectedGroup} onChange={event => setGroupState({ race: focus.race.key, key: event.target.value as ComparisonKey })}>{groupOptions.map(option => <option key={option.key} value={option.key} disabled={!option.available}>{option.label}</option>)}</select></label>{unavailable}{context && (comparison ? <RunnerPeerComparison comparison={comparison} metrics={focus.metrics} units={units} edition={titleFor(focus.race, manifest)} /> : <div className="rc-empty"><h3 className="rc-h">This group is too small for a reliable comparison.</h3><p className="rc-copy">The recorded pacing is under “Pacing.”</p>{selectedGroup !== 'all' && <button type="button" className="btn btn-secondary is-compact" onClick={() => setGroupState({ race: focus.race.key, key: 'all' })}>Compare with all eligible runners</button>}</div>)}</>}
+      {tab === 'conditions' && focus.race.counted && <>{unavailable}{context && <RunnerConditions context={context} metrics={focus.metrics} units={units} wet={wetFocus} />}</>}
     </div>
     {reference && <section className="rc-multi" aria-labelledby={`${id}-comparison-title`}>
       <SectionComparison focus={focus} reference={reference} manifest={manifest} id={`${id}-comparison-title`} />
-      {others.length > 1 ? <label className="rc-focus" htmlFor={`${id}-reference`}>Compared with<select id={`${id}-reference`} className="select" value={reference.race.id} onChange={event => setReferenceId(Number(event.target.value))}>{others.map(row => <option key={row.race.id} value={row.race.id}>{optionText(row, others)}</option>)}</select></label> : null}
+      {others.length > 1 ? <label className="rc-focus" htmlFor={`${id}-reference`}>Compared with<select id={`${id}-reference`} className="select" value={reference.race.key} onChange={event => setReferenceId(event.target.value)}>{others.map(row => <option key={row.race.key} value={row.race.key}>{optionText(row, others)}</option>)}</select></label> : null}
       <Values id={`${id}-races`} caption="The selected races side by side" count={valid.length}>
         <table className="table"><thead><tr><th scope="col">Race</th><th scope="col">Finish</th><th scope="col">Average pace</th><th scope="col">From 30K, against 5–20K</th><th scope="col">Ahead of, in every 100</th><th scope="col">Start temperature</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Start-hour precipitation</th><th scope="col">Climbing</th></tr></thead><tbody>{valid.map(({ race, metrics }) => {
-          const data = loading || failure ? undefined : contexts[race.id], demographic = data?.comparisons[defaultGroup(race)];
+          const data = loading || failure ? undefined : contexts[race.key], demographic = data?.comparisons[defaultGroup(race)];
           const none = loading ? '…' : 'Not available';
-          return <tr key={race.id}><th scope="row">{titleFor(race, manifest)}</th><td>{runnerDuration(metrics.finish)}</td><td>{paceLabel(metrics.pace, units)}</td><td>{signed(metrics.lateChange)}</td><td>{demographic ? <>{Math.floor(demographic.percentile)}<small>{demographic.label}</small></> : none}</td><td>{data?.weather ? temperature(data.weather.temp_c, units) : none}</td><td>{data?.weather ? decimal(data.weather.humidity_pct) + '%' : none}</td><td>{data?.weather ? wind(data.weather.wind_mps, units) : none}</td><td>{data?.weather ? precipitation(data.weather.precip_mm, units) : none}</td><td>{data?.terrain && !wet.includes(manifest.editions[race.edition].city) ? elevationLabel(data.terrain.gain_m, units) : none}</td></tr>;
+          return <tr key={race.key}><th scope="row">{titleFor(race, manifest)}</th><td>{runnerDuration(metrics.finish)}</td><td>{paceLabel(metrics.pace, units)}</td><td>{signed(metrics.lateChange)}</td><td>{demographic ? <>{Math.floor(demographic.percentile)}<small>{demographic.label}</small></> : none}</td><td>{data?.weather ? temperature(data.weather.temp_c, units) : none}</td><td>{data?.weather ? decimal(data.weather.humidity_pct) + '%' : none}</td><td>{data?.weather ? wind(data.weather.wind_mps, units) : none}</td><td>{data?.weather ? precipitation(data.weather.precip_mm, units) : none}</td><td>{data?.terrain && !wet.includes(manifest.editions[race.edition].city) ? elevationLabel(data.terrain.gain_m, units) : none}</td></tr>;
         })}</tbody></table>
       </Values>
     </section>}
     </>}
-    {report && reportTimes && <section className="rc-report" aria-labelledby={`${id}-report-title`}>
+    {report && reportTimes && focus.race.counted && <section className="rc-report" aria-labelledby={`${id}-report-title`}>
       <h3 id={`${id}-report-title`} className={reportOpen ? 'sr-only' : 'rc-h'}>{titleFor(focus.race, manifest)} on one page, to print or share.</h3>
       {/* Marked for section_viewed: the section tracker watches sections that join the page after it first looked. */}
       {reportOpen
         ? <div data-track-section="report"><button ref={backRef} type="button" className="btn btn-tertiary rc-report-back" onClick={() => setReportFor(null)}><Arrow dir="left" />Back to the analysis</button><Suspense fallback={<p className="rc-copy" role="status">Loading the race report…</p>}><RaceReport times={reportTimes} course={courseSlug(edition.city)} gender="all" data={report} level={3}
-          record={{ edition: { city: edition.city, year: edition.year }, context: context && wetFocus ? { ...context, terrain: null } : context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} onward={splitHref ? runnerHandoffHref(splitHref) : null} /></Suspense></div>
-        : <button type="button" className="btn btn-secondary" onClick={() => { setReportPressed(true); setReportFor(focus.race.id); }}>Make a race report</button>}
+          record={{ edition: { city: edition.city, year: edition.year, tier: TIERS[edition.tier] }, context: context && wetFocus ? { ...context, terrain: null } : context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} onward={splitHref ? runnerHandoffHref(splitHref) : null} /></Suspense></div>
+        : <button type="button" className="btn btn-secondary" onClick={() => { setReportPressed(true); setReportFor(focus.race.key); }}>Make a race report</button>}
     </section>}
   </section>;
 }

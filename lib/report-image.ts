@@ -79,7 +79,7 @@ export async function renderReportImage(model: ReportModel, units: UnitSystem): 
   ctx.textBaseline = 'alphabetic';
   ctx.font = `600 26px ${SANS}`;
   ctx.fillStyle = c.ink2;
-  ctx.fillText('RACE REPORT', M, 118);
+  ctx.fillText(l.tier ? `RACE REPORT · ${l.tier.toUpperCase()}` : 'RACE REPORT', M, 118);
   ctx.textAlign = 'right';
   ctx.fillStyle = c.ink;
   ctx.fillText('PACE NOTES', W - M, 118);

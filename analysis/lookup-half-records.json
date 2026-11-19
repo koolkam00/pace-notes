@@ -1,0 +1,56 @@
+{
+ "document": "The half-marathon editions of the release that the runner lookup lists and never compares. analysis/build_runner_lookup.py reads this file and stops when the release gives another set. Which half rows never appear is not stated here: it is the identity file’s `left_out` status, the half row rule the lead froze (decision D28, HALF_ROW_RULE in analysis/adapt_combined.py), and the builder reads it from that file alone.",
+ "schema_version": 2,
+ "tag": "pace-notes-marathon-half-20261113-1113",
+ "reviewed_on": "2026-11-14",
+ "no_comparison": {
+  "words": "These editions are listed with their results and marked; a marked edition's results are never compared with other years or races and never enter a best, a ranking or an average. Editions are [source database, release key, year].",
+  "gun_times": {
+   "code": 1,
+   "rule": "the release's edition_meta.timing_basis starts with \"gross\" (lead decision D6; the build stops unless that set equals this list)",
+   "editions": [
+    [
+     "half",
+     "Berlin",
+     2018
+    ],
+    [
+     "half",
+     "Berlin",
+     2019
+    ],
+    [
+     "half",
+     "Berlin",
+     2021
+    ],
+    [
+     "half",
+     "Berlin",
+     2022
+    ],
+    [
+     "half",
+     "Berlin",
+     2023
+    ]
+   ]
+  },
+  "course_suspected_short": {
+   "code": 2,
+   "rule": "every row of the edition carries course_shortened_suspect in the person-links file (lead decision D24.10; the build stops unless the flagged editions equal this list and are flagged in full)",
+   "editions": [
+    [
+     "half",
+     "Drammen Half",
+     2017
+    ],
+    [
+     "half",
+     "Drammen Half",
+     2019
+    ]
+   ]
+  }
+ }
+}
