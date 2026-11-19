@@ -677,15 +677,17 @@ def run(source,output,live_as_of,personalized_output=None,identity=None):
     provenance=json.loads((source/'provenance.json').read_text())
     assert counts['raw']==manifest['n_records']
     provenance['_source']=str(source)
+    # The record tables before `eligible` are read last by the edition report and (unique_records, with the candidate
+    # links) by the linkage diagnostics; dropping each after its last reader frees memory for the joins (November 19, 2026).
+    quality=source_quality_report(db,source)
+    for table in ['timing_eligible', 'paced', 'parsed']:
+        db.execute(f'DROP TABLE {table}')
     diagnostics=prepare_history(db,source,identity)
     assert diagnostics['recent_benchmark_finishes']>=100, 'Insufficient verified linked histories'
     print(json.dumps(diagnostics),flush=True)
-    quality=source_quality_report(db,source)
-    pub=ExtendedPublisher(output,provenance,manifest,counts,live_as_of,source_quality=quality)
-    # The record tables before `eligible` and the candidate links are not read again: the diagnostics and the edition
-    # report above are their last readers. Dropping them frees their memory before the packs (November 19, 2026).
-    for table in ['candidate_links', 'timing_eligible', 'paced', 'parsed', 'unique_records']:
+    for table in ['candidate_links', 'unique_records']:
         db.execute(f'DROP TABLE {table}')
+    pub=ExtendedPublisher(output,provenance,manifest,counts,live_as_of,source_quality=quality)
     for function in [strategy_analyses,checkpoint_analyses,course_analyses,history_analyses,qualifying_analysis]:
         function(db,pub)
         print(f'{function.__name__}: {len(pub.packs)} aggregate packs calculated',flush=True)

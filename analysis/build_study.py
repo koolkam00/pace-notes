@@ -25,7 +25,7 @@ from source_quality import source_quality_report
 
 SCRIPTS = ['build_study.py', 'build_pacing.py', 'build_extended.py', 'source_quality.py', 'cohort.py']
 # The tables and views prepare_history creates; dropped before it runs again on high links alone.
-HISTORY_OBJECTS = [('TABLE', 'pairs'), ('TABLE', 'history'), ('TABLE', 'prior'), ('TABLE', 'linked'), ('TABLE', 'candidate_links'),
+HISTORY_OBJECTS = [('TABLE', 'pairs'), ('TABLE', 'history'), ('TABLE', 'prior'), ('TABLE', 'linked'),
                    ('TABLE', 'weather'), ('VIEW', 'weather_raw'), ('TABLE', 'safe_ids'), ('TABLE', 'identity_keys'),
                    ('VIEW', 'canonical_raw'), ('VIEW', 'features')]
 
@@ -122,14 +122,18 @@ def run(source, output, identity, cohort_root):
     from source_quality import REVIEWED_POLICIES
     assert origin['release_tag'] in REVIEWED_POLICIES, 'Review the new source and edition policy before adoption'
     assert origin['release_tag'] == base['release_tag'] and origin['manifest_sha256'] == base['input_manifest_sha256'], 'The cohort was built from another input'
-    db = duckdb.connect(); db.execute("SET memory_limit='6GB'"); db.execute('SET threads=2')
+    db = duckdb.connect(); db.execute("SET memory_limit='8GB'"); db.execute('SET threads=2')
     scratch = output.parent/'study-temp'; scratch.mkdir(parents=True, exist_ok=True)
     db.execute('SET temp_directory=?', [str(scratch)]); db.execute("SET max_temp_directory_size='4GB'")
     counts = prepare(db, source, keep_record_id=True)
     assert counts['raw'] == manifest['n_records'] and counts == base['cohort'], 'The input does not reproduce the cohort'
     quality = source_quality_report(db, source)
     assert quality == base['source_quality'], 'The edition policy is not the cohort\'s'
+    # Free the record tables nothing reads again before the joins (unique_records stays: prepare_history reads it twice).
+    for table in ['timing_eligible', 'paced', 'parsed']:
+        db.execute(f'DROP TABLE {table}')
     linkage = prepare_history(db, source, identity)
+    db.execute('DROP TABLE candidate_links')
     assert linkage['canonical_id_contract_verified']
     assert linkage['linked_eligible_finishes'] == base['linkage']['counted_records_with_a_runner'] \
         and linkage['recent_benchmark_finishes'] == base['linkage']['recent_benchmark_finishes'], 'The linked histories are not the cohort\'s'
