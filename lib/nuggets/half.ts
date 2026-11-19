@@ -9,8 +9,8 @@
  * and proves its fallback on a fixture. Fallbacks never assert a direction. The deks with numbers are built here too
  * (`halfDeks`), so a page types no number.
  */
-import type { HalfBatteryId, HalfBatteryMember, HalfField, HalfLeaveOutClause, HalfLeaveOutParent, HalfLeaveOutVariant, HalfLeaveOutWorstKey, HalfLinked, HalfWindow, HalfWomen } from '@/lib/half-types';
-import { readHalf } from '@/lib/half-server';
+import type { HalfBatteryId, HalfBatteryMember, HalfField, HalfLeaveOutClause, HalfLeaveOutParent, HalfLeaveOutVariant, HalfLeaveOutWorstKey, HalfLinked, HalfPacing, HalfWindow, HalfWomen } from '@/lib/half-types';
+import { halfPublished, readHalf } from '@/lib/half-server';
 import { floorHM, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
 import { count, inWords, pct, ratio, spokenPct, spokenTime } from './format';
 import { shareFigure, type Builder } from './build';
@@ -321,6 +321,68 @@ export function halfSexesGuessFrom(linked: HalfLinked): Nugget {
   };
 }
 
+// ---------- /half, the foot: how halves are paced (every usable result with a 10 km time) ----------
+
+/**
+ * The pacing guards' thresholds (docs/HALF_MARATHON.md rule R5, recorded November 14, 2026, before any build): the
+ * pooled median strictly between +1% and +10%; the equal-edition and equal-label medians and every leave-one-label-out
+ * median within 1.0 point of it; at least 80% of the editions with a median above zero; the equal-edition share faster
+ * and every leave-one-label-out share within 5 points of the pooled share; at least 4 finish bands from 1:20 on.
+ */
+export const PACE_CLAUSES = { median: [0.01, 0.10], gap: 0.01, editions_above_zero: 0.8, faster_gap: 0.05, bands_from_s: 4800, min_bands: 4, min_band_labels: 3 } as const;
+
+/** The pacing file when the family is published (analysis/half_pacing.py leaves it out under a builder floor), else null. */
+export function halfPacing(): HalfPacing | null {
+  return halfPublished('pacing.json') ? readHalf('pacing.json') : null;
+}
+
+/** The surface's foot heading: after 10 km, the typical half ran about 3% slower. */
+export function halfPaceFrom(p: HalfPacing | null): Nugget {
+  const C = PACE_CLAUSES;
+  const o = p?.overall, e = p?.editions_equal, l = p?.labels_equal, x = p?.leave_label_out;
+  const near = (v: number | undefined) => !!o && typeof v === 'number' && Math.abs(v - o.median) <= C.gap;
+  const guard = !!p && !!o && !!e && !!l && !!x && between(o.median, C.median[0], C.median[1]) && near(e.median) && near(l.median)
+    && near(x.median_min) && near(x.median_max) && e.above_zero >= C.editions_above_zero * e.editions;
+  return {
+    id: 'half.pace', page: '/half#pace', denominator: 'half',
+    values: p && o && e && l && x ? { median: o.median, results: o.n, editions: o.e, labels: o.l, editions_equal_median: e.median, labels_equal_median: l.median,
+      without_label_min: x.median_min, without_label_max: x.median_max, editions_above_zero: e.above_zero } : {},
+    guard,
+    headline: o ? `After 10 km, the typical half ran about *${pct(o.median)} slower*.` : '',
+    fallback: 'Pace after 10 km of a half, against the first 10 km.',
+    figure: null,
+  };
+}
+
+/** The share that ran the last 11.1 km faster than the first 10 km (the surface's dek, while its guard holds). */
+export function halfPaceFasterFrom(p: HalfPacing | null): Nugget {
+  const C = PACE_CLAUSES;
+  const o = p?.overall, e = p?.editions_equal, x = p?.leave_label_out;
+  const near = (v: number | undefined) => !!o && typeof v === 'number' && Math.abs(v - o.faster) <= C.faster_gap;
+  const guard = !!p && !!o && !!e && !!x && near(e.faster) && near(x.faster_min) && near(x.faster_max);
+  return {
+    id: 'half.paceFaster', page: '/half#pace', denominator: 'half',
+    values: p && o && e && x ? { faster: o.faster, editions_equal_faster: e.faster, without_label_min: x.faster_min, without_label_max: x.faster_max } : {},
+    guard,
+    headline: o ? `*${pct(o.faster)}* ran the last 11.1 km faster than the first 10 km.` : '',
+    fallback: 'The last 11.1 km against the first 10 km, result by result.',
+    figure: null,
+  };
+}
+
+/** The published finish bands from 1:20 on, and whether a dek may name the first and the last of them (half.paceBands). */
+export function halfPaceBands(p: HalfPacing | null): { guard: boolean; bands: HalfPacing['bands']; first: HalfPacing['bands'][number] | null; last: HalfPacing['bands'][number] | null } {
+  const C = PACE_CLAUSES;
+  const bands = (p?.bands ?? []).filter((b) => b.lo_s >= C.bands_from_s);
+  const first = bands[0] ?? null, last = bands[bands.length - 1] ?? null;
+  const guard = bands.length >= C.min_bands && bands.every((b, i) => !i || b.median >= bands[i - 1].median)
+    && !!first && !!last && first.l >= C.min_band_labels && last.l >= C.min_band_labels;
+  return { guard, bands, first, last };
+}
+
+/** A finish band in words: "1:20 to 1:39". */
+export const paceBandLabel = (lo_s: number, band_s: number) => `${clock(lo_s)} to ${clock(lo_s + band_s - 60)}`;
+
 // ---------- The deks with numbers (pages print these, never their own figures) ----------
 
 export type HalfDeks = {
@@ -397,13 +459,22 @@ export type HalfDeks = {
   guess: string | null;
   /**
    * After the guess's reveal: the same comparison 15 minutes either side ("After a 1:30 half: 7% of recorded women’s,
-   * against 17% of men’s. After a 2:00 half: 22% against 44%."), only while recorded women's share is the lower at both.
-   * Null otherwise.
+   * against 17% of men’s. After a 2:00 half: 22% against 44%."), only while recorded women's share is the lower at both
+   * and half.sexes holds: under a heading that states no direction, the dek sets no two shares side by side (recorded
+   * November 14, 2026, before any build of the combined release; it only tightens). Null otherwise.
    */
   guessMore: string | null;
+  /**
+   * The pacing surface's dek, in two parts, each only while its guard holds: the share that ran the last 11.1 km faster
+   * (half.paceFaster's sentence) and the first and last published finish bands from 1:20 on ("The slower the finish,
+   * the larger the change: about 1% for finishes of 1:20 to 1:39, about 12% for 3:00 to 3:19."; half.paceBands, and
+   * only while the last band's printed median is the larger). Null without the family or under a failed guard.
+   */
+  paceFaster: string | null;
+  paceBands: string | null;
 };
 
-export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLinked): HalfDeks {
+export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLinked, pacing: HalfPacing | null = null): HalfDeks {
   const u = underAt(field, 6300);
   const marks = Object.fromEntries(field.marks.map((m) => [m.minutes, m]));
   const others = [105, 135, 150].map((k) => marks[k]?.ratio ?? NaN);
@@ -438,6 +509,7 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
   const [fromWeeks, toWeeks] = linked.set.window_days.map((d) => d / 7);
   const span = Number.isInteger(fromWeeks) && Number.isInteger(toWeeks) ? `${fromWeeks} to ${toWeeks} weeks` : `${linked.set.window_days[0]} to ${linked.set.window_days[1]} days`;
   const rangeLead = w && halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}.` : null;
+  const faster = halfPaceFasterFrom(pacing), pb = halfPaceBands(pacing);
   return {
     fieldUnit: `the median half finish; recorded women’s ${clock(field.quantiles.F.p50)}, men’s ${clock(field.quantiles.M.p50)}`,
     slide: fieldSlide,
@@ -461,15 +533,19 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
         : `+${minutesOver(qb)} after a ${clock(qb.h)}`}.`
       : null,
     guess: f && m ? `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?` : null,
-    guessMore: f && m && lower ? pairs.map(([pf, pm], k) => (k === 0
+    guessMore: f && m && lower && halfSexesFrom(linked).guard ? pairs.map(([pf, pm], k) => (k === 0
       ? `After a ${clock(pf!.h)} half: ${pct(pf!.sus)} of recorded women’s, against ${pct(pm!.sus)} of men’s.`
       : `After a ${clock(pf!.h)} half: ${pct(pf!.sus)} against ${pct(pm!.sus)}.`)).join(' ') : null,
+    paceFaster: faster.guard ? String(faster.headline).replace(/\*/g, '') : null,
+    paceBands: pacing && pb.guard && pb.first && pb.last && Math.round(pb.last.median * 100) > Math.round(pb.first.median * 100)
+      ? `The slower the finish, the larger the change: about ${pct(pb.first.median)} for finishes of ${paceBandLabel(pb.first.lo_s, pacing.rules.band_s)}, about ${pct(pb.last.median)} for ${paceBandLabel(pb.last.lo_s, pacing.rules.band_s)}.`
+      : null,
   };
 }
 
 /** The deks from the verified files. */
 export function halfDeks(): HalfDeks {
-  return halfDeksFrom(readHalf('field.json'), readHalf('women.json'), readHalf('linked.json'));
+  return halfDeksFrom(readHalf('field.json'), readHalf('women.json'), readHalf('linked.json'), halfPacing());
 }
 
 export const HALF_NUGGETS: Record<string, Builder> = {
@@ -482,4 +558,6 @@ export const HALF_NUGGETS: Record<string, Builder> = {
   'half.range': () => halfRangeFrom(readHalf('linked.json')),
   'half.sexes': () => halfSexesFrom(readHalf('linked.json')),
   'half.sexesGuess': () => halfSexesGuessFrom(readHalf('linked.json')),
+  'half.pace': () => halfPaceFrom(halfPacing()),
+  'half.paceFaster': () => halfPaceFasterFrom(halfPacing()),
 };

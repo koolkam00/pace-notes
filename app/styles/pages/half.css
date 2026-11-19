@@ -61,3 +61,13 @@
   .half-cities .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 1fr); }
   .half-cities .viz-frame.dumbbell .dumbbell-axis > span:last-child { display: none; }
 }
+
+/* /half/races: a race listed in full is its name, one line of facts and its years as a table; every other race is a fold
+   in the on-demand list. The tier and timing labels are the tier module's (badge.css); nothing here colours a tier. */
+.half-races .half-race { margin-top: var(--s-6); max-width: var(--measure-figure); }
+.half-races .half-race-name { margin: 0; font-family: var(--sans); font-size: 1.125rem; font-weight: 600; line-height: 1.3; }
+.half-races .half-race-line { margin: 4px 0 var(--s-2); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.half-races .half-race-editions td.is-text { text-align: left; }
+.half-races .half-race-mark { font-size: var(--t-small); color: var(--ink-2); }
+.half-races .half-races-all { display: grid; gap: var(--s-3); max-width: var(--measure-figure); }
+.half-races .half-race-fold summary .race-name { font-weight: 600; }
