@@ -1,4 +1,15 @@
-"""Build current-source race-day peer comparisons and environmental context."""
+"""Build current-source race-day peer comparisons and environmental context.
+
+    python3 -s analysis/build_runner_context.py --input <adapted FULL dir> --output <fresh dir> [--cohort analysis/marathon-cohort]
+
+The context binds the marathon cohort (analysis/cohort.py; adoption ruling D24.1 of 2026-11-14), not the runner
+lookup: the peer groups are those of the cohort's counted records, and the manifest names the cohort manifest's
+digest. An edition has a context file when the cohort counts it and it has a peer group, a weather row or a route
+profile; an edition without a file has no comparison (ruling D24.8). `editions` in the manifest is keyed by the
+edition's index in the cohort manifest. `runner_manifest_sha256` and `runner_manifest_as_of` keep their names from
+the time the context bound the runner manifest; they hold the cohort manifest's digest and `as_of`, as
+`cohort_manifest_sha256` says in its own name.
+"""
 import argparse
 import gzip
 import hashlib
@@ -8,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import duckdb
+import cohort as marathon_cohort
 from build_pacing import prepare
 from runner_environment import build_environment
 from runner_peers import build_peer_editions
@@ -69,39 +81,49 @@ def verified_master_inputs(source, provenance):
     return hashes
 
 
-def run(source, output, runner_root):
+def run(source, output, cohort_root):
     repository = Path(__file__).resolve().parent.parent
     pin = json.loads((repository/'analysis/release.json').read_text())
     origin = json.loads((source/'provenance.json').read_text())
-    runners = json.loads((runner_root/'manifest.json').read_text())
+    base, base_sha = marathon_cohort.verified_manifest(cohort_root, pin, repository/'analysis')
     from source_quality import REVIEWED_POLICIES
-    assert origin['release_tag'] == runners['release_tag'] == pin['tag']
+    assert origin['release_tag'] == base['release_tag'] == pin['tag']
     assert pin['tag'] in REVIEWED_POLICIES, 'Review the source and edition policy before adoption'
-    assert origin['asset_sha256'] == runners['input_asset_sha256'] and origin['manifest_sha256'] == runners['input_manifest_sha256']
+    assert origin['asset_sha256'] == base['input_asset_sha256'] and origin['manifest_sha256'] == base['input_manifest_sha256'], \
+        'The cohort was built from another input'
     files = verified_inputs(source, origin)
     db = duckdb.connect()
-    db.execute("SET memory_limit='3GB'")
+    # 5 GB (3 GB until the combined release, 7.8 million rows): the prepared tables no longer fit in 3 GB without a large
+    # spill. The temporary folder is capped, so a plan that needs more fails at once instead of filling the disk.
+    db.execute("SET memory_limit='5GB'")
     db.execute('SET threads=2')
     scratch = output.parent/'runner-context-temp'
     scratch.mkdir(parents=True, exist_ok=True)
     db.execute('SET temp_directory=?', [str(scratch)])
+    db.execute("SET max_temp_directory_size='4GB'")
     cohort = prepare(db, source, keep_record_id=True)
     quality = source_quality_report(db, source)
-    assert cohort == runners['cohort'] and quality == runners['source_quality']
-    editions = runners['editions']
-    actual = db.execute('SELECT DISTINCT city,year,race FROM read_parquet(?) ORDER BY city,year,race', [str(source/'race_records.parquet')]).fetchall()
-    assert actual == [(e['city'], e['year'], e['race']) for e in editions], 'Runner edition mapping changed'
+    assert cohort == base['cohort'] and quality == base['source_quality'], 'The input does not reproduce the cohort'
+    # The editions the cohort counts, by their index in its manifest: the eligible finishes are exactly theirs.
+    counted = [(index, edition) for index, edition in enumerate(base['editions']) if edition['use'] == 'counted']
+    actual = db.execute('SELECT city,year,race,count(*) FROM eligible GROUP BY city,year,race ORDER BY city,year,race').fetchall()
+    assert actual == [(e['city'], e['year'], e['race'], e['eligible']) for _, e in counted], 'The eligible finishes are not the cohort’s counted editions'
     peers = build_peer_editions(db)
     print(json.dumps({'peer_editions':len(peers), 'eligible':cohort['eligible']}), flush=True)
-    environment = build_environment(db, source, editions)
+    environment = build_environment(db, source, [dict(city=e['city'], year=e['year'], race=e['race']) for _, e in counted])
     output.mkdir(parents=True, exist_ok=True)
     (output/'editions').mkdir(exist_ok=True)
-    transport = {}
+    transport, without = {}, []
     totals = dict(eligible=0, groups=0, pace_cells=0, cdf_cells=0, weather_editions=0, terrain_editions=0)
-    for index, edition in enumerate(editions):
+    for index, entry in counted:
+        edition = dict(city=entry['city'], year=entry['year'], race=entry['race'])
         key = (edition['city'], edition['year'], edition['race'])
-        peer = peers.get(key, dict(eligible_n=0, age_n=0, gender_n=0, groups={}))
+        peer = peers[key]
         context = environment[key]
+        if not peer['groups'] and context['weather'] is None and context['terrain'] is None:
+            # Nothing to compare this edition's finishes with: no file, and the edition is listed with its finishes.
+            without.append(dict(index=index, **edition, eligible_n=peer['eligible_n']))
+            continue
         payload = dict(schema_version=1, release_tag=pin['tag'], edition=dict(index=index, **edition), **peer, **context)
         relative = f'editions/{index:03}.json.gz'
         compressed = gzip.compress(encode(payload), compresslevel=6, mtime=0)
@@ -113,13 +135,14 @@ def run(source, output, runner_root):
         totals['cdf_cells'] += sum(len(g['finish']) for g in peer['groups'].values())
         totals['weather_editions'] += context['weather'] is not None
         totals['terrain_editions'] += context['terrain'] is not None
-    assert totals['eligible'] == cohort['eligible']
-    manifest = dict(schema_version=1, release_tag=pin['tag'], input_as_of=runners['input_as_of'],
+    assert totals['eligible'] + sum(e['eligible_n'] for e in without) == cohort['eligible']
+    manifest = dict(schema_version=1, release_tag=pin['tag'], input_as_of=base['input_as_of'],
                     as_of=datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z'),
-                    runner_manifest_as_of=runners['as_of'], runner_manifest_sha256=digest(runner_root/'manifest.json'),
+                    runner_manifest_as_of=base['as_of'], runner_manifest_sha256=base_sha, cohort_manifest_sha256=base_sha,
                     input_asset_sha256=origin['asset_sha256'], input_manifest_sha256=origin['manifest_sha256'],
                     input_files=files, scripts={name:digest(Path(__file__).with_name(name)) for name in SCRIPTS},
-                    cohort=cohort, source_quality=quality, totals=totals, editions=transport,
+                    cohort=cohort, source_quality=quality, totals=totals, counted_editions=len(counted),
+                    editions_without_context=without, editions=transport,
                     methodology=[
                         'Peer groups contain eligible finishes from the exact same city, year and recorded race. These are the database eligible field, not official overall or age-group standings.',
                         'Exact ages 18–24 then five-year bands through 85–89; recorded Men/Women are preserved without inference. Unknown values can use the overall comparison.',
@@ -130,13 +153,13 @@ def run(source, output, runner_root):
                         'Between-race differences are descriptive. Identity selection, field composition, age bands, route changes, training and conditions can differ. No effect of weather, terrain or aging is identified.'
                     ])
     (output/'manifest.json').write_bytes(encode(manifest))
-    print(json.dumps(dict(**totals, compressed_bytes=sum(x['bytes'] for x in transport.values()))), flush=True)
+    print(json.dumps(dict(**totals, editions=len(transport), editions_without_context=len(without), compressed_bytes=sum(x['bytes'] for x in transport.values()))), flush=True)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--input', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--runners', type=Path, default=Path(__file__).resolve().parent.parent/'public/data/runners')
+    parser.add_argument('--cohort', type=Path, default=Path(__file__).resolve().parent.parent/'analysis/marathon-cohort')
     args = parser.parse_args()
-    run(args.input, args.output, args.runners)
+    run(args.input, args.output, args.cohort)

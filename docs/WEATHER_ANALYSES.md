@@ -64,6 +64,8 @@ The [Weather evidence screen workflow](../.github/workflows/weather-analysis.yml
 
 ## Current calculation evidence
 
+November 19, 2026 (`pace-notes-marathon-half-20261113-1113`, adoption branch, not deployed): the weather screen was recalculated locally from the adapted FULL folder (input `MANIFEST.json` `e994ac15…`) beside the marathon cohort. The evidence now names the cohort manifest (`cohort_manifest_sha256` `a812fa41…`, `cohort_manifest_as_of` `2026-11-14T15:24:11Z`); `build_weather.py` and `verify-weather` require the same input, the cohort's counts (the weather counts sit beside them), the same edition policy and, for every weather edition, a counted edition of the cohort with the weather row's race date. 189 editions, 25 courses and 3,955,561 finishes; warming +2.07 (+1.52 to +2.62) ready as an association, wind +0.34 (−0.06 to +0.71) ready as a precise small difference, humidity +0.27 (−0.60 to +1.07) withheld. `public/data/weather/evidence.json` SHA-256 `abf7e272bee3790271df0634ebbf7e691c13278f7e0897dc9fce85beb7ae05d4`, `as_of` `2026-11-19T15:54:02Z`, `build_weather.py` `4c27b9a6…`.
+
 November 4–5, 2026 (`master-20261103b`): the weather screen was recalculated locally from the adapted FULL folder (`build_weather.py`; warming and wind ready, humidity withheld), in the run the [refresh record](REFRESH_20261103b.md#calculation-and-import-record) logs.
 The committed `public/data/weather/evidence.json` names `master-20261103b` and has `as_of` 2026-11-05T16:13:24Z (read November 11, 2026).
 The estimates are in the [refresh record](REFRESH_20261103b.md#refreshed-outputs).
