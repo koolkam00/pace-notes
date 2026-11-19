@@ -13,10 +13,26 @@ Module._resolveFilename = function (request, ...args) {
   return resolveFilename.call(this, request.startsWith('@/') ? path.join(__dirname, '..', request.slice(2)) : request, ...args);
 };
 
+// Runner context in the browser on lookup version 2: peer placement, groups and race comparisons on fixtures, and the
+// loader against a real lookup manifest (PACE_NOTES_LOOKUP_DIR, a development build, or the committed lookup; never
+// skipped). The context binds to the marathon cohort the lookup names (lead ruling D24.8): its digest, the release, the
+// input time, the cohort's own time and counts; an edition the context manifest does not list has no comparison, and a
+// race that is not counted is compared with no one and asks for nothing.
+const LOOKUP_DIR = process.env.PACE_NOTES_LOOKUP_DIR ? path.resolve(process.env.PACE_NOTES_LOOKUP_DIR) : path.join(__dirname, '../public/data/runners');
+if (process.env.PACE_NOTES_LOOKUP_DIR) process.env.NEXT_PUBLIC_RUNNER_DATA = '/data/runners-dev';
+const SERVED = process.env.PACE_NOTES_LOOKUP_DIR ? '/data/runners-dev/' : '/data/runners/';
+const lookupHead = JSON.parse(fs.readFileSync(path.join(LOOKUP_DIR, 'manifest.json'), 'utf8'));
+assert.equal(lookupHead.schema_version, 2, `${LOOKUP_DIR} is not a schema 2 runner lookup (set PACE_NOTES_LOOKUP_DIR to a development build until the final lookup is committed)`);
 const contextFile = require.resolve('../lib/runner-context.ts');
 const freshClient = () => { delete require.cache[contextFile]; return require(contextFile); };
 const client = freshClient();
 const { RUNNER_RELEASE, RUNNER_POINTS, loadRunnerManifest, runnerManifestDigest } = require('../lib/runner-search.ts');
+const { openLookup } = require('./lib/lookup-files.cjs');
+const lookupEditions = openLookup(LOOKUP_DIR).editions;
+// The fixture edition: the first counted marathon edition the lookup gives a cohort index; a second one stands for an
+// edition the context manifest leaves out.
+const [listedEdition, unlistedEdition] = lookupEditions.filter(e => e.distance === 'marathon' && e.context !== null && e.reason === null);
+const COHORT_INDEX = listedEdition.context;
 const clone = value => structuredClone(value);
 const close = (actual, expected, label) => assert.ok(Math.abs(actual - expected) < 1e-8, `${label}: expected ${expected}, received ${actual}`);
 const tests = [];
@@ -25,18 +41,15 @@ const group = finish => ({ n: finish.reduce((sum, row) => sum + row[1], 0), fini
 const race = (changes = {}) => {
   const finish = changes.finish ?? 14400.125;
   const { finish: _, ...fields } = changes;
-  return { id: 1, edition: 0, name: 'Fixture Runner', sex: 'F', age: 35, eligible: true, reason: null,
-    times: RUNNER_POINTS.map(km => km === 42.195 ? finish : finish * km / 42.195), ...fields };
+  const id = fields.id ?? 1;
+  return { id, key: 'f' + id, db: 'f', distance: 'marathon', edition: listedEdition.index, name: 'Fixture Runner', sex: 'F', age: 35, link: '0', confirmed: false, possible: false,
+    status: 0, eligible: true, counted: true, reason: null, times: RUNNER_POINTS.map(km => km === 42.195 ? finish : finish * km / 42.195), ...fields, key: 'f' + id };
 };
 const pace = { n: 201, from_sec: 13950, to_sec: 14850, q25: Array(9).fill(330), median: Array(9).fill(340), q75: Array(9).fill(350), late_change: { q25: -2, median: 0, q75: 5 } };
 const fullGroup = { ...group([[14400.125, 101], [14500, 100]]), pace: { '240': pace } };
-const edition = { city: 'Example', year: 2020, race: 'Example Marathon' };
-const runners = {
-  schema_version: 1, release_tag: RUNNER_RELEASE, input_as_of: '2026-09-11T15:10:45Z', as_of: '2026-09-12T01:00:00Z',
-  raw_records: 250, named_records: 250, profiles: 250, points_km: RUNNER_POINTS, shards: {}, editions: [edition],
-};
+const edition = { city: listedEdition.city, year: listedEdition.year, race: listedEdition.race };
 const context = {
-  schema_version: 1, release_tag: RUNNER_RELEASE, edition: { ...edition, index: 0 }, eligible_n: 201, age_n: 201, gender_n: 201,
+  schema_version: 1, release_tag: RUNNER_RELEASE, edition: { ...edition, index: COHORT_INDEX }, eligible_n: 201, age_n: 201, gender_n: 201,
   groups: { all: fullGroup, 'gender:Women': clone(fullGroup), 'age:35-39': clone(fullGroup), 'age_gender:35-39:Women': clone(fullGroup) },
   weather: null, weather_reason: 'No unambiguous scheduled start.', terrain: null, terrain_reason: 'No matched route.',
 };
@@ -110,7 +123,7 @@ test('all nine signed section differences reconcile for an explicit same-year pa
   const reference = race({ id: 2, edition: 1, times: RUNNER_POINTS.map(km => km * 330) });
   const changes = [50, -25, 0, 100, -50, 25, -100, 50, -21.95];
   let cumulative = 0;
-  const focus = race({ times: reference.times.map((time, i) => { cumulative += changes[i]; return time + cumulative; }) });
+  const focus = race({ edition: 0, times: reference.times.map((time, i) => { cumulative += changes[i]; return time + cumulative; }) });
   const original = JSON.stringify([focus, reference]);
   const result = client.compareRunnerRaces(focus, reference, manifest);
   assert.equal(result.sections.length, 9); assert.equal(result.sameCourse, true);
@@ -126,10 +139,10 @@ test('all nine signed section differences reconcile for an explicit same-year pa
   assert.equal('earlier' in result, false); assert.equal('improvement' in result, false);
 });
 test('race comparisons reject self-comparison and unusable timings', () => {
-  const manifest = { editions: [edition] }, valid = race();
+  const manifest = { editions: [edition] }, valid = race({ edition: 0 });
   assert.equal(client.compareRunnerRaces(valid, valid, manifest), null);
-  assert.equal(client.compareRunnerRaces(valid, race({ id: 2, eligible: false }), manifest), null);
-  assert.equal(client.compareRunnerRaces(race({ times: Array(9).fill(14400) }), race({ id: 2 }), manifest), null);
+  assert.equal(client.compareRunnerRaces(valid, race({ id: 2, edition: 0, eligible: false }), manifest), null);
+  assert.equal(client.compareRunnerRaces(race({ edition: 0, times: Array(9).fill(14400) }), race({ id: 2, edition: 0 }), manifest), null);
 });
 
 function fixture(options = {}) {
@@ -137,15 +150,14 @@ function fixture(options = {}) {
   options.data?.(data);
   const bytes = gzipSync(Buffer.from(JSON.stringify(data)));
   const sha256 = createHash('sha256').update(bytes).digest('hex');
-  // Include whitespace and a final newline so hashing reserialized JSON cannot
-  // accidentally pass as hashing the exact downloaded manifest bytes.
-  const runnerBytes = Buffer.from(JSON.stringify(runners, null, 2) + '\n');
-  const changedRunners = clone(runners);
-  options.runners?.(changedRunners);
-  const servedRunnerBytes = options.runners ? Buffer.from(JSON.stringify(changedRunners, null, 2) + '\n') : runnerBytes;
-  const manifest = { schema_version: 1, release_tag: RUNNER_RELEASE, input_as_of: runners.input_as_of, as_of: '2026-09-12T02:00:00Z', runner_manifest_as_of: runners.as_of,
-    runner_manifest_sha256: createHash('sha256').update(runnerBytes).digest('hex'), cohort: { raw: runners.raw_records, eligible: 201 },
-    editions: { '0': { file: 'editions/000.json.gz', bytes: bytes.byteLength, sha256 } } };
+  // The lookup manifest as served: its own bytes, or a changed copy.
+  const lookupBytes = fs.readFileSync(path.join(LOOKUP_DIR, 'manifest.json'));
+  const changed = JSON.parse(lookupBytes); options.runners?.(changed);
+  const servedRunnerBytes = options.runners ? Buffer.from(JSON.stringify(changed, null, 2) + '\n') : lookupBytes;
+  const cohort = lookupHead.cohort;
+  const manifest = { schema_version: 1, release_tag: RUNNER_RELEASE, input_as_of: cohort.input_as_of, as_of: '2026-11-14T16:00:00Z', runner_manifest_as_of: cohort.as_of,
+    runner_manifest_sha256: cohort.manifest_sha256, cohort: { raw: cohort.raw_records, eligible: cohort.eligible_records },
+    editions: { [String(COHORT_INDEX)]: { file: 'editions/000.json.gz', bytes: bytes.byteLength, sha256 } } };
   options.manifest?.(manifest);
   return { data, bytes, manifest, servedRunnerBytes };
 }
@@ -153,7 +165,8 @@ async function withFetch(options, run) {
   const payload = fixture(options), requests = [], previous = global.fetch;
   global.fetch = async (url, init = {}) => {
     if (init.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    if (String(url).includes('/data/runners/manifest.json?')) return new Response(payload.servedRunnerBytes);
+    if (String(url).startsWith(SERVED + 'manifest.json?')) return new Response(payload.servedRunnerBytes);
+    if (String(url).startsWith(SERVED)) return new Response(fs.readFileSync(path.join(LOOKUP_DIR, String(url).slice(SERVED.length).replace(/\?v=.*$/, ''))));
     requests.push({ url: String(url), signal: init.signal });
     if (String(url).includes('/data/runner-context/manifest.json?')) return new Response(JSON.stringify(payload.manifest), { status: options.manifestStatus || 200 });
     assert.match(String(url), /\/data\/runner-context\/editions\/000\.json\.gz\?v=[a-f0-9]{64}$/);
@@ -170,8 +183,8 @@ test('loader opens genuine gzip bytes, verifies their hash and reuses an edition
   await withFetch({}, async (loaded, payload, requests) => {
     const control = new AbortController(), selected = [race(), race({ id: 2, finish: 14500 })];
     const result = await loaded.loadRaceInsights(selected, payload.runners, control.signal);
-    assert.deepEqual(Object.keys(result), ['1', '2']); assert.equal(result[1].comparisons.all.n, 201);
-    assert.equal(result[2].comparisons.all.rank, 102); assert.equal(result[1].weather, null);
+    assert.deepEqual(Object.keys(result), ['f1', 'f2'], 'Insights are keyed by record key'); assert.equal(result.f1.comparisons.all.n, 201);
+    assert.equal(result.f2.comparisons.all.rank, 102); assert.equal(result.f1.weather, null);
     assert.equal(requests.length, 2, 'Two selected records in one edition require one compressed file');
     assert.ok(requests.every(request => request.signal === control.signal));
     assert.ok(requests[1].url.endsWith(payload.manifest.editions['0'].sha256));
@@ -179,12 +192,28 @@ test('loader opens genuine gzip bytes, verifies their hash and reuses an edition
     assert.equal(requests.length, 3, 'A verified cached edition is reused after the manifest is checked again');
   });
 });
-test('loader rejects a changed runner shard manifest with identical tag, timestamps and counts', async () => {
-  await withFetch({ runners: value => { value.shards['profiles/000.json.gz'] = { bytes: 123, sha256: 'a'.repeat(64) }; } }, async (loaded, payload, requests) => {
-    for (const key of ['release_tag', 'input_as_of', 'as_of', 'raw_records', 'named_records', 'profiles']) assert.equal(payload.runners[key], runners[key]);
-    assert.notEqual(runnerManifestDigest(payload.runners), payload.manifest.runner_manifest_sha256);
+test('loader rejects a lookup that names another cohort, before any edition download', async () => {
+  await withFetch({ runners: value => { value.cohort.manifest_sha256 = 'a'.repeat(64); } }, async (loaded, payload, requests) => {
+    for (const key of ['release_tag', 'input_as_of', 'as_of']) assert.equal(payload.runners[key], lookupHead[key]);
     await assert.rejects(loaded.loadRaceInsights([race()], payload.runners, new AbortController().signal), /could not be verified/);
-    assert.equal(requests.length, 1, 'A runner-manifest mismatch must stop before any edition download');
+    assert.equal(requests.length, 1, 'A cohort mismatch must stop before any edition download');
+  });
+});
+test('a race that is not counted asks for nothing; an unlisted edition has no comparison', async () => {
+  await withFetch({}, async (loaded, payload, requests) => {
+    const own = race({ status: 1, counted: false, reason: 'Own record.' }), limited = race({ id: 3, status: 3, eligible: false, counted: false, reason: 'Missing.' });
+    assert.deepEqual(await loaded.loadRaceInsights([own, limited], payload.runners, new AbortController().signal), {});
+    assert.equal(requests.length, 0, 'No request when no race is counted');
+    const elsewhere = race({ id: 4, edition: unlistedEdition.index });
+    const result = await loaded.loadRaceInsights([elsewhere, race()], payload.runners, new AbortController().signal);
+    assert.deepEqual(Object.keys(result), ['f1'], 'An edition the context manifest does not list gets no entry');
+    assert.equal(requests.length, 2, 'The context manifest and the one listed edition');
+    assert.ok(requests[1].url.includes(payload.manifest.editions[String(COHORT_INDEX)].sha256), 'Only the listed edition\'s file');
+  });
+});
+test('the context manifest lists files only under cohort edition indexes', async () => {
+  await withFetch({ manifest: value => { value.editions[String(lookupHead.cohort.editions)] = value.editions[String(COHORT_INDEX)]; } }, async (loaded, payload) => {
+    await assert.rejects(loaded.loadRaceInsights([race()], payload.runners, new AbortController().signal), /could not be verified/);
   });
 });
 test('loader refuses a plain manifest object without a verified transport digest', async () => {
@@ -200,6 +229,8 @@ for (const [label, change] of [
   ['input timestamp', value => { value.input_as_of = '2026-09-10T01:00:00Z'; }],
   ['runner manifest timestamp', value => { value.runner_manifest_as_of = '2026-09-11T01:00:00Z'; }],
   ['raw population', value => { value.cohort.raw++; }],
+  ['eligible population', value => { value.cohort.eligible++; }],
+  ['cohort digest', value => { value.runner_manifest_sha256 = 'b'.repeat(64); }],
 ]) test(`loader rejects stale ${label} before requesting edition data`, async () => {
   await withFetch({ manifest: change }, async (loaded, payload, requests) => {
     await assert.rejects(loaded.loadRaceInsights([race()], payload.runners, new AbortController().signal), /could not be verified/);
@@ -208,7 +239,7 @@ for (const [label, change] of [
 });
 for (const [label, change] of [
   ['edition identity', value => { value.edition.city = 'Wrong city'; }],
-  ['edition index', value => { value.edition.index = 1; }],
+  ['edition index', value => { value.edition.index = COHORT_INDEX + 1; }],
   ['release inside valid gzip', value => { value.release_tag = 'obsolete-export'; }],
   ['CDF count', value => { value.groups.all.finish[0][1]--; }],
   ['CDF ordering', value => { value.groups.all.finish.reverse(); }],
@@ -253,5 +284,5 @@ test('loader propagates cancellation before fetching and during an edition reque
   for (const { name, run } of tests) {
     try { await run(); } catch (error) { error.message = `${name}: ${error.message}`; throw error; }
   }
-  console.log(`Runner context client passed ${tests.length} checks: exact peer placement, demographic and time-band boundaries, signed race comparisons, verified gzip transport, stale/corrupt response rejection and cancellation.`);
+  console.log(`Runner context client passed ${tests.length} checks: exact peer placement, demographic and time-band boundaries, signed race comparisons, verified gzip transport bound to the cohort the lookup names, no request for a race that is not counted, no comparison for an unlisted edition, stale/corrupt response rejection and cancellation (schema 2).`);
 })().catch(error => { console.error(error); process.exitCode = 1; });
