@@ -12,9 +12,9 @@ Keep these apart:
 - **Definitions.** Frozen in this document and in `analysis/linked_common.py` before the first build that was kept. A change to any of them is a reviewed change with a dated note here. Two so far, both on November 14, 2026, the day of the first build: the standard error of a race level (see `se` under [races](#the-same-linked-runners-at-different-races-racesjson)), which can only make a guard harder to pass; and the linked-runner rule, which now reads the release's identity file as the lead's ruling D24 item 2 requires (see [linked runners](#linked-runners-and-kept-results)).
 - **Rulings of the lead on the first report** (November 14, 2026, UTC). (1) D22 is read as this document reads it: a race reading uses the race's chip- or net-stated editions, compared inside one basis; the fields that let a page apply the strict reading stay in the file. (2) The 6% screen stays as frozen and New York 2022 stays held; a held edition is released only by a review, as a dated entry here with its evidence, never by moving the bar (the evidence the lead asked for, on the two held editions and on the 28 fitted editions of 2020 and 2021: [`linked-held-review.md`](evidence/2026-11-14/release-20261113-1113/linked-held-review.md)). (3) D29: a label that holds two races is read per series ([a race](#a-race-a-label-or-a-series-of-a-label)). (4) Marathon pages do not say "the same runners" as a bare claim ([what may be said](#what-may-be-said-and-what-must-never-be-printed)). (5) The pandemic years: no rule yet; the lead decides on the listed evidence. (6) A table of who is recorded again is added ([who is recorded again](#who-is-recorded-again-recorded_againjson)).
 - **Rulings of the lead on the review evidence** (November 14, 2026, UTC; [reviews](#reviews-a-held-edition-released-an-edition-excluded)). (1) A held edition is released only by a written review against measurements that use no person link; the bar does not move. (2) New York 2022 is released by that review; Lévis-Québec 2012 stays held. (3) Warsaw 2020 is excluded: its note states another course; every build searches the producer's notes for a virtual run or another course and stops on a sentence without a ruling. (4) No rule for 2020 and 2021 as such. (5) The frozen bound of a kept result stays, and the two results of London 2026 it leaves out are stated ([kept results](#linked-runners-and-kept-results)). (6) Later the same day: the three other sentences the notes search finds (Houston, Madrid, Washington) are kept, and the recorded-again table is not built by sex.
-- **Two definitions added on November 14, 2026 after the first report, each before any build of it on real data:** the race as a label or a series (D29), which changes nothing for a label without a series note; and the recorded-again table. Both are in the builders, the tests and the verifier; **neither is in `public/data/linked/` yet**.
+- **Two definitions added on November 14, 2026 after the first report, each before any build of it on real data:** the race as a label or a series (D29), which changes nothing for a label without a series note; and the recorded-again table. Both are in the builders, the tests and the verifier, and both are in `public/data/linked/` since the rebuild on the final inputs (recorded November 19, 2026).
 - **Measured results.** See [Measured](#measured) for the build this branch holds.
-- **Repository state.** Branch `claude/release-20261113-linked`, cut from `claude/release-20261113`. Not merged, no pull request. The family in `public/data/linked/` was built before the two additions: until it is rebuilt on the pipeline's final inputs, `verify-linked` reports the changed builders as stale data and fails, which is what that check is for. The lead rebuilds; no page reads the family meanwhile.
+- **Repository state.** Branch `claude/release-20261113-linked`, cut from `claude/release-20261113`. Not merged, no pull request. The family in `public/data/linked/` is built on the adoption's final inputs (release branch commit `99d760bed`) with both additions and every ruling above, and `verify-linked` passes (November 19, 2026; [Measured](#measured)).
 - **Deployed state.** Nothing of this family is deployed. No page reads it.
 
 ## Inputs and what the manifest binds
@@ -118,7 +118,7 @@ Lévis-Québec 2012 stays held: a weaker-source stamp, no weather row and no cou
 
 Every sentence found (its digits read as `#`, so one ruling covers the same sentence in other years) must be on the reviewed list with a ruling, `excluded` or `kept`. The build stops on a sentence that is not on the list, on a listed sentence that the notes no longer hold, and on an exclusion whose quotation is no longer the note's own words. A moved date, a smaller field or a wave start is not searched for: none of them is another race (ruling 4).
 
-On `pace-notes-marathon-half-20261113-1113` (input manifest `c0ddc847…`, 2026-11-14) the search reads 845 editions and finds 31 sentences of four kinds:
+On `pace-notes-marathon-half-20261113-1113` (input manifest `c0ddc847…`, 2026-11-14) the search reads 845 editions and finds 31 sentences of four kinds (on the final input `e994ac15…`, built 2026-11-14 16:03 UTC and recorded 2026-11-19, it finds the same 31 sentences, 30 kept and 1 excluded):
 
 | Sentence (digits as `#`) | Editions | Ruling |
 | --- | --- | --- |
@@ -232,7 +232,7 @@ Timing-eligible finishes of linked runners in counted editions of 2010 to 2019, 
 
 ### Who is recorded again (`recorded_again.json`)
 
-Defined on November 14, 2026 (14:00 UTC, commit `732a61662`), before any build of it on real data; asked for by the lead as a descriptive table beside the matched comparison. **Not built yet.**
+Defined on November 14, 2026 (14:00 UTC, commit `732a61662`), before any build of it on real data; asked for by the lead as a descriptive table beside the matched comparison. First built on real data in the rebuild on the final inputs ([Measured](#measured); recorded November 19, 2026).
 
 **The finishes** are those of the matched comparison above before any matching: timing-eligible finishes of linked runners in counted editions of 2010 to 2019, with a recorded sex. **Recorded again within two years** is that comparison's "seen again": a kept result of the same linked runner in F in one of the next two calendar years, at any race. The file's `cohort` is therefore the sum of the two unmatched counts of `return.json`, and the verifier checks it.
 
@@ -338,7 +338,7 @@ rmdir /home/user/pn-data/heavy.lock
 node scripts/verify-linked.cjs
 ```
 
-A rebuild whose cohort counts differ from the manifest in `public/data/linked/` prints the change and stops unless `--accept-counts` (a reviewed refresh only). Rebuild when the adapted input, the identity file or its builder, the edition policy, the race registry, the release pin or any bound script changes; the verifier fails until then. An identity file rebuilt with an unchanged builder is outside the repository; it shows through the marathon cohort, whose manifest names the identity file it was built on: once the cohort is rebuilt, the two manifests differ and the verifier fails until this family is rebuilt too. **The identity file is rebuilt when the half's row rule is frozen (M3): rebuild this family after it** (and the cohort: the verifier requires both on one identity file).
+A rebuild whose cohort counts differ from the manifest in `public/data/linked/` prints the change and stops unless `--accept-counts` (a reviewed refresh only). Rebuild when the adapted input, the identity file or its builder, the edition policy, the race registry, the release pin or any bound script changes; the verifier fails until then. An identity file rebuilt with an unchanged builder is outside the repository; it shows through the marathon cohort, whose manifest names the identity file it was built on: once the cohort is rebuilt, the two manifests differ and the verifier fails until this family is rebuilt too. The identity file of the final inputs already holds the half's row rule (M3; recorded November 19, 2026); a later identity file means rebuilding this family and the cohort (the verifier requires both on one identity file).
 
 `docs/evidence/2026-11-14/release-20261113-1113/linked-recount.py` recounts the histories from the adapted input in SQL and compares them with the published files; run it after a rebuild.
 
@@ -348,18 +348,164 @@ Sizes are those of the build below. Every file starts with `family`, `file` and 
 
 | File | Bytes (gzip) | Shape |
 | --- | --- | --- |
-| `editions.json` | 91,841 (11,542) | `races[label][year]` = `{tier, timing, basis, finishes, others, reading_pct, lo_pct, hi_pct, high_pct, year_sd_pct, verdict}`, with `series` on the rows of a label that has a series note and `reviewed_release: true` on an edition a review released; `summary`; `margin_pct`, `min_editions`, `min_finishes`. Small enough to load whole on a course page or beside a runner's race (the largest race, Berlin, is 4.2 KB of it); it is not split by race. |
-| `races.json` | 33,856 (5,589) | `races[label]` = the reading with its intervals, order readings, counts, tier and timing mix, variants, `trail_or_mountain` and `verdict`; `series[label][name]` = the same for each series of a label with a series note (present only when there is one); `summary`; `band_pct`, `min_editions`, `min_people_each_way` |
+| `editions.json` | 93,065 (11,509) | `races[label][year]` = `{tier, timing, basis, finishes, others, reading_pct, lo_pct, hi_pct, high_pct, year_sd_pct, verdict}`, with `series` on the rows of a label that has a series note and `reviewed_release: true` on an edition a review released; `summary`; `margin_pct`, `min_editions`, `min_finishes`. Small enough to load whole on a course page or beside a runner's race (the largest race, Berlin, is 4.2 KB of it); it is not split by race. |
+| `races.json` | 34,136 (5,533) | `races[label]` = the reading with its intervals, order readings, counts, tier and timing mix, variants, `trail_or_mountain` and `verdict`; `series[label][name]` = the same for each series of a label with a series note (present only when there is one); `summary`; `band_pct`, `min_editions`, `min_people_each_way` |
 | `bests.json` | 19,132 (3,997) | `cohort`; `by_recorded_attempt[]`; `by_years_since_previous_recorded_best[]`; `new_recorded_best_size`; `steps` (`by_step[]`, `first_recorded_to_second_any_years_apart`, `first_recorded_to_second_by_mean_finish[]`) |
-| `age.json` | 6,409 (1,433) | `cohort`; `bands[]` (the main column with `same_race`, `verified`, `high`, `all_pairs`, `by_sex`, `cross_section`, `verdict`); `survivorship` |
+| `age.json` | 6,409 (1,430) | `cohort`; `bands[]` (the main column with `same_race`, `verified`, `high`, `all_pairs`, `by_sex`, `cross_section`, `verdict`); `survivorship` |
 | `return.json` | 2,180 (727) | the matched shares, `difference_points` with its interval, `unmatched`, `by_finish[]`, `verified`, `high`, `tiers`, `verdict` |
-| `recorded_again.json` | not built yet | `cohort`, `age_cohort`; `by_finish_band[]`, `by_finish[]`, `by_age_band[]`, each row `{finish_from_s, finish_to_s}` or `{age_from, age_to}` with `finishes`, `recorded_again`, `all_finishes`, `editions`, `share`, `expected_share`, `difference_points`, `lo_points`, `hi_points`, `verified`, `high`, `same_race`, `men`, `women`, `verdict`; left out when its floors fail |
-| `checks.json` | 60,225 (13,362) | `temperature`, `slowdown` (each with its `points`), `fits`, `beyond`, `spread`, `year_levels`, `floor_of_five`, `plain_mean_and_two_standard_errors`, `held_for_review` |
-| `manifest.json` | 6 KB | the bindings, `definitions`, `cohort` (the universe, the fit and each file's counts), `files` |
+| `recorded_again.json` | 25,437 (4,590) | `cohort`, `age_cohort`; `by_finish_band[]`, `by_finish[]`, `by_age_band[]`, each row `{finish_from_s, finish_to_s}` or `{age_from, age_to}` with `finishes`, `recorded_again`, `all_finishes`, `editions`, `share`, `expected_share`, `difference_points`, `lo_points`, `hi_points`, `verified`, `high`, `same_race`, `men`, `women`, `verdict`; left out when its floors fail |
+| `checks.json` | 62,242 (13,947) | `temperature`, `slowdown` (each with its `points`), `fits`, `beyond`, `spread`, `year_levels`, `floor_of_five`, `plain_mean_and_two_standard_errors`, `held_for_review` |
+| `manifest.json` | 7 KB | the bindings, `definitions`, `cohort` (the universe, the fit and each file's counts), `files` |
 
 A verdict is one of the codes in the tables above or `null`. `null` is the fallback: the page states no reading in any slot ([AGENTS.md](../AGENTS.md) rule 13).
 
 ## Measured
+
+Release `pace-notes-marathon-half-20261113-1113` (published 2026-11-13T23:21:04Z), built November 14, 2026 (16:03 UTC) on the adoption's final inputs (release branch commit `99d760bed`): the adapted input whose `MANIFEST.json` has sha256 `e994ac15…085c` (input time 2026-11-13T19:30:55Z), with the identity file `0bde20d2…3383`, the edition policy `fe5707e1…75a2`, the race registry `446e9c1d…d72b` and the link file `60d528ee…a593`. Every count below is this build's; none is deployed (recorded November 19, 2026; the first kept build's section is under [History](#history)). Two builds gave the same bytes for all seven files. One build takes about 3 minutes (212 s) and 5.0 GB at its peak (DuckDB capped at 5 GB), under the heavy-job lock. `scripts/verify-linked.cjs`: 72,505 checks pass; its self-test refuses 26 of 26 broken copies (both run from a clean checkout of the commit that holds the files). An independent SQL recount (`linked-recount.py` in the evidence folder: window functions, not the builders' code) compared 50 published groups (the universe, every recorded attempt and step, every age band; it does not recount `recorded_again.json`, which the verifier recounts from its rows) and none differs; and, on the first kept build's pairs, the research prototype's solver gave the same edition readings to 2 × 10⁻¹² once the three rules are applied.
+
+**The universe.** 2,688 editions with rows. F: 845 editions (194 stamped, 616 weaker-source stamped, 35 partial within 5%; 359 with splits, 486 finish-time-only) in 200 races; by timing code 376 chip, 370 chip with a fallback, 15 gun, 4 mixed, 80 not stated. V: 810 editions. W: 2,067 (1,222 unverified). Linked runners: 3,322,175 runner keys with 6,004,382 marathon records, of 3,349,683 keys and 6,180,360 records in the keyed tiers before the screens. Kept results in F: 4,414,672 of 2,582,515 linked runners, 825,387 of them with two or more. Counted editions: 201, with 4,124,026 timing-eligible finishes and 1,288,216 sustained slowdowns (31.24%), the same cohort as the release's published edition-policy list. The frozen bound of a kept result leaves out 2 linked results of F under 2:00:00, the first two finishers of London 2026 (1:59:30 and 1:59:41; checked against the adapted input on November 19, 2026), and 134 over 12:00:00. The notes search found 31 sentences: 30 kept by ruling, 1 excluded (Warsaw 2020). One label is read per series (2 series, 12 editions with rows).
+
+**The fit.** 2,097,637 pairs (212,233 of them inside one calendar year) of 645,254 linked runners; 513 editions fitted in 101 races (181 stamped, 301 weaker-source, 31 partial); 318 editions of F fall under the floor of 100 connecting runners, 0 lie outside the largest connected set and 0 are undetermined. Drift: −0.15% over one year apart and +0.21% over two (under rule 3; not a finding). The 6% screen holds 2 editions; the written review releases **New York 2022** (6.48% from the median of New York's chip-timed years; every condition met: release finishes −0.27% from the official count, the whole field's sustained-slowdown share 45.2%, the highest of its 17 counted years, and 19.9 °C at the start, the warmest of its 17 fitted years), so 1 stays held: Lévis-Québec 2012 (6.24%). The review excludes Warsaw 2020 ("COVID edition: four separate waves (max 250 each) on a 5 km city loop, 2020-09-26/27"): no reading, no comparison group, no race reading.
+
+**Fast years and slow years.** 443 edition readings in 59 races (162 stamped, 254 weaker-source, 27 partial; 400 on a chip or net basis, 35 not stated, 8 gun): 84 fast, 75 slow, 69 usual, 215 with no verdict. 121 of the 443 (27.3%) lie more than 2% from their race's other years and 53 (12.0%) more than 3%; among the 416 on verified tiers 108 (26.0%) and 46 (11.1%). The median half-width of an interval is 0.61 points. 66 readings have no high-links reading beside them.
+
+| Edition | Tier | Basis | Others | Finishes | Reading | Interval | High links | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Chicago 2008 | stamped | not stated | 11 | 12,131 | +4.90 | +4.67 to +5.11 | +4.85 | slow |
+| Berlin 2025 | partial | chip or net | 20 | 17,212 | +4.46 | +4.28 to +4.61 | +4.44 | slow |
+| Boston 2018 | partial | chip or net | 9 | 13,590 | +2.88 | +2.66 to +3.10 | +2.84 | slow |
+| Boston 2026 | partial | chip or net | 9 | 14,298 | −3.89 | −4.04 to −3.74 | −3.98 | fast |
+| Chicago 2023 | stamped | chip or net | 7 | 25,106 | −1.40 | −1.54 to −1.27 | −1.24 | fast |
+| New York 2019 | stamped | chip or net | 14 | 22,089 | −0.40 | −0.55 to −0.25 | −0.40 | usual |
+| New York 2022 | stamped | chip or net | 14 | 19,812 | +6.44 | +6.28 to +6.60 | +6.37 | slow |
+
+Chicago's fitted editions fall into two groups, because the release states a timing basis for 8 of the 20 (2015 to 2019 and 2023 to 2025): each year is compared inside its group. The same holds for Paris (2014 to 2018 not stated, read among themselves; its two chip years are too few). Warsaw is read per series: the Orlen Warsaw Marathon's four chip-timed years (2015 to 2018) among themselves, the PZU Warsaw Marathon's six years with no stated basis (2019 and 2021 to 2025; 2020 excluded) among themselves.
+
+**Races.** 52 races are read; one more has three chip-timed editions but fewer than 100 linked runners one way. With the one series reading (Warsaw's Orlen years: −1.64, −3.28 to +0.04 across 4 editions, no verdict because the interval reaches past 0; the PZU years have no stated basis and no reading) the file holds 53 readings. Verdicts: 17 faster, 6 slower, 9 about the same, 21 none.
+
+| Race | Editions used of fitted | Reading | Interval across editions | Runner bootstrap | Earlier / later | Verified / high / wider | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Amsterdam | 12 of 13 | −1.74 | −2.49 to −0.97 | −1.83 to −1.63 | −1.54 / −1.92 | −1.70 / −1.66 / −1.76 | faster |
+| Athens | 8 of 8 | +5.12 | +4.54 to +5.69 | +4.92 to +5.32 | +5.91 / +4.33 | +5.23 / +5.04 / +5.07 | slower |
+| Berlin | 21 of 21 | −0.87 | −1.74 to +0.00 | −0.94 to −0.80 | −0.82 / −0.93 | −0.91 / −0.96 / −0.85 | about the same |
+| Boston | 10 of 10 | +0.61 | −0.71 to +1.96 | +0.54 to +0.68 | −0.32 / +1.55 | +0.74 / +0.80 / +0.67 | about the same |
+| Chicago | 8 of 20 | −1.20 | −2.29 to −0.09 | −1.27 to −1.14 | −1.26 / −1.14 | −2.01 / −1.25 / −1.21 | faster |
+| Hamburg | 9 of 9 | −2.66 | −3.77 to −1.54 | −2.78 to −2.56 | −2.36 / −2.96 | −2.64 / −2.57 / −2.74 | faster |
+| London | 3 of 3 | +0.86 | −3.88 to +5.84 | +0.67 to +1.07 | +0.61 / +1.12 | – / +0.61 / +0.79 | none |
+| Los Angeles | 8 of 8 | +4.38 | +2.76 to +6.03 | +4.16 to +4.59 | +4.72 / +4.04 | +4.34 / +4.02 / +4.47 | slower |
+| New York | 15 of 18 | +1.35 | +0.45 to +2.25 | +1.30 to +1.40 | +1.20 / +1.50 | +1.24 / +1.35 / +1.40 | slower |
+| Philadelphia | 12 of 12 | −1.86 | −2.29 to −1.44 | −1.98 to −1.75 | −1.47 / −2.26 | −1.82 / −1.74 / −1.87 | faster |
+| Rotterdam | 11 of 12 | −1.17 | −2.45 to +0.12 | −1.27 to −1.04 | −0.85 / −1.49 | −1.16 / −1.21 / −1.15 | none |
+| Valencia | 5 of 6 | −3.02 | −4.18 to −1.84 | −3.17 to −2.87 | −3.06 / −2.98 | −2.55 / −3.06 / −2.98 | faster |
+| Washington | 12 of 12 | +1.77 | +0.71 to +2.84 | +1.66 to +1.88 | +1.49 / +2.05 | +1.64 / +1.65 / +1.76 | slower |
+
+Paris, Frankfurt, Tokyo, Barcelona, Stockholm, Sydney, Gold Coast, Oslo, Vienna, Honolulu and Prague have no race reading: fewer than three chip-timed editions of F are fitted (Tokyo and Vienna have no edition in F at all; Prague's eight fitted years are gun-timed). With a floor of five editions 37 races would be read (15 faster, 5 slower, 8 about the same, 9 none). By editions used: of the 8 races read on three editions 7 have no verdict; of the 32 read on six or more, 24 have one. The scout's rule alone (plain mean, two standard errors, the order readings) would call 20 faster and 10 slower on the same 52; the plain means correlate 0.995 with the readings. One race read is a mountain course by the registry's flags (Blue Ridge, +14.7%); two read faster on net-downhill courses the registry does not flag (St. George −4.3%, Big Cottonwood −5.4%). By the registry's `labelled_by`, 18 of the races read carry a plain key, 34 a reviewed label and 0 an unreviewed name taken from a platform title. Every race read therefore carries a plain key or a reviewed label.
+
+**The checks.** Temperature: inside races the edition readings correlate 0.82 with the race-window temperature (188 editions in 22 race-and-basis groups; 0.40% per °C; 0.71 with the start-hour temperature); by band, against the race's own mean: under 8 °C −1.22% (11 editions), 8 to 12 −1.31% (47), 12 to 16 −0.29% (64), 16 to 20 +0.99% (53), 20 and over +3.15% (13 editions in 7 races). Whole field: the readings correlate **0.86** with the whole field's sustained-slowdown share (162 counted editions in 18 groups; 3.63 points per percent), above the bar of 0.7, so the verdict is `holds`. Other fits, against the main one: verified tiers 0.991 over 409 edition readings and 0.997 over 50 races (48 with the same sign); high links 0.981 over 377 and 0.997 over 43 (43); the wider set 0.992 over 443 and 0.995 over 53 (52). The median year-to-year spread of a race is 1.80 points and the spread between the 53 race readings 3.04.
+
+**Recorded bests.** One-marathon-per-year runners in F: 3,692,310 results of 2,448,409 linked runners; the rule leaves out 134,106 runners with two or more results (722,362 results). 1,243,901 results have an earlier recorded marathon (868,551 in stamped editions, 185,986 weaker-source, 189,364 partial); 522,401 were a recorded best. Attempts 2 to 18 are published.
+
+| Recorded attempt | Results | Recorded best | 1/k | Verified / high / complete | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| 2 | 691,281 | 53.9% | 50.0% | 53.7 / 53.5 / 54.0 | more often |
+| 3 | 279,904 | 35.2% | 33.3% | 35.0 / 34.5 / 35.5 | more often |
+| 4 | 128,364 | 25.0% | 25.0% | 24.5 / 24.4 / 25.3 | as often |
+| 5 | 63,198 | 17.9% | 20.0% | 17.1 / 17.5 / 18.1 | less often |
+| 6 | 32,978 | 13.7% | 16.7% | 12.3 / 13.6 / 14.2 | less often |
+| 8 | 10,739 | 7.1% | 12.5% | 6.2 / 6.9 / 7.1 | less often |
+| 10 | 4,379 | 3.8% | 10.0% | 3.2 / 3.7 / 3.6 | less often |
+
+Years since the previous recorded best (third and later attempts): one year 41.7%, two 31.9%, five 20.4%, ten or more 10.0%. A new recorded best beats the old one by a median 5.19% (12.95 minutes; middle half 5.65 to 25.62 minutes); 23,442 of the 522,401 (4.5%) are by under a minute. Steps at most two years apart: first recorded to second 459,860 pairs, median −1.32%, 56.98% faster (verified 57.0, high 56.5, complete 57.0; `more_often`); second to third 201,330 pairs, +0.02%, 49.89% (`as_often`); third to fourth 95,604 pairs, +0.54%, 47.0% (`less_often`), and `less_often` at every later step to the 17th. First recorded to second over any years apart: 691,281 pairs, −0.84%, 53.9% faster. By the mean of the two finishes: under 3:00 −1.15%, 3:00 to 3:29 −1.89%, 3:30 to 3:59 −1.79%, 4:00 to 4:29 −1.74%, 4:30 to 4:59 −0.91%, 5:00 to 5:59 −0.01%, 6:00 and over +0.76%.
+
+**Getting older.** 1,210,020 linked runners with an exact birth year (2,365,405 results; 1,714,908 results carry their own exact age); 553,565 pairs, 131,857 from the third recorded marathon on (90,455 stamped, 21,898 weaker-source, 19,504 partial). Every band's verdict is `stated`.
+
+| Age | Pairs | Median % per year | Same race | Verified | High | All pairs | Women / men | Cross-section, women / men |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 18–24 | 939 | −1.12 | −1.21 | −0.82 | −0.84 | −1.45 | −1.14 / −1.07 | −1.82 / −1.48 |
+| 25–29 | 6,663 | −0.24 | −0.20 | −0.19 | −0.23 | −1.12 | −0.34 / −0.03 | +0.07 / +0.01 |
+| 30–34 | 12,222 | +0.06 | +0.12 | +0.12 | +0.03 | −0.80 | +0.10 / +0.03 | +0.31 / +0.02 |
+| 35–39 | 17,280 | +0.26 | +0.23 | +0.32 | +0.31 | −0.53 | +0.40 / +0.16 | +0.16 / +0.17 |
+| 40–44 | 22,494 | +0.57 | +0.58 | +0.58 | +0.61 | −0.15 | +0.77 / +0.44 | +0.16 / +0.17 |
+| 45–49 | 23,870 | +0.79 | +0.73 | +0.84 | +0.80 | +0.26 | +0.91 / +0.73 | +0.68 / +0.54 |
+| 50–54 | 20,097 | +0.99 | +1.01 | +1.04 | +0.98 | +0.50 | +1.02 / +0.97 | +0.53 / +0.71 |
+| 55–59 | 14,128 | +1.29 | +1.22 | +1.29 | +1.30 | +0.93 | +1.24 / +1.30 | +0.69 / +1.08 |
+| 60–64 | 8,288 | +1.40 | +1.45 | +1.34 | +1.38 | +1.16 | +1.20 / +1.53 | +0.78 / +1.19 |
+| 65–69 | 3,941 | +1.82 | +1.70 | +1.82 | +1.78 | +1.59 | +1.50 / +1.92 | +1.61 / +1.61 |
+| 70 and over | 1,935 | +2.55 | +2.58 | +2.47 | +2.58 | +2.32 | +2.63 / +2.47 | +2.00 / +1.90 |
+
+Survivorship (later result of 2012 to 2019, ages 45 to 64): runners not seen again had slowed a median 1.37% per year in their last pair (13,151 pairs), those seen again 0.96% (20,997).
+
+**Seen again.** 2,719 matched cells in 98 counted editions of 2010 to 2019 (84 stamped, 3 weaker-source, 11 partial): of 506,860 finishes with a sustained slowdown 29.40% were seen again within two years, against 31.87% of their matches: −2.47 points (−2.84 to −2.13), verdict `less_often`. Verified tiers: −2.40; high links: −2.38. Unmatched, the shares are 29.19% (of 528,440) and 34.14% (of 1,096,724). By finish: under 3:30 −5.66 points, 3:30 to 3:59 −2.57 points, 4:00 to 4:29 −1.66 points, 4:30 to 4:59 −1.99 points, 5:00 and over −2.88 points.
+
+**Recorded again.** 1,625,164 finishes in 100 counted editions of 2010 to 2019 (the two unmatched counts of `return.json`), 528,639 of them (32.5%) recorded again within two years; the age rows use 549,101 finishes with their own exact birth year in 22 editions (29.3%). Each row is read against the other finishes of its own editions. Verdicts: by finish band 26 rows, 10 more often, 14 less often, 2 none; by finish group 5 rows, 2 more often, 2 less often, 1 none; by age band 11 rows, 7 more often, 3 less often, 1 none. A verdict needs all five variants on the main row's side, `same_race` among them. In the finish rows `same_race` is much smaller than the main row (where linked runners race next carries most of those differences); in the age rows from 60 on it is as large or larger.
+
+| Row | Finishes (of all) | Editions | Share | Other finishes | Difference, points | Interval | Verified / high / same race / men / women | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| under 3:30 | 233,973 (294,458) | 100 | 41.1% | 30.9% | +10.28 | +8.87 to +12.08 | +9.38 / +10.08 / +2.14 / +8.99 / +12.85 | more often |
+| 3:30 to 3:59 | 365,692 (450,674) | 100 | 36.1% | 31.8% | +4.25 | +3.51 to +4.97 | +3.95 / +4.13 / +0.87 / +2.20 / +7.87 | more often |
+| 4:00 to 4:29 | 359,528 (438,257) | 100 | 32.2% | 33.0% | −0.80 | −1.16 to −0.41 | −0.89 / −0.22 / −0.40 / −1.86 / +1.34 | none |
+| 4:30 to 4:59 | 295,226 (355,489) | 100 | 29.8% | 33.4% | −3.60 | −4.11 to −3.11 | −3.47 / −2.98 / −0.92 / −4.21 / −1.81 | less often |
+| 5:00 and over | 370,745 (440,628) | 100 | 26.1% | 34.4% | −8.24 | −9.26 to −7.28 | −7.53 / −7.87 / −0.90 / −7.38 / −7.96 | less often |
+| ages 18–24 | 26,856 (31,635) | 22 | 20.6% | 28.3% | −7.67 | −9.40 to −6.21 | −7.10 / −7.34 / −2.98 / −10.90 / −3.90 | less often |
+| ages 35–39 | 87,122 (103,999) | 22 | 30.0% | 29.4% | +0.59 | +0.08 to +1.02 | +0.54 / +0.91 / −0.04 / +0.40 / +0.83 | none |
+| ages 40–44 | 92,600 (110,107) | 22 | 31.2% | 29.3% | +1.88 | +1.46 to +2.35 | +1.86 / +2.08 / +0.07 / +1.50 / +2.25 | more often |
+| ages 70 and over | 2,691 (3,189) | 22 | 37.9% | 29.0% | +8.86 | +6.20 to +11.95 | +7.63 / +6.31 / +13.46 / +7.72 / +9.84 | more often |
+
+### Against the research numbers
+
+The scout measured on its wider set W (2,065 editions, unverified ones included; 1,012 fitted; 2,846,593 pairs of 778,438 runners) without the linked-runner screens. This family differs in six ways, and each moves numbers:
+
+1. **The universe** (D22): F has no unverified edition, so 513 editions are fitted, not 1,012, and 52 races are read, not 123. The scout's own verified-only fit had 483 editions and 55 series.
+2. **The trend rule.** The scout's solver returned the minimum-norm solution, which carries an unstated trend of the readings over the years; on this build's pairs it differs from rule 3 by 0.048 log points × 100 per calendar year. It tilts a reading by the distance in years between an edition and the years it is compared with (Berlin 2025: +4.46% here, +3.98% on the scout's numbers re-expressed against the other years).
+3. **Against the other years.** The scout quoted an edition against its race's mean, the edition included; this family compares it with the mean of the others, which is larger by n/(n − 1). That, and the smaller groups below, is why 27.3% of readings lie beyond 2% here against the scout's 24%.
+4. **Timing basis.** Editions are compared inside one basis, so Chicago's reading rests on its 8 chip-stated years (−1.20; the scout −0.40 on 20, −0.23 on 15 verified), and Chicago 2023 reads −1.40 against 7 years, not −2.30 against 19.
+5. **Races against the same years.** A race reading takes out the level every race shares in a year, and New York 2022 is released by review: New York reads +1.35 on 15 editions (the scout +1.47), with a standard error of 0.41 (the first kept build, with 2022 held: +0.97 and 0.23).
+6. **The interval and the guards.** Student's t instead of two standard errors, a runner-bootstrap interval, agreement of the verified and high-links variants, and a band for "about the same": 17 faster and 6 slower, where the scout's rule alone gives 20 and 10 on the same races.
+
+Recorded bests, the steps, the age bands and the matched comparison reproduce the scout's figures to within a few tenths of a point (attempt 2: 53.9% here, 54.0% there; fifth 17.9% and 17.9%; first to second −1.32% and 57.0% faster against −1.3% and 56.9%; ages 50 to 54 +0.99% a year against +1.0; the matched difference −2.47 points against −2.6), on a smaller universe.
+
+### What changed from the first kept build (November 19, 2026)
+
+The first kept build of November 14 (its section is under [History](#history)) and this one differ in their inputs (the final adapted input, identity file, policy and registry of the adoption: 99 reviewed labels, six new joins, and the Warsaw series note) and in the rulings of November 14 that were coded before this build (the reviews, the series, the recorded-again table). Readings that changed state, and why:
+
+- **New York 2022 released by review** (+6.44 points, `slow`, `reviewed_release: true`). Every other New York year is compared with the mean of its other years, which now holds 2022, so each moved by about −0.44 points: 2009 and 2024 become `fast`, 2015 `usual` (was `slow`), 2008 and 2010 lose their verdict (`usual` before; their intervals now sit between −1.2 and −0.7). The race reading of New York is +1.35 on 15 editions (+0.97 on 14 before), still `slower`.
+- **Warsaw read per series.** The label's one race reading (−1.66, `faster`, on four chip-timed years) is gone; the Orlen Warsaw Marathon series reads −1.64 on the same four years, with no verdict (its interval ends at +0.04). Warsaw 2018 loses `slow` (its interval now starts at +0.97); Warsaw 2020 is excluded by review, so the PZU years are read among five others, and have no race reading (no stated timing basis).
+- **The registry's new joins and labels.** Eighteen races read under a platform title now carry a reviewed label (for example Bayshore, Blue Ridge, Grand Rapids), with no change of state. Glass City (two keys joined, five editions) now reads −3.87, `faster`; on the 2024 to 2026 key alone it had no verdict. Rimouski (joined) is new, with no verdict; Irving (joined, the same three years in F) and Kansas City changed label and still have no race reading.
+- **At the margin, on the final inputs** (916 pairs fewer, new person keys): Berlin's race reading moves from `faster` to `about_the_same` (interval −1.74 to +0.004, which now touches 0), and six edition verdicts change with an interval end within 0.12 of the ±1% margin: Eindhoven 2016 and Prague 2019 lose `fast`, Napa Valley 2026 loses `usual`, Madrid 2024 gains `usual`, Prague 2018 gains `slow`. No edition reading outside New York and Warsaw moved by more than 0.02 points, and no race reading outside New York by more than 0.08.
+
+### Open points for the lead
+
+- **New York 2022** is released by the written review of November 14, 2026 ([reviews](#reviews-a-held-edition-released-an-edition-excluded)); the builder checks the review's conditions on every build and stops if they no longer hold. Lévis-Québec 2012 stays held (6.24% from its median; it meets none of the stamped-tier, field-share and weather conditions). The 6% bar is unchanged.
+- **"Chip or net timing on every one"** (D22; ruled November 14, 2026: this document's reading stands): a race reading uses the race's chip- or net-stated editions, at least three. Read the other way (every fitted edition of the race must be chip or net timed, and none held), 45 of the 52 races keep a reading and Amsterdam, Chicago, Eindhoven, Lévis-Québec, New York, Rotterdam and Valencia lose it; `timing` and `held_for_review` on each race let a page apply that rule without a rebuild.
+- **No stated timing basis** on 80 editions of F (12 of Chicago's, the six PZU Warsaw years, Paris 2014 to 2018). If the producer states them, those years join their race's main group.
+- **Three editions** carry a race verdict for 1 of the 8 races read on three (Okanagan, faster). A floor of five is reported above.
+- **Edition verdicts at the margin.** A verdict whose interval ends within about 0.1 of the ±1% margin can change with any rebuild (15 of 437 did between the second and the third build of November 14, six of 443 between the first kept build and this one); the readings themselves move by hundredths.
+- **Race labels.** Every race read carries a plain key or a reviewed label (34 reviewed, 18 plain keys); so do the 59 labels with edition readings (38 and 21). The registry's `labelled_by` is on every race entry.
+- **2020 and 2021.** The registry cannot say which editions of those years were run in person; a virtual edition under an ordinary title would be read as a year. Ruled November 14, 2026: Warsaw 2020 is excluded by review, and there is no rule for the two years as such. /methodology says once that Boston 2021 and Rotterdam 2021 were run in autumn.
+- **Three kept sentences of the notes search** (Houston's count of rows not loaded, "0 virtual"; the course-profile notes of Madrid and of Washington, which say the course changed over the years). Ruled November 14, 2026: kept; no edition is excluded. Every build searches the notes again and stops on a sentence without a ruling: this build found the same 31 sentences.
+- **The identity file.** This build reads the final identity file of the adoption (`0bde20d2…3383`, described by `analysis/identity.json`), which includes the half's row rule (M3). A later identity file means a rebuild of this family and of the marathon cohort (the verifier requires both on one identity file).
+- **The cohort of D24 item 1** holds the records the pacing analyses can use; this family also needs the finish times of the 486 finish-time-only editions of F and the age-group-floor flag, so it reads the adapted input, the identity file and the link file directly. What the cohort does hold, the verifier counts again (the counted editions' finishes and sustained slowdowns). The cohort manifest's rule `not_held` says of the editions without a file that "no analysis may use them"; under D22 this family uses their finish times, read from the adapted input as that rule goes on to allow, so the two texts want one wording.
+
+## History
+
+### Superseded on November 19, 2026
+
+Sentences replaced when the family was rebuilt on the final inputs, verbatim, in the order they stood (Status, Status, Who is recorded again, Rebuild):
+
+> Both are in the builders, the tests and the verifier; **neither is in `public/data/linked/` yet**.
+
+> The family in `public/data/linked/` was built before the two additions: until it is rebuilt on the pipeline's final inputs, `verify-linked` reports the changed builders as stale data and fails, which is what that check is for. The lead rebuilds; no page reads the family meanwhile.
+
+> before any build of it on real data; asked for by the lead as a descriptive table beside the matched comparison. **Not built yet.**
+
+> **The identity file is rebuilt when the half's row rule is frozen (M3): rebuild this family after it** (and the cohort: the verifier requires both on one identity file).
+
+
+### The first kept build (November 14, 2026)
+
+Moved here verbatim on November 19, 2026, when the family was rebuilt on the adoption's final inputs ([Measured](#measured) is that build); only the heading levels changed.
+
+#### Measured
 
 Release `pace-notes-marathon-half-20261113-1113` (published 2026-11-13T23:21:04Z), built November 14, 2026 (UTC) on the adapted input whose `MANIFEST.json` has sha256 `c0ddc847…310b` (input time 2026-11-13T19:30:55Z), with the identity file `152f451b…be5c`, the edition policy `ab43c75e…3541`, the race registry `163ec25d…c6a2` and the link file `60d528ee…a593`. Every count below is this build's; none is deployed. Two builds gave the same bytes for all seven files. One build takes about 3 minutes (200 s) and 5.3 GB at its peak (DuckDB capped at 5 GB), under the heavy-job lock. `scripts/verify-linked.cjs`: 64,666 checks pass; its self-test refuses 18 of 18 broken copies (64,501 and 15 of 15 on the tree that held the build, before the marathon cohort reached the release branch at `87d096ac8` the same day and its checks were added). Counted again from the cohort's records in Node: 201 counted editions, 4,124,023 finishes and 1,288,216 sustained slowdowns, the manifest's three numbers, and the two counts of each of the 161 editions of the whole-field check. An independent SQL recount (`linked-recount.py` in the evidence folder: window functions, not the builders' code) compared 50 published groups (the universe, every recorded attempt and step, every age band) and none differs; and the research prototype's solver gave the same edition readings to 2 × 10⁻¹² on the same pairs once the three rules are applied.
 
@@ -436,7 +582,7 @@ Survivorship (later result of 2012 to 2019, ages 45 to 64): runners not seen aga
 
 **Seen again.** 2,719 matched cells in 98 counted editions of 2010 to 2019 (84 stamped, 3 weaker-source, 11 partial): of 506,860 finishes with a sustained slowdown 29.40% were seen again within two years, against 31.87% of their matches: −2.47 points (−2.84 to −2.13), verdict `less_often`. Verified tiers: −2.40; high links: −2.38. Unmatched, the shares are 29.19% (of 528,440) and 34.14% (of 1,096,724). By finish: under 3:30 −5.66 points, 3:30 to 3:59 −2.57 points, 4:00 to 4:29 −1.66 points, 4:30 to 4:59 −1.99 points, 5:00 and over −2.88 points.
 
-### Against the research numbers
+##### Against the research numbers
 
 The scout measured on its wider set W (2,065 editions, unverified ones included; 1,012 fitted; 2,846,593 pairs of 778,438 runners) without the linked-runner screens. This family differs in six ways, and each moves numbers:
 
@@ -449,7 +595,7 @@ The scout measured on its wider set W (2,065 editions, unverified ones included;
 
 Recorded bests, the steps, the age bands and the matched comparison reproduce the scout's figures to within a few tenths of a point (attempt 2: 53.9% here, 54.0% there; fifth 17.9% and 17.9%; first to second −1.32% and 57.0% faster against −1.3% and 56.9%; ages 50 to 54 +0.99% a year against +1.0; the matched difference −2.47 points against −2.6), on a smaller universe.
 
-### Open points for the lead
+##### Open points for the lead
 
 - **New York 2022 is held** by the 6% rule (ruled November 14, 2026: the bar stays; later the same day the lead's review released the edition, see [reviews](#reviews-a-held-edition-released-an-edition-excluded); the build below predates the release). The rule cannot tell a data question from the two hottest big-city years: measured net of the year level (not the frozen rule) it would hold Chicago 2008 instead (6.15%) and release New York 2022, which against the mean of its 14 other chip-timed years would read +6.4%. Re-judging the bar is a decision, not a fix; the edition is in the file's evidence with its distance.
 - **"Chip or net timing on every one"** (D22; ruled November 14, 2026: this reading stands) is read as: a race reading uses the race's chip- or net-stated editions, at least three. Read the other way (every fitted edition of the race must be chip or net timed, and none held), 44 of the 52 races keep a reading and Amsterdam, Chicago, Eindhoven, Lévis-Québec, New York, Rotterdam, Valencia and Warsaw lose it; `timing` and `held_for_review` on each race let a page apply that rule without a rebuild.

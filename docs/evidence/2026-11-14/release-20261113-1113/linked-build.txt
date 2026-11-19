@@ -142,3 +142,57 @@ python3 -m unittest discover -s analysis -p 'test_*.py': Ran 348 tests in 62.810
    failing outside test_half: 0 ; in test_half: 10 (the same ten as in section 6)
 python3 -I -m unittest discover -s analysis -p 'test_linked*.py': Ran 58 tests in 1.871s OK 
 npx tsc --noEmit -p .: tsc exit 0
+
+== 8. The rebuild on the adoption's final inputs (release branch 99d760bed, merged at 6eca81bd6; builders at e508bf93d), 2026-11-14 15:32 to 16:10 UTC; checked and recorded 2026-11-19 ==
+inputs on disk: MANIFEST.json e994ac1590d8b3204c02cc6327c83cb7315b5cc5fd2914a445f07fa809ba085c ; identity.parquet 0bde20d232f5483a367c469ba8a228b06f3a16a2698571e5823a71dd0fe13383 ; registry 446e9c1d954b6de6f41cce7415f32fb94ad79b30e4132d9e3c1920e88c1cd72b ; policy fe5707e1e436ef894726e7fd6bcb6f1482762f360539af001f9721a971f475a2
+python3 -I analysis/build_linked.py --input <full> --links <link file> --identity <identity file> --accept-counts (the counts change with the inputs; the change it printed, then the second build into a scratch folder):
+== the kept build: lock taken 2026-11-14T16:03:34Z
+linked: inputs match their pins (2 s)
+linked: 5,066,427 kept results read
+linked: universe F 845 editions, 4,414,672 kept results (31 s)
+linked: main fit 2,097,637 pairs, 645,254 linked runners, 513 editions
+linked: verified fit 1,524,314 pairs, 478 editions
+linked: high fit 1,312,594 pairs, 432 editions
+linked: wider fit 2,562,362 pairs, 995 editions
+linked: readings done (198 s)
+linked: histories done (212 s)
+  recorded_again: null -> {"finishes": 1625164, "recorded_again": 528639, "editions": 100, "rows": {"by_finish_band": 26, "by_finish": 5, "by_age_band": 11}}
+{"files": {"editions.json": 93065, "races.json": 34136, "checks.json": 62242, "bests.json": 19132, "age.json": 6409, "return.json": 2180, "recorded_again.json": 25437}, "seconds": 212, "peak_rss_mb": 5156}
+== exit 0, lock released 2026-11-14T16:07:06Z
+== the second build: lock taken 2026-11-14T16:07:06Z
+linked: inputs match their pins (2 s)
+linked: 5,066,427 kept results read
+linked: universe F 845 editions, 4,414,672 kept results (31 s)
+linked: main fit 2,097,637 pairs, 645,254 linked runners, 513 editions
+linked: verified fit 1,524,314 pairs, 478 editions
+linked: high fit 1,312,594 pairs, 432 editions
+linked: wider fit 2,562,362 pairs, 995 editions
+linked: readings done (200 s)
+linked: histories done (214 s)
+{"files": {"editions.json": 93065, "races.json": 34136, "checks.json": 62242, "bests.json": 19132, "age.json": 6409, "return.json": 2180, "recorded_again.json": 25437}, "seconds": 214, "peak_rss_mb": 5145}
+== exit 0, lock released 2026-11-14T16:10:40Z
+end 2026-11-14T16:10:40Z
+same bytes: age.json
+same bytes: bests.json
+same bytes: checks.json
+same bytes: editions.json
+same bytes: manifest.json
+same bytes: races.json
+same bytes: recorded_again.json
+same bytes: return.json
+done
+count changes printed by the kept build (old -> new), summaries: editions 437 in 58 races -> 443 in 60 (series counted apart); fit 514 editions in 102 races, 2,098,553 pairs -> 513 in 101, 2,097,637; races 52 -> 53 readings (52 races and one series); recorded_again null -> 1,625,164 finishes in 100 editions
+node scripts/verify-linked.cjs: verify-linked: 72505 checks passed in 3.4 s
+node scripts/verify-linked.cjs --self-test: verify-linked self-test: 26 broken copies refused
+python3 -I docs/evidence/2026-11-14/release-20261113-1113/linked-recount.py <full> <link file> <identity file> public/data/linked: linked-recount: 50 published groups compared, 0 differ
+python3 -I -m unittest discover -s analysis -p 'test_linked*.py': Ran 79 tests OK
+keyed results under 2:00:00 in F (DuckDB on features.parquet joined to the identity file's keyed marathon records): London 2026 7170 s and 7181 s (1:59:30, 1:59:41)
+sha256 of the published files:
+7726d555e2387bb32d3b4215853009ef5db34268c18ae044e4d93f0f0d5852fa  age.json
+180d5b1710b2d1db4026715c9673f672ca969133f579c8595b34dd93346d18ca  bests.json
+72cbb070ef08198bac56335f0f428873be87afe3f0df59f9aa569e8eaa31a711  checks.json
+874a8d8bb39d494c094cc2ee5fdcd037e2c407b0341518f8806ddeb90ef4dd79  editions.json
+578588e1bc478b24dab667918b41f2973b663916bc476b9f70ec19536fbcec8a  manifest.json
+25e569b7085077a9e73d3172f504b236aa6504c56e57cfb61db3356acd813169  races.json
+46de3494636e11fe21edc013e9415ad411b98818549ca32a346e6a6f1bdb22bb  recorded_again.json
+56e4415b3a11dd4f60f6da8481afa88b72360d39ca3a3120e97cbe4b3248dd2f  return.json
