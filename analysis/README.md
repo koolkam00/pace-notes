@@ -73,9 +73,8 @@ Every `analysis/*.py`, read from the code on October 30, 2026. "Writes" is the d
 | `build_weather.py` | `weather/evidence.json` (three fixed candidates, edition aggregates) | `verify-weather` | [weather](../docs/WEATHER_ANALYSES.md) |
 | `build_study.py` | `study/evidence.json` (the supporting study, on the adapted input; it must reproduce the cohort) | `verify-study` | [data architecture](../docs/DATA_ARCHITECTURE.md#supporting-study-and-name-search-contract) |
 | `import_study.py` | Replaces `public/data/study`; the only writer of `public/data/live.json` (decision D26) | Runs `verify-study` before replacing | [data architecture](../docs/DATA_ARCHITECTURE.md#supporting-study-and-name-search-contract) |
-| `build_public_explorer.py` | `study/evidence.json` and `runners/`; not run since November 19, 2026: the study is `build_study.py`'s, the lookup the lookup agents' | `verify-public-explorer`, `verify-runner-search` | [runner search](../docs/RUNNERS_AND_REPORT.md) |
-| `build_runner_lookup.py` | The `runners/index/` and `runners/profiles/` shards, called by `build_public_explorer.py` | `verify-public-explorer` | [runner search](../docs/RUNNERS_AND_REPORT.md) |
-| `import_public_explorer.py` | Replaces `public/data/study` and `public/data/runners`; wrote `public/data/live.json` until November 19, 2026 (not run since) | Runs `verify-public-explorer` before replacing | [runner search](../docs/RUNNERS_AND_REPORT.md) |
+| `build_public_explorer.py` | Not run since November 19, 2026 (its family is retired, D26: the study is `build_study.py`'s, the lookup `build_runner_lookup.py`'s). Kept because other builders bind it: `build_linked.py` (`SHARED_SCRIPTS`) and `scripts/verify-linked.cjs` (`SHARED`) hold its digest in `public/data/linked/manifest.json`, `linked_universe.py` and the release evidence's `cohort.py` import its `threshold_sql` and `RATIO_EPSILON` (the sustained-slowdown test), and `lookup_v1_legacy.py` its `encode` and `normalize_name` | `test_public_explorer.py` (the shared functions) | [runner search](../docs/RUNNERS_AND_REPORT.md) |
+| `build_runner_lookup.py` | The version 2 lookup in `public/data/runners` (manifest, index and profile shards); its manifest binds the script's digest. Its `build_lookup` is the version 1 lookup (`lookup_v1_legacy.py`), still called by `build_public_explorer.py` and `test_public_explorer.py` | `verify-lookup`, `verify-runner-search` | [runner search](../docs/RUNNERS_AND_REPORT.md) |
 | `build_runner_context.py` | `runner-context/manifest.json` and one file per edition the cohort counts that has a peer group, a weather row or a route profile (one shard per raw edition until November 14, 2026) | `verify-runner-context` (and `-client`, `-ui`) | [runner context](../docs/RUNNER_CONTEXT_AND_PEERS.md) |
 | `runner_peers.py`, `runner_environment.py` | Nothing; the peer groups, and the weather and terrain context, for `build_runner_context.py` | `test_runner_peers.py`, `test_runner_environment.py`; `verify-runner-context` | [runner context](../docs/RUNNER_CONTEXT_AND_PEERS.md) |
 | `import_runner_context.py` | Replaces `public/data/runner-context` | Runs `verify-runner-context` before replacing | [runner context](../docs/RUNNER_CONTEXT_AND_PEERS.md) |
@@ -220,7 +219,7 @@ npm run verify:half-source                                      # the local Node
 
 ## Public name search and selected-race analysis
 
-`build_public_explorer.py` shares the timing parser, canonical-ID audit, identity checks and reviewed edition exclusions with the existing builders. It writes `study/evidence.json` and `runners/manifest.json` plus deterministic gzip JSON shards. `import_public_explorer.py` invokes the full Node verifier before replacing only these two folders and current `live.json` compatibility metadata. Node must be on PATH. The **Public runner explorer** workflow rebuilds these outputs and uploads `public-runner-explorer`; it does not import or deploy them.
+`build_public_explorer.py` is no longer run (November 19, 2026; its family is retired, D26) and its importer `import_public_explorer.py` and the **Public runner explorer** workflow are deleted. The supporting study is `build_study.py` with `import_study.py` and `verify-study`, the lookup `build_runner_lookup.py` with `verify-lookup` ([operations](../docs/OPERATIONS.md)). The builder stays in the tree only because the linked records and the cohort evidence bind or import its shared functions (the module index above).
 
 Names are normalized identically in Python and JavaScript (NFKD, remove Unicode marks, lowercase, retain letters/numbers, collapse spaces). Each name token contributes its first three Unicode codepoints to a SHA-256 bucket; shorter tokens use the whole token. A query loads one bucket and requires every query token to match. Results paginate without silently dropping matches. Profile buckets use SHA-256 of the candidate profile ID. Browser requests verify compressed bytes, checksum and source tag before decoding ordinary gzip, which is compression rather than encryption.
 
@@ -249,6 +248,18 @@ Weather joins one valid city/year row to the matching race name and verifies fiv
 Build it after importing the runner lookup, into a fresh output directory, then check and import it ([commands](../docs/OPERATIONS.md#runner-context-refresh)). The importer requires Node on PATH and runs the full independent verifier before replacing only `public/data/runner-context`. `--output` optionally selects its parent directory and defaults to `public/data`; it does not redirect the verifier's reference runner dataset. Refreshing the lookup requires a context rebuild even at the same tag because the runner-manifest hash/timestamp is part of the contract. The **Runner context and peers** workflow uploads `runner-context` without importing or deploying. Full `npm run verify:data` includes every CDF recount, 16 independent pacing-quartile samples, client tests and UI checks; finish with `npm run build` and separate production verification.
 
 ## History
+
+### Superseded on November 19, 2026 (the explorer importer deleted)
+
+Moved word for word: three rows of the module index and the first paragraph of "Public name search and selected-race analysis".
+
+| Module | Writes | Verified by | Contract doc |
+| --- | --- | --- | --- |
+| `build_public_explorer.py` | `study/evidence.json` and `runners/`; not run since November 19, 2026: the study is `build_study.py`'s, the lookup the lookup agents' | `verify-public-explorer`, `verify-runner-search` | [runner search](../docs/RUNNERS_AND_REPORT.md) |
+| `build_runner_lookup.py` | The `runners/index/` and `runners/profiles/` shards, called by `build_public_explorer.py` | `verify-public-explorer` | [runner search](../docs/RUNNERS_AND_REPORT.md) |
+| `import_public_explorer.py` | Replaces `public/data/study` and `public/data/runners`; wrote `public/data/live.json` until November 19, 2026 (not run since) | Runs `verify-public-explorer` before replacing | [runner search](../docs/RUNNERS_AND_REPORT.md) |
+
+`build_public_explorer.py` shares the timing parser, canonical-ID audit, identity checks and reviewed edition exclusions with the existing builders. It writes `study/evidence.json` and `runners/manifest.json` plus deterministic gzip JSON shards. `import_public_explorer.py` invokes the full Node verifier before replacing only these two folders and current `live.json` compatibility metadata. Node must be on PATH. The **Public runner explorer** workflow rebuilds these outputs and uploads `public-runner-explorer`; it does not import or deploy them.
 
 ### Superseded on November 19, 2026 (study split, all-finisher views on the cohort)
 
