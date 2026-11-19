@@ -1,5 +1,6 @@
 'use client';
 
+import { TierTag } from '@/components/ui/TierTag';
 import { Suspense, lazy, useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import BigNumber from '@/components/ui/BigNumber';
@@ -76,7 +77,7 @@ export interface RaceReportProps {
   /** A link opened from a runner record (via=runner): its onward links keep the marker. */
   fromRecord?: boolean;
   /** A runner record on /runners: its edition, that edition's context and the record's own late change. Never in a link. */
-  record?: { edition: { city: string; year: number }; context: RaceInsights | null; error: string | null; lateChange: number };
+  record?: { edition: { city: string; year: number; tier?: string }; context: RaceInsights | null; error: string | null; lateChange: number };
   /** Opened by a press (the runner view): focus moves to the card's title once it shows, so a screen reader hears it. */
   focusOnOpen?: boolean;
   /** /report: these times in the split check, offered in the share sheet (the runner view has its own link). */
@@ -159,7 +160,7 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
   return (
     <article className="race-report ph-no-capture" id={id} aria-labelledby={`${id}-title`}>
       <div className="race-report-screen night">
-        <p className="race-report-kicker"><span>{example ? 'Example · a made-up race' : 'Race report'}</span><span>{distance(MARATHON_KM, units)}</span></p>
+        <p className="race-report-kicker"><span>{example ? 'Example · a made-up race' : 'Race report'}{model.tier ? <> <TierTag tier={model.tier} className="race-report-tier" /></> : null}</span><span>{distance(MARATHON_KM, units)}</span></p>
         <Title className="race-report-title" id={`${id}-title`} tabIndex={-1}><span className="race-report-race">{model.race ?? 'Marathon'}</span></Title>
         <p className="race-report-finish">
           <BigNumber value={lines.finish} sr={`Finish ${lines.finish}`} size="l" />

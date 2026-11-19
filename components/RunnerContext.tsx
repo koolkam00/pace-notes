@@ -3,7 +3,7 @@
 import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState, type ComponentType } from 'react';
 import { matLabel, paceLabel, paceValue, sectionLabel, type UnitSystem } from '@/lib/units';
 import { paceTicks } from '@/lib/pace-ticks';
-import { runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
+import { TIERS, runnerDuration, runnerMetrics, type RunnerManifest, type RunnerMetrics, type RunnerRace } from '@/lib/runner-search';
 import { UnitLink } from './UnitsProvider';
 import Segmented from './ui/Segmented.client';
 import Arrow from './ui/Arrow';
@@ -351,7 +351,7 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
       {/* Marked for section_viewed: the section tracker watches sections that join the page after it first looked. */}
       {reportOpen
         ? <div data-track-section="report"><button ref={backRef} type="button" className="btn btn-tertiary rc-report-back" onClick={() => setReportFor(null)}><Arrow dir="left" />Back to the analysis</button><Suspense fallback={<p className="rc-copy" role="status">Loading the race report…</p>}><RaceReport times={reportTimes} course={courseSlug(edition.city)} gender="all" data={report} level={3}
-          record={{ edition: { city: edition.city, year: edition.year }, context: context && wetFocus ? { ...context, terrain: null } : context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} onward={splitHref ? runnerHandoffHref(splitHref) : null} /></Suspense></div>
+          record={{ edition: { city: edition.city, year: edition.year, tier: TIERS[edition.tier] }, context: context && wetFocus ? { ...context, terrain: null } : context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} onward={splitHref ? runnerHandoffHref(splitHref) : null} /></Suspense></div>
         : <button type="button" className="btn btn-secondary" onClick={() => { setReportPressed(true); setReportFor(focus.race.key); }}>Make a race report</button>}
     </section>}
   </section>;

@@ -74,6 +74,26 @@ for (const bad of [null, '', '0:25:50', EXAMPLE.slice(0, 8).map((t) => links.rep
 for (const [g, want] of [['men', 'men'], ['women', 'women'], ['all', 'all'], ['Women', 'all'], [null, 'all'], ['x', 'all']]) assert.equal(report.readReportGender(g), want);
 ok(19);
 
+// ---------- Lookup version 2: the record's edition tier on the page and in the image (D16) ----------
+{
+  const input = { times: EXAMPLE, race: { city: 'Berlin' }, openingBands: [], types: { data: null, error: null, cohort: null },
+    comparison: { index: null, indexError: null, course: 'all', gender: 'all', shard: null } };
+  const typed = report.buildReport(input);
+  assert.equal(typed.tier, null, 'A typed race has no edition and no tier');
+  assert.equal(report.reportLines(typed, 'mi').tier, null); assert.match(report.reportImageAlt(typed, 'mi'), /^Pace Notes race report, Berlin\. Finish/);
+  for (const [tier, words] of [['stamped', 'Verified'], ['stamped_weaker_source', 'Verified, weaker source'], ['partial', 'Partial results'], ['unverified', 'Unverified']]) {
+    const model = report.buildReport({ ...input, record: { edition: { city: 'Berlin', year: 2019, tier }, context: null, error: null, lateChange: 0 } });
+    assert.equal(model.tier, tier); assert.equal(report.reportLines(model, 'km').tier, words, `${tier}: the module's words`);
+    assert.match(report.reportImageAlt(model, 'km'), new RegExp(`^Pace Notes race report, Berlin 2019 \\(${words}\\)\\.`), `${tier}: the alternative text names the tier`);
+  }
+  assert.throws(() => report.reportLines(report.buildReport({ ...input, record: { edition: { city: 'Berlin', year: 2019, tier: 'excluded' }, context: null, error: null, lateChange: 0 } }), 'km'), /tier/, 'A tier never shown stops the image');
+  const image = fs.readFileSync(path.join(ROOT, 'lib/report-image.ts'), 'utf8'), card = fs.readFileSync(path.join(ROOT, 'components/report/RaceReport.tsx'), 'utf8');
+  assert.match(image, /l\.tier \? `RACE REPORT · \$\{l\.tier\.toUpperCase\(\)\}` : 'RACE REPORT'/, 'The image draws the tier in its kicker');
+  assert.match(card, /model\.tier \? <> <TierTag tier=\{model\.tier\}/, 'The page shows the tier label by the module');
+  assert.match(fs.readFileSync(path.join(ROOT, 'components/RunnerContext.tsx'), 'utf8'), /edition: \{ city: edition\.city, year: edition\.year, tier: TIERS\[edition\.tier\] \}/, 'A record\'s report is given its edition\'s tier');
+  ok(16);
+}
+
 // ---------- The published files ----------
 const INDEX = 'tools/pace-band.json';
 const index = verified(INDEX, manifest.files[INDEX].sha256);
