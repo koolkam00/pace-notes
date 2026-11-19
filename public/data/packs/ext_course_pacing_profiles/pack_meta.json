@@ -4,29 +4,29 @@
   "question_id": "s3_course_breaks",
   "title": "What is each course\u2019s pacing fingerprint?",
   "status": "ready",
-  "as_of": "2026-11-14T03:35:08Z",
-  "n": 4124023,
+  "as_of": "2026-11-19T17:14:13Z",
+  "n": 4124026,
   "input_export_id": "pace-notes-marathon-half-20261113-1113",
   "input_as_of": "2026-11-13T19:30:55Z",
-  "live_json_as_of": "2026-11-05T16:39:47Z",
+  "live_json_as_of": "2026-11-19T17:07:30Z",
   "input_asset_sha256": "a76b1615d2e6769dab61cfc3cfa1cf54a6b3897b1bf54c4bbc682083d6f790e0",
-  "input_manifest_sha256": "c0ddc847837382ae9b9ed7a52812a851588c7add8d04368e77226bf075d8310b",
+  "input_manifest_sha256": "e994ac1590d8b3204c02cc6327c83cb7315b5cc5fd2914a445f07fa809ba085c",
   "analysis_script_sha256": "d799a3c92f7ce00d4dae7a20d145a0904486e3e186f9c342c3182a3f7926039b",
   "analysis_version": 1,
   "engine": "DuckDB 1.4.4",
   "corpus": {
-    "n_records": 7820439,
-    "n_cities": 811,
+    "n_records": 7820442,
+    "n_cities": 805,
     "n_race_years": 2688
   },
   "cohort": {
-    "deduplicated": 7820393,
-    "complete": 4736952,
-    "increasing": 4705518,
-    "timing_eligible": 4687794,
-    "eligible": 4124023,
+    "deduplicated": 7820396,
+    "complete": 4736955,
+    "increasing": 4705521,
+    "timing_eligible": 4687797,
+    "eligible": 4124026,
     "source_quality_excluded": 563771,
-    "raw": 7820439,
+    "raw": 7820442,
     "duplicates_removed": 46,
     "missing_or_unparsed": 3083441,
     "non_increasing": 31434,
@@ -46,10 +46,10 @@
     "version": 2,
     "release_tag": "pace-notes-marathon-half-20261113-1113",
     "reviewed_edition_policy": true,
-    "policy_sha256": "be5f84977d1b72fa81b0a0f680a4b9d4c27f50600f70d4ecec9b8241885e758d",
-    "script_sha256": "13937ede2fd9fe886b50cb6cc148e79b982a428fb3a7d460c74599e0896eeec8",
+    "policy_sha256": "6fd848dba85aa5b745a023d101cd80303607d506c03aea708774d0b5dd0c22cd",
+    "script_sha256": "10b6bee6fb47807aa86236d0e11e44dc763768b557fd9e0ee364619de70a8965",
     "editions_file": "edition-policy.json",
-    "editions_sha256": "45cbd46e806bdb7a4e1a902f62465ca84ef7754d0644978cc7d3df9bd3476f24",
+    "editions_sha256": "793dec4d47de131ebd2e0674c81ef3b05f423b003aff1defa570a9c022b968dd",
     "counts": {
       "editions": 2487,
       "own_record_editions": 32,
@@ -106,5 +106,5 @@
       }
     }
   },
-  "source_quality_script_sha256": "13937ede2fd9fe886b50cb6cc148e79b982a428fb3a7d460c74599e0896eeec8"
+  "source_quality_script_sha256": "10b6bee6fb47807aa86236d0e11e44dc763768b557fd9e0ee364619de70a8965"
 }

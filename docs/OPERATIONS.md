@@ -216,8 +216,8 @@ Releases come from two repositories:
 | Inspect complete marathon export (`inspect-full-export.yml`) | Pull requests touching the downloader, its test, `inspect_export.py` or `audit_expanded.py`; manually | Downloads FULL, inspects every table and audits linked histories; artifact `pacing-full-export-inspection` |
 | Public runner explorer (`public-explorer.yml`) | Pull requests touching the explorer, lookup, pacing and policy builders, the pin or the downloader; manually | Every Python test, then a FULL download, `build_public_explorer.py` and `verify-public-explorer.cjs`; artifact `public-runner-explorer`. Its path filter also names `analysis/test_runner_lookup.py`, which does not exist. |
 | Runner context and peers (`runner-context.yml`) | Pull requests touching the context builders, the pin, the runner manifest or `lib/runner-context.ts`; manually | Every Python test, then a FULL download, `build_runner_context.py` and `verify-runner-context.cjs`; artifact `runner-context` |
-| All-finisher context analyses (`all-finisher-context.yml`) | Pull requests touching its builder, the runner or context data or the pin; manually | Its tests, a rebuild, and the verifier on both the published and the rebuilt file |
-| Fast-start analysis (`fast-start.yml`) | Pull requests touching the fast-start builders, the runner data or the pin; manually | Both builds and both verifiers |
+| All-finisher context analyses (`all-finisher-context.yml`) | Pull requests touching its builder, the cohort (`analysis/marathon-cohort/**`, `cohort.py`, `scripts/lib/cohort.cjs`) or context data or the pin; manually | Its tests, a rebuild, and the verifier |
+| Fast-start analysis (`fast-start.yml`) | Pull requests touching the fast-start builders, the cohort or the pin; manually | Both builds and both verifiers |
 | Weather evidence screen (`weather-analysis.yml`) | Pull requests touching the weather and pacing builders, the policy or the weather pin; manually | Every Python test, then a FULL download and all three candidates; artifact `weather-evidence` |
 | Story analyses (`insights.yml`) | Pull requests touching the story and terrain builders, `analysis/course_terrain/**`, the story, runner or context data, or the pin; manually | Tests, `verify-insights`, a CORE download, a rebuild of every family, a recount, and a byte comparison with the committed files |
 | Top 100 charts (`charts.yml`) | Pull requests touching the chart builders, chart code, cards, the runner or weather data, or the pins; manually | Tests, `verify-charts`, the card check, a rebuild, a recount and a byte comparison |
@@ -316,7 +316,8 @@ python analysis/import_personalized.py --archive /path/to/pacing-personalized-ag
 python analysis/import_packs.py --archive /path/to/pacing-aggregate-packs.zip --expected-export "$EXPORT_ID"
 python analysis/import_personalized.py --archive /path/to/pacing-personalized-aggregates.zip --expected-export "$EXPORT_ID"
 npm ci
-python analysis/import_public_explorer.py --input "$WORK/explorer"
+python analysis/build_study.py --input "$IN" --identity "$IDENTITY" --output "$WORK/study-out"
+python analysis/import_study.py --input "$WORK/study-out"
 python analysis/build_runner_context.py --input "$IN" --output "$WORK/runner-context"
 python analysis/import_runner_context.py --input "$WORK/runner-context"
 npm run verify:data
@@ -325,7 +326,7 @@ npm run build
 
 Review and copy the weather JSON to `public/data/weather/evidence.json` with its exact `analysis/weather-release.json` pin. Both pins hold only `repository` and `tag`; at adoption, set `tag` in both to the audited tag ([release intake](#release-intake) step 8). The weather file is outside the two ZIP importer contracts. Verify source/script/policy hashes, raw-to-eligible and weather-cohort reconciliation, all candidate gates, dynamic routes, exact source labels and display units. For the current audited release, `calculation_provenance.py` requires the exact reviewed builder and supporting-script hashes before either import; a valid-looking 64-character hash is insufficient. Website data validation repeats these checks on PRs and main. Review the full diff before committing or merging. Verify the deployed source tags and exact commit separately after publication.
 
-Every active analysis must now use the same adopted release. The supporting-study and runner importer replaces only `public/data/study`, `public/data/runners` and current `live.json` compatibility metadata. It validates every shard, every record and every eligible timing that the runner manifest counts (`raw_records` and `eligible_records` in `public/data/runners/manifest.json`), name-index membership and calculation/source hashes before import. Historical S/R/RN/P numerical files remain in Git history, outside deployed output. The source pin alone never certifies a refresh.
+Every active analysis must now use the same adopted release. The study importer (`import_study.py`, since November 19, 2026; decision D26) replaces only `public/data/study` and writes `public/data/live.json`, the only writer of that file: release tag, the two timestamps, corpus counts, the study file and the cohort manifest's digest. It runs `verify-study` on its input first, which recounts the headline count, the detected sustained-slowdown finishes, the onset sections and every course rate from the cohort. `build_study.py` takes `--identity`, the identity file of the combined release, and must reproduce the cohort's counts. The runner lookup and its importer are the lookup family's.
 
 Forecast and validated course-adjustment outputs remain explicitly unavailable where the current inputs cannot support them. Historical outputs remain recoverable in Git history and are never relabeled as fresh. Weather publication follows the existing evidence rule. A previously published candidate can become withheld and vice versa; all three results remain in the downloadable audit. See [weather methods and decisions](WEATHER_ANALYSES.md).
 
@@ -353,7 +354,7 @@ The [Runner context and peers workflow](../.github/workflows/runner-context.yml)
 
 ## All-finisher context refresh
 
-After refreshing and verifying both lookup and environmental context, build the additive context file against those exact manifests:
+After rebuilding the marathon cohort and the runner context bound to it, build the additive context file against those exact manifests (it read the runner lookup until November 19, 2026):
 
 ```bash
 python -m unittest discover -s analysis -p 'test_all_finisher_context.py'
@@ -368,14 +369,14 @@ The dedicated `all-finisher-context.yml` workflow recalculates and independently
 
 ## Fast-start analysis refresh
 
-After any runner-lookup refresh, recalculate **both** independent fast-start outputs from those exact published shards. This reuses the reviewed input pin and does not download or modify the ingestion database. The default all-finisher mode must include every eligible record once; history must additionally reconcile the strictly-earlier-two-year benchmark count. Both verify all source shards, raw/eligible counts, source calculation hashes and the exact runner-manifest hash. Adding the all-finisher mode without a lookup refresh preserves the existing history output byte for byte.
+After any cohort rebuild, recalculate **both** independent fast-start outputs from the cohort (`--cohort`, default `analysis/marathon-cohort`; the published runner shards until November 19, 2026). This reuses the reviewed input pin and does not download or modify the ingestion database. The default all-finisher mode must include every counted record once; history must additionally reconcile the strictly-earlier-two-year benchmark count with the cohort manifest, and its high-links-only reading (decision D38) with `linkage.high_links`. Both verify every cohort file, the eligible count, the calculation hashes and the exact cohort-manifest hash.
 
 ```bash
 python -m unittest discover -s analysis -p 'test_fast_start.py'
-python analysis/build_fast_start.py --runners public/data/runners --output /path/to/fast-start/evidence.json
+python analysis/build_fast_start.py --output /path/to/fast-start/evidence.json
 node scripts/verify-fast-start.cjs --input /path/to/fast-start/evidence.json
 python -m unittest discover -s analysis -p 'test_fast_start_all.py'
-python analysis/build_fast_start_all.py --runners public/data/runners --output /path/to/fast-start/all-finishers.json
+python analysis/build_fast_start_all.py --output /path/to/fast-start/all-finishers.json
 node scripts/verify-fast-start-all.cjs --input /path/to/fast-start/all-finishers.json
 cp /path/to/fast-start/evidence.json public/data/fast-start/evidence.json
 cp /path/to/fast-start/all-finishers.json public/data/fast-start/all-finishers.json
@@ -501,3 +502,27 @@ python analysis/build_runner_context.py --input "$IN" --output "$WORK/runner-con
 For a standalone calculation audit, run `node scripts/verify-runner-context.cjs --data-root "$WORK/runner-context"`. It verifies every context shard, all group/CDF counts against the published eligible runner records, and 16 independently recomputed pacing-quartile samples. `npm run verify:data` also includes the context client and UI checks. A same-tag lookup rebuild changes its manifest hash/timestamp and invalidates older context; rebuild rather than relabeling the context manifest.
 
 Runner context has an additional dependency on the exact imported runner manifest; follow the [dedicated sequence below](#runner-context-refresh) after importing the supporting study and lookup.
+
+### Superseded on November 19, 2026 (commands of the families moved to the marathon cohort)
+
+Moved word for word: the import step of "Validate, import and publish" and the two build lines of "Fast-start analysis refresh".
+
+```bash
+python analysis/import_public_explorer.py --input "$WORK/explorer"
+python analysis/build_fast_start.py --runners public/data/runners --output /path/to/fast-start/evidence.json
+python analysis/build_fast_start_all.py --runners public/data/runners --output /path/to/fast-start/all-finishers.json
+```
+
+### Superseded on November 19, 2026 (study, fast start and all-finisher views on the cohort)
+
+Moved word for word on November 19, 2026, when the study, fast start and the all-finisher views moved to the marathon cohort.
+
+Every active analysis must now use the same adopted release. The supporting-study and runner importer replaces only `public/data/study`, `public/data/runners` and current `live.json` compatibility metadata. It validates every shard, every record and every eligible timing that the runner manifest counts (`raw_records` and `eligible_records` in `public/data/runners/manifest.json`), name-index membership and calculation/source hashes before import. Historical S/R/RN/P numerical files remain in Git history, outside deployed output. The source pin alone never certifies a refresh.
+
+After refreshing and verifying both lookup and environmental context, build the additive context file against those exact manifests:
+
+After any runner-lookup refresh, recalculate **both** independent fast-start outputs from those exact published shards. This reuses the reviewed input pin and does not download or modify the ingestion database. The default all-finisher mode must include every eligible record once; history must additionally reconcile the strictly-earlier-two-year benchmark count. Both verify all source shards, raw/eligible counts, source calculation hashes and the exact runner-manifest hash. Adding the all-finisher mode without a lookup refresh preserves the existing history output byte for byte.
+
+| All-finisher context analyses (`all-finisher-context.yml`) | Pull requests touching its builder, the runner or context data or the pin; manually | Its tests, a rebuild, and the verifier on both the published and the rebuilt file |
+
+| Fast-start analysis (`fast-start.yml`) | Pull requests touching the fast-start builders, the runner data or the pin; manually | Both builds and both verifiers |

@@ -1,6 +1,6 @@
 {
   "answer_prose": "The most common pattern is pronounced slowing: 47.8% of eligible finishes. The full-course profile also shows how pace changes within those broad blocks.",
-  "detail_prose": "Calculated directly from 4,124,023 complete, plausible split records in the public export.",
+  "detail_prose": "Calculated directly from 4,124,026 complete, plausible split records in the public export.",
   "charts": [
     {
       "title": "The typical pace profile",
@@ -34,13 +34,13 @@
   "statistics": {},
   "audit": {
     "cohort": {
-      "deduplicated": 7820393,
-      "complete": 4736952,
-      "increasing": 4705518,
-      "timing_eligible": 4687794,
-      "eligible": 4124023,
+      "deduplicated": 7820396,
+      "complete": 4736955,
+      "increasing": 4705521,
+      "timing_eligible": 4687797,
+      "eligible": 4124026,
       "source_quality_excluded": 563771,
-      "raw": 7820439,
+      "raw": 7820442,
       "duplicates_removed": 46,
       "missing_or_unparsed": 3083441,
       "non_increasing": 31434,
@@ -49,17 +49,17 @@
     "packs": [
       {
         "id": "ext_pacing_shapes",
-        "n": 4124023,
+        "n": 4124026,
         "question_id": "r10_unravel_typology"
       },
       {
         "id": "ext_course_pacing_profiles",
-        "n": 4124023,
+        "n": 4124026,
         "question_id": "s3_course_breaks"
       },
       {
         "id": "ext_checkpoint_outcomes",
-        "n": 4124023,
+        "n": 4124026,
         "question_id": "r04_on_pace_goal_hits"
       },
       {
@@ -69,7 +69,7 @@
       },
       {
         "id": "ext_late_rank_changes",
-        "n": 4124023,
+        "n": 4124026,
         "question_id": "r06_decided_after_30k"
       },
       {
@@ -84,7 +84,7 @@
       },
       {
         "id": "ext_pacing_over_time",
-        "n": 3915559,
+        "n": 3915562,
         "question_id": "r26_pacing_over_20y"
       }
     ],
