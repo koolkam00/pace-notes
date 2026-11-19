@@ -1,5 +1,6 @@
 import release from '@/analysis/release.json';
 import { dataFetch } from './data-fetch';
+import { TIMING_CLASSES, type TimingClass } from './tiers';
 
 /**
  * Runner lookup version 2 in the browser (the contract is docs/RUNNERS_AND_REPORT.md): every named marathon and
@@ -271,18 +272,22 @@ function sameLength(data: Columns, columns: readonly string[], length: number, w
 export type EditionsFile = {
   v: number; races: [letter: string, label: string, name: string][]; sr: number[]; y: number[]; t: string; sp: string; db: string; g: string;
   q: number[]; cx: number[]; rs: number[]; nl: number[]; reasons: string[];
+  /** Each edition's timing class, a digit into TIMING_CLASSES (lib/tiers.ts). Added before the final build; a build without it draws no timing label. */
+  tb?: string;
 };
 /** One edition as the reference decodes it. */
 export type DecodedEdition = {
   index: number; distance: RunnerDistance; city: string; race: string; year: number; tier: number; splits: boolean; db: string;
   noComparison: number; q: number; context: number | null; reason: string | null; unlisted: number;
+  /** The edition's timing class, or null where the build carries no timing column. */
+  timing: TimingClass | null;
 };
 
 /** editions.json.gz as one object per edition, in index order. */
 export function decodeEditions(data: EditionsFile): DecodedEdition[] {
   if (!data || data.v !== SCHEMA_VERSION) throw new Error('editions: unknown version');
   const count = data.sr.length;
-  sameLength(data as unknown as Columns, ['y', 't', 'sp', 'db', 'g', 'q', 'cx', 'rs', 'nl'], count, 'editions');
+  sameLength(data as unknown as Columns, ['y', 't', 'sp', 'db', 'g', 'q', 'cx', 'rs', 'nl', ...(data.tb === undefined ? [] : ['tb'])], count, 'editions');
   const out = new Array<DecodedEdition>(count);
   for (let at = 0; at < count; at++) {
     const race = data.races[data.sr[at]];
@@ -291,6 +296,8 @@ export function decodeEditions(data: EditionsFile): DecodedEdition[] {
       tier: Number(data.t[at]), splits: data.sp[at] === '1', db: data.db[at], noComparison: Number(data.g[at]),
       q: data.q[at], context: data.cx[at] < 0 ? null : data.cx[at], reason: data.rs[at] < 0 ? null : data.reasons[data.rs[at]],
       unlisted: data.nl[at],
+      // An unknown digit decodes to undefined and is refused by validateEditions, never shown as a default.
+      timing: data.tb === undefined ? null : TIMING_CLASSES[Number(data.tb[at])] as TimingClass,
     };
   }
   return out;
@@ -482,8 +489,11 @@ function validateEditions(decoded: DecodedEdition[], count: number): RunnerEditi
     if (!text(edition.city) || !edition.city || !text(edition.race) || !integer(edition.year, 1) || !integer(edition.q) || !integer(edition.unlisted) ||
       !Number.isInteger(edition.tier) || edition.tier < 0 || edition.tier >= TIERS.length || (edition.db !== 'f' && edition.db !== 'h') ||
       ![0, 1, 2].includes(edition.noComparison) || (marathon && (edition.noComparison !== 0 || edition.db !== 'f')) ||
-      (edition.context !== null && (!integer(edition.context) || !marathon)) || (edition.reason !== null && (!text(edition.reason) || !marathon))) throw problem();
+      (edition.context !== null && (!integer(edition.context) || !marathon)) || (edition.reason !== null && (!text(edition.reason) || !marathon)) ||
+      (edition.timing !== null && !(TIMING_CLASSES as readonly string[]).includes(edition.timing)) || (edition.timing !== null && edition.noComparison === 1 && edition.timing !== 'gun')) throw problem();
   }
+  // The column is the file's or absent: never on some editions only.
+  if (decoded.some(row => row.timing === null) && decoded.some(row => row.timing !== null)) throw problem();
   return decoded as RunnerEdition[];
 }
 
@@ -716,6 +726,8 @@ export type RunnerRace = {
   link: LinkCode;
   /** The link keys a runner in the pipeline's identity file (codes 1 to 3). */
   confirmed: boolean;
+  /** Listed as a possible match: the profile holds other results and this one's link does not key a runner. The one result of a profile of one is linked to nothing, so it is never one. */
+  possible: boolean;
   /** null for a half marathon. */
   status: RunnerStatus | null;
   /** A marathon record with its own pacing view (status 0 or 1). */
@@ -768,7 +780,8 @@ export function runnerProfile(decoded: DecodedProfile, shard: number, position: 
     if (marathon && ((status === 0 && edition.reason !== null) || ((status === 1 || status === 6) && edition.reason === null))) throw problem();
     const race: RunnerRace = {
       key: result.key, db: result.db, id: result.id, edition: result.edition, distance: result.distance, name: result.name, sex: result.sex, age: result.age,
-      times: result.times, link: result.link as LinkCode, confirmed: result.confirmed, status: status as RunnerStatus | null, eligible, counted: marathon && status === 0,
+      times: result.times, link: result.link as LinkCode, confirmed: result.confirmed, possible: decoded.results.length > 1 && !result.confirmed,
+      status: status as RunnerStatus | null, eligible, counted: marathon && status === 0,
       reason: !marathon || status === 0 ? null : status === 1 || status === 6 ? edition.reason : STATUS_REASONS[status as RunnerStatus] ?? null,
     };
     if (eligible && !runnerMetrics(race)) throw problem();
@@ -869,12 +882,11 @@ export type RunnerList = {
  * link label.
  */
 export function runnerLists(profile: RunnerProfile, manifest: Pick<RunnerManifest, 'editions'>): RunnerList[] {
-  const alone = profile.races.length === 1;
   const year = (race: RunnerRace) => manifest.editions[race.edition].year;
   const newest = (a: RunnerRace, b: RunnerRace) => year(b) - year(a) || a.id - b.id;
   return (['marathon', 'half'] as const).map(distance => {
     const races = profile.races.filter(race => race.distance === distance);
-    const own = races.filter(race => alone || race.confirmed).sort(newest), possible = races.filter(race => !alone && !race.confirmed).sort(newest);
+    const own = races.filter(race => !race.possible).sort(newest), possible = races.filter(race => race.possible).sort(newest);
     const years = own.map(year), timed = own.filter(race => finishComparable(race, manifest));
     return { distance, own, possible, summary: own.length ? { count: own.length, firstYear: Math.min(...years), lastYear: Math.max(...years),
       best: timed.length ? timed.reduce((best, race) => raceFinish(race)! < raceFinish(best)! ? race : best) : null } : null };

@@ -83,11 +83,13 @@ export function compareRunnerRaces(focus: RunnerRace, reference: RunnerRace, run
 /**
  * The context manifest, checked against the verified lookup manifest: built on the cohort the lookup names (its
  * SHA-256, the release, the input time and the cohort's own time and raw count), with a file entry only under a
- * cohort edition index.
+ * cohort edition index. `expectedSha`, where a server page passes one (lib/course-page.ts), must also be the digest
+ * the context names: a page that binds its own data to one cohort keeps that binding.
  */
-export function validateContextManifest(value: unknown, runners: RunnerManifest): ContextManifest {
+export function validateContextManifest(value: unknown, runners: RunnerManifest, expectedSha?: string): ContextManifest {
   const d = value as ContextManifest, cohort = runners.cohort;
   if (!/^[a-f0-9]{64}$/.test(cohort?.manifest_sha256 ?? '') || d?.runner_manifest_sha256 !== cohort.manifest_sha256) throw error();
+  if (expectedSha !== undefined && d.runner_manifest_sha256 !== expectedSha) throw error();
   if (!d || d.schema_version !== 1 || d.release_tag !== RUNNER_RELEASE || d.release_tag !== runners.release_tag || d.input_as_of !== cohort.input_as_of || d.runner_manifest_as_of !== cohort.as_of || !Number.isFinite(Date.parse(d.as_of)) || d.cohort?.raw !== cohort.raw_records || !integer(d.cohort.eligible, 1) || d.cohort.eligible !== cohort.eligible_records || !d.editions || typeof d.editions !== 'object' || Array.isArray(d.editions)) throw error();
   for (const [index, meta] of Object.entries(d.editions)) {
     if (!/^(0|[1-9]\d{0,5})$/.test(index) || Number(index) >= cohort.editions || !meta || typeof meta.file !== 'string' || !/^editions\/[a-z0-9]+(-[a-z0-9]+)*\.json\.gz$/.test(meta.file) || !integer(meta.bytes, 1) || !/^[a-f0-9]{64}$/.test(meta.sha256)) throw error();
