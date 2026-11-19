@@ -1,0 +1,89 @@
+{
+ "document": "The one reviewed refresh of the half race registry (analysis/half-race-registry.json), 2026-11-19: the rule, every join with its evidence (also in the registry), and every candidate group left separate with its reason.",
+ "rule": "Review of 2026-11-19 (lead request of that day). Candidates: keys whose place and event title are equal under race_registry.grouping_form (case, accents, punctuation, spacing, a trailing year and an edition number set aside). A group is joined only when (1) no year appears under two of its keys, (2) its keys state a place (not empty, not a timing platform: a place part that is a web domain such as datasport.pl is a platform), (3) every key with a dated edition has a dated edition of another key of the group within 45 days of the same day of the year (a key that fails stays its own race), (4) the group does not have two keys of 100 or more keyed runners each with no keyed runner shared. The short-list races were also checked for a second key of the same place by hand; those joins carry the same evidence. A joined race is named by the event title of its latest key with an edition number (and \"Annual\") removed, from the key whose title has the smallest share of capital letters among those with any (the latest on a tie).",
+ "tier_table": "EDITION-TIERS.csv of pace-notes-marathon-half-20261113-1113",
+ "counts": {
+  "keys": 4561,
+  "plain_keys": 239,
+  "keys_by_database": {
+   "half": 4555,
+   "full": 6
+  },
+  "races": 4433,
+  "races_by_join": {
+   "reviewed join": 95,
+   "single key": 4338
+  },
+  "races_by_label": {
+   "name": 3934,
+   "name and first year": 3,
+   "name and place": 240,
+   "name, place and first year": 8,
+   "name, place, first year, database": 1,
+   "name, place, first year, number": 1,
+   "plain key": 239,
+   "reviewed label": 7
+  },
+  "races_by_flag": {
+   "cancelled_in_title": 7,
+   "no_half_word_in_title": 1952,
+   "placeholder_place": 7,
+   "platform_prefix": 0,
+   "virtual_in_title": 0
+  },
+  "editions": 9600,
+  "rows": 7893466
+ },
+ "joins": 95,
+ "keys_joined": 223,
+ "reviewed_labels": 7,
+ "left_separate": [
+  {
+   "form": ": mediadonosti",
+   "why": "no stated place",
+   "rows": 5836
+  },
+  {
+   "form": "casablanca: marathon internation de casablanca",
+   "why": "a year under two keys",
+   "rows": 3037
+  },
+  {
+   "form": "colonial heights va: medal madness 5k 10k 13 1m 26 2m at colonial heights",
+   "why": "a year under two keys",
+   "rows": 22
+  },
+  {
+   "form": "datasport pl: wizz air katowice half marathon",
+   "why": "no stated place",
+   "rows": 2416
+  },
+  {
+   "form": "debary fl: holiday 5k 10k half marathon at gemini springs park debary fl",
+   "why": "a year under two keys",
+   "rows": 38
+  },
+  {
+   "form": "malaga: totalenergies medio maraton de malaga",
+   "why": "race dates in different parts of the year",
+   "rows": 10020
+  },
+  {
+   "form": "palencia: media maraton y 10 km ciudad de palencia",
+   "why": "race dates in different parts of the year",
+   "rows": 610
+  }
+ ],
+ "dropped_from_a_join": [
+  {
+   "key": "Gela: 1^ Maratonina del Golfo",
+   "join": "Maratonina del Golfo",
+   "why": "race dates in another part of the year"
+  },
+  {
+   "key": "Gijón: 10ª EDP Media Maratón Gijón “Villa de Jovellanos”",
+   "join": "EDP Media Maratón Gijón “Villa de Jovellanos”",
+   "why": "race dates in another part of the year"
+  }
+ ]
+}
