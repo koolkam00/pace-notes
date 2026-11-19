@@ -324,3 +324,10 @@
   .course-hero { box-shadow: none; clip-path: none; }
 }
 
+
+/* A results page (components/races/ResultsPage.tsx, November 19, 2026): "Finish times only" under the H1, the ways on. */
+.results-tags { margin: var(--s-3) 0 0; }
+.results-ways-body { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-5); align-items: center; }
+/* Two races under one label (Warsaw), named under the hero's dek and the finish-times line. */
+.course-beat-body .course-series { margin: var(--s-3) 0 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.course-hero .hero-dek.course-series { margin-top: var(--s-2); }

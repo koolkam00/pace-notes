@@ -9,6 +9,10 @@ import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import { readingAttrs } from '@/lib/chapters';
 import Reading from '@/components/ui/Reading';
 import { courseLists, coursePages, raceName, routeClimb } from '@/lib/course-page';
+import RaceFinder from '@/components/races/RaceFinder.client';
+import { TierTerm } from '@/components/ui/TierTag';
+import { directorySha, raceSummary, resultsPages } from '@/lib/races-server';
+import { raceDisplayName } from '@/lib/races-types';
 import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { getNugget, readingOf, sentenceOf } from '@/lib/nuggets';
@@ -23,12 +27,12 @@ export function generateMetadata() {
   // The courses whose row prints a climb (climbOf below): a supplied route whose profile does not read the water under a
   // bridge. Until November 9, 2026 this counted every route file, two more than the rows that print a climb.
   const drawn = pages.filter((p) => p.geometry && !profileUnderWater(p)).length;
-  const display = (city: string) => (city === 'New York' ? 'New York City' : city);
-  const span = names.length > 1 ? `, from ${display(names[0])} to ${display(names[names.length - 1])}` : '';
-  const describe = (from: string) => `Sustained slowdown, climb, finishes and race-morning weather for ${names.length} marathon courses${from}, with route and elevation for ${drawn}.`;
+  const total = raceSummary().races.total.n;
   // Every course has a pacing profile; only those whose row prints a climb have elevation, so the title counts both.
   const title = drawn === names.length ? `Marathon Courses: Elevation and Pacing for ${names.length} Races` : `Marathon Courses: Pacing for ${names.length} Races, Elevation for ${drawn}`;
-  return pageMetadata({ title, description: describe(span).length <= 155 ? describe(span) : describe(''), path: '/courses' });
+  // Since November 19, 2026 the page also lists every marathon with recorded results (the race directory).
+  const description = `${count(total)} marathons, year by year, with sustained slowdown, climb, finishes and race-morning weather for ${names.length} courses.`;
+  return pageMetadata({ title, description, path: '/courses' });
 }
 
 /**
@@ -119,18 +123,49 @@ export default function CoursesPage() {
     finishes: <>Finishes on each course, most first.</>,
     temp: <>Start temperatures across each course’s race mornings, coolest on average first.</>,
   };
+  // The results pages (the second template, November 19, 2026): finish times by year, no pacing figure, so no place in
+  // the sorted list above (each of its orders is a pacing or route figure). One row each, A–Z, drawn as the course rows
+  // are, with the race's reading where race.reading's guard holds and a dash where it does not.
+  const results = [...resultsPages().values()].map((r) => ({ page: r, name: raceDisplayName(r), reading: getNugget('race.reading', { city: r.label }) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const resultsRows = results.map(({ page: r, name, reading }) => (
+    <li key={r.slug}>
+      <Link href={`/courses/${r.slug}`} className="course-index-row" data-course-results="">
+        <span className="course-index-name">{name}</span>
+        <span className="course-index-meta"><span className="m-default">{r.place ? <>{r.place}{'\u00a0· '}</> : null}{count(r.editions)} {r.editions === 1 ? 'edition' : 'editions'}</span></span>
+        <span className="course-index-share">
+          <span className="f-reading">{reading.guard && reading.figure ? <><Fact k={`reading@${r.slug}`} v={Number(reading.values.median_s)}>{reading.figure.value}</Fact><span className="sr-only"> median finish</span></> : '—'}</span>
+        </span>
+      </Link>
+    </li>
+  ));
+  const pagesNugget = getNugget('courses.pages');
+  // The ItemList names the races with a page only (course and results pages), alphabetically.
+  const named = [...alpha.map((p) => ({ slug: p.slug, city: p.city, race: p.race })), ...results.map(({ page: r, name }) => ({ slug: r.slug, city: name, race: name }))]
+    .sort((a, b) => a.city.localeCompare(b.city));
   const list = {
-    '@context': 'https://schema.org', '@type': 'ItemList', name: 'Marathon courses', itemListOrder: 'https://schema.org/ItemListOrderAscending', numberOfItems: alpha.length,
-    itemListElement: alpha.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: p.race, url: absoluteUrl(`/courses/${p.slug}`) })),
+    '@context': 'https://schema.org', '@type': 'ItemList', name: 'Marathon courses', itemListOrder: 'https://schema.org/ItemListOrderAscending', numberOfItems: named.length,
+    itemListElement: named.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: p.race, url: absoluteUrl(`/courses/${p.slug}`) })),
   };
+  const total = raceSummary().races.total.n;
   return (
     <div className="courses-page" {...readingAttrs('/courses')}>
       <JsonLd data={[pageCrumbs('/courses', 'Courses'), list]} />
-      {/* One list (section 00): the H1, the dek, then every course. The spread across courses is course-comparison's. */}
+      {/* The H1 and the dek (every marathon the list holds), then the races with a page, then every race. */}
       <Reading crumbs={<ChapterCrumbs path="/courses" />} title="Courses" titleSize="title" dek={sentenceOf(index).replace(/\*/g, '')} className="courses-reading" />
-      <section className="courses-list" aria-label="Every course">
+      <section className="courses-list" id="pages" aria-labelledby="pages-title">
+        <h2 id="pages-title" className="courses-h2">{sentenceOf(pagesNugget).replace(/\*/g, '')}</h2>
+        <h3 className="courses-h3">Pacing, course and weather</h3>
         <CourseSort initial="az" orders={orders} rows={rows} keys={keys} foot={few} footTitle="Fewer than three editions"
           options={[{ value: 'az', label: 'A–Z' }, { value: 'slowdown', label: 'Sustained slowdown' }, { value: 'climb', label: 'Climb' }, { value: 'finishes', label: 'Finishes' }, { value: 'temp', label: 'Start temperature' }]} />
+        <h3 className="courses-h3" id="finish-times-by-year">Finish times by year</h3>
+        <p className="course-index-key">Each race’s median finish in a typical verified year.</p>
+        <ol className="course-index is-results" data-sort="reading">{resultsRows}</ol>
+      </section>
+      <section className="courses-every" id="every-race" aria-labelledby="every-title">
+        <h2 id="every-title" className="courses-h2">Every marathon</h2>
+        <p className="course-index-key">Each race’s editions by the <TierTerm>status of their results</TierTerm>; a race with a page links to it.</p>
+        <RaceFinder sha={directorySha()} total={count(total)} />
       </section>
       <ChapterEnd path="/courses" readingOf={readingOf} />
     </div>

@@ -20,6 +20,8 @@ import zlib from 'node:zlib';
 import { createHash } from 'node:crypto';
 import release from '@/analysis/release.json';
 import { getCourseNames } from './course-data';
+import { raceFileByLabel, racePages } from './races-server';
+import { timingClass } from './tiers';
 import { copyEditions, isCopyEdition } from './duplicate-editions';
 import type { Archetypes, CourseGeometry, Courses, CourseSummary, InsightsManifest, WeatherEdition } from './insights';
 import { getCohortManifest, getInsightsManifest, listedEditions, readInsight, type CohortManifest, type ListedEdition } from './insights-server';
@@ -228,7 +230,9 @@ export type EditionRow = { year: number; n: number; median_s: number; slowdown: 
  * decisions D3, D5 and D16) with the shared `EditionTags`. The timing basis is null where the release states none and
  * for an edition without a cohort file.
  */
-export type ListedRow = { year: number; use: ListedEdition['use']; tier: string; weakerSource: boolean; splitTier: string; timingBasis: string | null };
+export type ListedRow = { year: number; use: ListedEdition['use']; tier: string; weakerSource: boolean; splitTier: string; timingBasis: string | null; results: number;
+  /** The race directory's timing class of the edition (lib/tiers.ts TIMING_CLASSES), which every edition has, with a cohort file or not. */
+  timing: string };
 export type WeatherRow = WeatherEdition & { start: string | null };
 /** A goal's row on this course, and the share that made it across the other courses with rows (`every`, pooled by finishes; this course left out). */
 export type GoalLine = { goal: number; row: CourseGoalRow | null; reason: string | null; every: GoalPooled | null };
@@ -357,7 +361,18 @@ export function heldEditions(): Set<string> {
  * (components/ui/TierTag.tsx `EditionTags`; the words are lib/tiers.ts and no page writes one).
  */
 function listedRows(city: string): ListedRow[] {
-  return listedEditions().filter((e) => e.city === city).map(({ year, use, tier, weakerSource, splitTier, timingBasis }) => ({ year, use, tier, weakerSource, splitTier, timingBasis }));
+  // The recorded results of each edition are the race directory's (public/data/races/race/<slug>.json), which lists the
+  // same live editions; the two lists must agree year for year, or the build stops (November 19, 2026).
+  const race = raceFileByLabel(city);
+  if (!race) throw new Error(`${city} has a course page but no page in the race directory (public/data/races/pages.json).`);
+  const results = new Map(race.editions.filter((e) => e.review !== 'copy').map((e) => [e.year, e]));
+  const rows = listedEditions().filter((e) => e.city === city).map(({ year, use, tier, weakerSource, splitTier, timingBasis }) => {
+    const own = results.get(year);
+    if (!own || own.tier !== tier || own.use !== (use === 'other' ? 'recorded_times_only' : use) || own.split_tier !== splitTier || (timingBasis !== null && timingClass(timingBasis) !== own.timing)) throw new Error(`${city} ${year}: the race directory and the marathon cohort disagree on this edition.`);
+    return { year, use, tier, weakerSource, splitTier, timingBasis, results: own.results, timing: own.timing };
+  });
+  if (rows.length !== results.size) throw new Error(`${city}: the race directory lists ${results.size} editions, the marathon cohort ${rows.length}.`);
+  return rows;
 }
 
 /**
@@ -389,6 +404,19 @@ export function courseLists(): Map<string, CourseList> {
 }
 
 export const courseList = (slug: string): CourseList | null => courseLists().get(slug) ?? null;
+
+/**
+ * The slugs of every course page, full or list-only, checked against the race directory's course pages
+ * (public/data/races/pages.json, page type `course`): the two must be one set, label for label and slug for slug, or the
+ * build stops (November 19, 2026). The 27 kept slugs are among them (KEPT_COURSE_PAGES).
+ */
+export function courseRouteSlugs(): string[] {
+  const ours = new Map([...coursePages().values(), ...courseLists().values()].map((p) => [p.slug, p.city]));
+  const theirs = new Map(racePages().filter((p) => p.page === 'course').map((p) => [p.slug, p.label]));
+  const same = ours.size === theirs.size && [...ours].every(([slug, city]) => theirs.get(slug) === city);
+  if (!same) throw new Error(`The course pages (${[...ours.keys()].sort().join(', ')}) are not the race directory's (${[...theirs.keys()].sort().join(', ')}).`);
+  return [...ours.keys()];
+}
 
 /** Every full course page's data (a course with a summary in courses.json), keyed by slug, built once per process. */
 export function coursePages(): Map<string, CoursePageData> {

@@ -1,5 +1,5 @@
 import { Elevation } from '@/components/story/Units';
-import { EditionTags } from '@/components/ui/TierTag';
+import { SplitTierTag, TagGroup, TierTag, TimingClassTag } from '@/components/ui/TierTag';
 import { clock, count, goalText, minutes, pct, routeClimb, shortDate, type CoursePageData } from '@/lib/course-page';
 import { sectionLabel } from '@/lib/nuggets/format';
 import { profileUnderWater } from '@/lib/nuggets/courses';
@@ -18,7 +18,7 @@ import { howWeKnowOf } from '@/lib/chapters';
  * every page with an "All numbers" ends it there; CourseOthers' closing row is the way back alone).
  */
 export default function CourseNumbers({ page }: { page: CoursePageData }) {
-  const { display, summary: s, editions, weather, terrain, goals, types, typesElsewhere, archetypes, counted } = page;
+  const { display, summary: s, editions, listed, weather, terrain, goals, types, typesElsewhere, archetypes, counted } = page;
   // The one climb the page prints everywhere (the hero, #elevation, /courses): the route's 5K sections summed. A profile
   // that reads the water under a bridge prints no climb, descent or net anywhere: its 5K table keeps the pace only.
   const wet = profileUnderWater(page);
@@ -26,6 +26,7 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
   const curve = s.curve?.length === 9 ? s.curve : null;
   const sections = terrain && (!wet || curve) ? terrain : null;
   const byYear = new Map(weather.map((w) => [w.year, w]));
+  const rows = new Map(editions.map((e) => [e.year, e]));
   // The page's methods close its numbers, so the closing row is the way back alone (as on a story).
   const how = howWeKnowOf(`/courses/${page.slug}`);
   const tables = 3 + (sections ? 1 : 0) + (goals.length ? 1 : 0) - (types ? 0 : 1);
@@ -49,26 +50,31 @@ export default function CourseNumbers({ page }: { page: CoursePageData }) {
         </CourseTable>
         <CourseTable id="numbers-editions-caption" caption={`${display}, edition by edition`}>
           <thead>
-            <tr><th scope="col">Year</th><th scope="col">Results</th><th scope="col">Race date</th><th scope="col">Finishes</th><th scope="col">Median finish</th><th scope="col">Sustained slowdown</th><th scope="col">At the start</th><th scope="col">Dew point</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Start time</th></tr>
+            <tr><th scope="col">Year</th><th scope="col" className="is-text">Status</th><th scope="col">Recorded results</th><th scope="col">Race date</th><th scope="col">Finishes with all splits</th><th scope="col">Median finish</th><th scope="col">Sustained slowdown</th><th scope="col">At the start</th><th scope="col">Dew point</th><th scope="col">Humidity</th><th scope="col">Wind</th><th scope="col">Start time</th></tr>
           </thead>
           <tbody>
-            {editions.map((e) => {
-              const w = byYear.get(e.year);
+            {listed.map((l) => {
+              const e = rows.get(l.year);
+              const w = e ? byYear.get(e.year) : undefined;
               return (
-                <tr key={e.year}>
-                  <th scope="row">{e.year}</th>
-                  {/* The edition's tier in the shared words (lead decisions D3 and D16): every row is a counted edition, whose
-                      split tier is `splits`. A row's cells are 44 px tall, so each linked label keeps its own hit area. */}
-                  <td><EditionTags tier={e.tier} weakerSource={e.weakerSource} splitTier="splits" timingBasis={e.timingBasis} /></td>
-                  <td>{e.date ? <Fact k={`date@${e.year}`} v={e.date}>{shortDate(e.date)}</Fact> : '—'}</td>
-                  <td><Fact k={`n@${e.year}`} v={e.n}>{count(e.n)}</Fact></td>
-                  <td><Fact k={`median@${e.year}`} v={e.median_s}>{clock(e.median_s)}</Fact></td>
-                  <td><Fact k={`sd@${e.year}`} v={e.slowdown}>{pct(e.slowdown)}</Fact></td>
-                  <td>{w ? <Fact k={`w.temp@${e.year}`} v={w.temp}><Degrees c={w.temp} /></Fact> : '—'}</td>
-                  <td>{w ? <Fact k={`w.dew@${e.year}`} v={w.dew}><Degrees c={w.dew} /></Fact> : '—'}</td>
-                  <td>{w ? <Fact k={`w.rh@${e.year}`} v={w.humidity}>{Math.round(w.humidity)}%</Fact> : '—'}</td>
-                  <td>{w ? <Fact k={`w.wind@${e.year}`} v={w.wind}><Wind mps={w.wind} /></Fact> : '—'}</td>
-                  <td>{w?.start ? <Fact k={`w.start@${e.year}`} v={w.start}>{w.start}</Fact> : '—'}</td>
+                <tr key={l.year} data-edition={l.year} {...(e ? {} : { 'data-uncounted': '' })}>
+                  <th scope="row">{l.year}</th>
+                  {/* Every edition with results, counted or not (lead decisions D3, D5 and D16): its labels from the shared
+                      module (the tier, "Finish times only" and "Gun times" where they apply). A counted edition with a row
+                      keeps its figures; any other prints its recorded results and dashes. Each linked label keeps its own
+                      44 px hit area. The medians and shares are of the finishes with all nine checkpoints (courses.json);
+                      the recorded results are every row the release holds (the race directory). */}
+                  <td className="is-text"><TagGroup><TierTag tier={l.tier} weakerSource={l.weakerSource} /><SplitTierTag splitTier={l.splitTier} /><TimingClassTag timing={l.timing} /></TagGroup></td>
+                  <td><Fact k={`rr@${l.year}`} v={l.results}>{count(l.results)}</Fact></td>
+                  <td>{e?.date ? <Fact k={`date@${e.year}`} v={e.date}>{shortDate(e.date)}</Fact> : '—'}</td>
+                  <td>{e ? <Fact k={`n@${e.year}`} v={e.n}>{count(e.n)}</Fact> : '—'}</td>
+                  <td>{e ? <Fact k={`median@${e.year}`} v={e.median_s}>{clock(e.median_s)}</Fact> : '—'}</td>
+                  <td>{e ? <Fact k={`sd@${e.year}`} v={e.slowdown}>{pct(e.slowdown)}</Fact> : '—'}</td>
+                  <td>{w ? <Fact k={`w.temp@${e!.year}`} v={w.temp}><Degrees c={w.temp} /></Fact> : '—'}</td>
+                  <td>{w ? <Fact k={`w.dew@${e!.year}`} v={w.dew}><Degrees c={w.dew} /></Fact> : '—'}</td>
+                  <td>{w ? <Fact k={`w.rh@${e!.year}`} v={w.humidity}>{Math.round(w.humidity)}%</Fact> : '—'}</td>
+                  <td>{w ? <Fact k={`w.wind@${e!.year}`} v={w.wind}><Wind mps={w.wind} /></Fact> : '—'}</td>
+                  <td>{w?.start ? <Fact k={`w.start@${e!.year}`} v={w.start}>{w.start}</Fact> : '—'}</td>
                 </tr>
               );
             })}

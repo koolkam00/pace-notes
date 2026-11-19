@@ -8,7 +8,9 @@
  * source policy holds or the duplicate-edition screen copies. scripts/nuggets/courses.cjs recounts every one from the raw
  * files for every course, and checks that its guard and sentence follow.
  */
-import { courseLists, coursePage, coursePages, finishMinute, heldEditions, type CoursePageData } from '@/lib/course-page';
+import { coursePage, coursePages, finishMinute, heldEditions, type CoursePageData } from '@/lib/course-page';
+import { racePageByLabel, racePages, raceFile, raceFileByLabel, raceSummary } from '@/lib/races-server';
+import type { RaceFile, RacePage } from '@/lib/races-types';
 import { readInsight } from '@/lib/insights-server';
 import type { Archetypes, Courses } from '@/lib/insights';
 import { courseSlug } from '@/lib/tools/links';
@@ -75,19 +77,112 @@ function pageFor(ctx?: NuggetContext): CoursePageData | null {
 // ---------- /courses ----------
 
 /**
- * The index's count: every course page, the /courses dek. Its figure is that count (round 4: every card in the chain
- * carries a number, and the card into a list promises what the list holds), never a share across courses, which is
- * course-comparison's alone.
+ * The index's count: every marathon the list holds (the race directory's summary.json `races.total`, since November 19,
+ * 2026; until then the count of course pages, "27 city marathons, each with its own page"). Its figure is that count
+ * (round 4: every card in the chain carries a number, and the card into a list promises what the list holds), never a
+ * share across courses, which is course-comparison's alone. scripts/nuggets/courses.cjs recounts it from directory.json.
  */
 function coursesIndex(): Nugget {
-  // Every course with a page: the full pages and the pages that only list their editions (both are rows of the list).
-  const n = coursePages().size + courseLists().size;
+  const n = raceSummary().races.total.n;
   return {
-    id: 'courses.index', page: '/courses', denominator: 'course', values: { courses: n }, guard: n > 0,
-    headline: `*${count(n)}* city marathons.`,
-    fallback: 'City marathons.',
-    figure: n > 0 ? { value: count(n), sr: `${count(n)} city marathons`, spoken: count(n) } : null,
-    key: 'city marathons, each with its own page',
+    id: 'courses.index', page: '/courses', denominator: 'course', values: { races: n }, guard: n > 0,
+    headline: `*${count(n)}* marathons, each with its years and recorded results.`,
+    fallback: 'Marathons, each with its years and recorded results.',
+    figure: n > 0 ? { value: count(n), sr: `${count(n)} marathons`, spoken: count(n) } : null,
+    key: 'marathons with recorded results',
+  };
+}
+
+/** The races with a page of their own (pages.json), the heading over the list of pages on /courses. */
+function coursesPages(): Nugget {
+  const n = racePages().length;
+  return {
+    id: 'courses.pages', page: '/courses#pages', denominator: 'course', values: { pages: n }, guard: n > 0,
+    headline: n === 1 ? 'One has a page of its own.' : `${count(n)} have a page of their own.`,
+    fallback: 'Races with a page of their own.',
+    figure: null,
+  };
+}
+
+// ---------- A results page (/courses/<slug>, page type `results`) and the race file of any page ----------
+
+/** The results page of a race label, or null (a course page, a row, or no race). */
+function resultsFor(ctx?: NuggetContext): { page: RacePage; race: RaceFile } | null {
+  const page = ctx?.city ? racePageByLabel(ctx.city) : null;
+  return page && page.page === 'results' ? { page, race: raceFile(page.slug) } : null;
+}
+
+/** A results page's dek: its live editions and their span (pages.json), a count that states no reading. */
+function raceEditions(ctx?: NuggetContext): Nugget {
+  const found = resultsFor(ctx);
+  const n = found?.page.editions ?? 0;
+  const [first, last] = found?.page.years ?? [NaN, NaN];
+  const span = first === last ? `in ${first}` : `${first}–${last}`;
+  return {
+    id: 'race.editions', page: `/courses/${found?.page.slug ?? ''}`, denominator: 'none', values: { editions: n, first, last }, guard: n > 0,
+    headline: n === 1 ? `One edition with recorded results, ${span}.` : `${count(n)} editions with recorded results, ${span}.`,
+    fallback: 'Editions with recorded results.',
+    figure: null,
+  };
+}
+
+/**
+ * A results page's reading: the race file's "median finish in a typical verified year" (docs/RACES.md rule 11), stated
+ * only where the file gives one and its years share one timing class (gun or unstated years beside chip years are not
+ * like for like). Floored to the minute, as a race clock reads. Otherwise the neutral count of race.editions.
+ */
+function raceReading(ctx?: NuggetContext): Nugget {
+  const found = resultsFor(ctx);
+  const r = found?.race.reading ?? null;
+  const classes = r ? Object.keys(r.timing) : [];
+  const guard = !!r && r.editions >= MIN_EDITIONS && classes.length === 1 && r.median_s > 0;
+  const editions = raceEditions(ctx);
+  return {
+    id: 'race.reading', page: `/courses/${found?.page.slug ?? ''}`, denominator: 'none',
+    values: { median_s: r?.median_s ?? NaN, editions: r?.editions ?? 0, timing_classes: classes.length },
+    guard,
+    headline: r ? `In a typical verified year, the median finish was *${finishMinute(r.median_s)}*.` : '',
+    fallback: editions.guard ? String(editions.headline) : String(editions.fallback),
+    figure: guard && r ? { value: finishMinute(r.median_s), sr: `${finishMinute(r.median_s)}`, spoken: finishMinute(r.median_s) } : null,
+    key: 'median finish in a typical verified year',
+  };
+}
+
+/**
+ * The heading over a results page's line: how far the verified years' medians ran (the reading's lowest and highest), to
+ * the minute, under the reading's guard and a spread of a minute or more. Otherwise a plain caption.
+ */
+function raceRange(ctx?: NuggetContext): Nugget {
+  const found = resultsFor(ctx);
+  const r = found?.race.reading ?? null;
+  const reading = raceReading(ctx);
+  const guard = reading.guard && !!r && r.highest_s - r.lowest_s >= MOVED_S && finishMinute(r.lowest_s) !== finishMinute(r.highest_s);
+  return {
+    id: 'race.range', page: `/courses/${found?.page.slug ?? ''}#finish-times`, denominator: 'none',
+    values: { lowest_s: r?.lowest_s ?? NaN, highest_s: r?.highest_s ?? NaN, editions: r?.editions ?? 0 },
+    guard,
+    headline: r ? `Across its ${count(r.editions)} verified years, the median finish ran from *${finishMinute(r.lowest_s)}* to ${finishMinute(r.highest_s)}.` : '',
+    fallback: 'Median finish by year.',
+    figure: null,
+  };
+}
+
+/**
+ * Where a race file holds two series under one label (Warsaw: plan decision D29), the sentence that names them, with
+ * their years, wherever the page states a reading across years. Null-safe: no series, no claim.
+ */
+function courseSeries(ctx?: NuggetContext): Nugget {
+  const race = ctx?.city ? raceFileByLabel(ctx.city) : null;
+  const series = race?.series ?? [];
+  const guard = series.length >= 2;
+  const named = series.map((s) => `the ${s.name}, ${s.first_year === s.last_year ? s.first_year : `${s.first_year}–${s.last_year}`}`);
+  const list = named.length > 1 ? `${named.slice(0, -1).join(', ')}, and ${named[named.length - 1]}` : named[0] ?? '';
+  return {
+    id: 'course.series', page: `/courses/${race?.slug ?? ''}`, denominator: 'none', values: { series: series.length },
+    guard,
+    headline: guard ? `This page holds ${series.length === 2 ? 'two' : count(series.length)} races: ${list}.` : '',
+    fallback: 'One race.',
+    figure: null,
   };
 }
 
@@ -539,6 +634,11 @@ function courseWeather(ctx?: NuggetContext): Nugget {
 
 export const COURSE_NUGGETS: Record<string, Builder> = {
   'courses.index': coursesIndex,
+  'courses.pages': coursesPages,
+  'race.editions': raceEditions,
+  'race.reading': raceReading,
+  'race.range': raceRange,
+  'course.series': courseSeries,
   'course.slowdown': courseSlowdown,
   'course.start': courseStart,
   'course.late': courseLate,
@@ -553,3 +653,6 @@ export const COURSE_NUGGETS: Record<string, Builder> = {
 
 /** The nuggets a course page builds with its city (index.ts CONTEXT_NUGGETS). */
 export const COURSE_CONTEXT_NUGGETS = ['course.slowdown', 'course.start', 'course.late', 'course.signature', 'course.times', 'course.climb', 'course.types', 'course.among', 'course.goal', 'course.weather'] as const;
+
+/** The nuggets a results page builds with its race label, and the series line any race page builds (index.ts CONTEXT_NUGGETS). */
+export const RACE_CONTEXT_NUGGETS = ['race.editions', 'race.reading', 'race.range', 'course.series'] as const;

@@ -5,7 +5,7 @@
  */
 import { ANALYSIS_NUGGETS } from './analyses';
 import { CHART_NUGGETS } from './charts';
-import { COURSE_CONTEXT_NUGGETS, COURSE_NUGGETS } from './courses';
+import { COURSE_CONTEXT_NUGGETS, COURSE_NUGGETS, RACE_CONTEXT_NUGGETS } from './courses';
 import { HALF_NUGGETS } from './half';
 import { HOME_NUGGETS } from './home';
 import { RUNNER_NUGGETS } from './runners';
@@ -29,7 +29,7 @@ for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGE
 export const NUGGET_IDS = Object.keys(REGISTRY) as NuggetId[];
 
 /** Nuggets that need a context to build (a course page's city), with the contexts the site builds them for. */
-export const CONTEXT_NUGGETS: readonly NuggetId[] = [...COURSE_CONTEXT_NUGGETS];
+export const CONTEXT_NUGGETS: readonly NuggetId[] = [...COURSE_CONTEXT_NUGGETS, ...RACE_CONTEXT_NUGGETS];
 
 const memo = new Map<string, Nugget>();
 
