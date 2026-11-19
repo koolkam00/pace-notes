@@ -146,7 +146,8 @@ function loadPlaywright() {
 
 async function render(set, { force, only, out = OUT }) {
   const { chromium } = loadPlaywright();
-  const browser = await chromium.launch();
+  // PLAYWRIGHT_CHROMIUM_PATH, when set, names the Chromium executable (as in scripts/e2e/browser.cjs); otherwise Playwright's own.
+  const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined });
   const page = await browser.newPage({ viewport: { width: CSS_W, height: CSS_H }, deviceScaleFactor: SCALE });
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pace-notes-chart-card-'));
   const code = set.code();

@@ -54,7 +54,7 @@ export const CHARTS_PEOPLE_2_TEXT: Record<string, ChartText> = {
     title: "Men's quickest finishes skew younger",
     takeaway: (v) => ({
       guard: n(v.all) - n(v.top1) >= 4 && n(v.min_group) >= 100 && n(v.top10) < n(v.all) && n(v.slow10) >= n(v.top1),
-      headline: `In ${v.races}, the quickest 1% of men's finishes had a median recorded age of *${count(n(v.top1))}*; all men's finishes, ${count(n(v.all))}.`,
+      headline: `In ${v.races}, men's quickest 1% of finishes had a median recorded age of *${count(n(v.top1))}*; all men's, ${count(n(v.all))}.`,
       fallback: "Median recorded age of men's finishes by finish-time group.",
     }),
   },
