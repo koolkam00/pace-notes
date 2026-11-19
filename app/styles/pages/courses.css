@@ -93,3 +93,5 @@ a.race-row-name { justify-self: start; display: inline-flex; align-items: center
   .race-rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-7); border-top: 0; }
   .race-rows .race-row:nth-child(-n + 2) { border-top: 1px solid var(--rule); }
 }
+.courses-jump { margin: 0 0 var(--s-2); }
+.courses-every { scroll-margin-top: calc(var(--header-h) + var(--s-4)); }

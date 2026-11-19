@@ -2,7 +2,7 @@ import ChapterEnd from '@/components/ChapterEnd';
 import { Elevation, Temperature } from '@/components/story/Units';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import CourseSort, { type SortKey } from '@/components/course/CourseSort.client';
-import { Fact } from '@/components/course/Fact';
+import { Fact, SectionLink } from '@/components/course/Fact';
 import { SlowdownTerm } from '@/components/tools/EvidenceTag';
 import RouteFace from '@/components/course/RouteFace';
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
@@ -156,6 +156,8 @@ export default function CoursesPage() {
       <JsonLd data={[pageCrumbs('/courses', 'Courses'), list]} />
       {/* The H1 and the dek (every marathon the list holds), then the races with a page, then every race. */}
       <Reading crumbs={<ChapterCrumbs path="/courses" />} title="Courses" titleSize="title" dek={sentenceOf(index).replace(/\*/g, '')} className="courses-reading" />
+      {/* The list of every marathon is far down the page on a phone: one way straight to its filter. */}
+      <p className="courses-jump"><SectionLink to="every-race" className="btn btn-tertiary is-compact">Find any marathon</SectionLink></p>
       <section className="courses-list" id="pages" aria-labelledby="pages-title">
         <h2 id="pages-title" className="courses-h2">{sentenceOf(pagesNugget).replace(/\*/g, '')}</h2>
         <h3 className="courses-h3">Pacing, course and weather</h3>
@@ -165,7 +167,7 @@ export default function CoursesPage() {
         <p className="course-index-key">Each race’s median finish in a typical verified year.</p>
         <ol className="course-index is-results" data-sort="reading">{resultsRows}</ol>
       </section>
-      <section className="courses-every" id="every-race" aria-labelledby="every-title">
+      <section className="courses-every" id="every-race" tabIndex={-1} aria-labelledby="every-title">
         <h2 id="every-title" className="courses-h2">Every marathon</h2>
         <p className="course-index-key">Each race’s editions by the <TierTerm>status of their results</TierTerm>; a race with a page links to it.</p>
         <RaceFinder sha={directorySha()} total={count(total)} />
