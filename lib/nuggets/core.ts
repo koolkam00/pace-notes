@@ -5,55 +5,127 @@
  * One surface uses one count family. The eligible family (finishes the analyses use, their cities and race-years) is
  * the default; the raw family (every result in the release) is for the data pages only. Never put the two side by side.
  */
-import { getCohortManifest, getInsightsManifest, listedEditions, readInsight } from '@/lib/insights-server';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import release from '@/analysis/release.json';
+import { getCohortManifest, getInsightsManifest, readInsight } from '@/lib/insights-server';
 import type { Courses } from '@/lib/insights';
 import type { UnitSystem } from '@/lib/units';
 import { millions } from './format';
 import type { Nugget, NuggetText } from './types';
 
+/** One count of the race summary: editions, races, results and finishes (any of them, by the section). */
+type RaceCount = { editions: number; races: number; results: number; finishes: number };
+type SlowdownCount = { editions: number; races: number; finishes: number; sustained_slowdown: number; sustained_slowdown_pct: number };
+
+/**
+ * The marathon race list's summary (`public/data/races/summary.json`, the race-list builder's file; the lead's rulings
+ * on SITE-CORE's plan, November 14, 2026). Only the fields the shared pages read are typed. `editions.total` and
+ * `races.total` leave out the editions set aside as copies; `without_results` are editions the release names with no
+ * recorded result.
+ */
+export type RaceSummary = {
+  distance: 'marathon';
+  counted: { editions: number; races: number; finishes: number; sustained_slowdown: number; sustained_slowdown_pct: number };
+  editions: {
+    total: { n: number; results: number; finishes: number };
+    by_tier: Record<string, RaceCount>;
+    by_split_tier: Record<string, RaceCount>;
+    by_timing: Record<string, RaceCount>;
+    by_use: Record<string, { editions: number; results: number }>;
+    badge_verified: RaceCount;
+    not_counted_by_category: Record<string, number>;
+    without_results: { n: number };
+  };
+  races: { total: { n: number }; left_out: { n: number }; by_page: Record<string, number> };
+  sensitivity: { verified_tiers_only: SlowdownCount; without_weaker_source_editions: SlowdownCount; by_tier: Record<string, SlowdownCount> };
+  notes: { hold: RaceNote[]; release: RaceNote[] };
+  duplicates: { editions_set_aside: number; results_set_aside: number };
+};
+export type RaceNote = { label: string; year: number; tier: string; note: string };
+type RaceDirectory = { races: { years: [number, number] }[] };
+
+const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+let races: { key: string; summary: RaceSummary; directory: RaceDirectory } | undefined;
+
+/**
+ * The race summary and directory, read from the verified race list: the build stops unless the race list's manifest is
+ * of the adopted release, both files have the digests it records, and the summary's counted editions, races and
+ * finishes are the cohort manifest's (so a page that prints both families prints one release).
+ */
+export function raceFiles(): { summary: RaceSummary; directory: RaceDirectory } {
+  const folder = path.join(process.cwd(), 'public/data/races');
+  const manifestBytes = fs.readFileSync(path.join(folder, 'manifest.json'));
+  const key = sha256(manifestBytes);
+  if (races?.key === key) return races;
+  const manifest = JSON.parse(manifestBytes.toString('utf8')) as { release_tag: string; distance: string; files: Record<string, { sha256: string }> };
+  if (manifest.release_tag !== release.tag || manifest.distance !== 'marathon') throw new Error('The race list must be of the adopted marathon release.');
+  const file = (name: string) => {
+    const bytes = fs.readFileSync(path.join(folder, name));
+    if (sha256(bytes) !== manifest.files[name]?.sha256) throw new Error(`public/data/races/${name} differs from the race list's manifest.`);
+    return JSON.parse(bytes.toString('utf8'));
+  };
+  const summary = file('summary.json') as RaceSummary;
+  const directory = file('directory.json') as RaceDirectory;
+  const cohort = getCohortManifest().manifest;
+  const counted = cohort.editions.filter((e) => e.use === 'counted');
+  if (summary.counted.finishes !== cohort.eligible_records || summary.counted.editions !== counted.length || summary.counted.races !== new Set(counted.map((e) => e.city)).size) {
+    throw new Error('The race summary’s counted editions disagree with the marathon cohort.');
+  }
+  if (directory.races.length !== summary.races.total.n) throw new Error('The race directory and its summary disagree on the races.');
+  races = { key, summary, directory };
+  return races;
+}
+
 export type SiteTotals = {
-  /** Every written marathon result in the adopted release (the raw family). */
+  /** Every written marathon result in the adopted release (the raw family): the cohort manifest's `raw_records`. */
   results: number;
   /** Eligible finishes: the cohort every analysis and story counts from. */
   finishesEligible: number;
-  /** Cities with eligible finishes. */
+  /** Races with eligible finishes (the race summary's counted races; the course list holds one course for each). */
   cities: number;
-  /** Race-years (one city in one year) with eligible finishes. */
+  /** Race-years (one race in one year) with eligible finishes. */
   raceYears: number;
   firstYear: number;
   lastYear: number;
   /**
-   * The raw family, for the data pages: races (the pipeline's `city` is a race label), race-years and years of every
-   * written marathon result in the release, whether or not an analysis may read its edition.
+   * The raw family, for the data pages: the races, editions and years of the race list (every marathon with a recorded
+   * result in the release, less the editions set aside as copies), whether or not an analysis may read its edition.
    */
   raw: { cities: number; raceYears: number; firstYear: number; lastYear: number };
 };
 
 let cached: { key: string; totals: SiteTotals } | undefined;
 
-/** The site totals from the marathon cohort's manifest and the verified insights manifest. Throws when the two disagree. */
+/**
+ * The site totals from the marathon cohort's manifest, the race summary and the verified insights manifest (until
+ * November 19, 2026 the raw family was counted from the cohort manifest's edition list, which also holds the two
+ * editions set aside as copies). Throws when they disagree.
+ */
 export function siteTotals(): SiteTotals {
   const insights = getInsightsManifest();
+  const { summary, directory } = raceFiles();
   const key = `${insights.release_tag}:${insights.as_of}:${insights.runner_manifest_sha256}`;
   if (cached?.key === key) return cached.totals;
   // getInsightsManifest has checked that the story data names this exact cohort manifest and its release.
-  const runner = getCohortManifest().manifest;
-  if (runner.eligible_records !== insights.analysis_n || insights.cohort.eligible !== insights.analysis_n) throw new Error('Site totals: eligible finishes disagree between the manifests.');
+  const cohort = getCohortManifest().manifest;
+  if (cohort.eligible_records !== insights.analysis_n || insights.cohort.eligible !== insights.analysis_n || summary.counted.finishes !== insights.analysis_n) throw new Error('Site totals: eligible finishes disagree between the manifests.');
   const courses = readInsight<Courses>('courses.json');
   const years = courses.courses.flatMap((c) => c.years);
   const editions = courses.courses.reduce((sum, c) => sum + c.years.length, 0);
-  if (courses.courses.length !== insights.cohort.cities || editions !== insights.cohort.editions) throw new Error('Site totals: the course list disagrees with the cohort.');
-  // Every edition with written records: those with a cohort file, and the others the manifest lists with their counts.
-  const rawEditions = listedEditions();
-  const rawYears = rawEditions.map((e) => e.year);
+  if (courses.courses.length !== summary.counted.races || insights.cohort.cities !== summary.counted.races || editions !== summary.counted.editions || insights.cohort.editions !== summary.counted.editions) {
+    throw new Error('Site totals: the course list, the insights manifest and the race summary disagree on the counted races and editions.');
+  }
+  const rawYears = directory.races.flatMap((r) => r.years);
   const totals: SiteTotals = {
-    results: runner.raw_records,
-    finishesEligible: insights.analysis_n,
-    cities: insights.cohort.cities,
-    raceYears: insights.cohort.editions,
+    results: cohort.raw_records,
+    finishesEligible: summary.counted.finishes,
+    cities: summary.counted.races,
+    raceYears: summary.counted.editions,
     firstYear: Math.min(...years),
     lastYear: Math.max(...years),
-    raw: { cities: new Set(rawEditions.map((e) => e.city)).size, raceYears: rawEditions.length, firstYear: Math.min(...rawYears), lastYear: Math.max(...rawYears) },
+    raw: { cities: summary.races.total.n, raceYears: summary.editions.total.n, firstYear: Math.min(...rawYears), lastYear: Math.max(...rawYears) },
   };
   cached = { key, totals };
   return totals;

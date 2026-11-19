@@ -31,7 +31,7 @@
 //   node scripts/verify-tiers.cjs --linked=<path to linked_common.py>
 //       checks the timing classes against the linked-records module where the tree does not hold it yet.
 //
-// Not part of `npm run verify:data` yet (November 14, 2026): it joins when the pages that use the module land.
+// Part of `npm run verify:data` since the integration of November 19, 2026.
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
@@ -113,10 +113,7 @@ const PIN = 'analysis/release.json';
 // The fourth, "a possible match" for any name the search returns (components/methods/MethodsPages.tsx), was reworded
 // to "a name match" on the lead's ruling of November 14, 2026, so the words have one meaning on the site.
 const BASELINE = [
-  { file: 'components/methods/MethodsHalf.tsx', phrase: 'Held for review', count: 1,
-    why: '/methodology on the half’s editions: "are held for review by the producer". Prose on the one page that defines the words; the half rebuild rewrites the paragraph.' },
-  { file: 'components/methods/MethodsHalf.tsx', phrase: 'Gun times', count: 1,
-    why: '/methodology, the same paragraph: "The Berlin half’s 2018, 2019, 2022 and 2023 lists are among them: their times fit gun times." Decision D6 adds 2021; the half rebuild rewrites it.' },
+  // November 19, 2026: the two MethodsHalf.tsx entries are gone (the half agent wrote the module's words there).
   { file: 'lib/analysis-plans.ts', phrase: 'Gun times', count: 1,
     why: 'an analysis request’s list of the data it would need ("Individual chip and gun times, …"): two kinds of time, not the label of an edition.' },
 ];
@@ -435,6 +432,26 @@ function checkSource(list, t) {
 
 // ---------------------------------------------------------------------------------------------------------------
 
+/**
+ * The uses check 6 finds, against the baseline: a hand-written label class or a phrase outside the baseline fails, a
+ * baseline entry with another count fails, and so does a baseline entry that matches nothing (it must be removed).
+ */
+function useFailures(found, baseline) {
+  const key = (f) => `${f.file}\u0000${f.what}`;
+  const expected = new Map(baseline.map((b) => [key({ file: b.file, what: b.phrase }), b]));
+  const counts = new Map();
+  for (const f of found.filter((f) => f.kind === 'phrase')) counts.set(key(f), [...(counts.get(key(f)) || []), f]);
+  const failures = [];
+  for (const f of found.filter((f) => f.kind === 'class')) failures.push(`${f.file}:${f.line}: writes the label class ${f.what} by hand ("${f.text}"); draw the label with ${COMPONENTS}`);
+  for (const [k, uses] of counts) {
+    const base = expected.get(k);
+    if (!base) for (const f of uses) failures.push(`${f.file}:${f.line}: writes "${f.what}" ("${f.text}"); take the words from ${MODULE} (TierTag, tierWords, inline, …)`);
+    else if (uses.length !== base.count) failures.push(`${base.file}: the baseline counts ${base.count} use of "${base.phrase}", found ${uses.length} (lines ${uses.map((f) => f.line).join(', ')})`);
+  }
+  for (const [k, base] of expected) if (!counts.has(k)) failures.push(`${base.file}: the baseline lists "${base.phrase}", which the file no longer writes: remove the entry`);
+  return failures;
+}
+
 function selfTest(t) {
   const rules = scanRules(t);
   const planted = [
@@ -468,6 +485,18 @@ function selfTest(t) {
     const got = scanFile(file, text, rules).map((f) => `${f.kind} ${f.what}`);
     if (JSON.stringify(got) !== JSON.stringify(expected)) { failed++; console.error(`self-test: ${file}: ${text}\n  expected ${JSON.stringify(expected)}, got ${JSON.stringify(got)}`); }
   }
+  // The baseline: an entry that matches nothing fails, and so does one whose count moved (November 19, 2026).
+  const base = [{ file: 'components/x.tsx', phrase: 'Gun times', count: 1 }];
+  const use = (file, line) => ({ file, line, kind: 'phrase', what: 'Gun times', text: 'gun times' });
+  for (const [label, found, expect] of [
+    ['a matching entry', [use('components/x.tsx', 1)], null],
+    ['an entry that matches nothing', [], /no longer writes/],
+    ['an entry whose count moved', [use('components/x.tsx', 1), use('components/x.tsx', 2)], /baseline counts 1/],
+    ['a use in another file', [use('components/x.tsx', 1), use('components/y.tsx', 3)], /components\/y\.tsx:3/],
+  ]) {
+    const got = useFailures(found, base);
+    if (expect ? !(got.length === 1 && expect.test(got[0])) : got.length) { failed++; console.error(`self-test: baseline, ${label}: got ${JSON.stringify(got)}`); }
+  }
   const sheet = fs.readFileSync(path.join(ROOT, SHEET), 'utf8');
   const styles = (extra, other = []) => styleProblems([[SHEET, sheet + extra], ...other], t);
   const css = [
@@ -494,6 +523,67 @@ function selfTest(t) {
   }
   console.log(failed ? `verify-tiers self-test: ${failed} failed` : 'verify-tiers self-test: ok');
   return failed ? 1 : 0;
+}
+
+const json = (file) => JSON.parse(read(file));
+
+/**
+ * The numbers /methodology#edition-tiers and #link-confidence print, recounted from the files and formatted as the page
+ * formats them: the race list's edition file (public/data/races/editions.csv, copies set aside), the cohort manifest,
+ * the study evidence, the race summary only where nothing else holds the count (the sensitivity rows' slowdown shares,
+ * the editions without results), analysis/identity.json and the lookup manifest.
+ */
+function expectedNumbers() {
+  const t = require(path.join(ROOT, MODULE));
+  const f = (value) => new Intl.NumberFormat('en-US').format(value);
+  const pct = (part, whole) => `${(part / whole * 100).toFixed(1)}%`;
+  const [head, ...lines] = read('public/data/races/editions.csv').trim().split('\n');
+  const parse = (line) => { const out = []; let cell = '', q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (q) { if (c === '"' && line[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; } else if (c === '"') q = true; else if (c === ',') { out.push(cell); cell = ''; } else cell += c; } out.push(cell); return out; };
+  const cols = parse(head);
+  const rows = lines.map(parse).map((cells) => Object.fromEntries(cols.map((c, i) => [c, cells[i]]))).filter((r) => r.review !== 'copy');
+  const group = (list) => [list.length, new Set(list.map((r) => r.race)).size, list.reduce((sum, r) => sum + Number(r.recorded_results), 0)].map(f);
+  const out = [];
+  const tiers = t.SHOWN_TIERS.filter((tier) => rows.some((r) => r.tier === tier));
+  for (const tier of tiers) out.push(...group(rows.filter((r) => r.tier === tier)));
+  out.push(...group(rows.filter((r) => r.split_tier === 'finish_time_only')), ...group(rows.filter((r) => r.timing === t.GUN_TIMING)));
+  const cohort = json('analysis/marathon-cohort/manifest.json');
+  const counted = cohort.editions.filter((e) => e.use === 'counted');
+  const finishes = (list) => list.reduce((sum, e) => sum + e.eligible, 0);
+  eq(rows.filter((r) => r.use === 'counted').length, counted.length, 'the edition file and the cohort count the same editions');
+  out.push(f(counted.length), f(new Set(counted.map((e) => e.city)).size), f(finishes(counted)));
+  const others = rows.filter((r) => r.use !== 'counted');
+  out.push(f(others.length));
+  const categories = new Map();
+  for (const r of others) categories.set(r.not_counted_category, (categories.get(r.not_counted_category) || 0) + 1);
+  out.push(...[...categories.values()].sort((a, b) => b - a).map(f));
+  out.push(f(rows.filter((r) => r.use === 'own_record').length));
+  const study = json('public/data/study/evidence.json');
+  eq(study.n, finishes(counted), 'the study counts the counted finishes');
+  const summary = json('public/data/races/summary.json');
+  const verified = counted.filter((e) => e.tier !== 'partial'), strong = counted.filter((e) => !e.weaker_source);
+  const share = (row, list) => { eq([row.editions, row.finishes], [list.length, finishes(list)], 'a sensitivity row counts its cohort editions'); eq(row.sustained_slowdown_pct.toFixed(1), (row.sustained_slowdown / row.finishes * 100).toFixed(1), 'a sensitivity share is its count over its finishes'); return pct(row.sustained_slowdown, row.finishes); };
+  out.push(pct(study.detected, study.n));
+  out.push(f(counted.length - verified.length), share(summary.sensitivity.verified_tiers_only, verified), f(finishes(verified)), f(verified.length));
+  out.push(f(counted.length - strong.length), share(summary.sensitivity.without_weaker_source_editions, strong), f(finishes(strong)), f(strong.length));
+  out.push(f(summary.editions.without_results.n));
+  // #link-confidence
+  const id = json('analysis/identity.json').counts;
+  for (const d of ['marathon', 'half']) {
+    const total = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+    eq(total(id.by_status[d]), id.rows[d].rows, `identity: the ${d} statuses add up to its rows`);
+    eq(total(id.by_link_tier[d]), id.rows[d].rows, `identity: the ${d} link tiers add up to its rows`);
+  }
+  for (const c of t.LINK_CONFIDENCES) out.push(f(id.by_link_tier.marathon[c]), f(id.by_link_tier.half[c]));
+  out.push(f(id.by_link_tier.marathon.unlinked), f(id.by_link_tier.half.unlinked));
+  for (const k of ['keyed', 'possible_match', 'left_out']) out.push(f(id.by_status.marathon[k]), f(id.by_status.half[k]));
+  for (const screen of Object.keys(t.SCREEN_WORDS)) if (id.screens[screen].results > 0) out.push(f(id.screens[screen].persons), f(id.screens[screen].results));
+  const link = cohort.linkage;
+  out.push(...[link.runners_with_a_counted_record, link.runners_with_two_or_more_counted_records, link.high_links.runners_with_a_counted_record, link.high_links.runners_with_two_or_more_counted_records].map(f));
+  const lookup = json('public/data/runners/manifest.json').counts;
+  const kinds = lookup.profiles_by_kind;
+  eq(kinds.one_result + kinds.confirmed_only + kinds.confirmed_and_possible + kinds.possible_only, lookup.profiles, 'the lookup\u2019s profiles by kind add up');
+  out.push(...[lookup.profiles, kinds.one_result, kinds.confirmed_only, kinds.confirmed_and_possible, kinds.possible_only].map(f));
+  return out;
 }
 
 function main() {
@@ -733,8 +823,19 @@ function main() {
   for (const [code, words] of Object.entries(QUIET_WORDS)) ok(linksHtml.includes(quietHtml(code, words)), `#link-confidence defines "${words}"`);
   eq((methods.match(/<dd>/g) || []).length, TABLE.filter((row) => row.kind !== 'link').length + 1 + Object.keys(QUIET_WORDS).length, 'one meaning for each label, and no other');
   ok(!/<a [^>]*class="tier-/.test(methods), 'on the page that defines them the labels are bare');
-  const methodsText = methods.replace(/<[^>]+>/g, ' ');
-  ok(!/\d/.test(methodsText), `${METHODS} types no number: counts and thresholds come from data files`);
+  // Every number the two definitions print, recounted from the files in the order the page prints them (November 19,
+  // 2026: the counts joined the words). The producer's notes are checked apart, as quotations.
+  const notesFold = /<details class="fold is-sub">[\s\S]*?<\/details>/;
+  const fold = (methods.match(notesFold) || [''])[0];
+  const methodsText = methods.replace(notesFold, ' ').replace(/<[^>]+>/g, ' ').replace(/&#x27;|&quot;|&amp;/g, ' ');
+  const printed = methodsText.match(/\d[\d,]*(?:\.\d+)?%?/g) || [];
+  eq(printed, expectedNumbers(), `${METHODS} prints exactly the recounted numbers, in order`);
+  const summary = json('public/data/races/summary.json');
+  const quoted = [...summary.notes.hold, ...summary.notes.release];
+  const unescape = (text) => text.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+  const foldText = unescape(fold);
+  for (const note of quoted) ok(foldText.includes(`<span>${note.label} ${note.year}</span>`) && foldText.includes(`<q>${note.note}</q>`), `#edition-tiers quotes the producer's note on ${note.label} ${note.year}`);
+  eq((fold.match(/<li>/g) || []).length, quoted.length, '#edition-tiers quotes every note of the race summary, and no other');
   ok(/counted/i.test(tiersHtml) && /tick/.test(linksHtml), 'the definitions say what counted means and that a visitor may tick a possible match');
   const hrefs = [...methods.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
   ok(hrefs.length > 0 && hrefs.every((id) => walk(path.join(ROOT, 'components', 'methods'), /\.tsx$/).some((file) => fs.readFileSync(file, 'utf8').includes(`id="${id}"`))), `every in-page link of ${METHODS} names an id the methodology components have (${hrefs.join(', ')})`);
@@ -764,18 +865,7 @@ function main() {
     console.log(`verify-tiers --list: ${found.length} uses in ${files.length} files`);
     return;
   }
-  const key = (f) => `${f.file}\u0000${f.what}`;
-  const expected = new Map(BASELINE.map((b) => [key({ file: b.file, what: b.phrase }), b]));
-  const counts = new Map();
-  for (const f of found.filter((f) => f.kind === 'phrase')) counts.set(key(f), [...(counts.get(key(f)) || []), f]);
-  const failures = [];
-  for (const f of found.filter((f) => f.kind === 'class')) failures.push(`${f.file}:${f.line}: writes the label class ${f.what} by hand ("${f.text}"); draw the label with ${COMPONENTS}`);
-  for (const [k, uses] of counts) {
-    const base = expected.get(k);
-    if (!base) for (const f of uses) failures.push(`${f.file}:${f.line}: writes "${f.what}" ("${f.text}"); take the words from ${MODULE} (TierTag, tierWords, inline, …)`);
-    else if (uses.length !== base.count) failures.push(`${base.file}: the baseline counts ${base.count} use of "${base.phrase}", found ${uses.length} (lines ${uses.map((f) => f.line).join(', ')})`);
-  }
-  for (const [k, base] of expected) if (!counts.has(k)) failures.push(`${base.file}: the baseline lists "${base.phrase}", which the file no longer writes: remove the entry`);
+  const failures = useFailures(found, BASELINE);
   assert.deepEqual(failures, [], `tier phrases and label classes outside the module:\n  ${failures.join('\n  ')}`);
   checks += files.length;
 

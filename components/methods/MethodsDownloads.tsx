@@ -22,11 +22,15 @@ export const STORY_FILE_TOPICS: Record<string, string> = {
 const RELEASES = 'https://github.com/koolkam00/pace-notes/releases';
 const SOURCE = 'https://github.com/koolkam00/pace-notes';
 /**
- * The race records on Figshare. The DOI without a version resolves to the newest version there, which need not be the
- * release the site uses (version 2 is 0829, never adopted; 1652 is not there), so the row does not call it the current
- * release; analysis/ACCESS.md gives the versioned DOI of the adopted one.
+ * The race records on Figshare, cited by the versioned DOI and the licence that analysis/release.json pins for the
+ * adopted release (lead's ruling f, November 14, 2026). Both are read from the pin, never typed, so an adoption that
+ * moves them moves this row; the build stops if either is missing.
  */
-const FIGSHARE = 'https://doi.org/10.6084/m9.figshare.33965155';
+function citation(): { href: string; doi: string; license: string } {
+  const { doi, license } = release as { doi?: string; license?: string };
+  if (!doi || !/^10\.\d{4,9}\/\S+$/.test(doi) || !license) throw new Error('analysis/release.json must name the release’s DOI and licence for the citation on /methodology#downloads.');
+  return { href: `https://doi.org/${doi}`, doi, license };
+}
 /** How to open the full records of the adopted release (rewritten at every adoption: docs/OPERATIONS.md). */
 const ACCESS = 'https://github.com/koolkam00/pace-notes/blob/main/analysis/ACCESS.md';
 /** The terrain splits' file and the audited route-profile corrections it is built from (the registry lives in the source, not in public/data). */
@@ -65,11 +69,12 @@ export default function MethodsDownloads() {
     { href: dataHref(`insights/${TERRAIN_FILE}`), name: 'course-terrain.json', what: `${TOOLS.filter((tool) => tool.slug === 'plan' || tool.slug === 'pace-band').map((tool) => tool.title).join(', ')}: the terrain splits, with each checked course’s corrected route` },
     { href: CORRECTIONS, name: 'corrections.json', what: 'the audited route-profile corrections behind them, with their sources and licences' },
   ] : [];
+  const cite = citation();
   const packs = getExtensions().slice().sort((a, b) => a.title.localeCompare(b.title));
   return <Part id="downloads" n={5} short="Downloads" title="Downloads" lead="Every file is public. No account, no key.">
     <div className="methods-file-rows">
       <FileRow href={sourceHref} name="Full race records" what="Every record in the current release, recorded names included" />
-      <FileRow href={FIGSHARE} name="On Figshare" what="Exports of the race records, each version with its own DOI, under a CC BY 4.0 licence" />
+      <FileRow href={cite.href} name="On Figshare" what={`The current release’s race records to cite: doi:${cite.doi}, under a ${cite.license} licence`} />
       <FileRow href={RELEASES} name="Every data release" what="Each export, with its checksums" />
       <FileRow href={SOURCE} name="Source code" what="The site and every calculation behind it" />
     </div>

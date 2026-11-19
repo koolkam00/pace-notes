@@ -9,28 +9,24 @@ import { CHAPTERS, livePages } from '@/lib/chapters';
 import { getExtensions } from '@/lib/extension-data';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { getPersonalSummary } from '@/lib/personalized-data';
-import { getWeatherEvidence } from '@/lib/weather-data';
 import { countWord } from '@/lib/nuggets/format';
+import { POSSIBLE_MATCH, SCREEN_WORDS, inline } from '@/lib/tiers';
 import { Part, Topic, day, editionList, n } from './shared';
 import { HalfDataTopics, HalfTotalsLine } from './MethodsHalf';
 import { halfManifest } from '@/lib/stories';
-import fs from 'node:fs';
-import path from 'node:path';
-
-/** The runner manifest's preliminary-link summary (build_runner_lookup.py, November 5, 2026), read from the verified file. */
-function preliminaryLinks(): { profiles: number; editions: [string, number][] } | null {
-  const file = path.join(process.cwd(), 'public/data/runners/manifest.json');
-  const manifest = JSON.parse(fs.readFileSync(file, 'utf8')) as { preliminary_links?: { profiles: number; editions: [string, number][] } };
-  return manifest.preliminary_links ?? null;
-}
+import identity from '@/analysis/identity.json';
+import { getCohortManifest } from '@/lib/insights-server';
+import { raceFiles } from '@/lib/nuggets/core';
 
 /** Part 1: what the data is, where it comes from and which records are analyzed. The files are under Downloads (Part 5). */
 export default function MethodsData() {
   const manifest = getInsightsManifest();
-  const prelim = preliminaryLinks();
+  const { summary } = raceFiles();
+  // The cohort manifest's counts (analysis/marathon-cohort): finishes the edition policy leaves out, and the corpus.
+  const cohort = getCohortManifest().manifest as ReturnType<typeof getCohortManifest>['manifest'] & { cohort: { source_quality_excluded: number } };
+  if (identity.release_tag !== release.tag) throw new Error('analysis/identity.json must describe the adopted release.');
   const extension = getExtensions()[0];
   const personalized = getPersonalSummary();
-  const weather = getWeatherEvidence();
   const kept = keptHolds(release.tag);
   const copies = copyEditions();
   // Every analysis page (the chapters' list, as /analyses shows it). They share one total when the all-finisher views
@@ -59,7 +55,7 @@ export default function MethodsData() {
     <Topic id="sources" title="Where the data comes from">
       <p>Pace Notes uses {half ? 'six' : 'five'} kinds of source. {half ? <>They are kept apart; half and marathon results meet only where records are <a href="#half-linking">linked by name</a>, and no figure combines results with weather, routes, research or standards.</> : 'They are kept apart, and no figure combines them.'}</p>
       <ul>
-        <li><strong>Race results.</strong> Recorded results from big-city marathons: recorded names, marathon and year, finish times, the official 5 km checkpoint times, and age and recorded gender where the race supplied them. They come from one public data export, the <a href="#release">current release</a>.</li>
+        <li><strong>Race results.</strong> Recorded results from {n(summary.races.total.n)} marathons, from the largest city races to small local ones: recorded names, race and year, finish times, the 5 km checkpoint times where the race published them, and age and recorded gender where the race supplied them. They come from one public data export, the <a href="#release">current release</a>.</li>
         <li><strong>Weather.</strong> <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo historical weather estimates</a> for one point in each city, for the hour near the scheduled start and the hours after it. They are modeled, not measured at any runner.</li>
         <li><strong>Routes and elevation.</strong> Each race’s current route file, supplied with the data, with elevation from a digital elevation model. Whether earlier editions ran the same route is not known.</li>
         <li><strong>Official standards.</strong> Qualifying times, age rules, windows and dates, transcribed from each race’s own pages and dated by when they were last checked.</li>
@@ -70,14 +66,14 @@ export default function MethodsData() {
     </Topic>
 
     <Topic id="release" title="The current release">
-      {extension && <p>The export behind the current analyses holds {n(extension.corpus.n_records)} race records across {extension.corpus.n_cities} cities and {extension.corpus.n_race_years} race editions. Every page uses this one adopted release: the <a href={sourceHref}>current source data release</a>, with input as of {day(manifest.input_as_of)}.{overlays ? <> The hourly weather and the course routes come from the producer’s <a href={sourceReleaseHref(overlays.tag)}>companion release</a> of the same day, pinned with it by checksum and checked against it.</> : ' The weather data is checked against the same release.'}</p>}
+      {extension && <p>The export behind the current analyses holds {n(extension.corpus.n_records)} marathon results across {n(extension.corpus.n_cities)} races and {n(extension.corpus.n_race_years)} editions. Every page uses this one adopted release: the <a href={sourceHref}>current source data release</a>, with input as of {day(manifest.input_as_of)}.{overlays ? <> The hourly weather and the course routes come from the producer’s <a href={sourceReleaseHref(overlays.tag)}>companion release</a> of the same day, pinned with it by checksum and checked against it.</> : ' The weather data is checked against the same release.'}</p>}
       <p>Every calculation records its input export, checksums, method version, eligible count and exclusions. A new release reruns the same calculations. Results are checked and reviewed before the website changes, and each downloadable file keeps the exact source identifiers, so anyone can reproduce it (see <a href="#downloads">Downloads</a>).</p>
       <p>A newer export can be downloadable before it has passed the checks the website needs. Until it is adopted, no page uses it.</p>
       {half ? <p>The half-marathon figures use their own pinned snapshot and link build, taken {day(half.as_of)} and bound to the current marathon release, its runner records and its weather evidence: a change to any of them stops the half pages from building until they are rebuilt.</p> : null}
     </Topic>
 
     <Topic id="coverage" title="Coverage">
-      {personalized && <p>{theAnalyses} use {n(personalized.n)} finishes with a complete set of usable splits, across {personalized.cities.filter((c) => c.city !== 'All courses').length} cities. A finish is one performance, so a runner can appear more than once. Times at successive checkpoints give the average pace for each section. Records also include age, recorded gender and candidate links between a runner’s races. Weather estimates and course profiles add context where they exist.</p>}
+      {personalized && <p>{theAnalyses} use {n(personalized.n)} finishes with a complete set of usable splits, across {personalized.cities.filter((c) => c.city !== 'All courses').length} marathons. A finish is one performance, so a runner can appear more than once. Times at successive checkpoints give the average pace for each section. Records also include age, recorded gender and candidate links between a runner’s races. Weather estimates and course profiles add context where they exist.</p>}
       <p>Individual tables can have smaller samples because they need more fields. History, exact-age and weather comparisons use subsets.</p>
       <DataCoverage />
     </Topic>
@@ -99,18 +95,18 @@ export default function MethodsData() {
 
     <Topic id="data-quality" title="Which records are analyzed">
       <p>An analyzed finish needs complete, strictly increasing checkpoints, a finish between 90 minutes and 12 hours, and every section between 2 and 20 minutes per km. Missing or invalid readings are left out, never repaired by guessing. These filters can leave out genuine unusual performances. Sample counts and exclusions are recorded with each analysis.</p>
-      <p>After the timing checks, the reviewed edition policy for this release leaves out invalid, incomplete, unreconciled and selected-field editions before any result or earlier benchmark is formed: an unreconciled edition is one whose records the producer has not matched with the official finisher count.{kept.length ? ` The exception is ${editionList(kept)}: the producer lists ${kept.length > 1 ? 'them' : 'it'} as partial, and after review ${kept.length > 1 ? 'they stay' : 'it stays'} in, because ${kept.length > 1 ? 'their records fall' : 'its records fall'} only slightly short of the official count.` : ''} In this release that removes {n(weather.cohort.source_quality_excluded)} otherwise plausible finishes. They are counted separately from timing errors. Course pages and every other page apply the same policy, and each data file lists the editions it leaves out with the reason. Missing age or recorded gender alone does not remove a finish from the overall cohort.</p>
+      <p>After the timing checks, the reviewed edition policy for this release leaves out invalid, incomplete, unreconciled and selected-field editions before any result or earlier benchmark is formed: an unreconciled edition is one whose records the producer has not matched with the official finisher count.{kept.length ? ` The exception is ${editionList(kept)}: the producer lists ${kept.length > 1 ? 'them' : 'it'} as partial, and after review ${kept.length > 1 ? 'they stay' : 'it stays'} in, because ${kept.length > 1 ? 'their records fall' : 'its records fall'} only slightly short of the official count.` : ''} In this release that removes {n(cohort.cohort.source_quality_excluded)} otherwise plausible finishes. They are counted separately from timing errors. Course pages and every other page apply the same policy, and each data file lists the editions it leaves out with the reason. Missing age or recorded gender alone does not remove a finish from the overall cohort.</p>
       <p>The history analyses use the fastest eligible finish in the two strictly earlier calendar years as a benchmark. A substantially improved performance is more than 2% faster than that recorded best. The benchmark describes earlier performance. It is not current fitness or a course-adjusted expected finish. Supplied “ability”, personal-best and exceptional-performance labels are not used to define these outcomes.</p>
       <p>Historical-performance charts can express change as 100 × (current finish ÷ earlier benchmark − 1). Historical opening change compares the first 10 km pace with that benchmark’s whole-marathon average pace. Negative means faster. In their three-group opening analyses, the <a href="#downloads">research packs</a> (the downloadable tables) call a start more than 2% faster, within 2%, or more than 2% slower. These thresholds describe recorded pacing, not physiological boundaries.</p>
       <p>Groups by finish time describe race shapes. Strategy comparisons need ability known before the race, so that the result does not also define the group.</p>
     </Topic>
 
     <Topic id="linking" title="How runners are linked">
-      <p>Runners are linked across races and years by the producer’s person links: clusters of records with a matching recorded name, sex and age or birth year, kept when the link build rates them high, medium or low and dropped when a record was attached by name and sex alone, without an age. These are records linked by name, not verified people. The current export supplies them with canonical record IDs. We check that raw and feature IDs are unique, non-null and set-equal, then join each feature to its raw record by ID. Race, city, year, recorded name, finish time and every section time must also agree, to the millisecond. A record ID identifies one result. It does not show that results from different races belong to the same person.</p>
-      <p>Identity groups with conflicting recorded gender, inferred birth years more than two years apart, or duplicate records in one edition are rejected. These checks reduce errors; they do not confirm that every link is right. Recorded names and runner IDs are in the full downloadable data.</p>
+      <p>Runners are linked across races and years, over marathons and half marathons alike, by the producer’s person links: clusters of records with a matching recorded name, sex and age or birth year, each with a <a href="#link-confidence">confidence</a>. A link of high or medium confidence joins its result to a runner; a weaker one is a {inline(POSSIBLE_MATCH)} and joins no runner. These are records linked by name, not verified people. Each result keeps the release’s record ID, and the links are joined to the results on it. A record ID identifies one result. It does not show that results from different races belong to the same person.</p>
+      <p>A runner is not joined when the results disagree: where {SCREEN_WORDS.sex_conflict}, where recorded ages put birth years more than {countWord(identity.birth_year_spread_max)} years apart, or where there are {SCREEN_WORDS.two_results_in_one_edition}. Each of those results becomes a {inline(POSSIBLE_MATCH)}. These checks reduce errors; they do not confirm that every link is right. Recorded names and runner IDs are in the full downloadable data.</p>
       <p>Only strictly earlier years can supply an earlier benchmark, so current and same-year results never enter it. Personal-best gains compare with the fastest finish in earlier recorded years; they cannot show a lifetime best. Race-pair analyses use adjacent observations with one race in each end year. The interval analysis uses exact supplied dates, only for identity groups with complete, unique dates.</p>
       <p>Exact-age analyses leave out age-group-only records. Recorded gender is used as supplied and never inferred from names. Unknown categories stay in overall counts where the analysis allows.</p>
-      {prelim && prelim.profiles > 0 ? <p id="preliminary-links">{prelim.editions.map(([city, year]) => `${city} ${year}`).join(', ')} {prelim.editions.length === 1 ? 'was' : 'were'} linked by a separate, preliminary build made for {prelim.editions.length === 1 ? 'that race' : 'those races'}, which the producer rates less reliable than the others. {n(prelim.profiles)} record groups join a race through it; the runner search marks each of them “Preliminary link”, and the history-based figures include them.</p> : null}
+      {/* The preliminary-link paragraph (#preliminary-links) left with the schema-1 lookup on November 19, 2026: the adopted person links have no preliminary build. */}
       {half ? <p>Half-marathon and marathon records are linked by a separate build, described under <a href="#half-linking">half and marathon records linked by name</a>.</p> : null}
     </Topic>
 

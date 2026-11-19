@@ -29,7 +29,7 @@ export function siteTotalsFrom(t: SiteTotals): Nugget {
     headline: { mi: headline('mi'), km: headline('km') },
     fallback: 'Marathon finishes, mat by mat.',
     figure: { value: m, unit: '\u00a0million', sr: `${count(t.finishesEligible)} finishes`, spoken: count(t.finishesEligible) },
-    key: `finishes · ${t.cities} city marathons · ${t.firstYear}–${t.lastYear}`,
+    key: `finishes · ${t.cities} marathons · ${t.firstYear}–${t.lastYear}`,
   };
 }
 

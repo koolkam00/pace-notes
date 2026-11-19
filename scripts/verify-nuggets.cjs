@@ -198,6 +198,10 @@ const insights = json('public/data/insights/manifest.json');
 // finishes. Until November 14, 2026 these two counts were read from the runner lookup's manifest.
 const runner = json('analysis/marathon-cohort/manifest.json');
 const courses = json('public/data/insights/courses.json');
+// The marathon race list (SITE-CORE, November 19, 2026: siteTotals reads its summary for the counted races and editions
+// and its directory for the raw family, instead of the cohort manifest's edition list).
+const raceSummary = json('public/data/races/summary.json');
+const raceDirectory = json('public/data/races/directory.json');
 
 const RECOUNT = {};
 // site.totals: the eligible family from the insights manifest and the course list; results from the cohort manifest.
@@ -216,6 +220,18 @@ RECOUNT['site.totals'] = (n) => {
   ok(/26\.2\smiles/.test(core.textFor(n.headline, 'mi')) && /42\.2\skm/.test(core.textFor(n.headline, 'km')), 'site.totals: the distance follows the units');
   eq(n.guard, insights.analysis_n > 0 && runner.raw_records >= insights.analysis_n && insights.cohort.cities > 0, 'site.totals: guard');
   eq(core.finishesM(), require('../lib/seo.tsx').finishesM(), 'one "N million" on every surface (lib/seo agrees)');
+  // The race summary agrees with the cohort: counted editions and their races, counted from the cohort's edition rows.
+  const counted = runner.editions.filter((e) => e.use === 'counted');
+  eq([raceSummary.counted.editions, raceSummary.counted.races, raceSummary.counted.finishes], [counted.length, new Set(counted.map((e) => e.city)).size, runner.eligible_records], 'site.totals: the race summary counts the cohort’s counted editions, races and finishes');
+  eq([n.values.cities, n.values.race_years], [raceSummary.counted.races, raceSummary.counted.editions], 'site.totals: cities and race-years are the race summary’s counted races and editions');
+  // The raw family: the race list's races and editions, and the years of the directory's rows; a row whose review code
+  // is "copy" is an edition set aside as a copy (shown without a number), in no count.
+  const col = (name) => raceDirectory.edition_columns.indexOf(name);
+  const copy = raceDirectory.codes.review.indexOf('copy');
+  ok(col('year') >= 0 && col('review') >= 0 && copy > 0, 'site.totals: the directory names its year and review columns and the copy code');
+  const listed = raceDirectory.races.flatMap((r) => r.editions.filter((e) => e[col('review')] !== copy).map((e) => e[col('year')]));
+  eq(listed.length, raceSummary.editions.total.n, 'site.totals: the directory lists every edition the summary counts');
+  eq(core.siteTotals().raw, { cities: raceDirectory.races.length, raceYears: listed.length, firstYear: Math.min(...listed), lastYear: Math.max(...listed) }, 'site.totals: the raw family recounts from the race directory');
 };
 
 // field.median: nearest-rank medians recounted from the one-minute histogram and the cohort totals.
