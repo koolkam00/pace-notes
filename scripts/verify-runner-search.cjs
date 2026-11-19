@@ -202,6 +202,7 @@ async function units() {
   assert.equal(occurrences(view, '>Possible matches</h4>'), 2, 'Possible matches apart in each list');
   assert.equal(occurrences(view, 'type="checkbox"'), 5); assert.doesNotMatch(view, /checked=""/, 'Nothing is ticked by the page');
   assert.equal(occurrences(view, 'data-tier='), 5, 'Every row shows its edition\'s tier');
+  assert.deepEqual([...view.matchAll(/data-offer="(\w+)"/g)].map(m => m[1]), ['report', 'report', 'report', 'times', 'times'], 'Each row says what it offers: the report for a counted marathon, recorded times for a half');
   assert.match(view, /<p class="runner-list-key">Each row: race, finish and its <a [^>]*href="\/methodology#edition-tiers"[^>]*>results<\/a> label\. <a [^>]*href="\/methodology#link-confidence"[^>]*>Link confidence<\/a>: High for every race\.<\/p>/, 'One key line says what each row holds and the link confidence the rows leave unsaid');
   assert.doesNotMatch(view.slice(0, view.indexOf('runner-possible-block')), /data-link-tier="high"/, 'An own row with High shows no link words');
   const mixedLinks = { ...profile, races: [linked(race(40, 0, 300)), linked(race(41, 2, 280), '3')] };

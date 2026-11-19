@@ -44,7 +44,9 @@ function Rows({ races, linked, names, possible = false, ...row }: RowProps & { r
   return <ul className={possible ? 'runner-races runner-possible' : 'runner-races'}>{races.map(race => {
     // A possible match says the name it was recorded under unless the heading is that one name.
     const recordedAs = possible && !(names.length === 1 && names[0] === displayName(race.name));
-    return <li className={possible ? 'runner-race is-possible' : 'runner-race'} key={race.key}>
+    // What the row offers once selected (D20): the race report for a counted marathon, its own pacing, or recorded times.
+    const offer = !analysed({ race, manifest }, copyEditions) ? 'times' : race.counted ? 'report' : 'pacing';
+    return <li className={possible ? 'runner-race is-possible' : 'runner-race'} key={race.key} data-offer={offer}>
       <label className="runner-race-row"><input type="checkbox" checked={selected.has(race.key)} onChange={() => onToggle(race)} /><span className="runner-race-body"><RunnerRecordDetails race={race} manifest={manifest} copyEditions={copyEditions} linked={linked && showsLinkWords(race)} recordedAs={recordedAs} /></span></label>
       {possible || !analysed({ race, manifest }, copyEditions) ? <RecordedDetails race={race} manifest={manifest} copyEditions={copyEditions} /> : null}
     </li>;

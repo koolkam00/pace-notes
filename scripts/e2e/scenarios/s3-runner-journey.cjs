@@ -224,7 +224,9 @@ async function journey(h, blocklist) {
   // and its split-check link need one. Since release 1050 (Chicago 2005–2008 loaded) the very first match can be a
   // single race with missing checkpoints, so a match without such a race is passed over and the search run again (the
   // list folds to one row once a match is opened).
-  const analysed = '#runner-profile .runner-race:not(:has(.runner-ineligible))';
+  // Lookup version 2 (November 19, 2026): a row with no exception tag can be a half or an own-record marathon, which
+  // have no race report; the row says what it offers.
+  const analysed = '#runner-profile .runner-race[data-offer="report"]:not(.is-possible)';
   const openProfile = async () => {
     for (let match = 0; ; match++) {
       await page.waitForSelector('#runner-name:not([disabled])', { timeout: 30000 });
