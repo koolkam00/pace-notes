@@ -765,7 +765,7 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         first_years = {}
         for h, dbh, city, year, *_ in edition_rows:
             if h:
-                first_years[city] = min(year, first_years.get(city, year))
+                first_years[(dbh, city)] = min(year, first_years.get((dbh, city), year))
         half_keys = half_races(first_years, half_registry)
     except RaceError as error:
         fail(str(error))
@@ -813,10 +813,10 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         tier, split = tiers[(h, dbh, city, year)]
         if tier not in TIERS or split not in ('splits', 'finish_time_only'):
             fail(f'the edition {(city, year)} has the tier {tier!r} and split tier {split!r}, which this builder does not know')
-        names_of = half_keys if h else marathon_keys
-        if city not in names_of:
+        names_of, race_key = (half_keys, (dbh, city)) if h else (marathon_keys, city)
+        if race_key not in names_of:
             fail(f'the {"half" if h else "marathon"} key {city!r} has no race: the registry is not of these rows')
-        label, name = names_of[city]
+        label, name = names_of[race_key]
         entry = {'h': h, 'dbh': dbh, 'city': city, 'label': label, 'name': name, 'year': year, 'tier': TIERS.index(tier),
                  'splits': split == 'splits', 'db': 'h' if dbh else 'f', 'unlisted': unlisted,
                  'no_comparison': never_compared.get((dbh, city, year), 0) if h else 0}

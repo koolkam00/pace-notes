@@ -398,9 +398,10 @@ class Cutter(unittest.TestCase):
 
 class Races(unittest.TestCase):
     def test_half_keys_follow_the_registry_module_and_never_reach_a_label_twice(self):
-        first = {'Berlin': 2011, 'Lake City, ZZ: LAKE CITY HALF MARATHON 2022': 2022, 'Lake City, ZZ: Lake City Half Marathon': 2019,
-                 'Other Town, YY: Lake City Half Marathon': 2018, 'XACT: Night Half': 2020}
-        races = lookup_races.half_races(first)
+        first = {(True, 'Berlin'): 2011, (True, 'Lake City, ZZ: LAKE CITY HALF MARATHON 2022'): 2022, (True, 'Lake City, ZZ: Lake City Half Marathon'): 2019,
+                 (True, 'Other Town, YY: Lake City Half Marathon'): 2018, (True, 'XACT: Night Half'): 2020, (False, 'Berlin'): 2015}
+        races = {key: value for (dbh, key), value in lookup_races.half_races(first).items() if dbh}
+        self.assertEqual(lookup_races.half_races(first)[(False, 'Berlin')], ('Berlin', 'Berlin'))          # one key text, one race by default
         self.assertEqual(races['Berlin'], ('Berlin', 'Berlin'))
         self.assertEqual(races['XACT: Night Half'], ('Night Half', 'Night Half'))                      # a platform is not a place
         self.assertEqual(races['Other Town, YY: Lake City Half Marathon'], ('Lake City Half Marathon (Other Town, YY)', 'Lake City Half Marathon'))
@@ -408,7 +409,17 @@ class Races(unittest.TestCase):
         self.assertEqual(races['Lake City, ZZ: Lake City Half Marathon'], ('Lake City Half Marathon (Lake City, ZZ, 2019)', 'Lake City Half Marathon'))
         self.assertEqual(len({label for label, _ in races.values()}), len(races))
         with_registry = lookup_races.half_races(first, {'Berlin': ('Berlin', 'Berliner Halbmarathon')})
-        self.assertEqual(with_registry['Berlin'], ('Berlin', 'Berliner Halbmarathon'))
+        self.assertEqual(with_registry[(True, 'Berlin')], ('Berlin', 'Berliner Halbmarathon'))
+        # A registry of {source_db, key} keys (analysis/half-race-registry.json) can give one key text two races.
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'half-race-registry.json'
+            path.write_text(json.dumps({'distance': 'half', 'tag': TAG, 'races': [
+                {'race_id': 'b', 'label': 'Berlin', 'name': 'Berliner Halbmarathon', 'keys': [{'source_db': 'half', 'key': 'Berlin'}]},
+                {'race_id': 'bf', 'label': 'Berlin (marathon database)', 'name': 'Berlin Half', 'keys': [{'source_db': 'full', 'key': 'Berlin'}]}]}))
+            registry = lookup_races.read_registry(path, 'half')[0]
+        both = lookup_races.half_races(first, registry)
+        self.assertEqual((both[(True, 'Berlin')], both[(False, 'Berlin')]), (('Berlin', 'Berliner Halbmarathon'), ('Berlin (marathon database)', 'Berlin Half')))
+        self.assertEqual(both[(True, 'XACT: Night Half')], ('Night Half', 'Night Half'))
 
 
 class Build(unittest.TestCase):

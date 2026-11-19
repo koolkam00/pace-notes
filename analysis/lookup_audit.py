@@ -257,11 +257,12 @@ def audit(db, core, manifest, registry_path, half_registry_path=None, half_polic
     # the edition of each result: the registry's label, the year, EDITION-TIERS.csv's tier and split tier
     marathon, _, _ = read_registry(registry_path, 'marathon')
     half_registry = read_registry(half_registry_path, 'half')[0] if half_registry_path else None
-    first = dict(db.execute("SELECT city, min(year) FROM want WHERE distance='half' AND kind<>'left_out' GROUP BY city").fetchall())
+    first = {(dbh, city): year for dbh, city, year in db.execute(
+        "SELECT db='h', city, min(year) FROM want WHERE distance='half' AND kind<>'left_out' GROUP BY ALL").fetchall()}
     halves = half_races(first, half_registry)
-    db.execute('CREATE TABLE want_races (distance VARCHAR, city VARCHAR, label VARCHAR, race VARCHAR)')
-    db.executemany('INSERT INTO want_races VALUES (?, ?, ?, ?)', [('marathon', key, label, name) for key, (label, name) in marathon.items()]
-                   + [('half', key, label, name) for key, (label, name) in halves.items()])
+    db.execute('CREATE TABLE want_races (distance VARCHAR, db VARCHAR, city VARCHAR, label VARCHAR, race VARCHAR)')
+    db.executemany('INSERT INTO want_races VALUES (?, ?, ?, ?, ?)', [('marathon', 'f', key, label, name) for key, (label, name) in marathon.items()]
+                   + [('half', 'h' if dbh else 'f', key, label, name) for (dbh, key), (label, name) in halves.items()])
     tier_case = ' '.join(f"WHEN {quote(tier)} THEN {at}" for at, tier in enumerate(fmt.TIERS))
     db.execute(f"""CREATE TABLE want_tiers AS SELECT distance, CASE source_db WHEN 'half' THEN 'h' ELSE 'f' END AS db, city, year::INTEGER AS year,
         CASE verification_tier {tier_case} END AS tier, split_tier='splits' AS splits
@@ -281,7 +282,7 @@ def audit(db, core, manifest, registry_path, half_registry_path=None, half_polic
                        for entry in json.loads(Path(half_policy_path).read_text())['never_compared']['editions']])
     none('edition', """SELECT w.db, w.id FROM (SELECT k, db, id, distance, city, year FROM want WHERE kind='result') w
         JOIN (SELECT k, e FROM got) g ON g.k=w.k JOIN got_editions e ON e.e=g.e
-        LEFT JOIN want_races r ON r.distance=w.distance AND r.city=w.city
+        LEFT JOIN want_races r ON r.distance=w.distance AND r.db=w.db AND r.city=w.city
         LEFT JOIN want_tiers t ON t.distance=w.distance AND t.db=w.db AND t.city=w.city AND t.year=w.year
         LEFT JOIN want_timing m ON m.distance=w.distance AND m.db=w.db AND m.city=w.city AND m.year=w.year
         LEFT JOIN want_never n ON w.distance='half' AND n.db=w.db AND n.city=w.city AND n.year=w.year
