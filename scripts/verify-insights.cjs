@@ -1,23 +1,28 @@
 // Independent reconciliation of the Pace Notes story analyses (public/data/insights).
 // It does not import the Python builders or trust their cohorts: the eligible
-// finishes are rebuilt from the checksum-verified runner shards and held once in
-// bounded typed arrays (one Float64Array of nine cumulative times per finish).
+// finishes are rebuilt from the checksum-verified marathon cohort (analysis/marathon-cohort,
+// read through scripts/lib/cohort.cjs; from the runner lookup's profile shards until
+// November 14, 2026) and held once in bounded typed arrays (one Float64Array of nine
+// cumulative times per finish).
 // Families without a recount here (for example a later kick.json)
 // still receive the provenance, inventory, threshold, identity and copy checks and
 // are named in the summary, so they are never mistaken for recounted results.
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 const zlib = require('node:zlib'), assert = require('node:assert/strict');
+const cohortReader = require('./lib/cohort.cjs');
+const { policyEditions, policySha256 } = require('./lib/edition-policy.cjs');
 
 const started = Date.now();
 const root = path.resolve(__dirname, '..'), args = process.argv.slice(2), options = {};
-const usage = 'Usage: node scripts/verify-insights.cjs [--input insights-directory] [--data-root public-data-directory]';
-assert.ok(args.length % 2 === 0 && args.length <= 4, usage);
+const usage = 'Usage: node scripts/verify-insights.cjs [--input insights-directory] [--data-root public-data-directory] [--cohort cohort-directory]';
+assert.ok(args.length % 2 === 0 && args.length <= 6, usage);
 for (let i = 0; i < args.length; i += 2) {
-  assert.ok(['--input', '--data-root'].includes(args[i]) && !(args[i] in options) && args[i + 1], usage);
+  assert.ok(['--input', '--data-root', '--cohort'].includes(args[i]) && !(args[i] in options) && args[i + 1], usage);
   options[args[i]] = path.resolve(args[i + 1]);
 }
 const dataRoot = options['--data-root'] || path.join(root, 'public/data');
 const input = options['--input'] || path.join(dataRoot, 'insights');
+const cohortRoot = options['--cohort'] || cohortReader.ROOT;
 const analysisDir = path.join(root, 'analysis');
 
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -188,23 +193,30 @@ near(position(even, 0, 300 * 21.0975), 21.0975, 'Even runner at half the finish 
 near(position(even, 0, 300 * 41), 41, 'Position inside the final 2.195 km section', 1e-9);
 assert.equal(position(even, 0, even[8]), 42.195, 'Finished runners stand at 42.195 km');
 
-// 1. Provenance: adopted release, exact runner and context manifests, every script hash.
+// 1. Provenance: adopted release, exact cohort and context manifests, the edition policy, every script hash.
+// The marathon cohort (analysis/marathon-cohort) is what the stories read since November 14, 2026. The insights
+// manifest and every family file keep the field names they had while the stories read the runner lookup:
+// `runner_manifest_sha256` is the SHA-256 of the cohort manifest's exact bytes and `runner_manifest_as_of` its `as_of`.
 const pin = read(path.join(analysisDir, 'release.json'));
-const runnersPath = path.join(dataRoot, 'runners/manifest.json'), contextPath = path.join(dataRoot, 'runner-context/manifest.json');
-const runnerBytes = fs.readFileSync(runnersPath), contextBytes = fs.readFileSync(contextPath);
-const runners = JSON.parse(runnerBytes), context = JSON.parse(contextBytes);
-const runnerSha = hash(runnerBytes), contextSha = hash(contextBytes);
+// verifiedManifest makes the reader's checks: the adopted release, the nine checkpoints, the canonical record join,
+// every script the cohort names against the checkout, counts that agree and a race date for every counted edition.
+const { manifest: cohort, sha256: cohortSha } = cohortReader.verifiedManifest(pin, cohortRoot, analysisDir);
+const contextPath = path.join(dataRoot, 'runner-context/manifest.json');
+const contextBytes = fs.readFileSync(contextPath);
+const context = JSON.parse(contextBytes);
+const contextSha = hash(contextBytes);
 const manifest = read(path.join(input, 'manifest.json'));
 assert.equal(manifest.schema_version, 1, 'Insights manifest schema');
-assert.equal(runners.release_tag, pin.tag, 'Adopted runner source'); assert.equal(context.release_tag, pin.tag, 'Adopted runner context');
+assert.equal(cohort.release_tag, pin.tag, 'Adopted marathon cohort'); assert.equal(context.release_tag, pin.tag, 'Adopted runner context');
 assert.equal(manifest.release_tag, pin.tag, 'Insights use the adopted release');
-assert.equal(manifest.runner_manifest_sha256, runnerSha, 'Exact runner manifest binding');
+assert.equal(manifest.runner_manifest_sha256, cohortSha, 'Exact cohort manifest binding');
 assert.equal(manifest.context_manifest_sha256, contextSha, 'Exact runner-context manifest binding');
-assert.equal(context.runner_manifest_sha256, runnerSha, 'Context manifest describes the same runner manifest');
-assert.equal(manifest.runner_manifest_as_of, runners.as_of); assert.equal(manifest.input_as_of, runners.input_as_of);
+assert.equal(context.runner_manifest_sha256, cohortSha, 'Context manifest describes the same cohort manifest');
+assert.equal(manifest.runner_manifest_as_of, cohort.as_of); assert.equal(manifest.input_as_of, cohort.input_as_of);
 assert.ok(Number.isFinite(Date.parse(manifest.as_of)), 'Calculation timestamp');
-assert.deepEqual(runners.points_km, points);
-// The builder binds every insights_*.py present when it ran plus its two shared builders.
+assert.deepEqual(cohort.points_km, points);
+assert.equal(cohort.linkage.record_join_method, 'canonical_record_id', 'The cohort joins records by their canonical id');
+// The builder binds every insights_*.py present when it ran plus its shared builders.
 // A module added since (a family still in progress) is reported, never silently trusted.
 const boundScripts = Object.keys(manifest.scripts);
 for (const name of ['build_insights.py', 'build_fast_start.py', 'insights_data.py', 'insights_stats.py']) assert.ok(boundScripts.includes(name), `Shared script bound: ${name}`);
@@ -212,12 +224,23 @@ for (const name of ['build_insights.py', 'build_fast_start.py', 'insights_data.p
 const TERRAIN_FILE = 'tools/course-terrain.json', TERRAIN_SCRIPTS = ['build_course_terrain.py', 'terrain_model.py'];
 assert.ok(boundScripts.every(name => /^insights_[a-z_]+\.py$/.test(name) || ['build_insights.py', 'build_fast_start.py', ...TERRAIN_SCRIPTS].includes(name)), 'Only story scripts are bound');
 const unboundModules = fs.readdirSync(analysisDir).filter(name => /^insights_.*\.py$/.test(name) && !boundScripts.includes(name)).sort();
-assert.deepEqual(manifest.source_scripts, runners.scripts, 'Runner source scripts');
-for (const [name, digest] of Object.entries({ ...runners.scripts, ...manifest.scripts })) {
+// The scripts that wrote the cohort (its builder, its reader, the timing rule, the edition policy, the status and
+// identity files): the story manifest repeats them, and each must be the checkout's.
+const COHORT_SCRIPTS = cohortReader.SCRIPTS;
+assert.ok(COHORT_SCRIPTS.length >= 6);
+for (const name of COHORT_SCRIPTS) assert.ok(name in cohort.scripts, `Cohort script bound: ${name}`);
+assert.deepEqual(manifest.source_scripts, cohort.scripts, 'Cohort source scripts');
+for (const [name, digest] of Object.entries({ ...cohort.scripts, ...manifest.scripts })) {
   assert.match(name, /^[a-z_]+\.py$/);
   assert.equal(digest, hash(fs.readFileSync(path.join(analysisDir, name))), `Stale calculation script: ${name}`);
 }
-assert.equal(manifest.eligible_records, runners.eligible_records, 'Eligible source records');
+assert.equal(manifest.eligible_records, cohort.eligible_records, 'Eligible source records');
+// The edition policy the cohort was cut by: the story manifest states its digests and counts (lead ruling R8), the
+// list is the one published file those digests name, and the list hashes to the policy digest.
+assert.deepEqual(manifest.source_quality, cohort.source_quality, 'The story manifest states the cohort\'s edition policy');
+assert.equal(cohort.source_quality.release_tag, pin.tag, 'The edition policy is the adopted release\'s');
+const policyRows = policyEditions(cohort.source_quality, 'marathon cohort');
+assert.equal(policySha256(cohort.source_quality, policyRows), cohort.source_quality.policy_sha256, 'The published edition list hashes to the policy digest');
 assert.deepEqual(manifest.genders, ['Other / not recorded', 'Men', 'Women']); assert.deepEqual(manifest.ages, ageLabels);
 assert.ok(Array.isArray(manifest.methodology) && manifest.methodology.every(line => typeof line === 'string' && line.length));
 
@@ -267,7 +290,7 @@ for (const [file, doc] of docs) {
   const { family, index, shard } = familyOf(file);
   assert.equal(doc.family, family, `${file}: family label`);
   assert.equal(doc.release_tag, pin.tag, `${file}: release`);
-  assert.equal(doc.runner_manifest_sha256, runnerSha, `${file}: exact runner manifest`);
+  assert.equal(doc.runner_manifest_sha256, cohortSha, `${file}: exact cohort manifest`);
   if (shard) {
     assert.ok(index in manifest.files, `${file}: belongs to a listed family`);
     if (family.startsWith('tool-')) assert.equal(docs.get(index).shards?.[file], manifest.files[file].sha256, `${file}: listed with its SHA-256 in ${index}`);
@@ -317,6 +340,9 @@ const identityKey = /^(ids?|rids?|record_?ids?|profile_?ids?|runners?|runner_?id
 const groupKey = key => key === 'n' || /^(women|men|young|older)_n$/.test(key) || key === 'n_comparison' || key === 'matched_weight';
 const labelNames = new Set(families.get('archetypes')?.classifier?.names || []);
 const copyStrings = new Map();
+// The same strings as written, for the runner lookup's own comparison (it drops a trailing country code before it
+// normalises, so it is asked about the text itself as well as about the normalised form).
+const copyTexts = new Map();
 let scannedValues = 0;
 function scan(value, where, key) {
   if (Array.isArray(value)) return value.forEach((item, i) => scan(item, `${where}[${i}]`, key));
@@ -348,13 +374,15 @@ function scan(value, where, key) {
   if (typeof value === 'string') {
     if (key !== 'release_tag') assert.ok(!/private-export|20260912|htw-db-|20261016|20261021|half-snapshot-|runner-links-|master-\d{8}|20261103|pace-notes-marathon-half|20261113/.test(value), `${where}: copy cites an internal export label`);
     const normalised = normaliseName(value);
-    if (normalised) copyStrings.set(normalised, where);
+    if (normalised) { copyStrings.set(normalised, where); copyTexts.set(value, where); }
   }
 }
 for (const [file, doc] of [['manifest.json', manifest], ...docs]) scan(doc, file, null);
 
-// 2. Cohort: stream every verified shard and rebuild the eligible finishes.
-const editions = runners.editions, editionKey = (city, year) => `${city}\u0000${year}`;
+// 2. Cohort: read every checksum-verified edition file of the marathon cohort and rebuild the eligible finishes.
+// The cohort manifest's `editions` (the editions with a file: counted, or kept for an own-record view) is the edition
+// index of every family file, as the runner manifest's list was; an own-record edition is listed and has no finish here.
+const editions = cohort.editions, editionKey = (city, year) => `${city}\u0000${year}`;
 const editionIndex = new Map(editions.map((edition, i) => [editionKey(edition.city, edition.year), i]));
 assert.equal(editionIndex.size, editions.length, 'Editions are unique by city and year');
 const screen = manifest.duplicate_edition_screen;
@@ -365,61 +393,108 @@ for (const rule of screen) {
   assert.ok(editionIndex.has(editionKey(rule.city, rule.year)) && editionIndex.has(editionKey(rule.city, rule.duplicate_of)), 'Screen matches exactly one edition and its source');
   duplicate[editionIndex.get(editionKey(rule.city, rule.year))] = 1;
 }
-const excluded = new Set(runners.source_quality.editions.map(row => editionKey(row.city, row.year)));
+// The edition policy against the cohort's own lists: a counted edition is not on the policy's list; an own-record
+// edition is on it with the own-record flag; every other written edition is on it without the flag, in the category
+// the cohort manifest gives it; and the list names no edition the cohort does not know.
+const policyByKey = new Map(policyRows.map(row => [editionKey(row.city, row.year), row]));
+assert.equal(policyByKey.size, policyRows.length, 'The edition policy lists an edition once');
+const excluded = new Set(policyByKey.keys());
+assert.deepEqual(cohort.other_editions.columns, cohortReader.OTHER_COLUMNS, 'Columns of the editions without a cohort file');
+assert.deepEqual(cohortReader.OTHER_COLUMNS.slice(0, 4), ['city', 'year', 'raw', 'category'], 'The first four columns are the edition, its written records and its policy category');
+const otherEditions = cohort.other_editions.rows;
+for (const edition of editions) {
+  const listed = policyByKey.get(editionKey(edition.city, edition.year));
+  assert.ok(['counted', 'own_record'].includes(edition.use), `${edition.city} ${edition.year}: use`);
+  if (edition.use === 'counted') assert.equal(listed, undefined, `${edition.city} ${edition.year}: a counted edition is on the edition policy's list`);
+  else assert.ok(listed && listed.own_record === true, `${edition.city} ${edition.year}: an own-record edition must be listed by the policy with its own-record flag`);
+}
+for (const [city, year, , category] of otherEditions) {
+  const listed = policyByKey.get(editionKey(city, year));
+  assert.ok(listed && listed.own_record === false && listed.category === category && !editionIndex.has(editionKey(city, year)),
+    `${city} ${year}: an edition without a cohort file must be listed by the policy, in the same category, without an own-record view`);
+}
+assert.equal(policyRows.length, otherEditions.length + editions.filter(edition => edition.use === 'own_record').length, 'The policy lists exactly the editions that are not counted');
 // The unreconciled (producer-held or partial) editions /methodology names as kept (lib/kept-holds.json, read as JSON so this verifier needs
 // no TypeScript or packages): in this release and outside its policy.
 for (const { city, year } of read(path.join(root, 'lib', 'kept-holds.json'))[pin.tag] ?? []) {
   assert.ok(editionIndex.has(editionKey(city, year)) && !excluded.has(editionKey(city, year)), `${city} ${year}: a kept hold must be in the release and outside the edition policy`);
 }
-const capacity = runners.eligible_records;
+const capacity = cohort.eligible_records;
 const times = new Float64Array(capacity * 9), editionOf = new Uint16Array(capacity), genderOf = new Uint8Array(capacity);
-const recordIds = new Float64Array(runners.raw_records), profileIds = new Float64Array(runners.profiles);
-const sourceFiles = Object.keys(runners.shards).sort(), nameHits = [];
-let raw = 0, profileCount = 0, eligible = 0, storyExactAge = 0;
-assert.ok(sourceFiles.some(file => file.startsWith('profiles/')));
-for (const file of sourceFiles) {
-  assert.match(file, /^(profiles|index)\/[a-f0-9]{3}\.json\.gz$/);
-  const bytes = fs.readFileSync(path.join(dataRoot, 'runners', file));
-  assert.equal(bytes.length, runners.shards[file].bytes, `${file}: compressed bytes`);
-  assert.equal(hash(bytes), runners.shards[file].sha256, `${file}: source checksum`);
-  if (!file.startsWith('profiles/')) continue;
-  const shard = JSON.parse(zlib.gunzipSync(bytes));
-  assert.equal(shard.release_tag, pin.tag, `${file}: shard release`);
-  for (const profile of shard.profiles) {
-    assert.ok(profileCount < profileIds.length && integer(profile.id, 1), 'Valid profile ID and declared count');
-    profileIds[profileCount++] = profile.id;
-    for (const race of profile.races) {
-      assert.ok(raw < recordIds.length && integer(race.id, 1), 'Valid record ID and declared count');
-      recordIds[raw++] = race.id;
-      if (typeof race.name === 'string' && copyStrings.has(normaliseName(race.name))) nameHits.push(copyStrings.get(normaliseName(race.name)));
-      assert.ok(integer(race.edition) && race.edition < editions.length, 'Valid edition mapping');
-      assert.equal(typeof race.eligible, 'boolean', 'Explicit source eligibility');
-      if (!race.eligible) continue;
-      const edition = editions[race.edition], t = race.times;
-      assert.ok(!excluded.has(editionKey(edition.city, edition.year)), 'Reviewed source exclusions cannot contribute');
-      assert.ok(eligible < capacity && Array.isArray(t) && t.length === 9 && t.every(finite) && t[8] >= 5400 && t[8] <= 43200, 'Eligible timing contract');
-      for (let k = 0; k < 9; k++) {
-        const pace = (t[k] - (k ? t[k - 1] : 0)) / lengths[k];
-        assert.ok(pace >= 120 - 1e-8 && pace <= 1200 + 1e-8, 'Eligible section pace bounds');
-      }
-      times.set(t, eligible * 9);
-      editionOf[eligible] = race.edition;
-      genderOf[eligible] = genderCode(race.sex);
-      if (!duplicate[race.edition] && exactAge(race.age)) storyExactAge++;
-      eligible++;
+const heldRecords = cohort.timing_eligible_records_held + cohort.other_records_held;
+const recordIds = new Float64Array(heldRecords), runnerOf = new Float64Array(capacity);
+// The runner key when only links of the tiers high_elite and high join records (insights_kick.high_link_profile): the
+// runner's id for a record whose link is of one of those tiers (the cohort's link class `h`), else the negative of the
+// record's own id, which no runner id can equal.
+const runnerHighOf = new Float64Array(capacity);
+let held = 0, raw = 0, eligible = 0, storyExactAge = 0, keyedRecords = 0, highRecords = 0;
+assert.ok(editions.length < 65536 && editions.some(edition => edition.use === 'counted'));
+cohortReader.forEachEdition((edition, entry, index) => {
+  // readEdition has checked the file's size and SHA-256, its edition and its two record counts against the manifest.
+  const counted = entry.use === 'counted', label = `${entry.city} ${entry.year}`;
+  assert.equal(entry.raw, edition.ids.length + edition.otherIds.length, `${label}: every written record is in the file`);
+  assert.deepEqual([entry.eligible, entry.own_record], counted ? [edition.ids.length, 0] : [0, edition.ids.length], `${label}: counted and own-record records`);
+  raw += entry.raw;
+  for (const id of edition.otherIds) { assert.ok(held < heldRecords && integer(id, 1), 'Valid record ID and declared count'); recordIds[held++] = id; }
+  edition.ids.forEach((id, k) => {
+    assert.ok(held < heldRecords && integer(id, 1), 'Valid record ID and declared count');
+    recordIds[held++] = id;
+    const runner = edition.runner[k];
+    assert.ok(runner === 0 || integer(runner, 1) && runner <= id, `${label}: a runner is named by the smallest record id of its key`);
+    if (!counted) return;
+    const t = edition.times[k];
+    assert.ok(!excluded.has(editionKey(entry.city, entry.year)), 'Reviewed source exclusions cannot contribute');
+    assert.ok(eligible < capacity && Array.isArray(t) && t.length === 9 && t.every(finite) && t[8] >= 5400 && t[8] <= 43200, 'Eligible timing contract');
+    for (let j = 0; j < 9; j++) {
+      const pace = (t[j] - (j ? t[j - 1] : 0)) / lengths[j];
+      assert.ok(pace >= 120 - 1e-8 && pace <= 1200 + 1e-8, 'Eligible section pace bounds');
     }
-  }
+    times.set(t, eligible * 9);
+    editionOf[eligible] = index;
+    genderOf[eligible] = genderCode(edition.sex[k]);
+    // A record without a runner key is a runner of its own: its own id, which no keyed runner can share.
+    runnerOf[eligible] = runner || id;
+    const link = edition.link[k];
+    assert.ok(runner ? link === 'h' || link === 'm' : link === null, `${label}: a record has a link class exactly when it has a runner`);
+    runnerHighOf[eligible] = link === 'h' ? runner : -id;
+    if (runner) keyedRecords++;
+    if (link === 'h') highRecords++;
+    if (!duplicate[index] && exactAge(edition.age[k])) storyExactAge++;
+    eligible++;
+  });
+}, cohortRoot);
+assert.equal(held, heldRecords, 'Every record the cohort holds');
+assert.equal(raw + sum(otherEditions.map(row => row[2])), cohort.raw_records, 'Complete source traversal: the cohort\'s editions and the editions without a file hold every written record');
+assert.equal(cohort.raw_records, cohort.cohort.raw, 'Written records agree with the timing cohort');
+assert.equal(eligible, cohort.eligible_records, 'Eligible finishes reconcile with the cohort manifest');
+assert.equal(cohort.eligible_records, cohort.cohort.eligible, 'Counted records are the eligible cohort');
+recordIds.sort();
+for (let i = 1; i < recordIds.length; i++) assert.notEqual(recordIds[i], recordIds[i - 1], 'Unique record IDs');
+// Every screened runner (the cohort's identity; candidates, not verified people): the counted records with a key, the
+// runners with a counted record, those with two or more and their records, against the cohort manifest's linkage; then
+// the same four on high links alone (`linkage.high_links`, added November 14, 2026 with the cohort's link class). A
+// record that is not joined stands alone under its own key, so it is one runner with one record and never a repeat.
+{
+  const linkageCounts = (keys, joined) => {
+    const sorted = keys.slice(0, eligible).sort();
+    let runners = 0, repeat = 0, repeatRecords = 0;
+    for (let i = 0; i < sorted.length;) {
+      let j = i + 1;
+      while (j < sorted.length && sorted[j] === sorted[i]) j++;
+      runners++;
+      if (j - i >= 2) { repeat++; repeatRecords += j - i; }
+      i = j;
+    }
+    return [joined, runners - (eligible - joined), repeat, repeatRecords];
+  };
+  const stated = (block) => [block.counted_records_with_a_runner, block.runners_with_a_counted_record, block.runners_with_two_or_more_counted_records, block.counted_records_of_those_runners];
+  assert.deepEqual(linkageCounts(runnerOf, keyedRecords), stated(cohort.linkage), 'Every screened runner of the cohort: keyed records, runners, runners with two or more and their records');
+  assert.deepEqual(linkageCounts(runnerHighOf, highRecords), stated(cohort.linkage.high_links), 'The same on high links alone: records with a high link, their runners, runners with two or more and their records');
 }
-assert.equal(raw, runners.raw_records, 'Complete source traversal');
-assert.equal(profileCount, runners.profiles, 'Every candidate profile');
-assert.equal(eligible, runners.eligible_records, 'Eligible finishes reconcile with the runner manifest');
-for (const [label, ids] of [['record', recordIds], ['profile', profileIds]]) {
-  ids.sort();
-  for (let i = 1; i < ids.length; i++) assert.notEqual(ids[i], ids[i - 1], `Unique ${label} IDs`);
-}
-assert.deepEqual(nameHits, [], 'Insights text matches a recorded runner name');
 
-// Rows grouped by edition, keeping verified shard order (the builder's stable order).
+// The year of each finish's edition, for the readings that follow a runner from one year's race to the next.
+const rowYear = Int16Array.from(editionOf.subarray(0, eligible), e => editions[e].year);
+// Rows grouped by edition, keeping cohort order: the manifest's editions, then record id (the builder's stable order).
 const editionCount = new Uint32Array(editions.length), editionStart = new Uint32Array(editions.length + 1);
 for (let i = 0; i < eligible; i++) editionCount[editionOf[i]]++;
 for (let e = 0; e < editions.length; e++) editionStart[e + 1] = editionStart[e] + editionCount[e];
@@ -543,8 +618,11 @@ function checkArchetypes(doc) {
   const counts = new Float64Array(k6), slow = new Float64Array(k6), profile = Array.from({ length: k6 }, () => new Float64Array(9));
   const sentences = new Int32Array(3 ** 9), riverStarts = Array.from({ length: 16 }, (_, j) => 150 + 15 * j);
   const river = riverStarts.map(() => new Float64Array(k6));
+  const typeOf = new Uint8Array(eligible), shapeRows = new Uint32Array(shapeN);
+  let shapeAt = 0;
   eachRow(shapeEditions, i => {
     const o = i * 9, label = nearest(relativePace(times, o, R), classifier);
+    typeOf[i] = label; shapeRows[shapeAt++] = i;
     counts[label]++;
     for (let k = 0; k < 9; k++) profile[label][k] += R[k];
     if (sustained(times, o)) slow[label]++;
@@ -570,6 +648,48 @@ function checkArchetypes(doc) {
   assert.equal(doc.sentences.total_distinct, distinct, 'Distinct pacing sentences');
   assert.equal(doc.sentences.published_n, sum(published.map(row => row.n)));
   assert.equal(doc.sentences.all_even_n, sentences[EVEN_SENTENCE], 'All-even sentence count');
+  // Transitions (insights_archetypes.repeat_pairs): within one runner key, the races of the years that hold exactly
+  // one of its finishes, in year order; each race and the next, 1 to 3 years apart, is a pair from its type to the
+  // next one's. Recounted for the runner key in use and for the key on high links alone (lead ruling R6, November 14,
+  // 2026); until then this table was checked for structure only.
+  {
+    const yearOfRow = i => rowYear[i];
+    const recount = keys => {
+      const order = shapeRows.slice().sort((a, b) => keys[a] - keys[b] || rowYear[a] - rowYear[b]);
+      const matrix = Array.from({ length: k6 }, () => new Float64Array(k6));
+      for (let start = 0; start < order.length;) {
+        let end = start + 1;
+        while (end < order.length && keys[order[end]] === keys[order[start]]) end++;
+        let previous = -1;
+        for (let p = start; p < end; p++) {
+          const year = yearOfRow(order[p]);
+          const alone = (p === start || yearOfRow(order[p - 1]) !== year) && (p + 1 === end || yearOfRow(order[p + 1]) !== year);
+          if (!alone) continue;
+          if (previous >= 0) { const gap = year - yearOfRow(order[previous]); if (gap >= 1 && gap <= 3) matrix[typeOf[order[previous]]][typeOf[order[p]]]++; }
+          previous = p;
+        }
+        start = end;
+      }
+      return matrix;
+    };
+    const compare = (published, matrix, label) => {
+      const total = sum(matrix.map(row => sum([...row])));
+      assert.equal(published.pairs, total, `${label}: pairs`);
+      near(published.repeat_share, sum(matrix.map((row, x) => row[x])) / Math.max(1, total), `${label}: share of pairs that repeat their type`, 1e-9);
+      assert.deepEqual(published.rows.map(row => row.name), classifier.names, `${label}: one row per pacing type`);
+      published.rows.forEach((row, x) => {
+        const out = sum([...matrix[x]]);
+        assert.equal(row.pairs, out, `${label} ${row.name}: pairs`);
+        row.next_shares.forEach((share, y) => near(share, out ? matrix[x][y] / out : 0, `${label} ${row.name}: share next run as ${classifier.names[y]}`, 1e-9));
+        assert.equal(row.repeat_share === null, out === 0, `${label} ${row.name}: repeat share exactly where the type has pairs`);
+        if (out) near(row.repeat_share, matrix[x][x] / out, `${label} ${row.name}: repeat share`, 1e-9);
+        near(row.overall_share, sum(matrix.map(from => from[x])) / Math.max(1, total), `${label} ${row.name}: share of all next races`, 1e-9);
+      });
+    };
+    assert.ok(doc.transitions.high_links_only, 'Transitions carry their high-links-only variant');
+    compare(doc.transitions, recount(runnerOf), 'Transitions');
+    compare(doc.transitions.high_links_only, recount(runnerHighOf), 'Transitions on high links alone');
+  }
   const bands = riverStarts.map((lo, j) => ({ lo, counts: river[j], n: sum([...river[j]]) })).filter(row => row.n >= MIN_CELL);
   assert.deepEqual(doc.river.map(row => [row.lo_min, row.label, row.n]), bands.map(row => [row.lo, `${clock(row.lo)}–${clock(row.lo + 15)}`, row.n]), 'Finish-band mix counts');
   doc.river.forEach((row, j) => row.shares.forEach((share, k) => near(share, bands[j].counts[k] / bands[j].n, `${row.label}: archetype ${k} share`, 1.1e-5)));
@@ -827,19 +947,23 @@ function checkReplay(doc) {
 
 // 9. courses.json: edition table, course curves, weather pairing and fits, matched 5–20 km pace bands and the years.
 const MATCH_BANDS = [[240, 270], [270, 300], [300, 330], [330, 360], [360, 420]]; // 5–20 km pace, s/km
-// Weather rows from the runner-context shards, verified against the bound context manifest.
+// Weather rows from the runner-context shards, verified against the bound context manifest. The context lists a file
+// only for a counted edition that has peers, weather or terrain (lead ruling D24.8): an edition it does not list has no
+// weather row, exactly as an edition whose shard says so.
+const countedEditionKeys = new Set(editions.flatMap((edition, e) => (edition.use === 'counted' ? [String(e)] : [])));
+assert.ok(Object.keys(context.editions).every(key => countedEditionKeys.has(key)), 'Context shards are listed for counted editions only');
 function contextWeather(list) {
-  assert.deepEqual(Object.keys(context.editions).sort((a, b) => a - b), editions.map((_, e) => String(e)), 'Context shards cover every edition');
   const out = new Map();
   for (const e of list) {
     const item = context.editions[String(e)], edition = editions[e];
-    assert.equal(item.file, `editions/${String(e).padStart(3, '0')}.json.gz`, `Context shard path for edition ${e}`);
+    if (item === undefined) { out.set(e, null); continue; }
+    assert.match(item.file, /^editions\/[a-z0-9]+(-[a-z0-9]+)*\.json\.gz$/, `Context shard path for edition ${e}`);
     const bytes = fs.readFileSync(path.join(dataRoot, 'runner-context', item.file));
     assert.equal(bytes.length, item.bytes, `${item.file}: context bytes`);
     assert.equal(hash(bytes), item.sha256, `${item.file}: context checksum`);
     const shard = JSON.parse(zlib.gunzipSync(bytes)), w = shard.weather;
     assert.equal(shard.release_tag, pin.tag, `${item.file}: context release`);
-    assert.deepEqual(shard.edition, { index: e, ...edition }, `${item.file}: context edition identity`);
+    assert.deepEqual(shard.edition, { index: e, city: edition.city, year: edition.year, race: edition.race }, `${item.file}: context edition identity`);
     assert.ok(w === null || w.city === edition.city && w.year === edition.year && finite(w.temp_c) && typeof w.weather_race === 'string'
       && w.personal_exposure === false, `${item.file}: weather row for its edition`);
     out.set(e, w);
@@ -1130,6 +1254,59 @@ function checkKick(doc) {
     near(row.women, w[1] / w[0], `${row.label}: women kick share`, 1e-4); near(row.men, m[1] / m[0], `${row.label}: men kick share`, 1e-4);
     printedOnce(row.women, w[1] / w[0], `${row.label}: women kick share`); printedOnce(row.men, m[1] / m[0], `${row.label}: men kick share`);
   });
+  // Recurrence (insights_kick.follow): consecutive races of one runner key, 1 to 3 years apart, neither year holding
+  // another finish of that runner; the later race must sit in a stratum (its edition and 5 s/km band of 5–20 km pace)
+  // of at least 100 finishes, whose leave-one-out share of sustained slowdowns is what the later race is expected to
+  // show. Recounted for the runner key in use and for the key on high links alone (lead ruling R6, November 14, 2026).
+  {
+    const count = n, idx = new Uint32Array(count), slowed = new Uint8Array(count), stratum = new Float64Array(count);
+    const strata = new Map();
+    let j = 0;
+    eachRow(kickEditions, (i, e) => {
+      const o = i * 9, d = [4, 5, 6, 7].some(k => rel(o, k) + 1e-12 >= .25) ? 1 : 0;
+      const key = e * 1000 + Math.floor((times[o + 3] - times[o]) / 15 / 5);
+      idx[j] = i; slowed[j] = d; stratum[j] = key;
+      const cell = strata.get(key) || [0, 0];
+      cell[0]++; cell[1] += d; strata.set(key, cell);
+      j++;
+    });
+    const yearOf = j => rowYear[idx[j]], cityOf = j => editions[editionOf[idx[j]]].city;
+    const recount = keys => {
+      // Ordered by runner key, then year (two finishes of one key in one year are both left out, so their order is immaterial).
+      const years = Int16Array.from({ length: count }, (_, j) => yearOf(j));
+      const order = Uint32Array.from({ length: count }, (_, j) => j).sort((a, b) => keys[idx[a]] - keys[idx[b]] || years[a] - years[b]);
+      const same = (a, b) => keys[idx[a]] === keys[idx[b]];
+      const single = p => !(p > 0 && same(order[p], order[p - 1]) && years[order[p]] === years[order[p - 1]])
+        && !(p + 1 < count && same(order[p], order[p + 1]) && years[order[p]] === years[order[p + 1]]);
+      const cells = { after_slowdown: [0, 0, 0], after_none: [0, 0, 0], after_slowdown_same_course: [0, 0, 0], after_slowdown_other_course: [0, 0, 0] };
+      let pairs = 0;
+      for (let p = 0; p + 1 < count; p++) {
+        const a = order[p], b = order[p + 1], gap = years[b] - years[a];
+        if (!same(a, b) || gap < 1 || gap > 3 || !single(p) || !single(p + 1)) continue;
+        const [size, hits] = strata.get(stratum[b]);
+        if (size < MIN_CELL) continue;
+        pairs++;
+        const expected = (hits - slowed[b]) / Math.max(size - 1, 1);
+        const into = slowed[a] ? ['after_slowdown', cityOf(a) === cityOf(b) ? 'after_slowdown_same_course' : 'after_slowdown_other_course'] : ['after_none'];
+        for (const name of into) { cells[name][0]++; cells[name][1] += slowed[b]; cells[name][2] += expected; }
+      }
+      return { pairs, cells };
+    };
+    const compare = (published, recounted, label) => {
+      assert.equal(published.pairs, recounted.pairs, `${label}: pairs`);
+      for (const [name, [pairs, observed, expected]] of Object.entries(recounted.cells)) {
+        const cell = published[name];
+        assert.equal(cell === null, pairs < MIN_CELL, `${label} ${name}: published exactly from ${MIN_CELL} pairs`);
+        if (cell === null) continue;
+        assert.equal(cell.pairs, pairs, `${label} ${name}: pairs`);
+        near(cell.observed, observed / pairs, `${label} ${name}: observed share`, 1e-9); near(cell.expected, expected / pairs, `${label} ${name}: expected share`, 1e-9);
+      }
+    };
+    const high = doc.recurrence.high_links_only;
+    assert.ok(high && typeof high.note === 'string' && typeof doc.recurrence.note === 'string', 'Recurrence carries its high-links-only variant and both notes');
+    compare(doc.recurrence, recount(runnerOf), 'Recurrence');
+    compare(high, recount(runnerHighOf), 'Recurrence on high links alone');
+  }
   // Cost bands use the story cohort: same 5–20 km pace (15-minute marathon equivalent), with and without a sustained slowdown.
   const cost = new Map();
   eachRow(storyEditions, i => {
@@ -1351,7 +1528,23 @@ function checkCourseGoal(doc) {
   });
   assert.deepEqual(doc.unavailable.map(u => [u.goal, u.city]), expectedGaps, 'Course goal unavailable rows');
   assert.deepEqual(doc.courses.map(c => c.city), cities, 'Course goal course list');
-  return { rows: doc.rows.length, unavailable: doc.unavailable.length };
+  // Each course's context: its editions and finishes in the tool cohort, its race months (the cohort's reviewed race
+  // date of each edition, else its matched weather row's date) and the start temperatures of its matched weather rows.
+  const weather = toolWeather(eds);
+  for (const course of doc.courses) {
+    const cityEds = eds.filter(e => editions[e].city === course.city), months = new Set(), temps = [];
+    for (const e of cityEds) {
+      const w = weather.get(e);
+      if (w) temps.push(w.temp_c);
+      const dated = editions[e].race_date || (w ? w.date : null);
+      if (dated) months.add(Number(dated.slice(5, 7)));
+    }
+    assert.deepEqual([course.slug, course.editions, course.finishes, course.months, course.weather_editions],
+      [slugify(course.city), cityEds.length, sum(cityEds.map(e => storyCount[e])), [...months].sort((a, b) => a - b), temps.length], `${course.city}: course context (editions, finishes, race months, weather editions)`);
+    assert.equal(course.start_temp_c === null, temps.length === 0, `${course.city}: start temperatures exactly where a weather row matched`);
+    if (temps.length) { near(course.start_temp_c[0], Math.min(...temps), `${course.city}: coolest start`, .051); near(course.start_temp_c[1], Math.max(...temps), `${course.city}: warmest start`, .051); }
+  }
+  return { rows: doc.rows.length, unavailable: doc.unavailable.length, courses: doc.courses.length };
 }
 
 // Terrain splits (tools/course-terrain.json): the visitor's goal spread over a corrected route profile with one published
@@ -1464,9 +1657,120 @@ for (const [family, doc] of families) {
 }
 recounted['tool-course-terrain'] = checkCourseTerrain(docs.get(TERRAIN_FILE));
 assert.ok('finish-times' in recounted && 'replay' in recounted, 'Core story families are present');
+
+// 10. No published string equals a recorded runner name. The cohort holds no names (it is names-free by design), so
+// the guard reads them where the release's names are. It reads every source it is given and needs at least one:
+//
+//   1. The runner lookup, through the lookup's own Node reader (scripts/lib/lookup-files.cjs; every file it opens is
+//      checked against the manifest's hash chain). The folder is the one PACE_NOTES_LOOKUP_DIR names (the `runners`
+//      folder of a lookup build) or, without the variable, the data root's `runners` once that is a schema-2 lookup;
+//      it must be the adopted release's. Each published string is asked of it twice (`nameExists`): as written, so a
+//      trailing country code is dropped as the lookup drops it, and in this verifier's normalised form. A string
+//      matches when some search name has exactly its search words (word order, case, accents and a repeated word
+//      aside), over the release's marathon and half results. First source since November 14, 2026 (lead routing):
+//      the workflow needs no names file once the lookup of the adopted release is committed.
+//   2. The names file PACE_NOTES_NAMES_FILE names (gzip text, one recorded marathon name per line;
+//      scripts/charts/extract-names.py writes it from the adapted input, with a sidecar <file>.json that states the
+//      input it came from), kept for now as the second source: read as well whenever the variable is set, and alone
+//      while no schema-2 lookup can be read. Every string value of every file was normalised into `copyStrings`
+//      above; each recorded name is normalised the same way and looked up there.
+//
+// It is the last check, so everything above is recounted first, and without a source this verifier fails: it never
+// passes without having compared the names.
+//
+// Reviewed coincidences. The release holds 7.8 million marathon records and 2.5 million half records (5.4 million
+// records in the lookup this guard read until November 14, 2026), and a few of the site's own fixed labels are also
+// somebody's recorded name. Each entry was read on November 14, 2026 against pace-notes-marathon-half-20261113-1113
+// and is allowed only while the string is one of the labels the files are pinned to carry (a race label of the cohort
+// manifest, the manifest's fixed sex and age-band labels, or a class code of the audited terrain registry, all
+// checked below): free text can never be excused, and a new coincidence fails until it is read. "Madrid", "London"
+// and "b" were added with the lookup as a source: it compares search words, so a repeated word counts once, and it
+// holds the half results too.
+const NAME_COINCIDENCES = new Map([
+  ['paris', 'the race label Paris; one record of another race (VnExpress Marathon Hue 2023) is recorded under the one-word name "Paris", and one half record (Semi Marathon de Montargis 2019) as "PARIS PARIS"'],
+  ['unknown', 'the age-band label Unknown; five records of four races are recorded as "Unknown" or "UNKNOWN", a placeholder on the runner lookup\'s reviewed list (lead decision D24.6), so only the names file holds it'],
+  ['madrid', 'the race label Madrid; one record of Madrid 2019 is recorded under the name "MADRID MADRID"'],
+  ['london', 'the race label London; one half record (Himmelgeister Brückenlauf 2018) is recorded under the one-word name "London"'],
+  ['b', 'the terrain registry\'s class code b (tools/course-terrain.json, a course\'s `class`); seven search names of the lookup are "B" or "B B"'],
+]);
+const LOOKUP_ENV = 'PACE_NOTES_LOOKUP_DIR', NAMES_ENV = 'PACE_NOTES_NAMES_FILE';
+const asciiName = text => text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+assert.deepEqual(['  Mary-Jane O\'Neil ', 'A.B. 3rd'].map(asciiName), ['  Mary-Jane O\'Neil ', 'A.B. 3rd'].map(normaliseName), 'The fast path for unaccented names normalises as the full rule does');
+
+/** The runner lookup as a source of names: the folder to read, or the sentence that says why there is none. */
+function lookupFolder() {
+  if (process.env[LOOKUP_ENV]) return { folder: path.resolve(process.env[LOOKUP_ENV]), where: LOOKUP_ENV };
+  const folder = path.join(dataRoot, 'runners'), file = path.join(folder, 'manifest.json');
+  if (!fs.existsSync(file)) return { reason: `no runner lookup under ${path.relative(root, folder) || folder}` };
+  const version = read(file).schema_version ?? 1;
+  // A schema-1 lookup is an earlier release's (it has no index the reader can ask); it is no source, not an error.
+  if (version !== 2) return { reason: `the runner lookup under ${path.relative(root, folder) || folder} is schema ${version}, an earlier release's` };
+  return { folder, where: path.relative(root, folder) || folder };
+}
+
+/** Source 1: every published string asked of the runner lookup. `seen(name)` records a match by its normalised form. */
+function namesFromLookup({ folder, where }, seen) {
+  const { openLookup } = require('./lib/lookup-files.cjs');
+  // openLookup refuses a folder that is not a schema-2 lookup or not the adopted release's; a folder named in the
+  // environment that cannot be read is an error, never a silent fall back to the other source.
+  const lookup = openLookup(folder, { tag: pin.tag, leafCache: 256 });
+  const counts = lookup.manifest.counts;
+  assert.ok(integer(counts.names, 1) && integer(counts.search_names, 1), 'The runner lookup states how many names it holds');
+  let asked = 0;
+  for (const text of copyTexts.keys()) {
+    asked++;
+    const normalised = normaliseName(text);
+    if (lookup.nameExists(text) || lookup.nameExists(normalised)) seen(normalised);
+  }
+  assert.ok(asked > 0 && asked === copyTexts.size, 'Every published string was asked of the runner lookup');
+  // Which records the lookup was built from: this cohort, the adapted input the cohort came from, or another issue of
+  // the adopted release's inputs (a development build). Stated, not required: the release is what the names are of.
+  const built = lookup.manifest.cohort?.manifest_sha256 === cohortSha ? 'this cohort'
+    : lookup.manifest.pipeline?.input_manifest_sha256 === cohort.input_manifest_sha256 ? 'the adapted input of this cohort' : 'another issue of the adopted release\'s inputs';
+  return { source: 'runner lookup', where, lookup_manifest_sha256: lookup.manifestSha256, lookup_as_of: lookup.manifest.as_of, built_from: built,
+    names: counts.names, search_names: counts.search_names, strings_asked: asked };
+}
+
+/** Source 2: every recorded name of the names file looked up among the published strings. */
+function namesFromFile(file, seen) {
+  const bytes = fs.readFileSync(file), sidecar = read(`${file}.json`);
+  assert.deepEqual([sidecar.bytes, sidecar.sha256], [bytes.length, hash(bytes)], `${file}: the names file is not the one its sidecar describes`);
+  assert.equal(sidecar.input_manifest_sha256, cohort.input_manifest_sha256, `${file}: the names are from another adapted input than the cohort's`);
+  const text = zlib.gunzipSync(bytes);
+  let names = 0, start = 0;
+  while (start < text.length) {
+    let end = start, ascii = true;
+    while (end < text.length && text[end] !== 10) { if (text[end] > 127) ascii = false; end++; }
+    if (end > start) {
+      names++;
+      // A name of unaccented letters (most of them) needs no Unicode pass: the two rules agree on it (asserted above).
+      const name = ascii ? asciiName(text.latin1Slice(start, end)) : normaliseName(text.toString('utf8', start, end));
+      if (copyStrings.has(name)) seen(name);
+    }
+    start = end + 1;
+  }
+  assert.ok(names > 0 && names === sidecar.names, `${file}: ${names} names read, its sidecar states ${sidecar.names}`);
+  return { source: 'names file of the adapted input', where: NAMES_ENV, names };
+}
+
+function recordedNameGuard() {
+  const siteLabels = new Set([...editions.map(edition => edition.city), ...manifest.genders, ...manifest.ages, ...terrainRegistry.courses.map(course => course.class)].map(normaliseName));
+  for (const label of NAME_COINCIDENCES.keys()) assert.ok(siteLabels.has(label), `"${label}": a reviewed coincidence must be a race label, a fixed sex or age-band label or a terrain class code`);
+  const hits = new Map(), excused = new Set();
+  const seen = name => { if (NAME_COINCIDENCES.has(name)) excused.add(name); else hits.set(name, copyStrings.get(name)); };
+  const sources = [], lookup = lookupFolder(), file = process.env[NAMES_ENV];
+  if (!lookup.reason) sources.push(namesFromLookup(lookup, seen));
+  if (file) sources.push(namesFromFile(file, seen));
+  assert.ok(sources.length > 0, `The name guard has no source of recorded names: the marathon cohort holds none. The lookup: ${lookup.reason}. The names file: ${NAMES_ENV} is not set. `
+    + `Set ${LOOKUP_ENV} to the \`runners\` folder of a lookup build of the adopted release, or ${NAMES_ENV} to the names file of the adapted input `
+    + '(scripts/charts/extract-names.py writes it), and run again; this check is never skipped.');
+  assert.deepEqual([...hits].map(([name, where]) => `${where}: "${name}"`), [], 'Insights text matches a recorded runner name');
+  return { sources, reviewed_coincidences: [...excused].sort() };
+}
+const nameGuard = recordedNameGuard();
 console.log(JSON.stringify({
   verified: 'insights', release_tag: pin.tag, input: input.startsWith(root + path.sep) ? path.relative(root, input) : input, files: listed.length, scanned_values: scannedValues,
-  source_shards: sourceFiles.length, raw_records: raw, eligible_records: eligible, story_n: storyN, shape_n: shapeN,
+  cohort_editions: editions.length, cohort_records: held, raw_records: cohort.raw_records, eligible_records: eligible, recorded_names: nameGuard, story_n: storyN, shape_n: shapeN,
   start_offset_editions: flagged.length, recounted, generic_only: genericOnly, unbound_modules: unboundModules, course_geometry: Boolean(geometry),
   seconds: Math.round((Date.now() - started) / 100) / 10,
 }));

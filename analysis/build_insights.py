@@ -1,11 +1,20 @@
-"""Build the Pace Notes story analyses from the verified public runner shards.
+"""Build the Pace Notes story analyses from the verified marathon cohort.
 
 Each family writes one JSON file under public/data/insights/, and manifest.json
-binds them to the adopted release, the exact runner and context manifests,
-the duplicate-edition screen and every script hash.
+binds them to the adopted release, the exact cohort and runner-context
+manifests, the edition policy the cohort was cut by, the duplicate-edition
+screen and every script hash.
+
+The finishes are the counted records of analysis/marathon-cohort (read through
+insights_data.read_finishes and analysis/cohort.py; from the runner lookup's
+shards until November 14, 2026). The manifest and the family files keep the
+field names they had then: `runner_manifest_sha256` is the SHA-256 of the
+cohort manifest's exact bytes and `runner_manifest_as_of` its `as_of`;
+`cohort_manifest_sha256` states the same digest under its own name.
 
 Usage:
   python analysis/build_insights.py [--output public/data/insights] [--only family,...]
+                                    [--data-root public/data] [--cohort analysis/marathon-cohort]
 """
 import argparse
 from datetime import datetime, timezone
@@ -77,9 +86,12 @@ def write(path, data):
     tmp.replace(path)
 
 
-def load_cohort(cache=None):
+COHORT_ROOT = ROOT / 'analysis/marathon-cohort'   # the marathon cohort (analysis/cohort.py), since November 14, 2026
+DATA_ROOT = ROOT / 'public/data'
+
+
+def load_cohort(cache=None, cohort_root=COHORT_ROOT):
     pin = json.loads((ROOT / 'analysis/release.json').read_text())
-    cohort_root = ROOT / 'analysis/marathon-cohort'   # the marathon cohort (analysis/cohort.py), since November 14, 2026
     if cache and Path(cache).exists():
         # Development shortcut only: arrays previously written from the verified cohort.
         manifest, manifest_sha = insights_data.verified_cohort_manifest(cohort_root, pin, ROOT / 'analysis')
@@ -103,19 +115,24 @@ def duplicate_methodology(screen):
             'applies only to these stories; the reviewed source policy and the existing analyses are unchanged.']
 
 
-def run(output, only=None, cache=None):
+def run(output, only=None, cache=None, data_root=DATA_ROOT, cohort_root=COHORT_ROOT):
     started = time.time()
-    pin, full, manifest, manifest_sha = load_cohort(cache)
+    data_root, cohort_root = Path(data_root), Path(cohort_root)
+    pin, full, manifest, manifest_sha = load_cohort(cache, cohort_root)
     cohort, screen = screen_duplicates(full)
-    context_manifest = ROOT / 'public/data/runner-context/manifest.json'
+    context_manifest = data_root / 'runner-context/manifest.json'
+    # The families that read weather and terrain (courses, the weather match, the course chooser) read this context.
+    import insights_courses
+    insights_courses.COHORT_ROOT, insights_courses.CONTEXT_ROOT = cohort_root, data_root / 'runner-context'
     output = Path(output)
     # The terrain builder and model are bound exactly when tools/course-terrain.json is published.
     terrain_scripts = list(TERRAIN_SCRIPTS) if (output / TERRAIN_FILE).exists() else []
     scripts = {name: sha256_file(Path(__file__).with_name(name)) for name in sorted(
         p.name for p in Path(__file__).parent.glob('insights_*.py')) + ['build_insights.py', 'build_fast_start.py', *terrain_scripts]}
+    # `runner_manifest_*` name the cohort manifest (the names are kept from the runner lookup these files were bound to).
     common = dict(
         schema_version=1, release_tag=manifest['release_tag'], input_as_of=manifest['input_as_of'],
-        runner_manifest_sha256=manifest_sha, runner_manifest_as_of=manifest['as_of'],
+        runner_manifest_sha256=manifest_sha, runner_manifest_as_of=manifest['as_of'], cohort_manifest_sha256=manifest_sha,
         eligible_records=int(full.n), analysis_n=int(cohort.n), duplicate_edition_screen=screen,
     )
     files = {}
@@ -154,6 +171,8 @@ def run(output, only=None, cache=None):
     manifest_out = dict(
         **common, as_of=datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
         context_manifest_sha256=sha256_file(context_manifest), scripts=scripts, source_scripts=manifest['scripts'],
+        # The edition policy the cohort was cut by: its digests and counts (the list is the published file they name).
+        source_quality=manifest['source_quality'],
         cohort=dict(eligible=int(full.n), after_duplicate_screen=int(cohort.n),
                     editions=int(len(np.unique(cohort.edition))), cities=len(cities),
                     men=int((cohort.gender == 1).sum()), women=int((cohort.gender == 2).sum()),
@@ -174,9 +193,11 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--output', default=str(ROOT / 'public/data/insights'))
     p.add_argument('--only', default='')
+    p.add_argument('--data-root', default=str(DATA_ROOT), help='the public data folder whose runner-context is read')
+    p.add_argument('--cohort', default=str(COHORT_ROOT), help='the marathon cohort folder')
     p.add_argument('--cache', default=None, help=argparse.SUPPRESS)
     a = p.parse_args()
-    run(a.output, {x for x in a.only.split(',') if x} or None, a.cache)
+    run(a.output, {x for x in a.only.split(',') if x} or None, a.cache, a.data_root, a.cohort)
 
 
 if __name__ == '__main__':

@@ -3,11 +3,9 @@
  * six opening groups, the pacing-type cohort, and the courses other Pace Notes data names. The split check page, /report
  * and /runners read them here, so the three show the same groups, cohort and names.
  */
-import fs from 'node:fs';
-import path from 'node:path';
 import { getFastStartStart } from './fast-start-server';
 import type { Archetypes } from './insights';
-import { getInsightsManifest, readInsight } from './insights-server';
+import { getCohortManifest, getInsightsManifest, readInsight } from './insights-server';
 import type { OpeningBand, ReportData, TypeCohort } from './report';
 import type { PaceBandIndex } from './tools/data';
 import { courseSlug } from './tools/links';
@@ -41,17 +39,19 @@ function optional<T>(name: string): T | null {
 export const paceBandIndex = () => optional<PaceBandIndex>(PACE_BAND_INDEX);
 
 /**
- * Courses that other Pace Notes data knows (runner records, courses, weather, route geometry) but the split check does not
- * compare with, by slug. A runner-page link to a Prague race then says so plainly instead of reporting an unknown course.
+ * Courses that other Pace Notes data knows (the marathon cohort's editions, courses, weather, route geometry) but the
+ * split check does not compare with, by slug. A runner-page link to a Prague race then says so plainly instead of
+ * reporting an unknown course. The cohort's editions are the races an analysis or a runner's own pacing view can read
+ * (counted and own-record); until November 14, 2026 this read every city of the runner lookup, which now holds every
+ * race of both distances.
  */
 export function otherCourses(index: PaceBandIndex | null): Record<string, string> {
   if (!index) return {};
   const published = new Set(index.scopes.map((s) => s.slug));
   const cities = new Set<string>();
   try {
-    const runners = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public/data/runners/manifest.json')).toString()) as { editions?: { city: string }[] };
-    for (const e of runners.editions ?? []) cities.add(e.city);
-  } catch { /* runner records are optional here */ }
+    for (const e of getCohortManifest().manifest.editions) cities.add(e.city);
+  } catch { /* the cohort is optional here */ }
   for (const c of optional<{ courses: { city: string }[] }>('courses.json')?.courses ?? []) cities.add(c.city);
   for (const e of optional<{ editions: { city: string }[] }>('tools/weather-match.json')?.editions ?? []) cities.add(e.city);
   for (const c of optional<{ courses: { city: string }[] }>('course-geometry.json')?.courses ?? []) cities.add(c.city);

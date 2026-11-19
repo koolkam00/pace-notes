@@ -8,7 +8,7 @@ import RouteFace from '@/components/course/RouteFace';
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
 import { readingAttrs } from '@/lib/chapters';
 import Reading from '@/components/ui/Reading';
-import { coursePages, raceName, routeClimb } from '@/lib/course-page';
+import { courseLists, coursePages, raceName, routeClimb } from '@/lib/course-page';
 import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { getNugget, readingOf, sentenceOf } from '@/lib/nuggets';
@@ -40,10 +40,17 @@ export function generateMetadata() {
  * row's small line. A route whose profile reads the water under a bridge prints no climb (as on its page). A course
  * with fewer than three editions has its share drawn quieter: under the share's order it follows under its own
  * hairline; under any other it stands in its sorted place. The ItemList stays alphabetical.
+ *
+ * A course whose page only lists its editions (no counted edition; lib/course-page.ts `courseLists`, since November 14,
+ * 2026) keeps its row: its name, "No pacing figures" and a dash where a figure would stand. It has no value to sort
+ * by, so it comes last under every order but A–Z and follows with the fewer-edition courses under the share's order.
  */
 export default function CoursesPage() {
   const pages = [...coursePages().values()];
-  const alpha = [...pages].sort((a, b) => a.city.localeCompare(b.city));
+  const lists = [...courseLists().values()];
+  // Every course page in one alphabetical list: its slug, its city and the race's name.
+  const alpha = [...pages.map((p) => ({ slug: p.slug, city: p.city, race: raceName(p.city, p.geometry, p.summary) })), ...lists.map((l) => ({ slug: l.slug, city: l.city, race: l.race }))]
+    .sort((a, b) => a.city.localeCompare(b.city));
   const courses = readInsight<Courses>('courses.json');
   const temps = new Map<string, number[]>();
   for (const w of courses.weather.editions) temps.set(w.city, [...(temps.get(w.city) ?? []), w.temp]);
@@ -51,9 +58,10 @@ export default function CoursesPage() {
   const index = getNugget('courses.index');
   // The one climb a course prints everywhere; none where the profile reads the water under a bridge.
   const climbOf = (p: (typeof pages)[number]) => (profileUnderWater(p) ? null : routeClimb(p));
-  const few = pages.filter((p) => p.summary.editions < MIN_EDITIONS).map((p) => p.slug);
+  const listSlugs = [...lists].sort((a, b) => a.city.localeCompare(b.city)).map((l) => l.slug);
+  const few = [...pages.filter((p) => p.summary.editions < MIN_EDITIONS).map((p) => p.slug), ...listSlugs];
   const by = (f: (p: (typeof pages)[number]) => number | null, dir: 1 | -1) =>
-    [...pages].sort((a, b) => { const x = f(a), y = f(b); if (x === null) return 1; if (y === null) return -1; return dir * (x - y) || a.city.localeCompare(b.city); }).map((p) => p.slug);
+    [...[...pages].sort((a, b) => { const x = f(a), y = f(b); if (x === null) return 1; if (y === null) return -1; return dir * (x - y) || a.city.localeCompare(b.city); }).map((p) => p.slug), ...listSlugs];
   const orders: Record<SortKey, string[]> = {
     slowdown: by((p) => p.summary.slowdown, 1),
     climb: by((p) => climbOf(p)?.gain_m ?? null, -1),
@@ -61,7 +69,20 @@ export default function CoursesPage() {
     temp: by((p) => (temps.get(p.city)?.length ? mean(temps.get(p.city)!) : null), 1),
     az: alpha.map((p) => p.slug),
   };
-  const rows = pages.map((p) => {
+  const listRows = lists.map((l) => ({
+    id: l.slug,
+    node: (
+      <Link href={`/courses/${l.slug}`} className="course-index-row" data-course-list="">
+        <span className="course-index-face"><i className="course-index-noroute" aria-hidden="true" /></span>
+        <span className="course-index-name">{l.display}</span>
+        <span className="course-index-meta"><span className="m-default">No pacing figures</span><span className="m-other">No pacing figures</span></span>
+        <span className="course-index-share" aria-hidden="true">
+          <span className="f-slowdown">—</span><span className="f-climb">—</span><span className="f-finishes">—</span><span className="f-temp">—</span>
+        </span>
+      </Link>
+    ),
+  }));
+  const rows = [...pages.map((p) => {
     const t = temps.get(p.city) ?? [];
     const share = p.summary.slowdown;
     const climb = climbOf(p);
@@ -87,7 +108,7 @@ export default function CoursesPage() {
         </Link>
       ),
     };
-  });
+  }), ...listRows];
   // Each order's key, in place of the figure's guesswork: what the number at the row's end is, and in what order.
   const share = <>Each course’s share of finishes with a <SlowdownTerm />, in an average year</>;
   const keys: Record<SortKey, React.ReactNode> = {
@@ -100,7 +121,7 @@ export default function CoursesPage() {
   };
   const list = {
     '@context': 'https://schema.org', '@type': 'ItemList', name: 'Marathon courses', itemListOrder: 'https://schema.org/ItemListOrderAscending', numberOfItems: alpha.length,
-    itemListElement: alpha.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: raceName(p.city, p.geometry, p.summary), url: absoluteUrl(`/courses/${p.slug}`) })),
+    itemListElement: alpha.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: p.race, url: absoluteUrl(`/courses/${p.slug}`) })),
   };
   return (
     <div className="courses-page" {...readingAttrs('/courses')}>
