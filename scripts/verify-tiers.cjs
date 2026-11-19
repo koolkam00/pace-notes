@@ -546,7 +546,6 @@ function expectedNumbers() {
   const tiers = t.SHOWN_TIERS.filter((tier) => rows.some((r) => r.tier === tier));
   for (const tier of tiers) out.push(...group(rows.filter((r) => r.tier === tier)));
   out.push(...group(rows.filter((r) => r.split_tier === 'finish_time_only')), ...group(rows.filter((r) => r.timing === t.GUN_TIMING)));
-  out.push(String(tiers.length));
   const cohort = json('analysis/marathon-cohort/manifest.json');
   const counted = cohort.editions.filter((e) => e.use === 'counted');
   const finishes = (list) => list.reduce((sum, e) => sum + e.eligible, 0);
@@ -576,7 +575,7 @@ function expectedNumbers() {
   }
   for (const c of t.LINK_CONFIDENCES) out.push(f(id.by_link_tier.marathon[c]), f(id.by_link_tier.half[c]));
   out.push(f(id.by_link_tier.marathon.unlinked), f(id.by_link_tier.half.unlinked));
-  for (const k of ['keyed', 'possible_match', 'unlinked', 'left_out']) out.push(f(id.by_status.marathon[k]), f(id.by_status.half[k]));
+  for (const k of ['keyed', 'possible_match', 'left_out']) out.push(f(id.by_status.marathon[k]), f(id.by_status.half[k]));
   for (const screen of Object.keys(t.SCREEN_WORDS)) if (id.screens[screen].results > 0) out.push(f(id.screens[screen].persons), f(id.screens[screen].results));
   const link = cohort.linkage;
   out.push(...[link.runners_with_a_counted_record, link.runners_with_two_or_more_counted_records, link.high_links.runners_with_a_counted_record, link.high_links.runners_with_two_or_more_counted_records].map(f));

@@ -9,6 +9,7 @@ import {
   FINISH_TIMES_ONLY, GUN_TIMING, LINK_CONFIDENCES, POSSIBLE_MATCH, POSSIBLE_MATCHES, SCREEN_WORDS, SHOWN_TIERS, TIER_WORDS, inline, isShownTier,
   type LinkConfidence, type ShownTier,
 } from '@/lib/tiers';
+import { countWord } from '@/lib/nuggets/format';
 import { Definition, and, n } from './shared';
 
 /**
@@ -129,7 +130,7 @@ export default function MethodsTiers() {
           </tbody>
         </table>
       </div>
-      <p>Every edition has one of the first {tiers.length} labels; the last two can join it, so their rows overlap the others. A race counts once in each row it has an edition in.</p>
+      <p>Every edition has one of the first {countWord(tiers.length)} labels; the last two can join it, so their rows overlap the others. A race counts once in each row it has an edition in.</p>
       <p><strong>In this release</strong>, {n(counted.editions)} editions of {n(counted.races)} races are counted, with {n(counted.finishes)} finishes. The other {n(notCountedTotal)} editions are not counted: {and(notCounted.map(([category, count]) => `${n(count)} ${CATEGORY_WORDS[category]}`))}. Of those, {n(editions.by_use.own_record.editions)} still show a runner’s own record.</p>
       <p>The <a href="#sustained-slowdown">sustained-slowdown</a> share of the counted finishes is {pct(counted.sustained_slowdown_pct)}. Without the {n(counted.editions - verified.editions)} editions with {inline(TIER_WORDS.partial)}, it is {pct(verified.sustained_slowdown_pct)} of {n(verified.finishes)} finishes in {n(verified.editions)} editions; without the {n(counted.editions - strong.editions)} editions labelled “{TIER_WORDS.stamped_weaker_source}”, {pct(strong.sustained_slowdown_pct)} of {n(strong.finishes)} finishes in {n(strong.editions)} editions.</p>
       <p>The release also names {n(editions.without_results.n)} editions for which it holds no results. They are not listed anywhere.</p>
@@ -162,7 +163,7 @@ export default function MethodsTiers() {
           </tbody>
         </table>
       </div>
-      <p>{n(keyed.marathon)} marathon and {n(keyed.half)} half-marathon results join a runner. {n(possibleCount.marathon)} and {n(possibleCount.half)} are shown as a {possible}, {n(status('unlinked').marathon)} and {n(status('unlinked').half)} have no link, and {n(status('left_out').marathon)} and {n(status('left_out').half)} fail the release’s own row checks and are not shown.</p>
+      <p>{n(keyed.marathon)} marathon and {n(keyed.half)} half-marathon results join a runner. {n(possibleCount.marathon)} and {n(possibleCount.half)} are shown as a {possible}. {n(status('left_out').marathon)} and {n(status('left_out').half)} fail the release’s own row checks and are not shown; the table counts them under their link, as it counts every row of the release.</p>
       <p>Runners whose joined results disagree, by screen: {and(failing.map((screen) => `${screen.words}, ${n(screen.persons)} runners with ${n(screen.results)} results`))}{passing.length ? `; none where ${passing.map((screen) => screen.words).join(' or ')}` : ''}.</p>
       <p>{n(linkage.runners_with_a_counted_record)} runners have a counted marathon finish, and {n(linkage.runners_with_two_or_more_counted_records)} have two or more. On links of high confidence alone, {n(linkage.high_links.runners_with_a_counted_record)} and {n(linkage.high_links.runners_with_two_or_more_counted_records)}.</p>
       <p>Find a runner holds {n(lookup.profiles)} profiles: {n(kinds.one_result)} of a single result, {n(kinds.confirmed_only)} of joined results only, {n(kinds.confirmed_and_possible)} with {inline(POSSIBLE_MATCHES)} beside joined results and {n(kinds.possible_only)} of {inline(POSSIBLE_MATCHES)} only.</p>

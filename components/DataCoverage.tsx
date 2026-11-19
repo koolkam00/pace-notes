@@ -20,12 +20,13 @@ export default function DataCoverage() {
   const { raw } = siteTotals();
   const counted = summary.counted;
   const setAside = summary.duplicates.editions_set_aside;
+  const raceLeftOut = summary.races.left_out.n;
   const { weather_editions: weather, terrain_editions: terrain } = context.totals;
   if (weather > counted.editions || terrain > counted.editions) throw new Error('Data coverage: weather and route context are counted over the counted editions.');
   return <section id="data-coverage">
     <h4>Marathons and years</h4>
-    <p>The marathon results come from {n(raw.cities)} races and {n(raw.raceYears)} editions (one race in one year), {raw.firstYear} to {raw.lastYear}{setAside ? `, after setting aside ${n(setAside)} ${setAside === 1 ? 'edition that repeats' : 'editions that repeat'} another edition’s list` : ''}. Each edition carries its <a href="#edition-tiers">tier</a>. {n(counted.editions)} editions of {n(counted.races)} races are counted: they supply every pooled figure. The others are listed with their recorded times.</p>
-    <p className="methods-links"><Link href="/courses">Every race and its years</Link> · <a href={dataHref('races/editions.csv')}>every edition, with its tier and use (CSV)</a></p>
+    <p>The marathon results come from {n(raw.cities)} races and {n(raw.raceYears)} editions (one race in one year), {raw.firstYear} to {raw.lastYear}{setAside ? `, after setting aside ${n(setAside)} ${setAside === 1 ? 'edition that repeats' : 'editions that repeat'} another edition’s list${raceLeftOut ? `, and with them ${raceLeftOut === 1 ? 'the one race' : `${n(raceLeftOut)} races`} that had no other edition` : ''}` : ''}. Each edition carries its <a href="#edition-tiers">tier</a>. {n(counted.editions)} editions of {n(counted.races)} races are counted: they supply every pooled figure. The others are listed with their recorded times.</p>
+    <p className="methods-links"><Link href="/courses">Every race and its years</Link><a href={dataHref('races/editions.csv')}>Every edition, with its tier and use (CSV)</a></p>
     <h4>Race results</h4>
     <p>Recorded names, race and year, finish times, checkpoint times where the race published them, and age and recorded gender where supplied. Candidate links help find a runner’s other results; visitors confirm which races belong to them.</p>
     <h4>Weather data</h4>

@@ -38,7 +38,7 @@ export type RaceSummary = {
     not_counted_by_category: Record<string, number>;
     without_results: { n: number };
   };
-  races: { total: { n: number }; by_page: Record<string, number> };
+  races: { total: { n: number }; left_out: { n: number }; by_page: Record<string, number> };
   sensitivity: { verified_tiers_only: SlowdownCount; without_weaker_source_editions: SlowdownCount; by_tier: Record<string, SlowdownCount> };
   notes: { hold: RaceNote[]; release: RaceNote[] };
   duplicates: { editions_set_aside: number; results_set_aside: number };
