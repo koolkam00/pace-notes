@@ -98,7 +98,8 @@ export const HALF_CARD_TEXT: Record<HalfCardSlug, HalfCardText> = {
         && minutes === n(nugget.values.extra_min) && under > 0 && under < 0.15 && Number.isInteger(from) && Number.isInteger(to);
       return {
         guard,
-        title: `Double the half, plus ${minutes} minutes`,
+        // One line on the card (2026-11-19): the first build whose guard holds found the two-line title left the waffle 27 px too tall.
+        title: `Double the half, plus ${minutes} min`,
         headline: `Of records linked by name, only *${Math.round(under * 100)} in 100* marathons came in under double the half ${from} to ${to} weeks before them.`,
         titleFallback: 'The marathon after a half',
         fallback: 'Marathons of records linked by name, against double the half before them.',
