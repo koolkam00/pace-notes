@@ -220,12 +220,14 @@
     linear-gradient(to left, var(--rule-strong), transparent) 100% 0 / 12px 100% no-repeat scroll;
 }
 .course-table { border-collapse: collapse; font-family: var(--sans); font-size: .875rem; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--ink); }
-.course-numbers .course-table { min-width: 100%; }
+.course-numbers .course-table, .results-page .course-table { min-width: 100%; }
 .course-table caption { caption-side: top; padding: 0 0 var(--s-2); text-align: left; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
-.course-numbers .course-table th, .course-numbers .course-table td { height: 44px; padding: 6px 0 6px 16px; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: middle; white-space: nowrap; }
-.course-numbers .course-table th:first-child, .course-numbers .course-table td:first-child { position: sticky; left: 0; z-index: 1; padding-left: 0; padding-right: 12px; text-align: left; background: var(--paper); }
-.course-numbers .course-table thead th { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); vertical-align: bottom; white-space: normal; min-width: 4.5rem; }
-.course-numbers .course-table tbody th { font-weight: 500; color: var(--ink); }
+.course-numbers .course-table th, .course-numbers .course-table td,
+.results-page .course-table th, .results-page .course-table td { height: 44px; padding: 6px 0 6px 16px; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: middle; white-space: nowrap; }
+.course-numbers .course-table th:first-child, .course-numbers .course-table td:first-child,
+.results-page .course-table th:first-child, .results-page .course-table td:first-child { position: sticky; left: 0; z-index: 1; padding-left: 0; padding-right: 12px; text-align: left; background: var(--paper); }
+.course-numbers .course-table thead th, .results-page .course-table thead th { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); vertical-align: bottom; white-space: normal; min-width: 4.5rem; }
+.course-numbers .course-table tbody th, .results-page .course-table tbody th { font-weight: 500; color: var(--ink); }
 .course-numbers .course-table td.course-reason { text-align: left; white-space: normal; color: var(--ink-3); }
 
 /* ---------- The foot: after "All numbers", the closing stack every page ends on ---------- */
@@ -324,3 +326,23 @@
   .course-hero { box-shadow: none; clip-path: none; }
 }
 
+
+/* A results page (components/races/ResultsPage.tsx, November 19, 2026): "Finish times only" under the H1, the ways on. */
+.results-tags { margin: var(--s-3) 0 0; }
+.results-ways-body { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-5); align-items: center; }
+/* Two races under one label (Warsaw), named under the hero's dek and the finish-times line. */
+.course-beat-body .course-series { margin: var(--s-3) 0 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.course-hero .hero-dek.course-series { margin-top: var(--s-2); }
+/* The year's verdict for linked runners (components/races/LinkedYear.tsx): quiet words, under one line saying the links are by name. */
+.course-table td.linked-year { color: var(--ink-2); white-space: normal; min-width: 11em; }
+.linked-year-note { margin: var(--s-2) 0 var(--s-4); font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
+/* An edition's labels sit on one line in a table cell (the table scrolls sideways), so each linked label keeps its 44 px
+   row clear of the next row's. */
+.course-table td.is-text { text-align: left; }
+.course-table td.is-text .tier-tags { flex-wrap: nowrap; width: max-content; }
+/* At the narrowest phone the sticky year column would sit over the first label of a row as the table scrolls, taking its
+   44 px reach: the column scrolls with the table there. */
+@media (max-width: 299.98px) {
+  .course-numbers .course-table th:first-child, .course-numbers .course-table td:first-child,
+  .results-page .course-table th:first-child, .results-page .course-table td:first-child { position: static; }
+}

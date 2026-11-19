@@ -166,6 +166,11 @@ function cardSpecs() {
     cards.push({ file: `courses/${slug(slugifyCity(city))}.png`, eyebrow: 'Courses · Course profile', title: raceName(city, route, summary), accent: TOKENS.teal,
       route: route ? route.route.map(([x, y]) => [Number(x.toFixed(4)), Number(y.toFixed(4))]) : null });
   }
+  // The results pages (race directory pages.json, page type `results`; November 19, 2026): the race's name (its label
+  // where the platform's title misleads), no route (no results page has one).
+  for (const race of JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data/races/pages.json'), 'utf8')).pages.filter((p) => p.page === 'results')) {
+    cards.push({ file: `courses/${slug(race.slug)}.png`, eyebrow: 'Courses · Finish times by year', title: race.flags.includes('title_misleads') ? race.label : race.name, accent: TOKENS.teal, route: null });
+  }
   for (const page of PAGE_CARDS) cards.push({ file: `pages/${slug(page.slug)}.png`, eyebrow: page.eyebrow, title: page.title, accent: page.accent });
   for (const section of SECTION_CARDS) cards.push({ file: `sections/${section.name}.png`, eyebrow: sectionLabel(section.name, counts), title: section.title, accent: section.accent, markup: true });
   const files = cards.map((c) => c.file);

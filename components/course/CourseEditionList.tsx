@@ -1,10 +1,11 @@
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
-import { EditionTags } from '@/components/ui/TierTag';
+import { SplitTierTag, TagGroup, TierTag, TimingClassTag } from '@/components/ui/TierTag';
 import { HowLink } from '@/components/ui/Values';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { howWeKnowOf } from '@/lib/chapters';
 import type { CourseList } from '@/lib/course-page';
-import { CourseSection } from './Fact';
+import { count } from '@/lib/course-page';
+import { CourseSection, Fact } from './Fact';
 
 /**
  * A course page with no counted edition (lead decision D15, November 14, 2026: the course's address is kept). It names
@@ -30,19 +31,22 @@ export default function CourseEditionList({ course }: { course: CourseList }) {
       </section>
       <CourseSection id="editions" beat="Editions" title={`${display}, edition by edition`}>
         {/* The shared table (app/styles/components/table.css): a tier column is text, so it wraps and aligns left. */}
+        <div className="table-wrap" role="region" aria-label={`${display}: each edition`} tabIndex={0}>
         <table className="table course-list-table">
           <caption className="sr-only">{`${display}: each edition and the status of its results`}</caption>
-          <thead><tr><th scope="col">Year</th><th scope="col" className="is-text">Results</th></tr></thead>
+          <thead><tr><th scope="col">Year</th><th scope="col" className="is-text">Status</th><th scope="col">Recorded results</th></tr></thead>
           <tbody>
             {listed.map((e) => (
-              <tr key={e.year}>
+              <tr key={e.year} data-edition={e.year}>
                 <th scope="row">{e.year}</th>
                 {/* A code the cohort manifest does not state stops the build here: no label is ever a default. */}
-                <td className="is-text"><EditionTags tier={e.tier} weakerSource={e.weakerSource} splitTier={e.splitTier} timingBasis={e.timingBasis} /></td>
+                <td className="is-text"><TagGroup><TierTag tier={e.tier} weakerSource={e.weakerSource} /><SplitTierTag splitTier={e.splitTier} /><TimingClassTag timing={e.timing} /></TagGroup></td>
+                <td><Fact k={`rr@${e.year}`} v={e.results}>{count(e.results)}</Fact></td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
         {how ? <HowLink href={how} /> : null}
       </CourseSection>
     </>

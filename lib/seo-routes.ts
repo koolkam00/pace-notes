@@ -13,6 +13,7 @@ import { weatherHref } from './weather-catalog';
 import { getFastStartStarts } from './fast-start-server';
 import { getAllFinisherContextStart } from './all-finisher-context-server';
 import { getCourseNames, slugifyCity } from './course-data';
+import { racePages } from './races-server';
 import { QUESTIONS } from './question-catalog';
 import { getExtensions, extensionForQuestion } from './extension-data';
 import { getStudyEvidence } from './research-data';
@@ -173,6 +174,8 @@ export type SitemapEntry = { path: string; lastmod?: string };
 
 /** The course pages (/courses/<slug>) were rewritten on this date; their lastmod is the later of it and their data's. */
 export const COURSE_PAGES_WRITTEN = '2026-10-19';
+/** The results pages (/courses/<slug> of a race with finish times only) were first written on this date. */
+export const RESULTS_PAGES_WRITTEN = '2026-11-19';
 
 /**
  * New content pages register in their own module under lib/seo-pages/ (pace, qualifying, finish-times), collected here.
@@ -304,7 +307,7 @@ export function allSourceDates(): string[] {
   const sources: DataSource[] = ['insights', 'study', 'weather', 'personalized', 'fastStart', 'allFinisher', 'qualifying', 'charts', ...(halfManifest() ? ['half' as const] : [])];
   const extras = EXTRA_SITEMAP_PAGES.map(page => typeof page.lastmod === 'function' ? page.lastmod() : page.lastmod);
   const coursePack = extensionForQuestion('s3_course_breaks');
-  return [...new Set([...sources.map(dataDate), coursePack ? day(coursePack.asOf) : undefined, ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, ...(halfManifest() ? [HALF_TEXT_WRITTEN, ...Object.values(HALF_TEXT_REWRITTEN)] : []), ...extras].filter((date): date is string => !!date))].sort();
+  return [...new Set([...sources.map(dataDate), coursePack ? day(coursePack.asOf) : undefined, ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, RESULTS_PAGES_WRITTEN, ...(halfManifest() ? [HALF_TEXT_WRITTEN, ...Object.values(HALF_TEXT_REWRITTEN)] : []), ...extras].filter((date): date is string => !!date))].sort();
 }
 
 // ---------- Sitemap ----------
@@ -352,13 +355,20 @@ export function sitemapEntries(): SitemapEntry[] {
     const lastmod = latest(at('insights'), coursePack ? day(coursePack.asOf) : undefined, COURSE_PAGES_WRITTEN);
     entries.push({ path: `/courses/${slugifyCity(city)}`, ...(lastmod ? { lastmod } : {}) });
   }
+  // The results pages (the race directory's pages.json, page type `results`; November 19, 2026), written on that day.
+  for (const race of racePages().filter((p) => p.page === 'results')) entries.push({ path: `/courses/${race.slug}`, lastmod: RESULTS_PAGES_WRITTEN });
 
   // The Top 100 charts: a section of its own, off the chapter chain (its one way in is a line on /research).
   add('/charts', 'charts');
   for (const chart of CHART_CATALOG) add(`/charts/${chart.number}`, 'charts');
 
   // The half marathon: a page of its own, off the chapter chain like the charts, built only with the half data.
-  if (half.length) add('/half', 'content', 'half');
+  if (half.length) {
+    add('/half', 'content', 'half');
+    // The half race list (app/half/races; November 19, 2026): every half race with results, on the half data. Its
+    // CONTENT_DATES entry is set on merge day.
+    add('/half/races', 'content', 'half');
+  }
 
   add('/about', 'content', 'personalized', 'weather');
   add('/methodology', 'content', 'study');

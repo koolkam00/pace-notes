@@ -17,6 +17,8 @@ export const timesShown = (page: CoursePageData) => page.editions.length >= 3 &&
 export default function CourseFinishTimes({ page }: { page: CoursePageData }) {
   const { city, display, editions } = page;
   const n = getNugget('course.times', { city });
+  // Two races under one label (Warsaw): the range spans both, so the line names them.
+  const series = getNugget('course.series', { city });
   if (!timesShown(page)) return null;
   const first = editions[0], last = editions[editions.length - 1];
   const open = Number(n.values.open_year), other = Number(n.values.other_year);
@@ -25,6 +27,7 @@ export default function CourseFinishTimes({ page }: { page: CoursePageData }) {
       <EditionLine points={editions.map((e) => ({ year: e.year, seconds: e.median_s, display: finishMinute(e.median_s), side: count(e.n) }))}
         selected={open} from={Number.isFinite(other) && other !== open ? other : undefined} sideLabel="Finishes"
         label={`Median finish in ${display}, edition by edition, ${first.year} to ${last.year}`} height={140} heightMd={200} />
+      {series.guard ? <p className="course-note course-series"><Said nugget={series} /></p> : null}
     </CourseSection>
   );
 }
