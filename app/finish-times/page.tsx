@@ -1,4 +1,5 @@
 import FinishTimeSummary from '@/components/FinishTimeSummary';
+import { getCourseNames } from '@/lib/course-data';
 import { getFinishTimeSummary, percentileLabel } from '@/lib/finish-times-summary';
 import { readInsight } from '@/lib/insights-server';
 import type { Courses } from '@/lib/insights';
@@ -33,7 +34,7 @@ export default function FinishTimesPage() {
   return (
     <>
       <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Finish times']])} />
-      <FinishTimeSummary summary={getFinishTimeSummary()} courses={readInsight<Courses>('courses.json')} />
+      <FinishTimeSummary summary={getFinishTimeSummary()} courses={readInsight<Courses>('courses.json')} pages={getCourseNames()} />
     </>
   );
 }

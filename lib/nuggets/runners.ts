@@ -2,11 +2,11 @@
  * The runner pages' nugget (WP6; the redesign spec, sections 2.2 and 5). /runners' reading is the one its dek states:
  * how often a finish had a sustained slowdown (the study's rate over every eligible finish), said as the dek says it
  * ("about 3 in 10"), so the card into the page promises the number it opens on and a runner knows what a search will
- * tell them about their race. Its sentence counts the mats from the runner manifest's checkpoints rather than typing
- * them. /report has no reading of its own. Server only; scripts/nuggets/runners.cjs recounts it.
+ * tell them about their race. Its sentence counts the mats from the marathon cohort manifest's checkpoints (the runner
+ * manifest's until November 14, 2026) rather than typing them. /report has no reading of its own. Server only;
+ * scripts/nuggets/runners.cjs recounts it.
  */
-import fs from 'node:fs';
-import path from 'node:path';
+import { getCohortManifest } from '@/lib/insights-server';
 import { MARATHON_KM, matLabel } from '@/lib/units';
 import { approxWords, countWord, pct, spokenPct } from './format';
 import { getStudyEvidence } from '@/lib/research-data';
@@ -44,11 +44,9 @@ function runnerFigure(rate: number) {
   return tenths ? { value: `${tenths[1]} in 10`, sr: `about ${tenths[1]} in 10 finishes`, spoken: `about ${tenths[1]} in 10` } : { value: pct(rate).replace('%', ''), unit: '%', sr: spokenPct(rate) };
 }
 
-type Manifest = { points_km: number[] };
-
 export const RUNNER_NUGGETS: Record<string, Builder> = {
   'runner.yours': () => {
-    const manifest = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public/data/runners/manifest.json'), 'utf8')) as Manifest;
+    const { manifest } = getCohortManifest();
     const rate = (getStudyEvidence()?.rate ?? NaN) / 100;
     return runnerYoursFrom(Array.isArray(manifest.points_km) ? manifest.points_km : [], rate);
   },

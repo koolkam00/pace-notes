@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import CourseEditionList from '@/components/course/CourseEditionList';
 import CourseElevation, { elevationShown } from '@/components/course/CourseElevation';
 import CourseFinishTimes, { timesShown } from '@/components/course/CourseFinishTimes';
 import CourseGlance, { glanceRows } from '@/components/course/CourseGlance';
@@ -13,14 +14,25 @@ import CourseWeatherByYear, { WEATHER_MIN_MORNINGS } from '@/components/course/C
 import { readingAttrs } from '@/lib/chapters';
 import { getNugget } from '@/lib/nuggets';
 import { profileUnderWater } from '@/lib/nuggets/courses';
-import { courseDescription, coursePage, coursePages, courseTitle } from '@/lib/course-page';
+import { courseDescription, courseList, courseLists, coursePage, coursePages, courseTitle, MAX_TITLE } from '@/lib/course-page';
 import { JsonLd, pageCrumbs, pageMetadata } from '@/lib/seo';
 import '@/app/styles/pages/course.css';
 
-export function generateStaticParams() { return [...coursePages().keys()].map((city) => ({ city })); }
+export function generateStaticParams() { return [...coursePages().keys(), ...courseLists().keys()].map((city) => ({ city })); }
 
 export function generateMetadata({ params }: { params: { city: string } }) {
   const page = coursePage(params.city);
+  const list = page ? null : courseList(params.city);
+  // A course with no counted edition: the page lists its editions and states no figure, and so do its title and description.
+  if (list) {
+    const branded = `${list.race}: Editions | Pace Notes`;
+    const years = list.listed.map((e) => e.year);
+    return pageMetadata({
+      title: branded.length <= MAX_TITLE ? branded : `${list.race}: Editions`,
+      description: `${list.race}: its ${list.listed.length === 1 ? `${years[0]} edition` : `${list.listed.length} editions, ${years[0]}–${years[years.length - 1]}`}, each with the status of its results.`,
+      path: `/courses/${list.slug}`,
+    });
+  }
   if (!page) return { title: 'Course not found | Pace Notes', robots: { index: false, follow: true } };
   // The title and description name elevation only where the page prints the route's climb: a supplied route whose
   // profile does not read the water under a bridge. Where it does (New York and Dubai) the hero, #elevation and "All
@@ -44,6 +56,16 @@ export function generateMetadata({ params }: { params: { city: string } }) {
  */
 export default function CityPage({ params }: { params: { city: string } }) {
   const page = coursePage(params.city);
+  const list = page ? null : courseList(params.city);
+  if (list) {
+    return (
+      <div className="course-page" {...readingAttrs(`/courses/${list.slug}`, list.race)}>
+        <JsonLd data={pageCrumbs(`/courses/${params.city}`, list.race, { parents: [['Courses', '/courses']] })} />
+        <CourseEditionList course={list} />
+        <CourseOthers page={list} />
+      </div>
+    );
+  }
   if (!page) notFound();
   // A section shows only when it has something to show: no heading over an empty chart.
   const glance = glanceRows(page);

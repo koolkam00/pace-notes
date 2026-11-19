@@ -8,6 +8,7 @@ the race's own splits; they are descriptions, not physiology or advice.
 import numpy as np
 
 from insights_data import SECTION_KM, relative_pace, start_offset_screen, sustained_slowdown
+from insights_kick import high_link_profile
 from insights_stats import MIN_CELL, SHARE_DIGITS, assign, count_phrase, quantile, r
 
 NAMES = ['Metronome', 'Gentle fader', 'Late fader', 'Early drifter', 'Cliff', 'Fast-start fader']
@@ -167,8 +168,11 @@ def build(f):
     common = [(int(u), int(c)) for u, c in zip(uniq, counts) if c >= MIN_CELL]
     common.sort(key=lambda x: -x[1])
     sentences = [dict(sentence=decode(u), n=c) for u, c in common]
-    # Repeat races: consecutive-year pairs within a screened identity candidate (not a verified person).
-    transitions = repeat_pairs(s, lab)
+    # Repeat races: consecutive-year pairs within a screened identity candidate (not a verified person); and the same
+    # pairs when only links of the tiers high_elite and high join records (lead ruling R6 of the adoption, November 14,
+    # 2026; insights_kick.high_link_profile). No page draws either table.
+    transitions = repeat_pairs(s, lab, s.profile)
+    transitions['high_links_only'] = repeat_pairs(s, lab, high_link_profile(s))
     return dict(
         cohort_n=int(s.n), start_offset_editions=flagged, archetypes=archetypes, river=bands, gender=gender_rows,
         courses=courses, barcode=barcode, barcode_minutes=minute_rows,
@@ -187,9 +191,10 @@ def build(f):
     )
 
 
-def repeat_pairs(s, lab):
-    order = np.lexsort((s.year, s.profile))
-    prof, year, a = s.profile[order], s.year[order], lab[order]
+def repeat_pairs(s, lab, profile):
+    """Type-to-type counts over consecutive races of one `profile` value (the runner key in use), 1–3 years apart."""
+    order = np.lexsort((s.year, profile))
+    prof, year, a = profile[order], s.year[order], lab[order]
     pairs = []
     i = 0
     n = len(order)

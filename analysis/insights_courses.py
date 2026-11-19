@@ -9,7 +9,8 @@ Three descriptive views of the same eligible finishes:
   nearest-centroid test asks how often that shape alone names the course.
 * Race-morning weather. Each edition is weighted equally and paired with the
   supplied modelled weather hour at the scheduled start, read from the
-  verified runner-context shards. Within-course slopes compare editions of the
+  verified runner-context shards (an edition the context does not list has no
+  weather row and no terrain). Within-course slopes compare editions of the
   same course, and intervals resample whole courses. This is an edition-level
   overlay, never personal exposure, and it is not the prespecified weather
   screen.
@@ -22,13 +23,14 @@ fade, heat signature). Finish-time, slowdown and weather statistics keep them.
 """
 import gzip
 import json
+import math
 from pathlib import Path
+import re
 
 import numpy as np
 
-from build_all_finisher_context import verified_context
-from build_fast_start import digest, require, verified_manifest
-from insights_data import SECTION_KM, relative_pace, start_offset_screen, sustained_slowdown
+from build_fast_start import digest, require
+from insights_data import SECTION_KM, relative_pace, start_offset_screen, sustained_slowdown, verified_cohort_manifest
 from insights_stats import MIN_CELL, SEED, SHARE_DIGITS, count_phrase, r
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,21 +52,73 @@ def pace_label(s):
 
 # ---------------------------------------------------------------- context
 
+# Where the cohort and the runner context are read from. build_insights.py sets both from its arguments, so a rebuild
+# into a scratch folder can read a context that is not the checkout's.
+COHORT_ROOT = ROOT / 'analysis/marathon-cohort'
+CONTEXT_ROOT = ROOT / 'public/data/runner-context'
+CONTEXT_FILE = re.compile(r'editions/[a-z0-9]+(?:-[a-z0-9]+)*\.json\.gz')
+
+
+def verified_context_manifest(context_root, cohort_manifest, cohort_hash, script_root):
+    """The runner-context manifest, after the checks a builder makes before it trusts the context: it was built on
+    this exact cohort manifest (the digest of its bytes, its timestamp, its input and its edition policy), the scripts
+    that wrote it are the checkout's, and it lists files for counted editions only. Returns (manifest, SHA-256 of the
+    manifest's exact bytes).
+
+    The context names the cohort manifest in `runner_manifest_sha256` and `runner_manifest_as_of`, the names those
+    fields had while it was bound to the runner lookup (until November 14, 2026)."""
+    raw = (Path(context_root) / 'manifest.json').read_bytes()
+    manifest = json.loads(raw)
+    for field in ('release_tag', 'input_as_of', 'input_asset_sha256', 'input_manifest_sha256', 'cohort', 'source_quality'):
+        require(manifest[field] == cohort_manifest[field], f'Context {field} mismatch')
+    require(manifest['runner_manifest_sha256'] == cohort_hash, 'Context cohort binding mismatch')
+    require(manifest['runner_manifest_as_of'] == cohort_manifest['as_of'], 'Context cohort time mismatch')
+    for name, expected in manifest['scripts'].items():
+        require(re.fullmatch(r'[a-z_]+\.py', name) is not None, 'Invalid context script name')
+        require(digest((Path(script_root) / name).read_bytes()) == expected, f'Context script mismatch: {name}')
+    counted = {str(index) for index, edition in enumerate(cohort_manifest['editions']) if edition['use'] == 'counted'}
+    require(set(manifest['editions']) <= counted, 'Context lists an edition the cohort does not count')
+    return manifest, digest(raw)
+
+
 def edition_context(editions):
-    """Weather and terrain per edition from the verified runner-context shards."""
+    """Weather and terrain per edition (a list in the cohort's edition order) from the verified runner-context shards.
+
+    The context lists a file only for a counted edition that has peers, weather or terrain. An edition it does not
+    list (one that keeps only an own-record view, or a counted edition with none of the three) has no weather row and
+    no terrain here, exactly as an edition whose shard says so."""
     pin = json.loads((ROOT / 'analysis/release.json').read_text())
-    runner_manifest, runner_hash = verified_manifest(ROOT / 'public/data/runners', pin, ROOT / 'analysis')
-    require([dict(city=e['city'], year=e['year']) for e in runner_manifest['editions']] ==
-            [dict(city=e['city'], year=e['year']) for e in editions], 'Edition list differs from the runner manifest')
-    context_root = ROOT / 'public/data/runner-context'
-    _, manifest, _ = verified_context(context_root, runner_manifest, runner_hash, ROOT / 'analysis')
+    cohort_manifest, cohort_hash = verified_cohort_manifest(COHORT_ROOT, pin, ROOT / 'analysis')
+    require([dict(city=e['city'], year=e['year']) for e in cohort_manifest['editions']] ==
+            [dict(city=e['city'], year=e['year']) for e in editions], 'Edition list differs from the cohort manifest')
+    manifest, _ = verified_context_manifest(CONTEXT_ROOT, cohort_manifest, cohort_hash, ROOT / 'analysis')
     out = []
-    for index in range(len(editions)):
-        item = manifest['editions'][str(index)]
-        compressed = (context_root / item['file']).read_bytes()
+    for index, edition in enumerate(cohort_manifest['editions']):
+        item = manifest['editions'].get(str(index))
+        if item is None:
+            out.append(dict(weather=None, terrain=None))
+            continue
+        require(CONTEXT_FILE.fullmatch(item['file']) is not None, f'Unexpected context shard path: {item["file"]}')
+        compressed = (Path(CONTEXT_ROOT) / item['file']).read_bytes()
         require(len(compressed) == item['bytes'] and digest(compressed) == item['sha256'], f'Context shard changed: {index}')
         shard = json.loads(gzip.decompress(compressed))
-        out.append(dict(weather=shard['weather'], terrain=shard['terrain']))
+        require(shard['release_tag'] == manifest['release_tag'], 'Context shard release mismatch')
+        identity = shard['edition']
+        require((identity['index'], identity['city'], identity['year'], identity['race']) == (index, edition['city'], edition['year'], edition['race']),
+                'Context edition identity mismatch')
+        weather = shard['weather']
+        if weather is not None:
+            require(weather['city'] == edition['city'] and weather['year'] == edition['year'], 'Weather edition mismatch')
+            require(isinstance(weather['temp_c'], (int, float)) and math.isfinite(weather['temp_c']), 'Invalid weather temperature')
+            require(weather['personal_exposure'] is False, 'Unexpected personal weather exposure claim')
+        terrain = shard['terrain']
+        if terrain is not None:
+            sections = terrain.get('sections')
+            require(isinstance(sections, list) and len(sections) == 9, 'Invalid terrain sections')
+            require(sections[0]['start_km'] == 0 and sections[0]['end_km'] == 5, 'Invalid terrain opening span')
+            net = sections[0].get('net_m')
+            require(isinstance(net, (int, float)) and math.isfinite(net), 'Missing terrain net change')
+        out.append(dict(weather=weather, terrain=terrain))
     return out
 
 

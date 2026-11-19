@@ -194,11 +194,13 @@ if (fs.existsSync(path.join(ROOT, 'lib/chapters.ts'))) {
 
 // ---------- Independent recounts of the reference nuggets ----------
 const insights = json('public/data/insights/manifest.json');
-const runner = json('public/data/runners/manifest.json');
+// The marathon cohort's manifest (analysis/marathon-cohort): every written marathon result of the release and the counted
+// finishes. Until November 14, 2026 these two counts were read from the runner lookup's manifest.
+const runner = json('analysis/marathon-cohort/manifest.json');
 const courses = json('public/data/insights/courses.json');
 
 const RECOUNT = {};
-// site.totals: the eligible family from the insights manifest and the course list; results from the runner manifest.
+// site.totals: the eligible family from the insights manifest and the course list; results from the cohort manifest.
 RECOUNT['site.totals'] = (n) => {
   const years = courses.courses.flatMap((c) => c.years);
   let editions = 0;
@@ -206,7 +208,7 @@ RECOUNT['site.totals'] = (n) => {
   const expected = { results: runner.raw_records, finishes: insights.analysis_n, cities: insights.cohort.cities, race_years: editions, first_year: Math.min(...years), last_year: Math.max(...years) };
   eq(n.values, expected, 'site.totals recounts from the manifests and the course list');
   eq(n.values.cities, courses.courses.length, 'site.totals: cities = courses with eligible finishes');
-  eq(runner.eligible_records, insights.analysis_n, 'site.totals: the runner and insights manifests agree on eligible finishes');
+  eq(runner.eligible_records, insights.analysis_n, 'site.totals: the cohort and insights manifests agree on eligible finishes');
   const millions = (Math.round(insights.analysis_n / 1e5) / 10).toFixed(1);
   eq(n.figure.value, millions, 'site.totals: the figure is eligible finishes in millions');
   ok(core.textFor(n.headline, 'mi').includes(`*${millions} million*`) && core.textFor(n.headline, 'km').includes(`*${millions} million*`), 'site.totals: both headlines carry the same million');
