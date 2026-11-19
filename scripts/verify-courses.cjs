@@ -294,6 +294,26 @@ const T = require(path.join(root, 'lib/tiers.ts'));
 /** The label texts of one edition, in the order EditionTags draws them; throws on a code the vocabulary refuses. */
 /** An edition's labels from its race-file codes: the tier, "Finish times only" and "Gun times" where they apply. */
 const raceLabels = (e) => [T.tierWords(e.tier), T.splitTierWords(e.split_tier), e.timing === 'gun' ? T.GUN_TIMES : null].filter(Boolean);
+/**
+ * The year's verdict for linked runners in an edition row (components/races/LinkedYear.tsx): the cell says exactly the
+ * linked-records helper's words (their guard is recounted by scripts/nuggets/linked.cjs), sentence case, or a dash; the
+ * column and its one note ("records linked by name") stand only where some year of the race has a verdict.
+ */
+function checkLinkedColumn(where, label, table, rows) {
+  const L = require(path.join(root, 'lib/linked-server.ts'));
+  const want = rows.map(([year]) => L.linkedEditionReading(label, year));
+  const any = want.some(Boolean);
+  check(any === /<th scope="col"[^>]*>Linked runners<\/th>/.test(table), where, `the linked-runners column ${any ? 'is missing' : 'stands with no verdict'}`);
+  rows.forEach(([year, cells], i) => {
+    const cell = /<td class="is-text linked-year"([^>]*)>([\s\S]*?)<\/td>/.exec(cells);
+    if (!any) { check(!cell, where, `${year}: a linked-runners cell with no column`); return; }
+    const r = want[i];
+    const text = cell ? textOf(cell[2]) : null;
+    const expected = r ? `${r.words.charAt(0).toUpperCase()}${r.words.slice(1)}${r.reviewed ? ' (reviewed)' : ''}` : '—';
+    check(text === expected, where, `${year}: the linked-runners cell "${text}" is not "${expected}"`);
+    if (r && r.reviewed) check(new RegExp(`href="${r.reviewHref}"`).test(cell[2]), where, `${year}: a reviewed verdict without its link`);
+  });
+}
 const tierTexts = (e, timingBasis = null) => [T.tierWords(e.tier, e.weaker), T.splitTierWords(e.split), T.timingWords(timingBasis)].filter(Boolean);
 // The edition policy's published list against the cohort's own: an edition is counted exactly when the policy does not list it.
 const policyKeys = new Set(policyEditions(cohort.source_quality, 'marathon cohort').map((e) => key(e.city, e.year)));
@@ -949,6 +969,8 @@ if (html) {
         check(cell ? keys.includes('n') && keys.includes('rr') : JSON.stringify(keys) === '["rr"]', where, `the ${year} row prints ${keys.join(', ')}: ${cell ? 'a counted edition keeps its figures' : 'an edition without a row prints its recorded results and dashes only'}`);
         check(cell ? !attr(m[1], 'data-uncounted') : attr(m[1], 'data-uncounted') === '', where, `the ${year} row's mark disagrees with its figures`);
       }
+      checkLinkedColumn(where, city, editionTable, trs.map((m) => [Number(m[2]), m[4]]));
+      check(/Linked runners: records linked by name\./.test(textOf(numbers)) === /Linked runners<\/th>/.test(editionTable), where, 'the note on linked runners does not stand with its column');
     }
 
     // Elevation: the two climb totals each under its own label where both are printed, and "two ways" only over two.
@@ -1081,6 +1103,9 @@ if (html) {
       const rest = textOf(m[3].replace(/<data\b[\s\S]*?<\/data>/g, ''));
       check(!/\d/.test(rest), where, `${m[1]}: a number outside a checked figure: "${rest}"`);
     }
+    const resultsTable = /<table\b[\s\S]*?<\/table>/.exec(sectionOf(body, 'editions') ?? '')?.[0] ?? '';
+    checkLinkedColumn(where, city, resultsTable, trs.map((m) => [Number(m[1]), m[3]]));
+    check(/Linked runners: records linked by name\./.test(textOf(sectionOf(body, 'editions') ?? '')) === /Linked runners<\/th>/.test(resultsTable), where, 'the note on linked runners does not stand with its column');
     const rf = { raceFile: race };
     for (const m of main.matchAll(/<data\b([^>]*)>([\s\S]*?)<\/data>/g)) {
       const k = attr(m[1], 'data-k') ?? '';

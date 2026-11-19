@@ -5,6 +5,7 @@ import { SplitTierTag, TagGroup, TierTag, TimingClassTag } from '@/components/ui
 import { HowLink } from '@/components/ui/Values';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import CourseOthers from '@/components/course/CourseOthers';
+import { hasLinkedYears, LinkedYearCell, LinkedYearHead, LinkedYearNote } from './LinkedYear';
 import EditionLine from '@/components/course/EditionLine';
 import { CourseSection, CourseTable, Fact, Said } from '@/components/course/Fact';
 import { howWeKnowOf, readingAttrs } from '@/lib/chapters';
@@ -40,6 +41,8 @@ export default function ResultsPage({ page }: { page: RacePage }) {
   const latest = medians[medians.length - 1];
   const finishTimesOnly = page.with_checkpoint_times === 0;
   const how = howWeKnowOf(`/courses/${page.slug}`);
+  // The year's verdict for linked runners, a column only where some year has one.
+  const linked = hasLinkedYears(city, shown.map((e) => e.year));
   return (
     <div className="course-page results-page" {...readingAttrs(`/courses/${page.slug}`, name)} data-race-page="results">
       <JsonLd data={pageCrumbs(`/courses/${page.slug}`, name, { parents: [['Courses', '/courses']] })} />
@@ -66,7 +69,7 @@ export default function ResultsPage({ page }: { page: RacePage }) {
       <CourseSection id="editions" beat="Editions" title={`${name}, edition by edition`}>
         <CourseTable id="results-editions-caption" caption={`${name}: each edition, the status of its results and its finish times`} captionHidden>
           <thead>
-            <tr><th scope="col">Year</th><th scope="col" className="is-text">Status</th><th scope="col">Recorded results</th><th scope="col">Finishes</th><th scope="col">Median finish</th><th scope="col">Middle half</th></tr>
+            <tr><th scope="col">Year</th><th scope="col" className="is-text">Status</th><th scope="col">Recorded results</th><th scope="col">Finishes</th><th scope="col">Median finish</th><th scope="col">Middle half</th>{linked ? <LinkedYearHead /> : null}</tr>
           </thead>
           <tbody>
             {shown.map((e) => (
@@ -79,10 +82,12 @@ export default function ResultsPage({ page }: { page: RacePage }) {
                 <td>{typeof e.median_s === 'number' ? <Fact k={`rm@${e.year}`} v={e.median_s}>{clock(e.median_s)}</Fact> : '—'}</td>
                 <td>{typeof e.p25_s === 'number' && typeof e.p75_s === 'number'
                   ? <span className="nowrap"><Fact k={`rq1@${e.year}`} v={e.p25_s}>{clock(e.p25_s)}</Fact>–<Fact k={`rq3@${e.year}`} v={e.p75_s}>{clock(e.p75_s)}</Fact></span> : '—'}</td>
+                {linked ? <LinkedYearCell label={city} year={e.year} /> : null}
               </tr>
             ))}
           </tbody>
         </CourseTable>
+        {linked ? <LinkedYearNote /> : null}
         {how ? <HowLink href={how} /> : null}
       </CourseSection>
       <section id="find" tabIndex={-1} className="course-beat results-ways" aria-labelledby="find-title" data-beat="Find" data-track-section="cta">

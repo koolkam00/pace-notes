@@ -331,3 +331,6 @@
 /* Two races under one label (Warsaw), named under the hero's dek and the finish-times line. */
 .course-beat-body .course-series { margin: var(--s-3) 0 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
 .course-hero .hero-dek.course-series { margin-top: var(--s-2); }
+/* The year's verdict for linked runners (components/races/LinkedYear.tsx): quiet words, under one line saying the links are by name. */
+.course-table td.linked-year { color: var(--ink-2); white-space: normal; min-width: 11em; }
+.linked-year-note { margin: var(--s-2) 0 var(--s-4); font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
