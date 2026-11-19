@@ -54,6 +54,9 @@ export const CHARTS_COURSES_2_TEXT: Record<string, ChartText> = {
   },
   'second-20k-quicker-by-city': {
     title: 'Quicker second 20Ks: most common in Valencia',
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: 'Quicker second 20Ks, race by race',
     takeaway: (v) => ({
       guard: v.top_city === 'Valencia' && n(v.top) - n(v.second) >= 0.01 && n(v.ratio) >= 2.5 && n(v.n_min) >= 100,
       headline: `On average, *${pct(n(v.top))}* of finishes in a Valencia edition ran 20–40K quicker than 0–20K: ${ratio(n(v.ratio), 1)} the share in New York.`,

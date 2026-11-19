@@ -10,18 +10,27 @@ on:
       - 'analysis/insights_data.py'
       - 'analysis/insights_stats.py'
       - 'analysis/build_fast_start.py'
+      - 'analysis/cohort.py'
+      - 'analysis/marathon-cohort/**'
+      - 'analysis/reviewed-race-dates.json'
       - 'analysis/release.json'
       - 'analysis/weather-release.json'
       - 'analysis/requirements.txt'
       - 'lib/charts/**'
+      - 'lib/charts-server.ts'
       - 'components/charts/**'
       - 'public/data/charts/**'
-      - 'public/data/runners/**'
+      - 'public/data/edition-policy.json'
+      - 'public/data/runners/manifest.json'
       - 'public/data/weather/evidence.json'
       - 'public/data/insights/course-geometry.json'
       - 'public/charts/cards/**'
       - 'scripts/verify-charts.cjs'
       - 'scripts/charts/**'
+      - 'scripts/lib/cohort.cjs'
+      - 'scripts/lib/edition-policy.cjs'
+      - 'scripts/lib/lookup.cjs'
+      - 'scripts/lib/lookup-files.cjs'
       - 'scripts/build-chart-cards.cjs'
       - '.github/workflows/charts.yml'
   workflow_dispatch:
@@ -50,12 +59,18 @@ jobs:
         run: python -m unittest discover -s analysis -p 'test_charts.py'
       - name: Independently recount the published charts
         run: node scripts/verify-charts.cjs
+        env:
+          # The recount holds both link readings of the cohort: about 4.4 GB at its peak (docs/TOP_100_CHARTS.md, Checks).
+          NODE_OPTIONS: --max-old-space-size=4096
       - name: The committed cards match the published charts
         run: node scripts/build-chart-cards.cjs --check
       - name: Rebuild every chart from the verified runner shards
         run: python analysis/build_charts.py --output "$RUNNER_TEMP/charts"
       - name: Recount the rebuilt charts
         run: node scripts/verify-charts.cjs --input "$RUNNER_TEMP/charts"
+        env:
+          # The recount holds both link readings of the cohort: about 4.4 GB at its peak (docs/TOP_100_CHARTS.md, Checks).
+          NODE_OPTIONS: --max-old-space-size=4096
       - name: Rebuilt chart files must match the published bytes
         run: |
           cd public/data/charts

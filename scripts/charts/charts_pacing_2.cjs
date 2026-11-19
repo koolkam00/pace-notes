@@ -52,7 +52,7 @@ module.exports = {
 
   'where-the-slow-day-happened': (C, file, H) => {
     // Per linked record: the quickest finish (first of ties in row order) and the slowest (last of ties).
-    const P = C.runners.profiles;
+    const P = C.profiles;
     const qi = new Int32Array(P).fill(-1), si = new Int32Array(P).fill(-1), cnt = new Uint32Array(P);
     for (let i = 0; i < C.n; i++) {
       if (!C.shapeKeep[i]) continue;

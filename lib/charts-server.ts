@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import release from '@/analysis/release.json';
 import catalog from '@/lib/charts/catalog.json';
+import { chartWords, highLinksReading, type ChartWords } from '@/lib/charts/registry';
 import type { CatalogItem, ChartFile, ChartsManifest } from '@/lib/charts/types';
 
 const ROOT = () => path.join(process.cwd(), 'public/data/charts');
@@ -10,15 +11,19 @@ const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex
 
 let verified: { key: string; manifest: ChartsManifest } | undefined;
 
-/** The charts manifest, verified once per process: release pin, runner-manifest binding, catalog and every file digest. */
+/**
+ * The charts manifest, verified once per process: release pin, the marathon cohort it was built from (the SHA-256 of
+ * analysis/marathon-cohort/manifest.json, read from the checkout at build time; the field keeps the name it had when it
+ * held the runner lookup's manifest), catalog and every file digest.
+ */
 export function getChartsManifest(): ChartsManifest {
   const stat = fs.statSync(path.join(ROOT(), 'manifest.json'));
   const key = `${stat.size}:${stat.mtimeMs}`;
   if (verified?.key === key) return verified.manifest;
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT(), 'manifest.json')).toString()) as ChartsManifest;
-  const runnerBytes = fs.readFileSync(path.join(process.cwd(), 'public/data/runners/manifest.json'));
+  const cohortBytes = fs.readFileSync(path.join(process.cwd(), 'analysis/marathon-cohort/manifest.json'));
   if (manifest.schema_version !== 1 || manifest.release_tag !== release.tag) throw new Error('Chart data must use the adopted release.');
-  if (manifest.runner_manifest_sha256 !== sha256(runnerBytes)) throw new Error('Chart data must be rebuilt for the current runner records.');
+  if (manifest.runner_manifest_sha256 !== sha256(cohortBytes)) throw new Error('Chart data must be rebuilt for the current marathon cohort.');
   if (manifest.catalog_sha256 !== sha256(fs.readFileSync(path.join(process.cwd(), 'lib/charts/catalog.json')))) throw new Error('Chart data must be rebuilt for the current catalog.');
   for (const [name, meta] of Object.entries(manifest.files)) {
     const file = fs.readFileSync(path.join(ROOT(), name));
@@ -38,6 +43,16 @@ export function readChart(slug: string): ChartFile {
   const value = JSON.parse(fs.readFileSync(path.join(ROOT(), name)).toString()) as ChartFile;
   if (value.release_tag !== manifest.release_tag || value.slug !== slug) throw new Error(`Chart data mismatch: ${name}`);
   return value;
+}
+
+/**
+ * The charts that follow linked records, each with its published words and its takeaway on high-confidence links
+ * alone, for the one sensitivity table on /methodology (lead rulings R6 and D38): `high` is null when too few high
+ * links were left to count the chart.
+ */
+export function linkedReadings(): { item: CatalogItem; words: ChartWords; high: { guard: boolean; plain: string } | null }[] {
+  return CATALOG.map((item) => ({ item, file: readChart(item.slug) })).filter(({ file }) => file.high_links)
+    .map(({ item, file }) => ({ item, words: chartWords(item, file), high: highLinksReading(item, file) }));
 }
 
 export const chartByNumber = (n: number) => CATALOG.find((c) => c.number === n);

@@ -28,6 +28,7 @@ for (const group of [CHARTS_FINISH_TIMES_1_TEXT, CHARTS_FINISH_TIMES_2_TEXT, CHA
 }
 
 export type ChartWords = {
+  /** The title (the guard holds), or the chart's neutral title: a fallback states no reading in any slot. */
   title: string;
   /** The takeaway with its one *…* accent (the guard holds), or the neutral fallback. */
   headline: string;
@@ -35,10 +36,29 @@ export type ChartWords = {
   plain: string;
   fallback: string;
   description: string;
+  /**
+   * Whether the takeaway's guard holds on the chart's values. When it does not, every slot falls back: the title is the
+   * neutral one, the takeaway the fallback sentence, the chart is drawn without its reading (lib/charts/neutral.ts) and
+   * the share card is withdrawn (scripts/build-chart-cards.cjs draws none and no page links one).
+   */
   guard: boolean;
 };
 
 const plainOf = (text: string) => text.replace(/\*/g, '');
+
+/**
+ * A linked chart's takeaway read on its values on high-confidence links alone (ChartFile.high_links), beside the
+ * published one: the sentence is the takeaway only while the chart's own guard holds on both sets of values (the same
+ * guard, never another), else the neutral fallback; `guard` says whether it holds on high links alone. Null for a chart
+ * that follows no linked records, or when too few high links were left to count it.
+ */
+export function highLinksReading(item: CatalogItem, file: ChartFile): { guard: boolean; plain: string } | null {
+  const text = CHART_TEXT[item.slug];
+  if (!text) throw new Error(`No words registered for chart ${item.slug}.`);
+  if (!file.high_links || file.high_links.values === null) return null;
+  const published = text.takeaway(file.values), high = text.takeaway(file.high_links.values);
+  return { guard: high.guard, plain: plainOf(typo(published.guard && high.guard ? high.headline : high.fallback)) };
+}
 
 export function chartWords(item: CatalogItem, file: ChartFile): ChartWords {
   const text = CHART_TEXT[item.slug];
@@ -47,5 +67,8 @@ export function chartWords(item: CatalogItem, file: ChartFile): ChartWords {
   const fallback = typo(t.fallback);
   const headline = t.guard ? typo(t.headline) : fallback;
   const plain = plainOf(headline);
-  return { title: typo(text.title), headline, plain, fallback, description: text.description ? typo(text.description(file.values)) : plain, guard: t.guard };
+  // Without its guard a chart takes its neutral title; one that has none yet is named by its fallback sentence (the
+  // verifier refuses that state, so it never ships).
+  const title = typo(t.guard ? text.title : text.neutral ?? t.fallback.replace(/\.$/, ''));
+  return { title, headline, plain, fallback, description: t.guard && text.description ? typo(text.description(file.values)) : plain, guard: t.guard };
 }
