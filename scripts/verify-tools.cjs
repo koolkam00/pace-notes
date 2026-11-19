@@ -1487,6 +1487,9 @@ assert.equal(qualifying.ageOn('2000-02-29', '2027-02-28'), 26); assert.equal(qua
     for (const [pattern, what] of BANNED) assert.doesNotMatch(text, pattern, `${rel(file)} shows ${what}; it belongs on /methodology`);
     // Badges go through EvidenceTag (a link to /methodology#evidence), never a hand-written span.
     if (!file.endsWith(path.join('components', 'tools', 'EvidenceTag.tsx'))) assert.doesNotMatch(text, /<span className=\{?[`"]evidence-badge/, `${rel(file)} writes an evidence badge by hand`);
+    // Tier and link labels go through components/ui/TierTag.tsx (lead decision D16, November 14, 2026), never an element
+    // written by hand: no tool file names one of its classes (scripts/verify-tiers.cjs holds every other file to it).
+    assert.doesNotMatch(text, /className=\{?[`"'][^`"']*\btier-(?:badge|chip|line|tags)\b/, `${rel(file)} writes a tier or link label by hand; draw it with components/ui/TierTag.tsx`);
   }
   checks += files.length;
   const tag = fs.readFileSync(path.join(root, 'components/tools/EvidenceTag.tsx'), 'utf8');
