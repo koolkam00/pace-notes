@@ -72,8 +72,10 @@ export function compareRunnerRaces(focus: RunnerRace, reference: RunnerRace, run
 export function validateContextManifest(value: unknown, runners: RunnerManifest, expectedRunnerSha: string): ContextManifest {
   const d = value as ContextManifest;
   if (!/^[a-f0-9]{64}$/.test(expectedRunnerSha) || d?.runner_manifest_sha256 !== expectedRunnerSha) throw error();
-  if (!d || d.schema_version !== 1 || d.release_tag !== RUNNER_RELEASE || d.release_tag !== runners.release_tag || d.input_as_of !== runners.input_as_of || d.runner_manifest_as_of !== runners.as_of || !Number.isFinite(Date.parse(d.as_of)) || !/^[a-f0-9]{64}$/.test(d.runner_manifest_sha256) || d.cohort?.raw !== runners.raw_records || !integer(d.cohort.eligible, 1) || !d.editions || Object.keys(d.editions).length !== runners.editions.length) throw error();
-  for (let i = 0; i < runners.editions.length; i++) { const meta = d.editions[String(i)]; if (!meta || meta.file !== `editions/${String(i).padStart(3, '0')}.json.gz` || !integer(meta.bytes, 1) || !/^[a-f0-9]{64}$/.test(meta.sha256)) throw error(); }
+  if (!d || d.schema_version !== 1 || d.release_tag !== RUNNER_RELEASE || d.release_tag !== runners.release_tag || d.input_as_of !== runners.input_as_of || d.runner_manifest_as_of !== runners.as_of || !Number.isFinite(Date.parse(d.as_of)) || !/^[a-f0-9]{64}$/.test(d.runner_manifest_sha256) || d.cohort?.raw !== runners.raw_records || !integer(d.cohort.eligible, 1) || !d.editions) throw error();
+  // An edition has a file only when it has a peer group, a weather row or a route profile (since November 14, 2026;
+  // every edition had one before). A listed file must name an edition of the manifest the context binds.
+  for (const [key, meta] of Object.entries(d.editions)) { const i = Number(key); if (!integer(i, 0) || String(i) !== key || i >= runners.editions.length || !meta || meta.file !== `editions/${String(i).padStart(3, '0')}.json.gz` || !integer(meta.bytes, 1) || !/^[a-f0-9]{64}$/.test(meta.sha256)) throw error(); }
   return d;
 }
 export function validateEditionContext(value: unknown, index: number, runners: RunnerManifest): EditionContext {
