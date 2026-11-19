@@ -182,6 +182,10 @@ def run(source, out: Path, accept_counts: bool = False) -> dict:
     half_source.attach(db, source)
     policy = half_quality.apply(db, key)
     log(f"policy applied: {policy.counts['use_finish']['finishes']:,} usable finishes ({time.time() - started:.0f} s)")
+    # The identity file leaves out exactly the half rows the frozen row rule names (lead decision D28): one rule, two readers.
+    rows = policy.lists['reported']['row_rule']
+    if not rows['rows_the_rule_names'] == rows['identity_left_out'] == rows['in_both']:
+        fail(f'the identity file and the half row rule name different half rows: {rows}')
     marathons = half_marathon.load()
     log(f'marathon side: {marathons.n:,} eligible finishes ({time.time() - started:.0f} s)')
     link_counts = half_source.link_tables(db, source)

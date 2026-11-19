@@ -31,7 +31,9 @@ COHORT = ROOT / 'analysis' / 'marathon-cohort'
 # release's reviewed `undated` list; it keeps its finishes and supplies no pair. Set from the real run on the final
 # inputs after reading them against the pipeline's cohort record; earlier releases (the runner shards of
 # private-export-20261021-1050 and master-20261103b) are in Git history.
-EXPECTED = {}
+# Set 2026-11-19 from the build of 2026-11-14 16:01 UTC on the final inputs (99d760bed): the cohort manifest's own
+# eligible count (4,124,026) and its 201 counted editions, every one dated.
+EXPECTED = {'pace-notes-marathon-half-20261113-1113': {'eligible': 4124026, 'sustained': 1288216, 'dated_editions': 201}}
 
 
 class Marathons:

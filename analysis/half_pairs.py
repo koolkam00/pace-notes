@@ -57,7 +57,12 @@ LINK_RULES = {'tiers': list(TIERS), 'row_tiers': list(TIERS), 'ns_keys_max': NS_
 # difference from the plan's measurements is read. Earlier builds stay in Git history: person-ids-v4-20261030-1150 with
 # half-dataset-20261030-1904 against master-20261103b gave 58,597 pairs, 50,606 people, 182 marathon editions in 26
 # cities, 2,571 half editions, 17,845 women's and 40,752 men's pairs and 4,641 verified halves.
-EXPECTED = {}
+# Set 2026-11-19 from the build of 2026-11-14 16:01 UTC on the final inputs (99d760bed), read against the trial of
+# 14:38 UTC on the inputs before them (57,464 pairs, 49,890 people, 172 marathon editions): the final cohort adds
+# Los Angeles 2026's date and the re-issued identity file; the Node recount rebuilt the same set.
+EXPECTED = {'person-ids-v5.1': {'pairs': 57554, 'people': 49975, 'marathon_editions': 173, 'marathon_cities': 26, 'half_editions': 2762,
+                                'women_pairs': 18382, 'men_pairs': 39172, 'verified_halves': 4086, 'halves_in_two_or_more_pairs': 342,
+                                'pairs_with_a_close_marathon': 75}}
 
 
 def build(db, marathons, links_tag: str, *, expected: dict | None = None, check: bool = True):

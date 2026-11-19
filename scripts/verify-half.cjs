@@ -187,8 +187,8 @@ const { set_b: setB, ...policyCounts } = counts;
 eq(policyCounts, policy.expected, 'the manifest’s policy counts are the reviewed ones');
 // Every half builder module is bound, and each sha is the file in the repository. half_extract.py cuts the Node
 // recount's input and is not read by the build; the receipt binds the extract's content instead.
-// half_races.py builds the race list, a family of its own whose manifest binds it (section 4c); half_duplicates.py is an audit.
-const NOT_BUILDERS = new Set(['analysis/half_extract.py', 'analysis/half_races.py', 'analysis/half_duplicates.py']);
+// half_races.py builds the race list, a family of its own whose manifest binds it (section 4c); half_duplicates.py is an audit; half_race_registry.py builds the registry the race list binds.
+const NOT_BUILDERS = new Set(['analysis/half_extract.py', 'analysis/half_races.py', 'analysis/half_duplicates.py', 'analysis/half_race_registry.py']);
 const halfModules = fs.readdirSync(rel('analysis')).filter((n) => /^(half_.*|build_half)\.py$/.test(n)).map((n) => `analysis/${n}`).filter((n) => !NOT_BUILDERS.has(n)).sort();
 eq(Object.keys(manifest.scripts).sort(), halfModules, 'every half builder module is bound to the manifest');
 for (const [name, digest] of Object.entries(manifest.scripts)) ok(digest === fileSha(name), `stale half data: ${name} changed after the build (rerun analysis/build_half.py)`);
@@ -847,6 +847,10 @@ const pageGuards = {};
   }
 }
 
+// ---------- 7b. races/: the half race list, a family of its own (scripts/half/races.cjs; docs/HALF_MARATHON.md rule R6) ----------
+const TIERS = require(path.join(ROOT, 'lib/tiers.ts'));
+const racesChecked = require('./half/races.cjs').checkRaces({ root: ROOT, dir: opt.data, pin, manifest, policy, T: TIERS, ok, eq });
+
 // ---------- 8. The source-recount receipt ----------
 {
   const receiptPath = 'docs/evidence/half/source-recount.json';
@@ -1057,7 +1061,7 @@ if (opt.html) {
       if (q.get('d') === 'half') ok(/^\d:\d\d:\d\d$/.test(q.get('t') || ''), `${route}: the tool link ${m[1]} opens on a half with no time (t=H:MM:SS)`);
     }
     for (const slug of withdrawnCards) ok(!html.includes(`/charts/cards/${slug}.png`), `${route}: links the withdrawn card ${slug}`);
-    const scoped = elements(html, /data-half-scope="(?:verified|linked|usable)"/);
+    const scoped = elements(html, /data-half-scope="(?:verified|linked|usable|races)"/);
     const links = elements(html, /data-half-link="linked"/);
     for (const el of links) {
       readings++;
@@ -1080,7 +1084,7 @@ if (opt.html) {
     // Outside the half surfaces the label appears only in a reading link or beside a stated reading.
     {
       let rest = html;
-      for (const re of [/data-half-scope="(?:verified|linked|usable)"/, /data-half-link="linked"/, /data-half-said="stated"/]) rest = remove(rest, re);
+      for (const re of [/data-half-scope="(?:verified|linked|usable|races)"/, /data-half-link="linked"/, /data-half-said="stated"/]) rest = remove(rest, re);
       if (route !== '/methodology') ok(!DIST.test(rest), `${route}: a distance label outside a half-to-marathon figure`);
     }
     if (!scoped.length) {
@@ -1089,9 +1093,9 @@ if (opt.html) {
     }
     for (const whole of scoped) {
       surfaces++;
-      const scope = /data-half-scope="(verified|linked|usable)"/.exec(whole.tag)[1];
+      const scope = /data-half-scope="(verified|linked|usable|races)"/.exec(whole.tag)[1];
       // A surface of every usable result (how halves are paced) sits at the foot of a verified page: each is read apart.
-      const el = scope === 'usable' ? whole : { tag: whole.tag, html: remove(whole.html, /data-half-scope="usable"/) };
+      const el = scope === 'usable' || scope === 'races' ? whole : { tag: whole.tag, html: remove(whole.html, /data-half-scope="usable"/) };
       const chips = elements(el.html, CHIP).length;
       const own = elements(remove(el.html, /data-half-link="linked"/), DIST).length;
       if (scope === 'linked') {
@@ -1109,6 +1113,24 @@ if (opt.html) {
           ok(!hit, `${route}: ${what} on the pacing surface: …${hit ? said.slice(Math.max(0, hit.index - 40), hit.index + 40) : ''}…`);
         }
         for (const re of LINKED_FIGURES) ok(!re.test(said), `${route}: the pacing surface shows a linked figure (${re})`);
+      } else if (scope === 'races') {
+        // The race list: every year carries its own tier label (the tier module's elements), so no chip; no pair of
+        // distances; no pooled figure. A time stands only in a row whose label is a verified tier and whose labels
+        // name no gun timing and no mark; the list ranks nothing.
+        eq(chips, 0, `${route}: the race list carries no scope chip (each year carries its tier)`);
+        eq(own, 0, `${route}: the race list carries no distance label`);
+        ok(elements(el.html, TIERS.TIER_LABEL_CLASS).length > 0, `${route}: the race list draws its labels with the tier module`);
+        const said = textOf(el.html);
+        for (const re of LINKED_FIGURES) ok(!re.test(said), `${route}: the race list shows a linked figure (${re})`);
+        for (const row of el.html.match(/<tr\b[\s\S]*?<\/tr>/g) || []) {
+          const cells = (row.match(/<t[dh]\b[\s\S]*?<\/t[dh]>/g) || []);
+          if (cells.length !== 4 || /<th\b[^>]*scope="col"/.test(row)) continue;
+          const time = textOf(cells[3]).trim();
+          if (time === '—') continue;
+          ok(/^\d:\d\d:\d\d$/.test(time), `${route}: a median finish as h:mm:ss (${time})`);
+          ok(/data-tier="stamped(?:_weaker_source)?"/.test(cells[1]) && !/data-timing=/.test(cells[1]) && !/suspected/i.test(textOf(cells[1])), `${route}: a time on a year that may not show one: ${textOf(row).slice(0, 80)}`);
+        }
+        for (const [re, what] of [[/\bfastest\b|\bslowest\b|\bquickest\b/i, 'a ranking word'], [/\brank(?:ed|ing|s)?\b/i, 'a rank'], [/\bwinners?\b|\bbib\b/i, 'a winner or a bib']]) ok(!re.test(said), `${route}: ${what} on the race list`);
       } else {
         eq(chips, 0, `${route}: a verified surface carries no scope chip`);
         eq(own, 0, `${route}: a half-only surface carries no distance label outside a reading link`);
@@ -1116,12 +1138,15 @@ if (opt.html) {
         for (const re of LINKED_FIGURES) ok(!re.test(rest), `${route}: a verified surface shows a linked figure outside a reading link (${re})`);
       }
       if (route !== '/methodology') {
-        const words = textOf(remove(remove(el.html, CHIP), DIST));
+        // The tier module's label elements say "Verified", "Unverified" and "Held for review" by design: exempt as the chip is, and nothing else.
+        const words = textOf(remove(remove(remove(el.html, CHIP), DIST), TIERS.TIER_LABEL_CLASS));
         for (const [re, what] of [...W.STATUS_WORDS, ...W.VERIFICATION_WORDS]) ok(!re.test(words), `${route}: ${what} on a half surface`);
         // The word rules apply to the half content itself: the chapter rail, navigation, the chapter's next card, the
         // feedback block and reading links repeat other pages' words.
         let content = el.html;
-        for (const re of [/<aside\b/, /<nav\b/, /class="[^"]*\bchapter-end\b[^"]*"/, /class="[^"]*crumbs\b[^"]*"/, /class="[^"]*\bpage-feedback\b[^"]*"/, /data-half-link="linked"/, CHIP, DIST]) content = remove(content, re);
+        // On the race list a race's name and place are the release's own words: data, not copy.
+        for (const re of [/<aside\b/, /<nav\b/, /class="[^"]*\bchapter-end\b[^"]*"/, /class="[^"]*crumbs\b[^"]*"/, /class="[^"]*\bpage-feedback\b[^"]*"/, /data-half-link="linked"/, CHIP, DIST,
+          ...(scope === 'races' ? [/class="[^"]*\brace-(?:name|place)\b[^"]*"/] : [])]) content = remove(content, re);
         const t = [...W.ALLOWED, ...HTML_ALLOWED].reduce((acc, a) => acc.split(a).join(' '), textOf(content));
         for (const [re, what] of [...W.BANNED, ...W.HALF_BANNED]) {
           const hit = re.exec(t);

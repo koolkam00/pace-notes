@@ -241,7 +241,8 @@ log('reading the marathon cohort');
 const MAR = loadMarathons(ROOT);
 // The cohort's eligible finishes, those with a sustained slowdown and the counted editions with a race date
 // (half_marathon.EXPECTED's twin), set from the real run on the final inputs.
-const REVIEWED_MARATHON = {};
+// Set 2026-11-19 from the build of 2026-11-14 16:01 UTC on the final inputs (99d760bed).
+const REVIEWED_MARATHON = { 'pace-notes-marathon-half-20261113-1113': { eligible: 4124026, sustained: 1288216, dated_editions: 201 } };
 const marathonCounts = { eligible: MAR.n, sustained: MAR.slowdowns, dated_editions: MAR.datedEditions,
   ...(MAR.undated.length || 'undated' in (REVIEWED_MARATHON[MAR.releaseTag] || {}) ? { undated: MAR.undated } : {}) };
 if (!opt.trial) compare('policy', 'marathon side (reviewed)', REVIEWED_MARATHON[MAR.releaseTag] || null, marathonCounts);
@@ -405,6 +406,8 @@ const coverage = [];
   coverage.push(...[...byCity.values()].sort((a, b) => (a.city < b.city ? -1 : 1)));
 }
 compare('policy', 'set B (manifest)', publishedSetB, setB);
+// The identity file leaves out exactly the half rows the frozen row rule names (lead decision D28).
+compare('policy', 'row rule: the identity file and the rule name the same half rows', [P.recomputed.row_rule.identity_left_out, P.recomputed.row_rule.in_both], [P.recomputed.row_rule.rows_the_rule_names, P.recomputed.row_rule.rows_the_rule_names]);
 // The flagship battery's verified-half members (the policy's `battery`, pre-registered October 30, 2026): the
 // weaker-source stamps by edition id, and the reviewed off-road labels, each the label of a verified usable edition.
 const BAT = policy.battery;

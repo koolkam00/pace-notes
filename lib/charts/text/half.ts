@@ -119,7 +119,8 @@ export const HALF_CARD_TEXT: Record<HalfCardSlug, HalfCardText> = {
         title: 'Same half, fewer sustained slowdowns for women',
         headline: `Of records linked by name with a half near ${wf ? floorHM(wf.h) : ''}, *${pct(women)}* of recorded women's marathons had a sustained slowdown, against ${pct(men)} of men's.`,
         titleFallback: 'Sustained slowdowns after the same half',
-        fallback: "Sustained slowdowns in recorded women's and men's marathons after the same half.",
+        // A linked card says "records linked by name" in its fallback too (verify-half; 2026-11-19, first build where it falls back).
+        fallback: "Sustained slowdowns in recorded women's and men's marathons after the same half, of records linked by name.",
       };
     },
     // The women's share is the filled dot and sits left of the men's ring in every row, and the title, the takeaway and

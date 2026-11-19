@@ -149,7 +149,7 @@
       }
     },
     "extract": "half-extract.sqlite",
-    "extract_content_sha256": null
+    "extract_content_sha256": "78d0c4c5e56c3403bc3ece37c6a40fdd0e8786a151512c879243cf5bdf10a2a1"
   },
   "stamps": {
     "rule": "verified = tier stamped or stamped_weaker_source in the release's EDITION-TIERS.csv, equal to the policy's reviewed list, never an edition of the frozen never-stamp list",
