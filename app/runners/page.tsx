@@ -13,6 +13,24 @@ import { approxWords } from '@/lib/nuggets/format';
 import { capitalize } from '@/lib/nuggets/build';
 import { coursePages } from '@/lib/course-page';
 import { profileUnderWater } from '@/lib/nuggets/courses';
+import { LINKED_BY_NAME, LINKED_REVIEW_HREF, LINKED_YEAR_WORDS, getLinkedEditions, linkedEditionReading } from '@/lib/linked-server';
+import { LINKED_VERDICT_CODES, type LinkedYears } from '@/lib/report-year';
+
+/**
+ * The linked-records family's year verdicts, for one line in a runner record's race report: every edition the family
+ * reads, through its own guard (lib/linked-server.ts linkedEditionReading); an edition with no verdict is left out, so
+ * the report says nothing about its year. The words come from the helper, once per verdict.
+ */
+function linkedYears(): LinkedYears {
+  const rows: [string, number, 0 | 1 | 2, 0 | 1][] = [], hrefs: Record<string, string> = {};
+  for (const [label, years] of Object.entries(getLinkedEditions().data.races)) for (const year of Object.keys(years)) {
+    const reading = linkedEditionReading(label, year);
+    if (!reading) continue;
+    rows.push([label, Number(year), LINKED_VERDICT_CODES.indexOf(reading.verdict) as 0 | 1 | 2, reading.reviewed ? 1 : 0]);
+    hrefs[label] = reading.href;
+  }
+  return { words: LINKED_YEAR_WORDS, byName: LINKED_BY_NAME, reviewHref: LINKED_REVIEW_HREF, hrefs, rows };
+}
 
 // A name lookup, not a page for search results: noindex (lib/seo-routes NOINDEX), and searches never enter the address.
 export const metadata = pageMetadata({
@@ -43,7 +61,7 @@ export default function RunnersPage() {
       <p className="runner-dek">{Number.isFinite(rate) ? <>{capitalize(approxWords(rate, 'finishes'))} had a <Link className="term-link" href="/methodology#sustained-slowdown">sustained slowdown</Link>. Find a recorded race by name to see whether it did, or start from your splits or a finish time.</> : 'Find a recorded race by name, or start from your splits or a finish time.'}</p>
     </header>
     <div className="runner-work">
-      <RunnerSearch copyEditions={copyEditions()} report={reportData()} wet={wet} starts={<nav className="runner-starts" aria-label="Start without a name">
+      <RunnerSearch copyEditions={copyEditions()} report={reportData()} wet={wet} years={linkedYears()} starts={<nav className="runner-starts" aria-label="Start without a name">
         <ul className="runner-rows">
           <li><Link className="runner-start" href="/tools/split-check"><b>Have your splits? Paste them</b><span>Each section’s pace, the sustained-slowdown reading and a race report.</span><Arrow /></Link></li>
           <li><FinishTimeStart /></li>
