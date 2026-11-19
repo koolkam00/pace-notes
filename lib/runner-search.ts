@@ -48,6 +48,10 @@ export const CHECKPOINTS = { marathon: 8, half: 4 } as const;
 export const TIERS = ['stamped', 'stamped_weaker_source', 'partial', 'held_for_review', 'unverified'] as const;
 export const LINK_CODES = '0123456789abcd';  // 0 no link; 1-3 confirmed; 4-a possible by tier; b-d a confirmed tier without a key
 export const CONFIRMED_LINKS = '123';
+// The screen a person of a confirmed tier failed (`w` of a result, a digit; 0 on every result whose link is not b, c or d):
+// the identity file's not_keyed_reason.
+export const SCREENS = [null, 'birth_year_spread', 'sex_conflict', 'two_results_in_one_edition'] as const;
+export type Screen = Exclude<(typeof SCREENS)[number], null>;
 // Lead decision D24.5: the Latin letters NFKD leaves whole. The manifest repeats the table (rules.fold).
 export const FOLD: Readonly<Record<string, string>> = { 'ł': 'l', 'ø': 'o', 'đ': 'd', 'ð': 'd', 'ß': 'ss', 'æ': 'ae', 'œ': 'oe', 'þ': 'th', 'ı': 'i' };
 
@@ -272,22 +276,22 @@ function sameLength(data: Columns, columns: readonly string[], length: number, w
 export type EditionsFile = {
   v: number; races: [letter: string, label: string, name: string][]; sr: number[]; y: number[]; t: string; sp: string; db: string; g: string;
   q: number[]; cx: number[]; rs: number[]; nl: number[]; reasons: string[];
-  /** Each edition's timing class, a digit into TIMING_CLASSES (lib/tiers.ts). Added before the final build; a build without it draws no timing label. */
-  tb?: string;
+  /** Each edition's timing class, a digit into TIMING_CLASSES (lib/tiers.ts). Required. */
+  tb: string;
 };
 /** One edition as the reference decodes it. */
 export type DecodedEdition = {
   index: number; distance: RunnerDistance; city: string; race: string; year: number; tier: number; splits: boolean; db: string;
   noComparison: number; q: number; context: number | null; reason: string | null; unlisted: number;
-  /** The edition's timing class, or null where the build carries no timing column. */
-  timing: TimingClass | null;
+  /** The edition's timing class (lib/tiers.ts TIMING_CLASSES). */
+  timing: TimingClass;
 };
 
 /** editions.json.gz as one object per edition, in index order. */
 export function decodeEditions(data: EditionsFile): DecodedEdition[] {
   if (!data || data.v !== SCHEMA_VERSION) throw new Error('editions: unknown version');
   const count = data.sr.length;
-  sameLength(data as unknown as Columns, ['y', 't', 'sp', 'db', 'g', 'q', 'cx', 'rs', 'nl', ...(data.tb === undefined ? [] : ['tb'])], count, 'editions');
+  sameLength(data as unknown as Columns, ['y', 't', 'sp', 'db', 'g', 'tb', 'q', 'cx', 'rs', 'nl'], count, 'editions');
   const out = new Array<DecodedEdition>(count);
   for (let at = 0; at < count; at++) {
     const race = data.races[data.sr[at]];
@@ -297,7 +301,7 @@ export function decodeEditions(data: EditionsFile): DecodedEdition[] {
       q: data.q[at], context: data.cx[at] < 0 ? null : data.cx[at], reason: data.rs[at] < 0 ? null : data.reasons[data.rs[at]],
       unlisted: data.nl[at],
       // An unknown digit decodes to undefined and is refused by validateEditions, never shown as a default.
-      timing: data.tb === undefined ? null : TIMING_CLASSES[Number(data.tb[at])] as TimingClass,
+      timing: TIMING_CLASSES[Number(data.tb[at])] as TimingClass,
     };
   }
   return out;
@@ -342,19 +346,21 @@ export function resultTimes(mask: number, gaps: number[], finish: number, distan
 }
 
 export type ShardFile = {
-  v: number; k: number[]; u: number[]; n: string[]; e: number[]; i: number[]; f: number[]; x: string; a: number[]; c: string; j: number[];
-  s: string; m: number[]; d: number[];
+  v: number; k: number[]; u: number[]; n: string[]; e: number[]; i: number[]; f: number[]; x: string; a: number[]; c: string;
+  /** The screen a person of a confirmed tier failed, one digit per result into SCREENS; non-zero exactly on link codes b, c and d. */
+  w: string; j: number[]; s: string; m: number[]; d: number[];
 };
 /** One result as the reference decodes it. */
 export type DecodedResult = {
   edition: number; db: string; id: number; key: string; distance: RunnerDistance; finish: number | null; sex: string | null; age: number | null;
-  link: string; confirmed: boolean; status: string | null; name: string; mask: number; times: (number | null)[];
+  link: string; confirmed: boolean; screen: Screen | null; status: string | null; name: string; mask: number; times: (number | null)[];
 };
 export type DecodedProfile = { names: string[]; results: DecodedResult[] };
 
 /**
  * The profiles of a shard, or the one at `position` when it is given. A result:
- * { edition, db, id, key, distance, finish, sex, age, link, confirmed, status, name, mask, times }.
+ * { edition, db, id, key, distance, finish, sex, age, link, confirmed, screen, status, name, mask, times }. `screen` is null
+ * unless the link is b, c or d: then the screen the person failed (SCREENS).
  * `id` is the record id (i + 256·q of its edition) and `key` is db + id, unique across both distances.
  */
 export function decodeShard(data: ShardFile, editions: readonly DecodedEdition[]): DecodedProfile[];
@@ -362,7 +368,7 @@ export function decodeShard(data: ShardFile, editions: readonly DecodedEdition[]
 export function decodeShard(data: ShardFile, editions: readonly DecodedEdition[], position?: number): DecodedProfile[] | DecodedProfile {
   if (!data || data.v !== SCHEMA_VERSION) throw new Error('profile shard: unknown version');
   const results = data.e.length;
-  sameLength(data as unknown as Columns, ['i', 'f', 'x', 'a', 'c', 'j', 's', 'm'], results, 'profile shard');
+  sameLength(data as unknown as Columns, ['i', 'f', 'x', 'a', 'c', 'w', 'j', 's', 'm'], results, 'profile shard');
   if (data.k.length !== data.u.length) throw new Error('profile shard: k and u differ in length');
   const out: DecodedProfile[] = [];
   let row = 0, name = 0, gap = 0;
@@ -378,7 +384,7 @@ export function decodeShard(data: ShardFile, editions: readonly DecodedEdition[]
         profile.results.push({
           edition: data.e[row], db: edition.db, id, key: edition.db + id, distance: edition.distance,
           finish: data.f[row] < 0 ? null : data.f[row], sex: data.x[row] === '-' ? null : data.x[row], age: data.a[row] < 0 ? null : data.a[row],
-          link: data.c[row], confirmed: CONFIRMED_LINKS.includes(data.c[row]), status: data.s[row] === '-' ? null : data.s[row],
+          link: data.c[row], confirmed: CONFIRMED_LINKS.includes(data.c[row]), screen: SCREENS[Number(data.w[row])] as Screen | null, status: data.s[row] === '-' ? null : data.s[row],
           name: profile.names[data.j[row]], mask: data.m[row],
           times: resultTimes(data.m[row], data.d.slice(gap, gap + count), data.f[row], edition.distance),
         });
@@ -490,10 +496,8 @@ function validateEditions(decoded: DecodedEdition[], count: number): RunnerEditi
       !Number.isInteger(edition.tier) || edition.tier < 0 || edition.tier >= TIERS.length || (edition.db !== 'f' && edition.db !== 'h') ||
       ![0, 1, 2].includes(edition.noComparison) || (marathon && (edition.noComparison !== 0 || edition.db !== 'f')) ||
       (edition.context !== null && (!integer(edition.context) || !marathon)) || (edition.reason !== null && (!text(edition.reason) || !marathon)) ||
-      (edition.timing !== null && !(TIMING_CLASSES as readonly string[]).includes(edition.timing)) || (edition.timing !== null && edition.noComparison === 1 && edition.timing !== 'gun')) throw problem();
+      !(TIMING_CLASSES as readonly string[]).includes(edition.timing) || (edition.noComparison === 1 && edition.timing !== 'gun')) throw problem();
   }
-  // The column is the file's or absent: never on some editions only.
-  if (decoded.some(row => row.timing === null) && decoded.some(row => row.timing !== null)) throw problem();
   return decoded as RunnerEdition[];
 }
 
@@ -728,6 +732,8 @@ export type RunnerRace = {
   link: LinkCode;
   /** The link keys a runner in the pipeline's identity file (codes 1 to 3). */
   confirmed: boolean;
+  /** Codes b, c and d only: the screen the person of a confirmed tier failed, which is why this result is a possible match. */
+  screen: Screen | null;
   /** Listed as a possible match: the profile holds other results and this one's link does not key a runner. The one result of a profile of one is linked to nothing, so it is never one. */
   possible: boolean;
   /** null for a half marathon. */
@@ -773,6 +779,8 @@ export function runnerProfile(decoded: DecodedProfile, shard: number, position: 
     const status = result.status === null ? null : Number(result.status);
     if (!edition || edition.distance !== result.distance || (result.db !== 'f' && result.db !== 'h') || result.db !== edition.db || !integer(result.id) || result.key !== result.db + result.id ||
       result.link.length !== 1 || !LINK_CODES.includes(result.link) || result.confirmed !== CONFIRMED_LINKS.includes(result.link) ||
+      // A screen exactly on the codes that say one failed, and only one the page knows.
+      (result.screen === undefined || (result.screen === null) === LINKS[result.link as LinkCode].screened || (result.screen !== null && !SCREENS.includes(result.screen))) ||
       !text(result.name) || !result.name || (result.sex !== null && !text(result.sex)) || (result.age !== null && !integer(result.age)) ||
       (marathon ? status === null || !Number.isInteger(status) || status < 0 || status > 6 : status !== null) ||
       result.times.length !== POINTS_KM[result.distance].length || result.times.some(time => time !== null && !Number.isSafeInteger(time)) ||
@@ -782,7 +790,7 @@ export function runnerProfile(decoded: DecodedProfile, shard: number, position: 
     if (marathon && ((status === 0 && edition.reason !== null) || ((status === 1 || status === 6) && edition.reason === null))) throw problem();
     const race: RunnerRace = {
       key: result.key, db: result.db, id: result.id, edition: result.edition, distance: result.distance, name: result.name, sex: result.sex, age: result.age,
-      times: result.times, link: result.link as LinkCode, confirmed: result.confirmed, possible: decoded.results.length > 1 && !result.confirmed,
+      times: result.times, link: result.link as LinkCode, confirmed: result.confirmed, screen: result.screen, possible: decoded.results.length > 1 && !result.confirmed,
       status: status as RunnerStatus | null, eligible, counted: marathon && status === 0,
       reason: !marathon || status === 0 ? null : status === 1 || status === 6 ? edition.reason : STATUS_REASONS[status as RunnerStatus] ?? null,
     };

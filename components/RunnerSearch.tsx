@@ -10,6 +10,7 @@ import { LinkTerm } from './ui/TierTag';
 import { keypadInput } from '@/lib/keypad';
 import type { CopyEdition } from '@/lib/duplicate-editions-shared';
 import type { ReportData } from '@/lib/report';
+import type { LinkedYears } from '@/lib/report-year';
 import { trackAnalytics } from '@/lib/analytics';
 import { unitHref } from '@/lib/unit-preference';
 import { pacingPatternHref } from '@/lib/tools/links';
@@ -21,7 +22,7 @@ import {
 } from '@/lib/runner-search';
 import ProfileView from './runner/ProfileView';
 import { MatchRows, NoMatchNext, SearchMore, matchKey } from './runner/SearchResults';
-import { NO_COPIES, NO_SCREENS, RecordList, analysed, finishLabel, inCopyEdition, raceLabel } from './runner/records';
+import { NO_COPIES, RecordList, analysed, finishLabel, inCopyEdition, raceLabel } from './runner/records';
 
 // The record pieces and the no-match block moved to components/runner/ with lookup version 2; they are still reached
 // from here by the verifiers and scenarios that render them.
@@ -88,8 +89,8 @@ export function FinishTimeStart() {
  * and half marathons, which are listed with their finish and labels. The two distances are never set in one list or one
  * figure, and a possible match the visitor ticked is named as one.
  */
-export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COPIES, screens = NO_SCREENS, report, listed, wet }: {
-  races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[]; screens?: readonly string[]; report?: ReportData;
+export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COPIES, report, listed, wet, years }: {
+  races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[]; report?: ReportData; years?: LinkedYears;
   /** Cities whose route profile reads the water under a bridge: the view shows no climb for them. */
   wet?: readonly string[];
   /** The keys of the records the open profile above already lists with their tags and details: the analysis does not list them again. */
@@ -112,8 +113,8 @@ export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COP
     return <section className="runner-analysis" aria-labelledby="runner-analysis-title">
       <header className="runner-analysis-head"><h2 id="runner-analysis-title">Your race records are here.</h2>
         <p>{`The recorded names, races, finish times and checkpoints are below. ${why}`}</p>{includes}</header>
-      {marathons.length > 0 && <>{halves.length > 0 && <h3 className="runner-h runner-records-h">Marathons</h3>}<RecordList races={marathons} manifest={manifest} copyEditions={copyEditions} screens={screens} /></>}
-      {halves.length > 0 && <>{marathons.length > 0 && <h3 className="runner-h runner-records-h">Half marathons</h3>}<RecordList races={halves} manifest={manifest} copyEditions={copyEditions} screens={screens} /></>}
+      {marathons.length > 0 && <>{halves.length > 0 && <h3 className="runner-h runner-records-h">Marathons</h3>}<RecordList races={marathons} manifest={manifest} copyEditions={copyEditions} /></>}
+      {halves.length > 0 && <>{marathons.length > 0 && <h3 className="runner-h runner-records-h">Half marathons</h3>}<RecordList races={halves} manifest={manifest} copyEditions={copyEditions} /></>}
     </section>;
   }
   // The records without a pacing view that are not already on screen in the profile (one chosen from another match, say).
@@ -122,20 +123,19 @@ export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COP
   // card, its sentence and the race table (the table's numbers are in the comparison's All numbers).
   return <section className="runner-analysis" aria-label={progression.valid.length === 1 ? 'The selected race' : 'The selected races'}>
     {includes}
-    <RunnerContext races={pacing} manifest={manifest} units={units} copyEditions={copyEditions} report={report} wet={wet} />
-    {unlisted.length > 0 && <section className="runner-limited" aria-labelledby="runner-limited-title"><h3 id="runner-limited-title" className="runner-h">{`${count(unlisted.length)} selected ${unlisted.length === 1 ? 'record has' : 'records have'} limited analysis`}</h3><RecordList races={unlisted} manifest={manifest} copyEditions={copyEditions} screens={screens} /></section>}
-    {unlistedHalves.length > 0 && <section className="runner-limited" aria-labelledby="runner-halves-title"><h3 id="runner-halves-title" className="runner-h">{`${count(unlistedHalves.length)} selected half ${unlistedHalves.length === 1 ? 'marathon' : 'marathons'}`}</h3><RecordList races={unlistedHalves} manifest={manifest} copyEditions={copyEditions} screens={screens} /></section>}
+    <RunnerContext races={pacing} manifest={manifest} units={units} copyEditions={copyEditions} report={report} wet={wet} years={years} />
+    {unlisted.length > 0 && <section className="runner-limited" aria-labelledby="runner-limited-title"><h3 id="runner-limited-title" className="runner-h">{`${count(unlisted.length)} selected ${unlisted.length === 1 ? 'record has' : 'records have'} limited analysis`}</h3><RecordList races={unlisted} manifest={manifest} copyEditions={copyEditions} /></section>}
+    {unlistedHalves.length > 0 && <section className="runner-limited" aria-labelledby="runner-halves-title"><h3 id="runner-halves-title" className="runner-h">{`${count(unlistedHalves.length)} selected half ${unlistedHalves.length === 1 ? 'marathon' : 'marathons'}`}</h3><RecordList races={unlistedHalves} manifest={manifest} copyEditions={copyEditions} /></section>}
   </section>;
 }
 
 /**
  * The name search, its records and the selected races' analysis. The page (app/runners/page.tsx) writes the heading and
  * passes the ways in without a name (`starts`): under the search until one is made, then under the matches until a race
- * is chosen (a search that finds none has its own next steps); `report` is what the race report needs from the build,
- * and `screens` the screens that left a link of a keyed tier without a runner key in the adopted release.
+ * is chosen (a search that finds none has its own next steps); `report` is what the race report needs from the build.
  * The field and its button work from the first paint: a search made while the search data still loads waits for it.
  */
-export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts, wet, screens = NO_SCREENS }: { copyEditions?: readonly CopyEdition[]; report?: ReportData; starts?: ReactNode; wet?: string[]; screens?: readonly string[] }) {
+export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts, wet, years }: { copyEditions?: readonly CopyEdition[]; report?: ReportData; starts?: ReactNode; wet?: string[]; years?: LinkedYears }) {
   const { units } = useUnits();
   const [manifest, setManifest] = useState<RunnerManifest | null>(null);
   const [manifestError, setManifestError] = useState('');
@@ -269,7 +269,8 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
   // Nothing listed and nothing more a press could list: the search's own next steps show.
   const deadEnd = noMatch && !result?.more;
   const possibleSelected = selected.filter(race => race.possible).length;
-  const selectionCount = `${count(selected.length)} ${selected.length === 1 ? 'race' : 'races'} selected${possibleSelected ? ` · includes ${possibleMatchCount(possibleSelected, count)} you selected` : ''}`;
+  // Only with a selection, as namesFound above: the empty page renders no number.
+  const selectionCount = !selected.length ? '' : `${count(selected.length)} ${selected.length === 1 ? 'race' : 'races'} selected${possibleSelected ? ` · includes ${possibleMatchCount(possibleSelected, count)} you selected` : ''}`;
   const opening = result?.stage === 2 ? (allow.beginnings ? 'Names that start with these words. ' : 'No recorded name has exactly these words, so these are names that start with them. ') : '';
 
   return <>
@@ -308,7 +309,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
       {deadEnd && <NoMatchNext />}
     </>}</section>}
     {profileError && <div className="runner-error" role="alert"><p>{profileError} Select the match again to retry.</p></div>}
-    <div id="runner-profile" className="ph-no-capture">{manifest && profile && opened && <ProfileView profile={profile} manifest={manifest} opened={opened.name} copyEditions={copyEditions} screens={screens} selected={selectedKeys} onToggle={toggleRace} headingRef={profileHeading} />}</div>
+    <div id="runner-profile" className="ph-no-capture">{manifest && profile && opened && <ProfileView profile={profile} manifest={manifest} opened={opened.name} copyEditions={copyEditions} selected={selectedKeys} onToggle={toggleRace} headingRef={profileHeading} />}</div>
     {searched && matches.length > 0 && !searchLoading && !searchError && !selected.length && !confirmed && starts}
     {manifest && selected.length > 0 && !noMatch && (confirmed && !editing
       ? <section className="runner-selection is-quiet ph-no-capture" aria-labelledby="runner-selection-title"><p className="runner-selection-row"><span id="runner-selection-title">{selectionCount}</span><button type="button" className="btn btn-tertiary runner-edit" aria-expanded={false} onClick={() => setEditing(true)}>Edit</button></p></section>
@@ -319,6 +320,6 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
     </div>
     {/* The analysis reads under the search and what it found, outside their column (from 900 px it is wider, on the
         same axis). */}
-    <div ref={analysisRef} className="runner-reading ph-no-capture">{confirmed && manifest && !noMatch && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} screens={screens} report={report} listed={listed} wet={wet} />}</div>
+    <div ref={analysisRef} className="runner-reading ph-no-capture">{confirmed && manifest && !noMatch && <SelectedAnalysis races={confirmed} manifest={manifest} units={units} copyEditions={copyEditions} report={report} listed={listed} wet={wet} years={years} />}</div>
   </>;
 }

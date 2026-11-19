@@ -297,3 +297,6 @@ a.race-report-badge:focus-visible { outline: 2px solid var(--focus); outline-off
 }
 /* A report from a runner record carries its edition's tier beside the kicker (lookup version 2). */
 .race-report-tier { margin-left: var(--s-2); vertical-align: baseline; text-transform: none; letter-spacing: 0; }
+
+/* The year line from the linked-records family (a runner record only): its own short paragraph under the comparison. */
+.race-report-year { margin: var(--s-5) 0 0; padding-top: var(--s-3); border-top: 1px solid var(--rule); }

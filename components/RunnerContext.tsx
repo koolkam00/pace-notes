@@ -17,6 +17,7 @@ import { trackFailure } from '@/lib/analytics';
 import { chunkLoadFailed } from '@/lib/chunk-reload';
 import { isCopyEdition, type CopyEdition } from '@/lib/duplicate-editions-shared';
 import type { ReportData } from '@/lib/report';
+import { linkedYearOf, type LinkedYears } from '@/lib/report-year';
 import { openingPct, timesVerdict, toneOf } from '@/lib/report-verdict';
 import { joinRanges } from '@/components/ui/keepTogether';
 import { readSplits } from '@/lib/tools/split-reading';
@@ -262,7 +263,7 @@ const TABS: { value: Tab; label: string }[] = [{ value: 'pacing', label: 'Pacing
  * progression card, its sentence and the race table went; the table's numbers are in the comparison's All numbers).
  * `wet` names the cities whose route profile reads the water under a bridge: no climb shows for them.
  */
-export default function RunnerContext({ races: selected, manifest, units, copyEditions = NO_COPIES, report, wet = NO_CITIES }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[]; report?: ReportData; wet?: readonly string[] }) {
+export default function RunnerContext({ races: selected, manifest, units, copyEditions = NO_COPIES, report, wet = NO_CITIES, years }: { races: RunnerRace[]; manifest: RunnerManifest; units: UnitSystem; copyEditions?: readonly CopyEdition[]; report?: ReportData; wet?: readonly string[]; years?: LinkedYears }) {
   const id = useId();
   // A copy edition repeats another year's field: it is no focus race, comparison, context row or split-check link.
   const races = useMemo(() => selected.filter(race => !isCopyEdition(manifest.editions[race.edition], copyEditions)), [selected, manifest, copyEditions]);
@@ -351,7 +352,7 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
       {/* Marked for section_viewed: the section tracker watches sections that join the page after it first looked. */}
       {reportOpen
         ? <div data-track-section="report"><button ref={backRef} type="button" className="btn btn-tertiary rc-report-back" onClick={() => setReportFor(null)}><Arrow dir="left" />Back to the analysis</button><Suspense fallback={<p className="rc-copy" role="status">Loading the race report…</p>}><RaceReport times={reportTimes} course={courseSlug(edition.city)} gender="all" data={report} level={3}
-          record={{ edition: { city: edition.city, year: edition.year, tier: TIERS[edition.tier] }, context: context && wetFocus ? { ...context, terrain: null } : context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} onward={splitHref ? runnerHandoffHref(splitHref) : null} /></Suspense></div>
+          record={{ edition: { city: edition.city, year: edition.year, tier: TIERS[edition.tier] }, year: linkedYearOf(years, edition.city, edition.year), context: context && wetFocus ? { ...context, terrain: null } : context ?? null, error: failure || null, lateChange: focus.metrics.lateChange }} focusOnOpen={reportPressed} onward={splitHref ? runnerHandoffHref(splitHref) : null} /></Suspense></div>
         : <button type="button" className="btn btn-secondary" onClick={() => { setReportPressed(true); setReportFor(focus.race.key); }}>Make a race report</button>}
     </section>}
   </section>;

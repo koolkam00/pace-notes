@@ -283,6 +283,35 @@ ok();
     record: { edition: { city: 'Lakeside', year: 2021 }, context: { ...sample, comparisons: { all: null } , weather: null, weather_reason: 'No verified weather.', terrain: null, terrain_reason: null }, error: null, lateChange: 1 } });
   assert.ok('unavailable' in small.record.placement && 'unavailable' in small.record.late && small.record.weather.unavailable === 'Not available for this edition.' && small.record.climb.unavailable === 'Not available for this edition.', 'small or missing groups say so, with no data-screen reason (method copy)');
   ok(20);
+
+  // One line of year context from the linked-records family (lib/linked-server.ts, under its own guard): the page's
+  // table holds exactly the editions the helper reads, with the helper's words; the card prints the selected edition's
+  // line only, and nothing for an edition without a verdict or for a typed report; the image never carries it.
+  const linked = require('../lib/linked-server.ts');
+  const { linkedYearOf, LINKED_VERDICT_CODES } = require('../lib/report-year.ts');
+  const page = fs.readFileSync(path.join(ROOT, 'app/runners/page.tsx'), 'utf8');
+  assert.match(page, /years=\{linkedYears\(\)\}/); assert.match(page, /linkedEditionReading\(label, year\)/);
+  const rows = [];
+  for (const [label, years] of Object.entries(linked.getLinkedEditions().data.races)) for (const year of Object.keys(years)) {
+    const reading = linked.linkedEditionReading(label, year);
+    if (reading) rows.push([label, Number(year), LINKED_VERDICT_CODES.indexOf(reading.verdict), reading.reviewed ? 1 : 0, reading.words, reading.href]);
+  }
+  assert.ok(rows.length > 0 && rows.length <= 443, `the table holds the editions with a verdict (${rows.length})`);
+  const table = { words: linked.LINKED_YEAR_WORDS, byName: linked.LINKED_BY_NAME, reviewHref: linked.LINKED_REVIEW_HREF,
+    hrefs: Object.fromEntries(rows.map(r => [r[0], r[5]])), rows: rows.map(r => r.slice(0, 4)) };
+  for (const r of rows) { const line = linkedYearOf(table, r[0], r[1]); assert.ok(line && line.words === r[4] && line.href === r[5] && line.reviewed === (r[3] === 1), `${r[0]} ${r[1]}`); }
+  const none = Object.entries(linked.getLinkedEditions().data.races).flatMap(([label, ys]) => Object.keys(ys).map(y => [label, Number(y)])).find(([l, y]) => !rows.some(r => r[0] === l && r[1] === y));
+  if (none) assert.equal(linkedYearOf(table, none[0], none[1]), null, 'an edition without a verdict prints nothing');
+  assert.equal(linkedYearOf(table, 'Lakeside', 2021), null, 'an edition the family does not read prints nothing');
+  const slow = rows.find(r => r[2] === 0 && !r[3]) ?? rows[0];
+  const yearCard = y => renderToStaticMarkup(React.createElement(ReportCard, { id: 'r', model: recorded, units: 'mi', level: 3, gender: 'all', dropped: null, retryComparison: () => {}, retryType: () => {}, handoff: true, year: y }));
+  const withYear = yearCard(linkedYearOf(table, slow[0], slow[1]));
+  assert.match(withYear, new RegExp(`<p class="race-report-meta race-report-year">Lakeside 2021 was <a [^>]*href="[^"]*${slow[5].replace(/[?]/g, '\\?')}&amp;via=runner"[^>]*>${slow[4]}</a> \\(records linked by name\\)\\.`), 'the line names the family\'s words and "records linked by name" once, its link keeping the handoff marker');
+  assert.doesNotMatch(yearCard(null) + html, /race-report-year|linked runners/, 'no verdict, no line');
+  const reviewed = rows.find(r => r[3] === 1);
+  if (reviewed) assert.match(yearCard(linkedYearOf(table, reviewed[0], reviewed[1])), /href="\/methodology#linked-reviews"[^>]*>Released after review</, 'a reviewed edition links its review');
+  assert.doesNotMatch(JSON.stringify(report.reportLines(recorded, 'mi')), /linked runners|linked by name/, 'the image never carries the year line');
+  ok(6);
 }
 assert.equal(report.REPORT_IMAGE_NAME, 'pace-notes-race-report.png'); ok();
 
