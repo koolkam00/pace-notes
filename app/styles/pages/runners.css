@@ -301,7 +301,7 @@ label.runner-race-row { cursor: pointer; }
 
 /* Under 300 px a race's name and its finish cannot share a line: "Rotterdam 2014" ran under "3:36:52" at 195 px
    (November 19, 2026). The finish takes its own line, under the name. */
-@media (max-width: 299px) {
+@media (max-width: 299.98px) {
   .runner-race-body { grid-template-columns: minmax(0, 1fr); }
   .runner-race-body > .runner-recorded-finish { grid-column: 1; grid-row: auto; text-align: left; }
 }
