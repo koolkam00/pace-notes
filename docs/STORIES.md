@@ -93,6 +93,22 @@ Added by pull request #85 (merged as `a2c6e507`, October 30, 2026). The story's 
 - **Checks.** `verify-nuggets` recounts every half nugget from the published files; `verify-half` checks the files, the flagship's guard battery and, with `--html`, the chip, "records linked by name", "Not a prediction.", the `data-half-link` rows on the export, and since round 4 the description, the guess's no-script answer and who holds pace's way in (with its subject, since the round 4 review) against their guards; S6 checks the page's section signals and that the guess writes no storage and sends no event.
 - **Limits.** Linked records are candidates, not verified people, and the pairs describe what went together, not why; the page never says records "ran". Sustained slowdown stays a marathon metric, measured on the marathon of each pair.
 
+## Over the years (November 19, 2026)
+
+Added on the adoption branch of `pace-notes-marathon-half-20261113-1113` (`claude/release-20261113-m5`; not merged, not deployed). Four stories read the linked-records family (`public/data/linked/`, contract [linked records](LINKED_RECORDS.md)) and open chapter 10, "Over the years", in part two after the weather; "Your race" and "The next one" became chapters 11 and 12.
+
+| Story (route) | File | Reading (nugget) | Beats |
+| --- | --- | --- | --- |
+| Fast years and slow years (`/stories/fast-and-slow-years`, the chapter's lead) | `editions.json`, `checks.json` | `years.beyond`: race-years more than 2% off the race's other years; H1 `years.title` | the race picker over every race with a readable year (default: the race with the most edition rows), `#heat` (`years.heat`, the race window's temperature bands), `#field` (`years.field`, the whole field's sustained-slowdown check, drawn for the default race) |
+| Race to race (`/stories/race-to-race`) | `races.json` | `races.faster`: races read faster; H1 `races.title` | `#races`: every race and series in label order with its interval, trail and mountain courses set apart, "Not a ranking, and not a time converter" |
+| Recorded bests (`/stories/recorded-bests`) | `bests.json`, `recorded_again.json` | `bests.second` (the guess's truth); H1 `bests.title` | the guess, `#later` (`bests.later`, by recorded marathon against order alone), `#again` (`again.finish`, recorded again by finish group) |
+| Getting older (`/stories/getting-older`) | `age.json`, `recorded_again.json` | `age.fifty`: the change per year at 50 to 54; H1 `age.title` | `#across` (`age.across`, recorded men against different men from 45), `#again` (`again.age`, recorded again by age) |
+
+- **Registry.** `source: 'linked'` in `lib/stories.ts`; `storyPublished` reads the linked manifest (`lib/linked-server.ts`, which binds every file by bytes and sha256 and the release tag). The marathon stories' methods topic and the downloads list only `insights` stories; the chapter's methods are `components/methods/MethodsLinked.tsx` (`#linked-records`, each `#story-<slug>`, `#linked-reviews`, `#linked-seen-again`, `#linked-high-links`).
+- **Seen again.** `/stories/final-kick#seen-again` (`again.slowdown`, `return.json`): finishes with a sustained slowdown against matched finishes without one, seen in another recorded marathon within two years.
+- **Fallbacks.** A year, race or row whose verdict is `null` states no reading: the year picker leaves it out (a "no reading" tick), the race and recorded-again rows show their interval and the words "No reading". Each nugget's fallback is a neutral count; `scripts/nuggets/linked.cjs` recounts every guard and verdict from the files and renders each fallback.
+- **The helper.** `linkedEditionReading(label, year, series?)` gives a course page or a race report the words of an edition's verdict, chip- or net-timed editions only.
+
 ## Reproduce
 
 ```bash

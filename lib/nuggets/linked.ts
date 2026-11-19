@@ -286,7 +286,7 @@ export function ageFiftyFrom(a: Pick<LinkedAge, 'bands'>): Nugget {
     headline: `Runners whose records are linked by name, aged 50 to 54 with three or more recorded marathons, who kept racing, ran the next one a typical *${pctOf(v)}* slower per year.`,
     fallback: band ? `${count(band.pairs)} pairs of recorded marathons at 50 to 54, for records linked by name.` : 'Pairs of recorded marathons by age, for records linked by name.',
     figure: guard ? { value: pctOf(v).replace('%', ''), unit: '%', sr: `${v.toFixed(1)} percent` } : band ? { value: count(band.pairs), sr: `${count(band.pairs)} pairs` } : null,
-    key: guard ? 'slower per year than the recorded marathon before, at 50 to 54, who kept racing' : 'pairs of recorded marathons at 50 to 54',
+    key: guard ? 'slower per year than the recorded marathon before, linked runners 50 to 54 who kept racing' : 'pairs of recorded marathons at 50 to 54',
   };
 }
 

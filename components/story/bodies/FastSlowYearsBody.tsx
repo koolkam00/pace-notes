@@ -4,6 +4,7 @@ import { getNugget } from '@/lib/nuggets';
 import { linkedFiles, signedPct, YEARS_PATH } from '@/lib/nuggets/linked';
 import { pct, temp } from '@/lib/nuggets/format';
 import { STORIES } from '@/lib/stories';
+import { inline, tierWords } from '@/lib/tiers';
 import type { UnitSystem } from '@/lib/units';
 import YearStrip, { type YearPoint } from '@/components/viz/YearStrip';
 import LineProfile from '@/components/viz/LineProfile';
@@ -64,7 +65,7 @@ export default function FastSlowYearsBody() {
           gaps="no reading" sideLabels={['Interval', 'Verdict']} height={150} heightMd={200}
           label={`${label}: each year with a reading, for linked runners, against the race’s other years. Plus is slower.`} />
         {reviewed.length ? (
-          <p className="linked-panel-note">{reviewed.map(({ year }) => year).join(', ')}: held for review, then released by a <Link href={REVIEW_HREF}>written review</Link>.</p>
+          <p className="linked-panel-note">{reviewed.map(({ year }) => year).join(', ')}: {inline(tierWords('held_for_review'))}, then released by a <Link href={REVIEW_HREF}>written review</Link>.</p>
         ) : null}
         {series.length > 1 ? <p className="linked-panel-note">Two races under one name, {series.join(' and ')}: each year is read against its own race’s other years.</p> : null}
       </div>
