@@ -339,7 +339,7 @@
 /* An edition's labels sit on one line in a table cell (the table scrolls sideways), so each linked label keeps its 44 px
    row clear of the next row's. */
 .course-table td.is-text { text-align: left; }
-.course-table td.is-text .tier-tags { flex-wrap: nowrap; white-space: nowrap; }
+.course-table td.is-text .tier-tags { flex-wrap: nowrap; width: max-content; }
 /* At the narrowest phone the sticky year column would sit over the first label of a row as the table scrolls, taking its
    44 px reach: the column scrolls with the table there. */
 @media (max-width: 299.98px) {
