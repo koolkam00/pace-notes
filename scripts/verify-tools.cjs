@@ -1588,39 +1588,45 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     // -> 4:15:53). Earlier goldens are in Git history.
     // 2026-11-04: master-20261103b's eligible marathons (set B 58,497 -> 58,597 pairs): 5,181 pairs from 147 editions,
     // the median unchanged; every golden below moved by a few pairs, one edition or a second.
+    // 2026-11-19: the half family rebuilt on pace-notes-marathon-half-20261113-1113 (set B on person links v5.1 and the
+    // identity file; 57,554 pairs): every half-to-full golden in this block re-read from the rows of
+    // public/data/half/tools/half-to-full.json by the integrator's own reader (scratchpad int-tools/htf-goldens.cjs,
+    // which reads groups[g].w[(h - from) / 60] with no project code); the sentences written by hand from those rows with
+    // the rounding the earlier goldens show (times floored to the minute, shares rounded to the percent). The 1:55 window:
+    // 5,024 pairs from 144 editions, median 4:16:01.
     const w155 = win(H(1, 55));
-    assert.ok(w155 && w155.h === H(1, 55) && w155.n === 5181 && w155.e === 147 && w155.q[9] === 15353, `1:55 all window: ${JSON.stringify(w155 && [w155.n, w155.e, w155.q[9]])}`); ok();
-    assert.deepEqual(marksOf(w155), { 14400: 0.2173325613, 15300: 0.4827253426, 16200: 0.7328701023 }, '1:55 marks'); ok();
-    assert.equal(w155.sus, 0.3333333333, '1:55 sustained slowdown'); ok();
+    assert.ok(w155 && w155.h === H(1, 55) && w155.n === 5024 && w155.e === 144 && w155.q[9] === 15361, `1:55 all window: ${JSON.stringify(w155 && [w155.n, w155.e, w155.q[9]])}`); ok();
+    assert.deepEqual(marksOf(w155), { 14400: 0.2123805732, 15300: 0.480294586, 16200: 0.7336783439 }, '1:55 marks'); ok();
+    assert.equal(w155.sus, 0.3330015924, '1:55 sustained slowdown'); ok();
     // The sentence's range is the 10th to 90th percentile, the span the strip brackets ("8 in 10"), as on the story and
     // the goal pages (round 2 review).
-    assert.equal(htf.linkedSentence(w155, Q), 'After a half near 1:55, the typical marathon 3 to 16 weeks later took *4:15*; 8 in 10 took 3:52 to 4:48.'); ok();
+    assert.equal(htf.linkedSentence(w155, Q), 'After a half near 1:55, the typical marathon 3 to 16 weeks later took *4:16*; 8 in 10 took 3:52 to 4:49.'); ok();
     assert.equal(htf.LINKED_LINE, 'Half and marathon records linked by name.'); ok();
     assert.equal(htf.slowdownSentence(w155), '33% of these marathons had a sustained slowdown.'); ok();
-    assert.deepEqual(htf.markLabels(w155), ['22% under 4:00', '48% under 4:15', '73% under 4:30']); ok();
+    assert.deepEqual(htf.markLabels(w155), ['21% under 4:00', '48% under 4:15', '73% under 4:30']); ok();
     // 2026-10-31 (v4 person IDs): the women's 1:55 window 694 pairs from 61 editions -> 1,964 from 122.
     const f155 = win(H(1, 55), 'F');
-    assert.ok(f155 && f155.n === 1965 && f155.e === 123 && f155.q[9] === 15182 && f155.sus === 0.1796437659, `1:55 women: ${JSON.stringify(f155 && [f155.n, f155.e, f155.q[9], f155.sus])}`); ok();
+    assert.ok(f155 && f155.n === 1946 && f155.e === 123 && f155.q[9] === 15178 && f155.sus === 0.1834532374, `1:55 women: ${JSON.stringify(f155 && [f155.n, f155.e, f155.q[9], f155.sus])}`); ok();
     // A recorded-sex chip names recorded sex in both sentences, so a shared sx=f or sx=m link never reads as all
     // marathons (round 4 review, October 30, 2026: "the typical marathon … took 3:49" with the women's chip pressed).
-    assert.equal(htf.linkedSentence(f155, Q, 'F'), 'After a half near 1:55, the typical recorded women’s marathon 3 to 16 weeks later took *4:13*; 8 in 10 took 3:53 to 4:41.'); ok();
+    assert.equal(htf.linkedSentence(f155, Q, 'F'), 'After a half near 1:55, the typical recorded women’s marathon 3 to 16 weeks later took *4:12*; 8 in 10 took 3:53 to 4:41.'); ok();
     assert.equal(htf.slowdownSentence(f155, 'F'), '18% of these recorded women’s marathons had a sustained slowdown.'); ok();
     const m155 = win(H(1, 55), 'M');
-    assert.equal(htf.linkedSentence(m155, Q, 'M'), 'After a half near 1:55, the typical recorded men’s marathon 3 to 16 weeks later took *4:18*; 8 in 10 took 3:50 to 4:52.'); ok();
+    assert.equal(htf.linkedSentence(m155, Q, 'M'), 'After a half near 1:55, the typical recorded men’s marathon 3 to 16 weeks later took *4:18*; 8 in 10 took 3:51 to 4:52.'); ok();
     assert.equal(htf.slowdownSentence(m155, 'M'), '43% of these recorded men’s marathons had a sustained slowdown.'); ok();
     assert.equal(htf.linkedSentence(win(H(1, 45), 'F'), Q, 'F'), 'After a half near 1:45, the typical recorded women’s marathon 3 to 16 weeks later took *3:50*; 8 in 10 took 3:34 to 4:12.'); ok();
     assert.equal(htf.slowdownSentence(win(H(1, 45), 'F'), 'F'), '14% of these recorded women’s marathons had a sustained slowdown.'); ok();
     assert.equal(htf.linkedSentence(w155, Q, 'all'), htf.linkedSentence(w155, Q), 'All keeps its wording'); ok();
-    assert.equal(win(H(1, 45)).q[9], 14064, '1:45 all median'); ok();
+    assert.equal(win(H(1, 45)).q[9], 14056, '1:45 all median'); ok();
     // The spec's example rows: pairs (editions), median, 8 in 10 (p10–p90), marks, sustained slowdown. 2026-10-31: every
     // row on half-dataset-20261030-1904 with the v4 person IDs (each window holds about 2 to 3 times the pairs it had).
     for (const [s, g, n, e, median, mid, marks, sus] of [
-      [H(1, 55), 'F', 1965, 123, '4:13', '3:53 to 4:41', ['22%', '55%', '80%'], '18%'],
-      [H(1, 55), 'M', 3216, 140, '4:18', '3:50 to 4:52', ['22%', '44%', '69%'], '43%'],
-      [H(1, 45), 'all', 6345, 150, '3:54', '3:34 to 4:23', ['26% under 3:45', '65% under 4:00', '84% under 4:15'], '28%'],
-      [H(1, 45), 'F', 1559, 126, '3:50', '3:34 to 4:12', ['6% under 3:30', '34% under 3:45', '76% under 4:00'], '14%'],
-      [H(1, 30), 'all', 4749, 144, '3:17', '3:04 to 3:39', ['6% under 3:00', '41% under 3:15', '81% under 3:30'], '19%'],
-      [H(2, 15), 'all', 1804, 129, '4:58', '4:17 to 5:35', ['29% under 4:45', '53% under 5:00', '73% under 5:15'], '39%'],
+      [H(1, 55), 'F', 1946, 123, '4:12', '3:53 to 4:41', ['22%', '55%', '81%'], '18%'],
+      [H(1, 55), 'M', 3078, 139, '4:18', '3:51 to 4:52', ['21%', '44%', '69%'], '43%'],
+      [H(1, 45), 'all', 6149, 146, '3:54', '3:35 to 4:22', ['26% under 3:45', '66% under 4:00', '85% under 4:15'], '27%'],
+      [H(1, 45), 'F', 1564, 126, '3:50', '3:34 to 4:12', ['6% under 3:30', '34% under 3:45', '76% under 4:00'], '14%'],
+      [H(1, 30), 'all', 4602, 142, '3:17', '3:03 to 3:39', ['6% under 3:00', '40% under 3:15', '81% under 3:30'], '19%'],
+      [H(2, 15), 'all', 1841, 128, '4:58', '4:18 to 5:35', ['28% under 4:45', '53% under 5:00', '72% under 5:15'], '39%'],
     ]) {
       const w = win(s, g);
       assert.ok(w && w.n === n && w.e === e, `${time.formatHM(s)} ${g}: ${w && w.n} (${w && w.e})`);
@@ -1634,16 +1640,19 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     // Windows, not bands: the typed half's nearest whole minute (1:57:29 reads 1:57; 1:52:30 reads 1:53).
     // 2026-10-31 (v4 person IDs): the 1:57 window 2,021 pairs -> 5,173, its median 4:20:31 -> 4:21:18.
     const w157 = win(H(1, 57, 29));
-    assert.ok(w157.h === H(1, 57) && w157.n === 5175 && Math.round(w157.q[9]) === H(4, 21, 18), `1:57:29: ${w157.h} ${w157.n} ${w157.q[9]}`); ok();
+    assert.ok(w157.h === H(1, 57) && w157.n === 5075 && Math.round(w157.q[9]) === H(4, 21, 27), `1:57:29: ${w157.h} ${w157.n} ${w157.q[9]}`); ok();
     assert.equal(win(H(1, 52, 30)).h, H(1, 53), '1:52:30 reads the 1:53 window'); ok();
     // Outside a group's published range: no window (2:55 falls back to the 20K panel; women's at 1:15 and men's at 2:45 are
     // too few). 2026-10-31 (v4 person IDs): the recorded women's range 1:26–2:40 -> 1:19–2:45 and the men's 1:10–2:29 ->
     // 1:10–2:44, so the examples moved from a women's 1:25 and a men's 2:35, which now have windows, to 1:15 and 2:45.
     assert.equal(win(H(2, 55)), null, '2:55: outside the all range'); ok();
     assert.equal(win(H(1, 15), 'F'), null, '1:15: no recorded women\'s window'); ok();
-    assert.equal(win(H(2, 45), 'M'), null, '2:45: no recorded men\'s window'); ok();
+    // 2026-11-19 (the half rebuilt on pace-notes-marathon-half-20261113-1113, as above): the recorded men's range is
+    // 1:10–2:45 (it was 1:10–2:44); the men's example moved from 2:45, which now has a window of 107 pairs in 50 editions,
+    // to 2:46, the first minute groups.M has no row for (read by int-tools/htf-goldens.cjs).
+    assert.equal(win(H(2, 46), 'M'), null, '2:46: no recorded men\'s window'); ok();
     assert.equal(htf.tooFewSentence(tool, 'F', H(1, 15)), 'Too few recorded women’s marathons after a half near 1:15 to show; recorded women’s halves from 1:19 to 2:45 have enough.'); ok();
-    assert.equal(htf.tooFewSentence(tool, 'M', H(2, 45)), 'Too few recorded men’s marathons after a half near 2:45 to show; recorded men’s halves from 1:10 to 2:44 have enough.'); ok();
+    assert.equal(htf.tooFewSentence(tool, 'M', H(2, 46)), 'Too few recorded men’s marathons after a half near 2:46 to show; recorded men’s halves from 1:10 to 2:45 have enough.'); ok();
     assert.equal(htf.tooFewSentence(tool, 'F'), 'Too few recorded women’s marathons after this half to show; recorded women’s halves from 1:19 to 2:45 have enough.'); ok();
     // A half outside the all range: the 20K panel shows, with the range the half reading covers.
     assert.equal(htf.outOfRangeSentence(tool.groups.all), 'Marathons after a half are shown for halves from 1:10 to 2:45.'); ok();
@@ -1661,14 +1670,17 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     // v4 person IDs; it was +30); round 4 review), and its pace gap from those minutes ÷ the marathon distance (+55 s/mi,
     // +34 s/km at 1:45).
     const b105 = linked.windows.all.find((w) => w.h === H(1, 45)), b165 = linked.windows.all.find((w) => w.h === H(2, 45));
-    assert.equal(htf.windowOverDouble(b105), 24); assert.equal(htf.windowOverDouble(b165), 27); checks += 2;
+    // 2026-11-19 (the half rebuilt on pace-notes-marathon-half-20261113-1113, as above): the 2:45 window's typical
+    // marathon is 5:59:02, printed 5:59, so +29 (it was 5:57, +27) and +66 s/mi (29 min over 26.219 mi); 1:45 unchanged
+    // (3:54:16, +24). Read by int-tools/htf-goldens.cjs.
+    assert.equal(htf.windowOverDouble(b105), 24); assert.equal(htf.windowOverDouble(b165), 29); checks += 2;
     for (const w of linked.windows.all) {
       const [hh, mm] = htf.floorHM(w.q[9]).split(':').map(Number);
       assert.equal(hh * 60 + mm - (2 * w.h) / 60, htf.windowOverDouble(w), `${htf.floorHM(w.h)}: typical as printed minus double the half`);
     }
     checks += 1;
     assert.equal(htf.paceGapText(htf.windowOverDouble(b105) * 60, 'mi'), '+55 s/mi'); assert.equal(htf.paceGapText(htf.windowOverDouble(b105) * 60, 'km'), '+34 s/km'); checks += 2;
-    assert.equal(htf.paceGapText(htf.windowOverDouble(b165) * 60, 'mi'), '+62 s/mi'); checks += 1;
+    assert.equal(htf.paceGapText(htf.windowOverDouble(b165) * 60, 'mi'), '+66 s/mi'); checks += 1;
     // The goal pages' "The half marathon before": every row of the spec's table, and forward-consistent with the
     // predictor (the window at H has a median under the goal, the window a minute slower does not).
     // The lead names the half and states no reading: the share under the goal it had led with ("After a 1:48 half
@@ -1680,12 +1692,15 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
     // on the 5:00 page, it read as a sex difference no guard holds (post-merge review, round 5, October 31, 2026).
     // 2026-10-31: half-dataset-20261030-1904 with the v4 person IDs. Every goal row holds 2 to 3 times the pairs, and
     // 5:00's half moves from 2:16 to 2:15.
+    // 2026-11-19 (the half rebuilt on pace-notes-marathon-half-20261113-1113, as above): every goal keeps its half (1:23,
+    // 1:35, 1:48, 2:01, 2:15); pairs, editions, medians and the 8 in 10 re-read from linked.json goals and the windows of
+    // tools/half-to-full.json by int-tools/htf-goals.cjs.
     const GOALS = {
-      10800: { H: '1:23', n: 3148, e: 138, q50: H(2, 59, 12), range: 'The typical one took 2:59; 8 in 10 took 2:49 to 3:18.' },
-      12600: { H: '1:35', n: 5456, e: 153, q50: H(3, 29, 42), range: 'The typical one took 3:29; 8 in 10 took 3:15 to 3:54.' },
-      14400: { H: '1:48', n: 5953, e: 150, q50: H(3, 59, 59), range: 'The typical one took 3:59; 8 in 10 took 3:42 to 4:29.' },
-      16200: { H: '2:01', n: 4051, e: 140, q50: H(4, 29, 21), range: 'The typical one took 4:29; 8 in 10 took 3:58 to 5:02.' },
-      18000: { H: '2:15', n: 1804, e: 129, q50: H(4, 58, 16), range: 'The typical one took 4:58; 8 in 10 took 4:17 to 5:35.' },
+      10800: { H: '1:23', n: 3098, e: 131, q50: H(2, 59, 15), range: 'The typical one took 2:59; 8 in 10 took 2:49 to 3:18.' },
+      12600: { H: '1:35', n: 5311, e: 151, q50: H(3, 29, 40), range: 'The typical one took 3:29; 8 in 10 took 3:15 to 3:53.' },
+      14400: { H: '1:48', n: 5724, e: 149, q50: H(3, 59, 55), range: 'The typical one took 3:59; 8 in 10 took 3:41 to 4:29.' },
+      16200: { H: '2:01', n: 3993, e: 142, q50: H(4, 29, 29), range: 'The typical one took 4:29; 8 in 10 took 3:59 to 5:02.' },
+      18000: { H: '2:15', n: 1841, e: 128, q50: H(4, 58, 32), range: 'The typical one took 4:58; 8 in 10 took 4:18 to 5:35.' },
     };
     assert.deepEqual(linked.goals.map((g) => g.goal_s), Object.keys(GOALS).map(Number), 'Five goal pages'); ok();
     for (const g of linked.goals) {
