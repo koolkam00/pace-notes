@@ -19,6 +19,11 @@ const change = (v: number) => `${v < 0 ? '−' : '+'}${Math.abs(v * 100).toFixed
  * finish bands half.paceBands may name, each only while its own guard holds; the histogram names the share faster only
  * with that guard and is quiet without it; the table lists the published finish bands and marks no row. Nothing renders
  * while the family is left out under a builder floor (no pacing.json in the manifest).
+ *
+ * Its table's fold carries no methods link of its own (November 19, 2026): a page has one way to its methods
+ * (docs/DESIGN_SYSTEM.md, verify-chapters rule 11, "never two anchors"), and /half's is the foot of its All numbers,
+ * /methodology#half-field, whose links row opens #half-pacing, this surface's method. The table stays on this root, apart
+ * from the page's fold, because its scope is "usable", not the page's "verified".
  */
 export default function HalfPacing() {
   const p = halfPacing();
@@ -36,7 +41,7 @@ export default function HalfPacing() {
       <Beat id="pace" track="chapter-5" label="Pacing" title={pace}
         dek={<>{said ? `${said} ` : null}<span className="reading-dek-tags"><ScopeTag /></span></>}>
         <ChangeHistogram hist={h} faster={faster.guard ? `${pct(o.faster)} faster` : null} label={label} />
-        <Values id="hf-pace" caption="Pace over the last 11.1 km against the first 10 km, by finish time" how="/methodology#half-pacing"
+        <Values id="hf-pace" caption="Pace over the last 11.1 km against the first 10 km, by finish time"
           columns={[{ key: 'b', label: 'Finish' }, { key: 'n', label: 'Results' }, { key: 'm', label: 'Typical change' }, { key: 'f', label: 'Faster' }, { key: 's', label: 'Over 10% slower' }]}
           rows={[['All', count(o.n), change(o.median), pct(o.faster, 1), pct(o.slower10, 1)],
             ...bands.map((b) => [paceBandLabel(b.lo_s, p.rules.band_s), count(b.n), change(b.median), pct(b.faster, 1), pct(b.slower10, 1)])]} />
