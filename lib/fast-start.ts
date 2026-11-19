@@ -19,7 +19,7 @@ export type FastStartSelection = { mode: FastStartMode; city: string; age: strin
 export type FastStartRow = Omit<FastStartSelection, 'band' | 'mode'> & { groups: FastStartGroup[] };
 export type FastStartEvidence = {
   schema_version: 1; release_tag: string; input_as_of: string; as_of: string;
-  runner_manifest_sha256: string; history_n: number; min_cell: number;
+  runner_manifest_sha256: string; cohort_manifest_sha256?: string; history_n: number; min_cell: number;
   cohort: { raw: number; eligible: number }; bands: FastStartBand[];
   rows: FastStartRow[];
   mode?: 'all-finishers'; analysis_n?: number;

@@ -6,18 +6,18 @@ Rank 2, `/analyses/starting-pace`, has two comparison modes: **All eligible fini
 
 The default **All eligible finishes** mode uses [all-finishers.json](../public/data/fast-start/all-finishers.json), produced by [build_fast_start_all.py](../analysis/build_fast_start_all.py). The optional **Earlier-best comparison** continues to use [evidence.json](../public/data/fast-start/evidence.json), produced by [build_fast_start.py](../analysis/build_fast_start.py). The new builder imports shared validation and aggregation helpers from the unchanged earlier builder. Its addition preserves the earlier evidence file byte for byte. Adding this mode regenerated neither the personalized engine's three-group opening/target-threshold output nor the 33 research packs, and relabeled neither.
 
-Both outputs derive their aggregates from the actual checkpoint times in the [published runner profiles](../public/data/runners/manifest.json), not from averages of existing charts, and change neither release pin, runner lookup, source-quality policy nor existing calculation scripts. The page's visible source copy follows the website convention of describing marathon/year and field coverage without internal export identifiers.
+Both outputs derive their aggregates from the actual checkpoint times of the [marathon cohort](../analysis/marathon-cohort/manifest.json)'s counted records (read through `analysis/cohort.py`; the published runner profiles until November 19, 2026), not from averages of existing charts, and change neither release pin, cohort, source-quality policy nor existing calculation scripts. The page's visible source copy follows the website convention of describing marathon/year and field coverage without internal export identifiers.
 
-Both builders verify every compressed runner shard (**7,885** under 1050; 7,881 under 1652; 7,766 under 0934) against the runner manifest's size and SHA-256, check all five source calculation hashes, and confirm raw/profile ID uniqueness and raw, eligible and profile counts. Each output binds the exact runner-manifest SHA-256, source release, source archive/manifest hashes, source-quality policy and the calculation hashes it uses. The 1050 runner manifest hashes to `cd2c99d7140d3f32700200901ab21e6d1d10b6b450254a0739382a59e6db028c` (1652: `1bf94ccdb5b90cfef2fbc53537f9d43b7d97ddc67cbaba3153dae1983a64dce0`; 0934: `41632a5249afed6421e0e30e428eecdca3130cac18927a109d79456b3ee1ebe6`).
+Both builders read the cohort through `cohort.verified_manifest` and `cohort.load` (each edition file's size and SHA-256 against the cohort manifest, the cohort's six script digests against the checkout), confirm record-ID uniqueness and the eligible count, and the earlier-best builder reconciles its benchmarked finishes with the cohort manifest's `linkage.recent_benchmark_finishes`. Each output names the cohort manifest's digest in `cohort_manifest_sha256` (and in the legacy `runner_manifest_sha256` and `runner_manifest_as_of`), the source release, the source archive/manifest hashes, the source-quality policy and the calculation hashes it uses. A runner is the cohort's runner key (analysis/build_identity.py); a record without a key has no history. The earlier-best file also stores `high_links`: the all-course reading (every age, gender and earlier time; each opening band) recounted with runners followed over high_elite and high links alone (adoption decision D38), for the table on /methodology.
 
 All eligible finishes contributes every eligible record once, including the finishes without a qualifying recent benchmark (3,459,835 under 1050; 3,279,526 under 1652; 2,961,899 under 0934). Earlier-best comparison remains restricted to the benchmarked finishes and exactly reconciles with the original linked-history calculation. Counts are race performances, not unique people. Neither mode admits incomplete, invalid or held records, guesses missing splits, or changes the existing eligibility policy.
 
 ## Current outputs
 
-Both committed files bind `master-20261103b` and the runner lookup rebuilt on November 5, 2026, when the marathon's cross-race key became the producer's `person_id` (`runner_manifest_sha256` `f1caea12…`, 7,886 shards; [refresh record](REFRESH_20261103b.md#marathon-identity-person_id-november-5-2026)).
-They cover 5,388,605 raw records, 4,222,246 eligible finishes and 3,631,904 candidate profiles; 986,580 finishes have the required earlier benchmark (`history_n`) and 3,235,666 do not (`eligible_without_prior_n`).
-`all-finishers.json` (`as_of` 2026-11-05T16:54:26Z) holds 305 filter combinations with 1,579 opening-group cells; `evidence.json` (`as_of` 2026-11-05T16:51:36Z) holds 742 earlier-best combinations with 3,562.
-Counted from the committed files on November 11, 2026.
+Both committed files bind `pace-notes-marathon-half-20261113-1113` and the marathon cohort (manifest `a812fa41…`), built on November 19, 2026 on the adoption branch (not deployed).
+They cover 7,820,442 raw records and 4,124,026 eligible finishes; 936,040 finishes have the required earlier benchmark (`history_n`) and 3,187,986 do not; on high links alone 597,827 have one.
+`all-finishers.json` (`as_of` 2026-11-19T16:39:38Z, 988,154 bytes) holds 345 filter combinations with 1,755 opening-group cells; `evidence.json` (`as_of` 2026-11-19T16:37:57Z, 1,585,014 bytes) holds 807 earlier-best combinations with 3,790.
+Counted from the files on November 19, 2026.
 The result tables for this release are not written out here: read a current value from the two files.
 The tables under 1050 follow.
 
@@ -139,8 +139,30 @@ Under 0934 the all-finisher build verified all source shards and reconciled **4,
 
 Under 1050 both verifiers passed on the local build of October 21, 2026 ([calculation log](evidence/2026-10-21/release-1050/calculation-log.txt)) and in CI ([above](#outputs-under-1050)).
 
-Refreshing the runner lookup requires regenerating **both** outputs against the exact new manifest, even if the source tag stays the same. A benchmark/count/hash mismatch blocks publication; do not relax it to accept unexplained differences. Existing research packs and the archive's opening engine keep their own contracts. Record new calculation results, PR, deployment and live-payload verification separately before claiming the expanded page is live.
+Rebuilding the marathon cohort requires regenerating **both** outputs against the exact new cohort manifest, even if the source tag stays the same (the runner lookup until November 19, 2026). A benchmark/count/hash mismatch blocks publication; do not relax it to accept unexplained differences. Existing research packs and the archive's opening engine keep their own contracts. Record new calculation results, PR, deployment and live-payload verification separately before claiming the expanded page is live.
 
 ## History (earlier releases)
 
 <a id="1652-results-october-16-2026"></a>Moved whole on November 11, 2026 to [docs/history](history/fast-start-history-2026-11-11.md), word for word as `main` held it at `de9f8c6f` (lines 137–194): the 1652 opening and source paragraphs and the 0934 and 1652 result tables of both modes. Counts there belong to the release they name.
+
+### Superseded on November 19, 2026 (fast start on the marathon cohort)
+
+Moved word for word on November 19, 2026, when these families moved from the runner lookup to the marathon cohort (`analysis/marathon-cohort`). Counts belong to the release they name.
+
+Both outputs derive their aggregates from the actual checkpoint times in the [published runner profiles](../public/data/runners/manifest.json), not from averages of existing charts, and change neither release pin, runner lookup, source-quality policy nor existing calculation scripts. The page's visible source copy follows the website convention of describing marathon/year and field coverage without internal export identifiers.
+
+Both builders verify every compressed runner shard (**7,885** under 1050; 7,881 under 1652; 7,766 under 0934) against the runner manifest's size and SHA-256, check all five source calculation hashes, and confirm raw/profile ID uniqueness and raw, eligible and profile counts. Each output binds the exact runner-manifest SHA-256, source release, source archive/manifest hashes, source-quality policy and the calculation hashes it uses. The 1050 runner manifest hashes to `cd2c99d7140d3f32700200901ab21e6d1d10b6b450254a0739382a59e6db028c` (1652: `1bf94ccdb5b90cfef2fbc53537f9d43b7d97ddc67cbaba3153dae1983a64dce0`; 0934: `41632a5249afed6421e0e30e428eecdca3130cac18927a109d79456b3ee1ebe6`).
+
+Both committed files bind `master-20261103b` and the runner lookup rebuilt on November 5, 2026, when the marathon's cross-race key became the producer's `person_id` (`runner_manifest_sha256` `f1caea12…`, 7,886 shards; [refresh record](REFRESH_20261103b.md#marathon-identity-person_id-november-5-2026)).
+
+They cover 5,388,605 raw records, 4,222,246 eligible finishes and 3,631,904 candidate profiles; 986,580 finishes have the required earlier benchmark (`history_n`) and 3,235,666 do not (`eligible_without_prior_n`).
+
+`all-finishers.json` (`as_of` 2026-11-05T16:54:26Z) holds 305 filter combinations with 1,579 opening-group cells; `evidence.json` (`as_of` 2026-11-05T16:51:36Z) holds 742 earlier-best combinations with 3,562.
+
+Counted from the committed files on November 11, 2026.
+
+### Superseded on November 19, 2026 (the refresh rule)
+
+Moved word for word on November 19, 2026.
+
+Refreshing the runner lookup requires regenerating **both** outputs against the exact new manifest, even if the source tag stays the same. A benchmark/count/hash mismatch blocks publication; do not relax it to accept unexplained differences. Existing research packs and the archive's opening engine keep their own contracts. Record new calculation results, PR, deployment and live-payload verification separately before claiming the expanded page is live.

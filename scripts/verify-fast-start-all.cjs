@@ -98,15 +98,19 @@ for (const times of [evenTimes, lateCollapse, fastTimes, changedFinish]) {
 near(measurements(lateCollapse).finish, 12.195 * 150, 'A slower later section increases the observed finish-reference difference');
 
 const release = read(path.join(root, 'analysis/release.json'));
-const manifestPath = path.join(dataRoot, 'runners/manifest.json');
-const manifest = read(manifestPath), evidence = read(evidencePath);
-assert.equal(manifest.release_tag, release.tag, 'Adopted runner source');
+// The marathon cohort (scripts/lib/cohort.cjs, checked against the pin and the checkout's scripts) since November 19,
+// 2026; the runner shards before.
+const cohort = require('./lib/cohort.cjs');
+const { manifest, sha256: cohortSha } = cohort.verifiedManifest(release);
+const evidence = read(evidencePath);
+assert.equal(manifest.release_tag, release.tag, 'Adopted cohort');
 assert.equal(evidence.schema_version, 1);
 assert.equal(evidence.mode, 'all-finishers');
 assert.equal(evidence.release_tag, release.tag);
 assert.equal(evidence.input_as_of, manifest.input_as_of);
 assert.ok(Number.isFinite(Date.parse(evidence.as_of)), 'Calculation timestamp');
-assert.equal(evidence.runner_manifest_sha256, hash(fs.readFileSync(manifestPath)), 'Exact runner source binding');
+assert.equal(evidence.runner_manifest_sha256, cohortSha, 'Exact cohort binding (the field keeps its name)');
+assert.equal(evidence.cohort_manifest_sha256, cohortSha, 'Exact cohort binding');
 assert.equal(evidence.runner_manifest_as_of, manifest.as_of);
 assert.deepEqual(evidence.cohort, manifest.cohort);
 assert.equal(evidence.analysis_n, manifest.eligible_records, 'No previous-race requirement');
@@ -131,14 +135,14 @@ assert.deepEqual(evidence.bands.map(({ id, lower, upper, lower_inclusive, upper_
 ]);
 assert.ok(evidence.bands.every(band => typeof band.label === 'string' && band.label.length));
 assert.deepEqual(Object.keys(evidence.scripts).sort(), ['build_fast_start.py', 'build_fast_start_all.py']);
-for (const [file, sha] of Object.entries({ ...evidence.scripts, ...manifest.scripts })) {
+for (const [file, sha] of Object.entries(evidence.scripts)) {
   assert.equal(sha, hash(fs.readFileSync(path.join(root, 'analysis', file))), `Stale calculation: ${file}`);
 }
 for (const key of ['input_asset_sha256', 'input_manifest_sha256', 'source_quality', 'linkage']) {
   assert.deepEqual(evidence[key], manifest[key], `Source contract: ${key}`);
 }
 
-const cities = new Set(manifest.editions.map(row => row.city));
+const cities = new Set(manifest.editions.filter(row => row.use === 'counted').map(row => row.city));
 assert.deepEqual(evidence.cities, ['All courses', ...[...cities].sort()]);
 const rows = new Map(), published = new Map();
 assert.ok(Array.isArray(evidence.rows) && evidence.rows.length > 0);
@@ -214,31 +218,18 @@ for (const key of numericRows) for (const group of rows.get(key).groups) {
 }
 assert.ok(storedObservations <= evidence.analysis_n + 300000, 'Bounded independent numeric storage');
 const cells = new Map();
-let rawCount = 0, eligibleCount = 0, profileCount = 0;
-const rawIds = new Float64Array(manifest.raw_records), profileIds = new Float64Array(manifest.profiles);
-const forbidden = new Set(manifest.source_quality.editions.map(row => JSON.stringify([row.city, row.year])));
-const sourceFiles = Object.keys(manifest.shards).sort();
-assert.ok(sourceFiles.some(file => file.startsWith('profiles/')));
-for (const file of sourceFiles) {
-  assert.match(file, /^(profiles|index)\/[a-f0-9]{3}\.json\.gz$/);
-  const bytes = fs.readFileSync(path.join(dataRoot, 'runners', file));
-  assert.equal(bytes.length, manifest.shards[file].bytes, `${file}: compressed bytes`);
-  assert.equal(hash(bytes), manifest.shards[file].sha256, `${file}: source checksum`);
-  if (!file.startsWith('profiles/')) continue;
-  const shard = JSON.parse(zlib.gunzipSync(bytes));
-  assert.equal(shard.release_tag, release.tag);
-  for (const profile of shard.profiles) {
-    assert.ok(profileCount < profileIds.length && integer(profile.id, 1), 'Valid profile ID and declared count');
-    profileIds[profileCount++] = profile.id;
-    for (const race of profile.races) {
-      assert.ok(rawCount < rawIds.length && integer(race.id, 1), 'Valid record ID and declared count');
-      rawIds[rawCount++] = race.id;
-      assert.ok(integer(race.edition) && race.edition < manifest.editions.length, 'Valid edition mapping');
-      assert.equal(typeof race.eligible, 'boolean', 'Explicit source eligibility');
-      if (!race.eligible) continue;
+let eligibleCount = 0;
+const rawIds = new Float64Array(manifest.eligible_records);
+cohort.forEachEdition((record, entry, index) => {
+  if (entry.use !== 'counted') return;
+  for (let k = 0; k < record.ids.length; k++) {
+    const race = { id: record.ids[k], edition: index, times: record.times[k], age: record.age[k], sex: record.sex[k] };
+    assert.ok(eligibleCount < rawIds.length && integer(race.id, 1), 'Valid record ID and declared count');
+    rawIds[eligibleCount] = race.id;
+    {
       eligibleCount++;
       const edition = manifest.editions[race.edition];
-      assert.ok(edition && !forbidden.has(JSON.stringify([edition.city, edition.year])), 'Held editions cannot contribute');
+      assert.ok(edition && edition.use === 'counted', 'Only counted editions contribute');
       assert.equal(race.times.length, 9);
       assert.ok(race.times.every(finite) && race.times[8] >= 5400 && race.times[8] <= 43200);
       for (let i = 0; i < 9; i++) {
@@ -280,12 +271,10 @@ for (const file of sourceFiles) {
       }
     }
   }
-}
-assert.equal(rawCount, manifest.raw_records, 'Complete source traversal');
-assert.equal(profileCount, manifest.profiles, 'Every candidate profile');
+});
 assert.equal(eligibleCount, manifest.eligible_records, 'Full timing/source-quality cohort');
 assert.equal(eligibleCount, evidence.analysis_n, 'Previous results do not restrict the calculation');
-for (const [label, ids] of [['record', rawIds], ['profile', profileIds]]) {
+for (const [label, ids] of [['record', rawIds]]) {
   ids.sort();
   for (let i = 1; i < ids.length; i++) assert.notEqual(ids[i], ids[i - 1], `Unique ${label} IDs`);
 }
@@ -326,4 +315,4 @@ for (const [id, actual] of cells) {
 }
 assert.equal(checked, published.size, 'No invented aggregate cells');
 assert.equal(numericChecked, numeric.size, 'Every selected numeric group checked');
-console.log(`Verified within-race fast starts: ${eligibleCount.toLocaleString('en-US')} eligible finishes without a history requirement; ${sourceFiles.length.toLocaleString('en-US')} source shard checksums; ${checked.toLocaleString('en-US')} cells independently checked for counts and slowdown onset; ${numericChecked} full numeric groups across ${numericRows.size} exact filters, including the entire cohort.`);
+console.log(`Verified within-race fast starts: ${eligibleCount.toLocaleString('en-US')} eligible finishes without a history requirement; ${manifest.editions.filter(row => row.use === 'counted').length} cohort edition files; ${checked.toLocaleString('en-US')} cells independently checked for counts and slowdown onset; ${numericChecked} full numeric groups across ${numericRows.size} exact filters, including the entire cohort.`);

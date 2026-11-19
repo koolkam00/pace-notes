@@ -71,9 +71,11 @@ Every `analysis/*.py`, read from the code on October 30, 2026. "Writes" is the d
 | `import_packs.py` | Replaces the 33 packs in `public/data/packs/` (`--check-only` validates only) | Its own contract checks; then `verify:data` | this file |
 | `import_personalized.py` | Replaces `public/data/packs/ext_personalized_guide/` | Its own checks; `verify-personalized` | this file |
 | `build_weather.py` | `weather/evidence.json` (three fixed candidates, edition aggregates) | `verify-weather` | [weather](../docs/WEATHER_ANALYSES.md) |
-| `build_public_explorer.py` | `study/evidence.json` and `runners/` (manifest and gzip shards) | `verify-public-explorer`, `verify-runner-search` | [runner search](../docs/RUNNERS_AND_REPORT.md), [data architecture](../docs/DATA_ARCHITECTURE.md#supporting-study-and-name-search-contract) |
+| `build_study.py` | `study/evidence.json` (the supporting study, on the adapted input; it must reproduce the cohort) | `verify-study` | [data architecture](../docs/DATA_ARCHITECTURE.md#supporting-study-and-name-search-contract) |
+| `import_study.py` | Replaces `public/data/study`; the only writer of `public/data/live.json` (decision D26) | Runs `verify-study` before replacing | [data architecture](../docs/DATA_ARCHITECTURE.md#supporting-study-and-name-search-contract) |
+| `build_public_explorer.py` | `study/evidence.json` and `runners/`; not run since November 19, 2026: the study is `build_study.py`'s, the lookup the lookup agents' | `verify-public-explorer`, `verify-runner-search` | [runner search](../docs/RUNNERS_AND_REPORT.md) |
 | `build_runner_lookup.py` | The `runners/index/` and `runners/profiles/` shards, called by `build_public_explorer.py` | `verify-public-explorer` | [runner search](../docs/RUNNERS_AND_REPORT.md) |
-| `import_public_explorer.py` | Replaces `public/data/study` and `public/data/runners`; writes `public/data/live.json` | Runs `verify-public-explorer` before replacing | [runner search](../docs/RUNNERS_AND_REPORT.md) |
+| `import_public_explorer.py` | Replaces `public/data/study` and `public/data/runners`; wrote `public/data/live.json` until November 19, 2026 (not run since) | Runs `verify-public-explorer` before replacing | [runner search](../docs/RUNNERS_AND_REPORT.md) |
 | `build_runner_context.py` | `runner-context/manifest.json` and one file per edition the cohort counts that has a peer group, a weather row or a route profile (one shard per raw edition until November 14, 2026) | `verify-runner-context` (and `-client`, `-ui`) | [runner context](../docs/RUNNER_CONTEXT_AND_PEERS.md) |
 | `runner_peers.py`, `runner_environment.py` | Nothing; the peer groups, and the weather and terrain context, for `build_runner_context.py` | `test_runner_peers.py`, `test_runner_environment.py`; `verify-runner-context` | [runner context](../docs/RUNNER_CONTEXT_AND_PEERS.md) |
 | `import_runner_context.py` | Replaces `public/data/runner-context` | Runs `verify-runner-context` before replacing | [runner context](../docs/RUNNER_CONTEXT_AND_PEERS.md) |
@@ -195,7 +197,7 @@ The original sustained-slowdown definition remains unchanged: at least 25% slowi
 
 ## All-finisher environmental and course comparisons
 
-`build_all_finisher_context.py` adds history-independent comparisons from the verified runner and runner-context shards, binding both exact manifests and the pin, and preserves every older builder output. Rebuild it after either manifest changes, including same-tag refreshes. `node scripts/verify-all-finisher-context.cjs` recounts it from the source shards; the full website check also validates its clients and routes. Definitions, source contracts and evidence are in [all-finisher analyses](../docs/ALL_FINISHER_ANALYSES.md); the commands in [operations](../docs/OPERATIONS.md#all-finisher-context-refresh).
+`build_all_finisher_context.py` adds history-independent comparisons from the marathon cohort (the verified runner shards until November 19, 2026) and the runner-context files bound to it, binding the cohort and context manifests and the pin, and preserves every older builder output. Rebuild it after either changes. `node scripts/verify-all-finisher-context.cjs` recounts it from the cohort; the full website check also validates its clients and routes. Definitions, source contracts and evidence are in [all-finisher analyses](../docs/ALL_FINISHER_ANALYSES.md); the commands in [operations](../docs/OPERATIONS.md#all-finisher-context-refresh).
 
 ## Half marathons (public source, pages show aggregates)
 
@@ -245,3 +247,15 @@ Peer groups are exact city/year/race, with All, recorded Men/Women, exact-age ba
 Weather joins one valid city/year row to the matching race name and verifies five exact archive hours, units and provenance. Missing/invalid fields remain absent with reasons. Terrain requires one matching supplied course and nine consistent sections; it keeps independent gain/loss/net sums, separate whole-profile totals/distances and unknown historical validity. The 1050 context covers all 298 weather editions (Chicago 2025 through the reviewed early hour in `build_weather.py` `ACCEPTED_EARLY_HOURS`, October 22, 2026) and 281 terrain editions (0934: 249 and 254). It does not fit a new weather model, infer personal exposure or adjust finish times.
 
 Build it after importing the runner lookup, into a fresh output directory, then check and import it ([commands](../docs/OPERATIONS.md#runner-context-refresh)). The importer requires Node on PATH and runs the full independent verifier before replacing only `public/data/runner-context`. `--output` optionally selects its parent directory and defaults to `public/data`; it does not redirect the verifier's reference runner dataset. Refreshing the lookup requires a context rebuild even at the same tag because the runner-manifest hash/timestamp is part of the contract. The **Runner context and peers** workflow uploads `runner-context` without importing or deploying. Full `npm run verify:data` includes every CDF recount, 16 independent pacing-quartile samples, client tests and UI checks; finish with `npm run build` and separate production verification.
+
+## History
+
+### Superseded on November 19, 2026 (study split, all-finisher views on the cohort)
+
+Moved word for word.
+
+| `build_public_explorer.py` | `study/evidence.json` and `runners/` (manifest and gzip shards) | `verify-public-explorer`, `verify-runner-search` | [runner search](../docs/RUNNERS_AND_REPORT.md), [data architecture](../docs/DATA_ARCHITECTURE.md#supporting-study-and-name-search-contract) |
+
+| `import_public_explorer.py` | Replaces `public/data/study` and `public/data/runners`; writes `public/data/live.json` | Runs `verify-public-explorer` before replacing | [runner search](../docs/RUNNERS_AND_REPORT.md) |
+
+`build_all_finisher_context.py` adds history-independent comparisons from the verified runner and runner-context shards, binding both exact manifests and the pin, and preserves every older builder output. Rebuild it after either manifest changes, including same-tag refreshes. `node scripts/verify-all-finisher-context.cjs` recounts it from the source shards; the full website check also validates its clients and routes. Definitions, source contracts and evidence are in [all-finisher analyses](../docs/ALL_FINISHER_ANALYSES.md); the commands in [operations](../docs/OPERATIONS.md#all-finisher-context-refresh).

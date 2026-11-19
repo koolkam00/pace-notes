@@ -1,4 +1,5 @@
-// Recompute from published runner records, independently of the Python builder.
+// Recompute from the marathon cohort's counted records (scripts/lib/cohort.cjs; the published runner records until
+// November 19, 2026), independently of the Python builder.
 // Every published cell is checked for counts and slowdown onset. Numeric
 // summaries are recomputed for the entire unfiltered cohort and varied filters.
 const fs = require('node:fs');
@@ -94,15 +95,17 @@ assert.equal(earlierBest([past(0, 6000), past(1, 12000), past(2, 11000), past(2,
   'Benchmarks exclude held races, same-year races, future races and races more than two years earlier');
 
 const release = read(path.join(root, 'analysis/release.json'));
-const manifestPath = path.join(dataRoot, 'runners/manifest.json');
-const manifest = read(manifestPath);
+const cohort = require('./lib/cohort.cjs');
+// The cohort manifest, checked against the pin and the checkout's scripts (its scripts are the cohort's builders).
+const { manifest, sha256: cohortSha } = cohort.verifiedManifest(release);
 const evidence = read(evidencePath);
-assert.equal(manifest.release_tag, release.tag, 'Runner source must use the adopted release');
+assert.equal(manifest.release_tag, release.tag, 'The cohort must use the adopted release');
 assert.equal(evidence.schema_version, 1);
 assert.equal(evidence.release_tag, release.tag);
 assert.equal(evidence.input_as_of, manifest.input_as_of);
 assert.ok(Number.isFinite(Date.parse(evidence.as_of)), 'Calculation timestamp required');
-assert.equal(evidence.runner_manifest_sha256, hash(fs.readFileSync(manifestPath)), 'Exact runner source binding');
+assert.equal(evidence.runner_manifest_sha256, cohortSha, 'Exact cohort binding (the field keeps its name)');
+assert.equal(evidence.cohort_manifest_sha256, cohortSha, 'Exact cohort binding');
 assert.equal(evidence.runner_manifest_as_of, manifest.as_of);
 assert.deepEqual(evidence.cohort, manifest.cohort);
 assert.equal(evidence.history_n, manifest.linkage.recent_benchmark_finishes, 'Use the full independently screened recent-history cohort');
@@ -128,14 +131,11 @@ assert.deepEqual(Object.keys(evidence.scripts), ['build_fast_start.py']);
 for (const [file, sha] of Object.entries(evidence.scripts)) {
   assert.equal(sha, hash(fs.readFileSync(path.join(root, 'analysis', file))), `Stale calculation: ${file}`);
 }
-for (const [file, sha] of Object.entries(manifest.scripts)) {
-  assert.equal(sha, hash(fs.readFileSync(path.join(root, 'analysis', file))), `Stale runner source: ${file}`);
-}
 for (const key of ['input_asset_sha256', 'input_manifest_sha256', 'source_quality', 'linkage']) {
   assert.deepEqual(evidence[key], manifest[key], `Source contract: ${key}`);
 }
 
-const cities = new Set(manifest.editions.map(row => row.city));
+const cities = new Set(manifest.editions.filter(row => row.use === 'counted').map(row => row.city));
 assert.deepEqual(evidence.cities, ['All courses', ...[...cities].sort()]);
 const rows = new Map(), published = new Map();
 assert.ok(Array.isArray(evidence.rows) && evidence.rows.length > 0);
@@ -194,25 +194,44 @@ for (const accept of [
   if (candidates.length) numericRows.add(rowKey(candidates[0]));
 }
 const cells = new Map();
-let rawCount = 0, eligibleCount = 0, profileCount = 0, historyCount = 0;
-const forbidden = new Set(manifest.source_quality.editions.map(row => JSON.stringify([row.city, row.year])));
-const sourceFiles = Object.keys(manifest.shards).filter(file => file.startsWith('profiles/')).sort();
-assert.ok(sourceFiles.length > 0);
-for (const file of sourceFiles) {
-  assert.match(file, /^profiles\/[a-f0-9]{3}\.json\.gz$/);
-  const bytes = fs.readFileSync(path.join(dataRoot, 'runners', file));
-  assert.equal(bytes.length, manifest.shards[file].bytes, `${file}: compressed bytes`);
-  assert.equal(hash(bytes), manifest.shards[file].sha256, `${file}: verified source checksum`);
-  const shard = JSON.parse(zlib.gunzipSync(bytes));
-  assert.equal(shard.release_tag, release.tag);
-  for (const profile of shard.profiles) {
-    profileCount++;
-    rawCount += profile.races.length;
-    const eligible = profile.races.filter(race => race.eligible);
-    eligibleCount += eligible.length;
+let eligibleCount = 0, historyCount = 0;
+// Every counted record, grouped by runner (a record without a runner key is its own runner and has no history).
+// `high` keeps the records whose link is of tier high_elite or high, for the high-links-only variant (decision D38).
+const byRunner = new Map(), byHighRunner = new Map();
+cohort.forEachEdition((edition, entry, index) => {
+  if (entry.use !== 'counted') return;
+  for (let k = 0; k < edition.ids.length; k++) {
+    eligibleCount++;
+    if (!edition.runner[k]) continue;
+    const race = { id: edition.ids[k], edition: index, eligible: true, times: edition.times[k], age: edition.age[k], sex: edition.sex[k] };
+    if (!byRunner.has(edition.runner[k])) byRunner.set(edition.runner[k], []);
+    byRunner.get(edition.runner[k]).push(race);
+    if (edition.link[k] === 'h') {
+      if (!byHighRunner.has(edition.runner[k])) byHighRunner.set(edition.runner[k], []);
+      byHighRunner.get(edition.runner[k]).push(race);
+    }
+  }
+});
+const highCells = new Map();
+let highCount = 0;
+for (const eligible of byHighRunner.values()) {
+  for (const race of eligible) {
+    const best = earlierBest(eligible, race, manifest.editions);
+    if (!Number.isFinite(best)) continue;
+    highCount++;
+    const band = openingBand(race.times[1], best), times = race.times;
+    const cell = highCells.get(band) || { n: 0, finish: [], editions: new Set(), slowdown: 0 };
+    const finish = times[8] - best;
+    cell.n++; cell.finish.push(finish); cell.editions.add(race.edition); if (slowdownOnset(times) !== null) cell.slowdown++;
+    highCells.set(band, cell);
+  }
+}
+byHighRunner.clear();
+for (const eligible of byRunner.values()) {
+  {
     for (const race of eligible) {
       const edition = manifest.editions[race.edition];
-      assert.ok(edition && !forbidden.has(JSON.stringify([edition.city, edition.year])), 'A held edition cannot contribute outcomes or benchmarks');
+      assert.ok(edition && edition.use === 'counted', 'Only a counted edition contributes outcomes or benchmarks');
       assert.equal(race.times.length, 9);
       assert.ok(race.times.every(finite) && race.times[8] >= 5400 && race.times[8] <= 43200);
       for (let i = 0; i < 9; i++) {
@@ -264,8 +283,6 @@ for (const file of sourceFiles) {
     }
   }
 }
-assert.equal(rawCount, manifest.raw_records, 'Traverse the complete runner source');
-assert.equal(profileCount, manifest.profiles, 'Traverse every candidate profile');
 assert.equal(eligibleCount, manifest.eligible_records, 'Retain the full timing/source-quality cohort');
 assert.equal(historyCount, evidence.history_n, 'Independent two-earlier-year benchmark count');
 let checked = 0, numericChecked = 0;
@@ -301,4 +318,22 @@ for (const [id, actual] of cells) {
   }
 }
 assert.equal(checked, published.size, 'No invented aggregate cells');
-console.log(`Verified fast-start evidence: ${historyCount.toLocaleString('en-US')} earlier-benchmarked finishes; ${checked.toLocaleString('en-US')} cells independently checked for counts and slowdown onset; ${numericChecked} full numeric groups across ${numericRows.size} filter combinations, including the entire cohort.`);
+// The high-links-only variant of the reading a page prints (adoption decision D38): every band's count, edition count,
+// slowdown count and median finish difference recounted over runners followed on high_elite and high links alone.
+{
+  const variant = evidence.high_links;
+  assert.ok(variant && variant.history_n === highCount, 'The high-links-only history count is recounted');
+  assert.equal(highCount, manifest.linkage.high_links.recent_benchmark_finishes, 'The cohort states the same high-links history count');
+  assert.deepEqual([variant.row.city, variant.row.age, variant.row.gender, variant.row.prior], ['All courses', 'all', 'all', 'all']);
+  const expected = bandIds.filter(band => (highCells.get(band)?.n ?? 0) >= evidence.min_cell);
+  assert.deepEqual(variant.row.groups.map(group => group.band), expected, 'High-links bands at or above the floor');
+  for (const group of variant.row.groups) {
+    const cell = highCells.get(group.band);
+    assert.equal(group.n, cell.n, `high links ${group.band}: count`);
+    assert.equal(group.editions, cell.editions.size, `high links ${group.band}: editions`);
+    assert.equal(group.slowdown_n, cell.slowdown, `high links ${group.band}: slowdown count`);
+    cell.finish.sort((x, y) => x - y);
+    near(group.finish_delta_median_s, quantile(cell.finish, .5), `high links ${group.band}: median finish difference`);
+  }
+}
+console.log(`Verified fast-start evidence: ${historyCount.toLocaleString('en-US')} earlier-benchmarked finishes; ${highCount.toLocaleString('en-US')} on high links alone; ${checked.toLocaleString('en-US')} cells independently checked for counts and slowdown onset; ${numericChecked} full numeric groups across ${numericRows.size} filter combinations, including the entire cohort.`);
