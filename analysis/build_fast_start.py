@@ -1,4 +1,5 @@
-"""Describe opening pace, finish change and later slowing from verified runner shards.
+"""Describe opening pace, finish change and later slowing from the marathon cohort (verified runner shards until
+November 19, 2026).
 
 This additive, read-only calculation uses the published screened identity
 candidates. It reconstructs the same strictly-earlier-year benchmark as the
@@ -34,8 +35,6 @@ BANDS = [
     dict(id='slow2', label='2–5% slower', lower=2, upper=5, lower_inclusive=False, upper_inclusive=True),
     dict(id='slow5', label='More than 5% slower', lower=5, upper=None, lower_inclusive=False, upper_inclusive=False),
 ]
-SOURCE_SCRIPTS = {'build_public_explorer.py', 'build_runner_lookup.py',
-                  'build_pacing.py', 'build_extended.py', 'source_quality.py'}
 
 # Numeric observation columns; exact integer group codes remain representable.
 CITY, AGE, GENDER, PRIOR, EDITION, BAND, FINISH, OPENING, REMAINDER, ONSET, LATE = range(11)
@@ -172,70 +171,62 @@ def observation(race, recent_best, city):
             *[100*(pace/(recent_best/42.195)-1) for pace in paces]]
 
 
-def verified_manifest(runner_root, pin, script_root):
-    manifest_bytes = (runner_root/'manifest.json').read_bytes()
-    manifest = json.loads(manifest_bytes)
-    require(manifest['release_tag'] == pin['tag'], 'Runner release does not match adopted pin')
+def verified_manifest(cohort_root, pin, script_root):
+    """The marathon cohort's manifest and digest (analysis/cohort.py; since November 19, 2026, the runner shards before):
+    the adopted release's, written by the checkout's scripts, its counts consistent."""
+    import cohort as marathon_cohort
+    manifest, manifest_hash = marathon_cohort.verified_manifest(cohort_root, pin, script_root)
     require(manifest['points_km'] == POINTS, 'Unexpected checkpoint mapping')
-    require(manifest['linkage']['canonical_id_contract_verified'] is True
-            and manifest['linkage']['record_join_method'] == 'canonical_record_id',
+    require(manifest['linkage']['record_join_method'] == 'canonical_record_id',
             'This calculation requires the audited canonical identity contract')
-    require(set(manifest['scripts']) == SOURCE_SCRIPTS, 'Unexpected source script contract')
-    for name, expected in manifest['scripts'].items():
-        require(digest((script_root/name).read_bytes()) == expected, f'Source script changed: {name}')
     require(manifest['raw_records'] == manifest['cohort']['raw']
             and manifest['eligible_records'] == manifest['cohort']['eligible'],
             'Inconsistent source cohort metadata')
-    return manifest, digest(manifest_bytes)
+    return manifest, manifest_hash
 
 
-def read_observations(runner_root, manifest):
-    """Verify every published shard, then reconstruct history profile by profile."""
+def read_observations(cohort_root, manifest, high_only=False):
+    """Read the cohort's counted records, then reconstruct each runner's history. With `high_only` a runner is followed
+    over the records whose link is of tier high_elite or high alone (adoption decision D38): the benchmark and the race
+    both come from those records."""
+    import cohort as marathon_cohort
+    arrays, read, _ = marathon_cohort.load(cohort_root)
+    require(read['as_of'] == manifest['as_of'], 'The cohort changed while it was read')
     editions = manifest['editions']
-    cities = ['All courses', *sorted({e['city'] for e in editions})]
+    cities = ['All courses', *sorted({e['city'] for e in editions if e['use'] == 'counted'})]
     city_codes = {city: i for i, city in enumerate(cities)}
-    edition_cities = [city_codes[e['city']] for e in editions]
+    edition_cities = [city_codes.get(e['city'], -1) for e in editions]
+    n = len(arrays['record_id'])
+    require(n == manifest['eligible_records'], 'Eligible record count does not reconcile')
+    ordered = np.sort(arrays['record_id'])
+    require(n > 0 and ordered[0] > 0 and bool(np.all(np.diff(ordered) > 0)), 'Duplicate or invalid record IDs')
+    selected = arrays['keyed'] & arrays['link_high'] if high_only else arrays['keyed']
+    index = np.nonzero(selected)[0]
+    runner = arrays['runner'][index]
+    # Runners with two or more of the selected records; only they can have an earlier benchmark.
+    order = index[np.argsort(runner, kind='stable')]
+    runner = arrays['runner'][order]
+    starts = np.flatnonzero(np.r_[True, runner[1:] != runner[:-1]])
+    ends = np.r_[starts[1:], len(order)]
     data = array('d')
-    record_ids, profile_ids = array('Q'), array('Q')
-    raw = eligible = profiles = 0
-    for number, (relative, expected) in enumerate(sorted(manifest['shards'].items()), 1):
-        require(re.fullmatch(r'(profiles|index)/[0-9a-f]{3}\.json\.gz', relative) is not None,
-                'Unexpected shard path')
-        compressed = (runner_root/relative).read_bytes()
-        require(len(compressed) == expected['bytes'] and digest(compressed) == expected['sha256'],
-                f'Runner shard checksum/size mismatch: {relative}')
-        if not relative.startswith('profiles/'):
+    sexes = {b'M': 'M', b'F': 'F', b'X': 'X', b'-': None}
+    for start, end in zip(starts, ends):
+        if end - start < 2:
             continue
-        shard = json.loads(gzip.decompress(compressed))
-        require(shard['release_tag'] == manifest['release_tag'], f'Shard release mismatch: {relative}')
-        for profile in shard['profiles']:
-            profile_ids.append(profile['id'])
-            profiles += 1
-            races = profile['races']
-            for race in races:
-                record_ids.append(race['id'])
-                require(isinstance(race['edition'], int) and 0 <= race['edition'] < len(editions),
-                        'Invalid edition reference')
-                raw += 1
-                eligible += bool(race['eligible'])
-            for race, recent in recent_benchmarks(races, editions):
-                data.extend(observation(race, recent, edition_cities[race['edition']]))
-        if number % 512 == 0:
-            print(json.dumps(dict(verified_shards=number, raw=raw, history_n=len(data)//WIDTH)), flush=True)
-    require(raw == manifest['raw_records'], 'Raw record count does not reconcile')
-    require(eligible == manifest['eligible_records'], 'Eligible record count does not reconcile')
-    require(profiles == manifest['profiles'], 'Profile count does not reconcile')
-    for values, label in [(record_ids, 'record'), (profile_ids, 'profile')]:
-        ids = np.frombuffer(values, dtype=np.uint64)
-        ordered = np.sort(ids)
-        require(len(ordered) > 0 and ordered[0] > 0 and bool(np.all(np.diff(ordered) > 0)),
-                f'Duplicate or invalid {label} IDs')
+        races = []
+        for k in order[start:end]:
+            age = float(arrays['age'][k])
+            races.append(dict(id=int(arrays['record_id'][k]), edition=int(arrays['edition'][k]), eligible=True,
+                              times=[float(x) for x in arrays['times'][k]], age=None if math.isnan(age) else age,
+                              sex=sexes[bytes(arrays['sex'][k])]))
+        for race, recent in recent_benchmarks(races, editions):
+            data.extend(observation(race, recent, edition_cities[race['edition']]))
     history_n = len(data)//WIDTH
-    require(history_n == manifest['linkage']['recent_benchmark_finishes'],
-            f'Earlier-benchmark cohort mismatch: reconstructed {history_n}; source '
-            f"{manifest['linkage']['recent_benchmark_finishes']}")
-    print(json.dumps(dict(verified_raw=raw, verified_eligible=eligible,
-                         profiles=profiles, reconstructed_history=history_n)), flush=True)
+    linkage = manifest['linkage']['high_links'] if high_only else manifest['linkage']
+    require(history_n == linkage['recent_benchmark_finishes'],
+            f'Earlier-benchmark cohort mismatch: reconstructed {history_n}; cohort {linkage["recent_benchmark_finishes"]}')
+    print(json.dumps(dict(verified_eligible=n, high_only=high_only, runners_followed=int(np.sum(ends - starts >= 2)),
+                          reconstructed_history=history_n)), flush=True)
     return np.frombuffer(data, dtype=np.float64).reshape((-1, WIDTH)), cities
 
 
@@ -294,17 +285,29 @@ def aggregate(observations, cities, min_cell=MIN_CELL):
     return rows
 
 
-def run(runner_root, output, pin_path):
+def high_links_variant(cohort_root, manifest, cities):
+    """The reading a page prints (all courses, every age, gender and earlier time; each opening band), recounted with
+    runners followed over high_elite and high links alone (adoption decision D38), for the table on /methodology."""
+    observations, high_cities = read_observations(cohort_root, manifest, high_only=True)
+    require(high_cities == cities, 'The high-links variant uses the same courses')
+    groups = [group for band in range(len(BANDS))
+              if (group := summarize_group(observations[observations[:, BAND] == band], band))]
+    return dict(rule='Runners followed over links of tier high_elite or high only: the benchmark and the race both come from those records.',
+                history_n=len(observations), row=dict(city=cities[0], age='all', gender='all', prior='all', groups=groups))
+
+
+def run(cohort_root, output, pin_path):
     script_root = Path(__file__).resolve().parent
-    manifest, manifest_hash = verified_manifest(runner_root, json.loads(pin_path.read_bytes()), script_root)
-    observations, cities = read_observations(runner_root, manifest)
+    manifest, manifest_hash = verified_manifest(cohort_root, json.loads(pin_path.read_bytes()), script_root)
+    observations, cities = read_observations(cohort_root, manifest)
     rows = aggregate(observations, cities)
     history_n = len(observations)
+    high_links = high_links_variant(cohort_root, manifest, cities)
     payload = dict(
         schema_version=1, release_tag=manifest['release_tag'], input_as_of=manifest['input_as_of'],
         as_of=datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
         input_asset_sha256=manifest['input_asset_sha256'], input_manifest_sha256=manifest['input_manifest_sha256'],
-        runner_manifest_sha256=manifest_hash, runner_manifest_as_of=manifest['as_of'],
+        runner_manifest_sha256=manifest_hash, runner_manifest_as_of=manifest['as_of'], cohort_manifest_sha256=manifest_hash,
         scripts={'build_fast_start.py': digest(Path(__file__).read_bytes())}, source_scripts=manifest['scripts'],
         engine=f'NumPy {np.__version__}', cohort=manifest['cohort'], linkage=manifest['linkage'],
         source_quality=manifest['source_quality'], raw_records=manifest['raw_records'],
@@ -313,9 +316,9 @@ def run(runner_root, output, pin_path):
         points_km=POINTS, onset_starts_km=[20, 25, 30, 35],
         bands=BANDS, cities=cities, ages=AGE_BANDS, genders=GENDERS, prior_bands=PRIOR_BANDS,
         methodology_prose=[
-            'Use the public runner profiles from the adopted source. Verify every compressed shard checksum and size, '
-            'source calculation hashes, record and profile uniqueness, raw and eligible counts, and the reconstructed '
-            'earlier-benchmark cohort against the audited runner manifest.',
+            'Use the marathon cohort of the adopted source. Verify every edition file\'s checksum and size, the '
+            'cohort\'s calculation hashes, record uniqueness, eligible counts, and the reconstructed '
+            'earlier-benchmark cohort against the cohort manifest.',
             'Source identities are the producer\'s screened person links, not independently verified people; Pace Notes adds no name matching of its own. '
             'Use only eligible finishes, including for earlier benchmarks; held, incomplete and invalid timings cannot contribute.',
             'For each eligible race, recompute the fastest eligible finish in the two strictly earlier calendar years. '
@@ -346,7 +349,7 @@ def run(runner_root, output, pin_path):
             'fitness and faster final times despite later slowing. The calculation cannot establish a causal '
             'time penalty, the best individual strategy, physiological failure or the chance of not finishing.',
         ],
-        rows=rows,
+        rows=rows, high_links=high_links,
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_suffix('.tmp')
@@ -361,8 +364,8 @@ def run(runner_root, output, pin_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--runners', type=Path, default=Path('public/data/runners'))
+    parser.add_argument('--cohort', type=Path, default=Path(__file__).resolve().parent/'marathon-cohort')
     parser.add_argument('--output', type=Path, default=Path('public/data/fast-start/evidence.json'))
-    parser.add_argument('--pin', type=Path, default=Path('analysis/release.json'))
+    parser.add_argument('--pin', type=Path, default=Path(__file__).resolve().parent/'release.json')
     args = parser.parse_args()
-    run(args.runners, args.output, args.pin)
+    run(args.cohort, args.output, args.pin)

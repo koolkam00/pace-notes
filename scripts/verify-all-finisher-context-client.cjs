@@ -22,7 +22,8 @@ const bytes = fs.readFileSync(path.join(__dirname, '../public/data/all-finisher-
 const evidence = JSON.parse(bytes);
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
 // The adopted runner lookup sets the expected cohort (4,108,749 finishes and 298 editions under 1050; 3,871,767 and 287 under 1652; 3,517,336 and 256 under 0934).
-const runners = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/runners/manifest.json'), 'utf8'));
+// The marathon cohort's manifest since November 19, 2026 (the runner manifest before).
+const runners = JSON.parse(fs.readFileSync(path.join(__dirname, '../analysis/marathon-cohort/manifest.json'), 'utf8'));
 const eligibleText = new RegExp(runners.eligible_records.toLocaleString('en-US'));
 // Method, definitions, coverage and source text belong on /methodology only (owner request, 2026-10-16).
 const METHOD_COPY = [/What this can tell you/, /Definitions, coverage and limits/, /Download the analysis data/, /Open the source data/, /Study methods/,

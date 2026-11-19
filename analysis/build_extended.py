@@ -58,7 +58,7 @@ def file_digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
-def screened_identities(db, source, identity):
+def screened_identities(db, source, identity, high_only=False):
     """The table `safe_ids`: the runner ids whose records may be linked across races.
 
     A combined release has one identity rule, evaluated once over both distances and delivered as a file
@@ -66,7 +66,8 @@ def screened_identities(db, source, identity):
     ids, and nothing is derived here. The file must be the one built from this input, and every keyed marathon
     record's key must be the `runner_id` the input's features give it. An earlier release has no such file and keeps
     the rule it was published under: the same three checks (one recorded sex, birth years within two, one record per
-    edition) on its marathon records alone."""
+    edition) on its marathon records alone. With `high_only` (adoption decision D38) only the keyed records whose link
+    tier is high_elite or high are kept in `identity_keys`; prepare_history then links those records alone."""
     provenance_path = source / 'provenance.json'
     provenance = json.loads(provenance_path.read_text()) if provenance_path.exists() else {}
     if identity is None:
@@ -82,21 +83,24 @@ def screened_identities(db, source, identity):
     assert info['release_tag'] == provenance['release_tag'] and info['input_manifest_sha256'] == provenance['manifest_sha256'], 'The identity file is for another input'
     assert info['file']['sha256'] == file_digest(identity), 'The identity file differs from its own record'
     location = str(identity).replace("'", "''")
-    db.execute(f"CREATE TEMP TABLE identity_keys AS SELECT record_id, runner_key FROM read_parquet('{location}') WHERE distance='marathon' AND runner_key IS NOT NULL")
+    tiers = " AND link_tier IN ('high_elite','high')" if high_only else ''
+    db.execute(f"CREATE TEMP TABLE identity_keys AS SELECT record_id, runner_key FROM read_parquet('{location}') WHERE distance='marathon' AND runner_key IS NOT NULL{tiers}")
     assert db.execute('''SELECT count(*) FROM identity_keys i LEFT JOIN features f ON f.record_id=i.record_id
       WHERE f.record_id IS NULL OR f.runner_id IS DISTINCT FROM i.runner_key OR f.is_ambiguous''').fetchone()[0] == 0, \
         'A keyed marathon record of the identity file is not a record of this input with that runner id'
     db.execute('CREATE TEMP TABLE safe_ids AS SELECT runner_key AS runner_id FROM identity_keys GROUP BY runner_key')
-    return {'file_sha256': info['file']['sha256'], 'rule': 'analysis/build_identity.py: links of a keyed tier whose person passes the three screens over both distances',
+    return {'file_sha256': info['file']['sha256'], 'rule': 'analysis/build_identity.py: links of a keyed tier whose person passes the three screens over both distances'
+            + ('; records whose link tier is high_elite or high only' if high_only else ''),
             'marathon_records_with_a_runner_key': size(db, 'identity_keys')}
 
 
-def prepare_history(db, source, identity=None):
+def prepare_history(db, source, identity=None, high_only=False):
     location = str(source/'features.parquet').replace("'", "''")
     db.execute(f"CREATE TEMP VIEW features AS SELECT * FROM read_parquet('{location}')")
     assert db.execute('SELECT count(*)=count(DISTINCT record_id) FROM features').fetchone()[0], 'Feature record IDs are not unique'
     canonical = canonical_id_contract(db, source)
-    identity_file = screened_identities(db, source, identity)
+    assert identity is not None or not high_only, 'Only an identity file states link tiers'
+    identity_file = screened_identities(db, source, identity, high_only)
     location = str(source/'race_conditions.parquet').replace("'", "''")
     db.execute(f"CREATE TEMP VIEW weather_raw AS SELECT * FROM read_parquet('{location}')")
     db.execute('''CREATE TEMP TABLE weather AS SELECT city,year,
@@ -125,6 +129,7 @@ def prepare_history(db, source, identity=None):
       w.temperature,w.dewpoint,w.wind,w.rain
       FROM eligible e JOIN candidate_links f USING(rid)
       JOIN safe_ids s ON f.runner_id=s.runner_id
+      {'JOIN identity_keys k ON k.record_id=f.record_id' if high_only else ''}
       {join_dates}
       LEFT JOIN weather w ON e.city=w.city AND e.year=w.year
       WHERE f.raw_matches=1 AND f.feature_matches=1''')

@@ -94,11 +94,15 @@ assert.equal(mean([0, 100]), 50, 'Equal edition weighting differs from pooling f
 near(percentile([0, 10, 20, 30], .1), 3, 'Linear quantiles');
 
 const pin = read(path.join(root, 'analysis/release.json'));
-const runnersPath = path.join(dataRoot, 'runners/manifest.json'), contextPath = path.join(dataRoot, 'runner-context/manifest.json');
-const runners = read(runnersPath), context = read(contextPath), evidence = read(evidencePath);
+// The marathon cohort (scripts/lib/cohort.cjs, checked against the pin and the checkout's scripts) replaces the runner
+// lookup since November 19, 2026; `runners` is its manifest, and the `runner_manifest_*` fields keep their names.
+const cohortReader = require('./lib/cohort.cjs');
+const contextPath = path.join(dataRoot, 'runner-context/manifest.json');
+const { manifest: runners, sha256: cohortSha } = cohortReader.verifiedManifest(pin);
+const context = read(contextPath), evidence = read(evidencePath);
 assert.equal(evidence.schema_version, 1); assert.equal(evidence.mode, 'all-finishers');
 assert.equal(runners.release_tag, pin.tag); assert.equal(context.release_tag, pin.tag); assert.equal(evidence.release_tag, pin.tag);
-assert.equal(evidence.runner_manifest_sha256, hash(fs.readFileSync(runnersPath)));
+assert.equal(evidence.runner_manifest_sha256, cohortSha); assert.equal(evidence.cohort_manifest_sha256, cohortSha); assert.equal(context.cohort_manifest_sha256, cohortSha);
 assert.equal(evidence.context_manifest_sha256, hash(fs.readFileSync(contextPath)));
 assert.equal(context.runner_manifest_sha256, evidence.runner_manifest_sha256);
 assert.equal(evidence.runner_manifest_as_of, runners.as_of); assert.equal(context.runner_manifest_as_of, runners.as_of);
@@ -113,7 +117,7 @@ assert.equal(evidence.min_cell, 100); assert.equal(evidence.min_edition, 20); as
 assert.deepEqual(evidence.points_km, points); assert.deepEqual(evidence.onset_starts_km, [20, 25, 30, 35]); assert.equal(evidence.downhill_first5_net_below_m, -25);
 assert.deepEqual(Object.keys(evidence.scripts).sort(), ['build_all_finisher_context.py', 'build_fast_start.py', 'build_fast_start_all.py']);
 assert.deepEqual(evidence.source_scripts, runners.scripts); assert.deepEqual(evidence.context_source_scripts, context.scripts);
-for (const [name, digest] of Object.entries({ ...runners.scripts, ...context.scripts, ...evidence.scripts })) {
+for (const [name, digest] of Object.entries({ ...context.scripts, ...evidence.scripts })) {
   assert.match(name, /^[a-z_]+\.py$/);
   assert.equal(digest, hash(fs.readFileSync(path.join(root, 'analysis', name))), `Stale source/calculation script: ${name}`);
 }
@@ -121,17 +125,26 @@ assert.deepEqual(runners.points_km, points); assert.deepEqual(evidence.ages, age
 assert.deepEqual(evidence.early_pace_bands.map(x => [x.id, x.lower_s_per_km, x.upper_s_per_km]), [['all', null, null], ['under270', null, 270], ['270to330', 270, 330], ['330to390', 330, 390], ['390plus', 390, null]]);
 assert.deepEqual(evidence.temperature_bands.map(x => [x.id, x.lower_c, x.upper_c]), [['under5', null, 5], ['5to10', 5, 10], ['10to15', 10, 15], ['15to20', 15, 20], ['20plus', 20, null]]);
 assert.deepEqual(evidence.opening_bands.map(x => x.id), openings);
-const cities = ['All courses', ...[...new Set(runners.editions.map(x => x.city))].sort()];
+const cities = ['All courses', ...[...new Set(runners.editions.filter(x => x.use === 'counted').map(x => x.city))].sort()];
 assert.deepEqual(evidence.cities, cities);
 const environments = [], coverage = { weather_n: 0, weather_editions: 0, terrain_n: 0, terrain_editions: 0, eligible_editions: 0 };
-assert.equal(Object.keys(context.editions).length, runners.editions.length);
+// A context file exists for a counted edition with peers, weather or terrain; any other edition has no environment.
+const withoutContext = new Map(context.editions_without_context.map(x => [x.index, x]));
 for (let index = 0; index < runners.editions.length; index++) {
-  const meta = context.editions[index]; assert.match(meta.file, /^editions\/\d{3}\.json\.gz$/);
+  const meta = context.editions[index], entry = runners.editions[index];
+  if (!meta) {
+    assert.ok(entry.use !== 'counted' || withoutContext.has(index), `${entry.city} ${entry.year}: a counted edition without a context file is listed`);
+    environments.push({ city: entry.city, weather: null, terrain: terrain(null), temp_c: null, opening_net_m: null, eligible: entry.eligible });
+    if (entry.eligible) coverage.eligible_editions++;
+    continue;
+  }
+  assert.equal(entry.use, 'counted');
+  assert.match(meta.file, /^editions\/\d{3}\.json\.gz$/);
   const bytes = fs.readFileSync(path.join(dataRoot, 'runner-context', meta.file));
   assert.equal(bytes.length, meta.bytes); assert.equal(hash(bytes), meta.sha256);
   const edition = JSON.parse(zlib.gunzipSync(bytes));
   assert.equal(edition.release_tag, pin.tag);
-  assert.deepEqual(edition.edition, { index, ...runners.editions[index] });
+  assert.deepEqual(edition.edition, { index, city: entry.city, year: entry.year, race: entry.race });
   let start = null, net = null;
   if (edition.weather) {
     const weather = edition.weather;
@@ -194,41 +207,27 @@ for (const row of evidence.rows) {
     }
   }
 }
-const sourceFiles = Object.keys(runners.shards).sort(), baseCells = new Map();
-const excluded = new Set(runners.source_quality.editions.map(x => JSON.stringify([x.city, x.year])));
-const recordIds = new Float64Array(runners.raw_records), profileIds = new Float64Array(runners.profiles);
-let records = 0, profiles = 0, eligible = 0;
+const baseCells = new Map();
+const recordIds = new Float64Array(runners.eligible_records);
+let records = 0, eligible = 0;
 function scan(visitor, verify = false) {
-  for (const file of sourceFiles) {
-    assert.match(file, /^(profiles|index)\/[a-f0-9]{3}\.json\.gz$/);
-    if (!verify && !file.startsWith('profiles/')) continue;
-    const bytes = fs.readFileSync(path.join(dataRoot, 'runners', file));
-    if (verify) { assert.equal(bytes.length, runners.shards[file].bytes); assert.equal(hash(bytes), runners.shards[file].sha256); }
-    if (!file.startsWith('profiles/')) continue;
-    const shard = JSON.parse(zlib.gunzipSync(bytes)); assert.equal(shard.release_tag, pin.tag);
-    for (const profile of shard.profiles) {
-      if (verify) { assert.ok(Number.isSafeInteger(profile.id) && profile.id > 0 && profiles < profileIds.length); profileIds[profiles++] = profile.id; }
-      for (const race of profile.races) {
-        if (verify) {
-          assert.ok(Number.isSafeInteger(race.id) && race.id > 0 && records < recordIds.length); recordIds[records++] = race.id;
-          assert.equal(typeof race.eligible, 'boolean');
-          assert.ok(Number.isSafeInteger(race.edition) && race.edition >= 0 && race.edition < environments.length);
+  cohortReader.forEachEdition((data, entry, index) => {
+    if (entry.use !== 'counted') return;
+    for (let k = 0; k < data.ids.length; k++) {
+      const race = { id: data.ids[k], edition: index, times: data.times[k], age: data.age[k], sex: data.sex[k] };
+      if (verify) {
+        assert.ok(Number.isSafeInteger(race.id) && race.id > 0 && records < recordIds.length); recordIds[records++] = race.id;
+        eligible++;
+        assert.equal(race.times.length, 9); assert.ok(race.times.every(finite));
+        assert.ok(race.times[8] >= 5400 && race.times[8] <= 43200);
+        for (let i = 0; i < 9; i++) {
+          const pace = (race.times[i] - (i ? race.times[i - 1] : 0)) / lengths[i];
+          assert.ok(pace >= 120 - 1e-8 && pace <= 1200 + 1e-8);
         }
-        if (!race.eligible) continue;
-        if (verify) {
-          eligible++; const edition = runners.editions[race.edition];
-          assert.ok(!excluded.has(JSON.stringify([edition.city, edition.year])));
-          assert.equal(race.times.length, 9); assert.ok(race.times.every(finite));
-          assert.ok(race.times[8] >= 5400 && race.times[8] <= 43200);
-          for (let i = 0; i < 9; i++) {
-            const pace = (race.times[i] - (i ? race.times[i - 1] : 0)) / lengths[i];
-            assert.ok(pace >= 120 - 1e-8 && pace <= 1200 + 1e-8);
-          }
-        }
-        visitor(race);
       }
+      visitor(race);
     }
-  }
+  });
 }
 scan(race => {
   const { values, opening } = filters(race), onset = measurements(race.times).onset;
@@ -242,8 +241,8 @@ scan(race => {
     for (const part of [cell.parts[0], cell.parts[opening + 1]]) { part.n++; if (onset >= 0) part.onset[onset]++; }
   }
 }, true);
-assert.equal(records, runners.raw_records); assert.equal(profiles, runners.profiles); assert.equal(eligible, runners.eligible_records);
-for (const [label, ids] of [['record', recordIds], ['profile', profileIds]]) {
+assert.equal(records, runners.eligible_records); assert.equal(eligible, runners.eligible_records);
+for (const [label, ids] of [['record', recordIds]]) {
   ids.sort(); for (let i = 1; i < ids.length; i++) assert.notEqual(ids[i], ids[i - 1], `Unique ${label} ID`);
 }
 for (let i = 0; i < environments.length; i++) assert.equal(baseCells.get(baseKey(i, 'all', 'all', 'all'))?.parts[0].n || 0, environments[i].eligible, 'Every eligible source edition reconciles');
@@ -330,4 +329,4 @@ for (const [key, item] of samples) {
   for (const stat of stats) { finishes.set(stat.values[0], offset); offset += stat.n; }
   assert.equal(offset, actual.n); finishes.sort(); near(actual.actual_finish_median_s, quantile(finishes, .5), `${key}: pooled individual actual finish median`);
 }
-console.log(`Verified all-finisher context: ${sourceFiles.length} runner shards and ${environments.length} exact context shards; ${groupsChecked} independently recounted groups and all edition-weighted rates/onsets; ${samples.size} full numeric groups across ${numeric.size} edition cells, including all unfiltered courses and temperature bands.`);
+console.log(`Verified all-finisher context: ${runners.editions.length} cohort editions and ${Object.keys(context.editions).length} exact context files; ${groupsChecked} independently recounted groups and all edition-weighted rates/onsets; ${samples.size} full numeric groups across ${numeric.size} edition cells, including all unfiltered courses and temperature bands.`);
