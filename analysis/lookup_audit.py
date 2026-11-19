@@ -273,14 +273,14 @@ def audit(db, core, manifest, registry_path, half_registry_path=None, half_polic
     db.execute('CREATE TABLE want_timing_text (text VARCHAR, cls VARCHAR)')
     db.executemany('INSERT INTO want_timing_text VALUES (?, ?)', [(text, cls) for cls, texts in timing['bases'].items() for text in texts])
     db.execute(f"""CREATE TABLE want_timing AS SELECT m.distance, CASE m.source_db WHEN 'half' THEN 'h' ELSE 'f' END AS db, m.city, m.year::INTEGER AS year,
-        CASE WHEN m.timing_basis IS NULL THEN {quote(timing['no_text'])} ELSE t.cls END AS tb
+        CASE WHEN m.timing_basis IS NULL THEN {quote(timing['no_text'])} ELSE t.cls END AS tb, true AS present
       FROM read_parquet({quote(core / 'edition_meta.parquet')}) m LEFT JOIN want_timing_text t ON t.text=m.timing_basis""")
     marks = {'gun_times': 1, 'course_suspected_short': 2}
     db.execute('CREATE TABLE want_never (db VARCHAR, city VARCHAR, year INTEGER, g INTEGER)')
     if half_policy_path:
         db.executemany('INSERT INTO want_never VALUES (?, ?, ?, ?)', [('h' if entry['source_db'] == 'half' else 'f', entry['key'], entry['year'], marks[entry['reason']])
                        for entry in json.loads(Path(half_policy_path).read_text())['never_compared']['editions']])
-    none('edition', """SELECT w.db, w.id FROM (SELECT k, db, id, distance, city, year FROM want WHERE kind='result') w
+    none('edition', f"""SELECT w.db, w.id FROM (SELECT k, db, id, distance, city, year FROM want WHERE kind='result') w
         JOIN (SELECT k, e FROM got) g ON g.k=w.k JOIN got_editions e ON e.e=g.e
         LEFT JOIN want_races r ON r.distance=w.distance AND r.db=w.db AND r.city=w.city
         LEFT JOIN want_tiers t ON t.distance=w.distance AND t.db=w.db AND t.city=w.city AND t.year=w.year
@@ -288,7 +288,7 @@ def audit(db, core, manifest, registry_path, half_registry_path=None, half_polic
         LEFT JOIN want_never n ON w.distance='half' AND n.db=w.db AND n.city=w.city AND n.year=w.year
         WHERE e.distance IS DISTINCT FROM w.distance OR e.db IS DISTINCT FROM w.db OR e.year IS DISTINCT FROM w.year
           OR e.label IS DISTINCT FROM r.label OR e.race IS DISTINCT FROM r.race OR e.tier IS DISTINCT FROM t.tier OR e.splits IS DISTINCT FROM t.splits
-          OR e.tb IS DISTINCT FROM m.tb OR e.g IS DISTINCT FROM coalesce(n.g, 0) LIMIT 20""",
+          OR e.tb IS DISTINCT FROM CASE WHEN m.present IS NULL THEN {quote(timing['no_text'])} ELSE m.tb END OR e.g IS DISTINCT FROM coalesce(n.g, 0) LIMIT 20""",
          'results sit in an edition of another race, year, distance, database, tier, split tier, timing class or never-compared mark')
     facts['editions_by_timing_class'] = dict(db.execute('SELECT tb, count(*) FROM got_editions GROUP BY tb ORDER BY tb').fetchall())
     facts['screens'] = dict(db.execute("SELECT w, count(*) FROM want WHERE kind='result' AND w<>'0' GROUP BY w ORDER BY w").fetchall())

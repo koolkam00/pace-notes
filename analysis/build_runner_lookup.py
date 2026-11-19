@@ -820,9 +820,9 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         entry = {'h': h, 'dbh': dbh, 'city': city, 'label': label, 'name': name, 'year': year, 'tier': TIERS.index(tier),
                  'splits': split == 'splits', 'db': 'h' if dbh else 'f', 'unlisted': unlisted,
                  'no_comparison': never_compared.get((dbh, city, year), 0) if h else 0}
-        if (h, dbh, city, year) not in timing_text:
-            fail(f'the edition {(city, year)} has rows and no row in edition_meta.parquet')
-        text = timing_text[(h, dbh, city, year)]
+        # An edition with rows and no edition_meta row of its own distance and database (12 in
+        # pace-notes-marathon-half-20261113-1113, all half) states no timing basis: class not_stated, as a null text.
+        text = timing_text.get((h, dbh, city, year))
         if text not in timing_of:
             fail(f'the edition {(city, year)} has the timing basis {text!r}, which analysis/lookup-timing.json does not class')
         entry['timing'] = timing_of[text]
