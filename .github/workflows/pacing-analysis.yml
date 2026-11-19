@@ -102,6 +102,13 @@ jobs:
         run: python analysis/build_pacing.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-aggregates" --live-as-of "$PACING_LIVE_AS_OF"
       - name: Calculate full-race, forecast and linked-history analyses
         if: steps.audit.outputs.reviewed == 'true'
+        env:
+          # The combined release's linked histories do not fit the default 6 GB with its 4 GB spill cap (run
+          # 44621455222, November 19, 2026: out of memory in history_analyses). The local build of November 14-19, 2026
+          # ran at 10 GB: 5.5 min, 10.2 GB peak, 3 GB of spill under the 4 GB cap; the hosted runner has 16 GB.
+          # Results do not depend on the cap (docs/OPERATIONS.md, "Calculate all owned outputs").
+          PACE_NOTES_EXTENDED_MEMORY: 10GB
+          PACE_NOTES_EXTENDED_TEMP: 4GB
         run: python analysis/build_extended.py --input "$RUNNER_TEMP/pacing-input" --output "$RUNNER_TEMP/pacing-aggregates" --personalized-output "$RUNNER_TEMP/pacing-personalized" --live-as-of "$PACING_LIVE_AS_OF" ${{ steps.identity.outputs.args }}
       - name: Write numerical findings from verified aggregates
         if: steps.audit.outputs.reviewed == 'true'
