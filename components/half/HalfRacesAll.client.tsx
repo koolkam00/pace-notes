@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { loadHalf } from '@/lib/half';
+import { loadErrorText } from '@/lib/error-text';
 import type { HalfRaceDirectory } from '@/lib/half-types';
 import { RaceFold } from './HalfRaceRows';
 
@@ -27,7 +28,7 @@ export default function HalfRacesAll({ sha, total }: { sha: string; total: strin
     setState('loading');
     loadHalf<HalfRaceDirectory>('half/races/directory.json', sha)
       .then((d) => { setDirectory(d); setState('idle'); })
-      .catch((error: unknown) => { setMessage(error instanceof Error ? error.message : 'This data could not be loaded.'); setState('error'); });
+      .catch((error: unknown) => { setMessage(loadErrorText(error, 'This data could not be loaded.')); setState('error'); });
   };
 
   const index = useMemo(() => (directory ? directory.races.map((race) => fold([race.name, race.place ?? '', ...(race.aliases ?? [])].join(' '))) : []), [directory]);
