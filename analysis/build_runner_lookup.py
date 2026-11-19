@@ -64,7 +64,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 
 from lookup_format import (  # noqa: E402
     CHECKPOINTS, CONFIRMED, INDEX_RULES, LINK_SCREENED, LINK_TIERS, NO_COMPARISON, PAGE_SIZE, POINTS_KM, PROFILE_SHARDS, SCHEMA_VERSION,
-    SEARCH_AUTO, SEARCH_HARD_CAP, STATUS_WORDS, TIERS, TIME_UNIT_MS, LeafCutter, ShardBody, editions_body, encode, index_page_body,
+    SCREENS, SEARCH_AUTO, SEARCH_HARD_CAP, STATUS_WORDS, TIERS, TIMING_CLASSES, TIME_UNIT_MS, LeafCutter, ShardBody, editions_body, encode, index_page_body,
     index_page_path, leaf_body, leaf_path, profile_page_body, profile_page_path, shard_path, write_gz)
 from lookup_names import FOLD, NORMALIZATION, SEARCH_WORDS, normalize_name, search_key  # noqa: E402
 from lookup_races import HALF_RULE, RaceError, half_races, read_registry  # noqa: E402
@@ -74,6 +74,8 @@ PIN_PATH = HERE / 'release.json'
 HALF_RECORDS_PATH = HERE / 'lookup-half-records.json'
 RACE_NOTES_PATH = HERE / 'race-notes.json'
 PLACEHOLDERS_PATH = HERE / 'lookup-placeholders.json'
+TIMING_PATH = HERE / 'lookup-timing.json'
+HALF_PIN_PATH = HERE / 'half-release.json'
 REGISTRY_PATH = HERE / 'race-registry.json'
 POLICY_PATH = HERE.parent / 'public/data/edition-policy.json'
 COHORT_PATH = HERE / 'marathon-cohort/manifest.json'
@@ -313,15 +315,16 @@ def load_status(db, path):
 
 
 def load_identity(db, path):
-    """VIEW ident(dbh, record_id, runner_key, link_tier, status) over the file: one row per release row of both
+    """VIEW ident(dbh, record_id, runner_key, link_tier, status, not_keyed_reason) over the file: one row per release row of both
     distances. Returns (rows, the file's own description or None)."""
     relation = f'read_parquet({quote(path)})'
     columns = columns_of(db, relation)
-    missing = [name for name in ('source_db', 'record_id', 'runner_key', 'link_tier', 'status') if name not in columns]
+    missing = [name for name in ('source_db', 'record_id', 'runner_key', 'link_tier', 'status', 'not_keyed_reason') if name not in columns]
     if missing:
-        fail(f'{path.name}: expected columns source_db, record_id, runner_key, link_tier, status; missing {missing}')
+        fail(f'{path.name}: expected columns source_db, record_id, runner_key, link_tier, status, not_keyed_reason; missing {missing}')
     db.execute(f"""CREATE TEMP VIEW ident AS SELECT source_db='half' AS dbh, record_id::BIGINT AS record_id,
-        runner_key::VARCHAR AS runner_key, link_tier::VARCHAR AS link_tier, status::VARCHAR AS status FROM {relation}""")
+        runner_key::VARCHAR AS runner_key, link_tier::VARCHAR AS link_tier, status::VARCHAR AS status,
+        not_keyed_reason::VARCHAR AS not_keyed_reason FROM {relation}""")
     rows, keys, sources = db.execute("SELECT count(*), count(DISTINCT (dbh, record_id)), (SELECT count(*) FROM (SELECT DISTINCT source_db FROM "
                                      f"{relation} WHERE source_db NOT IN ('full', 'half'))) FROM ident").fetchone()
     if rows != keys or sources:
@@ -401,7 +404,8 @@ def load_cohort(path):
 
 def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_path=REGISTRY_PATH, half_registry_path=None,
           policy_path=None, cohort_path=None, race_notes_path=None, half_records_path=HALF_RECORDS_PATH, placeholders_path=PLACEHOLDERS_PATH,
-          as_of=None, temp=None, memory='3GB', threads=2, index_rules=None, provisional=(), temp_limit_gb=TEMP_LIMIT_GB):
+          as_of=None, temp=None, memory='3GB', threads=2, index_rules=None, provisional=(), temp_limit_gb=TEMP_LIMIT_GB,
+          half_policy_path=None, timing_path=TIMING_PATH):
     """Write the lookup into `output` (which must not hold a build). Returns the manifest. A build that does not finish
     removes what it wrote; the temporary folder is removed either way."""
     index_rules = dict(index_rules or INDEX_RULES)
@@ -415,11 +419,22 @@ def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_
     step('release files equal the pin', tag=tag)
     half_rule = json.loads(Path(half_records_path).read_text())
     placeholders = json.loads(Path(placeholders_path).read_text())
+    timing = json.loads(Path(timing_path).read_text())
     for name, data in (('lookup-half-records.json', half_rule), ('lookup-placeholders.json', placeholders)):
         if data.get('tag') != tag:
             fail(f'analysis/{name} was reviewed for {data.get("tag")!r}, not for {tag!r}: review it for this release')
     digests['lookup-half-records.json'] = file_sha256(half_records_path)
     digests['lookup-placeholders.json'] = file_sha256(placeholders_path)
+    digests['lookup-timing.json'] = file_sha256(timing_path)
+    if timing.get('classes') != TIMING_CLASSES or timing.get('no_text') not in TIMING_CLASSES:
+        fail(f'analysis/lookup-timing.json: its classes are not {TIMING_CLASSES}')
+    timing_of = {}
+    for cls in TIMING_CLASSES:
+        for text in timing['bases'].get(cls, []):
+            if text in timing_of:
+                fail(f'analysis/lookup-timing.json: the timing basis {text!r} has two classes')
+            timing_of[text] = TIMING_CLASSES.index(cls)
+    timing_of[None] = TIMING_CLASSES.index(timing['no_text'])
     notes = set(provisional)
 
     global _WATCH
@@ -444,7 +459,7 @@ def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_
         try:
             manifest = _build(db, pin, Path(core), Path(links), Path(status), Path(identity), output, temp, input_as_of, digests, notes,
                               half_rule, placeholders, Path(registry_path), half_registry_path, policy_path, cohort_path, race_notes_path,
-                              as_of, index_rules, scripts)
+                              as_of, index_rules, scripts, half_policy_path=half_policy_path, timing_of=timing_of)
         except duckdb.InterruptException:
             watch.check()
             raise
@@ -465,7 +480,7 @@ def build(core, links, status, identity, output, *, pin_path=PIN_PATH, registry_
 
 
 def _build(db, pin, core, links, status_path, identity_path, output, temp, input_as_of, digests, notes, half_rule, placeholders,
-           registry_path, half_registry_path, policy_path, cohort_path, race_notes_path, as_of, index_rules, scripts):
+           registry_path, half_registry_path, policy_path, cohort_path, race_notes_path, as_of, index_rules, scripts, *, half_policy_path, timing_of):
     tag = pin['tag']
     records = f"read_parquet({quote(core / 'race_records.parquet')})"
     qa = f"read_parquet({quote(core / 'qa_row_flags.parquet')})"
@@ -706,6 +721,32 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     if gross != listed_gross:
         fail(f'the half editions whose timing basis starts with "gross" are not the reviewed gun-time list: {sorted(gross ^ listed_gross)}')
     listed_short = {(db_name == 'half', city, year) for db_name, city, year in never['course_suspected_short']['editions']}
+    # The mark itself comes from the half policy's never_compared list (lead ruling, November 19, 2026); the reviewed
+    # lists above, each checked against the release, are what that list must hold. A policy that names more is followed.
+    if half_policy_path:
+        half_policy = json.loads(Path(half_policy_path).read_text())
+        digests['half-policy.json'] = file_sha256(half_policy_path)
+        if half_policy.get('tag') != tag:
+            fail(f"the half policy is of {half_policy.get('tag')!r}, not {tag!r}")
+        marks = {'gun_times': 1, 'course_suspected_short': 2}
+        named = {}
+        for entry in (half_policy.get('never_compared') or {}).get('editions', []):
+            key = (entry.get('source_db') == 'half', entry.get('key'), entry.get('year'))
+            if entry.get('reason') not in marks or not isinstance(key[1], str) or not isinstance(key[2], int) or key in named:
+                fail(f'the half policy’s never_compared list holds an entry this builder cannot read, or one twice: {entry!r}')
+            named[key] = marks[entry['reason']]
+        expected = {**{key: 1 for key in listed_gross}, **{key: 2 for key in listed_short}}
+        lacking = sorted(key for key, mark in expected.items() if named.get(key) != mark)
+        if lacking:
+            fail(f'the half policy’s never_compared list lacks, or gives another reason for, the reviewed editions {lacking}')
+        never_compared = named
+    else:
+        notes.add('half_policy')
+        never_compared = {**{key: 1 for key in listed_gross}, **{key: 2 for key in listed_short}}
+    timing_text = {}
+    for distance, source_db, city, year, text in db.execute(f"""SELECT distance, source_db, city, year::INTEGER, timing_basis
+            FROM read_parquet({quote(core / 'edition_meta.parquet')})""").fetchall():
+        timing_text[(distance == 'half', source_db == 'half', city, year)] = text
     edition_rows = db.execute('SELECT h, dbh, city, year, n, unlisted, id0, short, rows FROM ed ORDER BY ALL').fetchall()
     short_found = {(dbh, city, year) for h, dbh, city, year, n, unlisted, id0, short, rows in edition_rows if short}
     partly = [(city, year) for h, dbh, city, year, n, unlisted, id0, short, rows in edition_rows if short and (short != rows or not h)]
@@ -778,7 +819,14 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         label, name = names_of[city]
         entry = {'h': h, 'dbh': dbh, 'city': city, 'label': label, 'name': name, 'year': year, 'tier': TIERS.index(tier),
                  'splits': split == 'splits', 'db': 'h' if dbh else 'f', 'unlisted': unlisted,
-                 'no_comparison': 0 if not h else 1 if (dbh, city, year) in listed_gross else 2 if (dbh, city, year) in listed_short else 0}
+                 'no_comparison': never_compared.get((dbh, city, year), 0) if h else 0}
+        if (h, dbh, city, year) not in timing_text:
+            fail(f'the edition {(city, year)} has rows and no row in edition_meta.parquet')
+        text = timing_text[(h, dbh, city, year)]
+        if text not in timing_of:
+            fail(f'the edition {(city, year)} has the timing basis {text!r}, which analysis/lookup-timing.json does not class')
+        entry['timing'] = timing_of[text]
+        entry['timing_text'] = text
         if cohort_raw and not h and cohort_raw.get((label, year)) != rows:
             fail(f'{label} {year} holds {rows} kept rows; the cohort manifest counts {cohort_raw.get((label, year))} raw records')
         if not n:
@@ -821,6 +869,11 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     db.executemany('INSERT INTO edx VALUES (?, ?, ?, ?, ?)', [(e['h'], e['dbh'], e['city'], e['year'], at) for at, e in enumerate(editions)])
     db.execute('CREATE TEMP TABLE edt (e INTEGER, tier INTEGER, g INTEGER)')
     db.executemany('INSERT INTO edt VALUES (?, ?, ?)', [(at, e['tier'], e['no_comparison']) for at, e in enumerate(editions)])
+    # The timing-basis texts of the listed editions with the class this build gave each: [text or null, digit, editions].
+    used_texts = {}
+    for entry in editions:
+        used_texts[entry['timing_text']] = used_texts.get(entry['timing_text'], 0) + 1
+    timing_table = [[text, timing_of[text], n] for text, n in sorted(used_texts.items(), key=lambda item: (item[0] is not None, item[0] or ''))]
     body = editions_body(races, editions, reasons)
     editions_bytes, editions_sha = write_gz(output / 'editions.json.gz', body)
     editions_raw = hashlib.sha256(body).hexdigest()
@@ -831,8 +884,12 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     # (One number names a record of either database: twice its id, plus one in the half database.)
     link_code = ' '.join(f"WHEN s.confidence={quote(tier)} THEN CASE WHEN s.keyed THEN '{code}' ELSE '{LINK_SCREENED.get(code, code)}' END"
                          for tier, code in LINK_TIERS.items())
+    # The screen a person of a confirmed tier failed (`w`): the identity file's not_keyed_reason, by membership test.
+    screen_code = ' '.join(f"WHEN (s.id*2 + s.dbh::INTEGER) IN (SELECT record_id*2 + dbh::INTEGER FROM ident WHERE not_keyed_reason={quote(reason)}) "
+                           f"THEN '{digit}'" for reason, digit in SCREENS.items())
     as_written(f"""CREATE TABLE res AS SELECT s.h, s.dbh, s.id, s.year, s.name, s.x, s.a, s.fin, s.s0, s.s1, s.s2, s.s3, s.s4, s.s5, s.s6, s.s7,
         CASE WHEN s.h THEN '-' ELSE s.st END AS st, s.skey, CASE WHEN NOT s.linked THEN '0' {link_code} END AS c, s.pk, s.linked, x.e,
+        CASE WHEN s.linked AND NOT s.keyed AND s.confidence IN ({confirmed}) THEN CASE {screen_code} END ELSE '0' END AS w,
         CASE WHEN s.linked THEN ('0x' || substr(s.pk, 5, 3))::INTEGER ELSE ('0x' || substr(sha256(s.pk), 1, 3))::INTEGER END AS shard
       FROM (SELECT *, (id*2 + dbh::INTEGER) IN (SELECT record_id*2 + dbh::INTEGER FROM ident WHERE runner_key IS NOT NULL) AS keyed
             FROM sorted WHERE kind='result') s
@@ -840,6 +897,10 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     results = db.execute('SELECT count(*) FROM res').fetchone()[0]
     if results != db.execute("SELECT count(*) FROM sorted WHERE kind='result'").fetchone()[0]:
         fail('listed results were lost in the edition join')
+    unscreened = db.execute("SELECT count(*) FROM res WHERE c IN ('b', 'c', 'd') AND w IS NULL").fetchone()[0]
+    if unscreened:
+        fail(f'{unscreened} results of a confirmed link tier have no runner key and no screen the identity file names '
+             f'({", ".join(SCREENS)}): the identity file is not of this builder')
     mixed = db.execute("""SELECT count(*) FROM (SELECT pk FROM res WHERE linked GROUP BY pk
         HAVING count(*) FILTER (WHERE c IN ('1', '2', '3'))>0 AND count(*) FILTER (WHERE c IN ('b', 'c', 'd'))>0)""").fetchone()[0]
     if mixed:
@@ -880,6 +941,7 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
             'unlisted_editions': [row for row in unlisted_editions if row[0] == ('h' if half else 'm')],
             'tier': {str(code): n for code, n in db.execute('SELECT t.tier, count(*) FROM res r JOIN edt t USING (e) WHERE r.h=? GROUP BY ALL ORDER BY 1', [half]).fetchall()},
             'link': dict(db.execute('SELECT c, count(*) FROM res WHERE h=? GROUP BY c ORDER BY c', [half]).fetchall()),
+            'screen': dict(db.execute("SELECT w, count(*) FROM res WHERE h=? AND w<>'0' GROUP BY w ORDER BY w", [half]).fetchall()),
             'age_hidden': db.execute("SELECT count(*) FROM sorted WHERE h=? AND kind='result' AND age_hidden", [half]).fetchone()[0],
             'checkpoints_unread': db.execute("SELECT coalesce(sum(unread), 0)::BIGINT FROM sorted WHERE h=? AND kind='result'", [half]).fetchone()[0],
         }
@@ -932,7 +994,7 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         shard_entries.append([shard.profiles(), shard.results(), size, digest])
 
     # One range of shards at a time, in shard order: each read sorts in memory, and the rows arrive in one total order.
-    ordered = """SELECT p.shard, p.pos, r.e, r.id, r.name, r.fin, r.x, r.a, r.c, r.st, r.h, r.s0, r.s1, r.s2, r.s3, r.s4, r.s5, r.s6, r.s7
+    ordered = """SELECT p.shard, p.pos, r.e, r.id, r.name, r.fin, r.x, r.a, r.c, r.st, r.h, r.s0, r.s1, r.s2, r.s3, r.s4, r.s5, r.s6, r.s7, r.w
         FROM res r JOIN prof p USING (pk) WHERE r.shard BETWEEN ? AND ? AND p.shard BETWEEN ? AND ?
         ORDER BY p.shard, p.pos, r.h, r.year, r.id, r.dbh"""
     current, shard, position, written = -1, None, None, 0
@@ -957,7 +1019,7 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
                 offset = row[3] - bases[row[2]]
                 if offset < 0:
                     fail('a record id lies under its edition’s base')
-                if shard.add(row[2], offset, row[5], row[6], row[7], row[8], row[4], row[9], row[11:11 + half_points] if row[10] else row[11:19]):
+                if shard.add(row[2], offset, row[5], row[6], row[7], row[8], row[4], row[9], row[11:11 + half_points] if row[10] else row[11:19], row[19]):
                     names_hash.update(normalize_name(row[4]).encode('utf-8') + b'\n')
                 written += 1
     if shard is not None:
@@ -1062,7 +1124,8 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         'rules': {**RULES, 'index': index_rules},
         'content': {'profiles_raw_sha256': profiles_hash.hexdigest(), 'index_raw_sha256': index_hash.hexdigest(),
                     'editions_raw_sha256': editions_raw, 'names_normalized_sha256': names_hash.hexdigest()},
-        'editions': {'file': 'editions.json.gz', 'bytes': editions_bytes, 'sha256': editions_sha, 'count': len(editions), 'races': len(races)},
+        'editions': {'file': 'editions.json.gz', 'bytes': editions_bytes, 'sha256': editions_sha, 'count': len(editions), 'races': len(races),
+                     'timing': timing_table},
         'index': {'leaves': len(leaf_entries), 'pages': index_pages, 'heavy': [[word, n] for word, n in heavy]},
         'profiles': {'shards': PROFILE_SHARDS, 'pages': profile_pages},
     }
@@ -1090,7 +1153,15 @@ def main(argv=None):
     parser.add_argument('--policy', type=Path, default=POLICY_PATH if POLICY_PATH.is_file() else None,
                         help='the edition policy with its reason sentences (default public/data/edition-policy.json; without one the build is provisional)')
     parser.add_argument('--registry', type=Path, default=REGISTRY_PATH)
-    parser.add_argument('--half-registry', type=Path)
+    parser.add_argument('--half-registry', type=Path, default=HERE / 'half-race-registry.json' if (HERE / 'half-race-registry.json').is_file() else None,
+                        help='the half race registry (default analysis/half-race-registry.json; without one half races are named by the default rule '
+                             'and the build is provisional)')
+    half_policy = json.loads(HALF_PIN_PATH.read_text()).get('policy') if HALF_PIN_PATH.is_file() else None
+    half_policy = HERE.parent / half_policy if half_policy and (HERE.parent / half_policy).is_file() else None
+    parser.add_argument('--half-policy', type=Path, default=half_policy,
+                        help='the half policy whose never_compared list marks the editions never compared (default the one '
+                             'analysis/half-release.json names; without one the build is provisional)')
+    parser.add_argument('--timing', type=Path, default=TIMING_PATH, help='the timing class of each timing-basis text (default analysis/lookup-timing.json)')
     parser.add_argument('--race-notes', type=Path, default=RACE_NOTES_PATH if RACE_NOTES_PATH.is_file() else None,
                         help='the race directory’s notes, whose set_aside_editions are kept and never listed (default analysis/race-notes.json; '
                              'without one the build is provisional)')
@@ -1114,7 +1185,7 @@ def main(argv=None):
         signal.signal(getattr(signal, name), stop)
     try:
         build(args.core, args.links, args.status, args.identity, args.output, pin_path=args.pin, registry_path=args.registry,
-              half_registry_path=args.half_registry, policy_path=args.policy, cohort_path=args.cohort, race_notes_path=args.race_notes, as_of=args.as_of,
+              half_registry_path=args.half_registry, half_policy_path=args.half_policy, timing_path=args.timing, policy_path=args.policy, cohort_path=args.cohort, race_notes_path=args.race_notes, as_of=args.as_of,
               temp=args.temp, memory=args.memory, threads=args.threads, temp_limit_gb=args.temp_limit_gb)
     except BuildError as error:
         print(f'build_runner_lookup: {error}', file=sys.stderr)
