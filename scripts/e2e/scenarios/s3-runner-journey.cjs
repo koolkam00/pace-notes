@@ -40,6 +40,9 @@ function copyEditionProfile(out) {
   const runners = JSON.parse(data('runners/manifest.json'));
   const screen = JSON.parse(data('insights/manifest.json')).duplicate_edition_screen ?? [];
   if (!screen.length) return null;
+  // Lookup version 2 (November 19, 2026): this search reads the version 1 shards. The adopted release has no copy
+  // editions, so it returns above; a release with copies needs it ported to scripts/lib/lookup-files.cjs first.
+  if (runners.schema_version === 2) throw new Error('S3 copy editions: port copyEditionProfile to the schema 2 lookup (scripts/lib/lookup-files.cjs) before a release with copy editions');
   const { city, duplicate_of: source } = screen[0];
   const copies = screen.filter(entry => entry.city === city && entry.duplicate_of === source);
   const years = [...copies.map(entry => entry.year), source];
@@ -254,7 +257,8 @@ async function journey(h, blocklist) {
     // option.
     const held = ['#runner-profile', '.runner-selection', '.runner-context'].map(s => document.querySelector(s)?.textContent || '').join('\n')
       + '\n' + [...document.querySelectorAll('.runner-selection [aria-label]')].map(e => e.getAttribute('aria-label')).join('\n');
-    const ids = [...new Set([...held.matchAll(/record (\d{3,})/gi)].map(m => m[1]))];
+    // Lookup version 2: a record's key is its database and id ("Record f123.", "Record h77.").
+    const ids = [...new Set([...held.matchAll(/record ([fh]\d+)/gi)].map(m => m[1]))];
     const times = [...new Set([...text.matchAll(/\b\d:\d\d:\d\d\b/g)].map(m => m[0]))].slice(0, 30);
     const links = [...document.querySelectorAll('.runner-context a')].map(a => a.getAttribute('href')).filter(href => href && href.includes('?'));
     return { names, ids, times, links };
@@ -273,7 +277,8 @@ async function journey(h, blocklist) {
   const linked = found.links.flatMap(href => [...new URL(href, SITE).searchParams].filter(([key]) => key !== 'via' && key !== 'units')
     .flatMap(([key, value]) => /\d:\d\d/.test(value) ? value.split(',') : [new RegExp(`[?&]${key}=${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(&|$)`, 'i')]));
   run.options.needles = [...found.names, ...found.names.flatMap(name => name.split(/\s+/).filter(word => word.length > 3)),
-    ...found.ids.map(id => new RegExp(`(^|[^0-9a-f-])${id}($|[^0-9a-f-])`)), ...found.times, ...linked];
+    // Each record key in its own form and, for an id of six digits or more, the bare id (the form a v1 address held).
+    ...found.ids.flatMap(key => [new RegExp(`(^|[^0-9a-z-])${key}($|[^0-9a-z-])`, 'i'), ...(key.length > 6 ? [new RegExp(`(^|[^0-9a-f-])${key.slice(1)}($|[^0-9a-f-])`)] : [])]), ...found.times, ...linked];
   await wiggle(page, 6);
   const report = await raceReport(h, run, page, step);
   // The report's share sheet holds the view's split-check link (round 4): its values are needles too.
