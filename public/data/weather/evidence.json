@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "weather_screen",
-  "as_of": "2026-11-14T03:35:46Z",
+  "as_of": "2026-11-19T15:54:02Z",
   "input": {
     "repository": "koolkam00/pace-notes",
     "release_tag": "pace-notes-marathon-half-20261113-1113",
@@ -11,7 +11,7 @@
     "asset_sha256": "a76b1615d2e6769dab61cfc3cfa1cf54a6b3897b1bf54c4bbc682083d6f790e0",
     "asset_path": "release-assets/pace-notes-CORE-20261113-1113.tar.gz",
     "bundle": "FULL",
-    "manifest_sha256": "c0ddc847837382ae9b9ed7a52812a851588c7add8d04368e77226bf075d8310b",
+    "manifest_sha256": "e994ac1590d8b3204c02cc6327c83cb7315b5cc5fd2914a445f07fa809ba085c",
     "release_checksums": {
       "asset": "RELEASE-SHA256SUMS-20261113-1113.txt",
       "sha256": "857c5add4e8bb73b63c59faa2829af3c1b03e4fccbde45aa78960d077f33f988"
@@ -47,27 +47,27 @@
       "checksums_asset": "RELEASE-SHA256SUMS-20261021-1050.txt",
       "checksums_sha256": "a1307f35940b517142780f1e9ba19cd0eb4cb7515fb3a1e1bbc96056ab2d742f"
     },
-    "adapter_sha256": "4ea40bb4d3a1b8d3381ada1da9670de0d48c97de2fe5fa8e311550d25d8e911c",
-    "adapter_version": 2,
-    "race_registry_sha256": "163ec25db62491bbc0d49262334a72dd3a50ea9e77da718c2aa03692bef6c6a2",
+    "adapter_sha256": "ead29ea49571f63091d8278bdd291633c2c393804da925568d8a366d6bf1c023",
+    "adapter_version": 3,
+    "race_registry_sha256": "446e9c1d954b6de6f41cce7415f32fb94ad79b30e4132d9e3c1920e88c1cd72b",
     "as_of": "2026-11-13T19:30:55Z",
     "race_conditions_sha256": "a2efadb42d1570d499e6b2b9fb2390afc1e03c14e32dd86ff268aba85942a401"
   },
   "calculation": {
-    "script_sha256": "d5ef37fbe3e80ac233645ce145644c05e7ea30e6fb24f9ba16553524d17d48dd",
+    "script_sha256": "4c27b9a6dbe53ca8274e55ad324f97963c60c625ba9a9f84f49c42c2acfb8dd2",
     "pacing_script_sha256": "d799a3c92f7ce00d4dae7a20d145a0904486e3e186f9c342c3182a3f7926039b",
     "duckdb_version": "1.4.4",
     "numpy_version": "2.5.3",
-    "source_quality_script_sha256": "13937ede2fd9fe886b50cb6cc148e79b982a428fb3a7d460c74599e0896eeec8"
+    "source_quality_script_sha256": "10b6bee6fb47807aa86236d0e11e44dc763768b557fd9e0ee364619de70a8965"
   },
   "source_quality": {
     "version": 2,
     "release_tag": "pace-notes-marathon-half-20261113-1113",
     "reviewed_edition_policy": true,
-    "policy_sha256": "be5f84977d1b72fa81b0a0f680a4b9d4c27f50600f70d4ecec9b8241885e758d",
-    "script_sha256": "13937ede2fd9fe886b50cb6cc148e79b982a428fb3a7d460c74599e0896eeec8",
+    "policy_sha256": "6fd848dba85aa5b745a023d101cd80303607d506c03aea708774d0b5dd0c22cd",
+    "script_sha256": "10b6bee6fb47807aa86236d0e11e44dc763768b557fd9e0ee364619de70a8965",
     "editions_file": "edition-policy.json",
-    "editions_sha256": "45cbd46e806bdb7a4e1a902f62465ca84ef7754d0644978cc7d3df9bd3476f24",
+    "editions_sha256": "793dec4d47de131ebd2e0674c81ef3b05f423b003aff1defa570a9c022b968dd",
     "counts": {
       "editions": 2487,
       "own_record_editions": 32,
@@ -124,14 +124,16 @@
       }
     }
   },
+  "cohort_manifest_sha256": "a812fa41079b7632b014993d8764dc7ba2a009384803c1b3ab0b1480154e2299",
+  "cohort_manifest_as_of": "2026-11-14T15:24:11Z",
   "cohort": {
-    "deduplicated": 7820393,
-    "complete": 4736952,
-    "increasing": 4705518,
-    "timing_eligible": 4687794,
-    "eligible": 4124023,
+    "deduplicated": 7820396,
+    "complete": 4736955,
+    "increasing": 4705521,
+    "timing_eligible": 4687797,
+    "eligible": 4124026,
     "source_quality_excluded": 563771,
-    "raw": 7820439,
+    "raw": 7820442,
     "duplicates_removed": 46,
     "missing_or_unparsed": 3083441,
     "non_increasing": 31434,
@@ -141,7 +143,7 @@
     "eligible_editions_before_weather": 201,
     "weather_analysis_editions": 189,
     "weather_analysis_courses": 25,
-    "weather_analysis_finishes": 3955558
+    "weather_analysis_finishes": 3955561
   },
   "exclusions": {
     "no_valid_unique_weather_editions": 12,
@@ -212,124 +214,124 @@
         "max": 19.6
       },
       "effect": {
-        "estimate": 0.27474052790583464,
-        "low": -0.6000972056863466,
-        "high": 1.0688211553246039,
+        "estimate": 0.2747389234901336,
+        "low": -0.6001001865307426,
+        "high": 1.0688196479403436,
         "confidence": 0.9833333333333333,
         "unit": "percentage points"
       },
       "support": {
         "editions": 189,
         "courses": 25,
-        "finishes": 3955558,
+        "finishes": 3955561,
         "vif": 3.480628769426984,
         "courses_with_half_iqr_range": 18,
         "valid_bootstrap_draws": 6000,
         "failed_bootstrap_draws": 0,
-        "leave_course_out_min": 0.08964693485963499,
-        "leave_course_out_max": 0.4719742157329777,
+        "leave_course_out_min": 0.08964515306735073,
+        "leave_course_out_max": 0.4719723832648259,
         "failed_leave_course_out_fits": 0
       },
       "leave_course_out": [
         {
           "omitted_course": "Amsterdam",
-          "estimate": 0.2702572803974867
+          "estimate": 0.27025565898078646
         },
         {
           "omitted_course": "Austin",
-          "estimate": 0.2532979279830665
+          "estimate": 0.25329632194609136
         },
         {
           "omitted_course": "Barcelona",
-          "estimate": 0.26005607607724024
+          "estimate": 0.2600544102188284
         },
         {
           "omitted_course": "Berlin",
-          "estimate": 0.2788439606434012
+          "estimate": 0.2788424258830487
         },
         {
           "omitted_course": "Boston",
-          "estimate": 0.3318137022274972
+          "estimate": 0.3318119499703826
         },
         {
           "omitted_course": "Chicago",
-          "estimate": 0.37346841003969655
+          "estimate": 0.37346659403977817
         },
         {
           "omitted_course": "Copenhagen",
-          "estimate": 0.2593346409309904
+          "estimate": 0.25933298061230725
         },
         {
           "omitted_course": "Dubai",
-          "estimate": 0.21756692745177106
+          "estimate": 0.2175652961206562
         },
         {
           "omitted_course": "Eindhoven",
-          "estimate": 0.3979119756341521
+          "estimate": 0.39791023924116214
         },
         {
           "omitted_course": "Frankfurt",
-          "estimate": 0.28510610094290273
+          "estimate": 0.28510451241306994
         },
         {
           "omitted_course": "Gold Coast",
-          "estimate": 0.27474052790583464
+          "estimate": 0.2747389234901336
         },
         {
           "omitted_course": "Hamburg",
-          "estimate": 0.2810154876175317
+          "estimate": 0.2810138819696054
         },
         {
           "omitted_course": "Helsinki",
-          "estimate": 0.2039064296986099
+          "estimate": 0.2039047117291555
         },
         {
           "omitted_course": "London",
-          "estimate": 0.2910701023864874
+          "estimate": 0.29107010238648906
         },
         {
           "omitted_course": "Madrid",
-          "estimate": 0.08964693485963499
+          "estimate": 0.08964515306735073
         },
         {
           "omitted_course": "New York",
-          "estimate": 0.4719742157329777
+          "estimate": 0.4719723832648259
         },
         {
           "omitted_course": "Oslo",
-          "estimate": 0.273617750549059
+          "estimate": 0.2736161436755075
         },
         {
           "omitted_course": "Paris",
-          "estimate": 0.2744685282205566
+          "estimate": 0.27446692068078354
         },
         {
           "omitted_course": "Prague",
-          "estimate": 0.1998362160641965
+          "estimate": 0.1998345562962704
         },
         {
           "omitted_course": "Rotterdam",
-          "estimate": 0.33844933906860897
+          "estimate": 0.33844763296978597
         },
         {
           "omitted_course": "Stockholm",
-          "estimate": 0.1388102974311658
+          "estimate": 0.13880864858288458
         },
         {
           "omitted_course": "Sydney",
-          "estimate": 0.27474052790583464
+          "estimate": 0.2747389234901336
         },
         {
           "omitted_course": "Valencia",
-          "estimate": 0.2039892870549765
+          "estimate": 0.2039875734694979
         },
         {
           "omitted_course": "Warsaw",
-          "estimate": 0.26367385495983986
+          "estimate": 0.2636722102935857
         },
         {
           "omitted_course": "Washington",
-          "estimate": 0.34049561292880376
+          "estimate": 0.340493605974468
         }
       ]
     },
@@ -351,124 +353,124 @@
         "max": 9.900000000000002
       },
       "effect": {
-        "estimate": 2.065943010780687,
+        "estimate": 2.065940855391988,
         "low": 1.5180148862589322,
-        "high": 2.6199429377834393,
+        "high": 2.6199407734227487,
         "confidence": 0.9833333333333333,
         "unit": "percentage points"
       },
       "support": {
         "editions": 189,
         "courses": 25,
-        "finishes": 3955558,
+        "finishes": 3955561,
         "vif": 1.1967905885603274,
         "courses_with_half_iqr_range": 19,
         "valid_bootstrap_draws": 6000,
         "failed_bootstrap_draws": 0,
-        "leave_course_out_min": 1.9352644191118415,
-        "leave_course_out_max": 2.1672223828762247,
+        "leave_course_out_min": 1.9352620226911412,
+        "leave_course_out_max": 2.1672201021502606,
         "failed_leave_course_out_fits": 0
       },
       "leave_course_out": [
         {
           "omitted_course": "Amsterdam",
-          "estimate": 2.040949546395623
+          "estimate": 2.0409472946518563
         },
         {
           "omitted_course": "Austin",
-          "estimate": 2.0661216707252112
+          "estimate": 2.0661195153500214
         },
         {
           "omitted_course": "Barcelona",
-          "estimate": 2.06613517778233
+          "estimate": 2.0661330231976964
         },
         {
           "omitted_course": "Berlin",
-          "estimate": 2.1633133727949034
+          "estimate": 2.163310879025444
         },
         {
           "omitted_course": "Boston",
-          "estimate": 1.9352644191118415
+          "estimate": 1.9352620226911412
         },
         {
           "omitted_course": "Chicago",
-          "estimate": 2.008239302230843
+          "estimate": 2.008236827929606
         },
         {
           "omitted_course": "Copenhagen",
-          "estimate": 1.9778540864879879
+          "estimate": 1.9778518900788997
         },
         {
           "omitted_course": "Dubai",
-          "estimate": 2.090798770330284
+          "estimate": 2.09079652970514
         },
         {
           "omitted_course": "Eindhoven",
-          "estimate": 2.056238516128249
+          "estimate": 2.0562362548254014
         },
         {
           "omitted_course": "Frankfurt",
-          "estimate": 2.052776876317236
+          "estimate": 2.052774700750638
         },
         {
           "omitted_course": "Gold Coast",
-          "estimate": 2.065943010780687
+          "estimate": 2.065940855391988
         },
         {
           "omitted_course": "Hamburg",
-          "estimate": 2.0882316328065507
+          "estimate": 2.088229366638667
         },
         {
           "omitted_course": "Helsinki",
-          "estimate": 2.0927603352980992
+          "estimate": 2.0927581379135387
         },
         {
           "omitted_course": "London",
-          "estimate": 2.0879561316976236
+          "estimate": 2.087956131697624
         },
         {
           "omitted_course": "Madrid",
-          "estimate": 2.09068631989723
+          "estimate": 2.0906840700830576
         },
         {
           "omitted_course": "New York",
-          "estimate": 2.094438208661603
+          "estimate": 2.094435814350582
         },
         {
           "omitted_course": "Oslo",
-          "estimate": 2.0656059950700136
+          "estimate": 2.065603840805256
         },
         {
           "omitted_course": "Paris",
-          "estimate": 2.0650200130762904
+          "estimate": 2.0650178470864327
         },
         {
           "omitted_course": "Prague",
-          "estimate": 2.0692836874077494
+          "estimate": 2.069281540554139
         },
         {
           "omitted_course": "Rotterdam",
-          "estimate": 2.010207884604224
+          "estimate": 2.010205580352155
         },
         {
           "omitted_course": "Stockholm",
-          "estimate": 2.0612020919511327
+          "estimate": 2.0611999350127315
         },
         {
           "omitted_course": "Sydney",
-          "estimate": 2.065943010780687
+          "estimate": 2.065940855391988
         },
         {
           "omitted_course": "Valencia",
-          "estimate": 2.1012911131294048
+          "estimate": 2.10128891586762
         },
         {
           "omitted_course": "Warsaw",
-          "estimate": 2.1672223828762247
+          "estimate": 2.1672201021502606
         },
         {
           "omitted_course": "Washington",
-          "estimate": 2.0872933859527416
+          "estimate": 2.087290897709736
         }
       ]
     },
@@ -490,124 +492,124 @@
         "max": 9.93
       },
       "effect": {
-        "estimate": 0.3367361917374443,
-        "low": -0.06393908844503116,
-        "high": 0.7120812370011851,
+        "estimate": 0.33673627732826317,
+        "low": -0.06393944889935689,
+        "high": 0.7120811912274404,
         "confidence": 0.9833333333333333,
         "unit": "percentage points"
       },
       "support": {
         "editions": 189,
         "courses": 25,
-        "finishes": 3955558,
+        "finishes": 3955561,
         "vif": 1.2431827490174137,
         "courses_with_half_iqr_range": 21,
         "valid_bootstrap_draws": 6000,
         "failed_bootstrap_draws": 0,
-        "leave_course_out_min": 0.257109945070273,
-        "leave_course_out_max": 0.39306515321815316,
+        "leave_course_out_min": 0.25711005508020773,
+        "leave_course_out_max": 0.3930652579448776,
         "failed_leave_course_out_fits": 0
       },
       "leave_course_out": [
         {
           "omitted_course": "Amsterdam",
-          "estimate": 0.36955321591212836
+          "estimate": 0.3695533213952843
         },
         {
           "omitted_course": "Austin",
-          "estimate": 0.33696942533143787
+          "estimate": 0.3369695109398915
         },
         {
           "omitted_course": "Barcelona",
-          "estimate": 0.3393815622128426
+          "estimate": 0.3393816588724253
         },
         {
           "omitted_course": "Berlin",
-          "estimate": 0.3404397510475
+          "estimate": 0.3404398111061447
         },
         {
           "omitted_course": "Boston",
-          "estimate": 0.2605687846847556
+          "estimate": 0.2605688257075006
         },
         {
           "omitted_course": "Chicago",
-          "estimate": 0.3751980570034823
+          "estimate": 0.37519811653647334
         },
         {
           "omitted_course": "Copenhagen",
-          "estimate": 0.2940779131791088
+          "estimate": 0.29407798485809905
         },
         {
           "omitted_course": "Dubai",
-          "estimate": 0.3612418167278855
+          "estimate": 0.3612418868983887
         },
         {
           "omitted_course": "Eindhoven",
-          "estimate": 0.29958036954549044
+          "estimate": 0.29958054106594945
         },
         {
           "omitted_course": "Frankfurt",
-          "estimate": 0.3267948692511578
+          "estimate": 0.32679493960629724
         },
         {
           "omitted_course": "Gold Coast",
-          "estimate": 0.3367361917374443
+          "estimate": 0.33673627732826317
         },
         {
           "omitted_course": "Hamburg",
-          "estimate": 0.3403676510458097
+          "estimate": 0.3403677352404146
         },
         {
           "omitted_course": "Helsinki",
-          "estimate": 0.3613181413348141
+          "estimate": 0.36131816085821733
         },
         {
           "omitted_course": "London",
-          "estimate": 0.33572604916162246
+          "estimate": 0.3357260491616225
         },
         {
           "omitted_course": "Madrid",
-          "estimate": 0.39306515321815316
+          "estimate": 0.3930652579448776
         },
         {
           "omitted_course": "New York",
-          "estimate": 0.3159583043803448
+          "estimate": 0.3159583889369955
         },
         {
           "omitted_course": "Oslo",
-          "estimate": 0.338140148751863
+          "estimate": 0.3381402374977605
         },
         {
           "omitted_course": "Paris",
-          "estimate": 0.3383858515945518
+          "estimate": 0.33838595613266015
         },
         {
           "omitted_course": "Prague",
-          "estimate": 0.33211173637923075
+          "estimate": 0.3321118191101789
         },
         {
           "omitted_course": "Rotterdam",
-          "estimate": 0.3808299121815411
+          "estimate": 0.38083002089387213
         },
         {
           "omitted_course": "Stockholm",
-          "estimate": 0.30052937677119335
+          "estimate": 0.3005294505268068
         },
         {
           "omitted_course": "Sydney",
-          "estimate": 0.3367361917374443
+          "estimate": 0.33673627732826317
         },
         {
           "omitted_course": "Valencia",
-          "estimate": 0.3837937574051556
+          "estimate": 0.3837939096503086
         },
         {
           "omitted_course": "Warsaw",
-          "estimate": 0.257109945070273
+          "estimate": 0.25711005508020773
         },
         {
           "omitted_course": "Washington",
-          "estimate": 0.34005328147393266
+          "estimate": 0.3400533366717332
         }
       ]
     }
@@ -2837,10 +2839,10 @@
       "city": "London",
       "year": 2026,
       "race": "London Marathon",
-      "n": 56759,
-      "pace_change_pct": 11.2400455062571,
-      "finish_minutes": 267.81666666666666,
-      "women_pct": 43.32528761958456,
+      "n": 56762,
+      "pace_change_pct": 11.239832093515055,
+      "finish_minutes": 267.8,
+      "women_pct": 43.32299778020507,
       "median_recorded_age": null,
       "weather_race": "London Marathon",
       "date": "2026-04-26",
