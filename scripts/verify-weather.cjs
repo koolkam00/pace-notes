@@ -19,6 +19,24 @@ const { WEATHER_QUESTIONS } = require('../lib/weather-catalog.ts');
 const { weatherValue, weatherLabel, weatherFinding, weatherNumber } = require('../lib/weather-display.ts');
 const { sourceReleaseTag, sourceReleaseHref, sourceLabel } = require('../lib/data-source.ts');
 const evidence = getWeatherEvidence();
+// The evidence is built beside the marathon cohort (since November 14, 2026): the same input, cohort counts and edition
+// policy, and for every weather edition the race date the cohort manifest gives it.
+{
+  const cohort = require('./lib/cohort.cjs');
+  const { manifest: base, sha256: baseSha } = cohort.verifiedManifest(JSON.parse(fs.readFileSync(path.join(root, 'analysis/release.json'), 'utf8')));
+  assert.equal(evidence.cohort_manifest_sha256, baseSha, 'Weather evidence names the checked-in cohort manifest');
+  assert.equal(evidence.cohort_manifest_as_of, base.as_of);
+  assert.equal(evidence.input.manifest_sha256, base.input_manifest_sha256, 'Weather evidence and the cohort are built on one input');
+  // The evidence adds its weather counts (weather_rows, weather_analysis_*) beside the cohort's own.
+  assert.deepEqual(Object.fromEntries(Object.keys(base.cohort).map(k => [k, evidence.cohort[k]])), base.cohort, 'Weather evidence states the cohort manifest\'s counts');
+  assert.deepEqual(evidence.source_quality, base.source_quality, 'Weather evidence states the cohort manifest\'s edition policy');
+  const dated = new Map(base.editions.map(e => [`${e.city}|${e.year}`, e]));
+  for (const row of evidence.editions) {
+    const entry = dated.get(`${row.city}|${row.year}`);
+    assert.ok(entry && entry.use === 'counted' && entry.race_date === row.date && entry.race_date_source === 'weather' && entry.eligible >= row.n,
+      `${row.city} ${row.year}: a weather edition is a counted edition of the cohort with the weather row's race date`);
+  }
+}
 const canonical = JSON.stringify(evidence);
 const sum = values => values.reduce((a, b) => a + b, 0);
 const close = (actual, expected, label, tolerance = 1e-9) => assert.ok(Math.abs(actual - expected) <= tolerance, `${label}: ${actual} != ${expected}`);
