@@ -532,6 +532,9 @@ const raceEdition = (f, year) => f.raceFile?.editions.find((e) => e.year === yea
 
 /** The file value a key names for a city, or undefined. */
 function resolve(dataKey, f) {
+  // The race directory's keys first: a results page's facts hold its race file only.
+  const race = /^(rr|rf|rm|rq1|rq3)@(\d{4})$/.exec(dataKey);
+  if (race) { const e = raceEdition(f, Number(race[2])); return e ? { rr: e.results, rf: e.finishes, rm: e.median_s, rq1: e.p25_s, rq3: e.p75_s }[race[1]] : undefined; }
   const [full, at] = dataKey.split('@');
   const name = full.endsWith('.r') ? full.slice(0, -2) : full;
   const arg = at === undefined ? undefined : Number(at);
@@ -564,11 +567,6 @@ function resolve(dataKey, f) {
     case 'identified.editions': return f.s.identified?.editions;
     case 'slowest': return f.s.slowest_section;
     case 'n': return cell?.n;
-    case 'rr': return raceEdition(f, arg)?.results;
-    case 'rf': return raceEdition(f, arg)?.finishes;
-    case 'rm': return raceEdition(f, arg)?.median_s;
-    case 'rq1': return raceEdition(f, arg)?.p25_s;
-    case 'rq3': return raceEdition(f, arg)?.p75_s;
     case 'sd': return cell?.slowdown;
     case 'temp': return cell?.temp ?? undefined;
     // The race date: the weather record's, else the marathon cohort's reviewed date (an edition without a weather row).
@@ -706,7 +704,8 @@ if (html) {
   let factCount = 0;
 
   // A course of the story data without a page (fewer than three counted editions and not a kept course) is not exported.
-  for (const city of CITIES.filter((c) => !PAGES.includes(c))) check(!fs.existsSync(path.join(OUT, 'courses', `${slugOf(city)}.html`)), `/courses/${slugOf(city)}`, 'exported, but the course has no page');
+  // Since November 19, 2026 such a course may have a results page instead (Toronto Waterfront), which is checked below.
+  for (const city of CITIES.filter((c) => !PAGES.includes(c) && !RESULTS.some((p) => p.label === c))) check(!fs.existsSync(path.join(OUT, 'courses', `${slugOf(city)}.html`)), `/courses/${slugOf(city)}`, 'exported, but the course has no page');
 
   // The pages that only list their editions (a kept course with no counted edition): the race as the H1, every edition
   // of the race with its tier in the site's words, the closing stack, and no figure of any kind: no <data>, no share, no
@@ -1210,7 +1209,7 @@ if (html) {
     for (const [pattern, label] of BANNED) check(!pattern.test(textOf(main)), where, `${label} on the page`);
   }
   words.sort((a, b) => a[1] - b[1]);
-  console.log(`Course pages: ${PAGE_CITIES.length} full pages and ${LIST_CITIES.length} that list their editions, ${factCount} printed figures checked; ${words[0][1]}–${words[words.length - 1][1]} words of main text (${words[0][0]} to ${words[words.length - 1][0]}).`);
+  console.log(`Course pages: ${PAGE_CITIES.length} full pages and ${LIST_CITIES.length} that list their editions, ${RESULTS.length} results pages, ${factCount} printed figures checked; ${words[0][1]}–${words[words.length - 1][1]} words of main text (${words[0][0]} to ${words[words.length - 1][0]}).`);
 }
 
 if (failures.length) {
