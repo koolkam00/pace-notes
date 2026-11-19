@@ -54,6 +54,13 @@ STATUS_WORDS = {
     '6': 'limited: its edition gives recorded times only',
 }
 NO_COMPARISON = {'0': 'none', '1': 'gross (gun) times', '2': 'course suspected short'}
+# The screen a person of a confirmed link tier failed (`w` of a result; lead ruling, November 19, 2026). A result whose
+# link code is b, c or d carries the identity file's `not_keyed_reason` as a digit; every other result carries 0.
+SCREENS = {'birth_year_spread': '1', 'sex_conflict': '2', 'two_results_in_one_edition': '3'}
+SCREEN_CODES = '0123'
+# The timing class of an edition (`tb` of editions.json.gz; lead ruling, November 19, 2026): the digit is the position
+# in lib/tiers.ts TIMING_CLASSES. analysis/lookup-timing.json maps each release text to its class.
+TIMING_CLASSES = ['chip', 'chip_fallback', 'gun', 'mixed', 'not_stated']
 
 
 def encode(value):
@@ -117,6 +124,7 @@ class ShardBody:
     def __init__(self):
         self.k, self.u, self.n = [], [], []
         self.e, self.i, self.f, self.x, self.a, self.c, self.j, self.s, self.m, self.d = [], [], [], [], [], [], [], [], [], []
+        self.w = []
         self._names = None
 
     def start_profile(self):
@@ -124,7 +132,7 @@ class ShardBody:
         self.u.append(0)
         self._names = {}
 
-    def add(self, edition, id_offset, finish, sex, age, link, name, status, checkpoints):
+    def add(self, edition, id_offset, finish, sex, age, link, name, status, checkpoints, screen='0'):
         """One result of the open profile. `checkpoints`: the recorded checkpoint times before the finish, None where
         none was recorded. Returns True when `name` is new in the profile."""
         names = self._names
@@ -141,6 +149,7 @@ class ShardBody:
         self.x.append(sex)
         self.a.append(age)
         self.c.append(link)
+        self.w.append(screen)
         self.j.append(at)
         self.s.append(status)
         mask, previous = 0, 0
@@ -160,7 +169,7 @@ class ShardBody:
 
     def body(self):
         return encode({'v': SCHEMA_VERSION, 'k': self.k, 'u': self.u, 'n': self.n, 'e': self.e, 'i': self.i, 'f': self.f,
-                       'x': ''.join(self.x), 'a': self.a, 'c': ''.join(self.c), 'j': self.j, 's': ''.join(self.s),
+                       'x': ''.join(self.x), 'a': self.a, 'c': ''.join(self.c), 'w': ''.join(self.w), 'j': self.j, 's': ''.join(self.s),
                        'm': self.m, 'd': self.d})
 
 
@@ -169,7 +178,7 @@ def decode_shard(data, editions=None):
     (decode_editions' rows) each result also carries 'id', 'db', 'distance' and its 'times' (None where not recorded)."""
     assert data['v'] == SCHEMA_VERSION
     results = len(data['e'])
-    for column in ('i', 'f', 'x', 'a', 'c', 'j', 's', 'm'):
+    for column in ('i', 'f', 'x', 'a', 'c', 'w', 'j', 's', 'm'):
         assert len(data[column]) == results, f'profile shard: column {column} has another length'
     assert sum(data['k']) == results and sum(data['u']) == len(data['n']) and len(data['k']) == len(data['u'])
     assert sum(bin(mask).count('1') for mask in data['m']) == len(data['d'])
@@ -179,7 +188,7 @@ def decode_shard(data, editions=None):
         for r in range(at, at + count):
             mask = data['m'][r]
             row = {'e': data['e'][r], 'i': data['i'][r], 'f': data['f'][r], 'x': data['x'][r], 'a': data['a'][r],
-                   'c': data['c'][r], 'j': data['j'][r], 's': data['s'][r], 'm': mask,
+                   'c': data['c'][r], 'w': data['w'][r], 'j': data['j'][r], 's': data['s'][r], 'm': mask,
                    'name': profile['names'][data['j'][r]]}
             gaps = data['d'][gap_at:gap_at + bin(mask).count('1')]
             gap_at += len(gaps)
@@ -216,13 +225,14 @@ def result_times(mask, gaps, finish, distance):
 
 def editions_body(races, rows, reasons):
     """`races`: [[distance letter, label, display name]]. `rows`: one dict per edition, in order, with keys race, year,
-    tier, splits, db, no_comparison, q, cohort, reason, unlisted. `reasons`: the distinct reason sentences."""
+    tier, splits, db, no_comparison, timing (a digit of TIMING_CLASSES), q, cohort, reason, unlisted. `reasons`: the
+    distinct reason sentences."""
     return encode({
         'v': SCHEMA_VERSION, 'races': races,
         'sr': [r['race'] for r in rows], 'y': [r['year'] for r in rows],
         't': ''.join(str(r['tier']) for r in rows), 'sp': ''.join('1' if r['splits'] else '0' for r in rows),
         'db': ''.join(r['db'] for r in rows), 'g': ''.join(str(r['no_comparison']) for r in rows),
-        'q': [r['q'] for r in rows], 'cx': [r['cohort'] for r in rows], 'rs': [r['reason'] for r in rows],
+        'tb': ''.join(str(r['timing']) for r in rows), 'q': [r['q'] for r in rows], 'cx': [r['cohort'] for r in rows], 'rs': [r['reason'] for r in rows],
         'nl': [r['unlisted'] for r in rows], 'reasons': reasons,
     })
 
@@ -231,7 +241,7 @@ def decode_editions(data):
     """editions.json.gz (parsed) as one dict per edition, in index order."""
     assert data['v'] == SCHEMA_VERSION
     count = len(data['sr'])
-    for column in ('y', 't', 'sp', 'db', 'g', 'q', 'cx', 'rs', 'nl'):
+    for column in ('y', 't', 'sp', 'db', 'g', 'tb', 'q', 'cx', 'rs', 'nl'):
         assert len(data[column]) == count, f'editions: column {column} has another length'
     out = []
     for at in range(count):
@@ -239,7 +249,7 @@ def decode_editions(data):
         out.append({
             'index': at, 'distance': 'marathon' if letter == 'm' else 'half', 'city': label, 'race': name, 'year': data['y'][at],
             'tier': int(data['t'][at]), 'splits': data['sp'][at] == '1', 'db': data['db'][at], 'no_comparison': int(data['g'][at]),
-            'q': data['q'][at], 'context': None if data['cx'][at] < 0 else data['cx'][at],
+            'timing': TIMING_CLASSES[int(data['tb'][at])], 'q': data['q'][at], 'context': None if data['cx'][at] < 0 else data['cx'][at],
             'reason': None if data['rs'][at] < 0 else data['reasons'][data['rs'][at]], 'unlisted': data['nl'][at],
         })
     return out

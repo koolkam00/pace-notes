@@ -30,7 +30,9 @@ class RaceError(Exception):
 
 
 def read_registry(path, distance):
-    """{release key: (label, display name)} of a registry file, its tag and its sha256."""
+    """{release key: (label, display name)} of a registry file, its tag and its sha256. A half registry whose keys are
+    {source_db, key} objects (analysis/half-race-registry.json: one key text can be two races, one per database) is
+    returned keyed by (in the half database, key text)."""
     data = path.read_bytes()
     registry = json.loads(data)
     if registry.get('distance') != distance:
@@ -44,6 +46,10 @@ def read_registry(path, distance):
             raise RaceError(f'{path}: the label {label!r} names two races')
         labels.add(label)
         for key in race['keys']:
+            if isinstance(key, dict):
+                if key.get('source_db') not in ('half', 'full') or not isinstance(key.get('key'), str):
+                    raise RaceError(f'{path}: race {race.get("race_id")!r} has a key that is not {{source_db, key}}')
+                key = (key['source_db'] == 'half', key['key'])
             if key in by_key:
                 raise RaceError(f'{path}: the key {key!r} is in two races')
             by_key[key] = (label, name)
@@ -51,10 +57,32 @@ def read_registry(path, distance):
 
 
 def half_races(first_years, registry=None):
-    """{half release key: (label, display name)}. `first_years`: {key: first year with a listed result}; `registry`:
-    {key: (label, name)} of a half registry, or None. Keys the registry lacks follow the default rule (HALF_RULE)."""
+    """{(in the half database, half release key): (label, display name)}. `first_years`: {(in the half database, key):
+    first year with a listed result}; `registry`: read_registry's map of a half registry, or None. A key the registry
+    names (by database and key, or by key alone in a registry of plain keys) takes its race; a key it lacks follows the
+    default rule (HALF_RULE), which names a key text once whatever its database."""
     registry = registry or {}
+    named = {}
+    for dbh, key in first_years:
+        if (dbh, key) in registry:
+            named[(dbh, key)] = registry[(dbh, key)]
+        elif key in registry:
+            named[(dbh, key)] = registry[key]
+    texts = {}
+    for (dbh, key), year in first_years.items():
+        if (dbh, key) not in named:
+            texts[key] = min(year, texts.get(key, year))
+    labels = {label for label, _ in named.values()}
+    by_text = _default_names(texts, labels)
+    return {**named, **{(dbh, key): by_text[key] for dbh, key in first_years if (dbh, key) not in named}}
+
+
+def _default_names(first_years, registry_labels):
+    """{key text: (label, name)} by the default rule, for keys no registry names."""
+    registry = {}
     out, fixed, pending = {}, {}, []
+    for label in registry_labels:
+        fixed[slug(label)] = label
     for key in sorted(first_years):
         if key in registry:
             out[key] = registry[key]
@@ -93,7 +121,6 @@ def half_races(first_years, registry=None):
     for key, (label, _) in out.items():
         if key not in registry:
             by_label.setdefault(label, []).append(key)
-    registry_labels = {label for label, _ in registry.values()}
     clashes = {label: keys for label, keys in by_label.items() if len(keys) > 1 or label in registry_labels}
     if clashes:
         raise RaceError(f'half race labels are not unique by the default rule; these need a registry entry: {sorted(clashes.items())[:5]}')

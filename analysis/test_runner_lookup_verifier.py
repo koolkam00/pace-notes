@@ -108,7 +108,7 @@ class Verifier(unittest.TestCase):
         release = release or self.release
         return lookup_audit.main(['--core', str(release.core), '--links', str(release.links_path), '--status', str(release.status_path),
                                   '--identity', str(release.identity_path), '--registry', str(release.registry_path),
-                                  '--placeholders', str(release.placeholders_path),
+                                  '--placeholders', str(release.placeholders_path), '--half-policy', str(release.half_policy_path),
                                   '--temp', str(self.root / 'audit-temp'), *arguments] + (['--build', str(build)] if build else []))
 
     def test_the_build_verifies(self):
@@ -243,7 +243,7 @@ class Verifier(unittest.TestCase):
             d['k'][0] -= 1
             for column in ('e', 'i', 'f', 'a', 'j', 'm'):
                 del d[column][0]
-            for column in ('x', 'c', 's'):
+            for column in ('x', 'c', 'w', 's'):
                 d[column] = d[column][1:]
             del d['d'][:points]
             d['j'][0], d['j'][1] = 1, 2                           # the two that stay keep their names

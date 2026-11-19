@@ -57,7 +57,7 @@ class Release:
         self.meta[(distance, source_db, city, year)] = timing
 
     def add(self, distance, source_db, record_id, city, year, runner, times, sex='M', age=None, person=None, tier=None, key=True,
-            status=('counted', None), unlinked_reason=None, qa=None, pending=None, short=False, sex_from_category=None):
+            status=('counted', None), unlinked_reason=None, qa=None, pending=None, short=False, sex_from_category=None, screen='birth_year_spread'):
         self.records.append({'distance': distance, 'source_db': source_db, 'id': record_id, 'race': city + ' race', 'year': year, 'city': city,
                              'runner': runner, 'sex': sex, 'age': age, **{column: times.get(column) for column in SPLITS},
                              'finish_time': times.get('finish_time')})
@@ -71,7 +71,9 @@ class Release:
         keyed = key and tier in ('high_elite', 'high', 'medium') and not left_out
         self.identity.append({'source_db': source_db, 'record_id': record_id, 'runner_key': person_id if keyed else None,
                               'link_tier': tier if person is not None else None,
-                              'status': 'left_out' if left_out else 'keyed' if keyed else 'possible_match' if person is not None else 'unlinked'})
+                              'status': 'left_out' if left_out else 'keyed' if keyed else 'possible_match' if person is not None else 'unlinked',
+                              'not_keyed_reason': None if keyed else 'left_out_by_row_rule' if left_out else 'unlinked' if person is None
+                              else 'tier_below_medium' if tier not in ('high_elite', 'high', 'medium') else screen})
         if qa or sex_from_category:
             self.qa.append({'distance': distance, 'source_db': source_db, 'record_id': record_id, 'flags': list(qa or ()), 'sex_from_category': sex_from_category})
         for flag in pending or ():
@@ -136,6 +138,11 @@ class Release:
         rule['no_comparison']['gun_times']['editions'] = [list(e) for e in gun]
         rule['no_comparison']['course_suspected_short']['editions'] = [list(e) for e in short]
         self.half_path.write_text(json.dumps(rule))
+        self.half_policy_path = self.root / 'half-policy.json'
+        self.half_policy_path.write_text(json.dumps({'tag': TAG, 'never_compared': {'editions': [
+            {'source_db': db_name, 'key': city, 'year': year, 'reason': reason}
+            for reason, listed in (('gun_times', gun), ('course_suspected_short', short)) for db_name, city, year in listed]}}))
+        self.timing_path = builder.TIMING_PATH
         self.placeholders_path = self.root / 'lookup-placeholders.json'
         self.placeholders_path.write_text(json.dumps({'tag': TAG, 'names': placeholders}))
         self.race_notes_path = self.root / 'race-notes.json'
@@ -145,8 +152,9 @@ class Release:
     @staticmethod
     def write_identity(path, rows):
         db = duckdb.connect()
-        db.execute('CREATE TABLE i (source_db VARCHAR, record_id BIGINT, runner_key VARCHAR, link_tier VARCHAR, status VARCHAR)')
-        db.executemany('INSERT INTO i VALUES (?, ?, ?, ?, ?)', [[row[c] for c in ['source_db', 'record_id', 'runner_key', 'link_tier', 'status']] for row in rows])
+        db.execute('CREATE TABLE i (source_db VARCHAR, record_id BIGINT, runner_key VARCHAR, link_tier VARCHAR, status VARCHAR, not_keyed_reason VARCHAR)')
+        db.executemany('INSERT INTO i VALUES (?, ?, ?, ?, ?, ?)', [[row.get(c) for c in ['source_db', 'record_id', 'runner_key', 'link_tier', 'status', 'not_keyed_reason']]
+                                                                for row in rows])
         db.execute(f"COPY i TO '{path}' (FORMAT PARQUET)")
         db.close()
         return path
@@ -178,6 +186,7 @@ class Release:
 
     def build(self, output, **overrides):
         options = dict(pin_path=self.pin_path, registry_path=self.registry_path, policy_path=self.policy_path, half_records_path=self.half_path,
+                       half_policy_path=self.half_policy_path,
                        placeholders_path=self.placeholders_path, as_of='2099-01-02T00:00:00Z', index_rules=RULES, memory='1GB')
         options.update(overrides)
         identity = options.pop('identity_path', self.identity_path)
@@ -195,10 +204,10 @@ def small_release(root, set_aside=False):
     With `set_aside`, a third marathon race of one edition that the race notes set aside (rows 91 and 92)."""
     release = Release(root)
     release.edition('marathon', 'full', 'Berlin', 2019)
-    release.edition('marathon', 'full', 'Berlin', 2021)
+    release.edition('marathon', 'full', 'Berlin', 2021, timing='chip where published, else gun')
     release.edition('marathon', 'full', 'Smallville, XX: Smallville Marathon 2020', 2020, tier='unverified', split='finish_time_only')
-    release.edition('half', 'half', 'Berlin', 2019, tier='held_for_review', split='finish_time_only', timing='gross (gun)')
-    release.edition('half', 'half', 'Drammen Half', 2017, tier='unverified', split='finish_time_only')
+    release.edition('half', 'half', 'Berlin', 2019, tier='held_for_review', split='finish_time_only', timing='gross (gun / Brutto; the source net column was not loaded)')
+    release.edition('half', 'half', 'Drammen Half', 2017, tier='unverified', split='finish_time_only', timing=None)
     release.edition('half', 'half', 'Lake City, ZZ: LAKE CITY HALF MARATHON 2022', 2022, tier='stamped_weaker_source')
     release.edition('half', 'full', 'Lake City, ZZ: LAKE CITY HALF MARATHON 2022', 2022, tier='unverified', split='finish_time_only')
     finish_only = {'split_42_2km': '03:59:59', 'finish_time': '03:59:59'}
@@ -209,7 +218,8 @@ def small_release(root, set_aside=False):
                 status=('limited', 'finish_time_only'), sex_from_category='M')
     # Person 2: confirmed tiers without a key (a screen failed): shown as possible matches.
     release.add('marathon', 'full', 21, 'Berlin', 2019, 'Anna Żółć', marathon_times(310), sex='F', age=30, person=2, tier='medium', key=False)
-    release.add('marathon', 'full', 22, 'Berlin', 2021, 'Anna Żółć', marathon_times(320), sex='F', age=45, person=2, tier='high', key=False)
+    release.add('marathon', 'full', 22, 'Berlin', 2021, 'Anna Żółć', marathon_times(320), sex='F', age=45, person=2, tier='high', key=False,
+                screen='sex_conflict')
     # Person 3: possible links only.
     release.add('marathon', 'full', 31, 'Berlin', 2019, 'Bo Åkesson', marathon_times(305, missing=(15, 25)), sex='X', person=3, tier='low_noage',
                 status=('limited', 'missing_checkpoints'))
@@ -388,9 +398,10 @@ class Cutter(unittest.TestCase):
 
 class Races(unittest.TestCase):
     def test_half_keys_follow_the_registry_module_and_never_reach_a_label_twice(self):
-        first = {'Berlin': 2011, 'Lake City, ZZ: LAKE CITY HALF MARATHON 2022': 2022, 'Lake City, ZZ: Lake City Half Marathon': 2019,
-                 'Other Town, YY: Lake City Half Marathon': 2018, 'XACT: Night Half': 2020}
-        races = lookup_races.half_races(first)
+        first = {(True, 'Berlin'): 2011, (True, 'Lake City, ZZ: LAKE CITY HALF MARATHON 2022'): 2022, (True, 'Lake City, ZZ: Lake City Half Marathon'): 2019,
+                 (True, 'Other Town, YY: Lake City Half Marathon'): 2018, (True, 'XACT: Night Half'): 2020, (False, 'Berlin'): 2015}
+        races = {key: value for (dbh, key), value in lookup_races.half_races(first).items() if dbh}
+        self.assertEqual(lookup_races.half_races(first)[(False, 'Berlin')], ('Berlin', 'Berlin'))          # one key text, one race by default
         self.assertEqual(races['Berlin'], ('Berlin', 'Berlin'))
         self.assertEqual(races['XACT: Night Half'], ('Night Half', 'Night Half'))                      # a platform is not a place
         self.assertEqual(races['Other Town, YY: Lake City Half Marathon'], ('Lake City Half Marathon (Other Town, YY)', 'Lake City Half Marathon'))
@@ -398,7 +409,17 @@ class Races(unittest.TestCase):
         self.assertEqual(races['Lake City, ZZ: Lake City Half Marathon'], ('Lake City Half Marathon (Lake City, ZZ, 2019)', 'Lake City Half Marathon'))
         self.assertEqual(len({label for label, _ in races.values()}), len(races))
         with_registry = lookup_races.half_races(first, {'Berlin': ('Berlin', 'Berliner Halbmarathon')})
-        self.assertEqual(with_registry['Berlin'], ('Berlin', 'Berliner Halbmarathon'))
+        self.assertEqual(with_registry[(True, 'Berlin')], ('Berlin', 'Berliner Halbmarathon'))
+        # A registry of {source_db, key} keys (analysis/half-race-registry.json) can give one key text two races.
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'half-race-registry.json'
+            path.write_text(json.dumps({'distance': 'half', 'tag': TAG, 'races': [
+                {'race_id': 'b', 'label': 'Berlin', 'name': 'Berliner Halbmarathon', 'keys': [{'source_db': 'half', 'key': 'Berlin'}]},
+                {'race_id': 'bf', 'label': 'Berlin (marathon database)', 'name': 'Berlin Half', 'keys': [{'source_db': 'full', 'key': 'Berlin'}]}]}))
+            registry = lookup_races.read_registry(path, 'half')[0]
+        both = lookup_races.half_races(first, registry)
+        self.assertEqual((both[(True, 'Berlin')], both[(False, 'Berlin')]), (('Berlin', 'Berliner Halbmarathon'), ('Berlin (marathon database)', 'Berlin Half')))
+        self.assertEqual(both[(True, 'XACT: Night Half')], ('Night Half', 'Night Half'))
 
 
 class Build(unittest.TestCase):
@@ -454,6 +475,9 @@ class Build(unittest.TestCase):
     def test_links_without_a_key_and_possible_only_profiles(self):
         results = self.results()
         self.assertEqual([row['c'] for row in results[('f', 21)][2]['results']], ['d', 'c'])       # medium and high of a person who fails a screen
+        self.assertEqual([row['w'] for row in results[('f', 21)][2]['results']], ['1', '2'])       # which screen: birth years, then sexes
+        self.assertEqual({row['w'] for _, _, profile, _ in results.values() for row in profile['results'] if row['c'] not in 'bcd'}, {'0'})
+        self.assertEqual((self.manifest['counts']['marathon']['screen'], self.manifest['counts']['half']['screen']), ({'1': 1, '2': 1}, {}))
         self.assertEqual([row['c'] for row in results[('f', 31)][2]['results']], ['6', '5'])
         self.assertEqual(self.manifest['counts']['profiles_by_kind']['possible_only'], 2)
 
@@ -492,6 +516,9 @@ class Build(unittest.TestCase):
             ('half', 'Berlin', 2019, 'h'), ('half', 'Drammen Half', 2017, 'h'),
             ('half', 'Lake City Half Marathon', 2022, 'f'), ('half', 'Lake City Half Marathon', 2022, 'h')])
         self.assertEqual([e['no_comparison'] for e in editions], [0, 0, 0, 1, 2, 0, 0])
+        self.assertEqual([e['timing'] for e in editions], ['chip', 'chip_fallback', 'chip', 'gun', 'not_stated', 'chip', 'chip'])
+        self.assertEqual(manifest['editions']['timing'], [[None, 4, 1], ['chip', 0, 4], ['chip where published, else gun', 1, 1],
+                                                          ['gross (gun / Brutto; the source net column was not loaded)', 2, 1]])
         self.assertEqual([e['tier'] for e in editions], [0, 0, 4, 3, 4, 4, 1])
         self.assertEqual([e['splits'] for e in editions], [True, True, False, False, False, False, True])
         self.assertEqual(editions[2]['reason'], 'Finish times only: this edition supplies no pacing statistic.')
@@ -643,6 +670,27 @@ class Build(unittest.TestCase):
         path = self.root / 'half-rule.json'
         path.write_text(json.dumps(rule))
         refused('reviewed gun-time list', half_records_path=path)
+        # The half policy's never_compared list must hold the reviewed editions with their reasons; one that names more is followed.
+        policy = json.loads(self.release.half_policy_path.read_text())
+        path = self.root / 'half-policy-short.json'
+        path.write_text(json.dumps({**policy, 'never_compared': {'editions': policy['never_compared']['editions'][:1]}}))
+        refused('lacks, or gives another reason for', half_policy_path=path)
+        path = self.root / 'half-policy-tag.json'
+        path.write_text(json.dumps({**policy, 'tag': 'another-release'}))
+        refused('the half policy is of', half_policy_path=path)
+        path = self.root / 'half-policy-more.json'
+        path.write_text(json.dumps({**policy, 'never_compared': {'editions': policy['never_compared']['editions'] + [
+            {'source_db': 'half', 'key': 'Lake City, ZZ: LAKE CITY HALF MARATHON 2022', 'year': 2022, 'reason': 'gun_times'}]}}))
+        more = self.release.build(self.root / 'more' / 'runners', half_policy_path=path)
+        marks = [e['no_comparison'] for e in fmt.decode_editions(fmt.read_gz(self.root / 'more' / 'runners' / 'editions.json.gz'))]
+        self.assertEqual(marks, [0, 0, 0, 1, 2, 0, 1])
+        self.assertNotIn('half_policy', more['provisional'])
+        self.assertIn('half_policy', self.release.build(self.root / 'no-policy' / 'runners', half_policy_path=None)['provisional'])
+        timing = json.loads(builder.TIMING_PATH.read_text())
+        timing['bases']['chip'].remove('chip')
+        path = self.root / 'timing.json'
+        path.write_text(json.dumps(timing))
+        refused('which analysis/lookup-timing.json does not class', timing_path=path)
         path = self.root / 'placeholders.json'
         path.write_text(json.dumps({'tag': TAG, 'names': [{'name': 'Late Entry', 'release_rows': 2, 'reason': 'test'}]}))
         refused('differ from the reviewed counts', placeholders_path=path)
@@ -666,7 +714,10 @@ class Build(unittest.TestCase):
              lambda at, rows: at[('half', 12)].update(runner_key=P % 100)),
             # person 1 keeps the key on the marathon and loses it on the half: a screen applies to a whole person
             ('mixed', '1 persons have both keyed and unkeyed links of a confirmed tier',
-             lambda at, rows: at[('half', 12)].update(runner_key=None, status='possible_match')),
+             lambda at, rows: at[('half', 12)].update(runner_key=None, status='possible_match', not_keyed_reason='birth_year_spread')),
+            # a confirmed tier without a key must name the screen its person failed
+            ('unscreened', '1 results of a confirmed link tier have no runner key and no screen the identity file names',
+             lambda at, rows: at[('full', 21)].update(not_keyed_reason='tier_below_medium')),
             # the file's own columns
             ('status', "status values this builder does not know: ['maybe']", lambda at, rows: at[('half', 77)].update(status='maybe')),
             ('unkeyed', '1 rows are keyed without a runner key, or carry a runner key without being keyed', lambda at, rows: at[('half', 12)].update(runner_key=None)),
@@ -757,7 +808,7 @@ class Build(unittest.TestCase):
         # A stop from outside, part of the way through (the command line turns SIGTERM, SIGINT and SIGHUP into Stopped).
         original = builder._build
 
-        def stopped(db, pin, core, links, status, identity, output, *rest):
+        def stopped(db, pin, core, links, status, identity, output, *rest, **options):
             (output / 'half-written.json.gz').write_bytes(b'x')
             db.execute('CREATE TABLE half_made AS SELECT 1')
             raise builder.Stopped('SIGTERM')

@@ -8,11 +8,14 @@
 // run shows them all. What it proves:
 //   1. Chain: the manifest's shape; editions.json.gz and every directory page against the manifest; every leaf and
 //      shard against its page; no file the chain does not list; the content digests of the uncompressed bodies.
-//   2. Editions: unique and in order; codes in range; every edition has a result; the record-id base of each.
+//   2. Editions: unique and in order; codes in range; every edition has a result; the record-id base of each; the
+//      timing class of each (`tb`) against lib/tiers.ts timingClass of the text the manifest says the build classed, and
+//      analysis/lookup-timing.json against the module's whole table; the half editions never compared against the half
+//      policy's never_compared list.
 //   3. Profiles, every shard: column lengths; every result once across both distances (source database and id); names
 //      that normalise to a word, are not on the reviewed placeholder list and are used; result order; link codes (0
 //      only on a result that stands alone, in the shard its key hashes to; confirmed links never twice in one edition
-//      and never of two sexes; a person's confirmed tiers all keyed or none); marathon status against the result's own
+//      and never of two sexes; a person's confirmed tiers all keyed or none; a screen `w` exactly on b, c, d); marathon status against the result's own
 //      times and its edition; no person id and no release tag in any body.
 //   4. Counts: results, statuses, link codes, tiers, profiles, names, search names, index rows and heavy words each
 //      recounted and compared with the manifest; the rows of each distance add up; an edition the race notes set
@@ -51,6 +54,13 @@ const crypto = require('node:crypto');
 const zlib = require('node:zlib');
 const os = require('node:os');
 const L = require('./lib/lookup.cjs');
+// The timing classes are the site's one module, lib/tiers.ts (plan decision D16): the builder holds a copy of its table
+// (analysis/lookup-timing.json) and every entry of that copy, and of each build's own table, is held to the module here.
+const ts = require('typescript');
+if (!require.extensions['.ts']) require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, filename);
+const T = require('../lib/tiers.ts');
 
 const repo = path.resolve(__dirname, '..');
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -113,6 +123,7 @@ class Accumulators {
 
 const postingText = (word, partner, name, shard, position, e, y, s, m, h, q, p) => JSON.stringify([word, partner, name, shard, position, e, y, s, m, h, q, p]);
 const keyCompare = (w1, o1, w2, o2) => cmp(w1, w2) || cmp(o1, o2);
+const sortedKeys = object => Object.fromEntries(Object.keys(object).sort().map(key => [key, object[key]]));
 const bitCount = mask => { let n = 0; for (let rest = mask; rest; rest >>>= 1) n += rest & 1; return n; };
 
 /** The shortest beginning of `after` that still sorts after `before` (whole code points). */
@@ -193,7 +204,7 @@ function verify(dataRoot, options = {}) {
       const file = path.join(repo, 'analysis', name);
       c.check(fs.existsSync(file) && sha256(fs.readFileSync(file)) === digest, 'stale', `the build was made by another analysis/${name}`);
     }
-    for (const name of ['race-registry.json', 'lookup-half-records.json', 'lookup-placeholders.json']) {
+    for (const name of ['race-registry.json', 'lookup-half-records.json', 'lookup-placeholders.json', 'lookup-timing.json'].concat(manifest.inputs['half-race-registry.json'] ? ['half-race-registry.json'] : [])) {
       const file = path.join(repo, 'analysis', name);
       const same = fs.existsSync(file) && manifest.inputs[name] === sha256(fs.readFileSync(file));
       if (!same && !(name === 'race-registry.json' && manifest.provisional.includes('race_registry'))) c.fail('stale', `the build read another analysis/${name}`);
@@ -221,6 +232,30 @@ function verify(dataRoot, options = {}) {
       c.check(manifest.pipeline && manifest.pipeline.policy_sha256 === policy.policy_sha256, 'pipeline', 'the edition policy file is not the policy the status file was made under');
     }
   }
+  // The builder's copy of the timing table is the module's, entry for entry (both directions).
+  {
+    const copy = JSON.parse(fs.readFileSync(path.join(repo, 'analysis/lookup-timing.json'), 'utf8'));
+    c.check(JSON.stringify(copy.classes) === JSON.stringify([...T.TIMING_CLASSES]) && JSON.stringify(L.TIMING_CLASSES) === JSON.stringify([...T.TIMING_CLASSES]) &&
+      T.timingClass(null) === copy.no_text, 'timing', 'the timing classes of analysis/lookup-timing.json or scripts/lib/lookup.cjs are not lib/tiers.ts TIMING_CLASSES');
+    const fromCopy = [], fromModule = [];
+    for (const cls of T.TIMING_CLASSES) {
+      for (const text of (copy.bases || {})[cls] || []) fromCopy.push(JSON.stringify([text, cls]));
+      for (const text of T.TIMING_BASES[cls]) fromModule.push(JSON.stringify([text, cls]));
+    }
+    c.check(JSON.stringify(fromCopy.sort()) === JSON.stringify(fromModule.sort()), 'timing', 'analysis/lookup-timing.json is not lib/tiers.ts TIMING_BASES');
+  }
+  // The editions never compared: the half policy's list (lead ruling, November 19, 2026), by reason and year.
+  let neverCompared = null;
+  if (manifest.inputs['half-policy.json']) {
+    if (!options.fixture) {
+      const halfPin = JSON.parse(fs.readFileSync(path.join(repo, 'analysis/half-release.json'), 'utf8'));
+      const file = path.join(repo, halfPin.policy || '');
+      if (c.check(Boolean(halfPin.policy) && fs.existsSync(file) && sha256(fs.readFileSync(file)) === manifest.inputs['half-policy.json'], 'stale', `the build read another half policy than ${halfPin.policy}`)) {
+        const marks = { gun_times: 1, course_suspected_short: 2 };
+        neverCompared = ((JSON.parse(fs.readFileSync(file, 'utf8')).never_compared || {}).editions || []).map(entry => [marks[entry.reason] || -1, entry.year]);
+      }
+    }
+  } else c.check(manifest.provisional.includes('half_policy'), 'manifest', 'the manifest names no half policy and does not say so in `provisional`');
   const placeholderKeys = new Set();
   if (!options.fixture) for (const entry of JSON.parse(fs.readFileSync(path.join(repo, 'analysis/lookup-placeholders.json'), 'utf8')).names) placeholderKeys.add(L.searchWords(entry.name).join(' '));
 
@@ -298,6 +333,8 @@ function verify(dataRoot, options = {}) {
     c.check(Number.isSafeInteger(e.year) && e.year >= 1900 && e.year <= 2100, 'editions', `${where}: year ${e.year}`);
     c.check(Number.isSafeInteger(e.tier) && e.tier >= 0 && e.tier < L.TIERS.length && '01'.includes(editionsFile.data.sp[at]) && 'fh'.includes(e.db) && [0, 1, 2].includes(e.noComparison), 'editions', `${where}: a code is out of range`);
     c.check(Number.isSafeInteger(e.q) && e.q >= 0 && Number.isSafeInteger(e.unlisted) && e.unlisted >= 0, 'editions', `${where}: q or nl`);
+    c.check(typeof editionsFile.data.tb === 'string' && /^[0-4]$/.test(editionsFile.data.tb[at]) && T.TIMING_CLASSES.includes(e.timing), 'editions', `${where}: timing class (tb) out of range`);
+    if (e.noComparison === 1) c.check(e.timing === T.GUN_TIMING, 'editions', `${where}: never compared for gun times, and its timing class is ${e.timing}`);
     if (e.distance === 'half') c.check(e.context === null && e.reason === null, 'editions', `${where}: a half edition has a cohort index or a reason`);
     else c.check(e.noComparison === 0 && e.db === 'f', 'editions', `${where}: a marathon edition is marked not compared, or is in the half database`);
     if (at) {
@@ -314,6 +351,30 @@ function verify(dataRoot, options = {}) {
       if (sentence !== undefined) listed++;
     }
     facts.policyEditions = [listed, policyRows.size];
+  }
+  // The build's own table of timing texts: each text's class is the module's, and the editions add up by class.
+  {
+    const table = manifest.editions.timing;
+    if (c.check(Array.isArray(table) && table.every(row => Array.isArray(row) && row.length === 3 && (row[0] === null || typeof row[0] === 'string') &&
+      Number.isSafeInteger(row[1]) && row[1] >= 0 && row[1] < T.TIMING_CLASSES.length && Number.isSafeInteger(row[2]) && row[2] > 0) &&
+      new Set(table.map(row => row[0])).size === table.length, 'timing', 'manifest editions.timing is not [[text or null, class digit, editions]] with each text once')) {
+      const byClass = {}, stated = {};
+      for (const [text, digit, n] of table) {
+        let cls = null;
+        try { cls = T.timingClass(text); } catch (error) { c.fail('timing', `lib/tiers.ts does not class the timing basis ${JSON.stringify(text)}: ${error.message}`); continue; }
+        c.check(cls === T.TIMING_CLASSES[digit], 'timing', `the build classed ${JSON.stringify(text)} as ${T.TIMING_CLASSES[digit]}; lib/tiers.ts says ${cls}`);
+        stated[digit] = (stated[digit] || 0) + n;
+      }
+      for (const e of editions) byClass[T.TIMING_CLASSES.indexOf(e.timing)] = (byClass[T.TIMING_CLASSES.indexOf(e.timing)] || 0) + 1;
+      c.check(JSON.stringify(sortedKeys(byClass)) === JSON.stringify(sortedKeys(stated)), 'timing', `editions by timing class: the file gives ${JSON.stringify(sortedKeys(byClass))}, the manifest's table ${JSON.stringify(sortedKeys(stated))}`);
+      facts.timing = Object.fromEntries(T.TIMING_CLASSES.map((cls, digit) => [cls, byClass[digit] || 0]));
+    }
+  }
+  if (neverCompared) {
+    const fromFile = editions.filter(e => e.noComparison).map(e => JSON.stringify([e.noComparison, e.year])).sort();
+    c.check(JSON.stringify(fromFile) === JSON.stringify(neverCompared.map(row => JSON.stringify(row)).sort()), 'editions',
+      `the half editions never compared (reason, year) are ${fromFile.join(' ')}; the half policy lists ${neverCompared.map(row => JSON.stringify(row)).sort().join(' ')}`);
+    facts.neverCompared = fromFile.length;
   }
   const contexts = editions.filter(e => e.context !== null).map(e => e.context);
   c.check(new Set(contexts).size === contexts.length, 'editions', 'two editions share a cohort index');
@@ -391,7 +452,7 @@ function verify(dataRoot, options = {}) {
   const profilesHash = crypto.createHash('sha256'), namesHash = crypto.createHash('sha256');
   const wordCount = new Map();
   const count = { results: 0, profiles: 0, names: 0, searchNames: 0, postings: 0, marathon: 0, half: 0, noFinish: { marathon: 0, half: 0 },
-    tier: { marathon: {}, half: {} }, link: { marathon: {}, half: {} }, status: {}, noComparison: {}, kinds: { one_result: 0, confirmed_only: 0, confirmed_and_possible: 0, possible_only: 0 } };
+    tier: { marathon: {}, half: {} }, link: { marathon: {}, half: {} }, screen: { marathon: {}, half: {} }, status: {}, noComparison: {}, kinds: { one_result: 0, confirmed_only: 0, confirmed_and_possible: 0, possible_only: 0 } };
   const bump = (object, key) => { object[key] = (object[key] || 0) + 1; };
   const plans = { checked: 0, notFound: 0, overAuto: 0, overCap: 0, max: 0, leaves: {}, bytes: [] };
   let shardBytes = 0, largestShard = 0;
@@ -404,8 +465,8 @@ function verify(dataRoot, options = {}) {
     c.check(bytes.length <= LIMITS.shardBytes, 'limits', `${relative} is ${bytes.length} bytes, over ${LIMITS.shardBytes}`);
     const d = file.data;
     const R = Array.isArray(d.e) ? d.e.length : -1;
-    const columnsOk = d.v === L.SCHEMA_VERSION && R >= 0 && ['k', 'u', 'n', 'i', 'f', 'a', 'j', 'm', 'd'].every(key => Array.isArray(d[key])) && ['x', 'c', 's'].every(key => typeof d[key] === 'string') &&
-      ['i', 'f', 'x', 'a', 'c', 'j', 's', 'm'].every(key => d[key].length === R) && d.k.length === d.u.length;
+    const columnsOk = d.v === L.SCHEMA_VERSION && R >= 0 && ['k', 'u', 'n', 'i', 'f', 'a', 'j', 'm', 'd'].every(key => Array.isArray(d[key])) && ['x', 'c', 'w', 's'].every(key => typeof d[key] === 'string') &&
+      ['i', 'f', 'x', 'a', 'c', 'w', 'j', 's', 'm'].every(key => d[key].length === R) && d.k.length === d.u.length;
     if (!c.check(columnsOk, 'shape', `${relative}: columns are missing or of different lengths`)) continue;
     let sumK = 0, sumU = 0, sumBits = 0;
     for (let p = 0; p < d.k.length; p++) { sumK += d.k[p]; sumU += d.u[p]; }
@@ -438,6 +499,9 @@ function verify(dataRoot, options = {}) {
         c.check(Number.isSafeInteger(d.i[row]) && d.i[row] >= 0 && Number.isSafeInteger(finish) && finish >= -1 && SEX.includes(d.x[row]) && Number.isSafeInteger(d.a[row]) && d.a[row] >= -1 && d.a[row] <= 150 &&
           L.LINK_CODES.includes(link) && Number.isSafeInteger(mask) && mask >= 0 && mask < (1 << L.CHECKPOINTS[distance]) && Number.isSafeInteger(j) && j >= 0 && j < u, 'results', `${where}: a value is out of range`);
         c.check(half ? status === '-' : '0123456'.includes(status), 'results', `${where}: status ${status} at this distance`);
+        const screen = d.w[row];
+        c.check('bcd'.includes(link) ? '123'.includes(screen) : screen === '0', 'results', `${where}: screen ${screen} on a result with link ${link}`);
+        if (screen !== '0') bump(count.screen[distance], screen);
         if (j === firstUse) firstUse++; else c.check(j < firstUse, 'names', `${where}: names are not in first-use order`);
         const here = [half ? 1 : 0, edition.year, id, edition.db === 'h' ? 1 : 0];
         if (previous && (here[0] - previous[0] || here[1] - previous[1] || here[2] - previous[2] || here[3] - previous[3]) <= 0) c.fail('results', `${where}: results are not in order (marathon before half, year, id, database)`);
@@ -615,6 +679,7 @@ function verify(dataRoot, options = {}) {
     equal(`${distance} results with no finish`, count.noFinish[distance], block.no_finish);
     equal(`${distance} results by tier`, sorted(count.tier[distance]), block.tier);
     equal(`${distance} results by link code`, sorted(count.link[distance]), block.link);
+    equal(`${distance} results by screen`, sorted(count.screen[distance]), block.screen);
     equal(`${distance} editions`, editions.filter(e => e.distance === distance).length, block.editions);
     c.check(block.release_rows === block.left_out.rows + notListed(block) + block.results, 'counts', `${distance}: release rows are not the rows left out, set aside, unnamed, placeholder and listed`);
     equal(`${distance} rows kept and not listed`, editions.filter(e => e.distance === distance).reduce((sum, e) => sum + e.unlisted, 0) + block.unlisted_editions.reduce((sum, row) => sum + row[4], 0), notListed(block));
@@ -979,6 +1044,19 @@ function selfTest(dataRoot, options) {
     ['a result listed twice', 'results', target => rechain(target, 'shard', busiest, data => { data.i[1] = data.i[0]; data.e[1] = data.e[0]; })],
     ['a recorded name changed in a shard', 'index', target => rechain(target, 'shard', busiest, data => { data.n[0] = data.n[0] + ' Zzzq'; })],
     ['a file the chain does not list', 'chain', target => fs.writeFileSync(path.join(target, 'runners/index/99999.json.gz'), 'x')],
+    ['a screen on a result whose link is not b, c or d', 'results', target => rechain(target, 'shard', busiest, data => {
+      const at = Array.from(data.c).findIndex(link => !'bcd'.includes(link));
+      data.w = data.w.slice(0, at) + '1' + data.w.slice(at + 1);
+    })],
+    ['an edition of another timing class', 'timing', target => {
+      const root = path.join(target, 'runners'), file = path.join(root, 'manifest.json'), manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const data = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(root, 'editions.json.gz'))).toString('utf8'));
+      data.tb = (data.tb[0] === '3' ? '1' : '3') + data.tb.slice(1);
+      const body = encode(data), bytes = gzip(body);
+      fs.writeFileSync(path.join(root, 'editions.json.gz'), bytes);
+      manifest.editions.bytes = bytes.length; manifest.editions.sha256 = sha256(bytes); manifest.content.editions_raw_sha256 = sha256(body);
+      fs.writeFileSync(file, encode(manifest));
+    }],
     ['a release tag in a shard body', 'privacy', target => rechain(target, 'shard', busiest, (data, entry, manifest) => { data.n[0] = data.n[0] + ' ' + manifest.release_tag; })],
   ];
   try {
@@ -1016,7 +1094,7 @@ function main() {
   if (self) {
     const problems = selfTest(dataRoot, options);
     if (problems.length) { console.error(`verify-lookup --self-test: ${problems.length} problem${problems.length === 1 ? '' : 's'}`); for (const line of problems) console.error(`  ${line}`); process.exit(1); }
-    console.log('verify-lookup --self-test: every mutation (a changed byte, swapped leaves, a missing posting, a posting to another profile, a wrong directory key, a wrong count, a repeated result, a changed name, a stray file, a tag in a body) failed the check that should catch it.');
+    console.log('verify-lookup --self-test: every mutation (a changed byte, swapped leaves, a missing posting, a posting to another profile, a wrong directory key, a wrong count, a repeated result, a changed name, a stray file, a screen off its links, a changed timing class, a tag in a body) failed the check that should catch it.');
     return;
   }
   const { failures, facts, manifest } = verify(dataRoot, options);
