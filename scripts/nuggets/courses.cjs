@@ -18,6 +18,9 @@ const { policyEditions } = require('../lib/edition-policy.cjs');
 const cohortReader = require('../lib/cohort.cjs');
 
 module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
+  // The course page's own nuggets (course.*, less the series line, which every race page builds) and the results page's.
+  const RACE_IDS = ['race.editions', 'race.reading', 'race.range', 'course.series'];
+  const COURSE_IDS = N.CONTEXT_NUGGETS.filter((id) => !RACE_IDS.includes(id));
   const json = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
   const courses = json('public/data/insights/courses.json');
   const archetypes = json('public/data/insights/archetypes.json');
@@ -80,19 +83,74 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   const shaped = [...tally.values()].reduce((a, b) => a + b, 0);
   const modal = [...tally].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
 
-  // /courses
+  // /courses (since November 19, 2026): every marathon the race directory lists, recounted from directory.json (its races
+  // with a live edition: a race whose every edition is a copy is in `left_out`, not in `races`), and the races with a page.
+  const directory = json('public/data/races/directory.json');
+  const racePages = json('public/data/races/pages.json').pages;
   {
     const n = N.getNugget('courses.index');
-    // The card into the list promises what the list holds: its count of course pages, as the dek says it.
-    step(() => eq([n.values.courses, n.guard, n.figure && n.figure.value], [pageCities.size, pageCities.size > 0, pageCities.size.toLocaleString('en-US')], 'courses.index recounts the course pages, its figure the count'));
+    const live = directory.races.filter((r) => r.editions.some((e) => directory.codes.review[e[8]] !== 'copy')).length;
+    step(() => eq([n.values.races, n.guard, n.figure && n.figure.value], [live, live > 0, live.toLocaleString('en-US')], 'courses.index recounts the marathons listed, its figure the count'));
+    step(() => eq(said(n), `${live.toLocaleString('en-US')} marathons, each with its years and recorded results.`, 'courses.index: the dek'));
+    const p = N.getNugget('courses.pages');
+    const withPage = directory.races.filter((r) => r.page !== 'row').length;
+    step(() => eq([p.values.pages, p.guard, racePages.length], [withPage, withPage > 0, withPage], 'courses.pages recounts the races with a page (directory and pages.json agree)'));
+    step(() => eq(said(p), `${withPage.toLocaleString('en-US')} have a page of their own.`, 'courses.pages: the heading'));
+    step(() => ok(pageCities.size === racePages.filter((r) => r.page === 'course').length && racePages.filter((r) => r.page === 'course').every((r) => pageCities.has(r.label)), 'the race directory\'s course pages are the course pages recounted from the cohort'));
   }
+
+  // The results pages: their dek, reading and range, recounted from each race file and pages.json.
+  const raceFile = (slug) => json(`public/data/races/race/${slug}.json`);
+  for (const rp of racePages.filter((r) => r.page === 'results')) {
+    const city = rp.label;
+    const race = raceFile(rp.slug);
+    const at = (id) => N.getNugget(id, { city });
+    for (const id of RACE_IDS) step(() => eq(problems(at(id), { strict: true }), [], `${id} (${city}): a well-formed nugget`));
+    const live = race.editions.filter((e) => e.review !== 'copy');
+    const years = live.map((e) => e.year);
+    step(() => eq([rp.editions, rp.years], [live.length, [Math.min(...years), Math.max(...years)]], `race.editions (${city}): pages.json's editions and years are the race file's live editions`));
+    const span = rp.years[0] === rp.years[1] ? `in ${rp.years[0]}` : `${rp.years[0]}–${rp.years[1]}`;
+    const dek = live.length === 1 ? `One edition with recorded results, ${span}.` : `${live.length.toLocaleString('en-US')} editions with recorded results, ${span}.`;
+    step(() => eq(said(at('race.editions')), dek, `race.editions (${city}): the dek`));
+    // The reading: the median of the edition medians over the badge-verified editions of the universe with 100 finishes,
+    // three or more, recounted here; stated only when those years share one timing class.
+    const verified = live.filter((e) => (e.tier === 'stamped' || e.tier === 'stamped_weaker_source') && e.in_universe && typeof e.median_s === 'number' && e.finishes >= 100);
+    const ms = verified.map((e) => e.median_s).sort((a, b) => a - b);
+    const median = ms.length ? (ms.length % 2 ? ms[(ms.length - 1) / 2] : (ms[ms.length / 2 - 1] + ms[ms.length / 2]) / 2) : NaN;
+    const r = race.reading;
+    if (r) step(() => eq([r.editions, r.median_s, r.lowest_s, r.highest_s], [verified.length, median, ms[0], ms[ms.length - 1]], `race.reading (${city}): the race file's reading recounts from its editions`));
+    else step(() => ok(verified.length < 3, `race.reading (${city}): no reading only under three verified editions`));
+    const classes = new Set(verified.map((e) => e.timing));
+    const guard = verified.length >= 3 && classes.size === 1;
+    const reading = at('race.reading');
+    step(() => eq(reading.guard, guard, `race.reading (${city}): the guard (three verified editions of 100 finishes on one timing class)`));
+    step(() => eq(said(reading), guard ? `In a typical verified year, the median finish was ${hm(median)}.` : dek, `race.reading (${city}): the sentence, else the count`));
+    step(() => eq(reading.figure ? reading.figure.value : null, guard ? hm(median) : null, `race.reading (${city}): the figure only under the guard`));
+    const range = at('race.range');
+    const rangeGuard = guard && ms[ms.length - 1] - ms[0] >= 60 && hm(ms[0]) !== hm(ms[ms.length - 1]);
+    step(() => eq([range.guard, said(range)], [rangeGuard, rangeGuard ? `Across its ${verified.length} verified years, the median finish ran from ${hm(ms[0])} to ${hm(ms[ms.length - 1])}.` : 'Median finish by year.'], `race.range (${city}): the guard and the heading`));
+    step(() => eq(at('course.series').guard, (race.series ?? []).length >= 2, `course.series (${city}): only where the race file holds two series`));
+  }
+  // The series line: Warsaw's two (the race file's names and years), and no other course page names any.
+  for (const rp of racePages.filter((r) => r.page === 'course')) {
+    const race = raceFile(rp.slug);
+    const n = N.getNugget('course.series', { city: rp.label });
+    const series = race.series ?? [];
+    step(() => eq(n.guard, series.length >= 2, `course.series (${rp.label}): only where the race file holds two series`));
+    if (series.length === 2) {
+      const yrs = (s) => (s.first_year === s.last_year ? `${s.first_year}` : `${s.first_year}–${s.last_year}`);
+      step(() => eq(said(n), `This page holds two races: the ${series[0].name}, ${yrs(series[0])}, and the ${series[1].name}, ${yrs(series[1])}.`, `course.series (${rp.label}): the sentence`));
+    }
+    for (const id of ['race.editions', 'race.reading', 'race.range']) step(() => eq(N.getNugget(id, { city: rp.label }).guard, false, `${id} (${rp.label}): a course page has no results-page claim`));
+  }
+  step(() => eq(N.getNugget('race.reading', { city: 'Nowhere' }).guard, false, 'fixture race.reading: no page, no claim'));
 
   for (const c of fullPages) {
     const city = c.city;
     const at = (id) => N.getNugget(id, { city });
     const route = geometry.find((g) => g.city === city);
     const cells = courses.years.cells.filter((x) => x.city === city).sort((a, b) => a.year - b.year);
-    for (const id of N.CONTEXT_NUGGETS) {
+    for (const id of COURSE_IDS) {
       const found = problems(at(id), { strict: true });
       step(() => eq(found, [], `${id} (${city}): ${found.join('; ')}`));
       step(() => ok(!at(id).placeholder, `${id} (${city}) is a real nugget`));
@@ -363,7 +421,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
   // A course in the story data that has no page (fewer than three counted editions and not a kept course), and a kept
   // course whose page only lists its editions: neither has a course nugget that says anything.
   for (const city of [...courses.courses.filter((c) => !pageCities.has(c.city)).map((c) => c.city), ...[...pageCities].filter((city) => !courses.courses.some((c) => c.city === city))]) {
-    for (const id of N.CONTEXT_NUGGETS) step(() => eq(N.getNugget(id, { city }).guard, false, `${id} (${city}): no full page, no claim`));
+    for (const id of COURSE_IDS) step(() => eq(N.getNugget(id, { city }).guard, false, `${id} (${city}): no full page, no claim`));
   }
   return { checks, cities: fullPages.length };
 };
