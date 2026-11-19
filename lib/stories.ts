@@ -49,7 +49,7 @@ export interface StoryDefinition {
   seoDescription?: string;
 }
 
-const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
 
 /** Screened finishes in millions with one decimal, the same value as finishesM() in lib/seo.tsx (not imported: lib/seo-routes imports this file). */
 const finishesMillions = () => (getInsightsManifest().analysis_n / 1e6).toFixed(1);
@@ -280,7 +280,7 @@ export const STORIES: StoryDefinition[] = [
     get seoDescription() {
       const n = getNugget('age.fifty');
       return n.guard
-        ? `At 50 to 54, runners whose records are linked by name who kept racing ran the next marathon a typical ${Number(n.values.median_pct).toFixed(1)}% slower per year. Not a prediction.`
+        ? `Runners whose records are linked by name, aged 50 to 54 and still racing, ran the next marathon a typical ${Number(n.values.median_pct).toFixed(1)}% slower per year. Not a prediction.`
         : 'The yearly change from one recorded marathon to the next, by age, for records linked by name. Not a prediction.';
     } },
   // The half and the marathon that followed it, 3 to 16 weeks later, for records linked by name (public/data/half,
