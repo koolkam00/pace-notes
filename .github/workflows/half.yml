@@ -31,6 +31,14 @@ on:
       - 'analysis/insights_stats.py'
       - 'analysis/insights_round.py'
       - 'analysis/charts_common.py'
+      - 'analysis/cohort.py'
+      - 'analysis/race_registry.py'
+      - 'analysis/race-registry.json'
+      - 'analysis/marathon-cohort/manifest.json'
+      - 'analysis/adapt_combined.py'
+      - 'analysis/adapt_master.py'
+      - 'analysis/build_identity.py'
+      - 'analysis/download_release.py'
       - 'analysis/requirements.txt'
       - 'analysis/release.json'
       - 'analysis/weather-release.json'
@@ -61,6 +69,14 @@ on:
       - 'analysis/insights_stats.py'
       - 'analysis/insights_round.py'
       - 'analysis/charts_common.py'
+      - 'analysis/cohort.py'
+      - 'analysis/race_registry.py'
+      - 'analysis/race-registry.json'
+      - 'analysis/marathon-cohort/manifest.json'
+      - 'analysis/adapt_combined.py'
+      - 'analysis/adapt_master.py'
+      - 'analysis/build_identity.py'
+      - 'analysis/download_release.py'
       - 'analysis/requirements.txt'
       - 'analysis/release.json'
       - 'analysis/weather-release.json'
@@ -132,7 +148,7 @@ jobs:
         run: |
           if [ "$EVENT" = workflow_dispatch ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "$BASE" "$HEAD" | grep -Eq '^(analysis/half-release\.json|analysis/half-policy-[0-9-]+\.json|analysis/build_half\.py|analysis/half_[a-z0-9_]+\.py|analysis/(build_fast_start|insights_data|insights_stats|insights_round|charts_common)\.py|analysis/download_half\.py|analysis/requirements\.txt|scripts/verify-half-source\.cjs|scripts/half/(derive|policy|marathon|families)\.cjs|\.github/workflows/half\.yml)$'; then
+          if git diff --name-only "$BASE" "$HEAD" | grep -Eq '^(analysis/half-[a-z0-9-]+\.json|analysis/release\.json|analysis/race-registry\.json|analysis/marathon-cohort/manifest\.json|analysis/build_half\.py|analysis/half_[a-z0-9_]+\.py|analysis/(build_fast_start|insights_data|insights_stats|insights_round|charts_common|cohort|race_registry|adapt_combined|adapt_master|build_identity|download_release)\.py|analysis/download_half\.py|analysis/requirements\.txt|scripts/verify-half-source\.cjs|scripts/half/[a-z0-9_-]+\.cjs|\.github/workflows/half\.yml)$'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "skipped: this change touches no half pin, policy, builder, imported module, downloader or recount file"
@@ -141,7 +157,9 @@ jobs:
       - uses: actions/setup-python@v5
         if: steps.scope.outputs.run == 'true'
         with:
-          python-version: '3.12'
+          # The Python of the workflows that adapt the pinned release (analysis/download_release.py): the half reads
+          # the identity file this job rebuilds from the adapted input, held to the digest the cohort manifest names.
+          python-version: '3.13.16'
       - uses: actions/setup-node@v4
         if: steps.scope.outputs.run == 'true'
         with:
@@ -156,24 +174,47 @@ jobs:
             if [ -n "$(printenv "$name" || true)" ]; then echo "::error::$name is set in the source job's environment"; exit 1; fi
           done
           if git config --get-regexp '^http\..*extraheader' >/dev/null; then echo "::error::git carries an auth header"; exit 1; fi
-      - name: Room for the sources (4.5 GB half SQLite here; the 0.81 GB of v4 parquet files and DuckDB's spill on the runner's second disk)
+      - name: Room for the sources (the adapted input, about 3.3 GB, and DuckDB's spill on the runner's second disk)
         if: steps.scope.outputs.run == 'true'
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           sudo mkdir -p /mnt/half-work && sudo chown "$(id -u):$(id -g)" /mnt/half-work
           df -h "$RUNNER_TEMP" /mnt
-      - name: Download, check and reassemble the pinned public assets, and cut the links extract (anonymous github.com release URLs)
+      # Since the combined release (pace-notes-marathon-half-20261113-1113, adopted November 2026) the half rows, the
+      # tiers and the person links are assets of the release analysis/release.json pins, and the half builders read the
+      # identity file the pipeline builds from the adapted input (docs/HALF_MARATHON.md). Each file is checked against
+      # its pinned sha256; the identity file against the digest the marathon cohort manifest names.
+      - name: Download and adapt the pinned release (anonymous github.com release URLs), and build the identity file
         if: steps.scope.outputs.run == 'true'
         env:
           TMPDIR: /mnt/half-work
+        run: |
+          python -I analysis/download_release.py --bundle FULL --output /mnt/half-work/input
+          mkdir -p "$RUNNER_TEMP/half"
+          python -s analysis/build_identity.py --input /mnt/half-work/input --output "$RUNNER_TEMP/half/identity.parquet"
+          built=$(sha256sum "$RUNNER_TEMP/half/identity.parquet" | cut -d' ' -f1)
+          bound=$(python -I -c 'import json; print(json.load(open("analysis/marathon-cohort/manifest.json"))["inputs"]["identity"]["sha256"])')
+          echo "identity.parquet $built; the cohort binds $bound"
+          test "$built" = "$bound"
+          df -h "$RUNNER_TEMP" /mnt
+      - name: Download and check the half's pinned members and link files (anonymous github.com release URLs)
+        if: steps.scope.outputs.run == 'true'
+        env:
+          TMPDIR: /mnt/half-work
+        run: python -I analysis/download_half.py --out "$RUNNER_TEMP/half"
+      - name: Cut the extract the Node recount reads (its content digest must equal the pin)
+        if: steps.scope.outputs.run == 'true'
+        env:
+          TMPDIR: /mnt/half-work
+          PACE_HALF_DIR: ${{ runner.temp }}/half
           PACE_HALF_DUCKDB_THREADS: '2'
           PACE_HALF_DUCKDB_MEMORY: 4GB
           PACE_HALF_DUCKDB_MAX_TEMP: 4GB
-        run: python -I analysis/download_half.py --out "$RUNNER_TEMP/half" --work /mnt/half-work
-      - name: The snapshot has no uncommitted pages beside it (a non-empty -wal fails)
+        run: python -I analysis/half_extract.py
+      - name: The extract has no uncommitted pages beside it (a non-empty -wal fails)
         if: steps.scope.outputs.run == 'true'
         run: |
-          wal="$RUNNER_TEMP/half/platform_half.sqlite-wal"
+          wal="$RUNNER_TEMP/half/half-extract.sqlite-wal"
           if [ -s "$wal" ]; then echo "::error::$wal is not empty"; exit 1; fi
           df -h "$RUNNER_TEMP" /mnt
       - name: Rebuild the half aggregates from the downloaded sources
@@ -184,10 +225,7 @@ jobs:
           PACE_HALF_DUCKDB_THREADS: '2'
           PACE_HALF_DUCKDB_MEMORY: 4GB
           PACE_HALF_DUCKDB_MAX_TEMP: 4GB
-        run: >-
-          python -I analysis/build_half.py --half "$PACE_HALF_DIR/platform_half.sqlite" --links "$PACE_HALF_DIR/links-v4.sqlite"
-          --stamp-reference "$PACE_HALF_DIR/half-dataset-20261029-2157/csv-edition_meta.csv.zst"
-          --edition-meta "$PACE_HALF_DIR/csv-edition_meta.csv.zst" --out "$RUNNER_TEMP/half-out"
+        run: python -I analysis/build_half.py --out "$RUNNER_TEMP/half-out"
       - name: The rebuilt files must equal the published bytes
         if: steps.scope.outputs.run == 'true'
         run: |
@@ -200,7 +238,4 @@ jobs:
         if: steps.scope.outputs.run == 'true'
         env:
           PACE_HALF_DIR: ${{ runner.temp }}/half
-        run: >-
-          node scripts/verify-half-source.cjs --half "$PACE_HALF_DIR/platform_half.sqlite" --links "$PACE_HALF_DIR/links-v4.sqlite"
-          --stamp-reference "$PACE_HALF_DIR/half-dataset-20261029-2157/csv-edition_meta.csv.zst"
-          --edition-meta "$PACE_HALF_DIR/csv-edition_meta.csv.zst" --no-write
+        run: node scripts/verify-half-source.cjs --no-write

@@ -11,7 +11,10 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Raised from 25 on 2026-11-19: on the combined release `npm run verify:data` alone took 1,569 s (26 min) as one
+    # chain on a 4-CPU machine (the runner lookup is three times larger and eight verifiers stream every shard), so the
+    # job could not finish its build and SEO checks inside 25 minutes. The checks themselves are unchanged.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
