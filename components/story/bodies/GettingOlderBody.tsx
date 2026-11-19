@@ -35,13 +35,13 @@ export default function GettingOlderBody() {
   return (
     <StoryPage path={AGE_PATH} numbers={[
       <Values key="bands" bare id="go-bands" caption="Change per year from one recorded marathon to the next, linked runners with three or more who kept racing (plus is slower)"
-        columns={[{ key: 'a', label: 'Age', text: true }, { key: 'm', label: 'Typical per year' }, { key: 's', label: 'Same race' }, { key: 'p', label: 'Pairs' }]}
+        columns={[{ key: 'a', label: 'Age', text: true }, { key: 'm', label: 'Per year' }, { key: 's', label: 'One race' }, { key: 'p', label: 'Pairs' }]}
         rows={age.bands.map((b) => [words(b), b.verdict ? signedPct(b.median_pct_per_year) : '—', b.verdict ? signedPct(b.same_race.median_pct_per_year) : '—', count(b.pairs)])} />,
       <Values key="men" bare id="go-men" caption="Recorded men: the same men a year later, and different men of the same age"
-        columns={[{ key: 'a', label: 'Age', text: true }, { key: 'f', label: 'Same men, per year' }, { key: 'x', label: 'Different men, per year' }]}
+        columns={[{ key: 'a', label: 'Age', text: true }, { key: 'f', label: 'Same men' }, { key: 'x', label: 'Different men' }]}
         rows={men.map((b) => [words(b), signedPct(b.by_sex.M!.median_pct_per_year), signedPct(b.cross_section.M!.pct_per_year)])} />,
-      <Values key="again" bare id="go-again" caption="Recorded at another marathon within two years, by age at the race, against the other finishes of the same races"
-        columns={[{ key: 'a', label: 'Age', text: true }, { key: 's', label: 'Recorded again' }, { key: 'e', label: 'Other finishes, same races' }, { key: 'd', label: 'Difference' }, { key: 'n', label: 'Finishes' }]}
+      <Values key="again" bare id="go-again" caption="Recorded at another marathon within two years (Again), by age at the race, against the other finishes of the same races (Others); the gap in points"
+        columns={[{ key: 'a', label: 'Age', text: true }, { key: 's', label: 'Again' }, { key: 'e', label: 'Others' }, { key: 'd', label: 'Gap' }, { key: 'n', label: 'Finishes' }]}
         rows={again.by_age_band.map((r) => [ageBandWords({ age_from: r.age_from!, age_to: r.age_to! }), pct(r.share), pct(r.expected_share), r.verdict ? signedPoints(r.difference_points) : 'No reading', count(r.finishes)])} />,
     ]}>
       <StoryHero path={AGE_PATH} title={story.heading ?? story.title} stacked
@@ -70,7 +70,7 @@ export default function GettingOlderBody() {
           display: `${signedPct(b.cross_section.M!.pct_per_year)} · ${signedPct(b.by_sex.M!.median_pct_per_year)}` }))}
           domain={[0, Math.ceil(Math.max(...men.map((b) => b.by_sex.M!.median_pct_per_year)))]}
           ticks={[0, 1, 2, 3].filter((t) => t <= Math.ceil(Math.max(...men.map((b) => b.by_sex.M!.median_pct_per_year)))).map((t) => ({ value: t, label: t === 0 ? '0%' : `+${t}%` }))}
-          keyLabels={{ a: 'Different men', b: 'Same men' }} keyFirst
+          keyLabels={{ a: 'Different men', b: 'Same men' }} keyFirst bare
           label={`Recorded men per year of age, different men against the same men: ${men.map((b) => `${words(b)} ${signedPct(b.cross_section.M!.pct_per_year)} against ${signedPct(b.by_sex.M!.median_pct_per_year)}`).join('; ')}.`} />
       </Beat>
 

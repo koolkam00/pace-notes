@@ -52,7 +52,9 @@ export default function FastSlowYearsBody() {
       side: [`${signedPct(r.lo_pct)} to ${signedPct(r.hi_pct)}`, `${WORDS[r.verdict!]}${r.reviewed_release ? ', after review' : ''}`],
     }));
     const lo = Math.min(-3, ...years.map(({ r }) => Math.floor(r.reading_pct))), hi = Math.max(3, ...years.map(({ r }) => Math.ceil(r.reading_pct)));
-    const latest = years[years.length - 1].year;
+    // The strip opens on its highest year, an extreme whose own label then hides under the needle (a label beside the
+    // resting needle crossed it at 195 px).
+    const latest = years.reduce((a, b) => (b.r.reading_pct > a.r.reading_pct ? b : a)).year;
     const reviewed = years.filter(({ r }) => r.reviewed_release);
     // A label that holds two races (a series note): each series with its first and last year in the file.
     const series = [...new Set(Object.values(editions.races[label]).map((r) => r.series).filter((x): x is string => !!x))].map((name) => {

@@ -41,8 +41,8 @@ export default function IntervalRows({ rows, domain, ticks, label, zeroLabel, gr
         ))}
       </ul>
       <figcaption className="linked-rows-key t-small">
-        <span className="linked-rows-key-zero" aria-hidden="true" /> {zeroLabel}
-        <span className="linked-rows-key-whisker" aria-hidden="true" /> 95% interval
+        <span className="linked-rows-key-item"><span className="linked-rows-key-zero" aria-hidden="true" /> {zeroLabel}</span>
+        <span className="linked-rows-key-item"><span className="linked-rows-key-whisker" aria-hidden="true" /> 95% interval</span>
       </figcaption>
     </figure>
   );

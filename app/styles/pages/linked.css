@@ -33,7 +33,14 @@
 .linked-row.is-none .linked-row-words { color: var(--ink-3); }
 .linked-rows-key { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); color: var(--ink-2); }
 .linked-rows-key-zero { display: inline-block; width: 1px; height: 14px; background: var(--rule-strong); }
-.linked-rows-key-whisker { display: inline-block; width: 22px; height: 2px; margin-left: var(--s-3); background: var(--ink); }
+.linked-rows-key-item { display: inline-flex; align-items: center; gap: var(--s-2); margin-right: var(--s-4); }
+.linked-rows-key-whisker { display: inline-block; width: 22px; height: 2px; background: var(--ink); }
+
+/* At 200% zoom (under 360 px) the words take their own line, so a label keeps the width it needs. */
+@media (max-width: 359.98px) {
+  .linked-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "group" "label" "words" "track"; }
+  .linked-row-words { text-align: left; white-space: normal; }
+}
 
 @media (min-width: 600px) {
   .linked-row { grid-template-columns: 11rem minmax(0, 1fr) 8.5rem; grid-template-areas: "group group group" "label track words"; }

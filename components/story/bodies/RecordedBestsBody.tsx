@@ -41,11 +41,11 @@ export default function RecordedBestsBody() {
 
   return (
     <StoryPage path={BESTS_PATH} numbers={[
-      <Values key="attempts" bare id="rb-attempts" caption="Recorded marathons that were the runner’s recorded best so far, by recorded marathon"
-        columns={[{ key: 'k', label: 'Recorded marathon' }, { key: 's', label: 'A recorded best' }, { key: 'o', label: 'By order alone' }, { key: 'n', label: 'Results' }]}
+      <Values key="attempts" bare id="rb-attempts" caption="Recorded marathons that were the runner’s recorded best so far (Best), by recorded marathon, against order alone"
+        columns={[{ key: 'k', label: 'Marathon' }, { key: 's', label: 'Best' }, { key: 'o', label: 'By order' }, { key: 'n', label: 'Results' }]}
         rows={attempts.map((a) => [String(a.recorded_attempt), pct(a.share), pct(a.shuffled_share), count(a.results)])} />,
-      <Values key="again" bare id="rb-again" caption="Recorded at another marathon within two years: each finish band against the other finishes of the same races"
-        columns={[{ key: 'b', label: 'Finish', text: true }, { key: 's', label: 'Recorded again' }, { key: 'e', label: 'Other finishes, same races' }, { key: 'd', label: 'Difference' }, { key: 'w', label: 'Reading', text: true }, { key: 'n', label: 'Finishes' }]}
+      <Values key="again" bare id="rb-again" caption="Recorded at another marathon within two years (Again): each finish band against the other finishes of the same races (Others); the gap in points"
+        columns={[{ key: 'b', label: 'Finish', text: true }, { key: 's', label: 'Again' }, { key: 'e', label: 'Others' }, { key: 'd', label: 'Gap' }, { key: 'w', label: 'Reading', text: true }, { key: 'n', label: 'Finishes' }]}
         rows={again.by_finish_band.map((r) => [capital(finishBandWords(r)), pct(r.share), pct(r.expected_share), signedPoints(r.difference_points), r.verdict ? AGAIN_WORDS[r.verdict] : 'No reading', count(r.finishes)])} />,
     ]}>
       <StoryHero path={BESTS_PATH} title={story.heading ?? story.title} label="The guess"

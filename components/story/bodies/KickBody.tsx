@@ -121,12 +121,12 @@ export default function KickBody() {
           finishes without one (same edition, recorded sex and 10-minute finish band), and how often the same linked
           runner was seen in another recorded marathon within two years. Only the difference is read. */}
       <Beat id="seen-again" track="chapter-4" label="Seen again" title={seen}
-          dek={`Linked runners at the same race, recorded sex and finish time: another recorded marathon within ${back.within_years} years.`}>
+          dek="For records linked by name, at the same race, recorded sex and finish time: another recorded marathon within two years.">
           <Columns max={Math.ceil(Math.max(back.with_slowdown.share, back.matched_without.share) * 10) / 10 + 0.05}
-            items={[{ id: 'with', label: 'With a sustained slowdown', value: back.with_slowdown.share, display: pct(back.with_slowdown.share), tone: seen.guard ? 'signal' : 'ink' },
-              { id: 'without', label: 'Without one', value: back.matched_without.share, display: pct(back.matched_without.share), tone: 'ink' }]}
+            items={[{ id: 'with', label: 'With a slowdown', value: back.with_slowdown.share, display: pct(back.with_slowdown.share), tone: seen.guard ? 'signal' : 'ink' },
+              { id: 'without', label: 'Without', value: back.matched_without.share, display: pct(back.matched_without.share), tone: 'ink' }]}
             label={`Seen in another recorded marathon within ${back.within_years} years: ${pct(back.with_slowdown.share)} of finishes with a sustained slowdown, against ${pct(back.matched_without.share)} of matched finishes without one.`}
-            caption="Seen in another recorded marathon within two years" />
+            caption="Seen in another recorded marathon within two years" height={140} heightMd={170} />
         </Beat>
 
       <Moved id="bank" href="/analyses/starting-pace">Fast starts and what followed are now on Starting pace.</Moved>
