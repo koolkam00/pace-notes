@@ -1089,6 +1089,64 @@
   },
   "scope": "every row of race_records with distance = half, from either source database"
  },
+ "never_compared": {
+  "editions": [
+   {
+    "edition_id": 5956,
+    "key": "Berlin",
+    "reason": "gun_times",
+    "source_db": "half",
+    "year": 2018
+   },
+   {
+    "edition_id": 5942,
+    "key": "Berlin",
+    "reason": "gun_times",
+    "source_db": "half",
+    "year": 2019
+   },
+   {
+    "edition_id": 3752,
+    "key": "Berlin",
+    "reason": "gun_times",
+    "source_db": "half",
+    "year": 2021
+   },
+   {
+    "edition_id": 3662,
+    "key": "Berlin",
+    "reason": "gun_times",
+    "source_db": "half",
+    "year": 2022
+   },
+   {
+    "edition_id": 3511,
+    "key": "Berlin",
+    "reason": "gun_times",
+    "source_db": "half",
+    "year": 2023
+   },
+   {
+    "edition_id": 7935,
+    "key": "Drammen Half",
+    "reason": "course_suspected_short",
+    "source_db": "half",
+    "year": 2017
+   },
+   {
+    "edition_id": 7937,
+    "key": "Drammen Half",
+    "reason": "course_suspected_short",
+    "source_db": "half",
+    "year": 2019
+   }
+  ],
+  "reasons": {
+   "course_suspected_short": "tiers.course_suspected_short",
+   "gun_times": "tiers.gross_timing"
+  },
+  "rule": "an edition that is listed and compared with nothing: it supplies no figure, no time, median, rank or comparison of it is shown anywhere, it is no reference for another edition, and no race-level figure includes it. These are the editions of tiers.gross_timing (reason gun_times: the release stores gun times as their finish) and of tiers.course_suspected_short (reason course_suspected_short: every row carries the link build’s course_shortened_suspect flag), and no other. An edition is (source_db, key, year), the key being the release’s own race key (`city`)"
+ },
  "record_rules": {
   "R1": {
    "flags": [

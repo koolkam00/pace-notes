@@ -588,6 +588,26 @@ def half_records_block(p: dict) -> dict:
     }
 
 
+def never_compared(p: dict) -> dict:
+    """The editions that are listed and compared with nothing, for every builder that lists half editions (the half race
+    list, the runner lookup; lead request of 2026-11-14): derived from the two frozen tier lists and nothing else."""
+    tiers = p['tiers']
+    editions = ([{'source_db': 'half', 'key': x['city'], 'year': x['year'], 'edition_id': x['edition_id'], 'reason': 'gun_times'} for x in tiers['gross_timing']]
+                + [{'source_db': 'half', 'key': x['city'], 'year': x['year'], 'edition_id': x['edition_id'], 'reason': 'course_suspected_short'}
+                   for x in tiers['course_suspected_short']])
+    if len({(x['key'], x['year']) for x in editions}) != len(editions):
+        fail('an edition is on the gun-time list and on the course-suspected-short list')
+    return {
+        'rule': ('an edition that is listed and compared with nothing: it supplies no figure, no time, median, rank or comparison of it is '
+                 'shown anywhere, it is no reference for another edition, and no race-level figure includes it. These are the editions of '
+                 'tiers.gross_timing (reason gun_times: the release stores gun times as their finish) and of tiers.course_suspected_short '
+                 '(reason course_suspected_short: every row carries the link build’s course_shortened_suspect flag), and no other. '
+                 'An edition is (source_db, key, year), the key being the release’s own race key (`city`)'),
+        'reasons': {'gun_times': 'tiers.gross_timing', 'course_suspected_short': 'tiers.course_suspected_short'},
+        'editions': sorted(editions, key=lambda x: (x['key'], x['year'])),
+    }
+
+
 def _policy_document_3(p: dict, tag: str) -> dict:
     """The policy JSON of the combined release (schema 3): the rules in the words of docs/HALF_MARATHON.md, R0 to R3."""
     rules, frozen = p['rules'], p['frozen']
@@ -657,6 +677,7 @@ def _policy_document_3(p: dict, tag: str) -> dict:
         'statuses': {g: list(v) for g, v in rules['statuses'].items()},
         'edition_rules': edition,
         'tiers': p['tiers'],
+        'never_compared': never_compared(p),
         'use_sex': USE_SEX,
         'date_suspects': [{'edition_id': e, 'city': c, 'year': y, 'date': rules['date_suspect_dates'][e], 'reason': r}
                           for e, c, y, r in rules['date_suspects']],
