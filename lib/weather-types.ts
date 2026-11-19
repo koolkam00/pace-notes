@@ -16,6 +16,8 @@ export type WeatherEvidence = {
   schema_version: number; as_of: string;
   input: { release_tag: string; as_of: string; asset_sha256: string; manifest_sha256: string; race_conditions_sha256: string };
   calculation: { script_sha256: string; pacing_script_sha256: string; duckdb_version: string; numpy_version: string; source_quality_script_sha256?: string };
+  /** The marathon cohort the evidence was built beside: the SHA-256 of its manifest (since November 14, 2026). */
+  cohort_manifest_sha256?: string; cohort_manifest_as_of?: string;
   /** `editions` up to master-20261103b; from the combined release on the list is public/data/edition-policy.json and the
    *  evidence states its digest and counts (analysis/source_quality.py). */
   source_quality?: { reviewed_edition_policy: boolean; release_tag: string; script_sha256: string; policy_sha256: string;
