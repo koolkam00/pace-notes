@@ -269,7 +269,8 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
   // Nothing listed and nothing more a press could list: the search's own next steps show.
   const deadEnd = noMatch && !result?.more;
   const possibleSelected = selected.filter(race => race.possible).length;
-  const selectionCount = `${count(selected.length)} ${selected.length === 1 ? 'race' : 'races'} selected${possibleSelected ? ` · includes ${possibleMatchCount(possibleSelected, count)} you selected` : ''}`;
+  // Only with a selection, as namesFound above: the empty page renders no number.
+  const selectionCount = !selected.length ? '' : `${count(selected.length)} ${selected.length === 1 ? 'race' : 'races'} selected${possibleSelected ? ` · includes ${possibleMatchCount(possibleSelected, count)} you selected` : ''}`;
   const opening = result?.stage === 2 ? (allow.beginnings ? 'Names that start with these words. ' : 'No recorded name has exactly these words, so these are names that start with them. ') : '';
 
   return <>
