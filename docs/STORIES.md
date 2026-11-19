@@ -1,10 +1,10 @@
 # Data stories
 
-The `/stories` section: narrative, interactive analyses, each one finding per beat. Eight stories are built from the verified runner shards, each with its own builder module, a published JSON file under `public/data/insights/`, an independent Node recount in `scripts/verify-insights.cjs` and a page in `app/stories/[slug]`; the ninth, [from the half to the marathon](#from-the-half-to-the-marathon-october-30-2026), reads `public/data/half/`. The stories add to the analyses: they never change the release pins, the reviewed source-quality policy or any other analysis output.
+The `/stories` section: narrative, interactive analyses, each one finding per beat. Eight stories are built from the marathon cohort (`analysis/marathon-cohort`, the names-free records every marathon analysis reads; from the runner lookup's shards until November 14, 2026), each with its own builder module, a published JSON file under `public/data/insights/`, an independent Node recount in `scripts/verify-insights.cjs` and a page in `app/stories/[slug]`; the ninth, [from the half to the marathon](#from-the-half-to-the-marathon-october-30-2026), reads `public/data/half/`. The stories add to the analyses: they never change the release pins, the reviewed source-quality policy or any other analysis output.
 
 ## Cohorts and screens
 
-All stories start from the eligible finishes in the adopted runner manifest: `eligible_records` in `public/data/insights/manifest.json`, whose `cohort` block also gives the editions, cities, recorded sex and exact-age counts. `analysis/insights_data.py` re-reads every `public/data/runners` shard, checking its size and SHA-256, and re-checks the timing contract and the raw and eligible counts.
+All stories start from the counted finishes of the marathon cohort (`analysis/marathon-cohort`; `analysis/cohort.py` states its format): `eligible_records` in `public/data/insights/manifest.json`, whose `cohort` block also gives the editions, cities, recorded sex and exact-age counts. `analysis/insights_data.py` reads the cohort through `analysis/cohort.py`, which checks every edition file's size and SHA-256, and re-checks the timing contract and the raw and eligible counts. An edition supplies finishes only when the release's edition policy counts it (`source_quality` in the manifest states the policy's digests and counts; the editions it leaves out are listed in `public/data/edition-policy.json`). The cohort's edition list is the edition index of every family file; it also names the editions that keep only an own-record view, which supply no finish to any story.
 
 The stories then apply the screens below. They are specific to the stories, and each one is published in the data files:
 
@@ -15,7 +15,7 @@ The stories then apply the screens below. They are specific to the stories, and 
 | Grid (final kick only) | On top of the start-offset editions: an edition whose median final section is more than 15% faster than its 35–40 km, or whose median 5 km section after 20 km is more than 5% faster than its 5–20 km pace (consistent with a misplaced mat). | `grid_screen` and `cohort_n` in `kick.json` |
 | Exact ages | An edition supplies exact ages only if its age field holds at least 30 distinct values, with fewer than 40% of them multiples of five. Sources that record age-group floors (Berlin 2023–25, Dubai, Frankfurt 2022, Vienna 2022) never count as exact ages. | `cohort.exact_age` in the manifest |
 
-Under `private-export-20261021-1050` (the files' `release_tag`): 4,108,749 eligible finishes in 215 editions of 27 cities, and the duplicate screen is empty, so the story cohort is every eligible finish. The start-offset screen lists 15 editions (138,385 finishes: Madrid 2013–18, New York 2006, Prague 2016–19 and Warsaw 2019 and 2023–25), leaving a shape cohort of 3,970,364 finishes in 200 editions of 26 courses; the grid screen then removes Valencia 2021 and Warsaw 2022, leaving 3,954,255 finishes in 198 editions for the final kick. Earlier releases' screens are under [history](#history-earlier-releases).
+Under `pace-notes-marathon-half-20261113-1113` (the files' `release_tag`; every count in this paragraph read from the files on November 19, 2026): 4,124,026 counted finishes in 201 editions of 28 cities, and the duplicate screen is empty, so the story cohort is every counted finish. The start-offset screen lists 15 editions (138,385 finishes: Madrid 2013, Madrid 2014, Madrid 2015, Madrid 2016, Madrid 2017, Madrid 2018, New York 2006, Prague 2016, Prague 2017, Prague 2018, Prague 2019, Warsaw 2019, Warsaw 2023, Warsaw 2024, Warsaw 2025), leaving a shape cohort of 3,985,641 finishes in 186 editions of 27 courses; the grid screen then removes Valencia 2021 and Warsaw 2022, leaving 3,969,532 finishes in 184 editions for the final kick. 1,402,378 finishes carry an exact age. Under `master-20261103b` (read from the files of November 5, 2026) the two screens listed the same editions: 4,222,246 eligible finishes in 218 editions of 27 cities, a shape cohort of 4,083,861 in 203 editions and a final-kick cohort of 4,067,752 in 201. Earlier releases' screens are under [history](#history-earlier-releases).
 
 Shared definitions:
 - **Sustained slowdown** is the published definition: at least 25% slower than the 5–20 km pace for at least 5 km after 20 km. The final 2.195 km cannot qualify on its own ([method citation](https://doi.org/10.1371/journal.pone.0251513)).
@@ -39,41 +39,42 @@ Shares that a page prints as a percentage are stored with ten digits (`insights_
 | Every course has a fingerprint (`/stories/courses`) | `insights_courses.py` | `courses.json` | Course pace curves against the typical curve, the fade multiplier and signature, leave-one-out course identification, weather (within-course slopes, same-course pairs, heat signature), a matched 5–20 km pace comparison, and years and pandemic eras. |
 | Race-morning weather (`/stories/race-morning`) | `insights_courses.py` | `courses.json` (its `weather` block) | The weather half of the course story since the October 17, 2026 redesign (WP2): same-course pairs, the curvature of the finish against the start temperature, and the heat signature. The course story keeps the curves, the identification and how steady each course ran; the eras moved to `/finish-times#front`. No new data. |
 | From the half to the marathon (`/stories/half-to-full`) | `half_linked.py` ([the half marathon](HALF_MARATHON.md)) | `public/data/half/linked.json` | The one story not built from `public/data/insights`: marathons of records linked by name to a half 3 to 16 weeks before, half time by half time ([below](#from-the-half-to-the-marathon-october-30-2026)). |
-| (course art) | `build_course_geometry.py` | `course-geometry.json` | Simplified supplied routes and elevation every 0.5 km, used for illustrations only. A route is drawn only where the runner context attached its profile to a recorded edition (same race name, inside any supplied validity interval); the others are listed under `omitted` with the context's reason (under 1050: Washington, whose supplied profile is named "Marine Corps Marathon"). |
+| (course art) | `build_course_geometry.py` | `course-geometry.json` | Simplified supplied routes and elevation every 0.5 km, used for illustrations only. A route is drawn only where the runner context attached its profile to a recorded edition (same race name, inside any supplied validity interval); the others are listed under `omitted` with the context's reason (under `pace-notes-marathon-half-20261113-1113`, November 19, 2026: 24 routes drawn and 9 omitted, Athens, Auckland, Cologne, Honolulu, Mexico City, Singapore, Tokyo, Vienna, Washington; a city with no counted edition has no context shard, so its route is not attached and not drawn; under 1050: Washington, whose supplied profile is named "Marine Corps Marathon"). |
 | (runner tools) | `insights_tool_projector.py`, `insights_tool_paceband.py`, `insights_tool_weather.py`, `insights_tool_coursegoal.py` | `tools/*.json` plus shards | Data for the `/tools` pages on the final-kick cohort; see [runner tools](TOOLS.md). |
 
 `manifest.json` binds all of these to:
 - the release tag;
-- the exact runner manifest (SHA-256 and `as_of`) and the runner-context manifest SHA-256;
+- the exact marathon cohort manifest (its SHA-256 and `as_of`, in `runner_manifest_sha256` and `runner_manifest_as_of`, the names the two fields had while they named the runner manifest; `cohort_manifest_sha256` states the same digest) and the runner-context manifest SHA-256;
+- the edition policy the cohort was cut by (`source_quality`: its digests and counts, as the cohort manifest states them);
 - the duplicate screen audit;
 - every `insights_*.py` script hash plus `build_insights.py` and `build_fast_start.py`;
-- the source-script hashes;
+- the source-script hashes (the six scripts that wrote the cohort);
 - each file's bytes and SHA-256.
 
 Every sentence a story or `/finish-times` shows is a nugget in `lib/nuggets/stories.ts` with a guard and a plain fallback; `scripts/nuggets/stories.cjs` recounts each one from these files inside `verify-nuggets` (October 17, 2026).
 
 **What the pages draw.** Not every output in the table is drawn. A story page (`components/story/StoryPage.tsx`) is a reading (the H1 finding and its figure) and at most six beats, each one finding and one chart; every chart's table sits in one "All numbers" fold at the foot, which ends on "How these were measured →" (`/methodology#story-<slug>`), and the closing stack follows. The parts of each file that no beat draws (for example the pacing types' repeat-pair habits) stay published, verified below and listed on `/methodology#downloads`. `/stories` lists the stories in `lib/stories.ts` that are published in this build, with `/finish-times` and `/slowdown`; its count line ("… stories, one finding each.") is read from that list.
 
-The site reads the files at build time through `lib/insights-server.ts`, which re-checks the release, the runner manifest hash and every file hash. Browser fetches (replay rows) go through `lib/insights.ts`, which re-checks the SHA-256 in the browser.
+The site reads the files at build time through `lib/insights-server.ts`, which re-checks the release, the cohort manifest's hash (read from `analysis/marathon-cohort/manifest.json` in the checkout) and every file hash. Browser fetches (replay rows) go through `lib/insights.ts`, which re-checks the SHA-256 in the browser.
 
 ### Final kick
 
 - **Baseline.** Every section is compared with the runner's own 5–20 km pace. "Kick" compares the final 2.195 km with 35–40 km.
 - **Faster is strict.** A section counts as faster only when its pace is lower than the reference; an exact tie is not faster (`insights_data.faster_pace`, mirrored in the verifier). The final section's length is 2.1950000000000003 km in floating point, so before October 17, 2026 an exact tie with 35–40 km came out about 1e-16 faster and counted: under 1652 that put 15 ties into `kick.faster` (2,780,098 against the strict 2,780,083). The printed 74.9% did not change.
-- **Shape cohort.** On top of the start-offset editions, two grid rules apply, and the editions they remove are published in `grid_screen` (1050: Valencia 2021 and Warsaw 2022, leaving 3,954,255 finishes in 198 editions; 1652: Madrid 2023, Valencia 2021 and Warsaw 2022, leaving 3,710,359 finishes in 193 editions):
+- **Shape cohort.** On top of the start-offset editions, two grid rules apply, and the editions they remove are published in `grid_screen` (`pace-notes-marathon-half-20261113-1113`, November 19, 2026: Valencia 2021 and Warsaw 2022, leaving 3,969,532 finishes in 184 editions; 1050: Valencia 2021 and Warsaw 2022, leaving 3,954,255 finishes in 198 editions; 1652: Madrid 2023, Valencia 2021 and Warsaw 2022, leaving 3,710,359 finishes in 193 editions):
   - an edition whose median final section is more than 15% faster than its 35–40 km (Valencia 2021);
   - an edition whose median 5 km section after 20 km is more than 5% faster than its 5–20 km pace (Madrid 2023 under 1652, consistent with a misplaced mat).
 - **Same-race comparisons.** These use strata of one edition × one 5 s/km band of 5–20 km pace with at least 100 finishes, leaving each finish out of its own stratum's mean. The cost comparison uses the story cohort and strata of edition × recorded gender × 5 s/km band, both sides at least 100, weighted by sustained-slowdown finishes.
 - **Second-half states.** Each section after 20 km is classed against the finish's own 5–20 km pace: within 5% or faster, drifting (5–10% slower), slowing (10–25% slower) and sustained-slowdown pace (25% or more slower).
-- **Recovery.** A recovery is a later full 5 km section back within 10% of the 5–20 km pace. Its share uses only sustained-slowdown finishes whose slowdown episode ends with at least one full section still to run (`recovery.room_n` in `kick.json`; 1050: 194,798 finishes, 12.8% recover; 1652: 186,563, 12.9%; 0934: 166,275, 13.0%), so finishes with no room to recover are not counted as failures.
-- **Recurrence.** Recurrence pairs adjacent eligible races of one screened candidate profile, 1–3 years apart, using only profile-years with exactly one eligible finish (`recurrence.pairs`; 1050: 627,833 pairs; 1652: 563,774; 0934: 484,956). Candidate profiles are not verified people.
+- **Recovery.** A recovery is a later full 5 km section back within 10% of the 5–20 km pace. Its share uses only sustained-slowdown finishes whose slowdown episode ends with at least one full section still to run (`recovery.room_n` in `kick.json`; `pace-notes-marathon-half-20261113-1113`, November 19, 2026: 206,097 finishes, 13.2% recover; 1050: 194,798 finishes, 12.8% recover; 1652: 186,563, 12.9%; 0934: 166,275, 13.0%), so finishes with no room to recover are not counted as failures.
+- **Recurrence.** Recurrence pairs adjacent eligible races of one screened candidate profile, 1–3 years apart, using only profile-years with exactly one eligible finish. Since November 14, 2026 a profile is the cohort's runner: records the pipeline's identity file keys together (links of the tiers high_elite, high or medium that pass its three screens), and a record without a key stands alone (`recurrence.pairs`; `pace-notes-marathon-half-20261113-1113`, November 19, 2026: 781,459 pairs; 1050: 627,833 pairs; 1652: 563,774; 0934: 484,956). Candidate profiles are not verified people.
 
 ### Courses, weather and years
 
 - **Course curves.** A course curve is the mean of its editions' median relative-pace curves (shape editions with at least 100 finishes). The typical curve is the median across courses.
 - **Fade multiplier and signature.** The fade multiplier fits each edition curve as `a + β·typical`, by least squares with weights √(section length). The residual is the signature.
-- **Course identification.** For the courses with at least three shape editions (`identification` in `courses.json`: 22 under 1050, 24 under 1652, 22 under 0934), each edition is matched to the nearest course centroid. The hold-out is strict: the centroids, the typical curve and the fade fit are all rebuilt without the edition being identified. The chosen variant is fade removed with a distance-weighted Euclidean distance; under 1050 it names the right course for 114 of 193 editions (146 in the top three; chance is 1 in 22); under 1652, 106 of 191 (141 in the top three; chance is 1 in 24); under 0934, 95 of 172 (123; 1 in 22). All four variants tried are published.
-- **Weather.** Weather is read from the verified runner-context shards: the supplied modelled hour at the scheduled start. The weather race name must match the edition race. Within-course slopes demean by course, weight each edition equally, and resample whole courses (4,000 draws). Curvature uses a within-course quadratic. The heat signature applies the within-course slope to each section's median relative pace in shape editions. This is not the prespecified weather screen, which remains the adjusted analysis.
+- **Course identification.** For the courses with at least three shape editions (`identification` in `courses.json`: 19 under `pace-notes-marathon-half-20261113-1113`, 22 under 1050, 24 under 1652, 22 under 0934), each edition is matched to the nearest course centroid. The hold-out is strict: the centroids, the typical curve and the fade fit are all rebuilt without the edition being identified. The chosen variant is fade removed with a distance-weighted Euclidean distance; under `pace-notes-marathon-half-20261113-1113` (November 19, 2026) it names the right course for 112 of 173 editions (143 in the top three; chance is 1 in 19); under 1050 for 114 of 193 editions (146 in the top three; chance is 1 in 22); under 1652, 106 of 191 (141 in the top three; chance is 1 in 24); under 0934, 95 of 172 (123; 1 in 22). All four variants tried are published.
+- **Weather.** Weather is read from the verified runner-context shards: the supplied modelled hour at the scheduled start. The weather race name must match the edition race. The context is bound to the cohort manifest and lists a shard only for a counted edition with peers, weather or terrain; an edition without a shard, or whose shard has no weather row, has none (12 of the 201 editions under `pace-notes-marathon-half-20261113-1113`, November 19, 2026: Austin 2022, Austin 2023, Austin 2024, Los Angeles 2015, Los Angeles 2019, Los Angeles 2023, Los Angeles 2024, Los Angeles 2026, New York 2026, Oklahoma City 2025, Toronto Waterfront 2019, Toronto Waterfront 2022), which leaves 189 editions of 25 courses and 342 same-course pairs. Within-course slopes demean by course, weight each edition equally, and resample whole courses (4,000 draws). Curvature uses a within-course quadratic. The heat signature applies the within-course slope to each section's median relative pace in shape editions. This is not the prespecified weather screen, which remains the adjusted analysis.
 - **Matched first 20 km.** Bands use 5–20 km pace. Cells are edition × band with at least 100 finishes, and the page draws courses with at least three such editions and 1,000 finishes.
 - **Eras.** The eras compare 2015–19 editions with 2022–26 editions of the same course. A course counts only when eligible/raw records are at least 95% in both periods. Changes are means across courses, with a course bootstrap of 10,000 draws.
 
@@ -97,21 +98,22 @@ Added by pull request #85 (merged as `a2c6e507`, October 30, 2026). The story's 
 ```bash
 python -m pip install -r analysis/requirements.txt
 python -m unittest discover -s analysis -p 'test_insights.py'
-python analysis/build_insights.py                      # all families → public/data/insights
+python analysis/build_insights.py                      # all families → public/data/insights (reads analysis/marathon-cohort and public/data/runner-context;
+                                                       # --data-root and --cohort name other folders; about 11 minutes and 5 GB)
 python analysis/download_release.py --bundle CORE --output /tmp/release
 python analysis/build_course_geometry.py --profiles /tmp/release/course_profiles.parquet
 python analysis/build_course_terrain.py --profiles /tmp/release/course_profiles.parquet \
     --corrections analysis/course_terrain/corrections.json \
     --output public/data/insights/tools/course-terrain.json   # the terrain splits, same pass
 python analysis/build_insights.py --only manifest      # re-bind course-geometry.json and course-terrain.json
-node scripts/verify-insights.cjs                       # independent recount (≈30 s)
+node scripts/verify-insights.cjs                       # independent recount (about 2 minutes); its name guard reads the runner lookup (below)
 ```
 
-The full sequence, including a release change, is the [data story refresh](OPERATIONS.md#data-story-refresh). `--only family,...` rebuilds selected families and keeps the others listed in the manifest only if their bytes still match. Family files contain no build timestamps, so a rebuild from the same shards is byte-identical. The **Story analyses** workflow (`.github/workflows/insights.yml`) rebuilds everything into a temporary directory, recounts it, and compares the family files byte for byte. `npm run verify:data` runs `verify-insights.cjs`.
+The full sequence, including a release change, is the [data story refresh](OPERATIONS.md#data-story-refresh). `--only family,...` rebuilds selected families and keeps the others listed in the manifest only if their bytes still match. Family files contain no build timestamps, so a rebuild from the same cohort and runner context is byte-identical. The **Story analyses** workflow (`.github/workflows/insights.yml`) rebuilds everything into a temporary directory, recounts it, and compares the family files byte for byte. `npm run verify:data` runs `verify-insights.cjs`.
 
 ## Verifier
 
-`scripts/verify-insights.cjs` streams every runner shard (7,885 under 1050; 7,881 under 1652; 7,766 under 0934) and rebuilds the eligible cohort and the duplicate and start-offset screens. It then recounts, independently of the Python builders:
+`scripts/verify-insights.cjs` reads every edition file of the marathon cohort through `scripts/lib/cohort.cjs` (233 files under `pace-notes-marathon-half-20261113-1113`; the reader checks each file's size and SHA-256 before decoding it) and rebuilds the eligible cohort and the duplicate and start-offset screens. Before that it checks the bindings: the cohort and runner-context manifests' digests, every script digest, and the edition policy (the published list hashes to the policy digest the cohort states; a counted edition is not on it, an own-record edition is on it with its flag, and every edition without a cohort file is on it in the same category). It also recounts the cohort's linkage (keyed records, runners, runners with two or more counted records). It then recounts, independently of the Python builders:
 - the finish-time histogram, marks and cliffs;
 - all six archetype counts with the published centroids, and the 600 published sentences;
 - position ranks, coin flips and women-ahead editions;
@@ -130,6 +132,8 @@ The full sequence, including a release change, is the [data story refresh](OPERA
 Bootstrap intervals and leave-one-out stratum means are checked for structure only.
 
 For every file it also checks provenance and structure: finite numbers, groups of at least 100, no identifier or name keys, no recorded runner names in text, and no release-tag strings in copy.
+
+**The name guard.** The cohort holds no names, so the guard reads them from where the release's names are; it reads every source it is given and needs at least one. First, the runner lookup, through the lookup's own Node reader (`scripts/lib/lookup-files.cjs`, which checks every file it opens against the manifest's hash chain): the folder the environment variable `PACE_NOTES_LOOKUP_DIR` names (the `runners` folder of a lookup build) or, without it, `public/data/runners` once that is a schema-2 lookup; it must be the adopted release's. Each published string is asked of it as written and in normalised form, and matches when some search name has exactly its search words (word order, case, accents and a repeated word aside), over marathon and half results. Second, kept for now, a names file named by `PACE_NOTES_NAMES_FILE` (gzip text, one recorded marathon name per line, written from the adapted input by `scripts/charts/extract-names.py` with a sidecar `<file>.json`; the guard refuses a file whose sidecar names another adapted input than the cohort's): read as well whenever the variable is set, and alone while no schema-2 lookup can be read. The guard is the verifier's last check and is never skipped: without a source the verifier fails. Five reviewed coincidences are allowed, each only while the string is a race label of the cohort, one of the manifest's fixed sex and age-band labels or a class code of the audited terrain registry (read November 14, 2026, `pace-notes-marathon-half-20261113-1113`): "Paris", "Madrid" and "London" (race labels; a record of another race, or one written with the word twice, carries the label as its recorded name), "Unknown" (the age-band label; a placeholder name on the runner lookup's reviewed list, so only the names file holds it) and "b" (the terrain registry's class code; a few records are recorded as "B" or "B B").
 
 ## Interpretation limits
 
@@ -156,3 +160,82 @@ Each item names the check that fails without it.
 The text these sections replaced on October 30, 2026 (the 1652 and 0934 screens and counts, the Chicago copy evidence of October 15, 2026, the earlier family rows and the half story's pre-merge record) is kept word for word in [history](history/stories-2026-09-to-10.md). Older versions are in Git history.
 
 The lines the post-merge half review (branch `fix/half-followups`) rewrote are kept word for word, as `main` held them at `f8869591`, in [history](history/half-followups-2026-11.md) (moved November 4, 2026).
+
+### Moved November 19, 2026 (adoption of `pace-notes-marathon-half-20261113-1113`)
+
+The text each line below gives was replaced on November 19, 2026, when the story and tool families moved from the runner lookup's shards to the marathon cohort and were rebuilt on `pace-notes-marathon-half-20261113-1113`. Each is kept word for word.
+
+- **The opening paragraph: where the stories read their finishes:**
+
+  > Eight stories are built from the verified runner shards, each with its own builder module,
+
+- **Cohorts and screens: where the eligible finishes come from:**
+
+  > All stories start from the eligible finishes in the adopted runner manifest: `eligible_records` in `public/data/insights/manifest.json`, whose `cohort` block also gives the editions, cities, recorded sex and exact-age counts. `analysis/insights_data.py` re-reads every `public/data/runners` shard, checking its size and SHA-256, and re-checks the timing contract and the raw and eligible counts.
+
+- **Cohorts and screens: the counts of the adopted release:**
+
+  > Under `private-export-20261021-1050` (the files' `release_tag`): 4,108,749 eligible finishes in 215 editions of 27 cities, and the duplicate screen is empty, so the story cohort is every eligible finish. The start-offset screen lists 15 editions (138,385 finishes: Madrid 2013–18, New York 2006, Prague 2016–19 and Warsaw 2019 and 2023–25), leaving a shape cohort of 3,970,364 finishes in 200 editions of 26 courses; the grid screen then removes Valencia 2021 and Warsaw 2022, leaving 3,954,255 finishes in 198 editions for the final kick. Earlier releases' screens are under [history](#history-earlier-releases).
+
+- **What manifest.json binds:**
+
+  > - the exact runner manifest (SHA-256 and `as_of`) and the runner-context manifest SHA-256;
+
+- **What manifest.json binds: source scripts:**
+
+  > - the source-script hashes;
+
+- **How the site reads the files:**
+
+  > The site reads the files at build time through `lib/insights-server.ts`, which re-checks the release, the runner manifest hash and every file hash.
+
+- **Final kick: the grid screen:**
+
+  > the editions they remove are published in `grid_screen` (1050: Valencia 2021 and Warsaw 2022, leaving 3,954,255 finishes in 198 editions;
+
+- **Final kick: recovery:**
+
+  > (`recovery.room_n` in `kick.json`; 1050: 194,798 finishes, 12.8% recover;
+
+- **Final kick: recurrence:**
+
+  > - **Recurrence.** Recurrence pairs adjacent eligible races of one screened candidate profile, 1–3 years apart, using only profile-years with exactly one eligible finish (`recurrence.pairs`; 1050: 627,833 pairs;
+
+- **Courses: identification courses:**
+
+  > - **Course identification.** For the courses with at least three shape editions (`identification` in `courses.json`: 22 under 1050, 24 under 1652, 22 under 0934), each edition is matched to the nearest course centroid.
+
+- **Courses: identification result:**
+
+  > The chosen variant is fade removed with a distance-weighted Euclidean distance; under 1050 it names the right course for 114 of 193 editions (146 in the top three; chance is 1 in 22);
+
+- **Courses: weather:**
+
+  > - **Weather.** Weather is read from the verified runner-context shards: the supplied modelled hour at the scheduled start. The weather race name must match the edition race.
+
+- **Families: course art:**
+
+  > the others are listed under `omitted` with the context's reason (under 1050: Washington, whose supplied profile is named "Marine Corps Marathon"). |
+
+- **Reproduce: the build command:**
+
+  > python analysis/build_insights.py                      # all families → public/data/insights
+  > 
+
+- **Reproduce: the recount command:**
+
+  > node scripts/verify-insights.cjs                       # independent recount (≈30 s)
+  > 
+
+- **Reproduce: byte-identical rebuilds:**
+
+  > Family files contain no build timestamps, so a rebuild from the same shards is byte-identical.
+
+- **Verifier: what it reads:**
+
+  > `scripts/verify-insights.cjs` streams every runner shard (7,885 under 1050; 7,881 under 1652; 7,766 under 0934) and rebuilds the eligible cohort and the duplicate and start-offset screens. It then recounts, independently of the Python builders:
+
+- **Verifier: provenance and structure:**
+
+  > For every file it also checks provenance and structure: finite numbers, groups of at least 100, no identifier or name keys, no recorded runner names in text, and no release-tag strings in copy.
+

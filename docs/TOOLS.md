@@ -117,7 +117,7 @@ The page passes the client only course names, slugs and which tools and pages pu
 
 **Analytics.** Nothing new: `tool_used` `edit` (the workspace), `print` (both buttons, through `beforeprint`) and `copy_link`; `section_viewed` `result`, `comparison` and `pace-band`; `site_error` `data_fetch` from `dataFetch`. `SectionTracker` looks for marked sections once per page view, so the three stay mounted from the first render, each hidden while it has nothing to show (the comparison until its data loads, or for a course without a pace band group), and count when they first show; a comparison that appeared after the page loaded was never counted in the first browser run. The course and goal are never sent; the inputs are masked and the results left out of recordings like every tool's.
 
-**Checks.** Since October 23, 2026 `verify-tools` checks the terrain splits on every terrain course and every goal the tools accept ([below](#terrain-splits-owner-decision-october-23-2026)) and that the example (all courses) offers no choice; from October 20 to 23 it checked the course-shape band on every course shard and published goal ([below](#course-shape-band-owner-decision-october-20-2026--superseded-october-23-2026)). `verify-tools` checks `planHref`, the goal reading, the nearest-goal rule at both ends of the grid, that every published course-goal row is the one the planner shows for its course and goal, the Prague and too-few-editions reasons (Melbourne under 0934; since 1652 every course with too few editions, Barcelona, Paris and Singapore), the gap and out-of-range reasons, the pace band cell beside it, and the first rendered plan (the 4:00 example: 9:09/mi, 5:41/km and each mat's time, the tracked sections, the links in each target's form). It recounts the planner's worked example, the Berlin 3:30 row, from the checksum-verified runner records: finishes, editions, share under the goal, sustained-slowdown share, time after 20 km and the three finish percentiles (`verify-insights` recounts every row's finishes, editions and shares, but not the times). The browser checks type a goal and choose a course in two runs (S2 `plan`, `plan-url`, Berlin against Rotterdam: neither the goal nor the course reaches PostHog). Both courses are ones the page never names by itself: a value the other run also shows is treated as page content, so since October 16, 2026 S2 fails when a case's own value turns up in the other run's traffic (Chicago, the first choice, is named in the method note's duplicated fields, so its check could never fail). S6 checks the three sections in order (since the October 17, 2026 redesign the shorter page also lets the chapter end report "related" once after them), both print buttons, Copy link and the copied address.
+**Checks.** Since October 23, 2026 `verify-tools` checks the terrain splits on every terrain course and every goal the tools accept ([below](#terrain-splits-owner-decision-october-23-2026)) and that the example (all courses) offers no choice; from October 20 to 23 it checked the course-shape band on every course shard and published goal ([below](#course-shape-band-owner-decision-october-20-2026--superseded-october-23-2026)). `verify-tools` checks `planHref`, the goal reading, the nearest-goal rule at both ends of the grid, that every published course-goal row is the one the planner shows for its course and goal, the Prague and too-few-editions reasons (Melbourne under 0934; since 1652 every course with too few editions, Barcelona, Paris and Singapore; under `pace-notes-marathon-half-20261113-1113` Barcelona, Frankfurt, Gold Coast, Paris, Stockholm, Sydney and Toronto Waterfront), the gap and out-of-range reasons, the pace band cell beside it, and the first rendered plan (the 4:00 example: 9:09/mi, 5:41/km and each mat's time, the tracked sections, the links in each target's form). It recounts the planner's worked example, the Berlin 3:30 row, from the checksum-verified marathon cohort (the runner records until November 14, 2026): finishes, editions, share under the goal, sustained-slowdown share, time after 20 km and the three finish percentiles (`verify-insights` recounts every row's finishes, editions and shares, but not the times). The browser checks type a goal and choose a course in two runs (S2 `plan`, `plan-url`, Berlin against Rotterdam: neither the goal nor the course reaches PostHog). Both courses are ones the page never names by itself: a value the other run also shows is treated as page content, so since October 16, 2026 S2 fails when a case's own value turns up in the other run's traffic (Chicago, the first choice, is named in the method note's duplicated fields, so its check could never fail). S6 checks the three sections in order (since the October 17, 2026 redesign the shorter page also lets the chapter end report "related" once after them), both print buttons, Copy link and the copied address.
 
 ## Terrain splits (owner decision, October 23, 2026)
 
@@ -239,10 +239,10 @@ Server-rendered reference pages under `/tools`. Every number on them is computed
 
 The builders are `analysis/insights_tool_*.py`, run by `analysis/build_insights.py` as optional families (the terrain file, last in the table, has its own builder and uses no finishes). All four cohort families use the tool cohort from `analysis/insights_tools_common.py`:
 - the story cohort (without the duplicate-edition screen's editions; the screen has been empty since release 1652);
-- without the start-offset editions (15 under 1050: `start_offset_editions` in `kick.json`);
-- without the editions whose mat grid looks shifted (2 under 1050, Valencia 2021 and Warsaw 2022: `grid_screen` in `kick.json`).
+- without the start-offset editions (15 under `pace-notes-marathon-half-20261113-1113`, as under 1050: `start_offset_editions` in `kick.json`);
+- without the editions whose mat grid looks shifted (2 under `pace-notes-marathon-half-20261113-1113`, as under 1050, Valencia 2021 and Warsaw 2022: `grid_screen` in `kick.json`).
 
-This is the final-kick cohort: **3,954,255 finishes in 198 editions** under `private-export-20261021-1050` (`cohort_n` and `editions` in each tool file). The published tool files are authoritative; any other count on this page carries its release or date. Every published group has at least 100 finishes. Counts are finishes, not runners.
+This is the final-kick cohort: **3,969,532 finishes in 184 editions** under `pace-notes-marathon-half-20261113-1113` (`cohort_n` and `editions` in each tool file, read on November 19, 2026; 3,954,255 finishes in 198 editions under `private-export-20261021-1050`). The builders read the marathon cohort (`analysis/marathon-cohort`) through `insights_data.read_finishes`, and weather and route sections through `insights_courses.edition_context`, as the stories do ([stories](STORIES.md#cohorts-and-screens)). The published tool files are authoritative; any other count on this page carries its release or date. Every published group has at least 100 finishes. Counts are finishes, not runners.
 
 | Family | Builder | Files | Content |
 | --- | --- | --- | --- |
@@ -256,17 +256,17 @@ Shards are listed with their SHA-256 in their index file's `shards` map. The pag
 
 ### Projector accuracy (held out)
 
-`validate()` builds cells from 2005–2021 races only and scores every 2022–2026 finish on All courses (`test_finishes`: about 1.48 million per mat under `private-export-20261021-1050`). The projector page does not show this; `/methodology#tools-projector` reads it from `tools/projector.json` (`validation`). Under 1050:
+`validate()` builds cells from 2005–2021 races only and scores every 2022–2026 finish on All courses (`test_finishes`: about 1.51 million per mat under `pace-notes-marathon-half-20261113-1113`, read on November 19, 2026; about 1.48 million under `private-export-20261021-1050`). The projector page does not show this; `/methodology#tools-projector` reads it from `tools/projector.json` (`validation`). Under `pace-notes-marathon-half-20261113-1113`:
 
 | Mat | 10th–90th range held the finish | Median miss, Pace Notes cell | Median miss, even pace |
 | --- | --- | --- | --- |
-| 10 km (trend) | 79.1% | 9:09 | 11:52 |
-| 20 km (trend) | 79.4% | 6:22 | 10:29 |
-| 30 km (trend) | 79.1% | 3:35 | 6:32 |
-| 35 km (trend) | 79.1% | 2:08 | 3:35 |
-| 40 km (all) | 80.2% | 0:52 | 0:44 |
+| 10 km (trend) | 79.1% | 9:21 | 12:31 |
+| 20 km (trend) | 79.2% | 6:32 | 11:03 |
+| 30 km (trend) | 79.0% | 3:39 | 6:48 |
+| 35 km (trend) | 78.8% | 2:12 | 3:40 |
+| 40 km (all) | 80.1% | 0:53 | 0:46 |
 
-The ranges are well calibrated. From 10 to 35 km the trend cells' median miss is 1.3–1.8 times smaller than the even-pace projection's. At 40 km even pace is as close or closer (0:44 against 0:52, or 0:46 for the trend cells): the 2-minute band is wide compared with the 2.2 km left. Shifting a cell by the runner's position within the band was tested and only brought 40 km level with even pace, so the method is unchanged. The full table is in `tools/projector.json` (`validation`); the table as first measured is in [history](history/tools-2026-10.md).
+The ranges are well calibrated. From 10 to 35 km the trend cells' median miss is 1.3–1.9 times smaller than the even-pace projection's. At 40 km even pace is as close or closer (0:46 against 0:53, or 0:47 for the trend cells): the 2-minute band is wide compared with the 2.2 km left. Shifting a cell by the runner's position within the band was tested and only brought 40 km level with even pace, so the method is unchanged. The full table is in `tools/projector.json` (`validation`); the table as first measured is in [history](history/tools-2026-10.md).
 
 ### Rebuilding
 
@@ -281,14 +281,14 @@ Rebuilding with `--only` keeps every other family's file and rewrites the manife
 
 ## Verification
 
-- `scripts/verify-insights.cjs` independently recounts each tool family from the release shards. It checks:
+- `scripts/verify-insights.cjs` independently recounts each tool family from the marathon cohort (the runner lookup's shards until November 14, 2026). It checks:
   - the tool cohort;
   - every published projector cell's finishes and editions, and that no 100+ group is missing;
   - exact percentiles, slowdown splits and remaining pace for every All-courses cell at 20 and 30 km;
   - every pace-band group count, with sampled medians and slowdown shares;
   - the weather editions, rows, matched editions and edition-balanced shares;
   - the course-goal rows, the unavailable list and the course list.
-- `scripts/verify-tools.cjs` (in `npm run verify:data`) checks golden values: parsing, split tables, the pace charts' even-pace values recomputed by hand, the goal-page list, slugs and links, Riegel and Daniels values, Tanda's range, heat formulas against published tables, age rules and standards for every race, the Boston downhill index and cut-off history, and split reading; the result handoffs (each link's form and range against what the pace band and `readAnalysisProfile` read, and the rendered cards); the planner's link, goal reading and course-goal rows, with one row recounted from the records ([above](#race-planner)); the terrain splits and each stretch's pace ([above](#terrain-splits-owner-decision-october-23-2026)); and the half panels' goldens ([below](#half-marathon-panels-october-30-2026)). Most of its run time is reading the runner records. Its check counts on a given date are in the refresh records and the handoff history, not here.
+- `scripts/verify-tools.cjs` (in `npm run verify:data`) checks golden values: parsing, split tables, the pace charts' even-pace values recomputed by hand, the goal-page list, slugs and links, Riegel and Daniels values, Tanda's range, heat formulas against published tables, age rules and standards for every race, the Boston downhill index and cut-off history, and split reading; the result handoffs (each link's form and range against what the pace band and `readAnalysisProfile` read, and the rendered cards); the planner's link, goal reading and course-goal rows, with one row recounted from the records ([above](#race-planner)); the terrain splits and each stretch's pace ([above](#terrain-splits-owner-decision-october-23-2026)); and the half panels' goldens ([below](#half-marathon-panels-october-30-2026)). Since November 14, 2026 the planner's row is recounted from the marathon cohort's files of that course's counted editions, a few seconds' reading. Its check counts on a given date are in the refresh records and the handoff history, not here.
 - `analysis/test_insights.py` (`Tools` class) covers:
   - the slug rule;
   - projector bands, trend variants and the slowdown split;
@@ -376,3 +376,55 @@ The lines the post-merge half review (branch `fix/half-followups`) rewrote are k
 **Checks** (`verify-tools`, the course-shape section): on a fixed cell, the rule, the rejected cells (eight medians, a flat or falling median, a non-finite one), all courses giving none, the default and override (`bandMode`, `bandChoice`, `tidyChoice`, `pace`), the group's minute (`bandMinute`: 3:30:59 is 210), the labels, the reasons and their lines (Prague, Singapore and Auckland women, New York City 7:00 and Boston 2:29 out of range though New York City's 6:30 group holds over 1,000 finishes, Singapore 4:00 and Barcelona 3:30 too few editions for the course, Helsinki 4:27 too few at that goal, Auckland 5:04 too few finishes), the card's four times and the folds' rows (`cardMats`, `matRows`, including the loading state), the kicker in each mode and with a watch, the Goal cell's and goal bar's labelled average and the card's line; then for every course shard (79: 27 courses × recorded genders, Auckland and Singapore without women) and every published whole-minute goal (14,176), at the goal and at the goal plus 30 seconds: the band ends exactly on the goal, rises strictly, equals `e50 × goal ÷ e50[finish]` at the nine timing points, and in the mile and km rows keeps the even-pace markers, hits the timing points exactly and runs each segment's steps at that segment's pace; every unpublished goal from 2:29 to 6:30 has no shape and gives even pace; every published cell on fewer than 3 editions has none (`SHAPE_MIN_EDITIONS`, the course results' `min_editions`); Singapore's 4:00 group (one edition) has no shape, and Auckland has one at 4:00 and none at 5:04; All courses has none although its group has a cell;
 Boston 4:00 gives the card's 8:41 and 9:48 per mile, 26:38, 1:47:56, 2:45:41 and 4:00:00 from 10,039 finishes, and Boston women 4:00 1:48:30 at 20K; the courses on one or two editions are Barcelona, Paris and Singapore (Auckland too from the October 21, 2026 release), none of them has a shape at any goal or waits for one, Helsinki 4:27 (two editions) has none, and `/methodology` names them from the index. Rendered: the strips in both modes and while loading (no "H" line, the shape's mat times, the labelled Goal cell, the captions and the sheet head in course shape; dashes while loading; the "H" line and even times otherwise), and the two folds (`MatTable` and `Wristband`, exported for this: each mat's or marker's shape beside even pace with the finishes and the sr caption, even pace alone otherwise). The components' wiring is checked from their source (the one control and its address value, `bandMinute`, `bandKicker`, `tidyChoice`, `goalPace`, `cardMats`, the planner's reason line and print hold, the pace band's same-gender reuse and gender shard), and in the browser by S6. A mutation that interpolates evenly over the whole race, or that ignores a missing shape, fails it. Browser:
 S6 `planner splits choice` (Berlin 3:30 opens in course shape; pressing Even pace shows even pace and is the page's one `tool_used` `edit`; the copied link then carries exactly `course`, `goal`, `pace=even` and `units`) and `course shape figures` (Boston 4:00 with its group's file held back 2.5 s: dashes in the course shape's layout, no "even pace", print disabled; then 8:41 and 9:48, 5K 26:38, 20K 1:47:56, 30K 2:45:41, Finish 4:00:00 at the same card height, the card's line, the band panel's badge and kicker, the lead's "even 4:00 pace", print enabled, the fold's columns and 10,039 finishes; the pace band's Boston women 4:00 at 1:48:30 at 20K with its badge and kicker). The layout lint's check 8 also covers the tools' night cards and every segmented button (`lint-layout.cjs` `CLIP_ROOTS`). Run at 195 px it found, besides the planner's two, older cuts on other tool pages that the same shared rules now fix (a night card's foot row wraps, so "Copy link" is never cut; under 300 px every other tool choice keeps its labels inside their own 44 px buttons and scrolls sideways in its track, as the segmented control does under 360 px), and two it leaves for their own pages, present on `main` too: the course chooser's example card ("27%", "Eindhoven") and the weather match's mornings table in its card, at 195 px.
+
+### Moved November 19, 2026 (adoption of `pace-notes-marathon-half-20261113-1113`)
+
+The text each line below gives was replaced on November 19, 2026, when the story and tool families moved from the runner lookup's shards to the marathon cohort and were rebuilt on `pace-notes-marathon-half-20261113-1113`. Each is kept word for word.
+
+- **Data families: start-offset editions:**
+
+  > - without the start-offset editions (15 under 1050: `start_offset_editions` in `kick.json`);
+
+- **Data families: grid screen:**
+
+  > - without the editions whose mat grid looks shifted (2 under 1050, Valencia 2021 and Warsaw 2022: `grid_screen` in `kick.json`).
+
+- **Data families: the tool cohort:**
+
+  > This is the final-kick cohort: **3,954,255 finishes in 198 editions** under `private-export-20261021-1050` (`cohort_n` and `editions` in each tool file).
+
+- **Verification: verify-insights:**
+
+  > - `scripts/verify-insights.cjs` independently recounts each tool family from the release shards. It checks:
+
+- **Verification: verify-tools run time:**
+
+  > Most of its run time is reading the runner records.
+
+- **Projector accuracy: the introduction:**
+
+  > `validate()` builds cells from 2005–2021 races only and scores every 2022–2026 finish on All courses (`test_finishes`: about 1.48 million per mat under `private-export-20261021-1050`). The projector page does not show this; `/methodology#tools-projector` reads it from `tools/projector.json` (`validation`). Under 1050:
+
+- **Projector accuracy: the table under 1050:**
+
+  > | Mat | 10th–90th range held the finish | Median miss, Pace Notes cell | Median miss, even pace |
+  > | --- | --- | --- | --- |
+  > | 10 km (trend) | 79.1% | 9:09 | 11:52 |
+  > | 20 km (trend) | 79.4% | 6:22 | 10:29 |
+  > | 30 km (trend) | 79.1% | 3:35 | 6:32 |
+  > | 35 km (trend) | 79.1% | 2:08 | 3:35 |
+  > | 40 km (all) | 80.2% | 0:52 | 0:44 |
+  > 
+
+- **Projector accuracy: the reading:**
+
+  > The ranges are well calibrated. From 10 to 35 km the trend cells' median miss is 1.3–1.8 times smaller than the even-pace projection's. At 40 km even pace is as close or closer (0:44 against 0:52, or 0:46 for the trend cells): the 2-minute band is wide compared with the 2.2 km left.
+
+- **Planner checks: the too-few-editions courses:**
+
+  > the Prague and too-few-editions reasons (Melbourne under 0934; since 1652 every course with too few editions, Barcelona, Paris and Singapore),
+
+- **Planner checks: the recounted row:**
+
+  > It recounts the planner's worked example, the Berlin 3:30 row, from the checksum-verified runner records:
+
