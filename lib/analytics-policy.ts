@@ -34,7 +34,7 @@ const pages = new Set(['/', '/analyses', '/analyses/downhill-start', '/runners',
   ...TEN_ANALYSES.map(item => '/analyses/' + item.slug), ...WEATHER_QUESTIONS.map(item => '/analyses/' + item.slug),
   '/tools', ...TOOLS.map(tool => '/tools/' + tool.slug), ...searchPages,
   '/stories', ...STORY_SLUGS.map(slug => '/stories/' + slug), '/courses', ...COURSE_SLUGS.map(slug => '/courses/' + slug),
-  '/charts', ...Array.from({ length: CHART_COUNT }, (_, i) => `/charts/${i + 1}`), '/half']);
+  '/charts', ...Array.from({ length: CHART_COUNT }, (_, i) => `/charts/${i + 1}`), '/half', '/half/races']);
 const analyses = new Set([...TEN_ANALYSES.map(item => item.id), ...WEATHER_QUESTIONS.map(item => item.id)]);
 // The experiments registry (data only), typed as lib/experiment-runtime.ts defines an entry.
 const experiments: readonly ExperimentDefinition[] = EXPERIMENTS;

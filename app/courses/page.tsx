@@ -11,7 +11,7 @@ import Reading from '@/components/ui/Reading';
 import { courseLists, coursePages, raceName, routeClimb } from '@/lib/course-page';
 import RaceFinder from '@/components/races/RaceFinder.client';
 import { TierTerm } from '@/components/ui/TierTag';
-import { directorySha, raceSummary, resultsPages } from '@/lib/races-server';
+import { directorySha, resultsPages } from '@/lib/races-server';
 import { raceDisplayName } from '@/lib/races-types';
 import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
@@ -23,15 +23,16 @@ import '@/app/styles/pages/courses.css';
 
 export function generateMetadata() {
   const pages = [...coursePages().values()];
-  const names = pages.map((p) => p.city).sort();
   // The courses whose row prints a climb (climbOf below): a supplied route whose profile does not read the water under a
   // bridge. Until November 9, 2026 this counted every route file, two more than the rows that print a climb.
   const drawn = pages.filter((p) => p.geometry && !profileUnderWater(p)).length;
-  const total = raceSummary().races.total.n;
-  // Every course has a pacing profile; only those whose row prints a climb have elevation, so the title counts both.
-  const title = drawn === names.length ? `Marathon Courses: Elevation and Pacing for ${names.length} Races` : `Marathon Courses: Pacing for ${names.length} Races, Elevation for ${drawn}`;
-  // Since November 19, 2026 the page also lists every marathon with recorded results (the race directory).
-  const description = `${count(total)} marathons, year by year, with sustained slowdown, climb, finishes and race-morning weather for ${names.length} courses.`;
+  // Since November 19, 2026 the counts are the page's own nuggets: every marathon the list holds (courses.index) and the
+  // races with a page (courses.pages), so no copy of the title or the description counts anything the page does not list.
+  const total = Number(getNugget('courses.index').values.races);
+  const withPage = Number(getNugget('courses.pages').values.pages);
+  const title = `Marathon Courses: ${count(withPage)} Race Pages, Elevation for ${count(drawn)}`;
+  const long = `${count(total)} marathons, year by year, and ${count(withPage)} race pages: finish times, and sustained slowdown, climb and race-morning weather where recorded; elevation for ${count(drawn)}.`;
+  const description = long.length <= 155 ? long : `${count(total)} marathons, year by year, and ${count(withPage)} race pages, with route and elevation for ${count(drawn)}.`;
   return pageMetadata({ title, description, path: '/courses' });
 }
 
@@ -147,7 +148,7 @@ export default function CoursesPage() {
     '@context': 'https://schema.org', '@type': 'ItemList', name: 'Marathon courses', itemListOrder: 'https://schema.org/ItemListOrderAscending', numberOfItems: named.length,
     itemListElement: named.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: p.race, url: absoluteUrl(`/courses/${p.slug}`) })),
   };
-  const total = raceSummary().races.total.n;
+  const total = Number(index.values.races);
   return (
     <div className="courses-page" {...readingAttrs('/courses')}>
       <JsonLd data={[pageCrumbs('/courses', 'Courses'), list]} />

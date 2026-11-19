@@ -361,7 +361,12 @@ export function sitemapEntries(): SitemapEntry[] {
   for (const chart of CHART_CATALOG) add(`/charts/${chart.number}`, 'charts');
 
   // The half marathon: a page of its own, off the chapter chain like the charts, built only with the half data.
-  if (half.length) add('/half', 'content', 'half');
+  if (half.length) {
+    add('/half', 'content', 'half');
+    // The half race list (app/half/races; November 19, 2026): every half race with results, on the half data. Its
+    // CONTENT_DATES entry is set on merge day.
+    add('/half/races', 'content', 'half');
+  }
 
   add('/about', 'content', 'personalized', 'weather');
   add('/methodology', 'content', 'study');

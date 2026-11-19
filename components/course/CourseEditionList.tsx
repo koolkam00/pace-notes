@@ -31,6 +31,7 @@ export default function CourseEditionList({ course }: { course: CourseList }) {
       </section>
       <CourseSection id="editions" beat="Editions" title={`${display}, edition by edition`}>
         {/* The shared table (app/styles/components/table.css): a tier column is text, so it wraps and aligns left. */}
+        <div className="table-wrap" role="region" aria-label={`${display}: each edition`} tabIndex={0}>
         <table className="table course-list-table">
           <caption className="sr-only">{`${display}: each edition and the status of its results`}</caption>
           <thead><tr><th scope="col">Year</th><th scope="col" className="is-text">Status</th><th scope="col">Recorded results</th></tr></thead>
@@ -45,6 +46,7 @@ export default function CourseEditionList({ course }: { course: CourseList }) {
             ))}
           </tbody>
         </table>
+        </div>
         {how ? <HowLink href={how} /> : null}
       </CourseSection>
     </>
