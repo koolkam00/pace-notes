@@ -144,15 +144,17 @@ module.exports = function linkedRecounts({ ROOT, N, core, ok, eq, problems }) {
       eq(n.guard, plainShare(a.recorded_bests, a.results, 0.5, Object.values(a.variants)) === 'more_often', 'bests.second guard');
       eq(n.figure.value, String(Math.round(100 * a.recorded_bests / a.results)), 'bests.second figure');
     },
+    // #later reads the tenth recorded marathon against order alone and never names the second or third (re-review D2,
+    // ruling D55, November 20, 2026: the heading sits beside the unanswered guess on the first phone screen).
     'bests.later': (n) => {
       const v = bests.by_recorded_attempt.map((a) => plainShare(a.recorded_bests, a.results, 1 / a.recorded_attempt, Object.values(a.variants)));
       eq(v, bests.by_recorded_attempt.map((a) => a.verdict), 'bests: every attempt verdict recounts');
-      const k = v.indexOf('less_often'), run = v.findIndex((x) => x !== 'more_often');
-      eq(n.guard, k > 0 && v.slice(k).every((x) => x === 'less_often') && run > 0 && v.filter((x) => x === 'more_often').length === run, 'bests.later guard (the run before the turn)');
+      const i = bests.by_recorded_attempt.findIndex((a) => a.recorded_attempt === 10), a = bests.by_recorded_attempt[i];
+      eq(n.guard, i >= 0 && a.results >= 100 && v[i] === 'less_often', 'bests.later guard (the tenth, less often than 1 in 10)');
+      ok(!/second|third|2nd|3rd/i.test(say(n)), 'bests.later: the heading beside the guess never names the second or third');
       if (n.guard) {
-        eq(n.values.from_attempt, bests.by_recorded_attempt[k].recorded_attempt, 'bests.later: the first attempt less often');
-        const words = bests.by_recorded_attempt.slice(0, run).map((a) => ORD[a.recorded_attempt]);
-        ok(say(n).toLowerCase().startsWith(words.length < 2 ? words[0] : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`), 'bests.later: the attempts named');
+        eq([n.values.attempt, n.values.recorded_bests, n.values.results], [10, a.recorded_bests, a.results], 'bests.later: the tenth and its counts');
+        eq(say(n).replace(/\*/g, ''), `Of tenth recorded marathons, ${Math.round(100 * a.recorded_bests / a.results)}% were bests, against ${Math.round(100 / a.recorded_attempt)}% by order alone.`, 'bests.later: the sentence from its counts');
       }
     },
     'again.finish': (n) => {

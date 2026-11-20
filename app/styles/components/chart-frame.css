@@ -81,6 +81,10 @@
 .viz-frame .m-ring { fill: none; stroke: var(--signal); stroke-width: 2; }
 .viz-frame .m-type { fill: var(--type); }
 .viz-frame circle.m-context, .viz-frame circle.m-ink, .viz-frame circle.m-signal { stroke: var(--paper); stroke-width: 2; }
+/* A scatter's dots sit on one knockout layer (Scatter's m-halo), so a cluster's dots never cut crescents into each other;
+   on the course pages only until 2026-11-20, which left the story's halos unpainted (black rings round every dot). */
+.viz-frame.scatter circle.m-halo { fill: var(--paper); stroke: none; }
+.viz-frame.scatter circle.is-flat { stroke: none; }
 
 /* Hairlines */
 .viz-frame .grid-line { fill: var(--rule); }

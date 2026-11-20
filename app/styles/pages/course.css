@@ -196,9 +196,6 @@
 /* The weather scatter's chosen morning is its dot drawn larger, never a target: the warmer morning the sentence accents
    in signal while the chart rests on it, any other morning the reader picks in ink. */
 .course-page .viz-frame.scatter .scrub-ring { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
-/* One knockout layer under every dot (Scatter's m-halo), so a cluster's dots never cut crescents into each other. */
-.course-page .viz-frame.scatter circle.m-halo { fill: var(--paper); stroke: none; }
-.course-page .viz-frame.scatter circle.is-flat { stroke: none; }
 
 /* Keyboard focus rings the whole instrument (the plot, its ticks and the drag handle), never a box drawn between the
    baseline and the tick labels. */
