@@ -259,6 +259,47 @@ class Verifier(unittest.TestCase):
                 self.assertEqual(self.audit(build=changed), 1, message)
             self.assertIn(message, said.getvalue())
 
+    def test_the_audit_recounts_first_and_latest(self):
+        def wrong_latest(d):
+            at = next(at for at in range(len(d['n'])) if d['e'][at] < 0 and d['p'][at] == 0)
+            d['l'][at] = d['f'][at] if d['l'][at] != d['f'][at] else d['l'][at] + 1
+        def first_on_one(d):
+            at = next(at for at in range(len(d['n'])) if d['e'][at] >= 0)
+            d['f'][at] = d['e'][at]
+        for at, (message, change) in enumerate({'index rows name another first or latest race of their profile': wrong_latest,
+                                                'index rows of one result carry a first or latest race': first_on_one}.items()):
+            changed = self.root / f'first-latest-{at}'
+            shutil.copytree(self.build, changed)
+            path = changed / 'runners' / fmt.leaf_path(0)
+            data = fmt.read_gz(path)
+            change(data)
+            path.write_bytes(fmt.compress(fmt.encode(data)))
+            with contextlib.redirect_stderr(io.StringIO()) as said:
+                self.assertEqual(self.audit(build=changed), 1, message)
+            self.assertIn(message, said.getvalue())
+
+    def test_first_and_latest_of_a_possible_match_spelling(self):
+        release = small_release(self.root / 'release-first-latest', first_latest=True)
+        build = self.root / 'build-first-latest'
+        release.build(build / 'runners')
+        done = self.verify('--fixture', '--allow-provisional', root=build)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn('(search names whose row names one race as both: 1)', done.stdout)   # Kai Moss; Lee, José in one year is two races
+        self.assertEqual(self.audit(build=build, release=release), 0)
+        changed = self.root / 'build-first-latest-changed'
+        shutil.copytree(build, changed)
+        for number in range(len(list((changed / 'runners/index').glob('[0-9]*.json.gz')))):
+            path = changed / 'runners' / fmt.leaf_path(number)
+            data = fmt.read_gz(path)
+            if 'K. Moss' in data['n']:
+                at = data['n'].index('K. Moss')
+                data['f'][at] = data['l'][at]                      # the spelling's latest race given as its first
+                path.write_bytes(fmt.compress(fmt.encode(data)))
+                break
+        with contextlib.redirect_stderr(io.StringIO()) as said:
+            self.assertEqual(self.audit(build=changed, release=release), 1)
+        self.assertIn('possible-match rows name another first or latest race of their spelling', said.getvalue())
+
     def test_the_importer_publishes_only_what_the_verifier_passes(self):
         source = self.root / 'to-import'
         shutil.copytree(self.build, source)
