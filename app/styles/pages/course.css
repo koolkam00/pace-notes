@@ -355,10 +355,10 @@
 .edition-key { margin: 0 0 var(--s-3); max-width: var(--measure); font-family: var(--sans); font-size: var(--t-small); line-height: 1.6; color: var(--ink-2); }
 .edition-key-item { display: flex; flex-wrap: wrap; align-items: center; min-height: 44px; }
 .edition-key .tier-tags { display: inline-flex; }
-/* Under 640 px an edition table's row stacks: the year and its labels on the first line, then the median finish and the
+/* Under 600 px (the scale's sm) an edition table's row stacks: the year and its labels on the first line, then the median finish and the
    finishes, then every other figure, each after its column's name; cells without a figure are left out. Nothing scrolls
    sideways, so no edition's numbers sit off-screen. */
-@media (max-width: 639.98px) {
+@media (max-width: 599.98px) {
   .course-table.is-stack { display: block; min-width: 0; width: 100%; }
   .course-table.is-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .course-table.is-stack tbody { display: block; }
@@ -374,5 +374,8 @@
   .course-numbers .course-table.is-stack td[data-empty], .results-page .course-table.is-stack td[data-empty] { display: none; }
   .course-table.is-stack td[data-label]::before { content: attr(data-label) "\00a0"; font-size: var(--t-label); color: var(--ink-3); }
   .course-table.is-stack td.linked-year { min-width: 0; white-space: normal; flex: 1 1 100%; }
-  .course-numbers .course-table-wrap:has(.is-stack) { background: none; }
+}
+/* The wrap's sideways-scroll hint goes where its table is stacked (a browser without :has() keeps the hint: harmless). */
+@supports selector(:has(*)) {
+  @media (max-width: 599.98px) { .course-numbers .course-table-wrap:has(.is-stack) { background: none; } }
 }
