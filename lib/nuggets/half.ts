@@ -410,6 +410,13 @@ export type HalfDeks = {
   /** The marks beat 2's dek names besides 2:00, in minutes ([90] while its guard holds): the chart draws them a step up. */
   crowdNamed: number[];
   /**
+   * Beat 2's key line for the orange column, while 2:00's minute holds the most finishes over the curve of the five
+   * ("2:00: the most extra finishes"), else null. Orange marks what the sentence is about, not the tallest column: since
+   * the stamp correction 1:30's column (1.24×) stands taller than 2:00's (1.21×), and without the key the picture read
+   * against the words first (review round nit, November 20, 2026).
+   */
+  crowdKey: string | null;
+  /**
    * /half beat 3, while its heading holds: "Under 1:30, 7% were. In the marathon, women’s finishes are the majority only
    * from 5:15." Under the plain heading (half.women fails) the comparison with the marathon is a direction the heading
    * withdrew, so the dek is null; so it is while women.json publishes no band medians (fewer than 20 editions).
@@ -523,6 +530,7 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
         : ` The minute before 1:30 held ${ratio(marks[90].ratio, 1)} too; before 1:45, 2:15 and 2:30, about ${ratio(median(others), 2)}.`)
       : ''}` : null,
     crowdNamed: crowdOk ? [90] : [],
+    crowdKey: two && most ? `${two.mark}: the most extra finishes` : null,
     women: halfWomenFrom(women).guard ? `Under 1:30, ${pct(women.median_share[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.` : null,
     cities: halfCitiesFrom(women).guard ? `Women’s share of finishes was typically ${pct(s.half_median)} in the half and ${pct(s.marathon_median)} in the marathon.` : null,
     range: w && slide ? (rangeLead ? `${rangeLead} ${slide}` : slide) : null,

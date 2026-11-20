@@ -133,8 +133,10 @@ export function ChangeHistogram({ hist, faster, label, height = 120, heightMd = 
  * (200% zoom) only the signal's and the named ones' do, and the first column's turns to start at its left edge. The key
  * says what the foot is. The figure keeps a column's width at any screen, so it is capped on a wide one.
  */
-export function RatioColumns({ marks, signal, ink, label, values }: {
+export function RatioColumns({ marks, signal, ink, label, values, signalKey }: {
   marks: HalfRoundMark[]; signal: number; ink: number[]; label: string; values?: ReactNode;
+  /** The orange column's key line (deks.crowdKey), first in the key, so a shorter orange column never reads as the tallest's. */
+  signalKey?: string | null;
 }) {
   const height = 170;
   const top = Math.max(...marks.map((m) => m.ratio_ci95[1]));
@@ -185,7 +187,8 @@ export function RatioColumns({ marks, signal, ink, label, values }: {
   // The columns are named by the H2 and their axis; the key says what they stand on and names the whisker. "curve, 1×"
   // is bound by a no-break space, so the baseline's value never wraps to a line of its own (320 px, round 4 review). The
   // interval's glyph is the whisker itself: a horizontal bar beside "1×" read as the baseline (round 5 review).
-  const keys: KeyItem[] = [{ label: 'Each column rises from the smooth curve,\u00a01×', mark: 'none' }, { label: '95% interval', mark: 'whisker' }];
+  const keys: KeyItem[] = [...(signalKey ? [{ label: signalKey, mark: 'square' as const, tone: 'signal' as const }] : []),
+    { label: 'Each column rises from the smooth curve,\u00a01×', mark: 'none' }, { label: '95% interval', mark: 'whisker' }];
   return (
     <ChartFrame className="columns half-ratio" label={label} height={height} heightMd={210} plot={plot}
       axis={<Axis ticks={marks.map((m, i) => ({ x: x(i + 0.5), label: m.mark, priority: tone(m) === 'signal' ? 4 : 2 }))} />}

@@ -326,6 +326,9 @@ module.exports = function half({ json, eq, ok, core }) {
     const excess = (x) => x.minute_before - x.expected_minute_before;
     const most = field.marks.every((x) => x === two || excess(x) < excess(two));
     const taller = Number(marks[90].ratio.toFixed(2)) > Number(two.ratio.toFixed(2));
+    // The orange column's key line, while 2:00 holds the most extra finishes (review round nit, 2026-11-20): orange is
+    // what the sentence is about, and 1:30's column stands taller.
+    eq(d.crowdKey, most ? `${two.mark}: the most extra finishes` : null, 'half deks: beat 2, the orange column\u2019s key line');
     const rest = taller
       ? ` The minute before 1:30 stood a little taller against its curve, ${marks[90].ratio.toFixed(2)}×; before 1:45, 2:15 and 2:30, about ${median(others).toFixed(2)}×.`
       : ` The minute before 1:30 held ${marks[90].ratio.toFixed(1)}× too; before 1:45, 2:15 and 2:30, about ${median(others).toFixed(2)}×.`;
