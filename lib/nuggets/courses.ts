@@ -16,7 +16,8 @@ import type { Archetypes, Courses } from '@/lib/insights';
 import { courseSlug } from '@/lib/tools/links';
 import { countTiers, inline, tierLine, TIER_WORDS } from '@/lib/tiers';
 import { underWater } from '@/lib/terrain-reading';
-import { count, countWord, pct, sectionLabel, temp, yearSpans } from './format';
+import { count, countWord, pct, sectionLabel, temp } from './format';
+import { yearSpans } from './years';
 import { shareFigure, type Builder } from './build';
 import type { Nugget, NuggetContext, NuggetFigure, UnitsAware } from './types';
 
