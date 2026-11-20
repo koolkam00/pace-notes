@@ -95,7 +95,7 @@ Added by pull request #85 (merged as `a2c6e507`, October 30, 2026). The story's 
 
 ## Over the years (November 19, 2026)
 
-Added on the adoption branch of `pace-notes-marathon-half-20261113-1113` (`claude/release-20261113-m5`; not merged, not deployed). Four stories read the linked-records family (`public/data/linked/`, contract [linked records](LINKED_RECORDS.md)) and open chapter 10, "Over the years", in part two after the weather; "Your race" and "The next one" became chapters 11 and 12.
+Added on the adoption branch of `pace-notes-marathon-half-20261113-1113` (`claude/release-20261113-m5`, in pull request #101). Four stories read the linked-records family (`public/data/linked/`, contract [linked records](LINKED_RECORDS.md)) and open chapter 10, "Over the years", in part two after the weather; "Your race" and "The next one" became chapters 11 and 12.
 
 | Story (route) | File | Reading (nugget) | Beats |
 | --- | --- | --- | --- |

@@ -1,6 +1,6 @@
 # Public export access
 
-Updated November 20, 2026 for **`pace-notes-marathon-half-20261113-1113`**, the release both pins name on the branch `claude/release-20261113` (draft pull request #101; not merged, not deployed). Production still serves `master-20261103b` (read 2026-11-20 00:26 UTC; what production serves is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md#current-state)); that release's section is [below](#the-master-20261103b-release-november-5-2026-historical). Full source records, recorded names, overlays and the producer's documents are public research material. Files are compressed or plain, never encrypted.
+Updated November 20, 2026 for **`pace-notes-marathon-half-20261113-1113`**, the release both pins name since pull request #101 (the adoption of the combined release; the owner asked for its merge on November 20, 2026). Production served `master-20261103b` when read on 2026-11-20 at 00:26 UTC (what production serves is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md#current-state)); that release's section is [below](#the-master-20261103b-release-november-5-2026-historical). Full source records, recorded names, overlays and the producer's documents are public research material. Files are compressed or plain, never encrypted.
 
 ## pace-notes-marathon-half-20261113-1113 (adopted on the branch)
 
@@ -92,7 +92,7 @@ The audit, the identity contract, the edition policy and the delta against 1050 
 
 ## Half-marathon releases (October 31, 2026)
 
-**Production's half pin, superseded on the branch (November 20, 2026).** On `claude/release-20261113` (draft pull request #101) `analysis/half-release.json` (schema 4) names `pace-notes-marathon-half-20261113-1113` and reads the half from the same assets as the marathon ([above](#pace-notes-marathon-half-20261113-1113-adopted-on-the-branch); [half marathon](../docs/HALF_MARATHON.md#sources-and-access)). The text below describes the pin `main` and production still use.
+**The half pin before pull request #101 (November 20, 2026).** Since pull request #101 `analysis/half-release.json` (schema 4) names `pace-notes-marathon-half-20261113-1113` and reads the half from the same assets as the marathon ([above](#pace-notes-marathon-half-20261113-1113-adopted-on-the-branch); [half marathon](../docs/HALF_MARATHON.md#sources-and-access)). The text below describes the pin `main` held before it.
 
 The half-marathon pages (`/half`, the half-to-full story and the tools' half panels) read the owner's public half releases in the same repository, under CC BY 4.0, pinned by sha256 in [`analysis/half-release.json`](half-release.json) (schema 3). This pin was measured and reviewed on October 31, 2026 and is on `main` since #89 (`b35789b8`, squash-merged November 5, 2026). The first pin, which it replaced, is [below](#half-marathon-releases-october-30-2026-historical). Contract, rules and evidence: [half marathons](../docs/HALF_MARATHON.md#sources-and-access).
 

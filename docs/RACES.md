@@ -20,10 +20,10 @@ Keep these apart:
   `pace-notes-marathon-half-20261113-1113` that the frozen edition policy pins: the final input of the adoption,
   which the lead confirmed that day with commit `99d760bed` of the release branch. Its numbers and the digests of
   its inputs are under [Measured](#measured).
-- **Repository.** Branch `claude/release-20261113-races`, cut from `claude/release-20261113`. Not merged.
+- **Repository.** Built on the branch `claude/release-20261113-races`, cut from `claude/release-20261113`, and integrated into pull request #101.
   `public/data/races/`, the audit's evidence and the recount's receipt are committed on the branch, and
   `npm run verify:data` runs `verify-races` with its self-test.
-- **Deployed.** Nothing. The release branch is not deployed and no page reads the family yet.
+- **Deployed.** Recorded in the handoff's [Current state](PROJECT_HANDOFF.md#current-state). Since pull request #101 the race list on `/courses` and the results pages read the family ([website architecture](WEBSITE_ARCHITECTURE.md)).
 
 ## Inputs, and what the manifest binds
 

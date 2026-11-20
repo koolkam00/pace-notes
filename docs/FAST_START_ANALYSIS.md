@@ -14,7 +14,7 @@ All eligible finishes contributes every eligible record once, including the fini
 
 ## Current outputs
 
-Both committed files bind `pace-notes-marathon-half-20261113-1113` and the marathon cohort (manifest `a812fa41…`), built on November 19, 2026 on the adoption branch (not deployed).
+Both committed files bind `pace-notes-marathon-half-20261113-1113` and the marathon cohort (manifest `a812fa41…`), built on November 19, 2026 for pull request #101.
 They cover 7,820,442 raw records and 4,124,026 eligible finishes; 936,040 finishes have the required earlier benchmark (`history_n`) and 3,187,986 do not; on high links alone 597,827 have one.
 `all-finishers.json` (`as_of` 2026-11-19T16:39:38Z, 988,154 bytes) holds 345 filter combinations with 1,755 opening-group cells; `evidence.json` (`as_of` 2026-11-19T16:37:57Z, 1,585,014 bytes) holds 807 earlier-best combinations with 3,790.
 Counted from the files on November 19, 2026.
