@@ -13,7 +13,7 @@ Updated October 30, 2026; source line November 20, 2026. The source is `pace-not
 | Open (November 19, 2026) | High-links-only variants of the pack and personalized-guide readings not built | `pace-notes-marathon-half-20261113-1113` | Deferred by the lead (D45); every other linked reading stores its variant | One more packs build with `prepare_history(..., high_only=True)` (about 6 min), then a `/methodology` table of every family's variants |
 | Open (November 19, 2026) | `race_spacing_outcomes` grew by 7,592 pairs (1,038,372 → 1,045,964) | `pace-notes-marathon-half-20261113-1113` | Believed to be Los Angeles 2026's new date pairing records that had none; not checked pair by pair | Check the added pairs against the reviewed dates |
 | Known (November 19, 2026) | One personalized-guide file is 53.4 MB (`checkpoint_00.json`) | `pace-notes-marathon-half-20261113-1113` | GitHub warns above 50 MB; the hard limit is 100 MB | Split the file if it grows |
-| Known (November 14, 2026) | The runner lookup's size on the host (598 MB in 7,784 files) cannot be measured before a deploy | `pace-notes-marathon-half-20261113-1113` | Git grows about 0.7 GB with this adoption | Watch the first deploy; moving shards to a release asset is proposed |
+| Known (November 14, 2026; host measured November 20, 2026) | The runner lookup in Git (598 MB in 7,784 files when this row was written; 634.0 MB in 7,784 files after the name index was rebuilt on November 20, 2026). The host took it: the branch's first deployment (a Vercel preview of `4e4df00f5`, ready 2026-11-20 17:58 UTC) and production (`03f3dfb4`, built 18:21 UTC) served the 1,013 MB, 9,657-file output, and eleven data files fetched from the preview were byte-identical to the local build ([handoff](PROJECT_HANDOFF.md#current-state)) | `pace-notes-marathon-half-20261113-1113` | Git grows about 0.7 GB with this adoption | Moving shards to a release asset is proposed |
 | Known (November 14, 2026) | 80 editions of the linked family's universe state no timing basis (12 of Chicago's 20 fitted) | `pace-notes-marathon-half-20261113-1113` | [linked records](LINKED_RECORDS.md) | A producer question ([handoff](PROJECT_HANDOFF.md#remaining-producer-work)) |
 | Known (November 14, 2026) | The cohort manifest's rule `not_held` says editions without a file may not be used, while the linked family uses the finish times of finish-time-only editions under D22 | `pace-notes-marathon-half-20261113-1113` | the linked family's report of 2026-11-14 | Reword one of the two texts in the next pipeline change |
 | Known (November 19, 2026) | Pages whose copy changes take the merge day in `lib/stories.ts` `published` and `CONTENT_DATES`; the branch holds 2026-11-19 | `pace-notes-marathon-half-20261113-1113` | the page agents' reports | Set the merge-day fields in the merge-ready commit |
@@ -104,3 +104,11 @@ The S8 row as it stood before the story route's figure was re-measured (review r
 | Priority/status | Issue | Measured in | Current evidence | Next action |
 | --- | --- | --- | --- | --- |
 | Open (November 20, 2026) | `/stories/pacing-types` first-load script 28 bytes over its S8 budget | `pace-notes-marathon-half-20261113-1113` | `npm run autopilot:privacy` at `9aa61af43`: 162,607 B against 161,043 B plus the 1.5 KB allowance | Being fixed on its own branch; never by raising the figure without a dated reason |
+
+### Row replaced on November 20, 2026, after #101 merged
+
+The runner lookup's host-size row as it stood before the first deployment measured it, word for word:
+
+| Priority/status | Issue | Measured in | Current evidence | Next action |
+| --- | --- | --- | --- | --- |
+| Known (November 14, 2026) | The runner lookup's size on the host (598 MB in 7,784 files) cannot be measured before a deploy | `pace-notes-marathon-half-20261113-1113` | Git grows about 0.7 GB with this adoption | Watch the first deploy; moving shards to a release asset is proposed |
