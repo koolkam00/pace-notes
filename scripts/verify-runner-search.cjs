@@ -236,7 +236,10 @@ async function units() {
   // f and l), ordered by year only, in place of the bare years; a half reads as one; one year of two races, and one race.
   const fl = (first, latest) => ({ ...m, firstEdition: first, latestEdition: latest });
   assert.equal(matchLine(fl(0, 6), manifest), '3 marathons · 2 half marathons · London 2020 to Prague 2023 half marathon · 1 possible match');
-  assert.equal(matchLine({ ...fl(2, 5), marathons: 0, halves: 0, possible: 9 }, manifest), '9 results that may belong together · Berlin 2021 to Berlin 2022 half marathon');
+  assert.equal(matchLine({ ...fl(2, 5), marathons: 0, halves: 0, possible: 9 }, manifest), '9 results that may belong together · Berlin 2021 to Berlin 2022 half marathon', 'A marathon and a half of one label are two races');
+  const again = { ...manifest, editions: [...editions, edition(8, 'London', 2023), edition(9, 'Berlin', 2024, { distance: 'half', race: 'Berlin Half Marathon', db: 'h', context: null })] };
+  assert.equal(matchLine({ ...fl(0, 8), marathons: 2, halves: 0, possible: 0 }, again), '2 marathons · London 2020 to 2023', 'One race in two years is named once');
+  assert.equal(matchLine({ ...fl(5, 9), marathons: 0, halves: 2, possible: 0 }, again), '2 half marathons · Berlin 2022 to 2024 half marathon', 'One half in two years is named once, said as a half');
   assert.equal(matchLine(fl(0, 1), manifest), '3 marathons · 2 half marathons · London and Boston, 2020 · 1 possible match');
   assert.equal(matchLine({ ...fl(2, 2), marathons: 1, halves: 0 }, manifest), '1 marathon · Berlin 2021 · 1 possible match');
   assert.equal(matchLine({ ...fl(5, 6), onlyPossible: true, possible: 2 }, manifest), '2 possible matches · Berlin 2022 half marathon to Prague 2023 half marathon');
@@ -415,6 +418,7 @@ async function parity() {
         ok(first && latest && first.year === row.firstYear && latest.year === row.lastYear && (first.year < latest.year || first.index <= latest.index), `${q}: a row's first and latest race are not its first and last year`);
         const line = matchLine(row, manifest);
         ok(line.includes(String(first.year)) && line.includes(String(latest.year)) && !/\d{4}–\d{4}/.test(line), `${q}: the row's words do not name its races`);
+        if (first.year !== latest.year && first.distance === latest.distance && first.city === latest.city) ok(line.includes(`${first.year} to ${latest.year}`), `${q}: one race in two years is not named once`);
         rowWords.rows++; if (row.firstEdition === row.latestEdition) rowWords.oneRace++;
       }
       for (const row of r.matches.slice(0, 3)) {

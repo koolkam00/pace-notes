@@ -27,7 +27,7 @@ const raceName = (edition: Editions[number]) => {
 /**
  * The first and the latest race of the results a row describes (index columns f and l, ordered by year only: first the
  * least year, the latest the greatest; within one year by edition index). Years that differ: "Berlin 2006 to Chicago
- * 2021"; one year, two races: "Berlin and Berlin half marathon, 2019"; one race: "Berlin 2021". Without the columns, the
+ * 2021", or one race named once, "Honolulu 2023 to 2024"; one year, two races: "Berlin and Berlin half marathon, 2019"; one race: "Berlin 2021". Without the columns, the
  * bare years.
  */
 export function racesLine(row: RunnerMatch, editions: Editions): string {
@@ -36,6 +36,8 @@ export function racesLine(row: RunnerMatch, editions: Editions): string {
   const [a, aHalf] = raceName(first), [b, bHalf] = raceName(latest);
   if (first.index === latest.index) return `${a} ${first.year}${aHalf}`;
   if (first.year === latest.year) return `${a}${aHalf} and ${b}${bHalf}, ${first.year}`;
+  // One race in two years is named once: "Honolulu 2023 to 2024" (a marathon and a half of one label are two races).
+  if (a === b && first.distance === latest.distance) return `${a} ${first.year} to ${latest.year}${aHalf}`;
   return `${a} ${first.year}${aHalf} to ${b} ${latest.year}${bHalf}`;
 }
 
