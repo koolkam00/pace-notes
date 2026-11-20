@@ -281,7 +281,7 @@ export function bestsLaterFrom(b: Pick<LinkedBests, 'by_recorded_attempt'>): Nug
     id: 'bests.later', page: `${BESTS_PATH}#later`, denominator: 'records',
     values: { attempt: LATER_ATTEMPT, share: a?.share ?? NaN, shuffled: a?.shuffled_share ?? NaN, results: a?.results ?? NaN, recorded_bests: a?.recorded_bests ?? NaN },
     guard,
-    headline: `Of ${ordinal(LATER_ATTEMPT)} recorded marathons, *${pct(a?.share ?? NaN)}* were a recorded best, against ${pct(a?.shuffled_share ?? NaN)} by order alone.`,
+    headline: `Of ${ordinal(LATER_ATTEMPT)} recorded marathons, *${pct(a?.share ?? NaN)}* were bests, against ${pct(a?.shuffled_share ?? NaN)} by order alone.`,
     fallback: 'Recorded bests, marathon by recorded marathon.',
     figure: null,
   };

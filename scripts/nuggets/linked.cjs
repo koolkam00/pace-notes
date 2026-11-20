@@ -154,7 +154,7 @@ module.exports = function linkedRecounts({ ROOT, N, core, ok, eq, problems }) {
       ok(!/second|third|2nd|3rd/i.test(say(n)), 'bests.later: the heading beside the guess never names the second or third');
       if (n.guard) {
         eq([n.values.attempt, n.values.recorded_bests, n.values.results], [10, a.recorded_bests, a.results], 'bests.later: the tenth and its counts');
-        eq(say(n).replace(/\*/g, ''), `Of tenth recorded marathons, ${Math.round(100 * a.recorded_bests / a.results)}% were a recorded best, against ${Math.round(100 / a.recorded_attempt)}% by order alone.`, 'bests.later: the sentence from its counts');
+        eq(say(n).replace(/\*/g, ''), `Of tenth recorded marathons, ${Math.round(100 * a.recorded_bests / a.results)}% were bests, against ${Math.round(100 / a.recorded_attempt)}% by order alone.`, 'bests.later: the sentence from its counts');
       }
     },
     'again.finish': (n) => {
