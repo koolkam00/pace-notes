@@ -26,7 +26,7 @@ export const RESULTS_LINE_MIN = 3;
  * the H1 where no edition has checkpoint times), states its reading (the race file's median finish in a typical verified
  * year) only under race.reading's guard, else a neutral count, draws the median finish by year as one line (the race
  * file's edition medians, the editions of the finish-time universe with 100 finishes), lists every edition with its
- * labels, and offers the runner search and the planner with no course preset. No pacing word: the race has no pacing
+ * labels (newest year first since November 20, 2026, lead decision D54), and offers the runner search and the planner with no course preset. No pacing word: the race has no pacing
  * figure. Every sentence is a nugget (lib/nuggets/courses.ts); every figure a checked <data> (scripts/verify-courses.cjs).
  * A race whose platform title misleads is named by its label (docs/RACES.md rule 6).
  */
@@ -47,8 +47,12 @@ export default function ResultsPage({ page }: { page: RacePage }) {
   const how = howWeKnowOf(`/courses/${page.slug}`);
   // The year's verdict for linked runners, a column only where some year has one.
   const linked = hasLinkedYears(city, shown.map((e) => e.year));
-  // A label true of most editions is said once, above the table, with the years it is not true of (lead decision D48).
-  const rows = shown.map((e) => ({ year: e.year, tier: e.tier, splitTier: e.split_tier, timing: e.timing }));
+  // The table lists the editions newest year first (lead decision D54, second review E4, November 20, 2026): a long
+  // series no longer opens on decades of early years with recorded results but no figures. The line above keeps its
+  // years in order; nothing else on the page depends on the rows' order.
+  const listed = [...shown].sort((a, b) => b.year - a.year);
+  // A label true of most editions is said once, above the table, with the years it is not true of (lead decisions D48, D53).
+  const rows = listed.map((e) => ({ year: e.year, tier: e.tier, splitTier: e.split_tier, timing: e.timing }));
   const key = editionKey(rows);
   return (
     <div className="course-page results-page" {...readingAttrs(`/courses/${page.slug}`, name)} data-race-page="results">
@@ -82,7 +86,7 @@ export default function ResultsPage({ page }: { page: RacePage }) {
             <tr><th scope="col">Year</th><th scope="col" className="is-text">Status</th><th scope="col">Recorded results</th><th scope="col">Finishes</th><th scope="col">Median finish</th><th scope="col">Middle half</th>{linked ? <LinkedYearHead /> : null}</tr>
           </thead>
           <tbody>
-            {shown.map((e, i) => (
+            {listed.map((e, i) => (
               <tr key={e.year} data-edition={e.year}>
                 <th scope="row">{e.year}</th>
                 {/* The edition's labels from the shared module: its tier, "Finish times only" and "Gun times" where they apply. */}

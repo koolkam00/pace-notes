@@ -351,9 +351,14 @@
 }
 
 /* ---------- Edition tables: the key, and the rows stacked on a phone (review M4 and M5, November 20, 2026) ---------- */
-/* A label true of most rows is said once above the table (components/course/EditionKey.tsx, lead decision D48). */
+/* A label true of most rows, with at most three exceptions, is said once above the table (components/course/EditionKey.tsx,
+   lead decisions D48 and D53). */
 .edition-key { margin: 0 0 var(--s-3); max-width: var(--measure); font-family: var(--sans); font-size: var(--t-small); line-height: 1.6; color: var(--ink-2); }
-.edition-key-item { display: flex; flex-wrap: wrap; align-items: center; min-height: 44px; }
+.edition-key-item { display: flex; flex-wrap: wrap; align-items: center; column-gap: .25em; min-height: 44px; }
+/* The label and its ", except" never part at a line break (lead decision D53); the label itself may wrap at its spaces
+   inside a narrow phone, and the years after the head wrap as words. */
+.edition-key-head { display: inline-flex; flex-wrap: nowrap; align-items: center; max-width: 100%; min-width: 0; }
+.edition-key-join { flex: none; white-space: nowrap; }
 .edition-key .tier-tags { display: inline-flex; }
 /* Under 600 px (the scale's sm) an edition table's row stacks: the year and its labels on the first line, then the median finish and the
    finishes, then every other figure, each after its column's name; cells without a figure are left out. Nothing scrolls
