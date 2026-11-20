@@ -17,6 +17,8 @@ Nothing (2026-10-30). The two items that were here moved to Done, with the reaso
 
 **Run of 2026-11-12:** no site change. The scorecard counts desktop visits that look automated (137 of 447 over 2026-10-21..2026-11-11; `autopilot/LEARNINGS.md`, 2026-11-12), so a before/after comparison would mostly measure their schedule. Issue #97 asks the owner for a scorecard without them. Until it is settled, prefer a fix (no before/after baseline) to a measured change, and give every rate with and without those visits.
 
+**Run of 2026-11-19:** no site change, for the same reason: issue #97 has no answer yet, nothing was found broken (live smoke test passed, no `site_error` in the last 7 days), and no ledger entry is due. The scheduled run of Monday 2026-11-16 did not happen: its wake-up reached the session on 2026-11-19, together with this one.
+
 ## Ready (ranked)
 
 1. **Bring error visits back under the guardrail**
@@ -30,6 +32,7 @@ Nothing (2026-10-30). The two items that were here moved to Done, with the reaso
    - Reach: every visit, because this guardrail judges every other change. Effort: S–M. Risk: low.
    - Until the rate is back at 1% or less, each new entry's decision rule says in advance, with the numbers, that this guardrail is already past its threshold, and names the part of its rule the entry will be judged on (skill, step 5.3).
    - **Update (2026-11-12, PostHog, 2026-10-21..2026-11-11):** 13 of 447 visits had a `site_error` (2.9%); without the 137 automated-looking desktop visits, 10 of 310 (3.2%), so leaving those out does not bring the rate down. The 17 events by `category`: `chunk_load` 7 (all Mobile Safari, on `/`, `/about`, `/stories` and `/runners`), `js_error` 3, `unhandled_rejection` 3, `data_fetch` 2, `render` 2 (desktop). A `site_error` carries only its category, so the cause is not in the data: reproduce it. The live smoke test on 2026-11-12 passed all of its 212 checks, so it does not reproduce any of them.
+   - **Update (2026-11-19, PostHog, 2026-10-22..2026-11-18):** 12 of 479 visits had a `site_error` (2.5%); none of the 64 visits of the last 7 days did. All 7 `chunk_load` events (6 visits, all Mobile Safari) fired within a minute of their visit's first event, and 4 of the 6 visits were one page. A visit starts again after idle time, so the guess above (a tab opened before a deploy) is still possible; so are a page shown again from the browser's stored copy after a deploy and a first load that fails on a poor connection. The data cannot tell them apart: reproduce one before proposing anything. All three are handled in protected files (`lib/chunk-reload.*`, the error pages) or in hosting settings, so a fix is likely the owner's: bring a reproduction and a concrete proposal to an `autopilot:needs-owner` issue, not a guess.
 2. **Give desktop visits an answer on the first screen**
    - **Evidence (2026-11-09, PostHog, 2026-10-21..2026-11-08, 411 visits):**
      - desktop was 210 of the visits (51.1%), and 20 of them were answered (9.5%, `answered_visit_rate@v2`), against 65 of 201 on phones (32.3%);
