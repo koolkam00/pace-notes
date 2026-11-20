@@ -116,7 +116,9 @@ ok(/^as many finishes as expected in the minute before \d:\d\d$/.test(keys['roun
 eq(keys['holds.gender'], 'of recorded women’s and men’s finishes had a sustained slowdown, at the same finish times', 'chapter 07 key');
 ok(/^of races traced to their course by pacing shape alone, against \d+% by chance$/.test(keys['courses.named']), 'chapter 08 key');
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
-eq(keys['years.beyond'], 'of race-years more than 2% off the race’s other years, for linked runners', 'chapter 10 key (Over the years, November 19, 2026)');
+// November 20, 2026 (decision D47): the chapter 10 lead is counted from the verdicts, no longer from point readings
+// beyond 2% ("of race-years more than 2% off the race’s other years, for linked runners", November 19, 2026).
+eq(keys['years.called'], 'of race-years were fast or slow years for linked runners', 'chapter 10 key (Over the years)');
 ok(/^of finishes (?:just over \d:\d\d|from \d:\d\d to \d:\d\d) had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 11 key');
 ok(/^of finishes on even \d:\d\d pace at 30K still got under \d:\d\d$/.test(keys['checkpoint.under']), 'chapter 04 key');
 // Since the stamp correction (October 30, 2026) the flagship's verified-halves checks fail (2,024 verified pairs: +16 minutes

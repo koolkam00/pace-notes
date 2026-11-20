@@ -13,6 +13,7 @@ import { getLinkedManifest } from './linked-server';
 import type { Archetypes, Courses, InsightsManifest, ReplayIndex } from './insights';
 import type { HalfManifest } from './half-types';
 import { getNugget, sentenceOf } from './nuggets';
+import { ordinal } from './nuggets/linked';
 
 /** One parsed copy of each story file per verified manifest, so the getters below do not re-read files on every access. */
 const files = new WeakMap<InsightsManifest, Map<string, unknown>>();
@@ -242,9 +243,9 @@ export const STORIES: StoryDefinition[] = [
     published: '2026-11-19',
     seoTitle: 'Fast and Slow Marathon Years, Race by Race | Pace Notes',
     get seoDescription() {
-      const n = getNugget('years.beyond');
+      const n = getNugget('years.called');
       return n.guard
-        ? `In ${Math.round(Number(n.values.share) * 100)}% of race-years, runners whose records are linked by name finished more than 2% off the race’s other years. Pick a race.`
+        ? `${Math.round(Number(n.values.share) * 100)}% of race-years were fast or slow years for runners whose records are linked by name, against the race’s other years. Pick a race.`
         : 'Each year of a marathon against its other years, for runners whose records are linked by name. Pick a race.';
     } },
   { slug: 'race-to-race', file: 'races.json', source: 'linked', number: '10', kicker: 'Over the years',
@@ -266,9 +267,10 @@ export const STORIES: StoryDefinition[] = [
     published: '2026-11-19',
     seoTitle: 'Recorded Marathon Bests: How Often the Next Is Faster | Pace Notes',
     get seoDescription() {
-      const n = getNugget('bests.second');
+      // The turn, never the guess's answer (review round M6, November 20, 2026).
+      const n = getNugget('bests.turn');
       return n.guard
-        ? `${Math.round(Number(n.values.share) * 100)}% of second recorded marathons were faster than the first, for runners whose records are linked by name. Guess first.`
+        ? `${Math.round(Number(n.values.share) * 100)}% of ${ordinal(Number(n.values.from_attempt))} recorded marathons were a recorded best, against ${Math.round(Number(n.values.shuffled) * 100)}% by order alone, for runners whose records are linked by name. Guess the second first.`
         : 'How often a second, third or later recorded marathon was a recorded best, for records linked by name.';
     } },
   { slug: 'getting-older', file: 'age.json', source: 'linked', number: '12', kicker: 'Over the years',

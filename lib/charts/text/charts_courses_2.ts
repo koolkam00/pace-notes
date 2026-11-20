@@ -60,7 +60,10 @@ export const CHARTS_COURSES_2_TEXT: Record<string, ChartText> = {
     takeaway: (v) => ({
       guard: v.top_city === 'Valencia' && n(v.top) - n(v.second) >= 0.01 && n(v.ratio) >= 2.5 && n(v.n_min) >= 100,
       headline: `On average, *${pct(n(v.top))}* of finishes in a Valencia edition ran 20–40K quicker than 0–20K: ${ratio(n(v.ratio), 1)} the share in New York.`,
-      fallback: 'Finishes with a quicker 20–40K than 0–20K, race by race.',
+      // Review round m9 (November 20, 2026): the fallback says what each dot is. The file names only the two races the
+      // takeaway named, and naming those two alone would single them out, so the dots stay unnamed until the builder
+      // labels every race.
+      fallback: `${count(n(v.cities))} races, one dot each: the share of finishes with a quicker 20–40K than 0–20K.`,
     }),
   },
   'new-york-sped-up-at-25k': {

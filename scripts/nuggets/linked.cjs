@@ -61,12 +61,18 @@ module.exports = function linkedRecounts({ ROOT, N, core, ok, eq, problems }) {
     && Object.values(editions.races).some((y) => Object.values(y).some((r) => r.verdict === 'fast'));
   const RECOUNT = {
     'years.title': (n) => { eq(n.guard, holdsYears, 'years.title guard'); },
-    'years.beyond': (n) => {
-      let over = 0, all = 0;
-      for (const y of Object.values(editions.races)) for (const r of Object.values(y)) { all++; if (Math.abs(r.reading_pct) > 2) over++; }
-      eq([n.values.over_2, n.values.editions], [over, all], 'years.beyond: race-years beyond 2%, recounted from the readings');
-      eq(n.guard, holdsYears && over > 0, 'years.beyond guard');
-      if (n.guard) eq(n.figure.value, String(Math.round(100 * over / all)), 'years.beyond figure');
+    // Counted from the verdicts, recomputed by the plain guard above (decision D47, November 20, 2026: it was the point
+    // readings beyond 2%, 121 of 443, a bar the verdicts do not use).
+    'years.called': (n) => {
+      const tally = { fast: 0, slow: 0, usual: 0, none: 0 };
+      let all = 0;
+      for (const y of Object.values(editions.races)) for (const r of Object.values(y)) { all++; tally[plain(r) ?? 'none']++; }
+      eq([n.values.fast, n.values.slow, n.values.usual, n.values.no_verdict, n.values.editions], [tally.fast, tally.slow, tally.usual, tally.none, all], 'years.called: fast, slow, usual and uncalled race-years, recounted from the readings');
+      eq(n.guard, holdsYears && all >= 3, 'years.called guard');
+      if (n.guard) {
+        eq(n.figure.value, String(Math.round(100 * (tally.fast + tally.slow) / all)), 'years.called figure');
+        ok(say(n).includes(`${Math.round(100 * (tally.fast + tally.slow) / all)}%`) && n.key === 'of race-years were fast or slow years for linked runners', 'years.called: the sentence and the key');
+      }
     },
     'years.heat': (n) => {
       const b = checksFile.temperature.bands.filter((x) => x.mean_pct !== null && x.editions >= 3);
@@ -114,7 +120,24 @@ module.exports = function linkedRecounts({ ROOT, N, core, ok, eq, problems }) {
       eq([n.values.faster, n.values.readings], [faster, rows.length], 'races.faster: the count of faster readings and of readings');
       eq(n.guard, faster > 0, 'races.faster guard');
     },
-    'bests.title': (n) => { const a = bests.by_recorded_attempt.find((x) => x.recorded_attempt === 2); eq(n.guard, plainShare(a.recorded_bests, a.results, 0.5, Object.values(a.variants)) === 'more_often', 'bests.title guard'); },
+    // The H1, the card and #later read the turn (review round M6, November 20, 2026): from the first attempt that is
+    // less often on, every attempt is less often and none before it.
+    'bests.title': (n) => {
+      const v = bests.by_recorded_attempt.map((a) => plainShare(a.recorded_bests, a.results, 1 / a.recorded_attempt, Object.values(a.variants)));
+      const k = v.indexOf('less_often');
+      eq(n.guard, k > 0 && v.slice(k).every((x) => x === 'less_often'), 'bests.title guard (the turn)');
+      if (n.guard) ok(!/second/.test(say(n)) && say(n).includes(`From the ${ORD[bests.by_recorded_attempt[k].recorded_attempt]} recorded marathon on`), 'bests.title: the turn, never the guess\'s answer');
+    },
+    'bests.turn': (n) => {
+      const v = bests.by_recorded_attempt.map((a) => plainShare(a.recorded_bests, a.results, 1 / a.recorded_attempt, Object.values(a.variants)));
+      const k = v.indexOf('less_often'), a = bests.by_recorded_attempt[k];
+      eq(n.guard, k > 0 && v.slice(k).every((x) => x === 'less_often') && a.results >= 100, 'bests.turn guard');
+      if (n.guard) {
+        eq([n.values.from_attempt, n.figure.value], [a.recorded_attempt, String(Math.round(100 * a.recorded_bests / a.results))], 'bests.turn: the attempt and its share');
+        eq(n.key, `of ${ORD[a.recorded_attempt]} recorded marathons were a recorded best, against ${Math.round(100 / a.recorded_attempt)}% by order alone`, 'bests.turn key');
+        ok(!/second/.test(n.key + say(n)), 'bests.turn: the card never gives the guess away');
+      }
+    },
     'bests.second': (n) => {
       const a = bests.by_recorded_attempt.find((x) => x.recorded_attempt === 2);
       ok(Math.abs(n.values.share - a.recorded_bests / a.results) < 1e-9, 'bests.second share from its counts');
@@ -124,9 +147,13 @@ module.exports = function linkedRecounts({ ROOT, N, core, ok, eq, problems }) {
     'bests.later': (n) => {
       const v = bests.by_recorded_attempt.map((a) => plainShare(a.recorded_bests, a.results, 1 / a.recorded_attempt, Object.values(a.variants)));
       eq(v, bests.by_recorded_attempt.map((a) => a.verdict), 'bests: every attempt verdict recounts');
-      const k = v.indexOf('less_often');
-      eq(n.guard, k > 0 && v.slice(k).every((x) => x === 'less_often'), 'bests.later guard');
-      if (n.guard) eq(n.values.from_attempt, bests.by_recorded_attempt[k].recorded_attempt, 'bests.later: the first attempt less often');
+      const k = v.indexOf('less_often'), run = v.findIndex((x) => x !== 'more_often');
+      eq(n.guard, k > 0 && v.slice(k).every((x) => x === 'less_often') && run > 0 && v.filter((x) => x === 'more_often').length === run, 'bests.later guard (the run before the turn)');
+      if (n.guard) {
+        eq(n.values.from_attempt, bests.by_recorded_attempt[k].recorded_attempt, 'bests.later: the first attempt less often');
+        const words = bests.by_recorded_attempt.slice(0, run).map((a) => ORD[a.recorded_attempt]);
+        ok(say(n).toLowerCase().startsWith(words.length < 2 ? words[0] : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`), 'bests.later: the attempts named');
+      }
     },
     'again.finish': (n) => {
       for (const t of ['by_finish', 'by_finish_band', 'by_age_band']) for (const r of again[t]) eq(plainAgain(r), r.verdict, `recorded again: the ${t} verdicts recount`);
@@ -160,6 +187,7 @@ module.exports = function linkedRecounts({ ROOT, N, core, ok, eq, problems }) {
       eq(n.guard, v && back.with_slowdown.share < back.matched_without.share, 'again.slowdown guard');
     },
   };
+  const ORD = ['zeroth', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth'];
   function plainShare(k, n, expected, variants) {
     const share = k / n, se = Math.sqrt(expected * (1 - expected) / n), side = Math.sign(share - expected);
     const vs = variants.filter((v) => v && v.results >= 100).map((v) => Math.sign(v.recorded_bests / v.results - expected));
@@ -191,7 +219,9 @@ module.exports = function linkedRecounts({ ROOT, N, core, ok, eq, problems }) {
   const L = require('../../lib/nuggets/linked.ts');
   const fx = [
     [L.yearsTitleFrom({ summary: { by_verdict: { slow: 3, fast: 2 } } }, { slowdown: { verdict: null } }), 'Fast years and slow years'],
-    [L.yearsBeyondFrom({ summary: { by_verdict: { slow: 3, fast: 2 } } }, { slowdown: { verdict: null }, beyond: { editions: 443, over_2_pct: 121, over_3_pct: 53 } }), '443 race-years, each read against the race’s other years, for records linked by name.'],
+    [L.yearsCalledFrom({ summary: { by_verdict: { slow: 75, fast: 84, usual: 69 }, no_verdict: 215, editions: 443 } }, { slowdown: { verdict: null } }), '443 race-years, each read against the race’s other years, for records linked by name.'],
+    [L.yearsCalledFrom({ summary: { by_verdict: { slow: 75, fast: 84, usual: 69 }, no_verdict: 200, editions: 443 } }, { slowdown: { verdict: 'holds' } }), '443 race-years, each read against the race’s other years, for records linked by name.'],
+    [L.bestsTurnFrom({ by_recorded_attempt: [{ recorded_attempt: 2, results: 500, verdict: 'more_often' }, { recorded_attempt: 3, results: 300, verdict: 'less_often' }, { recorded_attempt: 4, results: 200, verdict: null }] }), '1,000 recorded marathons after a first, for records linked by name.'],
     [L.racesFasterFrom({ summary: { by_verdict: {}, no_verdict: 1 }, races: { X: {} }, series: {} }), '1 races, each read against the other races of the same years, for records linked by name.'],
     [L.bestsSecondFrom({ by_recorded_attempt: [{ recorded_attempt: 2, results: 500, recorded_bests: 250, share: 0.5, shuffled_share: 0.5, verdict: 'as_often', variants: {} }] }), '500 second recorded marathons, for records linked by name.'],
     [L.ageFiftyFrom({ bands: [{ age_from: 50, age_to: 54, pairs: 300, median_pct_per_year: 1, verdict: null }] }), '300 pairs of recorded marathons at 50 to 54, for records linked by name.'],

@@ -19,6 +19,12 @@ export const CHARTS_TRENDS_2_TEXT: Record<string, ChartText> = {
       headline: `${pct(n(v.rec3), 1)} of records linked by name have three or more finishes but hold *${pct(n(v.held3), 1)}* of all finishes.`,
       fallback: 'Records linked by name, by how many finishes they hold.',
     }),
+    // In the fallback the big figure is a neutral count, the records linked by name, and the two bars go: the share
+    // of finishes was the rejected reading, and "Share of records" stood unexplained beside it (review round m9,
+    // November 20, 2026).
+    neutralPlot: (plot, v) => (plot.form === 'big'
+      ? { ...plot, value: n(v.records), fmt: 'count', caption: 'records linked by name', compare: undefined, compareFmt: undefined }
+      : plot),
   },
   'every-new-york-in-the-data': {
     // November 4, 2026 (master-20261103b): New York 2008 is released, so the editions with cross-race identity are 17

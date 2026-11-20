@@ -11,7 +11,7 @@
 import type { UnitSystem } from '@/lib/units';
 import { getLinkedEditions, getLinkedRaces, readLinked } from '@/lib/linked-server';
 import type { LinkedEditions, LinkedRaces } from '@/lib/linked-types';
-import { count, countWord, pct, spokenPct, temp } from './format';
+import { count, pct, spokenPct, temp } from './format';
 import type { Builder } from './build';
 import type { Nugget, UnitsAware } from './types';
 
@@ -101,24 +101,30 @@ export function yearsTitleFrom(e: Pick<LinkedEditions, 'summary'>, c: Pick<Linke
   };
 }
 
-/** The years story's reading: the share of race-years more than 2% off the race's other years (the contract's finding). */
-export function yearsBeyondFrom(e: Pick<LinkedEditions, 'summary'>, c: Pick<LinkedChecks, 'slowdown' | 'beyond'>): Nugget {
-  const n = c.beyond.over_2_pct, total = c.beyond.editions, share = n / total;
-  const guard = yearsHold(e, c) && total >= 3 && n > 0;
+/**
+ * The years story's reading, counted from the verdicts beside it (decision D47, review round, November 20, 2026): the
+ * share of all the race-years read that are fast or slow years, with how many read as usual years and how many could
+ * not be called either way. It replaced a share of point readings beyond 2%, a bar the verdicts do not use (121 of 443,
+ * eight of them with no verdict). Guard: the years story's own, and the four counts add up to the readings.
+ */
+export function yearsCalledFrom(e: Pick<LinkedEditions, 'summary'>, c: Pick<LinkedChecks, 'slowdown'>): Nugget {
+  const s = e.summary, fast = s.by_verdict.fast ?? 0, slow = s.by_verdict.slow ?? 0, usual = s.by_verdict.usual ?? 0, none = s.no_verdict, total = s.editions;
+  const called = fast + slow, share = called / total;
+  const guard = yearsHold(e, c) && total >= 3 && fast + slow + usual + none === total;
   return {
-    id: 'years.beyond', page: YEARS_PATH, denominator: 'records', term: LINKED_TERM,
-    values: { over_2: n, over_3: c.beyond.over_3_pct, editions: total, share },
+    id: 'years.called', page: YEARS_PATH, denominator: 'records', term: LINKED_TERM,
+    values: { fast, slow, usual, no_verdict: none, editions: total, share },
     guard,
-    headline: `In *${pct(share)}* of race-years, runners whose records are linked by name finished more than 2% faster or slower than in the race’s other years.`,
+    headline: `For runners whose records are linked by name, *${pct(share)}* of race-years were fast or slow years against the race’s other years.`,
     fallback: `${count(total)} race-years, each read against the race’s other years, for records linked by name.`,
     figure: guard ? { value: pct(share).replace('%', ''), unit: '%', sr: spokenPct(share) } : { value: count(total), sr: `${count(total)} race-years` },
-    key: guard ? 'of race-years more than 2% off the race’s other years, for linked runners' : 'race-years read for linked runners',
+    key: guard ? 'of race-years were fast or slow years for linked runners' : 'race-years read for linked runners',
   };
 }
 
 /**
  * #heat: years whose race window was warm read slower against the race's own mean, as evidence beside the readings (no
- * weather enters the fit). Guard: both within-race relations are positive, the coolest and warmest bands each rest on
+ * weather enters the fit; /methodology#story-fast-and-slow-years says so, the page does not: rule 15). Guard: both within-race relations are positive, the coolest and warmest bands each rest on
  * three editions, and the warmest band reads at least 2 points above the coolest.
  */
 export function yearsHeatFrom(c: Pick<LinkedChecks, 'temperature'>): Nugget {
@@ -191,20 +197,58 @@ export function racesFasterFrom(r: Pick<LinkedRaces, 'summary' | 'races' | 'seri
 
 type Attempt = LinkedBests['by_recorded_attempt'][number];
 const second = (b: Pick<LinkedBests, 'by_recorded_attempt'>): Attempt | undefined => b.by_recorded_attempt.find((a) => a.recorded_attempt === 2);
+const ORDINALS = ['zeroth', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth'];
+/** "fifth"; past twenty, "21st"-style digits are never needed (the file stops at 18). */
+export const ordinal = (k: number) => ORDINALS[k] ?? `${k}th`;
+const listWords = (words: string[]) => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`);
 
+/**
+ * The turn of the attempts: from the first attempt that is `less_often` on, every attempt is `less_often` (a recorded
+ * best came less often than order alone would give), and the attempts before it are not. `row` is that first attempt.
+ */
+export function bestsTurn(b: Pick<LinkedBests, 'by_recorded_attempt'>): { holds: boolean; row: Attempt | undefined } {
+  const rows = b.by_recorded_attempt;
+  const from = rows.findIndex((a) => a.verdict === 'less_often');
+  const holds = from > 0 && rows.slice(from).every((a) => a.verdict === 'less_often') && rows.slice(0, from).every((a) => a.verdict !== 'less_often');
+  return { holds, row: from >= 0 ? rows[from] : undefined };
+}
+
+/**
+ * The bests story's H1: the turn, the chapter's other reading. The page opens on a guess about the second recorded
+ * marathon, so its H1 never states that answer (review round M6, November 20, 2026: the H1 above the guess gave it away).
+ */
 export function bestsTitleFrom(b: Pick<LinkedBests, 'by_recorded_attempt'>): Nugget {
-  const a = second(b);
+  const t = bestsTurn(b), k = t.row?.recorded_attempt ?? NaN;
   return {
     id: 'bests.title', page: BESTS_PATH, denominator: 'records',
-    values: { share: a?.share ?? NaN, shuffled: a?.shuffled_share ?? NaN },
-    guard: a?.verdict === 'more_often',
-    headline: 'A second recorded marathon was faster than the first *a little more often than not*.',
+    values: { from_attempt: k },
+    guard: t.holds,
+    headline: `From the ${ordinal(k)} recorded marathon on, a recorded best came *less often* than order alone.`,
     fallback: 'Recorded bests',
     figure: null,
   };
 }
 
-/** The bests story's reading: the share of second recorded marathons that were a recorded best (the guess's truth). */
+/**
+ * The bests story's card reading (its PAGE_NUGGET, the card into the page): the first attempt of the turn, its share of
+ * recorded bests against order alone. Not the guess's answer, which the card would give away (review round M6).
+ */
+export function bestsTurnFrom(b: Pick<LinkedBests, 'by_recorded_attempt'>): Nugget {
+  const t = bestsTurn(b), a = t.row, k = a?.recorded_attempt ?? NaN;
+  const total = b.by_recorded_attempt.reduce((s, x) => s + x.results, 0);
+  const guard = t.holds && !!a && a.results >= 100;
+  return {
+    id: 'bests.turn', page: `${BESTS_PATH}#later`, denominator: 'records', term: LINKED_TERM,
+    values: { from_attempt: k, share: a?.share ?? NaN, shuffled: a?.shuffled_share ?? NaN, results: a?.results ?? NaN, recorded_bests: a?.recorded_bests ?? NaN },
+    guard,
+    headline: `For runners whose records are linked by name, *${pct(a?.share ?? NaN)}* of ${ordinal(k)} recorded marathons were a recorded best, against ${pct(a?.shuffled_share ?? NaN)} by order alone.`,
+    fallback: `${count(total)} recorded marathons after a first, for records linked by name.`,
+    figure: guard ? { value: pct(a!.share).replace('%', ''), unit: '%', sr: spokenPct(a!.share) } : { value: count(total), sr: `${count(total)} recorded marathons` },
+    key: guard ? `of ${ordinal(k)} recorded marathons were a recorded best, against ${pct(a!.shuffled_share)} by order alone` : 'recorded marathons after a first, read for linked runners',
+  };
+}
+
+/** The guess's answer: the share of second recorded marathons that were a recorded best (said only after the guess). */
 export function bestsSecondFrom(b: Pick<LinkedBests, 'by_recorded_attempt'>): Nugget {
   const a = second(b);
   const share = a?.share ?? NaN;
@@ -221,20 +265,22 @@ export function bestsSecondFrom(b: Pick<LinkedBests, 'by_recorded_attempt'>): Nu
 }
 
 /**
- * #later: from the first attempt that is `less_often` on, every attempt is `less_often` (a recorded best came less
- * often than order alone would give), and the attempts before it are not.
+ * #later: the attempts before the turn that read `more_often`, a run from the second recorded marathon (the H1 states
+ * the turn, so this heading states what came before it; review round M6, November 20, 2026). Guard: the turn holds and
+ * every `more_often` attempt is in that run.
  */
 export function bestsLaterFrom(b: Pick<LinkedBests, 'by_recorded_attempt'>): Nugget {
-  const rows = b.by_recorded_attempt;
-  const from = rows.findIndex((a) => a.verdict === 'less_often');
-  const guard = from > 0 && rows.slice(from).every((a) => a.verdict === 'less_often') && rows.slice(0, from).every((a) => a.verdict !== 'less_often');
-  const k = from >= 0 ? rows[from].recorded_attempt : NaN;
-  const ord = (n: number) => countWord(n);
+  const rows = b.by_recorded_attempt, t = bestsTurn(b);
+  const run = rows.findIndex((a) => a.verdict !== 'more_often');
+  const more = rows.filter((a) => a.verdict === 'more_often');
+  const guard = t.holds && run > 0 && more.length === run;
+  const words = rows.slice(0, Math.max(0, run)).map((a) => ordinal(a.recorded_attempt));
+  const said = listWords(words);
   return {
     id: 'bests.later', page: `${BESTS_PATH}#later`, denominator: 'records',
-    values: { from_attempt: k, attempts: rows.length },
+    values: { from_attempt: t.row?.recorded_attempt ?? NaN, more_often: more.length, attempts: rows.length },
     guard,
-    headline: `After ${ord(k - 1)} recorded marathons, recorded bests came *less often* than order alone.`,
+    headline: `${said.charAt(0).toUpperCase()}${said.slice(1)} recorded marathons were *more often* recorded bests.`,
     fallback: 'Recorded bests, marathon by recorded marathon.',
     figure: null,
   };
@@ -345,7 +391,7 @@ export function againSlowdownFrom(r: LinkedReturn): Nugget {
 
 export const LINKED_NUGGETS: Record<string, Builder> = {
   'years.title': () => yearsTitleFrom(getLinkedEditions().data, checks()),
-  'years.beyond': () => yearsBeyondFrom(getLinkedEditions().data, checks()),
+  'years.called': () => yearsCalledFrom(getLinkedEditions().data, checks()),
   'years.heat': () => yearsHeatFrom(checks()),
   'years.field': () => yearsFieldFrom(checks()),
   'races.title': () => racesTitleFrom(getLinkedRaces().data),
@@ -353,6 +399,7 @@ export const LINKED_NUGGETS: Record<string, Builder> = {
   'bests.title': () => bestsTitleFrom(bests()),
   'bests.second': () => bestsSecondFrom(bests()),
   'bests.later': () => bestsLaterFrom(bests()),
+  'bests.turn': () => bestsTurnFrom(bests()),
   'again.finish': () => againFinishFrom(again()),
   'age.title': () => ageTitleFrom(age()),
   'age.fifty': () => ageFiftyFrom(age()),

@@ -24,7 +24,9 @@ export function pointTicks(rows: IntervalRow[]) {
 
 /**
  * Recorded bests: how often a second, third, … recorded marathon was the runner's recorded best so far, against what
- * order alone would give (1 in k). It opens on a guess (the second against the first), then the attempts one by one,
+ * order alone would give (1 in k). Its H1 is the turn (from which recorded marathon on a best came less often), so it
+ * never states the answer to the guess it opens on (the second against the first; review round M6, November 20,
+ * 2026), and the card into the page carries the turn too (bests.turn). Then the attempts one by one,
  * then who is recorded at another marathon at all, by finish time, each group against the other finishes of the same
  * races (recorded_again.json; the one comparison allowed: a `more_often` row against a `less_often` one).
  */

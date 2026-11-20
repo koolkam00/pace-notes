@@ -6,7 +6,7 @@
  * (lib/charts/neutral.ts) and there is no card to link, since scripts/build-chart-cards.cjs withdraws it.
  */
 import { neutralSpec } from './neutral';
-import { chartWords, type ChartWords } from './registry';
+import { CHART_TEXT, chartWords, type ChartWords } from './registry';
 import type { ChartSpec } from './spec';
 import type { CatalogItem, ChartFile } from './types';
 
@@ -22,5 +22,7 @@ export const chartCardPath = (number: number) => `/charts/cards/${number}.png`;
 
 export function chartPageState(item: CatalogItem, file: ChartFile): ChartPageState {
   const words = chartWords(item, file);
-  return { words, plot: words.guard ? file.plot : neutralSpec(file.plot), card: words.guard ? chartCardPath(item.number) : null };
+  const own = CHART_TEXT[item.slug]?.neutralPlot;
+  const fallen = own ? own(file.plot, file.values) : file.plot;
+  return { words, plot: words.guard ? file.plot : neutralSpec(fallen), card: words.guard ? chartCardPath(item.number) : null };
 }

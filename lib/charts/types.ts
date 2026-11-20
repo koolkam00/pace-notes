@@ -64,4 +64,11 @@ export type ChartText = {
   takeaway: (v: V) => Takeaway;
   /** The search description when the takeaway alone would not do (at most 155 characters). */
   description?: (v: V) => string;
+  /**
+   * The drawing while the guard does not hold, where the chart's own spec with its marks taken off would still show the
+   * rejected figure (a big number) or an unexplained bar: a spec of the same file that states a neutral count. Drawing
+   * only, from the published values; lib/charts/neutral.ts still strips it and verify-charts holds it to readingMarks
+   * (review round m9, November 20, 2026).
+   */
+  neutralPlot?: (plot: ChartSpec, v: V) => ChartSpec;
 };

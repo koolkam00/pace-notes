@@ -161,12 +161,15 @@ export const CHAPTERS: readonly Chapter[] = [
   // records are linked by name, followed from one recorded marathon to the next. Its opener's reading is its lead.
   { n: 10, id: 'chapter-10', part: 2, marker: '10', title: 'Over the years', subtitle: 'Linked runners, year after year',
     pages: [
-      story('fast-and-slow-years', 'Fast and slow years', 'years.beyond'),
+      story('fast-and-slow-years', 'Fast and slow years', 'years.called'),
       story('race-to-race', 'Race to race', 'races.faster'),
-      story('recorded-bests', 'Recorded bests', 'bests.second'),
+      // The card into the page carries the chapter's other reading (the turn), never the answer to the guess the page
+      // opens on (review round M6, November 20, 2026).
+      story('recorded-bests', 'Recorded bests', 'bests.turn'),
       story('getting-older', 'Getting older', 'age.fifty'),
     ],
-    lead: 'years.beyond', key: 'of race-years more than 2% off the race’s other years, for linked runners' },
+    // Counted from the verdicts (decision D47, November 20, 2026), no longer from point readings beyond 2%.
+    lead: 'years.called', key: 'of race-years were fast or slow years for linked runners' },
   // The split check opens the chapter: its one data beat (how common a sustained slowdown was at the example's finish
   // time) is the chapter's lead, so the card into the chapter promises what the page it opens holds; a past race (a
   // search, no reading of its own) follows it.

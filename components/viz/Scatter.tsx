@@ -18,7 +18,7 @@ export type ScatterPoint = { id: string; x: number; y: number; label: string; ke
   /** A quiet label on a point outside the pair that the sentence names (a course's "Apart from 2022"): the dot stays quiet. */
   named?: boolean };
 
-export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true, side, prompt }: {
+export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true, side, prompt, keys }: {
   points: ScatterPoint[]; xTicks: { value: number; label: string }[]; yTicks: { value: number; label: string }[];
   xDomain?: [number, number]; yDomain?: [number, number]; label: string;
   axisTitle?: { start?: string; end?: string }; values?: ReactNode; height?: number; heightMd?: number;
@@ -32,6 +32,8 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   side?: { label: string; values: string[] }[];
   /** Open on nothing, the readout holding this prompt until a dot is picked (where the heading already says the reading). */
   prompt?: string;
+  /** The chart's key, where the ink points are a group rather than a pair (a race marked among every race's years). */
+  keys?: { label: string; mark: 'dot'; tone: 'ink' | 'quiet' }[];
 }) {
   const [x0, x1] = xDomain ?? extent(points.map((p) => p.x));
   const [y0, y1] = yDomain ?? extent(points.map((p) => p.y));
@@ -68,7 +70,7 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   return (
     <ChartFrame className="scatter" label={label} height={height} heightMd={heightMd}
       scrub={<Scrubber mode="pick" points={scrub} initial={first} label={label} axis={axis} prompt={prompt}>{plot}</Scrubber>}
-      keys={pair.length === 2 ? [{ label: 'Other editions', mark: 'dot', tone: 'quiet' }] : undefined}
+      keys={keys ?? (pair.length === 2 ? [{ label: 'Other editions', mark: 'dot', tone: 'quiet' }] : undefined)}
       values={values}
     />
   );
