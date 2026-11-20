@@ -264,23 +264,24 @@ export function bestsSecondFrom(b: Pick<LinkedBests, 'by_recorded_attempt'>): Nu
   };
 }
 
+/** The recorded marathon #later reads: the tenth, far down the series (ruling D55, November 20, 2026). */
+export const LATER_ATTEMPT = 10;
+
 /**
- * #later: the attempts before the turn that read `more_often`, a run from the second recorded marathon (the H1 states
- * the turn, so this heading states what came before it; review round M6, November 20, 2026). Guard: the turn holds and
- * every `more_often` attempt is in that run.
+ * #later: how far below order alone the tenth recorded marathon ran. The heading sits on the first phone screen beside
+ * the unanswered guess about the second, so it never names the second or third or their direction (re-review D2,
+ * ruling D55, November 20, 2026: "Second and third … more often" gave the guess away); the H1 states the turn at the
+ * fifth, so this one states a later attempt's share instead of repeating it. Guard: the tenth has at least 100 results
+ * and reads `less_often` against order alone (1 in 10); else the heading states no reading.
  */
 export function bestsLaterFrom(b: Pick<LinkedBests, 'by_recorded_attempt'>): Nugget {
-  const rows = b.by_recorded_attempt, t = bestsTurn(b);
-  const run = rows.findIndex((a) => a.verdict !== 'more_often');
-  const more = rows.filter((a) => a.verdict === 'more_often');
-  const guard = t.holds && run > 0 && more.length === run;
-  const words = rows.slice(0, Math.max(0, run)).map((a) => ordinal(a.recorded_attempt));
-  const said = listWords(words);
+  const a = b.by_recorded_attempt.find((x) => x.recorded_attempt === LATER_ATTEMPT);
+  const guard = !!a && a.results >= 100 && a.verdict === 'less_often';
   return {
     id: 'bests.later', page: `${BESTS_PATH}#later`, denominator: 'records',
-    values: { from_attempt: t.row?.recorded_attempt ?? NaN, more_often: more.length, attempts: rows.length },
+    values: { attempt: LATER_ATTEMPT, share: a?.share ?? NaN, shuffled: a?.shuffled_share ?? NaN, results: a?.results ?? NaN, recorded_bests: a?.recorded_bests ?? NaN },
     guard,
-    headline: `${said.charAt(0).toUpperCase()}${said.slice(1)} recorded marathons were *more often* recorded bests.`,
+    headline: `Of ${ordinal(LATER_ATTEMPT)} recorded marathons, *${pct(a?.share ?? NaN)}* were a recorded best, against ${pct(a?.shuffled_share ?? NaN)} by order alone.`,
     fallback: 'Recorded bests, marathon by recorded marathon.',
     figure: null,
   };

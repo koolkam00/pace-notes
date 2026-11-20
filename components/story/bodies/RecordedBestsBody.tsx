@@ -35,7 +35,7 @@ export default function RecordedBestsBody() {
   const bests = linkedFiles.bests(), again = linkedFiles.again();
   const second = getNugget('bests.second'), later = getNugget('bests.later'), finish = getNugget('again.finish');
   const attempts = bests.by_recorded_attempt;
-  const at = later.guard ? attempts.findIndex((a) => a.recorded_attempt === Number(later.values.from_attempt)) : -1;
+  const at = later.guard ? attempts.findIndex((a) => a.recorded_attempt === Number(later.values.attempt)) : -1;
   const xs = attempts.map((a) => a.recorded_attempt);
   const top = Math.ceil(Math.max(...attempts.map((a) => Math.max(a.share, a.shuffled_share))) * 10) / 10;
   const finishRows = again.by_finish.map((r) => againRow(r, capital(finishBandWords(r))));
