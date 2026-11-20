@@ -22,6 +22,8 @@ module.exports = function half({ json, eq, ok, core }) {
   const { clock, pct, oneIn } = D;
   const words = (t) => core.plain(t).split(/\s+/).filter(Boolean).length;
   const median = D.npMedian;
+  // A pooled difference in minutes, rounded to the nearest minute, a tie to even, as Python rounds.
+  const roundEven = (x) => D.pyRound(x, 0);
 
   // The half files are the ones the manifest binds.
   const crypto = require('node:crypto');
@@ -125,7 +127,9 @@ module.exports = function half({ json, eq, ok, core }) {
   R['half.extra'] = (n) => {
     eq(battery.pooled.extra_p50_s, linked.overall.extra_s.p50, 'half.extra: the battery pools what the overall reading pools');
     eq(battery.pooled.n, linked.set.pairs, 'half.extra: the pooled member holds every pair');
-    const minutes = Math.round(linked.overall.extra_s.p50 / 60);
+    // A pooled figure with no printed operands beside it: rounded to the nearest minute, a tie to even (2026-11-20; it
+    // was Math.round, which sends a tie up; 1315 s is 21.9, 22 either way).
+    const minutes = roundEven(linked.overall.extra_s.p50 / 60);
     eq(n.values.extra_min, minutes, 'half.extra: minutes over double, rounded');
     eq(n.guard, flagshipOk(), 'half.extra: guard (the weighting battery)');
     if (n.guard) eq(shown(n), `After a half, the typical marathon took double it plus *${minutes} minutes*.`, 'half.extra: the H1');
@@ -257,11 +261,12 @@ module.exports = function half({ json, eq, ok, core }) {
     // The page sets the dek's two parts apart, the needle's how-to said only with JavaScript (round 5 review).
     eq(d.rangeLead, H.halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}.` : null, 'half deks: story beat 1, the reading part');
     eq(d.storySlide, slide, 'half deks: story beat 1, how to use the needle');
-    // The story's hero dek: what the page pairs (set B's window, in whole weeks) and where to look; no reading, so it
-    // stands under the plain H1 too (review, October 30, 2026).
-    const [wa, wb] = linked.set.window_days;
-    ok(wa % 7 === 0 && wb % 7 === 0, `half deks: set B's window is whole weeks (${wa} to ${wb} days)`);
-    eq(d.hero, `Each half here is paired with the marathon ${wa / 7} to ${wb / 7} weeks after it, for records linked by name.`, 'half deks: the story’s hero dek');
+    // The story's hero dek: which halves the page covers (the first and the last 5-minute stop of the readout) and for
+    // whom, and where to look; no reading, so it stands under the plain H1 too (review, October 30, 2026). 2026-11-20
+    // (review round m6, AGENTS rule 15): it no longer says how pairs are formed ("Each half here is paired with the
+    // marathon 3 to 16 weeks after it, …"), which /methodology#half-linking states.
+    eq(d.hero, stops.length ? `Halves from ${clock(stops[0].h)} to ${clock(stops[stops.length - 1].h)} and the marathons that followed them, for records linked by name.` : 'Halves and the marathons that followed them, for records linked by name.', 'half deks: the story’s hero dek');
+    ok(!/\b(?:paired|weeks?|days?)\b/i.test(d.hero), 'half deks: the hero dek says nothing of how pairs are formed (rule 15)');
     eq(d.find, 'Find your half below.', 'half deks: the hero’s pointer to the needle (said only with JavaScript)');
     ok(!/\b(?:double|typical|under|over|more|fewer|took)\b/i.test(d.hero), 'half deks: the hero dek states no reading');
     // The reading's scale note: the minutes over double 15 minutes quicker than the flagship's half, then the span of
@@ -311,6 +316,9 @@ module.exports = function half({ json, eq, ok, core }) {
     const excess = (x) => x.minute_before - x.expected_minute_before;
     const most = field.marks.every((x) => x === two || excess(x) < excess(two));
     const taller = Number(marks[90].ratio.toFixed(2)) > Number(two.ratio.toFixed(2));
+    // The orange column's key line, while 2:00 holds the most extra finishes (review round nit, 2026-11-20): orange is
+    // what the sentence is about, and 1:30's column stands taller.
+    eq(d.crowdKey, most ? `${two.mark}: the most extra finishes` : null, 'half deks: beat 2, the orange column\u2019s key line');
     const rest = taller
       ? ` The minute before 1:30 stood a little taller against its curve, ${marks[90].ratio.toFixed(2)}×; before 1:45, 2:15 and 2:30, about ${median(others).toFixed(2)}×.`
       : ` The minute before 1:30 held ${marks[90].ratio.toFixed(1)}× too; before 1:45, 2:15 and 2:30, about ${median(others).toFixed(2)}×.`;

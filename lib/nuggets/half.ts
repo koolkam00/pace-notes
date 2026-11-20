@@ -11,7 +11,7 @@
  */
 import type { HalfBatteryId, HalfBatteryMember, HalfField, HalfLeaveOutClause, HalfLeaveOutParent, HalfLeaveOutVariant, HalfLeaveOutWorstKey, HalfLinked, HalfPacing, HalfWindow, HalfWomen } from '@/lib/half-types';
 import { halfPublished, readHalf } from '@/lib/half-server';
-import { floorHM, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
+import { floorHM, readoutMark, roundMinutes, windowOverDouble } from '@/lib/tools/half-to-full';
 import { count, inWords, pct, ratio, spokenPct, spokenTime } from './format';
 import { shareFigure, type Builder } from './build';
 import type { Nugget } from './types';
@@ -236,7 +236,8 @@ export const HALF_PAIRS_KEY = 'pairs of a half and the marathon after it';
 export function halfExtraFrom(linked: HalfLinked): Nugget {
   const m = members(linked), pooled = m.pooled;
   const extra = linked.overall.extra_s.p50;
-  const minutes = Math.round(extra / 60);
+  // A pooled figure, no printed operands beside it: rounded to the nearest minute, a tie to even (1315 s is 22).
+  const minutes = roundMinutes(extra);
   const under = linked.overall.under_double_plus_min['0'];
   const pairs = linked.set.pairs;
   const guard = flagshipGuard(linked) && pooled?.extra_p50_s === extra;
@@ -409,6 +410,13 @@ export type HalfDeks = {
   /** The marks beat 2's dek names besides 2:00, in minutes ([90] while its guard holds): the chart draws them a step up. */
   crowdNamed: number[];
   /**
+   * Beat 2's key line for the orange column, while 2:00's minute holds the most finishes over the curve of the five
+   * ("2:00: the most extra finishes"), else null. Orange marks what the sentence is about, not the tallest column: since
+   * the stamp correction 1:30's column (1.24×) stands taller than 2:00's (1.21×), and without the key the picture read
+   * against the words first (review round nit, November 20, 2026).
+   */
+  crowdKey: string | null;
+  /**
    * /half beat 3, while its heading holds: "Under 1:30, 7% were. In the marathon, women’s finishes are the majority only
    * from 5:15." Under the plain heading (half.women fails) the comparison with the marathon is a direction the heading
    * withdrew, so the dek is null; so it is while women.json publishes no band medians (fewer than 20 editions).
@@ -436,11 +444,14 @@ export type HalfDeks = {
   rangeLead: string | null;
   storySlide: string;
   /**
-   * The story's hero dek, under any H1: what the page pairs and for whom, as a sentence that states no reading ("Each
-   * half here is paired with the marathon 3 to 16 weeks after it, for records linked by name."), then where to look
-   * (`find`, "Find your half below.", said only with JavaScript; round 5 review). The weeks are set B's window. Under the
-   * plain H1 the old verbless dek, written to qualify the reading H1, told a first-time reader nothing (review, October
-   * 30, 2026).
+   * The story's hero dek, under any H1: which halves the page covers and for whom, as a sentence that states no reading
+   * ("Halves from 1:10 to 2:45 and the marathons that followed them, for records linked by name."; the first and the
+   * last of the readout's 5-minute stops), then where to look (`find`, "Find your half below.", said only with
+   * JavaScript; round 5 review). Until November 20, 2026 it said how pairs are formed ("Each half here is paired with
+   * the marathon 3 to 16 weeks after it, for records linked by name."), a method sentence outside /methodology (review
+   * round, m6; AGENTS rule 15), which /methodology#half-linking and #half-multiple already state; a reader with a half
+   * wants to know whether theirs is on the page. Under the plain H1 the old verbless dek, written to qualify the reading
+   * H1, told a first-time reader nothing (review, October 30, 2026).
    */
   hero: string;
   find: string;
@@ -506,8 +517,6 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
   const excess = (m: HalfField['marks'][number]) => m.minute_before - m.expected_minute_before;
   const most = !!two && field.marks.every((m) => m === two || excess(m) < excess(two));
   const taller = !!two && !!marks[90] && Number(marks[90].ratio.toFixed(2)) > Number(two.ratio.toFixed(2));
-  const [fromWeeks, toWeeks] = linked.set.window_days.map((d) => d / 7);
-  const span = Number.isInteger(fromWeeks) && Number.isInteger(toWeeks) ? `${fromWeeks} to ${toWeeks} weeks` : `${linked.set.window_days[0]} to ${linked.set.window_days[1]} days`;
   const rangeLead = w && halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}.` : null;
   const faster = halfPaceFasterFrom(pacing), pb = halfPaceBands(pacing);
   return {
@@ -520,12 +529,14 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
         : ` The minute before 1:30 held ${ratio(marks[90].ratio, 1)} too; before 1:45, 2:15 and 2:30, about ${ratio(median(others), 2)}.`)
       : ''}` : null,
     crowdNamed: crowdOk ? [90] : [],
+    crowdKey: two && most ? `${two.mark}: the most extra finishes` : null,
     women: halfWomenFrom(women).guard ? `Under 1:30, ${pct(women.median_share[0])} were. In the marathon, women’s finishes are the majority only from ${clock(women.marathon.cross_s)}.` : null,
     cities: halfCitiesFrom(women).guard ? `Women’s share of finishes was typically ${pct(s.half_median)} in the half and ${pct(s.marathon_median)} in the marathon.` : null,
     range: w && slide ? (rangeLead ? `${rangeLead} ${slide}` : slide) : null,
     rangeLead: w && slide ? rangeLead : null,
     storySlide: slide,
-    hero: `Each half here is paired with the marathon ${span} after it, for records linked by name.`,
+    hero: stops.length ? `Halves from ${clock(stops[0].h)} to ${clock(stops[stops.length - 1].h)} and the marathons that followed them, for records linked by name.`
+      : 'Halves and the marathons that followed them, for records linked by name.',
     find: 'Find your half below.',
     scale: qa && qb && minutesOver(qa) < minutesOver(qb)
       ? `Fewer minutes over double after a quicker half: +${minutesOver(qa)} after a ${clock(qa.h)} half, ${level

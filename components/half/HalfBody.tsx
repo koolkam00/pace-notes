@@ -140,7 +140,7 @@ export default function HalfBody() {
       </Beat>
 
       <Beat id="crowd" track="chapter-2" label="Round times" title={crowd} dek={deks.crowd ?? undefined}>
-        <RatioColumns marks={field.marks} signal={READING_MARK} ink={deks.crowdNamed}
+        <RatioColumns marks={field.marks} signal={READING_MARK} ink={deks.crowdNamed} signalKey={deks.crowdKey}
           label={`Finishes in the minute before each round time, against the smooth curve: ${field.marks.map((m) => `${m.mark} ${ratio(m.ratio, 2)}`).join(', ')}.`} />
         {/* The way on to the marathon's round times, a pointer with no figure of its own (spec 3.4), as the half story's
             line to this page is (post-merge review, round 3, October 31, 2026: a marathoner asking "is 2:00 like 4:00?"
