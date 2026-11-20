@@ -1,8 +1,57 @@
 # Public export access
 
+Updated November 20, 2026 for **`pace-notes-marathon-half-20261113-1113`**, the release both pins name on the branch `claude/release-20261113` (draft pull request #101; not merged, not deployed). Production still serves `master-20261103b` (read 2026-11-20 00:26 UTC; what production serves is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md#current-state)); that release's section is [below](#the-master-20261103b-release-november-5-2026-historical). Full source records, recorded names, overlays and the producer's documents are public research material. Files are compressed or plain, never encrypted.
+
+## pace-notes-marathon-half-20261113-1113 (adopted on the branch)
+
+- [`pace-notes-marathon-half-20261113-1113` and all assets](https://github.com/koolkam00/pace-notes/releases/tag/pace-notes-marathon-half-20261113-1113) (published 2026-11-13 23:21:04 UTC; licence CC BY 4.0; the owner's intake note names the Figshare copy [`10.6084/m9.figshare.34858428.v3`](https://doi.org/10.6084/m9.figshare.34858428.v3) with the same 20 files): one CORE archive for the marathon and the half, the producer's person links v5.1 and ten documents (`README.md`, `DATA-CARD.md`, `CHANGE-REPORT.md` and seven about the links).
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| [`pace-notes-CORE-20261113-1113.tar.gz`](https://github.com/koolkam00/pace-notes/releases/download/pace-notes-marathon-half-20261113-1113/pace-notes-CORE-20261113-1113.tar.gz) (the combined CORE archive: `race_records.parquet` (both distances, keyed on (`source_db`, `id`)), `edition_meta`, flags, exclusions, sources, weather and course tables, with its own `SHA256SUMS.txt`) | 449,714,785 | `a76b1615d2e6769dab61cfc3cfa1cf54a6b3897b1bf54c4bbc682083d6f790e0` |
+| [`person-ids-v5.1-race_results_linked.parquet`](https://github.com/koolkam00/pace-notes/releases/download/pace-notes-marathon-half-20261113-1113/person-ids-v5.1-race_results_linked.parquet) (the person link of every result, with its confidence) | 1,052,139,602 | `60d528ee5f47360a6222674ea684af0e3631fd9ed1a696d825c88babe9f3a593` |
+| [`person-ids-v5.1-persons.parquet`](https://github.com/koolkam00/pace-notes/releases/download/pace-notes-marathon-half-20261113-1113/person-ids-v5.1-persons.parquet) (one row per linked person) | 158,607,615 | `f94e63aceb446f18cefda9f0b39f585ad80f9dac5fc99abc62d1d6904abdb89a` |
+| [`person-ids-v5.1.sqlite.zst.part00`](https://github.com/koolkam00/pace-notes/releases/download/pace-notes-marathon-half-20261113-1113/person-ids-v5.1.sqlite.zst.part00) (the links as SQLite, part 1 of 3 (concatenate, check `f810ce04…`, then `zstd -d`)) | 734,003,200 | `c2241b50b2210ff67332af16d151fabde4b9908d8c2c719f5d1ab762111d810e` |
+| [`person-ids-v5.1.sqlite.zst.part01`](https://github.com/koolkam00/pace-notes/releases/download/pace-notes-marathon-half-20261113-1113/person-ids-v5.1.sqlite.zst.part01) (part 2 of 3) | 734,003,200 | `f7524269a1de5dc15e1e4c051bb1a1ad5ab44893eb08008a8b2662a71c13095e` |
+| [`person-ids-v5.1.sqlite.zst.part02`](https://github.com/koolkam00/pace-notes/releases/download/pace-notes-marathon-half-20261113-1113/person-ids-v5.1.sqlite.zst.part02) (part 3 of 3) | 118,588,969 | `bfc2a71cee93d6bcd3fe580819413ca54c4393a8098a1a79fa5d07008d03382f` |
+| [`EDITION-TIERS.csv`](https://github.com/koolkam00/pace-notes/releases/download/pace-notes-marathon-half-20261113-1113/EDITION-TIERS.csv) (every edition of both distances with its tier, badge, weaker-source label, split tier and notes (the tier source)) | 2,710,065 | `f3a8f5ed2f696f3c0945fcaf83d324a2592c7f14731ace73da19610016e949bd` |
+| [`RELEASE-EXCLUSIONS.csv`](https://github.com/koolkam00/pace-notes/releases/download/pace-notes-marathon-half-20261113-1113/RELEASE-EXCLUSIONS.csv) (editions left out of the release, and why) | 110,561 | `8bb177581bb88c57bd56dc1d9d0212e16907383b89c97d83b8fddf050df249e6` |
+| [`person-ids-v5.1-code.tgz`](https://github.com/koolkam00/pace-notes/releases/download/pace-notes-marathon-half-20261113-1113/person-ids-v5.1-code.tgz) (the producer's linking code (not pinned; not read by the pipeline)) | 347,750 | `4608d41e73ce527bcc17c2d330546f5f4e9da26f670002f5c360067a390be8be` |
+| [`RELEASE-SHA256SUMS-20261113-1113.txt`](https://github.com/koolkam00/pace-notes/releases/download/pace-notes-marathon-half-20261113-1113/RELEASE-SHA256SUMS-20261113-1113.txt) (the release's checksums) | 1,788 | `857c5add4e8bb73b63c59faa2829af3c1b03e4fccbde45aa78960d077f33f988` |
+
+The ten documents' digests are in [`analysis/release.json`](release.json) (`person-ids-v5.1-code.tgz` is listed only in the release's checksums).
+
+Steps, with standard tools:
+
+1. Download the files you want and `RELEASE-SHA256SUMS-20261113-1113.txt` into one folder; `sha256sum -c --ignore-missing RELEASE-SHA256SUMS-20261113-1113.txt` (on macOS, `shasum -a 256 -c --ignore-missing …`).
+2. `tar xzf pace-notes-CORE-20261113-1113.tar.gz`, then check its `SHA256SUMS.txt` inside the folder.
+3. Read with DuckDB: `SELECT * FROM 'race_records.parquet' WHERE distance = 'marathon' LIMIT 10;`. Always join on (`source_db`, `id`): ids overlap between `full` and `half`. Filter on `distance`, not `source_db`, to separate the distances. Person links join on (`source_db`, `record_id`).
+
+Or let the repository build the folder the analysis commands read: `analysis/download_release.py` hands this pin to `analysis/adapt_combined.py`, which downloads every pinned file from github.com with no token, checks each against the pin and the release's checksums, reconciles them and writes the input folder ([refresh record](../docs/REFRESH_20261113_1113.md#how-it-was-adapted)); `analysis/build_identity.py` then writes the identity file.
+
+```bash
+python -m pip install -r analysis/requirements.txt
+python analysis/download_release.py --bundle FULL --output /path/to/20261113-1113-input
+python analysis/download_release.py --bundle CORE --output /path/to/20261113-1113-core
+```
+
+**Anonymous access (checked November 20, 2026, 00:31:56–00:32:03 UTC):** with `GH_TOKEN` and `GITHUB_TOKEN` removed and no Authorization header, a ranged GET on the github.com download URL of every one of the 20 assets answered 206, each `Content-Range` total as listed above; `https://doi.org/10.6084/m9.figshare.34858428.v3` answered 302 to figshare article 34858428, version 3; the private control answered 404 ([receipt](../docs/evidence/2026-11-14/release-20261113-1113/anonymous-access-2026-11-20.txt)). The first check, of every pinned asset and the 1050 baseline, was on 2026-11-14 at 02:29 UTC ([receipt](../docs/evidence/2026-11-14/release-20261113-1113/anonymous-access-2026-11-14.txt)).
+
+| Verification (`pace-notes-marathon-half-20261113-1113`, measured 2026-11-14) | Value |
+| --- | --- |
+| Marathon rows (release; written by the adapter) | 7,822,422; 7,820,442 in 2,688 editions (1,980 left out by the row rule) |
+| Half rows | 7,893,466 (7,873,385 `source_db = half`, 20,081 from mixed-distance marathon lists) |
+| Counted marathon finishes under the reviewed policy | 4,124,026 in 201 editions and 28 race labels |
+
+The audit, the identity contract, the edition policy and the delta against `master-20261103b` are in [the refresh record](../docs/REFRESH_20261113_1113.md). Downloading a release does not change either pin, the website or the ingestion database.
+
+## The master-20261103b release (November 5, 2026, historical)
+
+Moved here unchanged on November 20, 2026, when the branch adopted `pace-notes-marathon-half-20261113-1113`:
+
 Updated November 5, 2026 for **`master-20261103b`**, the release every page uses: both pins name it, on `main` since #89 (`b35789b8`, squash-merged November 5, 2026). What production serves is recorded in the [project handoff](../docs/PROJECT_HANDOFF.md#current-state). The release before it, `private-export-20261021-1050`, has its section [below](#the-1050-release-october-21-2026-historical). Full source records, recorded names, overlays and the producer's documents are public research material. Files are compressed or plain, never encrypted. Public snapshot access does not imply a connection to the running ingestion database. `/methodology#downloads` links here as "how to open them", so this top section is rewritten at every adoption.
 
-## Open the full records
+### Open the full records
 
 - [`master-20261103b` and all assets](https://github.com/koolkam00/pace-notes/releases/tag/master-20261103b) (published 2026-11-03 23:10:56 UTC): one results table for the marathon and the half, the edition table and the producer's QA files. It has no hourly weather and no course routes, so those come from
 - [`dataset-20261103-0706`](https://github.com/koolkam00/pace-notes/releases/tag/dataset-20261103-0706) (published 2026-11-03 12:27:45 UTC), the producer's snapshot of the same morning: `marathon-race_conditions.csv.zst`, `marathon-course_profiles.csv.zst`, `marathon-course_segments.csv.zst`, `marathon-edition_meta.csv.zst`, `marathon-record_flags.csv.zst` and `marathon-sources.csv.zst` (its `SHA256SUMS` `d9f37a77…2d62`), value-equal to 1050's own tables where they overlap ([refresh record](../docs/REFRESH_20261103b.md#why-an-adapter)).
@@ -42,6 +91,8 @@ python analysis/download_release.py --bundle CORE --output /path/to/master-20261
 The audit, the identity contract, the edition policy and the delta against 1050 (61,101 records added, none removed, 16,013 changed in place) are in [the refresh record](../docs/REFRESH_20261103b.md). Downloading a release does not change either pin, the website or the ingestion database.
 
 ## Half-marathon releases (October 31, 2026)
+
+**Production's half pin, superseded on the branch (November 20, 2026).** On `claude/release-20261113` (draft pull request #101) `analysis/half-release.json` (schema 4) names `pace-notes-marathon-half-20261113-1113` and reads the half from the same assets as the marathon ([above](#pace-notes-marathon-half-20261113-1113-adopted-on-the-branch); [half marathon](../docs/HALF_MARATHON.md#sources-and-access)). The text below describes the pin `main` and production still use.
 
 The half-marathon pages (`/half`, the half-to-full story and the tools' half panels) read the owner's public half releases in the same repository, under CC BY 4.0, pinned by sha256 in [`analysis/half-release.json`](half-release.json) (schema 3). This pin was measured and reviewed on October 31, 2026 and is on `main` since #89 (`b35789b8`, squash-merged November 5, 2026). The first pin, which it replaced, is [below](#half-marathon-releases-october-30-2026-historical). Contract, rules and evidence: [half marathons](../docs/HALF_MARATHON.md#sources-and-access).
 
