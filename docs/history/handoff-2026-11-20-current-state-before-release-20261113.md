@@ -4,7 +4,7 @@ Moved here unchanged on November 20, 2026 from [the project handoff](../PROJECT_
 
 ## Current state (checked 2026-11-11, 13:01 UTC)
 
-**Checked 2026-11-11, 13:01 UTC**, after #94 merged. Keep four facts apart: release notes, measured results, repository state and deployed state. Never write "live" for anything without reading `/version.json` again. After a merge that changes a page, data, a contract or a workflow, replace this block, with its date, in the next pull request ([AGENTS.md](../../AGENTS.md) rule 19). The block checked on 2026-11-11 at 02:30 UTC, after #93 merged, is in [history](handoff-2026-11-11-current-state-before-94-merged.md); the one checked at 01:20 UTC, after #92 merged, is in [history](state-sweep-2026-11-11.md#docsproject_handoffmd); the blocks before them are listed under [History](#history).
+**Checked 2026-11-11, 13:01 UTC**, after #94 merged. Keep four facts apart: release notes, measured results, repository state and deployed state. Never write "live" for anything without reading `/version.json` again. After a merge that changes a page, data, a contract or a workflow, replace this block, with its date, in the next pull request ([AGENTS.md](../../AGENTS.md) rule 19). The block checked on 2026-11-11 at 02:30 UTC, after #93 merged, is in [history](handoff-2026-11-11-current-state-before-94-merged.md); the one checked at 01:20 UTC, after #92 merged, is in [history](state-sweep-2026-11-11.md#docsproject_handoffmd); the blocks before them are listed under [History](../PROJECT_HANDOFF.md#history).
 
 | Fact | Value | How it was checked |
 | --- | --- | --- |
