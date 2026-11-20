@@ -54,3 +54,49 @@ a.scope-chip:focus-visible, a.distance-chip:focus-visible { outline: 2px solid v
    clear of the other's when they wrap (layout lint, November 5, 2026). */
 .reading-dek-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 20px var(--s-2); margin-top: 10px; }
 .reading-dek-tags .scope-chip, .reading-dek-tags .distance-chip { margin-top: 0; }
+
+/* Tier and link labels (components/ui/TierTag.tsx, the only file that draws them; the words are lib/tiers.ts; lead
+   decision D16, November 14, 2026). Two forms, built from the two above and their tokens, so they read on paper, on
+   .night and in the dark theme with no rule of their own. Neither has a hue, a fill or a number: a tier is not a
+   reading, so nothing here is orange.
+   - .tier-badge, "Verified" and "Verified, weaker source": a tick and the words in --ink-2, as an evidence badge is
+     a glyph and a word. The tick is two edges of a small box turned 45°, in the text's colour, so it needs no fill.
+   - .tier-chip, every other label ("Partial results", "Unverified", "Held for review", "Finish times only",
+     "Gun times", "Possible match"): the scope chip's quiet outlined pill.
+   Both are 24 px tall on one line, so a list's rows keep one height whatever the tier, and both wrap at their spaces
+   inside a narrow column (never inside a word), the tick staying on the first line. As links they have a 44 px hit
+   area drawn by ::after, as the badges above. */
+.tier-badge {
+  display: inline-flex; align-items: flex-start; gap: 7px; max-width: 100%; min-height: 24px; padding: 3.5px 0;
+  font-family: var(--sans); font-size: var(--t-label); font-weight: 600; line-height: 1.3; letter-spacing: 0; text-transform: none;
+  color: var(--ink-2); background: none; border: 0; white-space: normal; overflow-wrap: normal; text-align: left;
+}
+.tier-badge::before {
+  content: ''; flex: none; width: 5px; height: 10px; margin: 2px 3px 0;
+  border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.tier-chip {
+  display: inline-flex; align-items: center; max-width: 100%; min-height: 24px; padding: 2px 10px;
+  font-family: var(--sans); font-size: var(--t-label); font-weight: 500; line-height: 1.3; letter-spacing: 0; text-transform: none;
+  color: var(--ink-2); background: none; border: 1px solid var(--rule-strong); border-radius: var(--r-pill);
+  white-space: normal; overflow-wrap: normal; text-align: left;
+}
+a.tier-badge, a.tier-chip { position: relative; text-decoration: none; }
+a.tier-badge::after { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 44px; min-height: 100%; transform: translateY(-50%); }
+a.tier-chip::after { content: ''; position: absolute; left: -2px; right: -2px; top: 50%; height: 44px; min-height: 100%; transform: translateY(-50%); }
+a.tier-badge:hover, a.tier-chip:hover { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; }
+a.tier-chip:hover { border-color: var(--ink-2); }
+a.tier-badge:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+a.tier-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (forced-colors: active) {
+  .tier-chip { border-color: CanvasText; }
+}
+/* An edition's labels together (EditionTags): the tier, then "Finish times only" and "Gun times" where they apply,
+   wrapping inside the column. As links the row gap keeps each label's 44 px hit area clear of the row under it. */
+.tier-tags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px var(--s-2); max-width: 100%; vertical-align: middle; }
+.tier-tags-links { row-gap: 22px; }
+/* A race's tier line in a list row (TierLine) is the row's own text: plain words and counts, with no look of its own. */
+/* The quiet text of a link's confidence (LinkTier): "High", "Low, no age", and after it the screen that left a link
+   without a runner key. Every link shows its tier, so the usual one must stay quiet: plain words in the secondary ink
+   at the labels' size, never a pill, never a link. */
+.tier-quiet { font-family: var(--sans); font-size: var(--t-label); font-weight: 400; line-height: 1.3; letter-spacing: 0; text-transform: none; color: var(--ink-3); }

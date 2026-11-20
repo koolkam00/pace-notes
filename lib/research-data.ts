@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseCsv, type DataRow } from './csv';
@@ -31,7 +32,7 @@ export type ResearchAnswer = {
 
 type StudyResult = Pick<ResearchAnswer, 'title' | 'answer' | 'detail' | 'method' | 'charts' | 'available'>;
 export type CurrentStudy = {
-  schema_version: number; release_tag: string; input_as_of: string; as_of: string;
+  schema_version: number; release_tag: string; input_as_of: string; as_of: string; cohort_manifest_sha256: string;
   n: number; detected: number; rate: number;
   cohort: Record<string, number>;
   overview: StudyResult; timing: StudyResult; severity: StudyResult; landmarks: StudyResult;
@@ -47,11 +48,23 @@ export function readJson(file: string): any | null {
 }
 
 /** Legacy pack files remain in Git history, never a fallback for current results. */
+/** The marathon cohort's manifest and its digest: the packs and the study bind it (since November 19, 2026). */
+let cohortCache: { sha256: string; input_manifest_sha256: string } | null = null;
+function cohortBinding() {
+  if (!cohortCache) {
+    const bytes = fs.readFileSync(path.join(process.cwd(), 'analysis/marathon-cohort/manifest.json'));
+    cohortCache = { sha256: createHash('sha256').update(bytes).digest('hex'), input_manifest_sha256: JSON.parse(bytes.toString()).input_manifest_sha256 };
+  }
+  return cohortCache;
+}
+
 export function table(pack: string, name: string): DataRow[] {
   if (!pack.startsWith('ext_')) return [];
   const meta = readJson(`packs/${pack}/pack_meta.json`);
   if (!['ready', 'ok'].includes(meta?.status)) return [];
   if (meta.input_export_id !== release.tag.replace('private-export-', 'private-')) throw new Error(`Stale analysis pack: ${pack}`);
+  // A pack is built on the adapted input the cohort was built on (the packs state that input's manifest digest).
+  if (meta.input_manifest_sha256 && meta.input_manifest_sha256 !== cohortBinding().input_manifest_sha256) throw new Error(`Analysis pack on another input: ${pack}`);
   try { return parseCsv(fs.readFileSync(path.join(root, 'packs', pack, 'tables', name), 'utf8')); }
   catch { return []; }
 }
@@ -60,7 +73,7 @@ export function getStudyEvidence(): CurrentStudy | null {
   const study = readJson('study/evidence.json');
   if (!study) return null;
   if (study.schema_version !== 1 || study.release_tag !== release.tag || !Number.isInteger(study.n)
-    || study.n !== study.cohort?.eligible || !Array.isArray(study.figures)) {
+    || study.n !== study.cohort?.eligible || !Array.isArray(study.figures) || study.cohort_manifest_sha256 !== cohortBinding().sha256) {
     throw new Error('The supporting study must match the current release and eligible cohort');
   }
   return study;

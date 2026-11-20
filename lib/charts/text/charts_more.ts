@@ -38,6 +38,9 @@ export const CHARTS_MORE_TEXT: Record<string, ChartText> = {
   },
   'each-race-keeps-its-profile': {
     title: 'Half of editions pace most like their own race',
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: "Pace profiles of a race's editions",
     takeaway: (v) => ({
       guard: n(v.share) >= 0.5 && n(v.share) < 0.55 && n(v.share) > 3 * n(v.chance) && n(v.men) > 3 * n(v.men_chance) && n(v.women) > 3 * n(v.women_chance) && n(v.gap3) > 3 * n(v.chance),
       headline: `*${pct(n(v.share))}* of editions paced most like another edition of the same race; a random pick would give ${pct(n(v.chance))}.`,

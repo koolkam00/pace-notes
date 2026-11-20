@@ -1,5 +1,6 @@
 'use client';
 
+import { TierTag } from '@/components/ui/TierTag';
 import { Suspense, lazy, useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { UnitLink as Link, useUnits } from '@/components/UnitsProvider';
 import BigNumber from '@/components/ui/BigNumber';
@@ -17,6 +18,7 @@ import { formatDuration } from '@/lib/tools/time';
 import { MARATHON_KM, distance, type UnitSystem } from '@/lib/units';
 import { approxWords } from '@/lib/nuggets/format';
 import { timesVerdict } from '@/lib/report-shared';
+import type { LinkedYear } from '@/lib/report-year';
 import { readSplits } from '@/lib/tools/splits';
 import { sectionLabel } from '@/lib/units';
 import { capitalize } from '@/lib/nuggets/build';
@@ -76,7 +78,7 @@ export interface RaceReportProps {
   /** A link opened from a runner record (via=runner): its onward links keep the marker. */
   fromRecord?: boolean;
   /** A runner record on /runners: its edition, that edition's context and the record's own late change. Never in a link. */
-  record?: { edition: { city: string; year: number }; context: RaceInsights | null; error: string | null; lateChange: number };
+  record?: { edition: { city: string; year: number; tier?: string }; year?: LinkedYear | null; context: RaceInsights | null; error: string | null; lateChange: number };
   /** Opened by a press (the runner view): focus moves to the card's title once it shows, so a screen reader hears it. */
   focusOnOpen?: boolean;
   /** /report: these times in the split check, offered in the share sheet (the runner view has its own link). */
@@ -116,7 +118,7 @@ export default function RaceReport({ times, course, gender, data, level, example
   useEffect(() => { if (focusOnOpen) document.getElementById(`${cardId}-title`)?.focus({ preventScroll: true }); }, [focusOnOpen, cardId]);
   return (
     <div className="race-report-root ph-no-capture">
-      <ReportCard id={cardId} model={model} units={units} level={level} gender={gender} dropped={dropped} retryComparison={retry} retryType={archetypes.retry} handoff={handoff} example={example} />
+      <ReportCard id={cardId} model={model} units={units} level={level} gender={gender} dropped={dropped} retryComparison={retry} retryType={archetypes.retry} handoff={handoff} example={example} year={record?.year ?? null} />
       {example ? null : <ReportActions id={`${id}-actions`} model={model} units={units} link={link} cardId={cardId} gender={gender} onward={onward} />}
     </div>
   );
@@ -135,12 +137,14 @@ function Badge({ kind }: { kind: 'data' | 'research' }) {
 export type HeadTag = 'h2' | 'h3' | 'h4';
 
 /** The card itself, from a built model (exported for scripts/verify-report.cjs, which renders it without the data hooks). */
-export function ReportCard({ id, model, units, level, gender, dropped, retryComparison, retryType, handoff = false, example = false }: {
+export function ReportCard({ id, model, units, level, gender, dropped, retryComparison, retryType, handoff = false, example = false, year = null }: {
   id: string; model: ReportModel; units: UnitSystem; level: 1 | 2 | 3; gender: ReportGender; dropped: string | null; retryComparison: () => void; retryType: () => void;
   /** /report's made-up example: the kicker says so. */
   example?: boolean;
   /** From a runner record: the one onward link keeps the handoff marker, so the page it opens is not recorded either. */
   handoff?: boolean;
+  /** A runner record's year line from the linked-records family (lib/report-shared.ts linkedYearOf), or null. */
+  year?: LinkedYear | null;
 }) {
   const Title = (['h1', 'h2', 'h3'] as const)[level - 1];
   const Head: HeadTag = (['h2', 'h3', 'h4'] as const)[level - 1];
@@ -153,13 +157,13 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
   // sentence's accent. Without a record (a typed or shared link) the sentence is the verdict from the times alone.
   const verdict = timesVerdict(readSplits(model.times));
   const sentenceClass = `race-report-sentence${slowdown.yes ? ' is-quiet' : ''}`;
-  // Under half a percent either way the first 5K is level: whole percentages, with decimals only at the opening groups'
-  // edges (openingPct), never "0.1% quicker".
-  const even = Math.abs(opening.fraction) < 0.005;
+  // The first 5K in the one decimal of the lap list's 0–5K row (openingPct, m3, November 20, 2026): level only where
+  // that reads 0.0%, so the card and the row never disagree.
+  const even = Number(openingPct(opening.fraction).slice(0, -1)) === 0;
   return (
     <article className="race-report ph-no-capture" id={id} aria-labelledby={`${id}-title`}>
       <div className="race-report-screen night">
-        <p className="race-report-kicker"><span>{example ? 'Example · a made-up race' : 'Race report'}</span><span>{distance(MARATHON_KM, units)}</span></p>
+        <p className="race-report-kicker"><span>{example ? 'Example · a made-up race' : 'Race report'}{model.tier ? <> <TierTag tier={model.tier} className="race-report-tier" /></> : null}</span><span>{distance(MARATHON_KM, units)}</span></p>
         <Title className="race-report-title" id={`${id}-title`} tabIndex={-1}><span className="race-report-race">{model.race ?? 'Marathon'}</span></Title>
         <p className="race-report-finish">
           <BigNumber value={lines.finish} sr={`Finish ${lines.finish}`} size="l" />
@@ -210,6 +214,10 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
       </div>
 
       <ComparisonBlock id={`${id}-compare`} Head={Head} comparison={comparison} model={model} gender={gender} dropped={dropped} retry={retryComparison} />
+
+      {/* One line of year context from the linked-records family, under its own guard (lib/linked-server.ts): only for
+          an edition it reads; nothing otherwise. On screen and in print, never in the image or a link. */}
+      {year && record ? <p className="race-report-meta race-report-year">{record.edition} was <Link href={runnerHandoffHref(year.href)}>{year.words}</Link> ({year.byName}).{year.reviewed ? <> <Link href={year.reviewHref}>Released after review</Link>.</> : null}</p> : null}
 
       {record ? <Suspense fallback={null}><RecordBlock id={`${id}-record`} Head={Head} record={record} units={units} /></Suspense> : null}
 

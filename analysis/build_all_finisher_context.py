@@ -1,7 +1,7 @@
 """Edition-balanced pacing comparisons without an earlier-finish requirement.
 
-Only verified, eligible published runner records and matching verified context
-are inputs. Each outcome is descriptive; weather, early pace and current-route
+Only the marathon cohort's counted records (the published runner records until
+November 19, 2026) and matching verified context are inputs. Each outcome is descriptive; weather, early pace and current-route
 terrain are neither randomized exposure nor a basis for adjusted finish times.
 """
 import argparse
@@ -80,15 +80,27 @@ def verified_context(context_root, runner_manifest, runner_hash, script_root):
         require(manifest[field] == runner_manifest[field], f'Context {field} mismatch')
     require(manifest['runner_manifest_sha256'] == runner_hash, 'Context runner binding mismatch')
     require(manifest['runner_manifest_as_of'] == runner_manifest['as_of'], 'Context runner time mismatch')
-    require(manifest['totals']['eligible'] == runner_manifest['eligible_records'], 'Context eligible mismatch')
+    # The context binds the marathon cohort (since November 19, 2026): one file per counted edition with peers, weather or
+    # terrain, keyed by the cohort manifest's edition index; a counted edition without one is listed with its finishes.
+    require(manifest.get('cohort_manifest_sha256') == runner_hash, 'Context cohort binding mismatch')
+    without = {str(item['index']): item for item in manifest['editions_without_context']}
+    require(manifest['totals']['eligible'] + sum(item['eligible_n'] for item in without.values()) == runner_manifest['eligible_records'],
+            'Context eligible mismatch')
     for name, expected in manifest['scripts'].items():
         require(re.fullmatch(r'[a-z_]+\.py', name) is not None, 'Invalid context script name')
         require(digest((script_root/name).read_bytes()) == expected, f'Context script mismatch: {name}')
-    require(set(manifest['editions']) == {str(i) for i in range(len(runner_manifest['editions']))},
+    counted = {str(i) for i, e in enumerate(runner_manifest['editions']) if e['use'] == 'counted'}
+    require(set(manifest['editions']) | set(without) == counted and not set(manifest['editions']) & set(without),
             'Context edition coverage mismatch')
     contexts = []
-    for index, edition in enumerate(runner_manifest['editions']):
-        item = manifest['editions'][str(index)]
+    for index, entry in enumerate(runner_manifest['editions']):
+        edition = dict(city=entry['city'], year=entry['year'], race=entry['race'])
+        item = manifest['editions'].get(str(index))
+        if item is None:
+            # An own-record edition (no counted finish) or a counted edition with nothing to compare: no weather or terrain.
+            contexts.append(dict(index=index, **edition, eligible_n=entry['eligible'], temperature=None, terrain=None,
+                                 temp_c=None, opening_net_m=None))
+            continue
         require(item['file'] == f'editions/{index:03d}.json.gz', 'Invalid context shard path')
         compressed = (context_root/item['file']).read_bytes()
         require(len(compressed) == item['bytes'] and digest(compressed) == item['sha256'],
@@ -215,11 +227,11 @@ def aggregate(observations, cities, contexts, min_cell=MIN_CELL, min_edition=MIN
     return rows
 
 
-def run(runner_root, context_root, output, pin_path):
+def run(cohort_root, context_root, output, pin_path):
     script_root = Path(__file__).resolve().parent
-    manifest, runner_hash = verified_manifest(runner_root, json.loads(pin_path.read_bytes()), script_root)
+    manifest, runner_hash = verified_manifest(cohort_root, json.loads(pin_path.read_bytes()), script_root)
     contexts, context_manifest, context_hash = verified_context(context_root, manifest, runner_hash, script_root)
-    observations, cities = read_observations(runner_root, manifest)
+    observations, cities = read_observations(cohort_root, manifest)
     for item in contexts:
         require(np.count_nonzero(observations[:, EDITION] == item['index']) == item['eligible_n'],
                 f"Context eligible count mismatch: {item['index']}")
@@ -235,7 +247,7 @@ def run(runner_root, context_root, output, pin_path):
         schema_version=1, mode='all-finishers', release_tag=manifest['release_tag'],
         input_as_of=manifest['input_as_of'], as_of=datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
         input_asset_sha256=manifest['input_asset_sha256'], input_manifest_sha256=manifest['input_manifest_sha256'],
-        runner_manifest_sha256=runner_hash, runner_manifest_as_of=manifest['as_of'],
+        runner_manifest_sha256=runner_hash, runner_manifest_as_of=manifest['as_of'], cohort_manifest_sha256=runner_hash,
         context_manifest_sha256=context_hash, context_manifest_as_of=context_manifest['as_of'],
         scripts={name: digest((script_root/name).read_bytes()) for name in
                  ('build_all_finisher_context.py', 'build_fast_start_all.py', 'build_fast_start.py')},
@@ -248,7 +260,7 @@ def run(runner_root, context_root, output, pin_path):
         temperature_bands=TEMPERATURE_BANDS, opening_bands=BANDS, points_km=POINTS,
         onset_starts_km=[20, 25, 30, 35], downhill_first5_net_below_m=-25,
         methodology_prose=[
-            'Include every eligible recorded finish without any previous-result, identity-link or improvement requirement. Verify all runner shards, record/profile uniqueness, cohort/source policy, the exact runner/context manifest binding, all context shards and calculation source hashes.',
+            'Include every eligible recorded finish without any previous-result, identity-link or improvement requirement. Verify every edition file of the marathon cohort, record uniqueness, cohort/source policy, the exact cohort/context manifest binding, all context files and calculation source hashes.',
             'Calculate each exact course, recorded-age, recorded-gender and 5–20 km early-pace selection directly. Unknown demographics remain in All. The four early-pace bands have half-open 270, 330 and 390 seconds/km boundaries; a 1e-8 s/km tolerance removes binary recovery noise at exact boundaries. Early pace is observed within this race, not pre-race ability or a declared goal.',
             'Require 20 eligible finishes per exact edition/group before combining editions, then at least 100 finishes and three editions per displayed group. Sparse selections remain unavailable without broadening filters. Counts and coverage describe observed performances, not unique runners or all starters.',
             'The separate race-day view presents one recorded edition at a time and requires 100 finishes in its exact selection. Its metrics describe that single edition, so the across-edition three-edition minimum and between-edition spread interpretation do not apply.',
@@ -274,9 +286,9 @@ def run(runner_root, context_root, output, pin_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--runners', type=Path, default=Path('public/data/runners'))
+    parser.add_argument('--cohort', type=Path, default=Path(__file__).resolve().parent/'marathon-cohort')
     parser.add_argument('--context', type=Path, default=Path('public/data/runner-context'))
     parser.add_argument('--output', type=Path, default=Path('public/data/all-finisher-context/evidence.json'))
     parser.add_argument('--pin', type=Path, default=Path('analysis/release.json'))
     args = parser.parse_args()
-    run(args.runners, args.context, args.output, args.pin)
+    run(args.cohort, args.context, args.output, args.pin)

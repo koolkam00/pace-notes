@@ -13,6 +13,7 @@ import { weatherHref } from './weather-catalog';
 import { getFastStartStarts } from './fast-start-server';
 import { getAllFinisherContextStart } from './all-finisher-context-server';
 import { getCourseNames, slugifyCity } from './course-data';
+import { racePages } from './races-server';
 import { QUESTIONS } from './question-catalog';
 import { getExtensions, extensionForQuestion } from './extension-data';
 import { getStudyEvidence } from './research-data';
@@ -144,6 +145,14 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   // analyses, runner context, the all-finisher views and the Top 100 charts, which all take their rebuilt data's date
   // (November 5), /methodology (#linking and #preliminary-links; already the 5th) and /runners (noindex), so no date
   // here moves. Not checked by a built-text diff against main this time; the reasoning is from the changed data families.
+  // November 20 (the merge day of the combined release's adoption, #101; the owner's "Merge all" of that day): found by
+  // diffing the built visible text against production's 182 pages (fetched November 20, 2026, 17:20 UTC), not from
+  // memory. 171 pages change and take their rebuilt data's date. /analyses changes (three figures in its list) and its
+  // date would not move, so it takes the merge day. Ten pages change only in the shared chapter list, which gains
+  // chapter 10: /privacy, /tools/pace-calculator, /tools/marathon-pace-chart, /tools/qualifying and its six race pages
+  // keep their dates. New on the merge day: the four stories of Over the years, /stories/final-kick's seen-again beat,
+  // /half/races (the half data's own date is the release's, before the page existed) and the 35 results pages
+  // (RESULTS_PAGES_WRITTEN below).
   '/': '2026-11-05',
   '/research': '2026-11-05',
   '/about': '2026-10-30',
@@ -151,7 +160,7 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/stories': '2026-11-05',
   '/tools': '2026-10-19',
   '/tools/pace-calculator': '2026-10-19',
-  '/analyses': '2026-11-05',
+  '/analyses': '2026-11-20',
   '/courses': '2026-10-19',
   '/slowdown': '2026-10-19',
   '/privacy': '2026-10-19',
@@ -159,18 +168,23 @@ export const CONTENT_DATES: Readonly<Record<string, string>> = {
   '/stories/round-numbers': '2026-10-31',
   '/stories/race-replay': '2026-10-19',
   '/stories/places': '2026-10-19',
-  '/stories/final-kick': '2026-10-19',
+  '/stories/final-kick': '2026-11-20', // the seen-again beat (Over the years); 2026-10-19 before
   '/stories/courses': '2026-10-19',
   '/stories/who-holds-pace': '2026-11-05',
   '/stories/race-morning': '2026-10-19',
   '/half': '2026-11-05',
   '/stories/half-to-full': '2026-11-05',
+  // The chapter Over the years (the linked-records family) and the half race list: new with the combined release.
+  '/stories/fast-and-slow-years': '2026-11-20', '/stories/race-to-race': '2026-11-20', '/stories/recorded-bests': '2026-11-20', '/stories/getting-older': '2026-11-20',
+  '/half/races': '2026-11-20',
 };
 
 export type SitemapEntry = { path: string; lastmod?: string };
 
 /** The course pages (/courses/<slug>) were rewritten on this date; their lastmod is the later of it and their data's. */
 export const COURSE_PAGES_WRITTEN = '2026-10-19';
+/** The results pages (/courses/<slug> of a race with finish times only) were first written on this date. */
+export const RESULTS_PAGES_WRITTEN = '2026-11-20';
 
 /**
  * New content pages register in their own module under lib/seo-pages/ (pace, qualifying, finish-times), collected here.
@@ -302,7 +316,7 @@ export function allSourceDates(): string[] {
   const sources: DataSource[] = ['insights', 'study', 'weather', 'personalized', 'fastStart', 'allFinisher', 'qualifying', 'charts', ...(halfManifest() ? ['half' as const] : [])];
   const extras = EXTRA_SITEMAP_PAGES.map(page => typeof page.lastmod === 'function' ? page.lastmod() : page.lastmod);
   const coursePack = extensionForQuestion('s3_course_breaks');
-  return [...new Set([...sources.map(dataDate), coursePack ? day(coursePack.asOf) : undefined, ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, ...(halfManifest() ? [HALF_TEXT_WRITTEN, ...Object.values(HALF_TEXT_REWRITTEN)] : []), ...extras].filter((date): date is string => !!date))].sort();
+  return [...new Set([...sources.map(dataDate), coursePack ? day(coursePack.asOf) : undefined, ...Object.values(CONTENT_DATES), COURSE_PAGES_WRITTEN, RESULTS_PAGES_WRITTEN, ...(halfManifest() ? [HALF_TEXT_WRITTEN, ...Object.values(HALF_TEXT_REWRITTEN)] : []), ...extras].filter((date): date is string => !!date))].sort();
 }
 
 // ---------- Sitemap ----------
@@ -329,7 +343,7 @@ export function sitemapEntries(): SitemapEntry[] {
   add('/research', 'content', 'insights', 'study', 'weather', ...half);
 
   add('/stories', 'content', 'insights');
-  for (const story of STORIES.filter(storyPublished)) add(`/stories/${story.slug}`, 'content', story.source === 'half' ? 'half' : 'insights');
+  for (const story of STORIES.filter(storyPublished)) add(`/stories/${story.slug}`, 'content', ...(story.source === 'linked' ? [] : [story.source === 'half' ? 'half' as const : 'insights' as const]));
 
   add('/tools', 'content', 'insights');
   for (const tool of TOOLS.filter(t => !t.file || manifest.files[t.file])) {
@@ -350,13 +364,20 @@ export function sitemapEntries(): SitemapEntry[] {
     const lastmod = latest(at('insights'), coursePack ? day(coursePack.asOf) : undefined, COURSE_PAGES_WRITTEN);
     entries.push({ path: `/courses/${slugifyCity(city)}`, ...(lastmod ? { lastmod } : {}) });
   }
+  // The results pages (the race directory's pages.json, page type `results`; November 19, 2026), written on that day.
+  for (const race of racePages().filter((p) => p.page === 'results')) entries.push({ path: `/courses/${race.slug}`, lastmod: RESULTS_PAGES_WRITTEN });
 
   // The Top 100 charts: a section of its own, off the chapter chain (its one way in is a line on /research).
   add('/charts', 'charts');
   for (const chart of CHART_CATALOG) add(`/charts/${chart.number}`, 'charts');
 
   // The half marathon: a page of its own, off the chapter chain like the charts, built only with the half data.
-  if (half.length) add('/half', 'content', 'half');
+  if (half.length) {
+    add('/half', 'content', 'half');
+    // The half race list (app/half/races; November 19, 2026): every half race with results, on the half data. Its
+    // CONTENT_DATES entry is set on merge day.
+    add('/half/races', 'content', 'half');
+  }
 
   add('/about', 'content', 'personalized', 'weather');
   add('/methodology', 'content', 'study');

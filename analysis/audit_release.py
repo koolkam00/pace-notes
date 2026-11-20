@@ -11,6 +11,9 @@ import duckdb
 from build_pacing import FIELDS, records
 from download_release import EXPECTED, HTW_DB_DOCS, HTW_DB_FULL_DOCS, PACE_NOTES_DOCS, PACE_NOTES_MATCHING, PACE_NOTES_WITHOUT_MATCHING
 from adapt_master import EXPECTED_MASTER, RACE_RECORDS
+import adapt_combined
+from adapt_combined import EXPECTED_COMBINED, IDENTITY, LINKS, QA_FLAGS, ROW_RULE
+import race_registry
 
 
 def digest(path):
@@ -30,6 +33,10 @@ def audit(source, core, previous, output):
     # A master release is adapted (analysis/adapt_master.py): its features are an identity subset with no producer
     # engine columns, and its documents are the adapter's, so they are checked against the producer's own files too.
     master = provenance.get('layout') == 'master'
+    # A combined release is adapted too (analysis/adapt_combined.py): the same identity-subset features and adapter
+    # documents, checked against the release's own race_records, flag tables and person links.
+    combined = provenance.get('layout') == 'combined'
+    adapted = master or combined
     report = {'release_tag':provenance['release_tag'], 'input_provenance':provenance,
               'audit_script_sha256':digest(__file__), 'member_sha256':{}, 'manifest_size_notes':[]}
     # A manifest need not list its own size/hash: compare it independently too.
@@ -68,7 +75,7 @@ def audit(source, core, previous, output):
     for raw, feature in zip(FIELDS,cumulatives):
         # The adapted features carry no valid_splits flag; their timings come from the raw strings, so a timing must be
         # present in both or in neither, on every row (stricter than the valid-row check of the producer layouts).
-        valid = (f'(seconds(r.{raw}) IS NULL) <> (f.{feature} IS NULL)' if master else
+        valid = (f'(seconds(r.{raw}) IS NULL) <> (f.{feature} IS NULL)' if adapted else
                  f'f.valid_splits AND (seconds(r.{raw}) IS NULL OR f.{feature} IS NULL OR abs(seconds(r.{raw})-f.{feature}*60)>0.001)')
         row = records(db, f'''SELECT count(*) FILTER(WHERE seconds(r.{raw}) IS NOT NULL AND f.{feature} IS NOT NULL) AS comparable,
           count(*) FILTER(WHERE abs(seconds(r.{raw})-f.{feature}*60)>0.001) AS mismatches,
@@ -81,7 +88,7 @@ def audit(source, core, previous, output):
     report['coverage'] = records(db, '''SELECT count(*) AS raw_records,count(DISTINCT city) AS cities,
       count(DISTINCT (city,year)) AS race_years,max(ingested_at) AS max_ingested_at,
       count(*) FILTER(WHERE age IS NULL) AS null_age FROM r''')[0]
-    if master:
+    if adapted:
         report['features'] = records(db, '''SELECT count(runner_id) AS with_runner_id,count(DISTINCT runner_id) AS runner_ids,
           count(*) FILTER(WHERE runner_id IS NOT NULL AND is_ambiguous IS DISTINCT FROM false) AS keyed_not_unambiguous,
           count(*) FILTER(WHERE runner_name IS NULL) AS null_name,
@@ -102,6 +109,8 @@ def audit(source, core, previous, output):
     if master:
         # The adapter lists every member in MANIFEST.json and SHA256SUMS.txt; FULL adds only features.parquet.
         docs, full_only = EXPECTED_MASTER - EXPECTED, set()
+    elif combined:
+        docs, full_only = EXPECTED_COMBINED - EXPECTED, set()
     elif tag.startswith('htw-db-'):
         docs, full_only = HTW_DB_DOCS, HTW_DB_FULL_DOCS
     elif provenance['asset'].startswith('pace-notes-'):
@@ -120,6 +129,8 @@ def audit(source, core, previous, output):
         assert report['producer_counts']['editions_json_mismatches'] == report['producer_counts']['races_summary_mismatches'] == []
     if master:
         report['master_reconciliation'] = master_reconciliation(db, source, provenance, manifest)
+    if combined:
+        report['combined_reconciliation'] = combined_reconciliation(db, source, provenance, manifest)
     if core:
         shared = sorted(EXPECTED | (docs if htw_db else set()))
         assert all((core/name).is_file() and name in report['member_sha256'] for name in shared)
@@ -158,7 +169,10 @@ def audit(source, core, previous, output):
             f'count(*) FILTER(WHERE r."{c}" IS DISTINCT FROM p."{c}") AS "{c}"' for c in columns if c != 'id')
             + ' FROM r JOIN previous p ON r.id=p.id')[0]
     output.write_text(json.dumps(report,indent=2,allow_nan=False,default=str)+'\n')
-    print(json.dumps({k:report[k] for k in ['release_tag','alignment','coverage','features','manifest_size_notes','checksum_list','producer_counts','previous_delta'] if k in report},indent=2))
+    shown = {k:report[k] for k in ['release_tag','alignment','coverage','features','manifest_size_notes','checksum_list','producer_counts','combined_reconciliation','previous_delta'] if k in report}
+    if isinstance(shown.get('producer_counts', {}).get('editions_json_excluded'), list) and len(shown['producer_counts']['editions_json_excluded']) > 20:
+        shown['producer_counts'] = {**shown['producer_counts'], 'editions_json_excluded': f"{len(shown['producer_counts']['editions_json_excluded'])} editions (in the report)"}
+    print(json.dumps(shown,indent=2))
 
 
 def master_reconciliation(db, source, provenance, manifest):
@@ -195,6 +209,103 @@ def master_reconciliation(db, source, provenance, manifest):
     return out
 
 
+def combined_reconciliation(db, source, provenance, manifest):
+    """The adapted folder against the release's own files, not against the adapter's documents: the pinned archive and
+    link file re-hashed, the unpacked members checked against the archive's checksum list, every marathon row of the
+    release either written with its 20 columns equal (sex: the published one, else the published category's; `city` and
+    `race`: the label and race name of the frozen race registry for the release's own key, which the side member
+    release_keys.parquet records and from which the registry is rebuilt here) or left out by the frozen row rule,
+    recounted here with its edition-wide exception, and every feature row's link equal to the release's link under the
+    frozen identity rule."""
+    assets = source/Path(provenance['asset_path']).parent
+    assert digest(source/provenance['asset_path']) == provenance['asset_sha256'], 'The CORE archive is not the pinned one'
+    assert digest(assets/LINKS) == provenance['assets'][LINKS], 'The person-link file is not the pinned one'
+    core = assets/'core'
+    assert digest(core/'SHA256SUMS.txt') == provenance['core']['sha256sums_sha256'], 'The unpacked checksum list is not the pinned one'
+    listed = checksum_list(core, {name: digest(core/name) for name in ('race_records.parquet', 'qa_row_flags.parquet', 'pending_review_flags.parquet')})
+    assert len(listed['matched']) == 3 and not listed['mismatched'], listed
+    for view, name in [('pr', 'race_records'), ('pq', 'qa_row_flags'), ('pp', 'pending_review_flags')]:
+        location = str(core/(name+'.parquet')).replace("'", "''")
+        db.execute(f"CREATE VIEW {view} AS SELECT * FROM read_parquet('{location}') WHERE distance='marathon' AND source_db='full'")
+    location = str(assets/LINKS).replace("'", "''")
+    db.execute(f"CREATE VIEW pl AS SELECT * FROM read_parquet('{location}') WHERE distance='marathon' AND source_db='full'")
+    rule, identity = ROW_RULE[provenance['release_tag']], IDENTITY[provenance['release_tag']]
+    assert set(rule['qa_row_flags']) <= set(QA_FLAGS)
+    # The row rule, recounted: a row is left out when it carries a flag of the rule, unless that flag is one the rule
+    # keeps when every release row of the edition carries it.
+    flagged = ' UNION ALL '.join(
+        [f"SELECT record_id, '{flag}' AS flag FROM pp WHERE present_in_core AND flag='{flag}'" for flag in rule['pending_review_flags']]
+        + [f"SELECT record_id, '{flag}' AS flag FROM pq WHERE {flag}" for flag in rule['qa_row_flags']])
+    db.execute(f'CREATE TEMP TABLE audit_flagged AS SELECT x.record_id, x.flag, m.city, m.year FROM ({flagged}) x JOIN pr m ON m.id=x.record_id')
+    wide = ','.join(f"'{flag}'" for flag in rule.get('kept_when_edition_wide', [])) or 'NULL'
+    db.execute(f'''CREATE TEMP TABLE audit_wide AS SELECT a.city, a.year, a.flag, count(*) AS n FROM audit_flagged a
+      JOIN (SELECT city, year, count(*) AS n FROM pr GROUP BY ALL) e ON e.city=a.city AND e.year=a.year
+      WHERE a.flag IN ({wide}) GROUP BY a.city, a.year, a.flag, e.n HAVING count(*)=e.n''')
+    # The reviewed row exceptions (lead ruling D33, 2026-11-14), read from the reviewed list and recounted here: a listed
+    # row carries exactly one flag, one the rule allows an exception for, and is written; every other flagged row is out.
+    listed = json.loads(adapt_combined.ROW_EXCEPTIONS_PATH.read_text())['releases'].get(provenance['release_tag'], []) if adapt_combined.ROW_EXCEPTIONS_PATH.exists() else []
+    allowed = (rule.get('reviewed_exceptions') or {}).get('qa_row_flags', [])
+    db.execute('CREATE TEMP TABLE audit_excepted (record_id BIGINT, flag VARCHAR)')
+    for entry in listed:
+        carried = [flag for (flag,) in db.execute('SELECT flag FROM audit_flagged WHERE record_id=?', [entry['record_id']]).fetchall()]
+        assert carried == [entry['flag']] and entry['flag'] in allowed, f"The reviewed row exception {entry['record_id']} carries {carried}"
+        assert db.execute('SELECT count(*) FROM pp WHERE record_id=?', [entry['record_id']]).fetchone()[0] == 0, f"The reviewed row exception {entry['record_id']} carries a pending flag"
+        db.execute('INSERT INTO audit_excepted VALUES (?,?)', [entry['record_id'], entry['flag']])
+    assert [[e['record_id'], f"{e['city']} {e['year']}", e['flag'], e['finish']] for e in listed] == manifest.get('rows_written_by_reviewed_exception', []), \
+        'The reviewed row exceptions are not the ones the folder was adapted with'
+    db.execute('''CREATE TEMP TABLE audit_left_out AS SELECT DISTINCT a.record_id FROM audit_flagged a
+      ANTI JOIN audit_wide w ON w.city=a.city AND w.year=a.year AND w.flag=a.flag
+      ANTI JOIN audit_excepted x ON x.record_id=a.record_id''')
+    # The labels: the side member gives each written edition's own key and race name; the registry rebuilt from it must
+    # be the frozen one, and each edition must carry that registry's label and race name (a plain key keeps its own).
+    location = str(source/'release_keys.parquet').replace("'", "''")
+    db.execute(f"CREATE VIEW keys AS SELECT * FROM read_parquet('{location}')")
+    by_key, registry_sha = race_registry.frozen_races(provenance['release_tag'], race_registry.read_editions(source))
+    assert registry_sha == provenance['race_registry_sha256'] == manifest['race_registry']['sha256'], 'The race registry is not the one the folder was adapted with'
+    mislabelled = [f'{k} {y}' for k, y, city, race, race_id, own in db.execute('SELECT release_city, year, city, race, race_id, release_race FROM keys').fetchall()
+                   if (city, race_id) != (by_key[k]['label'], by_key[k]['race_id']) or race != (own if ': ' not in k else by_key[k]['name'])]
+    assert not mislabelled, f'Editions whose label or race name is not the registry’s: {mislabelled[:10]}'
+    compare = ' OR '.join(f'r."{c}" IS DISTINCT FROM CAST(m."{c}" AS {t})' for c, t in RACE_RECORDS if c not in ('id', 'sex', 'city', 'race'))
+    out = records(db, f'''SELECT count(*) FILTER(WHERE m.id IS NOT NULL AND r.id IS NULL AND x.record_id IS NULL) AS release_rows_missing,
+      count(*) FILTER(WHERE r.id IS NOT NULL AND m.id IS NULL) AS rows_not_in_release,
+      count(*) FILTER(WHERE r.id IS NOT NULL AND x.record_id IS NOT NULL) AS left_out_rows_present,
+      count(*) FILTER(WHERE r.id IS NOT NULL AND m.id IS NOT NULL AND ({compare} OR r.sex IS DISTINCT FROM coalesce(m.sex, q.sex_from_category)
+        OR k.city IS NULL OR k.release_city IS DISTINCT FROM m.city OR k.release_race IS DISTINCT FROM m.race OR k.race IS DISTINCT FROM r.race)) AS rows_differ,
+      count(*) FILTER(WHERE r.id IS NOT NULL AND m.id IS NOT NULL) AS rows_equal_or_differ,
+      count(*) FILTER(WHERE m.id IS NOT NULL AND x.record_id IS NOT NULL) AS rows_left_out,
+      count(*) FILTER(WHERE r.id IS NOT NULL AND m.sex IS NULL AND q.sex_from_category IS NOT NULL) AS sex_from_category,
+      count(m.id) AS release_marathon_rows
+      FROM r FULL JOIN pr m ON r.id=m.id LEFT JOIN audit_left_out x ON x.record_id=m.id LEFT JOIN pq q ON q.record_id=m.id
+      LEFT JOIN keys k ON k.city=r.city AND k.year=r.year''')[0]
+    assert out['release_rows_missing'] == out['rows_not_in_release'] == out['left_out_rows_present'] == out['rows_differ'] == 0, out
+    assert out['rows_equal_or_differ'] == manifest['n_records'] and out['rows_left_out'] == manifest['rows_left_out'], out
+    kept = {}
+    for city, year, flag, n in db.execute('SELECT city, year, flag, n FROM audit_wide ORDER BY 3, 1, 2').fetchall():
+        kept.setdefault(flag, {})[f'{city} {year}'] = n
+    out['rows_kept_edition_wide'] = kept
+    out['rows_written_by_reviewed_exception'] = manifest.get('rows_written_by_reviewed_exception', [])
+    assert db.execute('SELECT count(*) FROM audit_excepted x JOIN r ON r.id=x.record_id').fetchone()[0] == len(listed), 'A reviewed row exception is not written'
+    assert kept == {name.split('.', 1)[1]: editions for name, editions in manifest['rows_kept_edition_wide'].items()}, kept
+    out['labels'] = records(db, '''SELECT count(*) AS editions, count(DISTINCT city) AS labels, count(DISTINCT release_city) AS release_keys,
+      count(*) FILTER(WHERE city <> release_city) AS editions_relabelled, count(*) FILTER(WHERE race <> release_race) AS editions_renamed,
+      count(*) FILTER(WHERE city = release_city AND race <> release_race) AS plain_key_editions_renamed FROM keys''')[0]
+    out['labels']['race_registry_sha256'] = registry_sha
+    assert out['labels']['plain_key_editions_renamed'] == 0 and out['labels']['editions'] == manifest['n_editions'], out['labels']
+    keyed = ','.join(f"'{c}'" for c in identity['keyed_confidences'])
+    out['links'] = records(db, f'''SELECT count(*) FILTER(WHERE l.record_id IS NULL) AS without_link_row,
+      count(*) FILTER(WHERE f.person_id IS DISTINCT FROM l.person_id OR f.link_confidence IS DISTINCT FROM l.confidence) AS link_differs,
+      count(*) FILTER(WHERE f.runner_id IS DISTINCT FROM CASE WHEN l.confidence IN ({keyed}) THEN l.person_id END
+        OR f.match_key IS DISTINCT FROM f.runner_id) AS key_rule_breaches,
+      count(*) FILTER(WHERE f.runner_id IS NOT NULL) AS with_key,
+      count(*) FILTER(WHERE f.person_id IS NOT NULL AND f.runner_id IS NULL) AS possible_matches,
+      count(*) FILTER(WHERE f.person_id IS NULL) AS unlinked FROM f LEFT JOIN pl l ON l.record_id=f.record_id''')[0]
+    assert out['links']['without_link_row'] == out['links']['link_differs'] == out['links']['key_rule_breaches'] == 0, out['links']
+    out['columns_compared'] = [name for name, _ in RACE_RECORDS if name != 'id']
+    out['columns_compared_through_the_registry'] = ['city', 'race']
+    out['row_rule'], out['identity_rule'] = rule, identity
+    return out
+
+
 def checksum_list(folder, hashes):
     """Compare the producer's SHA256SUMS.txt with independently computed member hashes."""
     listed = {}
@@ -215,21 +326,40 @@ def producer_counts(db, source, manifest):
         "SELECT city,year,count(*),count(*) FILTER(WHERE nullif(trim(split_5km),'') IS NOT NULL) FROM r GROUP BY ALL").fetchall()}
     editions = json.loads((source/'EDITIONS.json').read_text())
     summary = json.loads((source/'races_summary.json').read_text())
+    # An adapted combined folder labels both documents as adapter outputs. EDITIONS.json lists the written editions
+    # under their labels and, apart, every other marathon edition of the release under its own key: those that lost
+    # every row to the row rule and the release's excluded ones.
+    combined = isinstance(editions, dict) and 'document' in editions
+    if combined:
+        not_written = editions['not_written']
+        assert all(not e['excluded'] and e['n_records'] for e in editions['editions']) and all('n_records' not in e for e in not_written)
+        editions, summary = editions['editions'], summary['editions']
     summarized = {(e['city'], e['year']): (e['n_records'], e['n_with_5km']) for e in summary}
     mismatch = lambda claimed: sorted(f'{c} {y}' for c, y in set(claimed) | set(measured) if claimed.get((c, y)) != measured.get((c, y)))
     counts = {'editions': len(measured), 'records': sum(n for n, _ in measured.values()),
               'records_with_5km': sum(n5 for _, n5 in measured.values()), 'races_summary_mismatches': mismatch(summarized)}
     if isinstance(editions, list):
         # pace-notes: one row per platform edition with its completeness status; the excluded ones are not released.
-        released = [e for e in editions if e['completeness_status'] != 'excluded']
+        released = [e for e in editions if e['n_records']] if combined else [e for e in editions if e['completeness_status'] != 'excluded']
         records_only = {key: n for key, (n, _) in measured.items()}
         listed = {(e['city'], e['year']): e['n_records'] for e in released}
         statuses = {}
         for e in editions:
             statuses[e['completeness_status']] = statuses.get(e['completeness_status'], 0) + 1
-        return {**counts, 'manifest_race_years': manifest['n_editions'], 'editions_json_rows': len(editions),
-                'editions_json_status': dict(sorted(statuses.items())),
-                'editions_json_excluded': [f"{e['city']} {e['year']}" for e in editions if e['completeness_status'] == 'excluded'],
+        if combined:
+            tiers = {}
+            for e in editions + not_written:
+                tiers[e['verification_tier']] = tiers.get(e['verification_tier'], 0) + 1
+            for e in not_written:
+                statuses[e['completeness_status']] = statuses.get(e['completeness_status'], 0) + 1
+            assert len(not_written) == manifest['editions_without_rows']
+            counts.update(editions_json_tiers=dict(sorted(tiers.items())), editions_json_not_written=len(not_written),
+                          editions_json_without_rows_after_row_rule=sorted(f"{e['release_city']} {e['year']}" for e in not_written if e['rows_in_release']))
+        excluded = ([f"{e['release_city']} {e['year']}" for e in not_written if e['excluded']] if combined
+                    else [f"{e['city']} {e['year']}" for e in editions if e['completeness_status'] == 'excluded'])
+        return {**counts, 'manifest_race_years': manifest['n_editions'], 'editions_json_rows': len(editions) + (len(not_written) if combined else 0),
+                'editions_json_status': dict(sorted((str(k), v) for k, v in statuses.items())),
+                'editions_json_excluded': excluded,
                 'editions_json_mismatches': sorted(f'{c} {y}' for c, y in set(listed) | set(records_only)
                                                    if listed.get((c, y)) != records_only.get((c, y)))}
     listed = {(e['city'], e['year']): (e['rows'], e['rows_with_5km']) for e in editions['editions']}

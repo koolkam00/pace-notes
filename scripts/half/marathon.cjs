@@ -1,24 +1,21 @@
 'use strict';
-// The marathon side of the half-marathon source recount (scripts/verify-half-source.cjs), from public files only and
-// without the Python builders: every eligible finish of the adopted release from the checksum-verified runner shards
-// (public/data/runners), with its canonical record id (the id the link build uses for marathon records), edition,
-// recorded sex, finish and sustained slowdown (a 5 km section after 20 km at least 25% slower than the 5–20 km pace),
-// and each edition's race date from the weather evidence (public/data/weather/evidence.json, its own pin). Names are
-// never read.
+// The marathon side of the half-marathon source recount (scripts/verify-half-source.cjs), from the checked-in marathon
+// cohort (analysis/marathon-cohort, read through scripts/lib/cohort.cjs, which checks every edition file's size and
+// SHA-256 against the manifest) and without the Python builders: every counted record of the adopted release (the
+// eligible finishes), with its record id (the release's race_records.id of the marathon database, the id the person
+// links use), edition, recorded sex, finish and sustained slowdown (a 5 km section after 20 km at least 25% slower than
+// the 5–20 km pace), and each edition's race date from the cohort manifest. The cohort holds no name.
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
-const zlib = require('node:zlib');
+const cohort = require('../lib/cohort.cjs');
 
 const POINTS = [5, 10, 15, 20, 25, 30, 35, 40, 42.195];
 const LENGTHS = POINTS.map((km, i) => km - (i ? POINTS[i - 1] : 0));
-const sha = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const need = (cond, message) => { if (!cond) throw new Error(`marathon side: ${message}`); };
 
-/** build_fast_start.gender_code: 1 men, 2 women, 0 other or not recorded. */
+/** The cohort's sex letters: 1 men, 2 women, 0 other or not recorded. */
 function genderCode(sex) {
-  const value = (sex || '').trim().toLowerCase();
-  return ['m', 'male', 'man', 'men'].includes(value) ? 1 : ['f', 'female', 'woman', 'women'].includes(value) ? 2 : 0;
+  return sex === 'M' ? 1 : sex === 'F' ? 2 : 0;
 }
 
 /** Days since 1970-01-01 of a YYYY-MM-DD date, or null. */
@@ -31,66 +28,39 @@ function dayNumber(text) {
   return t / 86400000;
 }
 
-function loadMarathons(root) {
-  const read = (p) => JSON.parse(fs.readFileSync(path.join(root, p), 'utf8'));
-  const release = read('analysis/release.json');
-  const manifestBytes = fs.readFileSync(path.join(root, 'public/data/runners/manifest.json'));
-  const runners = JSON.parse(manifestBytes);
-  need(runners.release_tag === release.tag, 'the runner manifest is not the adopted release');
-  const editions = runners.editions;
-  const n = runners.eligible_records;
+function loadMarathons(root, cohortRoot = path.join(root, 'analysis', 'marathon-cohort')) {
+  const release = JSON.parse(fs.readFileSync(path.join(root, 'analysis/release.json'), 'utf8'));
+  const { manifest, sha256: manifestSha } = cohort.readManifest(cohortRoot);
+  need(manifest.release_tag === release.tag, 'the marathon cohort is not of the adopted release');
+  const editions = manifest.editions;
+  const n = manifest.eligible_records;
   const id = new Float64Array(n), edition = new Uint16Array(n), gender = new Uint8Array(n), finish = new Float64Array(n), sustained = new Uint8Array(n);
   const rawN = new Int32Array(editions.length);
-  let raw = 0, k = 0;
-  const seen = new Float64Array(runners.raw_records);
-  for (const file of Object.keys(runners.shards).sort()) {
-    need(/^(profiles|index)\/[0-9a-f]{3}\.json\.gz$/.test(file), `unexpected shard ${file}`);
-    const bytes = fs.readFileSync(path.join(root, 'public/data/runners', file));
-    need(bytes.length === runners.shards[file].bytes && sha(bytes) === runners.shards[file].sha256, `${file}: size or checksum`);
-    if (!file.startsWith('profiles/')) continue;
-    const shard = JSON.parse(zlib.gunzipSync(bytes));
-    need(shard.release_tag === release.tag, `${file}: shard release`);
-    for (const p of shard.profiles) {
-      for (const race of p.races) {
-        need(Number.isSafeInteger(race.id) && race.id > 0 && Number.isInteger(race.edition) && race.edition >= 0 && race.edition < editions.length, 'record id and edition');
-        seen[raw++] = race.id;
-        rawN[race.edition]++;
-        if (!race.eligible) continue;
-        const t = race.times;
-        need(k < n && Array.isArray(t) && t.length === 9 && t.every(Number.isFinite) && t[0] > 0 && t[8] >= 5400 && t[8] <= 43200, 'eligible timing contract');
-        for (let j = 0; j < 9; j++) {
-          if (j) need(t[j] > t[j - 1], 'eligible times increase');
-          const pace = (t[j] - (j ? t[j - 1] : 0)) / LENGTHS[j];
-          need(pace >= 120 - 1e-8 && pace <= 1200 + 1e-8, 'eligible section pace bounds');
-        }
-        const baseline = (t[3] - t[0]) / 15;
-        let slow = 0;
-        for (let j = 4; j < 8; j++) if ((t[j] - t[j - 1]) / LENGTHS[j] / baseline - 1 + 1e-12 >= 0.25) { slow = 1; break; }
-        id[k] = race.id; edition[k] = race.edition; gender[k] = genderCode(race.sex); finish[k] = t[8]; sustained[k] = slow;
-        k++;
+  let k = 0;
+  cohort.forEachEdition((values, entry, index) => {
+    rawN[index] = entry.raw;
+    if (entry.use !== 'counted') return;
+    need(values.ids.length === entry.eligible, `${entry.city} ${entry.year}: the counted records are not the eligible ones`);
+    for (let r = 0; r < values.ids.length; r++) {
+      const t = values.times[r];
+      need(k < n && Array.isArray(t) && t.length === 9 && t.every(Number.isFinite) && t[0] > 0 && t[8] >= 5400 && t[8] <= 43200, 'eligible timing contract');
+      for (let j = 0; j < 9; j++) {
+        if (j) need(t[j] > t[j - 1], 'eligible times increase');
+        const pace = (t[j] - (j ? t[j - 1] : 0)) / LENGTHS[j];
+        need(pace >= 120 - 1e-8 && pace <= 1200 + 1e-8, 'eligible section pace bounds');
       }
+      const baseline = (t[3] - t[0]) / 15;
+      let slow = 0;
+      for (let j = 4; j < 8; j++) if ((t[j] - t[j - 1]) / LENGTHS[j] / baseline - 1 + 1e-12 >= 0.25) { slow = 1; break; }
+      need(Number.isSafeInteger(values.ids[r]) && values.ids[r] > 0, 'record id');
+      id[k] = values.ids[r]; edition[k] = index; gender[k] = genderCode(values.sex[r]); finish[k] = t[8]; sustained[k] = slow;
+      k++;
     }
-  }
-  need(raw === runners.raw_records && k === n, 'record counts reconcile with the runner manifest');
-  seen.sort();
+  }, cohortRoot);
+  need(k === n, 'the counted records reconcile with the cohort manifest');
+  const seen = Float64Array.from(id).sort();
   for (let i = 1; i < seen.length; i++) need(seen[i] !== seen[i - 1], 'unique record ids');
 
-  const weatherPin = read('analysis/weather-release.json');
-  const weatherBytes = fs.readFileSync(path.join(root, 'public/data/weather/evidence.json'));
-  const weather = JSON.parse(weatherBytes);
-  need(weather.input.release_tag === weatherPin.tag, 'the weather evidence does not match its pin');
-  const dateOf = new Map();
-  for (const row of weather.editions) {
-    const key = `${row.city}\u0000${row.year}`;
-    need(!dateOf.has(key) || dateOf.get(key) === row.date, `two dates for ${row.city} ${row.year}`);
-    dateOf.set(key, row.date);
-  }
-  // The reviewed and cited date of an edition the weather evidence has no row for (analysis/reviewed-race-dates.json;
-  // New York 2026 in master-20261103b, November 5, 2026), the twin of half_marathon._dates.
-  for (const d of read('analysis/reviewed-race-dates.json').releases[weather.input.release_tag] || []) {
-    const key = `${d.city}\u0000${d.year}`;
-    if (!dateOf.get(key)) dateOf.set(key, d.date);
-  }
   const day = new Float64Array(editions.length).fill(NaN);
   const eligibleEditions = new Set(edition);
   const keys = new Set(), undated = [];
@@ -99,10 +69,10 @@ function loadMarathons(root) {
     const key = `${ed.city}\u0000${ed.year}`;
     need(!keys.has(key), `two eligible editions share ${ed.city} ${ed.year}`);
     keys.add(key);
-    const text = dateOf.get(key);
-    // No weather row and no reviewed date: no race date. The edition keeps its finishes, supplies no pair (its day stays
-    // NaN) and is returned in `undated` for the reviewed list (November 4, 2026); nothing is filled in.
-    if (text === undefined) { undated.push([ed.city, ed.year]); continue; }
+    const text = ed.race_date;
+    // No race date in the cohort manifest: the edition keeps its finishes, supplies no pair (its day stays NaN) and is
+    // returned in `undated` for the reviewed list; nothing is filled in.
+    if (text === null || text === undefined) { undated.push([ed.city, ed.year]); continue; }
     need(typeof text === 'string' && Number(text.slice(0, 4)) === ed.year && dayNumber(text) !== null, `no race date for ${ed.city} ${ed.year}`);
     day[e] = dayNumber(text);
   }
@@ -111,7 +81,7 @@ function loadMarathons(root) {
   for (let i = 0; i < n; i++) slowdowns += sustained[i];
   return {
     n, id, edition, gender, finish, sustained, editions, rawN, day, slowdowns, datedEditions: eligibleEditions.size - undated.length, undated,
-    manifestSha: sha(manifestBytes), weatherSha: sha(weatherBytes), releaseTag: release.tag,
+    manifestSha, manifest, releaseTag: release.tag,
   };
 }
 

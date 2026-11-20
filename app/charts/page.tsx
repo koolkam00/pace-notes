@@ -4,21 +4,27 @@ import { THEME_NAMES } from '@/lib/charts/types';
 import { CATALOG, chartHref, readChart } from '@/lib/charts-server';
 import { JsonLd, breadcrumbs, pageMetadata } from '@/lib/seo';
 
-export const metadata = pageMetadata({
-  title: 'Top 100 Marathon Charts | Pace Notes',
-  description: 'One hundred charts from recorded marathon finishes, one finding each: finish times, pacing, racing, courses and weather, who runs and how it has changed.',
-  path: '/charts',
-});
+const rowsOf = () => CATALOG.map((c) => ({ c, words: chartWords(c, readChart(c.slug)) }));
+/** "One finding each" is said only while every chart's guard holds; a chart in the fallback state shows no finding. */
+const everyFinding = (rows: ReturnType<typeof rowsOf>) => rows.every(({ words }) => words.guard);
+
+export function generateMetadata() {
+  return pageMetadata({
+    title: 'Top 100 Marathon Charts | Pace Notes',
+    description: `One hundred charts from recorded marathon finishes${everyFinding(rowsOf()) ? ', one finding each' : ''}: finish times, pacing, racing, courses and weather, who runs and how it has changed.`,
+    path: '/charts',
+  });
+}
 
 /** The hub: every chart in series order, each row its number, theme, title and takeaway (in ink: one accent per screen). */
 export default function ChartsHub() {
-  const rows = CATALOG.map((c) => ({ c, words: chartWords(c, readChart(c.slug)) }));
+  const rows = rowsOf();
   return (
     <div className="contents-page charts-hub">
       <JsonLd data={breadcrumbs([['Pace Notes', '/'], ['Top 100 charts']])} />
       <header className="contents-hero" data-track-section="hero">
         <h1 className="t-title">Top 100 charts</h1>
-        <p className="contents-dek">One hundred charts from the data, one finding each.</p>
+        <p className="contents-dek">{everyFinding(rows) ? 'One hundred charts from the data, one finding each.' : 'One hundred charts from the data.'}</p>
       </header>
       <ol className="charts-list" aria-label="Every chart">
         {rows.map(({ c, words }) => (

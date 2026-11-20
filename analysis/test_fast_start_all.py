@@ -1,7 +1,6 @@
 import unittest
 from contextlib import redirect_stdout
 from decimal import Decimal
-import gzip
 from io import StringIO
 import json
 from pathlib import Path
@@ -33,18 +32,31 @@ class AllFinishersFastStartTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Only eligible'):
             observation(race(eligible=False), 1)
 
+    # The reader reads the marathon cohort since November 19, 2026 (the runner profile shards before).
+    @staticmethod
+    def cohort(root, records):
+        """A cohort folder with one counted edition holding `records` (id, runner or 0, sex, age, times, link) and one
+        other record, and an own-record edition that must not supply a finish."""
+        import cohort as marathon_cohort
+        (root/'editions').mkdir()
+        editions = []
+        for city, year, use, rows, others in [('Example', 2020, 'counted', records, [(99, 'missing_checkpoints', None)]),
+                                              ('Other', 2021, 'own_record', [(50, 0, 'F', 40, race()['times'], None)], [])]:
+            data = marathon_cohort.encode_edition(city, year, use, rows, others)
+            name = marathon_cohort.file_name(city.lower(), year)
+            (root/name).write_bytes(data)
+            editions.append(dict(city=city, year=year, race=f'{city} Marathon', use=use, raw=len(rows)+len(others),
+                                 timing_eligible=len(rows), eligible=len(rows) if use == 'counted' else 0, other=len(others),
+                                 file=name, bytes=len(data), sha256=digest(data)))
+        manifest = dict(schema_version=2, as_of='2026-11-19T00:00:00Z', release_tag='example', editions=editions,
+                        eligible_records=len(records), linkage={'recent_benchmark_finishes': 0})
+        (root/'manifest.json').write_text(json.dumps(manifest))
+        return manifest
+
     def test_full_reader_keeps_history_free_finishes_and_checks_source_integrity(self):
-        profiles = [{'id': 1, 'races': [race(1)]},
-                    {'id': 2, 'races': [race(2), race(3, eligible=False)]}]
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root/'profiles').mkdir()
-            shard = gzip.compress(json.dumps({'release_tag': 'example', 'profiles': profiles}).encode())
-            (root/'profiles/000.json.gz').write_bytes(shard)
-            manifest = dict(release_tag='example', editions=[dict(city='Example', year=2020)],
-                            shards={'profiles/000.json.gz': dict(bytes=len(shard), sha256=digest(shard))},
-                            raw_records=3, eligible_records=2, profiles=2,
-                            linkage={'recent_benchmark_finishes': 0})
+            manifest = self.cohort(root, [(1, 0, 'M', 30, race()['times'], None), (2, 2, 'F', None, race()['times'], 'm')])
             with redirect_stdout(StringIO()):
                 values, cities = read_observations(root, manifest)
             self.assertEqual(len(values), 2)
@@ -54,22 +66,18 @@ class AllFinishersFastStartTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Eligible record count'):
                 read_observations(root, manifest)
             manifest['eligible_records'] = 2
-            (root/'profiles/000.json.gz').write_bytes(shard+b'corrupt')
-            with self.assertRaisesRegex(ValueError, 'checksum/size mismatch'):
+            file = root/'editions/example-2020.json.gz'
+            file.write_bytes(file.read_bytes()+b'corrupt')
+            with self.assertRaisesRegex(AssertionError, 'size or checksum differs'):
                 read_observations(root, manifest)
 
     def test_duplicate_raw_ids_block_publication(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root/'profiles').mkdir()
-            payload = {'release_tag': 'example', 'profiles': [
-                {'id': 1, 'races': [race(1)]}, {'id': 2, 'races': [race(1)]},
-            ]}
-            shard = gzip.compress(json.dumps(payload).encode())
-            (root/'profiles/000.json.gz').write_bytes(shard)
-            manifest = dict(release_tag='example', editions=[dict(city='Example')],
-                            shards={'profiles/000.json.gz': dict(bytes=len(shard), sha256=digest(shard))},
-                            raw_records=2, eligible_records=2, profiles=2)
+            manifest = self.cohort(root, [(1, 0, 'M', 30, race()['times'], None)])
+            manifest['editions'].append(dict(manifest['editions'][0]))   # the same records twice
+            manifest['eligible_records'] = 2
+            (root/'manifest.json').write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError, 'Duplicate or invalid record IDs'):
                 read_observations(root, manifest)
 

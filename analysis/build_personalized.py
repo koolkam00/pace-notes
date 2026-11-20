@@ -136,7 +136,7 @@ def prepare_personal(db):
       LEFT JOIN weather w ON e.city=w.city AND e.year=w.year''')
 
 
-def generate(db, source, output, provenance, manifest, counts, diagnostics, live_as_of):
+def generate(db, source, output, provenance, manifest, counts, diagnostics, live_as_of, quality=None):
     prepare_personal(db)
     db.execute('CREATE TEMP TABLE pg_terrain AS SELECT * FROM read_parquet(?)',[str(source/'course_segments.parquet')])
     folder = output/PACK
@@ -261,7 +261,8 @@ def generate(db, source, output, provenance, manifest, counts, diagnostics, live
         'The comparison is observational. Historical route changes and declared goals are absent. Supplied elevation and start-hour weather remain proxies. Current and same-year performances are excluded from prior benchmarks. Individual identity checks follow the linked-history pipeline.',
         'Preparing, choosing a course and reviewing a past result reorder the same twelve questions. Preference changes do not change the underlying evidence. Checkpoint comparisons use current elapsed progress instead of a previous-marathon filter.'
       ]}
-    quality = source_quality_report(db, source)
+    # build_extended.py passes the report it computed before dropping the record tables it reads (November 19, 2026).
+    quality = source_quality_report(db, source) if quality is None else quality
     metadata['source_quality'] = quality
     metadata['source_quality_script_sha256'] = quality['script_sha256']
     metadata['pacing_script_sha256'] = hashlib.sha256(Path(__file__).with_name('build_pacing.py').read_bytes()).hexdigest()

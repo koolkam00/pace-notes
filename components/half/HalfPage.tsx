@@ -29,10 +29,12 @@ export function HalfCrumbs() {
  * 1180 px it takes the stories' grid, so its column sits where a story's does (the half story it hands off to among
  * them): the rail names the page and lists its beats (RailBeats), the one in view marked; it names no chapter. The root
  * names the scope of every figure on it for verify-half: "verified" (half finishes in verified results, no chip) or
- * "linked" (records linked by name, one scope chip).
+ * "linked" (records linked by name, one scope chip). `foot` is a surface of another scope set after the page's All
+ * numbers and before its closing stack (how halves are paced: every usable result, its own root and its own chip); the
+ * verifier reads it apart from the page's scope.
  */
-export default function HalfPage({ scope, numbers = [], how, children }: {
-  scope: HalfScope; numbers?: ReactNode[]; how: `/methodology#${string}`; children: ReactNode;
+export default function HalfPage({ scope, numbers = [], how, foot, children }: {
+  scope: HalfScope; numbers?: ReactNode[]; how: `/methodology#${string}`; foot?: ReactNode; children: ReactNode;
 }) {
   return (
     <div className="story-page half-page with-rail" data-half-scope={scope}>
@@ -45,6 +47,7 @@ export default function HalfPage({ scope, numbers = [], how, children }: {
       <article className="story-flow">
         {children}
         <AllNumbers tables={numbers} className="story-numbers" how={how} />
+        {foot}
         <HalfEnd />
       </article>
     </div>

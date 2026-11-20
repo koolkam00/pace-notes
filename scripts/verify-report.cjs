@@ -32,6 +32,10 @@ const ROOT = path.join(__dirname, '..');
 process.chdir(ROOT);
 
 const report = require('../lib/report.ts');
+const verdict = require('../lib/report-verdict.ts');
+// November 20, 2026 (review m3): the first 5K in one decimal, a second only where one would land on an opening edge.
+for (const [frac, text] of [[0.025, '2.5%'], [0.0327, '3.3%'], [-0.0496, '4.96%'], [0.0502, '5.02%'], [0.05, '5.0%'], [0.0003, '0.0%'], [0.1004, '10.04%'], [-0.12, '12.0%']]) assert.equal(verdict.openingPct(frac), text, `openingPct(${frac})`);
+assert.deepEqual([verdict.openingSigned(0.025), verdict.openingSigned(-0.0496), verdict.openingSigned(0.0003), verdict.sectionChange(0.025, 0), verdict.sectionChange(0.2496, 5), verdict.sectionChange(0.0327, 3)], ['+2.5%', '−4.96%', '0.0%', '+2.5%', '+24.96%', '+3.3%'], 'the opening signed, and a section in one decimal, threshold-safe');
 const { approxWords } = require('../lib/nuggets/format.ts');
 const { capitalize } = require('../lib/nuggets/build.ts');
 const links = require('../lib/tools/links.ts');
@@ -73,6 +77,26 @@ for (const bad of [null, '', '0:25:50', EXAMPLE.slice(0, 8).map((t) => links.rep
   '0:05:50,0:52:24,1:19:06,1:45:54,2:13:18,2:42:41,3:16:39,3:49:12,4:03:31']) assert.equal(report.readReportTimes(bad), null, `not a report: ${bad}`);
 for (const [g, want] of [['men', 'men'], ['women', 'women'], ['all', 'all'], ['Women', 'all'], [null, 'all'], ['x', 'all']]) assert.equal(report.readReportGender(g), want);
 ok(19);
+
+// ---------- Lookup version 2: the record's edition tier on the page and in the image (D16) ----------
+{
+  const input = { times: EXAMPLE, race: { city: 'Berlin' }, openingBands: [], types: { data: null, error: null, cohort: null },
+    comparison: { index: null, indexError: null, course: 'all', gender: 'all', shard: null } };
+  const typed = report.buildReport(input);
+  assert.equal(typed.tier, null, 'A typed race has no edition and no tier');
+  assert.equal(report.reportLines(typed, 'mi').tier, null); assert.match(report.reportImageAlt(typed, 'mi'), /^Pace Notes race report, Berlin\. Finish/);
+  for (const [tier, words] of [['stamped', 'Verified'], ['stamped_weaker_source', 'Verified, weaker source'], ['partial', 'Partial results'], ['unverified', 'Unverified']]) {
+    const model = report.buildReport({ ...input, record: { edition: { city: 'Berlin', year: 2019, tier }, context: null, error: null, lateChange: 0 } });
+    assert.equal(model.tier, tier); assert.equal(report.reportLines(model, 'km').tier, words, `${tier}: the module's words`);
+    assert.match(report.reportImageAlt(model, 'km'), new RegExp(`^Pace Notes race report, Berlin 2019 \\(${words}\\)\\.`), `${tier}: the alternative text names the tier`);
+  }
+  assert.throws(() => report.reportLines(report.buildReport({ ...input, record: { edition: { city: 'Berlin', year: 2019, tier: 'excluded' }, context: null, error: null, lateChange: 0 } }), 'km'), /tier/, 'A tier never shown stops the image');
+  const image = fs.readFileSync(path.join(ROOT, 'lib/report-image.ts'), 'utf8'), card = fs.readFileSync(path.join(ROOT, 'components/report/RaceReport.tsx'), 'utf8');
+  assert.match(image, /l\.tier \? `RACE REPORT · \$\{l\.tier\.toUpperCase\(\)\}` : 'RACE REPORT'/, 'The image draws the tier in its kicker');
+  assert.match(card, /model\.tier \? <> <TierTag tier=\{model\.tier\}/, 'The page shows the tier label by the module');
+  assert.match(fs.readFileSync(path.join(ROOT, 'components/RunnerContext.tsx'), 'utf8'), /edition: \{ city: edition\.city, year: edition\.year, tier: TIERS\[edition\.tier\] \}/, 'A record\'s report is given its edition\'s tier');
+  ok(16);
+}
 
 // ---------- The published files ----------
 const INDEX = 'tools/pace-band.json';
@@ -190,7 +214,13 @@ for (const scope of index.scopes) {
           assert.match(html, new RegExp(`<span>Sustained slowdown</span><strong>(?:Yes|No)</strong>(?:<small>from [^<]*</small>)?${badgeLink('research', 'Published research').source}`), 'the slowdown tile carries the Published research badge, linked to the evidence labels');
           assert.ok(lines.comparison.includes(c.n.toLocaleString('en-US')) && lines.comparison.includes(c.label), 'the image\'s comparison line names its finishes and group');
           assert.doesNotMatch(JSON.stringify(lines), /percentile|\brank\b|\brecord\b|\byou\b/i, 'the image holds no rank, percentile or record');
-          ok(9);
+          // November 20, 2026 (review m3): one precision for one quantity. The 0–5K row says the first 5K card's figure,
+          // every section one decimal, and the night card's verdict the same figure as the row it names.
+          const first = model.opening.fraction, card = /<span>First 5K<\/span><strong>([^<]*)<\/strong>/.exec(html)[1];
+          assert.equal(lines.sections[0].change.replace(/^[+−]/, ''), Number(verdict.openingPct(first).slice(0, -1)) === 0 ? '0.0%' : verdict.openingPct(first), 'the 0–5K row says the first 5K card\'s figure');
+          assert.ok(card === 'Level' ? lines.sections[0].change === '0.0%' : card.startsWith(verdict.openingPct(first)), 'the card and the row');
+          assert.ok(lines.sections.slice(1).every((x) => /^[+−]?\d+\.\d{1,2}%$/.test(x.change)), 'every section in one decimal (two only beside a threshold)');
+          ok(12);
         }
         shown += 1;
       }
@@ -263,6 +293,35 @@ ok();
     record: { edition: { city: 'Lakeside', year: 2021 }, context: { ...sample, comparisons: { all: null } , weather: null, weather_reason: 'No verified weather.', terrain: null, terrain_reason: null }, error: null, lateChange: 1 } });
   assert.ok('unavailable' in small.record.placement && 'unavailable' in small.record.late && small.record.weather.unavailable === 'Not available for this edition.' && small.record.climb.unavailable === 'Not available for this edition.', 'small or missing groups say so, with no data-screen reason (method copy)');
   ok(20);
+
+  // One line of year context from the linked-records family (lib/linked-server.ts, under its own guard): the page's
+  // table holds exactly the editions the helper reads, with the helper's words; the card prints the selected edition's
+  // line only, and nothing for an edition without a verdict or for a typed report; the image never carries it.
+  const linked = require('../lib/linked-server.ts');
+  const { linkedYearOf, LINKED_VERDICT_CODES } = require('../lib/report-year.ts');
+  const page = fs.readFileSync(path.join(ROOT, 'app/runners/page.tsx'), 'utf8');
+  assert.match(page, /years=\{linkedYears\(\)\}/); assert.match(page, /linkedEditionReading\(label, year\)/);
+  const rows = [];
+  for (const [label, years] of Object.entries(linked.getLinkedEditions().data.races)) for (const year of Object.keys(years)) {
+    const reading = linked.linkedEditionReading(label, year);
+    if (reading) rows.push([label, Number(year), LINKED_VERDICT_CODES.indexOf(reading.verdict), reading.reviewed ? 1 : 0, reading.words, reading.href]);
+  }
+  assert.ok(rows.length > 0 && rows.length <= 443, `the table holds the editions with a verdict (${rows.length})`);
+  const table = { words: linked.LINKED_YEAR_WORDS, byName: linked.LINKED_BY_NAME, reviewHref: linked.LINKED_REVIEW_HREF,
+    hrefs: Object.fromEntries(rows.map(r => [r[0], r[5]])), rows: rows.map(r => r.slice(0, 4)) };
+  for (const r of rows) { const line = linkedYearOf(table, r[0], r[1]); assert.ok(line && line.words === r[4] && line.href === r[5] && line.reviewed === (r[3] === 1), `${r[0]} ${r[1]}`); }
+  const none = Object.entries(linked.getLinkedEditions().data.races).flatMap(([label, ys]) => Object.keys(ys).map(y => [label, Number(y)])).find(([l, y]) => !rows.some(r => r[0] === l && r[1] === y));
+  if (none) assert.equal(linkedYearOf(table, none[0], none[1]), null, 'an edition without a verdict prints nothing');
+  assert.equal(linkedYearOf(table, 'Lakeside', 2021), null, 'an edition the family does not read prints nothing');
+  const slow = rows.find(r => r[2] === 0 && !r[3]) ?? rows[0];
+  const yearCard = y => renderToStaticMarkup(React.createElement(ReportCard, { id: 'r', model: recorded, units: 'mi', level: 3, gender: 'all', dropped: null, retryComparison: () => {}, retryType: () => {}, handoff: true, year: y }));
+  const withYear = yearCard(linkedYearOf(table, slow[0], slow[1]));
+  assert.match(withYear, new RegExp(`<p class="race-report-meta race-report-year">Lakeside 2021 was <a [^>]*href="[^"]*${slow[5].replace(/[?]/g, '\\?')}&amp;via=runner"[^>]*>${slow[4]}</a> \\(records linked by name\\)\\.`), 'the line names the family\'s words and "records linked by name" once, its link keeping the handoff marker');
+  assert.doesNotMatch(yearCard(null) + html, /race-report-year|linked runners/, 'no verdict, no line');
+  const reviewed = rows.find(r => r[3] === 1);
+  if (reviewed) assert.match(yearCard(linkedYearOf(table, reviewed[0], reviewed[1])), /href="\/methodology#linked-reviews"[^>]*>Released after review</, 'a reviewed edition links its review');
+  assert.doesNotMatch(JSON.stringify(report.reportLines(recorded, 'mi')), /linked runners|linked by name/, 'the image never carries the year line');
+  ok(6);
 }
 assert.equal(report.REPORT_IMAGE_NAME, 'pace-notes-race-report.png'); ok();
 

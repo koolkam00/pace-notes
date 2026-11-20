@@ -9,9 +9,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getInsightsManifest, readInsight } from './insights-server';
 import { getHalfManifest } from './half-server';
+import { getLinkedManifest } from './linked-server';
 import type { Archetypes, Courses, InsightsManifest, ReplayIndex } from './insights';
 import type { HalfManifest } from './half-types';
 import { getNugget, sentenceOf } from './nuggets';
+import { ordinal } from './nuggets/linked';
 
 /** One parsed copy of each story file per verified manifest, so the getters below do not re-read files on every access. */
 const files = new WeakMap<InsightsManifest, Map<string, unknown>>();
@@ -28,8 +30,9 @@ export interface StoryDefinition {
   slug: string;
   /** The story's data file, in the manifest of its `source`. */
   file: string;
-  /** Where its data lives: the marathon insights (the default) or the half-marathon aggregates (public/data/half). */
-  source?: 'insights' | 'half';
+  /** Where its data lives: the marathon insights (the default), the half-marathon aggregates (public/data/half) or the
+   *  linked-records family (public/data/linked, the chapter Over the years; lib/linked-server.ts binds it). */
+  source?: 'insights' | 'half' | 'linked';
   number: string;
   kicker: string;
   /** The display title: contents rows, next cards, search and share cards. Plain text. */
@@ -47,7 +50,7 @@ export interface StoryDefinition {
   seoDescription?: string;
 }
 
-const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
 
 /** Screened finishes in millions with one decimal, the same value as finishesM() in lib/seo.tsx (not imported: lib/seo-routes imports this file). */
 const finishesMillions = () => (getInsightsManifest().analysis_n / 1e6).toFixed(1);
@@ -101,6 +104,7 @@ export function halfManifest(): HalfManifest | null {
 /** Whether a story is published: its data file is in the manifest of its source. */
 export function storyPublished(story: StoryDefinition): boolean {
   if (story.source === 'half') return !!halfManifest()?.files[story.file];
+  if (story.source === 'linked') return !!getLinkedManifest().files[story.file];
   return !!getInsightsManifest().files[story.file];
 }
 
@@ -230,9 +234,60 @@ export const STORIES: StoryDefinition[] = [
         ? `The same marathon course on warmer and cooler mornings: in ${pairs.hotter_slowed_more} of ${pairs.total} pairs of editions, the warmer one had more sustained slowdowns.`
         : 'The same marathon course on warmer and cooler mornings, and how the race changed with the start temperature.';
     } },
+  // Over the years (chapter 10, November 19, 2026): marathon records linked by name across marathons
+  // (public/data/linked, docs/LINKED_RECORDS.md). Their words read lib/nuggets/linked.ts only; no number is typed here.
+  { slug: 'fast-and-slow-years', file: 'editions.json', source: 'linked', number: '09', kicker: 'Over the years',
+    title: 'Fast years and slow years',
+    get heading() { return headingOf('years.title', this.title); },
+    dek: 'Do some years of a race run faster than others?', accent: '#2F5BFF',
+    published: '2026-11-20',
+    seoTitle: 'Fast and Slow Marathon Years, Race by Race | Pace Notes',
+    get seoDescription() {
+      const n = getNugget('years.called');
+      return n.guard
+        ? `${Math.round(Number(n.values.share) * 100)}% of race-years were fast or slow years for runners whose records are linked by name, against the race’s other years. Pick a race.`
+        : 'Each year of a marathon against its other years, for runners whose records are linked by name. Pick a race.';
+    } },
+  { slug: 'race-to-race', file: 'races.json', source: 'linked', number: '10', kicker: 'Over the years',
+    title: 'Race to race',
+    get heading() { return headingOf('races.title', this.title); },
+    dek: 'Do linked runners finish faster at some races than at others?', accent: '#0FA3A3',
+    published: '2026-11-20',
+    seoTitle: 'Race to Race: Linked Marathon Runners Compared | Pace Notes',
+    get seoDescription() {
+      const n = getNugget('races.faster');
+      return n.guard
+        ? `At ${n.values.faster} of ${n.values.readings} marathons, runners whose records are linked by name finished faster than at other races of the same years. Not a ranking.`
+        : 'Each marathon against the other races of the same years, for runners whose records are linked by name. Not a ranking.';
+    } },
+  { slug: 'recorded-bests', file: 'bests.json', source: 'linked', number: '11', kicker: 'Over the years',
+    title: 'Recorded bests',
+    get heading() { return headingOf('bests.title', this.title); },
+    dek: 'How often is the next recorded marathon a best?', accent: '#F4B23E',
+    published: '2026-11-20',
+    seoTitle: 'Recorded Marathon Bests: How Often the Next Is Faster | Pace Notes',
+    get seoDescription() {
+      // The turn, never the guess's answer (review round M6, November 20, 2026).
+      const n = getNugget('bests.turn');
+      return n.guard
+        ? `${Math.round(Number(n.values.share) * 100)}% of ${ordinal(Number(n.values.from_attempt))} recorded marathons were a recorded best, against ${Math.round(Number(n.values.shuffled) * 100)}% by order alone, for runners whose records are linked by name. Guess the second first.`
+        : 'How often a second, third or later recorded marathon was a recorded best, for records linked by name.';
+    } },
+  { slug: 'getting-older', file: 'age.json', source: 'linked', number: '12', kicker: 'Over the years',
+    title: 'Getting older',
+    get heading() { return headingOf('age.title', this.title); },
+    dek: 'How does a marathon change, year by year of age?', accent: '#7A4DFF',
+    published: '2026-11-20',
+    seoTitle: 'Getting Older: Marathon Times Year by Year of Age | Pace Notes',
+    get seoDescription() {
+      const n = getNugget('age.fifty');
+      return n.guard
+        ? `Runners whose records are linked by name, aged 50 to 54 and still racing, ran the next marathon a typical ${Number(n.values.median_pct).toFixed(1)}% slower per year. Not a prediction.`
+        : 'The yearly change from one recorded marathon to the next, by age, for records linked by name. Not a prediction.';
+    } },
   // The half and the marathon that followed it, 3 to 16 weeks later, for records linked by name (public/data/half,
   // linked.json): chapter 11's opener. Its words read the half nuggets only (lib/nuggets/half.ts), never insight().
-  { slug: 'half-to-full', file: 'linked.json', source: 'half', number: '09', kicker: 'Half to full',
+  { slug: 'half-to-full', file: 'linked.json', source: 'half', number: '13', kicker: 'Half to full',
     title: 'From the half to the marathon',
     get heading() { return headingOf('half.extra', this.title); },
     dek: 'What did the marathon take after a half?', accent: '#F4B23E',

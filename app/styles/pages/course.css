@@ -196,9 +196,6 @@
 /* The weather scatter's chosen morning is its dot drawn larger, never a target: the warmer morning the sentence accents
    in signal while the chart rests on it, any other morning the reader picks in ink. */
 .course-page .viz-frame.scatter .scrub-ring { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
-/* One knockout layer under every dot (Scatter's m-halo), so a cluster's dots never cut crescents into each other. */
-.course-page .viz-frame.scatter circle.m-halo { fill: var(--paper); stroke: none; }
-.course-page .viz-frame.scatter circle.is-flat { stroke: none; }
 
 /* Keyboard focus rings the whole instrument (the plot, its ticks and the drag handle), never a box drawn between the
    baseline and the tick labels. */
@@ -220,12 +217,14 @@
     linear-gradient(to left, var(--rule-strong), transparent) 100% 0 / 12px 100% no-repeat scroll;
 }
 .course-table { border-collapse: collapse; font-family: var(--sans); font-size: .875rem; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--ink); }
-.course-numbers .course-table { min-width: 100%; }
+.course-numbers .course-table, .results-page .course-table { min-width: 100%; }
 .course-table caption { caption-side: top; padding: 0 0 var(--s-2); text-align: left; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
-.course-numbers .course-table th, .course-numbers .course-table td { height: 44px; padding: 6px 0 6px 16px; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: middle; white-space: nowrap; }
-.course-numbers .course-table th:first-child, .course-numbers .course-table td:first-child { position: sticky; left: 0; z-index: 1; padding-left: 0; padding-right: 12px; text-align: left; background: var(--paper); }
-.course-numbers .course-table thead th { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); vertical-align: bottom; white-space: normal; min-width: 4.5rem; }
-.course-numbers .course-table tbody th { font-weight: 500; color: var(--ink); }
+.course-numbers .course-table th, .course-numbers .course-table td,
+.results-page .course-table th, .results-page .course-table td { height: 44px; padding: 6px 0 6px 16px; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: middle; white-space: nowrap; }
+.course-numbers .course-table th:first-child, .course-numbers .course-table td:first-child,
+.results-page .course-table th:first-child, .results-page .course-table td:first-child { position: sticky; left: 0; z-index: 1; padding-left: 0; padding-right: 12px; text-align: left; background: var(--paper); }
+.course-numbers .course-table thead th, .results-page .course-table thead th { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); vertical-align: bottom; white-space: normal; min-width: 4.5rem; }
+.course-numbers .course-table tbody th, .results-page .course-table tbody th { font-weight: 500; color: var(--ink); }
 .course-numbers .course-table td.course-reason { text-align: left; white-space: normal; color: var(--ink-3); }
 
 /* ---------- The foot: after "All numbers", the closing stack every page ends on ---------- */
@@ -324,3 +323,66 @@
   .course-hero { box-shadow: none; clip-path: none; }
 }
 
+
+/* A results page (components/races/ResultsPage.tsx, November 19, 2026): "Finish times only" under the H1, the ways on. */
+.results-tags { margin: var(--s-3) 0 0; }
+.results-ways-body { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-5); align-items: center; }
+/* Two races under one label (Warsaw), named once, under the hero's dek (review m5, November 20, 2026). */
+.course-beat-body .course-series { margin: var(--s-3) 0 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.course-hero .hero-dek.course-series { margin-top: var(--s-2); }
+/* The years with results that are not counted, linked to the edition table: a 44 px hit area without moving the line. */
+.course-also-link { display: inline-block; padding: 14px 0; margin: -14px 0; color: inherit; text-decoration: underline; text-decoration-color: var(--night-ink-3, currentColor); text-underline-offset: .2em; }
+.course-hero .hero-dek.course-also { margin-top: var(--s-2); }
+/* The year's verdict for linked runners (components/races/LinkedYear.tsx): quiet words, under one line saying the links are by name. */
+.course-table td.linked-year { color: var(--ink-2); white-space: normal; min-width: 11em; }
+.linked-year-note { margin: var(--s-2) 0 var(--s-4); font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
+/* An edition's labels sit on one line in a table cell (the table scrolls sideways), so each linked label keeps its 44 px
+   row clear of the next row's. */
+.course-table td.is-text { text-align: left; }
+.course-table td.is-text .tier-tags { flex-wrap: nowrap; width: max-content; }
+/* At the narrowest phone the sticky year column would sit over the first label of a row as the table scrolls, taking its
+   44 px reach: the column scrolls with the table there. */
+@media (max-width: 299.98px) {
+  .course-numbers .course-table th:first-child, .course-numbers .course-table td:first-child,
+  .results-page .course-table th:first-child, .results-page .course-table td:first-child { position: static; }
+}
+
+/* ---------- Edition tables: the key, and the rows stacked on a phone (review M4 and M5, November 20, 2026) ---------- */
+/* A label true of most rows, with at most three exceptions, is said once above the table (components/course/EditionKey.tsx,
+   lead decisions D48 and D53). */
+.edition-key { margin: 0 0 var(--s-3); max-width: var(--measure); font-family: var(--sans); font-size: var(--t-small); line-height: 1.6; color: var(--ink-2); }
+.edition-key-item { display: flex; flex-wrap: wrap; align-items: center; column-gap: .25em; min-height: 44px; }
+/* The label and its ", except" never part at a line break (lead decision D53); the label itself may wrap at its spaces
+   inside a narrow phone, and the years after the head wrap as words. */
+.edition-key-head { display: inline-flex; flex-wrap: nowrap; align-items: center; max-width: 100%; min-width: 0; }
+.edition-key-join { flex: none; white-space: nowrap; }
+.edition-key .tier-tags { display: inline-flex; }
+/* Under 600 px (the scale's sm) an edition table's row stacks: the year and its labels on the first line, then the median finish and the
+   finishes, then every other figure, each after its column's name; cells without a figure are left out. Nothing scrolls
+   sideways, so no edition's numbers sit off-screen. */
+@media (max-width: 599.98px) {
+  .course-table.is-stack { display: block; min-width: 0; width: 100%; }
+  .course-table.is-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .course-table.is-stack tbody { display: block; }
+  .course-table.is-stack tr { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--s-4); row-gap: 4px; padding: var(--s-2) 0 var(--s-3); border-bottom: 1px solid var(--rule); }
+  .course-table.is-stack tr::after { content: ''; order: 1; flex: 0 0 100%; height: 0; }
+  .course-numbers .course-table.is-stack th, .course-numbers .course-table.is-stack td,
+  .results-page .course-table.is-stack th, .results-page .course-table.is-stack td { display: block; position: static; height: auto; min-width: 0; padding: 0; border: 0; background: none; text-align: left; white-space: nowrap; order: 4; }
+  .course-numbers .course-table.is-stack tbody th, .results-page .course-table.is-stack tbody th { order: 0; min-width: 3em; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+  .course-numbers .course-table.is-stack td.edition-status, .results-page .course-table.is-stack td.edition-status { order: 1; flex: 1 1 0; }
+  .course-table.is-stack td.edition-status .tier-tags { flex-wrap: wrap; width: auto; }
+  /* Labels that wrap to two lines start level with the year (centred in its 44 px line), not centred on it, so a year's
+     tier reads beside it; the 10 px also keeps the first line's 44 px reach inside the scroll region, which clips above
+     the table (lead decisions D53 and D54, November 20, 2026). */
+  .course-numbers .course-table.is-stack tbody th, .results-page .course-table.is-stack tbody th { align-self: flex-start; }
+  .course-numbers .course-table.is-stack td.edition-status, .results-page .course-table.is-stack td.edition-status { align-self: flex-start; padding-top: 10px; }
+  .course-numbers .course-table.is-stack td.is-key, .results-page .course-table.is-stack td.is-key { order: 3; }
+  .course-numbers .course-table.is-stack td.is-first, .results-page .course-table.is-stack td.is-first { order: 2; }
+  .course-numbers .course-table.is-stack td[data-empty], .results-page .course-table.is-stack td[data-empty] { display: none; }
+  .course-table.is-stack td[data-label]::before { content: attr(data-label) "\00a0"; font-size: var(--t-label); color: var(--ink-3); }
+  .course-table.is-stack td.linked-year { min-width: 0; white-space: normal; flex: 1 1 100%; }
+}
+/* The wrap's sideways-scroll hint goes where its table is stacked (a browser without :has() keeps the hint: harmless). */
+@supports selector(:has(*)) {
+  @media (max-width: 599.98px) { .course-numbers .course-table-wrap:has(.is-stack) { background: none; } }
+}

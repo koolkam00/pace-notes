@@ -2,6 +2,7 @@ import { getNugget } from '@/lib/nuggets';
 import { count } from '@/lib/nuggets/format';
 import { finishMinute, type CoursePageData } from '@/lib/course-page';
 import EditionLine from './EditionLine';
+import { FINISHES_ALL_SPLITS } from '@/lib/nuggets/courses';
 import { CourseSection, Said } from './Fact';
 
 /** Whether a course shows #finish-times: three or more editions whose medians spread a minute or more (course.times). */
@@ -23,7 +24,7 @@ export default function CourseFinishTimes({ page }: { page: CoursePageData }) {
   return (
     <CourseSection id="finish-times" track="chapter-2" beat="Finish times" title={<Said nugget={n} />}>
       <EditionLine points={editions.map((e) => ({ year: e.year, seconds: e.median_s, display: finishMinute(e.median_s), side: count(e.n) }))}
-        selected={open} from={Number.isFinite(other) && other !== open ? other : undefined} sideLabel="Finishes"
+        selected={open} from={Number.isFinite(other) && other !== open ? other : undefined} sideLabel={FINISHES_ALL_SPLITS}
         label={`Median finish in ${display}, edition by edition, ${first.year} to ${last.year}`} height={140} heightMd={200} />
     </CourseSection>
   );

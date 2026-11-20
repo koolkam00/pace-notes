@@ -9,10 +9,14 @@ assert.ok(args.length === 0 || args.length === 2 && args[0] === '--data-root');
 const folder = args.length ? path.resolve(args[1]) : path.join(root, 'public/data/runner-context');
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
-const runnersPath = path.join(root, 'public/data/runners/manifest.json'), runners = read(runnersPath);
-const runnerManifestSha = hash(fs.readFileSync(runnersPath));
+// The context binds the marathon cohort (analysis/marathon-cohort, read through scripts/lib/cohort.cjs) since November 14,
+// 2026, not the runner lookup: `runners` below is the cohort manifest, checked against the pin and the checkout's scripts.
+// `runner_manifest_sha256` keeps its name and holds the cohort manifest's digest, as `cohort_manifest_sha256` says.
+const cohort = require('./lib/cohort.cjs');
+const { manifest: runners, sha256: runnerManifestSha } = cohort.verifiedManifest(read(path.join(root, 'analysis/release.json')));
 const manifest = validateContextManifest(read(path.join(folder, 'manifest.json')), runners, runnerManifestSha);
 assert.equal(manifest.runner_manifest_sha256, runnerManifestSha);
+assert.equal(manifest.cohort_manifest_sha256, runnerManifestSha, 'The context names the cohort manifest it was built on');
 assert.equal(manifest.input_asset_sha256, runners.input_asset_sha256);
 assert.equal(manifest.input_manifest_sha256, runners.input_manifest_sha256);
 assert.deepEqual(manifest.cohort, runners.cohort);
@@ -27,10 +31,16 @@ const nullable = (x, min, max) => x === null || Number.isFinite(x) && x >= min &
 let groups = 0, paceCells = 0, cdfCells = 0, weather = 0, terrain = 0;
 const contexts = [], expectedGroups = [], seen = [], coverage = [], allCells = [];
 for (let i = 0; i < runners.editions.length; i++) {
-  const meta = manifest.editions[String(i)], bytes = fs.readFileSync(path.join(folder, meta.file));
+  // An edition has a file when the cohort counts it and it has a peer group, a weather row or a route profile.
+  expectedGroups[i] = new Map(); seen[i] = {}; coverage[i] = {eligible:0, age:0, gender:0};
+  const meta = manifest.editions[String(i)];
+  if (!meta) { contexts[i] = null; continue; }
+  assert.equal(runners.editions[i].use, 'counted', 'Only an edition the cohort counts has a context file');
+  const bytes = fs.readFileSync(path.join(folder, meta.file));
   assert.equal(bytes.length, meta.bytes); assert.equal(hash(bytes), meta.sha256);
   const data = validateEditionContext(JSON.parse(zlib.gunzipSync(bytes)), i, runners);
-  contexts[i] = data; expectedGroups[i] = new Map(); seen[i] = {}; coverage[i] = {eligible:0, age:0, gender:0};
+  contexts[i] = data;
+  assert.ok(Object.keys(data.groups).length || data.weather || data.terrain, 'A context file has a peer group, a weather row or a route profile');
   for (const [key, group] of Object.entries(data.groups)) {
     groups++; cdfCells += group.finish.length; seen[i][key] = new Uint32Array(group.finish.length);
     for (const [band, p] of Object.entries(group.pace)) {
@@ -65,40 +75,53 @@ for (let i = 0; i < runners.editions.length; i++) {
     assert.ok(Number.isFinite(t.profile_distance_km) && t.profile_distance_km>40 && t.profile_distance_km<45); near(t.segment_span_km,42.195,'Nominal timing-grid span');
   }
 }
-// Independently recount every published CDF from the already-verified raw runner
-// timings. Keep a bounded representative sample to recompute pacing quartiles.
+// Independently recount every published CDF from the cohort's counted records, read with the shared Node reader
+// (each file is checked against the cohort manifest as it is read). Keep a bounded representative sample to
+// recompute pacing quartiles.
 const selectedCells=[];
 for(let i=0;i<Math.min(16,allCells.length);i++) selectedCells.push(allCells[Math.floor(i*allCells.length/Math.min(16,allCells.length))]);
 const samples=new Map(selectedCells.map(c=>[`${c.edition}/${c.group}/${c.band}`, { ...c, values:Array.from({length:10},()=>[]) }]));
 let eligible=0;
-for(const file of Object.keys(runners.shards).filter(x=>x.startsWith('profiles/'))){
-  const data=JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(root,'public/data/runners',file))));
-  for(const profile of data.profiles) for(const race of profile.races) {
-    if(!race.eligible) continue;
-    eligible++;const i=race.edition, age=runnerAgeBand(race.age),gender=runnerGender(race.sex),finish=Math.round(race.times[8]*1000)/1000;
+cohort.forEachEdition((edition, entry, i) => {
+  if (entry.use !== 'counted') return;
+  for (let r = 0; r < edition.ids.length; r++) {
+    eligible++;const times=edition.times[r], age=runnerAgeBand(edition.age[r]),gender=runnerGender(edition.sex[r]),finish=Math.round(times[8]*1000)/1000;
     coverage[i].eligible++;if(age)coverage[i].age++;if(gender)coverage[i].gender++;
     const keys=['all',...(gender?[`gender:${gender}`]:[]),...(age?[`age:${age}`]:[]),...(age&&gender?[`age_gender:${age}:${gender}`]:[])];
     for(const key of keys){
       expectedGroups[i].set(key,(expectedGroups[i].get(key)||0)+1);
-      const group=contexts[i].groups[key];if(!group)continue;
+      const group=contexts[i]?.groups[key];if(!group)continue;
       let lo=0,hi=group.finish.length;
       while(lo<hi){const mid=(lo+hi)>>1;if(group.finish[mid][0]<finish)lo=mid+1;else hi=mid;}
       assert.equal(group.finish[lo]?.[0],finish,'Every eligible finish appears in the correct exact CDF');seen[i][key][lo]++;
       const sample=samples.get(`${i}/${key}/${pacePeerKey(finish)}`);
-      if(sample){let prevTime=0,prevKm=0;const points=[5,10,15,20,25,30,35,40,42.195];for(let k=0;k<9;k++){sample.values[k].push((race.times[k]-prevTime)/(points[k]-prevKm));prevTime=race.times[k];prevKm=points[k];}sample.values[9].push(100*((race.times[8]-race.times[5])/12.195/((race.times[3]-race.times[0])/15)-1));}
+      if(sample){let prevTime=0,prevKm=0;const points=[5,10,15,20,25,30,35,40,42.195];for(let k=0;k<9;k++){sample.values[k].push((times[k]-prevTime)/(points[k]-prevKm));prevTime=times[k];prevKm=points[k];}sample.values[9].push(100*((times[8]-times[5])/12.195/((times[3]-times[0])/15)-1));}
     }
   }
-}
+});
 assert.equal(eligible,manifest.cohort.eligible);
+let withFile = 0;
+const without = [];
 for(let i=0;i<contexts.length;i++){
-  const data=contexts[i];assert.deepEqual(coverage[i],{eligible:data.eligible_n,age:data.age_n,gender:data.gender_n});
-  assert.deepEqual(Object.keys(data.groups).sort(),[...expectedGroups[i]].filter(([,n])=>n>=101).map(([key])=>key).sort());
+  const data=contexts[i], entry=runners.editions[i];
+  const adequate=[...expectedGroups[i]].filter(([,n])=>n>=101).map(([key])=>key).sort();
+  if(!data){
+    // No file: an own-record edition, or a counted edition with no peer group (and, by the builder, no weather row or route).
+    if(entry.use==='counted'){assert.deepEqual(adequate,[],`${entry.city} ${entry.year}: an edition with a peer group has no context file`);without.push({index:i,city:entry.city,year:entry.year,race:entry.race,eligible_n:coverage[i].eligible});}
+    continue;
+  }
+  withFile+=coverage[i].eligible;
+  assert.deepEqual(coverage[i],{eligible:data.eligible_n,age:data.age_n,gender:data.gender_n});
+  assert.deepEqual(Object.keys(data.groups).sort(),adequate);
   for(const [key,group]of Object.entries(data.groups)){assert.equal(group.n,expectedGroups[i].get(key));for(let k=0;k<group.finish.length;k++)assert.equal(seen[i][key][k],group.finish[k][1],'Exact finish CDF recount');}
 }
+assert.deepEqual(manifest.editions_without_context,without,'The counted editions without a file are those with nothing to compare');
+assert.equal(manifest.counted_editions,runners.editions.filter(e=>e.use==='counted').length);
+assert.equal(withFile+without.reduce((sum,e)=>sum+e.eligible_n,0),manifest.cohort.eligible,'Every counted finish is in an edition with a file or one listed without');
 const quantile=(values,q)=>{const a=[...values].sort((a,b)=>a-b),index=(a.length-1)*q,lo=Math.floor(index),hi=Math.ceil(index);return a[lo]+(a[hi]-a[lo])*(index-lo);};
 for(const sample of samples.values()){
   const actual=contexts[sample.edition].groups[sample.group].pace[sample.band];assert.equal(sample.values[0].length,actual.n);
   for(const [key,q]of [['q25',.25],['median',.5],['q75',.75]]){for(let k=0;k<9;k++)near(actual[key][k],quantile(sample.values[k],q),'Independent section quartile');near(actual.late_change[key],quantile(sample.values[9],q),'Independent late-change quartile');}
 }
-assert.deepEqual(manifest.totals,{eligible,groups,pace_cells:paceCells,cdf_cells:cdfCells,weather_editions:weather,terrain_editions:terrain});
+assert.deepEqual(manifest.totals,{eligible:withFile,groups,pace_cells:paceCells,cdf_cells:cdfCells,weather_editions:weather,terrain_editions:terrain});
 console.log(`Verified runner context: ${eligible.toLocaleString('en-US')} eligible finishes recounted across every exact CDF; ${groups} peer groups, ${paceCells} pace groups, ${samples.size} independently recomputed quartile samples; ${weather} weather and ${terrain} terrain edition contexts.`);

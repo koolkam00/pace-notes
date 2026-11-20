@@ -4,7 +4,7 @@ import Axis from './Axis';
 import Plot, { Baseline, Gridlines } from './Plot';
 import Scrubber from './Scrubber.client';
 import Annotation from './Annotation';
-import { placeLabels, type LabelItem } from './labels';
+import { keepClearOf, LINE_BOX, placeLabels, REF_WIDTH, textWidth, type LabelItem } from './labels';
 import { extent, linear, pc, yScale } from './scale';
 
 /**
@@ -18,7 +18,7 @@ export type ScatterPoint = { id: string; x: number; y: number; label: string; ke
   /** A quiet label on a point outside the pair that the sentence names (a course's "Apart from 2022"): the dot stays quiet. */
   named?: boolean };
 
-export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true, side, prompt }: {
+export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, label, axisTitle, values, height = 220, heightMd = 280, labelAll = false, selected, pairLine = true, side, prompt, keys, group = false }: {
   points: ScatterPoint[]; xTicks: { value: number; label: string }[]; yTicks: { value: number; label: string }[];
   xDomain?: [number, number]; yDomain?: [number, number]; label: string;
   axisTitle?: { start?: string; end?: string }; values?: ReactNode; height?: number; heightMd?: number;
@@ -32,7 +32,13 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   side?: { label: string; values: string[] }[];
   /** Open on nothing, the readout holding this prompt until a dot is picked (where the heading already says the reading). */
   prompt?: string;
+  /** The chart's key, where the ink points are a group rather than a pair (a race marked among every race's years). */
+  keys?: { label: string; mark: 'dot'; tone: 'ink' | 'quiet' }[];
+  /** The ink points are a group marked among many (a race's years among every race's): the quiet dots draw smaller (3 px)
+   *  and the ink dots larger (5 px), so the group reads at a glance on a phone. */
+  group?: boolean;
 }) {
+  const r = (p: ScatterPoint) => (group ? (p.inPair ? 5 : 3) : 4);
   const [x0, x1] = xDomain ?? extent(points.map((p) => p.x));
   const [y0, y1] = yDomain ?? extent(points.map((p) => p.y));
   const xp = (x1 - x0) * 0.06, yp = (y1 - y0) * 0.08;
@@ -50,15 +56,30 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   // ring is on its dot (the readout names it then).
   const items: LabelItem[] = points.map((p, i) => ({ p, i })).filter(({ p }) => labelAll || p.inPair || p.named).map(({ p, i }) => ({ id: p.id, text: p.label, x: x(p.x), y: y(p.y), priority: p.inPair ? 3 : p.named ? 2 : 1, size: 13, prefer: 'right', gap: i === start ? 17 : 8, tone: p.inPair ? 'ink' : 'quiet', ...(i === start ? {} : { at: i }) }));
   // Labels keep clear of every dot, of the ring the chart opens on (12 px round its point) and of the pair's line.
-  const avoid = points.map((p, i) => ({ x: x(p.x), y: y(p.y), r: i === start ? 13 : 4 }));
+  const avoid = points.map((p, i) => ({ x: x(p.x), y: y(p.y), r: i === start ? 13 : r(p) }));
   const along = joined ? Array.from({ length: 9 }, (_, k) => ({ x: x(pair[0].x) + ((k + 1) / 10) * (x(pair[1].x) - x(pair[0].x)), y: y(pair[0].y) + ((k + 1) / 10) * (y(pair[1].y) - y(pair[0].y)), r: 2 })) : [];
-  const placed = placeLabels(items, { height, avoid: [...avoid, ...along] });
+  // Labels keep clear of the gridlines' labels too (12 px text at the plot's left edge, its baseline 5 px over the line).
+  // At the reference width a label that would meet one takes its next place (the other side of its point, or a nudge);
+  // below it the grid label keeps its pixels at the edge while the labels move in with the plot, so a label that would
+  // meet one there hides below that width (keepClearOf), and the readout names its point (195 px, round 5 lint: a
+  // "2017" over the "0%"). Every box is the one a browser measures for the text (its line box, not only its glyphs), so
+  // no two labels' boxes touch at any width: the estimate of a "%" runs short, so the grid label's box takes 8 px more,
+  // and it spans its line box (baseline 5 px over the line, Inter's ascent and descent) with a pixel to spare.
+  const grid = yTicks.map((t) => ({ y: y(t.value), w: textWidth(t.label, 12, 500) + 8 }));
+  const gridAt = (g: (typeof grid)[number]) => ({ x0: 0, x1: g.w, y0: g.y * height - 18, y1: g.y * height - 1 });
+  const gridBoxes = grid.map((g) => { const b = gridAt(g); return { x0: 0, x1: b.x1 / REF_WIDTH, y0: b.y0 / height, y1: b.y1 / height, pad: 0 }; });
+  // A marked group's dots and their knockout draw over the quiet ones, so each keeps its paper ring whole in a cluster.
+  const layers = group ? [points.filter((p) => !p.inPair), points.filter((p) => p.inPair)] : [points];
+  const placed = placeLabels(items, { height, avoid: [...avoid, ...along], boxes: gridBoxes, em: LINE_BOX });
+  for (const g of grid) keepClearOf(placed, () => gridAt(g), height, LINE_BOX);
   const plot = (
     <Plot>
       <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} />
       {joined ? <line className="ref-line is-dashed" x1={pc(x(pair[0].x))} y1={pc(y(pair[0].y))} x2={pc(x(pair[1].x))} y2={pc(y(pair[1].y))} /> : null}
-      {points.map((p) => <circle key={`h${p.id}`} className="m-halo" cx={pc(x(p.x))} cy={pc(y(p.y))} r={6} />)}
-      {points.map((p) => <circle key={p.id} className={p.inPair ? 'm-ink is-flat' : 'm-context is-flat'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={4} />)}
+      {layers.map((layer) => [
+        ...layer.map((p) => <circle key={`h${p.id}`} className="m-halo" cx={pc(x(p.x))} cy={pc(y(p.y))} r={r(p) + 2} />),
+        ...layer.map((p) => <circle key={p.id} className={p.inPair ? 'm-ink is-flat' : 'm-context is-flat'} cx={pc(x(p.x))} cy={pc(y(p.y))} r={r(p)} />),
+      ])}
       <Annotation labels={placed} />
       <Baseline />
     </Plot>
@@ -68,7 +89,7 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   return (
     <ChartFrame className="scatter" label={label} height={height} heightMd={heightMd}
       scrub={<Scrubber mode="pick" points={scrub} initial={first} label={label} axis={axis} prompt={prompt}>{plot}</Scrubber>}
-      keys={pair.length === 2 ? [{ label: 'Other editions', mark: 'dot', tone: 'quiet' }] : undefined}
+      keys={keys ?? (pair.length === 2 ? [{ label: 'Other editions', mark: 'dot', tone: 'quiet' }] : undefined)}
       values={values}
     />
   );

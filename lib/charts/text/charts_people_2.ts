@@ -32,10 +32,19 @@ export const CHARTS_PEOPLE_2_TEXT: Record<string, ChartText> = {
   },
   'sixties-beat-the-young-median': {
     title: "Men's 60–64: over a fifth beat the 25–34 median",
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: "Men's finishes against the 25–34 median",
     takeaway: (v) => ({
       // The title says "over a fifth": the guard holds the share between a fifth and a quarter.
-      guard: n(v.m6064) > 0.2 && n(v.m6064) < 0.25 && n(v.races_n) === 5,
-      headline: `In ${v.races}, *${pct(n(v.m6064))}* of men's finishes at 60–64 came in under the median men's finish at 25–34.`,
+      // November 19, 2026 (pace-notes-marathon-half-20261113-1113): the exact-age races are six, not five: Los Angeles and
+      // Oklahoma City record exact ages and Auckland has no counted edition. The pin moves to the count the data give
+      // (lead's ruling on the eleven fallbacks: a typed count, not a judgment of the claim); the headline names the races
+      // from the data.
+      guard: n(v.m6064) > 0.2 && n(v.m6064) < 0.25 && n(v.races_n) === 6,
+      // November 19, 2026: the six race names took the card past three lines; the sentence after them is shorter
+      // (same numbers, same guard).
+      headline: `In ${v.races}, *${pct(n(v.m6064))}* of men's 60–64 finishes came in under the men's 25–34 median.`,
       fallback: "Men's finishes by age, against the median 25–34 finish.",
     }),
   },
@@ -51,7 +60,7 @@ export const CHARTS_PEOPLE_2_TEXT: Record<string, ChartText> = {
     title: "Men's quickest finishes skew younger",
     takeaway: (v) => ({
       guard: n(v.all) - n(v.top1) >= 4 && n(v.min_group) >= 100 && n(v.top10) < n(v.all) && n(v.slow10) >= n(v.top1),
-      headline: `In ${v.races}, the quickest 1% of men's finishes had a median recorded age of *${count(n(v.top1))}*; all men's finishes, ${count(n(v.all))}.`,
+      headline: `In ${v.races}, men's quickest 1% of finishes had a median recorded age of *${count(n(v.top1))}*; all men's, ${count(n(v.all))}.`,
       fallback: "Median recorded age of men's finishes by finish-time group.",
     }),
   },
@@ -65,6 +74,9 @@ export const CHARTS_PEOPLE_2_TEXT: Record<string, ChartText> = {
   },
   'womens-share-by-city': {
     title: "Under 4:00, women's share was highest in Boston",
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: "Women's share under 4:00, race by race",
     takeaway: (v) => ({
       // The title names Boston as the top row; one decimal keeps it apart from the next row (the bars print one decimal too).
       guard: v.top_city === 'Boston' && n(v.top) - n(v.second) >= 0.005 && n(v.top) > 3 * n(v.low) && n(v.n_min) >= 100 && n(v.latest_min_year) >= 2023,

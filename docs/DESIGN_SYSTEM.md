@@ -1,6 +1,6 @@
 # Design system
 
-The site's design system: how a page is built, how it ends, its type, colour, space, components and copy rules, how it is checked, and how a visual change is reviewed. It describes the code on `main`. The redesign that set it merged as `c6744791` (#71) on October 20, 2026; later work (the Top 100 charts, the terrain splits, the half marathon) follows it. What is deployed is in the [project handoff](PROJECT_HANDOFF.md#current-state).
+The site's design system: how a page is built, how it ends, its type, colour, space, components and copy rules, how it is checked, and how a visual change is reviewed. It describes the code on `main`. The [tier and link labels](#tier-and-link-labels) section (the tier module, with the record words of decision D49 and the edition tables' key of D48) and the edition tables' phone stacking came with pull request #101 (the adoption of the combined release; the owner asked for its merge on November 20, 2026). The redesign that set it merged as `c6744791` (#71) on October 20, 2026; later work (the Top 100 charts, the terrain splits, the half marathon) follows it. What is deployed is in the [project handoff](PROJECT_HANDOFF.md#current-state).
 
 The owner's direction of October 17, 2026 wins every conflict: "focus on amazing design, simple is beautiful; you can delete anything you feel is too cluttered, old or doesn't contribute to making this as good and as beautiful as possible." ([owner decisions](OWNER_DECISIONS.md)). Every element must help a runner learn the page's finding or act on it; anything else is deleted, not hidden. The redesign spec that this page condenses is kept as it was in [history](history/redesign-2026-10/DESIGN-SPEC.md); code comments that cite "the redesign spec, section N" mean that file. Earlier versions of this page are in Git history.
 
@@ -42,7 +42,7 @@ Data colours: the diverging pace ramp (`PACE_RAMP` in `lib/viz/format.ts`, for h
 
 ## Space and layout
 
-Spacing `--s-1…10`, the beat, head and figure gaps, radii `--r-xs…pill`, two shadows (`--shadow-raise`, `--shadow-sheet`), motion durations and eases, and the z-index layers are tokens. Three breakpoints: 600 px, 900 px and 1180 px (the chapter rail); 299.98 px and 359.98 px only for 200% zoom and small phones. The side gutter is `--gutter` (16 px on a phone, up to 48 px). Page tops share `--page-top` (16 px on a phone, 32 px from 900 px), so a crumb and H1 land at the same height on every template.
+Spacing `--s-1…10`, the beat, head and figure gaps, radii `--r-xs…pill`, two shadows (`--shadow-raise`, `--shadow-sheet`), motion durations and eases, and the z-index layers are tokens. Three breakpoints: 600 px, 900 px and 1180 px (the chapter rail); 299.98 px and 359.98 px only for 200% zoom and small phones. A component's own layout switch uses one of these, never a width of its own: an edition table stacks under the scale's sm (`max-width: 599.98px`), and a 639.98 px query written for it failed `verify-css` on November 20, 2026. The side gutter is `--gutter` (16 px on a phone, up to 48 px). Page tops share `--page-top` (16 px on a phone, 32 px from 900 px), so a crumb and H1 land at the same height on every template.
 
 ## Components
 
@@ -54,6 +54,95 @@ Spacing `--s-1…10`, the beat, head and figure gaps, radii `--r-xs…pill`, two
 - **Units:** `components/ui/ByUnits.client.tsx` shows the server-drawn miles or kilometres version of a sentence, receipt or chart; `UnitsProvider` holds the switch. Miles are the default. Since November 11, 2026 a reading the shell repeats (next cards, the chapter rows on `/` and `/research`, the page-list rows on `/stories` and `/analyses`) is drawn by `components/ui/ReadingFigure.tsx`. The next card imports it; `ChapterList` and `PageList` take it as their `Figure` prop from the page, so the menu's compact list in the root layout adds no units island to every page's first-load JavaScript. When its nugget has a kilometre twin (`figureKm`, carried by `readingOf` as `km`; today `pattern.profile` and `weather.start`) it is a `ByUnits` pair, so with KM chosen those rows read "s/km" and "°C" (before, they kept "s/mi" and "°F"). The served HTML keeps the miles figure. `verify-units` renders each twin in both units, and fails if `NextCard` stops using `ReadingFigure`, if `ChapterList` imports a units island or draws a figure itself, or if a page passes readings without `Figure={ReadingFigure}`. The desktop rail's beat label on analysis pages (`components/analysis/Shell.tsx` `data-beat`) still names the miles figure: left, because `RailBeats` would need the units in a component that also renders on pages with an inert switch.
 - **Moved addresses:** `components/MovedPage.tsx` with `LegacyAnalysisLink.tsx`: one heading, one plain sentence saying where the page went ("Warming through the race now has its own tab in race-day weather."), one outline button ([SEO](SEO.md#moved-addresses-october-18-2026)).
 - **Info pages** (`app/styles/pages/info.css`): an H1, one dek, then short sections divided by hairlines at the reading measure, ending on `InfoNext`. `/privacy`'s short facts (`.info-facts`) also open `/methodology` (its four-fact short version, October 22, 2026), and `/about` opens on its ways in (`.info-ways`: one row per visitor goal over the page that answers it, the `/tools` row's shape). `/about` measures 2.32 phone screens of its 2.5 (October 22, 2026, after the owner's additions to How it is made; 2.22 before them and 1.49 with who and why only).
+
+## Tier and link labels
+
+Added November 14, 2026 with the adoption of `pace-notes-marathon-half-20261113-1113`, in pull request #101 (the owner asked for its merge on November 20, 2026). In that release every edition (one race in one year) has a verification tier, a split tier and a timing basis, and every link between a runner's results has a confidence. One module says them, so no page writes a badge or its words by hand (lead decision D16).
+
+- **`lib/tiers.ts`** holds the vocabulary: the words, the release's codes they answer to (every tier, split tier, timing-basis text and link confidence the release uses, and the identity file's reasons), the two `/methodology` anchors, and the plain-text helpers. It imports nothing, so a builder's verifier, a card script and a client component can all read it.
+- **`components/ui/TierTag.tsx`** is the only file that draws the labels: `TierTag`, `SplitTierTag`, `TimingTag` and `TimingClassTag`, `LinkMark`, `LinkTier` and `LinkLabel`, an edition's labels as one group (`EditionTags`, or `TagGroup` for a page's own set), a list row's text (`TierLine`), and two terms for running copy (`TierTerm`, `LinkTerm`). It has no client script, so it renders in a server page and in a client component alike. It is a module of its own, apart from the evidence badges, so a page carries only the labels it shows.
+- **The look** is the last block of `app/styles/components/badge.css`, built from the evidence badge's and the scope chip's rules and tokens: `--ink-2` words, a `--rule-strong` hairline on the pills, no hue, no fill. A tier is not a reading, so nothing is orange. The tokens change with the surface, so the labels read on paper, on `.night` and in the dark theme with no rule of their own.
+- **The definitions** are two cards of `/methodology`'s Part 2, beside the evidence badges (`components/methods/MethodsTiers.tsx`): `#edition-tiers` (each tier, "Finish times only", "Gun times", and what a counted edition is) and `#link-confidence` (each confidence as a row shows it, and what a possible match is). They are words only until the counts' data files are final; no number is typed there. What is folded (lead decision D56, 2026-11-20; `/methodology` back under its 10 phone screens with every fold closed): under `#edition-tiers` the seven labels and their meanings stay open, and what a counted edition is, the record words ("What one result offers"), the table and the producer's notes sit in "More on edition tiers"; under `#link-confidence` "Possible match" and the confidences that join a runner (High, High, elite, Medium) stay open, and the seven a page shows as a possible match fold under "The confidences shown as a possible match"; and the five definitions no label links to (`#half-multiple`, `#percentiles`, `#baselines`, `#opening-groups`, `#how-to-read`) are closed rows titled by their term (`Definition folded` in `components/methods/shared.tsx`), each opening on its rule and the rest. Every anchor opens its fold: `MethodsHash.client.tsx` opens every closed `<details>` around a linked id and scrolls to it; without script each is a native `<details>` that opens on a tap. No definition's words changed.
+- **`scripts/verify-tiers.cjs`** holds all of it together (below).
+
+### The words
+
+Sentence case, no number, no hue. These are the only words; a page takes them from the module.
+
+| In the data | Words | Form |
+| --- | --- | --- |
+| tier `stamped` | Verified | the badge: a tick and the word, drawn as the evidence badge is |
+| tier `stamped_weaker_source` | Verified, weaker source | the same badge, always with the two extra words |
+| tier `partial` | Partial results | an outlined pill, drawn as the scope chip is |
+| tier `unverified` | Unverified | pill |
+| tier `held_for_review` | Held for review | pill |
+| split tier `finish_time_only` | Finish times only | pill, beside the tier |
+| timing class `gun`: a timing basis the release states as gun or gross time, at either distance | Gun times | pill |
+| link confidence `medium_variant` and every `low…`; any link whose person the identity file leaves without a runner key | Possible match | pill, with the link's quiet words |
+| split tier `splits`; timing classes `chip`, `chip_fallback`, `mixed` and `not_stated`; a result with no link | nothing | the usual case says nothing more |
+
+The tiers `excluded` and `no_rows` belong to editions with no result. They are never shown, and asking the module for their words is an error. So is a code the module does not know, `undefined` (a misspelt field), and a `weaker_source` flag that disagrees with its tier: a build stops; no label is ever a default. Check a data file's codes in its builder's verifier with the same functions (`isShownTier`, `tierWords`, `splitTierWords`, `timingClass`, `linkWords`, `linkQuietWords`), so that a page never meets a bad one at run time.
+
+**Timing.** The release states an edition's timing basis as free text. `timingClass` puts every such text, and the missing value, into one of the classes the linked-records contract uses (`docs/LINKED_RECORDS.md`, "Timing basis"), and a text that is not listed in `TIMING_BASES` is an error. Only `gun` has words: the texts "gun", "gross (gun / Brutto; …)" and "gun (official, …) else chip". A text that falls back to gun time only where a result has no chip time is `chip_fallback`, and "official time" is `not_stated`, because the release does not say whether it is chip or gun time; neither is marked.
+
+**Every link shows its tier** (owner, November 13, 2026: "Show the tier, and don't present low-confidence links as certain"). A link's confidence is printed as quiet words: plain text in the secondary ink, never a pill and never a link. A keyed link (`high_elite`, `high` or `medium`, and the identity file gave the result a runner key) prints its quiet words alone. A link that is not keyed prints the "Possible match" pill and its quiet words. "High" alone does not say what is high, so for a screen reader the words begin "Link confidence:" (`.sr-only`).
+
+| Link confidence | Quiet words |
+| --- | --- |
+| `high_elite` | High, elite |
+| `high` | High |
+| `medium` | Medium |
+| `medium_variant` | Medium, name variant |
+| `low` | Low |
+| `low_noage` | Low, no age |
+| `low_noage_series` | Low, no age, same series |
+| `low_nosex` | Low, no recorded sex |
+| `low_city_pace` | Low, city and pace |
+| `low_carryover` | Low, carried over |
+
+A link of a keyed confidence can still be left without a runner key by one of the identity file's three screens. Its quiet words then say why, after a middle dot: "High · recorded ages differ" (`birth_year_spread`), "recorded sexes differ" (`sex_conflict`), "two results in one edition" (`two_results_in_one_edition`). `LinkLabel` needs that reason for such a link and stops without it.
+
+**What one result offers** (decision D49, November 20, 2026; review finding m2). A runner row also says what its one result offers, from the lookup's record status, in a third small vocabulary of the module (`RECORD_OFFERS`, `NO_REPORT_REASONS`, `recordWords`), drawn by `RecordTag` as plain text (a row is a checkbox label, so never a link) and defined under `#edition-tiers`. The words describe the result, not its edition, and none reads like an edition's label (before this they read "Recorded times only", "Limited: missing checkpoints", "Limited analysis" and "Not compared", written by hand in `components/runner/records.tsx`).
+
+| In the data | Row words |
+| --- | --- |
+| offer `report`: a counted marathon (status 0) | nothing (the usual case); defined as "Full race report" |
+| offer `own_pacing`: an own-record marathon (status 1) | Own pacing only |
+| offer `no_report`, reason `duplicate` (status 2) | No pacing report: duplicate of another record |
+| reason `missing_checkpoints` (status 3) | No pacing report: checkpoint times missing |
+| reason `times_out_of_order` (status 4) | No pacing report: times out of order |
+| reason `outside_bounds` (status 5) | No pacing report: outside the pace bounds |
+| reason `finish_time_only` (status 6, an edition without splits) | nothing: the edition's "Finish times only" says it |
+| reason `held_for_review` (status 6, a held edition) | No pacing report |
+| reason `not_analysed` (status 6, any other edition) | No pacing report: race not analysed for pacing |
+| reason `copy_edition` (a copy edition's eligible record) | No pacing report: copy of another year’s field |
+| offer `listed`: a half marathon; `notCompared` where its edition is compared with no race | nothing; Listed, not compared |
+
+### Where each goes
+
+- **A label qualifies one edition or one link, where it is named:** an edition's row in a table, a race in a runner's list, a result in a list of possible matches. Tier, split-tier and timing labels link to `/methodology#edition-tiers`, the link mark to `/methodology#link-confidence`. The definitions, the counts by tier, the rule for counted editions, the release's hold notes and the link rule are written there and nowhere else ([AGENTS.md](../AGENTS.md) rule 15): a page shows the label, and the label is the way to them.
+- **Two modes.** `link` (the default) is a link to the definition with a 44 px hit area. `link={false}` is a bare label, for a row, a card or a checkbox label that is itself a control: a link holds no link.
+- **The badge only on the two verified tiers** (the release's `verified_badge`), and a weaker-source stamp always says so. Pass the release's `weaker_source` flag where the data has it (`<TierTag tier={e.tier} weakerSource={e.weaker_source} />`).
+- **"Finish times only" sits beside the tier, "Gun times" beside both.** `EditionTags` draws the three in that order in one wrapping group, from the release's timing-basis text or from a timing class. It carries the list of every timing text, so a client component that holds the timing class composes `TagGroup` with `TierTag`, `SplitTierTag` and `TimingClassTag` instead, and that list stays out of its script.
+- **A list row that stands for several editions** (a race in a directory) prints a tier line as plain words with counts: `tierLine({ stamped_weaker_source: 6, held_for_review: 10 })` reads "6 verified, weaker source · 10 held for review", and one tier for all reads "16 verified". Partial editions read "3 with partial results", so the count is plainly one of editions; the pill stays "Partial results". The parts follow the table's order and add up to the editions shown; they are joined as the list rows join their facts (a no-break space, a middle dot, a space). The line is the row's text, not a badge, so it may carry counts and is never a link; the list's key line links the words to their definition once (`TierTerm`).
+- **An edition table's key** (lead decision D48, November 20, 2026; review M5; amended by D53 the same day, after the second review). From three rows, a label true of more than half a table's rows and of all but at most three of them (a tier, "Finish times only", "Gun times") is said once in a key above the table, with the years it is not true of ("…, except 2015." or "…, every year."; the label and its ", except" never part at a line break); a label true of fewer rows stays on the rows. A row shows only the labels the key does not say for it (`EditionKey`, `RowTags` in `components/course/EditionKey.tsx`; the words still come from `TierTag.tsx`). One label to a line, each line 44 px high, so a linked label's hit area never reaches the next.
+- **A runner's results:** each linked result shows its link with `LinkLabel` (quiet words, and the pill when it is not keyed). Possible matches are listed apart from the confirmed results, under one line that links to the definition (`LinkTerm`), and enter no figure; a visitor may tick one into their own selection. In a sentence or a count the words come from the module too: `POSSIBLE_MATCHES` (the list's heading), `possibleMatchCount(2)` ("2 possible matches"), `inline(POSSIBLE_MATCH)`.
+- **Layout.** Every label is 24 px tall on one line and wraps at its spaces in a narrow column, the tick staying on the first line. A wrapping row of label links needs 22 px between its rows to keep each 44 px hit area clear (`TagGroup` has it); 27 px where a 17 px evidence badge shares the row. In a `.table` give the tier column `className="is-text"`: the other cells do not wrap and align right.
+
+### What never to do
+
+- Never write one of the phrases, in any case, in a string or in JSX text outside `lib/tiers.ts`, and never one of the classes (`tier-badge`, `tier-chip`, `tier-line`, `tier-quiet`, `tier-tags`) outside `TierTag.tsx`. The quiet words of two or more parts and the screens' words are held the same way ("High", "Medium" and "Low" alone are ordinary words). A sentence that needs the words takes them from the module.
+- Never give a label a hue, a fill, an icon of its own or a number, and never change its look from a page's sheet. A page sheet may place a label (margin, alignment, order); its colours, edge and type are `badge.css`'s alone.
+- Never print "Verified" for a weaker-source stamp, never show an `excluded` or `no_rows` edition, and never fall back to a default for a code or a timing text the module does not know.
+- Never put a linked label inside a link, a button or a form label, and never repeat next to a label what it links to (a definition, a hold note, an official count, a coverage figure).
+- Never join a possible match into a profile's figures, never present one as certain, and never show a link without its confidence.
+- Never use the words for anything else. "Possible match" means the link mark; "Gun times" means an edition whose timing basis is gun or gross time.
+
+### The check
+
+`node scripts/verify-tiers.cjs` fails when the module's words, codes, forms or anchors differ from the tables above; when a tier, split tier, timing-basis text or link confidence in the pinned release's checked-in files (the release contract and the edition directory in its evidence folder, and the marathon cohort manifest) has no words and no class; when the timing classes differ from the linked-records module's (`analysis/linked_common.py`, once the tree holds it; `--linked=<file>` before that) or the identity reasons from `analysis/build_identity.py`; when a function accepts what it should refuse; when a label does not render as a link to its anchor and as a bare label; when `/methodology` lacks one of the two ids, a label's meaning, or types a number in those definitions; when the styles drift from the evidence badge's and the scope chip's declarations, use a token those do not (the quiet words alone take `--ink-3`), or stop wrapping; and when any other file under `app/`, `components/` or `lib/` writes a phrase or a label class. The uses that stood before the module are the verifier's `BASELINE`, each listed with its file, counted and printed on every run, and a new use or a stale entry fails. `--list` prints every use it finds, `--self-test` checks the checker against planted mistakes, and `--source=<folders>` recounts the codes from the release's own files (the edition table, `EDITION-TIERS.csv`, the link file and the identity file; it needs Python with DuckDB). It runs in `npm run verify:data` (since pull request #101, read November 20, 2026), and since November 20, 2026 it also holds the record words (decision D49) to the table under "What one result offers" and finds each beside its meaning under `#edition-tiers`. `scripts/verify-tools.cjs` also fails a tool file that names a label class.
+
+When a release adds, renames or drops a code or states a new timing-basis text, the build stops at the first page or verifier that asks for it. Add the code and its words, or the text and its class, to `lib/tiers.ts` and to the tables in `verify-tiers.cjs` only after the lead or the owner has given the words, then run `--source` on the new release's files. A share card that prints a tier takes the words from the module; add `lib/tiers.ts` to the card stamp's list (`CODE` in `scripts/build-chart-cards.cjs`) in the same change.
 
 ## Motion and accessibility
 
@@ -137,8 +226,12 @@ Keep the critiques and contact sheets in the pull request description, not in th
 
 ## Touching tokens, fonts or units
 
-The Top 100 and half-marathon share cards are stamped with a hash of everything they are drawn from, including `app/styles/tokens.css`, `app/styles/fonts.css`, `lib/units.ts`, `lib/nuggets/format.ts` and the chart code (`CODE` in `scripts/build-chart-cards.cjs`). A change to any of them makes every card stale, and `npm run verify:data` fails on both `--check` runs. Re-stamp both sets (`node scripts/build-chart-cards.cjs`, then `node scripts/build-chart-cards.cjs --set half`), run each again with `--check`, open the PNGs, and run `npm run og:check` (the Open Graph cards copy the colour tokens; no CI job runs it). [Top 100 charts](TOP_100_CHARTS.md) describes the cards.
+The Top 100 and half-marathon share cards are stamped with a hash of everything they are drawn from, including `app/styles/tokens.css`, `app/styles/fonts.css`, `lib/units.ts`, `lib/nuggets/format.ts` and the chart code (`CODE` in `scripts/build-chart-cards.cjs`). A change to any of them makes every card stale, and `npm run verify:data` fails on both `--check` runs. Re-stamp both sets (`node scripts/build-chart-cards.cjs`, then `node scripts/build-chart-cards.cjs --set half`), run each again with `--check`, open the PNGs, and run `npm run og:check` (the Open Graph cards copy the colour tokens; no CI job runs it). [Top 100 charts](TOP_100_CHARTS.md) describes the cards. A new helper never goes into a file a card stamp hashes: on November 20, 2026 a year-span helper added to `lib/nuggets/format.ts` made all 94 Top 100 cards stale, and it moved to `lib/nuggets/years.ts`.
 
 ## History
 
 The lines the post-merge half review (branch `fix/half-followups`) rewrote are kept word for word, as `main` held them at `f8869591`, in [history](history/half-followups-2026-11.md) (moved November 4, 2026).
+
+Replaced on November 20, 2026 in "The check" (`verify-tiers` is in the chain of `npm run verify:data` on the branch of draft #101), word for word: "It is not part of `npm run verify:data` yet."
+
+Replaced on November 20, 2026 in "Where each goes" (lead decision D53 amends D48: a label goes in the key only when the rows it is not true of number at most three; November 20, 2026, after the second review), word for word: "From three rows, a label true of more than half a table's rows (a tier, "Finish times only", "Gun times") is said once in a key above the table, with the years it is not true of ("…, except 2015." or "…, every year."), and a row shows only the labels the key does not say for it".

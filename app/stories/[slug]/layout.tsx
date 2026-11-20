@@ -1,4 +1,5 @@
 import '../../styles/pages/story.css';
+import '../../styles/pages/linked.css';
 import type { ReactNode } from 'react';
 
 // The story sheet (app/styles/pages/story.css), imported here rather than by the page so the verifiers that render a

@@ -1,0 +1,236 @@
+{
+ "aliases": [
+  {
+   "alias": "Milan",
+   "evidence": "Milan is the common English name of the Italian city, which the release writes Milano. General knowledge, not a fact of the release; the registry keeps the release’s word, so the alias is for the list’s search only.",
+   "word": "Milano"
+  },
+  {
+   "alias": "Turin",
+   "evidence": "Turin is the common English name of the Italian city, which the release writes Torino. General knowledge, not a fact of the release; the registry keeps the release’s word, so the alias is for the list’s search only.",
+   "word": "Torino"
+  },
+  {
+   "alias": "Venice",
+   "evidence": "Venice is the common English name of the Italian city, which the release writes Venezia. General knowledge, not a fact of the release; the registry keeps the release’s word, so the alias is for the list’s search only.",
+   "word": "Venezia"
+  },
+  {
+   "alias": "Florence",
+   "evidence": "Florence is the common English name of the Italian city, which the release writes Firenze. General knowledge, not a fact of the release; the registry keeps the release’s word, so the alias is for the list’s search only.",
+   "word": "Firenze"
+  },
+  {
+   "alias": "Padua",
+   "evidence": "Padua is the common English name of the Italian city, which the release writes Padova. General knowledge, not a fact of the release; the registry keeps the release’s word, so the alias is for the list’s search only.",
+   "word": "Padova"
+  },
+  {
+   "alias": "Naples",
+   "evidence": "Naples is the common English name of the Italian city, which the release writes Napoli. General knowledge, not a fact of the release; the registry keeps the release’s word, so the alias is for the list’s search only.",
+   "word": "Napoli"
+  },
+  {
+   "alias": "Genoa",
+   "evidence": "Genoa is the common English name of the Italian city, which the release writes Genova. General knowledge, not a fact of the release; the registry keeps the release’s word, so the alias is for the list’s search only.",
+   "word": "Genova"
+  },
+  {
+   "alias": "Seville",
+   "evidence": "Seville is the common English name of the Spanish city, which the release writes Sevilla. General knowledge, not a fact of the release; the registry keeps the release’s word, so the alias is for the list’s search only.",
+   "word": "Sevilla"
+  },
+  {
+   "alias": "Gothenburg",
+   "evidence": "Gothenburg is the common English name of the Swedish city, which the release writes Göteborg. General knowledge, not a fact of the release; the registry keeps the release’s word, so the alias is for the list’s search only.",
+   "word": "Göteborg"
+  },
+  {
+   "alias": "Hanoi",
+   "evidence": "Hanoi is the common English name of the capital of Viet Nam, which the release writes Hà Nội. General knowledge, not a fact of the release; the registry keeps the release’s word, so the alias is for the list’s search only.",
+   "word": "Hà Nội"
+  }
+ ],
+ "clears": [
+  {
+   "evidence": "The title says “Full and Half Marathon”: it names a marathon. The registry’s rule sets the words “Half Marathon” aside and then finds no marathon word.",
+   "flag": "not_a_marathon_title",
+   "label": "Angkor Empire Full and Half Marathon",
+   "reviewed": "2026-11-14"
+  },
+  {
+   "evidence": "The title says “Full and Half Mararthon”, the release’s spelling of marathon: it names a marathon. The registry’s rule does not read that spelling.",
+   "flag": "not_a_marathon_title",
+   "label": "Kerryman Dingle Full and Half Mararthon",
+   "reviewed": "2026-11-14"
+  }
+ ],
+ "document": "The reviewed notes of the marathon race directory for this release (docs/RACES.md): the evidence files the family binds, race flags the registry’s rule does not give (`flags`) or gives wrongly (`clears`), each with its evidence, the lead’s rulings that allow a flagged race a page (`page_rulings`), the search aliases (`aliases`: a word as the release writes it and its common English name), the rulings on the pairs of the duplicate-edition audit (`duplicate_editions`), the editions those rulings set aside in a form another builder reads (`set_aside_editions`: label, year, the edition kept, the reason; the runner-lookup builder skips their rows), the reviewed notes on editions of listed pairs (`edition_notes`) and the lead’s general rulings (`rulings`). analysis/build_races.py reads it and scripts/verify-races.cjs checks it; the race registry is frozen and holds none of this.",
+ "duplicate_editions": [
+  {
+   "editions": [
+    [
+     "45th GMAA Green Mtn. Marathon & Half Marathon",
+     2015
+    ],
+    [
+     "Champlain Islands Marathon & Half Marathon",
+     2015
+    ]
+   ],
+   "kind": "one_race_two_keys",
+   "note": "Listed by the near rule: every name of the smaller list is in the other and nearly all finish within one two-minute window of each other.",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "ruling": "set_aside",
+   "set_aside": [
+    "45th GMAA Green Mtn. Marathon & Half Marathon",
+    2015
+   ],
+   "words": "Green Mtn. 2015 and Champlain Islands 2015: set aside the Green Mtn 2015 edition; Champlain Islands 2015 stays in its series (one race of one day under two keys, same race day and winning time in the producer’s notes)."
+  },
+  {
+   "editions": [
+    [
+     "Maraton Saltillo La Moderna",
+     2023
+    ],
+    [
+     "Maraton Saltillo La Moderna",
+     2024
+    ]
+   ],
+   "kind": "partial_overlap",
+   "note": "Listed by the time-only rule: the two lists share several times more finish seconds than chance gives, almost all between 5:00 and 6:30, under different names. Not one list twice.",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "ruling": "keep_both",
+   "set_aside": null,
+   "words": "Maraton Saltillo La Moderna 2023 and 2024: keep both, with the note `repeated_finish_times` (their finish times past about 5:00 are shared between rows and years; not individual times). No mark on the page beyond their tier; they are unverified and give no number anyway."
+  },
+  {
+   "editions": [
+    [
+     "Maratona SDAM",
+     2012
+    ],
+    [
+     "Maratona SDAM",
+     2013
+    ]
+   ],
+   "kept_by_convention": true,
+   "kind": "same_list_twice",
+   "note": "Listed by the near rule: the same names in both years, every finish shifted by the same amount. The data cannot say which year is the real one: 2012 is kept by convention (the earlier year), not because the data show it.",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "ruling": "set_aside",
+   "set_aside": [
+    "Maratona SDAM",
+    2013
+   ],
+   "words": "Maratona SDAM 2012 and 2013: set aside 2013. One list under two years of one race (631 names in both, every finish exactly 150 s apart). The data cannot say which year is real; the earlier one is kept by convention and the entry says so. Both editions carry the note `one_list_two_years` in the notes file."
+  }
+ ],
+ "edition_notes": [
+  {
+   "label": "Maraton Saltillo La Moderna",
+   "note": "repeated_finish_times",
+   "year": 2023
+  },
+  {
+   "label": "Maraton Saltillo La Moderna",
+   "note": "repeated_finish_times",
+   "year": 2024
+  },
+  {
+   "label": "Maratona SDAM",
+   "note": "one_list_two_years",
+   "year": 2012
+  },
+  {
+   "label": "Maratona SDAM",
+   "note": "one_list_two_years",
+   "year": 2013
+  }
+ ],
+ "evidence": {
+  "cohort_sensitivity": "docs/evidence/2026-11-14/release-20261113-1113/cohort-sensitivity.json",
+  "duplicate_editions": "docs/evidence/2026-11-14/release-20261113-1113/duplicate-editions.json",
+  "edition_facts": "docs/evidence/2026-11-14/release-20261113-1113/edition-policy-review.json"
+ },
+ "flags": [
+  {
+   "evidence": "The release’s title of this race ends with the word POSTPONED. The registry’s rule reads the words cancel and annul only, so it gives no flag.",
+   "flag": "cancelled",
+   "label": "Khmer Empire Full Marathon - POSTPONED",
+   "reviewed": "2026-11-14"
+  },
+  {
+   "evidence": "The release’s title of this race ends with the word Postponed. The registry’s rule reads the words cancel and annul only, so it gives no flag.",
+   "flag": "cancelled",
+   "label": "Hoi An Discovery Marathon - Postponed",
+   "reviewed": "2026-11-14"
+  },
+  {
+   "evidence": "The release’s title is “Robs Test Event”: a test entry of a timing platform, not the title of a race.",
+   "flag": "placeholder",
+   "label": "Robs Test Event",
+   "reviewed": "2026-11-14"
+  },
+  {
+   "evidence": "The release’s title names a 24-hour event and no marathon. The registry’s rule finds no marathon word but no other event either, so it gives no flag.",
+   "flag": "not_a_marathon_title",
+   "label": "UL 24 Hour",
+   "reviewed": "2026-11-14"
+  }
+ ],
+ "page_rulings": [
+  {
+   "flag": "cancelled",
+   "label": "Rimouski",
+   "note": "The label is the one the re-issued registry gives the race (two keys joined by a reviewed join, 2004 to 2023). The race keeps the flag `cancelled` in the data: it says what the platform’s title says, and the ruling is why it does not withhold the page.",
+   "page": "allowed",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "words": "Ruling on Rimouski: it gets its results page. \"- Annulé\" is the timing platform’s current title for the whole key, not a statement about the years that hold results: nine of its editions are verified against an independent count, and the registry’s reviewed name (\"Marathon de Rimouski\") already drops the words. The rule stays for a race whose flagged title has no verified edition."
+  }
+ ],
+ "reviewed": "2026-11-14",
+ "rulings": [
+  {
+   "about": "a race with no live edition",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "words": "A race with no live edition is left out of the directory by rule (it has no results to list)."
+  },
+  {
+   "about": "an edition set aside as a copy",
+   "ruled_by": "the lead",
+   "ruled_on": "2026-11-14",
+   "words": "A set-aside edition: listed in the directory’s data with the mark `copy` and the edition it copies, no number, counted toward no total, floor or reading, as you built it; on a page it is not shown as an edition of the race. Put the set-aside list in the notes file in a form another builder can read (`set_aside_editions`: label, year, the edition kept, the reason): the runner-lookup builder will skip those editions’ rows, so one run is not shown as two results; say in your contract that it does."
+  }
+ ],
+ "schema_version": 1,
+ "set_aside_editions": [
+  {
+   "kept": {
+    "label": "Champlain Islands Marathon & Half Marathon",
+    "year": 2015
+   },
+   "label": "45th GMAA Green Mtn. Marathon & Half Marathon",
+   "reason": "one_race_two_keys",
+   "year": 2015
+  },
+  {
+   "kept": {
+    "label": "Maratona SDAM",
+    "year": 2012
+   },
+   "label": "Maratona SDAM",
+   "reason": "one_list_two_years",
+   "year": 2013
+  }
+ ],
+ "tag": "pace-notes-marathon-half-20261113-1113"
+}

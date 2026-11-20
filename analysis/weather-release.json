@@ -1,10 +1,13 @@
 {
   "repository": "koolkam00/pace-notes",
-  "tag": "master-20261103b",
-  "layout": "master",
+  "tag": "pace-notes-marathon-half-20261113-1113",
+  "layout": "combined",
   "race_conditions": {
-    "tag": "dataset-20261103-0706",
-    "asset": "marathon-race_conditions.csv.zst",
-    "sha256": "4a781f7cecb1bd8dd6b1e883a0b5c25b63bf3937bfa6219ed08c710be50ad3b5"
+    "archive": "pace-notes-CORE-20261113-1113.tar.gz",
+    "archive_sha256": "a76b1615d2e6769dab61cfc3cfa1cf54a6b3897b1bf54c4bbc682083d6f790e0",
+    "member": "race_conditions.parquet",
+    "member_sha256": "98c46d81c54a9d3496e3f0e0997d74f48f34fa8bf0354d04854799a60cbc7f4f",
+    "adapted_from": "private-export-20261021-1050",
+    "adapted_sha256": "a2efadb42d1570d499e6b2b9fb2390afc1e03c14e32dd86ff268aba85942a401"
   }
 }

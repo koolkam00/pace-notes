@@ -5,9 +5,10 @@
  */
 import { ANALYSIS_NUGGETS } from './analyses';
 import { CHART_NUGGETS } from './charts';
-import { COURSE_CONTEXT_NUGGETS, COURSE_NUGGETS } from './courses';
+import { COURSE_CONTEXT_NUGGETS, COURSE_NUGGETS, RACE_CONTEXT_NUGGETS } from './courses';
 import { HALF_NUGGETS } from './half';
 import { HOME_NUGGETS } from './home';
+import { LINKED_NUGGETS } from './linked';
 import { RUNNER_NUGGETS } from './runners';
 import { STORY_NUGGETS } from './stories';
 import { TOOL_NUGGETS } from './tools';
@@ -18,7 +19,7 @@ export * from './types';
 export { finishesM, plain, sentenceOf, siteTotals, textFor } from './core';
 
 const REGISTRY: Record<string, Builder> = {};
-for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGETS, TOOL_NUGGETS, RUNNER_NUGGETS, CHART_NUGGETS, HALF_NUGGETS]) {
+for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGETS, TOOL_NUGGETS, RUNNER_NUGGETS, CHART_NUGGETS, HALF_NUGGETS, LINKED_NUGGETS]) {
   for (const [id, build] of Object.entries(group)) {
     if (REGISTRY[id]) throw new Error(`Nugget ${id} is registered twice.`);
     REGISTRY[id] = build;
@@ -29,7 +30,7 @@ for (const group of [HOME_NUGGETS, STORY_NUGGETS, ANALYSIS_NUGGETS, COURSE_NUGGE
 export const NUGGET_IDS = Object.keys(REGISTRY) as NuggetId[];
 
 /** Nuggets that need a context to build (a course page's city), with the contexts the site builds them for. */
-export const CONTEXT_NUGGETS: readonly NuggetId[] = [...COURSE_CONTEXT_NUGGETS];
+export const CONTEXT_NUGGETS: readonly NuggetId[] = [...COURSE_CONTEXT_NUGGETS, ...RACE_CONTEXT_NUGGETS];
 
 const memo = new Map<string, Nugget>();
 
@@ -104,20 +105,24 @@ export const PAGE_NUGGET: Readonly<Record<string, NuggetId>> = {
   '/tools/weather-match': 'weathermatch.mornings',
   '/runners': 'runner.yours',
   '/tools/split-check': 'splitcheck.share',
+  '/stories/fast-and-slow-years': 'years.called',
+  '/stories/race-to-race': 'races.faster',
+  '/stories/recorded-bests': 'bests.turn',
+  '/stories/getting-older': 'age.fifty',
   '/stories/half-to-full': 'half.extra',
   '/analyses/finding-improvement': 'gains.final',
   '/tools/plan': 'plan.goal',
 };
 
 /**
- * Each chapter's contents-row reading, chapters 01 to 11 in order (spec section 2.2: the lead and its key). A chapter's
+ * Each chapter's contents-row reading, chapters 01 to 12 in order (spec section 2.2: the lead and its key). A chapter's
  * lead is its first page's own reading, so the number a reader taps on the home guide, the contents or a next card is
  * the number that page opens on (verify-chapters checks both). Chapter 11 opens on the half story (half.extra) since
  * October 29, 2026 (docs/HALF_MARATHON.md).
  */
 export const CHAPTER_LEAD: readonly NuggetId[] = [
   'field.median', 'kick.bank', 'types.top', 'checkpoint.under', 'slowdown.onset', 'round.top',
-  'holds.gender', 'courses.named', 'weather.pairs', 'splitcheck.share', 'half.extra',
+  'holds.gender', 'courses.named', 'weather.pairs', 'years.called', 'splitcheck.share', 'half.extra',
 ];
 
 /** Ids still served by WP0-C's bootstrap placeholders (scripts/verify-nuggets.cjs lists them; WP9 fails while any remain). */

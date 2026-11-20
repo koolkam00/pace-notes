@@ -4,11 +4,13 @@
 //        the editions that make up a total, the shared height scale, the nearest pacing fingerprints);
 //     2. the page code refuses runner context the story data was not built from (a scratch copy of public/data whose
 //        context manifest differs only in its timestamp), and an independent recount from the published files, written
-//        without the page code: every edition's finishes against its checksum-verified runner-context shard, the course
-//        totals and the editions that make them up, medians and sustained-slowdown range against the editions, the
-//        weather in courses.json against the shards and the weather-match file, the route's 5 km sections against the
-//        course chooser's totals, the course-profile pack against the story cohort, and which courses the two linked
-//        analyses have a result for.
+//        without the page code: every edition's finishes against the marathon cohort's manifest and, where the runner
+//        context lists one, its checksum-verified shard, the course totals and the editions that make them up, medians
+//        and sustained-slowdown range against the editions, the weather in courses.json against the shards and the
+//        weather-match file, the route's 5 km sections against the course chooser's totals, the course-profile pack
+//        against the story cohort, which courses the two linked analyses have a result for, and (since November 14,
+//        2026) which courses have a page: three or more counted editions, or one of the 27 kept courses, a kept course
+//        without a counted edition having a page that only lists its editions with their tiers.
 //   Built-page checks (`--html`, appended to `npm run verify:seo`, after the build), on every course page:
 //     3. every printed figure (<data data-k>) against its file, both its value and the text shown (the default miles
 //        view), every edition and goal row present (in "All numbers"), no other number in a table cell; one H1, no empty
@@ -172,13 +174,20 @@ const courseGoal = insight('tools/course-goal.json');
 const paceBand = insight('tools/pace-band.json');
 const projector = insight('tools/projector.json');
 const weatherMatch = insight('tools/weather-match.json');
-const runnerBytes = fs.readFileSync(path.join(root, 'public/data/runners/manifest.json'));
-const runners = JSON.parse(runnerBytes.toString());
+// The marathon cohort's manifest: the edition index of the story data and of the runner context, and each edition's
+// counted finishes, tier and reviewed race date (the runner lookup's manifest until November 14, 2026).
+const cohortReader = require('./lib/cohort.cjs');
+const { policyEditions } = require('./lib/edition-policy.cjs');
+const COHORT_MANIFEST = path.join(cohortReader.ROOT, 'manifest.json');
+const cohortBytes = fs.readFileSync(COHORT_MANIFEST);
+const cohort = JSON.parse(cohortBytes.toString());
 const context = read('public/data/runner-context/manifest.json');
 const release = read('analysis/release.json');
-assert.equal(sha256(runnerBytes), manifest.runner_manifest_sha256, 'The story data was built from these runner records');
-assert.equal(context.runner_manifest_sha256, manifest.runner_manifest_sha256, 'The runner context was built from the same runner records');
+assert.equal(sha256(cohortBytes), manifest.runner_manifest_sha256, 'The story data was built from this marathon cohort');
+assert.equal(manifest.cohort_manifest_sha256, manifest.runner_manifest_sha256, 'The story manifest names the cohort under both field names');
+assert.equal(context.runner_manifest_sha256, manifest.runner_manifest_sha256, 'The runner context was built from the same marathon cohort');
 assert.equal(context.release_tag, release.tag, 'The runner context is for the adopted release');
+assert.equal(cohort.release_tag, release.tag, 'The marathon cohort is for the adopted release');
 
 // The page code reads only the runner context the story data was built from. A scratch copy of public/data (symlinks)
 // whose context manifest differs only in its timestamp keeps the release and the runner records, so only the exact-hash
@@ -188,6 +197,8 @@ assert.equal(context.release_tag, release.tag, 'The runner context is for the ad
   try {
     const data = path.join(scratch, 'public/data');
     fs.mkdirSync(path.join(data, 'runner-context'), { recursive: true });
+    // The page code reads the cohort manifest from the working directory's analysis folder.
+    fs.symlinkSync(path.join(root, 'analysis'), path.join(scratch, 'analysis'));
     for (const name of fs.readdirSync(path.join(root, 'public/data'))) if (name !== 'runner-context') fs.symlinkSync(path.join(root, 'public/data', name), path.join(data, name));
     fs.symlinkSync(path.join(root, 'public/data/runner-context/editions'), path.join(data, 'runner-context/editions'));
     const rebuilt = read('public/data/runner-context/manifest.json');
@@ -196,23 +207,31 @@ assert.equal(context.release_tag, release.tag, 'The runner context is for the ad
     process.chdir(scratch);
     let refused = null;
     try { P.editionContexts(); } catch (error) { refused = error; }
-    check(refused && /runner context the story data was built from/.test(refused.message), 'data', `runner context rebuilt from the same runner records (as_of ${rebuilt.as_of}) is read beside story data built from the previous one${refused ? `: ${refused.message}` : ''}`);
+    check(refused && /runner context the story data was built from/.test(refused.message), 'data', `runner context rebuilt from the same marathon cohort (as_of ${rebuilt.as_of}) is read beside story data built from the previous one${refused ? `: ${refused.message}` : ''}`);
     // The binding itself, on the published bytes. "Rebound" stands for story data and geometry that record the very bytes
     // given, so only the validator and the timestamps can refuse them; the published manifest, re-serialized, passes so.
     const story = manifest, geometrySha = geometryFile.context_manifest_sha256;
-    const contextBytes = fs.readFileSync(path.join(root, 'public/data/runner-context/manifest.json')), runnerBytes = fs.readFileSync(path.join(root, 'public/data/runners/manifest.json'));
+    const contextBytes = fs.readFileSync(path.join(root, 'public/data/runner-context/manifest.json'));
     const published = JSON.parse(contextBytes);
-    const bind = (bytes, { rebound = false, geometry = geometrySha, storyMeta = story } = {}) => {
+    const bind = (bytes, { rebound = false, geometry = geometrySha, storyMeta = story, cohortManifest = cohortBytes } = {}) => {
       const buffer = Buffer.from(bytes), sha = sha256(buffer);
-      try { P.boundContextManifest(buffer, runnerBytes, rebound ? { ...storyMeta, context_manifest_sha256: sha } : storyMeta, rebound ? sha : geometry); return null; } catch (error) { return error; }
+      try { P.boundContextManifest(buffer, cohortManifest, rebound ? { ...storyMeta, context_manifest_sha256: sha } : storyMeta, rebound ? sha : geometry); return null; } catch (error) { return error; }
     };
     check(!bind(contextBytes) && !bind(JSON.stringify(published), { rebound: true }), 'data', 'the published runner context is refused');
+    // Changed November 14, 2026 (lead ruling D24.8): the context lists a file only for a counted edition with peers,
+    // weather or terrain, so a manifest without one of its editions is still a context of this cohort and must be
+    // accepted; what must be refused instead is a file listed for an edition the cohort does not count.
+    check(!bind(JSON.stringify({ ...published, editions: Object.fromEntries(Object.entries(published.editions).slice(1)) }), { rebound: true }), 'data', 'a context manifest that lists no file for one counted edition is refused');
+    const notCounted = cohort.editions.findIndex((e) => e.use !== 'counted');
+    const anEntry = Object.values(published.editions)[0];
     for (const [label, bytes, options] of [
       ['a context manifest with another as_of', JSON.stringify(rebuilt), {}],
       ['course geometry built from another context', contextBytes, { geometry: 'f'.repeat(64) }],
-      ['a context manifest for another runner-manifest timestamp', JSON.stringify({ ...published, runner_manifest_as_of: '2026-01-01T00:00:00Z' }), { rebound: true }],
+      ['a context manifest for another cohort-manifest timestamp', JSON.stringify({ ...published, runner_manifest_as_of: '2026-01-01T00:00:00Z' }), { rebound: true }],
       ['a context manifest for another release', JSON.stringify({ ...published, release_tag: 'private-export-20260911-1107' }), { rebound: true }],
-      ['a context manifest missing an edition', JSON.stringify({ ...published, editions: Object.fromEntries(Object.entries(published.editions).slice(1)) }), { rebound: true }],
+      ['a context manifest that lists a file for an edition past the cohort\'s list', JSON.stringify({ ...published, editions: { ...published.editions, [String(cohort.editions.length)]: anEntry } }), { rebound: true }],
+      ...(notCounted >= 0 ? [['a context manifest that lists a file for an edition the cohort does not count', JSON.stringify({ ...published, editions: { ...published.editions, [String(notCounted)]: anEntry } }), { rebound: true }]] : []),
+      ['a context manifest built on another cohort manifest', contextBytes, { cohortManifest: Buffer.from(JSON.stringify({ ...cohort, as_of: '2026-01-01T00:00:00Z' })) }],
       ['story data with another input timestamp', contextBytes, { rebound: true, storyMeta: { ...story, input_as_of: '2026-01-01T00:00:00Z' } }],
     ]) check(bind(bytes, options), 'data', `the context binding accepts ${label}`);
   } finally {
@@ -225,30 +244,199 @@ const isCopy = (city, year) => copies.some((c) => c.city === city && c.year === 
 const slugOf = (city) => city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const key = (city, year) => `${city}|${year}`;
 
-// The runner-context shards: checksum, edition binding, and what the pages read (eligible count, date, start, weather, terrain).
+// The runner-context shards: checksum, edition binding, and what the pages read (date, start, weather, terrain). The
+// context lists a shard only for a counted edition with peers, weather or terrain (lead ruling D24.8); an edition's
+// counted finishes are the cohort manifest's, and a shard that exists must state the same count.
 const shards = new Map();
-runners.editions.forEach((edition, index) => {
+const cohortEditions = new Map();
+const countedIndex = new Set(cohort.editions.flatMap((edition, index) => (edition.use === 'counted' ? [String(index)] : [])));
+check(Object.keys(context.editions).every((index) => countedIndex.has(index)), 'data', 'the runner context lists a shard for an edition the cohort does not count');
+cohort.editions.forEach((edition, index) => {
+  assert.ok(!cohortEditions.has(key(edition.city, edition.year)), `${edition.city} ${edition.year}: listed twice in the cohort`);
+  cohortEditions.set(key(edition.city, edition.year), edition);
   const meta = context.editions[String(index)];
-  assert.ok(meta && meta.file === `editions/${String(index).padStart(3, '0')}.json.gz`, `runner context lists shard ${index}`);
+  if (!meta) return;
+  assert.match(meta.file, /^editions\/[a-z0-9]+(-[a-z0-9]+)*\.json\.gz$/, `runner context shard path for edition ${index}`);
   const bytes = fs.readFileSync(path.join(root, 'public/data/runner-context', meta.file));
   assert.equal(bytes.length, meta.bytes, `${meta.file}: size`);
   assert.equal(sha256(bytes), meta.sha256, `${meta.file}: checksum`);
   const shard = JSON.parse(zlib.gunzipSync(bytes));
-  assert.deepEqual([shard.edition.city, shard.edition.year], [edition.city, edition.year], `${meta.file}: edition`);
+  assert.deepEqual([shard.edition.index, shard.edition.city, shard.edition.year], [index, edition.city, edition.year], `${meta.file}: edition`);
+  assert.equal(shard.eligible_n, edition.eligible, `${meta.file}: its finishes are the cohort's counted finishes of the edition`);
   shards.set(key(edition.city, edition.year), shard);
 });
+/** Counted finishes of an edition (zero when the cohort does not count it or does not know it). */
+const countedFinishes = (city, year) => { const e = cohortEditions.get(key(city, year)); return e && e.use === 'counted' ? e.eligible : 0; };
+
+// Every edition with written records in the release, for the lists of a course's editions: the cohort's editions with a
+// file and the others it lists (the reader's otherEditions refuses any other set of columns), each with the release's
+// tier, weaker-source mark and split tier. The manifest carries a timing basis for an edition with a file only.
+const LISTED = [
+  ...cohort.editions.map((e) => ({ city: e.city, year: e.year, use: e.use, tier: e.tier, weaker: e.weaker_source, split: e.split_tier, timing: e.timing_basis })),
+  ...cohortReader.otherEditions(cohort).map((e) => ({ city: e.city, year: e.year, use: 'other', tier: e.tier, weaker: e.weaker_source, split: e.split_tier, timing: null })),
+];
+check(LISTED.every((e) => typeof e.tier === 'string' && typeof e.weaker === 'boolean' && typeof e.split === 'string' && (e.timing === null || typeof e.timing === 'string')), 'data',
+  'an edition of the cohort manifest has no tier, weaker-source mark or split tier: a page that lists an edition must be able to name its tier');
+// An edition with a cohort file has 5K splits by the edition policy's first condition.
+check(cohort.editions.every((e) => e.split_tier === 'splits'), 'data', 'an edition with a cohort file is not of the split tier "splits"');
+// The race directory (public/data/races/; docs/RACES.md), whose pages.json lists every race with a page and whose race
+// files give each edition's recorded results (November 19, 2026). Its course pages must be the course pages recounted
+// below; its results pages are the second template.
+const RACE_PAGES = read('public/data/races/pages.json').pages;
+const raceFileOf = (slug) => read(`public/data/races/race/${slug}.json`);
+const RESULTS = RACE_PAGES.filter((p) => p.page === 'results');
+
+// The words a page prints for an edition (lead decision D16) come from the shared vocabulary and from nowhere else:
+// lib/tiers.ts holds them, components/ui/TierTag.tsx draws them, and scripts/verify-tiers.cjs fails any other file that
+// writes one. Here the same functions check the codes of every edition a course page names, so no page meets a code the
+// vocabulary does not know, a tier that is never shown, or a weaker-source flag that disagrees with its tier.
+const T = require(path.join(root, 'lib/tiers.ts'));
+/** The label texts of one edition, in the order EditionTags draws them; throws on a code the vocabulary refuses. */
+/**
+ * An edition table's key (lead decision D48, review M5, November 20, 2026), recounted from the rows' codes: from three
+ * rows, a label true of more than half of them (a tier, "Finish times only", "Gun times") is said once in the key with
+ * the years it is not true of, and each row shows only the labels the key does not say for it.
+ * `rows` are { year, tier, split, gun }. Returns the key's text ('' for none) and each row's expected labels.
+ */
+// Amended 2026-11-20 (lead decision D53, second review D1): a label is said in the key only when (a) the table has three or
+// more rows, (b) the label is true of more than half of them and (c) the rows it is not true of number at most three;
+// otherwise it stays on every row it is true of. (Rimouski's key had become two exception lists of 8 and 6 years.)
+function tableKey(rows) {
+  const most = (pred) => {
+    const yes = rows.filter(pred).length, no = rows.length - yes;
+    return rows.length >= 3 && yes * 2 > rows.length && no <= 3 ? rows.filter((r) => !pred(r)).map((r) => r.year) : null;
+  };
+  const tiers = [...new Set(rows.map((r) => r.tier))];
+  const tier = tiers.find((t) => most((r) => r.tier === t) !== null) ?? null;
+  const split = most((r) => r.split === 'finish_time_only');
+  const gun = most((r) => r.gun);
+  const spans = (ys) => {
+    const runs = [];
+    for (const y of [...ys].sort((a, b) => a - b)) { const last = runs[runs.length - 1]; if (last && y === last[1] + 1) last[1] = y; else runs.push([y, y]); }
+    const parts = runs.flatMap(([a, b]) => (b - a >= 2 ? [`${a}–${b}`] : b === a ? [String(a)] : [String(a), String(b)]));
+    return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+  };
+  const items = [];
+  const item = (words, except) => items.push(`${words}${except.length ? `, except ${spans(except)}` : ', every year'}`);
+  if (tier) item(T.tierWords(tier), rows.filter((r) => r.tier !== tier).map((r) => r.year));
+  if (split) item(T.FINISH_TIMES_ONLY, split);
+  if (gun) item(T.GUN_TIMES, gun);
+  return {
+    tier,
+    text: items.map((i) => `${i}.`).join(' '),
+    labels: (r) => [r.tier === tier ? null : T.tierWords(r.tier), split || r.split !== 'finish_time_only' ? null : T.FINISH_TIMES_ONLY, gun || !r.gun ? null : T.GUN_TIMES].filter(Boolean),
+  };
+}
+/** The key's own labels: each links to the definitions, and its tier label carries the tier the key says. */
+function checkKeyLabels(where, keyHtml, key) {
+  if (!keyHtml) return;
+  const links = [...keyHtml.matchAll(/<a\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>/g)].map((l) => l[1]);
+  check(links.every((a) => attr(a, 'href') === T.TIER_ANCHOR), where, 'a label in the key does not link to its definition');
+  const tiers = links.map((a) => attr(a, 'data-tier')).filter((t) => t !== undefined && t !== null);
+  check(JSON.stringify(tiers) === JSON.stringify(key.tier ? [key.tier] : []), where, `the key's tier label carries ${JSON.stringify(tiers)}, not ${key.tier ?? 'none'}`);
+  // Each label and its ", except" (or ", every year.") stand in one unbreakable head (lead decision D53, 2026-11-20).
+  const heads = [...keyHtml.matchAll(/<span class="edition-key-head">([\s\S]*?<\/a>[\s\S]*?)<span class="edition-key-join">([^<]*)<\/span><\/span>/g)];
+  check(heads.length === links.length && heads.every((h) => /^, (except|every year\.)$/.test(h[2])), where, `the key's ${links.length} labels stand in ${heads.length} heads with their ", except"`);
+}
+/** The key's text on a page, before a section's first table; '' where it has none. */
+const keyText = (html) => (/<p class="edition-key">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? null);
+
+/**
+ * The year's verdict for linked runners in an edition row (components/races/LinkedYear.tsx): the cell says exactly the
+ * linked-records helper's words (their guard is recounted by scripts/nuggets/linked.cjs), sentence case, or a dash; the
+ * column and its one note ("records linked by name") stand only where some year of the race has a verdict.
+ */
+function checkLinkedColumn(where, label, table, rows) {
+  const L = require(path.join(root, 'lib/linked-server.ts'));
+  const want = rows.map(([year]) => L.linkedEditionReading(label, year));
+  const any = want.some(Boolean);
+  check(any === /<th scope="col"[^>]*>Linked runners<\/th>/.test(table), where, `the linked-runners column ${any ? 'is missing' : 'stands with no verdict'}`);
+  rows.forEach(([year, cells], i) => {
+    const cell = /<td class="is-text linked-year"([^>]*)>([\s\S]*?)<\/td>/.exec(cells);
+    if (!any) { check(!cell, where, `${year}: a linked-runners cell with no column`); return; }
+    const r = want[i];
+    const text = cell ? textOf(cell[2]) : null;
+    const expected = r ? `${r.words.charAt(0).toUpperCase()}${r.words.slice(1)}${r.reviewed ? ' (reviewed)' : ''}` : '—';
+    check(text === expected, where, `${year}: the linked-runners cell "${text}" is not "${expected}"`);
+    if (r && r.reviewed) check(new RegExp(`href="${r.reviewHref}"`).test(cell[2]), where, `${year}: a reviewed verdict without its link`);
+  });
+}
+const tierTexts = (e, timingBasis = null) => [T.tierWords(e.tier, e.weaker), T.splitTierWords(e.split), T.timingWords(timingBasis)].filter(Boolean);
+// The edition policy's published list against the cohort's own: an edition is counted exactly when the policy does not list it.
+const policyKeys = new Set(policyEditions(cohort.source_quality, 'marathon cohort').map((e) => key(e.city, e.year)));
+check(LISTED.every((e) => (e.use === 'counted') === !policyKeys.has(key(e.city, e.year))) && policyKeys.size === LISTED.filter((e) => e.use !== 'counted').length, 'data', 'the cohort\'s counted editions are not exactly the editions the published edition policy leaves unlisted');
 
 const profileRows = fs.readFileSync(path.join(root, 'public/data/packs/ext_course_pacing_profiles/tables/course_profiles.csv'), 'utf8').trim().split('\n').slice(1).map((line) => line.split(','));
+// The courses of the story data: every city with a summary in courses.json (an edition of 100 counted finishes).
 const CITIES = [...new Set(profileRows.map((r) => r[0]))].sort();
 const profileN = new Map(profileRows.map((r) => [r[0], Number(r[3])]));
 const allFinisher = new Map(read('public/data/all-finisher-context/evidence.json').rows[0].courses.map((c) => [c.id, c]));
 const policy = read('public/data/packs/ext_course_pacing_profiles/pack_meta.json').source_quality;
 assert.equal(policy.release_tag, release.tag, 'The course-profile source policy is for the adopted release');
-// One page per course with eligible finishes: 29 under 0934, 28 since the 1652 release excluded Melbourne's only edition
-// (2015, a partial load), 27 since the October 21, 2026 release held all three Vienna editions. The count comes from the
-// verified story data, never a typed number.
-assert.deepEqual(CITIES, courses.courses.map((c) => c.city).sort(), 'One course page per course in the story data');
-assert.equal(CITIES.length, manifest.cohort.cities, 'Course pages match the story cohort\'s cities');
+assert.deepEqual([policy.policy_sha256, policy.editions_sha256], [cohort.source_quality.policy_sha256, cohort.source_quality.editions_sha256], 'The course-profile pack and the marathon cohort were cut by the same edition policy');
+// One course in the story data per city of the course-profile pack: 29 under 0934, 28 since the 1652 release excluded
+// Melbourne's only edition (2015, a partial load), 27 since the October 21, 2026 release held all three Vienna editions,
+// 28 on pace-notes-marathon-half-20261113-1113 (Auckland and Singapore have no counted edition left; Los Angeles,
+// Oklahoma City and Toronto Waterfront are counted). The count comes from the verified story data, never a typed number.
+assert.deepEqual(CITIES, courses.courses.map((c) => c.city).sort(), 'One course in the story data per city of the course-profile pack');
+assert.equal(CITIES.length, manifest.cohort.cities, 'The story data\'s courses match the story cohort\'s cities');
+
+// The course pages (lead decisions D14 and D15, November 14, 2026). Until then a course of the story data and a course
+// page were the same thing. A race has a page with three or more counted editions; the 27 courses that had a page keep
+// theirs whatever the edition policy leaves them. A page is full when its course is in the story data, else it only
+// lists the race's editions.
+const KEPT_PAGES = ['Amsterdam', 'Auckland', 'Austin', 'Barcelona', 'Berlin', 'Boston', 'Chicago', 'Copenhagen', 'Dubai', 'Eindhoven', 'Frankfurt', 'Gold Coast', 'Hamburg', 'Helsinki',
+  'London', 'Madrid', 'New York', 'Oslo', 'Paris', 'Prague', 'Rotterdam', 'Singapore', 'Stockholm', 'Sydney', 'Valencia', 'Warsaw', 'Washington'];
+const countedByCity = new Map();
+for (const e of cohort.editions) if (e.use === 'counted') countedByCity.set(e.city, (countedByCity.get(e.city) ?? 0) + 1);
+const PAGES = [...new Set([...KEPT_PAGES, ...[...countedByCity].filter(([, n]) => n >= 3).map(([city]) => city)])].sort();
+const PAGE_CITIES = PAGES.filter((city) => CITIES.includes(city));
+const LIST_CITIES = PAGES.filter((city) => !CITIES.includes(city));
+{
+  const D = require(path.join(root, 'lib/course-data.ts'));
+  check(JSON.stringify([...D.KEPT_COURSE_PAGES]) === JSON.stringify(KEPT_PAGES) && KEPT_PAGES.length === 27, 'data', 'the kept course pages are not the 27 courses that had a page before the combined release');
+  check(JSON.stringify(D.getCourseNames()) === JSON.stringify(PAGES), 'data', `the course pages ${JSON.stringify(D.getCourseNames())} are not the kept courses plus every race with three or more counted editions`);
+  check(new Set(PAGES.map(slugOf)).size === PAGES.length, 'data', 'two course pages share an address');
+  // The race directory's course pages are these, label and slug (November 19, 2026); its results pages have no course.
+  const dirCourses = RACE_PAGES.filter((p) => p.page === 'course');
+  check(JSON.stringify(dirCourses.map((p) => [p.label, p.slug]).sort()) === JSON.stringify(PAGES.map((c) => [c, slugOf(c)]).sort()), 'data', 'the race directory\'s course pages are not the course pages');
+  check(RESULTS.every((p) => !PAGES.includes(p.label) && !PAGES.map(slugOf).includes(p.slug)), 'data', 'a results page shares a course page\'s race or address');
+  // Every course page's editions, counted or not, carry the race file's recorded results (the race file lists the same
+  // live editions, with the same tier, split tier and timing class).
+  for (const city of PAGES) {
+    const model = P.coursePages().get(slugOf(city)) ?? P.courseLists().get(slugOf(city));
+    const live = raceFileOf(slugOf(city)).editions.filter((e) => e.review !== 'copy');
+    check(model && JSON.stringify(model.listed.map((e) => [e.year, e.tier, e.splitTier, e.timing, e.results])) === JSON.stringify(live.map((e) => [e.year, e.tier, e.split_tier, e.timing, e.results])), `data ${city}`, 'the page\'s editions are not the race file\'s live editions with their recorded results');
+  }
+  check(KEPT_PAGES.every((city) => LISTED.some((e) => e.city === city)), 'data', 'a kept course has no edition in the release');
+  check(JSON.stringify([...P.coursePages().keys()].sort()) === JSON.stringify(PAGE_CITIES.map(slugOf).sort()), 'data', 'the full course pages are not the pages whose course is in the story data');
+  check(JSON.stringify([...P.courseLists().keys()].sort()) === JSON.stringify(LIST_CITIES.map(slugOf).sort()), 'data', 'the list-only course pages are not the pages whose course is not in the story data');
+  // A list-only page has no counted edition of 100 finishes; today that is a course with no counted edition at all.
+  for (const city of LIST_CITIES) {
+    const model = P.courseLists().get(slugOf(city));
+    const editions = LISTED.filter((e) => e.city === city).sort((a, b) => a.year - b.year);
+    check(editions.every((e) => countedFinishes(city, e.year) < 100), `data ${city}`, 'a list-only page has an edition of 100 counted finishes');
+    check(model && JSON.stringify(model.listed.map((e) => [e.year, e.use, e.tier])) === JSON.stringify(editions.map((e) => [e.year, e.use, e.tier])), `data ${city}`, 'the list-only page does not list exactly the race\'s editions with their tiers');
+    // Every edition of the list has labels the vocabulary can draw (the page's build would stop on one it cannot).
+    for (const e of editions) {
+      let words = null;
+      try { words = tierTexts(e, e.timing); } catch (error) { fail(`data ${city}`, `${e.year}: ${error.message}`); }
+      if (words) check(words.length > 0, `data ${city}`, `${e.year}: an edition without a tier label`);
+    }
+    check(model && model.listed.every((e, i) => e.splitTier === editions[i].split && e.weakerSource === editions[i].weaker && e.timingBasis === editions[i].timing), `data ${city}`, 'the list-only page carries another split tier, weaker-source flag or timing basis than the cohort manifest states');
+  }
+  // Every full page lists the race's editions with their tiers too, and its rows are counted editions with their tier.
+  for (const city of PAGE_CITIES) {
+    const model = P.coursePages().get(slugOf(city));
+    const editions = LISTED.filter((e) => e.city === city).sort((a, b) => a.year - b.year);
+    check(model && JSON.stringify(model.listed.map((e) => [e.year, e.use, e.tier])) === JSON.stringify(editions.map((e) => [e.year, e.use, e.tier])), `data ${city}`, 'the page model does not list exactly the race\'s editions with their tiers');
+    check(model && model.editions.every((row) => { const e = cohortEditions.get(key(city, row.year)); return e && e.use === 'counted' && e.tier === row.tier && typeof row.tier === 'string' && row.weakerSource === (e.weaker_source === true) && row.timingBasis === (e.timing_basis ?? null); }), `data ${city}`, 'an edition row is not a counted edition with its tier, weaker-source flag and timing basis');
+    // Each row's labels can be drawn: a tier the vocabulary shows, and a flag that agrees with it.
+    for (const row of model?.editions ?? []) {
+      try { tierTexts({ tier: row.tier, weaker: row.weakerSource, split: 'splits' }, row.timingBasis); } catch (error) { fail(`data ${city}`, `${row.year}: ${error.message}`); }
+    }
+  }
+}
 
 /** Everything the built-page checks need for one city, recounted from the files. */
 const facts = new Map();
@@ -257,23 +445,24 @@ for (const city of CITIES) {
   const s = courses.courses.find((c) => c.city === city);
   if (!s) { fail(where, 'no courses.json summary'); continue; }
   const cells = courses.years.cells.filter((c) => c.city === city).sort((a, b) => a.year - b.year);
-  const own = [...shards].filter(([k]) => k.startsWith(`${city}|`)).map(([, shard]) => shard).filter((shard) => !isCopy(city, shard.edition.year));
-  // Finishes: each edition row equals its shard; the course total is every non-copy shard of the city (small editions included).
+  // The course's counted editions in the marathon cohort (a copy edition never counts), as `{ year, n }`.
+  const own = cohort.editions.filter((e) => e.city === city && e.use === 'counted' && !isCopy(city, e.year)).map((e) => ({ year: e.year, n: e.eligible }));
+  // Finishes: each edition row equals the cohort's counted finishes of the edition (and its shard's, checked where the
+  // shards were read); the course total is every counted edition of the city (small editions included).
   for (const c of cells) {
-    const shard = shards.get(key(city, c.year));
-    check(shard && shard.eligible_n === c.n, where, `${c.year}: ${c.n} finishes against the shard's ${shard && shard.eligible_n}`);
+    check(countedFinishes(city, c.year) === c.n, where, `${c.year}: ${c.n} finishes against the cohort's ${countedFinishes(city, c.year)}`);
     check(c.n >= 100, where, `${c.year}: a row with ${c.n} finishes`);
     check(!isCopy(city, c.year), where, `${c.year} is a copy edition but has a row`);
   }
-  const total = own.reduce((sum, shard) => sum + shard.eligible_n, 0);
-  check(total === s.finishes, where, `finishes ${s.finishes} against ${total} in the shards`);
+  const total = own.reduce((sum, e) => sum + e.n, 0);
+  check(total === s.finishes, where, `finishes ${s.finishes} against ${total} in the cohort`);
   check(s.editions === cells.length, where, `editions ${s.editions} against ${cells.length} rows`);
   check(JSON.stringify(s.years) === JSON.stringify(cells.map((c) => c.year)), where, `years ${s.years} against the rows`);
-  const small = own.filter((shard) => shard.eligible_n > 0 && !cells.some((c) => c.year === shard.edition.year));
+  const small = own.filter((e) => e.n > 0 && !cells.some((c) => c.year === e.year));
   const smallFinishes = s.finishes - cells.reduce((sum, c) => sum + c.n, 0);
-  check(small.reduce((sum, shard) => sum + shard.eligible_n, 0) === smallFinishes && small.every((shard) => shard.eligible_n < 100), where, 'the editions under 100 finishes account for the rest of the total');
+  check(small.reduce((sum, e) => sum + e.n, 0) === smallFinishes && small.every((e) => e.n < 100), where, 'the editions under 100 finishes account for the rest of the total');
   // The editions that make up the total, which every sentence printing it must name: the rows plus those small editions.
-  const countedYears = [...cells.map((c) => c.year), ...small.map((shard) => shard.edition.year)].sort((a, b) => a - b);
+  const countedYears = [...cells.map((c) => c.year), ...small.map((e) => e.year)].sort((a, b) => a - b);
   // Medians and sustained slowdown: means of the editions, with the range and its years.
   check(close(cells.reduce((sum, c) => sum + c.median_s, 0) / cells.length, s.median_s, 0.51), where, `mean of edition medians ${s.median_s}`);
   check(close(cells.reduce((sum, c) => sum + c.slowdown, 0) / cells.length, s.slowdown, 0.00011), where, `mean sustained slowdown ${s.slowdown}`);
@@ -300,7 +489,7 @@ for (const city of CITIES) {
     check(hotCool.hot.temp === Math.max(...temps) && hotCool.cool.temp === Math.min(...temps), where, 'hot_cool names the warmest and coolest weather rows');
   }
   // Terrain: the same supplied current route in every edition; its sections sum to the course chooser's totals.
-  const terrains = own.filter((shard) => cells.some((c) => c.year === shard.edition.year)).map((shard) => shard.terrain?.sections).filter(Boolean);
+  const terrains = cells.map((c) => shards.get(key(city, c.year))?.terrain?.sections).filter(Boolean);
   const ctx = courseGoal.courses.find((c) => c.city === city) ?? null;
   const route = geometry.find((g) => g.city === city) ?? null;
   const terrain = terrains.length && terrains.every((t) => JSON.stringify(t) === JSON.stringify(terrains[0])) ? terrains[0] : null;
@@ -319,7 +508,7 @@ for (const city of CITIES) {
   const goalRows = new Map(P.COURSE_GOALS.map((g) => [g, courseGoal.rows.find((r) => r.city === city && r.goal === g) ?? null]));
   if (ctx && ctx.editions >= courseGoal.min_editions) for (const [g, row] of goalRows) check(row || courseGoal.unavailable.some((u) => u.city === city && u.goal === g), where, `goal ${g}: neither a row nor a reason`);
   facts.set(city, {
-    s, cells, weather, terrain, ctx, route, hotCool, goalRows, smallFinishes, smallYears: small.map((shard) => shard.edition.year).sort((a, b) => a - b),
+    s, cells, weather, terrain, ctx, route, hotCool, goalRows, smallFinishes, smallYears: small.map((e) => e.year).sort((a, b) => a - b), raceFile: RACE_PAGES.some((p) => p.label === city) ? raceFileOf(slugOf(city)) : null,
     counted: { editions: countedYears.length, years: countedYears },
     types: archetypes.courses.find((c) => c.city === city) ?? null,
     slope: courses.weather.per_course_slopes.find((x) => x.city === city) ?? null,
@@ -332,8 +521,8 @@ for (const city of CITIES) {
     allFinisherPct: af ? `${af.slowdown_pct.toFixed(1)}%` : null,
   });
 }
-check(CITIES.every((city) => slugOf(city) === P.coursePages().get(slugOf(city))?.slug), 'data', 'the page model has every course');
-for (const city of CITIES) {
+check(PAGE_CITIES.every((city) => slugOf(city) === P.coursePages().get(slugOf(city))?.slug), 'data', 'the page model has every full course page');
+for (const city of PAGE_CITIES) {
   const named = JSON.stringify(P.coursePages().get(slugOf(city))?.counted), recount = JSON.stringify(facts.get(city)?.counted);
   check(named === recount, `data ${city}`, `the page model names ${named} as the editions that make up the course total; the recount ${recount}`);
 }
@@ -358,8 +547,8 @@ for (const city of CITIES) {
 // The pages link to hills and pacing exactly where the analysis has the route's sections and the page draws that route.
 const HILLS_LINK = new Set([...HILLS].filter((city) => !!facts.get(city)?.route));
 // The page model's shared height scale and pace-band scope, recounted.
-const RELIEF = Math.max(50, Math.ceil(Math.max(...geometry.filter((g) => CITIES.includes(g.city)).map((g) => g.max_m - g.min_m)) / 50) * 50);
-for (const city of CITIES) {
+const RELIEF = Math.max(50, Math.ceil(Math.max(...geometry.filter((g) => PAGE_CITIES.includes(g.city)).map((g) => g.max_m - g.min_m)) / 50) * 50);
+for (const city of PAGE_CITIES) {
   const model = P.coursePages().get(slugOf(city));
   check(model?.relief === RELIEF, `data ${city}`, `the page model's height scale ${model?.relief} against ${RELIEF}`);
   check(model?.band === paceBand.scopes.some((x) => x.slug === slugOf(city)), `data ${city}`, 'the page model\'s pace-band scope');
@@ -378,12 +567,21 @@ const KINDS = {
   'w.start': 'text', 'w.temp': 'degF', 'w.dew': 'degF', 'w.rh': 'rh', 'w.wind': 'mph',
   'hc.cool.year': 'year', 'hc.hot.year': 'year', 'hc.cool.temp': 'degF', 'hc.hot.temp': 'degF', 'hc.cool.sd': 'pct', 'hc.hot.sd': 'pct',
   slope: 'slopeF', 'slope.r': 'r2', 'slope.editions': 'count', curve: 'spct1',
+  // The race directory's edition fields (public/data/races/race/<slug>.json; November 19, 2026): recorded results, and on a
+  // results page the finishes, median and quartiles of an edition of the finish-time universe.
+  rr: 'count', rf: 'count', rm: 'clock', rq1: 'clock', rq3: 'clock',
 };
 /** A key ending in `.r` prints its field rounded for a chart or a reading: a share in whole percent, a time in h:mm. */
 const ROUNDED = { pct: 'pct0', clock: 'hm' };
 
+/** A live edition of the race file a facts object carries (copies never: a page does not show them). */
+const raceEdition = (f, year) => f.raceFile?.editions.find((e) => e.year === year && e.review !== 'copy');
+
 /** The file value a key names for a city, or undefined. */
 function resolve(dataKey, f) {
+  // The race directory's keys first: a results page's facts hold its race file only.
+  const race = /^(rr|rf|rm|rq1|rq3)@(\d{4})$/.exec(dataKey);
+  if (race) { const e = raceEdition(f, Number(race[2])); return e ? { rr: e.results, rf: e.finishes, rm: e.median_s, rq1: e.p25_s, rq3: e.p75_s }[race[1]] : undefined; }
   const [full, at] = dataKey.split('@');
   const name = full.endsWith('.r') ? full.slice(0, -2) : full;
   const arg = at === undefined ? undefined : Number(at);
@@ -418,7 +616,8 @@ function resolve(dataKey, f) {
     case 'n': return cell?.n;
     case 'sd': return cell?.slowdown;
     case 'temp': return cell?.temp ?? undefined;
-    case 'date': return shards.get(key(f.s.city, arg))?.weather?.date;
+    // The race date: the weather record's, else the marathon cohort's reviewed date (an edition without a weather row).
+    case 'date': return shards.get(key(f.s.city, arg))?.weather?.date ?? cohortEditions.get(key(f.s.city, arg))?.race_date ?? undefined;
     case 'small': return f.smallFinishes;
     case 'rows.finishes': return f.cells.reduce((sum, c) => sum + c.n, 0);
     case 'geo.distance': case 'geo.distance2': return f.route?.distance_km;
@@ -502,7 +701,7 @@ function sectionOf(body, id) {
 }
 const exported = (pathname) => pathname === '/' ? fs.existsSync(path.join(OUT, 'index.html')) : [`${pathname.slice(1)}.html`, `${pathname.slice(1)}/index.html`].some((f) => fs.existsSync(path.join(OUT, f)));
 
-const BANNED = [[/\bthe wall\b/i, '"the wall"'], [/arithmetic/i, '"arithmetic"'], [/\byour(?:\s+\w+){0,2}\s+chances?\b/i, '"your chance"'], [/private-export/i, 'a release tag'], [/20260912/, 'a release date'], [/htw-db-/i, 'a release tag'], [/20261016/, 'a release date'], [/20261021/, 'a release date'], [/master-\d{8}/i, 'a release tag'], [/20261103/, 'a release date']];
+const BANNED = [[/\bthe wall\b/i, '"the wall"'], [/arithmetic/i, '"arithmetic"'], [/\byour(?:\s+\w+){0,2}\s+chances?\b/i, '"your chance"'], [/private-export/i, 'a release tag'], [/20260912/, 'a release date'], [/htw-db-/i, 'a release tag'], [/20261016/, 'a release date'], [/20261021/, 'a release date'], [/master-\d{8}/i, 'a release tag'], [/20261103/, 'a release date'], [/pace-notes-marathon-half/i, 'a release tag'], [/20261113/, 'a release date']];
 const RANK = /\b(?:rank|ranks|ranked|ranking|rankings|fastest|toughest|hardest|easiest|harder|easier|tougher|similar|best|worst|top \d+)\b/i;
 const DOI = 'doi:10.1371/journal.pone.0251513';
 const DOI_URL = 'https://doi.org/10.1371/journal.pone.0251513';
@@ -531,6 +730,12 @@ const METHOD = [
   [/weighted equally|\bpooled?\b|start delays|largely repeat|copy edition|not counted|at least 100 finishes|fewer than 100|checkpoint times|in the data\b|story data|\bscreen/i, 'a cohort or coverage note'],
   [/About this data|how (?:it|they) (?:is|are) measured|what the types mean/i, 'a method section or link'],
 ];
+// November 20, 2026: one label only is skipped before the method patterns run, the tier word "Verified, weaker source"
+// (T.TIER_WORDS.stamped_weaker_source, whole phrase, any case). The owner's rule (review m1) is that a weaker-source
+// stamp always shows the words "weaker source", which the pattern for a source note would otherwise fail. No other label
+// or word is skipped: "source" anywhere else, and "independently verified", still fail.
+const TIER_PHRASE = new RegExp(T.TIER_WORDS.stamped_weaker_source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+const ownWords = (text) => text.replace(TIER_PHRASE, '');
 const OWN_COPY = /<(p|dl|span|h2)\b[^>]*class="(?:hero-dek|course-hero-key|course-hero-sentence t-sentence|course-callout|course-hotcool|course-totals|course-h2|course-row-meta)"[^>]*>([\s\S]*?)<\/\1>/g;
 const TRACK = { 'at-a-glance': 'chapter-1', 'finish-times': 'chapter-2', elevation: 'chapter-3', pacing: 'chapter-4', slowdown: 'chapter-5', goals: 'chapter-6', weather: 'chapter-7', plan: 'cta', 'other-courses': 'related' };
 
@@ -551,7 +756,82 @@ if (html) {
   const words = [];
   let factCount = 0;
 
-  for (const city of CITIES) {
+  // A course of the story data without a page (fewer than three counted editions and not a kept course) is not exported.
+  // Since November 19, 2026 such a course may have a results page instead (Toronto Waterfront), which is checked below.
+  for (const city of CITIES.filter((c) => !PAGES.includes(c) && !RESULTS.some((p) => p.label === c))) check(!fs.existsSync(path.join(OUT, 'courses', `${slugOf(city)}.html`)), `/courses/${slugOf(city)}`, 'exported, but the course has no page');
+
+  // The pages that only list their editions (a kept course with no counted edition): the race as the H1, every edition
+  // of the race with its tier in the site's words, the closing stack, and no figure of any kind: no <data>, no share, no
+  // clock time, no link into a tool or an analysis for a course that has no result there.
+  for (const city of LIST_CITIES) {
+    const slug = slugOf(city);
+    const where = `/courses/${slug}`;
+    const file = path.join(OUT, 'courses', `${slug}.html`);
+    if (!fs.existsSync(file)) { fail(where, 'not exported'); continue; }
+    const full = fs.readFileSync(file, 'utf8');
+    const body = markup(full);
+    const main = /<main\b[\s\S]*<\/main>/.exec(body)?.[0] ?? '';
+    const editions = LISTED.filter((e) => e.city === city).sort((a, b) => a.year - b.year);
+    const named = cohort.editions.filter((e) => e.city === city && e.race).sort((a, b) => a.year - b.year).at(-1);
+    const race = ((named && named.race) || `${city} Marathon`).replace(/^PZU\s+/, '');
+    const h1 = [...body.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g)];
+    check(h1.length === 1 && innerText(h1[0][1]) === race, where, `the H1 is not the race name "${race}"`);
+    for (const m of body.matchAll(/<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/g)) check(textOf(m[2]).length > 0, where, `an empty <${m[1]}>`);
+    // Its one kind of figure (since November 19, 2026): each edition's recorded results, against the race file.
+    const listFacts = { raceFile: raceFileOf(slug) };
+    const listData = [...main.matchAll(/<data\b([^>]*)>([\s\S]*?)<\/data>/g)];
+    for (const m of listData) {
+      const k = attr(m[1], 'data-k') ?? '';
+      const expected = /^rr@\d{4}$/.test(k) ? resolve(k, listFacts) : undefined;
+      check(expected !== undefined && attr(m[1], 'value') === String(expected) && innerText(m[2]) === F.count(expected), where, `figure ${k} "${innerText(m[2])}" is not an edition's recorded results`);
+      factCount += 1;
+    }
+    check(listData.length === editions.length, where, `${listData.length} recorded-results figures for ${editions.length} editions`);
+    // Each row: the year, then the edition's labels as the shared component draws them (their texts in order, the tier's
+    // code on its label, each a link to the definitions).
+    const labelsOf = (cell) => [...cell.matchAll(/<(?:a|span)\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>([\s\S]*?)<\/(?:a|span)>/g)].map((m) => ({ text: textOf(m[2]), tier: attr(m[1], 'data-tier'), href: attr(m[1], 'href') }));
+    const rows = [...(sectionOf(body, 'editions') ?? '').matchAll(/<tr\b[^>]*><th scope="row">(\d{4})<\/th><td\b[^>]*>([\s\S]*?)<\/td>(?:<td\b[^>]*>[\s\S]*?<\/td>)?<\/tr>/g)].map((m) => [Number(m[1]), labelsOf(m[2])]);
+    // Since November 20, 2026 (lead decision D48) a label true of most rows is said once in the table's key.
+    const listKey = tableKey(editions.map((e) => ({ year: e.year, tier: e.tier, split: e.split, gun: e.timing === 'gun' })));
+    check(norm(textOf(keyText(sectionOf(body, 'editions') ?? '') ?? '')) === norm(listKey.text), where, `the edition table's key "${textOf(keyText(sectionOf(body, 'editions') ?? '') ?? '')}" is not "${listKey.text}"`);
+    const keepOf = (e) => new Set(listKey.labels({ year: e.year, tier: e.tier, split: e.split, gun: e.timing === 'gun' }));
+    check(JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text)])) === JSON.stringify(editions.map((e) => [e.year, tierTexts(e, e.timing).filter((w) => keepOf(e).has(w))])), where,
+      `the editions listed ${JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text)]))} are not the race's editions with their tier labels`);
+    check(rows.every(([, labels]) => labels.every((l) => l.href === T.TIER_ANCHOR)), where, 'a tier label does not link to its definition');
+    // A row that still shows its tier label carries the edition's tier code on it (restored November 20, 2026).
+    for (const e of editions) {
+      const shown = rows.find(([year]) => year === e.year)?.[1] ?? [];
+      const want = tierTexts(e, e.timing).filter((w) => keepOf(e).has(w));
+      if (want[0] === T.tierWords(e.tier, e.weaker)) check(shown[0]?.tier === e.tier, where, `the ${e.year} row's tier label carries ${shown[0]?.tier}, not ${e.tier}`);
+    }
+    checkKeyLabels(where, keyText(sectionOf(body, 'editions') ?? ''), listKey);
+    // No number but the years and how many editions there are: nothing the page itself says is a share, a count of
+    // finishes or a time. The page's own text is its hero (without the chapter crumbs, which carry the chapter's
+    // number) and its editions section; the closing stack belongs to the chapter.
+    const ownText = textOf(((/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '').replace(/<div class="reading-crumbs[\s\S]*?<\/div>/, '')) + (sectionOf(body, 'editions') ?? '').replace(/<data\b[\s\S]*?<\/data>/g, ''));
+    const numbers = ownText.match(/\d[\d,.:]*%?/g) ?? [];
+    const years = new Set(editions.map((e) => String(e.year)));
+    check(numbers.every((n) => years.has(n) || n === String(editions.length)), where, `a number that is not one of the race's years: ${numbers.filter((n) => !years.has(n) && n !== String(editions.length)).join(', ')}`);
+    check(ownText.includes(race) && numbers.length >= editions.length, where, 'the page\'s own text does not name the race and each edition\'s year');
+    check(/<p class="course-hero-sentence[^"]*"[^>]*>No pacing figures for this race\.<\/p>/.test(body), where, 'the page does not say that it has no pacing figures');
+    check(sectionStart(body, 'other-courses') >= 0 && /data-track-section="hero"/.test(body), where, 'the hero or the closing stack is missing');
+    for (const id of ['at-a-glance', 'finish-times', 'elevation', 'pacing', 'slowdown', 'goals', 'weather']) check(sectionStart(body, id) < 0, where, `section #${id} on a page with no counted edition`);
+    const hrefs = [...main.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((m) => decode(m[1]));
+    for (const href of hrefs) {
+      if (/^(https?:|mailto:|#)/.test(href)) continue;
+      const url = new URL(href, 'https://splithappens.run');
+      check(exported(url.pathname), where, `${href} is not an exported page`);
+      check(!url.searchParams.has('course') && !url.searchParams.has('race'), where, `${href} opens a tool or an analysis on a course with no result`);
+    }
+    const rank = RANK.exec(textOf(main));
+    check(!rank, where, `rank word "${rank && rank[0]}"`);
+    for (const [pattern, label] of BANNED) check(!pattern.test(textOf(main)), where, `${label} on the page`);
+    for (const [pattern, label] of METHOD) for (const m of main.matchAll(OWN_COPY)) check(!pattern.test(ownWords(textOf(m[2]))), where, `${label} in the page's own copy`);
+    const types = [...full.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => [].concat(JSON.parse(m[1])).map((x) => x['@type']));
+    check(JSON.stringify(types) === '["BreadcrumbList"]', where, `structured data ${types}`);
+  }
+
+  for (const city of PAGE_CITIES) {
     const f = facts.get(city);
     const slug = slugOf(city);
     const where = `/courses/${slug}`;
@@ -629,7 +909,7 @@ if (html) {
     // The figure averages the editions' shares, so its words name the average edition (course.slowdown's key), never a
     // share pooled over every finish.
     const heroKey = norm(textOf(/<p class="course-hero-key"[^>]*>([\s\S]*?)<\/p>/.exec(body)?.[1] ?? ''));
-    const averaged = f.cells.length === 1 ? new RegExp(`^of finishes in ${f.cells[0].year} had`) : f.cells.length === 2 ? /in its two editions, on average,/ : /in an average year/;
+    const averaged = f.cells.length === 1 ? new RegExp(`^of finishes in ${f.cells[0].year} had`) : f.cells.length === 2 ? /in its two counted editions, on average,/ : /in an average year/;
     check(heroKey === norm(N.getNugget('course.slowdown', { city }).key) && averaged.test(heroKey), where, `the hero figure's words "${heroKey}" do not name what the figure averages`);
     const glanceKeys = [...main.matchAll(/<span class="glance-key">([\s\S]*?)<\/span>/g)].map((m) => norm(textOf(m[1])));
     // One row is the section's finding: its sentence is the H2 and no key repeats it. Two or three each carry their key.
@@ -735,6 +1015,34 @@ if (html) {
       if (f.allFinisherPct) check(!visible.includes(f.allFinisherPct), where, `the all-finisher figure ${f.allFinisherPct}, which counts the copies, is printed`);
     }
 
+    // Every edition with results has a row (since November 19, 2026; until then the counted editions with a row only):
+    // its labels in the shared words (lead decisions D3 and D16), drawn by the shared component and linked to their
+    // definition; a counted edition with a row keeps its figures, any other prints its recorded results and dashes.
+    {
+      const trs = [...editionTable.matchAll(/<tr\b([^>]*)><th scope="row">(\d{4})<\/th><td\b[^>]*>([\s\S]*?)<\/td>([\s\S]*?)<\/tr>/g)];
+      const live = f.raceFile.editions.filter((e) => e.review !== 'copy');
+      check(JSON.stringify(trs.map((m) => Number(m[2]))) === JSON.stringify(live.map((e) => e.year)), where, `the edition table's years ${trs.map((m) => m[2]).join(', ')} are not every edition with results`);
+      // Since November 20, 2026 (lead decision D48) a label true of most rows is said once in the key above the table, with
+      // the years it is not true of, and each row shows only the labels the key does not say for it.
+      const courseKey = tableKey(live.map((e) => ({ year: e.year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' })));
+      const keyHtml = keyText(numbers.slice(0, numbers.indexOf('numbers-editions-caption')).split('</table>').pop());
+      check(norm(textOf(keyHtml ?? '')) === norm(courseKey.text), where, `the edition table's key "${textOf(keyHtml ?? '')}" is not "${courseKey.text}"`);
+      checkKeyLabels(where, keyHtml, courseKey);
+      for (const m of trs) {
+        const year = Number(m[2]);
+        const e = live.find((x) => x.year === year);
+        const labels = [...m[3].matchAll(/<a\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>([\s\S]*?)<\/a>/g)].map((l) => ({ text: textOf(l[2]), tier: attr(l[1], 'data-tier'), href: attr(l[1], 'href') }));
+        const want = e ? courseKey.labels({ year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' }) : [];
+        check(e && JSON.stringify(labels.map((l) => l.text)) === JSON.stringify(want) && (want[0] !== T.tierWords(e.tier) || labels[0]?.tier === e.tier) && labels.every((l) => l.href === T.TIER_ANCHOR), where, `the ${year} row's tier labels ${JSON.stringify(labels.map((l) => l.text))} are not ${JSON.stringify(want)}`);
+        const cell = f.cells.find((c) => c.year === year);
+        const keys = [...m[4].matchAll(/data-k="([^"]+)"/g)].map((k) => k[1].split('@')[0]);
+        check(cell ? keys.includes('n') && keys.includes('rr') : JSON.stringify(keys) === '["rr"]', where, `the ${year} row prints ${keys.join(', ')}: ${cell ? 'a counted edition keeps its figures' : 'an edition without a row prints its recorded results and dashes only'}`);
+        check(cell ? !attr(m[1], 'data-uncounted') : attr(m[1], 'data-uncounted') === '', where, `the ${year} row's mark disagrees with its figures`);
+      }
+      checkLinkedColumn(where, city, editionTable, trs.map((m) => [Number(m[2]), m[4]]));
+      check(/Linked runners: records linked by name\./.test(textOf(numbers)) === /Linked runners<\/th>/.test(editionTable), where, 'the note on linked runners does not stand with its column');
+    }
+
     // Elevation: the two climb totals each under its own label where both are printed, and "two ways" only over two.
     if (f.route && elevationShown) {
       const elevation = textOf(sectionOf(body, 'elevation') ?? '');
@@ -749,6 +1057,16 @@ if (html) {
       check(!promise, where, `#elevation promises "${promise && promise[0]}"`);
     }
     if (f.route && !f.wet) check((/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '').includes(`data-k="${f.terrain ? 'route.gain' : 'geo.gain'}"`), where, 'the hero does not print the climb');
+    // The hero counts counted editions, and names the years with results that are not counted on one line linked to the
+    // edition table (review M9, November 20, 2026).
+    {
+      const hero = /<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '';
+      const dek = textOf(/<p class="hero-dek">([\s\S]*?)<\/p>/.exec(hero)?.[1] ?? '');
+      check(/^(?:One counted edition|[\d,]+ counted editions), /.test(dek), where, `the hero's dek "${dek}" does not count counted editions`);
+      const also = /<p class="hero-dek course-also">([\s\S]*?)<\/p>/.exec(hero)?.[1] ?? null;
+      const n = N.getNugget('course.also', { city });
+      check(n.guard ? also !== null && norm(textOf(also)) === norm(said('course.also', city)) && /href="#all-numbers"/.test(also) : also === null, where, `the line of years not counted: ${also === null ? 'missing' : `"${textOf(also)}"`} under a guard that ${n.guard ? 'holds' : 'fails'}`);
+    }
 
     // Weather: the 5 °C gate, the slope sentence for the courses with one, and context.
     const gap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
@@ -808,32 +1126,151 @@ if (html) {
     const goalLinks = [...goalsSection.matchAll(/<tbody>[\s\S]*?<\/tbody>/g)].flatMap((t) => [...t[0].matchAll(/<th scope="row"><a\b[^>]*href="([^"]+)"/g)].map((m) => decode(m[1])));
     check(goalLinks.length === (goalsShown ? P.COURSE_GOALS.length : 0), where, `#goals links ${goalLinks.length} goals to the planner`);
 
-    // Editions in the data with no row (fewer than 100 finishes) never get a row of their own.
-    for (const year of f.smallYears) check(!editionTable.includes(`<th scope="row">${year}</th>`), where, `${year}, under 100 finishes, has a row`);
+    // Editions in the data with no row in courses.json (fewer than 100 finishes) are listed with their recorded results
+    // and no finish figure (November 19, 2026: every edition with results is listed; until then they had no row).
+    for (const year of f.smallYears) check(!new RegExp(`data-k="(?:n|median|sd)@${year}"`).test(editionTable), where, `${year}, under 100 finishes, prints a finish figure`);
 
     // Structured data: the breadcrumbs only.
     const types = [...full.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => [].concat(JSON.parse(m[1])).map((x) => x['@type']));
     check(JSON.stringify(types) === '["BreadcrumbList"]', where, `structured data ${types}`);
   }
 
-  // /courses: the ItemList of the 29 pages in their order, and the breadcrumbs.
+  // The results pages (the second template; plan decision D15, November 19, 2026): the race's name (its label where the
+  // platform's title misleads) as the H1, "Finish times only" under it exactly when no edition has checkpoint times,
+  // its place and the count of its editions, the reading's figure only under race.reading's guard, the median by year
+  // under race.range's heading, every edition with its labels and its figures against the race file, the runner search
+  // and the planner with no preset, the closing stack; no pacing word in the page's own text, no other section.
+  const RESULTS_SECTIONS = ['finish-times', 'editions', 'find', 'other-courses'];
+  const PACING = /\b(?:pac(?:e|es|ed|ing)|splits?|slowdowns?|checkpoints?|fades?|negative split)\b/i;
+  for (const rp of RESULTS) {
+    const where = `/courses/${rp.slug}`;
+    const file = path.join(OUT, 'courses', `${rp.slug}.html`);
+    if (!fs.existsSync(file)) { fail(where, 'not exported'); continue; }
+    const full = fs.readFileSync(file, 'utf8');
+    const body = markup(full);
+    const main = /<main\b[\s\S]*<\/main>/.exec(body)?.[0] ?? '';
+    const race = raceFileOf(rp.slug);
+    const live = race.editions.filter((e) => e.review !== 'copy');
+    const name = (race.flags ?? []).includes('title_misleads') ? race.label : race.name;
+    const city = race.label;
+    const h1 = [...body.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g)];
+    check(h1.length === 1 && innerText(h1[0][1]) === name, where, `the H1 is not the race "${name}"`);
+    if ((race.flags ?? []).includes('title_misleads')) check(!textOf(body).includes(race.name), where, 'the platform\'s misleading title is printed');
+    for (const m of body.matchAll(/<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/g)) check(textOf(m[2]).length > 0, where, `an empty <${m[1]}>`);
+    const hero = /<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '';
+    const fto = /<p class="results-tags">[\s\S]*?<\/p>/.exec(hero)?.[0] ?? '';
+    check((rp.with_checkpoint_times === 0) === (textOf(fto) === T.FINISH_TIMES_ONLY), where, `"Finish times only" under the H1 ${fto ? 'with' : 'without'} ${rp.with_checkpoint_times} editions with checkpoint times`);
+    const dek = textOf(/<p class="hero-dek">([\s\S]*?)<\/p>/.exec(hero)?.[1] ?? '');
+    check(norm(dek) === norm(`${race.place ? `${race.place} · ` : ''}${said('race.editions', city)}`), where, `the dek "${dek}"`);
+    const reading = N.getNugget('race.reading', { city });
+    const figure = /<div class="course-hero-figure">([\s\S]*?)<\/div>/.exec(hero);
+    check(reading.guard ? !!figure && textOf(figure[1]).startsWith(reading.figure.value) && textOf(figure[1]).endsWith(reading.key) : !figure, where, `the hero's figure ${figure ? `"${textOf(figure[1])}"` : 'is missing'} under a guard that ${reading.guard ? 'holds' : 'fails'}`);
+    // Sections: the line only with three edition medians; the others always; nothing else.
+    const medians = live.filter((e) => typeof e.median_s === 'number');
+    const ids = [...main.matchAll(/<section\b[^>]*\sid="([^"]+)"/g)].map((m) => m[1]);
+    check(JSON.stringify(ids) === JSON.stringify(RESULTS_SECTIONS.filter((id) => id !== 'finish-times' || medians.length >= 3)), where, `sections ${ids.join(', ')}`);
+    if (medians.length >= 3) check(norm(textOf(/<h2\b[^>]*>([\s\S]*?)<\/h2>/.exec(sectionOf(body, 'finish-times') ?? '')?.[1] ?? '')) === norm(said('race.range', city)), where, 'the line\'s heading is not race.range');
+    // Every edition with results, in order, its labels from the shared module, its figures against the race file.
+    const trs = [...(sectionOf(body, 'editions') ?? '').matchAll(/<tr\b[^>]*><th scope="row">(\d{4})<\/th><td\b[^>]*>([\s\S]*?)<\/td>([\s\S]*?)<\/tr>/g)];
+    // Since 2026-11-20 (lead decision D54, second review E4) a results page lists its editions newest year first: every
+    // edition with results exactly once, the years strictly descending (until then in the race file's order).
+    const listedYears = trs.map((m) => Number(m[1]));
+    check(JSON.stringify([...listedYears].sort((a, b) => a - b)) === JSON.stringify(live.map((e) => e.year).sort((a, b) => a - b)) && new Set(listedYears).size === listedYears.length, where, 'the edition table does not list every edition with results exactly once');
+    check(listedYears.every((y, i) => i === 0 || y < listedYears[i - 1]), where, `the edition table's years ${listedYears.join(', ')} are not newest first`);
+    // The key says a label true of most rows once (lead decision D48, November 20, 2026); rows show only the others.
+    const resultsKey = tableKey(live.map((e) => ({ year: e.year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' })));
+    const resultsKeyHtml = keyText(sectionOf(body, 'editions') ?? '');
+    check(norm(textOf(resultsKeyHtml ?? '')) === norm(resultsKey.text), where, `the edition table's key "${textOf(resultsKeyHtml ?? '')}" is not "${resultsKey.text}"`);
+    checkKeyLabels(where, resultsKeyHtml, resultsKey);
+    for (const m of trs) {
+      const e = live.find((x) => x.year === Number(m[1]));
+      const labels = [...m[2].matchAll(/<a\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>([\s\S]*?)<\/a>/g)].map((l) => ({ text: textOf(l[2]), href: attr(l[1], 'href') }));
+      const wantLabels = e ? resultsKey.labels({ year: e.year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' }) : null;
+      check(e && JSON.stringify(labels.map((l) => l.text)) === JSON.stringify(wantLabels) && labels.every((l) => l.href === T.TIER_ANCHOR), where, `${m[1]}: labels ${JSON.stringify(labels.map((l) => l.text))}, not ${JSON.stringify(wantLabels)}`);
+      const keys = [...m[3].matchAll(/data-k="([^"]+)"/g)].map((k) => k[1].split('@')[0]);
+      const want = ['rr', ...(typeof e?.finishes === 'number' ? ['rf'] : []), ...(typeof e?.median_s === 'number' ? ['rm', 'rq1', 'rq3'] : [])];
+      check(JSON.stringify(keys) === JSON.stringify(want), where, `${m[1]}: prints ${keys.join(', ')}, the file has ${want.join(', ')}`);
+      const rest = textOf(m[3].replace(/<data\b[\s\S]*?<\/data>/g, ''));
+      check(!/\d/.test(rest), where, `${m[1]}: a number outside a checked figure: "${rest}"`);
+    }
+    const resultsTable = /<table\b[\s\S]*?<\/table>/.exec(sectionOf(body, 'editions') ?? '')?.[0] ?? '';
+    checkLinkedColumn(where, city, resultsTable, trs.map((m) => [Number(m[1]), m[3]]));
+    check(/Linked runners: records linked by name\./.test(textOf(sectionOf(body, 'editions') ?? '')) === /Linked runners<\/th>/.test(resultsTable), where, 'the note on linked runners does not stand with its column');
+    const rf = { raceFile: race };
+    for (const m of main.matchAll(/<data\b([^>]*)>([\s\S]*?)<\/data>/g)) {
+      const k = attr(m[1], 'data-k') ?? '';
+      const kind = kindOf(k);
+      const expected = /^r[rfmq][13]?@\d{4}$/.test(k) ? resolve(k, rf) : undefined;
+      factCount += 1;
+      if (!kind || expected === undefined || expected === null) { fail(where, `figure "${innerText(m[2])}" has an unknown key ${k}`); continue; }
+      check(attr(m[1], 'value') === String(expected) && innerText(m[2]) === F[kind](expected), where, `${k}: "${innerText(m[2])}" against the file's ${expected}`);
+    }
+    // No pacing word, banned word, rank word or method copy in the page's own text (the hero, the line, the table, the ways on).
+    const own = textOf(main.replace(/<section id="other-courses"[\s\S]*$/, '').replace(/<div class="reading-crumbs[\s\S]*?<\/div>/, ''));
+    const pacing = PACING.exec(own);
+    check(!pacing, where, `a pacing word "${pacing && pacing[0]}": …${pacing ? own.slice(Math.max(0, pacing.index - 50), pacing.index + 30) : ''}…`);
+    const rank = RANK.exec(own);
+    check(!rank, where, `rank word "${rank && rank[0]}"`);
+    for (const [pattern, label] of BANNED) check(!pattern.test(textOf(body)), where, `${label} on the page`);
+    for (const [pattern, label] of METHOD) for (const m of main.matchAll(OWN_COPY)) check(!pattern.test(ownWords(textOf(m[2]))), where, `${label} in the page's own copy`);
+    // The ways on: the runner search and the planner, with no course preset; every link to an exported page.
+    const ways = [...(sectionOf(body, 'find') ?? '').matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((m) => decode(m[1]));
+    check(JSON.stringify(ways) === JSON.stringify(['/runners', '/tools/plan']), where, `the ways on are ${ways.join(', ')}`);
+    for (const href of [...main.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((m) => decode(m[1]))) {
+      if (/^(https?:|mailto:|#)/.test(href)) continue;
+      const url = new URL(href, 'https://splithappens.run');
+      check(exported(url.pathname), where, `${href} is not an exported page`);
+      check(!url.searchParams.has('course') && !url.searchParams.has('race'), where, `${href} carries a course preset`);
+    }
+    const types = [...full.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => [].concat(JSON.parse(m[1])).map((x) => x['@type']));
+    check(JSON.stringify(types) === '["BreadcrumbList"]', where, `structured data ${types}`);
+  }
+
+  // /courses: the ItemList of every course page in A to Z order, and the breadcrumbs.
   {
     const where = '/courses';
     const full = fs.readFileSync(path.join(OUT, 'courses.html'), 'utf8');
     const blocks = [...full.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => [].concat(JSON.parse(m[1])));
     const list = blocks.find((b) => b['@type'] === 'ItemList');
     check(blocks.some((b) => b['@type'] === 'BreadcrumbList'), where, 'no BreadcrumbList');
-    check(list && list.numberOfItems === CITIES.length && list.itemListElement.length === CITIES.length, where, 'no ItemList of every course');
+    // Every course page, full or list-only, A to Z.
+    const alpha = [...PAGES].sort((a, b) => a.localeCompare(b));
+    // The ItemList names every race with a page (course and results pages, November 19, 2026), A to Z by the name its row shows.
+    const resultsNamed = RESULTS.map((p) => { const r = raceFileOf(p.slug); const name = (r.flags ?? []).includes('title_misleads') ? r.label : r.name; return { key: name, slug: p.slug, name }; });
+    const listed = [...alpha.map((city) => ({ key: city, slug: slugOf(city), name: null })), ...resultsNamed].sort((a, b) => a.key.localeCompare(b.key));
+    const raceOf = (city) => facts.get(city)?.race ?? (((cohort.editions.filter((e) => e.city === city && e.race).sort((a, b) => a.year - b.year).at(-1) ?? {}).race) || `${city} Marathon`).replace(/^PZU\s+/, '');
+    check(list && list.numberOfItems === listed.length && list.itemListElement.length === listed.length && listed.length === RACE_PAGES.length, where, 'no ItemList of every race with a page');
     if (list) list.itemListElement.forEach((item, i) => {
-      const city = CITIES[i];
-      check(item['@type'] === 'ListItem' && item.position === i + 1 && item.url === `https://splithappens.run/courses/${slugOf(city)}` && item.name === facts.get(city)?.race, where, `item ${i + 1}: ${JSON.stringify(item)}`);
+      const it = listed[i];
+      check(item['@type'] === 'ListItem' && item.position === i + 1 && item.url === `https://splithappens.run/courses/${it.slug}` && item.name === (it.name ?? raceOf(it.key)), where, `item ${i + 1}: ${JSON.stringify(item)}`);
     });
     // Each row's sustained-slowdown share is the one its course page leads with (the story data, without copy
     // editions, in whole percent), and no row carries coverage copy.
     const rows = new Map([...markup(full).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].filter((m) => attr(m[1], 'class') === 'course-index-row')
       .map((m) => [(attr(m[1], 'href') ?? '').replace(/^\/courses\//, ''), m[2]]));
-    check(rows.size === CITIES.length, where, `${rows.size} course rows for ${CITIES.length} courses`);
-    for (const city of CITIES) {
+    check(rows.size === PAGES.length + RESULTS.length, where, `${rows.size} rows for ${PAGES.length} course pages and ${RESULTS.length} results pages`);
+    // A results page's row: its figure the race's reading where race.reading's guard holds, else a dash; no pacing word.
+    for (const rp of RESULTS) {
+      const row = rows.get(rp.slug) ?? '';
+      const n = N.getNugget('race.reading', { city: rp.label });
+      // The reading is floored to the minute, as a race clock reads (3:59:36 is 3:59).
+      const floorHm = (v) => { const m = Math.floor(v / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+      const d = /<data\b([^>]*)>([\s\S]*?)<\/data>/.exec(row);
+      check(n.guard ? !!d && attr(d[1], 'data-k') === `reading@${rp.slug}` && attr(d[1], 'value') === String(raceFileOf(rp.slug).reading.median_s) && innerText(d[2]) === floorHm(raceFileOf(rp.slug).reading.median_s) : !d, where, `the ${rp.label} row: ${d ? innerText(d[2]) : 'no figure'}`);
+      check(!/\bpac(?:e|ing)\b|slowdown/i.test(textOf(row)), where, `the ${rp.label} row has a pacing word`);
+    }
+    // Every marathon: the on-demand list, inside an element recordings leave out (AGENTS rule 18), with its filter;
+    // none of its rows is in the first load (the list is fetched from directory.json), and no sort by tier exists.
+    const every = sectionOf(markup(full), 'every-race') ?? '';
+    check(/class="race-finder ph-no-capture"/.test(every) && /<input\b[^>]*id="race-find"/.test(every), where, 'the list of every marathon is missing, or recordings would hold its filter');
+    check(!/class="race-row"/.test(every), where, 'rows of every marathon ship in the first load');
+    check(!/sort[^"]*tier|tier[^"]*sort/i.test(every), where, 'a sort by tier');
+    // A list-only course's row: its name, "No pacing figures" and no figure from the data files.
+    for (const city of LIST_CITIES) {
+      const row = rows.get(slugOf(city)) ?? '';
+      check(!/<data\b/.test(row) && /No pacing figures/.test(textOf(row)) && !/\d/.test(textOf(row)), where, `the ${city} row prints a figure, or does not say that the course has none: "${textOf(row)}"`);
+    }
+    for (const city of PAGE_CITIES) {
       const row = rows.get(slugOf(city)) ?? '';
       const d = /<data\b([^>]*)>([\s\S]*?)<\/data>/.exec(row);
       const s0 = facts.get(city).s.slowdown;
@@ -844,10 +1281,11 @@ if (html) {
     // the figure is, and the courses with fewer than three editions are marked (their share drawn quieter).
     const index = /<ol class="course-index"[^>]*>([\s\S]*?)<\/ol>/.exec(markup(full));
     const order = [...(index?.[1] ?? '').matchAll(/href="\/courses\/([^"?#]+)/g)].map((m) => m[1]);
-    check(index && /data-sort="az"/.test(index[0]) && JSON.stringify(order) === JSON.stringify([...CITIES].sort((a, b) => a.localeCompare(b)).map(slugOf)), where, `the list does not open A–Z: ${order.join(', ')}`);
+    check(index && /data-sort="az"/.test(index[0]) && JSON.stringify(order) === JSON.stringify(alpha.map(slugOf)), where, `the list does not open A–Z: ${order.join(', ')}`);
     check(!/<ol class="course-index is-foot"/.test(markup(full)), where, 'the A–Z list sets the fewer-edition courses apart');
     const fewMarked = [...(index?.[1] ?? '').matchAll(/<li class="is-few"><a\b[^>]*href="\/courses\/([^"?#]+)/g)].map((m) => m[1]).sort();
-    const fewSlugs = CITIES.filter((c) => facts.get(c).s.editions < 3).map(slugOf).sort();
+    // Fewer than three editions with a row, and the list-only courses (none): their place under the share's order is apart.
+    const fewSlugs = [...PAGE_CITIES.filter((c) => facts.get(c).s.editions < 3), ...LIST_CITIES].map(slugOf).sort();
     check(JSON.stringify(fewMarked) === JSON.stringify(fewSlugs), where, `the courses marked as fewer than three editions are ${fewMarked}, not ${fewSlugs}`);
     const key = textOf(/<p class="course-index-key"[^>]*>([\s\S]*?)<\/p>/.exec(markup(full))?.[1] ?? '');
     check(/share of finishes with a sustained slowdown\s*, in an average year/.test(key), where, `the list's key: "${key}"`);
@@ -862,7 +1300,7 @@ if (html) {
     for (const [pattern, label] of BANNED) check(!pattern.test(textOf(main)), where, `${label} on the page`);
   }
   words.sort((a, b) => a[1] - b[1]);
-  console.log(`Course pages: ${CITIES.length} pages, ${factCount} printed figures checked; ${words[0][1]}–${words[words.length - 1][1]} words of main text (${words[0][0]} to ${words[words.length - 1][0]}).`);
+  console.log(`Course pages: ${PAGE_CITIES.length} full pages and ${LIST_CITIES.length} that list their editions, ${RESULTS.length} results pages, ${factCount} printed figures checked; ${words[0][1]}–${words[words.length - 1][1]} words of main text (${words[0][0]} to ${words[words.length - 1][0]}).`);
 }
 
 if (failures.length) {
@@ -870,4 +1308,4 @@ if (failures.length) {
   for (const line of failures.slice(0, 60)) console.error(`  ${line}`);
   process.exit(1);
 }
-console.log(html ? 'verify-courses --html: every course page and /courses passed.' : `verify-courses: helpers and the recount passed for ${CITIES.length} courses (${shards.size} runner-context shards).`);
+console.log(html ? 'verify-courses --html: every course page and /courses passed.' : `verify-courses: helpers and the recount passed for ${CITIES.length} courses of the story data (${shards.size} runner-context shards), ${PAGE_CITIES.length} full course pages and ${LIST_CITIES.length} that list their editions.`);

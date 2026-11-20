@@ -261,11 +261,30 @@ def screen_candidates(editions, draws=BOOTSTRAP_DRAWS):
     return output
 
 
-def run(source, output):
+def cohort_binding(provenance, counts, quality, editions, cohort_root):
+    """The marathon cohort this evidence is built beside (analysis/cohort.py; adoption ruling D24.1 of 2026-11-14): the
+    same adapted input, the same cohort counts and edition policy, and for every weather edition the race date the
+    cohort manifest gives it. Returns the manifest's digest and `as_of`, which the evidence stores."""
+    import cohort as marathon_cohort
+    pin = json.loads(Path(__file__).with_name("release.json").read_text())
+    base, digest = marathon_cohort.verified_manifest(cohort_root, pin, Path(__file__).parent)
+    if base["input_manifest_sha256"] != provenance["manifest_sha256"] or {key: counts.get(key) for key in base["cohort"]} != base["cohort"] or quality != base["source_quality"]:
+        raise ValueError("The weather evidence must be built on the input, cohort and edition policy of the marathon cohort")
+    dated = {(e["city"], e["year"]): e for e in base["editions"]}
+    for row in editions:
+        entry = dated.get((row["city"], row["year"]))
+        if entry is None or entry["use"] != "counted" or entry["race_date"] != row["date"] or entry["race_date_source"] != "weather":
+            raise ValueError(f'{row["city"]} {row["year"]}: a weather edition must be a counted edition of the cohort with the weather row’s race date')
+    return {"cohort_manifest_sha256": digest, "cohort_manifest_as_of": base["as_of"]}
+
+
+def run(source, output, cohort_root=None):
     manifest = json.loads((source / "MANIFEST.json").read_text())
     provenance = json.loads((source / "provenance.json").read_text())
     if sha256(source / "MANIFEST.json") != provenance["manifest_sha256"]:
         raise ValueError("Manifest checksum does not match verified provenance")
+    if cohort_root is None and provenance.get("layout") == "combined":
+        cohort_root = Path(__file__).with_name("marathon-cohort")   # a combined release always binds its cohort
     db = duckdb.connect()
     db.execute("SET memory_limit='4GB'")
     db.execute("SET threads=2")
@@ -285,6 +304,7 @@ def run(source, output):
         "calculation": {"script_sha256": sha256(__file__), "pacing_script_sha256": sha256(Path(__file__).with_name("build_pacing.py")),
                         "duckdb_version": duckdb.__version__, "numpy_version": np.__version__, "source_quality_script_sha256": quality['script_sha256']},
         "source_quality": quality,
+        **(cohort_binding(provenance, counts, quality, editions, cohort_root) if cohort_root is not None else {}),
         "cohort": counts, "exclusions": exclusions, "accepted_early_hours": early, "prespecified_gate": GATE,
         "outcome": {"label": "Median pace change: 20–40 km versus 0–20 km", "unit": "%", "positive_means": "slower second 20 km"},
         "methodology": METHODS + ([SOURCE_QUALITY_METHOD] if quality['reviewed_edition_policy'] else []), "candidates": candidates, "editions": editions}
@@ -298,5 +318,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True, help="Standalone weather JSON output file")
+    parser.add_argument("--cohort", type=Path, help="The marathon cohort folder (default for a combined release: analysis/marathon-cohort)")
     args = parser.parse_args()
-    run(args.input, args.output)
+    run(args.input, args.output, args.cohort)

@@ -215,6 +215,8 @@ export type BigSpec = Common & {
   /** Bars under the figure, each with its value. */
   compare?: { label: string; value: number; tone: Tone }[];
   compareFmt?: Fmt;
+  /** The figure in ink, not the signal ink: a chart shown without its reading (lib/charts/neutral.ts sets it). */
+  plain?: boolean;
 };
 
 export type FlowSpec = Common & {

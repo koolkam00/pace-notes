@@ -1,0 +1,19 @@
+anonymous ranged GET (curl -sS -L -r 0-0), 2026-11-14T02:29:43Z, env without GH_TOKEN/GITHUB_TOKEN, no Authorization header; every asset analysis/release.json pins, its checksum file and the baseline
+206 pace-notes-marathon-half-20261113-1113/RELEASE-SHA256SUMS-20261113-1113.txt
+206 pace-notes-marathon-half-20261113-1113/CHANGE-REPORT.md
+206 pace-notes-marathon-half-20261113-1113/DATA-CARD.md
+206 pace-notes-marathon-half-20261113-1113/EDITION-TIERS.csv
+206 pace-notes-marathon-half-20261113-1113/README.md
+206 pace-notes-marathon-half-20261113-1113/RELEASE-EXCLUSIONS.csv
+206 pace-notes-marathon-half-20261113-1113/pace-notes-CORE-20261113-1113.tar.gz
+206 pace-notes-marathon-half-20261113-1113/person-ids-v5.1-COLUMNS.md
+206 pace-notes-marathon-half-20261113-1113/person-ids-v5.1-MATCHING-V4-BASE.md
+206 pace-notes-marathon-half-20261113-1113/person-ids-v5.1-MATCHING-V5-BASE.md
+206 pace-notes-marathon-half-20261113-1113/person-ids-v5.1-MATCHING.md
+206 pace-notes-marathon-half-20261113-1113/person-ids-v5.1-README.md
+206 pace-notes-marathon-half-20261113-1113/person-ids-v5.1-checks.txt
+206 pace-notes-marathon-half-20261113-1113/person-ids-v5.1-eval-metrics.txt
+206 pace-notes-marathon-half-20261113-1113/person-ids-v5.1-persons.parquet
+206 pace-notes-marathon-half-20261113-1113/person-ids-v5.1-race_results_linked.parquet
+206 private-export-20261021-1050/pace-notes-CORE-20261021-1050.tar.gz
+206 private-export-20261021-1050/RELEASE-SHA256SUMS-20261021-1050.txt

@@ -61,3 +61,14 @@
   .half-cities .viz-frame.dumbbell .dumbbell-axis { grid-template-columns: minmax(0, 1fr); }
   .half-cities .viz-frame.dumbbell .dumbbell-axis > span:last-child { display: none; }
 }
+
+/* /half/races: every race, the short list and the on-demand list alike, is a fold: its name and one line of facts, its
+   years as a table inside (review round M8, November 20, 2026). The tier and timing labels are the tier module's
+   (badge.css); nothing here colours a tier. */
+.half-races #listed .half-race-fold { max-width: var(--measure-figure); }
+.half-races .half-race-editions td.is-text { text-align: left; }
+.half-races .half-race-mark { font-size: var(--t-small); color: var(--ink-2); }
+.half-races .half-races-all { display: grid; gap: var(--s-3); max-width: var(--measure-figure); }
+.half-races .half-races-all .btn { justify-self: start; }
+.half-races .half-race-fold summary .race-name { font-weight: 600; }
+.half-races .half-race-fold summary .half-race-facts { display: block; margin-top: 2px; font-weight: 400; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }

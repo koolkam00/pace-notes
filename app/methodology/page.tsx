@@ -7,10 +7,12 @@ import MethodsDefinitions from '@/components/methods/MethodsDefinitions';
 import MethodsDownloads, { STORY_FILE_TOPICS } from '@/components/methods/MethodsDownloads';
 import MethodsHash from '@/components/methods/MethodsHash.client';
 import { HalfLimitsLine } from '@/components/methods/MethodsHalf';
+import MethodsLinked from '@/components/methods/MethodsLinked';
 import MethodsPages from '@/components/methods/MethodsPages';
 import MethodsStories from '@/components/methods/MethodsStories';
 import MethodsTools from '@/components/methods/MethodsTools';
-import { Part, Topic } from '@/components/methods/shared';
+import { Part, Topic, n } from '@/components/methods/shared';
+import { raceFiles } from '@/lib/nuggets/core';
 import { readingAttrs } from '@/lib/chapters';
 import { getInsightsManifest } from '@/lib/insights-server';
 import { STORIES, courseSpan, halfManifest, storyPublished } from '@/lib/stories';
@@ -39,7 +41,7 @@ const PARTS: { id: string; label: string }[] = [
 function storyDataset() {
   const manifest = getInsightsManifest();
   const span = courseSpan();
-  const files = [...new Set(STORIES.filter((s) => s.source !== 'half' && storyPublished(s) && STORY_FILE_TOPICS[s.file]).map((s) => s.file))];
+  const files = [...new Set(STORIES.filter((s) => (s.source ?? 'insights') === 'insights' && storyPublished(s) && STORY_FILE_TOPICS[s.file]).map((s) => s.file))];
   if (!span || !files.length) return null;
   const topics = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' }).format(files.map((f) => STORY_FILE_TOPICS[f]));
   return {
@@ -85,6 +87,8 @@ const additions = [
 export default function MethodologyPage() {
   const dataset = storyDataset();
   const half = halfManifest();
+  // The races of the race list (copies set aside), the number #sources and #data-coverage print too.
+  const races = raceFiles().summary.races.total.n;
   return <div className="methods-page with-rail" {...readingAttrs('/methodology', 'How we know')}>
     <aside className="rail methods-rail">
       <nav aria-label="On this page">
@@ -100,7 +104,7 @@ export default function MethodologyPage() {
       <section className="methods-short" aria-labelledby="methods-short-title">
         <h2 id="methods-short-title" className="sr-only">In short</h2>
         <ul className="info-facts">
-          <li>Findings come from <a href="#sources">recorded results of big-city marathons</a>, down to each finish’s 5K splits, with modeled weather and each course’s route as context{half ? <>, and, on the half-marathon pages, <a href="#half-data">recorded half-marathon results</a>, some linked to marathons by name</> : null}. The tools also use <a href="#evidence">published research and official standards</a>, each labelled.</li>
+          <li>Findings come from <a href="#sources">recorded results of {n(races)} marathons</a>, down to each finish’s 5K splits where the race published them, with modeled weather and each course’s route as context{half ? <>, and, on the half-marathon pages, <a href="#half-data">recorded half-marathon results</a>, some linked to marathons by name</> : null}. Only <a href="#edition-tiers">counted editions</a> supply pooled figures. The tools also use <a href="#evidence">published research and official standards</a>, each labelled.</li>
           <li>Percentages describe what past finishes did: <a href="#interpretation">an association, not a forecast</a>.</li>
           <li>A new data release reaches the pages only after every calculation is <a href="#release">rerun and checked</a>.</li>
           {half
@@ -116,6 +120,7 @@ export default function MethodologyPage() {
       <MethodsDefinitions />
       <Part id="calculations" n={3} short="Calculations" title="Calculations" lead="How each part of the site works out its numbers.">
         <MethodsStories />
+        <MethodsLinked />
         <MethodsAnalyses />
         <MethodsTools />
         <MethodsPages />

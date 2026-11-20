@@ -19,7 +19,7 @@ export type AllFinisherRow = { city: string; age: string; gender: string; early_
 export type AllFinisherSelection = { mode: AllFinisherMode; city: string; age: string; gender: string; early_pace: string; opening: string };
 export type AllFinisherEvidence = {
   schema_version: 1; mode: 'all-finishers'; release_tag: string; input_as_of: string; as_of: string;
-  runner_manifest_sha256: string; context_manifest_sha256: string;
+  runner_manifest_sha256: string; cohort_manifest_sha256?: string; context_manifest_sha256: string;
   scripts: Record<string, string>; source_scripts: Record<string, string>; context_source_scripts: Record<string, string>;
   cohort: { raw: number; eligible: number }; analysis_n: number; min_cell: number; min_edition: number; min_editions: number;
   cities: string[]; ages: string[]; genders: string[];

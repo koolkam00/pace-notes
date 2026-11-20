@@ -145,6 +145,15 @@ export function outOfRangeSentence(range: { from: number; to: number }): string 
 }
 
 /**
+ * A pooled difference in minutes (no printed operands beside it: the H1's minutes over double, the ruler), rounded to
+ * the nearest whole minute, a tie to the even one as Python and the site's Node recounts round. 1315 s → 22.
+ */
+export function roundMinutes(seconds: number): number {
+  const m = seconds / 60, f = Math.floor(m + 1e-9), d = m - f;
+  return d < 0.5 - 1e-9 ? f : d > 0.5 + 1e-9 ? f + 1 : f % 2 === 0 ? f : f + 1;
+}
+
+/**
  * A window's minutes over double as the story prints them: its typical marathon as printed (the whole minute at or
  * below) minus double the window's half, so "Typical 5:57" and "double the half plus 27 min" add up after a 2:45 half
  * (5:30 + 27). The window's `extra_p50` is the median of each pair's own difference instead, which runs higher in a slow

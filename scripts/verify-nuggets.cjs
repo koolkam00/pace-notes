@@ -101,11 +101,11 @@ for (const city of json('public/data/insights/courses.json').courses.map((c) => 
   assert.deepEqual(found, [], `course.slowdown (${city}): ${found.join('; ')}`); checks++;
 }
 for (const [page, id] of Object.entries(N.PAGE_NUGGET)) ok(N.NUGGET_IDS.includes(id), `${page} names nugget ${id}, which is registered`);
-eq(N.CHAPTER_LEAD.length, 11, 'one lead per chapter');
+eq(N.CHAPTER_LEAD.length, 12, 'one lead per chapter (twelve since November 19, 2026: Over the years)');
 for (const id of N.CHAPTER_LEAD) ok(N.NUGGET_IDS.includes(id), `chapter lead ${id} is registered`);
 // Every chapter leads with a number: eleven readings, each a figure with a digit in it (never a word in figure type).
 for (const id of N.CHAPTER_LEAD) ok(/\d/.test(N.getNugget(id).figure?.value ?? ''), `chapter lead ${id} has a figure with a number`);
-eq(new Set(N.CHAPTER_LEAD).size, N.CHAPTER_LEAD.length, 'eleven different chapter leads');
+eq(new Set(N.CHAPTER_LEAD).size, N.CHAPTER_LEAD.length, 'twelve different chapter leads');
 // The contents keys are the approved wording (spec section 2.2, rewritten October 19, 2026 as plain sentence fragments
 // that name their comparison, and again in round 3 in a runner's words), reproduced from the data where they hold a number.
 const keys = Object.fromEntries(N.CHAPTER_LEAD.map((id) => [id, N.getNugget(id).key]));
@@ -116,7 +116,10 @@ ok(/^as many finishes as expected in the minute before \d:\d\d$/.test(keys['roun
 eq(keys['holds.gender'], 'of recorded women’s and men’s finishes had a sustained slowdown, at the same finish times', 'chapter 07 key');
 ok(/^of races traced to their course by pacing shape alone, against \d+% by chance$/.test(keys['courses.named']), 'chapter 08 key');
 eq(keys['weather.pairs'], 'same-course pairs: the warmer year had more sustained slowdowns', 'chapter 09 key');
-ok(/^of finishes (?:just over \d:\d\d|from \d:\d\d to \d:\d\d) had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 10 key');
+// November 20, 2026 (decision D47): the chapter 10 lead is counted from the verdicts, no longer from point readings
+// beyond 2% ("of race-years more than 2% off the race’s other years, for linked runners", November 19, 2026).
+eq(keys['years.called'], 'of race-years were fast or slow years for linked runners', 'chapter 10 key (Over the years)');
+ok(/^of finishes (?:just over \d:\d\d|from \d:\d\d to \d:\d\d) had a sustained slowdown$/.test(keys['splitcheck.share']), 'chapter 11 key');
 ok(/^of finishes on even \d:\d\d pace at 30K still got under \d:\d\d$/.test(keys['checkpoint.under']), 'chapter 04 key');
 // Since the stamp correction (October 30, 2026) the flagship's verified-halves checks fail (2,024 verified pairs: +16 minutes
 // and 14% under double, against +21 and 8% pooled), so neither the share nor the minutes is its figure: the opener, the
@@ -124,7 +127,7 @@ ok(/^of finishes on even \d:\d\d pace at 30K still got under \d:\d\d$/.test(keys
 {
   const v = N.getNugget('half.extra').values;
   eq(keys['half.extra'], v.figure_is_share === 1 ? 'of marathons came in under double the half marathon before them' : v.figure_is_minutes === 1 ? 'over double the half marathon, typical' : 'pairs of a half and the marathon after it',
-    'chapter 11 key (the half story opens it, October 29, 2026): the share while its check holds, the minutes while the H1’s does, else the pairs');
+    'chapter 12 key (the half story opens it, October 29, 2026; chapter 11 until November 19, 2026): the share while its check holds, the minutes while the H1’s does, else the pairs');
 }
 eq(N.getNugget('gains.final').key, 'of the minutes improving finishes gained came after 30K', 'gains.final key (second in chapter 11)');
 
@@ -194,11 +197,17 @@ if (fs.existsSync(path.join(ROOT, 'lib/chapters.ts'))) {
 
 // ---------- Independent recounts of the reference nuggets ----------
 const insights = json('public/data/insights/manifest.json');
-const runner = json('public/data/runners/manifest.json');
+// The marathon cohort's manifest (analysis/marathon-cohort): every written marathon result of the release and the counted
+// finishes. Until November 14, 2026 these two counts were read from the runner lookup's manifest.
+const runner = json('analysis/marathon-cohort/manifest.json');
 const courses = json('public/data/insights/courses.json');
+// The marathon race list (SITE-CORE, November 19, 2026: siteTotals reads its summary for the counted races and editions
+// and its directory for the raw family, instead of the cohort manifest's edition list).
+const raceSummary = json('public/data/races/summary.json');
+const raceDirectory = json('public/data/races/directory.json');
 
 const RECOUNT = {};
-// site.totals: the eligible family from the insights manifest and the course list; results from the runner manifest.
+// site.totals: the eligible family from the insights manifest and the course list; results from the cohort manifest.
 RECOUNT['site.totals'] = (n) => {
   const years = courses.courses.flatMap((c) => c.years);
   let editions = 0;
@@ -206,7 +215,7 @@ RECOUNT['site.totals'] = (n) => {
   const expected = { results: runner.raw_records, finishes: insights.analysis_n, cities: insights.cohort.cities, race_years: editions, first_year: Math.min(...years), last_year: Math.max(...years) };
   eq(n.values, expected, 'site.totals recounts from the manifests and the course list');
   eq(n.values.cities, courses.courses.length, 'site.totals: cities = courses with eligible finishes');
-  eq(runner.eligible_records, insights.analysis_n, 'site.totals: the runner and insights manifests agree on eligible finishes');
+  eq(runner.eligible_records, insights.analysis_n, 'site.totals: the cohort and insights manifests agree on eligible finishes');
   const millions = (Math.round(insights.analysis_n / 1e5) / 10).toFixed(1);
   eq(n.figure.value, millions, 'site.totals: the figure is eligible finishes in millions');
   ok(core.textFor(n.headline, 'mi').includes(`*${millions} million*`) && core.textFor(n.headline, 'km').includes(`*${millions} million*`), 'site.totals: both headlines carry the same million');
@@ -214,6 +223,18 @@ RECOUNT['site.totals'] = (n) => {
   ok(/26\.2\smiles/.test(core.textFor(n.headline, 'mi')) && /42\.2\skm/.test(core.textFor(n.headline, 'km')), 'site.totals: the distance follows the units');
   eq(n.guard, insights.analysis_n > 0 && runner.raw_records >= insights.analysis_n && insights.cohort.cities > 0, 'site.totals: guard');
   eq(core.finishesM(), require('../lib/seo.tsx').finishesM(), 'one "N million" on every surface (lib/seo agrees)');
+  // The race summary agrees with the cohort: counted editions and their races, counted from the cohort's edition rows.
+  const counted = runner.editions.filter((e) => e.use === 'counted');
+  eq([raceSummary.counted.editions, raceSummary.counted.races, raceSummary.counted.finishes], [counted.length, new Set(counted.map((e) => e.city)).size, runner.eligible_records], 'site.totals: the race summary counts the cohort’s counted editions, races and finishes');
+  eq([n.values.cities, n.values.race_years], [raceSummary.counted.races, raceSummary.counted.editions], 'site.totals: cities and race-years are the race summary’s counted races and editions');
+  // The raw family: the race list's races and editions, and the years of the directory's rows; a row whose review code
+  // is "copy" is an edition set aside as a copy (shown without a number), in no count.
+  const col = (name) => raceDirectory.edition_columns.indexOf(name);
+  const copy = raceDirectory.codes.review.indexOf('copy');
+  ok(col('year') >= 0 && col('review') >= 0 && copy > 0, 'site.totals: the directory names its year and review columns and the copy code');
+  const listed = raceDirectory.races.flatMap((r) => r.editions.filter((e) => e[col('review')] !== copy).map((e) => e[col('year')]));
+  eq(listed.length, raceSummary.editions.total.n, 'site.totals: the directory lists every edition the summary counts');
+  eq(core.siteTotals().raw, { cities: raceDirectory.races.length, raceYears: listed.length, firstYear: Math.min(...listed), lastYear: Math.max(...listed) }, 'site.totals: the raw family recounts from the race directory');
 };
 
 // field.median: nearest-rank medians recounted from the one-minute histogram and the cohort totals.
@@ -288,7 +309,8 @@ for (const [id, recount] of Object.entries(RECOUNT)) {
 
 // Area recounts: each package's own module in scripts/nuggets/, recounting its nuggets for every context they are built
 // for (the course pages: every city).
-const areas = [require('./nuggets/courses.cjs')({ ROOT, N, core, ok, eq, problems }), require('./nuggets/runners.cjs')({ ROOT, N, core, ok, eq, problems })];
+const areas = [require('./nuggets/courses.cjs')({ ROOT, N, core, ok, eq, problems }), require('./nuggets/runners.cjs')({ ROOT, N, core, ok, eq, problems }),
+  require('./nuggets/linked.cjs')({ ROOT, N, core, ok, eq, problems })];
 const areaChecks = areas.reduce((sum, a) => sum + a.checks, 0);
 
 // ---------- Fixtures: every reference fallback renders, and a flipped guard is caught ----------

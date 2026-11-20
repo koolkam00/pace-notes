@@ -119,7 +119,7 @@ module.exports = {
     };
   },
 
-  'older-finishes-draw-level': (C) => {
+  'older-finishes-draw-level': (C, file, H) => {
     const rows = [];
     for (let i = 0; i < C.n; i++) {
       if (!C.exactAgeOk[i] || !C.shapeKeep[i] || !recorded(C, i) || C.finish[i] < 9000 || C.finish[i] >= 21600) continue;
@@ -140,13 +140,13 @@ module.exports = {
     const gap = Array.from({ length: 9 }, (_, k) => Math.floor(sum[1][k] / wsum[1] - sum[0][k] / wsum[0] + 0.5));
     const peak = Math.max(...gap);
     return {
-      values: { g20: gap[3], g40: -gap[7], gain: gap[3] - gap[7], falls25: gap[4] > gap[5] && gap[5] > gap[6] && gap[6] > gap[7] ? 1 : 0, peak, peak_mat: MATS[gap.indexOf(peak)], matched_weight: Math.round(total) },
+      values: { g20: gap[3], g40: -gap[7], gain: gap[3] - gap[7], falls25: gap[4] > gap[5] && gap[5] > gap[6] && gap[6] > gap[7] ? 1 : 0, peak, peak_mat: MATS[gap.indexOf(peak)], matched_weight: H.roundHalfEven(total) },
       plot: { series: [{ label: '60–69', points: gap.map((v, k) => [k, v]), tone: 'signal' }], refs: [{ value: 0 }] },
       cohort_n: used,
     };
   },
 
-  'women-slow-down-less': (C) => {
+  'women-slow-down-less': (C, file, H) => {
     const rows = [];
     for (let i = 0; i < C.n; i++) {
       if (C.shapeKeep[i] && !C.genderGapEdition[C.edition[i]] && recorded(C, i) && C.finish[i] >= 9000 && C.finish[i] < 21600) rows.push(i);
@@ -177,7 +177,7 @@ module.exports = {
       if (c.s[1] / c.w[1] > c.s[0] / c.w[0]) higher++;
     }
     return {
-      values: { w: out[0].a, m: out[0].b, ratio: out[0].b / out[0].a, cities_men_higher: higher, cities: nc, pooled_w: pooled.s[0] / pooled.n[0], pooled_m: pooled.s[1] / pooled.n[1], matched_weight: Math.round(total) },
+      values: { w: out[0].a, m: out[0].b, ratio: out[0].b / out[0].a, cities_men_higher: higher, cities: nc, pooled_w: pooled.s[0] / pooled.n[0], pooled_m: pooled.s[1] / pooled.n[1], matched_weight: H.roundHalfEven(total) },
       plot: { rows: out }, cohort_n: used,
     };
   },

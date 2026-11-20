@@ -129,7 +129,9 @@ label.runner-race-row { cursor: pointer; }
    The chosen races as chips (each removable; the row scrolls sideways with an edge fade), then the one primary button
    and Clear. The heading is for screen readers: the button says how many. */
 .runner-selection { position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 5; display: grid; gap: var(--s-2); margin-top: var(--s-5); padding: 10px; border: 1px solid var(--rule); border-radius: var(--r-md); background: var(--paper-raised); box-shadow: var(--shadow-raise); }
-.runner-selection-actions { display: flex; align-items: center; gap: var(--s-2); }
+.runner-selection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+/* One track that may shrink: at 195 px the chips and the two buttons ran 8 px past the screen (November 19, 2026). */
+.runner-selection { grid-template-columns: minmax(0, 1fr); }
 .runner-selection-actions .btn-primary { flex: 1 1 auto; min-width: 0; }
 /* The pinned legacy class (scripts/e2e S3 presses .button-primary) keeps the primary button's own look. */
 .runner-selection .btn-primary.button-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); transform: none; box-shadow: none; }
@@ -270,3 +272,36 @@ label.runner-race-row { cursor: pointer; }
 .runner-context:focus { outline: none; }
 /* A race's checkbox takes the site's focus ring, as every other control does. */
 .runner-races input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Lookup version 2 (November 2026): a profile's two lists, marathons and half marathons, each with its own line;
+   the possible matches apart under their own heading; on every row its edition's labels and, in a group of several
+   results, the link's confidence in quiet words under the list's column line. */
+.runner-list { margin-top: var(--s-6); }
+.runner-list-h { margin: 0; font-family: var(--sans); font-size: var(--t-kicker); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
+.runner-list-sum { margin: var(--s-1) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+/* The key: one line that says what each row holds, and the link confidence the rows leave unsaid. */
+.runner-list-key { margin: var(--s-2) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink-3); }
+.runner-list-key + .runner-races { margin-top: var(--s-2); }
+.runner-race-body > .runner-race-tags, .runner-race-body > .runner-race-link, .runner-race-body > .runner-race-as { grid-column: 1 / -1; }
+.runner-race-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--s-2); margin-top: 6px; }
+.runner-race-tags > .runner-ineligible { margin-top: 0; }
+.runner-race-link { margin-top: 4px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); }
+.runner-race-as { margin-top: 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-3); overflow-wrap: anywhere; }
+.runner-possible-block { margin-top: var(--s-5); padding-top: var(--s-4); border-top: 1px dashed var(--rule); }
+.runner-possible-h { margin: 0; font-size: var(--t-small); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+.runner-possible .runner-race-body > strong { font-weight: 500; }
+.runner-includes { margin-top: var(--s-2); }
+.runner-records-h { margin-top: var(--s-6); font-size: var(--t-body); }
+/* The race view: its edition's labels under the heading; an own-record race says it is compared with no one. */
+.rc-labels { margin: var(--s-2) 0 0; }
+.rc-own, .rc-none { margin-top: var(--s-2); }
+/* The press that loads more says its size ("Show names that start with these words (412 KB)"): it wraps at phone width. */
+.runner-more { margin-top: var(--s-4); }
+.runner-more-go { max-width: 100%; height: auto; min-height: 44px; white-space: normal; text-align: left; }
+
+/* Under 300 px a race's name and its finish cannot share a line: "Rotterdam 2014" ran under "3:36:52" at 195 px
+   (November 19, 2026). The finish takes its own line, under the name. */
+@media (max-width: 299.98px) {
+  .runner-race-body { grid-template-columns: minmax(0, 1fr); }
+  .runner-race-body > .runner-recorded-finish { grid-column: 1; grid-row: auto; text-align: left; }
+}

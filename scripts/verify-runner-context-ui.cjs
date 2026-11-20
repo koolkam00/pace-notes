@@ -17,9 +17,11 @@ const { runnerMetrics, RUNNER_POINTS } = require('../lib/runner-search.ts');
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
 /** Method, source and caveat copy, which since October 16, 2026 is on /methodology only. */
 const METHOD_COPY = /Source:|source note|supplied|modell?ed weather|personal exposure|historical validity|not established|preceding-hour total includes|Higher means|ties count halfway|nearest millisecond|contains your own result|middle half|add up to the finish-time difference|at least 101|eligible finishes in|not inferred|do not establish|does not establish|cannot isolate|not a verified reconstruction|does not identify headwind/i;
-const race = { id: 1, edition: 0, name: 'Fixture Runner', sex: 'F', age: 35, eligible: true, reason: null, times: RUNNER_POINTS.map(km => km * 300) };
-const reference = { ...race, id: 2, edition: 1, times: RUNNER_POINTS.map(km => km * 320) };
-const manifest = { editions: [{ city: 'London', year: 2020, race: 'London Marathon' }, { city: 'London', year: 2020, race: 'London Marathon' }] };
+// Lookup version 2 races: a record key, a distance and the lookup's status (0 counted).
+const race = { id: 1, key: 'f1', db: 'f', distance: 'marathon', edition: 0, name: 'Fixture Runner', sex: 'F', age: 35, link: '0', confirmed: false, possible: false, status: 0, eligible: true, counted: true, reason: null, times: RUNNER_POINTS.map(km => km * 300) };
+const reference = { ...race, id: 2, key: 'f2', edition: 1, times: RUNNER_POINTS.map(km => km * 320) };
+const v2 = { distance: 'marathon', tier: 0, splits: true, db: 'f', noComparison: 0, q: 0, reason: null, unlisted: 0, timing: 'chip' };
+const manifest = { editions: [{ ...v2, index: 0, context: 0, city: 'London', year: 2020, race: 'London Marathon' }, { ...v2, index: 1, context: 1, city: 'London', year: 2020, race: 'London Marathon' }] };
 const metrics = runnerMetrics(race);
 const weather = {
   date: '2020-01-01', scheduled_start: '09:00', start_hour: '2020-01-01T09:00', four_hour: '2020-01-01T13:00',
@@ -77,7 +79,10 @@ for (const units of ['mi', 'km']) {
   assert.match(html, /3:30:58\.5/); assert.doesNotMatch(html, METHOD_COPY, 'No method copy beside the pacing');
   assert.match(html, units === 'mi' ? /8:03\/mi/ : /5:00\/km/);
   // The view leads with the race report's verdict (an even race: no sustained slowdown), the term linked.
-  assert.match(html, /No <a [^>]*href="\/methodology#sustained-slowdown"[^>]*>sustained slowdown<\/a>: every stretch after 20K held the 5–\u2060?20K pace or better\./);
+  // November 20, 2026 (review m3): the verdict takes the one decimal of the lap list's rows, so the fixture's last
+  // stretch, a second slower than the 5–20K pace over 2.195 km, reads as the 0.1% its row says (it read "held").
+  assert.match(html, /No <a [^>]*href="\/methodology#sustained-slowdown"[^>]*>sustained slowdown<\/a>: the slowest stretch after 20K, 40K–finish, ran 0\.1% off the 5–\u2060?20K pace\./);
+  assert.match(html, /<span class="sr-only">40K–finish: [^<]*, \+0\.1% against the 5–20K pace<\/span>/, 'the row the verdict names says the same 0.1%');
 }
 const comparison = {
   key: 'age_gender', label: 'Women, ages 35–39', n: 201, other_n: 200, rank: 50, ties: 2, percentile: 75, median_finish: 13000,
@@ -88,12 +93,13 @@ const milePeers = render(RunnerPeerComparison, { comparison, metrics, units: 'mi
 assert.match(milePeers, /Ahead of 75 in every 100 other finishes in this group\./); assert.doesNotMatch(milePeers, /of the 200 other/, 'No count in the placement: it would stand beside the pace group\'s different one'); assert.doesNotMatch(milePeers, /Finish \d+ of|share this time|official race placing|Slower finishes/);
 assert.match(milePeers, /<span>Behind it <b>75%<\/b><\/span><span>In front of it <b>25%<\/b><\/span>/, 'Both segments are named the same way, under the bar');
 assert.match(render(RunnerPeerComparison, { comparison: { ...comparison, key: 'all', percentile: 51.9 }, metrics, units: 'mi', edition: 'London 2020' }), /Ahead of 51 in every 100 other finishes in London 2020\./, 'Every eligible finish: the report\'s placement sentence, word for word, whole numbers down');
-assert.match(milePeers, /From 30K this race held its 5–\u2060?20K pace; the group’s median ran 12% slower\./, 'The late pace as one named measure, this race then the group'); assert.doesNotMatch(milePeers, /percentage points/); assert.match(milePeers, /This race/); assert.match(milePeers, /Middle 50%/);
+assert.match(milePeers, /From 30K this race held its 5–\u2060?20K pace; the group’s median ran 12\.0% slower\./, 'The late pace as one named measure, this race then the group'); assert.doesNotMatch(milePeers, /percentage points/); assert.match(milePeers, /This race/); assert.match(milePeers, /Middle 50%/);
 assert.doesNotMatch(milePeers, METHOD_COPY, 'No percentile definition or group caveat beside the peers');
 assert.match(milePeers, /8:03\/mi/); assert.match(milePeers, /8:11\/mi/);
 assert.match(render(RunnerPeerComparison, { comparison, metrics, units: 'km', edition: 'London 2020' }), /5:05\/km/);
-assert.equal(lateWords(13.8, 8.7), 'From 30K this race ran 14% slower than its 5–20K pace; the group’s median ran 9% slower.');
-assert.equal(lateWords(-2.04, 0.01), 'From 30K this race ran 2% faster than its 5–20K pace; the group’s median held its 5–20K pace.');
+// November 20, 2026 (review m3): one decimal, as the race report prints the same measure (it read 14% and 9%, 2%).
+assert.equal(lateWords(13.8, 8.7), 'From 30K this race ran 13.8% slower than its 5–20K pace; the group’s median ran 8.7% slower.');
+assert.equal(lateWords(-2.04, 0.01), 'From 30K this race ran 2.0% faster than its 5–20K pace; the group’s median held its 5–20K pace.');
 const sparse = render(RunnerPeerComparison, { comparison: { ...comparison, pace: null }, metrics, units: 'mi', edition: 'London 2020' });
 assert.match(sparse, /pace group is too small/); assert.doesNotMatch(sparse, /101 eligible finishes/); assert.doesNotMatch(sparse, /median ran 12%/);
 
@@ -108,17 +114,17 @@ assert.doesNotMatch(paired, /improved|previous race|earlier race/, 'A same-year 
 // A copy edition (lib/duplicate-editions.ts), synthetic: the later year repeats the earlier field, so without the screen
 // it would be the default focus race. With it, the copy is no focus option, comparison, context row or split-check link.
 const RunnerContext = require('../components/RunnerContext.tsx').default;
-const copyManifest = { editions: [{ city: 'Lakeside', year: 2021, race: 'Lakeside Marathon' }, { city: 'Lakeside', year: 2025, race: 'Lakeside Marathon' }] };
-const source = { ...race, id: 31, edition: 0 }, repeated = { ...race, id: 32, edition: 1 };
+const copyManifest = { editions: [{ ...v2, index: 0, context: 0, city: 'Lakeside', year: 2021, race: 'Lakeside Marathon' }, { ...v2, index: 1, context: 1, city: 'Lakeside', year: 2025, race: 'Lakeside Marathon' }] };
+const source = { ...race, id: 31, key: 'f31', edition: 0 }, repeated = { ...race, id: 32, key: 'f32', edition: 1 };
 const screen = [{ city: 'Lakeside', year: 2025, duplicate_of: 2021, eligible_removed: 400, identical_nine_time_twins: 390 }];
 const contextView = copyEditions => render(RunnerContext, { races: [source, repeated], manifest: copyManifest, units: 'mi', copyEditions });
 const focusOptions = html => (html.match(/<select id="[^"]*-focus"[^>]*>([\s\S]*?)<\/select>/)?.[1].match(/<option /g) || []).length;
 const without = contextView([]), withCopy = contextView(screen);
-assert.equal(focusOptions(without), 2); assert.match(without, /<option value="32" selected="">Lakeside 2025/); assert.match(without, /class="rc-multi"/);
+assert.equal(focusOptions(without), 2); assert.match(without, /<option value="f32" selected="">Lakeside 2025/); assert.match(without, /class="rc-multi"/);
 assert.equal(without, render(RunnerContext, { races: [source, repeated], manifest: copyManifest, units: 'mi' }), 'An empty screen leaves the view as it was');
 assert.equal(focusOptions(withCopy), 1, 'One focus option');
 assert.equal((withCopy.match(/<option /g) || []).length, 1, 'No other race to compare with');
-assert.match(withCopy, /<option value="31" selected="">Lakeside 2021/);
+assert.match(withCopy, /<option value="f31" selected="">Lakeside 2021/);
 assert.doesNotMatch(withCopy, /2025|record 32|rc-multi/, 'The copy appears nowhere in the view');
 assert.equal((withCopy.match(/split check/g) || []).length, 0, 'No split-check link in the view: the race report\'s share sheet has it');
 assert.equal(render(RunnerContext, { races: [repeated], manifest: copyManifest, units: 'mi', copyEditions: screen }), '', 'A selection of copies alone has no context view');
@@ -132,4 +138,17 @@ assert.doesNotMatch(withReport, /record 32/);
 assert.equal(render(RunnerContext, { races: [repeated], manifest: copyManifest, units: 'mi', copyEditions: screen, report: reportData }), '', 'A copy edition alone has no report button');
 assert.doesNotMatch(render(RunnerContext, { races: [source], manifest: copyManifest, units: 'mi' }), /Make a race report/, 'No report panel without the report data');
 assert.doesNotMatch(withReport, METHOD_COPY, 'No method copy in the context view');
-console.log('Runner context UI passed: unchanged source values, weather/terrain units, missing versus zero, the placement in the race report’s words and the pace, exact checkpoints, same-year section differences, no method, source or caveat copy (on /methodology since October 16, 2026), and no focus option, comparison, split-check link or race report button for a copy edition.');
+// Lookup version 2 (R4, D20, D16): every race in view shows its edition's labels; an own-record race (status 1, an
+// edition that is not counted) keeps its own pacing, with no similar runners, conditions or race report.
+const ownManifest = { editions: [{ ...copyManifest.editions[0] }, { ...copyManifest.editions[1], tier: 4, context: null, reason: 'Not counted.' }] };
+const counted = render(RunnerContext, { races: [source], manifest: ownManifest, units: 'mi', report: reportData });
+assert.match(counted, /class="rc-labels"[\s\S]*data-tier="stamped"[^>]*>Verified</, 'A counted race shows its tier badge');
+assert.match(counted, /Similar runners/); assert.match(counted, /Make a race report/);
+const ownRace = { ...repeated, status: 1, counted: false, reason: 'Not counted.' };
+const own = render(RunnerContext, { races: [ownRace], manifest: ownManifest, units: 'mi', report: reportData });
+assert.match(own, /class="rc-labels"[\s\S]*data-tier="unverified"[^>]*>Unverified</, 'An own-record race shows its edition\'s label');
+// November 20, 2026 (D49): the offer in the tier module's words (it read "Its own pacing only").
+assert.match(own, /Own pacing only: this race is compared with no other finishes\./);
+assert.match(own, /sustained slowdown/, 'Its own pacing reading is shown');
+assert.doesNotMatch(own, /Similar runners|Conditions|Make a race report|rc-tabs/, 'An own-record race is compared with no one and has no report');
+console.log('Runner context UI passed: unchanged source values, weather/terrain units, missing versus zero, the placement in the race report’s words and the pace, exact checkpoints, same-year section differences, no method, source or caveat copy (on /methodology since October 16, 2026), and no focus option, comparison, split-check link or race report button for a copy edition; on lookup version 2 every race shows its edition’s labels and an own-record race keeps its own pacing only.');

@@ -6,6 +6,10 @@ the API rate limit; asset downloads always use their public browser URL.
 A `master-*` release has no CORE/FULL archive: when the pin (analysis/release.json) names one with
 `layout: master`, the same command hands it to analysis/adapt_master.py, which downloads the pinned
 assets anonymously, reconciles them and writes the input folder the builders read.
+
+A `pace-notes-marathon-half-*` release holds both distances in one CORE archive and its cross-race
+identity in separate person-link files: when the pin names one with `layout: combined`, the command
+hands it to analysis/adapt_combined.py, which does the same for its marathon rows.
 """
 import argparse
 import hashlib
@@ -40,6 +44,9 @@ PACE_NOTES_MATCHING = {"MATCHING.md"}
 PACE_NOTES_WITHOUT_MATCHING = {"private-export-20261021-0829"}
 # master-* releases (first master-20261103b): one results table for both distances, adapted by analysis/adapt_master.py.
 MASTER_TAG = re.compile(r"master-[0-9]{8}[a-z]?")
+# pace-notes-marathon-half-* releases (first pace-notes-marathon-half-20261113-1113): both distances in one CORE archive
+# plus person-link files, adapted by analysis/adapt_combined.py.
+COMBINED_TAG = re.compile(r"pace-notes-marathon-half-[0-9]{8}-[0-9]{4}")
 # A large archive may be attached in numbered parts, joined in order before extraction.
 PART = re.compile(r"^(?P<archive>.+\.tar\.gz)\.part-(?P<number>[0-9]{2})$")
 
@@ -188,6 +195,14 @@ def main(argv=None):
             raise ValueError("A master-* release is adapted only as the tag analysis/release.json pins with layout master.")
         import adapt_master
         provenance = adapt_master.adapt(config, args.output, args.bundle)
+        print(f"Verified and adapted {args.bundle} input {tag} into {args.output.resolve()}.")
+        return provenance
+    if COMBINED_TAG.fullmatch(tag):
+        # A combined release is read only through its full pin: the checksum file, every asset digest and the baseline.
+        if config.get("layout") != "combined" or config["tag"] != tag:
+            raise ValueError("A pace-notes-marathon-half-* release is adapted only as the tag analysis/release.json pins with layout combined.")
+        import adapt_combined
+        provenance = adapt_combined.adapt(config, args.output, args.bundle)
         print(f"Verified and adapted {args.bundle} input {tag} into {args.output.resolve()}.")
         return provenance
     if not tag.startswith(("private-export-", "htw-db-")) or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_." for c in tag):

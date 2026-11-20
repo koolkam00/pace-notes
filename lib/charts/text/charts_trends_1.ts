@@ -55,6 +55,9 @@ export const CHARTS_TRENDS_1_TEXT: Record<string, ChartText> = {
   },
   'womens-share-rose-in-most-races': {
     title: 'Women’s share rose almost everywhere',
+    // The title while the guard fails (November 14, 2026: it fails on the combined release; the reading and its
+    // guard are unchanged and return when the data meet them).
+    neutral: 'Women’s share, earliest and latest edition',
     takeaway: (v) => ({
       guard: n(v.up) >= 0.75 * n(v.races) && n(v.c1) > n(v.c0) + 0.05 && n(v.c1_year) - n(v.c0_year) >= 10,
       headline: `Women’s share of finishes rose in ${count(n(v.up))} of ${count(n(v.races))} races whose editions span 10+ years; in Copenhagen, from ${pct(n(v.c0))} in ${n(v.c0_year)} to *${pct(n(v.c1))}* in ${n(v.c1_year)}.`,
