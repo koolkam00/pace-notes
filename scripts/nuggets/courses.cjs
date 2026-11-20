@@ -124,11 +124,16 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
     const guard = verified.length >= 3 && classes.size === 1;
     const reading = at('race.reading');
     step(() => eq(reading.guard, guard, `race.reading (${city}): the guard (three verified editions of 100 finishes on one timing class)`));
-    step(() => eq(said(reading), guard ? `In a typical verified year, the median finish was ${hm(median)}.` : dek, `race.reading (${city}): the sentence, else the count`));
+    // The years' words: a weaker-source stamp always says "weaker source" (review m1, November 20, 2026).
+    const weak = verified.filter((e) => e.tier === 'stamped_weaker_source').length, plain = verified.length - weak;
+    const yearWord = weak === 0 ? 'verified year' : plain === 0 ? 'year (verified, weaker source)' : `verified year (${weak} of ${verified.length} verified, weaker source)`;
+    const yearsWord = weak === 0 ? 'verified years' : plain === 0 ? 'years (verified, weaker source)' : `verified years (${weak} verified, weaker source)`;
+    step(() => eq(said(reading), guard ? `In a typical ${yearWord}, the median finish was ${hm(median)}.` : dek, `race.reading (${city}): the sentence, else the count`));
+    step(() => eq(reading.key, `median finish in a typical ${yearWord}`, `race.reading (${city}): the key names the years' tier`));
     step(() => eq(reading.figure ? reading.figure.value : null, guard ? hm(median) : null, `race.reading (${city}): the figure only under the guard`));
     const range = at('race.range');
     const rangeGuard = guard && ms[ms.length - 1] - ms[0] >= 60 && hm(ms[0]) !== hm(ms[ms.length - 1]);
-    step(() => eq([range.guard, said(range)], [rangeGuard, rangeGuard ? `Across its ${verified.length} verified years, the median finish ran from ${hm(ms[0])} to ${hm(ms[ms.length - 1])}.` : 'Median finish by year.'], `race.range (${city}): the guard and the heading`));
+    step(() => eq([range.guard, said(range)], [rangeGuard, rangeGuard ? `Across its ${verified.length} ${yearsWord}, the median finish ran from ${hm(ms[0])} to ${hm(ms[ms.length - 1])}.` : 'Median finish by year.'], `race.range (${city}): the guard and the heading`));
     step(() => eq(at('course.series').guard, (race.series ?? []).length >= 2, `course.series (${city}): only where the race file holds two series`));
   }
   // The series line: Warsaw's two (the race file's names and years), and no other course page names any.
@@ -166,7 +171,7 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       step(() => eq(n.figure.value, String(Math.round(c.slowdown * 100)), `course.slowdown (${city}): the figure`));
       // The figure averages the editions' shares: the key names the average edition, the two editions' average, or with
       // one edition its year (no average was taken).
-      const lead = cells.length === 1 ? `of finishes in ${cells[0].year} had a` : cells.length === 2 ? 'of finishes in its two editions, on average, had a' : 'of finishes in an average year had a';
+      const lead = cells.length === 1 ? `of finishes in ${cells[0].year} had a` : cells.length === 2 ? 'of finishes in its two counted editions, on average, had a' : 'of finishes in an average year had a';
       step(() => eq(n.key, `${lead} sustained slowdown`, `course.slowdown (${city}): the key names what the figure averages`));
       // Where the high end was also the warmest (or coolest) of the mornings the policy keeps, on a page that shows
       // #weather, the hero says so once (critic round 5), and #weather compares the other mornings.
@@ -201,7 +206,8 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         // The share of courses said in words (round 6): every, nearly every (85% or more), most, else the tally.
         const k = tally.get(modal), on = k === shaped ? 'every course' : k / shaped >= 0.85 ? 'nearly every course' : k / shaped > 0.5 ? 'most courses' : `${k} of ${shaped} courses`;
         // A course of fewer than three editions says how many first, as its slowdown H2 does.
-        const from = c.editions < 3 ? `From its ${['zero', 'one', 'two'][c.editions]} edition${c.editions === 1 ? '' : 's'}, ` : '';
+        // "Counted" since November 20, 2026 (review M9): the editions are the counted ones.
+        const from = c.editions < 3 ? `From its ${['zero', 'one', 'two'][c.editions]} counted edition${c.editions === 1 ? '' : 's'}, ` : '';
         step(() => eq(said(n), `${from}${named(city)}’s slowest ${stretch(i)} is ${name}; on ${on} it’s ${usual}.`, `course.late (${city}): the sentence`));
         // The row names its baseline, the course's own average pace (the hills page's is other courses; critic round 4).
         step(() => eq(n.key, `than ${named(city)}’s average pace, at ${name}, its slowest ${stretch(i)}; on ${on} it’s ${usual}`, `course.late (${city}): the row names its baseline`));
@@ -237,6 +243,28 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       else if (solid && Math.abs(c.signature_points) < 3) step(() => ok(said(n).endsWith('paces much like the typical course, 5K by 5K.'), `course.signature (${city}): within 3 points everywhere, it paces like the typical course`));
     }
 
+    // The line under the hero (review M9, November 20, 2026): the years with results that are not counted, as spans, and
+    // how many carry each tier, from the race file and the cohort's counted editions.
+    {
+      const n = at('course.also');
+      const rp = racePages.find((r) => r.label === city);
+      const countedYears = new Set(cohort.editions.filter((e) => e.city === city && e.use === 'counted').map((e) => e.year));
+      const other = rp ? json(`public/data/races/race/${rp.slug}.json`).editions.filter((e) => e.review !== 'copy' && !countedYears.has(e.year)) : [];
+      step(() => eq(n.guard, other.length > 0, `course.also (${city}): a line only where some year with results is not counted`));
+      if (other.length) {
+        const ys = other.map((e) => e.year).sort((a, b) => a - b);
+        const runs = [];
+        for (const y of ys) { const last = runs[runs.length - 1]; if (last && y === last[1] + 1) last[1] = y; else runs.push([y, y]); }
+        const parts = runs.flatMap(([a, b]) => (b - a >= 2 ? [`${a}–${b}`] : b === a ? [String(a)] : [String(a), String(b)]));
+        const spans = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+        const WORDS = { stamped: 'verified', stamped_weaker_source: 'verified, weaker source', partial: 'with partial results', unverified: 'unverified', held_for_review: 'held for review' };
+        const tiers = Object.keys(WORDS).map((t) => [t, other.filter((e) => e.tier === t).length]).filter(([, k]) => k > 0);
+        step(() => eq(tiers.reduce((a, [, k]) => a + k, 0), other.length, `course.also (${city}): every year's tier is a shown tier`));
+        const line = tiers.map(([t, k]) => `${k.toLocaleString('en-US')} ${WORDS[t]}`).join('\u00a0· ');
+        step(() => eq(said(n), `Results also for ${spans} (${line}).`, `course.also (${city}): the line`));
+      }
+    }
+
     // #finish-times: what the hero has not told. Six or more editions whose first three and last three average five
     // minutes or more apart are a trend; medians under six minutes apart, the window every one fell in (ends rounded
     // outward); otherwise the range, low end first, accenting an end no other section accents. Never a held edition.
@@ -258,11 +286,13 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
         const ceil = (s) => hm(Math.ceil(s / 60) * 60);
         const years = (end) => { const ys = named.filter((x) => hm(x.median_s) === hm(end.median_s)).map((x) => x.year); return ys.length > 1 ? `${ys.slice(0, -1).join(', ')} and ${ys[ys.length - 1]}` : String(ys[0]); };
         let want, accent = null;
-        if (Math.abs(drift) >= 300) want = `The median finish got ${Math.round(Math.abs(drift) / 60)} minutes ${drift < 0 ? 'quicker' : 'slower'} from the first three editions to the last three.`;
-        else if (spread < 360) want = `Every median finish fell between ${hm(lo.median_s)} and ${ceil(hi.median_s)}.`;
+        // Of the finishes with all splits, and said so (November 20, 2026, lead decision D46).
+        const cohort = 'Among finishes with all splits, ';
+        if (Math.abs(drift) >= 300) want = `${cohort}the median finish got ${Math.round(Math.abs(drift) / 60)} minutes ${drift < 0 ? 'quicker' : 'slower'} from the first three editions to the last three.`;
+        else if (spread < 360) want = `${cohort}every median finish fell between ${hm(lo.median_s)} and ${ceil(hi.median_s)}.`;
         else {
           accent = [lo, hi].find((e) => e.year !== heroYear && e.year !== wxYear) ?? null;
-          want = `The median finish ranged from ${hm(lo.median_s)} in ${years(lo)} to ${hm(hi.median_s)} in ${years(hi)}.`;
+          want = `${cohort}the median finish ranged from ${hm(lo.median_s)} in ${years(lo)} to ${hm(hi.median_s)} in ${years(hi)}.`;
         }
         step(() => eq(said(n), want, `course.times (${city}): the sentence`));
         step(() => eq(Number.isNaN(n.values.accent_year) ? null : n.values.accent_year, accent ? accent.year : null, `course.times (${city}): the accented end`));
@@ -339,11 +369,11 @@ module.exports = function courseRecounts({ ROOT, N, core, ok, eq, problems }) {
       const all = count === others.length;
       // The comparator without the set's size (the strip's key names the courses counted); a course of fewer editions
       // leads with how many it has.
-      const set = `${solidSelf ? 'other ' : ''}courses with three or more editions`;
+      const set = `${solidSelf ? 'other ' : ''}courses with three or more counted editions`;
       const than = all ? `all ${others.length} ${set}` : `${count} of ${others.length} ${set}`;
       const want = middle ? `${named(city)}’s ${whole(c.slowdown)}: near the middle of the ${set}.`
         : solidSelf ? `${named(city)}’s ${whole(c.slowdown)}: ${side} than ${than}.`
-          : `From its ${words[c.editions]} edition${c.editions === 1 ? '' : 's'}, ${named(city)}’s ${whole(c.slowdown)} is ${side} than ${than}.`;
+          : `From its ${words[c.editions]} counted edition${c.editions === 1 ? '' : 's'}, ${named(city)}’s ${whole(c.slowdown)} is ${side} than ${than}.`;
       if (n.guard) step(() => eq(said(n).replace(/\u00a0/g, ' '), want, `course.among (${city}): the sentence`));
     }
 

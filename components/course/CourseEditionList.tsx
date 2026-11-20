@@ -1,5 +1,5 @@
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
-import { SplitTierTag, TagGroup, TierTag, TimingClassTag } from '@/components/ui/TierTag';
+import { EditionKey, editionKey, RowTags } from './EditionKey';
 import { HowLink } from '@/components/ui/Values';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { howWeKnowOf } from '@/lib/chapters';
@@ -19,6 +19,8 @@ export default function CourseEditionList({ course }: { course: CourseList }) {
   const years = listed.map((e) => e.year);
   const span = years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : String(years[0] ?? '');
   const how = howWeKnowOf(`/courses/${slug}`);
+  // A label true of most rows is said once, above the table (lead decision D48).
+  const key = editionKey(listed);
   return (
     <>
       <section className="night course-hero is-routeless is-stripless" data-track-section="hero" data-course-list="">
@@ -30,6 +32,7 @@ export default function CourseEditionList({ course }: { course: CourseList }) {
         <p className="course-hero-sentence t-sentence">No pacing figures for this race.</p>
       </section>
       <CourseSection id="editions" beat="Editions" title={`${display}, edition by edition`}>
+        <EditionKey model={key} />
         {/* The shared table (app/styles/components/table.css): a tier column is text, so it wraps and aligns left. */}
         <div className="table-wrap" role="region" aria-label={`${display}: each edition`} tabIndex={0}>
         <table className="table course-list-table">
@@ -40,7 +43,7 @@ export default function CourseEditionList({ course }: { course: CourseList }) {
               <tr key={e.year} data-edition={e.year}>
                 <th scope="row">{e.year}</th>
                 {/* A code the cohort manifest does not state stops the build here: no label is ever a default. */}
-                <td className="is-text"><TagGroup><TierTag tier={e.tier} weakerSource={e.weakerSource} /><SplitTierTag splitTier={e.splitTier} /><TimingClassTag timing={e.timing} /></TagGroup></td>
+                <td className="is-text edition-status"><RowTags row={e} model={key} /></td>
                 <td><Fact k={`rr@${e.year}`} v={e.results}>{count(e.results)}</Fact></td>
               </tr>
             ))}

@@ -11,7 +11,7 @@ import { pct } from '@/lib/nuggets/format';
 import { heldEditions, MONTHS, routeClimb, type CoursePageData } from '@/lib/course-page';
 import { planHref } from '@/lib/tools/links';
 import { tierWords } from '@/lib/tiers';
-import { Fact, Said } from './Fact';
+import { Fact, Said, SectionLink } from './Fact';
 import RouteFace from './RouteFace';
 
 /**
@@ -55,6 +55,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
   const reading = getNugget('course.slowdown', { city });
   // Two races under one label (Warsaw: plan decision D29): named where the page states a reading across years.
   const series = getNugget('course.series', { city });
+  const also = getNugget('course.also', { city });
   // A profile that reads the water under a bridge misstates the climb: the hero prints none there (#elevation is left out).
   const climb = profileUnderWater(page) ? null : routeClimb(page);
   const years = s.years;
@@ -94,7 +95,10 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
       <div className="course-hero-head">
         <div className="reading-crumbs t-kicker course-crumbs"><ChapterCrumbs path={`/courses/${page.slug}`} place={<Link href="/courses" className="crumb-courses">Courses</Link>} /></div>
         <h1 className="course-title t-title">{race}</h1>
-        <p className="hero-dek">{s.editions === 1 ? `One edition, ${span}` : `${s.editions} editions, ${span}`}{when ? `\u00a0· ${when}` : ''}</p>
+        {/* The editions the figures are of are the counted ones, and the dek says so (review M9, November 20, 2026); years
+            with results that are not counted are named on one line under it, linked to the edition table. */}
+        <p className="hero-dek">{s.editions === 1 ? `One counted edition, ${span}` : `${s.editions} counted editions, ${span}`}{when ? `\u00a0· ${when}` : ''}</p>
+        {also.guard ? <p className="hero-dek course-also"><SectionLink to="all-numbers" className="course-also-link"><Said nugget={also} /></SectionLink></p> : null}
         {series.guard ? <p className="hero-dek course-series"><Said nugget={series} /></p> : null}
       </div>
       <div className="course-hero-figure">

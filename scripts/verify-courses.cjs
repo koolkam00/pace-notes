@@ -292,8 +292,37 @@ const RESULTS = RACE_PAGES.filter((p) => p.page === 'results');
 // vocabulary does not know, a tier that is never shown, or a weaker-source flag that disagrees with its tier.
 const T = require(path.join(root, 'lib/tiers.ts'));
 /** The label texts of one edition, in the order EditionTags draws them; throws on a code the vocabulary refuses. */
-/** An edition's labels from its race-file codes: the tier, "Finish times only" and "Gun times" where they apply. */
-const raceLabels = (e) => [T.tierWords(e.tier), T.splitTierWords(e.split_tier), e.timing === 'gun' ? T.GUN_TIMES : null].filter(Boolean);
+/**
+ * An edition table's key (lead decision D48, review M5, November 20, 2026), recounted from the rows' codes: from three
+ * rows, a label true of more than half of them (a tier, "Finish times only", "Gun times") is said once in the key with
+ * the years it is not true of, and each row shows only the labels the key does not say for it.
+ * `rows` are { year, tier, split, gun }. Returns the key's text ('' for none) and each row's expected labels.
+ */
+function tableKey(rows) {
+  const most = (pred) => (rows.length >= 3 && rows.filter(pred).length * 2 > rows.length ? rows.filter((r) => !pred(r)).map((r) => r.year) : null);
+  const tiers = [...new Set(rows.map((r) => r.tier))];
+  const tier = tiers.find((t) => most((r) => r.tier === t) !== null) ?? null;
+  const split = most((r) => r.split === 'finish_time_only');
+  const gun = most((r) => r.gun);
+  const spans = (ys) => {
+    const runs = [];
+    for (const y of [...ys].sort((a, b) => a - b)) { const last = runs[runs.length - 1]; if (last && y === last[1] + 1) last[1] = y; else runs.push([y, y]); }
+    const parts = runs.flatMap(([a, b]) => (b - a >= 2 ? [`${a}–${b}`] : b === a ? [String(a)] : [String(a), String(b)]));
+    return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+  };
+  const items = [];
+  const item = (words, except) => items.push(`${words}${except.length ? `, except ${spans(except)}` : ', every year'}`);
+  if (tier) item(T.tierWords(tier), rows.filter((r) => r.tier !== tier).map((r) => r.year));
+  if (split) item(T.FINISH_TIMES_ONLY, split);
+  if (gun) item(T.GUN_TIMES, gun);
+  return {
+    text: items.length ? `${items.join('; ')}.` : '',
+    labels: (r) => [r.tier === tier ? null : T.tierWords(r.tier), split || r.split !== 'finish_time_only' ? null : T.FINISH_TIMES_ONLY, gun || !r.gun ? null : T.GUN_TIMES].filter(Boolean),
+  };
+}
+/** The key's text on a page, before a section's first table; '' where it has none. */
+const keyText = (html) => (/<p class="edition-key">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? null);
+
 /**
  * The year's verdict for linked runners in an edition row (components/races/LinkedYear.tsx): the cell says exactly the
  * linked-records helper's words (their guard is recounted by scripts/nuggets/linked.cjs), sentence case, or a dash; the
@@ -738,7 +767,11 @@ if (html) {
     // code on its label, each a link to the definitions).
     const labelsOf = (cell) => [...cell.matchAll(/<(?:a|span)\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>([\s\S]*?)<\/(?:a|span)>/g)].map((m) => ({ text: textOf(m[2]), tier: attr(m[1], 'data-tier'), href: attr(m[1], 'href') }));
     const rows = [...(sectionOf(body, 'editions') ?? '').matchAll(/<tr\b[^>]*><th scope="row">(\d{4})<\/th><td\b[^>]*>([\s\S]*?)<\/td>(?:<td\b[^>]*>[\s\S]*?<\/td>)?<\/tr>/g)].map((m) => [Number(m[1]), labelsOf(m[2])]);
-    check(JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text), labels[0]?.tier])) === JSON.stringify(editions.map((e) => [e.year, tierTexts(e, e.timing), e.tier])), where,
+    // Since November 20, 2026 (lead decision D48) a label true of most rows is said once in the table's key.
+    const listKey = tableKey(editions.map((e) => ({ year: e.year, tier: e.tier, split: e.split, gun: e.timing === 'gun' })));
+    check(norm(textOf(keyText(sectionOf(body, 'editions') ?? '') ?? '')) === norm(listKey.text), where, `the edition table's key "${textOf(keyText(sectionOf(body, 'editions') ?? '') ?? '')}" is not "${listKey.text}"`);
+    const keepOf = (e) => new Set(listKey.labels({ year: e.year, tier: e.tier, split: e.split, gun: e.timing === 'gun' }));
+    check(JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text)])) === JSON.stringify(editions.map((e) => [e.year, tierTexts(e, e.timing).filter((w) => keepOf(e).has(w))])), where,
       `the editions listed ${JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text)]))} are not the race's editions with their tier labels`);
     check(rows.every(([, labels]) => labels.every((l) => l.href === T.TIER_ANCHOR)), where, 'a tier label does not link to its definition');
     // No number but the years and how many editions there are: nothing the page itself says is a share, a count of
@@ -845,7 +878,7 @@ if (html) {
     // The figure averages the editions' shares, so its words name the average edition (course.slowdown's key), never a
     // share pooled over every finish.
     const heroKey = norm(textOf(/<p class="course-hero-key"[^>]*>([\s\S]*?)<\/p>/.exec(body)?.[1] ?? ''));
-    const averaged = f.cells.length === 1 ? new RegExp(`^of finishes in ${f.cells[0].year} had`) : f.cells.length === 2 ? /in its two editions, on average,/ : /in an average year/;
+    const averaged = f.cells.length === 1 ? new RegExp(`^of finishes in ${f.cells[0].year} had`) : f.cells.length === 2 ? /in its two counted editions, on average,/ : /in an average year/;
     check(heroKey === norm(N.getNugget('course.slowdown', { city }).key) && averaged.test(heroKey), where, `the hero figure's words "${heroKey}" do not name what the figure averages`);
     const glanceKeys = [...main.matchAll(/<span class="glance-key">([\s\S]*?)<\/span>/g)].map((m) => norm(textOf(m[1])));
     // One row is the section's finding: its sentence is the H2 and no key repeats it. Two or three each carry their key.
@@ -958,11 +991,18 @@ if (html) {
       const trs = [...editionTable.matchAll(/<tr\b([^>]*)><th scope="row">(\d{4})<\/th><td\b[^>]*>([\s\S]*?)<\/td>([\s\S]*?)<\/tr>/g)];
       const live = f.raceFile.editions.filter((e) => e.review !== 'copy');
       check(JSON.stringify(trs.map((m) => Number(m[2]))) === JSON.stringify(live.map((e) => e.year)), where, `the edition table's years ${trs.map((m) => m[2]).join(', ')} are not every edition with results`);
+      // Since November 20, 2026 (lead decision D48) a label true of most rows is said once in the key above the table, with
+      // the years it is not true of, and each row shows only the labels the key does not say for it.
+      const courseKey = tableKey(live.map((e) => ({ year: e.year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' })));
+      const keyHtml = keyText(numbers.slice(0, numbers.indexOf('numbers-editions-caption')).split('</table>').pop());
+      check(norm(textOf(keyHtml ?? '')) === norm(courseKey.text), where, `the edition table's key "${textOf(keyHtml ?? '')}" is not "${courseKey.text}"`);
+      if (keyHtml) check([...keyHtml.matchAll(/<a\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>/g)].every((l) => attr(l[1], 'href') === T.TIER_ANCHOR), where, 'a label in the key does not link to its definition');
       for (const m of trs) {
         const year = Number(m[2]);
         const e = live.find((x) => x.year === year);
         const labels = [...m[3].matchAll(/<a\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>([\s\S]*?)<\/a>/g)].map((l) => ({ text: textOf(l[2]), tier: attr(l[1], 'data-tier'), href: attr(l[1], 'href') }));
-        check(e && JSON.stringify(labels.map((l) => l.text)) === JSON.stringify(raceLabels(e)) && labels[0]?.tier === e.tier && labels.every((l) => l.href === T.TIER_ANCHOR), where, `the ${year} row's tier labels ${JSON.stringify(labels.map((l) => l.text))} are not the edition's`);
+        const want = e ? courseKey.labels({ year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' }) : [];
+        check(e && JSON.stringify(labels.map((l) => l.text)) === JSON.stringify(want) && (want[0] !== T.tierWords(e.tier) || labels[0]?.tier === e.tier) && labels.every((l) => l.href === T.TIER_ANCHOR), where, `the ${year} row's tier labels ${JSON.stringify(labels.map((l) => l.text))} are not ${JSON.stringify(want)}`);
         const cell = f.cells.find((c) => c.year === year);
         const keys = [...m[4].matchAll(/data-k="([^"]+)"/g)].map((k) => k[1].split('@')[0]);
         check(cell ? keys.includes('n') && keys.includes('rr') : JSON.stringify(keys) === '["rr"]', where, `the ${year} row prints ${keys.join(', ')}: ${cell ? 'a counted edition keeps its figures' : 'an edition without a row prints its recorded results and dashes only'}`);
@@ -986,6 +1026,16 @@ if (html) {
       check(!promise, where, `#elevation promises "${promise && promise[0]}"`);
     }
     if (f.route && !f.wet) check((/<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '').includes(`data-k="${f.terrain ? 'route.gain' : 'geo.gain'}"`), where, 'the hero does not print the climb');
+    // The hero counts counted editions, and names the years with results that are not counted on one line linked to the
+    // edition table (review M9, November 20, 2026).
+    {
+      const hero = /<section class="night[\s\S]*?<\/section>/.exec(body)?.[0] ?? '';
+      const dek = textOf(/<p class="hero-dek">([\s\S]*?)<\/p>/.exec(hero)?.[1] ?? '');
+      check(/^(?:One counted edition|[\d,]+ counted editions), /.test(dek), where, `the hero's dek "${dek}" does not count counted editions`);
+      const also = /<p class="hero-dek course-also">([\s\S]*?)<\/p>/.exec(hero)?.[1] ?? null;
+      const n = N.getNugget('course.also', { city });
+      check(n.guard ? also !== null && norm(textOf(also)) === norm(said('course.also', city)) && /href="#all-numbers"/.test(also) : also === null, where, `the line of years not counted: ${also === null ? 'missing' : `"${textOf(also)}"`} under a guard that ${n.guard ? 'holds' : 'fails'}`);
+    }
 
     // Weather: the 5 °C gate, the slope sentence for the courses with one, and context.
     const gap = f.hotCool ? Math.round((f.hotCool.hot.temp - f.hotCool.cool.temp) * 10) / 10 : null;
@@ -1092,10 +1142,15 @@ if (html) {
     // Every edition with results, in order, its labels from the shared module, its figures against the race file.
     const trs = [...(sectionOf(body, 'editions') ?? '').matchAll(/<tr\b[^>]*><th scope="row">(\d{4})<\/th><td\b[^>]*>([\s\S]*?)<\/td>([\s\S]*?)<\/tr>/g)];
     check(JSON.stringify(trs.map((m) => Number(m[1]))) === JSON.stringify(live.map((e) => e.year)), where, 'the edition table does not list every edition with results');
+    // The key says a label true of most rows once (lead decision D48, November 20, 2026); rows show only the others.
+    const resultsKey = tableKey(live.map((e) => ({ year: e.year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' })));
+    const resultsKeyHtml = keyText(sectionOf(body, 'editions') ?? '');
+    check(norm(textOf(resultsKeyHtml ?? '')) === norm(resultsKey.text), where, `the edition table's key "${textOf(resultsKeyHtml ?? '')}" is not "${resultsKey.text}"`);
     for (const m of trs) {
       const e = live.find((x) => x.year === Number(m[1]));
       const labels = [...m[2].matchAll(/<a\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>([\s\S]*?)<\/a>/g)].map((l) => ({ text: textOf(l[2]), href: attr(l[1], 'href') }));
-      check(e && JSON.stringify(labels.map((l) => l.text)) === JSON.stringify(raceLabels(e)) && labels.every((l) => l.href === T.TIER_ANCHOR), where, `${m[1]}: labels ${JSON.stringify(labels.map((l) => l.text))}`);
+      const wantLabels = e ? resultsKey.labels({ year: e.year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' }) : null;
+      check(e && JSON.stringify(labels.map((l) => l.text)) === JSON.stringify(wantLabels) && labels.every((l) => l.href === T.TIER_ANCHOR), where, `${m[1]}: labels ${JSON.stringify(labels.map((l) => l.text))}, not ${JSON.stringify(wantLabels)}`);
       const keys = [...m[3].matchAll(/data-k="([^"]+)"/g)].map((k) => k[1].split('@')[0]);
       const want = ['rr', ...(typeof e?.finishes === 'number' ? ['rf'] : []), ...(typeof e?.median_s === 'number' ? ['rm', 'rq1', 'rq3'] : [])];
       check(JSON.stringify(keys) === JSON.stringify(want), where, `${m[1]}: prints ${keys.join(', ')}, the file has ${want.join(', ')}`);
