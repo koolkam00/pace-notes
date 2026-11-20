@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 import { SplitTierTag, TagGroup, TierTag, TimingClassTag } from '@/components/ui/TierTag';
-import { yearSpans } from '@/lib/nuggets/format';
+import { yearSpans } from '@/lib/nuggets/years';
 import { isGunTiming } from '@/lib/tiers';
 
 /**
