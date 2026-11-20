@@ -712,6 +712,11 @@ const METHOD = [
   [/weighted equally|\bpooled?\b|start delays|largely repeat|copy edition|not counted|at least 100 finishes|fewer than 100|checkpoint times|in the data\b|story data|\bscreen/i, 'a cohort or coverage note'],
   [/About this data|how (?:it|they) (?:is|are) measured|what the types mean/i, 'a method section or link'],
 ];
+// The tier module's own words are labels defined on /methodology, not a method note: "verified, weaker source" names a
+// stamp, and the lead's rule (review m1, November 20, 2026) is that a weaker-source stamp always carries those words. Only
+// the vocabulary's exact phrases are taken out before the method patterns run; "source" anywhere else still fails.
+const TIER_PHRASE = new RegExp([...T.TIER_PHRASES].sort((a, b) => b.length - a.length).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
+const ownWords = (text) => text.replace(TIER_PHRASE, '');
 const OWN_COPY = /<(p|dl|span|h2)\b[^>]*class="(?:hero-dek|course-hero-key|course-hero-sentence t-sentence|course-callout|course-hotcool|course-totals|course-h2|course-row-meta)"[^>]*>([\s\S]*?)<\/\1>/g;
 const TRACK = { 'at-a-glance': 'chapter-1', 'finish-times': 'chapter-2', elevation: 'chapter-3', pacing: 'chapter-4', slowdown: 'chapter-5', goals: 'chapter-6', weather: 'chapter-7', plan: 'cta', 'other-courses': 'related' };
 
@@ -795,7 +800,7 @@ if (html) {
     const rank = RANK.exec(textOf(main));
     check(!rank, where, `rank word "${rank && rank[0]}"`);
     for (const [pattern, label] of BANNED) check(!pattern.test(textOf(main)), where, `${label} on the page`);
-    for (const [pattern, label] of METHOD) for (const m of main.matchAll(OWN_COPY)) check(!pattern.test(textOf(m[2])), where, `${label} in the page's own copy`);
+    for (const [pattern, label] of METHOD) for (const m of main.matchAll(OWN_COPY)) check(!pattern.test(ownWords(textOf(m[2]))), where, `${label} in the page's own copy`);
     const types = [...full.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => [].concat(JSON.parse(m[1])).map((x) => x['@type']));
     check(JSON.stringify(types) === '["BreadcrumbList"]', where, `structured data ${types}`);
   }
@@ -1176,7 +1181,7 @@ if (html) {
     const rank = RANK.exec(own);
     check(!rank, where, `rank word "${rank && rank[0]}"`);
     for (const [pattern, label] of BANNED) check(!pattern.test(textOf(body)), where, `${label} on the page`);
-    for (const [pattern, label] of METHOD) for (const m of main.matchAll(OWN_COPY)) check(!pattern.test(textOf(m[2])), where, `${label} in the page's own copy`);
+    for (const [pattern, label] of METHOD) for (const m of main.matchAll(OWN_COPY)) check(!pattern.test(ownWords(textOf(m[2]))), where, `${label} in the page's own copy`);
     // The ways on: the runner search and the planner, with no course preset; every link to an exported page.
     const ways = [...(sectionOf(body, 'find') ?? '').matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((m) => decode(m[1]));
     check(JSON.stringify(ways) === JSON.stringify(['/runners', '/tools/plan']), where, `the ways on are ${ways.join(', ')}`);
