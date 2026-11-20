@@ -126,7 +126,7 @@ export default function MethodsDefinitions() {
 
     <HalfMultipleDefinition />
 
-    <Definition id="percentiles" term="Percentiles and ranges"
+    <Definition id="percentiles" term="Percentiles and ranges" folded
       rule={<p>A percentile ranks finishes by time within a group: by the 10th, one finish in ten had come in. The median is the middle finish.</p>}>
       <ul>
         <li>The <strong>middle half</strong> runs from the 25th to the 75th percentile, and the <strong>middle 80%</strong> from the 10th to the 90th. Both describe variation between finishes. They are not confidence intervals and not recommended plans.</li>
@@ -137,7 +137,7 @@ export default function MethodsDefinitions() {
       </ul>
     </Definition>
 
-    <Definition id="baselines" term="Baselines and relative pace"
+    <Definition id="baselines" term="Baselines and relative pace" folded
       rule={<p>Every finish is measured against itself: its own pace from the 5K mat to the 20K mat.</p>}>
       <ul>
         <li><strong>5–20K pace</strong> is a finish’s pace between the 5 km and 20 km mats: (20 km time − 5 km time) ÷ 15. It is each finish’s own reference for the sustained-slowdown definition, the section bars, the opening, the kick and the tools. It is measured during the race, so it can already reflect the opening, terrain or crowding.</li>
@@ -150,13 +150,13 @@ export default function MethodsDefinitions() {
       <p>Every section is compared as a pace or weighted by its distance, because the final 2.195 km is shorter than a 5 km section.</p>
     </Definition>
 
-    <Definition id="opening-groups" term="Opening groups"
+    <Definition id="opening-groups" term="Opening groups" folded
       rule={<p>The first 5K’s pace against the same finish’s 5–20K pace, in six groups from more than 10% faster to more than 5% slower.</p>}>
       <p>The opening compares the first 5 km with the same finish’s 5–20K pace: 100 × (opening pace ÷ 5–20K pace − 1). Negative means faster. The first section is not part of the reference, so the two are compared directly. Six groups split the changes: below −10%, −10% to below −5%, −5% to below −2%, −2% through 2%, above 2% through 5%, and above 5%. Exact decimal timings keep these boundaries without rounding the source times.</p>
       <p>Opening groups and opening-pace bands describe a start. They do not diagnose overreach.</p>
     </Definition>
 
-    <Definition id="how-to-read" term="Reading the charts"
+    <Definition id="how-to-read" term="Reading the charts" folded
       rule={<p>The mats are named 5K to 40K in both units. A pace drawn at 40K is the average over 35–40K, not the pace at that mat.</p>}>
       <p>Pace profiles show section averages at the section’s end distance. A line between two averages does not show a sudden change at either checkpoint. Changes inside a section cannot be seen.</p>
       <ul>

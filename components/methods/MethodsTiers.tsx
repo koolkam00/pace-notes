@@ -6,11 +6,11 @@ import { LinkLabel, LinkMark, LinkTier, RecordTag, SplitTierTag, TierTag, Timing
 import { getCohortManifest } from '@/lib/insights-server';
 import { raceFiles, type RaceNote } from '@/lib/nuggets/core';
 import {
-  FINISH_TIMES_ONLY, GUN_TIMING, LINK_CONFIDENCES, POSSIBLE_MATCH, POSSIBLE_MATCHES, RECORD_OFFER_WORDS, SCREEN_WORDS, SHOWN_TIERS, TIER_WORDS, inline, isShownTier,
+  FINISH_TIMES_ONLY, GUN_TIMING, LINK_CONFIDENCES, POSSIBLE_MATCH, POSSIBLE_MATCHES, isKeyedConfidence, RECORD_OFFER_WORDS, SCREEN_WORDS, SHOWN_TIERS, TIER_WORDS, inline, isShownTier,
   type LinkConfidence, type NoReportReason, type RecordOffer, type ShownTier,
 } from '@/lib/tiers';
 import { countWord } from '@/lib/nuggets/format';
-import { Definition, and, n } from './shared';
+import { Definition, Glyph, and, n } from './shared';
 
 /**
  * Two definitions of Part 2 (/methodology#edition-tiers and #link-confidence): what the label on an edition says, what
@@ -128,6 +128,8 @@ export default function MethodsTiers() {
   const screens = (Object.keys(SCREEN_WORDS) as (keyof typeof SCREEN_WORDS)[]).map((screen) => ({ words: SCREEN_WORDS[screen], ...links.screens[screen] }));
   const failing = screens.filter((screen) => screen.results > 0), passing = screens.filter((screen) => screen.results === 0);
   const kinds = lookup.profiles_by_kind;
+  const linkRows = (keyed: boolean) => (Object.keys(LINK_MEANS) as LinkConfidence[]).filter((confidence) => isKeyedConfidence(confidence) === keyed)
+    .map((confidence) => <div key={confidence}><dt><LinkLabel confidence={confidence} link={false} /></dt><dd>{LINK_MEANS[confidence]}</dd></div>);
   return <>
     <Definition id="edition-tiers" term="Edition tiers"
       rule={<p>An edition is one race in one year. Each edition carries one label that says how far its recorded results were checked against an independent count of finishers, and up to two more that say what its times can show.</p>}
@@ -171,11 +173,16 @@ export default function MethodsTiers() {
 
     <Definition id="link-confidence" term="Link confidence"
       rule={<p>Results from different races are joined into one runner by the producer’s person links, which compare the recorded name, sex and age. Each link carries a confidence: how much stands behind it. Every linked result shows its confidence.</p>}
-      instrument={<dl className="methods-badges">
+      instrument={<><dl className="methods-badges">
         <div><dt><LinkMark confidence="low" link={false} /></dt><dd>A link too weak to stand as the same runner: one of low confidence, one that joins two forms of a name, or one whose results disagree with each other. These results are listed apart from a runner’s other races and enter no figure. On Find a runner you can tick one into your own selection, as you can any race you recognize.</dd></div>
-        {/* Each confidence as a page shows it: its quiet words, and the pill before them where the link joins no runner. */}
-        {(Object.keys(LINK_MEANS) as LinkConfidence[]).map((confidence) => <div key={confidence}><dt><LinkLabel confidence={confidence} link={false} /></dt><dd>{LINK_MEANS[confidence]}</dd></div>)}
-      </dl>}>
+        {/* Each confidence as a page shows it: its quiet words, and the pill before them where the link joins no runner.
+            The confidences that join a runner stay open; the finer ones a page shows as a possible match fold below
+            (decision D56, November 20, 2026), and a link to #link-confidence lands on this list either way. */}
+        {linkRows(true)}
+      </dl>
+      <details className="fold is-sub methods-finer"><summary><span className="fold-title">The confidences shown as a {possible}</span><Glyph /></summary>
+        <div className="fold-body"><dl className="methods-badges">{linkRows(false)}</dl></div>
+      </details></>}>
       <p><strong>What joins a runner.</strong> A link of high or medium confidence joins its result to a runner, and the runner’s results are read together. The exception is a runner whose joined results disagree: recorded sexes that differ, recorded ages too far apart, or two results in the same edition. Every result of such a runner is shown as a {possible}, with the reason after its confidence.</p>
       <p>A confidence describes the evidence for a link. It is not a certainty: these are records linked by name, not verified people. How the links are checked is under <a href="#linking">how runners are linked</a>.</p>
       <div className="table-wrap" role="region" tabIndex={0} aria-labelledby="link-confidence-caption">

@@ -71,10 +71,19 @@ export function Detail({ id, title, children }: { id?: string; title: string; ch
 /**
  * A definition: the term, its rule in a line or two and, where one helps, a small instrument that draws it. The rest
  * opens under "More". Shown open, so a link to the term lands on its rule.
+ *
+ * `folded` (decision D56, November 20, 2026: /methodology back under its budget of 10 phone screens) draws a definition
+ * no label links to as a closed row, as a Topic is drawn: its term is the row's title, and the row opens on the rule,
+ * the instrument and the rest, with no second fold. A link to its id opens it (MethodsHash); without script the row
+ * opens on a tap. The words are the same either way.
  */
-export function Definition({ id, term, rule, instrument, more, children }: {
-  id: string; term: string; rule: ReactNode; instrument?: ReactNode; more?: string; children?: ReactNode;
+export function Definition({ id, term, rule, instrument, more, folded, children }: {
+  id: string; term: string; rule: ReactNode; instrument?: ReactNode; more?: string; folded?: boolean; children?: ReactNode;
 }) {
+  if (folded) return <details id={id} className="fold methods-definition-fold">
+    <summary><h3 id={`${id}-term`} className="fold-title">{term}</h3><Glyph /></summary>
+    <div className="fold-body"><div className="methods-rule">{rule}</div>{instrument ? <div className="methods-instrument">{instrument}</div> : null}{children}</div>
+  </details>;
   return <section id={id} className="methods-definition" aria-labelledby={`${id}-term`}>
     <h3 id={`${id}-term`} className="methods-term">{term}</h3>
     <div className="methods-rule">{rule}</div>

@@ -275,7 +275,7 @@ export function HalfMultipleDefinition() {
   // describes that alone (post-merge review, round 3, October 31, 2026: it described pieces the page no longer showed).
   const reading = halfExtraFrom(readHalf('linked.json')).guard;
   return (
-    <Definition id="half-multiple" term="Double the half, and a half near a time"
+    <Definition id="half-multiple" term="Double the half, and a half near a time" folded
       rule={<p>The minutes over double the half are the marathon time minus twice the half time. A half “near 1:45” is one within 2:30 of that whole minute.</p>}>
       <p>A five-minute band centred on a round time (1:45 is 1:42:30 to 1:47:29) is the window at that minute. Quantiles are linear between observations, the method used everywhere on the site. The marks a window shows are quarter-hour times inside its 5th to 95th percentile, each with the exact share of marathons strictly under it. {reading
         ? 'The pace against the half is the minutes over double divided by the marathon distance: how much slower per mile (or km) the typical marathon ran than its half. On the story’s half-by-half readout and in its table, a window’s minutes over double are its typical marathon, as printed, minus twice the window’s half, so the two add up on screen; the reading and its ruler take each pair’s own half instead. In a slow window the halves run quicker than its centre, so there the pairs’ own minutes over double run a little higher.'
