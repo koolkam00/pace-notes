@@ -162,6 +162,12 @@ const BANNED = [
   ['"half-snapshot-…" (release tags stay out of copy)', /half-snapshot-\d/i],
   ['"runner-links-…" (release tags stay out of copy)', /runner-links-\d/i],
   ['"person-ids-…" (release tags stay out of copy)', /person-ids-v?\d/i],
+  // November 20, 2026 (the owner's word of that day): the combined release's labels, in step with RELEASE_LABEL and
+  // constitution §3.4. The two prefixes are matched with what follows them, as the tags above are.
+  ['"pace-notes-marathon-half-…" (release tags stay out of copy)', /pace-notes-marathon-half-\d/i],
+  ['"pace-notes-CORE-…" (release tags stay out of copy)', /pace-notes-CORE-\d/i],
+  ['"20261112" (release tags stay out of copy)', /20261112/],
+  ['"20261113" (release tags stay out of copy)', /20261113/],
 ];
 
 const LEDGER_REQUIRED = ['id', 'date', 'kind', 'title', 'hypothesis', 'primary_metric', 'guardrails', 'baseline', 'decision_rule', 'evaluate_after', 'status', 'pr', 'verdict', 'result'];
@@ -1780,7 +1786,8 @@ function selfTest() {
     // Banned copy
     for (const [label, text] of [['arithmetic', 'Simple arithmetic.'], ['the wall', 'Runners hit the wall.'], ['the wall', 'Before the  wall'], ['your chance', 'Your chance of finishing'], ['private-export', 'From private-export-20260912-0934'], ['20260912', 'Built 20260912'], ['htw-db', 'From htw-db-2026-10-16-1652'], ['20261016', 'Built 20261016'], ['20261021', 'Built 20261021'],
       ['master', 'From master-20261103b'], ['20261103', 'Built 20261103'], ['half-dataset', 'From half-dataset-20261030-1904'], ['half-snapshot', 'From half-snapshot-20261029-1133'],
-      ['runner-links', 'From runner-links-20261029-1156'], ['person-ids', 'From person-ids-v4-20261030-1150']]) {
+      ['runner-links', 'From runner-links-20261029-1156'], ['person-ids', 'From person-ids-v4-20261030-1150'],
+      ['pace-notes-marathon-half', 'From pace-notes-marathon-half-20261113-1113'], ['pace-notes-CORE', 'From pace-notes-CORE-20261113-1113'], ['20261112', 'Built 20261112'], ['20261113', 'Built 20261113']]) {
       expect(`banned ${label}`, { setup: () => write('components/Card.tsx', `export function Card() {\n  return <p>${text}</p>;\n}\n`), rules: ['banned-copy'] });
     }
 
