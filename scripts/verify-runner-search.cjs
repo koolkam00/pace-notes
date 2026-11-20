@@ -232,6 +232,22 @@ async function units() {
   assert.equal(matchLine({ ...m, edition: 5 }, manifest), 'Berlin 2022 · half marathon');
   assert.equal(matchLine({ ...m, marathons: 0, halves: 0, possible: 4 }, manifest), '4 results that may belong together · 2011–2025');
   assert.equal(matchLine({ ...m, onlyPossible: true, possible: 2 }, manifest), '2 possible matches · 2011–2025');
+  // November 20, 2026 (review M7, finished): a row of several results names its first and latest race (index columns
+  // f and l), ordered by year only, in place of the bare years; a half reads as one; one year of two races, and one race.
+  const fl = (first, latest) => ({ ...m, firstEdition: first, latestEdition: latest });
+  assert.equal(matchLine(fl(0, 6), manifest), '3 marathons · 2 half marathons · London 2020 to Prague 2023 half marathon · 1 possible match');
+  assert.equal(matchLine({ ...fl(2, 5), marathons: 0, halves: 0, possible: 9 }, manifest), '9 results that may belong together · Berlin 2021 to Berlin 2022 half marathon');
+  assert.equal(matchLine(fl(0, 1), manifest), '3 marathons · 2 half marathons · London and Boston, 2020 · 1 possible match');
+  assert.equal(matchLine({ ...fl(2, 2), marathons: 1, halves: 0 }, manifest), '1 marathon · Berlin 2021 · 1 possible match');
+  assert.equal(matchLine({ ...fl(5, 6), onlyPossible: true, possible: 2 }, manifest), '2 possible matches · Berlin 2022 half marathon to Prague 2023 half marathon');
+  assert.equal(matchLine({ ...fl(1, 0), firstYear: 2020, lastYear: 2020 }, manifest), '3 marathons · 2 half marathons · Boston and London, 2020 · 1 possible match', 'The words follow the columns, never a sort of their own');
+  const labelled = { ...manifest, editions: [...editions, edition(8, 'Lakeside Half Marathon', 2024, { distance: 'half', db: 'h', context: null })] };
+  assert.equal(matchLine({ ...fl(8, 8), marathons: 0, halves: 1 }, labelled), '1 half marathon · Lakeside Half Marathon 2024 · 1 possible match', 'A label that says half is not said twice');
+  ok(!/\d{4}–\d{4}/.test(matchLine(fl(0, 6), manifest)), 'The span is said by the two years, never printed beside them');
+  const twoRaces = [{ ...fl(0, 6), position: 7 }, { ...fl(0, 2), position: 8 }, { ...fl(0, 2), position: 9 }];
+  assert.deepEqual([...alikeRows(twoRaces, manifest).entries()], [['1:8:Smith, José', '1 of 2 listed alike'], ['1:9:Smith, José', '2 of 2 listed alike']], 'Rows are told apart by their races first; only rows whose races are the same are numbered');
+  // The hint for a long list is for one typed word only: a third word would hide most two-word records.
+  ok(/new Set\(normalizeRunnerName\(searched\)\.split\(' '\)\.filter\(Boolean\)\)\.size < 2 && <p className="runner-note runner-narrow">Add a first name to narrow them\.<\/p>/.test(fs.readFileSync(path.join(ROOT, 'components/RunnerSearch.tsx'), 'utf8')), 'No "Add a first name" under a name of two or more words');
   // November 20, 2026 (review M7): the rows whose name is exactly what was typed come first, then the order before; rows
   // that read the same (one name, one line) are numbered, since the index holds nothing more for a row.
   const rowsOf = [{ ...m, name: 'Smith, José Maria', position: 1 }, { ...m, name: 'Ana Smith', position: 2 }, { ...m, name: 'Smith, José', position: 3, edition: 0 }, { ...m, name: 'José Smith', position: 4, edition: 0 }, { ...m, name: 'Jose A Smith', position: 5 }];
@@ -387,12 +403,20 @@ async function parity() {
     }
     // The page's flow: never past the cap; a press only for what it says; every listed row matches its stage.
     let profiles = 0;
-    const flows = { auto: 0, more: 0, capped: 0 };
+    const flows = { auto: 0, more: 0, capped: 0 }, rowWords = { rows: 0, oneRace: 0 };
     for (const q of [...queries].slice(0, 600)) {
       const r = await C.searchRunnerNames(q, manifest);
       ok(r.bytes <= C.SEARCH_AUTO || r.matches.length === 0, `${q}: loaded past ${C.SEARCH_AUTO} bytes unasked`);
       if (r.more) { flows.more++; ok(r.more.bytes >= 0 && r.bytes + r.more.bytes <= C.SEARCH_HARD_CAP, `${q}: a press past the cap`); }
       if (r.capped) flows.capped++; else if (!r.more) flows.auto++;
+      for (const row of r.matches) {
+        if (row.edition !== null) { ok(row.firstEdition === null && row.latestEdition === null, `${q}: a row of one result names a first or latest race`); continue; }
+        const first = manifest.editions[row.firstEdition], latest = manifest.editions[row.latestEdition];
+        ok(first && latest && first.year === row.firstYear && latest.year === row.lastYear && (first.year < latest.year || first.index <= latest.index), `${q}: a row's first and latest race are not its first and last year`);
+        const line = matchLine(row, manifest);
+        ok(line.includes(String(first.year)) && line.includes(String(latest.year)) && !/\d{4}–\d{4}/.test(line), `${q}: the row's words do not name its races`);
+        rowWords.rows++; if (row.firstEdition === row.latestEdition) rowWords.oneRace++;
+      }
       for (const row of r.matches.slice(0, 3)) {
         const mine = await C.loadRunnerProfile(row.shard, row.position, manifest);
         const ref = lookup.profile(row.shard, row.position);
@@ -427,6 +451,7 @@ async function parity() {
       }
     }
     ok(screenedProfiles > 0, 'The sweep found screened links');
+    ok(rowWords.rows > 0, 'The searches listed rows of several results');
 
     // Refusals: a changed byte anywhere in the chain, another release or a stand-in build on the published path.
     const flip = data => { const copy = Buffer.from(data); copy[copy.length >> 1] ^= 1; return copy; };
@@ -454,7 +479,7 @@ async function parity() {
     tamper = null;
     ok(!(head.provisional ?? []).length, 'The published lookup names no stand-in inputs');
     console.log(`  parity on the committed lookup ${LOOKUP_DIR}: ${queries.size} queries, ${compared} stage searches (${refused} refused, ${alone} one common word), ` +
-      `flows ${JSON.stringify(flows)}, ${profiles} profiles, ${screenedProfiles} screened profiles ${JSON.stringify(screens)}, ${gun} gun editions; ${requests} requests, ${(bytes / 1e6).toFixed(1)} MB`);
+      `flows ${JSON.stringify(flows)}, ${rowWords.rows} rows of several results named by their races (${rowWords.oneRace} of one race), ${profiles} profiles, ${screenedProfiles} screened profiles ${JSON.stringify(screens)}, ${gun} gun editions; ${requests} requests, ${(bytes / 1e6).toFixed(1)} MB`);
   } finally { global.fetch = original; }
 }
 

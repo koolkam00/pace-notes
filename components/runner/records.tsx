@@ -14,7 +14,9 @@ type Shown = { race: RunnerRace; manifest: Pick<RunnerManifest, 'editions'> };
 
 /** "Berlin 2019": the race's label and year. A marathon and a half marathon can share both, so a list says which it holds. */
 export const raceLabel = (race: RunnerRace, manifest: Pick<RunnerManifest, 'editions'>): string => editionLabel(manifest.editions[race.edition]);
-export const editionLabel = (edition: Pick<RunnerEdition, 'city' | 'year' | 'distance'>): string => `${edition.distance === 'marathon' && edition.city === 'New York' ? 'New York City' : edition.city} ${edition.year}`;
+/** An edition's race as its rows name it, without the year. */
+export const editionRace = (edition: Pick<RunnerEdition, 'city' | 'distance'>): string => edition.distance === 'marathon' && edition.city === 'New York' ? 'New York City' : edition.city;
+export const editionLabel = (edition: Pick<RunnerEdition, 'city' | 'year' | 'distance'>): string => `${editionRace(edition)} ${edition.year}`;
 /** The distance in a row's own words. */
 export const distanceWords = (distance: RunnerRace['distance'], count = 1): string => `${distance === 'marathon' ? 'marathon' : 'half marathon'}${count === 1 ? '' : 's'}`;
 /** A record's finish as recorded, in the page's one clock; a result without one says so. */

@@ -304,7 +304,9 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
       : <>
       <h2 id="runner-results-title" className="runner-h"><span role="status">{matches.length ? namesFound : result.more ? 'No name listed yet' : 'No matching recorded name'}</span></h2>
       <p className="runner-note">{matches.length ? `${opening}For “${searched}”. People can share a name: check the races before combining them.` : deadEnd && !result.capped ? 'Try the spelling on the original result, a surname, or fewer name parts.' : `For “${searched}”.`}</p>
-      {matches.length > NARROW_ABOVE && !result.alone && <p className="runner-note runner-narrow">Add a first name to narrow them.</p>}
+      {/* Only for one typed word: a third word would hide the runner's own two-word records (72% of recorded names have
+          at most two words), so a name of two or more words gets no hint. */}
+      {matches.length > NARROW_ABOVE && !result.alone && new Set(normalizeRunnerName(searched).split(' ').filter(Boolean)).size < 2 && <p className="runner-note runner-narrow">Add a first name to narrow them.</p>}
       {/* Each row as a runner recognizes a race: one race by its label, year and distance ("Washington 2014 · marathon"),
           several by their counts, each distance apart, and their span. */}
       {matches.length > 0 && <MatchRows rows={visibleMatches} manifest={manifest} openKey={opened ? matchKey(opened) : null} loadingKey={profileLoading} onOpen={row => void openProfile(row)} alike={alike} />}
