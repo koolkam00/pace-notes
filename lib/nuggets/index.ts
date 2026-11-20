@@ -105,9 +105,9 @@ export const PAGE_NUGGET: Readonly<Record<string, NuggetId>> = {
   '/tools/weather-match': 'weathermatch.mornings',
   '/runners': 'runner.yours',
   '/tools/split-check': 'splitcheck.share',
-  '/stories/fast-and-slow-years': 'years.beyond',
+  '/stories/fast-and-slow-years': 'years.called',
   '/stories/race-to-race': 'races.faster',
-  '/stories/recorded-bests': 'bests.second',
+  '/stories/recorded-bests': 'bests.turn',
   '/stories/getting-older': 'age.fifty',
   '/stories/half-to-full': 'half.extra',
   '/analyses/finding-improvement': 'gains.final',
@@ -122,7 +122,7 @@ export const PAGE_NUGGET: Readonly<Record<string, NuggetId>> = {
  */
 export const CHAPTER_LEAD: readonly NuggetId[] = [
   'field.median', 'kick.bank', 'types.top', 'checkpoint.under', 'slowdown.onset', 'round.top',
-  'holds.gender', 'courses.named', 'weather.pairs', 'years.beyond', 'splitcheck.share', 'half.extra',
+  'holds.gender', 'courses.named', 'weather.pairs', 'years.called', 'splitcheck.share', 'half.extra',
 ];
 
 /** Ids still served by WP0-C's bootstrap placeholders (scripts/verify-nuggets.cjs lists them; WP9 fails while any remain). */

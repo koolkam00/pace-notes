@@ -1,14 +1,14 @@
 import { getLinkedEditions } from '@/lib/linked-server';
 import type { LinkedEditionRow } from '@/lib/linked-types';
 import { getNugget } from '@/lib/nuggets';
-import { linkedFiles, signedPct, YEARS_PATH } from '@/lib/nuggets/linked';
-import { pct, temp } from '@/lib/nuggets/format';
+import { linkedFiles, signedPct, signedPoints, YEARS_PATH } from '@/lib/nuggets/linked';
+import { count, temp } from '@/lib/nuggets/format';
 import { STORIES } from '@/lib/stories';
 import { inline, tierWords } from '@/lib/tiers';
 import type { UnitSystem } from '@/lib/units';
 import YearStrip, { type YearPoint } from '@/components/viz/YearStrip';
 import LineProfile from '@/components/viz/LineProfile';
-import Scatter from '@/components/viz/Scatter';
+import Scatter, { type ScatterPoint } from '@/components/viz/Scatter';
 import Values from '@/components/ui/Values';
 import ByUnits from '@/components/ui/ByUnits.client';
 import RacePicker from '@/components/linked/RacePicker.client';
@@ -28,16 +28,17 @@ const readable = (years: Record<string, LinkedEditionRow>) => Object.entries(yea
 
 /**
  * Fast years and slow years (chapter 10's opener): each year of a race against the race's other years, for runners
- * whose records are linked by name. The reading is the share of race-years more than 2% off (the contract's one
- * finding); its instrument is the race picker over every race's years (default: the race with the most readings).
- * Then two beats of evidence beside the readings, never a cause: warm race windows, and the whole field's sustained
- * slowdowns in the same years (the check that no person link enters).
+ * whose records are linked by name. The reading is the share of race-years that are fast or slow years, counted from
+ * the verdicts the picker shows (decision D47, November 20, 2026); its instrument is the race picker over every race's
+ * years (default: the race with the most readings). Then two beats of evidence beside the readings, never a cause: warm
+ * race windows, and the whole field's sustained slowdowns in the same years (the check that no person link enters),
+ * which draws every race's counted years and marks the race picked above (review round M3).
  */
 export default function FastSlowYearsBody() {
   const story = STORIES.find((s) => s.slug === 'fast-and-slow-years')!;
   const editions = getLinkedEditions().data;
   const checks = linkedFiles.checks();
-  const beyond = getNugget('years.beyond'), heat = getNugget('years.heat'), field = getNugget('years.field');
+  const called = getNugget('years.called'), heat = getNugget('years.heat'), field = getNugget('years.field');
 
   // The races a reader can pick: those with at least one readable year, in label order; the default has the most
   // readings (every edition row of the file), the first in label order on a tie.
@@ -90,16 +91,46 @@ export default function FastSlowYearsBody() {
       label={`Linked runners’ years against their race’s usual, by the race’s temperature: ${bands.map((b) => `${bandName(b, u)} ${signedPct(b.mean_pct!)}`).join(', ')}.`} />
   );
 
-  // #field: one race, year by year (the default race): its readable years against the whole field's sustained-slowdown
-  // share that year, a share of finishes that no person link enters. The H2 is the check over every race.
-  const fieldPoints = checks.slowdown.points.filter((p) => p.label === initial && p.basis === 'chip_or_net');
-  const fieldYears = readable(editions.races[initial]).filter(({ year }) => fieldPoints.some((p) => p.year === year));
-  const sharesOf = new Map(fieldPoints.map((p) => [p.year, p.slow / p.eligible]));
-  const xs = fieldYears.map(({ year }) => sharesOf.get(year)!), ys = fieldYears.map(({ r }) => r.reading_pct);
-  const x0 = Math.floor(Math.min(...xs) * 20) / 20, x1 = Math.ceil(Math.max(...xs) * 20) / 20;
-  const y0 = Math.min(-2, Math.floor(Math.min(...ys))), y1 = Math.max(2, Math.ceil(Math.max(...ys)));
-  const xTicks = [] as { value: number; label: string }[];
-  for (let v = x0; v <= x1 + 1e-9; v += 0.05) xTicks.push({ value: v, label: pct(v) });
+  // #field: every counted year of every race in the check (checks.json slowdown.points, the groups the relation rests
+  // on), each as its own race's deviation from that race's mean: linked runners' reading (y) and the whole field's
+  // sustained-slowdown share (x, in points), a share no person link enters. The H2 is that within-race relation, so the
+  // figure draws all of it; the race picked above is marked in ink (its panel follows the picker), and a race with no
+  // year in the check shows every race unmarked.
+  const minEditions = (checks.slowdown as { min_editions?: number }).min_editions ?? 4;
+  const groups = new Map<string, typeof checks.slowdown.points>();
+  for (const p of checks.slowdown.points) {
+    const k = `${p.label}|${p.series ?? ''}|${p.basis}`;
+    groups.set(k, [...(groups.get(k) ?? []), p]);
+  }
+  const fieldAll = [...groups.values()].filter((list) => list.length >= minEditions).flatMap((list) => {
+    const mx = list.reduce((t, p) => t + p.slow / p.eligible, 0) / list.length, my = list.reduce((t, p) => t + p.level, 0) / list.length;
+    return list.map((p) => ({ p, dx: 100 * (p.slow / p.eligible - mx), dy: p.level - my }));
+  }).sort((a, b) => a.p.label.localeCompare(b.p.label, 'en') || a.p.year - b.p.year);
+  const fx0 = Math.floor(Math.min(...fieldAll.map((d) => d.dx)) / 10) * 10, fx1 = Math.ceil(Math.max(...fieldAll.map((d) => d.dx)) / 10) * 10;
+  const fy0 = Math.min(-2, Math.floor(Math.min(...fieldAll.map((d) => d.dy)))), fy1 = Math.max(2, Math.ceil(Math.max(...fieldAll.map((d) => d.dy))));
+  const fxTicks = [] as { value: number; label: string }[];
+  for (let v = fx0; v <= fx1; v += 10) fxTicks.push({ value: v, label: v === 0 ? '0' : `${v > 0 ? '+' : '−'}${Math.abs(v)}` });
+  const fieldRaces = pickable.filter((l) => fieldAll.some((d) => d.p.label === l));
+  const fieldPanel = (race: string | null) => {
+    const ordered = [...fieldAll.filter((d) => d.p.label !== race), ...fieldAll.filter((d) => d.p.label === race)];
+    const points: ScatterPoint[] = ordered.map(({ p, dx, dy }) => ({
+      id: `${p.label}|${p.series ?? ''}|${p.year}`, x: dx, y: dy, label: String(p.year), inPair: p.label === race,
+      key: `${p.series ?? p.label} ${p.year}`, value: signedPct(dy),
+    }));
+    return (
+      <div key={race ?? 'all'} data-race={race ?? ''} {...(race ? {} : { 'data-race-default': '' })}
+        hidden={race ? race !== initial : fieldRaces.includes(initial)} className="linked-panel">
+        <Scatter points={points} xDomain={[fx0, fx1]} yDomain={[fy0, fy1]} pairLine={false} labelAll={false}
+          xTicks={fxTicks} yTicks={[{ value: fy1, label: signedPct(fy1, 0) }, { value: 0, label: '0%' }, { value: fy0, label: signedPct(fy0, 0) }]}
+          axisTitle={{ start: 'Fewer sustained slowdowns than usual (points)', end: 'More' }}
+          keys={race ? [{ label: race, mark: 'dot', tone: 'ink' }, { label: 'Other races', mark: 'dot', tone: 'quiet' }] : undefined}
+          side={[{ label: 'Whole field, sustained slowdown, against usual', values: ordered.map(({ dx }) => signedPoints(dx)) }]}
+          prompt="Choose a year to read it."
+          label={`Every counted year of ${count(new Set(fieldAll.map((d) => d.p.label)).size)} races${race ? `, ${race} marked` : ''}: linked runners’ reading against the whole field’s sustained-slowdown share that year, each against its own race’s usual.`} />
+        {race ? null : <p className="linked-panel-note">No year of the race picked above is in this check: every race is drawn unmarked.</p>}
+      </div>
+    );
+  };
 
   const all = labels.flatMap((l) => readable(editions.races[l]).map(({ year, r }) => [l, String(year), signedPct(r.reading_pct), `${signedPct(r.lo_pct)} to ${signedPct(r.hi_pct)}`, WORDS[r.verdict!]]));
 
@@ -115,31 +146,28 @@ export default function FastSlowYearsBody() {
       )])) as { mi: JSX.Element; km: JSX.Element }} />,
     ]}>
       <StoryHero path={YEARS_PATH} title={story.heading ?? story.title} stacked
-        figure={beyond.figure ? { ...beyond.figure } : undefined} fallback={!beyond.guard}
-        unitLine={beyond.guard
-          ? <>of race-years, runners whose <Link href={LINKED_HREF} className="term-link">records are linked by name</Link> finished more than 2% faster or slower than in the race’s other years</>
+        figure={called.figure ? { ...called.figure } : undefined} fallback={!called.guard}
+        unitLine={called.guard
+          ? <>of race-years were fast or slow years for runners whose <Link href={LINKED_HREF} className="term-link">records are linked by name</Link>, against the race’s other years; {count(Number(called.values.usual))} read as usual years and {count(Number(called.values.no_verdict))} could not be called either way</>
           : undefined}
-        sentence={beyond.guard ? undefined : <Say nugget={beyond} />}
+        sentence={called.guard ? undefined : <Say nugget={called} />}
         instrument={(
-          <RacePicker label="Race" initial={initial} options={pickable.map((l) => ({ value: l, label: l }))}>
+          <RacePicker label="Race" initial={initial} follow={['field-panels']} options={pickable.map((l) => ({ value: l, label: l }))}>
             {pickable.map(panel)}
           </RacePicker>
         )} />
 
       <Beat id="heat" track="chapter-1" label="Warm years" title={heat}
-        dek="Each year against its race’s usual, by the race’s temperature. No weather enters the readings.">
+        dek="Each year against its race’s usual, by the race’s temperature.">
         <ByUnits mi={heatChart('mi')} km={heatChart('km')} />
       </Beat>
 
       <Beat id="field" track="chapter-2" label="The whole field" title={field}
-        dek={`${initial}, year by year: linked runners’ reading against the share of the whole field with a sustained slowdown.`}>
-        <Scatter points={fieldYears.map(({ year, r }, i) => ({ id: String(year), x: xs[i], y: r.reading_pct, label: String(year), key: `${initial} ${year}`, value: signedPct(r.reading_pct) }))}
-          xDomain={[x0, x1]} yDomain={[y0, y1]} pairLine={false} labelAll={false}
-          xTicks={xTicks} yTicks={[{ value: y1, label: signedPct(y1, 0) }, { value: 0, label: '0%' }, { value: y0, label: signedPct(y0, 0) }]}
-          axisTitle={{ start: 'Fewer sustained slowdowns', end: 'More' }}
-          side={[{ label: 'Whole field, sustained slowdown', values: xs.map((v) => pct(v)) }]}
-          prompt="Choose a year to read it."
-          label={`${initial}: each year’s reading for linked runners against the whole field’s sustained-slowdown share that year.`} />
+        dek="Every counted year of every race, each against its own race’s usual. The race picked above is in ink.">
+        <div id="field-panels">
+          {fieldRaces.map((race) => fieldPanel(race))}
+          {fieldPanel(null)}
+        </div>
       </Beat>
     </StoryPage>
   );
