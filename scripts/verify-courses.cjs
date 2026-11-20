@@ -316,9 +316,18 @@ function tableKey(rows) {
   if (split) item(T.FINISH_TIMES_ONLY, split);
   if (gun) item(T.GUN_TIMES, gun);
   return {
+    tier,
     text: items.map((i) => `${i}.`).join(' '),
     labels: (r) => [r.tier === tier ? null : T.tierWords(r.tier), split || r.split !== 'finish_time_only' ? null : T.FINISH_TIMES_ONLY, gun || !r.gun ? null : T.GUN_TIMES].filter(Boolean),
   };
+}
+/** The key's own labels: each links to the definitions, and its tier label carries the tier the key says. */
+function checkKeyLabels(where, keyHtml, key) {
+  if (!keyHtml) return;
+  const links = [...keyHtml.matchAll(/<a\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>/g)].map((l) => l[1]);
+  check(links.every((a) => attr(a, 'href') === T.TIER_ANCHOR), where, 'a label in the key does not link to its definition');
+  const tiers = links.map((a) => attr(a, 'data-tier')).filter((t) => t !== undefined && t !== null);
+  check(JSON.stringify(tiers) === JSON.stringify(key.tier ? [key.tier] : []), where, `the key's tier label carries ${JSON.stringify(tiers)}, not ${key.tier ?? 'none'}`);
 }
 /** The key's text on a page, before a section's first table; '' where it has none. */
 const keyText = (html) => (/<p class="edition-key">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? null);
@@ -712,10 +721,11 @@ const METHOD = [
   [/weighted equally|\bpooled?\b|start delays|largely repeat|copy edition|not counted|at least 100 finishes|fewer than 100|checkpoint times|in the data\b|story data|\bscreen/i, 'a cohort or coverage note'],
   [/About this data|how (?:it|they) (?:is|are) measured|what the types mean/i, 'a method section or link'],
 ];
-// The tier module's own words are labels defined on /methodology, not a method note: "verified, weaker source" names a
-// stamp, and the lead's rule (review m1, November 20, 2026) is that a weaker-source stamp always carries those words. Only
-// the vocabulary's exact phrases are taken out before the method patterns run; "source" anywhere else still fails.
-const TIER_PHRASE = new RegExp([...T.TIER_PHRASES].sort((a, b) => b.length - a.length).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
+// November 20, 2026: one label only is skipped before the method patterns run, the tier word "Verified, weaker source"
+// (T.TIER_WORDS.stamped_weaker_source, whole phrase, any case). The owner's rule (review m1) is that a weaker-source
+// stamp always shows the words "weaker source", which the pattern for a source note would otherwise fail. No other label
+// or word is skipped: "source" anywhere else, and "independently verified", still fail.
+const TIER_PHRASE = new RegExp(T.TIER_WORDS.stamped_weaker_source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
 const ownWords = (text) => text.replace(TIER_PHRASE, '');
 const OWN_COPY = /<(p|dl|span|h2)\b[^>]*class="(?:hero-dek|course-hero-key|course-hero-sentence t-sentence|course-callout|course-hotcool|course-totals|course-h2|course-row-meta)"[^>]*>([\s\S]*?)<\/\1>/g;
 const TRACK = { 'at-a-glance': 'chapter-1', 'finish-times': 'chapter-2', elevation: 'chapter-3', pacing: 'chapter-4', slowdown: 'chapter-5', goals: 'chapter-6', weather: 'chapter-7', plan: 'cta', 'other-courses': 'related' };
@@ -779,6 +789,13 @@ if (html) {
     check(JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text)])) === JSON.stringify(editions.map((e) => [e.year, tierTexts(e, e.timing).filter((w) => keepOf(e).has(w))])), where,
       `the editions listed ${JSON.stringify(rows.map(([year, labels]) => [year, labels.map((l) => l.text)]))} are not the race's editions with their tier labels`);
     check(rows.every(([, labels]) => labels.every((l) => l.href === T.TIER_ANCHOR)), where, 'a tier label does not link to its definition');
+    // A row that still shows its tier label carries the edition's tier code on it (restored November 20, 2026).
+    for (const e of editions) {
+      const shown = rows.find(([year]) => year === e.year)?.[1] ?? [];
+      const want = tierTexts(e, e.timing).filter((w) => keepOf(e).has(w));
+      if (want[0] === T.tierWords(e.tier, e.weaker)) check(shown[0]?.tier === e.tier, where, `the ${e.year} row's tier label carries ${shown[0]?.tier}, not ${e.tier}`);
+    }
+    checkKeyLabels(where, keyText(sectionOf(body, 'editions') ?? ''), listKey);
     // No number but the years and how many editions there are: nothing the page itself says is a share, a count of
     // finishes or a time. The page's own text is its hero (without the chapter crumbs, which carry the chapter's
     // number) and its editions section; the closing stack belongs to the chapter.
@@ -1001,7 +1018,7 @@ if (html) {
       const courseKey = tableKey(live.map((e) => ({ year: e.year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' })));
       const keyHtml = keyText(numbers.slice(0, numbers.indexOf('numbers-editions-caption')).split('</table>').pop());
       check(norm(textOf(keyHtml ?? '')) === norm(courseKey.text), where, `the edition table's key "${textOf(keyHtml ?? '')}" is not "${courseKey.text}"`);
-      if (keyHtml) check([...keyHtml.matchAll(/<a\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>/g)].every((l) => attr(l[1], 'href') === T.TIER_ANCHOR), where, 'a label in the key does not link to its definition');
+      checkKeyLabels(where, keyHtml, courseKey);
       for (const m of trs) {
         const year = Number(m[2]);
         const e = live.find((x) => x.year === year);
@@ -1151,6 +1168,7 @@ if (html) {
     const resultsKey = tableKey(live.map((e) => ({ year: e.year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' })));
     const resultsKeyHtml = keyText(sectionOf(body, 'editions') ?? '');
     check(norm(textOf(resultsKeyHtml ?? '')) === norm(resultsKey.text), where, `the edition table's key "${textOf(resultsKeyHtml ?? '')}" is not "${resultsKey.text}"`);
+    checkKeyLabels(where, resultsKeyHtml, resultsKey);
     for (const m of trs) {
       const e = live.find((x) => x.year === Number(m[1]));
       const labels = [...m[2].matchAll(/<a\b([^>]*class="tier-(?:badge|chip)[^"]*"[^>]*)>([\s\S]*?)<\/a>/g)].map((l) => ({ text: textOf(l[2]), href: attr(l[1], 'href') }));
