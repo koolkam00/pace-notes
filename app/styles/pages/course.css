@@ -374,6 +374,10 @@
   .course-numbers .course-table.is-stack tbody th, .results-page .course-table.is-stack tbody th { order: 0; min-width: 3em; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
   .course-numbers .course-table.is-stack td.edition-status, .results-page .course-table.is-stack td.edition-status { order: 1; flex: 1 1 0; }
   .course-table.is-stack td.edition-status .tier-tags { flex-wrap: wrap; width: auto; }
+  /* Labels that wrap to two lines start level with the year (centred in its 44 px line), not centred on it, so a year's
+     tier reads beside it; the 10 px also keeps the first line's 44 px reach inside the scroll region, which clips above
+     the table (lead decisions D53 and D54, November 20, 2026). */
+  .course-numbers .course-table.is-stack td.edition-status, .results-page .course-table.is-stack td.edition-status { align-self: flex-start; padding-top: 10px; }
   .course-numbers .course-table.is-stack td.is-key, .results-page .course-table.is-stack td.is-key { order: 3; }
   .course-numbers .course-table.is-stack td.is-first, .results-page .course-table.is-stack td.is-first { order: 2; }
   .course-numbers .course-table.is-stack td[data-empty], .results-page .course-table.is-stack td[data-empty] { display: none; }
