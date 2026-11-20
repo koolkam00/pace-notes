@@ -28,7 +28,7 @@ The opening views reused the previously verified all-finisher fast-start output 
 
 [build_all_finisher_context.py](../analysis/build_all_finisher_context.py) reads the cohort's counted records (`cohort.load`, which checks each edition file against the cohort manifest) and every runner-context file, which is keyed by the cohort manifest's edition index; a counted edition without a context file has no weather or terrain. It checks the context files' sizes and SHA-256 checksums, record-ID uniqueness, the cohort and source policy, the cohort manifest's digest in both its own output and the context manifest (`cohort_manifest_sha256`), and the calculation hashes. `scripts/verify-all-finisher-context.cjs` recounts every group from the cohort with `scripts/lib/cohort.cjs`. A matching release tag alone is insufficient. Rebuilding the cohort or the context requires rebuilding the output.
 
-The source on the adoption branch is `pace-notes-marathon-half-20261113-1113` (November 19, 2026; not deployed): **7,820,442 raw records** and **4,124,026 eligible finishes** across **201 counted editions**; the context's weather covers 189 of them (3,955,561 finishes) and its terrain 178 (3,788,391 finishes).
+The source since pull request #101 is `pace-notes-marathon-half-20261113-1113` (built November 19, 2026): **7,820,442 raw records** and **4,124,026 eligible finishes** across **201 counted editions**; the context's weather covers 189 of them (3,955,561 finishes) and its terrain 178 (3,788,391 finishes).
 
 Exact filters are course, recorded age band, recorded gender and the same race's early pace. Unknown age or gender remains in All; neither is imputed. There is no eventual-finish, target-time or earlier-result selection in the new calculation. No sparse result is silently replaced with another course or a broader demographic group.
 
@@ -85,7 +85,7 @@ Opening pace bands retain the [all-finisher fast-start definitions](FAST_START_A
 
 ## Measured output for the adopted source
 
-**`pace-notes-marathon-half-20261113-1113` (November 19, 2026, adoption branch, not deployed).** Built on the marathon cohort (manifest `a812fa41…`) and the runner context bound to it (`69839b08…`). `public/data/all-finisher-context/evidence.json` (`as_of` 2026-11-19T16:42:42Z) is 14,431,916 bytes, SHA-256 `667550fdacd95214914b5904a64a81c9fbe56ed9f38af8226c6a131afa77952d`, with 1,520 filter rows and 23,141 supported groups (8,872 sparse groups omitted); `verify-all-finisher-context` recounted every group from the cohort.
+**`pace-notes-marathon-half-20261113-1113` (November 19, 2026, pull request #101).** Built on the marathon cohort (manifest `a812fa41…`) and the runner context bound to it (`69839b08…`). `public/data/all-finisher-context/evidence.json` (`as_of` 2026-11-19T16:42:42Z) is 14,431,916 bytes, SHA-256 `667550fdacd95214914b5904a64a81c9fbe56ed9f38af8226c6a131afa77952d`, with 1,520 filter rows and 23,141 supported groups (8,872 sparse groups omitted); `verify-all-finisher-context` recounted every group from the cohort.
 
 **`master-20261103b` (November 5, 2026).** Rebuilt after the runner lookup and the context were rebuilt on the producer's `person_id` (#91).
 The committed `public/data/all-finisher-context/evidence.json` (`as_of` 2026-11-05T16:59:16Z) is 14,868,380 bytes, SHA-256 `1660e107bb046bb04098b02736b2e5901939c3c430f27fc2f136528023f3f270`, bound to runner manifest `f1caea12…` and context manifest `3bff3a89…`.
@@ -140,7 +140,7 @@ Earlier-result modes on the course and weather pages continue to measure finish 
 
 The primary `/analyses/course-comparison` and `/analyses/race-day-weather` pages use the broader views by default and offer the distinct earlier-result comparison. `/analyses/downhill-start` adds the broader downhill view with access to the original history-based guide. The twelve-question research guide (`/research/personalized`) closed on October 18, 2026 (branch state); its calculations stay in the analyses.
 
-Until October 18, 2026 seven research-archive routes (`/packs/r01_banking_time`, `r02_recover_slow_start`, `r34_pacing_risk_reward`, `r13_great_day_vs_consistency`, `r35_course_adaptation`, `r15_weather_penalty_who` and `s5_pacing_vs_difficult_day`, with their aliases) showed these broader views by default. The redesign closed the archive (branch state, not deployed; [SEO](SEO.md#moved-addresses-october-18-2026)): those addresses are stubs that forward to `/methodology#downloads`, and the calculation data they read is unchanged.
+Until October 18, 2026 seven research-archive routes (`/packs/r01_banking_time`, `r02_recover_slow_start`, `r34_pacing_risk_reward`, `r13_great_day_vs_consistency`, `r35_course_adaptation`, `r15_weather_penalty_who` and `s5_pacing_vs_difficult_day`, with their aliases) showed these broader views by default. The redesign (#71, merged October 20, 2026) closed the archive ([SEO](SEO.md#moved-addresses-october-18-2026)): those addresses are stubs that forward to `/methodology#downloads`, and the calculation data they read is unchanged.
 
 ### Weather and terrain coverage, as written for 0934 (lines 74, 78 and 80)
 
