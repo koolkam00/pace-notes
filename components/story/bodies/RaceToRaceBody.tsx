@@ -29,7 +29,8 @@ export default function RaceToRaceBody() {
   // A label that holds two reviewed series reads each series as its own race (D29): its row names that race and the
   // years it covers, from the file (Warsaw's row is the Orlen Warsaw Marathon alone, 2015–2018: the PZU Warsaw
   // Marathon has no reading here), so it never reads as the whole label (re-review m5, November 20, 2026).
-  const span = ([a, b]: [number, number]) => (a === b ? String(a) : `${a}–${b}`);
+  // A word joiner after the dash keeps the span on one line.
+  const span = ([a, b]: [number, number]) => (a === b ? String(a) : `${a}–\u2060${b}`);
   const name = (x: (typeof readings)[number]) => (x.series ? `${x.label} · ${x.series}, ${span(x.row.years)}` : x.label);
   const rows: IntervalRow[] = [...road, ...trail].map((x) => {
     const r = x.row;
