@@ -11,7 +11,7 @@
  */
 import type { HalfBatteryId, HalfBatteryMember, HalfField, HalfLeaveOutClause, HalfLeaveOutParent, HalfLeaveOutVariant, HalfLeaveOutWorstKey, HalfLinked, HalfPacing, HalfWindow, HalfWomen } from '@/lib/half-types';
 import { halfPublished, readHalf } from '@/lib/half-server';
-import { floorHM, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
+import { floorHM, readoutMark, roundMinutes, windowOverDouble } from '@/lib/tools/half-to-full';
 import { count, inWords, pct, ratio, spokenPct, spokenTime } from './format';
 import { shareFigure, type Builder } from './build';
 import type { Nugget } from './types';
@@ -236,7 +236,8 @@ export const HALF_PAIRS_KEY = 'pairs of a half and the marathon after it';
 export function halfExtraFrom(linked: HalfLinked): Nugget {
   const m = members(linked), pooled = m.pooled;
   const extra = linked.overall.extra_s.p50;
-  const minutes = Math.round(extra / 60);
+  // Rounded to the nearest minute, a tie to even (decision D50, November 20, 2026; Math.round had sent a tie up).
+  const minutes = roundMinutes(extra);
   const under = linked.overall.under_double_plus_min['0'];
   const pairs = linked.set.pairs;
   const guard = flagshipGuard(linked) && pooled?.extra_p50_s === extra;
@@ -436,11 +437,14 @@ export type HalfDeks = {
   rangeLead: string | null;
   storySlide: string;
   /**
-   * The story's hero dek, under any H1: what the page pairs and for whom, as a sentence that states no reading ("Each
-   * half here is paired with the marathon 3 to 16 weeks after it, for records linked by name."), then where to look
-   * (`find`, "Find your half below.", said only with JavaScript; round 5 review). The weeks are set B's window. Under the
-   * plain H1 the old verbless dek, written to qualify the reading H1, told a first-time reader nothing (review, October
-   * 30, 2026).
+   * The story's hero dek, under any H1: which halves the page covers and for whom, as a sentence that states no reading
+   * ("Halves from 1:10 to 2:45 and the marathons that followed them, for records linked by name."; the first and the
+   * last of the readout's 5-minute stops), then where to look (`find`, "Find your half below.", said only with
+   * JavaScript; round 5 review). Until November 20, 2026 it said how pairs are formed ("Each half here is paired with
+   * the marathon 3 to 16 weeks after it, for records linked by name."), a method sentence outside /methodology (review
+   * round, m6; AGENTS rule 15), which /methodology#half-linking and #half-multiple already state; a reader with a half
+   * wants to know whether theirs is on the page. Under the plain H1 the old verbless dek, written to qualify the reading
+   * H1, told a first-time reader nothing (review, October 30, 2026).
    */
   hero: string;
   find: string;
@@ -450,7 +454,8 @@ export type HalfDeks = {
    * a 1:30 half, +23 to +30 from 2:00 to 2:45."), so the H1's 21 reads as a typical value that moves with
    * the half, next to the H1 it explains, and says where it stops rising (round 4 review, October 30, 2026: "more after
    * a slower one" promised a rise the windows from 2:00 to 2:45 do not show). Each value is the readout's own
-   * (windowOverDouble), so the needle finds it there. The span is stated only while it stays within 4 minutes of its first window's value and
+   * (windowOverDouble, rounded to the nearest minute since November 20, 2026, decision D50: it had truncated, "+17"
+   * for 17.8 at 1:30, now "+18"), so the needle finds it there. The span is stated only while it stays within 4 minutes of its first window's value and
    * above the quicker half's; otherwise the two halves alone ("+17 after a 1:30 half, +27 after a 2:00."), and null
    * when the quicker half's is not the lower.
    */
@@ -506,8 +511,6 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
   const excess = (m: HalfField['marks'][number]) => m.minute_before - m.expected_minute_before;
   const most = !!two && field.marks.every((m) => m === two || excess(m) < excess(two));
   const taller = !!two && !!marks[90] && Number(marks[90].ratio.toFixed(2)) > Number(two.ratio.toFixed(2));
-  const [fromWeeks, toWeeks] = linked.set.window_days.map((d) => d / 7);
-  const span = Number.isInteger(fromWeeks) && Number.isInteger(toWeeks) ? `${fromWeeks} to ${toWeeks} weeks` : `${linked.set.window_days[0]} to ${linked.set.window_days[1]} days`;
   const rangeLead = w && halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}.` : null;
   const faster = halfPaceFasterFrom(pacing), pb = halfPaceBands(pacing);
   return {
@@ -525,7 +528,8 @@ export function halfDeksFrom(field: HalfField, women: HalfWomen, linked: HalfLin
     range: w && slide ? (rangeLead ? `${rangeLead} ${slide}` : slide) : null,
     rangeLead: w && slide ? rangeLead : null,
     storySlide: slide,
-    hero: `Each half here is paired with the marathon ${span} after it, for records linked by name.`,
+    hero: stops.length ? `Halves from ${clock(stops[0].h)} to ${clock(stops[stops.length - 1].h)} and the marathons that followed them, for records linked by name.`
+      : 'Halves and the marathons that followed them, for records linked by name.',
     find: 'Find your half below.',
     scale: qa && qb && minutesOver(qa) < minutesOver(qb)
       ? `Fewer minutes over double after a quicker half: +${minutesOver(qa)} after a ${clock(qa.h)} half, ${level

@@ -1173,8 +1173,10 @@ if (opt.html) {
     if (route === '/stories/half-to-full') {
       ok(at >= 0, `${route}: says "records linked by name"`);
       ok(textOf(main).includes('Not a prediction.'), `${route}: "Not a prediction." under the scrubbed chart`);
-      // The table's "Over double" adds up with its row: Typical − 2 × Half, in the printed whole minutes (round 4
-      // review, October 30, 2026: after a 2:45 half "5:57" beside "+30 min" made 6:00).
+      // The table's "Over double" against its row: Typical − 2 × Half, in the printed whole minutes (round 4 review,
+      // October 30, 2026: after a 2:45 half "5:57" beside "+30 min" made 6:00), plus one exactly where the window's
+      // typical marathon has 30 seconds or more past its printed minute and rounds up (2026-11-20, decision D50: the
+      // difference rounds to the nearest minute, the clock stays floored; "3:17" after "1:30" is double plus 18, 3:17:48).
       const bands = elements(html, /id="hf-bands"/)[0];
       const minutesOf = (t) => { const m = /^(\d+):(\d\d)$/.exec(t.trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : NaN; };
       const heads = bands ? [...bands.html.matchAll(/<th scope="col">([\s\S]*?)<\/th>/g)].map((m) => textOf(m[1]).trim()) : [];
@@ -1183,7 +1185,10 @@ if (opt.html) {
       ok(hi === 0 && ti > 0 && xi > 0 && rows.length >= 10, `${route}: the half-by-half table has its Half, Typical and Over double columns (${rows.length} rows)`);
       for (const r of rows) {
         const over = Number(r[xi].replace(/\s*min$/, '').replace('−', '-'));
-        ok(minutesOf(r[ti]) - 2 * minutesOf(r[hi]) === over, `${route}: after a ${r[hi]} half, Typical ${r[ti]} is double plus ${r[xi]}`);
+        const w = linked.windows.all.find((x) => x.h === minutesOf(r[hi]) * 60);
+        const carry = w ? D.pyRound(w.q[9] / 60, 0) - Math.floor(w.q[9] / 60 + 1e-9) : NaN;
+        ok(!!w && minutesOf(r[ti]) === Math.floor(w.q[9] / 60 + 1e-9), `${route}: after a ${r[hi]} half, Typical ${r[ti]} is the window's typical marathon, floored`);
+        ok(minutesOf(r[ti]) - 2 * minutesOf(r[hi]) + carry === over, `${route}: after a ${r[hi]} half, Typical ${r[ti]} is double plus ${r[xi]}, rounded to the minute`);
       }
       ok(!/more after a slower one/.test(textOf(main)), `${route}: the scale note promises no rise the windows do not show`);
       // While half.extra falls back, no slot states its reading: not the line under the scrubbed chart either ("Typical:

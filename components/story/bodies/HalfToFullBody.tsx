@@ -4,7 +4,7 @@ import { readHalf } from '@/lib/half-server';
 import { getNugget, sentenceOf } from '@/lib/nuggets';
 import { halfDeks } from '@/lib/nuggets/half';
 import { count, hm, pct } from '@/lib/nuggets/format';
-import { NOT_A_PREDICTION, floorHM, paceGap, readoutMark, windowOverDouble } from '@/lib/tools/half-to-full';
+import { NOT_A_PREDICTION, floorHM, paceGap, readoutMark, roundMinutes, windowOverDouble } from '@/lib/tools/half-to-full';
 import type { UnitSystem } from '@/lib/units';
 import { STORIES } from '@/lib/stories';
 import { ScopeTag } from '@/components/tools/EvidenceTag';
@@ -33,7 +33,8 @@ const minutes = (s: number) => s / 60;
  *  on its own line in both grids and the two names break alike (guess.css; 320 px, round 3 review). */
 const gridName = (name: string) => { const at = name.lastIndexOf(' '); return <><span className="guess-dots-name-head">{name.slice(0, at + 1)}</span>{name.slice(at + 1)}</>; };
 /** "+21" minutes, from seconds, one decimal where the ruler needs it. */
-const plus = (s: number) => `${s >= 0 ? '+' : '−'}${Math.round(Math.abs(s) / 60)}`;
+// A difference in minutes is rounded to the nearest minute, a tie to even (decision D50, November 20, 2026).
+const plus = (s: number) => `${s >= 0 ? '+' : '−'}${roundMinutes(Math.abs(s))}`;
 
 /**
  * From the half to the marathon (chapter 11's opener): the marathons that followed a half 3 to 16 weeks before, for
@@ -74,7 +75,7 @@ export default function HalfToFullBody() {
       <Ruler className="half-ruler" min={-20} max={60} ticks={[0, 15, 30, 45].map((v) => ({ value: v, label: v ? `+${v} min` : 'Double' }))}
         marks={[{ value: 0, kind: 'compare' }, { value: minutes(e.p50), kind: 'reading', label: 'Typical' }]}
         band={{ lo: minutes(e.p25), hi: minutes(e.p75) }} shade={shaded ? { lo: -20, hi: 0 } : undefined}
-        label={`Minutes over double the half: typical plus ${Math.round(e.p50 / 60)}; half of these marathons between plus ${Math.round(e.p25 / 60)} and plus ${Math.round(e.p75 / 60)}${shaded ? `; ${pct(underDouble)} under double` : ''}.`} />
+        label={`Minutes over double the half: typical plus ${roundMinutes(e.p50)}; half of these marathons between plus ${roundMinutes(e.p25)} and plus ${roundMinutes(e.p75)}${shaded ? `; ${pct(underDouble)} under double` : ''}.`} />
       <ul className="half-ruler-key" aria-hidden="true">
         {shaded ? <li><i className="is-shade" />Under double: <b>{pct(underDouble)}</b></li> : null}
         <li><i />Half of them: <b>{plus(e.p25)} to {plus(e.p75)} min</b></li>
@@ -94,8 +95,9 @@ export default function HalfToFullBody() {
   const yDomain: [number, number] = [Math.floor(yLo / 600) * 600, Math.ceil(yHi / 600) * 600];
   // The chart is drawn on the server; the lines under it (the pace against the half, "Not a prediction." and the link
   // into the predictor) follow its needle in the browser (PredictorLink). Each window's minutes over double are its
-  // typical marathon as printed minus double its half (windowOverDouble), so the readout's "Typical" and "double the
-  // half plus N min", its pace against the half and the table's "Over double" add up with the times beside them.
+  // typical marathon minus double its half, rounded to the nearest minute (windowOverDouble; decision D50, November 20,
+  // 2026: it had been the typical marathon as printed, floored, minus double the half, which truncated), and its pace
+  // against the half follows from those minutes. The printed "Typical" stays floored, as every clock time on the site.
   // The sentence ("Typical: double the half plus 24 min (55 s/mi slower than the half); 5 in 100 came in under
   // double.") states half.extra's two quantities, so it is passed only while half.extra's guard holds: under the plain
   // H1 the foot keeps "Not a prediction." and the predictor link, and the readout above it keeps the typical marathon

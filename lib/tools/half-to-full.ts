@@ -145,15 +145,27 @@ export function outOfRangeSentence(range: { from: number; to: number }): string 
 }
 
 /**
- * A window's minutes over double as the story prints them: its typical marathon as printed (the whole minute at or
- * below) minus double the window's half, so "Typical 5:57" and "double the half plus 27 min" add up after a 2:45 half
- * (5:30 + 27). The window's `extra_p50` is the median of each pair's own difference instead, which runs higher in a slow
- * window, whose halves run quicker than its centre (+30 at 2:45), so a reader adding it to the window's typical
- * marathon found 6:00 against 5:57 (round 4 review, October 30, 2026). The pooled reading (the H1's 21, the ruler) keeps
- * the pairs' own differences.
+ * A difference in minutes, rounded to the nearest whole minute, a tie to the even one as Python and the site's Node
+ * recounts round (decision D50, review round, November 20, 2026: "A difference in minutes is rounded to the nearest
+ * minute; a clock time stays floored to the minute"). 1062 s (17.7 min) → 18; a clock time stays floorHM's.
+ */
+export function roundMinutes(seconds: number): number {
+  const m = seconds / 60, f = Math.floor(m + 1e-9), d = m - f;
+  return d < 0.5 - 1e-9 ? f : d > 0.5 + 1e-9 ? f + 1 : f % 2 === 0 ? f : f + 1;
+}
+
+/**
+ * A window's minutes over double as the story prints them: its typical marathon minus double the window's half, in
+ * seconds, rounded to the nearest minute (roundMinutes). Until November 20, 2026 it was the typical marathon as printed
+ * (the whole minute at or below) minus double the half, which truncated: "+17 after a 1:30 half" for 17.8 minutes
+ * (review round, m4; decision D50). The printed typical marathon stays floored, so where its seconds are 30 or more the
+ * readout's "Typical" plus double the half is one minute under "double the half plus N min" (3:17:48 prints 3:17 beside
+ * +18 after a 1:30 half). The window's `extra_p50` is the median of each pair's own difference instead, which runs
+ * higher in a slow window, whose halves run quicker than its centre, so it is not used here (round 4 review, October 30,
+ * 2026). The pooled reading (the H1's minutes, the ruler) keeps the pairs' own differences, rounded the same way.
  */
 export function windowOverDouble(win: Pick<HalfToFullWindow, 'h' | 'q'>): number {
-  return Math.floor(win.q[9] / 60 + 1e-9) - Math.round((2 * win.h) / 60);
+  return roundMinutes(win.q[9] - 2 * win.h);
 }
 
 /** How much slower per mile (or km) the typical marathon ran than its half: the extra over double ÷ the marathon distance. */
