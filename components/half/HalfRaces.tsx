@@ -5,7 +5,7 @@ import { TierTag, TierTerm } from '@/components/ui/TierTag';
 import { getHalfRaceManifest, readHalfRaces } from '@/lib/half-server';
 import { dataHref } from '@/components/methods/shared';
 import { HALF_NAME, HALF_PATH } from './HalfPage';
-import { RaceBlock } from './HalfRaceRows';
+import { RaceFold } from './HalfRaceRows';
 import HalfRacesAll from './HalfRacesAll.client';
 
 export const HALF_RACES_PATH = '/half/races';
@@ -13,7 +13,7 @@ export const HALF_RACES_NAME = 'Half marathon races';
 
 /**
  * /half/races: every half marathon race with results, year by year (docs/HALF_MARATHON.md, rule R6; the files of
- * public/data/half/races/). Static and light: the first load lists in full the races with three or more years of a
+ * public/data/half/races/). Static and light: the page opens on the search of every race, then lists, a row each with its years in a fold, the races with three or more years of a
  * verified tier (the file's `full_list`), and every other race comes on demand (HalfRacesAll). No race or year has an
  * address of its own. The root names the scope "races" for verify-half: every year carries its own tier label (drawn by
  * the tier module's components), no figure pools years, no chip is needed and no time is shown for a year that may not
@@ -32,20 +32,22 @@ export default function HalfRaces() {
           crumbs={<><Link href="/" className="crumb-chapter">Pace Notes</Link><span className="half-crumb-sep" aria-hidden="true">›</span><Link href={HALF_PATH} className="crumb-chapter">{HALF_NAME}</Link><span className="half-crumb-sep" aria-hidden="true">›</span><span className="half-crumb-here" aria-current="page">Races</span></>}
           dek={<>Each race with its years, their results and their labels. <TierTerm>What the labels say</TierTerm></>} />
 
-        <section id="listed" className="beat story-beat" aria-labelledby="listed-title" data-beat="Listed in full">
-          <div className="beat-head">
-            <h2 id="listed-title" className="t-h2 story-beat-title">Listed in full</h2>
-            <p className="story-beat-dek">Races with {directory.full_list.min_verified_editions === 3 ? 'three' : directory.full_list.min_verified_editions} or more years labelled <TierTag tier="stamped" link={false} />.</p>
-          </div>
-          {full.map((race) => <RaceBlock key={race.label} race={race} codes={directory.codes} />)}
-        </section>
-
+        {/* The search first, then the short list as rows, each race's years in a fold (review round M8, November 20, 2026:
+            every year of the 33 listed races printed before the only search box made the page 29.6 phone screens). */}
         <section id="all" className="beat story-beat" aria-labelledby="all-title" data-beat="Every race">
           <div className="beat-head">
             <h2 id="all-title" className="t-h2 story-beat-title">Every race</h2>
           </div>
           <div className="js-only"><HalfRacesAll sha={manifest.files['directory.json'].sha256} total={summary.races.total.toLocaleString('en-US')} /></div>
-          <p className="story-way"><a href={dataHref('half/races/editions.csv')} download="pace-notes-half-marathon-races.csv">The whole list as a table (CSV)</a></p>
+          <p className="story-way arrow-line"><a href={dataHref('half/races/editions.csv')} download="pace-notes-half-marathon-races.csv">The whole list as a table (CSV)</a></p>
+        </section>
+
+        <section id="listed" className="beat story-beat" aria-labelledby="listed-title" data-beat="Listed in full">
+          <div className="beat-head">
+            <h2 id="listed-title" className="t-h2 story-beat-title">Listed in full</h2>
+            <p className="story-beat-dek">Races with {directory.full_list.min_verified_editions === 3 ? 'three' : directory.full_list.min_verified_editions} or more years labelled <TierTag tier="stamped" link={false} />. Open a race for its years.</p>
+          </div>
+          {full.map((race) => <RaceFold key={race.label} race={race} codes={directory.codes} />)}
         </section>
 
         <p className="chapter-end-links">
