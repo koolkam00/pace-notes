@@ -1,11 +1,12 @@
-import { EditionTags, TierLine } from '@/components/ui/TierTag';
+import { SplitTierTag, TagGroup, TierLine, TierTag, TimingClassTag } from '@/components/ui/TierTag';
 import type { HalfRace, HalfRaceDirectory } from '@/lib/half-types';
 
 /**
  * A half race and its years, as /half/races draws them (docs/HALF_MARATHON.md, rule R6). No client script, so the page's
  * static list and its on-demand list (HalfRacesAll.client.tsx) draw the same rows. An edition line holds its year, its
  * labels (the tier, then "Finish times only" and "Gun times" where they apply, drawn by the tier module's components as
- * bare labels: the page's key line links their definitions once), a mark where the course is suspected to have been
+ * bare labels; the file stores the timing class, so the rows draw TimingClassTag and no client script carries the
+ * module's list of timing-basis texts: the page's key line links their definitions once), a mark where the course is suspected to have been
  * short, its results, and a median finish only where the file has one (a verified year of at least 100 results with no
  * mark). An edition set aside as a copy of another is not shown. Names are the release's own; nothing here is a
  * runner's name, a rank or a comparison between years or races.
@@ -38,7 +39,7 @@ export function RaceEditions({ race, codes }: { race: HalfRace; codes: Codes }) 
             <tr key={`${e[0]}-${i}`}>
               <th scope="row">{e[0]}</th>
               <td className="is-text">
-                <EditionTags tier={codes.tier[e[1]]} splitTier={codes.split_tier[e[2]]} timingBasis={codes.timing[e[6]]} link={false} />
+                <TagGroup link={false}><TierTag tier={codes.tier[e[1]]} link={false} /><SplitTierTag splitTier={codes.split_tier[e[2]]} link={false} /><TimingClassTag timing={codes.timing[e[6]]} link={false} /></TagGroup>
                 {e[7] !== null ? <span className="half-race-mark"> {MARK_WORDS[codes.mark[e[7]]]}</span> : null}
               </td>
               <td>{e[3] === null ? '—' : whole.format(e[3])}</td>
