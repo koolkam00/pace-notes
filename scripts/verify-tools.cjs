@@ -1665,28 +1665,18 @@ if (fs.existsSync(path.join(__dirname, '..', 'public/data/insights/manifest.json
       }
       checks += 1;
     }
-    // The story readout's minutes over double: until 2026-11-20 the window's typical marathon as printed minus double its
-    // half, so the two added up on screen (3:54 after 1:45 is +24; 5:57 after 2:45 is +27, where the pairs' own median is +29 (2026-10-31,
+    // The story readout's minutes over double: the window's typical marathon as printed minus double its half, so the two
+    // add up on screen (3:54 after 1:45 is +24; 5:57 after 2:45 is +27, where the pairs' own median is +29 (2026-10-31,
     // v4 person IDs; it was +30); round 4 review), and its pace gap from those minutes ÷ the marathon distance (+55 s/mi,
     // +34 s/km at 1:45).
     const b105 = linked.windows.all.find((w) => w.h === H(1, 45)), b165 = linked.windows.all.find((w) => w.h === H(2, 45));
     // 2026-11-19 (the half rebuilt on pace-notes-marathon-half-20261113-1113, as above): the 2:45 window's typical
     // marathon is 5:59:02, printed 5:59, so +29 (it was 5:57, +27) and +66 s/mi (29 min over 26.219 mi); 1:45 unchanged
     // (3:54:16, +24). Read by int-tools/htf-goldens.cjs.
-    // 2026-11-20 (decision D50, review round m4): a window's minutes over double are its typical marathon minus double
-    // its half, rounded to the nearest minute (a tie to even), no longer the floored typical minus double, which
-    // truncated (+17 after a 1:30 half for 17.8 minutes, now +18). 1:45 (3:54:16) and 2:45 (5:59:02) round down, so they
-    // stay 24 and 29; the 1:30 window moves to 18.
-    const b90 = linked.windows.all.find((w) => w.h === H(1, 30));
-    assert.equal(htf.windowOverDouble(b105), 24); assert.equal(htf.windowOverDouble(b165), 29); assert.equal(htf.windowOverDouble(b90), 18); checks += 3;
-    assert.equal(htf.roundMinutes(90), 2); assert.equal(htf.roundMinutes(150), 2); assert.equal(htf.roundMinutes(1062), 18); assert.equal(htf.roundMinutes(1049), 17); checks += 4;
+    assert.equal(htf.windowOverDouble(b105), 24); assert.equal(htf.windowOverDouble(b165), 29); checks += 2;
     for (const w of linked.windows.all) {
-      // Against the printed clock: the floored typical minus double the half, plus one exactly where the typical's
-      // seconds past its printed minute round up (over 30, or 30 on an odd minute).
       const [hh, mm] = htf.floorHM(w.q[9]).split(':').map(Number);
-      const frac = w.q[9] / 60 - Math.floor(w.q[9] / 60 + 1e-9);
-      const carry = frac > 0.5 + 1e-9 || (Math.abs(frac - 0.5) <= 1e-9 && (hh * 60 + mm) % 2 === 1) ? 1 : 0;
-      assert.equal(hh * 60 + mm - (2 * w.h) / 60 + carry, htf.windowOverDouble(w), `${htf.floorHM(w.h)}: typical minus double the half, rounded to the minute`);
+      assert.equal(hh * 60 + mm - (2 * w.h) / 60, htf.windowOverDouble(w), `${htf.floorHM(w.h)}: typical as printed minus double the half`);
     }
     checks += 1;
     assert.equal(htf.paceGapText(htf.windowOverDouble(b105) * 60, 'mi'), '+55 s/mi'); assert.equal(htf.paceGapText(htf.windowOverDouble(b105) * 60, 'km'), '+34 s/km'); checks += 2;

@@ -236,7 +236,7 @@ export const HALF_PAIRS_KEY = 'pairs of a half and the marathon after it';
 export function halfExtraFrom(linked: HalfLinked): Nugget {
   const m = members(linked), pooled = m.pooled;
   const extra = linked.overall.extra_s.p50;
-  // Rounded to the nearest minute, a tie to even (decision D50, November 20, 2026; Math.round had sent a tie up).
+  // A pooled figure, no printed operands beside it: rounded to the nearest minute, a tie to even (1315 s is 22).
   const minutes = roundMinutes(extra);
   const under = linked.overall.under_double_plus_min['0'];
   const pairs = linked.set.pairs;
@@ -461,8 +461,7 @@ export type HalfDeks = {
    * a 1:30 half, +23 to +30 from 2:00 to 2:45."), so the H1's 21 reads as a typical value that moves with
    * the half, next to the H1 it explains, and says where it stops rising (round 4 review, October 30, 2026: "more after
    * a slower one" promised a rise the windows from 2:00 to 2:45 do not show). Each value is the readout's own
-   * (windowOverDouble, rounded to the nearest minute since November 20, 2026, decision D50: it had truncated, "+17"
-   * for 17.8 at 1:30, now "+18"), so the needle finds it there. The span is stated only while it stays within 4 minutes of its first window's value and
+   * (windowOverDouble), so the needle finds it there. The span is stated only while it stays within 4 minutes of its first window's value and
    * above the quicker half's; otherwise the two halves alone ("+17 after a 1:30 half, +27 after a 2:00."), and null
    * when the quicker half's is not the lower.
    */

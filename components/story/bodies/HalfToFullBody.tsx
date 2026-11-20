@@ -33,7 +33,8 @@ const minutes = (s: number) => s / 60;
  *  on its own line in both grids and the two names break alike (guess.css; 320 px, round 3 review). */
 const gridName = (name: string) => { const at = name.lastIndexOf(' '); return <><span className="guess-dots-name-head">{name.slice(0, at + 1)}</span>{name.slice(at + 1)}</>; };
 /** "+21" minutes, from seconds, one decimal where the ruler needs it. */
-// A difference in minutes is rounded to the nearest minute, a tie to even (decision D50, November 20, 2026).
+// A pooled difference in minutes is rounded to the nearest minute, a tie to even; a window's minutes over double are
+// whole minutes already (windowOverDouble), so they print as they are.
 const plus = (s: number) => `${s >= 0 ? '+' : '−'}${roundMinutes(Math.abs(s))}`;
 
 /**
@@ -95,9 +96,8 @@ export default function HalfToFullBody() {
   const yDomain: [number, number] = [Math.floor(yLo / 600) * 600, Math.ceil(yHi / 600) * 600];
   // The chart is drawn on the server; the lines under it (the pace against the half, "Not a prediction." and the link
   // into the predictor) follow its needle in the browser (PredictorLink). Each window's minutes over double are its
-  // typical marathon minus double its half, rounded to the nearest minute (windowOverDouble; decision D50, November 20,
-  // 2026: it had been the typical marathon as printed, floored, minus double the half, which truncated), and its pace
-  // against the half follows from those minutes. The printed "Typical" stays floored, as every clock time on the site.
+  // typical marathon as printed minus double its half (windowOverDouble), so the readout's "Typical" and "double the
+  // half plus N min", its pace against the half and the table's "Over double" add up with the times beside them.
   // The sentence ("Typical: double the half plus 24 min (55 s/mi slower than the half); 5 in 100 came in under
   // double.") states half.extra's two quantities, so it is passed only while half.extra's guard holds: under the plain
   // H1 the foot keeps "Not a prediction." and the predictor link, and the readout above it keeps the typical marathon

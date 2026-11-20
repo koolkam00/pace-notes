@@ -22,7 +22,7 @@ module.exports = function half({ json, eq, ok, core }) {
   const { clock, pct, oneIn } = D;
   const words = (t) => core.plain(t).split(/\s+/).filter(Boolean).length;
   const median = D.npMedian;
-  // A difference in minutes, rounded to the nearest minute, a tie to even, as Python rounds (decision D50, 2026-11-20).
+  // A pooled difference in minutes, rounded to the nearest minute, a tie to even, as Python rounds.
   const roundEven = (x) => D.pyRound(x, 0);
 
   // The half files are the ones the manifest binds.
@@ -127,8 +127,8 @@ module.exports = function half({ json, eq, ok, core }) {
   R['half.extra'] = (n) => {
     eq(battery.pooled.extra_p50_s, linked.overall.extra_s.p50, 'half.extra: the battery pools what the overall reading pools');
     eq(battery.pooled.n, linked.set.pairs, 'half.extra: the pooled member holds every pair');
-    // 2026-11-20 (decision D50): a difference in minutes rounds to the nearest minute, a tie to even (Math.round had sent
-    // a tie up); 1315 s is 21.9, 22 either way.
+    // A pooled figure with no printed operands beside it: rounded to the nearest minute, a tie to even (2026-11-20; it
+    // was Math.round, which sends a tie up; 1315 s is 21.9, 22 either way).
     const minutes = roundEven(linked.overall.extra_s.p50 / 60);
     eq(n.values.extra_min, minutes, 'half.extra: minutes over double, rounded');
     eq(n.guard, flagshipOk(), 'half.extra: guard (the weighting battery)');
@@ -274,11 +274,7 @@ module.exports = function half({ json, eq, ok, core }) {
     // the whole minute at or below, minus double its half), only while the slower half's is the larger; the span only
     // while every window in it is within 4 minutes of its first and above the quicker half's (round 4 review).
     const qa = win('all', w.h - 900), qb = win('all', w.h + 900);
-    // 2026-11-20 (decision D50, review round m4): a window's minutes over double are its typical marathon minus double
-    // its half, rounded to the nearest minute (a tie to even). They had been the typical as printed (floored) minus double
-    // the half, which truncated: +17 after a 1:30 half for 17.8 minutes, now +18; the note's span from 2:00 to 2:45 moved
-    // from +25 to +29 to +26 to +30.
-    const over = (x) => roundEven((x.q[9] - 2 * x.h) / 60);
+    const over = (x) => Math.floor(x.q[9] / 60 + 1e-9) - Math.round((2 * x.h) / 60);
     const a = qa && over(qa), b = qb && over(qb);
     const slower = qb ? all.filter((x) => x.h % 300 === 0 && x.h >= qb.h) : [];
     const after = slower.map(over);
@@ -287,15 +283,9 @@ module.exports = function half({ json, eq, ok, core }) {
     eq(d.scale, qa && qb && a < b ? `Fewer minutes over double after a quicker half: +${a} after a ${clock(qa.h)} half, ${level ? `${lo === hi ? `+${lo}` : `+${lo} to +${hi}`} from ${clock(qb.h)} to\u00a0${clock(slower[slower.length - 1].h)}` : `+${b} after a ${clock(qb.h)}`}.` : null, 'half deks: the reading’s scale note');
     // On this build the windows level off from 2:00: the note says so, and never that the minutes keep rising.
     ok(!/more after a slower one/.test(d.scale || ''), 'half deks: the scale note promises no rise the windows do not show');
-    // Each readout value against the two printed times: the printed typical (floored) minus double the printed half, plus
-    // one exactly where the typical's seconds past its printed minute round up (over 30, or 30 on an odd minute). Until
-    // 2026-11-20 the two added up with no carry ("Typical 5:57" after "2:45" was double plus 27); decision D50 rounds the
-    // difference and keeps the clock floored, so "Typical 3:17" after "1:30" is double plus 18 (3:17:48).
+    // Each readout value adds up with the two printed times: "Typical 5:57" after "2:45" is double plus 27.
     const printed = (t) => { const [hh, mm] = clock(t).split(':').map(Number); return hh * 60 + mm; };
-    for (const x of all.filter((x) => x.h % 300 === 0)) {
-      const carry = roundEven(x.q[9] / 60) - Math.floor(x.q[9] / 60 + 1e-9);
-      eq(printed(x.q[9]) - 2 * printed(x.h) + carry, over(x), `half deks: ${clock(x.h)}: the readout's minutes over double against its printed times`);
-    }
+    for (const x of all.filter((x) => x.h % 300 === 0)) eq(printed(x.q[9]) - 2 * printed(x.h), over(x), `half deks: ${clock(x.h)}: the readout's minutes over double add up with its printed times`);
     const m = flagship('M');
     eq(d.guess, `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?`, 'half deks: the guess');
     const sides = [w.h - 900, w.h + 900].map((h) => [win('F', h), win('M', h)]);
