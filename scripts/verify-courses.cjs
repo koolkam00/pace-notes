@@ -298,8 +298,14 @@ const T = require(path.join(root, 'lib/tiers.ts'));
  * the years it is not true of, and each row shows only the labels the key does not say for it.
  * `rows` are { year, tier, split, gun }. Returns the key's text ('' for none) and each row's expected labels.
  */
+// Amended 2026-11-20 (lead decision D53, second review D1): a label is said in the key only when (a) the table has three or
+// more rows, (b) the label is true of more than half of them and (c) the rows it is not true of number at most three;
+// otherwise it stays on every row it is true of. (Rimouski's key had become two exception lists of 8 and 6 years.)
 function tableKey(rows) {
-  const most = (pred) => (rows.length >= 3 && rows.filter(pred).length * 2 > rows.length ? rows.filter((r) => !pred(r)).map((r) => r.year) : null);
+  const most = (pred) => {
+    const yes = rows.filter(pred).length, no = rows.length - yes;
+    return rows.length >= 3 && yes * 2 > rows.length && no <= 3 ? rows.filter((r) => !pred(r)).map((r) => r.year) : null;
+  };
   const tiers = [...new Set(rows.map((r) => r.tier))];
   const tier = tiers.find((t) => most((r) => r.tier === t) !== null) ?? null;
   const split = most((r) => r.split === 'finish_time_only');
@@ -328,6 +334,9 @@ function checkKeyLabels(where, keyHtml, key) {
   check(links.every((a) => attr(a, 'href') === T.TIER_ANCHOR), where, 'a label in the key does not link to its definition');
   const tiers = links.map((a) => attr(a, 'data-tier')).filter((t) => t !== undefined && t !== null);
   check(JSON.stringify(tiers) === JSON.stringify(key.tier ? [key.tier] : []), where, `the key's tier label carries ${JSON.stringify(tiers)}, not ${key.tier ?? 'none'}`);
+  // Each label and its ", except" (or ", every year.") stand in one unbreakable head (lead decision D53, 2026-11-20).
+  const heads = [...keyHtml.matchAll(/<span class="edition-key-head">([\s\S]*?<\/a>[\s\S]*?)<span class="edition-key-join">([^<]*)<\/span><\/span>/g)];
+  check(heads.length === links.length && heads.every((h) => /^, (except|every year\.)$/.test(h[2])), where, `the key's ${links.length} labels stand in ${heads.length} heads with their ", except"`);
 }
 /** The key's text on a page, before a section's first table; '' where it has none. */
 const keyText = (html) => (/<p class="edition-key">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? null);
@@ -1163,7 +1172,11 @@ if (html) {
     if (medians.length >= 3) check(norm(textOf(/<h2\b[^>]*>([\s\S]*?)<\/h2>/.exec(sectionOf(body, 'finish-times') ?? '')?.[1] ?? '')) === norm(said('race.range', city)), where, 'the line\'s heading is not race.range');
     // Every edition with results, in order, its labels from the shared module, its figures against the race file.
     const trs = [...(sectionOf(body, 'editions') ?? '').matchAll(/<tr\b[^>]*><th scope="row">(\d{4})<\/th><td\b[^>]*>([\s\S]*?)<\/td>([\s\S]*?)<\/tr>/g)];
-    check(JSON.stringify(trs.map((m) => Number(m[1]))) === JSON.stringify(live.map((e) => e.year)), where, 'the edition table does not list every edition with results');
+    // Since 2026-11-20 (lead decision D54, second review E4) a results page lists its editions newest year first: every
+    // edition with results exactly once, the years strictly descending (until then in the race file's order).
+    const listedYears = trs.map((m) => Number(m[1]));
+    check(JSON.stringify([...listedYears].sort((a, b) => a - b)) === JSON.stringify(live.map((e) => e.year).sort((a, b) => a - b)) && new Set(listedYears).size === listedYears.length, where, 'the edition table does not list every edition with results exactly once');
+    check(listedYears.every((y, i) => i === 0 || y < listedYears[i - 1]), where, `the edition table's years ${listedYears.join(', ')} are not newest first`);
     // The key says a label true of most rows once (lead decision D48, November 20, 2026); rows show only the others.
     const resultsKey = tableKey(live.map((e) => ({ year: e.year, tier: e.tier, split: e.split_tier, gun: e.timing === 'gun' })));
     const resultsKeyHtml = keyText(sectionOf(body, 'editions') ?? '');
