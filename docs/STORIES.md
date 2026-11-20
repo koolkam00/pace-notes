@@ -236,12 +236,12 @@ The text each line below gives was replaced on November 19, 2026, when the story
 - **Reproduce: the build command:**
 
   > python analysis/build_insights.py                      # all families → public/data/insights
-  > 
+  >
 
 - **Reproduce: the recount command:**
 
   > node scripts/verify-insights.cjs                       # independent recount (≈30 s)
-  > 
+  >
 
 - **Reproduce: byte-identical rebuilds:**
 

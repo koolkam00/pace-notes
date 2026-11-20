@@ -9,7 +9,7 @@ Updated October 30, 2026; source line November 20, 2026. The source on `main` is
 | Priority/status | Issue | Measured in | Current evidence | Next action |
 | --- | --- | --- | --- | --- |
 | Open, on the branch (November 20, 2026) | Every owned output rebuilt from `pace-notes-marathon-half-20261113-1113` | `pace-notes-marathon-half-20261113-1113` | The adapter, policy, identity and cohort, every marathon family, the half and the new families built and verified at `9aa61af43`: `verify:data` 35 of 35, build 327 pages, privacy 103 of 104 ([refresh record](REFRESH_20261113_1113.md#checks-and-receipts)) | The owner's go; then the merge-ready commit removes the two `vercel.json` entries |
-| Open (November 20, 2026) | `/stories/pacing-types` first-load script 28 bytes over its S8 budget | `pace-notes-marathon-half-20261113-1113` | `npm run autopilot:privacy` at `9aa61af43`: 162,607 B against 161,043 B plus the 1.5 KB allowance | Being fixed on its own branch; never by raising the figure without a dated reason |
+| Fixed on the branch (November 20, 2026) | `/stories/pacing-types` first-load script 28 bytes over its S8 budget at `9aa61af43` | `pace-notes-marathon-half-20261113-1113` | The growth was all intended (553 B against `origin/main`: the analytics page list and the new chapter's race picker; no accidental import), so the one figure was re-measured to 162,607 B with its dated reason in `scripts/e2e/budget.json` ([operations](OPERATIONS.md#first-load-budgets-s8)); the privacy suite passed 104 of 104 on the polish branch's head `153651790` | Read S8 again in the privacy suite on the merged head |
 | Open (November 19, 2026) | High-links-only variants of the pack and personalized-guide readings not built | `pace-notes-marathon-half-20261113-1113` | Deferred by the lead (D45); every other linked reading stores its variant | One more packs build with `prepare_history(..., high_only=True)` (about 6 min), then a `/methodology` table of every family's variants |
 | Open (November 19, 2026) | `race_spacing_outcomes` grew by 7,592 pairs (1,038,372 → 1,045,964) | `pace-notes-marathon-half-20261113-1113` | Believed to be Los Angeles 2026's new date pairing records that had none; not checked pair by pair | Check the added pairs against the reviewed dates |
 | Known (November 19, 2026) | One personalized-guide file is 53.4 MB (`checkpoint_00.json`) | `pace-notes-marathon-half-20261113-1113` | GitHub warns above 50 MB; the hard limit is 100 MB | Split the file if it grows |
@@ -96,3 +96,11 @@ Historical September 10 [archive](evidence/2026-09-11/archive-members-audit.json
 ## History
 
 Moved whole on November 11, 2026 to [docs/history](history/known-issues-history-2026-11-11.md), word for word as `main` held it at `de9f8c6f` (lines 88–115): the status line of October 21–22, 2026, the rows as written before October 30, 2026 and the half rows of October 30, 2026. Counts there belong to the release they name.
+
+### Row replaced on November 20, 2026
+
+The S8 row as it stood before the story route's figure was re-measured (review round's polish branch), word for word:
+
+| Priority/status | Issue | Measured in | Current evidence | Next action |
+| --- | --- | --- | --- | --- |
+| Open (November 20, 2026) | `/stories/pacing-types` first-load script 28 bytes over its S8 budget | `pace-notes-marathon-half-20261113-1113` | `npm run autopilot:privacy` at `9aa61af43`: 162,607 B against 161,043 B plus the 1.5 KB allowance | Being fixed on its own branch; never by raising the figure without a dated reason |

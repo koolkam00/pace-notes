@@ -338,12 +338,16 @@ input or an audit script changes, and review the notes when its list moves; run 
 - Tier words come from the code through `lib/tiers.ts`, and a list row's tier text from its `tierLine(race.tiers)`;
   a tier label links to `/methodology#edition-tiers`. No official count, coverage, note or reason on any page but
   `/methodology`.
+- A reading's years are named in the tier words (review m1, November 20, 2026): "verified year" where every one
+  is plainly verified, "year (verified, weaker source)" where every one is a weaker-source stamp, both counted where
+  they mix (`readingYears`, `verifiedYearWords` in `lib/nuggets/courses.ts`).
 - A `null` reading is the fallback: no reading in any slot. Each sentence about a reading or an edition number is a
   nugget with its own guard and recount, as on every other page.
 - A reading may rest on years timed differently: `timing` counts them by class. Years whose class is `gun` or
   `not_stated` beside `chip` years are not like for like.
 - On a course page, the median finish by year in the story data counts finishes with nine checkpoint times; the race
-  file counts every finish with a time. They differ for the same edition: show one, or name the measure.
+  file counts every finish with a time. They differ for the same edition: show one, or name the measure. Course pages
+  name it ("finishes with all splits", lead decision D46, November 20, 2026; [SEO](SEO.md#course-pages-october-2026)).
 - A race flagged `hand_cycle_title` never has its title printed beside a runner. Flagged races have no page, except
   by a recorded ruling (Rimouski): a flag says what the platform's title or place says and is never printed as a
   fact about the race.
