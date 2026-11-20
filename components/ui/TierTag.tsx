@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { UnitLink as Link } from '@/components/UnitsProvider';
-import { GUN_TIMES, LINK_ANCHOR, TIER_ANCHOR, isGunTiming, linkQuietWords, linkWords, splitTierWords, tierHasBadge, tierLine, tierWords, timingWords } from '@/lib/tiers';
+import { GUN_TIMES, LINK_ANCHOR, TIER_ANCHOR, isGunTiming, linkQuietWords, linkWords, recordWords, splitTierWords, tierHasBadge, tierLine, tierWords, timingWords } from '@/lib/tiers';
 
 // The tier and link labels (lead decision D16, November 14, 2026) are drawn here and nowhere else. Their words, and the
 // release's codes they answer to, are lib/tiers.ts; their look is app/styles/components/badge.css. A module of its own,
@@ -107,6 +107,17 @@ export function TagGroup({ link = true, className, children }: Look & { children
  */
 export function EditionTags({ tier, weakerSource, splitTier, timingBasis, link = true, className }: { tier: string; weakerSource?: boolean | null; splitTier: string; timingBasis: string | null } & Look) {
   return <TagGroup link={link} className={className}><TierTag tier={tier} weakerSource={weakerSource} link={link} /><SplitTierTag splitTier={splitTier} link={link} /><TimingTag timingBasis={timingBasis} link={link} /></TagGroup>;
+}
+
+/**
+ * What one recorded result offers (decision D49): "Own pacing only", "No pacing report: times out of order", "Listed,
+ * not compared"; nothing for a full race report and for a record whose edition's label already says it has no pacing.
+ * A row's text, not a pill: it sits in a checkbox label, so it is never a link, and the list's key line links the words
+ * to their definitions once (TierTerm). `className` is the row's own look.
+ */
+export function RecordTag({ offer, reason, notCompared, className }: { offer: string; reason?: string | null; notCompared?: boolean; className?: string }) {
+  const words = recordWords(offer, { reason, notCompared });
+  return words ? <span className={className} data-record={reason ? `${offer}:${reason}` : offer}>{words}</span> : null;
 }
 
 /**

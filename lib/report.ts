@@ -12,7 +12,7 @@ import type { Archetypes } from './insights';
 import type { RaceInsights } from './runner-context';
 import type { PaceBandIndex, PaceBandShard } from './tools/data';
 import {
-  openingBandOf, pctSigned, qualifies, toneOf, windowCells, windowCheck, type OpeningBand, type ReportGender, type Tone, type TypeCohort,
+  openingBandOf, pctSigned, qualifies, sectionChange, toneOf, windowCells, windowCheck, type OpeningBand, type ReportGender, type Tone, type TypeCohort,
 } from './report-shared';
 import { paceBandShardPath, type PaceBandCell } from './tools/pace-band-data';
 import { SECTION_KM, classify, readSplits, validateSplits, type SplitReading } from './tools/splits';
@@ -284,7 +284,7 @@ export function reportLines(model: ReportModel, units: UnitSystem) {
     finish: formatDuration(model.finish, true),
     pace: `average ${paceText(model.average, units)}`,
     baseline: `5–20K pace ${paceText(model.baseline, units)}`,
-    sections: model.sections.map((s) => ({ label: sectionText(s), mat: matLabel(s.endKm), split: formatDuration(Math.round(s.seconds)), pace: paceText(s.pace, units), change: pctSigned(s.vsBaseline), tone: s.tone, vs: s.vsBaseline })),
+    sections: model.sections.map((s, i) => ({ label: sectionText(s), mat: matLabel(s.endKm), split: formatDuration(Math.round(s.seconds)), pace: paceText(s.pace, units), change: sectionChange(s.vsBaseline, i), tone: s.tone, vs: s.vsBaseline })),
     slowdown: model.slowdown.yes && model.slowdown.onsetKm !== null ? `Sustained slowdown: yes, from ${kmText(model.slowdown.onsetKm)}` : 'Sustained slowdown: no',
     type: t.state === 'ok' ? `Pacing type: ${t.name}, the shape of ${approxWords(t.share, 'finishes')}` : null,
     comparison: c.state === 'ok' ? `Of ${count(c.n)} ${c.label}, ${c.slowdownShare === null ? 'the share with a sustained slowdown is not published' : `${shareText(c.slowdownShare)} had a sustained slowdown`}.` : null,

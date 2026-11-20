@@ -102,6 +102,22 @@ The tiers `excluded` and `no_rows` belong to editions with no result. They are n
 
 A link of a keyed confidence can still be left without a runner key by one of the identity file's three screens. Its quiet words then say why, after a middle dot: "High · recorded ages differ" (`birth_year_spread`), "recorded sexes differ" (`sex_conflict`), "two results in one edition" (`two_results_in_one_edition`). `LinkLabel` needs that reason for such a link and stops without it.
 
+**What one result offers** (decision D49, November 20, 2026; review finding m2). A runner row also says what its one result offers, from the lookup's record status, in a third small vocabulary of the module (`RECORD_OFFERS`, `NO_REPORT_REASONS`, `recordWords`), drawn by `RecordTag` as plain text (a row is a checkbox label, so never a link) and defined under `#edition-tiers`. The words describe the result, not its edition, and none reads like an edition's label (before this they read "Recorded times only", "Limited: missing checkpoints", "Limited analysis" and "Not compared", written by hand in `components/runner/records.tsx`).
+
+| In the data | Row words |
+| --- | --- |
+| offer `report`: a counted marathon (status 0) | nothing (the usual case); defined as "Full race report" |
+| offer `own_pacing`: an own-record marathon (status 1) | Own pacing only |
+| offer `no_report`, reason `duplicate` (status 2) | No pacing report: duplicate of another record |
+| reason `missing_checkpoints` (status 3) | No pacing report: checkpoint times missing |
+| reason `times_out_of_order` (status 4) | No pacing report: times out of order |
+| reason `outside_bounds` (status 5) | No pacing report: outside the pace bounds |
+| reason `finish_time_only` (status 6, an edition without splits) | nothing: the edition's "Finish times only" says it |
+| reason `held_for_review` (status 6, a held edition) | No pacing report |
+| reason `not_analysed` (status 6, any other edition) | No pacing report: race not analysed for pacing |
+| reason `copy_edition` (a copy edition's eligible record) | No pacing report: copy of another year’s field |
+| offer `listed`: a half marathon; `notCompared` where its edition is compared with no race | nothing; Listed, not compared |
+
 ### Where each goes
 
 - **A label qualifies one edition or one link, where it is named:** an edition's row in a table, a race in a runner's list, a result in a list of possible matches. Tier, split-tier and timing labels link to `/methodology#edition-tiers`, the link mark to `/methodology#link-confidence`. The definitions, the counts by tier, the rule for counted editions, the release's hold notes and the link rule are written there and nowhere else ([AGENTS.md](../AGENTS.md) rule 15): a page shows the label, and the label is the way to them.

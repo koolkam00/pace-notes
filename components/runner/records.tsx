@@ -1,6 +1,7 @@
 import { matLabel } from '@/lib/units';
 import { copyEditionOf, type CopyEdition } from '@/lib/duplicate-editions-shared';
-import { LinkLabel, LinkTier, SplitTierTag, TagGroup, TierTag, TimingClassTag } from '@/components/ui/TierTag';
+import { LinkLabel, LinkTier, RecordTag, SplitTierTag, TagGroup, TierTag, TimingClassTag } from '@/components/ui/TierTag';
+import { recordWords, type NoReportReason, type RecordOffer } from '@/lib/tiers';
 import { NO_FINISH, POINTS_KM, TIERS, displayName, raceFinish, runnerDuration, runnerLink, type RunnerEdition, type RunnerManifest, type RunnerRace } from '@/lib/runner-search';
 
 // One recorded result as the runner pages show it (split out of components/RunnerSearch.tsx for lookup version 2): its
@@ -24,19 +25,30 @@ export const inCopyEdition = ({ race, manifest }: Shown, copies: readonly CopyEd
 /** A race the pacing and comparison views use: a marathon record with its own pacing view, not in a copy edition. */
 export const analysed = (shown: Shown, copies: readonly CopyEdition[]): boolean => shown.race.eligible && !inCopyEdition(shown, copies);
 
+/** What one result offers, in the tier module's codes (lib/tiers.ts RECORD_OFFERS, decision D49). */
+export type RecordStatus = { offer: RecordOffer; reason?: NoReportReason; notCompared?: boolean };
+const NO_REPORT_STATUS: Readonly<Record<number, NoReportReason>> = { 2: 'duplicate', 3: 'missing_checkpoints', 4: 'times_out_of_order', 5: 'outside_bounds' };
+
 /**
- * A row's short tag for the exception, from the lookup's codes. A counted race, an own-record race (its edition's
- * label already says why it has no peers) and a half marathon say nothing more; a record of an edition without
- * usable splits is marked by its edition's own label.
+ * What a result offers, from the lookup's codes: a counted marathon its full race report; an own-record marathon its
+ * own pacing only; a marathon with recorded times only no pacing report, with the reason (status 2 to 5 their own;
+ * status 6 the edition's: finish times only, held for review, or not analysed for pacing; a copy edition's record a
+ * copy of another year's field); a half marathon a listing, and whether its edition is compared with no other race.
  */
-export function statusTag({ race, manifest }: Shown, copies: readonly CopyEdition[]): string | null {
+export function recordStatus({ race, manifest }: Shown, copies: readonly CopyEdition[]): RecordStatus {
   const edition = manifest.editions[race.edition];
-  if (race.distance === 'half') return edition.noComparison === 2 ? 'Not compared' : null;
-  if (race.eligible) return copyEditionOf(edition, copies) ? 'Recorded times only' : null;
-  if (race.status === 3) return 'Limited: missing checkpoints';
-  if (race.status === 4) return 'Limited: times out of order';
-  if (race.status === 6) return edition.splits ? 'Recorded times only' : null;
-  return 'Limited analysis';
+  if (race.distance === 'half') return { offer: 'listed', notCompared: edition.noComparison === 2 };
+  if (race.eligible) return copyEditionOf(edition, copies) ? { offer: 'no_report', reason: 'copy_edition' } : { offer: race.counted ? 'report' : 'own_pacing' };
+  const reason = NO_REPORT_STATUS[race.status ?? -1];
+  if (reason) return { offer: 'no_report', reason };
+  if (race.status === 6) return { offer: 'no_report', reason: !edition.splits ? 'finish_time_only' : TIERS[edition.tier] === 'held_for_review' ? 'held_for_review' : 'not_analysed' };
+  throw new Error(`A marathon record of status ${race.status} has no pacing view and no reason.`);
+}
+
+/** A row's words for what it offers (the tier module's), or null for the usual case: the words RecordTag draws. */
+export function statusTag(shown: Shown, copies: readonly CopyEdition[]): string | null {
+  const { offer, reason, notCompared } = recordStatus(shown, copies);
+  return recordWords(offer, { reason, notCompared });
 }
 
 /**
@@ -79,11 +91,11 @@ export function RunnerRecordDetails({ race, manifest, copyEditions = NO_COPIES, 
   recordedAs?: boolean;
 }) {
   const edition = manifest.editions[race.edition];
-  const tag = statusTag({ race, manifest }, copyEditions);
+  const status = recordStatus({ race, manifest }, copyEditions);
   return <>
     <strong>{raceLabel(race, manifest)}</strong>
     <span className="runner-recorded-finish"><span className="sr-only">Recorded finish: </span>{finishLabel(race)}</span>
-    <span className="runner-race-tags"><EditionLabels edition={edition} />{tag ? <span className={tag === 'Recorded times only' ? 'runner-ineligible runner-copy' : 'runner-ineligible'}>{tag}</span> : null}</span>
+    <span className="runner-race-tags"><EditionLabels edition={edition} /><RecordTag {...status} className={status.reason === 'copy_edition' ? 'runner-ineligible runner-copy' : 'runner-ineligible'} /></span>
     {linked ? <span className="runner-race-link"><RaceLink race={race} /></span> : null}
     {recordedAs ? <span className="runner-race-as">Recorded as {displayName(race.name)}</span> : null}
   </>;

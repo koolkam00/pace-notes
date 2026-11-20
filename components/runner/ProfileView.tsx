@@ -64,7 +64,8 @@ export default function ProfileView({ profile, manifest, opened, copyEditions = 
 }) {
   const lists = runnerLists(profile, manifest);
   const several = profile.races.length > 1;
-  const own = new Set(lists.flatMap(list => list.own).map(race => race.name));
+  const ownRaces = lists.flatMap(list => list.own);
+  const own = new Set(ownRaces.map(race => race.name));
   // The name forms on record, in the order they were first used: of the runner's own results, or the spelling searched.
   // Forms that differ only in word order, case, accents or a trailing code ("Smith, Anne", "Anne Smith · GBR") are
   // one form here: the first is kept, and each record's own spelling stays in its "Recorded details".
@@ -78,18 +79,18 @@ export default function ProfileView({ profile, manifest, opened, copyEditions = 
   return <section className="runner-profile" aria-labelledby="runner-profile-title">
     <h2 id="runner-profile-title" className="runner-h" tabIndex={-1} ref={headingRef}>{names.join(' / ')}</h2>
     <p className="runner-note">{own.size ? 'Tick only the races you recognize. You can add races from other matches too.' : `${count(profile.races.length)} results that may belong together. Tick only the races you recognize.`}</p>
+    {/* What each row holds, said once above both lists (m10, November 20, 2026: it had repeated above each), in one
+        line; the words link to their definitions (a row is a checkbox label, so its own labels are bare). The link part
+        is counted over the runner's own results of both lists, and a row shows its link words only where they are not
+        the confidence this line states (showsLinkWords). */}
+    {ownRaces.length > 0 && <p className="runner-list-key">Each row: race, finish and its <TierTerm>results</TierTerm> label.{several ? <> <LinkTerm>Link confidence</LinkTerm>{linkKey(ownRaces)}</> : null}</p>}
     {lists.map(list => {
       const id = `runner-list-${list.distance}`, summary = listSummary(list, manifest);
       const heading = HEADINGS[list.distance][list.own.length + list.possible.length === 1 ? 0 : 1];
       return <section className="runner-list" key={list.distance} aria-labelledby={id} data-distance={list.distance}>
         <h3 id={id} className="runner-list-h">{heading}</h3>
         {summary ? <p className="runner-list-sum">{summary}</p> : null}
-        {list.own.length > 0 && <>
-          {/* What each row holds, once per list, in one line; the words link to their definitions (a row is a checkbox
-              label, so its own labels are bare). */}
-          <p className="runner-list-key">Each row: race, finish and its <TierTerm>results</TierTerm> label.{several ? <> <LinkTerm>Link confidence</LinkTerm>{linkKey(list.own)}</> : null}</p>
-          <Rows races={list.own} linked={several} names={names} {...row} />
-        </>}
+        {list.own.length > 0 && <Rows races={list.own} linked={several} names={names} {...row} />}
         {list.possible.length > 0 && <div className="runner-possible-block">
           <h4 id={`${id}-possible`} className="runner-possible-h">{POSSIBLE_MATCHES}</h4>
           <p className="runner-note">{list.own.length ? 'Not joined to the results above. ' : ''}Tick one only if you recognize it. Each shows its <TierTerm>results</TierTerm> label and its <LinkTerm>link confidence</LinkTerm>.</p>

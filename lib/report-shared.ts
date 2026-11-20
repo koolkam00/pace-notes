@@ -19,7 +19,7 @@ export interface TypeCohort { n: number; editions: number | null; keeps: string[
 
 /* ---------- Percentages, tones and the verdict: lib/report-verdict.ts (light, for the runner view) ---------- */
 
-export { qualifies, pctNum, pctAbs, pctSigned, openingPct, timesVerdict, toneOf } from './report-verdict';
+export { qualifies, pctNum, pctAbs, pctSigned, openingPct, openingSigned, sectionChange, timesVerdict, toneOf } from './report-verdict';
 export type { Tone, TimesVerdict } from './report-verdict';
 import type { Tone } from './report-verdict';
 

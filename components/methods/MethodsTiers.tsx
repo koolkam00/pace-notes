@@ -2,12 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import release from '@/analysis/release.json';
 import identity from '@/analysis/identity.json';
-import { LinkLabel, LinkMark, LinkTier, SplitTierTag, TierTag, TimingClassTag } from '@/components/ui/TierTag';
+import { LinkLabel, LinkMark, LinkTier, RecordTag, SplitTierTag, TierTag, TimingClassTag } from '@/components/ui/TierTag';
 import { getCohortManifest } from '@/lib/insights-server';
 import { raceFiles, type RaceNote } from '@/lib/nuggets/core';
 import {
-  FINISH_TIMES_ONLY, GUN_TIMING, LINK_CONFIDENCES, POSSIBLE_MATCH, POSSIBLE_MATCHES, SCREEN_WORDS, SHOWN_TIERS, TIER_WORDS, inline, isShownTier,
-  type LinkConfidence, type ShownTier,
+  FINISH_TIMES_ONLY, GUN_TIMING, LINK_CONFIDENCES, POSSIBLE_MATCH, POSSIBLE_MATCHES, RECORD_OFFER_WORDS, SCREEN_WORDS, SHOWN_TIERS, TIER_WORDS, inline, isShownTier,
+  type LinkConfidence, type NoReportReason, type RecordOffer, type ShownTier,
 } from '@/lib/tiers';
 import { countWord } from '@/lib/nuggets/format';
 import { Definition, and, n } from './shared';
@@ -54,6 +54,25 @@ const LINK_MEANS: Record<LinkConfidence, string> = {
   low_carryover: 'A link from the producer’s earlier build that the current build did not make again, kept where the result still fits the person.',
 };
 
+
+/**
+ * What each record word says about one result (decision D49, November 20, 2026), in the order a reader meets them: the
+ * full report, own pacing, no pacing report and each of its reasons, and a half marathon that is compared with nothing.
+ * The two reasons that are an edition's own label (finish times only, held for review) are said in the words of the
+ * plain "No pacing report".
+ */
+const RECORD_MEANS: { offer: RecordOffer; reason?: NoReportReason; notCompared?: boolean; means: string }[] = [
+  { offer: 'report', means: 'A marathon result of a counted edition: its own pacing, how it sits among similar finishes in its edition, its conditions and a race report. Its row adds no word, since this is the usual case.' },
+  { offer: 'own_pacing', means: 'A marathon result whose checkpoint times pass the screens, in an edition that is not counted: its own pacing, compared with no other finish.' },
+  { offer: 'no_report', reason: 'held_for_review', means: `Its recorded times are shown, with no pacing view, because its edition’s label says so: “${TIER_WORDS.held_for_review}”. A result of an edition labelled “${FINISH_TIMES_ONLY}” has no pacing view either, and its row shows that label alone.` },
+  { offer: 'no_report', reason: 'missing_checkpoints', means: 'A checkpoint time or the finish is missing or could not be read, so the result has no pacing view.' },
+  { offer: 'no_report', reason: 'times_out_of_order', means: 'Its checkpoint times do not increase from one mat to the next, so they cannot be the times of one run.' },
+  { offer: 'no_report', reason: 'outside_bounds', means: 'The finish or a section is faster or slower than the bounds the analyses allow, so it is not read as a pace.' },
+  { offer: 'no_report', reason: 'duplicate', means: 'The record repeats another recorded result of the same race, which is kept in its place.' },
+  { offer: 'no_report', reason: 'not_analysed', means: 'Its edition is not used for pacing: its checkpoint times fail the timing screens, or a review set the edition aside. The result’s details give the edition’s reason.' },
+  { offer: 'no_report', reason: 'copy_edition', means: 'Its edition largely repeats the field of another year, so its times are not read as that year’s.' },
+  { offer: 'listed', notCompared: true, means: 'A half-marathon result is listed with its finish and labels, and the runner pages compare no half marathon. These words mark one whose edition is compared with no other race anywhere, because its course is suspected short.' },
+];
 
 /**
  * Why an edition is not counted, as a list item reads after its count: the edition policy's categories (the race
@@ -119,6 +138,12 @@ export default function MethodsTiers() {
       </dl>}>
       <p><strong>Counted editions.</strong> A pooled figure (a share, a median, a comparison between courses or between runners) uses an edition only when it is counted. A counted edition has checkpoint times; its results are verified, or lie close to an official count; its timing passes the screens; and no review has set it aside. Every other edition is listed with its label and supplies no pooled figure and no comparison between runners. The checks behind this are under <a href="#data-quality">which records are analyzed</a>.</p>
       <p>Where an edition is not counted only because its results are unverified, or are not close to the official count, a runner’s own record can still show its own pacing if its checkpoint times pass the screens. It is shown with the edition’s label and compared with no one.</p>
+      {/* What one result offers (decision D49, November 20, 2026): the words a runner row prints beside its edition's
+          labels, drawn as the rows draw them (RecordTag), each with its meaning. */}
+      <p><strong>What one result offers.</strong> On the runner pages each recorded result also says what it offers, beside its edition’s labels. These words describe the one result, not its edition.</p>
+      <dl className="methods-badges">
+        {RECORD_MEANS.map(({ offer, reason, notCompared, means }) => <div key={`${offer}:${reason ?? ''}`}><dt>{offer === 'report' ? <span data-record="report">{RECORD_OFFER_WORDS.report}</span> : <RecordTag offer={offer} reason={reason} notCompared={notCompared} />}</dt><dd>{means}</dd></div>)}
+      </dl>
       <div className="table-wrap" role="region" tabIndex={0} aria-labelledby="edition-tiers-caption">
         <table className="table">
           <caption id="edition-tiers-caption">Marathon editions by label</caption>

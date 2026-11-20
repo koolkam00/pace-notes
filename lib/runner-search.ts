@@ -666,7 +666,7 @@ export async function searchRunnerNames(query: string, manifest: RunnerManifest,
   if (whole.plan.bytes > limits.auto && !allow.whole) return { ...empty, alone, more: { step: 'whole', bytes: whole.plan.bytes } };
   const have = new Map<number, IndexedRow[]>();
   const exact = await readStage(1, whole, signal, have);
-  const result: RunnerSearchResult = { ...empty, matches: sortMatches(exact, manifest), bytes: whole.plan.bytes, alone };
+  const result: RunnerSearchResult = { ...empty, matches: sortMatches(exact, manifest, query), bytes: whole.plan.bytes, alone };
   // Stage 2 can list more only when a typed word of three or more characters could begin a longer word.
   if (queryTokens(query, 2).every(token => tokenIsExact(token, 2))) return result;
   const beginnings = await planStage(query, 2, manifest, signal);
@@ -674,7 +674,7 @@ export async function searchRunnerNames(query: string, manifest: RunnerManifest,
   const total = whole.plan.bytes + extra;
   if (total > limits.cap) return { ...result, capped: 'beginnings' };
   if (!allow.beginnings && (exact.length > 0 || total > limits.auto)) return { ...result, more: { step: 'beginnings', bytes: extra } };
-  return { ...result, matches: sortMatches(await readStage(2, beginnings, signal, have), manifest), stage: 2, bytes: total };
+  return { ...result, matches: sortMatches(await readStage(2, beginnings, signal, have), manifest, query), stage: 2, bytes: total };
 }
 
 /**
@@ -700,16 +700,28 @@ export function displayName(name: string): string {
 export const matchResults = (row: RunnerMatch): number => row.edition !== null ? 1 : row.onlyPossible || row.marathons + row.halves === 0 ? row.possible : row.marathons + row.halves + row.possible;
 
 /**
- * The rows in the order the page lists them: by the shown name without its punctuation ("(Smith), Clara" sorts as
- * "clara smith"); under one name the rows that hold several results first (the most first), then single races by
- * race and year, newest first. Plain string order, so every browser lists them alike.
+ * Whether a row's name is exactly what was typed: its search words are the typed words, no more (word order, case,
+ * accents and a trailing country code aside). A row of a longer name ("Ana Maria Example" for "ana example") is not.
  */
-export function sortMatches(rows: RunnerMatch[], manifest: Pick<RunnerManifest, 'editions'>): RunnerMatch[] {
+export function exactName(row: Pick<RunnerMatch, 'name'>, typed: readonly string[]): boolean {
+  const words = searchWords(row.name);
+  return typed.length > 0 && words.length === typed.length && typed.every(token => words.includes(token));
+}
+
+/**
+ * The rows in the order the page lists them. With the typed query, the rows whose name is exactly what was typed come
+ * first (M7, November 20, 2026: a common name's exact rows had come after every longer variant). Then, in each of the
+ * two groups, by the shown name without its punctuation ("(Smith), Clara" sorts as "clara smith"); under one name the
+ * rows that hold several results first (the most first), then single races by race and year, newest first. Plain
+ * string order, so every browser lists them alike.
+ */
+export function sortMatches(rows: RunnerMatch[], manifest: Pick<RunnerManifest, 'editions'>, query?: string): RunnerMatch[] {
+  const typed = query === undefined ? [] : queryTokens(query, 1);
   const keyed = rows.map(row => {
     const edition = row.edition === null ? null : manifest.editions[row.edition];
-    return { row, name: normalizeName(displayName(row.name)), results: matchResults(row), race: edition ? edition.city : '', year: edition ? edition.year : row.lastYear };
+    return { row, exact: exactName(row, typed) ? 0 : 1, name: normalizeName(displayName(row.name)), results: matchResults(row), race: edition ? edition.city : '', year: edition ? edition.year : row.lastYear };
   });
-  keyed.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0) || b.results - a.results || (a.race < b.race ? -1 : a.race > b.race ? 1 : 0) || b.year - a.year ||
+  keyed.sort((a, b) => a.exact - b.exact || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0) || b.results - a.results || (a.race < b.race ? -1 : a.race > b.race ? 1 : 0) || b.year - a.year ||
     a.row.shard - b.row.shard || a.row.position - b.row.position || (a.row.name < b.row.name ? -1 : a.row.name > b.row.name ? 1 : 0));
   return keyed.map(entry => entry.row);
 }

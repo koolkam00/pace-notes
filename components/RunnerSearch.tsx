@@ -21,7 +21,7 @@ import {
   type RunnerManifest, type RunnerMatch, type RunnerProfile, type RunnerRace, type RunnerSearchAllow, type RunnerSearchResult,
 } from '@/lib/runner-search';
 import ProfileView from './runner/ProfileView';
-import { MatchRows, NoMatchNext, SearchMore, matchKey } from './runner/SearchResults';
+import { MatchRows, NoMatchNext, SearchMore, alikeRows, matchKey } from './runner/SearchResults';
 import { NO_COPIES, RecordList, analysed, finishLabel, inCopyEdition, raceLabel } from './runner/records';
 
 // The record pieces and the no-match block moved to components/runner/ with lookup version 2; they are still reached
@@ -121,8 +121,11 @@ export function SelectedAnalysis({ races, manifest, units, copyEditions = NO_COP
   const unlisted = marathons.filter(race => !listed?.has(race.key)), unlistedHalves = halves.filter(race => !listed?.has(race.key));
   // The focus race leads, in the view's own heading (or, with two or more, its select): round 4 cut the progression
   // card, its sentence and the race table (the table's numbers are in the comparison's All numbers).
+  // A half ticked beside marathons is listed, never compared with them (m11, November 20, 2026: it dropped out of the
+  // analysis without a word): the summary says so whenever one is selected.
+  const halvesApart = halves.length ? <p className="runner-note runner-includes">{halves.length === 1 ? 'The half marathon you selected is listed, but it is not part of the comparison, which holds marathons only.' : `The ${count(halves.length)} half marathons you selected are listed, but they are not part of the comparison, which holds marathons only.`}</p> : null;
   return <section className="runner-analysis" aria-label={progression.valid.length === 1 ? 'The selected race' : 'The selected races'}>
-    {includes}
+    {includes}{halvesApart}
     <RunnerContext races={pacing} manifest={manifest} units={units} copyEditions={copyEditions} report={report} wet={wet} years={years} />
     {unlisted.length > 0 && <section className="runner-limited" aria-labelledby="runner-limited-title"><h3 id="runner-limited-title" className="runner-h">{`${count(unlisted.length)} selected ${unlisted.length === 1 ? 'record has' : 'records have'} limited analysis`}</h3><RecordList races={unlisted} manifest={manifest} copyEditions={copyEditions} /></section>}
     {unlistedHalves.length > 0 && <section className="runner-limited" aria-labelledby="runner-halves-title"><h3 id="runner-halves-title" className="runner-h">{`${count(unlistedHalves.length)} selected half ${unlistedHalves.length === 1 ? 'marathon' : 'marathons'}`}</h3><RecordList races={unlistedHalves} manifest={manifest} copyEditions={copyEditions} /></section>}
@@ -256,6 +259,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
     setConfirmed(null); setEditing(false);
   };
   const visibleMatches = runnerSearchPage(matches, page);
+  const alike = useMemo(() => manifest ? alikeRows(matches, manifest) : new Map<string, string>(), [matches, manifest]);
   // Only with matches: the empty page renders no number (a throwing toLocaleString must fail the results, not hydration).
   const namesFound = matches.length ? `${count(matches.length)} matching ${matches.length === 1 ? 'name' : 'names'}` : '';
   const pages = Math.ceil(matches.length / RUNNER_PAGE_SIZE);
@@ -303,7 +307,7 @@ export default function RunnerSearch({ copyEditions = NO_COPIES, report, starts,
       {matches.length > NARROW_ABOVE && !result.alone && <p className="runner-note runner-narrow">Add a first name to narrow them.</p>}
       {/* Each row as a runner recognizes a race: one race by its label, year and distance ("Washington 2014 · marathon"),
           several by their counts, each distance apart, and their span. */}
-      {matches.length > 0 && <MatchRows rows={visibleMatches} manifest={manifest} openKey={opened ? matchKey(opened) : null} loadingKey={profileLoading} onOpen={row => void openProfile(row)} />}
+      {matches.length > 0 && <MatchRows rows={visibleMatches} manifest={manifest} openKey={opened ? matchKey(opened) : null} loadingKey={profileLoading} onOpen={row => void openProfile(row)} alike={alike} />}
       {pages > 1 && <nav className="runner-pagination" aria-label="Search result pages"><button type="button" className="btn btn-secondary is-compact" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>{count(page * RUNNER_PAGE_SIZE + 1)}–{count(Math.min(matches.length, (page + 1) * RUNNER_PAGE_SIZE))} of {count(matches.length)}</span><button type="button" className="btn btn-secondary is-compact" disabled={page + 1 >= pages} onClick={() => setPage(value => value + 1)}>Next</button></nav>}
       <SearchMore result={result} searched={searched} busy={moreLoading} onMore={step => void loadMore(step)} />
       {deadEnd && <NoMatchNext />}
