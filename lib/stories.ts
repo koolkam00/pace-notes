@@ -240,7 +240,7 @@ export const STORIES: StoryDefinition[] = [
     title: 'Fast years and slow years',
     get heading() { return headingOf('years.title', this.title); },
     dek: 'Do some years of a race run faster than others?', accent: '#2F5BFF',
-    published: '2026-11-19',
+    published: '2026-11-20',
     seoTitle: 'Fast and Slow Marathon Years, Race by Race | Pace Notes',
     get seoDescription() {
       const n = getNugget('years.called');
@@ -252,7 +252,7 @@ export const STORIES: StoryDefinition[] = [
     title: 'Race to race',
     get heading() { return headingOf('races.title', this.title); },
     dek: 'Do linked runners finish faster at some races than at others?', accent: '#0FA3A3',
-    published: '2026-11-19',
+    published: '2026-11-20',
     seoTitle: 'Race to Race: Linked Marathon Runners Compared | Pace Notes',
     get seoDescription() {
       const n = getNugget('races.faster');
@@ -264,7 +264,7 @@ export const STORIES: StoryDefinition[] = [
     title: 'Recorded bests',
     get heading() { return headingOf('bests.title', this.title); },
     dek: 'How often is the next recorded marathon a best?', accent: '#F4B23E',
-    published: '2026-11-19',
+    published: '2026-11-20',
     seoTitle: 'Recorded Marathon Bests: How Often the Next Is Faster | Pace Notes',
     get seoDescription() {
       // The turn, never the guess's answer (review round M6, November 20, 2026).
@@ -277,7 +277,7 @@ export const STORIES: StoryDefinition[] = [
     title: 'Getting older',
     get heading() { return headingOf('age.title', this.title); },
     dek: 'How does a marathon change, year by year of age?', accent: '#7A4DFF',
-    published: '2026-11-19',
+    published: '2026-11-20',
     seoTitle: 'Getting Older: Marathon Times Year by Year of Age | Pace Notes',
     get seoDescription() {
       const n = getNugget('age.fifty');

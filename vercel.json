@@ -1,7 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "trailingSlash": false,
-  "git": { "deploymentEnabled": { "claude/release-20261113": false, "claude/release-20261113*": false } },
   "redirects": [
     {
       "source": "/",
