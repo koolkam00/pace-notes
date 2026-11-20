@@ -333,6 +333,9 @@
 /* Two races under one label (Warsaw), named once, under the hero's dek (review m5, November 20, 2026). */
 .course-beat-body .course-series { margin: var(--s-3) 0 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
 .course-hero .hero-dek.course-series { margin-top: var(--s-2); }
+/* The years with results that are not counted, linked to the edition table: a 44 px hit area without moving the line. */
+.course-also-link { display: inline-block; padding: 14px 0; margin: -14px 0; color: inherit; text-decoration: underline; text-decoration-color: var(--night-ink-3, currentColor); text-underline-offset: .2em; }
+.course-hero .hero-dek.course-also { margin-top: var(--s-2); }
 /* The year's verdict for linked runners (components/races/LinkedYear.tsx): quiet words, under one line saying the links are by name. */
 .course-table td.linked-year { color: var(--ink-2); white-space: normal; min-width: 11em; }
 .linked-year-note { margin: var(--s-2) 0 var(--s-4); font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
@@ -350,8 +353,8 @@
 /* ---------- Edition tables: the key, and the rows stacked on a phone (review M4 and M5, November 20, 2026) ---------- */
 /* A label true of most rows is said once above the table (components/course/EditionKey.tsx, lead decision D48). */
 .edition-key { margin: 0 0 var(--s-3); max-width: var(--measure); font-family: var(--sans); font-size: var(--t-small); line-height: 1.6; color: var(--ink-2); }
-.edition-key-item { white-space: normal; }
-.edition-key .tier-tags { display: inline-flex; vertical-align: middle; }
+.edition-key-item { display: flex; flex-wrap: wrap; align-items: center; min-height: 44px; }
+.edition-key .tier-tags { display: inline-flex; }
 /* Under 640 px an edition table's row stacks: the year and its labels on the first line, then the median finish and the
    finishes, then every other figure, each after its column's name; cells without a figure are left out. Nothing scrolls
    sideways, so no edition's numbers sit off-screen. */

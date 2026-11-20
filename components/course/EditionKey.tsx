@@ -52,13 +52,13 @@ export function EditionKey({ model }: { model: EditionKeyModel }) {
   if (!items.length) return null;
   return (
     <p className="edition-key">
+      {/* One label to a line, each line 44 px high, so a linked label's hit area never reaches the next line's. */}
       {items.map((item, i) => (
         <Fragment key={i}>
-          {i ? '; ' : null}
-          <span className="edition-key-item"><TagGroup>{item.label}</TagGroup>{item.except.length ? `, except ${yearSpans(item.except)}` : ', every year'}</span>
+          {i ? ' ' : null}
+          <span className="edition-key-item"><TagGroup>{item.label}</TagGroup><span>{item.except.length ? `, except ${yearSpans(item.except)}.` : ', every year.'}</span></span>
         </Fragment>
       ))}
-      .
     </p>
   );
 }

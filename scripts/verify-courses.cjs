@@ -316,7 +316,7 @@ function tableKey(rows) {
   if (split) item(T.FINISH_TIMES_ONLY, split);
   if (gun) item(T.GUN_TIMES, gun);
   return {
-    text: items.length ? `${items.join('; ')}.` : '',
+    text: items.map((i) => `${i}.`).join(' '),
     labels: (r) => [r.tier === tier ? null : T.tierWords(r.tier), split || r.split !== 'finish_time_only' ? null : T.FINISH_TIMES_ONLY, gun || !r.gun ? null : T.GUN_TIMES].filter(Boolean),
   };
 }
