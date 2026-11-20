@@ -39,14 +39,24 @@ export function pctSigned(frac: number, digits = 1): string {
   const text = pctNum(frac, digits);
   return `${Number(text) === 0 ? '' : frac > 0 ? '+' : '−'}${text}%`;
 }
-/** The opening as a percentage: whole numbers, with decimals near the 2, 5 and 10% edges of the opening groups. */
+/**
+ * The opening (the first 5K against the 5–20K pace) as a percentage, in the one decimal every section's change takes on
+ * the runner pages (m3, November 20, 2026: "2.5% slower" in the sentence above a row that said "+2%"), with a second
+ * decimal only where one would land on an edge of the opening groups (2, 5 and 10%) that the value is not on.
+ */
 export function openingPct(frac: number): string {
   const p = Math.abs(frac) * 100;
-  const r = Math.round(p);
-  if (![2, 5, 10].includes(r) || p === r) return pctAbs(frac);
   const one = p.toFixed(1);
-  return `${Number(one) === r ? p.toFixed(2) : one}%`;
+  return `${[2, 5, 10].includes(Number(one)) && Number(one) !== p ? p.toFixed(2) : one}%`;
 }
+/** The opening signed, as the 0–5K row of a lap list says it beside the other sections ("+2.5%", "−4.96%"). */
+export function openingSigned(frac: number): string {
+  if (!Number.isFinite(frac)) return '—';
+  const text = openingPct(frac);
+  return `${Number(text.slice(0, -1)) === 0 ? '' : frac > 0 ? '+' : '−'}${text}`;
+}
+/** A section's change against the 5–20K pace as a lap list's row says it: the opening's words for 0–5K, else pctSigned. */
+export const sectionChange = (frac: number, index: number): string => (index === 0 ? openingSigned(frac) : pctSigned(frac, 1));
 
 /* ---------- Section tones (the split check's bar colours) ---------- */
 
@@ -56,7 +66,8 @@ export type Tone = 'quick' | 'even' | 'slow' | 'qualify';
  * when the race has no record (a shared link), and the runner view's pacing heading says it for a record. With a
  * sustained slowdown, where it began and how far off the 5–20 km pace its slowest qualifying section ran; without one,
  * the slowest section after 20 km and how far off that pace it ran (null when every one held the pace or better).
- * Percentages are threshold-safe (pctAbs), so the words never round across 25%.
+ * Percentages take one decimal, as the lap list's rows beside them (m3, November 20, 2026), and are threshold-safe
+ * (pctNum), so the words never round across 25%; a stretch is "off" the pace from the first tenth of a percent.
  */
 export type TimesVerdict =
   | { slowdown: true; onsetKm: number; off: string }
@@ -65,11 +76,11 @@ export function timesVerdict(r: SplitReading): TimesVerdict {
   if (r.slowdown && r.onsetKm !== null) {
     const from = 4 + (r.onsetKm - 20) / 5;
     const off = Math.max(...r.vsBaseline.slice(from).filter((_, k) => toneOf(r, from + k) === 'qualify'));
-    return { slowdown: true, onsetKm: r.onsetKm, off: pctAbs(off) };
+    return { slowdown: true, onsetKm: r.onsetKm, off: `${pctNum(off, 1)}%` };
   }
   const late = r.vsBaseline.slice(4);
   const worst = Math.max(...late);
-  return { slowdown: false, worst: worst >= 0.005 ? { index: 4 + late.indexOf(worst), off: pctAbs(worst) } : null };
+  return { slowdown: false, worst: worst >= 0.0005 ? { index: 4 + late.indexOf(worst), off: `${pctNum(worst, 1)}%` } : null };
 }
 
 /** Bar category: a qualifying section is a 5 km section after 20 km at least 25% slower, or the final 2.195 km extending one. */

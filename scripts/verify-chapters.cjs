@@ -4,8 +4,8 @@
 // chapters drawer, the contents, the rail, the reading bar and every next card read.
 //
 //   1. Unit tests of the registry's functions (placeOf, nextOf, prevOf, howWeKnowOf, readingAttrs and
-//      cleanPath) on known pages, and its shape: eleven chapters in three parts, the markers in race order, ids
-//      chapter-01 … chapter-11, short titles of 28 characters or fewer, unique hrefs, nugget ids of the form area.name.
+//      cleanPath) on known pages, and its shape: twelve chapters in three parts, the markers in race order, ids
+//      chapter-01 … chapter-12, short titles of 28 characters or fewer, unique hrefs, nugget ids of the form area.name.
 //   2. The chain, walked forward from /finish-times with nextOf, visits every built page once and ends on /tools/plan
 //      (the journey's finish, whose nextOf is null); walked back with prevOf it returns the same way.
 //   3. Routes: every page, also-in-this-chapter link, and every nextOf and prevOf of them, is a built route (the export
@@ -58,7 +58,7 @@ const routes = require(path.join(root, 'lib/seo-routes.ts'));
 
 // Pages in the sitemap that the spec merges into another page (section 2.1); the package named removes them.
 const MERGING = { '/analyses/warming-and-pacing': 'WP3 (into /analyses/race-day-weather#warming)', '/analyses/wind-and-pacing': 'WP3 (into /analyses/race-day-weather#wind)' };
-const MARKERS = ['START', '5K', '10K', 'HALF', '30K', 'FINISH', '07', '08', '09', '10', '11'];
+const MARKERS = ['START', '5K', '10K', 'HALF', '30K', 'FINISH', '07', '08', '09', '10', '11', '12'];
 
 // ---------- 1. Unit tests ----------
 const href = (next) => next && next.page.href;
@@ -73,11 +73,11 @@ test('placeOf: a page in the chain, a child, and pages outside the race', () => 
   assert.ok(p && 'page' in p && p.chapter.n === 6 && p.index === 0);
   const child = C.placeOf('/courses/boston');
   assert.ok(child && 'child' in child && child.chapter.n === 8);
-  assert.ok('child' in C.placeOf('/report') && C.placeOf('/report').chapter.n === 10);
+  assert.ok('child' in C.placeOf('/report') && C.placeOf('/report').chapter.n === 11);
   assert.ok('child' in C.placeOf('/tools/marathon-pace/4-00') && C.placeOf('/tools/marathon-pace/4-00').chapter.n === 6);
-  assert.ok('child' in C.placeOf('/tools/pace-band') && C.placeOf('/tools/pace-band').chapter.n === 11);
+  assert.ok('child' in C.placeOf('/tools/pace-band') && C.placeOf('/tools/pace-band').chapter.n === 12);
   const half = C.placeOf('/stories/half-to-full');
-  assert.ok(half && 'page' in half && half.chapter.n === 11 && half.index === 0, 'the half opens chapter 11');
+  assert.ok(half && 'page' in half && half.chapter.n === 12 && half.index === 0, 'the half opens chapter 12 (chapter 11 until November 19, 2026, when Over the years became chapter 10)');
   assert.equal(C.placeOf('/half'), null, '/half is off the chain');
   for (const outside of ['/', '/research', '/methodology', '/tools', '/tools/pace-calculator', '/tools/marathon-pace']) assert.equal(C.placeOf(outside), null, outside);
 });
@@ -92,7 +92,12 @@ test('nextOf: within a chapter, into the next one, from a child, and the finish'
   assert.equal(href(C.nextOf('/courses')), '/stories/race-morning');
   // Chapter 11 opens on the half (October 29, 2026): the end of chapter 10 hands on to it, and it to where runners improve.
   const half = C.nextOf('/report');
-  assert.deepEqual([href(half), half.opensChapter, half.chapter.n], ['/stories/half-to-full', true, 11]);
+  assert.deepEqual([href(half), half.opensChapter, half.chapter.n], ['/stories/half-to-full', true, 12]);
+  // Over the years follows the weather (November 19, 2026): the weather chapter's last page opens it.
+  const years = C.nextOf('/tools/weather-match');
+  assert.deepEqual([href(years), years.opensChapter, years.chapter.n], ['/stories/fast-and-slow-years', true, 10]);
+  assert.deepEqual([href(C.nextOf('/stories/getting-older')), C.nextOf('/stories/getting-older').opensChapter], ['/tools/split-check', true]);
+  assert.equal(C.prevOf('/tools/split-check').href, '/stories/getting-older');
   assert.equal(href(C.nextOf('/runners')), '/stories/half-to-full');
   assert.deepEqual([href(C.nextOf('/stories/half-to-full')), C.nextOf('/stories/half-to-full').opensChapter], ['/analyses/finding-improvement', false]);
   assert.equal(href(C.nextOf('/tools/pace-band')), '/tools/plan');
@@ -131,7 +136,7 @@ test('howWeKnowOf and readingAttrs', () => {
   assert.deepEqual(C.readingAttrs('/methodology', 'Methods'), { 'data-reading': '', 'data-short': 'Methods' });
 });
 test('the registry\'s shape', () => {
-  assert.equal(C.CHAPTERS.length, 11);
+  assert.equal(C.CHAPTERS.length, 12);
   assert.deepEqual(C.CHAPTERS.map((c) => c.marker), MARKERS);
   assert.deepEqual(C.CHAPTERS.map((c) => c.id), C.CHAPTERS.map((c) => `chapter-${C.chapterNumber(c)}`));
   assert.deepEqual(C.CHAPTERS.map((c) => c.n), C.CHAPTERS.map((_, i) => i + 1));
@@ -447,14 +452,14 @@ test('ChapterList: compact without readings or ids, expanded with ids and every 
   // pair), so the menu's compact list in the root layout imports no units island.
   const Figure = require(path.join(root, 'components/ui/ReadingFigure.tsx')).default;
   const compact = render('components/ui/ChapterList.tsx', { variant: 'compact', readingOf, Figure });
-  assert.equal((compact.match(/class="chapter-row"/g) || []).length, 11);
+  assert.equal((compact.match(/class="chapter-row"/g) || []).length, 12);
   assert.doesNotMatch(compact, /chapter-reading|id="chapter-/);
   const expanded = render('components/ui/ChapterList.tsx', { variant: 'expanded', readingOf, Figure });
   assert.deepEqual([...expanded.matchAll(/<li class="chapter-row" id="(chapter-\d\d)"/g)].map((m) => m[1]), C.CHAPTERS.map((c) => c.id));
   // Every chain page, and each chapter's hub (Every course) after its chain.
   assert.equal((expanded.match(/class="chapter-page-link"/g) || []).length, live.length + C.CHAPTERS.filter((c) => c.hub).length);
   const full = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf, Figure });
-  assert.equal((full.match(/class="chapter-reading"/g) || []).length, 11);
+  assert.equal((full.match(/class="chapter-reading"/g) || []).length, 12);
   // No reading, no figure slot: a chapter whose lead had none would show its title alone (verify-nuggets requires
   // every chapter lead to carry a number, so none does).
   const none = render('components/ui/ChapterList.tsx', { variant: 'full', readingOf: () => null, Figure });

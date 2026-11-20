@@ -127,5 +127,44 @@ class FastStartTests(unittest.TestCase):
         self.assertFalse(any(r['gender'] == 'Women' or r['age'] == '25–29' for r in rows))
 
 
+class CohortReaderTest(unittest.TestCase):
+    """read_observations on a small marathon cohort (since November 19, 2026), with the high-links-only variant (D38)."""
+
+    def test_history_and_high_links_only(self):
+        import json, tempfile
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from pathlib import Path
+        import cohort as marathon_cohort
+        from build_fast_start import digest, read_observations
+        times = lambda finish: race(0, 0, finish)['times']  # noqa: E731
+        # Runner 1 (records 1, 3, 5): high links in 2019 and 2020, a medium link in 2021. Runner 2 (2, 4): medium links.
+        rows = {2019: [(1, 1, 'M', 30, times(12000), 'h'), (2, 2, 'F', 40, times(14000), 'm')],
+                2020: [(3, 1, 'M', 31, times(12100), 'h'), (4, 2, 'F', 41, times(14100), 'm')],
+                2021: [(5, 1, 'M', 32, times(12200), 'm'), (6, 0, None, None, times(13000), None)]}
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'editions').mkdir()
+            editions = []
+            for year, records in rows.items():
+                data = marathon_cohort.encode_edition('Example', year, 'counted', records, [])
+                name = marathon_cohort.file_name('example', year)
+                (root/name).write_bytes(data)
+                editions.append(dict(city='Example', year=year, race='Example Marathon', use='counted', raw=2, timing_eligible=2,
+                                     eligible=2, other=0, file=name, bytes=len(data), sha256=digest(data)))
+            manifest = dict(schema_version=2, as_of='2026-11-19T00:00:00Z', editions=editions, eligible_records=6,
+                            linkage=dict(recent_benchmark_finishes=3, high_links=dict(recent_benchmark_finishes=1)))
+            (root/'manifest.json').write_text(json.dumps(manifest))
+            with redirect_stdout(StringIO()):
+                every, cities = read_observations(root, manifest)
+                high, _ = read_observations(root, manifest, high_only=True)
+            self.assertEqual(cities, ['All courses', 'Example'])
+            self.assertEqual(sorted(every[:, FINISH].tolist()), [100.0, 100.0, 200.0])   # 3 v 1, 4 v 2, 5 v the best of 2019-2020 (1)
+            self.assertEqual(high[:, FINISH].tolist(), [100.0])                                   # 3 v 1 only
+            manifest['linkage']['high_links']['recent_benchmark_finishes'] = 2
+            with self.assertRaisesRegex(ValueError, 'Earlier-benchmark cohort mismatch'), redirect_stdout(StringIO()):
+                read_observations(root, manifest, high_only=True)
+
+
 if __name__ == '__main__':
     unittest.main()

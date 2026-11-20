@@ -9,11 +9,15 @@
  * files for every course, and checks that its guard and sentence follow.
  */
 import { coursePage, coursePages, finishMinute, heldEditions, type CoursePageData } from '@/lib/course-page';
+import { racePageByLabel, racePages, raceFile, raceFileByLabel, raceSummary } from '@/lib/races-server';
+import type { RaceFile, RacePage } from '@/lib/races-types';
 import { readInsight } from '@/lib/insights-server';
 import type { Archetypes, Courses } from '@/lib/insights';
 import { courseSlug } from '@/lib/tools/links';
+import { countTiers, inline, tierLine, TIER_WORDS } from '@/lib/tiers';
 import { underWater } from '@/lib/terrain-reading';
 import { count, countWord, pct, sectionLabel, temp } from './format';
+import { yearSpans } from './years';
 import { shareFigure, type Builder } from './build';
 import type { Nugget, NuggetContext, NuggetFigure, UnitsAware } from './types';
 
@@ -52,6 +56,15 @@ const stretchOf = (i: number) => (i === SECTION_KM.length - 1 ? 'stretch' : '5K'
 export const SIGNATURE_MIN = 3;
 /** A pacing type's share differs from every course's from 3 percentage points. */
 export const TYPE_GAP = 0.03;
+/**
+ * The cohort a course page's medians and finish counts are of: the finishes with all splits (courses.json), fewer and
+ * quicker than every finish the race's results list holds. Every sentence, readout and table head on a course page that
+ * states such a median or count says so once (November 20, 2026, lead decision D46).
+ */
+export const ALL_SPLITS = 'Among finishes with all splits';
+/** The same cohort as a label ("Finishes with all splits"). */
+export const FINISHES_ALL_SPLITS = 'Finishes with all splits';
+
 /** A median finish "moved" from 60 seconds. */
 export const MOVED_S = 60;
 /**
@@ -75,22 +88,163 @@ function pageFor(ctx?: NuggetContext): CoursePageData | null {
 // ---------- /courses ----------
 
 /**
- * The index's count: every course page, the /courses dek. Its figure is that count (round 4: every card in the chain
- * carries a number, and the card into a list promises what the list holds), never a share across courses, which is
- * course-comparison's alone.
+ * The index's count: every marathon the list holds (the race directory's summary.json `races.total`, since November 19,
+ * 2026; until then the count of course pages, "27 city marathons, each with its own page"). Its figure is that count
+ * (round 4: every card in the chain carries a number, and the card into a list promises what the list holds), never a
+ * share across courses, which is course-comparison's alone. scripts/nuggets/courses.cjs recounts it from directory.json.
  */
 function coursesIndex(): Nugget {
-  const n = coursePages().size;
+  const n = raceSummary().races.total.n;
   return {
-    id: 'courses.index', page: '/courses', denominator: 'course', values: { courses: n }, guard: n > 0,
-    headline: `*${count(n)}* city marathons.`,
-    fallback: 'City marathons.',
-    figure: n > 0 ? { value: count(n), sr: `${count(n)} city marathons`, spoken: count(n) } : null,
-    key: 'city marathons, each with its own page',
+    id: 'courses.index', page: '/courses', denominator: 'course', values: { races: n }, guard: n > 0,
+    headline: `*${count(n)}* marathons, each with its years and recorded results.`,
+    fallback: 'Marathons, each with its years and recorded results.',
+    figure: n > 0 ? { value: count(n), sr: `${count(n)} marathons`, spoken: count(n) } : null,
+    key: 'marathons with recorded results',
+  };
+}
+
+/** The races with a page of their own (pages.json), the heading over the list of pages on /courses. */
+function coursesPages(): Nugget {
+  const n = racePages().length;
+  return {
+    id: 'courses.pages', page: '/courses#pages', denominator: 'course', values: { pages: n }, guard: n > 0,
+    headline: n === 1 ? 'One has a page of its own.' : `${count(n)} have a page of their own.`,
+    fallback: 'Races with a page of their own.',
+    figure: null,
+  };
+}
+
+// ---------- A results page (/courses/<slug>, page type `results`) and the race file of any page ----------
+
+/** The results page of a race label, or null (a course page, a row, or no race). */
+function resultsFor(ctx?: NuggetContext): { page: RacePage; race: RaceFile } | null {
+  const page = ctx?.city ? racePageByLabel(ctx.city) : null;
+  return page && page.page === 'results' ? { page, race: raceFile(page.slug) } : null;
+}
+
+/** A results page's dek: its live editions and their span (pages.json), a count that states no reading. */
+function raceEditions(ctx?: NuggetContext): Nugget {
+  const found = resultsFor(ctx);
+  const n = found?.page.editions ?? 0;
+  const [first, last] = found?.page.years ?? [NaN, NaN];
+  const span = first === last ? `in ${first}` : `${first}–${last}`;
+  return {
+    id: 'race.editions', page: `/courses/${found?.page.slug ?? ''}`, denominator: 'none', values: { editions: n, first, last }, guard: n > 0,
+    headline: n === 1 ? `One edition with recorded results, ${span}.` : `${count(n)} editions with recorded results, ${span}.`,
+    fallback: 'Editions with recorded results.',
+    figure: null,
+  };
+}
+
+/**
+ * A results page's reading: the race file's "median finish in a typical verified year" (docs/RACES.md rule 11), stated
+ * only where the file gives one and its years share one timing class (gun or unstated years beside chip years are not
+ * like for like). Floored to the minute, as a race clock reads. Otherwise the neutral count of race.editions.
+ */
+function raceReading(ctx?: NuggetContext): Nugget {
+  const found = resultsFor(ctx);
+  const r = found?.race.reading ?? null;
+  const classes = r ? Object.keys(r.timing) : [];
+  // The verified years behind the reading, by tier: a weaker-source stamp always carries the words "weaker source" (review
+  // m1, November 20, 2026). The years must be the reading's own, so a file whose count disagrees states no reading.
+  const years = readingYears(found?.race);
+  const guard = !!r && r.editions >= MIN_EDITIONS && classes.length === 1 && r.median_s > 0 && years.verified + years.weaker === r.editions;
+  const editions = raceEditions(ctx);
+  const w = verifiedYearWords(years);
+  return {
+    id: 'race.reading', page: `/courses/${found?.page.slug ?? ''}`, denominator: 'none',
+    values: { median_s: r?.median_s ?? NaN, editions: r?.editions ?? 0, timing_classes: classes.length, verified: years.verified, weaker: years.weaker },
+    guard,
+    headline: r ? `In a typical ${w.year}, the median finish was *${finishMinute(r.median_s)}*.` : '',
+    fallback: editions.guard ? String(editions.headline) : String(editions.fallback),
+    figure: guard && r ? { value: finishMinute(r.median_s), sr: `${finishMinute(r.median_s)}`, spoken: finishMinute(r.median_s) } : null,
+    key: `median finish in a typical ${w.year}`,
+  };
+}
+
+/**
+ * The verified years a results page's reading rests on (docs/RACES.md rule 11: the badge-verified editions of the
+ * finish-time universe with 100 finishes and a median), counted by tier: plainly verified and verified against a weaker
+ * source.
+ */
+export function readingYears(race: RaceFile | null | undefined): { verified: number; weaker: number } {
+  const used = (race?.editions ?? []).filter((e) => e.review !== 'copy' && (e.tier === 'stamped' || e.tier === 'stamped_weaker_source') && e.in_universe && typeof e.median_s === 'number' && typeof e.finishes === 'number' && e.finishes >= 100);
+  return { verified: used.filter((e) => e.tier === 'stamped').length, weaker: used.filter((e) => e.tier === 'stamped_weaker_source').length };
+}
+
+/**
+ * How running copy names the reading's years, in the tier module's words: "verified year" where every one is plainly
+ * verified; "year (verified, weaker source)" where every one is a weaker-source stamp; "verified year (3 of 9 verified,
+ * weaker source)" where some are (review m1, November 20, 2026). `years` is the plural for a count ("9 verified years").
+ */
+export function verifiedYearWords({ verified, weaker }: { verified: number; weaker: number }): { year: string; years: string } {
+  const plain = inline(TIER_WORDS.stamped), weak = inline(TIER_WORDS.stamped_weaker_source);
+  if (weaker === 0) return { year: `${plain} year`, years: `${plain} years` };
+  if (verified === 0) return { year: `year (${weak})`, years: `years (${weak})` };
+  return { year: `${plain} year (${count(weaker)} of ${count(verified + weaker)} ${weak})`, years: `${plain} years (${count(weaker)} ${weak})` };
+}
+
+/**
+ * The heading over a results page's line: how far the verified years' medians ran (the reading's lowest and highest), to
+ * the minute, under the reading's guard and a spread of a minute or more. Otherwise a plain caption.
+ */
+function raceRange(ctx?: NuggetContext): Nugget {
+  const found = resultsFor(ctx);
+  const r = found?.race.reading ?? null;
+  const reading = raceReading(ctx);
+  const guard = reading.guard && !!r && r.highest_s - r.lowest_s >= MOVED_S && finishMinute(r.lowest_s) !== finishMinute(r.highest_s);
+  return {
+    id: 'race.range', page: `/courses/${found?.page.slug ?? ''}#finish-times`, denominator: 'none',
+    values: { lowest_s: r?.lowest_s ?? NaN, highest_s: r?.highest_s ?? NaN, editions: r?.editions ?? 0 },
+    guard,
+    headline: r ? `Across its ${count(r.editions)} ${verifiedYearWords(readingYears(found?.race)).years}, the median finish ran from *${finishMinute(r.lowest_s)}* to ${finishMinute(r.highest_s)}.` : '',
+    fallback: 'Median finish by year.',
+    figure: null,
+  };
+}
+
+/**
+ * Where a race file holds two series under one label (Warsaw: plan decision D29), the sentence that names them, with
+ * their years, wherever the page states a reading across years. Null-safe: no series, no claim.
+ */
+function courseSeries(ctx?: NuggetContext): Nugget {
+  const race = ctx?.city ? raceFileByLabel(ctx.city) : null;
+  const series = race?.series ?? [];
+  const guard = series.length >= 2;
+  const named = series.map((s) => `the ${s.name}, ${s.first_year === s.last_year ? s.first_year : `${s.first_year}–${s.last_year}`}`);
+  const list = named.length > 1 ? `${named.slice(0, -1).join(', ')}, and ${named[named.length - 1]}` : named[0] ?? '';
+  return {
+    id: 'course.series', page: `/courses/${race?.slug ?? ''}`, denominator: 'none', values: { series: series.length },
+    guard,
+    headline: guard ? `This page holds ${series.length === 2 ? 'two' : count(series.length)} races: ${list}.` : '',
+    fallback: 'One race.',
+    figure: null,
   };
 }
 
 // ---------- A course page ----------
+
+/**
+ * The line under a course hero for a race with results in years that are not counted (review M9, November 20, 2026: a
+ * Frankfurt 2024 runner read "2 counted editions, 2018–2019" and thought the year missing): the years, and how many of
+ * them carry each tier, in the tier module's words ("Results also for 2022–2025 (4 with partial results)."). The page
+ * links it to the edition table. A course whose every edition with results is counted has no such line.
+ */
+function courseAlso(ctx?: NuggetContext): Nugget {
+  const page = pageFor(ctx);
+  const other = (page?.listed ?? []).filter((l) => l.use !== 'counted');
+  const guard = !!page && other.length > 0;
+  return {
+    id: 'course.also', page: `/courses/${page?.slug ?? ''}`, denominator: 'none',
+    values: { editions: other.length, first: other[0]?.year ?? NaN, last: other[other.length - 1]?.year ?? NaN },
+    guard,
+    headline: guard ? `Results also for ${yearSpans(other.map((l) => l.year))} (${tierLine(countTiers(other.map((l) => l.tier)), count)}).` : '',
+    fallback: 'Editions with results.',
+    figure: null,
+  };
+}
+
 
 /**
  * The words under a course hero's figure, up to the term: the figure averages the editions' shares, so with three or
@@ -98,7 +252,7 @@ function coursesIndex(): Nugget {
  * with one, its year (no averaging happened). course.slowdown's key is these words and the term.
  */
 export function heroKeyLead(editions: number, year: number | undefined): string {
-  return editions === 1 ? `of finishes in ${year} had a` : editions === 2 ? 'of finishes in its two editions, on average, had a' : 'of finishes in an average year had a';
+  return editions === 1 ? `of finishes in ${year} had a` : editions === 2 ? 'of finishes in its two counted editions, on average, had a' : 'of finishes in an average year had a';
 }
 
 /** The fewest race mornings #weather draws: two or three dots say nothing a sentence would not. */
@@ -213,7 +367,8 @@ function courseLate(ctx?: NuggetContext): Nugget {
   // A course of fewer editions says how many before it is set beside the others, as its slowdown H2 does (October 22,
   // 2026: Auckland's slowest 5K, on two editions, read like every other course's).
   const editions = page?.summary.editions ?? 0;
-  const from = editions > 0 && editions < MIN_EDITIONS ? `From its ${countWord(editions)} ${editions === 1 ? 'edition' : 'editions'}, ` : '';
+  // "Counted" since November 20, 2026 (review M9): the editions are the counted ones (/methodology#edition-tiers).
+  const from = editions > 0 && editions < MIN_EDITIONS ? `From its ${countWord(editions)} ${editions === 1 ? 'counted edition' : 'counted editions'}, ` : '';
   // The row's figure is how much slower than its own average the slowest section runs: a reading, not a section name.
   const v = page?.summary.curve?.length === 9 && i >= 0 ? page.summary.curve[i] : NaN;
   const by = Math.round(Math.abs(v));
@@ -325,16 +480,18 @@ function courseTimes(ctx?: NuggetContext): Nugget {
       other_year: ranged && lo && hi ? (other ?? lo).year : NaN, open_year: opening?.year ?? NaN, hero_year: hero ?? NaN,
     },
     guard,
+    // The medians are of the finishes with all splits (courses.json), not of every finish the results list holds: the
+    // sentence says so (November 20, 2026, lead decision D46: Los Angeles 2023 is 5:06 here and 5:17 on the race's list).
     headline: !lo || !hi ? ''
-      : trend ? `The median finish got *${minutes} minutes ${drift < 0 ? 'quicker' : 'slower'}* from the first three editions to the last three.`
-        : steady ? `Every median finish fell between ${floorMinute(lo.median_s)} and ${ceilMinute(hi.median_s)}.`
-          : `The median finish ranged from ${endText(lo)} to ${endText(hi)}.`,
+      : trend ? `${ALL_SPLITS}, the median finish got *${minutes} minutes ${drift < 0 ? 'quicker' : 'slower'}* from the first three editions to the last three.`
+        : steady ? `${ALL_SPLITS}, every median finish fell between ${floorMinute(lo.median_s)} and ${ceilMinute(hi.median_s)}.`
+          : `${ALL_SPLITS}, the median finish ranged from ${endText(lo)} to ${endText(hi)}.`,
     // Within a minute the median "held"; two editions read first to latest.
     fallback: eds.length >= 3 && lo && hi
-      ? (at(lo) === at(hi) ? `The median finish was *${at(lo)}* in every edition.` : `The median finish held within a minute: ${at(lo)} to *${at(hi)}*.`)
+      ? (at(lo) === at(hi) ? `${ALL_SPLITS}, the median finish was *${at(lo)}* in every edition.` : `${ALL_SPLITS}, the median finish held within a minute: ${at(lo)} to *${at(hi)}*.`)
       : eds.length === 2
-        ? (at(first) === at(last) ? `The median finish was *${at(first)}* in both ${first.year} and ${last.year}.` : `The median finish was ${at(first)} in ${first.year}, *${at(last)}* in ${last.year}.`)
-        : first ? `The median finish in ${first.year}: *${at(first)}*.` : 'Finish times by year.',
+        ? (at(first) === at(last) ? `${ALL_SPLITS}, the median finish was *${at(first)}* in both ${first.year} and ${last.year}.` : `${ALL_SPLITS}, the median finish was ${at(first)} in ${first.year}, *${at(last)}* in ${last.year}.`)
+        : first ? `${ALL_SPLITS}, the median finish in ${first.year}: *${at(first)}*.` : 'Finish times by year.',
     figure: null,
   };
 }
@@ -425,9 +582,9 @@ function courseAmong(ctx?: NuggetContext): Nugget {
   // The accent is the comparison's count with its set, in one unbroken span ("21 of 24"), and the set is named every
   // time (critic round 5: "lower than 21 of the other courses" over a strip of 27 other dots read as a miscount). A
   // course of fewer editions leads with how many it has and is not one of the set, so it says "courses", not "other".
-  const set = `${solid ? 'other ' : ''}courses with three or more editions`;
+  const set = `${solid ? 'other ' : ''}courses with three or more counted editions`;
   const than = count === n ? `${side} than *${nb(`all ${n}`)}* ${set}` : `${side} than *${nb(`${count} of ${n}`)}* ${set}`;
-  const from = `From its ${countWord(s?.editions ?? 0)} ${s?.editions === 1 ? 'edition' : 'editions'}`;
+  const from = `From its ${countWord(s?.editions ?? 0)} ${s?.editions === 1 ? 'counted edition' : 'counted editions'}`;
   return {
     id: 'course.among', page: `/courses/${page?.slug ?? ''}#slowdown`, denominator: 'course',
     values: { share: s?.slowdown ?? NaN, higher, lower, courses: n, editions: s?.editions ?? 0, middle: middle ? 1 : 0 },
@@ -538,6 +695,12 @@ function courseWeather(ctx?: NuggetContext): Nugget {
 
 export const COURSE_NUGGETS: Record<string, Builder> = {
   'courses.index': coursesIndex,
+  'courses.pages': coursesPages,
+  'race.editions': raceEditions,
+  'race.reading': raceReading,
+  'race.range': raceRange,
+  'course.series': courseSeries,
+  'course.also': courseAlso,
   'course.slowdown': courseSlowdown,
   'course.start': courseStart,
   'course.late': courseLate,
@@ -551,4 +714,7 @@ export const COURSE_NUGGETS: Record<string, Builder> = {
 };
 
 /** The nuggets a course page builds with its city (index.ts CONTEXT_NUGGETS). */
-export const COURSE_CONTEXT_NUGGETS = ['course.slowdown', 'course.start', 'course.late', 'course.signature', 'course.times', 'course.climb', 'course.types', 'course.among', 'course.goal', 'course.weather'] as const;
+export const COURSE_CONTEXT_NUGGETS = ['course.also', 'course.slowdown', 'course.start', 'course.late', 'course.signature', 'course.times', 'course.climb', 'course.types', 'course.among', 'course.goal', 'course.weather'] as const;
+
+/** The nuggets a results page builds with its race label, and the series line any race page builds (index.ts CONTEXT_NUGGETS). */
+export const RACE_CONTEXT_NUGGETS = ['race.editions', 'race.reading', 'race.range', 'course.series'] as const;

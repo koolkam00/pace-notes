@@ -1,36 +1,37 @@
-"""Fetch and verify the half snapshot, its person links and the stamp reference (docs/HALF_MARATHON.md).
+"""Fetch and verify the release files the half-marathon builders read (docs/HALF_MARATHON.md).
 
-    python3 -I analysis/download_half.py [--out DIR] [--work DIR] [--only half|links|stamps] [--keep-v4] [--replace]
-    python3 -I analysis/download_half.py --from-dir DIR [--from-dir DIR] [--out DIR] [--work DIR]
+    python3 -I analysis/download_half.py [--out DIR] [--only core|links] [--replace]
+    python3 -I analysis/download_half.py --from-dir DIR [--from-dir DIR] [--out DIR]
 
-All three come from the owner's public CC BY 4.0 releases in the repository analysis/half-release.json names
-(`repository`, pin schema 3): the snapshot and its edition_meta CSV from `half.tag`, the v4 person links (two parquet files
-and their documents) from `links.tag` (one release, half-dataset-20261030-1904), and the stamp reference, the 2157
-`csv-edition_meta.csv.zst` and its README, from `stamps.reference.tag` (half-dataset-20261029-2157). No account, token or
-signed URL is needed: every request goes anonymously to `https://github.com/{repository}/releases/download/{tag}/{asset}`,
-never to api.github.com, and carries no Authorization header. Nothing is written under the repository or `public/`: the
-files go to `--out`, default `$PACE_HALF_DIR` (itself defaulting to `~/data/half-1904`). The pages publish aggregates of
-these files only.
+The half rows, the edition tiers and the person links are assets of the combined release the site adopts
+(analysis/half-release.json, schema 4: `half.tag`), the owner's public CC BY 4.0 release in `repository`. No account,
+token or signed URL is needed: every request goes anonymously to
+`https://github.com/{repository}/releases/download/{tag}/{asset}`, never to api.github.com, and carries no
+Authorization header. Nothing is written under the repository or `public/`: the files go to `--out`, default
+`$PACE_HALF_DIR` (itself defaulting to `~/data/half-20261113-1113`). The pages publish aggregates of these files only.
 
-Each release's own `SHA256SUMS` is fetched first; its sha256 must equal the pin's `sha256sums_sha256` for that tag (the
-releases are not immutable on GitHub, so a replaced file fails here), and every asset the pin lists must be in it with the
-pinned digest, so the pin, the release and the downloaded bytes agree. Every downloaded file is checked against its digest
-as it streams. `--from-dir DIR` takes a folder already filled from a release (`gh release download <tag> -R <repository>`
-or curl, with its `SHA256SUMS`) instead; give it once per folder. Files read from such a folder are never deleted.
+The release's own checksum file (`half.checksums`) is fetched first; its sha256 must equal the pin's (a release is not
+immutable on GitHub, so a replaced file fails here), and every asset this script takes must be listed in it with the
+pinned digest, so the pin, the release and the downloaded bytes agree. Every downloaded file is checked against its
+digest as it streams. `--from-dir DIR` takes a folder already filled from the release (analysis/download_release.py's
+folder, `gh release download`, or curl) instead of the network; give it once per folder. Files read from such a folder
+are never deleted.
 
-Reassembly streams the zstd parts in order into `zstd -d`, then runs `PRAGMA integrity_check` and compares the
-decompressed SQLite's sha256 with the pin (`half.sqlite_sha256`); a snapshot already in place is kept when its sha256
-matches, and refused when a non-empty `-wal` sits beside it (the builders refuse it too). The v4 parquet files go to
-`--work` (default `<out>/v4`) and are cut at once into `links-v4.sqlite` beside the snapshot by
-analysis/half_links_extract.py (`--v4-dir --half --out`), whose content digest must equal the pin
-(`links.extract_content_sha256`); they are deleted afterwards unless `--keep-v4`. The stamp reference lands at
-`<out>/<reference tag>/<asset>`, where analysis/build_half.py and the source recount look for it, and this release's
-`csv-edition_meta.csv.zst` beside the snapshot. A file already in place with the pinned digest is kept.
-`provenance.json` (local only, never committed) records what was checked.
+What lands under `--out`:
 
-Download about 1.3 GB (the 0.48 GB snapshot part, 0.81 GB of v4 parquet files and a few small files). Needs the `zstd`
-command and about 5.5 GB of free disk at the peak: the 4.5 GB SQLite while the part is still on disk, then the parquet
-files, the extract and DuckDB's spill (`--work`).
+- `core/`: the CORE members the builders read (`half.core.members`: the rows, the registry, the flags, the release's
+  row exclusions and the tier table), taken out of the CORE archive one by one, each checked against its pinned sha256.
+  Nothing else in the archive is written, and a member under another folder or name is not a member.
+- `release/`: the two person-link parquet files (`links.assets`), by their pinned sha256.
+- `provenance.json` (local only, never committed): what was checked, and when.
+
+The identity file is not a download. The pipeline writes it from the same release (analysis/adapt_combined.py, then
+analysis/build_identity.py), and the half builders read the one the marathon cohort was built on: pass it with
+`--identity`, or put it at `<out>/identity.parquet`. The frozen never-stamp list is carried in the policy file; its
+source (`stamps.never_stamp.reference`) is provenance and is not fetched. After this, cut the extract for the Node
+recount with `python3 -I analysis/half_extract.py` and build with `python3 -I analysis/build_half.py`.
+
+Download about 1.3 GB (the CORE archive and the two link files); the unpacked members need about 0.5 GB more.
 """
 from __future__ import annotations
 
@@ -40,9 +41,8 @@ import json
 import os
 import re
 import shutil
-import sqlite3
-import subprocess
 import sys
+import tarfile
 from datetime import date
 from pathlib import Path
 from urllib.parse import quote, urlsplit
@@ -51,22 +51,20 @@ from urllib.request import Request, build_opener
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from half_common import PIN_PATH, ROOT, HalfError, bytes_sha256, fail, file_sha256, inside, load_pin  # noqa: E402
+from half_common import CORE_MEMBERS, ROOT, HalfError, bytes_sha256, fail, file_sha256, inside, load_pin  # noqa: E402
 
-PART = re.compile(r'^(?P<stem>.+\.sqlite\.zst)\.part(?P<number>[0-9]{2})$')
-# Decompressed and downloaded sizes (bytes) for the free-disk checks.
-SIZES = {'half': 4_474_351_616, 'v4': 677_175_967 + 131_547_990}
-MARGIN = 1 << 28
 USER_AGENT = 'pace-notes-half-download'
 DOWNLOAD_HOST = 'github.com'
+LINK_FILES = ('person-ids-v5.1-race_results_linked.parquet', 'person-ids-v5.1-persons.parquet')
+MARGIN = 1 << 28
 
 
-def read_sums(path: Path) -> dict[str, str]:
-    """A `sha256sum` file: {file name: digest}."""
-    return parse_sums(path.read_text(), str(path))
+def half_dir() -> Path:
+    return Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-20261113-1113').expanduser()
 
 
 def parse_sums(text: str, where: str = 'SHA256SUMS') -> dict[str, str]:
+    """A `sha256sum` file: {file name: digest}. A name with a folder, a repeated name or a malformed line fails."""
     listed = {}
     for line in text.splitlines():
         if not line.strip():
@@ -81,155 +79,23 @@ def parse_sums(text: str, where: str = 'SHA256SUMS') -> dict[str, str]:
     return listed
 
 
-def _check_assets(key: str, assets: dict) -> None:
-    for name, digest in assets.items():
-        if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest) or '/' in name:
-            fail(f'the pinned {key} release lists a malformed asset {name!r}')
+def spec(pin: dict, only: str | None = None) -> dict:
+    """What this script takes from the adopted release: the checksum file, the CORE archive and the two link files."""
+    half, links = pin['half'], pin['links']
+    core = half['core']
+    if core['asset'] not in half['assets']:
+        fail('the pin does not list the CORE archive among the release assets')
+    missing = [name for name in LINK_FILES if name not in links['assets']]
+    if missing:
+        fail(f'the pin does not list the person-link files {missing}')
+    assets = {}
+    if only in (None, 'core'):
+        assets[core['asset']] = half['assets'][core['asset']]
+    if only in (None, 'links'):
+        assets.update({name: links['assets'][name] for name in LINK_FILES})
+    return {'repository': pin['repository'], 'tag': half['tag'], 'sums': dict(half['checksums']), 'assets': assets,
+            'core': {'asset': core['asset'], 'folder': core['folder'], 'members': dict(core['members'])}}
 
-
-def sums_digests(pin: dict) -> dict[str, str]:
-    """The pinned sha256 of each release's SHA256SUMS, by tag (the snapshot's covers the links when they share a tag)."""
-    out = {}
-    for tag, digest in ((pin['half']['tag'], pin['half'].get('sha256sums_sha256')),
-                        (pin['links']['tag'], pin['links'].get('sha256sums_sha256')),
-                        (pin['stamps']['reference']['tag'], pin['stamps']['reference'].get('sha256sums_sha256'))):
-        if digest is None:
-            continue
-        if not re.fullmatch(r'[0-9a-f]{64}', digest) or out.get(tag, digest) != digest:
-            fail(f'the pin names two SHA256SUMS digests, or a malformed one, for {tag}')
-        out[tag] = digest
-    for tag in (pin['half']['tag'], pin['links']['tag'], pin['stamps']['reference']['tag']):
-        if tag not in out:
-            fail(f'the pin names no SHA256SUMS digest for release {tag}')
-    return out
-
-
-def releases(pin: dict) -> list[dict]:
-    """The pinned half and links specs: their tags, pinned assets, parts in order, and what they decompress to."""
-    out = []
-    half = dict(pin['half']['assets'])
-    _check_assets('half', half)
-    parts = sorted((n for n in half if PART.match(n)), key=lambda n: int(PART.match(n)['number']))
-    if not parts or [int(PART.match(n)['number']) for n in parts] != list(range(len(parts))):
-        fail('the pinned half release must list its SQLite parts numbered from 00 without gaps')
-    if len({PART.match(n)['stem'] for n in parts}) != 1:
-        fail('the pinned half parts belong to more than one file')
-    out.append({'key': 'half', 'tag': pin['half']['tag'], 'assets': half, 'parts': parts, 'target': pin['half']['sqlite'],
-                'target_sha256': pin['half']['sqlite_sha256']})
-    links = dict(pin['links']['assets'])
-    _check_assets('links', links)
-    if any(PART.match(n) for n in links) or not {'race_results_linked.parquet', 'persons.parquet'} <= set(links):
-        fail('the pinned links release must list race_results_linked.parquet and persons.parquet, and no SQLite parts')
-    out.append({'key': 'links', 'tag': pin['links']['tag'], 'assets': links, 'parts': [], 'target': pin['links']['extract'],
-                'target_sha256': None})
-    return out
-
-
-def stamps_spec(pin: dict) -> dict:
-    """The pinned stamp reference as a spec: its CSV and README, no parts."""
-    ref = pin['stamps']['reference']
-    assets = {ref['asset']: ref['sha256'], 'README.md': ref['readme_sha256']}
-    _check_assets('stamp reference', assets)
-    return {'key': 'stamps', 'tag': ref['tag'], 'assets': assets, 'parts': [], 'target': ref['asset'], 'target_sha256': ref['sha256']}
-
-
-def all_specs(pin: dict) -> list[dict]:
-    return releases(pin) + [stamps_spec(pin)]
-
-
-def check_folder(folder: Path, spec: dict, sums_sha256: str | None = None) -> dict[str, Path]:
-    """The pinned assets in a download folder, each checked against the folder's SHA256SUMS (itself checked against the
-    pin's digest of it, when given) and the pin."""
-    sums_path = folder / 'SHA256SUMS'
-    if not sums_path.is_file():
-        fail(f'{folder} has no SHA256SUMS')
-    if sums_sha256 is not None and file_sha256(sums_path) != sums_sha256:
-        fail(f"{sums_path} is not the pinned SHA256SUMS of {spec['tag']}")
-    listed = read_sums(sums_path)
-    for name, digest in spec['assets'].items():
-        if listed.get(name) != digest:
-            fail(f"{folder}/SHA256SUMS does not list {name} with the digest pinned for {spec['tag']}")
-    found = {}
-    for name, digest in spec['assets'].items():
-        path = folder / name
-        if not path.is_file():
-            fail(f'{path} is missing')
-        if file_sha256(path) != digest:
-            fail(f'{path} does not match SHA256SUMS')
-        found[name] = path
-    return found
-
-
-def identify(folder: Path, specs: list[dict]) -> list[dict]:
-    """The pinned specs a folder holds (one release can hold the half and the links), from its SHA256SUMS."""
-    sums = folder / 'SHA256SUMS'
-    if not sums.is_file():
-        fail(f'{folder} has no SHA256SUMS')
-    listed = read_sums(sums)
-    hits = [s for s in specs if all(listed.get(n) == d for n, d in s['assets'].items())]
-    if not hits:
-        fail(f'{folder} holds no pinned release (its SHA256SUMS lists {sorted(listed)[:6]})')
-    return hits
-
-
-def integrity_ok(path: Path) -> bool:
-    con = sqlite3.connect(f'file:{path.as_posix()}?mode=ro', uri=True)
-    try:
-        return con.execute('PRAGMA integrity_check').fetchall() == [('ok',)]
-    finally:
-        con.close()
-
-
-def remove_sidecars(path: Path) -> None:
-    """The -wal and -shm files a read of a WAL-mode SQLite leaves beside it (the snapshot is one)."""
-    for suffix in ('-wal', '-shm'):
-        path.with_name(path.name + suffix).unlink(missing_ok=True)
-
-
-def check_sidecars(path: Path) -> None:
-    """A snapshot in place may carry the empty -wal and the -shm of an earlier read (removed here); a non-empty -wal holds
-    pages the pinned file does not, so it is refused."""
-    # Beside the path and beside the file a symlink resolves to, where SQLite reads it (verify round 2, October 31, 2026).
-    for wal in dict.fromkeys([path.with_name(path.name + '-wal'), Path(f'{path.resolve()}-wal')]):
-        if wal.exists() and wal.stat().st_size > 0:
-            fail(f'{wal} is not empty: the snapshot beside it is not the pinned one; move both away or pass --replace')
-    remove_sidecars(path)
-
-
-def reassemble(parts: list[Path], target: Path, expected_sha256: str | None) -> str:
-    """Stream the parts in order through `zstd -d` into `target`, check integrity and the digest; return the digest."""
-    if shutil.which('zstd') is None:
-        fail('the zstd command is required to reassemble the SQLite parts')
-    tmp = target.with_name(target.name + '.part-tmp')
-    tmp.unlink(missing_ok=True)
-    try:
-        with subprocess.Popen(['zstd', '-d', '-q', '-o', str(tmp)], stdin=subprocess.PIPE) as proc:
-            assert proc.stdin is not None
-            try:
-                for part in parts:
-                    with part.open('rb') as handle:
-                        shutil.copyfileobj(handle, proc.stdin, 1 << 20)
-            finally:
-                proc.stdin.close()
-        if proc.returncode != 0:
-            fail(f'zstd could not decompress the parts of {target.name}')
-        if not integrity_ok(tmp):
-            fail(f'{target.name}: PRAGMA integrity_check failed')
-        digest = file_sha256(tmp)
-        if expected_sha256 is not None and digest != expected_sha256:
-            fail(f'{target.name}: the decompressed file is not the pinned one (sha256 {digest})')
-        remove_sidecars(tmp)
-        remove_sidecars(target)
-        os.replace(tmp, target)
-        return digest
-    finally:
-        tmp.unlink(missing_ok=True)
-        remove_sidecars(tmp)
-
-
-# ---------------------------------------------------------------------------------------------------------------
-# Anonymous public downloads: github.com release URLs only, no Authorization header, ever.
-# ---------------------------------------------------------------------------------------------------------------
 
 def public_url(repo: str, tag: str, name: str) -> str:
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo) or not re.fullmatch(r'[A-Za-z0-9_.-]+', tag):
@@ -248,14 +114,15 @@ def _opener():
     return build_opener()
 
 
-def fetch_sums(repo: str, tag: str, expected_sha256: str | None = None) -> dict[str, str]:
-    """A release's own SHA256SUMS, fetched anonymously and checked against the pin's digest of it."""
-    url = public_url(repo, tag, 'SHA256SUMS')
-    with _opener().open(public_request(url), timeout=60) as response:
-        data = response.read()
-    if expected_sha256 is not None and bytes_sha256(data) != expected_sha256:
-        fail(f'release {tag}: its SHA256SUMS is not the pinned one (the release changed after the pin)')
-    return parse_sums(data.decode('utf-8'), url)
+def check_sums(data: bytes, what: dict, where: str) -> dict[str, str]:
+    """The release's checksum file against the pin: its own sha256, then every asset taken, by the pinned digest."""
+    if bytes_sha256(data) != what['sums']['sha256']:
+        fail(f"release {what['tag']}: its {what['sums']['asset']} is not the pinned one (the release changed after the pin)")
+    sums = parse_sums(data.decode('utf-8'), where)
+    for name, digest in what['assets'].items():
+        if sums.get(name) != digest:
+            fail(f"release {what['tag']}: its {what['sums']['asset']} does not list {name} with the pinned digest")
+    return sums
 
 
 def download(url: str, destination: Path, expected_sha256: str) -> None:
@@ -274,158 +141,131 @@ def download(url: str, destination: Path, expected_sha256: str) -> None:
         tmp.unlink(missing_ok=True)
 
 
-def fetch_release(spec: dict, repo: str, folder: Path, sums: dict[str, str]) -> dict[str, Path]:
-    """Every pinned asset of one spec, downloaded into `folder` after the release's SHA256SUMS agreed with the pin."""
-    for name, digest in spec['assets'].items():
-        if sums.get(name) != digest:
-            fail(f"release {spec['tag']}: its SHA256SUMS does not list {name} with the pinned digest")
+def fetch(what: dict, folder: Path) -> dict[str, Path]:
+    """The checksum file, then every asset taken, anonymously, into `folder`. A file already there with the pinned
+    digest is kept."""
+    url = public_url(what['repository'], what['tag'], what['sums']['asset'])
+    with _opener().open(public_request(url), timeout=60) as response:
+        check_sums(response.read(), what, url)
     folder.mkdir(parents=True, exist_ok=True)
     found = {}
-    for name, digest in spec['assets'].items():
+    for name, digest in what['assets'].items():
         path = folder / name
-        if path.is_file() and file_sha256(path) == digest:
-            found[name] = path
-            continue
-        download(public_url(repo, spec['tag'], name), path, digest)
+        if not (path.is_file() and file_sha256(path) == digest):
+            download(public_url(what['repository'], what['tag'], name), path, digest)
         found[name] = path
     return found
 
 
-# ---------------------------------------------------------------------------------------------------------------
+def from_folders(what: dict, folders: list[Path]) -> dict[str, Path]:
+    """The same assets from folders already filled from the release: the checksum file must be in one of them and be
+    the pinned one, and each asset must have the pinned digest. Nothing is fetched and nothing there is changed."""
+    sums = next((f / what['sums']['asset'] for f in folders if (f / what['sums']['asset']).is_file()), None)
+    if sums is None:
+        fail(f"no {what['sums']['asset']} in {', '.join(map(str, folders))}: the release's checksum file must come with its assets")
+    check_sums(sums.read_bytes(), what, str(sums))
+    found = {}
+    for name, digest in what['assets'].items():
+        path = next((f / name for f in folders if (f / name).is_file()), None)
+        if path is None:
+            fail(f'no {name} in {", ".join(map(str, folders))}')
+        if file_sha256(path) != digest:
+            fail(f'{path} is not the pinned {name}')
+        found[name] = path
+    return found
 
-def cut_extract(v4_dir: Path, half: Path, out: Path) -> None:
-    """Cut links-v4.sqlite from the v4 parquet files and the snapshot (analysis/half_links_extract.py); its content digest
-    must equal the pin."""
-    import half_links_extract
-    try:
-        code = half_links_extract.main(['--v4-dir', str(v4_dir), '--half', str(half), '--out', str(out)])
-    except SystemExit as error:   # argparse or a refusal inside the extract
-        code = error.code if isinstance(error.code, int) else 1
-    if code:
-        fail(f'the links extract could not be cut, or differs from the pin (exit {code})')
 
-
-def place(spec: dict, assets: dict[str, Path], out: Path, *, downloaded: bool, replace: bool, keep_v4: bool = False,
-          work: Path | None = None) -> dict:
-    """Put one spec's files in place in `out`: decompress the snapshot (or keep a verified copy already there), cut the
-    links extract, or put the stamp reference in its folder. Returns its provenance."""
-    record = {'tag': spec['tag'], 'assets': {name: spec['assets'][name] for name in sorted(spec['assets'])}}
-    if spec['key'] == 'stamps':
-        folder = out / spec['tag']
-        folder.mkdir(parents=True, exist_ok=True)
-        for name, path in assets.items():
-            target = folder / name
-            if path.resolve() != target.resolve():
-                shutil.copyfile(path, target)
-            if file_sha256(target) != spec['assets'][name]:
-                fail(f'{target} is not the pinned {name}')
-        record['file'] = f"{spec['tag']}/{spec['target']}"
-        return record
-    if spec['key'] == 'half':
-        for name, path in assets.items():   # the release's own small files (edition_meta CSV, README) beside the snapshot
-            if name in spec['parts']:
+def unpack_core(archive: Path, core: dict, target: Path, *, replace: bool = False) -> dict[str, str]:
+    """The pinned members of the CORE archive into `target`, each checked against its pinned sha256 as it is written.
+    Only `<folder>/<member>` regular files are read; nothing else in the archive is written anywhere."""
+    wanted = {f"{core['folder']}/{name}": name for name in core['members']}
+    target.mkdir(parents=True, exist_ok=True)
+    done = {}
+    for name, digest in core['members'].items():
+        path = target / name
+        if path.is_file() and not replace and file_sha256(path) == digest:
+            done[name] = digest
+    if len(done) == len(core['members']):
+        return done
+    with tarfile.open(archive, 'r:*') as tar:
+        for member in tar:
+            name = wanted.get(member.name)
+            if name is None or name in done:
                 continue
-            target = out / name
-            if path.resolve() != target.resolve():
-                shutil.copyfile(path, target)
-            if file_sha256(target) != spec['assets'][name]:
-                fail(f'{target} is not the pinned {name}')
-        parts = [assets[name] for name in spec['parts']]
-        target = out / spec['target']
-        if target.exists() and not replace:
-            check_sidecars(target)
-            digest = file_sha256(target)
-            if digest != spec['target_sha256']:
-                fail(f'{target} exists and is not the pinned snapshot; move it away or pass --replace')
-            record['sqlite'] = {'file': target.name, 'sha256': digest, 'kept': True}
-        else:
-            need = SIZES['half'] + MARGIN
-            if shutil.disk_usage(out).free < need:
-                fail(f'{out} has under {need / 1e9:.1f} GB free')
-            digest = reassemble(parts, target, spec['target_sha256'])
-            record['sqlite'] = {'file': target.name, 'sha256': digest, 'integrity_check': 'ok'}
-        if downloaded:
-            for part in parts:
-                part.unlink(missing_ok=True)
-            record['parts'] = 'downloaded, verified and deleted'
-        else:
-            record['parts'] = 'read in place'
-        return record
-    # links: the v4 parquet files (in `work`, or read in place) cut into the extract beside the snapshot
-    v4_dir = {p.parent for p in assets.values()}
-    if len(v4_dir) != 1:
-        fail('the v4 files must sit in one folder')
-    v4_dir = v4_dir.pop()
-    half = out / load_pin()['half']['sqlite']
-    if not half.is_file():
-        fail(f'{half} is missing: the links extract reads the snapshot (fetch the half first)')
-    cut_extract(v4_dir, half, out / spec['target'])
-    record['extract'] = {'file': spec['target'], 'extract_content_sha256': load_pin()['links']['extract_content_sha256']}
-    if downloaded and not keep_v4:
-        for name in ('race_results_linked.parquet', 'persons.parquet'):
-            assets[name].unlink(missing_ok=True)
-        record['parquet'] = 'downloaded, verified, cut and deleted'
-    else:
-        record['parquet'] = 'kept' if downloaded else 'read in place'
+            if not member.isfile():
+                fail(f'{archive.name}: {member.name} is not a regular file')
+            source = tar.extractfile(member)
+            digest = hashlib.sha256()
+            tmp = target / (name + '.unpack')
+            try:
+                with tmp.open('wb') as out:
+                    while chunk := source.read(1 << 20):
+                        out.write(chunk)
+                        digest.update(chunk)
+                if digest.hexdigest() != core['members'][name]:
+                    fail(f'{archive.name}: {member.name} is not the pinned member (sha256 {digest.hexdigest()})')
+                os.replace(tmp, target / name)
+            finally:
+                tmp.unlink(missing_ok=True)
+            done[name] = digest.hexdigest()
+    missing = sorted(set(core['members']) - set(done))
+    if missing:
+        fail(f"{archive.name} holds no {core['folder']}/{missing[0]}" + (f' (and {len(missing) - 1} more)' if len(missing) > 1 else ''))
+    return done
+
+
+def place(what: dict, assets: dict[str, Path], out: Path, *, replace: bool = False) -> dict:
+    """Unpack the CORE members into `<out>/core` and put the link files into `<out>/release`."""
+    record = {}
+    core = what['core']
+    if core['asset'] in assets:
+        if set(core['members']) != set(CORE_MEMBERS):
+            fail('the pin does not name the CORE members the builders read')
+        record['core'] = unpack_core(assets[core['asset']], core, out / 'core', replace=replace)
+    release = out / 'release'
+    for name in LINK_FILES:
+        if name not in assets:
+            continue
+        release.mkdir(parents=True, exist_ok=True)
+        target = release / name
+        if assets[name].resolve() != target.resolve() and not (target.is_file() and not replace and file_sha256(target) == what['assets'][name]):
+            shutil.copyfile(assets[name], target)
+        if file_sha256(target) != what['assets'][name]:
+            fail(f'{target} is not the pinned {name}')
+        record.setdefault('release', {})[name] = what['assets'][name]
     return record
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    parser.add_argument('--from-dir', type=Path, action='append', help='a folder filled from a pinned release, with its SHA256SUMS (once per folder)')
-    parser.add_argument('--out', type=Path, default=Path(os.environ.get('PACE_HALF_DIR') or Path.home() / 'data' / 'half-1904'))
-    parser.add_argument('--work', type=Path, default=None, help='where the v4 parquet files are downloaded and cut (default <out>/v4)')
-    parser.add_argument('--only', choices=['half', 'links', 'stamps'], help='fetch one of the three only')
-    parser.add_argument('--keep-v4', action='store_true', help='keep the downloaded v4 parquet files after the extract')
-    parser.add_argument('--replace', action='store_true', help='replace a snapshot already in --out')
+    parser.add_argument('--out', type=Path, default=None, help='where the files go (default $PACE_HALF_DIR, else ~/data/half-20261113-1113)')
+    parser.add_argument('--from-dir', type=Path, action='append', default=[], help='a folder already filled from the release; repeatable')
+    parser.add_argument('--only', choices=('core', 'links'), default=None)
+    parser.add_argument('--replace', action='store_true', help='write a file again even if one with the pinned digest is in place')
     args = parser.parse_args(argv)
     try:
         pin = load_pin()
-        out = args.out.expanduser().resolve()
+        out = (args.out or half_dir()).expanduser().resolve()
         if inside(out, ROOT):
-            fail(f'{out} is inside the repository; record-level files stay outside it (pages publish aggregates)')
-        work = (args.work.expanduser().resolve() if args.work else out / 'v4')
-        if inside(work, ROOT):
-            fail(f'{work} is inside the repository')
+            fail(f'{out} is inside the repository; record-level sources stay outside it')
+        what = spec(pin, args.only)
         out.mkdir(parents=True, exist_ok=True)
-        specs = [s for s in all_specs(pin) if args.only in (None, s['key'])]
-        sums_pinned = sums_digests(pin)
-        provenance = {'written_by': 'analysis/download_half.py', 'date': date.today().isoformat(),
-                      'pin_sha256': file_sha256(PIN_PATH), 'repository': pin['repository'], 'access': pin['access']}
+        free = shutil.disk_usage(out).free
+        if free < MARGIN:
+            fail(f'{out}: {free >> 20} MB free; the download and the unpacked members need about 2 GB')
         if args.from_dir:
-            folders = {}
-            for folder in args.from_dir:
-                folder = folder.expanduser().resolve()
-                for spec in identify(folder, all_specs(pin)):
-                    folders.setdefault(spec['key'], folder)
-            for spec in specs:
-                if spec['key'] not in folders:
-                    fail(f"no --from-dir folder holds the pinned {spec['key']} assets of {spec['tag']}")
-                assets = check_folder(folders[spec['key']], spec, sums_pinned[spec['tag']])
-                provenance[spec['key']] = place(spec, assets, out, downloaded=False, replace=args.replace)
-                print(f"{spec['key']} ({spec['tag']}): verified from {folders[spec['key']]}")
-            provenance['source'] = 'from-dir'
+            assets = from_folders(what, [f.expanduser().resolve() for f in args.from_dir])
         else:
-            sums = {}
-            for spec in specs:
-                if spec['tag'] not in sums:
-                    sums[spec['tag']] = fetch_sums(pin['repository'], spec['tag'], sums_pinned[spec['tag']])
-                    print(f"{spec['tag']}: SHA256SUMS fetched anonymously from {DOWNLOAD_HOST} and matched to the pin")
-                if spec['key'] == 'links':
-                    work.mkdir(parents=True, exist_ok=True)
-                    missing = any(not (work / n).is_file() for n in ('race_results_linked.parquet', 'persons.parquet'))
-                    if missing and shutil.disk_usage(work).free < SIZES['v4'] + MARGIN:
-                        fail(f'{work} has too little free disk for the {SIZES["v4"] / 1e9:.1f} GB of v4 parquet files (use --work)')
-                folder = {'stamps': out / spec['tag'], 'links': work}.get(spec['key'], out)
-                assets = fetch_release(spec, pin['repository'], folder, sums[spec['tag']])
-                provenance[spec['key']] = place(spec, assets, out, downloaded=True, replace=args.replace, keep_v4=args.keep_v4, work=work)
-                print(f"{spec['key']} ({spec['tag']}): downloaded anonymously and verified")
-            provenance['source'] = 'public release download (anonymous)'
-        (out / 'provenance.json').write_text(json.dumps(provenance, indent=2, sort_keys=True) + '\n')
-        print(f'wrote {out / "provenance.json"}')
+            assets = fetch(what, out / 'downloads')
+        record = place(what, assets, out, replace=args.replace)
+        (out / 'provenance.json').write_text(json.dumps({
+            'checked': date.today().isoformat(), 'repository': what['repository'], 'tag': what['tag'],
+            'checksums': what['sums'], 'assets': what['assets'], **record,
+            'identity': 'not a download: analysis/build_identity.py writes identity.parquet from the same release'}, indent=2) + '\n')
     except HalfError as error:
         print(f'download_half: {error}', file=sys.stderr)
         return 1
+    print(json.dumps({'out': str(out), 'core': sorted(record.get('core', {})), 'release': sorted(record.get('release', {}))}))
     return 0
 
 

@@ -158,7 +158,7 @@ function women({ fin, editions, marathons, labels, chart, chartSha }) {
   const labelCity = new Map();
   for (const [city, ls] of Object.entries(labels)) for (const l of ls) labelCity.set(l, city);
   const marathonCounts = new Map();
-  const gap = new Set(['London\u00002023', 'London\u00002025', 'London\u00002026', 'Berlin\u00002024', 'Berlin\u00002025', 'Chicago\u00002024']);
+  const gap = GENDER_GAP;
   {
     const E = marathons.editions.length, n = new Int32Array(E), f = new Int32Array(E), m = new Int32Array(E);
     for (let i = 0; i < marathons.n; i++) { const e = marathons.edition[i]; n[e]++; if (marathons.gender[i] === 2) f[e]++; else if (marathons.gender[i] === 1) m[e]++; }
@@ -210,6 +210,18 @@ function women({ fin, editions, marathons, labels, chart, chartSha }) {
 // ---------- linked.json and tools/half-to-full.json ----------
 
 const Q = Array.from({ length: 19 }, (_, i) => D.pyRound(0.05 * (i + 1), 2));
+
+/** The marathon editions the charts' sex rule leaves out (analysis/charts_common.GENDER_GAP_EDITIONS: recorded sex is
+ * missing for a large, non-random part of the field), keyed `city\u0000year`: they give no same-city pair. */
+const GENDER_GAP = new Set(['London\u00002023', 'London\u00002025', 'London\u00002026', 'Berlin\u00002024', 'Berlin\u00002025', 'Chicago\u00002024']);
+
+/** The `other_marathons` member's rule (recorded 2026-11-14 before any build): the two marathon cities that hold the most
+ * pairs on the build, ties by name; the member and its check are set B without them. */
+function otherThan(p) {
+  const n = new Map();
+  for (const c of p.city) n.set(c, (n.get(c) || 0) + 1);
+  return [...n.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).slice(0, 2).map(([c]) => c);
+}
 
 /** Set B as columns. `P` holds h, m (seconds), sex ('F'|'M'), ed (marathon edition key), city, sus, verified, nsKeys, inUnion (a row of the person joined by one of the link build's unions), person, mDay, mId, hEd (the half's edition id) and hLabel (its edition label). */
 function subset(P, keep) {
@@ -358,7 +370,8 @@ function battery(p, { weakerSource, offRoad }) {
   pairsMember('verified_halves', columns(subset(p, p.verified)));
   pairsMember('verified_federation', columns(subset(p, federation)));
   pairsMember('verified_road', columns(subset(p, road)));
-  pairsMember('other_marathons', columns(subset(p, p.city.map((c) => !['Valencia', 'Warsaw'].includes(c)))));
+  const without = otherThan(p);
+  pairsMember('other_marathons', columns(subset(p, p.city.map((c) => !without.includes(c)))));
   pairsMember('ns_keys_1', columns(subset(p, p.nsKeys.map((k) => k === 1))));
   pairsMember('one_per_person', latestPerPerson(p));
   const groupsMember = (id, keys, k, minEditions) => {
@@ -380,6 +393,34 @@ function battery(p, { weakerSource, offRoad }) {
   return { pooled_half_p50_s: half, members, leave_outs: Object.fromEntries(Object.entries(D.LEAVE_OUTS).map(([id, clauses]) => [id, leaveOuts(p, masks[id], clauses, extra, half)])) };
 }
 
+/**
+ * Ruling R6 of the adoption (lead decision D38, 2026-11-14): every reading built on set B, recounted on the pairs whose
+ * two rows both carry a link of tier high_elite or high (`p.high`). A published sensitivity for /methodology; no guard
+ * reads it. A value whose group is under the floor is null; the block is null when the high-link pairs are under it.
+ */
+function highLinks(p, flagshipH) {
+  need(Array.isArray(p.high) && p.high.length === p.n, 'set B carries no link tiers');
+  const q = columns(subset(p, p.high));
+  if (q.n < MIN_CELL || new Set(q.ed).size < MIN_EDITIONS) return null;
+  const win = inWindow(q, 105);
+  const w = q.m.filter((_, i) => win[i]);
+  const out = {
+    pairs: q.n, share: D.sh(q.n / p.n), marathon_editions: new Set(q.ed).size,
+    multiple_p50: D.r(median50(q.m.map((m, i) => m / q.h[i])), 4), extra_p50_s: D.sec(median50(q.extra)), under_double: D.sh(q.extra.filter((x) => x < 0).length / q.n),
+    sustained: D.sh(q.sus.filter(Boolean).length / q.n),
+    w105: w.length >= MIN_CELL ? { n: w.length, under_14400: D.sh(w.filter((x) => x < 14400).length / w.length) } : null,
+  };
+  try { const s = sexes(q); out.sexes = { strata: s.strata, women_lower: s.women_lower, women_std: s.women_std, men_std: s.men_std, diff_points: s.diff_points }; }
+  catch (error) { if (!/no sex strata/.test(String(error.message))) throw error; out.sexes = null; }
+  const at = inWindow(q, flagshipH / 60);
+  out.flagship = { h: flagshipH };
+  for (const g of ['F', 'M']) {
+    const idx = []; for (let i = 0; i < q.n; i++) if (at[i] && q.sex[i] === g) idx.push(i);
+    out.flagship[g] = idx.length >= MIN_CELL ? { n: idx.length, sus: D.sh(idx.filter((i) => q.sus[i]).length / idx.length) } : null;
+  }
+  return out;
+}
+
 function checks(p, lists) {
   const ver = columns(subset(p, p.verified));
   const by = new Map();
@@ -389,7 +430,8 @@ function checks(p, lists) {
   const wBy = new Map();
   p.ed.forEach((key, i) => { if (!win[i]) return; if (!wBy.has(key)) wBy.set(key, []); wBy.get(key).push(i); });
   const wEds = [...wBy.keys()].sort().filter((k) => wBy.get(k).length >= 20).map((k) => { const idx = wBy.get(k); return idx.filter((i) => p.m[i] < 14400).length / idx.length; });
-  const other = columns(subset(p, p.city.map((c) => !['Valencia', 'Warsaw'].includes(c))));
+  const without = otherThan(p);
+  const other = columns(subset(p, p.city.map((c) => !without.includes(c))));
   const ns1 = columns(subset(p, p.nsKeys.map((k) => k === 1)));
   const one = latestPerPerson(p);
   const noUnion = columns(subset(p, p.inUnion.map((x) => !x)));
@@ -397,10 +439,12 @@ function checks(p, lists) {
   return {
     verified: { pairs: ver.n, extra_p50_s: D.sec(median50(ver.extra)), under_double: D.sh(ver.extra.filter((x) => x < 0).length / ver.n), w105_under_14400: underGoalAt(ver), sexes: { strata: vs.strata, women_lower: vs.women_lower, diff_points: vs.diff_points } },
     editions_equal: { min_pairs: 20, editions: eds.length, extra_p50_s: D.sec(D.npMedian(eds.map((v) => v[0]))), under_double: D.sh(D.npMedian(eds.map((v) => v[1]))), w105_under_14400: D.sh(D.npMedian(wEds)) },
-    other_marathons: { pairs: other.n, extra_p50_s: D.sec(median50(other.extra)), w105_under_14400: underGoalAt(other) },
+    other_marathons: { pairs: other.n, extra_p50_s: D.sec(median50(other.extra)), w105_under_14400: underGoalAt(other), without: without.map((city) => ({ city })) },
     ns_keys_1: { pairs: ns1.n, w105_under_14400: underGoalAt(ns1) },
     one_per_person: { pairs: one.n, w105_under_14400: underGoalAt(one) },
     no_union_people: { pairs: noUnion.n, extra_p50_s: D.sec(median50(noUnion.extra)) },
+    // The flagship half as the page picks it: the 5-minute band nearest the published pooled median half (half up).
+    high_links: highLinks(p, Math.floor(D.sec(median50(p.h)) / 300 + 0.5) * 300),
     battery: battery(p, lists),
   };
 }
@@ -542,4 +586,4 @@ function cards(fieldDoc, womenDoc, linkedDoc) {
   };
 }
 
-module.exports = { field, women, linked, cards, Q, tailed, windowOf };
+module.exports = { field, women, linked, cards, Q, tailed, windowOf, GENDER_GAP, otherThan };

@@ -12,6 +12,7 @@ import { EVIDENCE_LABEL, EVIDENCE_TEXT, TOOLS, type ToolEvidence } from '@/lib/t
 import { SLOWDOWN_CITATION, SLOWDOWN_DEFINITION } from '@/lib/tools/splits';
 import { Definition, Part, and, dataHref, n, pctText } from './shared';
 import { HalfEvidenceLines, HalfMultipleDefinition } from './MethodsHalf';
+import MethodsTiers from './MethodsTiers';
 
 type Archetypes = { cohort_n: number; classifier: { names: string[] }; archetypes: { slug: string; name: string; profile: number[] }[] };
 
@@ -31,8 +32,8 @@ const RULE = (() => {
 
 /**
  * Part 2: the terms every page uses, each a definition card: the rule in a line or two, a small instrument where one
- * draws it (how many finishes each slowdown threshold catches; the six pacing shapes; the three evidence badges), and
- * the rest under "More". The sustained-slowdown definition and its published-method citation are stated here once;
+ * draws it (how many finishes each slowdown threshold catches; the six pacing shapes; the three evidence badges; the
+ * tier and link labels, MethodsTiers), and the rest under "More". The sustained-slowdown definition and its published-method citation are stated here once;
  * every other page links the term to #sustained-slowdown.
  */
 export default function MethodsDefinitions() {
@@ -121,9 +122,11 @@ export default function MethodsDefinitions() {
       <p>The race report and the course pages use the same badges. On the race report, Published research marks the published sustained-slowdown definition. A plan is worked out from your own goal. Where a course has <a href="#tools-terrain">terrain splits</a>, the band spreads that goal over the corrected route with one published grade curve, so it carries the Published research badge; the finishes near your goal, as they ran, carry the Pace Notes data badge in their own panel. The two are never one figure.</p>
     </Definition>
 
+    <MethodsTiers />
+
     <HalfMultipleDefinition />
 
-    <Definition id="percentiles" term="Percentiles and ranges"
+    <Definition id="percentiles" term="Percentiles and ranges" folded
       rule={<p>A percentile ranks finishes by time within a group: by the 10th, one finish in ten had come in. The median is the middle finish.</p>}>
       <ul>
         <li>The <strong>middle half</strong> runs from the 25th to the 75th percentile, and the <strong>middle 80%</strong> from the 10th to the 90th. Both describe variation between finishes. They are not confidence intervals and not recommended plans.</li>
@@ -134,7 +137,7 @@ export default function MethodsDefinitions() {
       </ul>
     </Definition>
 
-    <Definition id="baselines" term="Baselines and relative pace"
+    <Definition id="baselines" term="Baselines and relative pace" folded
       rule={<p>Every finish is measured against itself: its own pace from the 5K mat to the 20K mat.</p>}>
       <ul>
         <li><strong>5–20K pace</strong> is a finish’s pace between the 5 km and 20 km mats: (20 km time − 5 km time) ÷ 15. It is each finish’s own reference for the sustained-slowdown definition, the section bars, the opening, the kick and the tools. It is measured during the race, so it can already reflect the opening, terrain or crowding.</li>
@@ -147,13 +150,13 @@ export default function MethodsDefinitions() {
       <p>Every section is compared as a pace or weighted by its distance, because the final 2.195 km is shorter than a 5 km section.</p>
     </Definition>
 
-    <Definition id="opening-groups" term="Opening groups"
+    <Definition id="opening-groups" term="Opening groups" folded
       rule={<p>The first 5K’s pace against the same finish’s 5–20K pace, in six groups from more than 10% faster to more than 5% slower.</p>}>
       <p>The opening compares the first 5 km with the same finish’s 5–20K pace: 100 × (opening pace ÷ 5–20K pace − 1). Negative means faster. The first section is not part of the reference, so the two are compared directly. Six groups split the changes: below −10%, −10% to below −5%, −5% to below −2%, −2% through 2%, above 2% through 5%, and above 5%. Exact decimal timings keep these boundaries without rounding the source times.</p>
       <p>Opening groups and opening-pace bands describe a start. They do not diagnose overreach.</p>
     </Definition>
 
-    <Definition id="how-to-read" term="Reading the charts"
+    <Definition id="how-to-read" term="Reading the charts" folded
       rule={<p>The mats are named 5K to 40K in both units. A pace drawn at 40K is the average over 35–40K, not the pace at that mat.</p>}>
       <p>Pace profiles show section averages at the section’s end distance. A line between two averages does not show a sudden change at either checkpoint. Changes inside a section cannot be seen.</p>
       <ul>

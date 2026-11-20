@@ -132,7 +132,8 @@ export function Big(s: BigSpec, ctx: Ctx): Drawn {
   const height = y + 6;
   const node = (
     <g>
-      <text className="cx-big" x={0} y={r1(top)} style={{ fontSize: `${r1(size)}px` }}>{figure}</text>
+      {/* The figure is the chart's accent; without its reading (s.plain) it is drawn in ink at the same weight. */}
+      <text className={s.plain ? 'cx-big is-strong' : 'cx-big'} x={0} y={r1(top)} style={s.plain ? { fontSize: `${r1(size)}px`, fontWeight: 660 } : { fontSize: `${r1(size)}px` }}>{figure}</text>
       {capLines.map((l, k) => <Txt key={k} x={0} y={top + 30 + k * 22} cls="cx-caption">{l}</Txt>)}
       {cmp.map((c, i) => {
         const cy = barsTop + i * rh + rh / 2;

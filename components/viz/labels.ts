@@ -75,13 +75,19 @@ export type PlacedLabel = LabelItem & {
 export type Box = { x0: number; y0: number; x1: number; y1: number };
 const overlaps = (a: Box, b: Box, pad = 2) => a.x0 < b.x1 + pad && b.x0 < a.x1 + pad && a.y0 < b.y1 + pad && b.y0 < a.y1 + pad;
 
-function boxAt(l: LabelItem, anchor: PlacedLabel['anchor'], dx: number, dy: number, width: number, height: number): Box {
+/** A label's text box above and below its baseline, in em: the glyphs by default; `LINE_BOX` is the box a browser
+ *  measures for the text (Inter's ascent and descent), for a chart whose labels must keep that box clear too. */
+export type Em = { up: number; down: number };
+const GLYPHS: Em = { up: 0.78, down: 0.22 };
+export const LINE_BOX: Em = { up: 0.97, down: 0.25 };
+
+function boxAt(l: LabelItem, anchor: PlacedLabel['anchor'], dx: number, dy: number, width: number, height: number, em: Em = GLYPHS): Box {
   const size = l.size ?? 14;
   const w = textWidth(l.text, size);
   const ax = l.x * width + dx;
   const x0 = anchor === 'middle' ? ax - w / 2 : anchor === 'end' ? ax - w : ax;
   const base = l.y * height + dy;
-  return { x0, x1: x0 + w, y0: base - size * 0.78, y1: base + size * 0.22 };
+  return { x0, x1: x0 + w, y0: base - size * em.up, y1: base + size * em.down };
 }
 
 const inside = (b: Box, width: number, height: number) => b.x0 >= 0 && b.x1 <= width && b.y0 >= 0 && b.y1 <= height;
@@ -109,11 +115,11 @@ function candidates(l: LabelItem): { anchor: PlacedLabel['anchor']; dx: number; 
 
 /**
  * Places labels greedily at the reference width and records the narrowest width each still fits. `avoid` lists marks
- * (fractions, with a radius in px) that labels must not cover.
+ * (fractions, with a radius in px) that labels must not cover. `em` measures each label's box (default: its glyphs).
  */
-export function placeLabels(items: LabelItem[], bounds: { height: number; width?: number; avoid?: { x: number; y: number; r: number }[]; boxes?: { x0: number; x1: number; y0: number; y1: number; pad?: number }[] }): PlacedLabel[] {
+export function placeLabels(items: LabelItem[], bounds: { height: number; width?: number; avoid?: { x: number; y: number; r: number }[]; boxes?: { x0: number; x1: number; y0: number; y1: number; pad?: number }[]; em?: Em }): PlacedLabel[] {
   const width = bounds.width ?? REF_WIDTH;
-  const { height } = bounds;
+  const { height, em = GLYPHS } = bounds;
   // Marks to keep clear of: dots (a centre and a radius in px) and boxes (bars and stems, in plot fractions).
   const marks: Box[] = [
     ...(bounds.avoid ?? []).map((m) => ({ x0: m.x * width - m.r, x1: m.x * width + m.r, y0: m.y * height - m.r, y1: m.y * height + m.r })),
@@ -124,7 +130,7 @@ export function placeLabels(items: LabelItem[], bounds: { height: number; width?
   for (const l of order) {
     let chosen: (PlacedLabel & { box: Box }) | null = null;
     for (const c of candidates(l)) {
-      const box = boxAt(l, c.anchor, c.dx, c.dy, width, height);
+      const box = boxAt(l, c.anchor, c.dx, c.dy, width, height, em);
       if (!inside(box, width, height)) continue;
       if (placed.some((p) => p.minWidth !== null && overlaps(box, p.box))) continue;
       if (marks.some((m) => overlaps(box, m, 0))) continue;
@@ -139,8 +145,8 @@ export function placeLabels(items: LabelItem[], bounds: { height: number; width?
     if (p.minWidth === null) continue;
     let min = 0;
     for (const w of WIDTH_STEPS) {
-      const box = boxAt(p, p.anchor, p.dx, p.dy, w, height);
-      const clash = !inside(box, w, height) || placed.slice(0, i).some((q) => q.minWidth !== null && q.minWidth <= w && overlaps(box, boxAt(q, q.anchor, q.dx, q.dy, w, height)));
+      const box = boxAt(p, p.anchor, p.dx, p.dy, w, height, em);
+      const clash = !inside(box, w, height) || placed.slice(0, i).some((q) => q.minWidth !== null && q.minWidth <= w && overlaps(box, boxAt(q, q.anchor, q.dx, q.dy, w, height, em)));
       if (clash) min = WIDTH_STEPS.find((s) => s > w) ?? width;
     }
     p.minWidth = min;
@@ -163,11 +169,11 @@ export function placedBox(l: PlacedLabel, height: number, pad = 2): { x0: number
  * that plot width), for a mark drawn outside placeLabels whose text keeps its px offset while the labels move with the
  * plot (LineProfile's bracket label at the plot's edge). Below that width the label hides; the Values table keeps it.
  */
-export function keepClearOf(placed: PlacedLabel[], at: (width: number) => Box, height: number) {
+export function keepClearOf(placed: PlacedLabel[], at: (width: number) => Box, height: number, em: Em = GLYPHS) {
   for (const p of placed) {
     if (p.minWidth === null) continue;
     for (const w of WIDTH_STEPS) {
-      if (w >= p.minWidth && overlaps(boxAt(p, p.anchor, p.dx, p.dy, w, height), at(w))) p.minWidth = Math.max(p.minWidth, WIDTH_STEPS.find((s) => s > w) ?? REF_WIDTH);
+      if (w >= p.minWidth && overlaps(boxAt(p, p.anchor, p.dx, p.dy, w, height, em), at(w))) p.minWidth = Math.max(p.minWidth, WIDTH_STEPS.find((s) => s > w) ?? REF_WIDTH);
     }
   }
 }

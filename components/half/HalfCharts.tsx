@@ -8,7 +8,7 @@ import Annotation from '@/components/viz/Annotation';
 import { REF_WIDTH, placeLabels, textWidth, type LabelItem, type PlacedLabel } from '@/components/viz/labels';
 import { linePath, linear, pc, stepEdge, stepPath, yScale } from '@/components/viz/scale';
 import { hm } from '@/lib/nuggets/format';
-import type { HalfField, HalfRoundMark } from '@/lib/half-types';
+import type { HalfField, HalfPacingHist, HalfRoundMark } from '@/lib/half-types';
 
 /**
  * The half pages' server-drawn figures, built from the components/viz primitives (ChartFrame, Plot, Axis, Annotation,
@@ -74,6 +74,57 @@ export function FieldHistogram({ field, mark, share, label, height = 120, height
   return <ChartFrame className="half-histogram" label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis ticks={ticks} />} />;
 }
 
+/** A change of pace in whole points as an axis label: "−10%", "0%", "+10%". */
+const points = (k: number) => `${k > 0 ? '+' : k < 0 ? '−' : ''}${Math.abs(k)}%`;
+
+/**
+ * The pacing surface's figure: results by the change of pace over the last 11.1 km against the first 10 km, in the whole
+ * points the file publishes (every bin and both tails hold at least 100 results), as one silhouette in the field
+ * histogram's grammar, the two tails one bar each past a gap. With `faster` (the share's words, passed only while
+ * half.paceFaster holds) the bins below zero are the signal and carry the share; without it the silhouette is quiet all
+ * through and names nothing, so the chart keeps its values and marks no reading. Ticks every 10 points; zero first.
+ */
+export function ChangeHistogram({ hist, faster, label, height = 120, heightMd = 170 }: {
+  hist: HalfPacingHist; faster: string | null; label: string; height?: number; heightMd?: number;
+}) {
+  const { lo, hi, counts, under_lo: under, at_or_over_hi: over } = hist;
+  const x0 = lo - 3, x1 = hi + 3;
+  const x = linear([x0, x1]);
+  const w = 1 / (x1 - x0);
+  const bins: Bin[] = counts.map((n, i) => ({ m: lo + i, n }));
+  const y = yScale(0, Math.max(...counts, under, over), { top: 0.18 });
+  const at = (list: Bin[]) => list.map((b) => ({ x: x(b.m), y: y(b.n) }));
+  const below = bins.filter((b) => b.m < 0), from = bins.filter((b) => b.m >= 0);
+  const tailUnder = [{ m: lo - 2, n: under }], tailOver = [{ m: hi + 1, n: over }];
+  const fill = faster ? 'a-signal' : 'a-silhouette', edge = faster ? 'l-signal' : 'a-edge';
+  const name: PlacedLabel | null = faster ? { id: 'share', text: faster, x: 0, y: 0.13, priority: 3, tone: 'signal', anchor: 'start', dx: 0, dy: 0, minWidth: 0 } : null;
+  const plot = (
+    <Plot>
+      <svg className="viz-paths" viewBox="0 0 1000 1000" preserveAspectRatio="none" width="100%" height="100%" overflow="visible">
+        <path className={fill} d={stepPath(at(below), w)} />
+        <path className={fill} d={stepPath(at(tailUnder), w)} />
+        <path className="a-silhouette" d={stepPath(at(from), w)} />
+        <path className="a-silhouette" d={stepPath(at(tailOver), w)} />
+        <path className="a-edge" d={stepEdge(at(from), w)} />
+        <path className="a-edge" d={stepEdge(at(tailOver), w)} />
+        <path className={edge} d={stepEdge(at(below), w)} />
+        <path className={edge} d={stepEdge(at(tailUnder), w)} />
+      </svg>
+      {name ? <Annotation labels={[name]} /> : null}
+      <Baseline />
+    </Plot>
+  );
+  const first = Math.ceil(lo / 10) * 10;
+  const ticks = [
+    ...Array.from({ length: Math.max(0, Math.floor((hi - 1 - first) / 10) + 1) }, (_, i) => first + i * 10)
+      .filter((k) => k - lo >= 4 && hi - k >= 4)
+      .map((k) => ({ x: x(k), label: points(k), priority: k === 0 ? 4 : k % 20 === 0 ? 3 : 1 })),
+    { x: x(x0), label: `<${points(lo)}`, priority: 2 },
+    { x: x(x1), label: `${points(hi)}+`, priority: 3 },
+  ];
+  return <ChartFrame className="half-histogram" label={label} height={height} heightMd={heightMd} plot={plot} axis={<Axis ticks={ticks} />} />;
+}
+
 /**
  * /half's round times: for each mark, the minute before it against the smooth curve, as a column standing on the curve's
  * own line (1×, the plot's foot, so the times sit right under their columns) up to its ratio, with its interval as a
@@ -82,8 +133,10 @@ export function FieldHistogram({ field, mark, share, label, height = 120, height
  * (200% zoom) only the signal's and the named ones' do, and the first column's turns to start at its left edge. The key
  * says what the foot is. The figure keeps a column's width at any screen, so it is capped on a wide one.
  */
-export function RatioColumns({ marks, signal, ink, label, values }: {
+export function RatioColumns({ marks, signal, ink, label, values, signalKey }: {
   marks: HalfRoundMark[]; signal: number; ink: number[]; label: string; values?: ReactNode;
+  /** The orange column's key line (deks.crowdKey), first in the key, so a shorter orange column never reads as the tallest's. */
+  signalKey?: string | null;
 }) {
   const height = 170;
   const top = Math.max(...marks.map((m) => m.ratio_ci95[1]));
@@ -134,7 +187,8 @@ export function RatioColumns({ marks, signal, ink, label, values }: {
   // The columns are named by the H2 and their axis; the key says what they stand on and names the whisker. "curve, 1×"
   // is bound by a no-break space, so the baseline's value never wraps to a line of its own (320 px, round 4 review). The
   // interval's glyph is the whisker itself: a horizontal bar beside "1×" read as the baseline (round 5 review).
-  const keys: KeyItem[] = [{ label: 'Each column rises from the smooth curve,\u00a01×', mark: 'none' }, { label: '95% interval', mark: 'whisker' }];
+  const keys: KeyItem[] = [...(signalKey ? [{ label: signalKey, mark: 'square' as const, tone: 'signal' as const }] : []),
+    { label: 'Each column rises from the smooth curve,\u00a01×', mark: 'none' }, { label: '95% interval', mark: 'whisker' }];
   return (
     <ChartFrame className="columns half-ratio" label={label} height={height} heightMd={210} plot={plot}
       axis={<Axis ticks={marks.map((m, i) => ({ x: x(i + 0.5), label: m.mark, priority: tone(m) === 'signal' ? 4 : 2 }))} />}

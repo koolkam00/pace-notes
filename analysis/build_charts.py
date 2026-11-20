@@ -1,9 +1,13 @@
-"""Build the Top 100 charts (/charts) from the verified public runner shards.
+"""Build the Top 100 charts (/charts) from the marathon cohort.
 
 The catalog (lib/charts/catalog.json) lists every chart: its number, slug, theme and the charts_*.py module that
 builds it. Each chart writes public/data/charts/<slug>.json; manifest.json binds them to the adopted release, the exact
-runner manifest, the weather evidence, the catalog and every script hash. scripts/verify-charts.cjs recounts every chart
-independently from the shards.
+cohort manifest (analysis/marathon-cohort/manifest.json, read through insights_data.read_finishes; until November 14,
+2026 the runner lookup's manifest), the edition policy and the scripts that cohort states, the weather evidence, the
+catalog and every script hash. scripts/verify-charts.cjs recounts every chart independently from the cohort.
+
+The fields `runner_manifest_sha256` and `runner_manifest_as_of` keep their names: they hold the SHA-256 of the cohort
+manifest's exact bytes and its timestamp.
 
 Usage:
   python analysis/build_charts.py [--output public/data/charts] [--only slug,...]
@@ -20,7 +24,7 @@ import time
 import numpy as np
 
 from build_insights import encode, load_cohort, sha256_bytes, sha256_file, write
-from charts_common import MIN_CELL, ChartCohort, load_geometry, load_weather
+from charts_common import LINKED_CHARTS, MIN_CELL, ChartCohort, load_geometry, load_weather
 from insights_data import AGE_LABELS, GENDER_LABELS, screen_duplicates
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,8 +86,23 @@ def build_one(item, cohort):
         raise ValueError(f"{item['slug']}: weighting must be pooled, editions-equal or pairs")
     if not (isinstance(result['cohort_n'], int) and result['cohort_n'] >= MIN_CELL):
         raise ValueError(f"{item['slug']}: cohort_n must be an integer of at least {MIN_CELL}")
+    if item['slug'] in LINKED_CHARTS and getattr(cohort, 'profile_high', None) is not None:
+        result['high_links'] = high_links_variant(builder, cohort)
     check(result, item['slug'])
     return result
+
+
+def high_links_variant(builder, cohort):
+    """A linked chart's values on high-confidence links alone (lead rulings R6 and D38): the same builder on the cohort
+    whose linked records are keyed by high links only. `values` holds every number the takeaway prints and every input
+    of its guard, so the same takeaway and guard can be read on it; the chart itself is drawn from all links. When the
+    builder refuses on high links alone (a group falls under one of its floors), no value is stored and the refusal is:
+    the floor is not lowered for the sensitivity either."""
+    try:
+        high = builder(cohort.high_links())
+    except ValueError as error:
+        return dict(values=None, refused=str(error))
+    return dict(values=high['values'], cohort_n=high['cohort_n'])
 
 
 def run(output, only=None, cache=None, partial=False):
@@ -91,7 +110,10 @@ def run(output, only=None, cache=None, partial=False):
     pin, full, manifest, manifest_sha = load_cohort(cache)
     story, screen = screen_duplicates(full)
     weather = load_weather()
-    cohort = ChartCohort(story, manifest, manifest_sha, weather=weather, geometry=load_geometry())
+    geometry = load_geometry()
+    cohort = ChartCohort(story, manifest, manifest_sha, weather=weather, geometry=geometry)
+    if cohort.profile_high is None:
+        raise ValueError('The cohort states no link class, so the linked charts cannot store their reading on high links alone (lead ruling D38)')
     items = catalog()
     here = Path(__file__).parent
     scripts = {name: sha256_file(here / name) for name in sorted(
@@ -112,7 +134,13 @@ def run(output, only=None, cache=None, partial=False):
                 files[filename] = meta
             continue
         t = time.time()
-        result = build_one(item, cohort)
+        try:
+            result = build_one(item, cohort)
+        except ValueError as error:
+            # A builder refuses when its data fall under one of its floors (a group under 100 finishes, too few editions
+            # or races). The floor is never lowered to keep the chart (AGENTS rule 13): the build stops and names it, and
+            # the chart is then left out by a reviewed change (docs/TOP_100_CHARTS.md, "When a builder refuses").
+            raise ValueError(f"Chart {item['number']} ({item['slug']}) cannot be built on this cohort: {error}") from error
         data = encode(dict(family='chart', number=item['number'], slug=item['slug'], theme=item['theme'], **common, **result))
         write(output / filename, data)
         files[filename] = dict(bytes=len(data), sha256=sha256_bytes(data))
@@ -124,7 +152,14 @@ def run(output, only=None, cache=None, partial=False):
         **common, as_of=datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
         catalog_sha256=sha256_file(CATALOG),
         weather=dict(release_tag=weather['input']['release_tag'], evidence_sha256=sha256_file(ROOT / 'public/data/weather/evidence.json')),
-        scripts=scripts, source_scripts=manifest['scripts'],
+        # The supplied-route geometry charts 17 and 85 read (the insights family's file), bound like the weather evidence
+        # (November 19, 2026: it was read unbound until then). None only when no geometry file is there (the tests).
+        geometry=None if geometry is None else dict(
+            release_tag=geometry['release_tag'], context_manifest_sha256=geometry['context_manifest_sha256'],
+            geometry_sha256=sha256_file(ROOT / 'public/data/insights/course-geometry.json')),
+        # What the cohort states about itself: the scripts that wrote it and the edition policy it was built under (the
+        # policy's digests and counts; the listed editions are one published file, public/data/edition-policy.json).
+        scripts=scripts, source_scripts=manifest['scripts'], source_quality=manifest['source_quality'],
         cohort=dict(eligible=int(full.n), after_duplicate_screen=int(story.n), editions=int(len(np.unique(story.edition))),
                     cities=len({story.editions[e]['city'] for e in np.unique(story.edition)}),
                     shape=int(cohort.shape_keep.sum()), shape_editions_left_out=len(cohort.shape_audit),

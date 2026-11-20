@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const { policyEditions, policySha256 } = require('./lib/edition-policy.cjs');
 const Module = require('node:module');
 const ts = require('typescript');
 
@@ -18,6 +19,24 @@ const { WEATHER_QUESTIONS } = require('../lib/weather-catalog.ts');
 const { weatherValue, weatherLabel, weatherFinding, weatherNumber } = require('../lib/weather-display.ts');
 const { sourceReleaseTag, sourceReleaseHref, sourceLabel } = require('../lib/data-source.ts');
 const evidence = getWeatherEvidence();
+// The evidence is built beside the marathon cohort (since November 14, 2026): the same input, cohort counts and edition
+// policy, and for every weather edition the race date the cohort manifest gives it.
+{
+  const cohort = require('./lib/cohort.cjs');
+  const { manifest: base, sha256: baseSha } = cohort.verifiedManifest(JSON.parse(fs.readFileSync(path.join(root, 'analysis/release.json'), 'utf8')));
+  assert.equal(evidence.cohort_manifest_sha256, baseSha, 'Weather evidence names the checked-in cohort manifest');
+  assert.equal(evidence.cohort_manifest_as_of, base.as_of);
+  assert.equal(evidence.input.manifest_sha256, base.input_manifest_sha256, 'Weather evidence and the cohort are built on one input');
+  // The evidence adds its weather counts (weather_rows, weather_analysis_*) beside the cohort's own.
+  assert.deepEqual(Object.fromEntries(Object.keys(base.cohort).map(k => [k, evidence.cohort[k]])), base.cohort, 'Weather evidence states the cohort manifest\'s counts');
+  assert.deepEqual(evidence.source_quality, base.source_quality, 'Weather evidence states the cohort manifest\'s edition policy');
+  const dated = new Map(base.editions.map(e => [`${e.city}|${e.year}`, e]));
+  for (const row of evidence.editions) {
+    const entry = dated.get(`${row.city}|${row.year}`);
+    assert.ok(entry && entry.use === 'counted' && entry.race_date === row.date && entry.race_date_source === 'weather' && entry.eligible >= row.n,
+      `${row.city} ${row.year}: a weather edition is a counted edition of the cohort with the weather row's race date`);
+  }
+}
 const canonical = JSON.stringify(evidence);
 const sum = values => values.reduce((a, b) => a + b, 0);
 const close = (actual, expected, label, tolerance = 1e-9) => assert.ok(Math.abs(actual - expected) <= tolerance, `${label}: ${actual} != ${expected}`);
@@ -44,19 +63,17 @@ function checkSourceQuality(report, cohort, release, scriptHash) {
   assert.equal(report.script_sha256, digest('analysis/source_quality.py'));
   assert.equal(scriptHash, report.script_sha256);
   assert.match(report.policy_sha256, /^[0-9a-f]{64}$/);
-  const sorted = value => Array.isArray(value) ? value.map(sorted) : value !== null && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, sorted(value[key])])) : value;
-  const policy = { version: report.version, release_tag: report.release_tag, reviewed_edition_policy: report.reviewed_edition_policy,
-    editions: report.editions.map(({ city, year, category, reason }) => ({ city, year, category, reason })) };
-  // source_quality.py hashes json.dumps(..., ensure_ascii=False): UTF-8 text, not \u escapes (as verify-research and
-  // verify-public-explorer do). The 1652 reasons are the first with non-ASCII characters (’ and –).
-  const serialized = JSON.stringify(sorted(policy));
-  assert.equal(crypto.createHash('sha256').update(serialized).digest('hex'), report.policy_sha256, 'Edition audit rules must match their frozen policy checksum');
-  for (const row of report.editions) {
+  // The listed editions: in the output itself up to master-20261103b; from the combined release on, the one published
+  // list, checked against the digests and counts the output states (scripts/lib/edition-policy.cjs, which hashes as
+  // source_quality.py does: json.dumps(..., ensure_ascii=False), UTF-8 text and not \u escapes).
+  const editions = policyEditions(report);
+  assert.equal(policySha256(report, editions), report.policy_sha256, 'Edition audit rules must match their frozen policy checksum');
+  for (const row of editions) {
     const sizes = [row.raw_records, row.deduplicated_records, row.timing_eligible_excluded];
     assert.ok(sizes.every(value => Number.isInteger(value) && value >= 0));
     assert.ok(sizes[0] >= sizes[1] && sizes[1] >= sizes[2]);
   }
-  assert.equal(sum(report.editions.map(row => row.timing_eligible_excluded)), cohort.source_quality_excluded);
+  assert.equal(sum(editions.map(row => row.timing_eligible_excluded)), cohort.source_quality_excluded);
 }
 
 // Publication requires a reproducible calculation and an explicit source vintage.
@@ -67,7 +84,7 @@ try {
   fs.readFileSync = () => JSON.stringify({ ...evidence, input: { ...evidence.input, release_tag: 'private-export-20260907-1318' } });
   assert.throws(() => getWeatherEvidence(), /must match the current study release/, 'The page reader must reject stale weather payloads');
 } finally { fs.readFileSync = readFileSync; }
-for (const tag of [weatherRelease, mainRelease]) assert.match(tag, /^(?:private-export-\d{8}-\d{4}|htw-db-\d{4}-\d{2}-\d{2}-\d{4}|master-\d{8}[a-z]?)$/);
+for (const tag of [weatherRelease, mainRelease]) assert.match(tag, /^(?:private-export-\d{8}-\d{4}|htw-db-\d{4}-\d{2}-\d{2}-\d{4}|master-\d{8}[a-z]?|pace-notes-marathon-half-\d{8}-\d{4})$/);
 assert.equal(evidence.calculation.script_sha256, digest('analysis/build_weather.py'), 'Weather evidence must be regenerated after changing its calculation');
 assert.equal(evidence.calculation.pacing_script_sha256, digest('analysis/build_pacing.py'), 'The exact eligibility parser must match the recorded provenance');
 for (const key of ['asset_sha256', 'manifest_sha256', 'race_conditions_sha256']) assert.match(evidence.input[key], /^[0-9a-f]{64}$/);
@@ -102,6 +119,7 @@ assert.equal(new Set(evidence.editions.map(row => row.city)).size, cohort.weathe
 assert.equal(sum(evidence.editions.map(row => row.n)), cohort.weather_analysis_finishes);
 assert.equal(sum(Object.entries(evidence.exclusions).filter(([key]) => key.endsWith('_finishes')).map(([, value]) => value)) + cohort.weather_analysis_finishes, cohort.eligible);
 assert.ok(cohort.weather_analysis_finishes <= cohort.eligible);
+const sourceExcludedEditions = new Set((evidence.source_quality ? policyEditions(evidence.source_quality) : []).map(e => `${e.city}|${e.year}`));
 for (const row of evidence.editions) {
   assert.ok(Number.isInteger(row.n) && row.n >= 100, 'Every published edition has at least 100 eligible finishes');
   for (const key of ['pace_change_pct', 'temp_c', 'dewpoint_c', 'humidity_pct', 'wind_mps', 'warming_c']) assert.ok(Number.isFinite(row[key]), `${row.city} ${row.year}: ${key}`);
@@ -116,7 +134,7 @@ for (const row of evidence.editions) {
   const accepted = (evidence.accepted_early_hours ?? []).find(e => e.city === row.city && e.year === row.year);
   assert.ok(Math.abs(early) <= 30 * 60 * 1000 || (accepted && accepted.start_hour === row.start_hour && accepted.scheduled_start === row.scheduled_start
     && accepted.minutes_early * 60 * 1000 === early && early <= 60 * 60 * 1000), `${row.city} ${row.year}: weather must be close to the supplied local start`);
-  assert.ok(!evidence.source_quality?.editions.some(excluded => excluded.city === row.city && excluded.year === row.year), 'A source-excluded edition cannot appear in the weather comparison');
+  assert.ok(!sourceExcludedEditions.has(`${row.city}|${row.year}`), 'A source-excluded edition cannot appear in the weather comparison');
 }
 // Every listed early hour is a published edition that needed it, and the method names it.
 for (const e of evidence.accepted_early_hours ?? []) {

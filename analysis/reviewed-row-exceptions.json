@@ -1,0 +1,144 @@
+{
+ "document": "Rows that are written to the adapted marathon input although they carry one flag of the frozen row rule (analysis/adapt_combined.py ROW_RULE, `reviewed_exceptions`), reviewed one by one and cited. Lead ruling D33 of the adoption plan (2026-11-14): a deliberate, documented departure from the database lead’s rule 7 for three rows. The adapter writes a listed row only when all of this holds, and stops otherwise: the row carries the named flag, no other flag of the row rule and no pending flag; the frozen edition policy counts its edition; its finish in the release equals `finish` to the second; `edition` states the edition’s tier, its rows in the release, the official count and the coverage as the release has them; `producer_record_note` is the producer’s own note on the record; the release README still defines the flag in the words of `flag_definition`; and `external` cites the evidence (source, URL, the quoted words, who read it and when). Every other flagged row stays out. `city` is the edition’s label as the pipeline writes it; `release_city` is the release’s own key.",
+ "releases": {
+  "pace-notes-marathon-half-20261113-1113": [
+   {
+    "source_db": "full",
+    "record_id": 782236,
+    "city": "London",
+    "release_city": "London",
+    "year": 2026,
+    "finish": "1:59:30",
+    "flag": "finish_faster_than_world_record",
+    "flag_definition": "marathon 1:00:00 to under 2:00:35; half 0:30:00 to under 0:56:42 (wheelchair / handcycle, short course or bad data)",
+    "flag_definition_source": "README.md of the release, the table of row-quality flags",
+    "edition": {
+     "tier": "partial",
+     "rows_in_release": 59519,
+     "official_finishers": 59830,
+     "coverage_pct": -0.52
+    },
+    "producer_record_note": "DQ step1 2026-10-10: segment pace <2:40/km; finish <2:00",
+    "external": {
+     "read_by": "the adoption lead",
+     "read_on": "2026-11-14",
+     "sources": [
+      {
+       "name": "The Associated Press, as published by WTOP",
+       "url": "https://wtop.com/news/2026/04/sabastian-sawe-of-kenya-wins-london-marathon-in-world-record-mens-time-of-1-hour-59-minutes-and-30-seconds/",
+       "dateline": "LONDON (AP)",
+       "published": "April 26, 2026 | 6:40 AM",
+       "quotes": [
+        "Sabastian Sawe of Kenya wins London Marathon in world-record men’s time of 1 hour, 59 minutes and 30 seconds."
+       ]
+      },
+      {
+       "name": "Marathon Handbook, results page of the 2026 London Marathon",
+       "url": "https://marathonhandbook.com/2026-london-marathon-results/",
+       "last_updated": "Apr 27, 2026",
+       "quotes": [
+        "run on Sunday 26 April 2026",
+        "1 | Sabastian Sawe | Kenya | 1:59:30 WR*",
+        "2 | Yomif Kejelcha | Ethiopia | 1:59:41 (debut)",
+        "3 | Jacob Kiplimo | Uganda | 2:00:28"
+       ]
+      }
+     ]
+    },
+    "reason": "The first finisher of the 2026 London Marathon, which was won in a world record. The flag’s bound is the record that stood before this race, so it marks the race’s podium as faster than the world record. The row carries no other flag of the row rule and no pending flag, and the frozen edition policy counts its edition.",
+    "producer_record_note_reading": "The producer’s data-quality step (its \"DQ step1\" of 2026-10-10), not a disqualification: the note records the mechanical bounds the row crossed, which is why the row carries the flag."
+   },
+   {
+    "source_db": "full",
+    "record_id": 782238,
+    "city": "London",
+    "release_city": "London",
+    "year": 2026,
+    "finish": "1:59:41",
+    "flag": "finish_faster_than_world_record",
+    "flag_definition": "marathon 1:00:00 to under 2:00:35; half 0:30:00 to under 0:56:42 (wheelchair / handcycle, short course or bad data)",
+    "flag_definition_source": "README.md of the release, the table of row-quality flags",
+    "edition": {
+     "tier": "partial",
+     "rows_in_release": 59519,
+     "official_finishers": 59830,
+     "coverage_pct": -0.52
+    },
+    "producer_record_note": "DQ step1 2026-10-10: finish <2:00",
+    "external": {
+     "read_by": "the adoption lead",
+     "read_on": "2026-11-14",
+     "sources": [
+      {
+       "name": "The Associated Press, as published by WTOP",
+       "url": "https://wtop.com/news/2026/04/sabastian-sawe-of-kenya-wins-london-marathon-in-world-record-mens-time-of-1-hour-59-minutes-and-30-seconds/",
+       "dateline": "LONDON (AP)",
+       "published": "April 26, 2026 | 6:40 AM",
+       "quotes": [
+        "Sabastian Sawe of Kenya wins London Marathon in world-record men’s time of 1 hour, 59 minutes and 30 seconds."
+       ]
+      },
+      {
+       "name": "Marathon Handbook, results page of the 2026 London Marathon",
+       "url": "https://marathonhandbook.com/2026-london-marathon-results/",
+       "last_updated": "Apr 27, 2026",
+       "quotes": [
+        "run on Sunday 26 April 2026",
+        "1 | Sabastian Sawe | Kenya | 1:59:30 WR*",
+        "2 | Yomif Kejelcha | Ethiopia | 1:59:41 (debut)",
+        "3 | Jacob Kiplimo | Uganda | 2:00:28"
+       ]
+      }
+     ]
+    },
+    "reason": "The second finisher of the 2026 London Marathon, which was won in a world record. The flag’s bound is the record that stood before this race, so it marks the race’s podium as faster than the world record. The row carries no other flag of the row rule and no pending flag, and the frozen edition policy counts its edition.",
+    "producer_record_note_reading": "The producer’s data-quality step (its \"DQ step1\" of 2026-10-10), not a disqualification: the note records the mechanical bounds the row crossed, which is why the row carries the flag."
+   },
+   {
+    "source_db": "full",
+    "record_id": 782242,
+    "city": "London",
+    "release_city": "London",
+    "year": 2026,
+    "finish": "2:00:28",
+    "flag": "finish_faster_than_world_record",
+    "flag_definition": "marathon 1:00:00 to under 2:00:35; half 0:30:00 to under 0:56:42 (wheelchair / handcycle, short course or bad data)",
+    "flag_definition_source": "README.md of the release, the table of row-quality flags",
+    "edition": {
+     "tier": "partial",
+     "rows_in_release": 59519,
+     "official_finishers": 59830,
+     "coverage_pct": -0.52
+    },
+    "producer_record_note": null,
+    "external": {
+     "read_by": "the adoption lead",
+     "read_on": "2026-11-14",
+     "sources": [
+      {
+       "name": "The Associated Press, as published by WTOP",
+       "url": "https://wtop.com/news/2026/04/sabastian-sawe-of-kenya-wins-london-marathon-in-world-record-mens-time-of-1-hour-59-minutes-and-30-seconds/",
+       "dateline": "LONDON (AP)",
+       "published": "April 26, 2026 | 6:40 AM",
+       "quotes": [
+        "Sabastian Sawe of Kenya wins London Marathon in world-record men’s time of 1 hour, 59 minutes and 30 seconds."
+       ]
+      },
+      {
+       "name": "Marathon Handbook, results page of the 2026 London Marathon",
+       "url": "https://marathonhandbook.com/2026-london-marathon-results/",
+       "last_updated": "Apr 27, 2026",
+       "quotes": [
+        "run on Sunday 26 April 2026",
+        "1 | Sabastian Sawe | Kenya | 1:59:30 WR*",
+        "2 | Yomif Kejelcha | Ethiopia | 1:59:41 (debut)",
+        "3 | Jacob Kiplimo | Uganda | 2:00:28"
+       ]
+      }
+     ]
+    },
+    "reason": "The third finisher of the 2026 London Marathon, which was won in a world record. The flag’s bound is the record that stood before this race, so it marks the race’s podium as faster than the world record. The row carries no other flag of the row rule and no pending flag, and the frozen edition policy counts its edition."
+   }
+  ]
+ }
+}

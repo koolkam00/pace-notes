@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import CourseEditionList from '@/components/course/CourseEditionList';
 import CourseElevation, { elevationShown } from '@/components/course/CourseElevation';
 import CourseFinishTimes, { timesShown } from '@/components/course/CourseFinishTimes';
 import CourseGlance, { glanceRows } from '@/components/course/CourseGlance';
@@ -10,17 +11,50 @@ import CoursePacing from '@/components/course/CoursePacing';
 import CourseSlowdown from '@/components/course/CourseSlowdown';
 import CourseToc from '@/components/course/CourseToc';
 import CourseWeatherByYear, { WEATHER_MIN_MORNINGS } from '@/components/course/CourseWeatherByYear';
+import ResultsPage from '@/components/races/ResultsPage';
 import { readingAttrs } from '@/lib/chapters';
 import { getNugget } from '@/lib/nuggets';
 import { profileUnderWater } from '@/lib/nuggets/courses';
-import { courseDescription, coursePage, coursePages, courseTitle } from '@/lib/course-page';
+import { courseDescription, courseList, coursePage, courseRouteSlugs, courseTitle, MAX_DESCRIPTION, MAX_TITLE } from '@/lib/course-page';
+import { resultsPages } from '@/lib/races-server';
+import { raceDisplayName } from '@/lib/races-types';
 import { JsonLd, pageCrumbs, pageMetadata } from '@/lib/seo';
 import '@/app/styles/pages/course.css';
 
-export function generateStaticParams() { return [...coursePages().keys()].map((city) => ({ city })); }
+// Every race with a page in the race directory (public/data/races/pages.json): its course pages (full or list-only;
+// courseRouteSlugs checks they are the directory's) and its results pages, the second template (November 19, 2026).
+export function generateStaticParams() { return [...courseRouteSlugs(), ...resultsPages().keys()].map((city) => ({ city })); }
 
 export function generateMetadata({ params }: { params: { city: string } }) {
+  const results = resultsPages().get(params.city);
+  // A results page: the race, its place and its years, with no pacing word (it has no pacing figure).
+  if (results) {
+    const name = raceDisplayName(results);
+    const branded = `${name}: Finish Times by Year | Pace Notes`;
+    const [first, last] = results.years;
+    const where = results.place ? ` in ${results.place}` : '';
+    const describe = (place: string) => `${name}${place}: the median finish of each year and every edition from ${first} to ${last}, with the status of its results.`;
+    const plain = `${name}: Finish Times by Year`;
+    // The longest wording that fits: the brand, then without it, then the race's name alone; the description likewise.
+    const description = [describe(where), describe(''), `${name}: the median finish of each year, ${first} to ${last}.`].find((d) => d.length <= MAX_DESCRIPTION) ?? `${name}: finish times by year.`;
+    return pageMetadata({
+      title: branded.length <= MAX_TITLE ? branded : plain.length <= MAX_TITLE ? plain : name,
+      description,
+      path: `/courses/${results.slug}`,
+    });
+  }
   const page = coursePage(params.city);
+  const list = page ? null : courseList(params.city);
+  // A course with no counted edition: the page lists its editions and states no figure, and so do its title and description.
+  if (list) {
+    const branded = `${list.race}: Editions | Pace Notes`;
+    const years = list.listed.map((e) => e.year);
+    return pageMetadata({
+      title: branded.length <= MAX_TITLE ? branded : `${list.race}: Editions`,
+      description: `${list.race}: its ${list.listed.length === 1 ? `${years[0]} edition` : `${list.listed.length} editions, ${years[0]}–${years[years.length - 1]}`}, each with the status of its results.`,
+      path: `/courses/${list.slug}`,
+    });
+  }
   if (!page) return { title: 'Course not found | Pace Notes', robots: { index: false, follow: true } };
   // The title and description name elevation only where the page prints the route's climb: a supplied route whose
   // profile does not read the water under a bridge. Where it does (New York and Dubai) the hero, #elevation and "All
@@ -43,7 +77,19 @@ export function generateMetadata({ params }: { params: { city: string } }) {
  * checked against its file by scripts/verify-courses.cjs and every sentence by scripts/verify-nuggets.cjs.
  */
 export default function CityPage({ params }: { params: { city: string } }) {
+  const results = resultsPages().get(params.city);
+  if (results) return <ResultsPage page={results} />;
   const page = coursePage(params.city);
+  const list = page ? null : courseList(params.city);
+  if (list) {
+    return (
+      <div className="course-page" {...readingAttrs(`/courses/${list.slug}`, list.race)}>
+        <JsonLd data={pageCrumbs(`/courses/${params.city}`, list.race, { parents: [['Courses', '/courses']] })} />
+        <CourseEditionList course={list} />
+        <CourseOthers page={list} />
+      </div>
+    );
+  }
   if (!page) notFound();
   // A section shows only when it has something to show: no heading over an empty chart.
   const glance = glanceRows(page);

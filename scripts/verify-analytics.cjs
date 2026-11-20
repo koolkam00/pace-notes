@@ -88,7 +88,11 @@ const sitemap = sitemapEntries();
 const { STORIES } = require('../lib/stories.ts');
 const { getCourseNames, slugifyCity } = require('../lib/course-data.ts');
 assert.deepEqual([...policy.STORY_SLUGS].sort(), STORIES.map(story => story.slug).sort(), 'STORY_SLUGS in lib/analytics-policy.ts lists every story in lib/stories.ts');
-assert.deepEqual([...policy.COURSE_SLUGS].sort(), getCourseNames().map(slugifyCity).sort(), 'COURSE_SLUGS in lib/analytics-policy.ts lists every course page');
+// Every race with a page: the course pages, and since November 19, 2026 the results pages of the race directory
+// (public/data/races/pages.json lists both; its course pages must be getCourseNames()'s).
+const racePages = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/data/races/pages.json'), 'utf8')).pages;
+assert.deepEqual(racePages.filter(p => p.page === 'course').map(p => p.slug).sort(), getCourseNames().map(slugifyCity).sort(), 'the race directory\'s course pages are the site\'s course pages');
+assert.deepEqual([...policy.COURSE_SLUGS].sort(), racePages.map(p => p.slug).sort(), 'COURSE_SLUGS in lib/analytics-policy.ts lists every course page and every results page');
 assert.equal(policy.CHART_COUNT, require('../lib/charts/catalog.json').length, 'CHART_COUNT in lib/analytics-policy.ts is the number of charts in lib/charts/catalog.json');
 assert.equal(policy.analyticsPath('/charts/0'), '/charts'); assert.equal(policy.analyticsPath(`/charts/${policy.CHART_COUNT + 1}`), '/charts'); assert.equal(policy.analyticsPath('/charts/Private-Name'), '/charts');
 for (const root of ['/stories', '/courses']) assert.deepEqual(sitemap.filter(entry => entry.path.startsWith(root + '/')).map(entry => entry.path.slice(root.length + 1)).sort(), [...(root === '/stories' ? policy.STORY_SLUGS : policy.COURSE_SLUGS)].sort(), `every ${root} page in the sitemap keeps its own path`);
@@ -599,6 +603,12 @@ assert.ok(blockedSelectors.includes('.projector-cards'), 'The saved runner cards
 const compat = require('./verify-browser-compat.cjs');
 const compatProblems = compat.sourceProblems().problems;
 assert.equal(compatProblems.length, 0, compat.describe(compatProblems));
+// The half race list's finder (November 19, 2026): its filter is typed text (AGENTS.md rule 18), so every root of the
+// island carries ph-no-capture (the box and the rows it leaves), and the query reaches no address, event or request.
+const halfRaces = read('components/half/HalfRacesAll.client.tsx');
+const halfRoots = [...halfRaces.matchAll(/className="([^"]*\bhalf-races-all\b[^"]*)"/g)].map((m) => m[1]);
+assert.ok(halfRoots.length >= 1 && halfRoots.every((c) => /(?<![\w-])ph-no-capture(?![\w-])/.test(c)), `HalfRacesAll: every root carries ph-no-capture (${halfRoots.join(' | ')})`);
+assert.doesNotMatch(halfRaces, /from '@\/lib\/analytics|\btrack\w*\(|posthog|history\.|useRouter|useSearchParams|location\./, 'HalfRacesAll: no analytics call, address or router write');
 // The course chooser's list of every course follows the visitor's goal: inside its results, outside its workspace.
 const courseChooser = read('components/tools/CourseChooser.tsx');
 assert.ok(hasClasses(courseChooser, 'course-chooser-list', 'ph-no-capture'), 'CourseChooser: the course list carries ph-no-capture');

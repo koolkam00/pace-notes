@@ -23,7 +23,7 @@ export default function CourseSlowdown({ page }: { page: CoursePageData }) {
   return (
     <CourseSection id="slowdown" track="chapter-5" beat="Slowdowns" title={<Said nugget={n} />}>
       <DotStrip items={field.map((c) => ({ id: c.slug, label: c.display, value: c.slowdown, display: pct(c.slowdown), hollow: c.editions < MIN_EDITIONS, subject: c.city === city }))}
-        domain={[0.1, top]} ticks={ticks.filter((t) => t.value >= 0.1)} keyLabels={{ filled: 'Three or more editions', hollow: 'Fewer editions' }}
+        domain={[0.1, top]} ticks={ticks.filter((t) => t.value >= 0.1)} keyLabels={{ filled: 'Three or more counted editions', hollow: 'Fewer counted editions' }}
         labelSubject subjectOnTop prompt="Choose a dot to read its course"
         label={`Sustained slowdown on every course, ${display} among them`} />
     </CourseSection>

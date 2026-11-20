@@ -19,7 +19,7 @@ import HeroReplay from '@/components/story/HeroReplay';
 import ChapterList from '@/components/ui/ChapterList';
 import GuessFirst from '@/components/ui/GuessFirst.client';
 import { withEm } from '@/components/ui/withEm';
-import { getCourseNames } from '@/lib/course-data';
+import { plannerCourses } from '@/lib/tools/plan-courses';
 import { getPersonalSummary } from '@/lib/personalized-data';
 import { getStudyEvidence } from '@/lib/research-data';
 import { getInsightsManifest, readInsight, replayChoices } from '@/lib/insights-server';
@@ -29,7 +29,6 @@ import { countWord } from '@/lib/nuggets/format';
 import { oneDecimal } from '@/lib/nuggets/stories';
 import { courseSpan } from '@/lib/stories';
 import { JsonLd, SITE_URL, finishesM, pageMetadata } from '@/lib/seo';
-import { courseSlug } from '@/lib/tools/links';
 import { defaultReplaySlug } from '@/lib/viz/replay';
 import type { CourseGeometry, ReplayIndex } from '@/lib/insights';
 
@@ -60,7 +59,9 @@ export default function Page() {
   // field had come least at the first finish), never chapter 01's own edition and finding.
   const back = getNugget('replay.back');
   const pick = choices.some((c) => c.slug === back.values.slug) ? String(back.values.slug) : defaultReplaySlug(choices);
-  const courses = getCourseNames().map((city) => ({ city, slug: courseSlug(city) }));
+  // The planner's own courses (lib/tools/plan-courses.ts), so "Plan your race" offers exactly what the planner can
+  // preset (November 19, 2026; verify-seo home-form).
+  const courses = plannerCourses().map(({ city, slug }) => ({ city, slug }));
 
   const totals = getNugget('site.totals');
   const title = totals.guard ? totals.headline : totals.fallback;

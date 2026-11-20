@@ -12,6 +12,8 @@ module.exports = function half({ json, eq, ok, core }) {
   const women = json('public/data/half/women.json');
   const linked = json('public/data/half/linked.json');
   const manifest = json('public/data/half/manifest.json');
+  // How halves are paced: published only while the family meets its builder floors (analysis/half_pacing.py).
+  const pacing = manifest.files['pacing.json'] ? json('public/data/half/pacing.json') : null;
   const close = (a, b, message, tol = 1e-9) => ok(Math.abs(a - b) <= tol, `${message}: ${a} vs ${b}`);
   const shown = (n) => core.sentenceOf(n, 'mi');
   const has = (n, text, message) => ok(shown(n).includes(text), `${message}: "${text}" in "${shown(n)}"`);
@@ -20,6 +22,8 @@ module.exports = function half({ json, eq, ok, core }) {
   const { clock, pct, oneIn } = D;
   const words = (t) => core.plain(t).split(/\s+/).filter(Boolean).length;
   const median = D.npMedian;
+  // A pooled difference in minutes, rounded to the nearest minute, a tie to even, as Python rounds.
+  const roundEven = (x) => D.pyRound(x, 0);
 
   // The half files are the ones the manifest binds.
   const crypto = require('node:crypto');
@@ -123,7 +127,9 @@ module.exports = function half({ json, eq, ok, core }) {
   R['half.extra'] = (n) => {
     eq(battery.pooled.extra_p50_s, linked.overall.extra_s.p50, 'half.extra: the battery pools what the overall reading pools');
     eq(battery.pooled.n, linked.set.pairs, 'half.extra: the pooled member holds every pair');
-    const minutes = Math.round(linked.overall.extra_s.p50 / 60);
+    // A pooled figure with no printed operands beside it: rounded to the nearest minute, a tie to even (2026-11-20; it
+    // was Math.round, which sends a tie up; 1315 s is 21.9, 22 either way).
+    const minutes = roundEven(linked.overall.extra_s.p50 / 60);
     eq(n.values.extra_min, minutes, 'half.extra: minutes over double, rounded');
     eq(n.guard, flagshipOk(), 'half.extra: guard (the weighting battery)');
     if (n.guard) eq(shown(n), `After a half, the typical marathon took double it plus *${minutes} minutes*.`, 'half.extra: the H1');
@@ -177,14 +183,50 @@ module.exports = function half({ json, eq, ok, core }) {
     if (n.guard) eq(shown(n), w ? `About *${w}* did.` : `*${pct(f.sus)}* did.`, 'half.sexesGuess: the answer');
   };
 
+  // ---------- How halves are paced (every usable result with a 10 km time; docs/HALF_MARATHON.md rule R5) ----------
+  // The guards as the contract words them, written here a second time: the pooled median strictly between +1% and +10%
+  // with the equal-edition and equal-label medians and both ends of the leave-one-label-out range within 1.0 point of
+  // it and at least 80% of the editions above zero; the equal-edition share faster and both ends of its leave-out range
+  // within 5 points of the pooled share; at least 4 published finish bands from 1:20 on whose medians never fall, the
+  // first and the last holding at least 3 labels.
+  const within = (a, b, gap) => Math.abs(a - b) <= gap;
+  const paceGuard = (p) => !!p && p.overall.median > 0.01 && p.overall.median < 0.10
+    && [p.editions_equal.median, p.labels_equal.median, p.leave_label_out.median_min, p.leave_label_out.median_max].every((v) => within(v, p.overall.median, 0.01))
+    && p.editions_equal.above_zero >= 0.8 * p.editions_equal.editions;
+  const fasterGuard = (p) => !!p && [p.editions_equal.faster, p.leave_label_out.faster_min, p.leave_label_out.faster_max].every((v) => within(v, p.overall.faster, 0.05));
+  const bandsFrom120 = (p) => (p ? p.bands.filter((b) => b.lo_s >= 4800) : []);
+  const bandsGuard = (p) => { const b = bandsFrom120(p); return b.length >= 4 && b.every((x, i) => !i || x.median >= b[i - 1].median) && b[0].l >= 3 && b[b.length - 1].l >= 3; };
+  const bandWords = (lo, step) => `${clock(lo)} to ${clock(lo + step - 60)}`;
+  R['half.pace'] = (n) => {
+    eq(n.guard, paceGuard(pacing), 'half.pace: guard (the pooled median, the two weightings, every race label left out, the editions above zero)');
+    if (!pacing) { eq([shown({ ...n, guard: true }), Object.keys(n.values).length], ['', 0], 'half.pace: without the family there is no sentence and no value'); return; }
+    eq([n.values.median, n.values.results, n.values.editions, n.values.labels], [pacing.overall.median, pacing.overall.n, pacing.overall.e, pacing.overall.l], 'half.pace: the pooled values');
+    eq([n.values.editions_equal_median, n.values.labels_equal_median, n.values.without_label_min, n.values.without_label_max, n.values.editions_above_zero],
+      [pacing.editions_equal.median, pacing.labels_equal.median, pacing.leave_label_out.median_min, pacing.leave_label_out.median_max, pacing.editions_equal.above_zero], 'half.pace: the checks’ values');
+    if (n.guard) eq(shown(n), `After 10 km, the typical half ran about *${pct(pacing.overall.median)} slower*.`, 'half.pace: the heading');
+    eq(n.figure, null, 'half.pace: no figure');
+  };
+  R['half.paceFaster'] = (n) => {
+    eq(n.guard, fasterGuard(pacing), 'half.paceFaster: guard (editions weighted equally and every race label left out within 5 points)');
+    if (!pacing) return;
+    eq([n.values.faster, n.values.editions_equal_faster, n.values.without_label_min, n.values.without_label_max],
+      [pacing.overall.faster, pacing.editions_equal.faster, pacing.leave_label_out.faster_min, pacing.leave_label_out.faster_max], 'half.paceFaster: values');
+    if (n.guard) eq(shown(n), `*${pct(pacing.overall.faster)}* ran the last 11.1 km faster than the first 10 km.`, 'half.paceFaster: the sentence');
+  };
+
   // Every half nugget: one family per page, H2s of at most 12 words, a neutral fallback.
   const FAMILY = { 'half.field': 'half', 'half.under': 'half', 'half.crowd': 'half', 'half.women': 'half', 'half.cities': 'half',
-    'half.extra': 'linked', 'half.range': 'linked', 'half.sexes': 'linked', 'half.sexesGuess': 'linked' };
+    'half.extra': 'linked', 'half.range': 'linked', 'half.sexes': 'linked', 'half.sexesGuess': 'linked',
+    // Every usable result with a 10 km time: a family of its own, which the shared Denominator type (lib/nuggets/types.ts)
+    // does not name yet; the surface's root says the scope (data-half-scope="usable") and carries the chip.
+    'half.pace': 'half', 'half.paceFaster': 'half' };
   const wrap = (id, inner) => (n) => {
     inner(n);
     ok(words(core.textFor(n.headline, 'mi')) <= 12, `${id}: "${core.textFor(n.headline, 'mi')}" is over 12 words`);
     eq(n.denominator, FAMILY[id], `${id}: its count family`);
     ok(n.page === '/half' || n.page.startsWith('/half#') || n.page.startsWith('/stories/half-to-full'), `${id}: a half page`);
+    // The 10 km time is never a half of the race, a split of it or the marathon's metric.
+    if (id.startsWith('half.pace')) for (const t of [core.textFor(n.headline, 'mi'), core.textFor(n.fallback, 'mi')]) ok(!/sustained slowdown|halfway|half-way|second half|first half|\bsplits?\b|marathon/i.test(t), `${id}: "${t}" names a half of the race, a split or the marathon`);
   };
   for (const id of Object.keys(R)) R[id] = wrap(id, R[id]);
 
@@ -219,11 +261,12 @@ module.exports = function half({ json, eq, ok, core }) {
     // The page sets the dek's two parts apart, the needle's how-to said only with JavaScript (round 5 review).
     eq(d.rangeLead, H.halfRangeFrom(linked).guard ? `The typical one took ${clock(w.q[9])}.` : null, 'half deks: story beat 1, the reading part');
     eq(d.storySlide, slide, 'half deks: story beat 1, how to use the needle');
-    // The story's hero dek: what the page pairs (set B's window, in whole weeks) and where to look; no reading, so it
-    // stands under the plain H1 too (review, October 30, 2026).
-    const [wa, wb] = linked.set.window_days;
-    ok(wa % 7 === 0 && wb % 7 === 0, `half deks: set B's window is whole weeks (${wa} to ${wb} days)`);
-    eq(d.hero, `Each half here is paired with the marathon ${wa / 7} to ${wb / 7} weeks after it, for records linked by name.`, 'half deks: the story’s hero dek');
+    // The story's hero dek: which halves the page covers (the first and the last 5-minute stop of the readout) and for
+    // whom, and where to look; no reading, so it stands under the plain H1 too (review, October 30, 2026). 2026-11-20
+    // (review round m6, AGENTS rule 15): it no longer says how pairs are formed ("Each half here is paired with the
+    // marathon 3 to 16 weeks after it, …"), which /methodology#half-linking states.
+    eq(d.hero, stops.length ? `Halves from ${clock(stops[0].h)} to ${clock(stops[stops.length - 1].h)} and the marathons that followed them, for records linked by name.` : 'Halves and the marathons that followed them, for records linked by name.', 'half deks: the story’s hero dek');
+    ok(!/\b(?:paired|weeks?|days?)\b/i.test(d.hero), 'half deks: the hero dek says nothing of how pairs are formed (rule 15)');
     eq(d.find, 'Find your half below.', 'half deks: the hero’s pointer to the needle (said only with JavaScript)');
     ok(!/\b(?:double|typical|under|over|more|fewer|took)\b/i.test(d.hero), 'half deks: the hero dek states no reading');
     // The reading's scale note: the minutes over double 15 minutes quicker than the flagship's half, then the span of
@@ -247,7 +290,21 @@ module.exports = function half({ json, eq, ok, core }) {
     eq(d.guess, `After a ${clock(m.h)} half, ${Math.round(m.sus * 100)} of 100 recorded men’s marathons had a sustained slowdown. How many of 100 recorded women’s?`, 'half deks: the guess');
     const sides = [w.h - 900, w.h + 900].map((h) => [win('F', h), win('M', h)]);
     const lower = sides.every(([pf, pm]) => pf && pm && pf.sus < pm.sus);
-    eq(d.guessMore, lower ? sides.map(([pf, pm], k) => (k === 0 ? `After a ${clock(pf.h)} half: ${pct(pf.sus)} of recorded women’s, against ${pct(pm.sus)} of men’s.` : `After a ${clock(pf.h)} half: ${pct(pf.sus)} against ${pct(pm.sus)}.`)).join(' ') : null, 'half deks: after the guess, women lower at both neighbouring halves');
+    // The dek follows its heading's guard as well as its own clause (recorded November 14, 2026, before any build of the
+    // combined release): while half.sexes falls back it is null.
+    const sexesHold = linked.sexes.strata >= 20 && linked.sexes.women_lower >= 0.9 * linked.sexes.strata && linked.sexes.diff_points >= 10
+      && linked.checks.verified.sexes.women_lower >= 0.9 * linked.checks.verified.sexes.strata;
+    eq(d.guessMore, lower && sexesHold ? sides.map(([pf, pm], k) => (k === 0 ? `After a ${clock(pf.h)} half: ${pct(pf.sus)} of recorded women’s, against ${pct(pm.sus)} of men’s.` : `After a ${clock(pf.h)} half: ${pct(pf.sus)} against ${pct(pm.sus)}.`)).join(' ') : null, 'half deks: after the guess, women lower at both neighbouring halves');
+    // The pacing surface's dek: each part only while its own guard holds; the bands' part names the first and the last
+    // published band from 1:20 on, and only while the last one's printed median is the larger.
+    eq(d.paceFaster, fasterGuard(pacing) ? `${pct(pacing.overall.faster)} ran the last 11.1 km faster than the first 10 km.` : null, 'half deks: the pacing surface, the share faster only under its guard');
+    {
+      const b = bandsFrom120(pacing), a = b[0], z = b[b.length - 1];
+      const say = bandsGuard(pacing) && Math.round(z.median * 100) > Math.round(a.median * 100);
+      eq(d.paceBands, say ? `The slower the finish, the larger the change: about ${pct(a.median)} for finishes of ${bandWords(a.lo_s, pacing.rules.band_s)}, about ${pct(z.median)} for ${bandWords(z.lo_s, pacing.rules.band_s)}.` : null,
+        'half deks: the pacing surface, the two finish bands only under half.paceBands');
+      for (const t of [d.paceFaster, d.paceBands]) ok(!/sustained slowdown|halfway|half-way|second half|first half|\bsplits?\b|marathon/i.test(t || ''), `half deks: the pacing dek names a half of the race, a split or the marathon: ${t}`);
+    }
     const marks = Object.fromEntries(field.marks.map((x) => [x.minutes, x]));
     const crowdOk = marks[90].ratio_ci95[0] > 1.1 && [105, 135, 150].every((k) => marks[k].ratio < 1.1);
     const two = marks[120];
@@ -259,6 +316,9 @@ module.exports = function half({ json, eq, ok, core }) {
     const excess = (x) => x.minute_before - x.expected_minute_before;
     const most = field.marks.every((x) => x === two || excess(x) < excess(two));
     const taller = Number(marks[90].ratio.toFixed(2)) > Number(two.ratio.toFixed(2));
+    // The orange column's key line, while 2:00 holds the most extra finishes (review round nit, 2026-11-20): orange is
+    // what the sentence is about, and 1:30's column stands taller.
+    eq(d.crowdKey, most ? `${two.mark}: the most extra finishes` : null, 'half deks: beat 2, the orange column\u2019s key line');
     const rest = taller
       ? ` The minute before 1:30 stood a little taller against its curve, ${marks[90].ratio.toFixed(2)}×; before 1:45, 2:15 and 2:30, about ${median(others).toFixed(2)}×.`
       : ` The minute before 1:30 held ${marks[90].ratio.toFixed(1)}× too; before 1:45, 2:15 and 2:30, about ${median(others).toFixed(2)}×.`;
@@ -354,6 +414,71 @@ module.exports = function half({ json, eq, ok, core }) {
     const x3 = H.halfExtraFrom(g3);
     ok(!D.flagshipGuard(g3) && !H.flagshipGuard(g3) && D.figureGuard(g3) && H.figureGuard(g3), 'half fixtures: a leave-out 4 minutes off fails the H1 guard and not the figure check');
     eq([x3.guard, x3.values.figure_is_share, x3.values.figure_is_minutes, x3.figure.value, x3.key], [false, 0, 0, g3.set.pairs.toLocaleString('en-US'), 'pairs of a half and the marathon after it'], 'half fixtures: under a fallen H1 the figure is the count of pairs, whatever its own check says');
+    // guessMore is tied to half.sexes: with the heading's guard failing alone (l3) the dek is null, and with it holding
+    // on a copy whose neighbouring halves keep recorded women's share the lower, the dek is printed.
+    {
+      const holds = clone(linked);
+      holds.sexes.strata = Math.max(holds.sexes.strata, 20); holds.sexes.women_lower = holds.sexes.strata; holds.sexes.diff_points = Math.max(holds.sexes.diff_points, 10);
+      holds.checks.verified.sexes.women_lower = holds.checks.verified.sexes.strata;
+      const flagshipH = Math.round(holds.checks.battery.pooled_half_p50_s / 300) * 300;
+      const at = (l, g, h) => l.windows[g].find((x) => x.h === h);
+      const sides = [flagshipH - 900, flagshipH + 900];
+      if (sides.every((h) => at(holds, 'F', h) && at(holds, 'M', h)) && at(holds, 'F', flagshipH) && at(holds, 'M', flagshipH)) {
+        for (const h of sides) { at(holds, 'F', h).sus = 0.1; at(holds, 'M', h).sus = 0.3; }
+        ok(H.halfSexesFrom(holds).guard && typeof H.halfDeksFrom(field, women, holds).guessMore === 'string', 'half fixtures: while half.sexes holds and women’s share is the lower at both neighbouring halves, guessMore is printed');
+        const falls = clone(holds); falls.checks.verified.sexes.women_lower = 0;
+        ok(!H.halfSexesFrom(falls).guard && H.halfDeksFrom(field, women, falls).guessMore === null, 'half fixtures: with half.sexes failing alone, guessMore is null');
+      } else ok(false, 'half fixtures: the flagship half and its neighbours are published for both sexes (guessMore cannot be tested)');
+    }
+    const pacingFixtures = [];
+    // How halves are paced: every clause of the three guards, each moved alone from a copy that holds them all.
+    {
+      const base = { overall: { n: 600000, e: 90, l: 51, median: 0.034, faster: 0.28, slower10: 0.2 }, editions_equal: { editions: 90, median: 0.035, faster: 0.25, slower10: 0.19, above_zero: 81 },
+        labels_equal: { labels: 51, median: 0.032, faster: 0.26, slower10: 0.18 }, leave_label_out: { median_min: 0.028, median_max: 0.037, faster_min: 0.25, faster_max: 0.31 },
+        rules: { band_s: 1200 }, bands: [3600, 4800, 6000, 7200, 8400].map((lo, i) => ({ lo_s: lo, n: 1000, e: 9, l: 5, median: 0.01 + 0.02 * i, faster: 0.3, slower10: 0.1 })) };
+      const moved = (change) => { const x = clone(base); change(x); return x; };
+      ok(H.halfPaceFrom(base).guard && paceGuard(base) && H.halfPaceFasterFrom(base).guard && fasterGuard(base) && H.halfPaceBands(base).guard && bandsGuard(base), 'half fixtures: the pacing base holds the three guards (TS and Node)');
+      const paceFails = [
+        ['the pooled median at +1%', (x) => { x.overall.median = 0.01; x.editions_equal.median = 0.01; x.labels_equal.median = 0.01; x.leave_label_out.median_min = 0.01; x.leave_label_out.median_max = 0.01; }],
+        ['the pooled median at +10%', (x) => { x.overall.median = 0.10; x.editions_equal.median = 0.10; x.labels_equal.median = 0.10; x.leave_label_out.median_min = 0.10; x.leave_label_out.median_max = 0.10; }],
+        ['editions weighted equally 1.01 points off', (x) => { x.editions_equal.median = x.overall.median + 0.0101; }],
+        ['labels weighted equally 1.01 points off', (x) => { x.labels_equal.median = x.overall.median - 0.0101; }],
+        ['one race label left out 1.01 points below', (x) => { x.leave_label_out.median_min = x.overall.median - 0.0101; }],
+        ['one race label left out 1.01 points above', (x) => { x.leave_label_out.median_max = x.overall.median + 0.0101; }],
+        ['71 of 90 editions above zero', (x) => { x.editions_equal.above_zero = 71; }],
+      ];
+      for (const [what, change] of paceFails) { const x = moved(change); ok(!H.halfPaceFrom(x).guard && !paceGuard(x), `half fixtures: ${what} fails half.pace (TS and Node)`); }
+      for (const [what, change] of [['72 of 90 editions above zero', (x) => { x.editions_equal.above_zero = 72; }], ['a weighting exactly 1.0 point off', (x) => { x.overall.median = 0.03; x.editions_equal.median = 0.04; x.labels_equal.median = 0.03; x.leave_label_out.median_min = 0.02; x.leave_label_out.median_max = 0.03; }]]) {
+        const x = moved(change); ok(H.halfPaceFrom(x).guard === paceGuard(x), `half fixtures: ${what}: TS and Node agree on half.pace`);
+      }
+      const fasterFails = [
+        ['editions weighted equally 5.1 points off', (x) => { x.editions_equal.faster = x.overall.faster - 0.051; }],
+        ['one race label left out 5.1 points below', (x) => { x.leave_label_out.faster_min = x.overall.faster - 0.051; }],
+        ['one race label left out 5.1 points above', (x) => { x.leave_label_out.faster_max = x.overall.faster + 0.051; }],
+      ];
+      for (const [what, change] of fasterFails) {
+        const x = moved(change);
+        ok(!H.halfPaceFasterFrom(x).guard && !fasterGuard(x) && H.halfDeksFrom(field, women, linked, x).paceFaster === null, `half fixtures: ${what} fails half.paceFaster and takes its dek away`);
+      }
+      const bandFails = [
+        ['three bands from 1:20', (x) => { x.bands = x.bands.slice(0, 4); }],
+        ['a median that falls from one band to the next', (x) => { x.bands[3].median = x.bands[2].median - 0.001; }],
+        ['a last band of two labels', (x) => { x.bands[x.bands.length - 1].l = 2; }],
+        ['a first band from 1:20 of two labels', (x) => { x.bands[1].l = 2; }],
+      ];
+      for (const [what, change] of bandFails) {
+        const x = moved(change);
+        ok(!H.halfPaceBands(x).guard && !bandsGuard(x) && H.halfDeksFrom(field, women, linked, x).paceBands === null, `half fixtures: ${what} fails half.paceBands and takes its dek away`);
+      }
+      // The 1:00 band never counts toward the four, and a level run of medians holds the guard but prints no "larger".
+      ok(typeof H.halfDeksFrom(field, women, linked, base).paceBands === 'string' && typeof H.halfDeksFrom(field, women, linked, base).paceFaster === 'string', 'half fixtures: the pacing deks print while their guards hold');
+      const level = moved((x) => { for (const b of x.bands) b.median = 0.03; });
+      ok(H.halfPaceBands(level).guard && H.halfDeksFrom(field, women, linked, level).paceBands === null, 'half fixtures: level band medians hold the guard and print no direction');
+      // Without the family (left out under a builder floor) every pacing reading falls back and no dek prints.
+      ok(!H.halfPaceFrom(null).guard && !H.halfPaceFasterFrom(null).guard && !H.halfPaceBands(null).guard && H.halfDeksFrom(field, women, linked, null).paceFaster === null && H.halfDeksFrom(field, women, linked, null).paceBands === null, 'half fixtures: without the pacing family nothing is said');
+      pacingFixtures.push([H.halfPaceFrom(moved(paceFails[2][1])), 'Pace after 10 km of a half, against the first 10 km.'], [H.halfPaceFasterFrom(moved(fasterFails[0][1])), 'The last 11.1 km against the first 10 km, result by result.'],
+        [H.halfPaceFrom(null), 'Pace after 10 km of a half, against the first 10 km.']);
+    }
     return [
       [H.halfFieldFrom(f1), 'Half marathon finishes by finish time.'],
       [H.halfUnderFrom(f2), 'Half finishes under 1:45.'],
@@ -366,6 +491,7 @@ module.exports = function half({ json, eq, ok, core }) {
       [H.halfRangeFrom(l2), 'The marathon after each half time.'],
       [H.halfSexesFrom(l3), 'Sustained slowdowns in recorded women’s and men’s marathons after the same half.'],
       [H.halfSexesGuessFrom(l4), 'Recorded women’s and men’s marathons after the same half.'],
+      ...pacingFixtures,
     ];
   };
 

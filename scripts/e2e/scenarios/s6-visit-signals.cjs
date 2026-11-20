@@ -177,7 +177,11 @@ async function using(h) {
   await page.waitForTimeout(500);
   await page.goto(SITE + '/runners', { waitUntil: 'load' });
   await page.waitForSelector('#runner-name:not([disabled])', { timeout: 30000 });
-  await page.locator('#runner-name').pressSequentially('Johnson', { delay: 15 });
+  // November 20, 2026: a two-word name, so the search lists whole-word matches at once. The one common surname typed
+  // here before lists no name recorded under that word alone, and since the index leaves gained each row's first and
+  // latest race its names that start with the word plan 335 KB, past the 300 KB loaded unasked, so the page now asks
+  // for a press and the search completes with no match listed. The checks below are unchanged.
+  await page.locator('#runner-name').pressSequentially('John Smith', { delay: 15 });
   await page.click('button[type="submit"]');
   await page.waitForSelector('.runner-matches li', { timeout: 30000 });
   await page.locator('#runner-name').fill('');
@@ -200,7 +204,7 @@ async function using(h) {
   await run.close();
 
   // The broken image is the test's own element, so a recording may show it; no event may name it.
-  run.options.needles = ['3:17:43', '3:16:41', 'Johnson', 'Qzxqzxq', { needle: 'no-such-image', allowAt: IN_RECORDING }];
+  run.options.needles = ['3:17:43', '3:16:41', 'John Smith', 'Qzxqzxq', { needle: 'no-such-image', allowAt: IN_RECORDING }];
   const first = named(run, '$pageview')[0];
   h.check('no campaign tags when one tag is not on the list', first && !Object.keys(first).some(k => k.startsWith('utm_')), first && shown([first]));
   const tool = named(run, 'tool_used');
@@ -641,9 +645,13 @@ async function terrainFigures(h) {
   h.check('terrain: Published research on the card and the band, no Pace Notes data badge on either; the band\'s kicker; the fold\'s terrain beside even pace, no Finishes row',
     JSON.stringify(plan.card) === '["evidence-research"]' && JSON.stringify(plan.band) === '["evidence-research"]' && plan.kicker === '5:15 · New York · terrain splits'
       && JSON.stringify(plan.head) === '["Mat","Terrain","Even pace"]' && JSON.stringify(plan.first) === '["37:19","37:20"]' && !plan.finishesRow && plan.print === false, plan);
-  h.check('terrain: the As run panel, Pace Notes data, with the forewarning (48%, sustained slowdown linked) and the medians as they ran (5K 32:56)',
+  h.check('terrain: the As run panel, Pace Notes data, with the forewarning (48%, sustained slowdown linked) and the medians as they ran (5K 32:57)',
     plan.title === 'As run near 5:15 in New York' && JSON.stringify(plan.asRunBadges) === '["evidence-data"]' && plan.note.includes('48%') && plan.note.includes('Not splits to copy.')
-      && plan.term === '/methodology#sustained-slowdown' && plan.all5k === '32:56', plan); // 32:52 on 1050; New York 2026 joins the cell (November 4, 2026)
+      && plan.term === '/methodology#sustained-slowdown' && plan.all5k === '32:57', plan); // 32:52 on 1050; New York 2026 joins the cell (November 4, 2026)
+  // November 19, 2026 (the combined release): 32:57. The As run panel is Pace Notes result data (rule 16), the median 5K
+  // of New York finishes from 5:10:00 to 5:14:59 in tools/pace-band/new-york/all.json: 1,976 s over 17,566 finishes in 17
+  // editions on master-20261103b, 1,977 s over 16,599 in 16 on the combined release. The terrain splits above read none
+  // of it: course-terrain.json's courses and corrections digest and analysis/course_terrain/ are unchanged, and 37:19 holds.
   h.check('terrain: the planner says Berlin, Oslo and Prague have no terrain splits (the same words for either reason), and nothing for an unknown course or on all courses', lines.berlin.none === 'Even pace: no terrain splits for Berlin.'
     && lines.oslo.none === 'Even pace: no terrain splits for Oslo.' && lines.prague.none === 'Even pace: no terrain splits for Prague.' && lines.nowhere.none === '' && lines.all.none === ''
     && Object.values(lines).every((l) => l.seg === 0 && !l.terrain), lines);
@@ -842,7 +850,7 @@ async function reloadedPage(h) {
 
 // The half pages (October 30, 2026): /half marks its reading, its beats and its close, and the half-to-full story its
 // reading, two beats and its close, each once and in page order as the reader scrolls (the generic hero, chapter-1 …
-// chapter-4 and related ids). The story's one guess, locked in, reveals its answer and keeps its state in the
+// chapter-5 and related ids). The story's one guess, locked in, reveals its answer and keeps its state in the
 // component: it writes no storage key and sends no event of its own (I2 and I6 check every event and key as well).
 async function halfSections(h) {
   const run = await h.run('half sections', { ...PHONE });
@@ -874,7 +882,12 @@ async function halfSections(h) {
   // Beat 3 (chapter-3, the women's columns) is drawn only while women.json publishes the band medians (20 editions; 15
   // qualify since the stamp correction, October 30, 2026); the other beats keep their ids.
   const women = JSON.parse(require('node:fs').readFileSync(path.join(ROOT, 'public/data/half/women.json'), 'utf8'));
-  const halfIds = ['hero', 'chapter-1', 'chapter-2', ...(women.band_editions.length >= women.min_band_editions ? ['chapter-3'] : []), 'chapter-4', 'related'];
+  // November 19, 2026 (the combined release): /half's foot surface, how halves are paced (components/half/HalfPacing.tsx,
+  // its Beat track="chapter-5", an id already in TRACKED_SECTIONS), is drawn after the All numbers fold and before the
+  // close only while the half manifest publishes pacing.json; it sends its id alone, like every other beat.
+  const halfManifest = JSON.parse(require('node:fs').readFileSync(path.join(ROOT, 'public/data/half/manifest.json'), 'utf8'));
+  const halfIds = ['hero', 'chapter-1', 'chapter-2', ...(women.band_editions.length >= women.min_band_editions ? ['chapter-3'] : []), 'chapter-4',
+    ...(halfManifest.files['pacing.json'] ? ['chapter-5'] : []), 'related'];
   h.check(`/half marks ${halfIds.join(', ')}, each once, in page order`, JSON.stringify(halfOrder) === JSON.stringify(halfIds) && JSON.stringify(sections('/half')) === JSON.stringify(halfOrder), { page: halfOrder, sent: sections('/half') });
   h.check('/stories/half-to-full marks hero, chapter-1, chapter-2 and related, each once, in page order', JSON.stringify(storyOrder) === JSON.stringify(['hero', 'chapter-1', 'chapter-2', 'related']) && JSON.stringify(sections('/stories/half-to-full')) === JSON.stringify(storyOrder), { page: storyOrder, sent: sections('/stories/half-to-full') });
   // The answer is the recorded women's share at the flagship half (the window the guess asks about), in either of the

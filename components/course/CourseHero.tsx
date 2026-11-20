@@ -10,7 +10,8 @@ import { heroKeyLead, profileUnderWater } from '@/lib/nuggets/courses';
 import { pct } from '@/lib/nuggets/format';
 import { heldEditions, MONTHS, routeClimb, type CoursePageData } from '@/lib/course-page';
 import { planHref } from '@/lib/tools/links';
-import { Fact, Said } from './Fact';
+import { tierWords } from '@/lib/tiers';
+import { Fact, Said, SectionLink } from './Fact';
 import RouteFace from './RouteFace';
 
 /**
@@ -52,6 +53,9 @@ function raceMonths(editions: { year: number; date: string | null }[]): string {
 export default function CourseHero({ page }: { page: CoursePageData }) {
   const { city, display, race, summary: s, geometry, editions } = page;
   const reading = getNugget('course.slowdown', { city });
+  // Two races under one label (Warsaw: plan decision D29): named where the page states a reading across years.
+  const series = getNugget('course.series', { city });
+  const also = getNugget('course.also', { city });
   // A profile that reads the water under a bridge misstates the climb: the hero prints none there (#elevation is left out).
   const climb = profileUnderWater(page) ? null : routeClimb(page);
   const years = s.years;
@@ -65,6 +69,9 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
   // The readout says the edition's share alone (round 6: its median finish and start temperature are #finish-times' and
   // #weather's findings, and seven numbers crowded the first screen).
   const points: YearPoint[] = editions.map((e) => ({ year: e.year, value: e.slowdown, display: pct(e.slowdown) }));
+  // An edition with results that is not counted has no share: a hollow mark at the strip's foot, named by its tier in the
+  // readout (lead decision D16; the words are lib/tiers.ts's), with no value (November 19, 2026).
+  const hollow = page.listed.filter((l) => l.use !== 'counted').map((l) => ({ year: l.year, display: tierWords(l.tier, l.weakerSource) }));
   const valueDomain: [number, number] = [0, Math.max(0.1, Math.ceil(Math.max(...editions.map((e) => e.slowdown)) * 10) / 10)];
   const extremeLabel = (p: YearPoint) => `${p.year} · ${p.display}`;
   // With the sentence, the strip opens on the edition it accents (the high end), so the needle, the readout and the
@@ -77,7 +84,7 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
     <YearStrip
       editions={points}
       selected={opening}
-      valueDomain={valueDomain} average={s.slowdown} averageLabel="Average year" averageOnLine gaps="not in the data"
+      valueDomain={valueDomain} average={s.slowdown} averageLabel="Average year" averageOnLine gaps="not in the data" hollow={hollow}
       extremeLabel={extremeLabel} labelled={labelled}
       label={`Sustained slowdown in ${display}, edition by edition, ${span}`} height={100} heightMd={168} signal={reading.guard} />
   );
@@ -88,7 +95,11 @@ export default function CourseHero({ page }: { page: CoursePageData }) {
       <div className="course-hero-head">
         <div className="reading-crumbs t-kicker course-crumbs"><ChapterCrumbs path={`/courses/${page.slug}`} place={<Link href="/courses" className="crumb-courses">Courses</Link>} /></div>
         <h1 className="course-title t-title">{race}</h1>
-        <p className="hero-dek">{s.editions === 1 ? `One edition, ${span}` : `${s.editions} editions, ${span}`}{when ? `\u00a0· ${when}` : ''}</p>
+        {/* The editions the figures are of are the counted ones, and the dek says so (review M9, November 20, 2026); years
+            with results that are not counted are named on one line under it, linked to the edition table. */}
+        <p className="hero-dek">{s.editions === 1 ? `One counted edition, ${span}` : `${s.editions} counted editions, ${span}`}{when ? `\u00a0· ${when}` : ''}</p>
+        {also.guard ? <p className="hero-dek course-also"><SectionLink to="all-numbers" className="course-also-link"><Said nugget={also} /></SectionLink></p> : null}
+        {series.guard ? <p className="hero-dek course-series"><Said nugget={series} /></p> : null}
       </div>
       <div className="course-hero-figure">
         {reading.figure ? <BigNumber value={reading.figure.value} unit={reading.figure.unit} sr={reading.figure.sr} size="xl" tone="night" /> : null}

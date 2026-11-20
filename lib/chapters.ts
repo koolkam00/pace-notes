@@ -1,6 +1,6 @@
 /**
  * The chapter registry (the redesign spec, sections 2.2 and 2.3): the site read as one marathon, a prologue (home) and
- * eleven chapters in three parts. Part one follows the race clock, so its chapters carry race-distance markers; parts
+ * twelve chapters in three parts. Part one follows the race clock, so its chapters carry race-distance markers; parts
  * two and three use their numbers. Each chapter's pages, in order, are the "next" chain.
  *
  * The header's menu, the desktop chapters drawer, the contents (/research, /stories, /analyses), the home guide, the
@@ -35,7 +35,7 @@ export type ChapterPage = {
 
 export type Chapter = {
   n: number;
-  /** The id contents rows use: chapter-01 … chapter-11 (/research#chapter-06). */
+  /** The id contents rows use: chapter-01 … chapter-12 (/research#chapter-06). */
   id: string;
   part: 1 | 2 | 3;
   marker: Marker;
@@ -157,10 +157,23 @@ export const CHAPTERS: readonly Chapter[] = [
       tool('weather-match', 'Weather match', 'Weather match', 'weathermatch.mornings'),
     ],
     lead: 'weather.pairs', key: 'same-course pairs: the warmer year had more sustained slowdowns' },
+  // Over the years (November 19, 2026, the adoption of the linked-records family, docs/LINKED_RECORDS.md): runners whose
+  // records are linked by name, followed from one recorded marathon to the next. Its opener's reading is its lead.
+  { n: 10, id: 'chapter-10', part: 2, marker: '10', title: 'Over the years', subtitle: 'Linked runners, year after year',
+    pages: [
+      story('fast-and-slow-years', 'Fast and slow years', 'years.called'),
+      story('race-to-race', 'Race to race', 'races.faster'),
+      // The card into the page carries the chapter's other reading (the turn), never the answer to the guess the page
+      // opens on (review round M6, November 20, 2026).
+      story('recorded-bests', 'Recorded bests', 'bests.turn'),
+      story('getting-older', 'Getting older', 'age.fifty'),
+    ],
+    // Counted from the verdicts (decision D47, November 20, 2026), no longer from point readings beyond 2%.
+    lead: 'years.called', key: 'of race-years were fast or slow years for linked runners' },
   // The split check opens the chapter: its one data beat (how common a sustained slowdown was at the example's finish
   // time) is the chapter's lead, so the card into the chapter promises what the page it opens holds; a past race (a
   // search, no reading of its own) follows it.
-  { n: 10, id: 'chapter-10', part: 3, marker: '10', title: 'Your race', subtitle: 'Your splits, a past race',
+  { n: 11, id: 'chapter-11', part: 3, marker: '11', title: 'Your race', subtitle: 'Your splits, a past race',
     pages: [
       tool('split-check', 'Split check', 'Split check', 'splitcheck.share'),
       page('/runners', 'runner', 'Analyze a past race', 'Analyze a past race', 'runner.yours', '/methodology#runner-search'),
@@ -169,7 +182,7 @@ export const CHAPTERS: readonly Chapter[] = [
     lead: 'splitcheck.share', key: 'of finishes at one finish time had a sustained slowdown' },
   // The half opens the next one (October 29, 2026, docs/HALF_MARATHON.md): the marathons that followed a half, then
   // where runners improve, then the plan. Its reading is the chapter's lead, as every opener's is.
-  { n: 11, id: 'chapter-11', part: 3, marker: '11', title: 'The next one', subtitle: 'The half, improvement, your plan',
+  { n: 12, id: 'chapter-12', part: 3, marker: '12', title: 'The next one', subtitle: 'The half, improvement, your plan',
     pages: [
       story('half-to-full', 'Half marathon to full', 'half.extra'),
       analysis('finding-improvement', 'Where runners improve', 'gains.final'),

@@ -1,6 +1,6 @@
 # Course, weather and opening comparisons without earlier finishes
 
-This extension uses the adopted source in [analysis/release.json](../analysis/release.json), with the exact published runner lookup and matching edition context. It adds descriptive within-race comparisons; it does not recalculate or relabel the existing earlier-result calculations. The [fast-start analysis](FAST_START_ANALYSIS.md) already supports finishes without earlier history.
+This extension uses the adopted source in [analysis/release.json](../analysis/release.json), with the marathon cohort (`analysis/marathon-cohort`; the published runner lookup until November 19, 2026) and the runner context bound to it. It adds descriptive within-race comparisons; it does not recalculate or relabel the existing earlier-result calculations. The [fast-start analysis](FAST_START_ANALYSIS.md) already supports finishes without earlier history.
 
 ## Scope and questions
 
@@ -26,9 +26,9 @@ The opening views reused the previously verified all-finisher fast-start output 
 
 ## Inputs, eligibility and exact filters
 
-[build_all_finisher_context.py](../analysis/build_all_finisher_context.py) reads every published runner shard and every runner-context edition shard. It checks compressed byte sizes and SHA-256 checksums, record and candidate-profile uniqueness, source calculation hashes, exact edition mapping, the reviewed edition policy and raw/eligible counts. The runner-context manifest must bind the exact runner manifest's hash and timestamp. A matching release tag alone is insufficient. Refreshing either source requires rebuilding the new output.
+[build_all_finisher_context.py](../analysis/build_all_finisher_context.py) reads the cohort's counted records (`cohort.load`, which checks each edition file against the cohort manifest) and every runner-context file, which is keyed by the cohort manifest's edition index; a counted edition without a context file has no weather or terrain. It checks the context files' sizes and SHA-256 checksums, record-ID uniqueness, the cohort and source policy, the cohort manifest's digest in both its own output and the context manifest (`cohort_manifest_sha256`), and the calculation hashes. `scripts/verify-all-finisher-context.cjs` recounts every group from the cohort with `scripts/lib/cohort.cjs`. A matching release tag alone is insufficient. Rebuilding the cohort or the context requires rebuilding the output.
 
-The adopted source is `master-20261103b` (on `main` since #89, November 5, 2026): **5,388,605 raw records** and **4,222,246 eligible finishes** across **218 editions** with eligible timings; the context's weather covers 217 of them (New York 2026 has no weather row) and terrain 203 ([refresh record](REFRESH_20261103b.md)). The release before it, `private-export-20261021-1050` (adopted October 22, 2026), contained 5,327,504 raw records and 4,108,749 eligible finishes across 215 editions (1652, historical: 4,915,355, 3,871,767 and 211; 0934: 4,462,379, 3,517,336 and 196). All eligible finishes can contribute without any previous-result or identity-link requirement. Incomplete timings and reviewed held/selected-field editions remain excluded from aggregate outcomes. Their records remain searchable under the [runner lookup contract](RUNNERS_AND_REPORT.md#runner-search).
+The source since pull request #101 is `pace-notes-marathon-half-20261113-1113` (built November 19, 2026): **7,820,442 raw records** and **4,124,026 eligible finishes** across **201 counted editions**; the context's weather covers 189 of them (3,955,561 finishes) and its terrain 178 (3,788,391 finishes).
 
 Exact filters are course, recorded age band, recorded gender and the same race's early pace. Unknown age or gender remains in All; neither is imputed. There is no eventual-finish, target-time or earlier-result selection in the new calculation. No sparse result is silently replaced with another course or a broader demographic group.
 
@@ -85,6 +85,8 @@ Opening pace bands retain the [all-finisher fast-start definitions](FAST_START_A
 
 ## Measured output for the adopted source
 
+**`pace-notes-marathon-half-20261113-1113` (November 19, 2026, pull request #101).** Built on the marathon cohort (manifest `a812fa41…`) and the runner context bound to it (`69839b08…`). `public/data/all-finisher-context/evidence.json` (`as_of` 2026-11-19T16:42:42Z) is 14,431,916 bytes, SHA-256 `667550fdacd95214914b5904a64a81c9fbe56ed9f38af8226c6a131afa77952d`, with 1,520 filter rows and 23,141 supported groups (8,872 sparse groups omitted); `verify-all-finisher-context` recounted every group from the cohort.
+
 **`master-20261103b` (November 5, 2026).** Rebuilt after the runner lookup and the context were rebuilt on the producer's `person_id` (#91).
 The committed `public/data/all-finisher-context/evidence.json` (`as_of` 2026-11-05T16:59:16Z) is 14,868,380 bytes, SHA-256 `1660e107bb046bb04098b02736b2e5901939c3c430f27fc2f136528023f3f270`, bound to runner manifest `f1caea12…` and context manifest `3bff3a89…`.
 It holds **1,362 exact filter rows and 23,902 groups** (2,014 course, 2,071 temperature, 4,011 opening/terrain and 15,806 race-edition summaries) over 4,222,246 finishes; weather on 217 editions (4,162,015 finishes) and terrain on 203 (3,985,254).
@@ -138,7 +140,7 @@ Earlier-result modes on the course and weather pages continue to measure finish 
 
 The primary `/analyses/course-comparison` and `/analyses/race-day-weather` pages use the broader views by default and offer the distinct earlier-result comparison. `/analyses/downhill-start` adds the broader downhill view with access to the original history-based guide. The twelve-question research guide (`/research/personalized`) closed on October 18, 2026 (branch state); its calculations stay in the analyses.
 
-Until October 18, 2026 seven research-archive routes (`/packs/r01_banking_time`, `r02_recover_slow_start`, `r34_pacing_risk_reward`, `r13_great_day_vs_consistency`, `r35_course_adaptation`, `r15_weather_penalty_who` and `s5_pacing_vs_difficult_day`, with their aliases) showed these broader views by default. The redesign closed the archive (branch state, not deployed; [SEO](SEO.md#moved-addresses-october-18-2026)): those addresses are stubs that forward to `/methodology#downloads`, and the calculation data they read is unchanged.
+Until October 18, 2026 seven research-archive routes (`/packs/r01_banking_time`, `r02_recover_slow_start`, `r34_pacing_risk_reward`, `r13_great_day_vs_consistency`, `r35_course_adaptation`, `r15_weather_penalty_who` and `s5_pacing_vs_difficult_day`, with their aliases) showed these broader views by default. The redesign (#71, merged October 20, 2026) closed the archive ([SEO](SEO.md#moved-addresses-october-18-2026)): those addresses are stubs that forward to `/methodology#downloads`, and the calculation data they read is unchanged.
 
 ### Weather and terrain coverage, as written for 0934 (lines 74, 78 and 80)
 
@@ -147,3 +149,17 @@ Weather groups use validated modeled temperature at the supplied scheduled start
 The supplied current-route context covers **3,514,374 eligible finishes in 194 editions** before sample thresholds. Melbourne 2015 and Vienna 2022 lack a terrain profile. A descriptive downhill opening means the supplied first-5 km section has net change **strictly below −25 m**. The exact boundary belongs to other known openings; missing terrain is neither flat nor part of that comparison.
 
 Before opening-band and demographic thresholds, the larger-descent source category contains Boston (seven eligible editions), Sydney (three) and Warsaw (four). In particular, Boston has a distinct selected race field. This composition is material context when interpreting the grouped comparison.
+
+### Superseded on November 19, 2026 (all-finisher views on the marathon cohort)
+
+Moved word for word on November 19, 2026, when these families moved from the runner lookup to the marathon cohort (`analysis/marathon-cohort`). Counts belong to the release they name.
+
+This extension uses the adopted source in [analysis/release.json](../analysis/release.json), with the exact published runner lookup and matching edition context. It adds descriptive within-race comparisons; it does not recalculate or relabel the existing earlier-result calculations. The [fast-start analysis](FAST_START_ANALYSIS.md) already supports finishes without earlier history.
+
+[build_all_finisher_context.py](../analysis/build_all_finisher_context.py) reads every published runner shard and every runner-context edition shard. It checks compressed byte sizes and SHA-256 checksums, record and candidate-profile uniqueness, source calculation hashes, exact edition mapping, the reviewed edition policy and raw/eligible counts. The runner-context manifest must bind the exact runner manifest's hash and timestamp. A matching release tag alone is insufficient. Refreshing either source requires rebuilding the new output.
+
+### Superseded on November 19, 2026 (the source line)
+
+Moved word for word on November 19, 2026. Counts belong to the release they name.
+
+The adopted source is `master-20261103b` (on `main` since #89, November 5, 2026): **5,388,605 raw records** and **4,222,246 eligible finishes** across **218 editions** with eligible timings; the context's weather covers 217 of them (New York 2026 has no weather row) and terrain 203 ([refresh record](REFRESH_20261103b.md)). The release before it, `private-export-20261021-1050` (adopted October 22, 2026), contained 5,327,504 raw records and 4,108,749 eligible finishes across 215 editions (1652, historical: 4,915,355, 3,871,767 and 211; 0934: 4,462,379, 3,517,336 and 196). All eligible finishes can contribute without any previous-result or identity-link requirement. Incomplete timings and reviewed held/selected-field editions remain excluded from aggregate outcomes. Their records remain searchable under the [runner lookup contract](RUNNERS_AND_REPORT.md#runner-search).

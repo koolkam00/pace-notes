@@ -24,16 +24,27 @@ export type ChartFile = {
   /** The raw numbers the takeaway reads (seconds, shares 0–1, counts, labels). */
   values: Record<string, number | string>;
   plot: ChartSpec;
+  /**
+   * Only on a chart that follows linked records (the same runner in two or more races): the same values counted with
+   * high-confidence links alone keying a linked record, for the sensitivity table on /methodology. `values` is null,
+   * with the builder's refusal, when a group falls under one of the chart's floors on high links alone.
+   */
+  high_links?: { values: Record<string, number | string>; cohort_n: number } | { values: null; refused: string };
 };
 
 export type ChartsManifest = {
   schema_version: 1;
   release_tag: string;
+  /** The SHA-256 of analysis/marathon-cohort/manifest.json (the name is from the time it held the runner lookup's). */
   runner_manifest_sha256: string;
   as_of: string;
   catalog_sha256: string;
   files: Record<string, { bytes: number; sha256: string }>;
   cohort: { eligible: number; after_duplicate_screen: number; editions: number; cities: number; shape: number; exact_age: number };
+  /** The edition policy the cohort states: its digests and counts (the listed editions are public/data/edition-policy.json). */
+  source_quality: { policy_sha256: string; editions_sha256: string; editions_file: string };
+  /** The scripts that wrote the cohort, by SHA-256. */
+  source_scripts: Record<string, string>;
 };
 
 type V = Record<string, number | string>;
@@ -44,7 +55,20 @@ export type Takeaway = { guard: boolean; headline: string; fallback: string };
 export type ChartText = {
   /** The card's headline and the page's H1: at most 47 characters, so "<title> | Pace Notes" fits 60. */
   title: string;
+  /**
+   * The title while the takeaway's guard does not hold on the published values: it names what the chart shows and
+   * states no reading (at most 47 characters). Most titles state the reading, so a chart in the fallback state needs
+   * one; scripts/verify-charts.cjs fails when a chart whose guard fails has none.
+   */
+  neutral?: string;
   takeaway: (v: V) => Takeaway;
   /** The search description when the takeaway alone would not do (at most 155 characters). */
   description?: (v: V) => string;
+  /**
+   * The drawing while the guard does not hold, where the chart's own spec with its marks taken off would still show the
+   * rejected figure (a big number) or an unexplained bar: a spec of the same file that states a neutral count. Drawing
+   * only, from the published values; lib/charts/neutral.ts still strips it and verify-charts holds it to readingMarks
+   * (review round m9, November 20, 2026).
+   */
+  neutralPlot?: (plot: ChartSpec, v: V) => ChartSpec;
 };

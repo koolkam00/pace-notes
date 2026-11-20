@@ -20,7 +20,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 
 import numpy as np  # noqa: E402
 
-from half_common import MIN_CELL, MIN_EDGE_SLICE, MIN_EDITIONS, fail, quantile, sec, sh  # noqa: E402
+from half_common import MIN_CELL, MIN_EDGE_SLICE, MIN_EDITIONS, HalfError, fail, quantile, sec, sh  # noqa: E402
 from half_pairs import WINDOW_DAYS  # noqa: E402
 from insights_stats import r  # noqa: E402
 
@@ -32,7 +32,7 @@ UNDER_PLUS_MIN = (0, 10, 20, 30, 40)
 STRATA_MIN_PER_SEX = 20
 EDITIONS_EQUAL = (20, 100)
 CITY_EQUAL = {'min_pairs': 100, 'min_editions': 3}
-OTHER_THAN = ('Valencia', 'Warsaw')      # "other marathons": without the two marathons that hold most pairs
+OTHER_THAN_N = 2                         # "other marathons": without the marathon cities that hold the most pairs
 CHECK_WINDOW = 105                       # the 1:45 window of the flagship's beat 1
 CHECK_GOAL = 14400
 GROUPS = ('all', 'F', 'M')
@@ -153,6 +153,35 @@ def sexes(p):
             'diff_points': sh(100 * (men - women))}
 
 
+def high_links(p, flagship_h: int) -> dict | None:
+    """Ruling R6 of the adoption (lead decision D38, 2026-11-14): every reading built on set B, recounted on the pairs
+    whose two rows both carry a link of tier high_elite or high (medium links left out). A published sensitivity for one
+    table on /methodology: no guard reads it. A value whose group is under the floor is null; the whole block is null
+    when the high-link pairs are under the floor."""
+    if 'high_links' not in p.frame.columns:
+        fail('linked: set B carries no link tiers (half_pairs.build sets high_links)')
+    q = p.subset(p.frame.high_links.to_numpy(bool))
+    if q.n < MIN_CELL or len(set(q.ed)) < MIN_EDITIONS:
+        return None
+    w = q.m[in_window(q, CHECK_WINDOW)]
+    out = {'pairs': int(q.n), 'share': sh(q.n / p.n), 'marathon_editions': int(len(set(q.ed))),
+           'multiple_p50': r(quantile(q.m / q.h, 0.5), 4), 'extra_p50_s': sec(quantile(q.extra, 0.5)), 'under_double': sh((q.extra < 0).mean()),
+           'sustained': sh(q.sus.mean()),
+           'w105': {'n': int(len(w)), 'under_14400': sh((w < CHECK_GOAL).mean())} if len(w) >= MIN_CELL else None}
+    try:
+        s = sexes(q)
+        out['sexes'] = {k: s[k] for k in ('strata', 'women_lower', 'women_std', 'men_std', 'diff_points')}
+    except HalfError:  # no stratum holds 20 pairs of each sex
+        out['sexes'] = None
+    flagship = {}
+    for g in ('F', 'M'):
+        x = q.group(g)
+        x = x.subset(in_window(x, flagship_h // 60))
+        flagship[g] = {'n': int(x.n), 'sus': sh(x.sus.mean())} if x.n >= MIN_CELL else None
+    out['flagship'] = {'h': int(flagship_h), **flagship}
+    return out
+
+
 def latest_per_person(p):
     f = p.frame.sort_values(['person_id', 'm_date', 'm_record_id'])
     return Pairs(f.groupby('person_id', sort=False).tail(1))
@@ -218,6 +247,15 @@ def leave_outs(p, mask, clauses, extra, half) -> dict:
             'worst': worst}
 
 
+def other_than(p) -> tuple:
+    """The `other_marathons` member's rule (recorded 2026-11-14 before any build; lead decision D23, choice C2): set B
+    without the two marathon cities that hold the most pairs on the build, ties by name. Until then the two names were
+    typed (Valencia and Warsaw, "the two marathons that hold most pairs" when they were)."""
+    cities, counts = np.unique(p.city.astype(str), return_counts=True)
+    order = sorted(zip((-counts).tolist(), cities.tolist()))
+    return tuple(city for _, city in order[:OTHER_THAN_N])
+
+
 def battery(p, weaker_source, off_road_labels):
     """The flagship's weighting checks: pooled medians for pair members; medians over editions or cities otherwise; and
     the one-verified-half-edition-out variants of verified_halves and verified_federation. `weaker_source` (edition ids)
@@ -235,7 +273,7 @@ def battery(p, weaker_source, off_road_labels):
     pairs_member('verified_halves', p.subset(verified))
     pairs_member('verified_federation', p.subset(federation))
     pairs_member('verified_road', p.subset(road))
-    pairs_member('other_marathons', p.subset(~np.isin(p.city, OTHER_THAN)))
+    pairs_member('other_marathons', p.subset(~np.isin(p.city, other_than(p))))
     pairs_member('ns_keys_1', p.subset(p.frame.ns_keys.to_numpy() == 1))
     pairs_member('one_per_person', latest_per_person(p))
 
@@ -328,11 +366,13 @@ def checks(p, weaker_source, off_road_labels):
             eds[key] = (quantile(p.extra[s], 0.5), (p.extra[s] < 0).mean())
     w = p.subset(in_window(p, CHECK_WINDOW))
     w_eds = [(w.m[w.ed == key] < CHECK_GOAL).mean() for key in sorted(set(w.ed.tolist())) if (w.ed == key).sum() >= EDITIONS_EQUAL[0]]
-    other = p.subset(~np.isin(p.city, OTHER_THAN))
+    without = other_than(p)
+    other = p.subset(~np.isin(p.city, without))
     ns1 = p.subset(p.frame.ns_keys.to_numpy() == 1)
     one = latest_per_person(p)
-    # People none of whose rows joined through one of the link build's unions (v4 applies its own middle-name and
-    # nationality unions; with runner links v1 this was `no_merge_people`, people in no candidate merge).
+    # People none of whose rows joined through one of the link build's middle-name or nationality unions (the two kinds
+    # of v4; with runner links v1 this was `no_merge_people`, people in no candidate merge). The v5.1 variant union is
+    # another kind: its rows never pair (half_pairs rule 2).
     no_union = p.subset(~p.frame.in_union.to_numpy(bool))
     vs = sexes(ver)
     return {
@@ -342,10 +382,13 @@ def checks(p, weaker_source, off_road_labels):
                            'extra_p50_s': sec(np.median([v[0] for v in eds.values()])),
                            'under_double': sh(np.median([v[1] for v in eds.values()])),
                            'w105_under_14400': sh(np.median(w_eds))},
-        'other_marathons': {'pairs': int(other.n), 'extra_p50_s': sec(quantile(other.extra, 0.5)), 'w105_under_14400': under_goal_at(other)},
+        'other_marathons': {'pairs': int(other.n), 'extra_p50_s': sec(quantile(other.extra, 0.5)), 'w105_under_14400': under_goal_at(other),
+                            'without': [{'city': city} for city in without]},
         'ns_keys_1': {'pairs': int(ns1.n), 'w105_under_14400': under_goal_at(ns1)},
         'one_per_person': {'pairs': int(one.n), 'w105_under_14400': under_goal_at(one)},
         'no_union_people': {'pairs': int(no_union.n), 'extra_p50_s': sec(quantile(no_union.extra, 0.5))},
+        # The flagship half as the page picks it: the 5-minute band nearest the published pooled median half (half up).
+        'high_links': high_links(p, int(np.floor(sec(quantile(p.h, 0.5)) / 300 + 0.5)) * 300),
         'battery': battery(p, weaker_source, off_road_labels),
     }
 

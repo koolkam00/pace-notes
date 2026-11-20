@@ -1,14 +1,13 @@
 import RacePlan, { type PlanCourse, type PlanExample } from '@/components/tools/RacePlan';
 import { EXAMPLE_PROFILE } from '@/lib/analysis-profile';
 import { ToolEnd, ToolHeader } from '@/components/tools/ToolShell';
-import { getCourseNames, slugifyCity } from '@/lib/course-data';
 import { getInsightsManifest, readInsight } from '@/lib/insights-server';
 import { pageMetadata } from '@/lib/seo';
-import type { CourseGoal, PaceBandIndex, ProjectorIndex, WeatherMatch } from '@/lib/tools/data';
-import { courseSlug } from '@/lib/tools/links';
+import type { CourseGoal, PaceBandIndex } from '@/lib/tools/data';
 import { PACE_BAND_INDEX } from '@/lib/tools/pace-band-data';
-import { COURSE_GOAL_FILE, goalShare, screenedReason } from '@/lib/tools/plan';
-import { TERRAIN_FILE, terrainProps, type TerrainIndex } from '@/lib/tools/terrain-data';
+import { COURSE_GOAL_FILE, goalShare } from '@/lib/tools/plan';
+import { TERRAIN_FILE, type TerrainIndex } from '@/lib/tools/terrain-data';
+import { optionalInsight, planCourses } from '@/lib/tools/plan-courses';
 
 export const metadata = pageMetadata({
   title: 'Marathon Race Planner: Goal Pace by Course | Pace Notes',
@@ -16,51 +15,8 @@ export const metadata = pageMetadata({
   path: '/tools/plan',
 });
 
-/** Read one optional insight file; null when it is not in this build or cannot be read. */
-function optional<T>(name: string): T | null {
-  try {
-    return getInsightsManifest().files[name] ? readInsight<T>(name) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** A set built from a reader that may fail at build time (the course pages); empty when it does. */
-function safeSet(read: () => string[]): Set<string> {
-  try {
-    return new Set(read());
-  } catch {
-    return new Set();
-  }
-}
-
-/**
- * The courses the planner offers, alphabetical: every course in the course-goal file, plus any whose editions were all
- * screened out (named with the reason). Each carries only its name, slug, which tools and pages publish it, read from
- * their own index files, so no link names a course its target does not have, and its terrain splits
- * (tools/course-terrain.json, without the route itself) or why it has none. Without the terrain file every course is at
- * even pace, with no line.
- */
-function planCourses(goal: CourseGoal | null, band: PaceBandIndex | null, terrainIndex: TerrainIndex | null): PlanCourse[] {
-  const projector = optional<ProjectorIndex>('tools/projector.json');
-  const weather = optional<WeatherMatch>('tools/weather-match.json');
-  const listed = new Set((goal?.courses ?? []).map((c) => c.city));
-  const cities = new Set([...listed, ...[...(goal?.screens?.start_offset ?? []), ...(goal?.screens?.grid ?? [])].map((e) => e.city),
-    ...(band?.scopes ?? []).flatMap((s) => (s.city ? [s.city] : []))]);
-  const bandSlugs = new Set((band?.scopes ?? []).map((s) => s.slug));
-  const { terrain, why } = terrainProps(terrainIndex);
-  const projectorSlugs = new Set((projector?.scopes ?? []).map((s) => s.slug));
-  const weatherSlugs = new Set((weather?.editions ?? []).map((e) => courseSlug(e.city)));
-  const pages = safeSet(() => getCourseNames().map(slugifyCity));
-  return [...cities].sort((a, b) => a.localeCompare(b)).map((city) => {
-    const slug = courseSlug(city);
-    return {
-      slug, city, screened: goal && !listed.has(city) ? screenedReason(city, goal.screens) : null,
-      band: bandSlugs.has(slug), projector: projectorSlugs.has(slug), weather: weatherSlugs.has(slug), page: pages.has(slug),
-      terrain: terrain[slug] ?? null, why: terrainIndex && !terrain[slug] ? why[slug] ?? 'profile' : null,
-    };
-  });
-}
+/** Read one optional insight file; null when it is not in this build or cannot be read (lib/tools/plan-courses.ts). */
+const optional = optionalInsight;
 
 /**
  * The example's lead (4:00 on every course), read here from the verified course-goal file the page loads in the browser,

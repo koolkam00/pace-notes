@@ -1,4 +1,5 @@
 import Arrow from '@/components/ui/Arrow';
+import ArrowTail from '@/components/ui/ArrowTail';
 import PageFeedback from '@/components/PageFeedback';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { ToolHandoffs } from '@/components/tools/Handoffs';
@@ -51,6 +52,8 @@ export default function HalfEnd() {
         { href: '/tools/half-marathon-pace-chart', title: 'Half marathon pace chart', text: `Every goal from ${goalLabel(HALF_CHART.goals[0])} to ${goalLabel(HALF_CHART.goals[HALF_CHART.goals.length - 1])}` },
         { href: `/tools/pace-calculator?d=half&t=${floorHM(median)}:00`, title: 'Pace calculator', text: 'Splits for any half time' },
       ]} />
+      {/* The way on to the race list: a pointer with no figure of its own. */}
+      <p className="story-way arrow-line">Every half marathon race, year by year: <Link href="/half/races"><ArrowTail text="Half marathon races" /></Link></p>
       <p className="chapter-end-links">
         <Link href="/research" className="chapter-prev"><Arrow dir="left" /><span><span className="sr-only">Back: </span>The race, start to finish</span></Link>
       </p>
