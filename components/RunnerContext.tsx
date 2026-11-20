@@ -108,7 +108,9 @@ export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace 
   // Each row names its section ("30–35K"), the words the section comparison beside it uses (round 6: "35K 1:17:09" and
   // "30–35K +35:44" named one stretch two ways on one screen).
   const rows = metrics.sections.map((section, i) => {
-    const vs = section.pace / metrics.baseline - 1;
+    // From the record's whole seconds where the verdict reads them, so the heading, the rows and the race report (built
+    // from the same whole seconds) print the same figure for one stretch (m3, November 20, 2026).
+    const vs = reading ? reading.vsBaseline[i] : section.pace / metrics.baseline - 1;
     return { mat: sectionLabel(section.start, section.end), split: split(section.elapsed), pace: paceLabel(section.pace, units), vs, lit: reading ? toneOf(reading, i) === 'qualify' : false, sr: `${sectionLabel(section.start, section.end)}: ${paceLabel(section.pace, units)}, ${sectionChange(vs, i)} against the 5–20K pace` };
   });
   const term = <UnitLink className="term-link" href="/methodology#sustained-slowdown">sustained slowdown</UnitLink>;
@@ -117,13 +119,13 @@ export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace 
     : verdict.slowdown ? <>A {term} {joinRanges(`from ${matLabel(verdict.onsetKm)}, ${verdict.off} off the 5–20K pace.`)}</>
       : verdict.worst ? <>No {term}: {joinRanges(`the slowest stretch after 20K, ${sectionLabel(metrics.sections[verdict.worst.index].start, metrics.sections[verdict.worst.index].end)}, ran ${verdict.worst.off} off the 5–20K pace.`)}</>
         : <>No {term}: {joinRanges('every stretch after 20K held the 5–20K pace or better.')}</>;
-  const opening = metrics.openingChange / 100;
+  const opening = reading ? reading.opening : metrics.openingChange / 100;
   return <section className="rc-view" aria-labelledby={`${id}-title`}>
     {/* The race's voice, as the report beside it speaks: a name search can find a namesake's record. */}
     <h3 id={`${id}-title`} className="rc-h">{heading}</h3>
     {/* The first 5K only where it parted from the early pace by 1% or more: a smaller difference says nothing. In the
         report's words and precision ("5.3% quicker"), so the two never disagree. */}
-    {Math.abs(metrics.openingChange) >= 1 ? <p className="rc-copy">The first 5K was {openingPct(opening)} {opening < 0 ? 'quicker' : 'slower'} than the {joinRanges('5–20K')} pace.</p> : null}
+    {Math.abs(opening) >= 0.01 ? <p className="rc-copy">The first 5K was {openingPct(opening)} {opening < 0 ? 'quicker' : 'slower'} than the {joinRanges('5–20K')} pace.</p> : null}
     <LapList by="section" rows={rows} baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace${verdict?.slowdown ? `; a sustained slowdown from ${matLabel(verdict.onsetKm)}` : ''}`}
       caption={verdict?.slowdown ? 'Highlighted: the sustained slowdown.' : undefined} />
     <details className="values rc-details"><summary><span>Checkpoint readings</span><span className="values-glyph" aria-hidden="true" /></summary>
