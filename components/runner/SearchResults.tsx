@@ -3,7 +3,7 @@ import Arrow from '@/components/ui/Arrow';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import { POSSIBLE_MATCH, inline, possibleMatchCount } from '@/lib/tiers';
 import { displayName, type RunnerManifest, type RunnerMatch, type RunnerSearchResult } from '@/lib/runner-search';
-import { distanceWords, editionLabel } from './records';
+import { distanceWords, editionLabel, editionRace } from './records';
 
 // What a name search lists on /runners (lookup version 2, split out of components/RunnerSearch.tsx): one row per
 // profile and recorded spelling, and the states of a search that cannot list everything at once. A search runs on whole
@@ -18,10 +18,33 @@ export const matchKey = (row: RunnerMatch): string => `${row.shard}:${row.positi
 /** A row's name, its country code quiet after it ("Brian Suozzo · USA"). */
 export const shownName = (name: string): ReactNode => { const [person, country] = displayName(name).split(' · '); return country ? <>{person}<span className="runner-country"> · {country}</span></> : person; };
 const span = (row: RunnerMatch) => row.firstYear === row.lastYear ? String(row.firstYear) : `${row.firstYear}–${row.lastYear}`;
+type Editions = Pick<RunnerManifest, 'editions'>['editions'];
+/** A race as a row names it: its label as a one-result row prints it, a half marathon said as one where the label does not say it. */
+const raceName = (edition: Editions[number]) => {
+  const label = editionRace(edition);
+  return edition.distance === 'half' && !/\bhalf\b/i.test(label) ? [label, ' half marathon'] : [label, ''];
+};
+/**
+ * The first and the latest race of the results a row describes (index columns f and l, ordered by year only: first the
+ * least year, the latest the greatest; within one year by edition index). Years that differ: "Berlin 2006 to Chicago
+ * 2021", or one race named once, "Honolulu 2023 to 2024"; one year, two races: "Berlin and Berlin half marathon, 2019"; one race: "Berlin 2021". Without the columns, the
+ * bare years.
+ */
+export function racesLine(row: RunnerMatch, editions: Editions): string {
+  const first = row.firstEdition === null ? undefined : editions[row.firstEdition], latest = row.latestEdition === null ? undefined : editions[row.latestEdition];
+  if (!first || !latest) return span(row);
+  const [a, aHalf] = raceName(first), [b, bHalf] = raceName(latest);
+  if (first.index === latest.index) return `${a} ${first.year}${aHalf}`;
+  if (first.year === latest.year) return `${a}${aHalf} and ${b}${bHalf}, ${first.year}`;
+  // One race in two years is named once: "Honolulu 2023 to 2024" (a marathon and a half of one label are two races).
+  if (a === b && first.distance === latest.distance) return `${a} ${first.year} to ${latest.year}${aHalf}`;
+  return `${a} ${first.year}${aHalf} to ${b} ${latest.year}${bHalf}`;
+}
 
 /**
  * A row as a runner recognizes it. One result reads as its race and distance ("Chicago 2019 · marathon"); several read
- * by their counts, each distance on its own, and their span ("3 marathons · 2 half marathons · 2011–2025"), with the
+ * by their counts, each distance on its own, and their first and latest race ("3 marathons · 2 half marathons · Berlin
+ * 2011 to Chicago 2025", racesLine), with the
  * possible matches counted apart. A spelling that occurs only on possible matches says so, and a group with no result
  * of its own is "results that may belong together": a possible match is never presented as the runner's.
  */
@@ -30,10 +53,11 @@ export function matchLine(row: RunnerMatch, manifest: Pick<RunnerManifest, 'edit
     const edition = manifest.editions[row.edition];
     return `${editionLabel(edition)} · ${distanceWords(edition.distance)}${row.onlyPossible ? ` · ${inline(POSSIBLE_MATCH)}` : ''}`;
   }
-  if (row.onlyPossible) return `${possibleMatchCount(row.possible, count)} · ${span(row)}`;
-  if (row.marathons + row.halves === 0) return `${count(row.possible)} results that may belong together · ${span(row)}`;
+  const races = racesLine(row, manifest.editions);
+  if (row.onlyPossible) return `${possibleMatchCount(row.possible, count)} · ${races}`;
+  if (row.marathons + row.halves === 0) return `${count(row.possible)} results that may belong together · ${races}`;
   return [row.marathons ? `${count(row.marathons)} ${distanceWords('marathon', row.marathons)}` : null, row.halves ? `${count(row.halves)} ${distanceWords('half', row.halves)}` : null,
-    span(row), row.possible ? possibleMatchCount(row.possible, count) : null].filter(Boolean).join(' · ');
+    races, row.possible ? possibleMatchCount(row.possible, count) : null].filter(Boolean).join(' · ');
 }
 
 /**

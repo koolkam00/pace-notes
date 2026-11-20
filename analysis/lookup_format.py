@@ -259,11 +259,11 @@ def decode_editions(data):
 # The name index
 # ---------------------------------------------------------------------------------------------------------------
 
-LEAF_COLUMNS = ('n', 'b', 'o', 'e', 'y', 's', 'm', 'h', 'q', 'p')
+LEAF_COLUMNS = ('n', 'b', 'o', 'e', 'y', 's', 'm', 'h', 'q', 'p', 'f', 'l')
 
 
 def leaf_body(rows):
-    """`rows`: postings (word, partner, shown, shard, position, e, y, s, m, h, q, p) in order."""
+    """`rows`: postings (word, partner, shown, shard, position, e, y, s, m, h, q, p, f, l) in order."""
     body = {'v': SCHEMA_VERSION}
     for at, column in enumerate(LEAF_COLUMNS):
         body[column] = [row[at + 2] for row in rows]

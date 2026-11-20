@@ -21,6 +21,8 @@ queries written apart from the builder's:
    greater than zero must be shown as no finish; those results are counted under their own reason
    (`finish_text_not_a_time` in the receipt) and the count must equal the manifest's `finish_unread`.
 3. Profiles: two results share a profile exactly when they share a person id.
+4. The index columns f and l: on every row of the leaves, the edition of the first and of the latest result the row
+   describes, recounted from the release's years and link tiers (audit_first_latest states the rule).
 
 It stops at the first kind of difference and prints examples by record id only, never a name.
 
@@ -206,6 +208,84 @@ def load_build(db, build):
     return manifest, editions
 
 
+def load_index(db, build, manifest):
+    """TABLE got_rows: every row of the build's index leaves once, as (p, e, f, l, pf, n): the profile as one number, the
+    row's own edition, first and latest edition and possible-match mark, and its shown name where the mark is set (a
+    row of the mark describes its spelling's results only; every other row describes its whole profile)."""
+    import pandas
+
+    root = build / 'runners'
+    db.execute('CREATE TABLE got_rows (p BIGINT, e INTEGER, f INTEGER, l INTEGER, pf INTEGER, n VARCHAR)')
+    pending, seen = [], 0
+    for number in range(manifest['index']['leaves']):
+        page = fmt.read_gz(root / fmt.index_page_path(number // fmt.PAGE_SIZE)) if number % fmt.PAGE_SIZE == 0 else page
+        data = fmt.read_gz(root / fmt.leaf_path(number))
+        for column in ('b', 'o', 'e', 'f', 'l', 'p'):
+            if len(data.get(column, ())) != len(data['n']):
+                raise AuditError(f'index leaf {number}: the column {column} is missing or of another length')
+        pending.extend({(data['b'][at] * 1048576 + data['o'][at], data['e'][at], data['f'][at], data['l'][at], data['p'][at],
+                         data['n'][at] if data['p'][at] == 1 else '') for at in range(len(data['n']))})
+        seen += len(data['n'])
+        if len(pending) >= 400000 or number + 1 == manifest['index']['leaves']:
+            frame = pandas.DataFrame(pending, columns=['p', 'e', 'f', 'l', 'pf', 'n'])  # noqa: F841 (DuckDB reads it by name)
+            db.execute('INSERT INTO got_rows SELECT * FROM frame')
+            pending.clear()
+    db.execute('CREATE TABLE got_rows_once AS SELECT DISTINCT * FROM got_rows')
+    db.execute('DROP TABLE got_rows')
+    db.execute('ALTER TABLE got_rows_once RENAME TO got_rows')
+    return seen
+
+
+def audit_first_latest(db):
+    """Index columns f and l, recounted from the release's rows (year, link tier) and the shards' editions and profiles:
+    the results a row describes are its profile's confirmed results when it has any, else all its results; a row of the
+    possible-match mark describes its spelling's results. First = the least year, then the least edition index; latest =
+    the greatest year, then the greatest edition index; both -1 on a row of one result (e set)."""
+    import pandas
+    from lookup_names import search_key as words_of
+
+    facts = {}
+    bad = db.execute('SELECT count(*) FROM got_rows WHERE e>=0 AND (f<>-1 OR l<>-1)').fetchone()[0]
+    if bad:
+        raise AuditError(f'{bad} index rows of one result carry a first or latest race')
+    # the results of each profile, with the release's year and link tier
+    db.execute("""CREATE TABLE want_rows AS SELECT g.p, g.e, w.year::INTEGER AS year, w.c IN ('1', '2', '3') AS confirmed, g.k
+        FROM (SELECT k, year, c FROM want WHERE kind='result') w JOIN (SELECT k, p, e FROM got) g ON g.k=w.k""")
+    db.execute("""CREATE TABLE want_first_latest AS SELECT p, bool_or(confirmed) AS any_confirmed,
+          arg_min(e, struct_pack(y := year, e := e)) AS all_first, arg_max(e, struct_pack(y := year, e := e)) AS all_latest,
+          arg_min(e, struct_pack(y := year, e := e)) FILTER (WHERE confirmed) AS confirmed_first,
+          arg_max(e, struct_pack(y := year, e := e)) FILTER (WHERE confirmed) AS confirmed_latest
+        FROM want_rows GROUP BY p""")
+    rows = db.execute("""SELECT r.p, r.f, r.l, w.any_confirmed, w.all_first, w.all_latest, w.confirmed_first, w.confirmed_latest
+        FROM (SELECT * FROM got_rows WHERE e<0 AND pf=0) r LEFT JOIN want_first_latest w ON w.p=r.p
+        WHERE w.p IS NULL OR r.f IS DISTINCT FROM CASE WHEN w.any_confirmed THEN w.confirmed_first ELSE w.all_first END
+           OR r.l IS DISTINCT FROM CASE WHEN w.any_confirmed THEN w.confirmed_latest ELSE w.all_latest END LIMIT 20""").fetchall()
+    if rows:
+        raise AuditError(f'index rows name another first or latest race of their profile: {len(rows)} shown, for example profiles {[row[0] for row in rows[:5]]}')
+    facts['profile_rows'] = db.execute('SELECT count(*) FROM got_rows WHERE e<0 AND pf=0').fetchone()[0]
+    # rows of the possible-match mark: the spelling's results, found by the search words of each result's recorded name
+    marked = db.execute('SELECT DISTINCT p, n FROM got_rows WHERE pf=1').fetchall()
+    frame = pandas.DataFrame([(p, n, words_of(n)) for p, n in marked], columns=['p', 'n', 'skey'])  # noqa: F841
+    db.execute('CREATE TABLE want_marked AS SELECT p::BIGINT AS p, n::VARCHAR AS n, skey::VARCHAR AS skey FROM frame')
+    names = db.execute('SELECT g.k, g.name FROM (SELECT k, p, name FROM got) g SEMI JOIN (SELECT DISTINCT p FROM want_marked) m ON m.p=g.p').fetchall()
+    frame = pandas.DataFrame([(k, words_of(name)) for k, name in names], columns=['k', 'skey'])  # noqa: F841
+    db.execute('CREATE TABLE want_marked_keys AS SELECT k::BIGINT AS k, skey::VARCHAR AS skey FROM frame')
+    del frame, names
+    rows = db.execute("""WITH s AS (SELECT r.p, k.skey, count(*) AS n, count(*) FILTER (WHERE r.confirmed) AS nc,
+            arg_min(r.e, struct_pack(y := r.year, e := r.e)) AS first, arg_max(r.e, struct_pack(y := r.year, e := r.e)) AS latest
+          FROM want_rows r JOIN want_marked_keys k ON k.k=r.k GROUP BY ALL)
+        SELECT m.p, g.f, g.l, s.first, s.latest FROM want_marked m JOIN got_rows g ON g.p=m.p AND g.n=m.n AND g.pf=1
+          LEFT JOIN s ON s.p=m.p AND s.skey=m.skey LEFT JOIN want_first_latest w ON w.p=m.p
+        WHERE s.p IS NULL OR s.nc>0 OR NOT w.any_confirmed OR (g.e<0 AND (g.f IS DISTINCT FROM s.first OR g.l IS DISTINCT FROM s.latest)) LIMIT 20""").fetchall()
+    if rows:
+        raise AuditError(f'possible-match rows name another first or latest race of their spelling: {len(rows)} shown, for example profiles {[row[0] for row in rows[:5]]}')
+    facts['marked_rows'] = len(marked)
+    facts['one_race_rows'] = db.execute('SELECT count(*) FROM (SELECT DISTINCT p, f, l FROM got_rows WHERE e<0 AND f=l)').fetchone()[0]
+    for table in ('want_rows', 'want_first_latest', 'want_marked', 'want_marked_keys'):
+        db.execute(f'DROP TABLE {table}')
+    return facts
+
+
 def audit(db, core, manifest, registry_path, half_registry_path=None, half_policy_path=None, timing_path=HERE / 'lookup-timing.json'):
     """Compare `got` with `want`. Returns the facts checked; raises AuditError on the first kind of difference.
     Every join is on the one-number key and hashes a few columns of one table (as written: the right side)."""
@@ -354,13 +434,16 @@ def main(argv=None):
         if args.build:
             manifest, _ = load_build(db, args.build)
             facts = audit(db, args.core, manifest, args.registry, args.half_registry, args.half_policy)
+            postings = load_index(db, args.build, manifest)
+            facts['first_latest'] = {'postings': postings, **audit_first_latest(db)}
             facts.update(manifest_sha256=digest(args.build / 'runners/manifest.json'), seconds=round(time.monotonic() - started),
                          peak_temp_mb=watch.peak >> 20, peak_rss_mb=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024)
             if args.receipt:
                 args.receipt.write_text(json.dumps(facts, indent=1) + '\n')
             watch.size()
             print(f"Audited {facts['results']:,} results against the release and the pipeline's files: every listed row once with its own values, "
-                  f"no row that must not appear, every count as the manifest states. {facts['seconds']} s; temporary folder peak {watch.peak >> 20:,} MB; "
+                  f"no row that must not appear, every count as the manifest states; the first and latest race of every index row "
+                  f"({facts['first_latest']['postings']:,} postings). {facts['seconds']} s; temporary folder peak {watch.peak >> 20:,} MB; "
                   f"peak memory {facts['peak_rss_mb']:,} MB.")
     except AuditError as error:
         print(f'lookup_audit: {error}', file=sys.stderr)

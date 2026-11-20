@@ -177,7 +177,11 @@ async function using(h) {
   await page.waitForTimeout(500);
   await page.goto(SITE + '/runners', { waitUntil: 'load' });
   await page.waitForSelector('#runner-name:not([disabled])', { timeout: 30000 });
-  await page.locator('#runner-name').pressSequentially('Johnson', { delay: 15 });
+  // November 20, 2026: a two-word name, so the search lists whole-word matches at once. The one common surname typed
+  // here before lists no name recorded under that word alone, and since the index leaves gained each row's first and
+  // latest race its names that start with the word plan 335 KB, past the 300 KB loaded unasked, so the page now asks
+  // for a press and the search completes with no match listed. The checks below are unchanged.
+  await page.locator('#runner-name').pressSequentially('John Smith', { delay: 15 });
   await page.click('button[type="submit"]');
   await page.waitForSelector('.runner-matches li', { timeout: 30000 });
   await page.locator('#runner-name').fill('');
@@ -200,7 +204,7 @@ async function using(h) {
   await run.close();
 
   // The broken image is the test's own element, so a recording may show it; no event may name it.
-  run.options.needles = ['3:17:43', '3:16:41', 'Johnson', 'Qzxqzxq', { needle: 'no-such-image', allowAt: IN_RECORDING }];
+  run.options.needles = ['3:17:43', '3:16:41', 'John Smith', 'Qzxqzxq', { needle: 'no-such-image', allowAt: IN_RECORDING }];
   const first = named(run, '$pageview')[0];
   h.check('no campaign tags when one tag is not on the list', first && !Object.keys(first).some(k => k.startsWith('utm_')), first && shown([first]));
   const tool = named(run, 'tool_used');

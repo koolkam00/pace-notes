@@ -111,6 +111,7 @@ TIME = '[0-9]+:[0-5][0-9]:[0-5][0-9]'
 TEMP_LIMIT_GB = 4.0      # a build stops when its temporary folder passes this; the measured peak is in docs/RUNNERS_AND_REPORT.md
 SHARD_RANGE = 256        # profile shards per ordered read (about a million results: sorted in memory)
 POSTING_RANGES = 24      # word ranges the postings are read in (under a million and a half rows each)
+EDITION_KEY = 1000000     # year * EDITION_KEY + edition index orders results by year, then edition index (fewer editions than this)
 MARATHON_SPLITS = ['split_5km', 'split_10km', 'split_15km', 'split_20km', 'split_25km', 'split_30km', 'split_35km', 'split_40km']
 RULES = {
     'normalization': NORMALIZATION,
@@ -140,6 +141,10 @@ RULES = {
     'no_comparison': NO_COMPARISON,
     'sex': 'the published sex (M, F, X), or the published category’s when that is blank; - when neither; never from a name',
     'age': 'the recorded age as a whole number; -1 when none was recorded or the release flags it as implausible',
+    'first_latest': ('index columns f and l of a row that describes several results: the edition index of the first and of the latest of the '
+                     'results the row describes (the set y and s are counted over); first = the least year, and among several results of that '
+                     'year the least edition index; latest = the greatest year, and among several of that year the greatest edition index; '
+                     'both -1 when e is set'),
     'times': ('whole units of time_unit_ms; a checkpoint whose text is not a time is not recorded, and neither is a finish whose text is not '
               'a time greater than zero (the result is listed with no finish time); a gap is the time from the previous recorded '
               'checkpoint, or from the start'),
@@ -877,6 +882,8 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     body = editions_body(races, editions, reasons)
     editions_bytes, editions_sha = write_gz(output / 'editions.json.gz', body)
     editions_raw = hashlib.sha256(body).hexdigest()
+    if len(editions) >= EDITION_KEY:
+        fail(f'{len(editions)} editions: the order of a row’s first and latest result needs a larger EDITION_KEY')
     step('editions written', editions=len(editions), races=len(races), bytes=editions_bytes)
 
     # ---- results with their edition, profile and shard
@@ -917,7 +924,10 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     db.execute(f"""CREATE TABLE prof AS WITH g AS (SELECT pk, min(shard) AS shard, bool_or(linked) AS linked, count(*)::INTEGER AS n,
           (count(*) FILTER (WHERE c IN ('1', '2', '3') AND NOT h))::INTEGER AS cm, (count(*) FILTER (WHERE c IN ('1', '2', '3') AND h))::INTEGER AS ch,
           min(year) AS y0, max(year) AS y1, min(year) FILTER (WHERE c IN ('1', '2', '3')) AS cy0, max(year) FILTER (WHERE c IN ('1', '2', '3')) AS cy1,
-          min(e) AS e1, min(dbh::INTEGER) AS d0, min(id) AS id0 FROM res GROUP BY pk)
+          min(e) AS e1, min(dbh::INTEGER) AS d0, min(id) AS id0,
+          min(year::BIGINT*{EDITION_KEY} + e) AS af, max(year::BIGINT*{EDITION_KEY} + e) AS al,
+          min(year::BIGINT*{EDITION_KEY} + e) FILTER (WHERE c IN ('1', '2', '3')) AS cf, max(year::BIGINT*{EDITION_KEY} + e) FILTER (WHERE c IN ('1', '2', '3')) AS cl
+          FROM res GROUP BY pk)
         SELECT *, (row_number() OVER (PARTITION BY shard ORDER BY NOT linked, CASE WHEN linked THEN pk END, d0, id0) - 1)::INTEGER AS pos FROM g""")
     profiles = db.execute('SELECT count(*) FROM prof').fetchone()[0]
     loose = db.execute("SELECT count(*) FROM prof WHERE NOT linked AND n<>1").fetchone()[0]
@@ -1035,20 +1045,23 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     step('profile shards written', bytes=shard_bytes, largest=max(entry[2] for entry in shard_entries))
 
     # ---- search names and postings
-    db.execute("""CREATE TABLE srows AS WITH sn AS (SELECT pk, skey,
+    db.execute(f"""CREATE TABLE srows AS WITH sn AS (SELECT pk, skey,
           arg_min(name, ((9999 - year)::BIGINT*2 + h::INTEGER)*100000000000 + id*2 + dbh::INTEGER) AS shown,
           count(*)::INTEGER AS ns, (count(*) FILTER (WHERE c IN ('1', '2', '3')))::INTEGER AS ncs,
-          min(year) AS y0s, max(year) AS y1s, min(e) AS e1s FROM res GROUP BY pk, skey),
+          min(year) AS y0s, max(year) AS y1s, min(e) AS e1s,
+          min(year::BIGINT*{EDITION_KEY} + e) AS sf, max(year::BIGINT*{EDITION_KEY} + e) AS sl FROM res GROUP BY pk, skey),
         snr AS (SELECT s.skey, s.shown, p.shard, p.pos,
           CASE WHEN p.cm + p.ch>0 AND s.ncs=0 THEN 1 ELSE 0 END AS pf,
           CASE WHEN p.cm + p.ch>0 AND s.ncs=0 THEN s.ns=1 ELSE p.n=1 END AS one,
-          s.ns, s.y0s, s.y1s, s.e1s, p.n, p.cm, p.ch, p.y0, p.y1, p.cy0, p.cy1, p.e1 FROM sn s JOIN prof p USING (pk))
+          s.ns, s.y0s, s.y1s, s.e1s, s.sf, s.sl, p.n, p.cm, p.ch, p.y0, p.y1, p.cy0, p.cy1, p.e1, p.af, p.al, p.cf, p.cl FROM sn s JOIN prof p USING (pk))
         SELECT skey, shown, shard, pos,
           CASE WHEN NOT one THEN -1 WHEN pf=1 THEN e1s ELSE e1 END AS e,
           CASE WHEN one THEN 0 WHEN pf=1 THEN y0s WHEN cm + ch>0 THEN cy0 ELSE y0 END AS y,
           CASE WHEN one THEN 0 WHEN pf=1 THEN y1s - y0s WHEN cm + ch>0 THEN cy1 - cy0 ELSE y1 - y0 END AS s,
           CASE WHEN one OR pf=1 THEN 0 ELSE cm END AS m, CASE WHEN one OR pf=1 THEN 0 ELSE ch END AS hh,
-          CASE WHEN one THEN 0 WHEN pf=1 THEN ns ELSE n - cm - ch END AS q, pf FROM snr""")
+          CASE WHEN one THEN 0 WHEN pf=1 THEN ns ELSE n - cm - ch END AS q, pf,
+          (CASE WHEN one THEN -1 WHEN pf=1 THEN sf % {EDITION_KEY} WHEN cm + ch>0 THEN cf % {EDITION_KEY} ELSE af % {EDITION_KEY} END)::INTEGER AS fe,
+          (CASE WHEN one THEN -1 WHEN pf=1 THEN sl % {EDITION_KEY} WHEN cm + ch>0 THEN cl % {EDITION_KEY} ELSE al % {EDITION_KEY} END)::INTEGER AS le FROM snr""")
     for table in ('res', 'prof'):
         db.execute(f'DROP TABLE {table}')
     db.execute('CHECKPOINT')
@@ -1059,9 +1072,9 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
     word_count = db.execute('SELECT count(*) FROM words').fetchone()[0]
     # Every posting, written once and then read one range of words at a time: each read sorts in memory.
     db.execute("""CREATE TABLE post AS WITH u AS (SELECT r.*, string_split(skey, ' ') AS ws FROM srows r), v AS (SELECT u.*, unnest(ws) AS w FROM u),
-        light AS (SELECT w, '' AS o, shown, shard, pos, e, y, s, m, hh, q, pf FROM v ANTI JOIN heavy USING (w)),
+        light AS (SELECT w, '' AS o, shown, shard, pos, e, y, s, m, hh, q, pf, fe, le FROM v ANTI JOIN heavy USING (w)),
         hv AS (SELECT w, unnest(CASE WHEN len(ws)=1 THEN [''] ELSE list_filter(ws, lambda other: other<>w) END) AS o,
-                      shown, shard, pos, e, y, s, m, hh, q, pf FROM v SEMI JOIN heavy USING (w))
+                      shown, shard, pos, e, y, s, m, hh, q, pf, fe, le FROM v SEMI JOIN heavy USING (w))
         SELECT * FROM light UNION ALL SELECT * FROM hv""")
     for table in ('srows', 'words'):
         db.execute(f'DROP TABLE {table}')
@@ -1092,7 +1105,7 @@ def _build(db, pin, core, links, status_path, identity_path, output, temp, input
         if _WATCH is not None:
             _WATCH.check()
         last = at + 1 == len(starts)
-        cursor = db.execute(f"""SELECT w, o, shown, shard, pos, e, y, s, m, hh, q, pf FROM post WHERE w>=? {'' if last else 'AND w<?'}
+        cursor = db.execute(f"""SELECT w, o, shown, shard, pos, e, y, s, m, hh, q, pf, fe, le FROM post WHERE w>=? {'' if last else 'AND w<?'}
             ORDER BY w, o, shown, shard, pos""", [low] if last else [low, starts[at + 1]])
         while batch := cursor.fetchmany(100000):
             for row in batch:

@@ -255,7 +255,7 @@ function decodeEditions(data) {
   return out;
 }
 
-const LEAF_COLUMNS = ['n', 'b', 'o', 'e', 'y', 's', 'm', 'h', 'q', 'p'];
+const LEAF_COLUMNS = ['n', 'b', 'o', 'e', 'y', 's', 'm', 'h', 'q', 'p', 'f', 'l'];
 
 /** An index leaf as rows: the shown name, the profile pointer and what the row describes. */
 function decodeLeaf(data) {
@@ -268,6 +268,7 @@ function decodeLeaf(data) {
       name: data.n[at], shard: data.b[at], position: data.o[at], edition: data.e[at] < 0 ? null : data.e[at],
       firstYear: data.y[at], lastYear: data.y[at] + data.s[at], marathons: data.m[at], halves: data.h[at],
       possible: data.q[at], onlyPossible: data.p[at] === 1,
+      firstEdition: data.f[at] < 0 ? null : data.f[at], latestEdition: data.l[at] < 0 ? null : data.l[at],
     };
   }
   return out;

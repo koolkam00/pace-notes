@@ -199,9 +199,11 @@ class Release:
         return self.write_identity(self.root / f'identity-{name}.parquet', rows)
 
 
-def small_release(root, set_aside=False):
+def small_release(root, set_aside=False, first_latest=False):
     """Two marathon races and three half races; the rows each test names are numbered below 100, the crowd above.
-    With `set_aside`, a third marathon race of one edition that the race notes set aside (rows 91 and 92)."""
+    With `set_aside`, a third marathon race of one edition that the race notes set aside (rows 91 and 92). With
+    `first_latest`, person 4 (rows 81 to 85): one confirmed marathon, and a spelling recorded only on three possible
+    matches, two of them in one year."""
     release = Release(root)
     release.edition('marathon', 'full', 'Berlin', 2019)
     release.edition('marathon', 'full', 'Berlin', 2021, timing='chip where published, else gun')
@@ -246,6 +248,11 @@ def small_release(root, set_aside=False):
     release.add('half', 'half', 58, 'Berlin', 2019, '***', half_times(6100))
     release.add('half', 'half', 59, 'Berlin', 2019, None, half_times(6200))
     release.add('half', 'half', 60, 'Berlin', 2019, '(USA)', half_times(6300, {5: '-0:01:00'}))
+    if first_latest:
+        release.add('marathon', 'full', 81, 'Berlin', 2021, 'Kai Moss', marathon_times(290), sex='M', age=40, person=4, tier='high')
+        release.add('marathon', 'full', 82, 'Berlin', 2019, 'K. Moss', marathon_times(295), sex='M', age=38, person=4, tier='low')
+        release.add('half', 'half', 83, 'Berlin', 2019, 'K. Moss', half_times(5500), sex='M', age=38, person=4, tier='low')
+        release.add('half', 'half', 84, 'Drammen Half', 2017, 'K. Moss', half_times(5600), sex='M', person=4, tier='low', short=True)
     # The crowd: "smith" and "van" are heavy words (more than four search names), "van der" one large group.
     record_id = 100
     for at, first in enumerate(['Ada', 'Bea', 'Cy', 'Di', 'Ed', 'Flo']):
@@ -422,6 +429,32 @@ class Races(unittest.TestCase):
         self.assertEqual(both[(True, 'XACT: Night Half')], ('Night Half', 'Night Half'))
 
 
+class FirstAndLatest(unittest.TestCase):
+    """The index columns f and l on a release with person 4: a spelling recorded only on possible matches (a `p` row of
+    three results, two of them in one year) beside one confirmed marathon."""
+
+    def test_a_possible_match_spelling_and_one_confirmed_result(self):
+        with tempfile.TemporaryDirectory() as temp:
+            release = small_release(Path(temp) / 'release', first_latest=True)
+            output = Path(temp) / 'a' / 'runners'
+            release.build(output)
+            manifest, editions, shards, leaves, entries = read_build(output)
+        at = {(e['distance'], e['city'], e['year']): e['index'] for e in editions}
+        rows = {}
+        for leaf in leaves:
+            for row in leaf:
+                rows.setdefault(row['n'], row)
+        moss = rows['K. Moss']
+        self.assertEqual({key: moss[key] for key in 'eysmhqp'}, {'e': -1, 'y': 2017, 's': 2, 'm': 0, 'h': 0, 'q': 3, 'p': 1})
+        # the spelling's results only: Drammen 2017 first; of the two 2019 results the greater edition index (the half) latest
+        self.assertEqual((moss['f'], moss['l']), (at['half', 'Drammen Half', 2017], at['half', 'Berlin', 2019]))
+        self.assertGreater(at['half', 'Berlin', 2019], at['marathon', 'Berlin', 2019])
+        # the profile's row: its one confirmed result, so first and latest are one race
+        kai = rows['Kai Moss']
+        self.assertEqual({key: kai[key] for key in 'eysmhqp'}, {'e': -1, 'y': 2021, 's': 0, 'm': 1, 'h': 0, 'q': 3, 'p': 0})
+        self.assertEqual((kai['f'], kai['l']), (at['marathon', 'Berlin', 2021],) * 2)
+
+
 class Build(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -582,6 +615,37 @@ class Build(unittest.TestCase):
         self.assertEqual((editions[single['e']]['city'], single['y'], single['q'], single['p']), ('Lake City Half Marathon', 0, 0, 0))
         self.assertEqual({key: rows['Smith, Ada'][key] for key in 'eysmhq'}, {'e': -1, 'y': 2019, 's': 2, 'm': 2, 'h': 0, 'q': 0})   # the latest spelling is shown
         self.assertNotIn('Ada Smith', rows)
+
+    def test_first_and_latest_race_of_a_row(self):
+        manifest, editions, shards, leaves, entries = self.read
+        at = {(e['distance'], e['city'], e['year']): e['index'] for e in editions}
+        rows = {}
+        for leaf in leaves:
+            for row in leaf:
+                rows.setdefault(row['n'], row)
+        fl = lambda name: (rows[name]['f'], rows[name]['l'])
+        # years differ: Berlin 2019 to Berlin 2021
+        self.assertEqual(fl('Smith, Ada'), (at['marathon', 'Berlin', 2019], at['marathon', 'Berlin', 2021]))
+        # a marathon and a half in one year, of a profile with confirmed results and a possible match: the confirmed only,
+        # the least edition index first and the greatest last
+        self.assertEqual(fl('Lee, José (ESP)'), (at['marathon', 'Berlin', 2019], at['half', 'Berlin', 2019]))
+        self.assertLess(*fl('Lee, José (ESP)'))
+        # a profile with no confirmed result: all its results, and the year orders before the edition index
+        self.assertEqual(fl('Anna Żółć'), (at['marathon', 'Berlin', 2019], at['marathon', 'Berlin', 2021]))
+        self.assertEqual(fl('Bo Åkesson'), (at['half', 'Drammen Half', 2017], at['marathon', 'Berlin', 2019]))
+        self.assertGreater(*fl('Bo Åkesson'))
+        # a row of one result reads as its race: no first or latest
+        for name in ('J. Lee', '李 伟', 'Æsa Þórsdóttir'):
+            self.assertGreaterEqual(rows[name]['e'], 0)
+            self.assertEqual(fl(name), (-1, -1))
+        # every posting: -1 exactly when e is set, an edition index otherwise
+        for leaf in leaves:
+            for row in leaf:
+                if row['e'] >= 0:
+                    self.assertEqual((row['f'], row['l']), (-1, -1))
+                else:
+                    self.assertTrue(0 <= row['f'] < len(editions) and 0 <= row['l'] < len(editions))
+                    self.assertEqual((editions[row['f']]['year'], editions[row['l']]['year']), (row['y'], row['y'] + row['s']))
 
     def test_the_chain_and_the_manifest(self):
         manifest, editions, shards, leaves, entries = self.read

@@ -23,7 +23,8 @@
 //   5. Index, rebuilt: from the profile shards alone it forms every posting the rules require (search words by this
 //      file's own JavaScript normalisation, so the Python builder and the browser agree on every name), assigns each
 //      to its leaf by the directory, and compares count and two 256-bit accumulators per leaf with the leaf's rows;
-//      rows in order; every directory key recomputed; a light word in one leaf; the heavy list recounted.
+//      rows in order; every directory key recomputed; a light word in one leaf; the heavy list recounted. Each row's
+//      first and latest race (f, l) is part of the posting, recounted from the profile's results by `meet` below.
 //   6. Limits: rows and distinct profiles per leaf (the privacy floors), bytes per leaf and shard, the whole build.
 //   7. Search, with scripts/lib/lookup.cjs (the planner the browser client ports): EVERY search name typed in full
 //      is found by its stage-1 plan, none needs more than 1 MB and at least 99.9% need at most 300 KB; a set of
@@ -121,7 +122,15 @@ class Accumulators {
   }
 }
 
-const postingText = (word, partner, name, shard, position, e, y, s, m, h, q, p) => JSON.stringify([word, partner, name, shard, position, e, y, s, m, h, q, p]);
+const postingText = (word, partner, name, shard, position, e, y, s, m, h, q, p, f, l) => JSON.stringify([word, partner, name, shard, position, e, y, s, m, h, q, p, f, l]);
+// The first and the latest of a set of results (index columns f and l), kept as [year, edition]: first = the least year,
+// and among several results of that year the least edition index; latest = the greatest year, and among several of
+// that year the greatest edition index. Written apart from the builder, which orders one number per result.
+const ends = () => ({ first: null, latest: null });
+function meet(range, year, edition) {
+  if (range.first === null || year < range.first[0] || (year === range.first[0] && edition < range.first[1])) range.first = [year, edition];
+  if (range.latest === null || year > range.latest[0] || (year === range.latest[0] && edition > range.latest[1])) range.latest = [year, edition];
+}
 const keyCompare = (w1, o1, w2, o2) => cmp(w1, w2) || cmp(o1, o2);
 const sortedKeys = object => Object.fromEntries(Object.keys(object).sort().map(key => [key, object[key]]));
 const bitCount = mask => { let n = 0; for (let rest = mask; rest; rest >>>= 1) n += rest & 1; return n; };
@@ -451,7 +460,7 @@ function verify(dataRoot, options = {}) {
   const perEdition = new Uint32Array(E), minId = new Float64Array(E).fill(Infinity), statusSeen = new Uint8Array(E);
   const profilesHash = crypto.createHash('sha256'), namesHash = crypto.createHash('sha256');
   const wordCount = new Map();
-  const count = { results: 0, profiles: 0, names: 0, searchNames: 0, postings: 0, marathon: 0, half: 0, noFinish: { marathon: 0, half: 0 },
+  const count = { results: 0, profiles: 0, names: 0, searchNames: 0, oneRaceRows: 0, postings: 0, marathon: 0, half: 0, noFinish: { marathon: 0, half: 0 },
     tier: { marathon: {}, half: {} }, link: { marathon: {}, half: {} }, screen: { marathon: {}, half: {} }, status: {}, noComparison: {}, kinds: { one_result: 0, confirmed_only: 0, confirmed_and_possible: 0, possible_only: 0 } };
   const bump = (object, key) => { object[key] = (object[key] || 0) + 1; };
   const plans = { checked: 0, notFound: 0, overAuto: 0, overCap: 0, max: 0, leaves: {}, bytes: [] };
@@ -478,6 +487,7 @@ function verify(dataRoot, options = {}) {
       const k = d.k[p], u = d.u[p], where = `${relative} profile ${p}`;
       const groups = new Map();
       let cm = 0, ch = 0, y0 = Infinity, y1 = -Infinity, cy0 = Infinity, cy1 = -Infinity, e1 = -1, sexes = 0, keyed = 0, screened = 0, firstUse = 0;
+      const everyRange = ends(), confirmedRange = ends();
       const confirmedEditions = new Set();
       const nameWords = new Array(u);
       for (let at = 0; at < u; at++) {
@@ -565,15 +575,18 @@ function verify(dataRoot, options = {}) {
           if (half) ch++; else cm++;
           if (edition.year < cy0) cy0 = edition.year;
           if (edition.year > cy1) cy1 = edition.year;
+          meet(confirmedRange, edition.year, e);
         } else if ('bcd'.includes(link)) screened++;
         if (edition.year < y0) y0 = edition.year;
         if (edition.year > y1) y1 = edition.year;
+        meet(everyRange, edition.year, e);
         e1 = e;
         // the result's search name
         const key = nameWords[j] ? nameWords[j].key : '';
         let group = groups.get(key);
-        if (!group) { group = { words: nameWords[j] ? nameWords[j].words : [], ns: 0, ncs: 0, y0: Infinity, y1: -Infinity, e: -1, best: null, shown: '' }; groups.set(key, group); }
+        if (!group) { group = { words: nameWords[j] ? nameWords[j].words : [], ns: 0, ncs: 0, y0: Infinity, y1: -Infinity, e: -1, best: null, shown: '', range: ends() }; groups.set(key, group); }
         group.ns++; if (confirmed) group.ncs++;
+        meet(group.range, edition.year, e);
         if (edition.year < group.y0) group.y0 = edition.year;
         if (edition.year > group.y1) group.y1 = edition.year;
         group.e = e;
@@ -595,11 +608,14 @@ function verify(dataRoot, options = {}) {
         const one = possibleOnly ? group.ns === 1 : k === 1;
         const fields = one ? [possibleOnly ? group.e : e1, 0, 0, 0, 0, 0] : possibleOnly ? [-1, group.y0, group.y1 - group.y0, 0, 0, group.ns]
           : cm + ch > 0 ? [-1, cy0, cy1 - cy0, cm, ch, k - cm - ch] : [-1, y0, y1 - y0, 0, 0, k];
+        const range = one ? null : possibleOnly ? group.range : cm + ch > 0 ? confirmedRange : everyRange;
+        const firstLatest = range ? [range.first[1], range.latest[1]] : [-1, -1];
+        if (range && range.first[1] === range.latest[1]) count.oneRaceRows++;
         for (const word of words) wordCount.set(word, (wordCount.get(word) || 0) + 1);
         const keys = postingKeys(words, heavy);
         for (const [word, partner] of keys) {
           const leaf = leafOf(word, partner);
-          expected.add(leaf, postingText(word, partner, group.shown, number, p, fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], possibleOnly ? 1 : 0));
+          expected.add(leaf, postingText(word, partner, group.shown, number, p, fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], possibleOnly ? 1 : 0, firstLatest[0], firstLatest[1]));
           count.postings++;
         }
         // the name typed in full: stage 1 must reach a leaf that holds it
@@ -722,7 +738,7 @@ function verify(dataRoot, options = {}) {
   const heavyFound = Array.from(wordCount).filter(([, n]) => n > rules.heavy_over).sort((a, b) => cmp(a[0], b[0]));
   equal('heavy words', heavyFound, manifest.index.heavy);
   equal('heavy word count', heavyFound.length, counts.heavy_words);
-  facts.results = count.results; facts.profiles = count.profiles; facts.searchNames = count.searchNames; facts.words = wordCount.size;
+  facts.results = count.results; facts.profiles = count.profiles; facts.searchNames = count.searchNames; facts.oneRaceRows = count.oneRaceRows; facts.words = wordCount.size;
   log(`Read ${count.results.toLocaleString('en-US')} results in ${count.profiles.toLocaleString('en-US')} profiles (${count.searchNames.toLocaleString('en-US')} search names, ${wordCount.size.toLocaleString('en-US')} words); reading ${Lc.toLocaleString('en-US')} index leaves.`);
 
   // ---- 5 and 6. the leaf pass
@@ -740,20 +756,21 @@ function verify(dataRoot, options = {}) {
     c.check(bytes.length <= LIMITS.leafBytes, 'limits', `${relative} is ${bytes.length} bytes, over ${LIMITS.leafBytes}`);
     const d = file.data;
     const N = Array.isArray(d.n) ? d.n.length : -1;
-    if (!c.check(d.v === L.SCHEMA_VERSION && N > 0 && ['b', 'o', 'e', 'y', 's', 'm', 'h', 'q', 'p'].every(key => Array.isArray(d[key]) && d[key].length === N), 'shape', `${relative}: columns are missing or of different lengths`)) { lastW = null; continue; }
+    if (!c.check(d.v === L.SCHEMA_VERSION && N > 0 && ['b', 'o', 'e', 'y', 's', 'm', 'h', 'q', 'p', 'f', 'l'].every(key => Array.isArray(d[key]) && d[key].length === N), 'shape', `${relative}: columns are missing or of different lengths`)) { lastW = null; continue; }
     c.check(N === entry[3], 'chain', `${relative}: its page lists ${entry[3]} rows, it holds ${N}`);
     leafRows += N; fewestRows = Math.min(fewestRows, N); mostRows = Math.max(mostRows, N);
     if (Lc > 1) c.check(N >= rules.min_rows && N < rules.max_rows + rules.min_rows, 'limits', `${relative} holds ${N} rows, outside ${rules.min_rows} to ${rules.max_rows + rules.min_rows - 1}`);
     const people = new Set();
     let firstW = null, firstO = null;
     for (let at = 0; at < N; at++) {
-      const name = d.n[at], b = d.b[at], o = d.o[at], e = d.e[at], y = d.y[at], s = d.s[at], m = d.m[at], h = d.h[at], q = d.q[at], p = d.p[at];
+      const name = d.n[at], b = d.b[at], o = d.o[at], e = d.e[at], y = d.y[at], s = d.s[at], m = d.m[at], h = d.h[at], q = d.q[at], p = d.p[at], f = d.f[at], l = d.l[at];
       const where = `${relative} row ${at}`;
       const ok = typeof name === 'string' && name.length > 0 && Number.isSafeInteger(b) && b >= 0 && b < L.PROFILE_SHARDS && Number.isSafeInteger(o) && o >= 0 && o < shardProfiles[b] &&
-        Number.isSafeInteger(e) && e >= -1 && e < E && [y, s, m, h, q].every(value => Number.isSafeInteger(value) && value >= 0) && (p === 0 || p === 1);
+        Number.isSafeInteger(e) && e >= -1 && e < E && [f, l].every(value => Number.isSafeInteger(value) && value >= -1 && value < E) && [y, s, m, h, q].every(value => Number.isSafeInteger(value) && value >= 0) && (p === 0 || p === 1);
       if (!c.check(ok, 'index', `${where}: a value is out of range`)) continue;
-      if (e >= 0) c.check(y === 0 && s === 0 && m === 0 && h === 0 && q === 0, 'index', `${where}: a row of one result carries a summary`);
-      else c.check(y >= 1900 && y + s <= 2100 && (p === 1 ? m === 0 && h === 0 && q >= 2 : m + h + q >= 2), 'index', `${where}: a summary that describes fewer than two results`);
+      if (e >= 0) c.check(y === 0 && s === 0 && m === 0 && h === 0 && q === 0 && f === -1 && l === -1, 'index', `${where}: a row of one result carries a summary`);
+      else if (c.check(f >= 0 && l >= 0, 'index', `${where}: a row of several results names no first or latest race`)) c.check(editions[f].year === y && editions[l].year === y + s, 'index', `${where}: its first and latest race are not of its first and last year`);
+      if (e < 0) c.check(y >= 1900 && y + s <= 2100 && (p === 1 ? m === 0 && h === 0 && q >= 2 : m + h + q >= 2), 'index', `${where}: a summary that describes fewer than two results`);
       people.add(b * 4194304 + o);
       // which of the name's postings this row is: the smallest that sorts after the row before it
       const words = L.searchWords(name);
@@ -768,7 +785,7 @@ function verify(dataRoot, options = {}) {
       if (word === null) { c.fail('index', `${where}: the row is out of order, or its name has no posting here`); continue; }
       const target = leafOf(word, partner);
       if (!(target === number || (runStart[target] === runStart[number]))) c.fail('index', `${where}: the row belongs to leaf ${target} by the directory`);
-      actual.add(number, postingText(word, partner, name, b, o, e, y, s, m, h, q, p));
+      actual.add(number, postingText(word, partner, name, b, o, e, y, s, m, h, q, p, f, l));
       if (firstW === null) { firstW = word; firstO = partner; }
       lastW = word; lastO = partner; lastName = name; lastB = b; lastP = o;
     }
@@ -1029,6 +1046,14 @@ function selfTest(dataRoot, options) {
   };
   const leaves = base.manifest.index.leaves, middle = Math.min(leaves - 1, Math.max(1, leaves >> 1));
   const busiest = (() => { let best = 0; for (let number = 0; number < 64; number++) { try { if (fs.statSync(path.join(dataRoot, 'runners', L.shardPath(number))).size > fs.statSync(path.join(dataRoot, 'runners', L.shardPath(best))).size) best = number; } catch { /* reported above */ } } return best; })();
+  // the first leaf (from the middle on) that holds a row the mutation needs
+  const leafWith = wanted => {
+    for (let step = 0; step < leaves; step++) {
+      const number = (middle + step) % leaves;
+      if (wanted(JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(dataRoot, 'runners', L.leafPath(number)))).toString('utf8')))) return number;
+    }
+    throw new Error('no leaf holds such a row');
+  };
   const cases = [
     ['a changed byte in a leaf', 'chain', target => { const file = path.join(target, 'runners', L.leafPath(middle)); const bytes = fs.readFileSync(file); bytes[bytes.length - 9] ^= 1; fs.writeFileSync(file, bytes); }],
     ['two leaves swapped, each with its own digest', 'index', target => {
@@ -1057,6 +1082,11 @@ function selfTest(dataRoot, options) {
       manifest.editions.bytes = bytes.length; manifest.editions.sha256 = sha256(bytes); manifest.content.editions_raw_sha256 = sha256(body);
       fs.writeFileSync(file, encode(manifest));
     }],
+    ['a wrong latest race on a row of several results', 'index', target => rechain(target, 'leaf', leafWith(data => data.e.some(e => e < 0)), data => {
+      const at = data.e.findIndex(e => e < 0), other = data.f[at] === data.l[at] ? (data.l[at] + 1) % base.manifest.editions.count : data.f[at];
+      data.l[at] = other;
+    })],
+    ['a first race on a row of one result', 'index', target => rechain(target, 'leaf', leafWith(data => data.e.some(e => e >= 0)), data => { const at = data.e.findIndex(e => e >= 0); data.f[at] = data.e[at]; })],
     ['a release tag in a shard body', 'privacy', target => rechain(target, 'shard', busiest, (data, entry, manifest) => { data.n[0] = data.n[0] + ' ' + manifest.release_tag; })],
   ];
   try {
@@ -1094,7 +1124,7 @@ function main() {
   if (self) {
     const problems = selfTest(dataRoot, options);
     if (problems.length) { console.error(`verify-lookup --self-test: ${problems.length} problem${problems.length === 1 ? '' : 's'}`); for (const line of problems) console.error(`  ${line}`); process.exit(1); }
-    console.log('verify-lookup --self-test: every mutation (a changed byte, swapped leaves, a missing posting, a posting to another profile, a wrong directory key, a wrong count, a repeated result, a changed name, a stray file, a screen off its links, a changed timing class, a tag in a body) failed the check that should catch it.');
+    console.log('verify-lookup --self-test: every mutation (a changed byte, swapped leaves, a missing posting, a posting to another profile, a wrong directory key, a wrong count, a repeated result, a changed name, a stray file, a screen off its links, a changed timing class, a wrong latest race, a first race on a one-result row, a tag in a body) failed the check that should catch it.');
     return;
   }
   const { failures, facts, manifest } = verify(dataRoot, options);
@@ -1107,7 +1137,7 @@ function main() {
   const full = facts.fullName;
   console.log(`Verified runner lookup of ${manifest.release_tag}${manifest.provisional.length ? ` (PROVISIONAL: ${manifest.provisional.join(', ')})` : ''}: ${n(facts.results)} results once each in ${n(facts.profiles)} profiles and ${n(facts.editions)} editions; ` +
     `${n(facts.files)} files, ${n(facts.totalBytes)} bytes (index ${n(facts.indexBytes)}, largest leaf ${n(facts.largestLeaf)}; profiles ${n(facts.profileBytes)}, largest shard ${n(facts.largestShard)}); ` +
-    `leaves of ${n(facts.leafRows[0])} to ${n(facts.leafRows[1])} rows and at least ${n(facts.fewestProfiles)} profiles.`);
+    `leaves of ${n(facts.leafRows[0])} to ${n(facts.leafRows[1])} rows and at least ${n(facts.fewestProfiles)} profiles; every row's first and latest race recounted (search names whose row names one race as both: ${n(facts.oneRaceRows)}).`);
   console.log(`Search: all ${n(full.checked)} search names typed in full are reached by their stage-1 plan (median ${n(full.median)} B, 99th percentile ${n(full.p99)}, 99.9th ${n(full.p999)}, largest ${n(full.largest)}; ` +
     `${n(full.over300KB)} over 300 KB, ${n(full.over1MB)} over 1 MB; leaves per plan ${JSON.stringify(full.leaves)}). ${n(facts.queries.read)} sample queries read their leaves and matched a scan of every name (largest ${n(facts.queries.largestRead)} B); ` +
     `${n(facts.queries.refusedOver1MB)} planned over 1 MB and were not read.${facts.neverShown === undefined ? '' : ` None of the ${n(facts.neverShown)} rows that must not appear is in a shard.`}${facts.cohort ? ` ${n(facts.cohort.compared)} marathon results equal the cohort’s records in ${n(facts.cohort.editions)} editions.` : ''} ${facts.seconds} s, peak memory ${n(Math.round(process.resourceUsage().maxRSS / 1024))} MB.`);

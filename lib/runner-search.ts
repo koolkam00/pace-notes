@@ -307,12 +307,15 @@ export function decodeEditions(data: EditionsFile): DecodedEdition[] {
   return out;
 }
 
-const LEAF_COLUMNS = ['n', 'b', 'o', 'e', 'y', 's', 'm', 'h', 'q', 'p'] as const;
-export type LeafFile = { v: number; n: string[]; b: number[]; o: number[]; e: number[]; y: number[]; s: number[]; m: number[]; h: number[]; q: number[]; p: number[] };
+const LEAF_COLUMNS = ['n', 'b', 'o', 'e', 'y', 's', 'm', 'h', 'q', 'p', 'f', 'l'] as const;
+export type LeafFile = { v: number; n: string[]; b: number[]; o: number[]; e: number[]; y: number[]; s: number[]; m: number[]; h: number[]; q: number[]; p: number[]; f: number[]; l: number[] };
 /** A search row: the shown name, the profile it points at and what the row describes. */
 export type RunnerMatch = {
   name: string; shard: number; position: number; edition: number | null; firstYear: number; lastYear: number;
   marathons: number; halves: number; possible: number; onlyPossible: boolean;
+  /** Of a row of several results: the editions of the first (least year, then least index) and the latest (greatest
+   * year, then greatest index) of the results it describes; null on a row of one result. */
+  firstEdition: number | null; latestEdition: number | null;
 };
 
 /** An index leaf as rows: the shown name, the profile pointer and what the row describes. */
@@ -326,6 +329,7 @@ export function decodeLeaf(data: LeafFile): RunnerMatch[] {
       name: data.n[at], shard: data.b[at], position: data.o[at], edition: data.e[at] < 0 ? null : data.e[at],
       firstYear: data.y[at], lastYear: data.y[at] + data.s[at], marathons: data.m[at], halves: data.h[at],
       possible: data.q[at], onlyPossible: data.p[at] === 1,
+      firstEdition: data.f[at] < 0 ? null : data.f[at], latestEdition: data.l[at] < 0 ? null : data.l[at],
     };
   }
   return out;
@@ -576,7 +580,9 @@ async function loadLeaf(number: number, page: IndexPage, signal?: AbortSignal): 
   if (rows) return rows;
   try { rows = decodeLeaf(data).map(row => ({ ...row, words: searchWords(row.name) })); } catch { throw problem(); }
   if (rows.length !== entry[3] || rows.some(row => !text(row.name) || !integer(row.shard) || row.shard >= PROFILE_SHARDS || !integer(row.position) ||
-    (row.edition !== null && !integer(row.edition)) || !integer(row.firstYear) || !integer(row.lastYear) || !integer(row.marathons) || !integer(row.halves) || !integer(row.possible))) throw problem();
+    (row.edition !== null && !integer(row.edition)) || !integer(row.firstYear) || !integer(row.lastYear) || !integer(row.marathons) || !integer(row.halves) || !integer(row.possible) ||
+    (row.edition === null) === (row.firstEdition === null) || (row.edition === null) === (row.latestEdition === null) ||
+    (row.firstEdition !== null && !integer(row.firstEdition)) || (row.latestEdition !== null && !integer(row.latestEdition)))) throw problem();
   leafRows.set(data, rows);
   return rows;
 }
