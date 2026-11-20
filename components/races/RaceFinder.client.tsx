@@ -46,10 +46,13 @@ function loadDirectory(sha256: string): Promise<RaceDirectory> {
   return pending;
 }
 
-function RaceRow({ race, codes }: { race: DirectoryRace; codes: RaceDirectory['codes'] }) {
-  const name = raceDisplayName(race);
+/** Two races under one label (Warsaw), by name and years, as its page names them (review m5, November 20, 2026). */
+export type RaceSeriesNames = Record<string, { name: string; years: string }[]>;
+
+function RaceRow({ race, codes, series }: { race: DirectoryRace; codes: RaceDirectory['codes']; series?: RaceSeriesNames[string] }) {
+  const name = series && series.length > 1 ? series.map((s) => s.name).join(' and ') : raceDisplayName(race);
   const live = race.editions.filter((e) => codes.review[e[8]] !== 'copy').length;
-  const years = race.years[0] === race.years[1] ? String(race.years[0]) : `${race.years[0]}–${race.years[1]}`;
+  const years = series && series.length > 1 ? series.map((s) => s.years).join(' and ') : race.years[0] === race.years[1] ? String(race.years[0]) : `${race.years[0]}–${race.years[1]}`;
   const place = race.place && race.place !== name ? race.place : null;
   return (
     <li className="race-row">
@@ -62,7 +65,7 @@ function RaceRow({ race, codes }: { race: DirectoryRace; codes: RaceDirectory['c
   );
 }
 
-export default function RaceFinder({ sha, total }: { sha: string; total: string }) {
+export default function RaceFinder({ sha, total, series = {} }: { sha: string; total: string; series?: RaceSeriesNames }) {
   const [directory, setDirectory] = useState<RaceDirectory | null>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -89,7 +92,7 @@ export default function RaceFinder({ sha, total }: { sha: string; total: string 
   }, []);
 
   const sorted = useMemo(() => (directory ? [...directory.races].sort((a, b) => fold(raceDisplayName(a)).localeCompare(fold(raceDisplayName(b))) || a.label.localeCompare(b.label)) : []), [directory]);
-  const index = useMemo(() => sorted.map((race) => fold([raceDisplayName(race), race.label, race.place ?? '', ...(race.aliases ?? [])].join(' '))), [sorted]);
+  const index = useMemo(() => sorted.map((race) => fold([raceDisplayName(race), race.label, race.place ?? '', ...(race.aliases ?? []), ...(series[race.label] ?? []).map((s) => s.name)].join(' '))), [sorted, series]);
   const wanted = fold(query);
   const matches = useMemo(() => sorted.filter((_, i) => !wanted || index[i].includes(wanted)), [sorted, index, wanted]);
   const shown = matches.slice(0, limit);
@@ -108,7 +111,7 @@ export default function RaceFinder({ sha, total }: { sha: string; total: string 
       ) : (
         <>
           <p className="field-hint race-finder-count" role="status">{matches.length === 0 ? 'No marathon matches.' : matches.length === 1 ? '1 marathon' : `${whole.format(matches.length)} marathons`}{matches.length > shown.length ? `, the first ${whole.format(shown.length)} shown` : ''}</p>
-          {shown.length ? <ol className="race-rows">{shown.map((race) => <RaceRow key={race.label} race={race} codes={directory.codes} />)}</ol> : null}
+          {shown.length ? <ol className="race-rows">{shown.map((race) => <RaceRow key={race.label} race={race} codes={directory.codes} series={series[race.label]} />)}</ol> : null}
           {matches.length > shown.length ? <button type="button" className="btn btn-secondary is-compact race-finder-more" onClick={() => setLimit(limit + STEP * 4)}>Show more</button> : null}
         </>
       )}

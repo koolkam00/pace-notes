@@ -1,7 +1,8 @@
 import BigNumber from '@/components/ui/BigNumber';
 import Button from '@/components/ui/Button';
 import { ChapterCrumbs } from '@/components/ui/ChapterHeader';
-import { SplitTierTag, TagGroup, TierTag, TimingClassTag } from '@/components/ui/TierTag';
+import { SplitTierTag } from '@/components/ui/TierTag';
+import { EditionKey, editionKey, RowTags } from '@/components/course/EditionKey';
 import { HowLink } from '@/components/ui/Values';
 import { UnitLink as Link } from '@/components/UnitsProvider';
 import CourseOthers from '@/components/course/CourseOthers';
@@ -29,6 +30,9 @@ export const RESULTS_LINE_MIN = 3;
  * figure. Every sentence is a nugget (lib/nuggets/courses.ts); every figure a checked <data> (scripts/verify-courses.cjs).
  * A race whose platform title misleads is named by its label (docs/RACES.md rule 6).
  */
+/** A cell with no figure (a dash): stacked on a phone, it is left out rather than printed as a label and a dash. */
+const gap = (has: boolean) => (has ? {} : { 'data-empty': '' });
+
 export default function ResultsPage({ page }: { page: RacePage }) {
   const race = raceFile(page.slug);
   const name = raceDisplayName(race);
@@ -43,6 +47,9 @@ export default function ResultsPage({ page }: { page: RacePage }) {
   const how = howWeKnowOf(`/courses/${page.slug}`);
   // The year's verdict for linked runners, a column only where some year has one.
   const linked = hasLinkedYears(city, shown.map((e) => e.year));
+  // A label true of most editions is said once, above the table, with the years it is not true of (lead decision D48).
+  const rows = shown.map((e) => ({ year: e.year, tier: e.tier, splitTier: e.split_tier, timing: e.timing }));
+  const key = editionKey(rows);
   return (
     <div className="course-page results-page" {...readingAttrs(`/courses/${page.slug}`, name)} data-race-page="results">
       <JsonLd data={pageCrumbs(`/courses/${page.slug}`, name, { parents: [['Courses', '/courses']] })} />
@@ -67,20 +74,23 @@ export default function ResultsPage({ page }: { page: RacePage }) {
         </CourseSection>
       ) : null}
       <CourseSection id="editions" beat="Editions" title={`${name}, edition by edition`}>
-        <CourseTable id="results-editions-caption" caption={`${name}: each edition, the status of its results and its finish times`} captionHidden>
+        <EditionKey model={key} />
+        {/* On a phone each edition stacks (review M4): its year and labels, then its median finish and finishes, then the
+            rest, each figure under its column's name (data-label), so nothing sits off-screen. */}
+        <CourseTable id="results-editions-caption" caption={`${name}: each edition, the status of its results and its finish times`} captionHidden className="is-stack">
           <thead>
             <tr><th scope="col">Year</th><th scope="col" className="is-text">Status</th><th scope="col">Recorded results</th><th scope="col">Finishes</th><th scope="col">Median finish</th><th scope="col">Middle half</th>{linked ? <LinkedYearHead /> : null}</tr>
           </thead>
           <tbody>
-            {shown.map((e) => (
+            {shown.map((e, i) => (
               <tr key={e.year} data-edition={e.year}>
                 <th scope="row">{e.year}</th>
                 {/* The edition's labels from the shared module: its tier, "Finish times only" and "Gun times" where they apply. */}
-                <td className="is-text"><TagGroup><TierTag tier={e.tier} /><SplitTierTag splitTier={e.split_tier} /><TimingClassTag timing={e.timing} /></TagGroup></td>
-                <td><Fact k={`rr@${e.year}`} v={e.results}>{count(e.results)}</Fact></td>
-                <td>{typeof e.finishes === 'number' ? <Fact k={`rf@${e.year}`} v={e.finishes}>{count(e.finishes)}</Fact> : '—'}</td>
-                <td>{typeof e.median_s === 'number' ? <Fact k={`rm@${e.year}`} v={e.median_s}>{clock(e.median_s)}</Fact> : '—'}</td>
-                <td>{typeof e.p25_s === 'number' && typeof e.p75_s === 'number'
+                <td className="is-text edition-status"><RowTags row={rows[i]} model={key} /></td>
+                <td data-label="Recorded results"><Fact k={`rr@${e.year}`} v={e.results}>{count(e.results)}</Fact></td>
+                <td data-label="Finishes" className="is-key" {...gap(typeof e.finishes === 'number')}>{typeof e.finishes === 'number' ? <Fact k={`rf@${e.year}`} v={e.finishes}>{count(e.finishes)}</Fact> : '—'}</td>
+                <td data-label="Median finish" className="is-key is-first" {...gap(typeof e.median_s === 'number')}>{typeof e.median_s === 'number' ? <Fact k={`rm@${e.year}`} v={e.median_s}>{clock(e.median_s)}</Fact> : '—'}</td>
+                <td data-label="Middle half" {...gap(typeof e.p25_s === 'number' && typeof e.p75_s === 'number')}>{typeof e.p25_s === 'number' && typeof e.p75_s === 'number'
                   ? <span className="nowrap"><Fact k={`rq1@${e.year}`} v={e.p25_s}>{clock(e.p25_s)}</Fact>–<Fact k={`rq3@${e.year}`} v={e.p75_s}>{clock(e.p75_s)}</Fact></span> : '—'}</td>
                 {linked ? <LinkedYearCell label={city} year={e.year} /> : null}
               </tr>

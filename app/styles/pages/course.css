@@ -330,9 +330,12 @@
 /* A results page (components/races/ResultsPage.tsx, November 19, 2026): "Finish times only" under the H1, the ways on. */
 .results-tags { margin: var(--s-3) 0 0; }
 .results-ways-body { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-5); align-items: center; }
-/* Two races under one label (Warsaw), named under the hero's dek and the finish-times line. */
+/* Two races under one label (Warsaw), named once, under the hero's dek (review m5, November 20, 2026). */
 .course-beat-body .course-series { margin: var(--s-3) 0 0; max-width: var(--measure); font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
 .course-hero .hero-dek.course-series { margin-top: var(--s-2); }
+/* The years with results that are not counted, linked to the edition table: a 44 px hit area without moving the line. */
+.course-also-link { display: inline-block; padding: 14px 0; margin: -14px 0; color: inherit; text-decoration: underline; text-decoration-color: var(--night-ink-3, currentColor); text-underline-offset: .2em; }
+.course-hero .hero-dek.course-also { margin-top: var(--s-2); }
 /* The year's verdict for linked runners (components/races/LinkedYear.tsx): quiet words, under one line saying the links are by name. */
 .course-table td.linked-year { color: var(--ink-2); white-space: normal; min-width: 11em; }
 .linked-year-note { margin: var(--s-2) 0 var(--s-4); font-size: var(--t-label); line-height: 1.4; color: var(--ink-3); }
@@ -345,4 +348,31 @@
 @media (max-width: 299.98px) {
   .course-numbers .course-table th:first-child, .course-numbers .course-table td:first-child,
   .results-page .course-table th:first-child, .results-page .course-table td:first-child { position: static; }
+}
+
+/* ---------- Edition tables: the key, and the rows stacked on a phone (review M4 and M5, November 20, 2026) ---------- */
+/* A label true of most rows is said once above the table (components/course/EditionKey.tsx, lead decision D48). */
+.edition-key { margin: 0 0 var(--s-3); max-width: var(--measure); font-family: var(--sans); font-size: var(--t-small); line-height: 1.6; color: var(--ink-2); }
+.edition-key-item { display: flex; flex-wrap: wrap; align-items: center; min-height: 44px; }
+.edition-key .tier-tags { display: inline-flex; }
+/* Under 640 px an edition table's row stacks: the year and its labels on the first line, then the median finish and the
+   finishes, then every other figure, each after its column's name; cells without a figure are left out. Nothing scrolls
+   sideways, so no edition's numbers sit off-screen. */
+@media (max-width: 639.98px) {
+  .course-table.is-stack { display: block; min-width: 0; width: 100%; }
+  .course-table.is-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .course-table.is-stack tbody { display: block; }
+  .course-table.is-stack tr { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--s-4); row-gap: 4px; padding: var(--s-2) 0 var(--s-3); border-bottom: 1px solid var(--rule); }
+  .course-table.is-stack tr::after { content: ''; order: 1; flex: 0 0 100%; height: 0; }
+  .course-numbers .course-table.is-stack th, .course-numbers .course-table.is-stack td,
+  .results-page .course-table.is-stack th, .results-page .course-table.is-stack td { display: block; position: static; height: auto; min-width: 0; padding: 0; border: 0; background: none; text-align: left; white-space: nowrap; order: 4; }
+  .course-numbers .course-table.is-stack tbody th, .results-page .course-table.is-stack tbody th { order: 0; min-width: 3em; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+  .course-numbers .course-table.is-stack td.edition-status, .results-page .course-table.is-stack td.edition-status { order: 1; flex: 1 1 0; }
+  .course-table.is-stack td.edition-status .tier-tags { flex-wrap: wrap; width: auto; }
+  .course-numbers .course-table.is-stack td.is-key, .results-page .course-table.is-stack td.is-key { order: 3; }
+  .course-numbers .course-table.is-stack td.is-first, .results-page .course-table.is-stack td.is-first { order: 2; }
+  .course-numbers .course-table.is-stack td[data-empty], .results-page .course-table.is-stack td[data-empty] { display: none; }
+  .course-table.is-stack td[data-label]::before { content: attr(data-label) "\00a0"; font-size: var(--t-label); color: var(--ink-3); }
+  .course-table.is-stack td.linked-year { min-width: 0; white-space: normal; flex: 1 1 100%; }
+  .course-numbers .course-table-wrap:has(.is-stack) { background: none; }
 }

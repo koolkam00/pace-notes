@@ -20,9 +20,9 @@ export const LinkedYearHead = () => <th scope="col" className="is-text">Linked r
 /** One edition's cell: the verdict's words, or a dash. */
 export function LinkedYearCell({ label, year }: { label: string; year: number }) {
   const reading = linkedEditionReading(label, year);
-  if (!reading) return <td className="is-text linked-year">—</td>;
+  if (!reading) return <td className="is-text linked-year" data-label="Linked runners" data-empty="">—</td>;
   return (
-    <td className="is-text linked-year" data-linked={reading.verdict}>
+    <td className="is-text linked-year" data-linked={reading.verdict} data-label="Linked runners">
       {capital(reading.words)}{reading.reviewed ? <>{' '}<Link href={reading.reviewHref} prefetch={false} className="linked-year-review">(reviewed)</Link></> : null}
     </td>
   );

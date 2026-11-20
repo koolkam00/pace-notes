@@ -11,13 +11,15 @@ import Reading from '@/components/ui/Reading';
 import { courseLists, coursePages, raceName, routeClimb } from '@/lib/course-page';
 import RaceFinder from '@/components/races/RaceFinder.client';
 import { TierTerm } from '@/components/ui/TierTag';
-import { directorySha, resultsPages } from '@/lib/races-server';
+import { directorySha, racePages, raceFile, resultsPages } from '@/lib/races-server';
+import type { RaceSeriesNames } from '@/components/races/RaceFinder.client';
 import { raceDisplayName } from '@/lib/races-types';
 import type { Courses } from '@/lib/insights';
 import { readInsight } from '@/lib/insights-server';
 import { getNugget, readingOf, sentenceOf } from '@/lib/nuggets';
 import { count } from '@/lib/nuggets/format';
-import { MIN_EDITIONS, profileUnderWater } from '@/lib/nuggets/courses';
+import { FINISHES_ALL_SPLITS, MIN_EDITIONS, profileUnderWater } from '@/lib/nuggets/courses';
+import { TIER_LINE_SEPARATOR, tierLine } from '@/lib/tiers';
 import { JsonLd, absoluteUrl, pageCrumbs, pageMetadata } from '@/lib/seo';
 import '@/app/styles/pages/courses.css';
 
@@ -50,6 +52,16 @@ export function generateMetadata() {
  * 2026) keeps its row: its name, "No pacing figures" and a dash where a figure would stand. It has no value to sort
  * by, so it comes last under every order but A–Z and follows with the fewer-edition courses under the share's order.
  */
+/** The races that hold two series under one label (Warsaw), named in the list as their page names them (review m5). */
+function seriesNames(): RaceSeriesNames {
+  const out: RaceSeriesNames = {};
+  for (const p of racePages()) {
+    const series = raceFile(p.slug).series ?? [];
+    if (series.length > 1) out[p.label] = series.map((s) => ({ name: s.name, years: s.first_year === s.last_year ? String(s.first_year) : `${s.first_year}–${s.last_year}` }));
+  }
+  return out;
+}
+
 export default function CoursesPage() {
   const pages = [...coursePages().values()];
   const lists = [...courseLists().values()];
@@ -91,7 +103,8 @@ export default function CoursesPage() {
     const t = temps.get(p.city) ?? [];
     const share = p.summary.slowdown;
     const climb = climbOf(p);
-    const editions = `${count(p.summary.editions)} ${p.summary.editions === 1 ? 'edition' : 'editions'}`;
+    // Counted editions, the word /methodology#edition-tiers defines (review M9, November 20, 2026).
+    const editions = `${count(p.summary.editions)} ${p.summary.editions === 1 ? 'counted edition' : 'counted editions'}`;
     return {
       id: p.slug,
       node: (
@@ -118,10 +131,10 @@ export default function CoursesPage() {
   const share = <>Each course’s share of finishes with a <SlowdownTerm />, in an average year</>;
   const keys: Record<SortKey, React.ReactNode> = {
     // A–Z draws the fewer-edition shares quieter: the key says why (critic round 5), as the share's order says by its title.
-    az: few.length ? <>{share}; in grey, from fewer than three editions.</> : <>{share}.</>,
+    az: few.length ? <>{share}; in grey, from fewer than three counted editions.</> : <>{share}.</>,
     slowdown: <>{share}, lowest first.</>,
     climb: <>Each route’s climbing, start to finish, most first.</>,
-    finishes: <>Finishes on each course, most first.</>,
+    finishes: <>{FINISHES_ALL_SPLITS} on each course, most first.</>,
     temp: <>Start temperatures across each course’s race mornings, coolest on average first.</>,
   };
   // The results pages (the second template, November 19, 2026): finish times by year, no pacing figure, so no place in
@@ -133,7 +146,8 @@ export default function CoursesPage() {
     <li key={r.slug}>
       <Link href={`/courses/${r.slug}`} className="course-index-row" data-course-results="">
         <span className="course-index-name">{name}</span>
-        <span className="course-index-meta"><span className="m-default">{r.place ? <>{r.place}{'\u00a0· '}</> : null}{count(r.editions)} {r.editions === 1 ? 'edition' : 'editions'}</span></span>
+        {/* The years the median rests on, in the tier module's words, so a weaker-source stamp says so (review m1). */}
+        <span className="course-index-meta"><span className="m-default">{r.place ? <>{r.place}{'\u00a0· '}</> : null}{count(r.editions)} {r.editions === 1 ? 'edition' : 'editions'}{reading.guard ? <>{TIER_LINE_SEPARATOR}{tierLine({ stamped: Number(reading.values.verified), stamped_weaker_source: Number(reading.values.weaker) }, count)}</> : null}</span></span>
         <span className="course-index-share">
           {/* No route, so no climb: the dash keeps the cell every row of the list has (verify-seo reads it). */}
           <span className="f-climb">—</span>
@@ -156,21 +170,30 @@ export default function CoursesPage() {
       <JsonLd data={[pageCrumbs('/courses', 'Courses'), list]} />
       {/* The H1 and the dek (every marathon the list holds), then the races with a page, then every race. */}
       <Reading crumbs={<ChapterCrumbs path="/courses" />} title="Courses" titleSize="title" dek={sentenceOf(index).replace(/\*/g, '')} className="courses-reading" />
-      {/* The list of every marathon is far down the page on a phone: one way straight to its filter. */}
-      <p className="courses-jump"><SectionLink to="every-race" className="btn btn-tertiary is-compact">Find any marathon</SectionLink></p>
+      {/* Every marathon is under the course pages: one visible way straight to its filter (review nit, November 20, 2026). */}
+      <p className="courses-jump"><SectionLink to="every-race" className="btn btn-secondary is-compact">Find any marathon</SectionLink></p>
       <section className="courses-list" id="pages" aria-labelledby="pages-title">
         <h2 id="pages-title" className="courses-h2">{sentenceOf(pagesNugget).replace(/\*/g, '')}</h2>
         <h3 className="courses-h3">Pacing, course and weather</h3>
-        <CourseSort initial="az" orders={orders} rows={rows} keys={keys} foot={few} footTitle="Fewer than three editions"
+        <CourseSort initial="az" orders={orders} rows={rows} keys={keys} foot={few} footTitle="Fewer than three counted editions"
           options={[{ value: 'az', label: 'A–Z' }, { value: 'slowdown', label: 'Sustained slowdown' }, { value: 'climb', label: 'Climb' }, { value: 'finishes', label: 'Finishes' }, { value: 'temp', label: 'Start temperature' }]} />
-        <h3 className="courses-h3" id="finish-times-by-year">Finish times by year</h3>
-        <p className="course-index-key">Each race’s median finish in a typical verified year.</p>
-        <ol className="course-index is-results" data-sort="reading">{resultsRows}</ol>
+        {/* The results pages, folded (review m8, November 20, 2026: /courses ran to 6.9 phone screens against a hub's 4), so
+            the first screens hold the reading, the course pages and the way to every marathon. */}
+        <details className="values courses-results" id="finish-times-by-year">
+          <summary>
+            <span>Finish times by year<span className="values-count"> {count(results.length)} races</span></span>
+            <span className="values-glyph" aria-hidden="true" />
+          </summary>
+          <div className="values-body">
+            <p className="course-index-key">Each race’s median finish in a typical year; its row counts the years that median is taken from.</p>
+            <ol className="course-index is-results" data-sort="reading">{resultsRows}</ol>
+          </div>
+        </details>
       </section>
       <section className="courses-every" id="every-race" tabIndex={-1} aria-labelledby="every-title">
         <h2 id="every-title" className="courses-h2">Every marathon</h2>
         <p className="course-index-key">Each race’s editions by the <TierTerm>status of their results</TierTerm>; a race with a page links to it.</p>
-        <RaceFinder sha={directorySha()} total={count(total)} />
+        <RaceFinder sha={directorySha()} total={count(total)} series={seriesNames()} />
       </section>
       <ChapterEnd path="/courses" readingOf={readingOf} />
     </div>
