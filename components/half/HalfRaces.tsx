@@ -45,7 +45,7 @@ export default function HalfRaces() {
             <h2 id="all-title" className="t-h2 story-beat-title">Every race</h2>
           </div>
           <div className="js-only"><HalfRacesAll sha={manifest.files['directory.json'].sha256} total={summary.races.total.toLocaleString('en-US')} /></div>
-          <p className="story-way"><a href={dataHref('half/races/editions.csv')} download="pace-notes-half-marathon-races.csv">The whole list as a table (CSV)</a></p>
+          <p className="story-way arrow-line"><a href={dataHref('half/races/editions.csv')} download="pace-notes-half-marathon-races.csv">The whole list as a table (CSV)</a></p>
         </section>
 
         <p className="chapter-end-links">
