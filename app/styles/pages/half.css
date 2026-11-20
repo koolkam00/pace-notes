@@ -71,3 +71,4 @@
 .half-races .half-races-all { display: grid; gap: var(--s-3); max-width: var(--measure-figure); }
 .half-races .half-races-all .btn { justify-self: start; }
 .half-races .half-race-fold summary .race-name { font-weight: 600; }
+.half-races .half-race-fold summary .half-race-facts { display: block; margin-top: 2px; font-weight: 400; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }

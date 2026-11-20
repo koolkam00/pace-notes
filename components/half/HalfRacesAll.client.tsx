@@ -55,7 +55,7 @@ export default function HalfRacesAll({ sha, total }: { sha: string; total: strin
       {state === 'error' ? <p className="field-error" role="alert">{message}</p> : null}
       <p className="field-hint" role="status">
         {state === 'loading' ? 'Loading the list…'
-          : !listing ? `Searches all ${total} races.`
+          : !listing ? ''
             : matches.length === 1 ? '1 race' : `${matches.length.toLocaleString('en-US')} races${matches.length > shown.length ? `, the first ${shown.length} shown` : ''}`}
       </p>
       {shown.map((race) => <RaceFold key={race.label} race={race} codes={directory!.codes} />)}

@@ -57,7 +57,8 @@ export function RaceFold({ race, codes }: { race: HalfRace; codes: Codes }) {
   return (
     <details className="values half-race-fold">
       <summary>
-        <span><span className="race-name">{race.name}</span>{place ? <>{' · '}<span className="race-place">{place}</span></> : null}{' · '}{raceYears(race)}{' · '}<TierLine counts={race.tiers} format={(n) => whole.format(n)} /></span>
+        {/* The name on its own line, then its facts and tier line in the quiet tone (review round M8, November 20, 2026). */}
+        <span><span className="race-name">{race.name}</span><span className="half-race-facts">{place ? <><span className="race-place">{place}</span>{' · '}</> : null}{raceYears(race)}{' · '}<TierLine counts={race.tiers} format={(n) => whole.format(n)} /></span></span>
         <span className="values-glyph" aria-hidden="true" />
       </summary>
       <div className="values-body"><RaceEditions race={race} codes={codes} /></div>
