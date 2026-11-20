@@ -36,11 +36,31 @@ export function matchLine(row: RunnerMatch, manifest: Pick<RunnerManifest, 'edit
     span(row), row.possible ? possibleMatchCount(row.possible, count) : null].filter(Boolean).join(' · ');
 }
 
-/** The rows of one page of results. */
-export function MatchRows({ rows, manifest, openKey, loadingKey, onOpen }: { rows: RunnerMatch[]; manifest: Pick<RunnerManifest, 'editions'>; openKey: string | null; loadingKey: string | null; onOpen: (row: RunnerMatch) => void }) {
+/**
+ * Rows a runner could not tell apart: the same shown name and the same line (two runners of one name in one race, say).
+ * The index holds nothing more for a row (its finish is in the profile, a file of its own), so each such row is
+ * numbered in the list's order, "1 of 4 listed alike", and the visitor knows to open each (M7, November 20, 2026).
+ * Keys are matchKey; a row that reads unlike every other has no entry.
+ */
+export function alikeRows(rows: readonly RunnerMatch[], manifest: Pick<RunnerManifest, 'editions'>): Map<string, string> {
+  const groups = new Map<string, string[]>();
+  for (const row of rows) {
+    const reads = `${displayName(row.name)}\n${matchLine(row, manifest)}`;
+    const group = groups.get(reads);
+    if (group) group.push(matchKey(row)); else groups.set(reads, [matchKey(row)]);
+  }
+  const out = new Map<string, string>();
+  for (const keys of groups.values()) if (keys.length > 1) keys.forEach((key, at) => out.set(key, `${count(at + 1)} of ${count(keys.length)} listed alike`));
+  return out;
+}
+
+const NONE_ALIKE: ReadonlyMap<string, string> = new Map();
+
+/** The rows of one page of results; `alike` (alikeRows of every match) numbers the rows that read the same. */
+export function MatchRows({ rows, manifest, openKey, loadingKey, onOpen, alike = NONE_ALIKE }: { rows: RunnerMatch[]; manifest: Pick<RunnerManifest, 'editions'>; openKey: string | null; loadingKey: string | null; onOpen: (row: RunnerMatch) => void; alike?: ReadonlyMap<string, string> }) {
   return <ul className="runner-matches">{rows.map(row => {
-    const key = matchKey(row);
-    return <li key={key}><button className="runner-match" type="button" aria-expanded={openKey === key} aria-controls="runner-profile" onClick={() => onOpen(row)}><span><strong>{shownName(row.name)}</strong><small>{matchLine(row, manifest)}</small></span><span className="runner-match-action">{loadingKey === key ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>;
+    const key = matchKey(row), same = alike.get(key);
+    return <li key={key}><button className="runner-match" type="button" aria-expanded={openKey === key} aria-controls="runner-profile" onClick={() => onOpen(row)}><span><strong>{shownName(row.name)}</strong><small>{matchLine(row, manifest)}{same ? ` · ${same}` : ''}</small></span><span className="runner-match-action">{loadingKey === key ? 'Loading…' : <span className="sr-only">See races</span>}<Arrow /></span></button></li>;
   })}</ul>;
 }
 

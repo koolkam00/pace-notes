@@ -157,9 +157,9 @@ export function ReportCard({ id, model, units, level, gender, dropped, retryComp
   // sentence's accent. Without a record (a typed or shared link) the sentence is the verdict from the times alone.
   const verdict = timesVerdict(readSplits(model.times));
   const sentenceClass = `race-report-sentence${slowdown.yes ? ' is-quiet' : ''}`;
-  // Under half a percent either way the first 5K is level: whole percentages, with decimals only at the opening groups'
-  // edges (openingPct), never "0.1% quicker".
-  const even = Math.abs(opening.fraction) < 0.005;
+  // The first 5K in the one decimal of the lap list's 0–5K row (openingPct, m3, November 20, 2026): level only where
+  // that reads 0.0%, so the card and the row never disagree.
+  const even = Number(openingPct(opening.fraction).slice(0, -1)) === 0;
   return (
     <article className="race-report ph-no-capture" id={id} aria-labelledby={`${id}-title`}>
       <div className="race-report-screen night">

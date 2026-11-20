@@ -86,7 +86,7 @@ function copyEditionProfile(out) {
   return null;
 }
 
-// S3 copy editions: that profile on /runners, every record selected. The copies say "Recorded times only" and reach no
+// S3 copy editions: that profile on /runners, every record selected. The copies say "No pacing report: copy of another year’s field" (D49, November 20, 2026; it read "Recorded times only") and reach no
 // summary, focus option, comparison or split-check link; one eligible race is analysed. Since October 16, 2026 the
 // copy-edition sentence (why the records repeat another field) is on /methodology only, never on /runners.
 async function copyEditionJourney(h) {
@@ -110,8 +110,8 @@ async function copyEditionJourney(h) {
   await page.waitForSelector('.runner-profile', { timeout: 30000 });
   const labels = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, item.querySelector('.runner-ineligible')?.textContent ?? 'none'])));
   // Only the exception carries a tag: the field a copy repeats has its pacing analysis and says nothing more.
-  const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'Recorded times only']), [`${city} ${source}`, 'none']]);
-  h.check('each copy record says "Recorded times only"; the field it repeats carries no tag', JSON.stringify(labels, Object.keys(expected).sort()) === JSON.stringify(expected, Object.keys(expected).sort()), labels);
+  const expected = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 'No pacing report: copy of another year’s field']), [`${city} ${source}`, 'none']]);
+  h.check('each copy record says "No pacing report: copy of another year’s field"; the field it repeats carries no tag', JSON.stringify(labels, Object.keys(expected).sort()) === JSON.stringify(expected, Object.keys(expected).sort()), labels);
   const reasons = Object.fromEntries(await page.$$eval('#runner-profile .runner-race', items => items.map(item => [item.querySelector('strong')?.textContent, [...item.querySelectorAll('label small, .runner-raw p')].map(small => small.textContent).filter(text => text.startsWith('This edition’s records') || text.includes('largely repeat')).length])));
   const because = Object.fromEntries([...copies.map(copy => [`${city} ${copy.year}`, 0]), [`${city} ${source}`, 0]]);
   h.check('no record in the profile explains the copy editions (that is /methodology\'s)', JSON.stringify(reasons, Object.keys(because).sort()) === JSON.stringify(because, Object.keys(because).sort()), reasons);

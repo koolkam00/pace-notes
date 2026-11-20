@@ -32,6 +32,10 @@ const ROOT = path.join(__dirname, '..');
 process.chdir(ROOT);
 
 const report = require('../lib/report.ts');
+const verdict = require('../lib/report-verdict.ts');
+// November 20, 2026 (review m3): the first 5K in one decimal, a second only where one would land on an opening edge.
+for (const [frac, text] of [[0.025, '2.5%'], [0.0327, '3.3%'], [-0.0496, '4.96%'], [0.0502, '5.02%'], [0.05, '5.0%'], [0.0003, '0.0%'], [0.1004, '10.04%'], [-0.12, '12.0%']]) assert.equal(verdict.openingPct(frac), text, `openingPct(${frac})`);
+assert.deepEqual([verdict.openingSigned(0.025), verdict.openingSigned(-0.0496), verdict.openingSigned(0.0003), verdict.sectionChange(0.025, 0), verdict.sectionChange(0.2496, 5), verdict.sectionChange(0.0327, 3)], ['+2.5%', '−4.96%', '0.0%', '+2.5%', '+24.96%', '+3.3%'], 'the opening signed, and a section in one decimal, threshold-safe');
 const { approxWords } = require('../lib/nuggets/format.ts');
 const { capitalize } = require('../lib/nuggets/build.ts');
 const links = require('../lib/tools/links.ts');
@@ -210,7 +214,13 @@ for (const scope of index.scopes) {
           assert.match(html, new RegExp(`<span>Sustained slowdown</span><strong>(?:Yes|No)</strong>(?:<small>from [^<]*</small>)?${badgeLink('research', 'Published research').source}`), 'the slowdown tile carries the Published research badge, linked to the evidence labels');
           assert.ok(lines.comparison.includes(c.n.toLocaleString('en-US')) && lines.comparison.includes(c.label), 'the image\'s comparison line names its finishes and group');
           assert.doesNotMatch(JSON.stringify(lines), /percentile|\brank\b|\brecord\b|\byou\b/i, 'the image holds no rank, percentile or record');
-          ok(9);
+          // November 20, 2026 (review m3): one precision for one quantity. The 0–5K row says the first 5K card's figure,
+          // every section one decimal, and the night card's verdict the same figure as the row it names.
+          const first = model.opening.fraction, card = /<span>First 5K<\/span><strong>([^<]*)<\/strong>/.exec(html)[1];
+          assert.equal(lines.sections[0].change.replace(/^[+−]/, ''), Number(verdict.openingPct(first).slice(0, -1)) === 0 ? '0.0%' : verdict.openingPct(first), 'the 0–5K row says the first 5K card\'s figure');
+          assert.ok(card === 'Level' ? lines.sections[0].change === '0.0%' : card.startsWith(verdict.openingPct(first)), 'the card and the row');
+          assert.ok(lines.sections.slice(1).every((x) => /^[+−]?\d+\.\d{1,2}%$/.test(x.change)), 'every section in one decimal (two only beside a threshold)');
+          ok(12);
         }
         shown += 1;
       }

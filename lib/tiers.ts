@@ -13,8 +13,8 @@
  *
  * A code this module does not know is an error where it is asked for, never a silent default, and so is `undefined`
  * (a misspelt field). Check a data file's codes in its builder's verifier with these functions, so no page meets one.
- * No label carries a number or a hue. The words are defined on /methodology: tier, split-tier and timing words at
- * TIER_ANCHOR, link words at LINK_ANCHOR.
+ * No label carries a number or a hue. The words are defined on /methodology: tier, split-tier, timing and record words
+ * at TIER_ANCHOR, link words at LINK_ANCHOR.
  */
 
 /** Where the tier, split-tier and timing words are defined. */
@@ -252,6 +252,61 @@ export function linkQuietWords(confidence: string | null, { keyed, reason }: { k
   return `${words}${TIER_LINE_SEPARATOR}${why}`;
 }
 
+// ---- What a single result offers (decision D49, November 20, 2026)
+
+/**
+ * What one recorded result offers on the runner pages, from the runner lookup's record status: a full race report
+ * (a counted marathon), its own pacing compared with no one (an own-record marathon), no pacing report (with the
+ * reason), or, for a half marathon, a listing. Defined at TIER_ANCHOR beside the edition labels. None reads like an
+ * edition's label: an edition's label says what the edition holds, these say what the one result offers.
+ */
+export const RECORD_OFFERS = ['report', 'own_pacing', 'no_report', 'listed'] as const;
+export type RecordOffer = (typeof RECORD_OFFERS)[number];
+export const RECORD_OFFER_WORDS: Readonly<Record<RecordOffer, string>> = {
+  report: 'Full race report',
+  own_pacing: 'Own pacing only',
+  no_report: 'No pacing report',
+  listed: 'Listed, not compared',
+};
+
+/**
+ * Why a marathon record has no pacing report, by the lookup's codes (its record status 2 to 6, and a copy edition).
+ * Two reasons are already the edition's own label, so the row says no more than the label and the offer:
+ * `finish_time_only` (the edition reads "Finish times only") and `held_for_review` (it reads "Held for review").
+ */
+export const NO_REPORT_REASONS = ['duplicate', 'missing_checkpoints', 'times_out_of_order', 'outside_bounds', 'finish_time_only', 'held_for_review', 'not_analysed', 'copy_edition'] as const;
+export type NoReportReason = (typeof NO_REPORT_REASONS)[number];
+/** The reasons in plain words, as they read after "No pacing report:"; null where the edition's label says it. */
+export const NO_REPORT_WORDS: Readonly<Record<NoReportReason, string | null>> = {
+  duplicate: 'duplicate of another record',
+  missing_checkpoints: 'checkpoint times missing',
+  times_out_of_order: 'times out of order',
+  outside_bounds: 'outside the pace bounds',
+  finish_time_only: null,
+  held_for_review: null,
+  not_analysed: 'race not analysed for pacing',
+  copy_edition: 'copy of another year’s field',
+};
+
+/**
+ * The words a result's row shows for what it offers. A full race report is the usual case and says nothing (null); a
+ * result whose edition's label already says it has no pacing ("Finish times only") says nothing more either. Every
+ * other result says its offer, and a missing pacing report its reason: "No pacing report: times out of order". A half
+ * marathon is listed: it says nothing unless `notCompared` (its edition's times are compared with no other race).
+ */
+export function recordWords(offer: string, { reason, notCompared }: { reason?: string | null; notCompared?: boolean } = {}): string | null {
+  if (!has(RECORD_OFFERS, offer)) unknownCode('record offer', offer, RECORD_OFFERS);
+  if (offer !== 'no_report' && reason != null) throw new Error(`lib/tiers.ts: only a result with no pacing report has a reason (got "${reason}" for "${offer}").`);
+  if (offer !== 'listed' && notCompared) throw new Error('lib/tiers.ts: only a listed half marathon can be not compared.');
+  if (offer === 'report') return null;
+  if (offer === 'listed') return notCompared ? RECORD_OFFER_WORDS.listed : null;
+  if (offer === 'own_pacing') return RECORD_OFFER_WORDS.own_pacing;
+  if (!has(NO_REPORT_REASONS, reason)) unknownCode('no-report reason', reason, NO_REPORT_REASONS);
+  if (reason === 'finish_time_only') return null;
+  const why = NO_REPORT_WORDS[reason as NoReportReason];
+  return why ? `${RECORD_OFFER_WORDS.no_report}: ${why}` : RECORD_OFFER_WORDS.no_report;
+}
+
 // ---- Plain text for list rows and sentences
 
 /** Words as they read after a count or inside a line: the first letter lowered ("16 verified", "· possible match"). */
@@ -310,6 +365,9 @@ export const TIER_PHRASES: readonly string[] = [...SHOWN_TIERS.map((tier) => TIE
  * and the screens' words. "High", "Medium" and "Low" alone are ordinary words and are not held.
  */
 export const LINK_PHRASES: readonly string[] = [...LINK_CONFIDENCES.map((confidence) => LINK_TIER_WORDS[confidence]).filter((words) => words.includes(',')), ...Object.values(SCREEN_WORDS)];
+
+/** The record words no other file writes: the four offers ("No pacing report", …). The reasons are ordinary phrases. */
+export const RECORD_PHRASES: readonly string[] = RECORD_OFFERS.map((offer) => RECORD_OFFER_WORDS[offer]);
 
 /**
  * The classes components/ui/TierTag.tsx draws with (app/styles/components/badge.css): the badge, the pill, a row's plain

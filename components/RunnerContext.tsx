@@ -18,21 +18,26 @@ import { chunkLoadFailed } from '@/lib/chunk-reload';
 import { isCopyEdition, type CopyEdition } from '@/lib/duplicate-editions-shared';
 import type { ReportData } from '@/lib/report';
 import { linkedYearOf, type LinkedYears } from '@/lib/report-year';
-import { openingPct, timesVerdict, toneOf } from '@/lib/report-verdict';
+import { openingPct, pctNum, pctSigned, sectionChange, timesVerdict, toneOf } from '@/lib/report-verdict';
 import { joinRanges } from '@/components/ui/keepTogether';
 import { readSplits } from '@/lib/tools/split-reading';
 import { loadRaceInsights, runnerAgeBand, runnerGender, type ComparisonKey, type PeerComparison, type RaceInsights, type RunnerTerrain, type RunnerWeather } from '@/lib/runner-context';
 import type { RaceReportProps } from './report/RaceReport';
 import { loadErrorText } from '@/lib/error-text';
 import { EditionLabels } from './runner/records';
+import { RECORD_OFFER_WORDS } from '@/lib/tiers';
 
 const count = (value: number) => value.toLocaleString('en-US');
 const decimal = (value: number, digits = 1) => value.toLocaleString('en-US', { maximumFractionDigits: digits });
 const titleFor = (race: RunnerRace, manifest: RunnerManifest) => `${manifest.editions[race.edition].city} ${manifest.editions[race.edition].year}`;
-/** A change in pace in whole percent, as every share on the site reads; under half a percent it is the same pace. */
-const difference = (value: number) => Math.abs(value) < 0.5 ? 'the same pace as' : `${Math.round(Math.abs(value))}% ${value > 0 ? 'slower' : 'faster'} than`;
-/** A change against the 5–20K pace in whole percent, signed, as the report's rows say it. */
-const signed = (value: number) => { const v = Math.round(Math.abs(value)); return `${v === 0 ? '' : value > 0 ? '+' : '−'}${v}%`; };
+/**
+ * A change in pace against the 5–20K pace in one decimal, as the race report beside the view prints it (m3, November
+ * 20, 2026: one precision for one quantity on these pages); threshold-safe at 25% (pctNum). Under a twentieth of a
+ * percent it is the same pace. `value` is in percent.
+ */
+const difference = (value: number) => Number(pctNum(value / 100, 1)) === 0 ? 'the same pace as' : `${pctNum(value / 100, 1)}% ${value > 0 ? 'slower' : 'faster'} than`;
+/** The same change signed, as the report's rows and the side-by-side table say it ("+13.8%"). `value` is in percent. */
+const signed = (value: number) => pctSigned(value / 100, 1);
 /** A section's time, or a difference, as a stopwatch split: m:ss, or h:mm:ss past the hour ("17:49", never "0:17:49"). */
 const split = (seconds: number) => {
   const s = Math.round(seconds), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = String(s % 60).padStart(2, '0');
@@ -103,8 +108,10 @@ export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace 
   // Each row names its section ("30–35K"), the words the section comparison beside it uses (round 6: "35K 1:17:09" and
   // "30–35K +35:44" named one stretch two ways on one screen).
   const rows = metrics.sections.map((section, i) => {
-    const vs = section.pace / metrics.baseline - 1;
-    return { mat: sectionLabel(section.start, section.end), split: split(section.elapsed), pace: paceLabel(section.pace, units), vs, lit: reading ? toneOf(reading, i) === 'qualify' : false, sr: `${sectionLabel(section.start, section.end)}: ${paceLabel(section.pace, units)}, ${signed(100 * vs)} against the 5–20K pace` };
+    // From the record's whole seconds where the verdict reads them, so the heading, the rows and the race report (built
+    // from the same whole seconds) print the same figure for one stretch (m3, November 20, 2026).
+    const vs = reading ? reading.vsBaseline[i] : section.pace / metrics.baseline - 1;
+    return { mat: sectionLabel(section.start, section.end), split: split(section.elapsed), pace: paceLabel(section.pace, units), vs, lit: reading ? toneOf(reading, i) === 'qualify' : false, sr: `${sectionLabel(section.start, section.end)}: ${paceLabel(section.pace, units)}, ${sectionChange(vs, i)} against the 5–20K pace` };
   });
   const term = <UnitLink className="term-link" href="/methodology#sustained-slowdown">sustained slowdown</UnitLink>;
   // Ranges never break at their dash ("5–20K", "30–35K"): joinRanges puts a word joiner after each.
@@ -112,13 +119,13 @@ export function PacingReadings({ race, metrics, manifest, units }: MeasuredRace 
     : verdict.slowdown ? <>A {term} {joinRanges(`from ${matLabel(verdict.onsetKm)}, ${verdict.off} off the 5–20K pace.`)}</>
       : verdict.worst ? <>No {term}: {joinRanges(`the slowest stretch after 20K, ${sectionLabel(metrics.sections[verdict.worst.index].start, metrics.sections[verdict.worst.index].end)}, ran ${verdict.worst.off} off the 5–20K pace.`)}</>
         : <>No {term}: {joinRanges('every stretch after 20K held the 5–20K pace or better.')}</>;
-  const opening = metrics.openingChange / 100;
+  const opening = reading ? reading.opening : metrics.openingChange / 100;
   return <section className="rc-view" aria-labelledby={`${id}-title`}>
     {/* The race's voice, as the report beside it speaks: a name search can find a namesake's record. */}
     <h3 id={`${id}-title`} className="rc-h">{heading}</h3>
     {/* The first 5K only where it parted from the early pace by 1% or more: a smaller difference says nothing. In the
         report's words and precision ("5.3% quicker"), so the two never disagree. */}
-    {Math.abs(metrics.openingChange) >= 1 ? <p className="rc-copy">The first 5K was {openingPct(opening)} {opening < 0 ? 'quicker' : 'slower'} than the {joinRanges('5–20K')} pace.</p> : null}
+    {Math.abs(opening) >= 0.01 ? <p className="rc-copy">The first 5K was {openingPct(opening)} {opening < 0 ? 'quicker' : 'slower'} than the {joinRanges('5–20K')} pace.</p> : null}
     <LapList by="section" rows={rows} baseline={paceLabel(metrics.baseline, units)} label={`Pace through ${titleFor(race, manifest)}, each mat against the 5–20K pace${verdict?.slowdown ? `; a sustained slowdown from ${matLabel(verdict.onsetKm)}` : ''}`}
       caption={verdict?.slowdown ? 'Highlighted: the sustained slowdown.' : undefined} />
     <details className="values rc-details"><summary><span>Checkpoint readings</span><span className="values-glyph" aria-hidden="true" /></summary>
@@ -157,11 +164,11 @@ export function SectionComparison({ focus, reference, manifest, id }: { focus: M
 
 /**
  * The late pace in plain words, this race's then the group's median, as one named measure: from 30K against its own
- * 5–20K pace, in whole percent ("From 30K this race ran 14% slower than its 5–20K pace; the group’s median ran 9%
- * slower."). The Pacing tab's fallback and the side-by-side table name the same measure.
+ * 5–20K pace, in one decimal as the race report prints it ("From 30K this race ran 13.8% slower than its 5–20K pace;
+ * the group’s median ran 8.7% slower."). The Pacing tab's fallback and the side-by-side table name the same measure.
  */
 export function lateWords(own: number, median: number): string {
-  const said = (v: number, full: boolean) => (Math.abs(v) < 0.5 ? 'held its 5–20K pace' : `ran ${Math.round(Math.abs(v))}% ${v > 0 ? 'slower' : 'faster'}${full ? ' than its 5–20K pace' : ''}`);
+  const said = (v: number, full: boolean) => (Number(pctNum(v / 100, 1)) === 0 ? 'held its 5–20K pace' : `ran ${pctNum(v / 100, 1)}% ${v > 0 ? 'slower' : 'faster'}${full ? ' than its 5–20K pace' : ''}`);
   return `From 30K this race ${said(own, true)}; the group’s median ${said(median, false)}.`;
 }
 
@@ -325,7 +332,7 @@ export default function RunnerContext({ races: selected, manifest, units, copyEd
     <header className="rc-heading"><h2 id={`${id}-title`} className={valid.length < 2 ? undefined : 'sr-only'}>{`${titleFor(focus.race, manifest)}, ${runnerDuration(focus.metrics.finish)}`}</h2><label className="rc-focus" htmlFor={`${id}-focus`} hidden={valid.length < 2}>Focus race<select id={`${id}-focus`} className="select" value={focus.race.key} onChange={event => { setReportPressed(false); setFocusId(event.target.value); }}>{valid.map(row => <option key={row.race.key} value={row.race.key}>{optionText(row, valid)}</option>)}</select></label>
       {/* Every race in view shows its edition's tier (D16); a race of an edition that is not counted keeps its own pacing and is compared with no one (R4). */}
       <p className="rc-labels"><EditionLabels edition={edition} link /></p>
-      {focus.race.counted ? null : <p className="rc-copy rc-own">Its own pacing only: this race is compared with no other finishes.</p>}</header>
+      {focus.race.counted ? null : <p className="rc-copy rc-own">{RECORD_OFFER_WORDS.own_pacing}: this race is compared with no other finishes.</p>}</header>
     {/* With the race report open it takes the view's place (round 5: appended under the view, it repeated the Pacing
         tab's lap list a screen higher): the tabs and the comparison step aside behind one way back. */}
     {showReport ? null : <>

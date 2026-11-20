@@ -3,6 +3,8 @@
 // The tier and link vocabulary (lead decision D16, November 14, 2026; docs/DESIGN_SYSTEM.md, "Tier and link labels").
 // One module holds the words (lib/tiers.ts) and one file draws them (components/ui/TierTag.tsx). This checks that:
 //   1. the vocabulary is exactly the tables below: these codes, these words, these forms, the two anchors, no more;
+//      the record words (what one result offers, decision D49, November 20, 2026) are the RECORD table, and none of
+//      them reads like an edition's label;
 //      every link confidence has its quiet words and every screen its words; every timing-basis text of the release is
 //      classed once (chip, chip_fallback, gun, mixed, not_stated, as the linked-records contract classes them), and
 //      only the gun class has words;
@@ -66,6 +68,22 @@ const TABLE = [
   { kind: 'split', code: 'finish_time_only', words: 'Finish times only', form: 'pill' },
   { kind: 'timing', code: 'gun', words: 'Gun times', form: 'pill' },
   ...['medium_variant', 'low', 'low_noage', 'low_noage_series', 'low_nosex', 'low_city_pace', 'low_carryover'].map((code) => ({ kind: 'link', code, words: 'Possible match', form: 'pill' })),
+];
+/**
+ * What one recorded result offers on the runner pages (decision D49, November 20, 2026): the offers, the reasons a
+ * marathon record has no pacing report, and the words a row prints for each (null: the row adds nothing, the usual
+ * case or a reason the edition's own label states). None may read like an edition's label ("Finish times only" above).
+ */
+const RECORD_OFFERS = { report: 'Full race report', own_pacing: 'Own pacing only', no_report: 'No pacing report', listed: 'Listed, not compared' };
+const NO_REPORT = {
+  duplicate: 'duplicate of another record', missing_checkpoints: 'checkpoint times missing', times_out_of_order: 'times out of order',
+  outside_bounds: 'outside the pace bounds', finish_time_only: null, held_for_review: null, not_analysed: 'race not analysed for pacing',
+  copy_edition: 'copy of another year’s field',
+};
+/** What a row prints: [offer, options, words]. */
+const RECORD_ROWS = [
+  ['report', {}, null], ['own_pacing', {}, 'Own pacing only'], ['listed', {}, null], ['listed', { notCompared: true }, 'Listed, not compared'],
+  ...Object.entries(NO_REPORT).map(([reason, words]) => ['no_report', { reason }, reason === 'finish_time_only' ? null : words ? `No pacing report: ${words}` : 'No pacing report']),
 ];
 /** Codes without a pill: the usual case. A link still shows its confidence in quiet words (QUIET_WORDS). */
 const NO_PILL = { split: ['splits'], link: ['high_elite', 'high', 'medium'] };
@@ -145,6 +163,8 @@ function scanRules(t) {
   }
   // The quiet words of a link that have two or more parts, and the screens' words, anywhere in a text.
   for (const phrase of t.LINK_PHRASES) phrases.push({ phrase, test: new RegExp(`\\b${phrase.toLowerCase().split(/[\s,]+/).join('[\\s,-]+')}\\b`, 'i') });
+  // The record words (D49): each offer anywhere in a text, in any case (the reasons are ordinary phrases).
+  for (const phrase of t.RECORD_PHRASES) phrases.push({ phrase, test: new RegExp(`\\b${phrase.toLowerCase().split(/[\s,]+/).join('[\\s,-]+')}\\b`, 'i') });
   return { phrases, classes: new RegExp(`\\b(?:${t.TIER_CLASSES.join('|')})\\b`) };
 }
 
@@ -478,6 +498,9 @@ function selfTest(t) {
     ['components/x.tsx', "const a = 'High'; const b = 'Low'; const c = 'Medium'; const d = 'a low heart rate, no age given'; const e = 'medium variant';", []],
     ['components/x.tsx', "const a = `${tier} · recorded ages differ`; const b = 'Two results in one edition';", ['phrase recorded ages differ', 'phrase two results in one edition']],
     ['components/x.tsx', "const a = <span className=\"tier-quiet\">High</span>;", ['class tier-quiet']],
+    ['components/x.tsx', "const a = 'No pacing report: times out of order'; const b = <p>Its own pacing only: compared with no one.</p>;", ['phrase No pacing report', 'phrase Own pacing only']],
+    ['components/x.tsx', "const a = 'Listed, not compared'; const b = 'a full race report';", ['phrase Listed, not compared', 'phrase Full race report']],
+    ['components/x.tsx', "const a = 'times out of order'; const b = 'the race report'; const c = 'not compared with other races';", []],
     [MODULE, "export const POSSIBLE_MATCH = 'Possible match'; export const TIER_CLASSES = ['tier-chip'];", []],
   ];
   let failed = 0;
@@ -615,6 +638,19 @@ function main() {
   const identity = /^REASONS = \[([^\]]+)\]/m.exec(read('analysis/build_identity.py'));
   eq(identity && [...identity[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]), REASONS, 'analysis/build_identity.py lists the same reasons in the same order');
   eq([...t.LINK_PHRASES], [...Object.values(QUIET_WORDS).filter((words) => words.includes(',')), ...Object.values(SCREENS)], 'the link phrases no other file writes');
+  // The record words (D49): the offers, the reasons and what a row prints for each; none reads like an edition's label.
+  eq([...t.RECORD_OFFERS], Object.keys(RECORD_OFFERS), 'the record offers, in order');
+  eq({ ...t.RECORD_OFFER_WORDS }, RECORD_OFFERS, 'the words of the record offers');
+  eq([...t.NO_REPORT_REASONS], Object.keys(NO_REPORT), 'the reasons a marathon record has no pacing report');
+  eq({ ...t.NO_REPORT_WORDS }, NO_REPORT, 'the words of those reasons');
+  eq([...t.RECORD_PHRASES], Object.values(RECORD_OFFERS), 'the record phrases no other file writes');
+  for (const [offer, options, words] of RECORD_ROWS) eq(t.recordWords(offer, options), words, `a row of ${offer} ${JSON.stringify(options)}`);
+  const labelWords = [...TABLE.map((row) => row.words), ...Object.values(QUIET_WORDS)];
+  for (const words of [...Object.values(RECORD_OFFERS), ...Object.values(NO_REPORT).filter(Boolean)]) {
+    ok(/^[A-Za-z][a-z’]+(?:,? [a-z’]+)*$/.test(words), `"${words}" is plain words with no number`);
+    ok(!labelWords.some((label) => label.toLowerCase() === words.toLowerCase()) && !/\btimes only\b|\brecorded times\b|\bverified\b|\bpartial\b|\bpossible\b/i.test(words), `"${words}" cannot be read as an edition's or a link's label`);
+  }
+  for (const [offer, options] of [['bogus', {}], [undefined, {}], ['no_report', {}], ['no_report', { reason: 'bogus' }], ['report', { reason: 'duplicate' }], ['own_pacing', { notCompared: true }]]) throws(() => t.recordWords(offer, options), /lib\/tiers\.ts/, `record words for ${offer} ${JSON.stringify(options)} are refused`);
   // The timing classes: every text classed once, a class code its own class, and only gun with words.
   eq([...t.TIMING_CLASSES], TIMING_CLASSES, 'the timing classes of the linked-records contract');
   eq([...t.TIMING_BASES.gun], GUN_TEXTS, 'the texts the release states as gun or gross time');
@@ -802,6 +838,10 @@ function main() {
   eq([html(C.TagGroup, { children: 'x' }), html(C.TagGroup, { link: false, className: 'y', children: 'x' })], ['<span class="tier-tags tier-tags-links">x</span>', '<span class="tier-tags y">x</span>'], 'the group, for a page that composes its own labels');
   ok(t.TIER_LABEL_CLASS.test(html(C.LinkTier, { confidence: 'low' })), 'TIER_LABEL_CLASS finds the quiet words');
   ok(/^<span class="tier-tags tier-tags-links"><a [^>]*>Verified, weaker source<\/a><\/span>$/.test(html(C.EditionTags, { tier: 'stamped_weaker_source', weakerSource: true, splitTier: 'splits', timingBasis: 'chip' })), 'a group of links leaves room between rows');
+  for (const [offer, options, words] of RECORD_ROWS) {
+    const markup = html(C.RecordTag, { offer, ...options, className: 'x' });
+    eq(markup, words === null ? '' : `<span class="x" data-record="${options.reason ? `${offer}:${options.reason}` : offer}">${words}</span>`, `the record tag of ${offer} ${JSON.stringify(options)}: text, never a link`);
+  }
   eq(html(C.TierLine, { counts: { stamped_weaker_source: 6, held_for_review: 10 } }), `<span class="tier-line">6 verified, weaker source${dot}10 held for review</span>`, 'the tier line is plain words');
   ok(t.TIER_LABEL_CLASS.test(html(C.TierLine, { counts: { stamped: 16 } })) && !t.TIER_LABEL_CLASS.test('<span class="frontier-chips">') && !t.TIER_LABEL_CLASS.test(html(C.TierTerm, { children: 'x' })), 'TIER_LABEL_CLASS finds the labels and the line, and nothing else');
   eq([attribute(html(C.TierTerm, { children: 'x' }), 'href'), attribute(html(C.LinkTerm, { children: 'x' }), 'href')], [ANCHOR.tier, ANCHOR.link], 'the two terms link to the two anchors');
@@ -821,7 +861,14 @@ function main() {
   for (const row of TABLE.filter((row) => row.kind !== 'link')) ok(tiersHtml.includes(`<span class="${CLASS[row.form]}" data-${row.kind === 'tier' ? 'tier' : row.kind === 'split' ? 'split-tier' : 'timing'}="${row.code}">${row.words}</span>`), `#edition-tiers defines "${row.words}" beside its label`);
   ok(/<span class="tier-chip" data-link="[a-z_]+">Possible match<\/span>/.test(linksHtml), '#link-confidence defines "Possible match" beside its pill');
   for (const [code, words] of Object.entries(QUIET_WORDS)) ok(linksHtml.includes(quietHtml(code, words)), `#link-confidence defines "${words}"`);
-  eq((methods.match(/<dd>/g) || []).length, TABLE.filter((row) => row.kind !== 'link').length + 1 + Object.keys(QUIET_WORDS).length, 'one meaning for each label, and no other');
+  // The record words under #edition-tiers: each word a row can print beside its meaning, drawn as the row draws it,
+  // and the full report, which a row never prints, in the module's words (D49, November 20, 2026).
+  const recordShown = RECORD_ROWS.filter(([, , words]) => words !== null);
+  const definedRecords = [...tiersHtml.matchAll(/<dt><span[^>]*data-record="([^"]+)"[^>]*>([^<]+)<\/span><\/dt><dd>[^<]+<\/dd>/g)].map((m) => [m[1], m[2]]);
+  eq(definedRecords, [['report', RECORD_OFFERS.report], ...[['own_pacing', {}], ['no_report', { reason: 'held_for_review' }], ...['missing_checkpoints', 'times_out_of_order', 'outside_bounds', 'duplicate', 'not_analysed', 'copy_edition'].map((reason) => ['no_report', { reason }]), ['listed', { notCompared: true }]]
+    .map(([offer, options]) => [options.reason ? `${offer}:${options.reason}` : offer, recordShown.find(([o, opt]) => o === offer && JSON.stringify(opt) === JSON.stringify(options))[2]])], '#edition-tiers defines every record word a row prints, and the full report, in this order');
+  ok(recordShown.every(([offer, options]) => definedRecords.some(([code]) => code === (options.reason ? `${offer}:${options.reason}` : offer))), '#edition-tiers defines every record word a row can print');
+  eq((methods.match(/<dd>/g) || []).length, TABLE.filter((row) => row.kind !== 'link').length + 1 + Object.keys(QUIET_WORDS).length + definedRecords.length, 'one meaning for each label, and no other');
   ok(!/<a [^>]*class="tier-/.test(methods), 'on the page that defines them the labels are bare');
   // Every number the two definitions print, recounted from the files in the order the page prints them (November 19,
   // 2026: the counts joined the words). The producer's notes are checked apart, as quotations.
@@ -849,6 +896,9 @@ function main() {
   ok(section.length > 0, 'docs/DESIGN_SYSTEM.md has the section "Tier and link labels"');
   for (const row of TABLE) ok(section.includes(`| ${row.words} |`) && (row.kind === 'timing' || section.includes(`\`${row.code}\``) || /^low/.test(row.code)), `the section’s table has ${row.code}: ${row.words}`);
   for (const word of [...NEVER_SHOWN, ...NO_PILL.split, ...NO_PILL.link, ANCHOR.tier, ANCHOR.link, ...t.TIER_CLASSES, ...Object.values(QUIET_WORDS).map((words) => `| ${words} |`), ...Object.values(SCREENS), ...TIMING_CLASSES.map((cls) => `\`${cls}\``), 'with partial results']) ok(section.includes(word), `the section names ${word}`);
+
+  for (const [, , words] of RECORD_ROWS.filter(([, , words]) => words !== null)) ok(section.includes(`| ${words} |`) || section.includes(`; ${words} |`), `the section’s record table has "${words}"`);
+  ok(section.includes(RECORD_OFFERS.report) && section.includes('`RecordTag`'), 'the section names the full report and RecordTag');
 
   // ---- 5. The styles.
   const sheets = walk(path.join(ROOT, 'app'), /\.css$/).map((file) => [rel(file), fs.readFileSync(file, 'utf8')]);
