@@ -4,7 +4,7 @@ import Axis from './Axis';
 import Plot, { Baseline, Gridlines } from './Plot';
 import Scrubber from './Scrubber.client';
 import Annotation from './Annotation';
-import { placeLabels, type LabelItem } from './labels';
+import { keepClearOf, LINE_BOX, placeLabels, REF_WIDTH, textWidth, type LabelItem } from './labels';
 import { extent, linear, pc, yScale } from './scale';
 
 /**
@@ -54,7 +54,18 @@ export default function Scatter({ points, xTicks, yTicks, xDomain, yDomain, labe
   // Labels keep clear of every dot, of the ring the chart opens on (12 px round its point) and of the pair's line.
   const avoid = points.map((p, i) => ({ x: x(p.x), y: y(p.y), r: i === start ? 13 : 4 }));
   const along = joined ? Array.from({ length: 9 }, (_, k) => ({ x: x(pair[0].x) + ((k + 1) / 10) * (x(pair[1].x) - x(pair[0].x)), y: y(pair[0].y) + ((k + 1) / 10) * (y(pair[1].y) - y(pair[0].y)), r: 2 })) : [];
-  const placed = placeLabels(items, { height, avoid: [...avoid, ...along] });
+  // Labels keep clear of the gridlines' labels too (12 px text at the plot's left edge, its baseline 5 px over the line).
+  // At the reference width a label that would meet one takes its next place (the other side of its point, or a nudge);
+  // below it the grid label keeps its pixels at the edge while the labels move in with the plot, so a label that would
+  // meet one there hides below that width (keepClearOf), and the readout names its point (195 px, round 5 lint: a
+  // "2017" over the "0%"). Every box is the one a browser measures for the text (its line box, not only its glyphs), so
+  // no two labels' boxes touch at any width: the estimate of a "%" runs short, so the grid label's box takes 8 px more,
+  // and it spans its line box (baseline 5 px over the line, Inter's ascent and descent) with a pixel to spare.
+  const grid = yTicks.map((t) => ({ y: y(t.value), w: textWidth(t.label, 12, 500) + 8 }));
+  const gridAt = (g: (typeof grid)[number]) => ({ x0: 0, x1: g.w, y0: g.y * height - 18, y1: g.y * height - 1 });
+  const gridBoxes = grid.map((g) => { const b = gridAt(g); return { x0: 0, x1: b.x1 / REF_WIDTH, y0: b.y0 / height, y1: b.y1 / height, pad: 0 }; });
+  const placed = placeLabels(items, { height, avoid: [...avoid, ...along], boxes: gridBoxes, em: LINE_BOX });
+  for (const g of grid) keepClearOf(placed, () => gridAt(g), height, LINE_BOX);
   const plot = (
     <Plot>
       <Gridlines lines={yTicks.map((t) => ({ y: y(t.value), label: t.label }))} />
