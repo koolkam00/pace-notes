@@ -4,6 +4,8 @@ Updated November 20, 2026 for **`pace-notes-marathon-half-20261113-1113`**, the 
 
 ## pace-notes-marathon-half-20261113-1113 (adopted on the branch)
 
+The heading keeps its wording so that links to it hold: since November 20, 2026 the release is on `main`, merged as #101 (`03f3dfb4`, 18:18:54 UTC), and production served it from 18:23 UTC ([project handoff](../docs/PROJECT_HANDOFF.md#current-state)).
+
 - [`pace-notes-marathon-half-20261113-1113` and all assets](https://github.com/koolkam00/pace-notes/releases/tag/pace-notes-marathon-half-20261113-1113) (published 2026-11-13 23:21:04 UTC; licence CC BY 4.0; the owner's intake note names the Figshare copy [`10.6084/m9.figshare.34858428.v3`](https://doi.org/10.6084/m9.figshare.34858428.v3) with the same 20 files): one CORE archive for the marathon and the half, the producer's person links v5.1 and ten documents (`README.md`, `DATA-CARD.md`, `CHANGE-REPORT.md` and seven about the links).
 
 | File | Bytes | SHA-256 |
