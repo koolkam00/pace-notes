@@ -120,7 +120,7 @@ export default function FastSlowYearsBody() {
     return (
       <div key={race ?? 'all'} data-race={race ?? ''} {...(race ? {} : { 'data-race-default': '' })}
         hidden={race ? race !== initial : fieldRaces.includes(initial)} className="linked-panel">
-        <Scatter points={points} xDomain={[fx0, fx1]} yDomain={[fy0, fy1]} pairLine={false} labelAll={false}
+        <Scatter points={points} xDomain={[fx0, fx1]} yDomain={[fy0, fy1]} pairLine={false} labelAll={false} group
           xTicks={fxTicks} yTicks={[{ value: fy1, label: signedPct(fy1, 0) }, { value: 0, label: '0%' }, { value: fy0, label: signedPct(fy0, 0) }]}
           axisTitle={{ start: 'Fewer sustained slowdowns than usual (points)', end: 'More' }}
           keys={race ? [{ label: race, mark: 'dot', tone: 'ink' }, { label: 'Other races', mark: 'dot', tone: 'quiet' }] : undefined}
