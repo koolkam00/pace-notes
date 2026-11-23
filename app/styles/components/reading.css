@@ -33,6 +33,9 @@
 .reading-crumbs > .marker-badge { flex: none; }
 .reading-crumbs a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; }
 .reading-crumbs a:hover { color: var(--ink); text-decoration: none; }
+/* A crumb link is as tall as the row, and the row clips (above), so a ring drawn 2 px outside the link lost its top and
+   bottom edges. The ring is drawn just inside the link's box instead, where all four sides show. */
+.reading-crumbs a:focus-visible { outline-offset: -2px; }
 .reading-crumbs .crumb-text { text-wrap: balance; }
 .reading-crumbs .crumb-number { white-space: nowrap; }
 /* Where the chapter must wrap (a phone at 200% zoom), it breaks after "Chapter 06 ·", and its name stays whole. */
