@@ -13,7 +13,7 @@ The first entries were seeded on 2026-10-14 from a full diagnosis of the live si
 Score = reach × expected effect × evidence ÷ effort, adjusted for risk. Don't let the backlog grow past about 25 items: merge duplicates and drop stale ones, giving the reason in the item.
 
 ## In flight
-- **Show the whole keyboard focus ring on the chapter breadcrumb** (2026-11-23, a fix, ledger `2026-11-23-crumb-focus-ring`). The ring on the chapter link above a page's title lost its top and bottom edges to the row's clipping; it is now drawn inside the link. Found by an audit of the live site, not by the scorecard.
+- **Show the whole keyboard focus ring on the chapter breadcrumb** (2026-11-23, a fix, ledger `2026-11-23-crumb-focus-ring`). The ring on the chapter link above a page's title lost its top and bottom edges to the row's clipping; the row now clips only sideways, where the browser can, so the whole ring shows. Found by an audit of the live site, not by the scorecard.
 
 Before that: nothing (2026-10-30). The two items that were here moved to Done, with the reason in each.
 
