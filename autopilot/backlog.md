@@ -13,11 +13,15 @@ The first entries were seeded on 2026-10-14 from a full diagnosis of the live si
 Score = reach × expected effect × evidence ÷ effort, adjusted for risk. Don't let the backlog grow past about 25 items: merge duplicates and drop stale ones, giving the reason in the item.
 
 ## In flight
-Nothing (2026-10-30). The two items that were here moved to Done, with the reason in each.
+- **Show the whole keyboard focus ring on the chapter breadcrumb** (2026-11-23, a fix, ledger `2026-11-23-crumb-focus-ring`). The ring on the chapter link above a page's title lost its top and bottom edges to the row's clipping; the row now clips only sideways, where the browser can, so the whole ring shows. Found by an audit of the live site, not by the scorecard.
+
+Before that: nothing (2026-10-30). The two items that were here moved to Done, with the reason in each.
 
 **Run of 2026-11-12:** no site change. The scorecard counts desktop visits that look automated (137 of 447 over 2026-10-21..2026-11-11; `autopilot/LEARNINGS.md`, 2026-11-12), so a before/after comparison would mostly measure their schedule. Issue #97 asks the owner for a scorecard without them. Until it is settled, prefer a fix (no before/after baseline) to a measured change, and give every rate with and without those visits.
 
 **Run of 2026-11-19:** no site change, for the same reason: issue #97 has no answer yet, nothing was found broken (live smoke test passed, no `site_error` in the last 7 days), and no ledger entry is due. The scheduled run of Monday 2026-11-16 did not happen: its wake-up reached the session on 2026-11-19, together with this one.
+
+**Run of 2026-11-23:** one fix (In flight, above). Issue #97 still has no answer, so no measured change; issue #100 (the CI runner) was fixed by the owner in pull request #101 and is waiting to be closed.
 
 ## Ready (ranked)
 

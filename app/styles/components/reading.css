@@ -33,6 +33,11 @@
 .reading-crumbs > .marker-badge { flex: none; }
 .reading-crumbs a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; }
 .reading-crumbs a:hover { color: var(--ink); text-decoration: none; }
+/* A crumb link is as tall as the row, so a row that clips on every side cut the top and bottom off the link's focus
+   ring. Where the browser can clip one axis alone, the row clips only sideways (which is all the "·" above needs) and
+   the ring is whole. The ring sits 1 px out here, so its sides fit the row's 3 px of padding. */
+@supports (overflow: clip) { .reading-crumbs { overflow-x: clip; overflow-y: visible; } }
+.reading-crumbs a:focus-visible { outline-offset: 1px; }
 .reading-crumbs .crumb-text { text-wrap: balance; }
 .reading-crumbs .crumb-number { white-space: nowrap; }
 /* Where the chapter must wrap (a phone at 200% zoom), it breaks after "Chapter 06 ·", and its name stays whole. */
