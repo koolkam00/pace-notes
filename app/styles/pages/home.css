@@ -48,13 +48,13 @@
 /* Under 300 px (200% zoom) the band is too short for a 20K label clear of the dots: Start and Finish name the ends. */
 @media (max-width: 299.98px) { .home-start .hero-replay.is-band .replay-mats span:nth-child(3) { display: none; } }
 .home-start .hero-replay.is-band .replay-moment { grid-column: 1; grid-row: 4; min-height: 2.6em; margin-top: var(--s-2); font-size: .9375rem; }
-/* Up to 405 px wide (a band of 373 px) the sentence takes three lines in its own font, while the fallback font fits it
+/* From 308 to 405 px wide (a band up to 371.8 px) the sentence takes three lines in its own font, while the fallback font fits it
    in two from 390 px: with two lines reserved, the first screen below it dropped 15 px when the font arrived (iPhones
    of 390, 393 and 402 px are in that range). Three lines are reserved there, so the row is as tall before the font as after it.
    The band is the container on a phone only, and the query is on its width, the sentence's own measure. That width is
    the present sentence's, in miles and in kilometres (measured November 26, 2026): measure again if its words change. */
 @media (max-width: 599.98px) { .home-start .hero-replay.is-band { container: home-band / inline-size; } }
-@container home-band (max-width: 373.98px) { .home-start .hero-replay.is-band .replay-moment { min-height: 3.9em; } }
+@container home-band (max-width: 371.98px) { .home-start .hero-replay.is-band .replay-moment { min-height: 3.9em; } }
 .home-start .hero-replay.is-band .replay-scrub { grid-column: 2; grid-row: 4; align-self: center; margin-top: var(--s-2); }
 
 /* ---------- The three ways to start (components/home/HomeDoors.tsx) ---------- */
