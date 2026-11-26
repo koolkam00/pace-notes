@@ -13,7 +13,7 @@ The first entries were seeded on 2026-10-14 from a full diagnosis of the live si
 Score = reach × expected effect × evidence ÷ effort, adjusted for risk. Don't let the backlog grow past about 25 items: merge duplicates and drop stale ones, giving the reason in the item.
 
 ## In flight
-- **Show the whole keyboard focus ring on the chapter breadcrumb** (2026-11-23, a fix, ledger `2026-11-23-crumb-focus-ring`). The ring on the chapter link above a page's title lost its top and bottom edges to the row's clipping; the row now clips only sideways, where the browser can, so the whole ring shows. Found by an audit of the live site, not by the scorecard.
+- **Stop the home page's first phone screen dropping when the font arrives** (2026-11-26, a fix, ledger `2026-11-26-home-sentence-shift`). On phones 390 to 405 px wide the replay's sentence took two lines in the fallback font and three in its own, with two reserved, so the hero's text dropped 15 px as the font arrived (lab layout shift 0.147 at 390 px). Three lines are now reserved up to 405 px. Found from the smoke test's lab figure, not from the scorecard.
 
 Before that: nothing (2026-10-30). The two items that were here moved to Done, with the reason in each.
 
@@ -21,7 +21,9 @@ Before that: nothing (2026-10-30). The two items that were here moved to Done, w
 
 **Run of 2026-11-19:** no site change, for the same reason: issue #97 has no answer yet, nothing was found broken (live smoke test passed, no `site_error` in the last 7 days), and no ledger entry is due. The scheduled run of Monday 2026-11-16 did not happen: its wake-up reached the session on 2026-11-19, together with this one.
 
-**Run of 2026-11-23:** one fix (In flight, above). Issue #97 still has no answer, so no measured change; issue #100 (the CI runner) was fixed by the owner in pull request #101 and is waiting to be closed.
+**Run of 2026-11-23:** one fix (Done, below). Issue #97 still has no answer, so no measured change; issue #100 (the CI runner) was fixed by the owner in pull request #101 and is waiting to be closed.
+
+**Run of 2026-11-26:** one fix (In flight, above), and the bookkeeping for the 2026-11-23 fix. Issue #97 still has no answer, and its marker now misses some visits that look automated (`autopilot/LEARNINGS.md`, 2026-11-26), so still no measured change.
 
 ## Ready (ranked)
 
@@ -37,6 +39,7 @@ Before that: nothing (2026-10-30). The two items that were here moved to Done, w
    - Until the rate is back at 1% or less, each new entry's decision rule says in advance, with the numbers, that this guardrail is already past its threshold, and names the part of its rule the entry will be judged on (skill, step 5.3).
    - **Update (2026-11-12, PostHog, 2026-10-21..2026-11-11):** 13 of 447 visits had a `site_error` (2.9%); without the 137 automated-looking desktop visits, 10 of 310 (3.2%), so leaving those out does not bring the rate down. The 17 events by `category`: `chunk_load` 7 (all Mobile Safari, on `/`, `/about`, `/stories` and `/runners`), `js_error` 3, `unhandled_rejection` 3, `data_fetch` 2, `render` 2 (desktop). A `site_error` carries only its category, so the cause is not in the data: reproduce it. The live smoke test on 2026-11-12 passed all of its 212 checks, so it does not reproduce any of them.
    - **Update (2026-11-19, PostHog, 2026-10-22..2026-11-18):** 12 of 479 visits had a `site_error` (2.5%); none of the 64 visits of the last 7 days did. All 7 `chunk_load` events (6 visits, all Mobile Safari) fired within a minute of their visit's first event, and 4 of the 6 visits were one page. A visit starts again after idle time, so the guess above (a tab opened before a deploy) is still possible; so are a page shown again from the browser's stored copy after a deploy and a first load that fails on a poor connection. The data cannot tell them apart: reproduce one before proposing anything. All three are handled in protected files (`lib/chunk-reload.*`, the error pages) or in hosting settings, so a fix is likely the owner's: bring a reproduction and a concrete proposal to an `autopilot:needs-owner` issue, not a guess.
+   - **Update (2026-11-26, PostHog, 2026-10-29..2026-11-25):** 5 of 312 visits had a `site_error` (1.60%), down from 8 of 255 (3.14%) over 2026-10-21..2026-10-28; the most recent `site_error` was on 2026-11-11, and none of the 56 visits of the last 7 days had one. Still above 1%, on few visits: 1% of 312 is 3.12. Nothing to reproduce this run; if no new error arrives, the 28-day rate falls under the threshold by itself around 2026-12-10, when the last error leaves the window.
 2. **Give desktop visits an answer on the first screen**
    - **Evidence (2026-11-09, PostHog, 2026-10-21..2026-11-08, 411 visits):**
      - desktop was 210 of the visits (51.1%), and 20 of them were answered (9.5%, `answered_visit_rate@v2`), against 65 of 201 on phones (32.3%);
@@ -121,6 +124,7 @@ Before that: nothing (2026-10-30). The two items that were here moved to Done, w
 - **Any change to how errors are counted, caught or reloaded** (added 2026-11-09; protected: `lib/analytics.*`, `lib/data-fetch.*`, `lib/chunk-reload.*`, `components/SiteAnalytics.*`, `app/**/error.*`, `app/**/global-error.*`; a custom error boundary is an owner-only action). The error guardrail is past its threshold (Ready: "Bring error visits back under the guardrail"). A run fixes causes in page or component code that is not protected; a fix that has to change these files is the owner's.
 
 ## Done
+- 2026-11-23: the keyboard focus ring on the chapter breadcrumb shows whole (pull request #104, merged 2026-11-23, ledger `2026-11-23-crumb-focus-ring`). The row clipped the ring's top and bottom edges; it now clips only sideways, where the browser can. Checked on the live `/half` page at 390 px after the merge.
 - 2026-10-15: experiment `home-hero-v1` was dropped before merge and never ran; the home page shipped without it in PR #60, and its box is in git history at `03cc05b` (moved from In flight on 2026-10-30).
 - 2026-10-15: the first improvement bundle (no-match search path, phone header, home-chapter links to tools, round mile ticks, hero copy, tool handoffs, the desktop font-swap fix) shipped in PR #60 (`cbd59f8`) without a ledger line, so it has no pre-registered evaluation; the home page it changed was replaced on 2026-10-16 (moved from In flight on 2026-10-30).
 - 2026-10-14: old-Safari crash fix (79 of 115 pages crashed on iOS < 16.4), error pages with one-time reload, privacy-safe visit signals, experiments framework, browser privacy test in CI. This was the setup, shipped by the owner's session.
